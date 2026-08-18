@@ -238,6 +238,26 @@ def road_10k_capability_available() -> bool:
     return capability_is_available(OUTDOOR_ROAD_10K_CAPABILITY.capability_id)
 
 
+def client_visible_goal(goal: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Return the Goal shape safe to expose while road 10K stays inactive."""
+    raw_goal = dict(goal or {})
+    if (
+        str(raw_goal.get("goal_kind") or "").strip().casefold()
+        != "performance_10k"
+        or road_10k_capability_available()
+    ):
+        return raw_goal
+    fallback = dict(raw_goal)
+    fallback["goal_kind"] = (
+        "race"
+        if str(
+            raw_goal.get("race_date") or raw_goal.get("target_event_date") or ""
+        ).strip()
+        else "continuous"
+    )
+    return fallback
+
+
 def canonical_goal_plan_contract(
     goal: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
@@ -431,7 +451,7 @@ def discover_plan_generation_capabilities(
     """Return the owner-scoped current Goal and all accepted policies."""
     config = load_config_from_db(user_id, db)
     raw_goal = dict(config.goal or {})
-    normalized_goal = _normalize_goal(raw_goal)
+    normalized_goal = _normalize_goal(client_visible_goal(raw_goal))
     current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
     selected = _select_capability(raw_goal)
     active_plan_goal = _active_plan_goal_link(

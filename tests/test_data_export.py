@@ -283,12 +283,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 request_fingerprint="g" * 64,
                 predecessor_proposal_id=None,
                 predecessor_version=None,
-                observed_input_snapshot={
-                    "completed_running_history": [],
-                    "intensity_sources": [["owner-activity", "activity_splits"]],
-                },
-                derived_history_statistics={"usable_completed_weeks": 8},
-                validation_results={"code": "eligible_rolling_proposal"},
+                result_code="eligible_rolling_proposal",
+                validation_reason_code=None,
             ),
             Activity(
                 user_id=owner_id,
@@ -556,12 +552,20 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         "exported_at": payload["road_10k_plan_generation"]["exported_at"],
         "records": [payload["road_10k_plan_generation"]["records"][0]],
     }
-    assert payload["road_10k_plan_generation"]["records"][0]["id"] == (
-        "owner-road-10k-generation"
-    )
-    assert payload["road_10k_plan_generation"]["records"][0][
-        "observed_input_snapshot"
-    ]["intensity_sources"] == [["owner-activity", "activity_splits"]]
+    road_10k_record = payload["road_10k_plan_generation"]["records"][0]
+    assert road_10k_record["id"] == "owner-road-10k-generation"
+    assert road_10k_record["baseline_snapshot_id"] == "owner-road-10k-snapshot"
+    assert road_10k_record["baseline_source"] == "race"
+    assert road_10k_record["history_cutoff_completed_days"] == 56
+    assert road_10k_record["history_observation_ids"] == ["owner-activity"]
+    assert road_10k_record["selected_template_ids"] == [
+        "road-10k-controlled-threshold-quality-v1"
+    ]
+    assert road_10k_record["result_code"] == "eligible_rolling_proposal"
+    assert road_10k_record["validation_reason_code"] is None
+    assert "observed_input_snapshot" not in road_10k_record
+    assert "derived_history_statistics" not in road_10k_record
+    assert "validation_results" not in road_10k_record
     assert payload["personal_context"] == {
         "schema_version": 1,
         "exported_at": payload["personal_context"]["exported_at"],
@@ -588,3 +592,14 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         "other-confirmation",
     ):
         assert excluded not in serialized
+    record_json = json.dumps(road_10k_record)
+    for excluded in (
+        "completed_running_history",
+        "reserved_dates",
+        "\"event_context\":",
+        "target_time_sec",
+        "target_event_date",
+        "usable_completed_weeks",
+        "The proposal no longer meets the deterministic road 10K policy.",
+    ):
+        assert excluded not in record_json

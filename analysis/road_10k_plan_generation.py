@@ -9,14 +9,18 @@ from statistics import median
 from typing import Any, Literal, Mapping, Sequence
 
 from analysis.road_10k_contract import (
+    ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS,
     ROAD_10K_CONTRACT_DIGEST,
+    ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
     ROAD_10K_EVENTS,
-    ROAD_10K_EXECUTION,
     ROAD_10K_GENERATOR_VERSION,
+    ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS,
     ROAD_10K_INTENSITY,
     ROAD_10K_POLICY_VERSION,
-    ROAD_10K_READINESS,
+    ROAD_10K_PROPOSAL_DAYS,
+    ROAD_10K_REASSESSMENT_COMPLETED_DAYS,
     ROAD_10K_REQUIRED_INPUTS,
+    ROAD_10K_RESULT_CODES,
     ROAD_10K_SCHEDULE,
     ROAD_10K_SCIENCE_DECISION_ID,
     ROAD_10K_SOURCE_DECISION_DIGEST,
@@ -25,23 +29,8 @@ from analysis.road_10k_contract import (
 )
 
 
-_ALLOWED_RESULT_CODES = frozenset({
-    "eligible_rolling_proposal",
-    "eligible_taper_proposal",
-    "missing_or_stale_direct_baseline",
-    "insufficient_recent_history",
-    "limited_guidance_event_conflict",
-    "limited_near_term_guidance",
-    "safety_stop",
-    "adult_scope_or_constraints_unconfirmed",
-    "contradictory_input",
-    "unsupported_intent_distance_surface_or_population",
-    "no_schedule_within_envelope",
-    "validation_failed",
-})
-_LOOKBACK_COMPLETED_WEEKS = int(
-    ROAD_10K_REQUIRED_INPUTS["recent_history_lookback_completed_weeks"]
-)
+_ALLOWED_RESULT_CODES = ROAD_10K_RESULT_CODES
+_LOOKBACK_COMPLETED_WEEKS = ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS
 _MINIMUM_USABLE_WEEKS = int(
     ROAD_10K_REQUIRED_INPUTS["minimum_usable_completed_weeks"]
 )
@@ -51,16 +40,9 @@ _MINIMUM_RUNS_PER_WEEK = int(
 _LATEST_RUN_DAYS = int(
     ROAD_10K_REQUIRED_INPUTS["latest_run_within_completed_days"]
 )
-_CURRENT_BASELINE_DAYS = int(
-    ROAD_10K_READINESS["baseline_current_through_completed_days"]
-)
-_STALE_BASELINE_DAYS = int(
-    ROAD_10K_READINESS["baseline_stale_from_completed_days"]
-)
-_PROPOSAL_DAYS = int(ROAD_10K_EXECUTION["committed_proposal_days"])
-_REASSESSMENT_DAYS = int(
-    ROAD_10K_EXECUTION["advisory_reassessment_after_completed_days"]
-)
+_CURRENT_BASELINE_DAYS = ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
+_PROPOSAL_DAYS = ROAD_10K_PROPOSAL_DAYS
+_REASSESSMENT_DAYS = ROAD_10K_REASSESSMENT_COMPLETED_DAYS
 _MIN_RUN_DAYS = int(
     ROAD_10K_SCHEDULE["selected_running_days_per_7_day_unit"]["minimum"]
 )
@@ -358,7 +340,7 @@ def build_event_context(
     benchmark = constraints.benchmark_date
     if goal_target is not None and benchmark is not None:
         return Road10KEventContext(
-            snapshot_version="road-10k-event-context-v1",
+            snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
             state="race_dense",
             goal_target_date=goal_target,
             benchmark_date=benchmark,
@@ -367,7 +349,7 @@ def build_event_context(
         )
     if goal_target is not None:
         return Road10KEventContext(
-            snapshot_version="road-10k-event-context-v1",
+            snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
             state="single_target",
             goal_target_date=goal_target,
             benchmark_date=None,
@@ -376,7 +358,7 @@ def build_event_context(
         )
     if benchmark is not None:
         return Road10KEventContext(
-            snapshot_version="road-10k-event-context-v1",
+            snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
             state="single_target",
             goal_target_date=None,
             benchmark_date=benchmark,
@@ -384,7 +366,7 @@ def build_event_context(
             target_source="benchmark",
         )
     return Road10KEventContext(
-        snapshot_version="road-10k-event-context-v1",
+        snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
         state="confirmed_none",
         goal_target_date=None,
         benchmark_date=None,

@@ -211,9 +211,8 @@ def upgrade() -> None:
         sa.Column("request_fingerprint", sa.String(length=64), nullable=False),
         sa.Column("predecessor_proposal_id", sa.String(length=36), nullable=True),
         sa.Column("predecessor_version", sa.Integer(), nullable=True),
-        sa.Column("observed_input_snapshot", sa.JSON(), nullable=False),
-        sa.Column("derived_history_statistics", sa.JSON(), nullable=False),
-        sa.Column("validation_results", sa.JSON(), nullable=False),
+        sa.Column("result_code", sa.String(length=80), nullable=False),
+        sa.Column("validation_reason_code", sa.String(length=80), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
             ["proposal_id"],

@@ -2137,6 +2137,57 @@ def test_inactive_road_10k_goal_cannot_be_newly_persisted(api_client):
     }
 
 
+def test_get_settings_hides_stored_inactive_road_10k_goal_but_preserves_db(
+    api_client,
+):
+    client, user_id = api_client
+
+    from db.models import UserConfig
+    from db.session import SessionLocal
+
+    with SessionLocal() as db:
+        row = db.query(UserConfig).filter(UserConfig.user_id == user_id).one_or_none()
+        if row is None:
+            row = UserConfig(user_id=user_id)
+            db.add(row)
+        row.goal = {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+        db.commit()
+
+    current = client.get("/api/settings")
+
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+
+    updated = client.put("/api/settings", json={"display_name": "Hidden legacy 10K"})
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["config"]["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+
+    with SessionLocal() as db:
+        row = db.query(UserConfig).filter(UserConfig.user_id == user_id).one()
+        assert row.goal == {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2520,
+        }
+
+
 def test_active_road_10k_goal_can_persist_when_registry_is_enabled(
     api_client,
     monkeypatch,
@@ -2167,6 +2218,14 @@ def test_active_road_10k_goal_can_persist_when_registry_is_enabled(
 
     assert response.status_code == 200, response.text
     assert response.json()["config"]["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["goal"] == {
         "goal_kind": "performance_10k",
         "distance": "10k",
         "race_date": "2026-09-20",

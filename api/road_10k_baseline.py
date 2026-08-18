@@ -27,7 +27,9 @@ from analysis.road_10k_baseline import (
 )
 from analysis.road_10k_contract import (
     ROAD_10K_BASELINE_SNAPSHOT_VERSION,
+    ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS,
     ROAD_10K_CONTRACT_DIGEST,
+    ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
     ROAD_10K_POLICY_VERSION,
     ROAD_10K_SCIENCE_DECISION_ID,
 )
@@ -72,12 +74,14 @@ def build_road_10k_baseline_view(
     *,
     user_id: str,
     now: datetime | None = None,
+    goal_override: Mapping[str, Any] | None = None,
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the current direct-baseline view for a 10K plan purpose."""
     config, goal_source, _scope = _resolve_context(
         db,
         user_id=user_id,
+        goal_override=goal_override,
         purpose_selection=purpose_selection,
     )
     goal = build_road_10k_goal(goal_source)
@@ -86,6 +90,7 @@ def build_road_10k_baseline_view(
         db,
         user_id=user_id,
         activity_source=config.preferences.get("activities"),
+        athlete_today=athlete_today,
     )
     confirmations = _confirmation_inputs(
         db,
@@ -97,6 +102,25 @@ def build_road_10k_baseline_view(
         athlete_today=athlete_today,
         activities=activities,
         confirmations=confirmations,
+    )
+    snapshot_evidence = _snapshot_evidence(
+        db,
+        user_id=user_id,
+        goal_signature=goal.goal_signature,
+        athlete_today=athlete_today,
+    )
+    baseline_status = (
+        _snapshot_state(snapshot_evidence)
+        if snapshot_evidence is not None
+        else evaluation.status
+    )
+    baseline_readiness = (
+        _snapshot_readiness(snapshot_evidence)
+        if snapshot_evidence is not None
+        else evaluation.readiness
+    )
+    baseline_evidence = (
+        snapshot_evidence if snapshot_evidence is not None else evaluation.evidence
     )
     return {
         "goal_kind": goal.goal_kind,
@@ -112,19 +136,19 @@ def build_road_10k_baseline_view(
             "science_decision_id": ROAD_10K_SCIENCE_DECISION_ID,
             "contract_digest": ROAD_10K_CONTRACT_DIGEST,
             "baseline_snapshot_version": ROAD_10K_BASELINE_SNAPSHOT_VERSION,
-            "status": evaluation.status,
-            "readiness": evaluation.readiness,
+            "status": baseline_status,
+            "readiness": baseline_readiness,
             "history_search_complete": True,
             "full_activity_only": True,
-            "history_cutoff_completed_days": 56,
+            "history_cutoff_completed_days": ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
             "alternatives": list(evaluation.alternatives),
-            "evidence": _serialize_evidence(evaluation.evidence),
+            "evidence": _serialize_evidence(baseline_evidence),
             "candidates": [
                 _serialize_candidate(candidate)
                 for candidate in evaluation.candidates
             ],
             "benchmark": {
-                "available": evaluation.readiness != "sufficient_baseline",
+                "available": baseline_readiness != "sufficient_baseline",
                 "automatic_scheduling": False,
                 "explicit_choice_required": True,
             },
@@ -132,15 +156,17 @@ def build_road_10k_baseline_view(
                 "name": "Direct 10K baseline",
                 "description": (
                     "Only current direct 10K race or explicit all-out 10K "
-                        "history can qualify. Qualification keeps the accepted "
-                        "surface or protocol, route or venue, assistance status, "
-                        "provider, and authoritative completion time attached to "
-                        "the evidence. The 56-day freshness guardrail and the "
-                        "optional self-selected benchmark path are reviewed "
-                        "product boundaries, not universal physiological cutoffs."
-                    ),
-                    "citations": [
-                        {
+                    "history can qualify. Qualification keeps the accepted "
+                    "surface or protocol, route or venue, assistance status, "
+                    "provider, and authoritative completion time attached to "
+                    "the evidence. The "
+                    f"{ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS}-day freshness "
+                    "guardrail and the optional self-selected benchmark path "
+                    "are reviewed product boundaries, not universal "
+                    "physiological cutoffs."
+                ),
+                "citations": [
+                    {
                         "label": "Science Decision Record",
                         "url": "https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml",
                     },
@@ -168,7 +194,34 @@ def confirm_road_10k_history_candidate(
 ) -> dict[str, Any]:
     """Persist one owner-scoped 10K history confirmation."""
     timestamp = _utc_naive(now or datetime.utcnow())
+    payload = {
+        "activity_id": activity_id,
+        "response": response,
+        "measured_10k": measured_10k,
+        "elapsed_timing_confirmed": elapsed_timing_confirmed,
+        "surface_or_protocol": str(surface_or_protocol or "").strip() or None,
+        "route_or_venue_identifier": (
+            str(route_or_venue_identifier or "").strip() or None
+        ),
+        "assistance_status": str(assistance_status or "").strip() or None,
+        "supersedes_confirmation_id": supersedes_confirmation_id,
+        "purpose": dict(purpose_selection) if purpose_selection is not None else None,
+    }
+    fingerprint = _request_fingerprint(payload)
     db.rollback()
+    existing = _find_idempotent_confirmation(
+        db,
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+        request_fingerprint=fingerprint,
+    )
+    if existing is not None:
+        return _replayed_confirmation_response(
+            db,
+            user_id=user_id,
+            confirmation=existing,
+            now=timestamp,
+        )
     lock_plan_writes(db, user_id)
     config, goal_source, _scope = _resolve_context(
         db,
@@ -183,11 +236,10 @@ def confirm_road_10k_history_candidate(
         user_id=user_id,
         activity_source=config.preferences.get("activities"),
         activity_id=activity_id,
+        athlete_today=effective_athlete_date(config, now=timestamp),
     )
     if activity is None:
         raise Road10KBaselineNotFound(activity_id)
-    if abs(float(activity.distance_km or 0.0) - 10.0) > 0.5:
-        raise Road10KBaselineForbidden("ACTIVITY_OUTSIDE_10K_REVIEW_WINDOW")
     metadata = _confirmation_metadata(
         activity=activity,
         response=response,
@@ -195,40 +247,6 @@ def confirm_road_10k_history_candidate(
         route_or_venue_identifier=route_or_venue_identifier,
         assistance_status=assistance_status,
     )
-
-    payload = {
-        "activity_id": activity_id,
-        "response": response,
-        "measured_10k": measured_10k,
-        "elapsed_timing_confirmed": elapsed_timing_confirmed,
-        "surface_or_protocol": metadata["surface_or_protocol"],
-        "route_or_venue_identifier": metadata["route_or_venue_identifier"],
-        "assistance_status": metadata["assistance_status"],
-        "completed_at": metadata["completed_at"].isoformat(),
-        "elapsed_time_sec": metadata["elapsed_time_sec"],
-        "source_provider": metadata["source_provider"],
-        "supersedes_confirmation_id": supersedes_confirmation_id,
-        "goal_signature": goal.goal_signature,
-        "purpose": dict(purpose_selection) if purpose_selection is not None else None,
-    }
-    fingerprint = _request_fingerprint(payload)
-    existing = _find_idempotent_confirmation(
-        db,
-        user_id=user_id,
-        idempotency_key=idempotency_key,
-        request_fingerprint=fingerprint,
-    )
-    if existing is not None:
-        return {
-            "replayed": True,
-            "confirmation": _serialize_confirmation_row(existing),
-            "baseline": build_road_10k_baseline_view(
-                db,
-                user_id=user_id,
-                now=timestamp,
-                purpose_selection=purpose_selection,
-            )["baseline"],
-        }
     predecessor = _resolve_confirmation_predecessor(
         db,
         user_id=user_id,
@@ -259,16 +277,12 @@ def confirm_road_10k_history_candidate(
     )
     created = _insert_idempotent(db, row)
     if not created:
-        return {
-            "replayed": True,
-            "confirmation": _serialize_confirmation_row(row),
-            "baseline": build_road_10k_baseline_view(
-                db,
-                user_id=user_id,
-                now=timestamp,
-                purpose_selection=purpose_selection,
-            )["baseline"],
-        }
+        return _replayed_confirmation_response(
+            db,
+            user_id=user_id,
+            confirmation=row,
+            now=timestamp,
+        )
     _record_snapshot(
         db,
         user_id=user_id,
@@ -300,27 +314,12 @@ def resolve_road_10k_baseline_snapshot_id(
     evidence: Mapping[str, Any] | None,
 ) -> str | None:
     """Return the snapshot id for the currently selected direct evidence."""
-    if not evidence:
-        return None
-    activity_id = str(evidence.get("activity_id") or "").strip()
-    observed_date = _parse_date(evidence.get("observed_date"))
-    if not activity_id or observed_date is None:
-        return None
-    row = db.execute(
-        select(Road10KBaselineSnapshot)
-        .where(
-            Road10KBaselineSnapshot.user_id == user_id,
-            Road10KBaselineSnapshot.goal_signature == goal_signature,
-            Road10KBaselineSnapshot.source_id == activity_id,
-            Road10KBaselineSnapshot.observed_date == observed_date,
-            Road10KBaselineSnapshot.qualification_status == "direct_current",
-        )
-        .order_by(
-            Road10KBaselineSnapshot.created_at.desc(),
-            Road10KBaselineSnapshot.version.desc(),
-        )
-        .limit(1)
-    ).scalar_one_or_none()
+    row = _current_evidence_snapshot(
+        db,
+        user_id=user_id,
+        goal_signature=goal_signature,
+        evidence=evidence,
+    )
     return row.id if row is not None else None
 
 
@@ -328,9 +327,16 @@ def _resolve_context(
     db: Session,
     *,
     user_id: str,
-    purpose_selection: Mapping[str, Any] | None,
+    goal_override: Mapping[str, Any] | None = None,
+    purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[Any, dict[str, Any], _BaselinePurposeScope]:
     config = load_config_from_db(user_id, db)
+    if goal_override is not None:
+        return (
+            config,
+            dict(goal_override),
+            _BaselinePurposeScope(None, None, None),
+        )
     if purpose_selection is not None:
         from api.plan_generation_capabilities import resolve_plan_generation_purpose
 
@@ -368,6 +374,7 @@ def _load_candidate_activities(
     *,
     user_id: str,
     activity_source: str | None,
+    athlete_today: date,
 ) -> list[Road10KBaselineActivity]:
     from api.goal_baseline import _deduplicate_activity_frame
 
@@ -379,15 +386,26 @@ def _load_candidate_activities(
     frame = _deduplicate_activity_frame(activities.copy(), activity_source)
     if "date" in frame.columns:
         frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.date
-    candidate_ids = [
-        str(row.activity_id)
-        for row in frame.itertuples(index=False)
-        if getattr(row, "distance_km", None) is not None
-        and getattr(row, "duration_sec", None) is not None
-        and abs(float(getattr(row, "distance_km", 0.0)) - 10.0) <= 0.5
-        and str(getattr(row, "activity_type", "")).strip().casefold()
-        == "running"
-    ]
+    candidate_ids: list[str] = []
+    for row in frame.itertuples(index=False):
+        observed_date = getattr(row, "date", None)
+        if not isinstance(observed_date, date):
+            continue
+        if observed_date > athlete_today:
+            continue
+        if (
+            athlete_today - observed_date
+        ).days > ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS:
+            continue
+        if getattr(row, "distance_km", None) is None:
+            continue
+        if getattr(row, "duration_sec", None) is None:
+            continue
+        if float(getattr(row, "duration_sec", 0.0)) <= 0:
+            continue
+        if str(getattr(row, "activity_type", "")).strip().casefold() != "running":
+            continue
+        candidate_ids.append(str(row.activity_id))
     coverage = (
         load_activity_sample_coverage(user_id, db, candidate_ids)
         if candidate_ids
@@ -428,9 +446,13 @@ def _load_candidate_activities(
             continue
         distance_km = getattr(row, "distance_km", None)
         duration_sec = getattr(row, "duration_sec", None)
-        if distance_km is None or duration_sec is None:
+        if observed_date > athlete_today:
             continue
-        if abs(float(distance_km) - 10.0) > 0.5:
+        if (
+            athlete_today - observed_date
+        ).days > ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS:
+            continue
+        if distance_km is None or duration_sec is None:
             continue
         activity_id = str(getattr(row, "activity_id"))
         coverage_info = coverage_by_activity.get(activity_id, {})
@@ -461,11 +483,13 @@ def _activity_by_id(
     user_id: str,
     activity_source: str | None,
     activity_id: str,
+    athlete_today: date,
 ) -> Road10KBaselineActivity | None:
     for candidate in _load_candidate_activities(
         db,
         user_id=user_id,
         activity_source=activity_source,
+        athlete_today=athlete_today,
     ):
         if candidate.activity_id == activity_id:
             return candidate
@@ -764,6 +788,11 @@ def _confirmation_metadata(
         raise Road10KBaselineInvalid(
             "The synced activity does not expose a positive elapsed time."
         )
+    distance_km = activity.distance_km
+    if distance_km is None or float(distance_km) <= 0:
+        raise Road10KBaselineInvalid(
+            "The synced activity does not expose a positive distance."
+        )
     source_provider = str(activity.source or "").strip() or None
     if source_provider is None:
         raise Road10KBaselineInvalid(
@@ -845,3 +874,248 @@ def _parse_datetime(value: object) -> datetime | None:
     if parsed.tzinfo is not None:
         return parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed
+
+
+def _current_evidence_snapshot(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    evidence: Mapping[str, Any] | None,
+) -> Road10KBaselineSnapshot | None:
+    if not evidence:
+        return None
+    matches = [
+        row
+        for row in _latest_snapshot_rows(
+            db,
+            user_id=user_id,
+            goal_signature=goal_signature,
+        )
+        if _snapshot_matches_evidence(row, evidence)
+    ]
+    if not matches:
+        return None
+    return max(matches, key=_snapshot_sort_key)
+
+
+def _latest_snapshot_rows(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+) -> list[Road10KBaselineSnapshot]:
+    rows = db.execute(
+        select(Road10KBaselineSnapshot)
+        .where(
+            Road10KBaselineSnapshot.user_id == user_id,
+            Road10KBaselineSnapshot.goal_signature == goal_signature,
+            Road10KBaselineSnapshot.source_kind == "history_confirmation",
+        )
+        .order_by(
+            Road10KBaselineSnapshot.created_at.desc(),
+            Road10KBaselineSnapshot.version.desc(),
+        )
+    ).scalars().all()
+    latest_by_lineage: dict[str, Road10KBaselineSnapshot] = {}
+    for row in rows:
+        if row.lineage_id not in latest_by_lineage:
+            latest_by_lineage[row.lineage_id] = row
+    return list(latest_by_lineage.values())
+
+
+def _snapshot_evidence(
+    db: Session,
+    *,
+    user_id: str,
+    goal_signature: str,
+    athlete_today: date,
+) -> Any | None:
+    candidates = [
+        row
+        for row in _latest_snapshot_rows(
+            db,
+            user_id=user_id,
+            goal_signature=goal_signature,
+        )
+        if row.qualification_status == "direct_current"
+    ]
+    if not candidates:
+        return None
+    return _snapshot_to_evidence(
+        max(candidates, key=_snapshot_sort_key),
+        athlete_today=athlete_today,
+    )
+
+
+def _snapshot_to_evidence(
+    row: Road10KBaselineSnapshot,
+    *,
+    athlete_today: date,
+):
+    from analysis.road_10k_baseline import Road10KBaselineEvidence
+
+    return Road10KBaselineEvidence(
+        provenance=str(row.provenance),
+        observed_date=row.observed_date,
+        age_days=(athlete_today - row.observed_date).days,
+        completed_at=row.completed_at,
+        distance_km=(
+            None if row.distance_km is None else float(row.distance_km)
+        ),
+        elapsed_time_sec=(
+            None if row.elapsed_time_sec is None else float(row.elapsed_time_sec)
+        ),
+        activity_id=str(row.source_id) if row.source_id is not None else None,
+        measured_10k_confirmed=bool(row.measured_10k),
+        elapsed_timing_confirmed=bool(row.elapsed_timing_confirmed),
+        surface_or_protocol=(
+            str(row.surface_or_protocol)
+            if row.surface_or_protocol is not None
+            else None
+        ),
+        route_or_venue_identifier=(
+            str(row.route_or_venue_identifier)
+            if row.route_or_venue_identifier is not None
+            else None
+        ),
+        assistance_status=(
+            str(row.assistance_status)
+            if row.assistance_status is not None
+            else None
+        ),
+        source_provider=(
+            str(row.source_provider)
+            if row.source_provider is not None
+            else None
+        ),
+        change_comparability=str(row.change_comparability or "not_assessed"),
+    )
+
+
+def _snapshot_state(evidence) -> str:
+    return (
+        "current"
+        if evidence.age_days <= ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
+        else "stale"
+    )
+
+
+def _snapshot_readiness(evidence) -> str:
+    return (
+        "sufficient_baseline"
+        if _snapshot_state(evidence) == "current"
+        else "insufficient_evidence"
+    )
+
+
+def _snapshot_sort_key(row: Road10KBaselineSnapshot) -> tuple[date, datetime, int, str]:
+    return (
+        row.observed_date,
+        row.created_at,
+        int(row.version),
+        str(row.id),
+    )
+
+
+def _snapshot_matches_evidence(
+    row: Road10KBaselineSnapshot,
+    evidence: Mapping[str, Any],
+) -> bool:
+    if row.qualification_status != "direct_current":
+        return False
+    if str(evidence.get("activity_id") or "") != str(row.source_id or ""):
+        return False
+    if str(evidence.get("provenance") or "") != str(row.provenance or ""):
+        return False
+    if _parse_date(evidence.get("observed_date")) != row.observed_date:
+        return False
+    if _parse_datetime(evidence.get("completed_at")) != row.completed_at:
+        return False
+    if not _same_optional_float(evidence.get("distance_km"), row.distance_km):
+        return False
+    if not _same_optional_float(
+        evidence.get("elapsed_time_sec"),
+        row.elapsed_time_sec,
+    ):
+        return False
+    if bool(evidence.get("measured_10k_confirmed")) != bool(row.measured_10k):
+        return False
+    if bool(evidence.get("elapsed_timing_confirmed")) != bool(
+        row.elapsed_timing_confirmed
+    ):
+        return False
+    for field, current in (
+        ("surface_or_protocol", row.surface_or_protocol),
+        ("route_or_venue_identifier", row.route_or_venue_identifier),
+        ("assistance_status", row.assistance_status),
+        ("source_provider", row.source_provider),
+    ):
+        if (str(evidence.get(field) or "") or None) != (
+            str(current) if current is not None else None
+        ):
+            return False
+    return True
+
+
+def _same_optional_float(left: object, right: object) -> bool:
+    if left in {None, ""} and right is None:
+        return True
+    if left in {None, ""} or right is None:
+        return False
+    return float(left) == float(right)
+
+
+def _snapshot_for_confirmation(
+    db: Session,
+    *,
+    confirmation: Road10KBaselineConfirmationRow,
+) -> Road10KBaselineSnapshot | None:
+    rows = db.execute(
+        select(Road10KBaselineSnapshot)
+        .where(
+            Road10KBaselineSnapshot.user_id == confirmation.user_id,
+            Road10KBaselineSnapshot.goal_signature == confirmation.goal_signature,
+            Road10KBaselineSnapshot.source_kind == "history_confirmation",
+            Road10KBaselineSnapshot.source_id == confirmation.activity_id,
+            Road10KBaselineSnapshot.created_at == confirmation.created_at,
+        )
+        .order_by(
+            Road10KBaselineSnapshot.version.desc(),
+            Road10KBaselineSnapshot.created_at.desc(),
+        )
+    ).scalars().all()
+    return rows[0] if rows else None
+
+
+def _replayed_confirmation_response(
+    db: Session,
+    *,
+    user_id: str,
+    confirmation: Road10KBaselineConfirmationRow,
+    now: datetime,
+) -> dict[str, Any]:
+    baseline = build_road_10k_baseline_view(
+        db,
+        user_id=user_id,
+        now=now,
+        goal_override=confirmation.goal_snapshot,
+    )["baseline"]
+    snapshot = _snapshot_for_confirmation(db, confirmation=confirmation)
+    if snapshot is not None and snapshot.observed_date is not None:
+        config = load_config_from_db(user_id, db)
+        evidence = _snapshot_to_evidence(
+            snapshot,
+            athlete_today=effective_athlete_date(config, now=now),
+        )
+        baseline = {
+            **baseline,
+            "status": _snapshot_state(evidence),
+            "readiness": _snapshot_readiness(evidence),
+            "evidence": _serialize_evidence(evidence),
+        }
+    return {
+        "replayed": True,
+        "confirmation": _serialize_confirmation_row(confirmation),
+        "baseline": baseline,
+    }

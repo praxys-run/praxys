@@ -13,7 +13,10 @@ from sqlalchemy.orm import Session
 from analysis.road_10k_plan_generation import Road10KPlanGenerationConstraints
 from api.adaptive_plan_service import AdaptivePlanError
 from api.auth import get_data_user_id, require_write_access
-from api.plan_generation_capabilities import PlanPurposeError
+from api.plan_generation_capabilities import (
+    PlanPurposeError,
+    road_10k_capability_available,
+)
 from api.road_10k_baseline import (
     Road10KBaselineConflict,
     Road10KBaselineForbidden,
@@ -31,7 +34,14 @@ from api.road_10k_plan_generation import (
 from db.session import get_db
 
 
-router = APIRouter()
+def _require_road_10k_capability_available() -> None:
+    if not road_10k_capability_available():
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+router = APIRouter(
+    dependencies=[Depends(_require_road_10k_capability_available)]
+)
 Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
 IdempotencyKey = Annotated[
     str,
@@ -163,6 +173,16 @@ class Road10KOutcomeResponse(BaseModel):
     contract_digest: str
     source_decision_digest: str
     code: Road10KResultCode
+    route_state: Literal[
+        "plan_candidate",
+        "readiness_only",
+        "clarification_required",
+        "policy_unavailable",
+    ]
+    plan_returned: bool
+    adoption_required: bool | None = None
+    goal_remains_recorded: bool | None = None
+    limited_guidance_returned: bool | None = None
     deterministic_input_hash: str
     event_context: dict[str, Any]
     history_statistics: dict[str, Any]
@@ -299,7 +319,6 @@ def _raise_baseline(error: Exception) -> None:
     if isinstance(error, Road10KBaselineForbidden):
         message = {
             "BASELINE_NOT_REQUIRED": "This goal is outside the current road 10K direct-baseline flow.",
-            "ACTIVITY_OUTSIDE_10K_REVIEW_WINDOW": "Only full near-10K activities can be reviewed in this flow.",
         }.get(str(error), "The requested 10K baseline action is unavailable in the current state.")
         raise HTTPException(
             status_code=409,
@@ -322,6 +341,7 @@ def _raise_baseline(error: Exception) -> None:
 @router.post(
     "/plan/road-10k/readiness",
     response_model=Road10KReadinessResponse,
+    response_model_exclude_none=True,
 )
 def post_road_10k_readiness(
     body: Road10KReadinessRequest,
@@ -344,6 +364,7 @@ def post_road_10k_readiness(
 @router.post(
     "/plan/road-10k/alternatives",
     response_model=Road10KAlternativesResponse,
+    response_model_exclude_none=True,
 )
 def post_road_10k_alternatives(
     body: Road10KReadinessRequest,
@@ -366,6 +387,7 @@ def post_road_10k_alternatives(
 @router.post(
     "/plan/road-10k/generate",
     response_model=Road10KProposalResponse | Road10KReadinessResponse,
+    response_model_exclude_none=True,
 )
 def post_road_10k_generate(
     body: Road10KGenerateRequest,
@@ -385,7 +407,7 @@ def post_road_10k_generate(
     except Exception as exc:
         _raise_generation(exc)
         raise
-    if not result["result"]["code"].startswith("eligible_") or replayed:
+    if not result["result"]["plan_returned"] or replayed:
         return result
     return JSONResponse(content=result, status_code=status.HTTP_201_CREATED)
 
@@ -393,6 +415,7 @@ def post_road_10k_generate(
 @router.post(
     "/plan/road-10k/proposals/{proposal_id}/regenerate",
     response_model=Road10KProposalResponse | Road10KReadinessResponse,
+    response_model_exclude_none=True,
 )
 def post_road_10k_regenerate(
     proposal_id: UUID,
@@ -415,7 +438,7 @@ def post_road_10k_regenerate(
     except Exception as exc:
         _raise_generation(exc)
         raise
-    if not result["result"]["code"].startswith("eligible_") or replayed:
+    if not result["result"]["plan_returned"] or replayed:
         return result
     return JSONResponse(content=result, status_code=status.HTTP_201_CREATED)
 

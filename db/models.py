@@ -1889,9 +1889,8 @@ class Road10KPlanGeneration(Base):
     request_fingerprint = Column(String(64), nullable=False)
     predecessor_proposal_id = Column(String(36), nullable=True)
     predecessor_version = Column(Integer, nullable=True)
-    observed_input_snapshot = Column(JSON, nullable=False, default=dict)
-    derived_history_statistics = Column(JSON, nullable=False, default=dict)
-    validation_results = Column(JSON, nullable=False, default=dict)
+    result_code = Column(String(80), nullable=False)
+    validation_reason_code = Column(String(80), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (

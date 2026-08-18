@@ -266,9 +266,8 @@ _ROAD_10K_PLAN_GENERATION_FIELDS = (
     "request_fingerprint",
     "predecessor_proposal_id",
     "predecessor_version",
-    "observed_input_snapshot",
-    "derived_history_statistics",
-    "validation_results",
+    "result_code",
+    "validation_reason_code",
     "created_at",
 )
 

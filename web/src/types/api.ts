@@ -172,6 +172,8 @@ export interface SettingsResponse {
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
+  sync_interval_options_hours: number[];
+  default_sync_interval_hours: number;
   goal_plan_impact: GoalPlanImpact | null;
 }
 
@@ -1221,6 +1223,15 @@ export interface Road10KOutcomeResponse {
   contract_digest: string;
   source_decision_digest: string;
   code: Road10KResultCode;
+  route_state:
+    | 'plan_candidate'
+    | 'readiness_only'
+    | 'clarification_required'
+    | 'policy_unavailable';
+  plan_returned: boolean;
+  adoption_required?: boolean;
+  goal_remains_recorded?: boolean;
+  limited_guidance_returned?: boolean;
   deterministic_input_hash: string;
   event_context: Road10KEventContext;
   history_statistics: Road10KHistoryStatistics;

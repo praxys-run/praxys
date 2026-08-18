@@ -19,6 +19,7 @@ from analysis.config import (
     is_praxys_managed_plan,
     normalize_plan_source,
 )
+from analysis.road_10k_contract import ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -1091,7 +1092,9 @@ def load_road_10k_plan_generation_data(
         raise ValueError("road-10k generation data may only be loaded for road_10k_plan_generation")
 
     current_week_start = athlete_today - timedelta(days=athlete_today.weekday())
-    history_start = current_week_start - timedelta(days=56)
+    history_start = current_week_start - timedelta(
+        days=ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS
+    )
     history_end = current_week_start - timedelta(days=1)
     activity_rows = pd.read_sql(
         text(

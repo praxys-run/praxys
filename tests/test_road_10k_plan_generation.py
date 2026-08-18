@@ -276,6 +276,84 @@ def test_input_hash_tracks_intensity_source_provenance() -> None:
     )
 
 
+def test_typed_outcomes_match_the_accepted_contract_and_fail_closed() -> None:
+    """Each accepted road 10K code maps one-to-one to typed runtime fields."""
+    from analysis.road_10k_contract import road_10k_typed_outcome
+
+    expected = {
+        "adult_scope_or_constraints_unconfirmed": {
+            "route_state": "clarification_required",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "contradictory_input": {
+            "route_state": "clarification_required",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "eligible_rolling_proposal": {
+            "route_state": "plan_candidate",
+            "plan_returned": True,
+            "adoption_required": True,
+        },
+        "eligible_taper_proposal": {
+            "route_state": "plan_candidate",
+            "plan_returned": True,
+            "adoption_required": True,
+        },
+        "insufficient_recent_history": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "limited_guidance_event_conflict": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+            "limited_guidance_returned": True,
+        },
+        "limited_near_term_guidance": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+            "limited_guidance_returned": True,
+        },
+        "missing_or_stale_direct_baseline": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "no_schedule_within_envelope": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "safety_stop": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "unsupported_intent_distance_surface_or_population": {
+            "route_state": "policy_unavailable",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+        "validation_failed": {
+            "route_state": "readiness_only",
+            "plan_returned": False,
+            "goal_remains_recorded": True,
+        },
+    }
+
+    assert {
+        code: road_10k_typed_outcome(code)
+        for code in expected
+    } == expected
+
+    with pytest.raises(ValueError):
+        road_10k_typed_outcome("unknown_result_code")
+
+
 @pytest.fixture
 def road_10k_client(monkeypatch):
     """Authenticated TestClient with the reviewed 10K route activated for tests."""
@@ -583,13 +661,72 @@ def test_history_confirmation_upgrades_missing_10k_readiness(
     assert refreshed.json()["result"]["code"] == "eligible_rolling_proposal"
 
 
+def test_protocol_qualified_off_device_distance_can_still_be_confirmed(
+    road_10k_client,
+) -> None:
+    client, db_session = road_10k_client
+    _seed_road_10k_api_context(db_session, "road-10k-owner")
+
+    from db.models import Activity, Road10KBaselineConfirmation, Road10KBaselineSnapshot
+
+    today = date.today()
+    with db_session.SessionLocal() as db:
+        db.query(Road10KBaselineSnapshot).delete()
+        db.query(Road10KBaselineConfirmation).delete()
+        db.add(Activity(
+            user_id="road-10k-owner",
+            activity_id="road-10k-off-device-distance",
+            date=today - timedelta(days=2),
+            activity_type="running",
+            distance_km=10.8,
+            duration_sec=2_545,
+            start_time=f"{(today - timedelta(days=2)).isoformat()}T07:10:00Z",
+            source="garmin",
+        ))
+        db.commit()
+
+    readiness = client.post("/api/plan/road-10k/readiness", json=_road_10k_api_request())
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["result"]["code"] == "missing_or_stale_direct_baseline"
+    assert {
+        candidate["activity_id"]
+        for candidate in readiness.json()["baseline"]["candidates"]
+    } >= {"road-10k-off-device-distance"}
+
+    confirmed = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-off-device-confirm"},
+        json={
+            "activity_id": "road-10k-off-device-distance",
+            "response": "race",
+            "measured_10k": True,
+            "elapsed_timing_confirmed": True,
+            "surface_or_protocol": "organized_outdoor_road_10k_race",
+            "route_or_venue_identifier": "off-device-road-10k-race",
+            "assistance_status": "unassisted",
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    confirmed_body = confirmed.json()
+    assert confirmed_body["baseline"]["status"] == "current"
+    assert confirmed_body["baseline"]["evidence"]["activity_id"] == (
+        "road-10k-off-device-distance"
+    )
+    assert confirmed_body["baseline"]["evidence"]["distance_km"] == pytest.approx(10.8)
+
+
 def test_history_confirmation_requires_contract_metadata_and_replays_idempotently(
     road_10k_client,
 ) -> None:
     client, db_session = road_10k_client
     _seed_road_10k_api_context(db_session, "road-10k-owner")
 
-    from db.models import Road10KBaselineConfirmation, Road10KBaselineSnapshot
+    from db.models import (
+        Activity,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
+        UserConfig,
+    )
 
     with db_session.SessionLocal() as db:
         db.query(Road10KBaselineSnapshot).delete()
@@ -667,18 +804,182 @@ def test_history_confirmation_requires_contract_metadata_and_replays_idempotentl
     assert created_body["baseline"]["evidence"]["assistance_status"] == (
         "assisted"
     )
+    assert created_body["baseline"]["status"] == "current"
 
-    replay = client.post(
+    with db_session.SessionLocal() as db:
+        activity = db.query(Activity).filter(
+            Activity.user_id == "road-10k-owner",
+            Activity.activity_id == "road-10k-current-baseline",
+        ).one()
+        activity.start_time = f"{(date.today() - timedelta(days=5)).isoformat()}T09:15:00Z"
+        activity.duration_sec = 2_700
+        activity.source = "strava"
+        db.commit()
+
+    replay_after_correction = client.post(
         "/api/plan/road-10k/baseline/history/confirm",
         headers={"Idempotency-Key": "road-10k-baseline-create"},
         json=request,
     )
-    assert replay.status_code == 200, replay.text
-    assert replay.json()["replayed"] is True
-    assert replay.json()["confirmation"]["id"] == created_body["confirmation"]["id"]
+    assert replay_after_correction.status_code == 200, replay_after_correction.text
+    corrected_body = replay_after_correction.json()
+    assert corrected_body["replayed"] is True
+    assert corrected_body["confirmation"]["id"] == created_body["confirmation"]["id"]
+    assert corrected_body["baseline"]["evidence"] == created_body["baseline"]["evidence"]
+
+    with db_session.SessionLocal() as db:
+        db.query(Activity).filter(
+            Activity.user_id == "road-10k-owner",
+            Activity.activity_id == "road-10k-current-baseline",
+        ).delete()
+        config = db.query(UserConfig).filter(
+            UserConfig.user_id == "road-10k-owner",
+        ).one()
+        config.goal = {
+            "goal_kind": "race",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+        db.commit()
+
+    replay_after_deletion = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-create"},
+        json=request,
+    )
+    assert replay_after_deletion.status_code == 200, replay_after_deletion.text
+    deleted_body = replay_after_deletion.json()
+    assert deleted_body["replayed"] is True
+    assert deleted_body["confirmation"]["id"] == created_body["confirmation"]["id"]
+    assert deleted_body["baseline"]["status"] == "current"
+    assert deleted_body["baseline"]["evidence"] == created_body["baseline"]["evidence"]
+
+    conflict = client.post(
+        "/api/plan/road-10k/baseline/history/confirm",
+        headers={"Idempotency-Key": "road-10k-baseline-create"},
+        json={**request, "assistance_status": "unassisted"},
+    )
+    assert conflict.status_code == 409, conflict.text
 
 
-def test_generation_audit_tracks_intensity_sources_template_ids_and_distance_caps(
+def test_confirmed_snapshot_stays_stable_when_live_activity_metadata_drifts(
+    road_10k_client,
+) -> None:
+    client, db_session = road_10k_client
+    _seed_road_10k_api_context(db_session, "road-10k-owner")
+
+    from analysis.road_10k_baseline import build_road_10k_goal
+    from api.road_10k_baseline import (
+        build_road_10k_baseline_view,
+        resolve_road_10k_baseline_snapshot_id,
+    )
+    from db.models import (
+        Activity,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
+    )
+
+    today = date.today()
+    goal = {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+        "target_time_sec": 2_520,
+    }
+    signature = build_road_10k_goal(goal).goal_signature
+    with db_session.SessionLocal() as db:
+        db.add(Activity(
+            user_id="road-10k-owner",
+            activity_id="road-10k-drift-baseline",
+            date=today,
+            activity_type="running",
+            distance_km=10.1,
+            duration_sec=2_460,
+            start_time=f"{today.isoformat()}T06:45:00Z",
+            source="garmin",
+        ))
+        db.add(Road10KBaselineConfirmation(
+            id="road-10k-drift-confirmation",
+            lineage_id="road-10k-drift-confirmation-lineage",
+            user_id="road-10k-owner",
+            goal_signature=signature,
+            goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+            version=1,
+            activity_id="road-10k-drift-baseline",
+            response="race",
+            measured_10k=True,
+            elapsed_timing_confirmed=True,
+            completed_at=datetime.fromisoformat(f"{today.isoformat()}T07:26:00"),
+            elapsed_time_sec=2_460,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="drift-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
+            request_fingerprint="d" * 64,
+        ))
+        db.add(Road10KBaselineSnapshot(
+            id="road-10k-drift-snapshot",
+            lineage_id="road-10k-drift-snapshot-lineage",
+            user_id="road-10k-owner",
+            goal_signature=signature,
+            goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+            version=1,
+            source_kind="history_confirmation",
+            source_id="road-10k-drift-baseline",
+            provenance="race",
+            observed_date=today,
+            completed_at=datetime.fromisoformat(f"{today.isoformat()}T07:26:00"),
+            distance_km=10.1,
+            elapsed_time_sec=2_460,
+            measured_10k=True,
+            elapsed_timing_confirmed=True,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="drift-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
+            qualification_status="direct_current",
+            change_comparability="not_assessed",
+            invalidators=[],
+        ))
+        db.commit()
+
+    readiness = client.post("/api/plan/road-10k/readiness", json=_road_10k_api_request())
+    assert readiness.status_code == 200, readiness.text
+    readiness_body = readiness.json()
+    assert readiness_body["result"]["code"] == "eligible_rolling_proposal"
+    assert readiness_body["result"]["plan_returned"] is True
+
+    with db_session.SessionLocal() as db:
+        activity = db.query(Activity).filter(
+            Activity.user_id == "road-10k-owner",
+            Activity.activity_id == "road-10k-drift-baseline",
+        ).one()
+        activity.date = today + timedelta(days=1)
+        activity.start_time = f"{(today + timedelta(days=1)).isoformat()}T12:00:00Z"
+        activity.duration_sec = 3_000
+        activity.source = "strava"
+        db.commit()
+
+    drifted = client.post("/api/plan/road-10k/readiness", json=_road_10k_api_request())
+    assert drifted.status_code == 200, drifted.text
+    drifted_body = drifted.json()
+    assert drifted_body["source_revision"] == readiness_body["source_revision"]
+    assert drifted_body["baseline"]["evidence"] == readiness_body["baseline"]["evidence"]
+
+    with db_session.SessionLocal() as db:
+        baseline_view = build_road_10k_baseline_view(
+            db,
+            user_id="road-10k-owner",
+        )
+        assert resolve_road_10k_baseline_snapshot_id(
+            db,
+            user_id="road-10k-owner",
+            goal_signature=signature,
+            evidence=baseline_view["baseline"]["evidence"],
+        ) == "road-10k-drift-snapshot"
+
+
+def test_generation_audit_keeps_only_contract_fields_and_replays_without_raw_storage(
     road_10k_client,
 ) -> None:
     from api.adaptive_plan_service import AdaptivePlanError
@@ -703,7 +1004,31 @@ def test_generation_audit_tracks_intensity_sources_template_ids_and_distance_cap
         },
     )
     assert created.status_code == 201, created.text
+    created_body = created.json()
+    assert created_body["result"]["route_state"] == "plan_candidate"
+    assert created_body["result"]["plan_returned"] is True
+    assert created_body["result"]["adoption_required"] is True
     proposal_id = created.json()["proposal"]["id"]
+
+    replay = client.post(
+        "/api/plan/road-10k/generate",
+        json={
+            **_road_10k_api_request(),
+            "expected_source_revision": readiness.json()["source_revision"],
+            "idempotency_key": "road-10k-audit-generate",
+        },
+    )
+    assert replay.status_code == 200, replay.text
+    replay_body = replay.json()
+    assert replay_body["replayed"] is True
+    assert replay_body["proposal"]["id"] == proposal_id
+    assert replay_body["result"]["code"] == "eligible_rolling_proposal"
+    assert replay_body["result"]["route_state"] == "plan_candidate"
+    assert replay_body["result"]["plan_returned"] is True
+    assert replay_body["result"]["history_statistics"]["usable_completed_weeks"] == 8
+    assert replay_body["event_context"]["snapshot_version"] == (
+        "road-10k-event-context-v1"
+    )
 
     with db_session.SessionLocal() as db:
         audit = (
@@ -711,37 +1036,56 @@ def test_generation_audit_tracks_intensity_sources_template_ids_and_distance_cap
             .filter(Road10KPlanGeneration.proposal_id == proposal_id)
             .one()
         )
+        assert audit.history_cutoff_completed_days == 56
+        assert audit.baseline_snapshot_id == "road-10k-current-baseline-snapshot"
+        assert audit.baseline_source == "race"
+        assert set(audit.history_observation_ids) == {
+            "road-10k-current-baseline",
+            "road-10k-history-1-0",
+            "road-10k-history-1-2",
+            "road-10k-history-1-5",
+            "road-10k-history-2-0",
+            "road-10k-history-2-2",
+            "road-10k-history-2-5",
+            "road-10k-history-3-0",
+            "road-10k-history-3-2",
+            "road-10k-history-3-5",
+            "road-10k-history-4-0",
+            "road-10k-history-4-2",
+            "road-10k-history-4-5",
+            "road-10k-history-5-0",
+            "road-10k-history-5-2",
+            "road-10k-history-5-5",
+            "road-10k-history-6-0",
+            "road-10k-history-6-2",
+            "road-10k-history-6-5",
+            "road-10k-history-7-0",
+            "road-10k-history-7-2",
+            "road-10k-history-7-5",
+            "road-10k-history-8-0",
+            "road-10k-history-8-2",
+            "road-10k-history-8-5",
+        }
+        assert len(audit.history_observation_ids) == 25
         assert audit.selected_template_ids == [
             "road-10k-controlled-threshold-quality-v1",
             "road-10k-specific-interval-quality-v1",
         ]
-        assert audit.observed_input_snapshot["intensity_sources"] == [
-            ["road-10k-current-baseline", "activity_splits"],
-            ["road-10k-history-1-0", "activity_splits"],
-            ["road-10k-history-1-2", "activity_splits"],
-            ["road-10k-history-1-5", "activity_splits"],
-            ["road-10k-history-2-0", "activity_splits"],
-            ["road-10k-history-2-2", "activity_splits"],
-            ["road-10k-history-2-5", "activity_splits"],
-            ["road-10k-history-3-0", "activity_splits"],
-            ["road-10k-history-3-2", "activity_splits"],
-            ["road-10k-history-3-5", "activity_splits"],
-            ["road-10k-history-4-0", "activity_splits"],
-            ["road-10k-history-4-2", "activity_splits"],
-            ["road-10k-history-4-5", "activity_splits"],
-            ["road-10k-history-5-0", "activity_splits"],
-            ["road-10k-history-5-2", "activity_splits"],
-            ["road-10k-history-5-5", "activity_splits"],
-            ["road-10k-history-6-0", "activity_splits"],
-            ["road-10k-history-6-2", "activity_splits"],
-            ["road-10k-history-6-5", "activity_splits"],
-            ["road-10k-history-7-0", "activity_splits"],
-            ["road-10k-history-7-2", "activity_splits"],
-            ["road-10k-history-7-5", "activity_splits"],
-            ["road-10k-history-8-0", "activity_splits"],
-            ["road-10k-history-8-2", "activity_splits"],
-            ["road-10k-history-8-5", "activity_splits"],
-        ]
+        assert audit.normalized_constraints == {
+            "adult_confirmed": True,
+            "current_symptom_stop": False,
+            "available_weekdays": [0, 2, 5],
+            "weekly_time_limit_min": 180,
+            "maximum_session_duration_min": 70,
+            "unavailable_dates": [],
+            "preferred_longest_easy_weekday": 5,
+            "benchmark_date": None,
+        }
+        assert audit.result_code == "eligible_rolling_proposal"
+        assert audit.validation_reason_code is None
+        assert not hasattr(audit, "observed_input_snapshot")
+        assert not hasattr(audit, "derived_history_statistics")
+        assert not hasattr(audit, "validation_results")
         proposal = (
             db.query(PlanProposal)
             .filter(PlanProposal.id == proposal_id)

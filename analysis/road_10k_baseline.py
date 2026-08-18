@@ -9,13 +9,11 @@ from typing import Any, Mapping, Sequence
 
 from analysis.road_10k_contract import (
     ROAD_10K_BASELINE_SNAPSHOT_VERSION,
+    ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS,
     ROAD_10K_POLICY_VERSION,
-    ROAD_10K_READINESS,
     ROAD_10K_SCIENCE_DECISION_ID,
 )
 
-
-_HISTORY_RETRIEVAL_MAX_DISTANCE_DELTA_KM = 0.5
 ROAD_10K_RACE_SURFACE_OR_PROTOCOL = "organized_outdoor_road_10k_race"
 ROAD_10K_TIME_TRIAL_SURFACE_OR_PROTOCOLS = frozenset({
     "standardized_outdoor_road_10k_time_trial",
@@ -79,7 +77,7 @@ class Road10KBaselineConfirmation:
 
 @dataclass(frozen=True)
 class Road10KHistoryCandidate:
-    """A surfaced near-10K full activity awaiting confirmation."""
+    """A surfaced current-window full activity awaiting confirmation."""
 
     activity_id: str
     observed_date: date
@@ -190,7 +188,7 @@ def build_history_candidates(
     activities: Sequence[Road10KBaselineActivity],
     confirmations: Sequence[Road10KBaselineConfirmation],
 ) -> list[Road10KHistoryCandidate]:
-    """Surface full near-10K activities for explicit confirmation only."""
+    """Surface full current-window activities for explicit confirmation only."""
     latest_confirmation = _latest_confirmation_by_activity(confirmations)
     candidates: list[Road10KHistoryCandidate] = []
     for activity in activities:
@@ -200,11 +198,6 @@ def build_history_candidates(
         if activity.distance_km is None or activity.duration_sec is None:
             continue
         if activity.duration_sec <= 0:
-            continue
-        if (
-            abs(float(activity.distance_km) - 10.0)
-            > _HISTORY_RETRIEVAL_MAX_DISTANCE_DELTA_KM
-        ):
             continue
         confirmation = latest_confirmation.get(activity.activity_id)
         review_state, response, measured, elapsed = _candidate_review_state(
@@ -279,9 +272,7 @@ def evaluate_road_10k_baseline(
     candidates = tuple(build_history_candidates(activities, confirmations))
     evidence = _select_direct_history_evidence(candidates, athlete_today)
     if evidence is not None:
-        current_through = int(
-            ROAD_10K_READINESS["baseline_current_through_completed_days"]
-        )
+        current_through = ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
         status = "current" if evidence.age_days <= current_through else "stale"
         readiness = (
             "sufficient_baseline"

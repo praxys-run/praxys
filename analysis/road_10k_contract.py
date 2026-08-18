@@ -1,6 +1,8 @@
 """Reviewed machine-contract helpers for the inactive road 10K capability."""
 from __future__ import annotations
 
+from typing import Any
+
 from analysis.science_artifacts import load_policy_contract
 
 
@@ -59,3 +61,58 @@ ROAD_10K_ACTIVATION = ROAD_10K_PARAMETER_VALUES[
     "road_10k_v2_activation_and_dependencies"
 ]
 ROAD_10K_AUDIT = ROAD_10K_PARAMETER_VALUES["road_10k_v2_privacy_and_audit"]
+
+ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS = int(
+    ROAD_10K_REQUIRED_INPUTS["recent_history_lookback_completed_weeks"]
+)
+ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS = (
+    ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS * 7
+)
+ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS = int(
+    ROAD_10K_READINESS["baseline_current_through_completed_days"]
+)
+ROAD_10K_BASELINE_STALE_FROM_COMPLETED_DAYS = int(
+    ROAD_10K_READINESS["baseline_stale_from_completed_days"]
+)
+ROAD_10K_PROPOSAL_DAYS = int(ROAD_10K_EXECUTION["committed_proposal_days"])
+ROAD_10K_REASSESSMENT_COMPLETED_DAYS = int(
+    ROAD_10K_EXECUTION["advisory_reassessment_after_completed_days"]
+)
+ROAD_10K_RESULT_CODES = frozenset(str(code) for code in ROAD_10K_TYPED_OUTCOMES)
+_ROAD_10K_TYPED_OUTCOME_FIELDS = frozenset({
+    "route_state",
+    "plan_returned",
+    "adoption_required",
+    "goal_remains_recorded",
+    "limited_guidance_returned",
+})
+
+
+def road_10k_typed_outcome(code: str) -> dict[str, Any]:
+    """Return the exact accepted runtime outcome fields for one result code."""
+    raw = ROAD_10K_TYPED_OUTCOMES.get(code)
+    if not isinstance(raw, dict):
+        raise ValueError(f"Unsupported road 10K typed outcome code: {code}")
+    keys = set(raw)
+    missing = {"route_state", "plan_returned"} - keys
+    if missing:
+        raise ValueError(
+            f"Road 10K typed outcome {code} is missing fields: {sorted(missing)}"
+        )
+    unexpected = keys - _ROAD_10K_TYPED_OUTCOME_FIELDS
+    if unexpected:
+        raise ValueError(
+            f"Road 10K typed outcome {code} has unsupported fields: {sorted(unexpected)}"
+        )
+    payload: dict[str, Any] = {
+        "route_state": str(raw["route_state"]),
+        "plan_returned": bool(raw["plan_returned"]),
+    }
+    for field in (
+        "adoption_required",
+        "goal_remains_recorded",
+        "limited_guidance_returned",
+    ):
+        if field in raw:
+            payload[field] = bool(raw[field])
+    return payload

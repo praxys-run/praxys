@@ -191,17 +191,20 @@ function isRoad10KCapabilitySchema(schemaId: string | null | undefined): boolean
   return schemaId === 'outdoor_road_10k_constraints_v1';
 }
 
-function isPlanReadyCode(
-  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+function isPlanReadyResult(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
 ): boolean {
-  return code === 'ready' || code.startsWith('eligible_');
+  if ('plan_returned' in result) {
+    return result.route_state === 'plan_candidate' && result.plan_returned;
+  }
+  return result.code === 'ready';
 }
 
 function needsBaselineReview(
-  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
 ): boolean {
-  return code === 'insufficient_or_stale_baseline'
-    || code === 'missing_or_stale_direct_baseline';
+  return result.code === 'insufficient_or_stale_baseline'
+    || result.code === 'missing_or_stale_direct_baseline';
 }
 
 function needsPlanContextRecovery(
@@ -949,7 +952,7 @@ export default function PlanStart({
       !checked
       || !body
       || !activeCapability
-      || !isPlanReadyCode(checked.result.code)
+      || !isPlanReadyResult(checked.result)
     ) return;
     setWorking('generate');
     setError(null);
@@ -993,7 +996,7 @@ export default function PlanStart({
     if (!activeProposal || !activeCapability) return;
     const checked = await requestReadiness();
     const body = constraints();
-    if (!checked || !body || !isPlanReadyCode(checked.result.code)) return;
+    if (!checked || !body || !isPlanReadyResult(checked.result)) return;
     setWorking('regenerate');
     setError(null);
     try {
@@ -1733,7 +1736,7 @@ export default function PlanStart({
             <Button disabled={isDemo || working != null || !purposeSelection} onClick={() => void requestReadiness()} className="min-h-11">
               {working === 'readiness' ? <Trans>Checking readiness…</Trans> : <Trans>Check readiness</Trans>}
             </Button>
-            {result && isPlanReadyCode(result.code) && !activeProposal && !conflictingProposal && (
+            {result && isPlanReadyResult(result) && !activeProposal && !conflictingProposal && (
               <Button variant="outline" disabled={isDemo || working != null} onClick={() => void generate()} className="min-h-11">
                 {working === 'generate' ? <Trans>Creating proposal…</Trans> : <Trans>Create proposal</Trans>}
               </Button>
@@ -1748,7 +1751,7 @@ export default function PlanStart({
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle><Trans>Readiness result</Trans></CardTitle>
-              <Badge variant={isPlanReadyCode(result.code) ? 'default' : 'outline'}>{result.code.replace(/_/g, ' ')}</Badge>
+              <Badge variant={isPlanReadyResult(result) ? 'default' : 'outline'}>{result.code.replace(/_/g, ' ')}</Badge>
             </div>
             <CardDescription>{outcomeCopy(result, t`The deterministic policy returned no additional explanation.`)}</CardDescription>
           </CardHeader>
@@ -1802,7 +1805,7 @@ export default function PlanStart({
         </Card>
       )}
 
-      {needsBaselineReview(result?.code ?? 'validation_failed')
+      {result && needsBaselineReview(result)
         && readiness
         && 'baseline' in readiness
         && purposeSelection && (

@@ -45,7 +45,8 @@ test('web and miniapp add gated 10K performance plan support', async () => {
   assert.match(webPlanStart, /weekly_time_limit_min/);
   assert.match(webPlanStart, /maximum_session_duration_min/);
   assert.match(webPlanStart, /preferred_longest_easy_weekday/);
-  assert.match(webPlanStart, /eligible_/);
+  assert.match(webPlanStart, /plan_returned/);
+  assert.match(webPlanStart, /route_state/);
 
   assert.match(miniGoalScript, /performance_10k/);
   assert.match(miniGoalMarkup, /performance10kEnabled && goalKind === 'performance_10k'/);
@@ -57,5 +58,6 @@ test('web and miniapp add gated 10K performance plan support', async () => {
   assert.match(miniPlanStart, /weekly_time_limit_min/);
   assert.match(miniPlanStart, /maximum_session_duration_min/);
   assert.match(miniPlanStart, /preferred_longest_easy_weekday/);
-  assert.match(miniPlanStart, /eligible_/);
+  assert.match(miniPlanStart, /plan_returned/);
+  assert.match(miniPlanStart, /route_state/);
 });

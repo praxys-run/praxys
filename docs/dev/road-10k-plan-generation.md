@@ -27,9 +27,10 @@
 While the capability stays inactive:
 
 - `PUT /api/settings` rejects new `performance_10k` goal writes with `GOAL_KIND_UNAVAILABLE`.
-- Existing stored `performance_10k` config is preserved in the database, but `/api/goal` falls back to generic race/continuous presentation instead of invoking the hidden direct-10K baseline flow.
+- Existing stored `performance_10k` config is preserved in the database, but `/api/settings`, `/api/goal`, and `/api/plan/generation/capabilities` all fall back to honest generic race/continuous presentation instead of leaking the inactive goal kind to clients.
 - Web and miniapp only expose the 10K editor / baseline panel when discovery advertises the 10K constraint schema.
-- Plan-start discovery still reports honest `policy_unavailable` / `readiness_only` states instead of 404s.
+- The main app leaves `/api/plan/road-10k/*` unmounted while inactive, and the router itself also fails closed with 404 if mounted accidentally.
+- Plan-start discovery still reports honest `policy_unavailable` / `readiness_only` states instead of claiming activation.
 
 When tests or a future rollout mock the capability active, the 10K settings, goal page, baseline flow, readiness flow, and proposal flow all continue to work on the same code path.
 
@@ -39,6 +40,7 @@ Direct 10K qualification keeps these persisted fields attached to the confirmati
 
 - authoritative `completed_at` from the synced activity
 - authoritative `elapsed_time_sec` from the synced activity
+- synced `distance_km` metadata from the full activity (retained for provenance, never as a ± window cutoff)
 - exact accepted `surface_or_protocol`
 - exact `route_or_venue_identifier`
 - explicit race / all-out intent (`response`)
@@ -85,6 +87,12 @@ Fail-closed readiness outcomes remain typed, including:
 - `no_schedule_within_envelope`
 - `validation_failed`
 
+Runtime responses map every accepted 10K result code to the contract-backed
+typed fields `route_state`, `plan_returned`, and the applicable
+`adoption_required`, `goal_remains_recorded`, or
+`limited_guidance_returned` booleans. The web and miniapp plan-start flows use
+those fields instead of prefix-matching success strings.
+
 Notable reviewed implementation details:
 
 - taper eligibility is anchored only to `(target_date - block_start).days`
@@ -96,17 +104,27 @@ Notable reviewed implementation details:
 
 ## Provenance, audit, replay, and adoption revalidation
 
-Append-only audit rows keep the reviewed replay surface:
+Append-only audit rows keep only the reviewed replay surface:
 
 - selected purpose and goal revision fence
 - baseline snapshot id + source
 - completed-history observation ids
-- split/sample `intensity_sources`
 - normalized constraints
 - selected quality template ids
 - deterministic input hash / source revision
+- stable result code + validation reason code
 
-Replay and adoption revalidation re-run the generator from current inputs. Any change to split/sample provenance, baseline evidence, history, event context, or constraints changes the source revision and blocks stale generation or adoption.
+Road 10K audit rows and JSON export do **not** persist raw target values, full
+history rows, reserved dates, full event-context payloads, workout payloads, or
+narrative reason text. Idempotent replay reconstructs the richer response
+envelope from the canonical proposal, baseline snapshot, and currently-linked
+activity records where possible; otherwise it returns only the stable typed
+codes.
+
+Replay and adoption revalidation re-run the generator from current inputs. Any
+change to split/sample provenance, baseline evidence, history, event context,
+or constraints changes the source revision and blocks stale generation or
+adoption.
 
 ## Web and miniapp semantics
 

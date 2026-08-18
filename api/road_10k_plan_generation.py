@@ -17,23 +17,27 @@ from analysis.road_10k_baseline import build_road_10k_goal
 from analysis.road_10k_contract import (
     ROAD_10K_CONTRACT_DIGEST,
     ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
-    ROAD_10K_EXECUTION,
     ROAD_10K_GENERATOR_VERSION,
+    ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
     ROAD_10K_POLICY_VERSION,
-    ROAD_10K_REQUIRED_INPUTS,
+    ROAD_10K_REASSESSMENT_COMPLETED_DAYS,
     ROAD_10K_SCIENCE_DECISION_ID,
     ROAD_10K_SOURCE_DECISION_DIGEST,
     ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
+    road_10k_typed_outcome,
 )
 from analysis.road_10k_plan_generation import (
     GeneratedRoad10KPlan,
     GeneratedWorkout,
+    RecentHistoryStatistics,
     Road10KGenerationInput,
     Road10KGenerationResult,
+    Road10KEventContext,
     Road10KGoal,
     Road10KPlanGenerationConstraints,
     RunningHistoryObservation,
     build_event_context,
+    derive_recent_history_statistics,
     generate_road_10k_plan,
     serialize_generation_result,
     serialize_workout_structure,
@@ -55,7 +59,12 @@ from api.road_10k_baseline import (
     build_road_10k_baseline_view,
     resolve_road_10k_baseline_snapshot_id,
 )
-from db.models import AdaptivePlanGoalSnapshot, PlanProposal, Road10KPlanGeneration
+from db.models import (
+    Activity,
+    AdaptivePlanGoalSnapshot,
+    PlanProposal,
+    Road10KPlanGeneration,
+)
 
 
 class Road10KGenerationError(RuntimeError):
@@ -71,6 +80,22 @@ class Road10KGenerationError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
         self.detail = {"code": code, "message": message, **details}
+
+
+def _typed_outcome_fields(code: str) -> dict[str, Any]:
+    try:
+        return road_10k_typed_outcome(code)
+    except ValueError as exc:
+        raise Road10KGenerationError(
+            409,
+            "ROAD_10K_OUTCOME_INVALID",
+            "The deterministic road 10K outcome code is not accepted.",
+            result_code=code,
+        ) from exc
+
+
+def _plan_returned(code: str) -> bool:
+    return bool(_typed_outcome_fields(code)["plan_returned"])
 
 
 def build_road_10k_readiness(
@@ -155,7 +180,7 @@ def generate_road_10k_proposal(
         expected_source_revision=expected_source_revision,
         actual_source_revision=result.deterministic_input_hash,
     )
-    if not result.code.startswith("eligible_") or result.plan is None:
+    if not _plan_returned(result.code) or result.plan is None:
         return _readiness_envelope(
             generation_input,
             result,
@@ -297,7 +322,7 @@ def regenerate_road_10k_proposal(
             "ROAD_10K_REGENERATION_INPUT_UNCHANGED",
             "Regeneration requires a changed versioned input.",
         )
-    if not result.code.startswith("eligible_") or result.plan is None:
+    if not _plan_returned(result.code) or result.plan is None:
         return _readiness_envelope(
             generation_input,
             result,
@@ -409,7 +434,7 @@ def validate_road_10k_proposal_adoption(
             purpose_error=exc.detail["code"],
         ) from exc
     if (
-        not result.code.startswith("eligible_")
+        not _plan_returned(result.code)
         or result.deterministic_input_hash != audit.source_revision
         or result.plan is None
     ):
@@ -588,7 +613,7 @@ def _proposal_input(
         science_version=ROAD_10K_SCIENCE_DECISION_ID,
         assumptions=(
             {"baseline_source": generation_input.baseline_source},
-            {"history_cutoff_completed_days": 56},
+            {"history_cutoff_completed_days": ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS},
             {"event_state": result.event_context.state},
             {
                 "template_versions": _selected_template_ids(result.plan),
@@ -667,49 +692,6 @@ def _record_generation(
     request_fingerprint: str,
     predecessor: tuple[str, int] | None,
 ) -> None:
-    observed_snapshot = {
-        "purpose": purpose.public_payload(),
-        "goal": {
-            "goal_kind": generation_input.goal.goal_kind,
-            "distance": generation_input.goal.distance,
-            "target_time_sec": generation_input.goal.target_time_sec,
-            "target_event_date": (
-                generation_input.goal.target_event_date.isoformat()
-                if generation_input.goal.target_event_date
-                else None
-            ),
-        },
-        "baseline": {
-            "current": generation_input.baseline_current,
-            "snapshot_id": generation_input.baseline_snapshot_id,
-            "source": generation_input.baseline_source,
-            "evidence_date": (
-                generation_input.baseline_evidence_date.isoformat()
-                if generation_input.baseline_evidence_date
-                else None
-            ),
-        },
-        "completed_running_history": [
-            {
-                "activity_id": item.activity_id,
-                "observed_date": item.observed_date.isoformat(),
-                "duration_min": item.duration_min,
-                "distance_km": item.distance_km,
-                "source": item.source,
-            }
-            for item in generation_input.history
-        ],
-        "intensity_sources": [
-            [activity_id, source]
-            for activity_id, source in generation_input.intensity_sources
-        ],
-        "reserved_dates": [
-            item.isoformat() for item in generation_input.reserved_dates
-        ],
-        "event_context": _json_safe(asdict(result.event_context)),
-    }
-    result_snapshot = serialize_generation_result(result)
-    result_snapshot.pop("plan", None)
     db.add(
         Road10KPlanGeneration(
             user_id=user_id,
@@ -724,11 +706,7 @@ def _record_generation(
             baseline_source=generation_input.baseline_source,
             source_goal_id=purpose.source_goal_id,
             source_goal_revision=purpose.source_goal_revision,
-            history_cutoff_completed_days=int(
-                ROAD_10K_REQUIRED_INPUTS[
-                    "recent_history_lookback_completed_weeks"
-                ]
-            ) * 7,
+            history_cutoff_completed_days=ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
             history_observation_ids=[
                 item.activity_id for item in generation_input.history
             ],
@@ -738,10 +716,7 @@ def _record_generation(
             event_context_snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
             active_zone_model_id=None,
             active_zone_model_version=None,
-            normalized_constraints=_constraints_snapshot(
-                generation_input.constraints,
-                purpose=purpose.selection_payload(),
-            ),
+            normalized_constraints=_constraints_snapshot(generation_input.constraints),
             selected_template_ids=(
                 _selected_template_ids(result.plan)
                 if result.plan is not None
@@ -753,9 +728,8 @@ def _record_generation(
             request_fingerprint=request_fingerprint,
             predecessor_proposal_id=predecessor[0] if predecessor else None,
             predecessor_version=predecessor[1] if predecessor else None,
-            observed_input_snapshot=observed_snapshot,
-            derived_history_statistics=_json_safe(asdict(result.history_statistics)),
-            validation_results=result_snapshot,
+            result_code=result.code,
+            validation_reason_code=result.failed_rule_id,
         )
     )
 
@@ -789,6 +763,16 @@ def _idempotency_replay(
             "ROAD_10K_IDEMPOTENCY_CONFLICT",
             "This idempotency key belongs to a proposal that is no longer readable.",
         )
+    event_context = _replayed_event_context(
+        proposal_view,
+        constraints_snapshot=dict(audit.normalized_constraints or {}),
+    )
+    history_statistics = _replayed_history_statistics(
+        db,
+        user_id=user_id,
+        proposal=proposal_view,
+        observation_ids=list(audit.history_observation_ids or []),
+    )
     purpose = {
         "capability_id": audit.capability_id,
         "source": proposal_view["goal"]["purpose_source"],
@@ -811,14 +795,152 @@ def _idempotency_replay(
         "source_decision_digest": audit.source_decision_digest,
         "source_revision": audit.source_revision,
         "purpose": purpose,
-        "event_context": (audit.observed_input_snapshot or {}).get("event_context"),
-        "history_cutoff_completed_days": 56,
+        "event_context": _json_safe(asdict(event_context)),
+        "history_cutoff_completed_days": audit.history_cutoff_completed_days,
         "template_ids": list(audit.selected_template_ids or []),
-        "result": audit.validation_results,
+        "result": _replayed_result_payload(
+            audit=audit,
+            event_context=event_context,
+            history_statistics=history_statistics,
+            alternatives=list(proposal_view.get("alternatives") or []),
+        ),
         "proposal": proposal_view,
         "replayed": True,
         "reassessment_dates": _persisted_reassessment_dates(proposal_view),
     }
+
+
+def _replayed_result_payload(
+    *,
+    audit: Road10KPlanGeneration,
+    event_context: Road10KEventContext,
+    history_statistics: RecentHistoryStatistics,
+    alternatives: list[str],
+) -> dict[str, Any]:
+    payload = {
+        "policy_version": audit.policy_version,
+        "generator_version": audit.generator_version,
+        "science_decision_id": audit.science_decision_id,
+        "contract_digest": audit.contract_digest,
+        "source_decision_digest": audit.source_decision_digest,
+        "code": audit.result_code,
+        "deterministic_input_hash": audit.deterministic_input_hash,
+        "event_context": _json_safe(asdict(event_context)),
+        "history_statistics": _json_safe(asdict(history_statistics)),
+        "failed_rule_id": audit.validation_reason_code,
+        "observed_or_stated_reason": None,
+        "uncertainty_or_missing_field": None,
+        "alternatives": alternatives,
+    }
+    payload.update(_typed_outcome_fields(audit.result_code))
+    return payload
+
+
+def _replayed_event_context(
+    proposal: Mapping[str, Any],
+    *,
+    constraints_snapshot: dict[str, Any],
+) -> Road10KEventContext:
+    goal = _proposal_goal(proposal)
+    constraints = _constraints_from_snapshot(constraints_snapshot)
+    return build_event_context(goal, constraints)
+
+
+def _proposal_goal(proposal: Mapping[str, Any]) -> Road10KGoal:
+    goal = dict(proposal.get("goal") or {})
+    target = dict(goal.get("target") or {})
+    return Road10KGoal(
+        goal_kind=str(goal.get("goal_kind") or "performance_10k"),
+        distance=(str(target.get("distance") or goal.get("distance") or "").strip() or None),
+        target_time_sec=_int_or_none(target.get("target_time_sec")),
+        target_event_date=_goal_event_date(target.get("target_event_date")),
+    )
+
+
+def _int_or_none(value: object) -> int | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _replayed_history_statistics(
+    db: Session,
+    *,
+    user_id: str,
+    proposal: Mapping[str, Any],
+    observation_ids: list[str],
+) -> RecentHistoryStatistics:
+    athlete_today = _proposal_athlete_today(proposal)
+    if athlete_today is None or not observation_ids:
+        return _empty_history_statistics()
+    rows = db.execute(
+        select(Activity).where(
+            Activity.user_id == user_id,
+            Activity.activity_id.in_(observation_ids),
+        )
+    ).scalars().all()
+    observations: list[RunningHistoryObservation] = []
+    seen_activity_ids: set[str] = set()
+    for row in sorted(
+        rows,
+        key=lambda item: (
+            item.date or date.min,
+            str(item.activity_id),
+            str(item.source or ""),
+        ),
+    ):
+        activity_id = str(row.activity_id)
+        if activity_id in seen_activity_ids:
+            continue
+        seen_activity_ids.add(activity_id)
+        if row.date is None or row.duration_sec is None:
+            continue
+        duration_sec = float(row.duration_sec)
+        if duration_sec <= 0:
+            continue
+        observations.append(
+            RunningHistoryObservation(
+                activity_id=activity_id,
+                observed_date=row.date,
+                duration_min=duration_sec / 60.0,
+                distance_km=(
+                    None
+                    if row.distance_km is None
+                    else float(row.distance_km)
+                ),
+                source=str(row.source or ""),
+            )
+        )
+    if not observations:
+        return _empty_history_statistics()
+    return derive_recent_history_statistics(
+        tuple(observations),
+        athlete_today=athlete_today,
+    )
+
+
+def _proposal_athlete_today(proposal: Mapping[str, Any]) -> date | None:
+    goal = dict(proposal.get("goal") or {})
+    try:
+        horizon_start = date.fromisoformat(str(goal["horizon_start"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return horizon_start - timedelta(days=1)
+
+
+def _empty_history_statistics() -> RecentHistoryStatistics:
+    return RecentHistoryStatistics(
+        usable_completed_weeks=0,
+        recent_modal_running_frequency=0,
+        recent_median_usable_weekly_minutes=0,
+        recent_maximum_usable_weekly_minutes=0,
+        recent_maximum_session_minutes=0,
+        recent_maximum_session_distance_km=None,
+        latest_run_date=None,
+    )
 
 
 def _proposal_envelope(
@@ -840,7 +962,7 @@ def _proposal_envelope(
         "source_revision": result.deterministic_input_hash,
         "purpose": purpose.public_payload(),
         "event_context": _json_safe(asdict(result.event_context)),
-        "history_cutoff_completed_days": 56,
+        "history_cutoff_completed_days": ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
         "template_ids": (
             _selected_template_ids(result.plan)
             if result.plan is not None
@@ -877,7 +999,7 @@ def _readiness_envelope(
         "athlete_today": generation_input.athlete_today.isoformat(),
         "block_start": generation_input.block_start.isoformat(),
         "event_context": _json_safe(asdict(result.event_context)),
-        "history_cutoff_completed_days": 56,
+        "history_cutoff_completed_days": ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
         "template_ids": (
             _selected_template_ids(result.plan)
             if result.plan is not None
@@ -890,6 +1012,7 @@ def _readiness_envelope(
 def _result_without_plan(result: Road10KGenerationResult) -> dict[str, Any]:
     payload = serialize_generation_result(result)
     payload.pop("plan", None)
+    payload.update(_typed_outcome_fields(result.code))
     return payload
 
 
@@ -904,11 +1027,9 @@ def _request_fingerprint(
     payload = {
         "request_kind": request_kind,
         "expected_source_revision": expected_source_revision,
-        "constraints": _constraints_snapshot(
-            constraints,
-            purpose=(
-                dict(purpose_selection) if purpose_selection is not None else None
-            ),
+        "constraints": _constraints_snapshot(constraints),
+        "purpose": (
+            dict(purpose_selection) if purpose_selection is not None else None
         ),
         "predecessor": (
             {"proposal_id": predecessor[0], "version": predecessor[1]}
@@ -1028,8 +1149,6 @@ def _goal_evidence_date(value: object) -> date | None:
 
 def _constraints_snapshot(
     constraints: Road10KPlanGenerationConstraints,
-    *,
-    purpose: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "adult_confirmed": constraints.adult_confirmed,
@@ -1048,7 +1167,6 @@ def _constraints_snapshot(
             if constraints.benchmark_date is not None
             else None
         ),
-        "purpose": dict(purpose) if purpose is not None else None,
     }
 
 
@@ -1096,7 +1214,9 @@ def _persisted_reassessment_dates(proposal: dict[str, Any]) -> list[str]:
         horizon_end = date.fromisoformat(str(goal["horizon_end"]))
     except (KeyError, TypeError, ValueError):
         return []
-    reassessment = horizon_start + timedelta(days=7)
+    reassessment = horizon_start + timedelta(
+        days=ROAD_10K_REASSESSMENT_COMPLETED_DAYS
+    )
     return [reassessment.isoformat()] if reassessment <= horizon_end else []
 
 

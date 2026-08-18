@@ -308,9 +308,8 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             deterministic_input_hash="8" * 64,
             request_kind="generate",
             request_fingerprint="9" * 64,
-            observed_input_snapshot={"completed_running_history": []},
-            derived_history_statistics={"usable_completed_weeks": 8},
-            validation_results={"code": "eligible_rolling_proposal"},
+            result_code="eligible_rolling_proposal",
+            validation_reason_code=None,
         ))
         db.add(GoalBaselineConfirmation(
             id="baseline-confirmation",

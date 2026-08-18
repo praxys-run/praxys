@@ -180,18 +180,21 @@ function isRoad10KCapability(
   return capability?.constraint_schema_id === 'outdoor_road_10k_constraints_v1';
 }
 
-function isPlanReadyCode(
-  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+function isPlanReadyResult(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
 ): boolean {
-  return code === 'ready' || code.startsWith('eligible_');
+  if ('plan_returned' in result) {
+    return result.route_state === 'plan_candidate' && result.plan_returned;
+  }
+  return result.code === 'ready';
 }
 
 function needsBaselineReview(
-  code: Outdoor5KOutcomeResponse['code'] | Road10KOutcomeResponse['code'],
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
 ): boolean {
   return (
-    code === 'insufficient_or_stale_baseline'
-    || code === 'missing_or_stale_direct_baseline'
+    result.code === 'insufficient_or_stale_baseline'
+    || result.code === 'missing_or_stale_direct_baseline'
   );
 }
 
@@ -755,8 +758,8 @@ Component({
         this.setData({
           readiness,
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
-          readinessIsPlanReady: isPlanReadyCode(readiness.result.code),
-          showBaselineRefreshPanel: needsBaselineReview(readiness.result.code),
+          readinessIsPlanReady: isPlanReadyResult(readiness.result),
+          showBaselineRefreshPanel: needsBaselineReview(readiness.result),
           working: '',
         });
         return readiness;
@@ -783,7 +786,7 @@ Component({
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
-      if (!readiness || !constraints || !capability || !isPlanReadyCode(readiness.result.code)) return;
+      if (!readiness || !constraints || !capability || !isPlanReadyResult(readiness.result)) return;
       const requestPurpose = constraints.purpose;
       this.setData({ working: 'generate', errorMessage: '' });
       try {
@@ -816,8 +819,8 @@ Component({
           this.setData({
             readiness: response,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
-            readinessIsPlanReady: isPlanReadyCode(response.result.code),
-            showBaselineRefreshPanel: needsBaselineReview(response.result.code),
+            readinessIsPlanReady: isPlanReadyResult(response.result),
+            showBaselineRefreshPanel: needsBaselineReview(response.result),
           });
         }
         this.clearOperationKey('generate');
@@ -838,7 +841,7 @@ Component({
       const readiness = await this.checkReadiness();
       const constraints = this.constraints();
       const capability = this.data.capability;
-      if (!proposal || !readiness || !constraints || !capability || !isPlanReadyCode(readiness.result.code)) return;
+      if (!proposal || !readiness || !constraints || !capability || !isPlanReadyResult(readiness.result)) return;
       const requestPurpose = constraints.purpose;
       this.setData({ working: 'regenerate', errorMessage: '' });
       try {
@@ -881,8 +884,8 @@ Component({
           this.setData({
             readiness: response,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
-            readinessIsPlanReady: isPlanReadyCode(response.result.code),
-            showBaselineRefreshPanel: needsBaselineReview(response.result.code),
+            readinessIsPlanReady: isPlanReadyResult(response.result),
+            showBaselineRefreshPanel: needsBaselineReview(response.result),
           });
         }
         this.clearOperationKey('regenerate');
