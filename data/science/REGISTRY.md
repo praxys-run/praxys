@@ -51,7 +51,9 @@ _None._
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-road-10k-plan-generation-policy-v2](decisions/sdr-road-10k-plan-generation-policy-v2.yaml) — Generator-ready adult outdoor road 10 km performance policy | 2 | road-10k-plan-generation-policy-v2 | 2026-08-18 |
 
 ## Superseded
 

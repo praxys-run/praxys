@@ -805,6 +805,92 @@ def test_population_routing_packet_contains_exact_accepted_inactive_contract() -
     ) in evidence_packet
 
 
+def test_road_10k_v2_packet_contains_generator_ready_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    decision_id = "sdr-road-10k-plan-generation-policy-v2"
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.DRAFT
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.parameter_values[
+        "road_10k_v2_execution_window_and_reassessment"
+    ]["committed_proposal_days"] == 14
+    assert contract.parameter_values[
+        "road_10k_v2_execution_window_and_reassessment"
+    ]["advisory_reassessment_after_completed_days"] == 7
+    assert contract.parameter_values[
+        "road_10k_v2_schedule_construction"
+    ]["quality_sessions_per_7_day_unit"] == 1
+    assert [
+        item["template_id"]
+        for item in contract.parameter_values[
+            "road_10k_v2_workout_templates"
+        ]["templates"]
+    ] == [
+        "road-10k-controlled-threshold-quality-v1",
+        "road-10k-specific-interval-quality-v1",
+    ]
+    assert contract.parameter_values[
+        "road_10k_v2_event_benchmark_and_taper"
+    ]["race_dense"]["full_proposal_allowed"] is False
+    assert contract.parameter_values[
+        "road_10k_v2_event_benchmark_and_taper"
+    ]["single_target"]["target_fewer_than_8_days_after_start"] == (
+        "limited_near_term_guidance"
+    )
+    assert contract.parameter_values[
+        "road_10k_v2_typed_outcomes"
+    ]["outcomes"]["safety_stop"]["route_state"] == "readiness_only"
+    assert contract.parameter_values[
+        "road_10k_v2_intensity_quality_and_spacing"
+    ]["activity_average_power_allowed_for_intensity_analysis"] is False
+    assert set(
+        contract.parameter_values["road_10k_v2_deferred_scope"].values()
+    ) == {"not_accepted"}
+
+    assert exact_contract_block in packet
+    assert contract.source_decision_digest in packet
+    assert contract.contract_digest in packet
+    assert "**Decision approval:** _Pending_" in packet
+    assert "**Implementation approval:** _Pending_" in packet
+    assert packet.count("_Pending_") == 3
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    for item_id in (
+        "supported-capability",
+        "rolling-execution",
+        "deterministic-schedule",
+        "event-and-taper",
+        "hard-boundaries",
+        "evaluation-gates",
+        "broader-capabilities",
+        "implementation-and-activation",
+    ):
+        assert packet.count(f"#### `{item_id}`") == 1
+    assert "Praxys science approval" in packet
+    assert "road-10k-controlled-threshold-quality-v1" in packet
+    assert "road-10k-specific-interval-quality-v1" in packet
+    assert "activity_avg_power" in packet
+
+
 def test_half_marathon_packet_contains_exact_inactive_contract() -> None:
     registry = load_science_registry()
     expected = expected_science_artifacts(registry)
