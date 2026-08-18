@@ -935,7 +935,7 @@ def test_adult_running_population_routing_is_accepted_and_inactive() -> None:
     ]
 
 
-def test_road_10k_policy_is_accepted_distance_specific_and_inactive() -> None:
+def test_road_10k_v1_is_superseded_distance_specific_and_inactive() -> None:
     registry = load_science_registry()
     review = registry.evidence_reviews[
         "evidence-road-10k-plan-generation-policy-v1"
@@ -969,8 +969,11 @@ def test_road_10k_policy_is_accepted_distance_specific_and_inactive() -> None:
     } <= {note.split(";", 1)[0] for note in review.review_notes}
     _assert_exact_verification_notes(review)
 
-    assert decision.status == "accepted"
+    assert decision.status == RecordStatus.SUPERSEDED
     assert decision.human_reviewers == ["github:dddtc2005"]
+    assert decision.superseded_by == (
+        "sdr-road-10k-plan-generation-policy-v2"
+    )
     assert decision.evidence_review_ids == [
         "evidence-plan-generation-eligibility-safety-v1",
         review.id,
@@ -1243,13 +1246,13 @@ def test_road_10k_v2_is_generator_ready_artifact_and_inactive() -> None:
         "sdr-road-10k-plan-generation-policy-v2"
     ]
 
-    assert predecessor.status == RecordStatus.ACCEPTED
-    assert predecessor.superseded_by is None
-    assert decision.status == RecordStatus.DRAFT
+    assert predecessor.status == RecordStatus.SUPERSEDED
+    assert predecessor.superseded_by == decision.id
+    assert decision.status == RecordStatus.ACCEPTED
     assert decision.approval_mode == ApprovalMode.ARTIFACT
     assert decision.human_reviewers == []
     assert decision.version == 2
-    assert decision.supersedes == []
+    assert decision.supersedes == [predecessor.id]
     assert decision.artifact_policy is not None
     assert (
         decision.artifact_policy.runtime_state

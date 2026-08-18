@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-road-10k-plan-generation-policy-v2`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `road-10k-plan-generation-policy-v2`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad`
-- **Contract digest:** `sha256:37bdc97f048206066deb6d6e1b48ee9162a4d54679b7599da90874ef0e29c096`
+- **Contract digest:** `sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-18` ([source](https://github.com/praxys-run/praxys/pull/733#issuecomment-5327908194))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -175,7 +175,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve this inactive road 10 km performance policy as one bounded generator contract: the history-rich adult outdoor-road scope and typed readiness inputs; a fourteen-day committed proposal with a seven-day advisory reassessment and explicit successor adoption; one quality session per seven-day unit using the exact versioned 10 km templates; confirmed-none and single-target event handling with a bounded taper and race-dense limited guidance; the stated claim, demographic, consent, AI, privacy, and audit limits; and the predeclared runtime evaluation gates. I agree that broader dose, race-density, population, targeting, automation, and activation choices remain deferred. I understand that every exact schedule and template value is a Praxys guardrail rather than a published optimum, and that this approval does not implement or activate behavior.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-18` ([source](https://github.com/praxys-run/praxys/pull/733#issuecomment-5327908194))
 
 ### Decision approval
 
@@ -1209,9 +1209,9 @@ AI cannot create evidence, confirm context, choose deferred product values, weak
     "future road-10k-deterministic-generator-v1",
     "shared adult-running plan-purpose and capability router"
   ],
-  "contract_digest": "sha256:37bdc97f048206066deb6d6e1b48ee9162a4d54679b7599da90874ef0e29c096",
+  "contract_digest": "sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496",
   "decision_id": "sdr-road-10k-plan-generation-policy-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",

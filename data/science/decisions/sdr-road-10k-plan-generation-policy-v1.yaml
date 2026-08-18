@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-road-10k-plan-generation-policy-v1
 version: 1
 title: "History-anchored adult outdoor road 10 km performance policy"
-status: accepted
+status: superseded
 decision_date: 2026-08-14
 owners:
   - team:praxys
@@ -1000,7 +1000,7 @@ affected_surfaces:
     - Explain direct versus indirect evidence and every product guardrail.
     - Show dynamic pattern, event context, baseline source, comparability, assumptions, unknowns, risks, and alternatives.
 supersedes: []
-superseded_by:
+superseded_by: sdr-road-10k-plan-generation-policy-v2
 accepted_interpretation: >
   Praxys accepts only the bounded, inactive-by-default outdoor road 10 km
   performance policy for an adult, currently capable, history-rich dynamic

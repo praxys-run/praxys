@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-road-10k-plan-generation-policy-v2
 version: 2
 title: "Generator-ready adult outdoor road 10 km performance policy"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-08-18
 owners:
@@ -1015,7 +1015,8 @@ affected_surfaces:
     - Show baseline source, history cutoff, event state, template version, assumptions, unknowns, risks, alternatives, and adoption boundary.
 artifact_policy:
   runtime_state: inactive
-supersedes: []
+supersedes:
+  - sdr-road-10k-plan-generation-policy-v1
 superseded_by:
 decision_notes:
   - "This artifact-mode successor proposal addresses issue #731 and remains draft and inactive."

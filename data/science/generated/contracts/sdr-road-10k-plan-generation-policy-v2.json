@@ -4,9 +4,9 @@
     "future road-10k-deterministic-generator-v1",
     "shared adult-running plan-purpose and capability router"
   ],
-  "contract_digest": "sha256:37bdc97f048206066deb6d6e1b48ee9162a4d54679b7599da90874ef0e29c096",
+  "contract_digest": "sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496",
   "decision_id": "sdr-road-10k-plan-generation-policy-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "eligibility.recent-history-anchor-without-universal-threshold",

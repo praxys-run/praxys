@@ -152,6 +152,8 @@ def _write_fixture_records(
         "artifact_policy": DecisionArtifactPolicy(
             runtime_state=runtime_state,
         ),
+        "supersedes": [],
+        "superseded_by": None,
     })
     _write_yaml(
         science_dir / "evidence" / "shared" / f"{shared.id}.yaml",
@@ -826,7 +828,7 @@ def test_road_10k_v2_packet_contains_generator_ready_inactive_contract() -> None
         + "\n```"
     )
 
-    assert contract.decision_status == RecordStatus.DRAFT
+    assert contract.decision_status == RecordStatus.ACCEPTED
     assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
     assert contract.parameter_values[
         "road_10k_v2_execution_window_and_reassessment"
@@ -867,9 +869,12 @@ def test_road_10k_v2_packet_contains_generator_ready_inactive_contract() -> None
     assert exact_contract_block in packet
     assert contract.source_decision_digest in packet
     assert contract.contract_digest in packet
-    assert "**Decision approval:** _Pending_" in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-18`"
+        in packet
+    )
     assert "**Implementation approval:** _Pending_" in packet
-    assert packet.count("_Pending_") == 3
+    assert packet.count("_Pending_") == 1
     assert packet.index("## Your task") < packet.index("## Decision sheet")
     assert packet.index("## Decision sheet") < packet.index(
         "## Audit appendix"
