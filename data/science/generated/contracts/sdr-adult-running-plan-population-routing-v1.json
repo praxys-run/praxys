@@ -3,9 +3,9 @@
     "Science evidence applicability and claim-limit contract",
     "Science-only human decision sheet"
   ],
-  "contract_digest": "sha256:934390730001bd44625a9cbeb1e45da34a09d45af613db8f3965ed130475d0d7",
+  "contract_digest": "sha256:f11d9483a3c43129e06c99d01282c5a34135518edf86beed93854eca094af761",
   "decision_id": "sdr-adult-running-plan-population-routing-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.novice-recreational-different-evidence-family",

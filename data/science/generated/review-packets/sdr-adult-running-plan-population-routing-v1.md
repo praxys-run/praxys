@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-adult-running-plan-population-routing-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `adult-running-plan-population-routing-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:e0db9989e767f5f2bbc6ab858830427f60bd045e72a7cd46ed9e38a16b349bfb`
-- **Contract digest:** `sha256:934390730001bd44625a9cbeb1e45da34a09d45af613db8f3965ed130475d0d7`
+- **Contract digest:** `sha256:f11d9483a3c43129e06c99d01282c5a34135518edf86beed93854eca094af761`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-18` ([source](https://github.com/praxys-run/praxys/pull/717#issuecomment-5322944695))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -172,7 +172,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve only these inactive scientific boundaries: first-completion applicability is distinct from history-rich performance applicability; sparse or missing records do not prove cessation or detraining; age is relevant without establishing a universal exclusion, cutoff, or fixed recovery delay; sex, reproductive, menopause, transgender/nonbinary, and gender evidence remains construct-specific; strength and cycling evidence remains bounded; and scope remains adult, nonclinical, and split-level for intensity. I agree that all exact values remain not_accepted and that every Product, Design, Trust, Architecture, implementation, pilot, rollout, and activation decision remains outside Science authority and deferred to a linked decision with human review. This approval would not implement or activate behavior.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-08-18` ([source](https://github.com/praxys-run/praxys/pull/717#issuecomment-5322944695))
 
 ### Decision approval
 
@@ -536,9 +536,9 @@ Evidence constrains later choices but does not own product promises, interaction
     "Science evidence applicability and claim-limit contract",
     "Science-only human decision sheet"
   ],
-  "contract_digest": "sha256:934390730001bd44625a9cbeb1e45da34a09d45af613db8f3965ed130475d0d7",
+  "contract_digest": "sha256:f11d9483a3c43129e06c99d01282c5a34135518edf86beed93854eca094af761",
   "decision_id": "sdr-adult-running-plan-population-routing-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "eligibility.novice-recreational-different-evidence-family",

@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-adult-running-plan-population-routing-v1
 version: 1
 title: "Bound scientific applicability for adult running-plan populations"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-08-16
 owners:

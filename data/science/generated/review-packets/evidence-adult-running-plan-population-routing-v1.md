@@ -3,11 +3,11 @@
 > Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
 
 - **Record:** `evidence-adult-running-plan-population-routing-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Review mode:** `artifact`
 - **Reviewed content digest:** `sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8`
 - **Required role:** `evidence_reviewer`
-- **Approval:** _Pending_
+- **Approval:** `github:dddtc2005` on `2026-08-17` ([source](https://github.com/praxys-run/praxys/pull/717#issuecomment-5310736355))
 
 ## Approval
 

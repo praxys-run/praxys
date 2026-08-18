@@ -11,13 +11,13 @@ research_question: >
   recovery, reassessment, or schedule value justify a general plan family or
   mandatory profile input?
 topic: adult-running-plan-population-routing
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:github-copilot
 human_reviewers: []
 created_on: 2026-08-16
-reviewed_on: null
+reviewed_on: 2026-08-17
 intended_product_purpose: >
   Define the evidence boundary for population-aware adult running-plan
   routing without turning study cohort labels into permanent runner

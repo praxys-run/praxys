@@ -11,6 +11,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-16 |
+| [evidence-adult-running-plan-population-routing-v1](evidence/adult-running-plan-population-routing/evidence-adult-running-plan-population-routing-v1.yaml) — Adult running-plan population routing | 1 | adult-running-plan-population-routing | 2026-08-17 |
 | [evidence-environmental-performance-v1](evidence/environmental-performance/evidence-environmental-performance-v1.yaml) — Environmental heat and endurance performance | 1 | environmental-performance | 2026-07-26 |
 | [evidence-environmental-response-workload-support-v1](evidence/environmental-response-workload-support/evidence-environmental-response-workload-support-v1.yaml) — Comparable workload support for personal environmental-response displays | 1 | environmental-response-workload-support | 2026-08-10 |
 | [evidence-heat-adaptation-v1](evidence/heat-adaptation/evidence-heat-adaptation-v1.yaml) — Repeated-exposure heat adaptation | 1 | heat-adaptation | 2026-07-25 |
@@ -32,6 +33,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Require actionable, feedback-aware recommendations across managed plans | 1 | adaptive-plan-policy-v1 | 2026-08-16 |
+| [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
 | [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Use a history-anchored 28-day outdoor 5 km plan block | 1 | outdoor-5k-plan-generation-policy-v1 | 2026-08-13 |
@@ -45,15 +47,11 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-| Record | Version | Topic/model | Reviewed/decided |
-|---|---:|---|---|
-| [evidence-adult-running-plan-population-routing-v1](evidence/adult-running-plan-population-routing/evidence-adult-running-plan-population-routing-v1.yaml) — Adult running-plan population routing | 1 | adult-running-plan-population-routing | 2026-08-16 |
+_None._
 
 ### Science decisions
 
-| Record | Version | Topic/model | Reviewed/decided |
-|---|---:|---|---|
-| [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
+_None._
 
 ## Superseded
 
