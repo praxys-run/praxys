@@ -1097,14 +1097,28 @@ def create_successor_proposal(
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_EXPIRED", "The proposal has expired.")
         if parent.state != "draft":
             raise AdaptivePlanError(409, "PLAN_PROPOSAL_NOT_EDITABLE", "Only draft proposals can be edited.", state=parent.state)
+        from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
         if (
-            parent.policy_version == "outdoor-5k-plan-generation-policy-v1"
+            parent.policy_version in {
+                "outdoor-5k-plan-generation-policy-v1",
+                ROAD_10K_POLICY_VERSION,
+            }
             and not allow_policy_successor
         ):
             raise AdaptivePlanError(
                 409,
-                "OUTDOOR_5K_PROPOSAL_REGENERATE_REQUIRED",
-                "Use the deterministic outdoor 5K regenerate endpoint for this proposal.",
+                (
+                    "OUTDOOR_5K_PROPOSAL_REGENERATE_REQUIRED"
+                    if parent.policy_version
+                    == "outdoor-5k-plan-generation-policy-v1"
+                    else "ROAD_10K_PROPOSAL_REGENERATE_REQUIRED"
+                ),
+                (
+                    "Use the deterministic outdoor 5K regenerate endpoint for this proposal."
+                    if parent.policy_version
+                    == "outdoor-5k-plan-generation-policy-v1"
+                    else "Use the deterministic road 10K regenerate endpoint for this proposal."
+                ),
             )
         adaptive_plan = db.execute(
             select(AdaptivePlan).where(
@@ -1499,7 +1513,12 @@ def keep_current_plan_after_goal_change(
         raise
 
 
-def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence[Mapping[str, Any]]) -> list[TrainingPlan]:
+def _plans_from_snapshot(
+    user_id: str,
+    adaptive_plan_id: str,
+    proposal: PlanProposal,
+    workouts: Sequence[Mapping[str, Any]],
+) -> list[TrainingPlan]:
     rows: list[TrainingPlan] = []
     for workout in workouts:
         rows.append(
@@ -1526,7 +1545,11 @@ def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence
                 workout_structure=workout.get("workout_structure"),
                 source=PRAXYS_PLAN_WRITE_SOURCE,
                 workout_origin="proposal",
-                meta={"proposal_id": adaptive_plan_id},
+                meta={
+                    "proposal_id": proposal.id,
+                    "policy_version": proposal.policy_version,
+                    "generator_version": proposal.model_version,
+                },
             )
         )
     return rows
@@ -1641,6 +1664,7 @@ def adopt_proposal(
                 "target": goal.target,
             },
         )
+        from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
         if proposal.policy_version == "outdoor-5k-plan-generation-policy-v1":
             # This import stays local to keep the generic immutable-proposal
             # foundation independent of the policy-specific data orchestration.
@@ -1651,6 +1675,16 @@ def adopt_proposal(
             )
 
             validate_outdoor_5k_proposal_adoption(
+                db,
+                user_id=user_id,
+                proposal=proposal,
+            )
+        elif proposal.policy_version == ROAD_10K_POLICY_VERSION:
+            from api.road_10k_plan_generation import (
+                validate_road_10k_proposal_adoption,
+            )
+
+            validate_road_10k_proposal_adoption(
                 db,
                 user_id=user_id,
                 proposal=proposal,
@@ -1667,7 +1701,12 @@ def adopt_proposal(
             horizon_end=goal.horizon_end,
             current_date=current_date,
         )
-        rows = _plans_from_snapshot(user_id, adaptive_plan.id, workouts)
+        rows = _plans_from_snapshot(
+            user_id,
+            adaptive_plan.id,
+            proposal,
+            workouts,
+        )
         existing_query = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
             TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),

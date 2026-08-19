@@ -679,6 +679,18 @@ def _settings_update_requests_stryd(body: SettingsUpdate) -> bool:
     return contains_stryd(body.preferences)
 
 
+def _client_visible_settings_config(
+    config: UserConfig,
+    *,
+    stryd_enabled: bool,
+) -> dict[str, Any]:
+    payload = asdict(config) if stryd_enabled else _without_stryd_config(config)
+    from api.plan_generation_capabilities import client_visible_goal
+
+    payload["goal"] = client_visible_goal(payload.get("goal"))
+    return payload
+
+
 @router.get("/settings")
 def get_settings(
     viewer_user_id: str = Depends(get_current_user_id),
@@ -733,10 +745,9 @@ def get_settings(
     )
 
     return {
-        "config": (
-            asdict(config)
-            if stryd_enabled
-            else _without_stryd_config(config)
+        "config": _client_visible_settings_config(
+            config,
+            stryd_enabled=stryd_enabled,
         ),
         "connection_statuses": _connection_statuses(
             db,
@@ -945,6 +956,26 @@ def _update_settings(
                 "target_event_date"
             )
             config.goal.pop("target_event_date", None)
+        candidate_goal = {**config.goal, **goal_update}
+        if (
+            str(candidate_goal.get("goal_kind") or "").strip().casefold()
+            == "performance_10k"
+        ):
+            from api.plan_generation_capabilities import (
+                road_10k_capability_available,
+            )
+
+            if not road_10k_capability_available():
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "GOAL_KIND_UNAVAILABLE",
+                        "message": (
+                            "The reviewed 10K performance goal is not active yet. "
+                            "Keep a race or continuous goal until this capability is activated."
+                        ),
+                    },
+                )
         config.goal.update(goal_update)
     if body.source_options is not None:
         source_options_update = dict(body.source_options)
@@ -1228,10 +1259,9 @@ def _update_settings(
             )
     return {
         "status": "ok",
-        "config": (
-            asdict(config)
-            if stryd_enabled
-            else _without_stryd_config(config)
+        "config": _client_visible_settings_config(
+            config,
+            stryd_enabled=stryd_enabled,
         ),
         "display": get_display_config(config.training_base),
         "connection_statuses": _connection_statuses(

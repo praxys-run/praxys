@@ -44,6 +44,7 @@ import type {
   Outdoor5KConstraintsRequest,
   Outdoor5KGenerateResponse,
   Outdoor5KOutcomeResponse,
+  Outdoor5KProposalResponse,
   Outdoor5KReadinessResponse,
   Outdoor5KRegenerateResponse,
   Outdoor5KWeekday,
@@ -51,10 +52,20 @@ import type {
   PlanIntent,
   PlanGenerationPurposeSelection,
   PlanRoutingOption,
+  Road10KBaselineResponse,
+  Road10KConstraintsRequest,
+  Road10KGenerateResponse,
+  Road10KOutcomeResponse,
+  Road10KProposalResponse,
+  Road10KReadinessResponse,
+  Road10KRegenerateResponse,
 } from '@/types/api';
 
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
-const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID = 'outdoor_road_5k_constraints_v1';
+const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([
+  'outdoor_road_5k_constraints_v1',
+  'outdoor_road_10k_constraints_v1',
+]);
 
 type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
@@ -94,13 +105,17 @@ function proposalActionHref(template: string, proposalId: string): string {
 }
 
 function isProposalResponse(
-  value: Outdoor5KGenerateResponse | Outdoor5KRegenerateResponse,
-): value is Extract<Outdoor5KGenerateResponse, { proposal: AdaptivePlanProposal | null }> {
+  value:
+    | Outdoor5KGenerateResponse
+    | Outdoor5KRegenerateResponse
+    | Road10KGenerateResponse
+    | Road10KRegenerateResponse,
+): value is Outdoor5KProposalResponse | Road10KProposalResponse {
   return 'proposal' in value;
 }
 
 function outcomeCopy(
-  result: Outdoor5KOutcomeResponse,
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
   fallback: string,
 ): string {
   if (result.observed_or_stated_reason) return result.observed_or_stated_reason;
@@ -113,7 +128,7 @@ function proposalStateLabel(state: AdaptivePlanProposal['state']): string {
 }
 
 function baselineCopy(
-  baseline: GoalBaselineResponse | undefined,
+  baseline: GoalBaselineResponse | Road10KBaselineResponse | undefined,
   ready: string,
   pending: string,
 ): string {
@@ -128,11 +143,11 @@ function purposeKey(source: PurposeOptionSource, capabilityId: string): string {
 function proposalPurposeKey(
   proposal: AdaptivePlanProposal | null,
 ): string | null {
-  const capabilityId = proposal?.policy_version
-    ? proposal.policy_version === 'outdoor-5k-plan-generation-policy-v1'
-      ? 'outdoor_road_5k_v1'
-      : null
-    : null;
+  const capabilityId = proposal?.goal?.goal_kind === 'performance_5k'
+    ? 'outdoor_road_5k_v1'
+    : proposal?.goal?.goal_kind === 'performance_10k'
+      ? 'outdoor_road_10k_performance_v1'
+      : null;
   const source = proposal?.goal?.purpose_source;
   return capabilityId && source
     ? purposeKey(source, capabilityId)
@@ -168,6 +183,26 @@ function planStartError(
       ? { code: requestError.code }
       : {}),
   };
+}
+
+function isRoad10KCapabilitySchema(schemaId: string | null | undefined): boolean {
+  return schemaId === 'outdoor_road_10k_constraints_v1';
+}
+
+function isPlanReadyResult(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
+): boolean {
+  if ('plan_returned' in result) {
+    return result.route_state === 'plan_candidate' && result.plan_returned;
+  }
+  return result.code === 'ready';
+}
+
+function needsBaselineReview(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
+): boolean {
+  return result.code === 'insufficient_or_stale_baseline'
+    || result.code === 'missing_or_stale_direct_baseline';
 }
 
 function needsPlanContextRecovery(
@@ -236,8 +271,9 @@ export function PlanStartGoalEntry() {
     };
   }, [discovery?.current_goal, selectedRoute]);
   const capabilityUpdateRequired = routedCapability != null
-    && routedCapability.constraint_schema_id
-      !== SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID;
+    && !SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
+      routedCapability.constraint_schema_id,
+    );
   const intentOptions: Array<{
     intent: PlanIntent;
     label: string;
@@ -528,14 +564,16 @@ export default function PlanStart({
   );
   const supportedCapabilities = useMemo(
     () => capabilityDiscovery?.capabilities.filter(
-      (item) => item.constraint_schema_id
-        === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID,
+      (item) => SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
+        item.constraint_schema_id,
+      ),
     ) ?? [],
     [capabilityDiscovery],
   );
-  const currentCapability = capabilityDiscovery?.selected_capability?.constraint_schema_id
-    === SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID
-    ? capabilityDiscovery.selected_capability
+  const currentCapability = SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
+    capabilityDiscovery?.selected_capability?.constraint_schema_id ?? '',
+  )
+    ? capabilityDiscovery?.selected_capability ?? null
     : null;
   const hasSelectablePurpose = Boolean(
     currentCapability && capabilityDiscovery?.current_goal,
@@ -607,6 +645,11 @@ export default function PlanStart({
     '/api/plan/proposals/current',
     { timeoutMs: 12_000 },
   );
+  const activeSchemaId = capability?.constraint_schema_id
+    ?? currentCapability?.constraint_schema_id
+    ?? supportedCapabilities[0]?.constraint_schema_id
+    ?? null;
+  const road10kMode = isRoad10KCapabilitySchema(activeSchemaId);
 
   const [availableDays, setAvailableDays] = useState<Outdoor5KWeekday[]>([]);
   const [dayLimits, setDayLimits] = useState<DayLimits>({});
@@ -616,8 +659,17 @@ export default function PlanStart({
   const [canComplete, setCanComplete] = useState(false);
   const [outdoorRoad, setOutdoorRoad] = useState(false);
   const [safetyStop, setSafetyStop] = useState(false);
+  const [weeklyTimeLimit, setWeeklyTimeLimit] = useState('');
+  const [singleSessionLimit, setSingleSessionLimit] = useState('');
+  const [benchmarkDate, setBenchmarkDate] = useState('');
   const [readiness, setReadiness] = useState<
-    Outdoor5KReadinessResponse | Outdoor5KGenerateResponse | Outdoor5KRegenerateResponse | null
+    | Outdoor5KReadinessResponse
+    | Outdoor5KGenerateResponse
+    | Outdoor5KRegenerateResponse
+    | Road10KReadinessResponse
+    | Road10KGenerateResponse
+    | Road10KRegenerateResponse
+    | null
   >(null);
   const [proposal, setProposal] = useState<AdaptivePlanProposal | null>(null);
   const [working, setWorking] = useState<PlanStartWorkingState | null>(null);
@@ -627,6 +679,12 @@ export default function PlanStart({
 
   useEffect(() => {
     if (selectedPurposeTouched || !capabilityDiscovery) return;
+    let cancelled = false;
+    const applyDefaultPurpose = (value: string) => {
+      queueMicrotask(() => {
+        if (!cancelled) setSelectedPurposeKey(value);
+      });
+    };
     const existingPurposeKey = proposalPurposeKey(currentProposal ?? null);
     const [
       existingPurposeSource = '',
@@ -651,14 +709,15 @@ export default function PlanStart({
       existingPurposeKey
       && existingPurposeSelectable
     ) {
-      setSelectedPurposeKey(existingPurposeKey);
-      return;
-    }
-    if (currentCapability && capabilityDiscovery.current_goal) {
-      setSelectedPurposeKey(
+      applyDefaultPurpose(existingPurposeKey);
+    } else if (currentCapability && capabilityDiscovery.current_goal) {
+      applyDefaultPurpose(
         purposeKey('current_goal', currentCapability.id),
       );
     }
+    return () => {
+      cancelled = true;
+    };
   }, [
     capabilityDiscovery,
     currentCapability,
@@ -741,7 +800,22 @@ export default function PlanStart({
   const perDayLimitsUnsupported = availableDays.length > 1
     && new Set(availableDays.map((day) => dayLimits[day]?.trim() ?? '')).size > 1;
   const scopeComplete = adult && selfCoached && canComplete && outdoorRoad;
-  const formError = !purposeSelection
+  const weeklyTimeLimitNumber = Number(weeklyTimeLimit);
+  const singleSessionLimitNumber = Number(singleSessionLimit);
+  const road10kFormError = !purposeSelection
+    ? t`Choose an accepted plan purpose first.`
+    : !adult
+      ? t`Confirm the reviewed adult scope first.`
+      : availableDays.length === 0
+        ? t`Choose the days you are available to run.`
+        : !Number.isInteger(weeklyTimeLimitNumber) || weeklyTimeLimitNumber <= 0
+          ? t`Enter a whole-number weekly time limit.`
+          : !Number.isInteger(singleSessionLimitNumber) || singleSessionLimitNumber <= 0
+            ? t`Enter a whole-number single-session limit.`
+            : null;
+  const formError = road10kMode
+    ? road10kFormError
+    : !purposeSelection
     ? t`Choose an accepted plan purpose first.`
     : !scopeComplete
     ? t`Confirm the supported athlete and goal scope first.`
@@ -752,6 +826,35 @@ export default function PlanStart({
           ? t`Per-day limits are unsupported by this policy. Use one shared limit for all selected days.`
           : t`Enter one whole-minute limit for every selected day.`
         : null;
+  const focusFirstInvalidConstraint = () => {
+    let targetId = 'plan-start-purpose';
+    if (purposeSelection) {
+      if (road10kMode) {
+        targetId = !adult
+          ? 'plan-start-road-10k-adult'
+          : availableDays.length === 0
+            ? 'plan-start-day-0'
+            : !Number.isInteger(weeklyTimeLimitNumber) || weeklyTimeLimitNumber <= 0
+              ? 'road-10k-weekly-limit'
+              : 'road-10k-session-limit';
+      } else if (!scopeComplete) {
+        targetId = !adult
+          ? 'plan-start-scope-adult'
+          : !selfCoached
+            ? 'plan-start-scope-self-coached'
+            : !canComplete
+              ? 'plan-start-scope-can-complete'
+              : 'plan-start-scope-outdoor-road';
+      } else if (availableDays.length === 0) {
+        targetId = 'plan-start-day-0';
+      } else {
+        targetId = `outdoor-5k-day-${availableDays[0]}`;
+      }
+    }
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.focus();
+    });
+  };
   const dayName = (day: Outdoor5KWeekday, short = false): string => (
     new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { weekday: short ? 'short' : 'long' })
       .format(new Date(Date.UTC(2024, 0, day + 1)))
@@ -808,12 +911,28 @@ export default function PlanStart({
     setError(null);
   };
 
-  const constraints = (): Outdoor5KConstraintsRequest | null => {
-    if (!purposeSelection || formError || sharedDuration == null) {
+  const constraints = (): Outdoor5KConstraintsRequest | Road10KConstraintsRequest | null => {
+    if (!purposeSelection || formError || (road10kMode ? false : sharedDuration == null)) {
       setError({
         message: formError ?? t`Review the constraints and try again.`,
       });
+      focusFirstInvalidConstraint();
       return null;
+    }
+    if (road10kMode) {
+      return {
+        purpose: purposeSelection,
+        adult_confirmed: adult,
+        current_symptom_stop: safetyStop,
+        available_weekdays: availableDays,
+        weekly_time_limit_min: weeklyTimeLimitNumber,
+        maximum_session_duration_min: singleSessionLimitNumber,
+        unavailable_dates: [],
+        preferred_longest_easy_weekday: preferredLongestDay === ''
+          ? null
+          : Number(preferredLongestDay) as Outdoor5KWeekday,
+        benchmark_date: benchmarkDate || null,
+      };
     }
     return {
       purpose: purposeSelection,
@@ -823,14 +942,14 @@ export default function PlanStart({
       safety_stop: safetyStop,
       outdoor_road_goal_confirmed: outdoorRoad,
       available_weekdays: availableDays,
-      maximum_session_duration_min: sharedDuration,
+      maximum_session_duration_min: sharedDuration as number,
       preferred_longest_run_weekday: preferredLongestDay === ''
         ? null
         : Number(preferredLongestDay) as Outdoor5KWeekday,
     };
   };
 
-  const requestReadiness = async (): Promise<Outdoor5KReadinessResponse | null> => {
+  const requestReadiness = async (): Promise<Outdoor5KReadinessResponse | Road10KReadinessResponse | null> => {
     const activeCapability = capability;
     const body = constraints();
     if (!body || !activeCapability) return null;
@@ -843,7 +962,7 @@ export default function PlanStart({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const value = await planStartResponse<Outdoor5KReadinessResponse>(
+      const value = await planStartResponse<Outdoor5KReadinessResponse | Road10KReadinessResponse>(
         response,
         t`Could not assess this plan start.`,
       );
@@ -868,7 +987,7 @@ export default function PlanStart({
       !checked
       || !body
       || !activeCapability
-      || checked.result.code !== 'ready'
+      || !isPlanReadyResult(checked.result)
     ) return;
     setWorking('generate');
     setError(null);
@@ -882,7 +1001,9 @@ export default function PlanStart({
           idempotency_key: operationKey('generate'),
         }),
       });
-      const value = await planStartResponse<Outdoor5KGenerateResponse>(
+      const value = await planStartResponse<
+        Outdoor5KGenerateResponse | Road10KGenerateResponse
+      >(
         response,
         t`Could not create the proposal.`,
       );
@@ -910,7 +1031,7 @@ export default function PlanStart({
     if (!activeProposal || !activeCapability) return;
     const checked = await requestReadiness();
     const body = constraints();
-    if (!checked || !body || checked.result.code !== 'ready') return;
+    if (!checked || !body || !isPlanReadyResult(checked.result)) return;
     setWorking('regenerate');
     setError(null);
     try {
@@ -930,7 +1051,9 @@ export default function PlanStart({
           }),
         },
       );
-      const value = await planStartResponse<Outdoor5KRegenerateResponse>(
+      const value = await planStartResponse<
+        Outdoor5KRegenerateResponse | Road10KRegenerateResponse
+      >(
         response,
         t`Could not regenerate the proposal.`,
       );
@@ -1214,6 +1337,23 @@ export default function PlanStart({
       ? readiness.baseline
       : undefined;
   const result = readiness?.result;
+  const road10KGuardrails = (
+    road10kMode
+    && readiness
+    && 'guardrails' in readiness
+  )
+    ? readiness.guardrails
+    : null;
+  const showRoad10KScheduleGuardrails = Boolean(
+    road10KGuardrails
+    && result
+    && 'plan_returned' in result
+    && result.plan_returned
+    && (
+      result.code === 'eligible_rolling_proposal'
+      || result.code === 'eligible_taper_proposal'
+    ),
+  );
   const isDraft = displayedProposal?.state === 'draft';
   const isAdopted = displayedProposal?.state === 'adopted';
   const hasLifecycleState = displayedProposal && !isDraft && !isAdopted;
@@ -1256,11 +1396,11 @@ export default function PlanStart({
               </p>
             </div>
             <Select
-              value={selectedPurposeKey || undefined}
+              value={selectedPurposeKey}
               onValueChange={selectPurpose}
               disabled={working != null}
             >
-              <SelectTrigger aria-label={t`Plan purpose`}>
+              <SelectTrigger id="plan-start-purpose" aria-label={t`Plan purpose`}>
                 <SelectValue placeholder={t`Choose an accepted plan purpose`}>
                   {selectedPurposeLabel}
                 </SelectValue>
@@ -1337,6 +1477,7 @@ export default function PlanStart({
                 </span>
                 {policyProposalPurposeKey && (
                   <Button
+                    id="plan-start-road-10k-adult"
                     type="button"
                     size="sm"
                     variant="outline"
@@ -1353,155 +1494,309 @@ export default function PlanStart({
             disabled={!purposeSelection}
             className="min-w-0 space-y-6 border-0 p-0 disabled:opacity-60"
           >
-          <Alert>
-            <ShieldCheck className="size-4" aria-hidden="true" />
-            <AlertTitle><Trans>Scope and guardrails</Trans></AlertTitle>
-            <AlertDescription>
-              <Trans>
-                This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome.
-              </Trans>
-            </AlertDescription>
-          </Alert>
+          {road10kMode ? (
+            <>
+              <Alert>
+                <ShieldCheck className="size-4" aria-hidden="true" />
+                <AlertTitle><Trans>Scope and guardrails</Trans></AlertTitle>
+                <AlertDescription>
+                  <Trans>
+                    This reviewed 10K performance capability uses adult confirmation, direct 10K evidence, and history-anchored load caps. It does not diagnose, clear, or guarantee a performance outcome.
+                  </Trans>
+                </AlertDescription>
+              </Alert>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              { value: adult, set: setAdult, label: t`I am 18 or older.` },
-              { value: selfCoached, set: setSelfCoached, label: t`I am self-coached for recreational road running.` },
-              { value: canComplete, set: setCanComplete, label: t`I can currently complete 5 km.` },
-              { value: outdoorRoad, set: setOutdoorRoad, label: t`My goal is an outdoor road 5K.` },
-            ].map((item) => (
               <Button
-                key={item.label}
                 type="button"
                 variant="outline"
-                aria-pressed={item.value}
+                aria-pressed={adult}
                 onClick={() => {
-                  item.set((value) => !value);
+                  setAdult((value) => !value);
                   setReadiness(null);
                 }}
-                className={`min-h-12 justify-start whitespace-normal text-left ${item.value ? 'border-primary text-primary' : ''}`}
+                className={`min-h-12 justify-start whitespace-normal text-left ${adult ? 'border-primary text-primary' : ''}`}
               >
-                {item.label}
+                <Trans>I am 18 or older.</Trans>
               </Button>
-            ))}
-          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4">
-            <div>
-              <h3 className="text-sm font-semibold"><Trans>Safety stop</Trans></h3>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                <Trans>Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives.</Trans>
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant={safetyStop ? 'destructive' : 'outline'}
-              aria-pressed={safetyStop}
-              onClick={() => {
-                setSafetyStop((value) => !value);
-                setReadiness(null);
-              }}
-            >
-              {safetyStop ? <Trans>Safety stop applies</Trans> : <Trans>No safety stop</Trans>}
-            </Button>
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4">
+                <div>
+                  <h3 className="text-sm font-semibold"><Trans>Symptom stop</Trans></h3>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    <Trans>Tell Praxys if a current symptom stop applies. It will stop this plan path and return only bounded guidance.</Trans>
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={safetyStop ? 'destructive' : 'outline'}
+                  aria-pressed={safetyStop}
+                  onClick={() => {
+                    setSafetyStop((value) => !value);
+                    setReadiness(null);
+                  }}
+                >
+                  {safetyStop ? <Trans>Symptom stop applies</Trans> : <Trans>No symptom stop</Trans>}
+                </Button>
+              </div>
 
-          <div>
-            <h3 className="text-sm font-semibold"><Trans>Available run days</Trans></h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <Trans>Select availability, then give the same supported session limit for each selected day.</Trans>
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {DAYS.map((day) => {
-                const selected = availableDays.includes(day);
-                return (
+              <div>
+                <h3 className="text-sm font-semibold"><Trans>Available run days</Trans></h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <Trans>Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap.</Trans>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {DAYS.map((day) => {
+                    const selected = availableDays.includes(day);
+                    return (
+                      <Button
+                        id={`plan-start-day-${day}`}
+                        key={day}
+                        type="button"
+                        variant="outline"
+                        aria-pressed={selected}
+                        aria-label={dayName(day)}
+                        onClick={() => toggleDay(day)}
+                        className={`min-h-11 min-w-12 ${selected ? 'border-primary text-primary' : ''}`}
+                      >
+                        {dayName(day, true)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-weekly-limit"><Trans>Weekly time limit (minutes)</Trans></Label>
+                  <Input
+                    id="road-10k-weekly-limit"
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={weeklyTimeLimit}
+                    onChange={(event) => {
+                      setWeeklyTimeLimit(event.target.value);
+                      setReadiness(null);
+                    }}
+                    className="font-data"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-session-limit"><Trans>Single-session limit (minutes)</Trans></Label>
+                  <Input
+                    id="road-10k-session-limit"
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={singleSessionLimit}
+                    onChange={(event) => {
+                      setSingleSessionLimit(event.target.value);
+                      setReadiness(null);
+                    }}
+                    className="font-data"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-long-day"><Trans>Preferred longest-easy day</Trans></Label>
+                  <Select
+                    value={preferredLongestDay === '' ? 'none' : preferredLongestDay}
+                    onValueChange={(value) => setPreferredLongestDay(value === 'none' || value == null ? '' : value)}
+                  >
+                    <SelectTrigger id="road-10k-long-day">
+                      <SelectValue placeholder={t`No preference`}>
+                        {preferredLongestDayLabel}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none"><Trans>No preference</Trans></SelectItem>
+                      {availableDays.map((day) => (
+                        <SelectItem key={day} value={String(day)}>
+                          {dayName(day)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="road-10k-benchmark-date"><Trans>Optional benchmark date</Trans></Label>
+                  <Input
+                    id="road-10k-benchmark-date"
+                    type="date"
+                    value={benchmarkDate}
+                    onChange={(event) => {
+                      setBenchmarkDate(event.target.value);
+                      setReadiness(null);
+                    }}
+                    className="font-data"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    <Trans>Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own.</Trans>
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <Alert>
+                <ShieldCheck className="size-4" aria-hidden="true" />
+                <AlertTitle><Trans>Scope and guardrails</Trans></AlertTitle>
+                <AlertDescription>
+                  <Trans>
+                    This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome.
+                  </Trans>
+                </AlertDescription>
+              </Alert>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { id: 'plan-start-scope-adult', value: adult, set: setAdult, label: t`I am 18 or older.` },
+                  { id: 'plan-start-scope-self-coached', value: selfCoached, set: setSelfCoached, label: t`I am self-coached for recreational road running.` },
+                  { id: 'plan-start-scope-can-complete', value: canComplete, set: setCanComplete, label: t`I can currently complete 5 km.` },
+                  { id: 'plan-start-scope-outdoor-road', value: outdoorRoad, set: setOutdoorRoad, label: t`My goal is an outdoor road 5K.` },
+                ].map((item) => (
                   <Button
-                    key={day}
+                    id={item.id}
+                    key={item.label}
                     type="button"
                     variant="outline"
-                    aria-pressed={selected}
-                    aria-label={dayName(day)}
-                    onClick={() => toggleDay(day)}
-                    className={`min-h-11 min-w-12 ${selected ? 'border-primary text-primary' : ''}`}
+                    aria-pressed={item.value}
+                    onClick={() => {
+                      item.set((value) => !value);
+                      setReadiness(null);
+                    }}
+                    className={`min-h-12 justify-start whitespace-normal text-left ${item.value ? 'border-primary text-primary' : ''}`}
                   >
-                    {dayName(day, true)}
+                    {item.label}
                   </Button>
-                );
-              })}
-            </div>
-          </div>
+                ))}
+              </div>
 
-          {availableDays.length > 0 && (
-            <div className="grid gap-3 md:grid-cols-2">
-              {availableDays.map((day) => {
-                const dayLabel = dayName(day);
-                return (
-                  <div key={day} className="space-y-2">
-                    <Label htmlFor={`outdoor-5k-day-${day}`}><Trans>{dayLabel} time limit (minutes)</Trans></Label>
-                    <Input
-                      id={`outdoor-5k-day-${day}`}
-                      type="number"
-                      min="1"
-                      inputMode="numeric"
-                      value={dayLimits[day] ?? ''}
-                      onChange={(event) => setDayLimit(day, event.target.value)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4">
+                <div>
+                  <h3 className="text-sm font-semibold"><Trans>Safety stop</Trans></h3>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    <Trans>Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives.</Trans>
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={safetyStop ? 'destructive' : 'outline'}
+                  aria-pressed={safetyStop}
+                  onClick={() => {
+                    setSafetyStop((value) => !value);
+                    setReadiness(null);
+                  }}
+                >
+                  {safetyStop ? <Trans>Safety stop applies</Trans> : <Trans>No safety stop</Trans>}
+                </Button>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold"><Trans>Available run days</Trans></h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <Trans>Select availability, then give the same supported session limit for each selected day.</Trans>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {DAYS.map((day) => {
+                    const selected = availableDays.includes(day);
+                    return (
+                      <Button
+                        id={`plan-start-day-${day}`}
+                        key={day}
+                        type="button"
+                        variant="outline"
+                        aria-pressed={selected}
+                        aria-label={dayName(day)}
+                        onClick={() => toggleDay(day)}
+                        className={`min-h-11 min-w-12 ${selected ? 'border-primary text-primary' : ''}`}
+                      >
+                        {dayName(day, true)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {availableDays.length > 0 && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {availableDays.map((day) => {
+                    const dayLabel = dayName(day);
+                    return (
+                      <div key={day} className="space-y-2">
+                        <Label htmlFor={`outdoor-5k-day-${day}`}><Trans>{dayLabel} time limit (minutes)</Trans></Label>
+                        <Input
+                          id={`outdoor-5k-day-${day}`}
+                          type="number"
+                          min="1"
+                          inputMode="numeric"
+                          value={dayLimits[day] ?? ''}
+                          onChange={(event) => setDayLimit(day, event.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {perDayLimitsUnsupported && (
+                <Alert>
+                  <AlertTitle><Trans>Per-day limits are unsupported</Trans></AlertTitle>
+                  <AlertDescription>
+                    <Trans>
+                      The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.
+                    </Trans>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="outdoor-5k-long-day"><Trans>Preferred longest-run day</Trans></Label>
+                  <Select
+                    value={preferredLongestDay === '' ? 'none' : preferredLongestDay}
+                    onValueChange={(value) => setPreferredLongestDay(value === 'none' || value == null ? '' : value)}
+                  >
+                    <SelectTrigger id="outdoor-5k-long-day">
+                      <SelectValue placeholder={t`No preference`}>
+                        {preferredLongestDayLabel}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none"><Trans>No preference</Trans></SelectItem>
+                      {availableDays.map((day) => (
+                        <SelectItem key={day} value={String(day)}>
+                          {dayName(day)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Alert>
+                  <CalendarDays className="size-4" aria-hidden="true" />
+                  <AlertTitle><Trans>Terrain and equipment</Trans></AlertTitle>
+                  <AlertDescription>
+                    <Trans>
+                      This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred.
+                    </Trans>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </>
           )}
 
-          {perDayLimitsUnsupported && (
-            <Alert>
-              <AlertTitle><Trans>Per-day limits are unsupported</Trans></AlertTitle>
-              <AlertDescription>
-                <Trans>
-                  The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.
-                </Trans>
-              </AlertDescription>
-            </Alert>
+          {formError && (
+            <p className="text-sm text-destructive" aria-live="polite">
+              {formError}
+            </p>
           )}
-
-          <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="outdoor-5k-long-day"><Trans>Preferred longest-run day</Trans></Label>
-              <Select
-                value={preferredLongestDay === '' ? 'none' : preferredLongestDay}
-                onValueChange={(value) => setPreferredLongestDay(value === 'none' || value == null ? '' : value)}
-              >
-                <SelectTrigger id="outdoor-5k-long-day">
-                  <SelectValue placeholder={t`No preference`}>
-                    {preferredLongestDayLabel}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none"><Trans>No preference</Trans></SelectItem>
-                  {availableDays.map((day) => (
-                    <SelectItem key={day} value={String(day)}>
-                      {dayName(day)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Alert>
-              <CalendarDays className="size-4" aria-hidden="true" />
-              <AlertTitle><Trans>Terrain and equipment</Trans></AlertTitle>
-              <AlertDescription>
-                <Trans>
-                  This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred.
-                </Trans>
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <div className="flex flex-wrap gap-2">
             <Button disabled={isDemo || working != null || !purposeSelection} onClick={() => void requestReadiness()} className="min-h-11">
               {working === 'readiness' ? <Trans>Checking readiness…</Trans> : <Trans>Check readiness</Trans>}
             </Button>
-            {result?.code === 'ready' && !activeProposal && !conflictingProposal && (
+            {result && isPlanReadyResult(result) && !activeProposal && !conflictingProposal && (
               <Button variant="outline" disabled={isDemo || working != null} onClick={() => void generate()} className="min-h-11">
                 {working === 'generate' ? <Trans>Creating proposal…</Trans> : <Trans>Create proposal</Trans>}
               </Button>
@@ -1516,17 +1811,59 @@ export default function PlanStart({
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle><Trans>Readiness result</Trans></CardTitle>
-              <Badge variant={result.code === 'ready' ? 'default' : 'outline'}>{result.code.replace(/_/g, ' ')}</Badge>
+              <Badge variant={isPlanReadyResult(result) ? 'default' : 'outline'}>{result.code.replace(/_/g, ' ')}</Badge>
             </div>
             <CardDescription>{outcomeCopy(result, t`The deterministic policy returned no additional explanation.`)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 border-t border-border pt-4">
-            <p className="text-sm text-muted-foreground">
-              <Trans>History used:</Trans>{' '}
-              <span className="font-data">{result.history_statistics.usable_completed_weeks}</span>{' '}
-              <Trans>complete weeks; latest run</Trans>{' '}
-              <span className="font-data">{result.history_statistics.latest_run_date ?? '—'}</span>.
-            </p>
+            {road10kMode ? (
+              <>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <dt className="text-muted-foreground"><Trans>Baseline source</Trans></dt>
+                    <dd className="mt-1 font-data">{baseline && 'evidence' in baseline ? baseline.evidence?.provenance ?? '—' : '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground"><Trans>History cutoff</Trans></dt>
+                    <dd className="mt-1 font-data">{readiness && 'history_cutoff_completed_days' in readiness ? readiness.history_cutoff_completed_days : '—'}d</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground"><Trans>Event state</Trans></dt>
+                    <dd className="mt-1">{readiness && 'event_context' in readiness ? readiness.event_context.state.replace(/_/g, ' ') : '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground"><Trans>Templates</Trans></dt>
+                    <dd className="mt-1 font-data">{readiness && 'template_ids' in readiness ? readiness.template_ids.join(', ') : '—'}</dd>
+                  </div>
+                </dl>
+                <p className="text-sm text-muted-foreground">
+                  <Trans>History used:</Trans>{' '}
+                  <span className="font-data">{result.history_statistics.usable_completed_weeks}</span>{' '}
+                  <Trans>usable completed weeks; latest run</Trans>{' '}
+                  <span className="font-data">{result.history_statistics.latest_run_date ?? '—'}</span>.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                <Trans>History used:</Trans>{' '}
+                <span className="font-data">{result.history_statistics.usable_completed_weeks}</span>{' '}
+                <Trans>complete weeks; latest run</Trans>{' '}
+                <span className="font-data">{result.history_statistics.latest_run_date ?? '—'}</span>.
+              </p>
+            )}
+            {showRoad10KScheduleGuardrails && road10KGuardrails && (
+              <ScienceNote
+                label={<Trans>Road 10K schedule guardrails</Trans>}
+                sourceUrl="https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml"
+                sourceLabel={t`Accepted road 10K plan-generation policy`}
+              >
+                <p>
+                  <Trans>
+                    The accepted <span className="font-data">{road10KGuardrails.committed_proposal_days}</span>-day proposal and <span className="font-data">{road10KGuardrails.advisory_reassessment_after_completed_days}</span>-day reassessment, one quality session per week, at least <span className="font-data">{new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'percent', maximumFractionDigits: 0 }).format(road10KGuardrails.minimum_planned_low_intensity_running_minutes_fraction)}</span> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety.
+                  </Trans>
+                </p>
+              </ScienceNote>
+            )}
             {result.alternatives.length > 0 && (
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 {result.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}
@@ -1541,7 +1878,7 @@ export default function PlanStart({
         </Card>
       )}
 
-      {result?.code === 'insufficient_or_stale_baseline'
+      {result && needsBaselineReview(result)
         && readiness
         && 'baseline' in readiness
         && purposeSelection && (
@@ -1558,7 +1895,7 @@ export default function PlanStart({
       )}
 
       {proposalLoadError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" role="alert">
           <AlertTitle><Trans>Could not refresh proposal state</Trans></AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>{proposalLoadError}</span>

@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable, Mapping
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
 from api.plan_delivery.base import (
     PlanDeliveryAdapter,
     ProviderAuthenticationError,
@@ -28,7 +30,7 @@ from api.plan_delivery.credentials import (
     DeliveryCredentialsUnavailable,
 )
 from db.cache_revision import bump_revisions
-from db.models import TrainingPlan
+from db.models import PlanProposal, TrainingPlan
 from db.plan_reconciliation import mark_target_workout_absent
 from db.plan_ledger import (
     begin_delivery_attempt,
@@ -117,11 +119,63 @@ class PlanDeliveryService:
             self._loaded_adapter = self._adapter_loader()
         return self._loaded_adapter
 
+    def _policy_version(self, snapshot: Mapping[str, Any]) -> str | None:
+        meta = snapshot.get("meta")
+        if isinstance(meta, Mapping):
+            value = str(meta.get("policy_version") or "").strip()
+            if value:
+                return value
+        canonical_id = str(snapshot.get("canonical_id") or "").strip()
+        if not canonical_id:
+            return None
+        canonical = self.db.execute(
+            select(TrainingPlan).where(
+                TrainingPlan.user_id == self.user_id,
+                TrainingPlan.canonical_id == canonical_id,
+            )
+        ).scalar_one_or_none()
+        if canonical is None:
+            return None
+        canonical_meta = canonical.meta
+        if isinstance(canonical_meta, Mapping):
+            value = str(canonical_meta.get("policy_version") or "").strip()
+            if value:
+                return value
+        if not canonical.adaptive_plan_id:
+            return None
+        return self.db.execute(
+            select(PlanProposal.policy_version)
+            .where(
+                PlanProposal.user_id == self.user_id,
+                PlanProposal.adaptive_plan_id == canonical.adaptive_plan_id,
+                PlanProposal.state == "adopted",
+            )
+            .order_by(
+                PlanProposal.decided_at.desc(),
+                PlanProposal.created_at.desc(),
+            )
+        ).scalars().first()
+
     def authenticate(self) -> None:
         """Authenticate the configured provider before a batch operation."""
         adapter = self._adapter()
         self.db.rollback()
         adapter.authenticate()
+
+    def preflight_delivery(
+        self,
+        snapshot: Mapping[str, Any],
+    ) -> DeliveryResult | None:
+        """Return a policy block before loading or contacting the provider."""
+        if self._policy_version(snapshot) != ROAD_10K_POLICY_VERSION:
+            return None
+        self.db.rollback()
+        return DeliveryResult(
+            status="error",
+            error="road_10k_policy_delivery_blocked",
+            error_category="road_10k_policy_delivery_blocked",
+            retryable=False,
+        )
 
     def _flush_auth_state(
         self,
@@ -316,6 +370,9 @@ class PlanDeliveryService:
         expected_delivery_id: str | None = None,
     ) -> DeliveryResult:
         """Deliver one canonical workout version to the configured target."""
+        policy_block = self.preflight_delivery(snapshot)
+        if policy_block is not None:
+            return policy_block
         workout_date = str(snapshot["date"])
         provider_name = self.target.capitalize()
         try:

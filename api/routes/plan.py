@@ -91,7 +91,7 @@ from api.plan_resolution import (
     restore_praxys_version,
 )
 from db.cache_revision import bump_revisions
-from db.models import PlanDelivery, PlanTargetCalendarSync
+from db.models import PlanDelivery, PlanTargetCalendarSync, TrainingPlan
 from db.plan_ledger import (
     delivery_status_for_snapshots,
     has_unresolved_legacy_stryd_corruption,
@@ -939,6 +939,91 @@ def _resolve_stryd_delivery_cp(data: dict) -> float | None:
     return cp_watts if math.isfinite(cp_watts) and cp_watts > 0 else None
 
 
+def _manual_policy_blocked_results(
+    db: Session,
+    *,
+    user_id: str,
+    request: PushStrydRequest,
+    service: PlanDeliveryService,
+) -> list[dict[str, object]] | None:
+    """Return all-policy-blocked manual results without loading an adapter."""
+    try:
+        requested_dates = {
+            date.fromisoformat(value) for value in request.workout_dates
+        }
+    except ValueError:
+        return None
+    query = select(TrainingPlan).where(
+        TrainingPlan.user_id == user_id,
+        TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),
+        TrainingPlan.date.in_(requested_dates),
+    )
+    requested_canonical_ids = set(request.canonical_ids or [])
+    if requested_canonical_ids:
+        query = query.where(
+            TrainingPlan.canonical_id.in_(requested_canonical_ids)
+        )
+    candidates = db.execute(query).scalars().all()
+    if not candidates:
+        return None
+    blocked = {
+        str(candidate.id): service.preflight_delivery(
+            plan_snapshot(candidate)
+        )
+        for candidate in candidates
+    }
+    if any(outcome is None for outcome in blocked.values()):
+        return None
+
+    results: list[dict[str, object]] = []
+    for workout_date in request.workout_dates:
+        matching = sorted(
+            (
+                candidate
+                for candidate in candidates
+                if candidate.date.isoformat() == workout_date
+            ),
+            key=lambda candidate: (
+                candidate.date,
+                candidate.id,
+                str(candidate.workout_type or ""),
+            ),
+        )
+        if not matching:
+            results.append({
+                "date": workout_date,
+                "status": "error",
+                "error": (
+                    "No requested workout found for this date"
+                    if requested_canonical_ids
+                    else "No workout found for this date"
+                ),
+            })
+            continue
+        include_identity = (
+            len(matching) > 1 or bool(requested_canonical_ids)
+        )
+        for candidate in matching:
+            outcome = blocked[str(candidate.id)]
+            assert outcome is not None
+            result: dict[str, object] = {
+                "date": workout_date,
+                "status": outcome.status,
+                "error": outcome.error
+                or "road_10k_policy_delivery_blocked",
+                "error_category": outcome.error_category
+                or "road_10k_policy_delivery_blocked",
+                "retryable": outcome.retryable,
+            }
+            if include_identity:
+                result.update({
+                    "canonical_id": str(candidate.canonical_id or ""),
+                    "workout_type": str(candidate.workout_type or ""),
+                })
+            results.append(result)
+    return results
+
+
 @router.post("/plan/push-stryd", include_in_schema=False)
 def push_plan_to_stryd(
     request: PushStrydRequest,
@@ -966,16 +1051,6 @@ def push_plan_to_stryd(
                 "Clean up the prior target before pushing."
             ),
         ) from exc
-    _import_legacy_stryd_status_if_compatible(
-        db,
-        user_id=current_user_id,
-    )
-    mutation_guard = _provider_mutation_guard(
-        db,
-        user_id=current_user_id,
-        target="stryd",
-    )
-
     service = PlanDeliveryService(
         db=db,
         user_id=current_user_id,
@@ -986,6 +1061,24 @@ def push_plan_to_stryd(
             target="stryd",
         ),
     )
+    blocked_results = _manual_policy_blocked_results(
+        db,
+        user_id=current_user_id,
+        request=request,
+        service=service,
+    )
+    if blocked_results is not None:
+        return {"results": blocked_results}
+    _import_legacy_stryd_status_if_compatible(
+        db,
+        user_id=current_user_id,
+    )
+    mutation_guard = _provider_mutation_guard(
+        db,
+        user_id=current_user_id,
+        target="stryd",
+    )
+
     try:
         service.authenticate()
     except DeliveryCredentialsUnavailable as exc:
@@ -1182,6 +1275,12 @@ def push_plan_to_stryd(
                     )
                 elif outcome.error:
                     result["error"] = outcome.error
+                    if (
+                        outcome.error_category
+                        == "road_10k_policy_delivery_blocked"
+                    ):
+                        result["error_category"] = outcome.error_category
+                        result["retryable"] = outcome.retryable
                 results.append(result)
         except SQLAlchemyError as exc:
             db.rollback()

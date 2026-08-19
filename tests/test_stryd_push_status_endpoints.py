@@ -501,6 +501,77 @@ def test_push_uses_calling_users_encrypted_stryd_credentials(
     ]
 
 
+def test_manual_push_blocks_all_road_10k_candidates_before_adapter_load(
+    api_client,
+    monkeypatch,
+) -> None:
+    from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
+    from db.models import TrainingPlan, UserConnection
+
+    user_id = "road-10k-manual-delivery"
+    workout_date = date(2026, 8, 9)
+    canonical_id = "33333333-3333-3333-3333-333333333333"
+    api_client["current"]["value"] = user_id
+    assert api_client["client"].get("/api/plan").status_code == 200
+    with api_client["db_session"].SessionLocal() as db:
+        db.add(TrainingPlan(
+            user_id=user_id,
+            canonical_id=canonical_id,
+            date=workout_date,
+            workout_type="threshold",
+            planned_duration_min=45,
+            workout_description="Blocked road 10K workout",
+            source="praxys",
+            meta={"policy_version": ROAD_10K_POLICY_VERSION},
+        ))
+        db.commit()
+
+    calls = {"adapter": 0, "dashboard": 0}
+
+    def _load_adapter(*args, **kwargs):
+        calls["adapter"] += 1
+        raise AssertionError("road 10K preflight loaded the adapter")
+
+    def _dashboard(*args, **kwargs):
+        calls["dashboard"] += 1
+        raise AssertionError("road 10K preflight loaded dashboard data")
+
+    monkeypatch.setattr(
+        "api.routes.plan.load_plan_delivery_adapter",
+        _load_adapter,
+    )
+    monkeypatch.setattr(
+        "api.routes.plan.get_dashboard_data",
+        _dashboard,
+    )
+
+    response = api_client["client"].post(
+        "/api/plan/push-stryd",
+        json={
+            "workout_dates": [workout_date.isoformat()],
+            "canonical_ids": [canonical_id],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["results"] == [{
+        "date": workout_date.isoformat(),
+        "status": "error",
+        "error": "road_10k_policy_delivery_blocked",
+        "error_category": "road_10k_policy_delivery_blocked",
+        "retryable": False,
+        "canonical_id": canonical_id,
+        "workout_type": "threshold",
+    }]
+    assert calls == {"adapter": 0, "dashboard": 0}
+    with api_client["db_session"].SessionLocal() as db:
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="stryd",
+        ).one()
+        assert connection.plan_delivery_consent is None
+
+
 def test_unpinned_global_stryd_credentials_are_not_used(
     api_client,
     monkeypatch,

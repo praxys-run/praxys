@@ -179,7 +179,7 @@ test('web and miniapp use discovered deterministic actions without local schedul
     assert.match(source, /terrain.*equipment/i);
     assert.doesNotMatch(source, /function\s+buildSchedule|function\s+generateWorkouts/i);
   }
-  assert.match(web, /SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID/);
+  assert.match(web, /SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/readiness/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/generate/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/proposals\/\{proposal_id\}\/regenerate/);

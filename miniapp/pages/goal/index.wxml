@@ -110,7 +110,7 @@
           <text wx:if="{{planRoutingReasoningOpen && planCapabilityState !== 'error'}}" class="plan-generation-reasoning-detail">{{tr.routeScienceDetail}}</text>
         </view>
 
-        <block wx:if="{{goalKind === 'performance_5k' && baseline}}">
+        <block wx:if="{{(goalKind === 'performance_5k' || (performance10kEnabled && goalKind === 'performance_10k')) && baseline}}">
           <goal-baseline
             id="goal-baseline-panel"
             baseline="{{baseline}}"
@@ -342,6 +342,15 @@
           <text class="goal-editor-toggle-label">{{tr.performanceGoal}}</text>
           <text class="goal-editor-toggle-desc ts-muted">{{tr.performanceGoalDesc}}</text>
         </view>
+        <view
+          wx:if="{{performance10kEnabled}}"
+          class="goal-editor-toggle-item {{editorType === 'performance_10k' ? 'goal-editor-toggle-item--active' : ''}}"
+          data-type="performance_10k"
+          bindtap="onPickEditorType"
+        >
+          <text class="goal-editor-toggle-label">{{tr.performance10kGoal}}</text>
+          <text class="goal-editor-toggle-desc ts-muted">{{tr.performance10kGoalDesc}}</text>
+        </view>
       </view>
 
       <text class="goal-editor-label ts-muted">{{tr.distance}}</text>
@@ -357,7 +366,7 @@
         </view>
       </picker>
 
-      <block wx:if="{{editorType === 'race'}}">
+      <block wx:if="{{editorType === 'race' || editorType === 'performance_10k'}}">
         <text class="goal-editor-label ts-muted">{{tr.raceDate}}</text>
         <picker
           mode="date"

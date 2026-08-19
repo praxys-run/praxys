@@ -78,7 +78,8 @@ msgstr "{0} / {thresholdMinutes} 分钟"
 #~ msgstr "滚动 {2} 天窗口内，共 {0} 次训练计入证据，分布在 {1} 个热暴露日。"
 
 #. placeholder {0}: baseline.evidence.age_days
-#: src/components/GoalBaselinePanel.tsx:308
+#: src/components/GoalBaselinePanel.tsx:286
+#: src/components/GoalBaselinePanel.tsx:724
 msgid "{0} days"
 msgstr "{0} 天"
 
@@ -233,7 +234,7 @@ msgstr "{0}：纳入 {1} 次，已观察但未纳入 {excluded} 次"
 #~ msgid "{0}°C estimated wet-bulb proxy"
 #~ msgstr "{0}°C 估算湿球温度代理值"
 
-#: src/pages/Goal.tsx:217
+#: src/pages/Goal.tsx:221
 msgid "{abbrev} is <0>{dirLabel}</0>. Add more activities for a race-time prediction."
 msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛时间预测。"
 
@@ -250,7 +251,7 @@ msgstr "{conflictCount, plural, other {# 个待处理}}"
 #~ msgid "{conflictCount} need review"
 #~ msgstr "{conflictCount} 个待处理"
 
-#: src/components/PlanStart.tsx:1440
+#: src/components/PlanStart.tsx:1729
 msgid "{dayLabel} time limit (minutes)"
 msgstr "{dayLabel} 时间上限（分钟）"
 
@@ -345,11 +346,11 @@ msgid "<0>{0}</0> will lose admin privileges. They will no longer be able to man
 msgstr "<0>{0}</0> 将失去管理员权限。他们将不再能够管理用户或邀请码。"
 
 #. placeholder {0}: formatTime(rc.target_time_sec!)
-#: src/pages/Goal.tsx:155
+#: src/pages/Goal.tsx:159
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1> against a target of <2>{0}</2>."
 msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>，目标 <2>{0}</2>。"
 
-#: src/pages/Goal.tsx:163
+#: src/pages/Goal.tsx:167
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>。"
 
@@ -393,7 +394,7 @@ msgstr "1 周"
 msgid "1 year"
 msgstr "1 年"
 
-#: src/components/GoalEditor.tsx:80
+#: src/components/GoalEditor.tsx:85
 msgid "100 Mi"
 msgstr "100 英里"
 
@@ -411,6 +412,14 @@ msgstr "100公里"
 #: src/pages/Settings.tsx:183
 msgid "10K"
 msgstr "10公里"
+
+#: src/components/GoalBaselinePanel.tsx:102
+msgid "10K direct baseline"
+msgstr "10K 直接基线"
+
+#: src/components/GoalEditor.tsx:52
+msgid "10K performance"
+msgstr "10 公里表现"
 
 #: src/components/ManagedPlanSettingsCard.tsx:563
 msgid "14-day managed window"
@@ -444,7 +453,7 @@ msgstr "3月"
 msgid "4 wk"
 msgstr "4 周"
 
-#: src/components/GoalEditor.tsx:78
+#: src/components/GoalEditor.tsx:83
 msgid "50 Mi"
 msgstr "50 英里"
 
@@ -463,11 +472,11 @@ msgstr "50公里"
 msgid "5K"
 msgstr "5公里"
 
-#: src/components/GoalBaselinePanel.tsx:82
+#: src/components/GoalBaselinePanel.tsx:498
 msgid "5K baseline pilot"
 msgstr "5 公里基线试点"
 
-#: src/components/GoalEditor.tsx:48
+#: src/components/GoalEditor.tsx:50
 msgid "5K performance"
 msgstr "5 公里表现"
 
@@ -488,15 +497,15 @@ msgstr "7 天"
 #~ msgid "7d Trend"
 #~ msgstr "7天趋势"
 
-#: src/components/GoalBaselinePanel.tsx:176
+#: src/components/GoalBaselinePanel.tsx:592
 msgid "A clinician or restriction already rules out vigorous testing"
 msgstr "已有医疗限制或临床建议不要做高强度测试"
 
-#: src/components/PlanStart.tsx:1333
+#: src/components/PlanStart.tsx:1473
 msgid "A draft exists for another plan purpose"
 msgstr "另一项计划用途已有草稿"
 
-#: src/components/GoalBaselinePanel.tsx:102
+#: src/components/GoalBaselinePanel.tsx:518
 msgid "A non-diagnostic safety stop is active; Praxys does not diagnose, treat, or clear return to running."
 msgstr "已触发非诊断安全停止；Praxys 不会给出诊断、治疗或复跑许可。"
 
@@ -559,11 +568,11 @@ msgstr "单次活动对结果的影响过大。"
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "此实验需要与 Stryd 数据一致的临界功率值。"
 
-#: src/components/PlanStart.tsx:939
+#: src/components/PlanStart.tsx:1062
 msgid "A successor proposal is ready. The earlier proposal is preserved as superseded."
 msgstr "后继提案已就绪。此前的提案会保留为已取代。"
 
-#: src/components/GoalBaselinePanel.tsx:138
+#: src/components/GoalBaselinePanel.tsx:554
 msgid "A synced activity never becomes a completed test automatically; you must confirm the protocol, distance, and timing again."
 msgstr "同步活动不会自动记为已完成测试；仍需再次确认测试流程、距离和计时。"
 
@@ -598,6 +607,14 @@ msgstr "绝对跑步功率（瓦）。"
 #: src/components/charts/FormSparkline.tsx:29
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "在保持体能的同时吸收训练负荷。"
+
+#: src/components/PlanStart.tsx:1858
+msgid "Accepted road 10K plan-generation policy"
+msgstr "已接受的公路 10 公里计划生成政策"
+
+#: src/components/GoalBaselinePanel.tsx:124
+msgid "Accepted surface or protocol"
+msgstr "已接受的场地或协议"
 
 #: src/pages/McpAuthorization.tsx:232
 msgid "Access"
@@ -740,7 +757,7 @@ msgstr "近期训练窗口内每周实际负荷与计划负荷的对比。"
 msgid "actual vs planned, avg"
 msgstr "实际/计划比均值"
 
-#: src/components/GoalBaselinePanel.tsx:169
+#: src/components/GoalBaselinePanel.tsx:585
 msgid "Acute illness"
 msgstr "急性疾病"
 
@@ -813,7 +830,7 @@ msgstr "管理后台"
 msgid "Admin sections"
 msgstr "管理模块"
 
-#: src/components/PlanStart.tsx:1639
+#: src/components/PlanStart.tsx:1976
 msgid "Adopt exact proposal"
 msgstr "采纳此精确提案"
 
@@ -825,11 +842,11 @@ msgstr "前往设置启用"
 msgid "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 msgstr "将 Praxys 设为计划方后，才能启用自动调整。目前仍仅提供建议。"
 
-#: src/components/PlanStart.tsx:1639
+#: src/components/PlanStart.tsx:1976
 msgid "Adopting…"
 msgstr "正在采纳…"
 
-#: src/components/PlanStart.tsx:1627
+#: src/components/PlanStart.tsx:1964
 msgid "Adoption is paused"
 msgstr "暂时无法采纳"
 
@@ -979,11 +996,11 @@ msgstr "已有邀请码？"
 msgid "Also send my optional note"
 msgstr "同时发送补充说明"
 
-#: src/components/PlanStart.tsx:281
+#: src/components/PlanStart.tsx:317
 msgid "An active policy matches this intent and distance."
 msgstr "当前已有与该计划方向和距离匹配的生效政策。"
 
-#: src/components/PlanStart.tsx:289
+#: src/components/PlanStart.tsx:325
 msgid "An active policy matches, but current evidence is not sufficient or fresh enough for a proposal."
 msgstr "当前已有匹配的生效政策，但现有证据不足或已不够新，暂时无法生成提案。"
 
@@ -1037,7 +1054,7 @@ msgstr "此窗口内另有 <0>{0}</0> 个训练"
 msgid "Another recovery is already running for this delivery. The queue has been refreshed."
 msgstr "该下发任务已有恢复操作正在进行，队列已刷新。"
 
-#: src/components/GoalBaselinePanel.tsx:175
+#: src/components/GoalBaselinePanel.tsx:591
 msgid "Another red-flag symptom"
 msgstr "其他警示症状"
 
@@ -1061,13 +1078,22 @@ msgstr "批准并提交"
 msgid "Approve access"
 msgstr "允许访问"
 
-#: src/components/GoalBaselinePanel.tsx:112
+#: src/components/GoalBaselinePanel.tsx:528
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "任意 5 公里片段、最佳分段，以及轻松跑、长跑或混合训练中的快速段，都不能作为基线证据。"
 
 #: src/pages/Settings.tsx:1140
 msgid "Asia/CN"
 msgstr "亚洲/中国"
+
+#: src/components/GoalBaselinePanel.tsx:126
+#: src/components/GoalBaselinePanel.tsx:167
+msgid "Assistance status"
+msgstr "辅助情况"
+
+#: src/components/GoalBaselinePanel.tsx:143
+msgid "Assisted"
+msgstr "有辅助"
 
 #. placeholder {0}: item.user_id_hash
 #: src/pages/admin/AdminOps.tsx:1131
@@ -1178,7 +1204,8 @@ msgstr "可参与的实验"
 msgid "Available minutes must be a whole number from 1 to 1440."
 msgstr "可训练时长须为 1 到 1440 之间的整数。"
 
-#: src/components/PlanStart.tsx:1410
+#: src/components/PlanStart.tsx:1543
+#: src/components/PlanStart.tsx:1698
 msgid "Available run days"
 msgstr "可跑步的日期"
 
@@ -1297,17 +1324,21 @@ msgstr "根据你的训练，<0>{0}</0>可能更合适——{1}"
 msgid "Baseline"
 msgstr "基准"
 
-#: src/components/GoalBaselinePanel.tsx:100
+#: src/components/GoalBaselinePanel.tsx:516
 msgid "Baseline evidence is currently sufficient."
 msgstr "当前基线证据足够。"
 
-#: src/components/PlanStart.tsx:1227
+#: src/components/PlanStart.tsx:1367
 msgid "Baseline needs review"
 msgstr "基线需要复核"
 
-#: src/components/PlanStart.tsx:1227
+#: src/components/PlanStart.tsx:1367
 msgid "Baseline ready"
 msgstr "基线已就绪"
+
+#: src/components/PlanStart.tsx:1823
+msgid "Baseline source"
+msgstr "基线来源"
 
 #: src/pages/Training.tsx:189
 #~ msgid "below"
@@ -1402,12 +1433,12 @@ msgstr "适应中"
 #~ msgid "Building heat-adaptation evidence"
 #~ msgstr "正在建立热适应证据"
 
-#: src/pages/Goal.tsx:186
+#: src/pages/Goal.tsx:190
 msgid "Building toward {distLabel}. Current {abbrev} <0>{currentStr}{unit}</0>, need <1>{targetStr}{unit}</1>."
 msgstr "正在追求 {distLabel}。当前 {abbrev} <0>{currentStr}{unit}</0>，目标 <1>{targetStr}{unit}</1>。"
 
 #. placeholder {0}: formatTime(rc.target_time_sec!)
-#: src/pages/Goal.tsx:178
+#: src/pages/Goal.tsx:182
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}</1>，还需达到 <2>{targetStr}{unit}</2>。"
 
@@ -1425,8 +1456,9 @@ msgstr "计算器"
 
 #: src/components/AiInsightsCard.tsx:365
 #: src/components/FeedbackDialog.tsx:314
-#: src/components/GoalBaselinePanel.tsx:142
-#: src/components/GoalEditor.tsx:55
+#: src/components/GoalBaselinePanel.tsx:169
+#: src/components/GoalBaselinePanel.tsx:558
+#: src/components/GoalEditor.tsx:59
 #: src/components/ManagedPlanSettingsCard.tsx:1124
 #: src/components/ManagedPlanSettingsCard.tsx:1213
 #: src/components/ManagedPlanSettingsCard.tsx:1438
@@ -1514,11 +1546,12 @@ msgstr "挑战策略错误："
 msgid "Change"
 msgstr "修改"
 
-#: src/components/GoalBaselinePanel.tsx:110
+#: src/components/GoalBaselinePanel.tsx:130
+#: src/components/GoalBaselinePanel.tsx:526
 msgid "Change confirmation"
 msgstr "修改确认"
 
-#: src/pages/Goal.tsx:449
+#: src/pages/Goal.tsx:469
 msgid "Change Goal"
 msgstr "调整目标"
 
@@ -1534,7 +1567,7 @@ msgstr "后续已更改"
 msgid "Changed what I'll do"
 msgstr "调整了今天的训练安排"
 
-#: src/components/PlanStart.tsx:1502
+#: src/components/PlanStart.tsx:1797
 msgid "Check readiness"
 msgstr "检查准备情况"
 
@@ -1558,11 +1591,11 @@ msgstr "正在检查交付兼容性…"
 #~ msgid "Checking provider compatibility…"
 #~ msgstr "正在检查平台兼容性…"
 
-#: src/components/PlanStart.tsx:1502
+#: src/components/PlanStart.tsx:1797
 msgid "Checking readiness…"
 msgstr "正在检查准备情况…"
 
-#: src/components/GoalBaselinePanel.tsx:171
+#: src/components/GoalBaselinePanel.tsx:587
 msgid "Chest pain or pressure"
 msgstr "胸痛或胸闷压迫感"
 
@@ -1588,7 +1621,7 @@ msgstr "选择原因类型"
 #~ msgid "Choose a race target or track continuous improvement."
 #~ msgstr "选择比赛目标，或持续追踪进步。"
 
-#: src/components/GoalEditor.tsx:42
+#: src/components/GoalEditor.tsx:44
 msgid "Choose a race target, track continuous progress, or use the 5K baseline pilot."
 msgstr "选择比赛目标、持续追踪进步，或使用 5 公里基线试点。"
 
@@ -1596,15 +1629,28 @@ msgstr "选择比赛目标、持续追踪进步，或使用 5 公里基线试点
 msgid "Choose a recent workout"
 msgstr "选择近期训练"
 
-#: src/components/PlanStart.tsx:1264
+#: src/components/PlanStart.tsx:1404
 msgid "Choose an accepted plan purpose"
 msgstr "选择已接受的计划用途"
 
-#: src/components/PlanStart.tsx:745
+#: src/components/PlanStart.tsx:806
+#: src/components/PlanStart.tsx:819
 msgid "Choose an accepted plan purpose first."
 msgstr "请先选择已接受的计划用途。"
 
-#: src/components/PlanStart.tsx:357
+#: src/components/GoalBaselinePanel.tsx:156
+msgid "Choose an optional 10K benchmark date"
+msgstr "选择一个可选的 10K 基准测试日期"
+
+#: src/components/GoalBaselinePanel.tsx:134
+msgid "Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it."
+msgstr "如果你需要，可在训练计划预览里选择并标注一个可选基准日期。Praxys 不会自动安排。"
+
+#: src/components/PlanStart.tsx:1636
+msgid "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
+msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys 不会自动安排，目标完赛时间差距本身也不会提高训练负荷。"
+
+#: src/components/PlanStart.tsx:393
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 msgstr "请明确选择。Praxys 会结合计划方向、当前距离、生效政策和已有证据来决定下一步。"
 
@@ -1612,11 +1658,12 @@ msgstr "请明确选择。Praxys 会结合计划方向、当前距离、生效�
 msgid "Choose how much historical data to pull"
 msgstr "选择要同步多少历史数据"
 
-#: src/components/PlanStart.tsx:303
+#: src/components/PlanStart.tsx:339
 msgid "Choose intent"
 msgstr "选择计划方向"
 
-#: src/components/GoalBaselinePanel.tsx:144
+#: src/components/GoalBaselinePanel.tsx:171
+#: src/components/GoalBaselinePanel.tsx:560
 msgid "Choose one"
 msgstr "请选择"
 
@@ -1636,13 +1683,18 @@ msgstr "选择首选数据来源"
 #~ msgid "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 #~ msgstr "在训练页选择已接受的 5 公里计划用途。除非明确关联，否则它与当前目标保持独立。"
 
-#: src/components/PlanStart.tsx:749
+#: src/components/PlanStart.tsx:810
+#: src/components/PlanStart.tsx:823
 msgid "Choose the days you are available to run."
 msgstr "请选择可以跑步的日期。"
 
 #: src/components/PersonalContextPanel.tsx:370
 msgid "Choose the workout that changed."
 msgstr "请选择要说明的训练。"
+
+#: src/components/PlanStart.tsx:1545
+msgid "Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap."
+msgstr "请选择你真正能执行的 3 到 6 个跑步日。Praxys 会把负荷锚定在你近期的中位数，而不是目标时间差距。"
 
 #: src/components/SetupChecklist.tsx:63
 #: src/pages/Setup.tsx:804
@@ -1654,7 +1706,7 @@ msgid "Choose voluntary experiments that help you inspect your own training hist
 msgstr "选择自愿参与的实验，用自己的训练历史探索规律，同时避免把早期研究包装成建议。"
 
 #. placeholder {0}: displayCapability.horizon_days
-#: src/components/PlanStart.tsx:1238
+#: src/components/PlanStart.tsx:1378
 msgid "Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 msgstr "先选择计划用途，再设置能够坚持的约束。Praxys 会生成带版本的 <0>{0}</0> 天提案；它尚未成为正式计划。"
 
@@ -1666,7 +1718,7 @@ msgstr "请选择这项安排的开始和结束日期。"
 msgid "Choose whether it was missed or modified."
 msgstr "请选择这次训练是未完成还是做了调整。"
 
-#: src/components/PlanStart.tsx:305
+#: src/components/PlanStart.tsx:341
 msgid "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 msgstr "请选择这份计划是为了完成距离、提升表现，还是恢复规律训练。之后可随时更改。"
 
@@ -1739,7 +1791,7 @@ msgstr "已为 {1} 创建代码 {0}。邮件未发送，请复制代码或使用
 msgid "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
 msgstr "使用与实验相同的 Stull 估算式，将气温和相对湿度合并为代理值。"
 
-#: src/pages/Goal.tsx:375
+#: src/pages/Goal.tsx:379
 msgid "Comfortable"
 msgstr "稳妥目标"
 
@@ -1778,7 +1830,7 @@ msgstr "兼容性预览暂不可用。请检查网络后重试。"
 msgid "Complete these steps to unlock your training insights"
 msgstr "完成以下步骤，解锁训练解读"
 
-#: src/components/PlanStart.tsx:1527
+#: src/components/PlanStart.tsx:1850
 msgid "complete weeks; latest run"
 msgstr "个完整周；最近一次跑步"
 
@@ -1830,11 +1882,15 @@ msgstr "确认已满 18 周岁后才能加入此实验。"
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
 msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 
-#: src/components/PlanStart.tsx:747
+#: src/components/PlanStart.tsx:808
+msgid "Confirm the reviewed adult scope first."
+msgstr "请先确认经过审查的成人范围。"
+
+#: src/components/PlanStart.tsx:821
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "请先确认受支持的运动员和目标范围。"
 
-#: src/components/GoalBaselinePanel.tsx:154
+#: src/components/GoalBaselinePanel.tsx:570
 msgid "Confirmed all-out effort"
 msgstr "已确认的全力活动"
 
@@ -1851,7 +1907,7 @@ msgstr "冲突 <0>{0}</0>"
 msgid "Conflict retained"
 msgstr "冲突已保留"
 
-#: src/components/GoalBaselinePanel.tsx:174
+#: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
 msgstr "意识混乱或动作失去协调"
 
@@ -1952,11 +2008,11 @@ msgstr "请在浏览器中继续完成 Strava 授权。Praxys 会从 Strava 导�
 msgid "Continue to Strava"
 msgstr "前往 Strava"
 
-#: src/components/GoalBaselinePanel.tsx:165
+#: src/components/GoalBaselinePanel.tsx:581
 msgid "Continue without a test"
 msgstr "不测试，继续训练"
 
-#: src/components/GoalEditor.tsx:46
+#: src/components/GoalEditor.tsx:48
 msgid "Continuous"
 msgstr "持续提升"
 
@@ -2034,13 +2090,13 @@ msgstr "更正计划个性化信息"
 msgid "Could not add this workout"
 msgstr "无法添加这项训练"
 
-#: src/components/PlanStart.tsx:1012
-#: src/components/PlanStart.tsx:1024
+#: src/components/PlanStart.tsx:1135
+#: src/components/PlanStart.tsx:1147
 msgid "Could not adopt the proposal."
 msgstr "无法采纳该提案。"
 
-#: src/components/PlanStart.tsx:848
-#: src/components/PlanStart.tsx:855
+#: src/components/PlanStart.tsx:967
+#: src/components/PlanStart.tsx:974
 msgid "Could not assess this plan start."
 msgstr "无法评估此计划起点。"
 
@@ -2062,8 +2118,8 @@ msgstr "无法转换此旧版训练。"
 msgid "Could not convert this workout to rest"
 msgstr "无法将这项训练改为休息"
 
-#: src/components/PlanStart.tsx:887
-#: src/components/PlanStart.tsx:901
+#: src/components/PlanStart.tsx:1008
+#: src/components/PlanStart.tsx:1022
 msgid "Could not create the proposal."
 msgstr "无法创建提案。"
 
@@ -2102,12 +2158,12 @@ msgstr "无法退出托管模式"
 msgid "Could not load automatic change history."
 msgstr "无法加载自动调整记录。"
 
-#: src/components/PlanStart.tsx:1072
-#: src/components/PlanStart.tsx:1158
+#: src/components/PlanStart.tsx:1195
+#: src/components/PlanStart.tsx:1281
 msgid "Could not load plan-start context"
 msgstr "无法加载计划起点上下文"
 
-#: src/components/PlanStart.tsx:266
+#: src/components/PlanStart.tsx:302
 msgid "Could not load the accepted plan-generation policies."
 msgstr "无法加载已接受的计划生成政策。"
 
@@ -2124,17 +2180,17 @@ msgstr "无法加载这条计划个性化信息。"
 msgid "Could not pause delivery"
 msgstr "无法暂停下发"
 
-#: src/components/PlanStart.tsx:1562
+#: src/components/PlanStart.tsx:1899
 msgid "Could not refresh proposal state"
 msgstr "无法刷新提案状态"
 
-#: src/components/PlanStart.tsx:935
-#: src/components/PlanStart.tsx:949
+#: src/components/PlanStart.tsx:1058
+#: src/components/PlanStart.tsx:1072
 msgid "Could not regenerate the proposal."
 msgstr "无法重新生成提案。"
 
-#: src/components/PlanStart.tsx:974
-#: src/components/PlanStart.tsx:986
+#: src/components/PlanStart.tsx:1097
+#: src/components/PlanStart.tsx:1109
 msgid "Could not reject the proposal."
 msgstr "无法拒绝该提案。"
 
@@ -2286,7 +2342,7 @@ msgstr "创建账号"
 msgid "Create and manage dismissible banners shown to all users."
 msgstr "创建和管理向所有用户显示、可关闭的横幅公告。"
 
-#: src/components/PlanStart.tsx:1506
+#: src/components/PlanStart.tsx:1801
 msgid "Create proposal"
 msgstr "创建提案"
 
@@ -2310,7 +2366,7 @@ msgstr "创建时间"
 msgid "Creating account…"
 msgstr "正在创建账号…"
 
-#: src/components/PlanStart.tsx:1506
+#: src/components/PlanStart.tsx:1801
 msgid "Creating proposal…"
 msgstr "正在创建提案…"
 
@@ -2378,12 +2434,13 @@ msgstr "CTL 反映较长期的训练负荷，ATL 反映近期训练负荷，TSB 
 #~ msgid "Curated Azure Monitor summaries are unavailable until the telemetry trust boundary in issue #417 is separated."
 #~ msgstr "在 #417 完成遥测信任边界隔离前，精选 Azure Monitor 摘要暂不可用。"
 
-#: src/components/GoalBaselinePanel.tsx:84
+#: src/components/GoalBaselinePanel.tsx:104
+#: src/components/GoalBaselinePanel.tsx:500
 msgid "Current"
 msgstr "当前"
 
-#: src/pages/Goal.tsx:252
-#: src/pages/Goal.tsx:292
+#: src/pages/Goal.tsx:256
+#: src/pages/Goal.tsx:296
 msgid "Current {abbrev}"
 msgstr "当前 {abbrev}"
 
@@ -2395,23 +2452,23 @@ msgstr "当前 {metricName}"
 msgid "Current conclusion"
 msgstr "当前结论"
 
-#: src/components/GoalBaselinePanel.tsx:105
+#: src/components/GoalBaselinePanel.tsx:521
 #: src/components/HeatAdaptationPanel.tsx:528
 msgid "Current evidence"
 msgstr "当前证据"
 
 #. placeholder {0}: capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? '5K'
 #. placeholder {0}: capabilityDiscovery?.current_goal?.goal.distance?.toUpperCase() ?? '5K'
-#: src/components/PlanStart.tsx:762
-#: src/components/PlanStart.tsx:1271
+#: src/components/PlanStart.tsx:865
+#: src/components/PlanStart.tsx:1411
 msgid "Current Goal · {0}"
 msgstr "当前目标 · {0}"
 
-#: src/components/PlanStart.tsx:1300
+#: src/components/PlanStart.tsx:1440
 msgid "Current Goal has no accepted automatic policy"
 msgstr "当前目标暂无已接受的自动计划政策"
 
-#: src/components/PlanStart.tsx:1136
+#: src/components/PlanStart.tsx:1259
 msgid "Current goal:"
 msgstr "当前目标："
 
@@ -2501,11 +2558,11 @@ msgstr "DAU、WAU 和 MAU 以已认证请求活动为统计依据；Today 与 Co
 #~ msgid "DAU, WAU, and MAU use authenticated request activity for context. Today and Coach rates use trusted backend telemetry."
 #~ msgstr "DAU、WAU 和 MAU 使用已认证的请求活动作为上下文。今日和教练速率使用受信任的后端遥测。"
 
-#: src/pages/Goal.tsx:242
+#: src/pages/Goal.tsx:246
 msgid "days"
 msgstr "天"
 
-#: src/pages/Goal.tsx:242
+#: src/pages/Goal.tsx:246
 msgid "Days left"
 msgstr "剩余天数"
 
@@ -2673,7 +2730,7 @@ msgstr "下发结果"
 msgid "Delivery preview"
 msgstr "交付预览"
 
-#: src/components/PlanStart.tsx:1667
+#: src/components/PlanStart.tsx:2004
 msgid "Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
 msgstr "投递仍处于禁用状态。请查看现有的 14 天托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。"
 
@@ -2753,7 +2810,8 @@ msgstr "诊断 Praxys 管理的训练下发问题，同时不暴露运动员身�
 msgid "Diagnosis"
 msgstr "诊断"
 
-#: src/components/GoalBaselinePanel.tsx:130
+#: src/components/GoalBaselinePanel.tsx:164
+#: src/components/GoalBaselinePanel.tsx:546
 msgid "Did the recorded time reflect elapsed timing with no unresolved pauses?"
 msgstr "记录时间是否为完整耗时，且没有未处理的暂停？"
 
@@ -2765,7 +2823,7 @@ msgstr "记录时间是否为完整耗时，且没有未处理的暂停？"
 msgid "Did today's brief affect your training decision?"
 msgstr "今日简报影响了你的训练安排吗？"
 
-#: src/components/GoalBaselinePanel.tsx:131
+#: src/components/GoalBaselinePanel.tsx:547
 msgid "Did you follow the exact protocol?"
 msgstr "是否完整执行了测试流程？"
 
@@ -2785,7 +2843,11 @@ msgstr "今天没帮上忙"
 #~ msgid "Differs on Stryd — click to re-push and overwrite."
 #~ msgstr ""
 
-#: src/pages/Goal.tsx:297
+#: src/components/GoalBaselinePanel.tsx:118
+msgid "Direct 10K baseline evidence is currently sufficient."
+msgstr "当前的直接 10 公里基准证据已足够。"
+
+#: src/pages/Goal.tsx:301
 msgid "Direction"
 msgstr "趋势方向"
 
@@ -2814,7 +2876,7 @@ msgstr "披露选择"
 msgid "Disconnect"
 msgstr "断开连接"
 
-#: src/pages/Goal.tsx:387
+#: src/pages/Goal.tsx:391
 msgid "Discussion"
 msgstr "讨论"
 
@@ -2839,7 +2901,7 @@ msgstr "距离"
 #: src/components/ActivityCard.tsx:76
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
-#: src/components/GoalEditor.tsx:50
+#: src/components/GoalEditor.tsx:54
 #: src/components/WorkoutStructureEditor.tsx:817
 #: src/components/WorkoutStructureEditor.tsx:1437
 #: src/components/WorkoutStructureEditor.tsx:1486
@@ -2864,7 +2926,8 @@ msgstr "距离（{0}）"
 #~ msgid "Distance in non-overlapping seven-day buckets, including zero-activity weeks."
 #~ msgstr "按互不重叠的 7 天周期统计距离，包括零活动周。"
 
-#: src/components/GoalBaselinePanel.tsx:161
+#: src/components/GoalBaselinePanel.tsx:152
+#: src/components/GoalBaselinePanel.tsx:577
 msgid "Distance not verified"
 msgstr "距离未确认"
 
@@ -3192,11 +3255,19 @@ msgstr "源数据足以尝试这项实验"
 msgid "Enter a complete value in this unit."
 msgstr "请使用当前显示的单位输入完整数值。"
 
+#: src/components/PlanStart.tsx:814
+msgid "Enter a whole-number single-session limit."
+msgstr "请输入整数的单次训练上限。"
+
+#: src/components/PlanStart.tsx:812
+msgid "Enter a whole-number weekly time limit."
+msgstr "请输入整数的每周时间上限。"
+
 #: src/pages/LabsEnvironment.tsx:722
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
-#: src/components/PlanStart.tsx:753
+#: src/components/PlanStart.tsx:827
 msgid "Enter one whole-minute limit for every selected day."
 msgstr "请为每个选定日期输入相同的整分钟上限。"
 
@@ -3255,6 +3326,10 @@ msgstr "基于当前体能估算比赛表现。"
 msgid "EU"
 msgstr "欧盟"
 
+#: src/components/PlanStart.tsx:1831
+msgid "Event state"
+msgstr "赛事状态"
+
 #. placeholder {0}: option.hours
 #: src/pages/Settings.tsx:894
 msgid "Every <0>{0}</0> hours"
@@ -3272,7 +3347,8 @@ msgstr "证据"
 #~ msgid "Evidence"
 #~ msgstr "证据"
 
-#: src/components/GoalBaselinePanel.tsx:106
+#: src/components/GoalBaselinePanel.tsx:123
+#: src/components/GoalBaselinePanel.tsx:522
 msgid "Evidence age"
 msgstr "证据距今天数"
 
@@ -3312,7 +3388,8 @@ msgstr "证据距今天数"
 msgid "Evidence toward Likely adapted"
 msgstr "达到“可能已适应”的证据进度"
 
-#: src/components/GoalBaselinePanel.tsx:160
+#: src/components/GoalBaselinePanel.tsx:151
+#: src/components/GoalBaselinePanel.tsx:576
 msgid "Excluded"
 msgstr "不纳入"
 
@@ -3334,7 +3411,7 @@ msgstr "执行平台已更换，下发仍保持暂停。"
 msgid "Expired"
 msgstr "已过期"
 
-#: src/components/PlanStart.tsx:1622
+#: src/components/PlanStart.tsx:1959
 msgid "Expires:"
 msgstr "到期时间："
 
@@ -3442,7 +3519,7 @@ msgstr "加载活动失败"
 msgid "Failed to load analysis"
 msgstr "分析加载失败"
 
-#: src/pages/Goal.tsx:456
+#: src/pages/Goal.tsx:476
 msgid "Failed to load goal data"
 msgstr "目标数据加载失败"
 
@@ -3470,7 +3547,7 @@ msgstr "训练计划加载失败"
 msgid "Failed to revoke invitation code."
 msgstr "撤销邀请码失败。"
 
-#: src/components/GoalEditor.tsx:60
+#: src/components/GoalEditor.tsx:64
 msgid "Failed to save goal"
 msgstr "保存目标失败"
 
@@ -3499,7 +3576,7 @@ msgstr "观察到的失败类别：{0}。"
 msgid "failures"
 msgstr "次失败"
 
-#: src/components/GoalBaselinePanel.tsx:172
+#: src/components/GoalBaselinePanel.tsx:588
 msgid "Fainting or near-fainting"
 msgstr "晕厥或接近晕厥"
 
@@ -3508,7 +3585,7 @@ msgid "falling"
 msgstr "下降"
 
 #: src/components/RecoveryPanel.tsx:28
-#: src/pages/Goal.tsx:54
+#: src/pages/Goal.tsx:58
 msgid "Falling"
 msgstr "下降"
 
@@ -3573,11 +3650,11 @@ msgstr "解读要点"
 msgid "Finish the required step fields to preview delivery."
 msgstr "完成必填的步骤字段后即可预览交付。"
 
-#: src/components/PlanStart.tsx:248
+#: src/components/PlanStart.tsx:284
 msgid "Finish this distance"
 msgstr "完成这个距离"
 
-#: src/components/PlanStart.tsx:431
+#: src/components/PlanStart.tsx:467
 msgid "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 msgstr "首次完赛、提升表现和恢复规律训练适用不同的证据边界。Praxys 不会把记录缺失当作体能下降的证明，也不会套用统一的新手或重启训练安排。"
 
@@ -3599,12 +3676,12 @@ msgstr "请先修正标记的步骤再保存。每个目标和结束条件都必
 msgid "Fix the marked structured step before saving."
 msgstr "请先修正标记的结构化步骤再保存。"
 
-#: src/pages/Goal.tsx:195
+#: src/pages/Goal.tsx:199
 msgid "flat"
 msgstr "持平"
 
 #: src/components/PersonalContextPanel.tsx:270
-#: src/pages/Goal.tsx:55
+#: src/pages/Goal.tsx:59
 msgid "Flat"
 msgstr "持平"
 
@@ -3690,7 +3767,8 @@ msgstr "来自活动"
 #~ msgid "From Stryd"
 #~ msgstr "来自 Stryd"
 
-#: src/components/GoalBaselinePanel.tsx:111
+#: src/components/GoalBaselinePanel.tsx:131
+#: src/components/GoalBaselinePanel.tsx:527
 msgid "Full activity only"
 msgstr "仅限完整活动"
 
@@ -3702,8 +3780,8 @@ msgstr "需要完整分析确认是否符合条件"
 msgid "Future delivered workouts"
 msgstr "未来已下发的训练"
 
-#: src/pages/Goal.tsx:265
-#: src/pages/Goal.tsx:275
+#: src/pages/Goal.tsx:269
+#: src/pages/Goal.tsx:279
 msgid "Gap"
 msgstr "差距"
 
@@ -3763,8 +3841,8 @@ msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 msgid "Generating…"
 msgstr "正在生成…"
 
-#: src/components/PlanStart.tsx:479
-#: src/components/PlanStart.tsx:1598
+#: src/components/PlanStart.tsx:515
+#: src/components/PlanStart.tsx:1935
 msgid "Generator"
 msgstr "生成器"
 
@@ -3803,22 +3881,23 @@ msgid "Go to sign in"
 msgstr "前往登录"
 
 #: src/components/AppSidebar.tsx:127
-#: src/components/GoalBaselinePanel.tsx:104
+#: src/components/GoalBaselinePanel.tsx:121
+#: src/components/GoalBaselinePanel.tsx:520
 #: src/pages/admin/AdminUsers.tsx:871
-#: src/pages/Goal.tsx:138
+#: src/pages/Goal.tsx:142
 #: src/pages/Settings.tsx:1393
 msgid "Goal"
 msgstr "目标"
 
-#: src/components/PlanStart.tsx:304
+#: src/components/PlanStart.tsx:340
 msgid "Goal distance alone does not tell Praxys which outcome matters."
 msgstr "只看距离，Praxys 无法判断你更看重哪种结果。"
 
-#: src/pages/Goal.tsx:446
+#: src/pages/Goal.tsx:466
 msgid "Goal Tracker"
 msgstr "目标追踪"
 
-#: src/components/GoalEditor.tsx:43
+#: src/components/GoalEditor.tsx:45
 msgid "Goal type"
 msgstr "目标类型"
 
@@ -3830,7 +3909,7 @@ msgstr "目标类型"
 msgid "Gym"
 msgstr "健身房"
 
-#: src/components/GoalEditor.tsx:75
+#: src/components/GoalEditor.tsx:80
 msgid "Half"
 msgstr "半程"
 
@@ -4003,15 +4082,21 @@ msgstr "历史斜率"
 msgid "Historical sync may take several minutes"
 msgstr "历史同步可能需要几分钟"
 
-#: src/components/GoalBaselinePanel.tsx:107
+#: src/components/GoalBaselinePanel.tsx:127
+#: src/components/GoalBaselinePanel.tsx:523
 msgid "History candidates"
 msgstr "历史候选活动"
 
-#: src/components/GoalBaselinePanel.tsx:92
+#: src/components/PlanStart.tsx:1827
+msgid "History cutoff"
+msgstr "历史窗口"
+
+#: src/components/GoalBaselinePanel.tsx:508
 msgid "History first: you already have usable current 5K evidence."
 msgstr "先看历史：已有可用的当前 5 公里能力证据。"
 
-#: src/components/PlanStart.tsx:1525
+#: src/components/PlanStart.tsx:1840
+#: src/components/PlanStart.tsx:1848
 msgid "History used:"
 msgstr "已使用的历史："
 
@@ -4199,15 +4284,16 @@ msgstr "湿度（%）"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
-#: src/components/PlanStart.tsx:1368
+#: src/components/PlanStart.tsx:1519
+#: src/components/PlanStart.tsx:1655
 msgid "I am 18 or older."
 msgstr "我已满 18 周岁。"
 
-#: src/components/PlanStart.tsx:1369
+#: src/components/PlanStart.tsx:1656
 msgid "I am self-coached for recreational road running."
 msgstr "我是自主训练的休闲公路跑者。"
 
-#: src/components/PlanStart.tsx:1370
+#: src/components/PlanStart.tsx:1657
 msgid "I can currently complete 5 km."
 msgstr "我目前可以完成 5 公里。"
 
@@ -4233,7 +4319,7 @@ msgstr "已定位"
 msgid "Illness"
 msgstr "生病或不适"
 
-#: src/components/PlanStart.tsx:253
+#: src/components/PlanStart.tsx:289
 msgid "Improve performance"
 msgstr "提升表现"
 
@@ -4346,7 +4432,11 @@ msgstr "支持数据不足"
 msgid "Intensity distribution is unavailable until valid workout intensity data is synced."
 msgstr "尚未同步有效的训练强度数据，暂无法显示强度分布。"
 
-#: src/components/GoalBaselinePanel.tsx:147
+#: src/components/GoalBaselinePanel.tsx:137
+msgid "Intentional all-out complete 10K"
+msgstr "有意完成的全力 10K"
+
+#: src/components/GoalBaselinePanel.tsx:563
 msgid "Intentional all-out complete 5K"
 msgstr "明确完成的 5 公里全力跑"
 
@@ -4372,7 +4462,7 @@ msgstr "用于理解这次训练，不推测原因"
 msgid "Intervals"
 msgstr "间歇跑"
 
-#: src/components/GoalEditor.tsx:59
+#: src/components/GoalEditor.tsx:63
 msgid "Invalid time format. Use H:MM:SS or H:MM"
 msgstr "时间格式无效。请使用 H:MM:SS 或 H:MM"
 
@@ -4500,11 +4590,11 @@ msgid "Keep suggestion-only"
 msgstr "保持仅建议"
 
 #. placeholder {0}: capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? 'goal'
-#: src/components/PlanStart.tsx:1302
+#: src/components/PlanStart.tsx:1442
 msgid "Keep the current {0} unchanged, or choose an accepted separate purpose above."
 msgstr "保留当前的{0}不变，或在上方选择已接受的独立计划用途。"
 
-#: src/components/PlanStart.tsx:298
+#: src/components/PlanStart.tsx:334
 msgid "Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population."
 msgstr "保留当前目标、改选其他计划方向，或手动管理训练。Praxys 不会借用其他距离或人群的政策。"
 
@@ -4515,6 +4605,10 @@ msgstr "选填备注请控制在 280 个字符以内。"
 #: src/components/UpcomingPlanCard.tsx:831
 msgid "keep the Praxys workout canonical and replace or recreate the target version."
 msgstr "继续以 Praxys 训练为准，并替换或重新创建目标平台版本。"
+
+#: src/components/GoalBaselinePanel.tsx:157
+msgid "Keep training manually for now"
+msgstr "暂时继续手动训练"
 
 #: src/components/WorkoutPlanEditor.tsx:621
 msgid "Keep workout"
@@ -4632,11 +4726,11 @@ msgstr "最近更新"
 #~ msgid "Leave blank for the first account. Required after that."
 #~ msgstr "首个账号可留空，之后必填。"
 
-#: src/components/GoalEditor.tsx:61
+#: src/components/GoalEditor.tsx:65
 msgid "Leave blank to track predicted time only"
 msgstr "留空则只追踪预测完赛时间"
 
-#: src/components/GoalEditor.tsx:62
+#: src/components/GoalEditor.tsx:66
 msgid "Leave blank to track trend only"
 msgstr "留空则只追踪趋势"
 
@@ -4657,7 +4751,7 @@ msgstr "正在退出…"
 msgid "Legacy flat summary"
 msgstr "旧版扁平摘要"
 
-#: src/components/PlanStart.tsx:1594
+#: src/components/PlanStart.tsx:1931
 msgid "Legacy purpose"
 msgstr "旧版计划用途"
 
@@ -4740,7 +4834,7 @@ msgstr "链接地址（可选）"
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
-#: src/components/PlanStart.tsx:1589
+#: src/components/PlanStart.tsx:1926
 msgid "Linked to current Goal"
 msgstr "已关联当前目标"
 
@@ -4949,7 +5043,7 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "管理用户和邀请码"
 
-#: src/components/PlanStart.tsx:423
+#: src/components/PlanStart.tsx:459
 msgid "Manage workouts"
 msgstr "管理训练"
 
@@ -5038,7 +5132,7 @@ msgstr "手动记圈"
 msgid "manual recomputes remaining"
 msgstr "次手动重新计算机会"
 
-#: src/components/GoalEditor.tsx:76
+#: src/components/GoalEditor.tsx:81
 #: src/lib/display-labels.ts:66
 #: src/pages/Settings.tsx:185
 #: src/pages/Settings.tsx:1414
@@ -5066,11 +5160,15 @@ msgstr "这些天每天最多可训练多久（分钟）"
 msgid "Maximum training minutes per day"
 msgstr "每天最多可训练时长（分钟）"
 
-#: src/components/GoalBaselinePanel.tsx:146
+#: src/components/GoalBaselinePanel.tsx:136
+msgid "Measured 10K race"
+msgstr "实测 10K 比赛"
+
+#: src/components/GoalBaselinePanel.tsx:562
 msgid "Measured 5K race"
 msgstr "实测 5 公里比赛"
 
-#: src/components/GoalBaselinePanel.tsx:153
+#: src/components/GoalBaselinePanel.tsx:569
 msgid "Measured race"
 msgstr "实测比赛"
 
@@ -5146,7 +5244,8 @@ msgstr "不匹配"
 msgid "Missed"
 msgstr "未完成"
 
-#: src/components/GoalBaselinePanel.tsx:87
+#: src/components/GoalBaselinePanel.tsx:107
+#: src/components/GoalBaselinePanel.tsx:503
 msgid "Missing evidence"
 msgstr "缺少证据"
 
@@ -5227,7 +5326,7 @@ msgstr "观察中"
 msgid "Monitoring runbook"
 msgstr "监控手册"
 
-#: src/pages/Goal.tsx:288
+#: src/pages/Goal.tsx:292
 msgid "months"
 msgstr "月"
 
@@ -5278,7 +5377,7 @@ msgstr "上移"
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "多个平台都提供 <0>{0}</0> 数据。要将哪个设为主要来源？"
 
-#: src/components/PlanStart.tsx:1371
+#: src/components/PlanStart.tsx:1658
 msgid "My goal is an outdoor road 5K."
 msgstr "我的目标是户外公路 5 公里。"
 
@@ -5298,7 +5397,7 @@ msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还需
 #~ msgid "Need at least 3 activities with power data to plot a meaningful trend."
 #~ msgstr "需要至少 3 次带功率数据的活动才能绘制有意义的趋势。"
 
-#: src/pages/Goal.tsx:227
+#: src/pages/Goal.tsx:231
 msgid "Need at least 3 activities with power data."
 msgstr "需要至少 3 次带功率数据的活动。"
 
@@ -5306,7 +5405,7 @@ msgstr "需要至少 3 次带功率数据的活动。"
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "需要帮助？{SUPPORT_EMAIL}"
 
-#: src/pages/Goal.tsx:258
+#: src/pages/Goal.tsx:262
 msgid "Needed {abbrev}"
 msgstr "所需{abbrev}"
 
@@ -5319,7 +5418,8 @@ msgstr "还需 {missingReference} 次"
 msgid "Needs attention"
 msgstr "需要关注"
 
-#: src/components/GoalBaselinePanel.tsx:158
+#: src/components/GoalBaselinePanel.tsx:149
+#: src/components/GoalBaselinePanel.tsx:574
 msgid "Needs confirmation"
 msgstr "待确认"
 
@@ -5335,7 +5435,8 @@ msgstr "需要重新计算"
 msgid "Needs retry"
 msgstr "需要重试"
 
-#: src/components/GoalBaselinePanel.tsx:86
+#: src/components/GoalBaselinePanel.tsx:106
+#: src/components/GoalBaselinePanel.tsx:502
 #: src/pages/admin/AdminFeedback.tsx:92
 #: src/pages/admin/AdminFeedback.tsx:354
 msgid "Needs review"
@@ -5443,15 +5544,16 @@ msgstr "下次同步"
 #~ msgid "Nielsen dry-heat acclimation study"
 #~ msgstr "Nielsen 干热适应研究"
 
-#: src/components/GoalBaselinePanel.tsx:150
+#: src/components/GoalBaselinePanel.tsx:146
+#: src/components/GoalBaselinePanel.tsx:566
 msgid "No"
 msgstr "否"
 
-#: src/components/PlanStart.tsx:1121
+#: src/components/PlanStart.tsx:1244
 msgid "No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy."
 msgstr "目前没有已接受的自动政策与此目标匹配。Praxys 会保留手动计划管理，而不会将 5 公里政策挪作他用。"
 
-#: src/components/PlanStart.tsx:1126
+#: src/components/PlanStart.tsx:1249
 msgid "No accepted policy"
 msgstr "暂无已接受政策"
 
@@ -5459,7 +5561,7 @@ msgstr "暂无已接受政策"
 msgid "No access was granted. You can close this tab and return to the plugin."
 msgstr "未授予任何权限。你可以关闭此页面并返回插件。"
 
-#: src/components/PlanStart.tsx:297
+#: src/components/PlanStart.tsx:333
 msgid "No active automatic policy matches this intent and distance yet."
 msgstr "暂无与该计划方向和距离匹配的生效自动政策。"
 
@@ -5634,9 +5736,11 @@ msgstr "本周暂无计划负荷"
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
 
-#: src/components/PlanStart.tsx:767
-#: src/components/PlanStart.tsx:1474
-#: src/components/PlanStart.tsx:1479
+#: src/components/PlanStart.tsx:870
+#: src/components/PlanStart.tsx:1609
+#: src/components/PlanStart.tsx:1614
+#: src/components/PlanStart.tsx:1763
+#: src/components/PlanStart.tsx:1768
 msgid "No preference"
 msgstr "无偏好"
 
@@ -5681,7 +5785,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 #~ msgid "No reliable heat history yet"
 #~ msgstr "尚无可靠的热适应历史"
 
-#: src/components/PlanStart.tsx:1405
+#: src/components/PlanStart.tsx:1693
 msgid "No safety stop"
 msgstr "没有安全停止条件"
 
@@ -5714,6 +5818,10 @@ msgstr "无受支持的天气证据"
 #: src/components/HeatAdaptationPanel.tsx:111
 msgid "No supported workload evidence"
 msgstr "无受支持的负荷证据"
+
+#: src/components/PlanStart.tsx:1538
+msgid "No symptom stop"
+msgstr "无症状停止"
 
 #: src/pages/admin/AdminOps.tsx:1693
 msgid "No sync attempts were recorded in this window."
@@ -5834,11 +5942,15 @@ msgstr "不是缺陷"
 #~ msgid "Not a current heat-risk assessment or medical clearance."
 #~ msgstr "这不是当前热风险评估，也不构成医疗许可。"
 
+#: src/components/GoalBaselinePanel.tsx:138
+msgid "Not a direct 10K baseline"
+msgstr "这不是直接 10K 基线"
+
 #: src/pages/admin/AdminFeedback.tsx:137
 msgid "Not actionable"
 msgstr "不可直接处理"
 
-#: src/components/GoalBaselinePanel.tsx:148
+#: src/components/GoalBaselinePanel.tsx:564
 msgid "Not an all-out 5K effort"
 msgstr "不是 5 公里全力跑"
 
@@ -5858,7 +5970,7 @@ msgstr "完整强度数据不足，暂无法比较分区"
 #~ msgid "Not enough data for weekly load comparison"
 #~ msgstr "数据不足以进行周负荷对比"
 
-#: src/pages/Goal.tsx:226
+#: src/pages/Goal.tsx:230
 msgid "Not enough data to show CP trend"
 msgstr "数据不足，无法显示 CP 趋势"
 
@@ -5909,7 +6021,8 @@ msgstr "帮助不大"
 msgid "Not requested"
 msgstr "未请求"
 
-#: src/components/GoalBaselinePanel.tsx:88
+#: src/components/GoalBaselinePanel.tsx:108
+#: src/components/GoalBaselinePanel.tsx:504
 msgid "Not required"
 msgstr "当前目标无需基线"
 
@@ -6020,9 +6133,22 @@ msgstr "一键反馈，帮助我们让今日简报更实用。"
 msgid "One-time codes for new user registration."
 msgstr "新用户注册用的一次性邀请码。"
 
-#: src/components/GoalBaselinePanel.tsx:127
+#. placeholder {0}: baseline.guardrails.baseline_current_through_completed_days
+#: src/components/GoalBaselinePanel.tsx:332
+msgid "Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The <0>{0}</0>-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs."
+msgstr "只有当前有效的直接 10 公里比赛成绩，或明确的全力 10 公里历史记录，才能认定为合格证据。认定时，证据会保留已接受的协议、路线或场地、辅助情况、数据来源和权威完成时间。<0>{0}</0> 天新鲜度护栏和可选基准测试路径是经过审查的产品边界，并非已发表的通用阈值。"
+
+#: src/components/GoalBaselinePanel.tsx:136
+#~ msgid "Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs."
+#~ msgstr "只有当前有效的 10K 比赛成绩或明确的全力 10K 历史，才能合格。合格证据会保留已接受的协议、路线或场地、辅助情况、提供方，以及权威完成时间。56 天新鲜度规则和可选基准路径都是经过审查的产品边界，不是普适发表的阈值。"
+
+#: src/components/GoalBaselinePanel.tsx:543
 msgid "Only explicit confirmation of distance, timing, and purpose can turn history into a 5K baseline."
 msgstr "只有明确确认距离、计时和活动目的后，历史活动才可能成为 5 公里基线。"
+
+#: src/components/GoalBaselinePanel.tsx:161
+msgid "Only explicit distance, timing, protocol, route or venue, and intent confirmation can turn history into a direct 10K baseline."
+msgstr "只有明确确认距离、计时、协议、路线或场地及训练意图，才能将历史记录认定为直接 10 公里基准。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1076
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
@@ -6096,7 +6222,7 @@ msgstr "查看反馈"
 #~ msgid "Open incident"
 #~ msgstr "发布事故"
 
-#: src/components/PlanStart.tsx:406
+#: src/components/PlanStart.tsx:442
 msgid "Open plan preview"
 msgstr "打开计划预览"
 
@@ -6104,7 +6230,7 @@ msgstr "打开计划预览"
 #~ msgid "Open telemetry queries"
 #~ msgstr "打开遥测查询"
 
-#: src/components/PlanStart.tsx:291
+#: src/components/PlanStart.tsx:327
 msgid "Open the readiness path for this separate plan purpose. Your current Goal remains unchanged."
 msgstr "打开这项独立计划用途的准备度流程。当前目标保持不变。"
 
@@ -6143,7 +6269,7 @@ msgstr "运营"
 msgid "Operator queue"
 msgstr "运维队列"
 
-#: src/components/GoalEditor.tsx:53
+#: src/components/GoalEditor.tsx:57
 #: src/pages/admin/AdminCommunications.tsx:186
 msgid "optional"
 msgstr "选填"
@@ -6161,9 +6287,17 @@ msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "可选，之后也可以在目标页面设置"
 
-#: src/components/GoalBaselinePanel.tsx:117
+#: src/components/GoalBaselinePanel.tsx:133
+msgid "Optional 10K benchmark"
+msgstr "可选 10K 基准"
+
+#: src/components/GoalBaselinePanel.tsx:533
 msgid "Optional 5K pilot test"
 msgstr "可选 5 公里试点测试"
+
+#: src/components/PlanStart.tsx:1624
+msgid "Optional benchmark date"
+msgstr "可选基准测试日期"
 
 #: src/components/WorkoutStructureEditor.tsx:1257
 msgid "Optional coaching cue"
@@ -6181,7 +6315,7 @@ msgstr "补充这些信息可以避免 Praxys 自行推测。只填写会影响�
 msgid "Optional label"
 msgstr "可选标签"
 
-#: src/components/GoalBaselinePanel.tsx:155
+#: src/components/GoalBaselinePanel.tsx:571
 msgid "Optional pilot test"
 msgstr "可选试点测试"
 
@@ -6196,6 +6330,10 @@ msgstr "可选的整节训练备注"
 #: src/components/WorkoutCard.tsx:82
 msgid "Options"
 msgstr "选项"
+
+#: src/components/GoalBaselinePanel.tsx:139
+msgid "Organized outdoor road 10K race"
+msgstr "有组织的户外公路 10K 比赛"
 
 #: src/components/PersonalContextPanel.tsx:240
 #: src/components/UpcomingPlanCard.tsx:574
@@ -6290,7 +6428,7 @@ msgstr "配速下限（分/公里）"
 msgid "Pain or injury"
 msgstr "疼痛或受伤"
 
-#: src/components/GoalBaselinePanel.tsx:170
+#: src/components/GoalBaselinePanel.tsx:586
 msgid "Pain or injury altered the run"
 msgstr "疼痛或伤病影响了跑步动作"
 
@@ -6315,6 +6453,10 @@ msgstr "已参与"
 #: src/pages/LabsEnvironment.tsx:1188
 msgid "Passed research diagnostics; not a forecast"
 msgstr "已通过研究诊断；并非预测"
+
+#: src/components/GoalBaselinePanel.tsx:132
+msgid "Passive fastest 10K splits, best laps, or hard sections inside longer runs never count as direct 10K baseline evidence."
+msgstr "更长跑里的被动最快 10K 分段、最佳圈段，或中途高强度片段，都不能作为直接 10K 基线证据。"
 
 #: src/pages/admin/AdminUsers.tsx:991
 #: src/pages/Login.tsx:368
@@ -6366,11 +6508,11 @@ msgstr "训练指标"
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
-#: src/components/PlanStart.tsx:1457
+#: src/components/PlanStart.tsx:1746
 msgid "Per-day limits are unsupported"
 msgstr "不支持按日设置上限"
 
-#: src/components/PlanStart.tsx:752
+#: src/components/PlanStart.tsx:826
 msgid "Per-day limits are unsupported by this policy. Use one shared limit for all selected days."
 msgstr "此政策不支持按日设置上限。请为所有选定日期使用一个共享上限。"
 
@@ -6398,7 +6540,7 @@ msgstr "个人访问令牌"
 msgid "Personal only"
 msgstr "仅供个人使用"
 
-#: src/components/GoalEditor.tsx:54
+#: src/components/GoalEditor.tsx:58
 msgid "Pick a date"
 msgstr "选择日期"
 
@@ -6415,15 +6557,15 @@ msgstr "计划活动"
 msgid "Plan adjustment"
 msgstr "计划调整"
 
-#: src/components/PlanStart.tsx:1665
+#: src/components/PlanStart.tsx:2002
 msgid "Plan adopted"
 msgstr "计划已采纳"
 
-#: src/components/PlanStart.tsx:1017
+#: src/components/PlanStart.tsx:1140
 msgid "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "计划已采纳。在你明确启用前，投递仍处于禁用状态。"
 
-#: src/components/PlanStart.tsx:280
+#: src/components/PlanStart.tsx:316
 msgid "Plan candidate"
 msgstr "计划候选"
 
@@ -6435,11 +6577,11 @@ msgstr "计划个性化信息"
 msgid "Plan decision not saved"
 msgstr "计划选择未保存"
 
-#: src/components/PlanStart.tsx:1119
+#: src/components/PlanStart.tsx:1242
 msgid "Plan generation for this goal"
 msgstr "此目标的计划生成"
 
-#: src/components/PlanStart.tsx:374
+#: src/components/PlanStart.tsx:410
 msgid "Plan intent"
 msgstr "计划方向"
 
@@ -6447,21 +6589,21 @@ msgstr "计划方向"
 msgid "Plan management"
 msgstr "计划托管"
 
-#: src/components/PlanStart.tsx:1236
+#: src/components/PlanStart.tsx:1376
 msgid "Plan preview"
 msgstr "计划预览"
 
-#: src/components/PlanStart.tsx:472
-#: src/components/PlanStart.tsx:1575
+#: src/components/PlanStart.tsx:508
+#: src/components/PlanStart.tsx:1912
 msgid "Plan proposal"
 msgstr "计划提案"
 
-#: src/components/PlanStart.tsx:1251
-#: src/components/PlanStart.tsx:1263
+#: src/components/PlanStart.tsx:1391
+#: src/components/PlanStart.tsx:1403
 msgid "Plan purpose"
 msgstr "计划用途"
 
-#: src/components/PlanStart.tsx:1322
+#: src/components/PlanStart.tsx:1462
 msgid "Plan purpose needs reassessment"
 msgstr "计划用途需要重新评估"
 
@@ -6473,12 +6615,12 @@ msgstr "计划用途需要重新评估"
 msgid "Plan window"
 msgstr "计划范围"
 
-#: src/components/PlanStart.tsx:1059
-#: src/components/PlanStart.tsx:1686
+#: src/components/PlanStart.tsx:1182
+#: src/components/PlanStart.tsx:2023
 msgid "Plan-start action did not complete"
 msgstr "计划起点操作未完成"
 
-#: src/components/PlanStart.tsx:1188
+#: src/components/PlanStart.tsx:1311
 msgid "Plan-start context changed"
 msgstr "计划起点上下文已变化"
 
@@ -6527,8 +6669,8 @@ msgstr "请检查邮箱格式后重试。"
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
-#: src/components/PlanStart.tsx:478
-#: src/components/PlanStart.tsx:1597
+#: src/components/PlanStart.tsx:514
+#: src/components/PlanStart.tsx:1934
 msgid "Policy"
 msgstr "政策"
 
@@ -6538,11 +6680,11 @@ msgstr "政策"
 msgid "Policy {0} · decision {1}"
 msgstr "策略 {0} · 决策 {1}"
 
-#: src/components/PlanStart.tsx:265
+#: src/components/PlanStart.tsx:301
 msgid "Policy check failed"
 msgstr "政策检查失败"
 
-#: src/components/PlanStart.tsx:296
+#: src/components/PlanStart.tsx:332
 msgid "Policy unavailable"
 msgstr "政策暂不可用"
 
@@ -6554,7 +6696,7 @@ msgstr "策略门禁自动合并"
 msgid "Pool"
 msgstr "泳池"
 
-#: src/components/PlanStart.tsx:433
+#: src/components/PlanStart.tsx:469
 msgid "Population evidence boundary"
 msgstr "人群证据边界"
 
@@ -6729,7 +6871,11 @@ msgstr "Praxys 缺陷"
 #~ msgid "Praxys does not yet have enough supported weather and power evidence to estimate a stage."
 #~ msgstr "Praxys 尚无足够的受支持天气和功率证据来估算阶段。"
 
-#: src/components/GoalBaselinePanel.tsx:94
+#: src/components/GoalBaselinePanel.tsx:113
+msgid "Praxys found candidate 10K efforts, but they are not qualified yet."
+msgstr "Praxys 找到了候选 10K 努力，但它们还未合格。"
+
+#: src/components/GoalBaselinePanel.tsx:510
 msgid "Praxys found candidate 5K efforts, but they are not qualified yet."
 msgstr "Praxys 找到了候选 5 公里活动，但尚未确认是否合格。"
 
@@ -6742,7 +6888,11 @@ msgstr "当前执行平台上仍有未来训练。更换前，只移除由 Praxy
 #~ msgid "Praxys has an accepted <0>{0}</0>-day outdoor-road 5K policy for this goal."
 #~ msgstr "Praxys 已为此目标提供一项已接受的 <0>{0}</0> 天户外公路 5 公里政策。"
 
-#: src/components/GoalBaselinePanel.tsx:95
+#: src/components/GoalBaselinePanel.tsx:114
+msgid "Praxys has not found qualified 10K history yet."
+msgstr "Praxys 还没有找到合格的 10K 历史。"
+
+#: src/components/GoalBaselinePanel.tsx:511
 msgid "Praxys has not found qualified 5K history yet."
 msgstr "Praxys 尚未找到合格的 5 公里历史证据。"
 
@@ -6849,17 +6999,17 @@ msgstr "Praxys 将停止更改目标日历。Praxys 计划仍会保留，可继�
 msgid "Praxys workload-support review"
 msgstr "Praxys 训练负荷支持证据综述"
 
-#: src/pages/Goal.tsx:244
-#: src/pages/Goal.tsx:281
-#: src/pages/Goal.tsx:306
+#: src/pages/Goal.tsx:248
+#: src/pages/Goal.tsx:285
+#: src/pages/Goal.tsx:310
 msgid "Predicted"
 msgstr "预计"
 
-#: src/pages/Goal.tsx:81
+#: src/pages/Goal.tsx:85
 msgid "Predicted using Riegel's formula (T₂ = T₁ × (D₂/D₁)^1.06), treating threshold pace as ~10K effort."
 msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速近似视为 10K 比赛强度。"
 
-#: src/pages/Goal.tsx:76
+#: src/pages/Goal.tsx:80
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
 msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.9% CP）。"
 
@@ -6871,11 +7021,15 @@ msgstr "不想说明"
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
-#: src/components/PlanStart.tsx:1468
+#: src/components/PlanStart.tsx:1603
+msgid "Preferred longest-easy day"
+msgstr "偏好的最长轻松跑日"
+
+#: src/components/PlanStart.tsx:1757
 msgid "Preferred longest-run day"
 msgstr "偏好的最长跑日期"
 
-#: src/components/PlanStart.tsx:249
+#: src/components/PlanStart.tsx:285
 msgid "Prepare to complete the selected distance."
 msgstr "为完成所选距离做准备。"
 
@@ -7006,15 +7160,15 @@ msgstr "设为管理员"
 msgid "Prompt-semantic slice:"
 msgstr "提示词语义样本："
 
-#: src/components/PlanStart.tsx:891
+#: src/components/PlanStart.tsx:1012
 msgid "Proposal created. It has not changed your canonical plan."
 msgstr "提案已创建。它尚未更改你的规范计划。"
 
-#: src/components/PlanStart.tsx:976
+#: src/components/PlanStart.tsx:1099
 msgid "Proposal rejected. Your canonical plan was not changed."
 msgstr "提案已拒绝。你的规范计划未被更改。"
 
-#: src/components/PlanStart.tsx:1655
+#: src/components/PlanStart.tsx:1992
 msgid "Proposal state needs a fresh preview"
 msgstr "提案状态需要新的预览"
 
@@ -7025,6 +7179,10 @@ msgstr "提案状态需要新的预览"
 #: src/pages/admin/AdminUsers.tsx:819
 msgid "Prospective users: generate invitation codes and follow up by email."
 msgstr "潜在用户：生成邀请码，并通过邮件跟进。"
+
+#: src/components/GoalBaselinePanel.tsx:313
+msgid "Provider"
+msgstr "数据来源"
 
 #: src/pages/admin/AdminOps.tsx:1033
 msgid "Provider / auth failures"
@@ -7069,7 +7227,7 @@ msgstr "同步最新活动、功率数据和恢复指标"
 #: src/components/PersonalContextPanel.tsx:1155
 #: src/components/PersonalContextPanel.tsx:1342
 #: src/components/PersonalContextPanel.tsx:1602
-#: src/components/PlanStart.tsx:1586
+#: src/components/PlanStart.tsx:1923
 #: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
 msgstr "用途"
@@ -7119,11 +7277,12 @@ msgstr "如果明天安排休息或轻松训练，把 {workout} 挪到明天"
 #~ msgid "Pushing…"
 #~ msgstr "推送中…"
 
-#: src/components/GoalBaselinePanel.tsx:159
+#: src/components/GoalBaselinePanel.tsx:150
+#: src/components/GoalBaselinePanel.tsx:575
 msgid "Qualified"
 msgstr "符合条件"
 
-#: src/components/GoalBaselinePanel.tsx:116
+#: src/components/GoalBaselinePanel.tsx:532
 msgid "Qualified 5 km history comes first. The 42-day freshness rule, the optional maximal-effort outdoor 5 km test, and the no-meaningful-change warning are Praxys pilot guardrails, not published universal cutoffs."
 msgstr "优先使用合格的 5 公里历史记录。42 天新鲜度规则、可选的户外 5 公里最大努力测试，以及“尚无有意义变化阈值”的提示，都是 Praxys 试点护栏，并非已发表的通用界值。"
 
@@ -7157,12 +7316,12 @@ msgid "Quick check"
 msgstr "快速反馈"
 
 #: src/lib/display-labels.ts:74
-#: src/pages/Goal.tsx:112
-#: src/pages/Goal.tsx:130
+#: src/pages/Goal.tsx:116
+#: src/pages/Goal.tsx:134
 msgid "Race"
 msgstr "比赛"
 
-#: src/components/GoalEditor.tsx:51
+#: src/components/GoalEditor.tsx:55
 msgid "Race date"
 msgstr "比赛日期"
 
@@ -7170,7 +7329,7 @@ msgstr "比赛日期"
 msgid "Race Date"
 msgstr "比赛日期"
 
-#: src/components/GoalEditor.tsx:58
+#: src/components/GoalEditor.tsx:62
 msgid "Race date is required"
 msgstr "请填写比赛日期"
 
@@ -7178,7 +7337,7 @@ msgstr "请填写比赛日期"
 msgid "Race forecast"
 msgstr "比赛预测"
 
-#: src/components/GoalEditor.tsx:44
+#: src/components/GoalEditor.tsx:46
 msgid "Race goal"
 msgstr "比赛目标"
 
@@ -7263,15 +7422,15 @@ msgstr "镜像主页数据的只读账号。"
 msgid "Readiness"
 msgstr "准备度"
 
-#: src/components/PlanStart.tsx:288
+#: src/components/PlanStart.tsx:324
 msgid "Readiness first"
 msgstr "先评估准备度"
 
-#: src/components/PlanStart.tsx:1228
+#: src/components/PlanStart.tsx:1368
 msgid "Readiness not checked"
 msgstr "尚未检查准备情况"
 
-#: src/components/PlanStart.tsx:1518
+#: src/components/PlanStart.tsx:1813
 msgid "Readiness result"
 msgstr "准备情况结果"
 
@@ -7283,7 +7442,7 @@ msgstr "根据身体信号判断准备度。"
 msgid "Ready to deliver"
 msgstr "可交付"
 
-#: src/pages/Goal.tsx:372
+#: src/pages/Goal.tsx:376
 msgid "Realistic alternative targets"
 msgstr "可行的替代目标"
 
@@ -7291,7 +7450,7 @@ msgstr "可行的替代目标"
 msgid "Reasonable model variations do not preserve the same historical relationship."
 msgstr "在合理的模型变化下，历史关系无法保持一致。"
 
-#: src/components/PlanStart.tsx:258
+#: src/components/PlanStart.tsx:294
 msgid "Rebuild consistency"
 msgstr "恢复规律训练"
 
@@ -7502,11 +7661,11 @@ msgstr "记录判断"
 msgid "Record maintainer judgment"
 msgstr "记录维护者判断"
 
-#: src/components/GoalBaselinePanel.tsx:121
+#: src/components/GoalBaselinePanel.tsx:537
 msgid "Record test result"
 msgstr "记录测试结果"
 
-#: src/components/GoalBaselinePanel.tsx:137
+#: src/components/GoalBaselinePanel.tsx:553
 msgid "Record the test result"
 msgstr "记录测试结果"
 
@@ -7612,7 +7771,7 @@ msgstr "恢复状态"
 msgid "Recovery was blocked after provider reconciliation. Review the refreshed queue."
 msgstr "数据来源日历对账后，恢复被安全策略阻止。请查看刷新后的队列。"
 
-#: src/components/GoalBaselinePanel.tsx:177
+#: src/components/GoalBaselinePanel.tsx:593
 msgid "Recovery was inadequate or fatigue stayed unresolved"
 msgstr "恢复不足或明显疲劳尚未消退"
 
@@ -7665,8 +7824,8 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/components/PlanStart.tsx:1201
-#: src/components/PlanStart.tsx:1696
+#: src/components/PlanStart.tsx:1324
+#: src/components/PlanStart.tsx:2033
 msgid "Refresh plan context"
 msgstr "刷新计划上下文"
 
@@ -7691,11 +7850,11 @@ msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "刷新数据来源日历，重新核对所有权，然后仅允许此项进行一次受保护的重试。"
 
-#: src/components/PlanStart.tsx:1643
+#: src/components/PlanStart.tsx:1980
 msgid "Regenerate successor"
 msgstr "重新生成后继提案"
 
-#: src/components/PlanStart.tsx:1643
+#: src/components/PlanStart.tsx:1980
 msgid "Regenerating…"
 msgstr "正在重新生成…"
 
@@ -7740,8 +7899,8 @@ msgstr "注册设置暂不可用"
 msgid "Reject"
 msgstr "驳回"
 
-#: src/components/PlanStart.tsx:497
-#: src/components/PlanStart.tsx:1648
+#: src/components/PlanStart.tsx:533
+#: src/components/PlanStart.tsx:1985
 msgid "Reject or defer"
 msgstr "拒绝或暂缓"
 
@@ -7750,8 +7909,8 @@ msgstr "拒绝或暂缓"
 msgid "Rejected"
 msgstr "已拒绝"
 
-#: src/components/PlanStart.tsx:497
-#: src/components/PlanStart.tsx:1648
+#: src/components/PlanStart.tsx:533
+#: src/components/PlanStart.tsx:1985
 msgid "Rejecting…"
 msgstr "正在拒绝…"
 
@@ -7878,7 +8037,8 @@ msgstr "请求和可用性遥测数据暂不可用。"
 msgid "Request expires"
 msgstr "请求到期时间"
 
-#: src/components/GoalBaselinePanel.tsx:181
+#: src/components/GoalBaselinePanel.tsx:173
+#: src/components/GoalBaselinePanel.tsx:597
 msgid "Request failed"
 msgstr "请求失败"
 
@@ -7997,23 +8157,27 @@ msgstr "恢复下发"
 msgid "Resume managed delivery?"
 msgstr "恢复托管下发？"
 
-#: src/components/GoalBaselinePanel.tsx:108
+#: src/components/GoalBaselinePanel.tsx:128
+msgid "Retrieval is never qualification; only a full activity with explicit distance, timing, accepted protocol, route or venue, and all-out or race confirmation can become a direct 10K baseline."
+msgstr "检索到候选活动不代表其已合格；只有完整活动并明确确认距离、计时、已接受协议、路线或场地，以及比赛/全力性质，才能成为直接 10K 基线。"
+
+#: src/components/GoalBaselinePanel.tsx:524
 msgid "Retrieval is never qualification; only a full activity with explicit distance, timing, and purpose confirmation can become a baseline."
 msgstr "检索到候选活动不代表其已合格；只有完整活动，并明确确认距离、计时和目的后，才可能成为基线。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:611
 #: src/components/ManagedPlanSettingsCard.tsx:1029
 #: src/components/PersonalContextPanel.tsx:760
-#: src/components/PlanStart.tsx:1083
-#: src/components/PlanStart.tsx:1162
-#: src/components/PlanStart.tsx:1565
+#: src/components/PlanStart.tsx:1206
+#: src/components/PlanStart.tsx:1285
+#: src/components/PlanStart.tsx:1902
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
 #: src/pages/admin/AdminFeedback.tsx:582
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171
-#: src/pages/Goal.tsx:459
+#: src/pages/Goal.tsx:479
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:56
 #: src/pages/LabsEnvironment.tsx:377
@@ -8040,7 +8204,7 @@ msgstr "重试清理"
 msgid "Retry delivery"
 msgstr "重试下发"
 
-#: src/components/PlanStart.tsx:399
+#: src/components/PlanStart.tsx:435
 msgid "Retry policy check"
 msgstr "重试政策检查"
 
@@ -8052,7 +8216,7 @@ msgstr "重试政策检查"
 msgid "Retry queue"
 msgstr "重试队列"
 
-#: src/components/PlanStart.tsx:267
+#: src/components/PlanStart.tsx:303
 msgid "Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone."
 msgstr "请重试政策检查后再选择路径。Praxys 不会只根据当前目标推断可用性。"
 
@@ -8088,11 +8252,11 @@ msgstr "重试此训练操作"
 msgid "Retrying"
 msgstr "正在重试"
 
-#: src/components/PlanStart.tsx:259
+#: src/components/PlanStart.tsx:295
 msgid "Return to regular training without guessing what missing records mean."
 msgstr "在不猜测记录缺失含义的前提下，恢复规律训练。"
 
-#: src/components/PlanStart.tsx:1336
+#: src/components/PlanStart.tsx:1476
 msgid "Return to that purpose to review or reject it before creating a different draft."
 msgstr "请返回该计划用途，先审核或拒绝现有草稿，再创建其他草稿。"
 
@@ -8140,7 +8304,7 @@ msgstr "处理冲突"
 msgid "Review delivery queue"
 msgstr "查看下发队列"
 
-#: src/components/PlanStart.tsx:1345
+#: src/components/PlanStart.tsx:1486
 msgid "Review existing draft"
 msgstr "审核现有草稿"
 
@@ -8152,7 +8316,7 @@ msgstr "审核现有草稿"
 msgid "Review first issue"
 msgstr "查看第一个问题"
 
-#: src/components/PlanStart.tsx:1145
+#: src/components/PlanStart.tsx:1268
 msgid "Review goal"
 msgstr "复核目标"
 
@@ -8164,7 +8328,7 @@ msgstr "复核目标"
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
 msgstr "查看负荷、训练量、热适应和 Praxys Coach 分析。"
 
-#: src/components/GoalBaselinePanel.tsx:119
+#: src/components/GoalBaselinePanel.tsx:535
 msgid "Review optional test"
 msgstr "查看可选测试"
 
@@ -8176,7 +8340,7 @@ msgstr "回顾计划结果"
 msgid "Review purpose and expiry"
 msgstr "确认用途和保留期限"
 
-#: src/components/PlanStart.tsx:414
+#: src/components/PlanStart.tsx:450
 msgid "Review readiness"
 msgstr "查看准备度"
 
@@ -8190,7 +8354,7 @@ msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 msgid "Review required"
 msgstr "需要审核"
 
-#: src/components/PlanStart.tsx:814
+#: src/components/PlanStart.tsx:917
 msgid "Review the constraints and try again."
 msgstr "请复核限制条件后重试。"
 
@@ -8202,7 +8366,7 @@ msgstr "回顾当前目标"
 msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 msgstr "请核对以下具体用途和权限。插件无法批准此请求、读取补充说明、授予 AI 权限或自行保存计划个性化信息。"
 
-#: src/components/PlanStart.tsx:292
+#: src/components/PlanStart.tsx:328
 msgid "Review the existing history-first readiness path before asking Praxys to create a proposal."
 msgstr "请先查看现有的历史优先准备度流程，再让 Praxys 创建提案。"
 
@@ -8211,15 +8375,17 @@ msgstr "请先查看现有的历史优先准备度流程，再让 Praxys 创建�
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
 msgstr "请检查标出的步骤字段。每个带类型的目标和结束条件都必须完整。"
 
-#: src/components/GoalBaselinePanel.tsx:133
+#: src/components/GoalBaselinePanel.tsx:549
 msgid "Review the optional test"
 msgstr "查看可选测试"
 
-#: src/components/GoalBaselinePanel.tsx:126
+#: src/components/GoalBaselinePanel.tsx:160
+#: src/components/GoalBaselinePanel.tsx:542
 msgid "Review this activity"
 msgstr "确认这次活动"
 
-#: src/components/GoalBaselinePanel.tsx:109
+#: src/components/GoalBaselinePanel.tsx:129
+#: src/components/GoalBaselinePanel.tsx:525
 msgid "Review this effort"
 msgstr "确认这次活动"
 
@@ -8244,7 +8410,7 @@ msgid "rising"
 msgstr "上升"
 
 #: src/components/RecoveryPanel.tsx:27
-#: src/pages/Goal.tsx:53
+#: src/pages/Goal.tsx:57
 msgid "Rising"
 msgstr "上升"
 
@@ -8252,7 +8418,11 @@ msgstr "上升"
 msgid "Road"
 msgstr "公路"
 
-#: src/components/PlanStart.tsx:1131
+#: src/components/PlanStart.tsx:1856
+msgid "Road 10K schedule guardrails"
+msgstr "公路 10 公里训练安排护栏"
+
+#: src/components/PlanStart.tsx:1254
 msgid "Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned."
 msgstr "只有在人群、目标和安全边界完成审核并版本化后，公路与越野政策才会在此开放。"
 
@@ -8272,6 +8442,14 @@ msgstr "滚动 1 / 7 / 30 天"
 #: src/pages/LabsEnvironment.tsx:318
 msgid "Rolling recompute limit reached"
 msgstr "已达到滚动重新计算上限"
+
+#: src/components/GoalBaselinePanel.tsx:125
+msgid "Route or venue"
+msgstr "路线或场地"
+
+#: src/components/GoalBaselinePanel.tsx:166
+msgid "Route or venue identifier"
+msgstr "路线或场地标识"
 
 #: src/components/WorkoutStructureEditor.tsx:342
 msgid "RPE · 0–10"
@@ -8347,11 +8525,11 @@ msgstr "安全"
 msgid "Safety policy"
 msgstr "安全策略"
 
-#: src/components/PlanStart.tsx:1391
+#: src/components/PlanStart.tsx:1679
 msgid "Safety stop"
 msgstr "安全停止"
 
-#: src/components/PlanStart.tsx:1405
+#: src/components/PlanStart.tsx:1693
 msgid "Safety stop applies"
 msgstr "存在安全停止条件"
 
@@ -8385,7 +8563,8 @@ msgstr "周六"
 #~ msgid "Saturday"
 #~ msgstr "星期六"
 
-#: src/components/GoalBaselinePanel.tsx:141
+#: src/components/GoalBaselinePanel.tsx:168
+#: src/components/GoalBaselinePanel.tsx:557
 #: src/pages/admin/AdminUsers.tsx:447
 msgid "Save"
 msgstr "保存"
@@ -8394,7 +8573,7 @@ msgstr "保存"
 msgid "Save correction"
 msgstr "保存更正"
 
-#: src/components/GoalEditor.tsx:56
+#: src/components/GoalEditor.tsx:60
 msgid "Save goal"
 msgstr "保存目标"
 
@@ -8442,7 +8621,7 @@ msgstr "保存后，这项训练会改期。"
 #~ msgid "Saving..."
 #~ msgstr "保存中…"
 
-#: src/components/GoalEditor.tsx:57
+#: src/components/GoalEditor.tsx:61
 #: src/components/WorkoutPlanEditor.tsx:926
 #: src/pages/Login.tsx:472
 msgid "Saving…"
@@ -8452,19 +8631,19 @@ msgstr "保存中…"
 msgid "Schedule conflict"
 msgstr "日程冲突"
 
-#: src/components/GoalBaselinePanel.tsx:120
+#: src/components/GoalBaselinePanel.tsx:536
 msgid "Schedule optional test"
 msgstr "安排可选测试"
 
-#: src/components/GoalBaselinePanel.tsx:135
+#: src/components/GoalBaselinePanel.tsx:551
 msgid "Schedule the optional test"
 msgstr "安排可选测试"
 
-#: src/components/GoalBaselinePanel.tsx:124
+#: src/components/GoalBaselinePanel.tsx:540
 msgid "Scheduled date"
 msgstr "安排日期"
 
-#: src/components/GoalBaselinePanel.tsx:136
+#: src/components/GoalBaselinePanel.tsx:552
 msgid "Scheduling writes through the canonical workout, revision, and delivery lane. Nothing changes silently."
 msgstr "安排测试会通过标准的训练、修订和投递流程写入计划，不会在后台静默修改。"
 
@@ -8472,8 +8651,8 @@ msgstr "安排测试会通过标准的训练、修订和投递流程写入计划
 msgid "Science"
 msgstr "科学"
 
-#: src/components/PlanStart.tsx:480
-#: src/components/PlanStart.tsx:1599
+#: src/components/PlanStart.tsx:516
+#: src/components/PlanStart.tsx:1936
 msgid "Science decision"
 msgstr "科学决策"
 
@@ -8489,7 +8668,8 @@ msgstr "科学模型"
 msgid "Scientific models"
 msgstr "科学模型"
 
-#: src/components/PlanStart.tsx:1358
+#: src/components/PlanStart.tsx:1501
+#: src/components/PlanStart.tsx:1645
 msgid "Scope and guardrails"
 msgstr "范围与护栏"
 
@@ -8538,7 +8718,7 @@ msgstr "选择一个指标，查看图表或依据。"
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "请先在设置中选择执行平台，再继续下发。"
 
-#: src/components/PlanStart.tsx:1412
+#: src/components/PlanStart.tsx:1700
 msgid "Select availability, then give the same supported session limit for each selected day."
 msgstr "选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。"
 
@@ -8605,16 +8785,16 @@ msgstr "已发送"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? 'running'
 #. placeholder {0}: item.purpose.distance?.toUpperCase() ?? 'running'
-#: src/components/PlanStart.tsx:764
-#: src/components/PlanStart.tsx:1280
+#: src/components/PlanStart.tsx:867
+#: src/components/PlanStart.tsx:1420
 msgid "Separate {0} plan purpose"
 msgstr "独立的{0}计划用途"
 
-#: src/components/PlanStart.tsx:1311
+#: src/components/PlanStart.tsx:1451
 msgid "Separate from the current Goal"
 msgstr "与当前目标保持独立"
 
-#: src/components/PlanStart.tsx:1591
+#: src/components/PlanStart.tsx:1928
 msgid "Separate plan purpose"
 msgstr "独立计划用途"
 
@@ -8693,7 +8873,7 @@ msgstr "设置目标"
 msgid "Set up Praxys"
 msgstr "设置 Praxys"
 
-#: src/components/GoalEditor.tsx:41
+#: src/components/GoalEditor.tsx:43
 msgid "Set your goal"
 msgstr "设置目标"
 
@@ -8821,6 +9001,10 @@ msgstr "正在登录…"
 #~ msgid "Simple"
 #~ msgstr "简要"
 
+#: src/components/PlanStart.tsx:1585
+msgid "Single-session limit (minutes)"
+msgstr "单次训练上限（分钟）"
+
 #: src/pages/Setup.tsx:879
 msgid "Skip for now"
 msgstr "先跳过"
@@ -8890,7 +9074,7 @@ msgid "Some prior heat adaptation may persist, while response-specific evidence 
 msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据可能已经开始减弱。"
 
 #: src/components/ScienceNote.tsx:49
-#: src/pages/Goal.tsx:386
+#: src/pages/Goal.tsx:390
 msgid "Source"
 msgstr "来源"
 
@@ -8931,7 +9115,8 @@ msgstr "稳定"
 msgid "Stable segments"
 msgstr "稳定分段"
 
-#: src/components/GoalBaselinePanel.tsx:85
+#: src/components/GoalBaselinePanel.tsx:105
+#: src/components/GoalBaselinePanel.tsx:501
 #: src/pages/admin/AdminOps.tsx:189
 msgid "Stale"
 msgstr "数据已过期"
@@ -8940,7 +9125,15 @@ msgstr "数据已过期"
 msgid "Standard"
 msgstr "标准"
 
-#: src/components/PlanStart.tsx:339
+#: src/components/GoalBaselinePanel.tsx:140
+msgid "Standardized outdoor road 10K time trial"
+msgstr "标准化户外公路 10K 计时测试"
+
+#: src/components/GoalBaselinePanel.tsx:141
+msgid "Standardized track 10K time trial"
+msgstr "标准化田径场 10K 计时测试"
+
+#: src/components/PlanStart.tsx:375
 msgid "Start a training plan"
 msgstr "开始训练计划"
 
@@ -8964,6 +9157,7 @@ msgstr "开始时间"
 msgid "Starts"
 msgstr "开始日期"
 
+#: src/components/GoalBaselinePanel.tsx:122
 #: src/components/PersonalContextPanel.tsx:1333
 #: src/pages/admin/AdminFeedback.tsx:390
 #: src/pages/admin/AdminUsers.tsx:734
@@ -8975,7 +9169,7 @@ msgstr "状态"
 #~ msgid "status page"
 #~ msgstr "状态页"
 
-#: src/components/GoalBaselinePanel.tsx:123
+#: src/components/GoalBaselinePanel.tsx:539
 msgid "Stay on the no-test path"
 msgstr "暂不测试"
 
@@ -9016,12 +9210,12 @@ msgstr "步骤"
 msgid "Stop activity if heat-illness symptoms develop, and seek medical care."
 msgstr "如出现热相关疾病症状，请立即停止活动并就医。"
 
-#: src/components/GoalBaselinePanel.tsx:132
+#: src/components/GoalBaselinePanel.tsx:548
 msgid "Stop reason"
 msgstr "停止原因"
 
-#: src/components/GoalBaselinePanel.tsx:122
-#: src/components/GoalBaselinePanel.tsx:139
+#: src/components/GoalBaselinePanel.tsx:538
+#: src/components/GoalBaselinePanel.tsx:555
 msgid "Stop this test"
 msgstr "停止本次测试"
 
@@ -9034,7 +9228,7 @@ msgstr "停止用于计划"
 msgid "Stop using this context?"
 msgstr "停止使用这条信息？"
 
-#: src/components/GoalBaselinePanel.tsx:140
+#: src/components/GoalBaselinePanel.tsx:556
 msgid "Stopping or declining preserves your account and the no-test path."
 msgstr "停止或放弃测试不会影响账号，也可以继续选择不测试。"
 
@@ -9056,7 +9250,7 @@ msgstr "Strava 客户端密钥"
 msgid "Strength"
 msgstr "力量训练"
 
-#: src/pages/Goal.tsx:379
+#: src/pages/Goal.tsx:383
 msgid "Stretch"
 msgstr "挑战目标"
 
@@ -9191,6 +9385,14 @@ msgstr "切换到浅色主题"
 #: src/pages/Login.tsx:686
 msgid "Switch to system theme"
 msgstr "切换到系统主题"
+
+#: src/components/PlanStart.tsx:1524
+msgid "Symptom stop"
+msgstr "症状停止"
+
+#: src/components/PlanStart.tsx:1538
+msgid "Symptom stop applies"
+msgstr "存在症状停止"
 
 #: src/components/SetupChecklist.tsx:59
 #: src/pages/Settings.tsx:957
@@ -9350,7 +9552,7 @@ msgid "target"
 msgstr "目标"
 
 #: src/components/WorkoutTimeline.tsx:41
-#: src/pages/Goal.tsx:249
+#: src/pages/Goal.tsx:253
 msgid "Target"
 msgstr "目标"
 
@@ -9378,7 +9580,7 @@ msgstr "目标下限"
 msgid "Target range"
 msgstr "目标区间"
 
-#: src/components/GoalEditor.tsx:52
+#: src/components/GoalEditor.tsx:56
 msgid "Target time"
 msgstr "目标时间"
 
@@ -9394,7 +9596,11 @@ msgstr "目标类型"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "遥测信任边界"
 
-#: src/components/PlanStart.tsx:1393
+#: src/components/PlanStart.tsx:1526
+msgid "Tell Praxys if a current symptom stop applies. It will stop this plan path and return only bounded guidance."
+msgstr "如当前存在症状停止条件，请告知 Praxys。系统将停止此计划流程，仅提供限定范围内的指导。"
+
+#: src/components/PlanStart.tsx:1681
 msgid "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 msgstr "如果存在安全停止条件，请告知 Praxys。它将停止此计划路径并显示政策限定的替代方案。"
 
@@ -9413,6 +9619,10 @@ msgstr "同时包含温度和湿度的活动数量不足。"
 #: src/pages/LabsEnvironment.tsx:84
 msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，温度缺失过多。"
+
+#: src/components/PlanStart.tsx:1835
+msgid "Templates"
+msgstr "训练模板"
 
 #: src/components/UpcomingPlanCard.tsx:580
 #: src/components/WorkoutPlanEditor.tsx:435
@@ -9442,7 +9652,7 @@ msgstr "结束条件"
 msgid "Termination"
 msgstr "结束条件"
 
-#: src/components/PlanStart.tsx:1490
+#: src/components/PlanStart.tsx:1779
 msgid "Terrain and equipment"
 msgstr "地形和装备"
 
@@ -9450,7 +9660,7 @@ msgstr "地形和装备"
 msgid "Terrain still available (optional)"
 msgstr "仍可选择的训练地形（可多选）"
 
-#: src/components/GoalBaselinePanel.tsx:89
+#: src/components/GoalBaselinePanel.tsx:505
 msgid "Test pending"
 msgstr "测试待完成"
 
@@ -9475,11 +9685,31 @@ msgstr "这一天已归入已完成记录，无法再修改。"
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 msgstr "没有填写也是完整状态，并不代表数据缺失。Praxys 会保留“原因未知”，不会因此作出负面判断或自行补充解释。"
 
-#: src/components/GoalBaselinePanel.tsx:114
+#. placeholder {0}: baseline.guardrails.baseline_current_through_completed_days
+#: src/components/GoalBaselinePanel.tsx:318
+msgid "The <0>{0}</0>-day rule is a reviewed guardrail, not a physiological cutoff."
+msgstr "<0>{0}</0> 天规则是经过审查的护栏，不是生理学截止线。"
+
+#: src/components/GoalBaselinePanel.tsx:530
 msgid "The 42-day rule is a Praxys pilot guardrail, not a physiological cutoff."
 msgstr "42 天规则是 Praxys 的试点护栏，不是生理学界值。"
 
-#: src/components/PlanStart.tsx:1459
+#: src/components/GoalBaselinePanel.tsx:133
+#~ msgid "The 56-day rule is a reviewed guardrail, not a physiological cutoff."
+#~ msgstr "56 天规则是经过审查的护栏，不是生理学截止线。"
+
+#. placeholder {0}: road10KGuardrails.committed_proposal_days
+#. placeholder {1}: road10KGuardrails.advisory_reassessment_after_completed_days
+#. placeholder {2}: new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'percent', maximumFractionDigits: 0 }).format(road10KGuardrails.minimum_planned_low_intensity_running_minutes_fraction)
+#: src/components/PlanStart.tsx:1861
+msgid "The accepted <0>{0}</0>-day proposal and <1>{1}</1>-day reassessment, one quality session per week, at least <2>{2}</2> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety."
+msgstr "已接受的 <0>{0}</0> 天计划与第 <1>{1}</1> 天复评、每周一次质量训练、至少 <2>{2}</2> 的计划低强度跑步时长、受历史与约束上限限制的训练安排，以及两套固定质量训练模板，均属于 Praxys 护栏，并非已发表的最优方案，也不承诺效果或安全性。"
+
+#: src/components/PlanStart.tsx:1854
+#~ msgid "The accepted <0>14</0>-day proposal and <1>7</1>-day reassessment, one quality session per week, at least <2>75%</2> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety."
+#~ msgstr "已接受的 <0>14</0> 天计划与第 <1>7</1> 天复评、每周一次质量训练、至少 <2>75%</2> 的计划低强度跑步时长、受历史与约束上限限制的训练安排，以及两套固定质量训练模板，均属于 Praxys 护栏，并非已发表的最优方案，也不承诺效果或安全性。"
+
+#: src/components/PlanStart.tsx:1748
 msgid "The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days."
 msgstr "已接受的确定性政策只有一个共享的单次训练上限字段。Praxys 不会臆造按日规则，也不会悄悄缩减你的安排；请为所有选定日期使用同一个上限。"
 
@@ -9559,15 +9789,19 @@ msgstr "连续采样覆盖过于稀疏，无法进行稳定比较。"
 msgid "The cooldown prevents accidental repeat analysis."
 msgstr "冷却期可避免意外重复分析。"
 
-#: src/components/PlanStart.tsx:1324
+#: src/components/PlanStart.tsx:1464
 msgid "The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption."
 msgstr "记录此计划用途后，当前目标已发生变化。请重新检查准备情况并生成新提案，再进行采纳。"
 
-#: src/components/GoalBaselinePanel.tsx:96
+#: src/components/GoalBaselinePanel.tsx:512
 msgid "The current goal is outside this 5K baseline pilot."
 msgstr "当前目标不在本次 5 公里基线试点范围内。"
 
-#: src/components/PlanStart.tsx:1253
+#: src/components/GoalBaselinePanel.tsx:115
+msgid "The current goal is outside this direct 10K baseline flow."
+msgstr "当前目标不在这个直接 10K 基线流程内。"
+
+#: src/components/PlanStart.tsx:1393
 msgid "The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged."
 msgstr "如果当前目标匹配已接受政策，系统会默认选择它。选择独立计划用途不会更改当前目标。"
 
@@ -9575,7 +9809,7 @@ msgstr "如果当前目标匹配已接受政策，系统会默认选择它。选
 #~ msgid "The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview."
 #~ msgstr "当前目标保持不变，同时可以预览一个已接受的独立 5 公里计划用途。"
 
-#: src/components/PlanStart.tsx:1521
+#: src/components/PlanStart.tsx:1816
 msgid "The deterministic policy returned no additional explanation."
 msgstr "确定性政策没有返回额外说明。"
 
@@ -9603,7 +9837,7 @@ msgstr "重新抽样活动后，估算方向变化过大。"
 msgid "The feedback aggregate could not be refreshed."
 msgstr "无法刷新反馈汇总。"
 
-#: src/components/PlanStart.tsx:1190
+#: src/components/PlanStart.tsx:1313
 msgid "The goal response and capability response no longer agree. Refresh before creating a proposal."
 msgstr "目标响应与能力响应已不一致。创建提案前请刷新。"
 
@@ -9658,7 +9892,7 @@ msgstr "曲线仅显示在支持充足的历史区间。空白区间表示可比
 #~ msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 #~ msgstr "此曲线仅表示核心支持范围内的历史模型，阴影带表示汇总不确定性。它不代表个人因果系数，也不会外推到已观测范围之外。不同跑步之间的风、太阳辐射、衣着、补水、疲劳和其他未测量条件仍可能不同。"
 
-#: src/components/PlanStart.tsx:1629
+#: src/components/PlanStart.tsx:1966
 msgid "The linked Goal changed. Recheck readiness and regenerate this proposal before adopting it."
 msgstr "关联的目标已发生变化。请重新检查准备情况并生成新提案，再进行采纳。"
 
@@ -9679,7 +9913,7 @@ msgstr "未来 {MANAGED_PLAN_WINDOW_DAYS} 天会自动滚动；当前窗口内�
 msgid "The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later."
 msgstr "当前草案基于之前的目标，已无法采纳。现在查看新草案，或稍后再决定。"
 
-#: src/components/GoalBaselinePanel.tsx:97
+#: src/components/GoalBaselinePanel.tsx:513
 msgid "The optional 5K pilot test is in progress."
 msgstr "可选 5 公里试点测试正在进行。"
 
@@ -9821,7 +10055,7 @@ msgstr "稳定且可比的分段数量暂时不足。"
 msgid "There is no approved automatic plan policy for this Goal yet. Praxys will not repurpose another policy. Keep the current plan independent, manage workouts manually, or decide later."
 msgstr "这个目标暂时没有获批的自动计划策略。Praxys 不会挪用其他策略。可以将当前计划转为独立计划，也可以手动管理训练或稍后决定。"
 
-#: src/components/GoalBaselinePanel.tsx:113
+#: src/components/GoalBaselinePanel.tsx:529
 msgid "There is no meaningful-change threshold yet."
 msgstr "目前还没有可用的“有意义变化”阈值。"
 
@@ -9837,21 +10071,25 @@ msgstr "按时间顺序的数据不足，无法评估该关系在后续活动中
 #~ msgid "This activity is not supported by the provider."
 #~ msgstr "该平台不支持此活动类型。"
 
-#: src/components/GoalBaselinePanel.tsx:134
+#: src/components/GoalBaselinePanel.tsx:550
 msgid "This appears only when history is missing, stale, or still needs review. It is a maximal-effort outdoor 5K pilot."
 msgstr "仅在历史证据缺失、过期或仍待确认时提供。这是一项户外 5 公里最大努力试点测试。"
 
-#: src/components/PlanStart.tsx:283
+#: src/components/PlanStart.tsx:319
 msgid "This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "此候选使用独立的计划用途，不会更改当前目标。Praxys 创建提案前，仍需确认适用范围与安全条件。"
 
-#: src/components/PlanStart.tsx:284
+#: src/components/PlanStart.tsx:320
 msgid "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "此候选沿用当前目标中已明确的计划方向。Praxys 创建提案前，仍需确认适用范围与安全条件。"
 
 #: src/pages/Settings.tsx:1605
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "此操作无法撤销。如果这是最后一个管理员账号，将无法删除。"
+
+#: src/components/GoalEditor.tsx:68
+msgid "This capability uses direct 10K evidence first. An optional target date or benchmark stays descriptive and never raises training dose on its own."
+msgstr "此功能优先使用直接 10 公里证据。可选目标日期或基准测试仅作描述，本身不会提高训练剂量。"
 
 #: src/components/UpcomingPlanCard.tsx:1607
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
@@ -9861,7 +10099,7 @@ msgstr "这次调整使用了已确认的计划个性化信息，具体内容不
 #~ msgid "This checks portable workout content only. It never connects to a provider or delivers a workout."
 #~ msgstr "此检查仅验证可移植训练内容。不会连接平台或发送训练。"
 
-#: src/components/PlanStart.tsx:1104
+#: src/components/PlanStart.tsx:1227
 msgid "This client does not recognize the accepted policy input contract and will not guess how to create a plan."
 msgstr "此客户端无法识别已接受政策的输入约定，也不会猜测如何创建计划。"
 
@@ -9889,7 +10127,7 @@ msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
-#: src/components/PlanStart.tsx:1536
+#: src/components/PlanStart.tsx:1873
 msgid "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 msgstr "此确定性结果使用政策响应中列出的已发表和试点护栏。它不是 AI 指导，也不对受伤、准备情况或目标达成作出保证。"
 
@@ -9902,7 +10140,7 @@ msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys �
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 
-#: src/components/PlanStart.tsx:1016
+#: src/components/PlanStart.tsx:1139
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "此精确提案已被采纳。在你明确启用前，投递仍处于禁用状态。"
 
@@ -9938,11 +10176,11 @@ msgstr "无法安全编辑此导入结构。请先复制为受支持的 Praxys �
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
-#: src/components/GoalBaselinePanel.tsx:118
+#: src/components/GoalBaselinePanel.tsx:534
 msgid "This is a maximal-effort test, and the no-test path always stays available."
 msgstr "这是最大努力测试；始终可以选择不测试。"
 
-#: src/components/PlanStart.tsx:1360
+#: src/components/PlanStart.tsx:1647
 msgid "This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome."
 msgstr "这是面向成年、自主训练休闲户外公路 5 公里跑者的试点。它不进行诊断、不作出健康许可，也不保证表现结果。"
 
@@ -9962,7 +10200,11 @@ msgstr "这是基于相似环境下训练证据的推断，并非直接的生理
 msgid "This is below your displayed historical range, so the curve does not extrapolate to it."
 msgstr "该值低于已显示的历史范围，因此曲线不会外推到此处。"
 
-#: src/components/GoalBaselinePanel.tsx:101
+#: src/components/GoalBaselinePanel.tsx:119
+msgid "This is not a failure; it means current direct 10K evidence is still missing or stale."
+msgstr "这并非失败，只表示当前仍缺少直接 10 公里证据，或证据已过期。"
+
+#: src/components/GoalBaselinePanel.tsx:517
 msgid "This is not a failure; it means the evidence is still insufficient."
 msgstr "这不代表失败，只说明现有证据还不够。"
 
@@ -10010,7 +10252,7 @@ msgstr "这会永久删除账号、已同步的训练数据、计划、设置、
 msgid "This permission is separate from managed delivery. Review the exact boundary before opting in."
 msgstr "这项权限与托管下发相互独立。启用前请确认具体边界。"
 
-#: src/components/GoalEditor.tsx:63
+#: src/components/GoalEditor.tsx:67
 msgid "This pilot currently supports only outdoor road 5K elapsed-time goals."
 msgstr "当前试点仅支持户外公路完整 5 公里耗时目标。"
 
@@ -10018,11 +10260,11 @@ msgstr "当前试点仅支持户外公路完整 5 公里耗时目标。"
 #~ msgid "This pilot is for adult, self-coached recreational runners preparing for an outdoor road 5K."
 #~ msgstr "此试点面向准备户外公路 5 公里的成年、自主训练休闲跑者。"
 
-#: src/components/GoalBaselinePanel.tsx:115
+#: src/components/GoalBaselinePanel.tsx:531
 msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "本试点仅适用于已经能够完成 5 公里的成年人。"
 
-#: src/components/PlanStart.tsx:273
+#: src/components/PlanStart.tsx:309
 msgid "This plan route uses an accepted policy that this client does not recognize yet."
 msgstr "此计划路径使用了一项当前客户端尚不识别的已接受政策。"
 
@@ -10030,7 +10272,7 @@ msgstr "此计划路径使用了一项当前客户端尚不识别的已接受政
 #~ msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 #~ msgstr "此计划起点试点仅适用于受支持的户外公路 5 公里表现目标。"
 
-#: src/components/PlanStart.tsx:1492
+#: src/components/PlanStart.tsx:1781
 msgid "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备偏好均为不受支持的输入，也不会被推断。"
 
@@ -10039,16 +10281,16 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #~ msgstr "此便携结构可以不压扁地表达。"
 
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
-#: src/components/PlanStart.tsx:1657
+#: src/components/PlanStart.tsx:1994
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
 msgstr "此提案为 {0}。它无法更改规范计划；准备好后请复核准备情况并创建新提案。"
 
-#: src/components/PlanStart.tsx:1577
+#: src/components/PlanStart.tsx:1914
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
 msgstr "此提案尚未成为你的计划。在明确采纳并单独同意投递前，它不能投递训练。"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? '5K'
-#: src/components/PlanStart.tsx:1313
+#: src/components/PlanStart.tsx:1453
 msgid "This proposal uses the accepted {0} goal contract without changing or linking to the Goal page."
 msgstr "此提案使用已接受的{0}目标约定，不会更改或关联目标页。"
 
@@ -10076,6 +10318,10 @@ msgstr "此结果未通过实验的发布门槛。"
 #: src/pages/LabsEnvironment.tsx:75
 msgid "This result uses an earlier experiment model and needs to be run again."
 msgstr "该结果使用了旧版实验模型，需要重新运行。"
+
+#: src/components/PlanStart.tsx:1503
+msgid "This reviewed 10K performance capability uses adult confirmation, direct 10K evidence, and history-anchored load caps. It does not diagnose, clear, or guarantee a performance outcome."
+msgstr "这个经过审查的 10K 表现能力使用成人确认、直接 10K 证据和以近期历史为锚的负荷上限。它不用于诊断、出具许可或保证成绩结果。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1056
 #~ msgid "This revokes access immediately and pauses managed delivery when Garmin is your target."
@@ -10183,7 +10429,8 @@ msgstr "时间"
 msgid "Time range"
 msgstr "时间范围"
 
-#: src/components/GoalBaselinePanel.tsx:162
+#: src/components/GoalBaselinePanel.tsx:153
+#: src/components/GoalBaselinePanel.tsx:578
 msgid "Timing needs review"
 msgstr "计时待确认"
 
@@ -10196,7 +10443,7 @@ msgstr "标题"
 msgid "Title (e.g. Elevated API latency)"
 msgstr "标题（例如：API 延迟升高）"
 
-#: src/pages/Goal.tsx:286
+#: src/pages/Goal.tsx:290
 msgid "To target"
 msgstr "距目标"
 
@@ -10229,11 +10476,11 @@ msgstr "Today 互动"
 msgid "Today reach rate"
 msgstr "Today 触达率"
 
-#: src/pages/Goal.tsx:201
+#: src/pages/Goal.tsx:205
 msgid "Today's <0>{distLabel}</0> prediction is <1>{predicted}</1>. {abbrev} is <2>{dirLabel}</2> at <3>{slopeStr}</3>."
 msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 呈 <2>{dirLabel}</2>趋势，变化速率为 <3>{slopeStr}</3>。"
 
-#: src/pages/Goal.tsx:210
+#: src/pages/Goal.tsx:214
 msgid "Today's <0>{distLabel}</0> prediction is <1>{predicted}</1>. {abbrev} is <2>{dirLabel}</2>."
 msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 呈 <2>{dirLabel}</2>趋势。"
 
@@ -10278,11 +10525,11 @@ msgstr "仅当每个重复步骤具有同一可测结束条件时，总计才是
 msgid "Track"
 msgstr "跑道"
 
-#: src/components/GoalEditor.tsx:47
+#: src/components/GoalEditor.tsx:49
 msgid "Track trend over time"
 msgstr "长期观察趋势"
 
-#: src/pages/Goal.tsx:144
+#: src/pages/Goal.tsx:148
 msgid "Tracking"
 msgstr "跟踪"
 
@@ -10295,7 +10542,7 @@ msgstr "越野"
 msgid "Trail running"
 msgstr "越野跑"
 
-#: src/components/GoalEditor.tsx:45
+#: src/components/GoalEditor.tsx:47
 msgid "Train toward a specific race date"
 msgstr "围绕某场比赛备赛"
 
@@ -10445,13 +10692,17 @@ msgstr "请输入 DELETE 确认。"
 msgid "Type precise bounds in the visible unit."
 msgstr "请使用当前显示的单位输入精确上下界。"
 
-#: src/pages/Goal.tsx:89
+#: src/pages/Goal.tsx:93
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
 msgstr "50K 及以上超长距离的功率比例为估算值，目前研究支持有限。Riegel 指数仅验证到马拉松距离。超过马拉松的预测不确定性会明显升高，因为补给、地形、高温和配速策略等因素对超马表现影响更大，而这些并未被功率/配速模型纳入。"
 
 #: src/pages/Status.tsx:76
 msgid "Unable to reach the status service"
 msgstr "无法连接状态服务"
+
+#: src/components/GoalBaselinePanel.tsx:142
+msgid "Unassisted"
+msgstr "无辅助"
 
 #: src/pages/admin/AdminFeedback.tsx:466
 #: src/pages/admin/AdminFeedback.tsx:493
@@ -10526,14 +10777,18 @@ msgstr "日期未知"
 msgid "Unknown failure"
 msgstr "未知错误"
 
+#: src/components/GoalBaselinePanel.tsx:144
+msgid "Unknown or unreported"
+msgstr "未知或未报告"
+
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? 'running'
 #. placeholder {0}: item.purpose.distance?.toUpperCase() ?? 'running'
-#: src/components/PlanStart.tsx:765
-#: src/components/PlanStart.tsx:1290
+#: src/components/PlanStart.tsx:868
+#: src/components/PlanStart.tsx:1430
 msgid "Unlinked {0} base plan"
 msgstr "未关联的{0}基础计划"
 
-#: src/components/PlanStart.tsx:1593
+#: src/components/PlanStart.tsx:1930
 msgid "Unlinked plan"
 msgstr "未关联计划"
 
@@ -10546,7 +10801,7 @@ msgstr "至 {0}"
 msgid "Until you adopt a replacement, your current workouts and delivery continue unchanged."
 msgstr "在采纳替代计划之前，当前训练和下发保持不变。"
 
-#: src/components/GoalBaselinePanel.tsx:173
+#: src/components/GoalBaselinePanel.tsx:589
 msgid "Unusually severe breathlessness"
 msgstr "异常严重的呼吸困难"
 
@@ -10566,11 +10821,11 @@ msgstr "近期计划"
 msgid "Update message (optional)"
 msgstr "更新信息（可选）"
 
-#: src/components/PlanStart.tsx:272
+#: src/components/PlanStart.tsx:308
 msgid "Update required"
 msgstr "需要更新"
 
-#: src/components/PlanStart.tsx:1102
+#: src/components/PlanStart.tsx:1225
 msgid "Update required for this plan policy"
 msgstr "此计划政策需要更新客户端"
 
@@ -10578,7 +10833,7 @@ msgstr "此计划政策需要更新客户端"
 msgid "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
 msgstr "在这里更新主计划。只有启用托管交付后，变更才会同步到执行平台。"
 
-#: src/components/PlanStart.tsx:274
+#: src/components/PlanStart.tsx:310
 msgid "Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs."
 msgstr "请先更新客户端再打开预览。Praxys 不会猜测如何收集或提交政策输入。"
 
@@ -10602,7 +10857,11 @@ msgstr "已更新 {0} 个关联议题。另有 {repositoryMismatches} 个因其�
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 
-#: src/components/GoalBaselinePanel.tsx:180
+#: src/components/GoalBaselinePanel.tsx:172
+msgid "Updated the 10K baseline."
+msgstr "已更新 10K 基线。"
+
+#: src/components/GoalBaselinePanel.tsx:596
 msgid "Updated the 5K baseline."
 msgstr "5 公里基线已更新。"
 
@@ -10617,6 +10876,10 @@ msgstr "更新中…"
 #: src/pages/Settings.tsx:1140
 msgid "US"
 msgstr "US"
+
+#: src/components/PlanStart.tsx:1842
+msgid "usable completed weeks; latest run"
+msgstr "个可用完整周；最近跑步"
 
 #: src/pages/admin/AdminOps.tsx:1397
 msgid "Usage aggregates are unavailable."
@@ -10634,7 +10897,7 @@ msgstr "采用 {target} 版本"
 msgid "Use {target}:"
 msgstr "采用 {target}："
 
-#: src/components/GoalBaselinePanel.tsx:166
+#: src/components/GoalBaselinePanel.tsx:582
 msgid "Use a completion or consistency goal"
 msgstr "改用完赛或保持规律的目标"
 
@@ -10642,11 +10905,15 @@ msgstr "改用完赛或保持规律的目标"
 msgid "Use confirmed context for plan generation"
 msgstr "使用已确认的信息生成计划"
 
-#: src/components/PlanStart.tsx:254
+#: src/components/PlanStart.tsx:290
 msgid "Use current evidence to work toward a faster result."
 msgstr "使用当前证据争取更快的结果。"
 
-#: src/components/GoalEditor.tsx:49
+#: src/components/GoalEditor.tsx:53
+msgid "Use direct 10K history first, then decide whether to choose an optional benchmark date"
+msgstr "优先使用直接 10 公里历史记录，再决定是否选择可选基准测试日期"
+
+#: src/components/GoalEditor.tsx:51
 msgid "Use history first, then decide whether the optional pilot test is needed"
 msgstr "先使用历史基线，再决定是否需要可选试点测试"
 
@@ -10662,6 +10929,10 @@ msgstr "使用它"
 #: src/components/MobileApp.tsx:120
 msgid "Use Praxys on the go with the WeChat Mini Program"
 msgstr "通过微信小程序，随时随地使用 Praxys"
+
+#: src/components/GoalBaselinePanel.tsx:386
+msgid "Use the Training plan preview to add, date, or decline an optional benchmark. Praxys keeps it off the calendar until you explicitly choose it."
+msgstr "可在训练计划预览中添加可选基准测试并设置日期，或明确选择不做。只有明确选择后，Praxys 才会将其加入日历。"
 
 #: src/pages/Science.tsx:175
 #~ msgid "Use this"
@@ -10824,7 +11095,11 @@ msgstr "热身"
 msgid "Warning"
 msgstr "警告"
 
-#: src/components/GoalBaselinePanel.tsx:129
+#: src/components/GoalBaselinePanel.tsx:163
+msgid "Was the full effort a measured 10K?"
+msgstr "这次完整努力是实测 10K 吗？"
+
+#: src/components/GoalBaselinePanel.tsx:545
 msgid "Was the full effort a measured 5K?"
 msgstr "这是否是一次距离准确的完整 5 公里？"
 
@@ -10858,7 +11133,7 @@ msgstr "天气影响"
 msgid "Weather evidence"
 msgstr "天气证据"
 
-#: src/components/GoalBaselinePanel.tsx:178
+#: src/components/GoalBaselinePanel.tsx:594
 msgid "Weather, air, traffic, visibility, or footing was unsafe"
 msgstr "天气、空气质量、交通、能见度或路面条件不安全"
 
@@ -10911,6 +11186,10 @@ msgstr "周训练负荷"
 #~ msgid "Weekly Review"
 #~ msgstr "周度回顾"
 
+#: src/components/PlanStart.tsx:1570
+msgid "Weekly time limit (minutes)"
+msgstr "每周时间上限（分钟）"
+
 #: src/pages/Analysis.tsx:308
 msgid "Weekly volume"
 msgstr "周里程"
@@ -10959,7 +11238,7 @@ msgstr "遇到了什么问题，或希望我们做些什么？"
 msgid "What happened?"
 msgstr "这次训练怎么了？"
 
-#: src/components/PlanStart.tsx:354
+#: src/components/PlanStart.tsx:390
 msgid "What should this plan help you do?"
 msgstr "这份计划应该帮助你做什么？"
 
@@ -10971,7 +11250,8 @@ msgstr "它能说明什么，又不能说明什么"
 #~ msgid "What time are you working toward? Leave blank to track trend only"
 #~ msgstr "目标完赛时间是多少？留空则只追踪趋势"
 
-#: src/components/GoalBaselinePanel.tsx:128
+#: src/components/GoalBaselinePanel.tsx:162
+#: src/components/GoalBaselinePanel.tsx:544
 msgid "What was this full activity?"
 msgstr "这次完整活动属于哪种情况？"
 
@@ -10987,7 +11267,11 @@ msgstr "训练目标是什么？（可选）"
 #~ msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
 #~ msgstr "Praxys 将计划推送到的目标平台。每个训练的同步状态显示在训练页。"
 
-#: src/components/PlanStart.tsx:430
+#: src/components/GoalBaselinePanel.tsx:165
+msgid "Which accepted surface or protocol matched this effort?"
+msgstr "这次训练符合哪种已接受的场地或协议？"
+
+#: src/components/PlanStart.tsx:466
 msgid "Why these routes stay separate"
 msgstr "为什么这些路径要分开"
 
@@ -11066,7 +11350,7 @@ msgstr "训练"
 msgid "Workout conflict requires athlete input"
 msgstr "训练冲突需要运动员介入"
 
-#: src/components/PlanStart.tsx:1611
+#: src/components/PlanStart.tsx:1948
 msgid "Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client."
 msgstr "在此确定性政策中，训练内容只能查看。请更改上方的受限输入并重新生成，以创建不可变的后继提案；Praxys 不会在此客户端构造替换训练。"
 
@@ -11125,13 +11409,18 @@ msgstr "训练结构"
 #~ msgid "Workout type"
 #~ msgstr "训练类型"
 
-#: src/components/GoalBaselinePanel.tsx:149
+#: src/components/GoalBaselinePanel.tsx:145
+#: src/components/GoalBaselinePanel.tsx:565
 msgid "Yes"
 msgstr "是"
 
 #: src/pages/admin/AdminUsers.tsx:597
 msgid "you"
 msgstr "你"
+
+#: src/components/GoalBaselinePanel.tsx:111
+msgid "You already have usable current 10K evidence."
+msgstr "你已经有可用且当前的 10K 证据。"
 
 #: src/components/FeedbackDialog.tsx:105
 msgid "You can attach up to 3 images."
@@ -11157,7 +11446,11 @@ msgstr "你可以在后续请求前撤回。撤回无法收回 AI 服务已处�
 msgid "You control this experiment"
 msgstr "此实验由你掌控"
 
-#: src/components/GoalBaselinePanel.tsx:93
+#: src/components/GoalBaselinePanel.tsx:112
+msgid "You have older 10K evidence. Praxys keeps it visible, but new planning stays readiness-only until you refresh it."
+msgstr "你有较早的 10K 证据。Praxys 会继续显示，但在刷新前，新计划只提供就绪度路径。"
+
+#: src/components/GoalBaselinePanel.tsx:509
 msgid "You have older 5K evidence. Praxys keeps it visible and can optionally offer a new pilot test."
 msgstr "已有较早的 5 公里证据。Praxys 会保留它，也可以选择新的试点测试。"
 

@@ -11,7 +11,7 @@ the sync and async engines.
 
 Schema management:
 - SQLite (dev / tests): ``Base.metadata.create_all`` builds new databases and
-  narrow compatibility ALTERs upgrade existing local files.
+  narrow compatibility migrations upgrade existing local files.
 - PostgreSQL (real deployments): Alembic owns schema evolution. ``init_db``
   runs ``alembic upgrade head`` under a Postgres advisory lock so exactly one
   worker/instance applies pending migrations.
@@ -641,6 +641,62 @@ def _ensure_sqlite_training_plan_identity(engine_obj) -> None:
     logger.info("Migrated SQLite training-plan identity constraints")
 
 
+def _ensure_sqlite_road_10k_snapshot_schema(engine_obj) -> None:
+    """Remove legacy raw 10K history IDs and ensure aggregate snapshot support."""
+    table_names = set(inspect(engine_obj).get_table_names())
+    generation_table = "road_10k_plan_generations"
+    snapshot_table = "road_10k_training_pattern_snapshots"
+    if generation_table not in table_names:
+        return
+
+    generation_columns = {
+        column["name"]
+        for column in inspect(engine_obj).get_columns(generation_table)
+    }
+    with engine_obj.begin() as conn:
+        if "history_observation_ids" in generation_columns:
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+
+            conn.exec_driver_sql("PRAGMA secure_delete=ON")
+            operations = Operations(MigrationContext.configure(conn))
+            with operations.batch_alter_table(
+                generation_table,
+                recreate="always",
+            ) as batch_op:
+                batch_op.drop_column("history_observation_ids")
+            logger.info(
+                "Removed obsolete raw road 10K history IDs from SQLite audit schema"
+            )
+
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS "
+            "ix_road_10k_generation_owner_training_pattern "
+            "ON road_10k_plan_generations "
+            "(user_id, training_pattern_snapshot_version)"
+        )
+        if snapshot_table in table_names:
+            conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_road_10k_training_pattern_snapshots_user_id "
+                "ON road_10k_training_pattern_snapshots (user_id)"
+            )
+            conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_road_10k_training_pattern_owner_created "
+                "ON road_10k_training_pattern_snapshots (user_id, created_at)"
+            )
+            conn.exec_driver_sql(
+                "CREATE TRIGGER IF NOT EXISTS "
+                "trg_road_10k_training_pattern_snapshots_immutable "
+                "BEFORE UPDATE ON road_10k_training_pattern_snapshots "
+                "BEGIN "
+                "SELECT RAISE(ABORT, "
+                "'road 10K training pattern snapshots are immutable'); "
+                "END"
+            )
+
+
 def _ensure_schema(engine_obj, backend: str) -> None:
     """Create / migrate the schema for the active backend.
 
@@ -651,6 +707,7 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         return
     if backend == "sqlite":
         Base.metadata.create_all(bind=engine_obj)
+        _ensure_sqlite_road_10k_snapshot_schema(engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
         _ensure_sqlite_context_idempotency_indexes(engine_obj)
         _ensure_sqlite_training_plan_identity(engine_obj)

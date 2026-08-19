@@ -245,11 +245,175 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_current_head() == "ae1f2a3b4c5d"
+    assert script.get_heads() == ["b8d4e6f7a9c1"]
+    assert set(script.get_revision("b8d4e6f7a9c1").down_revision) == {
+        "a7f3c2d1e9b4",
+        "ae1f2a3b4c5d",
+    }
     assert script.get_revision("9d0e1f2a3b4c").down_revision == "8c9d0e1f2a3b"
     assert script.get_revision("8c9d0e1f2a3b").down_revision == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
+
+
+def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.engine import Engine
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("PRAXYS_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    from db import session as db_session
+
+    db_session.dispose_engines()
+    config = Config("alembic.ini")
+    command.upgrade(config, "a7f3c2d1e9b4")
+    migrated = create_engine(db_session.get_database_url())
+    marker = "legacy-road-10k-raw-activity-id"
+
+    def insert_legacy_marker(value: str) -> None:
+        with migrated.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO road_10k_plan_generations (
+                    id, user_id, proposal_id, capability_id, policy_version,
+                    generator_version, science_decision_id,
+                    source_decision_digest, contract_digest,
+                    baseline_snapshot_id, baseline_source, source_goal_id,
+                    source_goal_revision, history_cutoff_completed_days,
+                    history_observation_ids,
+                    training_pattern_snapshot_version,
+                    event_context_snapshot_version, active_zone_model_id,
+                    active_zone_model_version, normalized_constraints,
+                    selected_template_ids, source_revision,
+                    deterministic_input_hash, request_kind,
+                    request_fingerprint, predecessor_proposal_id,
+                    predecessor_version, result_code,
+                    validation_reason_code, created_at
+                ) VALUES (
+                    'legacy-road-10k-generation', 'migration-user',
+                    'legacy-road-10k-proposal',
+                    'outdoor_road_10k_performance_v1',
+                    'road-10k-plan-generation-policy-v2',
+                    'road-10k-deterministic-generator-v1',
+                    'sdr-road-10k-plan-generation-policy-v2',
+                    ?, ?, NULL, NULL, NULL, NULL, 56, ?,
+                    'road-10k-training-pattern-v1',
+                    'road-10k-event-context-v1', NULL, NULL, '{}', '[]',
+                    ?, ?, 'generate', ?, NULL, NULL,
+                    'eligible_rolling_proposal', NULL, CURRENT_TIMESTAMP
+                )
+                """,
+                (
+                    "a" * 64,
+                    "b" * 64,
+                    f'["{value}"]',
+                    "c" * 64,
+                    "d" * 64,
+                    "e" * 64,
+                ),
+            )
+
+    def upgrade_with_statement_capture() -> list[str]:
+        statements: list[str] = []
+
+        def capture(
+            _conn,
+            _cursor,
+            statement,
+            _parameters,
+            _context,
+            _executemany,
+        ):
+            normalized = " ".join(statement.split())
+            upper = normalized.upper()
+            if (
+                "PRAGMA SECURE_DELETE" in upper
+                or (
+                    "ROAD_10K_PLAN_GENERATIONS" in upper
+                    and "DROP TABLE" in upper
+                )
+            ):
+                statements.append(normalized)
+
+        event.listen(Engine, "before_cursor_execute", capture)
+        try:
+            command.upgrade(config, "head")
+        finally:
+            event.remove(Engine, "before_cursor_execute", capture)
+        return statements
+
+    database_path = migrated.url.database
+    assert database_path is not None
+    try:
+        insert_legacy_marker(marker)
+        with open(database_path, "rb") as database_file:
+            assert marker.encode() in database_file.read()
+
+        statements = upgrade_with_statement_capture()
+        secure_delete_index = next(
+            index
+            for index, statement in enumerate(statements)
+            if "PRAGMA SECURE_DELETE" in statement.upper()
+        )
+        destructive_drop_index = next(
+            index
+            for index, statement in enumerate(statements)
+            if "DROP TABLE ROAD_10K_PLAN_GENERATIONS" in statement.upper()
+        )
+        assert secure_delete_index < destructive_drop_index
+
+        with migrated.connect() as conn:
+            columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    'PRAGMA table_info("road_10k_plan_generations")'
+                )
+            }
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "b8d4e6f7a9c1"
+        assert "history_observation_ids" not in columns
+        with open(database_path, "rb") as database_file:
+            assert marker.encode() not in database_file.read()
+
+        command.downgrade(config, "a7f3c2d1e9b4")
+        with migrated.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                UPDATE road_10k_plan_generations
+                SET history_observation_ids = ?
+                WHERE id = 'legacy-road-10k-generation'
+                """,
+                (f'["{marker}"]',),
+            )
+        with open(database_path, "rb") as database_file:
+            assert marker.encode() in database_file.read()
+
+        statements = upgrade_with_statement_capture()
+        secure_delete_index = next(
+            index
+            for index, statement in enumerate(statements)
+            if "PRAGMA SECURE_DELETE" in statement.upper()
+        )
+        destructive_drop_index = next(
+            index
+            for index, statement in enumerate(statements)
+            if "DROP TABLE ROAD_10K_PLAN_GENERATIONS" in statement.upper()
+        )
+        assert secure_delete_index < destructive_drop_index
+        with open(database_path, "rb") as database_file:
+            assert marker.encode() not in database_file.read()
+    finally:
+        migrated.dispose()
+        db_session.dispose_engines()
 
 
 def test_alembic_canonical_default_supports_old_worker_inserts(

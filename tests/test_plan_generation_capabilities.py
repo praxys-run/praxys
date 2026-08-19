@@ -659,6 +659,189 @@ def test_capability_discovery_is_owner_scoped_and_fails_closed(
     ] is True
 
 
+def test_inactive_road_10k_capability_stays_out_of_active_discovery(
+    proposal_client,
+) -> None:
+    """The reviewed 10K capability metadata must not appear until activation."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+    }
+    assert body["selected_capability"] is None
+    assert all(
+        capability["id"] != "outdoor_road_10k_performance_v1"
+        for capability in body["capabilities"]
+    )
+    assert body["routing"]["intent"] == "performance"
+    assert body["routing"]["intent_source"] == "current_goal"
+    assert body["routing"]["state"] == "policy_unavailable"
+    assert body["routing"]["reason_code"] == "no_accepted_policy_for_intent"
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert body["unsupported_reason"] == "no_accepted_policy"
+
+
+def test_inactive_road_10k_endpoints_are_not_mounted(
+    proposal_client,
+) -> None:
+    """Inactive 10K endpoints must stay unreachable through the main app."""
+    client, _, _ = proposal_client
+
+    response = client.post(
+        "/api/plan/road-10k/readiness",
+        json={
+            "adult_confirmed": True,
+            "current_symptom_stop": False,
+            "available_weekdays": [0, 2, 5],
+            "weekly_time_limit_min": 180,
+            "maximum_session_duration_min": 70,
+            "unavailable_dates": [],
+            "preferred_longest_easy_weekday": 5,
+            "benchmark_date": None,
+        },
+    )
+
+    assert response.status_code == 404, response.text
+
+
+def test_road_10k_router_fails_closed_if_mounted_while_inactive() -> None:
+    """The route layer still 404s if someone mounts the inactive router directly."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.auth import get_data_user_id, require_write_access
+    from api.routes import road_10k_plan_generation as route
+    from db.session import get_db
+
+    app = FastAPI()
+    app.include_router(route.router, prefix="/api")
+    app.dependency_overrides[get_data_user_id] = lambda: "proposal-owner"
+    app.dependency_overrides[require_write_access] = lambda: "proposal-owner"
+
+    def _override_db():
+        yield None
+
+    app.dependency_overrides[get_db] = _override_db
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/plan/road-10k/readiness",
+            json={
+                "adult_confirmed": True,
+                "current_symptom_stop": False,
+                "available_weekdays": [0, 2, 5],
+                "weekly_time_limit_min": 180,
+                "maximum_session_duration_min": 70,
+                "unavailable_dates": [],
+                "preferred_longest_easy_weekday": 5,
+                "benchmark_date": None,
+            },
+        )
+
+    assert response.status_code == 404, response.text
+
+
+def test_inactive_road_10k_goal_page_falls_back_without_baseline_route(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """Inactive 10K goals stay readable without invoking the hidden baseline flow."""
+    from api.routes import goal as goal_route
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    monkeypatch.setattr(
+        goal_route,
+        "build_road_10k_baseline_view",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("inactive goals must not call the 10K baseline flow")
+        ),
+    )
+
+    response = client.get("/api/goal")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal_kind"] == "race"
+    assert body["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "target_time_sec": 2520,
+        "race_date": "2026-09-20",
+        "eligible": False,
+    }
+    assert body["baseline"]["status"] == "not_required"
+
+
+def test_active_road_10k_discovery_exposes_the_reviewed_goal_when_enabled(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """Future activation should restore direct 10K discovery without rewrites."""
+    import api.plan_generation_capabilities as capabilities
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "PLAN_GENERATION_CAPABILITIES",
+        (
+            capabilities.OUTDOOR_ROAD_5K_CAPABILITY,
+            replace(
+                capabilities.OUTDOOR_ROAD_10K_CAPABILITY,
+                status="available",
+            ),
+        ),
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+    }
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert body["selected_capability"]["id"] == "outdoor_road_10k_performance_v1"
+    assert body["routing"]["intent"] == "performance"
+    assert body["routing"]["state"] == "readiness_only"
+
+
 def test_capability_discovery_uses_fresh_active_proposal_goal(
     proposal_client,
 ) -> None:

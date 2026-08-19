@@ -20,6 +20,10 @@ from db.models import (
     GoalBaselineSnapshot,
     GoalBaselineTestRecord,
     Outdoor5KPlanGeneration,
+    Road10KBaselineConfirmation,
+    Road10KBaselineSnapshot,
+    Road10KPlanGeneration,
+    Road10KTrainingPatternSnapshot,
     RecoveryData,
     PlanProposal,
     TrainingPlan,
@@ -192,6 +196,100 @@ _OUTDOOR_5K_PLAN_GENERATION_FIELDS = (
     "validation_results",
     "created_at",
 )
+_ROAD_10K_BASELINE_CONFIRMATION_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "activity_id",
+    "response",
+    "measured_10k",
+    "elapsed_timing_confirmed",
+    "completed_at",
+    "elapsed_time_sec",
+    "surface_or_protocol",
+    "route_or_venue_identifier",
+    "assistance_status",
+    "source_provider",
+    "created_at",
+)
+_ROAD_10K_BASELINE_SNAPSHOT_FIELDS = (
+    "id",
+    "lineage_id",
+    "version",
+    "supersedes_id",
+    "goal_signature",
+    "goal_snapshot",
+    "source_kind",
+    "source_id",
+    "provenance",
+    "observed_date",
+    "completed_at",
+    "distance_km",
+    "elapsed_time_sec",
+    "measured_10k",
+    "elapsed_timing_confirmed",
+    "surface_or_protocol",
+    "route_or_venue_identifier",
+    "assistance_status",
+    "source_provider",
+    "qualification_status",
+    "change_comparability",
+    "invalidators",
+    "created_at",
+)
+_ROAD_10K_PLAN_GENERATION_FIELDS = (
+    "id",
+    "proposal_id",
+    "capability_id",
+    "policy_version",
+    "generator_version",
+    "science_decision_id",
+    "source_decision_digest",
+    "contract_digest",
+    "baseline_snapshot_id",
+    "baseline_source",
+    "source_goal_id",
+    "source_goal_revision",
+    "history_cutoff_completed_days",
+    "training_pattern_snapshot_version",
+    "event_context_snapshot_version",
+    "active_zone_model_id",
+    "active_zone_model_version",
+    "normalized_constraints",
+    "selected_template_ids",
+    "source_revision",
+    "deterministic_input_hash",
+    "request_kind",
+    "request_fingerprint",
+    "predecessor_proposal_id",
+    "predecessor_version",
+    "result_code",
+    "validation_reason_code",
+    "created_at",
+)
+_ROAD_10K_TRAINING_PATTERN_SNAPSHOT_FIELDS = (
+    "version",
+    "schema_version",
+    "policy_version",
+    "usable_completed_weeks",
+    "recent_modal_running_frequency",
+    "recent_median_usable_weekly_minutes",
+    "recent_maximum_usable_weekly_minutes",
+    "recent_maximum_session_minutes",
+    "recent_maximum_session_distance_km",
+    "latest_run_date",
+    "history_observation_count",
+    "history_provenance_fingerprint",
+    "intensity_observation_count",
+    "intensity_provenance_fingerprint",
+    "reserved_date_count",
+    "reservation_fingerprint",
+    "canonical_fingerprint",
+    "created_at",
+)
 
 _GOAL_BASELINE_CONFIRMATION_FIELDS = (
     "id",
@@ -306,7 +404,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -410,6 +508,54 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
                 .order_by(Outdoor5KPlanGeneration.created_at, Outdoor5KPlanGeneration.id)
                 .all(),
                 _OUTDOOR_5K_PLAN_GENERATION_FIELDS,
+            ),
+        },
+        "road_10k_baseline": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "confirmations": _serialize_rows(
+                db.query(Road10KBaselineConfirmation)
+                .filter(Road10KBaselineConfirmation.user_id == user_id)
+                .order_by(
+                    Road10KBaselineConfirmation.created_at,
+                    Road10KBaselineConfirmation.version,
+                )
+                .all(),
+                _ROAD_10K_BASELINE_CONFIRMATION_FIELDS,
+            ),
+            "snapshots": _serialize_rows(
+                db.query(Road10KBaselineSnapshot)
+                .filter(Road10KBaselineSnapshot.user_id == user_id)
+                .order_by(
+                    Road10KBaselineSnapshot.created_at,
+                    Road10KBaselineSnapshot.version,
+                )
+                .all(),
+                _ROAD_10K_BASELINE_SNAPSHOT_FIELDS,
+            ),
+        },
+        "road_10k_plan_generation": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "training_pattern_snapshots": _serialize_rows(
+                db.query(Road10KTrainingPatternSnapshot)
+                .filter(Road10KTrainingPatternSnapshot.user_id == user_id)
+                .order_by(
+                    Road10KTrainingPatternSnapshot.created_at,
+                    Road10KTrainingPatternSnapshot.version,
+                )
+                .all(),
+                _ROAD_10K_TRAINING_PATTERN_SNAPSHOT_FIELDS,
+            ),
+            "records": _serialize_rows(
+                db.query(Road10KPlanGeneration)
+                .filter(Road10KPlanGeneration.user_id == user_id)
+                .order_by(
+                    Road10KPlanGeneration.created_at,
+                    Road10KPlanGeneration.id,
+                )
+                .all(),
+                _ROAD_10K_PLAN_GENERATION_FIELDS,
             ),
         },
         "personal_context": build_personal_context_export(
