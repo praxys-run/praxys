@@ -111,6 +111,47 @@ function copy() {
     create: t('Create proposal'),
     creating: t('Creating proposal…'),
     result: t('Readiness result'),
+    planCandidate: t('Plan candidate'),
+    readinessOnly: t('Readiness first'),
+    clarificationRequired: t('Needs clarification'),
+    policyUnavailable: t('Policy unavailable'),
+    ready: t('Ready'),
+    draft: t('Draft'),
+    superseded: t('Superseded'),
+    rejectedState: t('Rejected'),
+    adoptedState: t('Adopted'),
+    expired: t('Expired'),
+    baselineSource: t('Baseline source'),
+    historyCutoff: t('History cutoff'),
+    eventState: t('Event state'),
+    templates: t('Templates'),
+    noEvent: t('No event selected'),
+    singleTarget: t('Single target'),
+    eventConflict: t('Event conflict'),
+    controlledThreshold: t('Controlled threshold quality'),
+    specificIntervals: t('10K-specific interval quality'),
+    usableWeeks: t('usable completed weeks; latest run'),
+    daysUnit: t('days'),
+    alternativeAccepted5k: t('Use the accepted outdoor 5K policy'),
+    alternativeBaselineGuidance: t('Use baseline or consistency guidance'),
+    alternativeDefer: t('Defer plan generation'),
+    alternativeSafetyGuidance: t('Use non-medical safety guidance'),
+    alternativeRefresh5kBaseline: t('Refresh the qualified 5K baseline'),
+    alternativeReviseTarget: t('Revise the target time or date'),
+    alternativeBuildConsistency: t('Build more consistent running first'),
+    alternativeReviseAvailability: t('Revise stated availability'),
+    alternativeReviewAnchoredBlock: t('Review the history-anchored block'),
+    alternativeRefreshPolicy: t('Refresh policy metadata'),
+    alternativeManualTraining: t('Keep training manually'),
+    alternativeConfirmAdult: t('Confirm adult scope'),
+    alternativeConfirm10kHistory: t('Confirm direct 10K history'),
+    alternativeBenchmark: t('Choose an optional 10K benchmark'),
+    alternativeKeepOneTarget: t('Keep one target date'),
+    alternativeDeclineBenchmark: t('Decline the optional benchmark'),
+    alternativeWaitReassessment: t('Wait for post-target reassessment'),
+    alternativeReviseConstraints: t('Revise the constraints'),
+    alternativeReviewBeforeAdopting: t('Review before adopting'),
+    alternativeKeepCurrentPlan: t('Keep the current plan until adoption'),
     proposal: t('Plan proposal'),
     purposeLabel: t('Purpose'),
     policy: t('Policy'),
@@ -127,7 +168,6 @@ function copy() {
     deliveryDisabled: t('Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
     refresh: t('Refresh proposal'),
     retry: t('Retry'),
-    ready: t('ready'),
     failed: t('Plan-start action did not complete'),
     scopeRequired: t('Confirm the supported athlete and goal scope first.'),
     road10kScopeRequired: t('Confirm the reviewed adult scope first.'),
@@ -172,6 +212,115 @@ function reason(
   return result.observed_or_stated_reason
     ?? result.uncertainty_or_missing_field
     ?? fallback;
+}
+
+type ReadinessResponse =
+  | Outdoor5KReadinessResponse
+  | Outdoor5KGenerateResponse
+  | Outdoor5KRegenerateResponse
+  | Road10KReadinessResponse
+  | Road10KGenerateResponse
+  | Road10KRegenerateResponse;
+
+function readinessBadge(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
+  tr: ReturnType<typeof copy>,
+): string {
+  if ('route_state' in result) {
+    return {
+      plan_candidate: tr.planCandidate,
+      readiness_only: tr.readinessOnly,
+      clarification_required: tr.clarificationRequired,
+      policy_unavailable: tr.policyUnavailable,
+    }[result.route_state] ?? tr.readinessOnly;
+  }
+  return result.code === 'ready' ? tr.ready : tr.readinessOnly;
+}
+
+function proposalStateLabel(
+  proposal: AdaptivePlanProposal | null,
+  tr: ReturnType<typeof copy>,
+): string {
+  if (!proposal) return '';
+  return {
+    draft: tr.draft,
+    superseded: tr.superseded,
+    rejected: tr.rejectedState,
+    adopted: tr.adoptedState,
+    expired: tr.expired,
+  }[proposal.state] ?? tr.draft;
+}
+
+function road10kReadinessContext(
+  response: ReadinessResponse,
+  tr: ReturnType<typeof copy>,
+): {
+  rows: Array<{ label: string; value: string }>;
+  history: string;
+} {
+  if (!('event_context' in response)) return { rows: [], history: '' };
+  const evidence = 'baseline' in response
+    ? response.baseline?.evidence
+    : undefined;
+  const provenance = evidence?.provenance === 'race'
+    ? t('Measured 10K race')
+    : evidence?.provenance === 'intentional_all_out'
+      ? t('Intentional all-out complete 10K')
+      : '—';
+  const eventState = {
+    confirmed_none: tr.noEvent,
+    single_target: tr.singleTarget,
+    race_dense: tr.eventConflict,
+  }[response.event_context.state] ?? tr.noEvent;
+  const templateLabels = response.template_ids.map((templateId) => ({
+    'road-10k-controlled-threshold-quality-v1': tr.controlledThreshold,
+    'road-10k-specific-interval-quality-v1': tr.specificIntervals,
+  }[templateId])).filter((label): label is string => Boolean(label));
+  return {
+    rows: [
+      { label: tr.baselineSource, value: provenance },
+      {
+        label: tr.historyCutoff,
+        value: `${response.history_cutoff_completed_days} ${tr.daysUnit}`,
+      },
+      { label: tr.eventState, value: eventState },
+      { label: tr.templates, value: templateLabels.join(' · ') || '—' },
+    ],
+    history: `${response.result.history_statistics.usable_completed_weeks} ${tr.usableWeeks} ${response.result.history_statistics.latest_run_date ?? '—'}`,
+  };
+}
+
+function readinessAlternatives(
+  result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
+  tr: ReturnType<typeof copy>,
+): string[] {
+  const labels: Record<string, string> = {
+    use_accepted_outdoor_5k_policy: tr.alternativeAccepted5k,
+    use_baseline_or_consistency_guidance: tr.alternativeBaselineGuidance,
+    defer_plan_generation: tr.alternativeDefer,
+    use_non_medical_safety_guidance: tr.alternativeSafetyGuidance,
+    refresh_qualified_5k_baseline: tr.alternativeRefresh5kBaseline,
+    revise_target_time_or_date: tr.alternativeReviseTarget,
+    future_consistency_or_base_policy: tr.alternativeBuildConsistency,
+    revise_stated_availability: tr.alternativeReviseAvailability,
+    accept_history_anchored_block_with_feasibility_unknown:
+      tr.alternativeReviewAnchoredBlock,
+    refresh_policy_metadata: tr.alternativeRefreshPolicy,
+    keep_manual_training: tr.alternativeManualTraining,
+    confirm_adult_scope: tr.alternativeConfirmAdult,
+    confirm_direct_10k_history: tr.alternativeConfirm10kHistory,
+    choose_optional_10k_benchmark: tr.alternativeBenchmark,
+    accumulate_more_consistent_running: tr.alternativeBuildConsistency,
+    keep_one_target_date: tr.alternativeKeepOneTarget,
+    decline_optional_benchmark: tr.alternativeDeclineBenchmark,
+    wait_for_post_target_reassessment: tr.alternativeWaitReassessment,
+    revise_constraints: tr.alternativeReviseConstraints,
+    review_before_adopting: tr.alternativeReviewBeforeAdopting,
+    keep_current_plan_until_adoption: tr.alternativeKeepCurrentPlan,
+  };
+  return result.alternatives
+    .map((alternative) => labels[alternative])
+    .filter((label): label is string => Boolean(label));
 }
 
 function isRoad10KCapability(
@@ -258,9 +407,14 @@ Component({
       | null
     ),
     readinessReason: '',
+    readinessBadge: '',
+    readinessContextRows: [] as Array<{ label: string; value: string }>,
+    readinessHistory: '',
+    readinessAlternatives: [] as string[],
     readinessIsPlanReady: false,
     showBaselineRefreshPanel: false,
     proposal: null as AdaptivePlanProposal | null,
+    proposalStateLabel: '',
     working: '',
     operationKeys: {} as Partial<Record<LifecycleOperation, string>>,
     errorMessage: '',
@@ -322,8 +476,13 @@ Component({
         proposalMatchesPurpose: true,
         proposalPurposeLabel: '',
         proposal: null,
+        proposalStateLabel: '',
         readiness: null,
         readinessReason: '',
+        readinessBadge: '',
+        readinessContextRows: [],
+        readinessHistory: '',
+        readinessAlternatives: [],
         readinessIsPlanReady: false,
         showBaselineRefreshPanel: false,
         errorMessage: '',
@@ -494,6 +653,7 @@ Component({
               === 'reassessment_required',
           proposal,
           proposalMatchesPurpose,
+          proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposalSource === 'current_goal'
             ? this.data.tr.currentGoalPurpose
             : proposalSource === 'capability'
@@ -517,6 +677,7 @@ Component({
           selectedPurpose: null,
           proposal,
           proposalMatchesPurpose: !proposal,
+          proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposal?.goal?.purpose_source === 'current_goal'
             ? this.data.tr.currentGoalPurpose
             : proposal?.goal?.purpose_source === 'capability'
@@ -755,9 +916,17 @@ Component({
           capability.actions.readiness_href,
           constraints,
         );
+        const context = road10kReadinessContext(readiness, this.data.tr);
         this.setData({
           readiness,
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
+          readinessBadge: readinessBadge(readiness.result, this.data.tr),
+          readinessContextRows: context.rows,
+          readinessHistory: context.history,
+          readinessAlternatives: readinessAlternatives(
+            readiness.result,
+            this.data.tr,
+          ),
           readinessIsPlanReady: isPlanReadyResult(readiness.result),
           showBaselineRefreshPanel: needsBaselineReview(readiness.result),
           working: '',
@@ -805,6 +974,10 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalStateLabel: proposalStateLabel(
+              response.proposal,
+              this.data.tr,
+            ),
             proposalMatchesPurpose,
             proposalPurposeLabel: requestPurpose?.source === 'current_goal'
               ? this.data.tr.currentGoalPurpose
@@ -816,9 +989,17 @@ Component({
             notice: this.data.tr.noProposal,
           });
         } else {
+          const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
+            readinessBadge: readinessBadge(response.result, this.data.tr),
+            readinessContextRows: context.rows,
+            readinessHistory: context.history,
+            readinessAlternatives: readinessAlternatives(
+              response.result,
+              this.data.tr,
+            ),
             readinessIsPlanReady: isPlanReadyResult(response.result),
             showBaselineRefreshPanel: needsBaselineReview(response.result),
           });
@@ -867,6 +1048,10 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalStateLabel: proposalStateLabel(
+              response.proposal,
+              this.data.tr,
+            ),
             proposalMatchesPurpose,
             proposalPurposeLabel: requestPurpose?.source === 'current_goal'
               ? this.data.tr.currentGoalPurpose
@@ -881,9 +1066,17 @@ Component({
             notice: this.data.tr.successor,
           });
         } else {
+          const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
+            readinessBadge: readinessBadge(response.result, this.data.tr),
+            readinessContextRows: context.rows,
+            readinessHistory: context.history,
+            readinessAlternatives: readinessAlternatives(
+              response.result,
+              this.data.tr,
+            ),
             readinessIsPlanReady: isPlanReadyResult(response.result),
             showBaselineRefreshPanel: needsBaselineReview(response.result),
           });
@@ -911,6 +1104,7 @@ Component({
           proposalMatchesPurpose: true,
           proposalPurposeLabel: '',
           notice: this.data.tr.rejected,
+          proposalStateLabel: '',
         });
         this.clearOperationKey('reject');
       } catch (error) {
@@ -947,6 +1141,10 @@ Component({
         );
         this.setData({
           proposal: result.proposal,
+          proposalStateLabel: proposalStateLabel(
+            result.proposal,
+            this.data.tr,
+          ),
           notice: result.status === 'already_adopted'
             ? this.data.tr.alreadyAdopted
             : this.data.tr.adopted,

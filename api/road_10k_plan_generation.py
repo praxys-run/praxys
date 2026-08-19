@@ -9,6 +9,7 @@ from typing import Any, Mapping
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from analysis.config import effective_athlete_date, load_config_from_db
@@ -18,6 +19,7 @@ from analysis.road_10k_contract import (
     ROAD_10K_CONTRACT_DIGEST,
     ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
     ROAD_10K_GENERATOR_VERSION,
+    ROAD_10K_GUARDRAILS,
     ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
     ROAD_10K_POLICY_VERSION,
     ROAD_10K_REASSESSMENT_COMPLETED_DAYS,
@@ -35,10 +37,12 @@ from analysis.road_10k_plan_generation import (
     Road10KEventContext,
     Road10KGoal,
     Road10KPlanGenerationConstraints,
+    Road10KTrainingPatternSnapshot as TrainingPatternAggregate,
     RunningHistoryObservation,
+    build_road_10k_training_pattern_snapshot,
     build_event_context,
-    derive_recent_history_statistics,
     generate_road_10k_plan,
+    road_10k_training_pattern_canonical_fingerprint,
     serialize_generation_result,
     serialize_workout_structure,
 )
@@ -60,10 +64,11 @@ from api.road_10k_baseline import (
     resolve_road_10k_baseline_snapshot_id,
 )
 from db.models import (
-    Activity,
     AdaptivePlanGoalSnapshot,
     PlanProposal,
+    Road10KBaselineSnapshot,
     Road10KPlanGeneration,
+    Road10KTrainingPatternSnapshot,
 )
 
 
@@ -195,31 +200,77 @@ def generate_road_10k_proposal(
         idempotency_key=idempotency_key,
     )
     idempotency_replay_state = {"replayed": False}
+    locked_generation_input: Road10KGenerationInput | None = None
+    locked_result: Road10KGenerationResult | None = None
+    locked_purpose: ResolvedPlanGenerationPurpose | None = None
+    locked_snapshot: Road10KTrainingPatternSnapshot | None = None
+
+    def prepare_locked_generation(session: Session) -> None:
+        nonlocal locked_generation_input, locked_result
+        nonlocal locked_purpose, locked_snapshot
+        session.expire_all()
+        (
+            locked_generation_input,
+            locked_result,
+            locked_purpose,
+            _locked_baseline,
+        ) = _evaluate(
+            session,
+            user_id=user_id,
+            constraints=constraints,
+            purpose_selection=purpose.selection_payload(),
+        )
+        _require_source_revision(
+            expected_source_revision=expected_source_revision,
+            actual_source_revision=locked_result.deterministic_input_hash,
+        )
+        if not _plan_returned(locked_result.code) or locked_result.plan is None:
+            raise Road10KGenerationError(
+                409,
+                "ROAD_10K_SOURCE_REVISION_STALE",
+                "The road 10K input no longer produces an adoptable proposal.",
+                current_source_revision=locked_result.deterministic_input_hash,
+            )
+        locked_snapshot = _persist_training_pattern_snapshot(
+            session,
+            user_id=user_id,
+            generation_input=locked_generation_input,
+            result=locked_result,
+        )
+
+    def record_locked_generation(
+        session: Session,
+        created: PlanProposal,
+    ) -> None:
+        if (
+            locked_generation_input is None
+            or locked_result is None
+            or locked_purpose is None
+            or locked_snapshot is None
+        ):
+            raise RuntimeError("road 10K locked generation state is missing")
+        _record_generation(
+            session,
+            user_id=user_id,
+            proposal=created,
+            generation_input=locked_generation_input,
+            result=locked_result,
+            purpose=locked_purpose,
+            training_pattern_snapshot=locked_snapshot,
+            request_kind="generate",
+            request_fingerprint=request_fingerprint,
+            predecessor=None,
+        )
+
     proposal = create_draft_proposal(
         db,
         user_id=user_id,
         payload=proposal_input,
         current_date=generation_input.athlete_today,
-        before_persist=lambda session: _require_locked_source_revision(
-            session,
-            user_id=user_id,
-            constraints=constraints,
-            purpose_selection=purpose.selection_payload(),
-            expected_source_revision=expected_source_revision,
-        ),
+        before_persist=prepare_locked_generation,
         idempotency_replay_state=idempotency_replay_state,
         validated_policy_purpose=True,
-        on_created=lambda session, created: _record_generation(
-            session,
-            user_id=user_id,
-            proposal=created,
-            generation_input=generation_input,
-            result=result,
-            purpose=purpose,
-            request_kind="generate",
-            request_fingerprint=request_fingerprint,
-            predecessor=None,
-        ),
+        on_created=record_locked_generation,
     )
     if idempotency_replay_state["replayed"]:
         replay = _idempotency_replay(
@@ -337,6 +388,68 @@ def regenerate_road_10k_proposal(
         idempotency_key=idempotency_key,
     )
     idempotency_replay_state = {"replayed": False}
+    locked_generation_input: Road10KGenerationInput | None = None
+    locked_result: Road10KGenerationResult | None = None
+    locked_purpose: ResolvedPlanGenerationPurpose | None = None
+    locked_snapshot: Road10KTrainingPatternSnapshot | None = None
+
+    def prepare_locked_generation(session: Session) -> None:
+        nonlocal locked_generation_input, locked_result
+        nonlocal locked_purpose, locked_snapshot
+        session.expire_all()
+        (
+            locked_generation_input,
+            locked_result,
+            locked_purpose,
+            _locked_baseline,
+        ) = _evaluate(
+            session,
+            user_id=user_id,
+            constraints=constraints,
+            purpose_selection=purpose.selection_payload(),
+        )
+        _require_source_revision(
+            expected_source_revision=expected_source_revision,
+            actual_source_revision=locked_result.deterministic_input_hash,
+        )
+        if not _plan_returned(locked_result.code) or locked_result.plan is None:
+            raise Road10KGenerationError(
+                409,
+                "ROAD_10K_SOURCE_REVISION_STALE",
+                "The road 10K input no longer produces an adoptable proposal.",
+                current_source_revision=locked_result.deterministic_input_hash,
+            )
+        locked_snapshot = _persist_training_pattern_snapshot(
+            session,
+            user_id=user_id,
+            generation_input=locked_generation_input,
+            result=locked_result,
+        )
+
+    def record_locked_generation(
+        session: Session,
+        created: PlanProposal,
+    ) -> None:
+        if (
+            locked_generation_input is None
+            or locked_result is None
+            or locked_purpose is None
+            or locked_snapshot is None
+        ):
+            raise RuntimeError("road 10K locked generation state is missing")
+        _record_generation(
+            session,
+            user_id=user_id,
+            proposal=created,
+            generation_input=locked_generation_input,
+            result=locked_result,
+            purpose=locked_purpose,
+            training_pattern_snapshot=locked_snapshot,
+            request_kind="regenerate",
+            request_fingerprint=request_fingerprint,
+            predecessor=(parent.id, parent.version),
+        )
+
     proposal = create_successor_proposal(
         db,
         user_id=user_id,
@@ -344,27 +457,11 @@ def regenerate_road_10k_proposal(
         expected_version=expected_proposal_version,
         payload=proposal_input,
         current_date=generation_input.athlete_today,
-        before_persist=lambda session: _require_locked_source_revision(
-            session,
-            user_id=user_id,
-            constraints=constraints,
-            purpose_selection=purpose.selection_payload(),
-            expected_source_revision=expected_source_revision,
-        ),
+        before_persist=prepare_locked_generation,
         idempotency_replay_state=idempotency_replay_state,
         allow_policy_successor=True,
         validated_policy_purpose=True,
-        on_created=lambda session, created: _record_generation(
-            session,
-            user_id=user_id,
-            proposal=created,
-            generation_input=generation_input,
-            result=result,
-            purpose=purpose,
-            request_kind="regenerate",
-            request_fingerprint=request_fingerprint,
-            predecessor=(parent.id, parent.version),
-        ),
+        on_created=record_locked_generation,
     )
     if idempotency_replay_state["replayed"]:
         replay = _idempotency_replay(
@@ -403,6 +500,17 @@ def validate_road_10k_proposal_adoption(
             "ROAD_10K_PROPOSAL_AUDIT_MISSING",
             "The deterministic road 10K proposal has no audit record.",
         )
+    try:
+        _validate_event_context_snapshot_version(audit)
+        _training_pattern_snapshot_for_audit(db, audit=audit)
+        _baseline_snapshot_for_audit(db, audit=audit)
+    except Road10KGenerationError as exc:
+        raise AdaptivePlanError(
+            409,
+            "ROAD_10K_REGENERATE_REQUIRED",
+            "The road 10K proposal cannot be replayed from its persisted provenance; regenerate it before adoption.",
+            replay_error=exc.detail["code"],
+        ) from exc
     constraints = _constraints_from_snapshot(dict(audit.normalized_constraints or {}))
     goal_snapshot = db.get(AdaptivePlanGoalSnapshot, proposal.goal_snapshot_id)
     if goal_snapshot is None:
@@ -440,8 +548,8 @@ def validate_road_10k_proposal_adoption(
     ):
         raise AdaptivePlanError(
             409,
-            "ROAD_10K_PROPOSAL_REVALIDATION_FAILED",
-            "The proposal no longer meets the deterministic road 10K policy.",
+            "ROAD_10K_REGENERATE_REQUIRED",
+            "The road 10K source inputs changed; regenerate before adoption.",
             result_code=result.code,
             current_source_revision=result.deterministic_input_hash,
         )
@@ -501,6 +609,22 @@ def _evaluate(
         activity_source=config.preferences.get("activities"),
         purpose="road_10k_plan_generation",
     )
+    history = tuple(
+        RunningHistoryObservation(
+            activity_id=item.activity_id,
+            observed_date=item.observed_date,
+            duration_min=item.duration_min,
+            distance_km=item.distance_km,
+            source=item.source,
+        )
+        for item in generation_data.activities
+    )
+    training_pattern = build_road_10k_training_pattern_snapshot(
+        history,
+        athlete_today=athlete_today,
+        intensity_sources=generation_data.intensity_sources,
+        reserved_dates=generation_data.reserved_dates,
+    )
     generation_input = Road10KGenerationInput(
         policy_version=ROAD_10K_POLICY_VERSION,
         science_decision_id=ROAD_10K_SCIENCE_DECISION_ID,
@@ -525,19 +649,10 @@ def _evaluate(
         baseline_evidence_date=_goal_evidence_date(
             (baseline.get("evidence") or {}).get("observed_date")
         ),
-        history=tuple(
-            RunningHistoryObservation(
-                activity_id=item.activity_id,
-                observed_date=item.observed_date,
-                duration_min=item.duration_min,
-                distance_km=item.distance_km,
-                source=item.source,
-            )
-            for item in generation_data.activities
-        ),
+        history=history,
         intensity_sources=generation_data.intensity_sources,
         reserved_dates=generation_data.reserved_dates,
-        training_pattern_snapshot_version=ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
+        training_pattern_snapshot_version=training_pattern.version,
         constraints=constraints,
     )
     result = generate_road_10k_plan(generation_input)
@@ -688,6 +803,7 @@ def _record_generation(
     generation_input: Road10KGenerationInput,
     result: Road10KGenerationResult,
     purpose: ResolvedPlanGenerationPurpose,
+    training_pattern_snapshot: Road10KTrainingPatternSnapshot,
     request_kind: str,
     request_fingerprint: str,
     predecessor: tuple[str, int] | None,
@@ -707,11 +823,8 @@ def _record_generation(
             source_goal_id=purpose.source_goal_id,
             source_goal_revision=purpose.source_goal_revision,
             history_cutoff_completed_days=ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
-            history_observation_ids=[
-                item.activity_id for item in generation_input.history
-            ],
             training_pattern_snapshot_version=(
-                generation_input.training_pattern_snapshot_version
+                training_pattern_snapshot.version
             ),
             event_context_snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
             active_zone_model_id=None,
@@ -756,6 +869,7 @@ def _idempotency_replay(
             "ROAD_10K_IDEMPOTENCY_CONFLICT",
             "This idempotency key was already used for a different proposal request.",
         )
+    _validate_event_context_snapshot_version(audit)
     proposal_view = read_proposal(db, user_id=user_id, proposal_id=existing.id)
     if proposal_view is None:
         raise Road10KGenerationError(
@@ -763,15 +877,17 @@ def _idempotency_replay(
             "ROAD_10K_IDEMPOTENCY_CONFLICT",
             "This idempotency key belongs to a proposal that is no longer readable.",
         )
+    training_pattern_snapshot = _training_pattern_snapshot_for_audit(
+        db,
+        audit=audit,
+    )
+    _baseline_snapshot_for_audit(db, audit=audit)
     event_context = _replayed_event_context(
         proposal_view,
         constraints_snapshot=dict(audit.normalized_constraints or {}),
     )
-    history_statistics = _replayed_history_statistics(
-        db,
-        user_id=user_id,
-        proposal=proposal_view,
-        observation_ids=list(audit.history_observation_ids or []),
+    history_statistics = _snapshot_history_statistics(
+        training_pattern_snapshot
     )
     purpose = {
         "capability_id": audit.capability_id,
@@ -794,6 +910,7 @@ def _idempotency_replay(
         "contract_digest": audit.contract_digest,
         "source_decision_digest": audit.source_decision_digest,
         "source_revision": audit.source_revision,
+        "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "purpose": purpose,
         "event_context": _json_safe(asdict(event_context)),
         "history_cutoff_completed_days": audit.history_cutoff_completed_days,
@@ -866,80 +983,249 @@ def _int_or_none(value: object) -> int | None:
         return None
 
 
-def _replayed_history_statistics(
+def _persist_training_pattern_snapshot(
     db: Session,
     *,
     user_id: str,
-    proposal: Mapping[str, Any],
-    observation_ids: list[str],
-) -> RecentHistoryStatistics:
-    athlete_today = _proposal_athlete_today(proposal)
-    if athlete_today is None or not observation_ids:
-        return _empty_history_statistics()
-    rows = db.execute(
-        select(Activity).where(
-            Activity.user_id == user_id,
-            Activity.activity_id.in_(observation_ids),
-        )
-    ).scalars().all()
-    observations: list[RunningHistoryObservation] = []
-    seen_activity_ids: set[str] = set()
-    for row in sorted(
-        rows,
-        key=lambda item: (
-            item.date or date.min,
-            str(item.activity_id),
-            str(item.source or ""),
-        ),
+    generation_input: Road10KGenerationInput,
+    result: Road10KGenerationResult,
+) -> Road10KTrainingPatternSnapshot:
+    aggregate = build_road_10k_training_pattern_snapshot(
+        generation_input.history,
+        athlete_today=generation_input.athlete_today,
+        intensity_sources=generation_input.intensity_sources,
+        reserved_dates=generation_input.reserved_dates,
+    )
+    if (
+        aggregate.version != generation_input.training_pattern_snapshot_version
+        or aggregate.history_statistics() != result.history_statistics
+        or aggregate.recent_maximum_session_distance_km is None
+        or aggregate.latest_run_date is None
     ):
-        activity_id = str(row.activity_id)
-        if activity_id in seen_activity_ids:
-            continue
-        seen_activity_ids.add(activity_id)
-        if row.date is None or row.duration_sec is None:
-            continue
-        duration_sec = float(row.duration_sec)
-        if duration_sec <= 0:
-            continue
-        observations.append(
-            RunningHistoryObservation(
-                activity_id=activity_id,
-                observed_date=row.date,
-                duration_min=duration_sec / 60.0,
-                distance_km=(
-                    None
-                    if row.distance_km is None
-                    else float(row.distance_km)
-                ),
-                source=str(row.source or ""),
+        raise Road10KGenerationError(
+            409,
+            "ROAD_10K_TRAINING_PATTERN_INVALID",
+            "The road 10K aggregate snapshot does not match the deterministic input.",
+        )
+    existing = db.execute(
+        select(Road10KTrainingPatternSnapshot).where(
+            Road10KTrainingPatternSnapshot.user_id == user_id,
+            Road10KTrainingPatternSnapshot.version == aggregate.version,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        _require_training_pattern_snapshot_match(existing, aggregate=aggregate)
+        return existing
+
+    row = Road10KTrainingPatternSnapshot(
+        user_id=user_id,
+        version=aggregate.version,
+        schema_version=aggregate.schema_version,
+        policy_version=aggregate.policy_version,
+        usable_completed_weeks=aggregate.usable_completed_weeks,
+        recent_modal_running_frequency=aggregate.recent_modal_running_frequency,
+        recent_median_usable_weekly_minutes=(
+            aggregate.recent_median_usable_weekly_minutes
+        ),
+        recent_maximum_usable_weekly_minutes=(
+            aggregate.recent_maximum_usable_weekly_minutes
+        ),
+        recent_maximum_session_minutes=aggregate.recent_maximum_session_minutes,
+        recent_maximum_session_distance_km=(
+            aggregate.recent_maximum_session_distance_km
+        ),
+        latest_run_date=aggregate.latest_run_date,
+        history_observation_count=aggregate.history_observation_count,
+        history_provenance_fingerprint=(
+            aggregate.history_provenance_fingerprint
+        ),
+        intensity_observation_count=aggregate.intensity_observation_count,
+        intensity_provenance_fingerprint=(
+            aggregate.intensity_provenance_fingerprint
+        ),
+        reserved_date_count=aggregate.reserved_date_count,
+        reservation_fingerprint=aggregate.reservation_fingerprint,
+        canonical_fingerprint=aggregate.canonical_fingerprint,
+    )
+    try:
+        with db.begin_nested():
+            db.add(row)
+            db.flush()
+    except IntegrityError:
+        existing = db.execute(
+            select(Road10KTrainingPatternSnapshot).where(
+                Road10KTrainingPatternSnapshot.user_id == user_id,
+                Road10KTrainingPatternSnapshot.version == aggregate.version,
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            raise
+        _require_training_pattern_snapshot_match(existing, aggregate=aggregate)
+        return existing
+    return row
+
+
+def _require_training_pattern_snapshot_match(
+    snapshot: Road10KTrainingPatternSnapshot,
+    *,
+    aggregate: TrainingPatternAggregate,
+) -> None:
+    fields = (
+        "version",
+        "schema_version",
+        "policy_version",
+        "usable_completed_weeks",
+        "recent_modal_running_frequency",
+        "recent_median_usable_weekly_minutes",
+        "recent_maximum_usable_weekly_minutes",
+        "recent_maximum_session_minutes",
+        "recent_maximum_session_distance_km",
+        "latest_run_date",
+        "history_observation_count",
+        "history_provenance_fingerprint",
+        "intensity_observation_count",
+        "intensity_provenance_fingerprint",
+        "reserved_date_count",
+        "reservation_fingerprint",
+        "canonical_fingerprint",
+    )
+    if any(
+        getattr(snapshot, field) != getattr(aggregate, field)
+        for field in fields
+    ):
+        raise Road10KGenerationError(
+            409,
+            "ROAD_10K_TRAINING_PATTERN_CONFLICT",
+            "The stored road 10K aggregate snapshot conflicts with its immutable version.",
+        )
+
+
+def _training_pattern_snapshot_for_audit(
+    db: Session,
+    *,
+    audit: Road10KPlanGeneration,
+) -> Road10KTrainingPatternSnapshot:
+    version = str(audit.training_pattern_snapshot_version or "")
+    if not _valid_snapshot_reference(version):
+        raise _regenerate_required("legacy_training_pattern_reference")
+    snapshot = db.execute(
+        select(Road10KTrainingPatternSnapshot).where(
+            Road10KTrainingPatternSnapshot.user_id == audit.user_id,
+            Road10KTrainingPatternSnapshot.version == version,
+        )
+    ).scalar_one_or_none()
+    if snapshot is None:
+        raise _regenerate_required("training_pattern_snapshot_missing")
+    statistics = _snapshot_history_statistics(snapshot)
+    expected_fingerprint = road_10k_training_pattern_canonical_fingerprint(
+        schema_version=snapshot.schema_version,
+        policy_version=snapshot.policy_version,
+        statistics=statistics,
+        history_observation_count=snapshot.history_observation_count,
+        history_provenance_fingerprint=(
+            snapshot.history_provenance_fingerprint
+        ),
+        intensity_observation_count=snapshot.intensity_observation_count,
+        intensity_provenance_fingerprint=(
+            snapshot.intensity_provenance_fingerprint
+        ),
+        reserved_date_count=snapshot.reserved_date_count,
+        reservation_fingerprint=snapshot.reservation_fingerprint,
+    )
+    if (
+        snapshot.schema_version
+        != ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION
+        or snapshot.policy_version != audit.policy_version
+        or not all(
+            _valid_sha256(value)
+            for value in (
+                snapshot.history_provenance_fingerprint,
+                snapshot.intensity_provenance_fingerprint,
+                snapshot.reservation_fingerprint,
+                snapshot.canonical_fingerprint,
             )
         )
-    if not observations:
-        return _empty_history_statistics()
-    return derive_recent_history_statistics(
-        tuple(observations),
-        athlete_today=athlete_today,
+        or snapshot.canonical_fingerprint != expected_fingerprint
+        or snapshot.version != f"v1:{expected_fingerprint}"
+    ):
+        raise _regenerate_required("training_pattern_snapshot_invalid")
+    return snapshot
+
+
+def _baseline_snapshot_for_audit(
+    db: Session,
+    *,
+    audit: Road10KPlanGeneration,
+) -> Road10KBaselineSnapshot:
+    baseline_snapshot_id = str(audit.baseline_snapshot_id or "")
+    if not baseline_snapshot_id:
+        raise _regenerate_required("baseline_snapshot_missing")
+    snapshot = db.execute(
+        select(Road10KBaselineSnapshot).where(
+            Road10KBaselineSnapshot.user_id == audit.user_id,
+            Road10KBaselineSnapshot.id == baseline_snapshot_id,
+        )
+    ).scalar_one_or_none()
+    if (
+        snapshot is None
+        or snapshot.qualification_status != "direct_current"
+        or snapshot.provenance != audit.baseline_source
+    ):
+        raise _regenerate_required("baseline_snapshot_unavailable")
+    return snapshot
+
+
+def _snapshot_history_statistics(
+    snapshot: Road10KTrainingPatternSnapshot,
+) -> RecentHistoryStatistics:
+    return RecentHistoryStatistics(
+        usable_completed_weeks=snapshot.usable_completed_weeks,
+        recent_modal_running_frequency=snapshot.recent_modal_running_frequency,
+        recent_median_usable_weekly_minutes=(
+            snapshot.recent_median_usable_weekly_minutes
+        ),
+        recent_maximum_usable_weekly_minutes=(
+            snapshot.recent_maximum_usable_weekly_minutes
+        ),
+        recent_maximum_session_minutes=snapshot.recent_maximum_session_minutes,
+        recent_maximum_session_distance_km=(
+            snapshot.recent_maximum_session_distance_km
+        ),
+        latest_run_date=snapshot.latest_run_date,
     )
 
 
-def _proposal_athlete_today(proposal: Mapping[str, Any]) -> date | None:
-    goal = dict(proposal.get("goal") or {})
-    try:
-        horizon_start = date.fromisoformat(str(goal["horizon_start"]))
-    except (KeyError, TypeError, ValueError):
-        return None
-    return horizon_start - timedelta(days=1)
+def _valid_snapshot_reference(value: str) -> bool:
+    return (
+        len(value) == 67
+        and value.startswith("v1:")
+        and _valid_sha256(value[3:])
+    )
 
 
-def _empty_history_statistics() -> RecentHistoryStatistics:
-    return RecentHistoryStatistics(
-        usable_completed_weeks=0,
-        recent_modal_running_frequency=0,
-        recent_median_usable_weekly_minutes=0,
-        recent_maximum_usable_weekly_minutes=0,
-        recent_maximum_session_minutes=0,
-        recent_maximum_session_distance_km=None,
-        latest_run_date=None,
+def _validate_event_context_snapshot_version(
+    audit: Road10KPlanGeneration,
+) -> None:
+    if (
+        audit.event_context_snapshot_version
+        != ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION
+    ):
+        raise _regenerate_required("event_context_snapshot_version_mismatch")
+
+
+def _valid_sha256(value: str) -> bool:
+    return (
+        len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _regenerate_required(reason: str) -> Road10KGenerationError:
+    return Road10KGenerationError(
+        409,
+        "ROAD_10K_REGENERATE_REQUIRED",
+        "The persisted road 10K replay provenance is unavailable; regenerate the proposal.",
+        reason=reason,
     )
 
 
@@ -960,6 +1246,7 @@ def _proposal_envelope(
         "contract_digest": result.contract_digest,
         "source_decision_digest": result.source_decision_digest,
         "source_revision": result.deterministic_input_hash,
+        "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "purpose": purpose.public_payload(),
         "event_context": _json_safe(asdict(result.event_context)),
         "history_cutoff_completed_days": ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
@@ -994,6 +1281,7 @@ def _readiness_envelope(
         "contract_digest": result.contract_digest,
         "source_decision_digest": result.source_decision_digest,
         "source_revision": result.deterministic_input_hash,
+        "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "purpose": purpose.public_payload(),
         "baseline": baseline,
         "athlete_today": generation_input.athlete_today.isoformat(),
@@ -1039,27 +1327,6 @@ def _request_fingerprint(
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
-def _require_locked_source_revision(
-    db: Session,
-    *,
-    user_id: str,
-    constraints: Road10KPlanGenerationConstraints,
-    purpose_selection: Mapping[str, Any] | None,
-    expected_source_revision: str,
-) -> None:
-    db.expire_all()
-    _, locked_result, _, _ = _evaluate(
-        db,
-        user_id=user_id,
-        constraints=constraints,
-        purpose_selection=purpose_selection,
-    )
-    _require_source_revision(
-        expected_source_revision=expected_source_revision,
-        actual_source_revision=locked_result.deterministic_input_hash,
-    )
 
 
 def _proposal_matches_generated_plan(

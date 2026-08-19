@@ -1513,7 +1513,12 @@ def keep_current_plan_after_goal_change(
         raise
 
 
-def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence[Mapping[str, Any]]) -> list[TrainingPlan]:
+def _plans_from_snapshot(
+    user_id: str,
+    adaptive_plan_id: str,
+    proposal: PlanProposal,
+    workouts: Sequence[Mapping[str, Any]],
+) -> list[TrainingPlan]:
     rows: list[TrainingPlan] = []
     for workout in workouts:
         rows.append(
@@ -1540,7 +1545,11 @@ def _plans_from_snapshot(user_id: str, adaptive_plan_id: str, workouts: Sequence
                 workout_structure=workout.get("workout_structure"),
                 source=PRAXYS_PLAN_WRITE_SOURCE,
                 workout_origin="proposal",
-                meta={"proposal_id": adaptive_plan_id},
+                meta={
+                    "proposal_id": proposal.id,
+                    "policy_version": proposal.policy_version,
+                    "generator_version": proposal.model_version,
+                },
             )
         )
     return rows
@@ -1692,7 +1701,12 @@ def adopt_proposal(
             horizon_end=goal.horizon_end,
             current_date=current_date,
         )
-        rows = _plans_from_snapshot(user_id, adaptive_plan.id, workouts)
+        rows = _plans_from_snapshot(
+            user_id,
+            adaptive_plan.id,
+            proposal,
+            workouts,
+        )
         existing_query = db.query(TrainingPlan).filter(
             TrainingPlan.user_id == user_id,
             TrainingPlan.source.in_(PRAXYS_PLAN_SOURCES),

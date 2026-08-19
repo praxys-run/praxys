@@ -192,6 +192,17 @@ class Road10KOutcomeResponse(BaseModel):
     alternatives: list[str]
 
 
+class Road10KGuardrailProjectionResponse(BaseModel):
+    """Read-only accepted values exposed without snapshot provenance."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    committed_proposal_days: int
+    advisory_reassessment_after_completed_days: int
+    minimum_planned_low_intensity_running_minutes_fraction: float
+    baseline_current_through_completed_days: int
+
+
 class Road10KPurposeResponse(BaseModel):
     """Resolved purpose included in readiness and proposal responses."""
 
@@ -217,6 +228,7 @@ class Road10KReadinessResponse(BaseModel):
     contract_digest: str
     source_decision_digest: str
     source_revision: str
+    guardrails: Road10KGuardrailProjectionResponse
     purpose: Road10KPurposeResponse
     baseline: dict[str, Any]
     athlete_today: str
@@ -246,6 +258,7 @@ class Road10KProposalResponse(BaseModel):
     contract_digest: str
     source_decision_digest: str
     source_revision: str
+    guardrails: Road10KGuardrailProjectionResponse
     purpose: Road10KPurposeResponse
     event_context: dict[str, Any]
     history_cutoff_completed_days: int
@@ -260,6 +273,7 @@ class Road10KBaselineMutationResponse(BaseModel):
     """Append-only confirmation response for direct 10K baseline review."""
 
     replayed: bool
+    guardrails: Road10KGuardrailProjectionResponse
     baseline: dict[str, Any]
     confirmation: dict[str, Any] | None = None
 
@@ -341,7 +355,7 @@ def _raise_baseline(error: Exception) -> None:
 @router.post(
     "/plan/road-10k/readiness",
     response_model=Road10KReadinessResponse,
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def post_road_10k_readiness(
     body: Road10KReadinessRequest,
@@ -364,7 +378,7 @@ def post_road_10k_readiness(
 @router.post(
     "/plan/road-10k/alternatives",
     response_model=Road10KAlternativesResponse,
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def post_road_10k_alternatives(
     body: Road10KReadinessRequest,
@@ -387,7 +401,7 @@ def post_road_10k_alternatives(
 @router.post(
     "/plan/road-10k/generate",
     response_model=Road10KProposalResponse | Road10KReadinessResponse,
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def post_road_10k_generate(
     body: Road10KGenerateRequest,
@@ -415,7 +429,7 @@ def post_road_10k_generate(
 @router.post(
     "/plan/road-10k/proposals/{proposal_id}/regenerate",
     response_model=Road10KProposalResponse | Road10KReadinessResponse,
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def post_road_10k_regenerate(
     proposal_id: UUID,

@@ -23,6 +23,7 @@ from db.models import (
     Road10KBaselineConfirmation,
     Road10KBaselineSnapshot,
     Road10KPlanGeneration,
+    Road10KTrainingPatternSnapshot,
     RecoveryData,
     PlanProposal,
     TrainingPlan,
@@ -253,7 +254,6 @@ _ROAD_10K_PLAN_GENERATION_FIELDS = (
     "source_goal_id",
     "source_goal_revision",
     "history_cutoff_completed_days",
-    "history_observation_ids",
     "training_pattern_snapshot_version",
     "event_context_snapshot_version",
     "active_zone_model_id",
@@ -268,6 +268,26 @@ _ROAD_10K_PLAN_GENERATION_FIELDS = (
     "predecessor_version",
     "result_code",
     "validation_reason_code",
+    "created_at",
+)
+_ROAD_10K_TRAINING_PATTERN_SNAPSHOT_FIELDS = (
+    "version",
+    "schema_version",
+    "policy_version",
+    "usable_completed_weeks",
+    "recent_modal_running_frequency",
+    "recent_median_usable_weekly_minutes",
+    "recent_maximum_usable_weekly_minutes",
+    "recent_maximum_session_minutes",
+    "recent_maximum_session_distance_km",
+    "latest_run_date",
+    "history_observation_count",
+    "history_provenance_fingerprint",
+    "intensity_observation_count",
+    "intensity_provenance_fingerprint",
+    "reserved_date_count",
+    "reservation_fingerprint",
+    "canonical_fingerprint",
     "created_at",
 )
 
@@ -384,7 +404,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -517,6 +537,16 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
         "road_10k_plan_generation": {
             "schema_version": 1,
             "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "training_pattern_snapshots": _serialize_rows(
+                db.query(Road10KTrainingPatternSnapshot)
+                .filter(Road10KTrainingPatternSnapshot.user_id == user_id)
+                .order_by(
+                    Road10KTrainingPatternSnapshot.created_at,
+                    Road10KTrainingPatternSnapshot.version,
+                )
+                .all(),
+                _ROAD_10K_TRAINING_PATTERN_SNAPSHOT_FIELDS,
+            ),
             "records": _serialize_rows(
                 db.query(Road10KPlanGeneration)
                 .filter(Road10KPlanGeneration.user_id == user_id)

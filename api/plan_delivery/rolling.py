@@ -20,6 +20,7 @@ from analysis.config import (
     normalize_persisted_plan_management,
 )
 from analysis.metrics import is_rest_workout
+from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
 from api.packs import RequestContext
 from api.plan_delivery import (
     DeliveryAccountMismatchError,
@@ -63,6 +64,7 @@ from api.plan_resolution import (
 from db.models import (
     PlanDelivery,
     PlanDeliveryAttempt,
+    PlanProposal,
     PlanTargetCalendarSync,
     PlanTargetWorkout,
     TrainingPlan,
@@ -284,6 +286,35 @@ def _delivery_gate(
             "delivery_adapter_unavailable",
         )
     return _DeliveryGate(target, connection, None)
+
+
+def _road_10k_policy_canonical(
+    db: Session,
+    *,
+    user_id: str,
+    canonical: TrainingPlan,
+) -> bool:
+    meta = canonical.meta
+    if (
+        isinstance(meta, Mapping)
+        and meta.get("policy_version") == ROAD_10K_POLICY_VERSION
+    ):
+        return True
+    if not canonical.adaptive_plan_id:
+        return False
+    policy_version = db.execute(
+        select(PlanProposal.policy_version)
+        .where(
+            PlanProposal.user_id == user_id,
+            PlanProposal.adaptive_plan_id == canonical.adaptive_plan_id,
+            PlanProposal.state == "adopted",
+        )
+        .order_by(
+            PlanProposal.decided_at.desc(),
+            PlanProposal.created_at.desc(),
+        )
+    ).scalars().first()
+    return policy_version == ROAD_10K_POLICY_VERSION
 
 
 def _default_adapter_loader(
@@ -1509,6 +1540,43 @@ def _run_rolling_delivery_for_user(
             window_end=window_end.isoformat(),
         ))
 
+    policy_blocked_items: list[ManagedDeliveryItemResult] = []
+    deliverable_canonicals: list[TrainingPlan] = []
+    for canonical in canonicals:
+        if _road_10k_policy_canonical(
+            db,
+            user_id=user_id,
+            canonical=canonical,
+        ):
+            policy_blocked_items.append(_result(
+                str(canonical.canonical_id),
+                canonical.date,
+                "deliver",
+                "blocked",
+                reason="road_10k_policy_delivery_blocked",
+            ))
+        else:
+            deliverable_canonicals.append(canonical)
+    orphan_delivery_requires_provider = any(
+        delivery_canonical_id(delivery) not in canonical_ids
+        for delivery in owned_deliveries
+    )
+    if (
+        policy_blocked_items
+        and not deliverable_canonicals
+        and not orphan_delivery_requires_provider
+    ):
+        return finish(ManagedDeliveryRunResult(
+            user_id=user_id,
+            trigger=trigger,
+            status="partial",
+            target=target,
+            window_start=window_start.isoformat(),
+            window_end=window_end.isoformat(),
+            items=tuple(policy_blocked_items),
+        ))
+    canonicals = deliverable_canonicals
+
     threshold_value = threshold_loader(db, user_id)
     try:
         adapter = adapter_loader(db, user_id, target)
@@ -1640,7 +1708,7 @@ def _run_rolling_delivery_for_user(
         replay,
         mutation_guard,
     )
-    items: list[ManagedDeliveryItemResult] = []
+    items = list(policy_blocked_items)
     stop_after_owned_removal = False
 
     for delivery in owned_deliveries:

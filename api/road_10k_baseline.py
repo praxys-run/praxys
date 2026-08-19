@@ -29,6 +29,7 @@ from analysis.road_10k_contract import (
     ROAD_10K_BASELINE_SNAPSHOT_VERSION,
     ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS,
     ROAD_10K_CONTRACT_DIGEST,
+    ROAD_10K_GUARDRAILS,
     ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
     ROAD_10K_POLICY_VERSION,
     ROAD_10K_SCIENCE_DECISION_ID,
@@ -136,6 +137,7 @@ def build_road_10k_baseline_view(
             "science_decision_id": ROAD_10K_SCIENCE_DECISION_ID,
             "contract_digest": ROAD_10K_CONTRACT_DIGEST,
             "baseline_snapshot_version": ROAD_10K_BASELINE_SNAPSHOT_VERSION,
+            "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
             "status": baseline_status,
             "readiness": baseline_readiness,
             "history_search_complete": True,
@@ -296,6 +298,7 @@ def confirm_road_10k_history_candidate(
     db.commit()
     return {
         "replayed": False,
+        "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "confirmation": _serialize_confirmation_row(row),
         "baseline": build_road_10k_baseline_view(
             db,
@@ -1116,6 +1119,7 @@ def _replayed_confirmation_response(
         }
     return {
         "replayed": True,
+        "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "confirmation": _serialize_confirmation_row(confirmation),
         "baseline": baseline,
     }

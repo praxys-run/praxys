@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy import (
     CheckConstraint,
     Column,
+    DDL,
     Index,
     String,
     Float,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     LargeBinary,
     Text,
     UniqueConstraint,
+    event,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -1846,6 +1848,126 @@ class Outdoor5KPlanGeneration(Base):
     )
 
 
+class Road10KTrainingPatternSnapshot(Base):
+    """Append-only owner-scoped aggregate provenance for road 10K replay."""
+
+    __tablename__ = "road_10k_training_pattern_snapshots"
+
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        primary_key=True,
+    )
+    version = Column(String(67), nullable=False, primary_key=True)
+    schema_version = Column(String(80), nullable=False)
+    policy_version = Column(String(80), nullable=False)
+    usable_completed_weeks = Column(Integer, nullable=False)
+    recent_modal_running_frequency = Column(Integer, nullable=False)
+    recent_median_usable_weekly_minutes = Column(Integer, nullable=False)
+    recent_maximum_usable_weekly_minutes = Column(Integer, nullable=False)
+    recent_maximum_session_minutes = Column(Integer, nullable=False)
+    recent_maximum_session_distance_km = Column(Float, nullable=False)
+    latest_run_date = Column(Date, nullable=False)
+    history_observation_count = Column(Integer, nullable=False)
+    history_provenance_fingerprint = Column(String(64), nullable=False)
+    intensity_observation_count = Column(Integer, nullable=False)
+    intensity_provenance_fingerprint = Column(String(64), nullable=False)
+    reserved_date_count = Column(Integer, nullable=False)
+    reservation_fingerprint = Column(String(64), nullable=False)
+    canonical_fingerprint = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "version = 'v1:' || canonical_fingerprint",
+            name="ck_road_10k_training_pattern_version",
+        ),
+        CheckConstraint(
+            "schema_version = 'road-10k-training-pattern-v1'",
+            name="ck_road_10k_training_pattern_schema",
+        ),
+        CheckConstraint(
+            "policy_version = 'road-10k-plan-generation-policy-v2'",
+            name="ck_road_10k_training_pattern_policy",
+        ),
+        CheckConstraint(
+            "usable_completed_weeks >= 0 AND usable_completed_weeks <= 8",
+            name="ck_road_10k_training_pattern_usable_weeks",
+        ),
+        CheckConstraint(
+            "recent_modal_running_frequency >= 0",
+            name="ck_road_10k_training_pattern_frequency",
+        ),
+        CheckConstraint(
+            "recent_median_usable_weekly_minutes >= 0",
+            name="ck_road_10k_training_pattern_median_minutes",
+        ),
+        CheckConstraint(
+            "recent_maximum_usable_weekly_minutes >= 0",
+            name="ck_road_10k_training_pattern_max_weekly_minutes",
+        ),
+        CheckConstraint(
+            "recent_maximum_session_minutes >= 0",
+            name="ck_road_10k_training_pattern_max_session_minutes",
+        ),
+        CheckConstraint(
+            "recent_maximum_session_distance_km > 0",
+            name="ck_road_10k_training_pattern_max_distance",
+        ),
+        CheckConstraint(
+            "history_observation_count >= 0 "
+            "AND history_observation_count <= 1000",
+            name="ck_road_10k_training_pattern_history_count",
+        ),
+        CheckConstraint(
+            "intensity_observation_count >= 0 "
+            "AND intensity_observation_count <= 1000",
+            name="ck_road_10k_training_pattern_intensity_count",
+        ),
+        CheckConstraint(
+            "reserved_date_count >= 0 AND reserved_date_count <= 14",
+            name="ck_road_10k_training_pattern_reservation_count",
+        ),
+        CheckConstraint(
+            "length(history_provenance_fingerprint) = 64 "
+            "AND length(intensity_provenance_fingerprint) = 64 "
+            "AND length(reservation_fingerprint) = 64 "
+            "AND length(canonical_fingerprint) = 64",
+            name="ck_road_10k_training_pattern_fingerprints",
+        ),
+        Index(
+            "ix_road_10k_training_pattern_owner_created",
+            "user_id",
+            "created_at",
+        ),
+    )
+
+
+event.listen(
+    Road10KTrainingPatternSnapshot.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_training_pattern_snapshots_immutable "
+        "BEFORE UPDATE ON road_10k_training_pattern_snapshots "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K training pattern snapshots are immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+@event.listens_for(Road10KTrainingPatternSnapshot, "before_update")
+def _reject_road_10k_training_pattern_snapshot_update(
+    _mapper: object,
+    _connection: object,
+    _target: Road10KTrainingPatternSnapshot,
+) -> None:
+    raise ValueError("road 10K training pattern snapshots are immutable")
+
+
 class Road10KPlanGeneration(Base):
     """Immutable audit record for one deterministic road 10K proposal."""
 
@@ -1876,7 +1998,6 @@ class Road10KPlanGeneration(Base):
     source_goal_id = Column(String(36), nullable=True)
     source_goal_revision = Column(String(64), nullable=True)
     history_cutoff_completed_days = Column(Integer, nullable=False)
-    history_observation_ids = Column(JSON, nullable=False, default=list)
     training_pattern_snapshot_version = Column(String(80), nullable=False)
     event_context_snapshot_version = Column(String(80), nullable=False)
     active_zone_model_id = Column(String(80), nullable=True)
@@ -1903,6 +2024,11 @@ class Road10KPlanGeneration(Base):
             "ix_road_10k_generation_user_revision",
             "user_id",
             "source_revision",
+        ),
+        Index(
+            "ix_road_10k_generation_owner_training_pattern",
+            "user_id",
+            "training_pattern_snapshot_version",
         ),
     )
 

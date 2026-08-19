@@ -14,7 +14,7 @@ import type {
   Road10KSurfaceOrProtocol,
 } from '../../types/api';
 import { formatTime } from '../../utils/format';
-import { t } from '../../utils/i18n';
+import { t, tFmt } from '../../utils/i18n';
 
 const STOP_REASONS = [
   'acute_illness',
@@ -149,17 +149,26 @@ function build5kCopy() {
   };
 }
 
-function build10kCopy() {
+function build10kCopy(baseline: Road10KBaselineResponse) {
+  const freshnessDays = (
+    baseline.guardrails.baseline_current_through_completed_days
+  );
   return {
     title: t('10K direct baseline'),
     current: t('Current evidence'),
     candidates: t('History candidates'),
     candidateHint: t('Retrieval is never qualification; only a full activity with explicit distance, timing, accepted protocol, route or venue, and all-out or race confirmation can become a direct 10K baseline.'),
-    guardrail: t('The 56-day rule is a reviewed guardrail, not a physiological cutoff.'),
+    guardrail: tFmt(
+      'The {0}-day rule is a reviewed guardrail, not a physiological cutoff.',
+      freshnessDays,
+    ),
     segmentRule: t('Passive fastest 10K splits, best laps, or hard sections inside longer runs never count as direct 10K baseline evidence.'),
     noMeaningfulChange: t('Only current direct 10K race or explicit all-out 10K history can qualify.'),
     pilotScope: t('Full activity only.'),
-    scienceDescription: t('Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.'),
+    scienceDescription: tFmt(
+      'Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The {0}-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.',
+      freshnessDays,
+    ),
     testHint: t('Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it.'),
     testTitle: t('Optional 10K benchmark'),
     benchmarkTitle: t('Optional 10K benchmark'),
@@ -240,8 +249,10 @@ function build10kCopy() {
   };
 }
 
-function buildCopy(road10k: boolean) {
-  return road10k ? build10kCopy() : build5kCopy();
+function buildCopy(baseline: BaselineResponse | null) {
+  return isRoad10KBaseline(baseline)
+    ? build10kCopy(baseline)
+    : build5kCopy();
 }
 
 function candidateResponseIndex(candidate: BaselineCandidate): number {
@@ -276,7 +287,7 @@ Component({
     disabled: { type: Boolean, value: false },
   },
   data: {
-    copy: buildCopy(false),
+    copy: buildCopy(null),
     isRoad10K: false,
     dialogMode: '',
     activeCandidateIndex: 0,
@@ -305,7 +316,7 @@ Component({
     baseline(next: BaselineResponse | null) {
       if (!next) return;
       const road10k = isRoad10KBaseline(next);
-      const copy = buildCopy(road10k);
+      const copy = buildCopy(next);
       const candidateRows = next.candidates.map((candidate) => ({
         ...candidate,
         headline: `${candidate.observed_date} · ${candidate.distance_km != null ? candidate.distance_km.toFixed(2) : '—'} km · ${candidate.duration_sec ? formatTime(Math.round(candidate.duration_sec)) : '—'}`,
@@ -316,10 +327,24 @@ Component({
         : '';
       const evidenceMeta = road10k && next.evidence
         ? [
-          next.evidence.surface_or_protocol ?? '',
+          next.evidence.surface_or_protocol
+            ? copy.protocolOptions[
+              road10kProtocolIndex(next.evidence.surface_or_protocol)
+            ]
+            : '',
           next.evidence.route_or_venue_identifier ?? '',
-          next.evidence.assistance_status ?? '',
-          next.evidence.source_provider ?? '',
+          next.evidence.assistance_status
+            ? copy.assistanceOptions[
+              road10kAssistanceIndex(next.evidence.assistance_status)
+            ]
+            : '',
+          next.evidence.source_provider === 'garmin'
+            ? 'Garmin'
+            : next.evidence.source_provider === 'stryd'
+              ? 'Stryd'
+              : next.evidence.source_provider === 'strava'
+                ? 'Strava'
+                : next.evidence.source_provider ?? '',
         ].filter(Boolean).join(' · ')
         : '';
       const alternativesText = road10k

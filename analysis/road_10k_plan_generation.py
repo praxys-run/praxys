@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 import hashlib
 import json
+import re
 from statistics import median
 from typing import Any, Literal, Mapping, Sequence
 
@@ -13,6 +14,7 @@ from analysis.road_10k_contract import (
     ROAD_10K_CONTRACT_DIGEST,
     ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
     ROAD_10K_EVENTS,
+    ROAD_10K_EXECUTION,
     ROAD_10K_GENERATOR_VERSION,
     ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS,
     ROAD_10K_INTENSITY,
@@ -24,6 +26,8 @@ from analysis.road_10k_contract import (
     ROAD_10K_SCHEDULE,
     ROAD_10K_SCIENCE_DECISION_ID,
     ROAD_10K_SOURCE_DECISION_DIGEST,
+    ROAD_10K_TAPER_MAXIMUM_DAYS_BEFORE_EVENT,
+    ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT,
     ROAD_10K_TEMPLATES,
     ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
 )
@@ -43,6 +47,9 @@ _LATEST_RUN_DAYS = int(
 _CURRENT_BASELINE_DAYS = ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
 _PROPOSAL_DAYS = ROAD_10K_PROPOSAL_DAYS
 _REASSESSMENT_DAYS = ROAD_10K_REASSESSMENT_COMPLETED_DAYS
+_SCHEDULE_UNIT_DAYS = int(ROAD_10K_EXECUTION["calendar_schedule_unit_days"])
+_SCHEDULE_UNIT_LAST_DAY_OFFSET = _SCHEDULE_UNIT_DAYS - 1
+_PROPOSAL_SCHEDULE_UNITS = _PROPOSAL_DAYS // _SCHEDULE_UNIT_DAYS
 _MIN_RUN_DAYS = int(
     ROAD_10K_SCHEDULE["selected_running_days_per_7_day_unit"]["minimum"]
 )
@@ -103,6 +110,47 @@ class RecentHistoryStatistics:
     recent_maximum_session_minutes: int
     recent_maximum_session_distance_km: float | None
     latest_run_date: date | None
+
+
+@dataclass(frozen=True)
+class Road10KTrainingPatternSnapshot:
+    """Privacy-minimized aggregate provenance for one generation input."""
+
+    schema_version: str
+    policy_version: str
+    version: str
+    usable_completed_weeks: int
+    recent_modal_running_frequency: int
+    recent_median_usable_weekly_minutes: int
+    recent_maximum_usable_weekly_minutes: int
+    recent_maximum_session_minutes: int
+    recent_maximum_session_distance_km: float | None
+    latest_run_date: date | None
+    history_observation_count: int
+    history_provenance_fingerprint: str
+    intensity_observation_count: int
+    intensity_provenance_fingerprint: str
+    reserved_date_count: int
+    reservation_fingerprint: str
+    canonical_fingerprint: str
+
+    def history_statistics(self) -> RecentHistoryStatistics:
+        """Return the seven reviewed history aggregates."""
+        return RecentHistoryStatistics(
+            usable_completed_weeks=self.usable_completed_weeks,
+            recent_modal_running_frequency=self.recent_modal_running_frequency,
+            recent_median_usable_weekly_minutes=(
+                self.recent_median_usable_weekly_minutes
+            ),
+            recent_maximum_usable_weekly_minutes=(
+                self.recent_maximum_usable_weekly_minutes
+            ),
+            recent_maximum_session_minutes=self.recent_maximum_session_minutes,
+            recent_maximum_session_distance_km=(
+                self.recent_maximum_session_distance_km
+            ),
+            latest_run_date=self.latest_run_date,
+        )
 
 
 @dataclass(frozen=True)
@@ -272,7 +320,7 @@ def derive_recent_history_statistics(
     """Derive conservative 8-week anchors from completed running history."""
     current_week_start = athlete_today - timedelta(days=athlete_today.weekday())
     first_week_start = current_week_start - timedelta(
-        days=7 * _LOOKBACK_COMPLETED_WEEKS
+        days=_SCHEDULE_UNIT_DAYS * _LOOKBACK_COMPLETED_WEEKS
     )
     complete = tuple(
         observation
@@ -331,6 +379,133 @@ def derive_recent_history_statistics(
     )
 
 
+def build_road_10k_training_pattern_snapshot(
+    history: Sequence[RunningHistoryObservation],
+    *,
+    athlete_today: date,
+    intensity_sources: Sequence[tuple[str, str]],
+    reserved_dates: Sequence[date],
+) -> Road10KTrainingPatternSnapshot:
+    """Build the bounded aggregate snapshot used as replay provenance."""
+    if len(history) > 1000 or len(intensity_sources) > 1000:
+        raise ValueError("road 10K training provenance exceeds the bounded input")
+    if len(reserved_dates) > _PROPOSAL_DAYS:
+        raise ValueError("road 10K reservations exceed the proposal horizon")
+
+    statistics = derive_recent_history_statistics(
+        history,
+        athlete_today=athlete_today,
+    )
+    history_payload = [
+        {
+            "activity_id": item.activity_id,
+            "observed_date": item.observed_date.isoformat(),
+            "duration_min": item.duration_min,
+            "distance_km": item.distance_km,
+            "source": item.source,
+        }
+        for item in sorted(
+            history,
+            key=lambda item: (
+                item.observed_date,
+                item.activity_id,
+                item.source,
+            ),
+        )
+    ]
+    intensity_payload = [
+        {"activity_id": activity_id, "source": source}
+        for activity_id, source in sorted(
+            intensity_sources,
+            key=lambda item: (item[0], item[1]),
+        )
+    ]
+    reservation_payload = sorted(item.isoformat() for item in reserved_dates)
+    history_fingerprint = _canonical_fingerprint(history_payload)
+    intensity_fingerprint = _canonical_fingerprint(intensity_payload)
+    reservation_fingerprint = _canonical_fingerprint(reservation_payload)
+    canonical_fingerprint = road_10k_training_pattern_canonical_fingerprint(
+        schema_version=ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
+        policy_version=ROAD_10K_POLICY_VERSION,
+        statistics=statistics,
+        history_observation_count=len(history_payload),
+        history_provenance_fingerprint=history_fingerprint,
+        intensity_observation_count=len(intensity_payload),
+        intensity_provenance_fingerprint=intensity_fingerprint,
+        reserved_date_count=len(reservation_payload),
+        reservation_fingerprint=reservation_fingerprint,
+    )
+    return Road10KTrainingPatternSnapshot(
+        schema_version=ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION,
+        policy_version=ROAD_10K_POLICY_VERSION,
+        version=f"v1:{canonical_fingerprint}",
+        usable_completed_weeks=statistics.usable_completed_weeks,
+        recent_modal_running_frequency=statistics.recent_modal_running_frequency,
+        recent_median_usable_weekly_minutes=(
+            statistics.recent_median_usable_weekly_minutes
+        ),
+        recent_maximum_usable_weekly_minutes=(
+            statistics.recent_maximum_usable_weekly_minutes
+        ),
+        recent_maximum_session_minutes=statistics.recent_maximum_session_minutes,
+        recent_maximum_session_distance_km=(
+            statistics.recent_maximum_session_distance_km
+        ),
+        latest_run_date=statistics.latest_run_date,
+        history_observation_count=len(history_payload),
+        history_provenance_fingerprint=history_fingerprint,
+        intensity_observation_count=len(intensity_payload),
+        intensity_provenance_fingerprint=intensity_fingerprint,
+        reserved_date_count=len(reservation_payload),
+        reservation_fingerprint=reservation_fingerprint,
+        canonical_fingerprint=canonical_fingerprint,
+    )
+
+
+def road_10k_training_pattern_canonical_fingerprint(
+    *,
+    schema_version: str,
+    policy_version: str,
+    statistics: RecentHistoryStatistics,
+    history_observation_count: int,
+    history_provenance_fingerprint: str,
+    intensity_observation_count: int,
+    intensity_provenance_fingerprint: str,
+    reserved_date_count: int,
+    reservation_fingerprint: str,
+) -> str:
+    """Hash the allowlisted aggregate snapshot fields into its identity."""
+    return _canonical_fingerprint({
+        "schema_version": schema_version,
+        "policy_version": policy_version,
+        "history_statistics": {
+            "usable_completed_weeks": statistics.usable_completed_weeks,
+            "recent_modal_running_frequency": (
+                statistics.recent_modal_running_frequency
+            ),
+            "recent_median_usable_weekly_minutes": (
+                statistics.recent_median_usable_weekly_minutes
+            ),
+            "recent_maximum_usable_weekly_minutes": (
+                statistics.recent_maximum_usable_weekly_minutes
+            ),
+            "recent_maximum_session_minutes": (
+                statistics.recent_maximum_session_minutes
+            ),
+            "recent_maximum_session_distance_km": (
+                statistics.recent_maximum_session_distance_km
+            ),
+            "latest_run_date": _date_or_none(statistics.latest_run_date),
+        },
+        "history_observation_count": history_observation_count,
+        "history_provenance_fingerprint": history_provenance_fingerprint,
+        "intensity_observation_count": intensity_observation_count,
+        "intensity_provenance_fingerprint": intensity_provenance_fingerprint,
+        "reserved_date_count": reserved_date_count,
+        "reservation_fingerprint": reservation_fingerprint,
+    })
+
+
 def build_event_context(
     goal: Road10KGoal,
     constraints: Road10KPlanGenerationConstraints,
@@ -379,10 +554,13 @@ def generate_road_10k_plan(
     generation_input: Road10KGenerationInput,
 ) -> Road10KGenerationResult:
     """Generate a reviewed 14-day proposal or a typed no-plan outcome."""
-    statistics = derive_recent_history_statistics(
+    training_pattern = build_road_10k_training_pattern_snapshot(
         generation_input.history,
         athlete_today=generation_input.athlete_today,
+        intensity_sources=generation_input.intensity_sources,
+        reserved_dates=generation_input.reserved_dates,
     )
+    statistics = training_pattern.history_statistics()
     event_context = build_event_context(
         generation_input.goal,
         generation_input.constraints,
@@ -392,7 +570,10 @@ def generate_road_10k_plan(
         event_context=event_context,
     )
 
-    if not _accepted_contract(generation_input):
+    if not _accepted_contract(
+        generation_input,
+        expected_training_pattern_version=training_pattern.version,
+    ):
         return _no_plan(
             code="validation_failed",
             input_hash=input_hash,
@@ -500,7 +681,11 @@ def generate_road_10k_plan(
             statistics=statistics,
             event_context=event_context,
             rule="near_term_target",
-            reason="The confirmed target date is fewer than eight days after this proposal start.",
+            reason=(
+                "The confirmed target date is fewer than "
+                f"{ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT} days after "
+                "this proposal start."
+            ),
             missing=None,
             alternatives=("wait_for_post_target_reassessment", "keep_manual_training"),
         )
@@ -620,33 +805,6 @@ def deterministic_input_hash(
                 generation_input.baseline_evidence_date
             ),
         },
-        "history": [
-            {
-                "activity_id": item.activity_id,
-                "observed_date": item.observed_date.isoformat(),
-                "duration_min": item.duration_min,
-                "distance_km": item.distance_km,
-                "source": item.source,
-            }
-            for item in sorted(
-                generation_input.history,
-                key=lambda item: (
-                    item.observed_date,
-                    item.activity_id,
-                    item.source,
-                ),
-            )
-        ],
-        "intensity_sources": [
-            {"activity_id": activity_id, "source": source}
-            for activity_id, source in sorted(
-                generation_input.intensity_sources,
-                key=lambda item: (item[0], item[1]),
-            )
-        ],
-        "reserved_dates": sorted(
-            item.isoformat() for item in generation_input.reserved_dates
-        ),
         "training_pattern_snapshot_version": (
             generation_input.training_pattern_snapshot_version
         ),
@@ -704,7 +862,11 @@ def serialize_generation_result(
     return _json_safe_dates(asdict(result))
 
 
-def _accepted_contract(generation_input: Road10KGenerationInput) -> bool:
+def _accepted_contract(
+    generation_input: Road10KGenerationInput,
+    *,
+    expected_training_pattern_version: str,
+) -> bool:
     return (
         generation_input.policy_version == ROAD_10K_POLICY_VERSION
         and generation_input.science_decision_id
@@ -713,7 +875,12 @@ def _accepted_contract(generation_input: Road10KGenerationInput) -> bool:
         and generation_input.source_decision_digest
         == ROAD_10K_SOURCE_DECISION_DIGEST
         and generation_input.training_pattern_snapshot_version
-        == ROAD_10K_TRAINING_PATTERN_SNAPSHOT_VERSION
+        == expected_training_pattern_version
+        and re.fullmatch(
+            r"v1:[0-9a-f]{64}",
+            generation_input.training_pattern_snapshot_version,
+        )
+        is not None
     )
 
 
@@ -827,7 +994,9 @@ def _target_is_too_close(
 ) -> bool:
     if event_context.target_date is None:
         return False
-    return (event_context.target_date - block_start).days < 8
+    return (
+        event_context.target_date - block_start
+    ).days < ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT
 
 
 def _taper_start(
@@ -839,7 +1008,15 @@ def _taper_start(
     if event_date is None:
         return None
     delta = (event_date - block_start).days
-    return block_start if 8 <= delta <= 14 else None
+    return (
+        block_start
+        if (
+            ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT
+            <= delta
+            <= ROAD_10K_TAPER_MAXIMUM_DAYS_BEFORE_EVENT
+        )
+        else None
+    )
 
 
 def _schedule_end_exclusive(
@@ -900,11 +1077,16 @@ def _build_schedule(
     )
 
     weeks: list[GeneratedWeek] = []
-    for week_index in range(2):
-        unit_start = generation_input.block_start + timedelta(days=7 * week_index)
+    for week_index in range(_PROPOSAL_SCHEDULE_UNITS):
+        unit_start = generation_input.block_start + timedelta(
+            days=_SCHEDULE_UNIT_DAYS * week_index
+        )
         if unit_start >= schedule_end:
             break
-        unit_end = min(unit_start + timedelta(days=6), schedule_end - timedelta(days=1))
+        unit_end = min(
+            unit_start + timedelta(days=_SCHEDULE_UNIT_LAST_DAY_OFFSET),
+            schedule_end - timedelta(days=1),
+        )
         is_taper = (
             taper_start is not None
             and event_context.target_date is not None
@@ -913,7 +1095,9 @@ def _build_schedule(
         external_quality_date = (
             event_context.target_date
             if event_context.target_date is not None
-            and unit_start <= event_context.target_date <= unit_start + timedelta(days=6)
+            and unit_start
+            <= event_context.target_date
+            <= unit_start + timedelta(days=_SCHEDULE_UNIT_LAST_DAY_OFFSET)
             else None
         )
         available_dates = tuple(
@@ -925,12 +1109,20 @@ def _build_schedule(
             if current.weekday() in generation_input.constraints.available_weekdays
             and current not in blocked_dates
         )
-        truncated = unit_end < unit_start + timedelta(days=6)
+        truncated = (
+            unit_end
+            < unit_start + timedelta(days=_SCHEDULE_UNIT_LAST_DAY_OFFSET)
+        )
         minimum_dates = 1 if truncated else _MIN_RUN_DAYS
         if len(available_dates) < minimum_dates:
             return None
-        frequency_for_unit = min(frequency, len(available_dates))
-        if not truncated and frequency_for_unit < frequency:
+        planned_frequency = frequency - (
+            1 if external_quality_date is not None else 0
+        )
+        frequency_for_unit = min(planned_frequency, len(available_dates))
+        if frequency_for_unit < 1:
+            return None
+        if not truncated and frequency_for_unit < planned_frequency:
             return None
         selected_dates = _select_schedule_dates(
             available_dates,
@@ -942,8 +1134,13 @@ def _build_schedule(
         if selected_dates is None:
             return None
         if is_taper:
+            reference_dates = (
+                tuple(sorted((*selected_dates, external_quality_date)))
+                if external_quality_date is not None
+                else selected_dates
+            )
             reference = _normal_week_workouts(
-                dates=selected_dates,
+                dates=reference_dates,
                 total_target=weekly_target,
                 session_cap=session_cap,
                 maximum_distance_ceiling_km=session_distance_cap,
@@ -958,7 +1155,12 @@ def _build_schedule(
             reference_total = sum(
                 item.planned_duration_min for item in reference.workouts
             )
-            target_total = max(1, int(round(reference_total * (1.0 - _TAPER_VOLUME_REDUCTION))))
+            target_total = max(
+                1,
+                int(round(
+                    reference_total * (1.0 - _TAPER_VOLUME_REDUCTION)
+                )),
+            )
             week = _normal_week_workouts(
                 dates=selected_dates,
                 total_target=target_total,
@@ -1224,6 +1426,11 @@ def _validate_schedule(
         statistics.recent_maximum_usable_weekly_minutes,
         generation_input.constraints.weekly_time_limit_min,
     )
+    frequency_cap = min(
+        len(generation_input.constraints.available_weekdays),
+        statistics.recent_modal_running_frequency,
+        _MAX_RUN_DAYS,
+    )
     target_date = event_context.target_date
     for week in weeks:
         workouts = week.workouts
@@ -1240,6 +1447,15 @@ def _validate_schedule(
         quality_exposures = sum(
             item.intensity_bucket == "quality" for item in workouts
         ) + (1 if week.external_quality_date is not None else 0)
+        running_sessions = len(workouts) + (
+            1 if week.external_quality_date is not None else 0
+        )
+        if running_sessions > frequency_cap:
+            return (
+                "validation_failed",
+                "running_day_count",
+                "A generated week exceeded the history- and constraint-capped running frequency.",
+            )
         if week.external_quality_date is None and not week.is_taper and not (
             _MIN_RUN_DAYS <= len(workouts) <= _MAX_RUN_DAYS
         ):
@@ -1378,6 +1594,17 @@ def _serialize_step(step: WorkoutStep) -> dict[str, Any]:
 
 def _date_or_none(value: date | None) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _canonical_fingerprint(value: Any) -> str:
+    canonical = json.dumps(
+        _json_safe_dates(value),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _json_safe_dates(value: Any) -> Any:

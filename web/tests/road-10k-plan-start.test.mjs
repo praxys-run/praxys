@@ -13,6 +13,7 @@ test('web and miniapp add gated 10K performance plan support', async () => {
     miniGoalScript,
     miniGoalMarkup,
     miniPlanStart,
+    miniPlanStartMarkup,
     miniTypes,
   ] = await Promise.all([
     read('../src/pages/Goal.tsx'),
@@ -22,6 +23,7 @@ test('web and miniapp add gated 10K performance plan support', async () => {
     read('../../miniapp/pages/goal/index.ts'),
     read('../../miniapp/pages/goal/index.wxml'),
     read('../../miniapp/components/outdoor-5k-plan-start/index.ts'),
+    read('../../miniapp/components/outdoor-5k-plan-start/index.wxml'),
     read('../../miniapp/types/api.ts'),
   ]);
 
@@ -47,6 +49,21 @@ test('web and miniapp add gated 10K performance plan support', async () => {
   assert.match(webPlanStart, /preferred_longest_easy_weekday/);
   assert.match(webPlanStart, /plan_returned/);
   assert.match(webPlanStart, /route_state/);
+  assert.match(webPlanStart, /focusFirstInvalidConstraint/);
+  assert.match(webPlanStart, /role="alert"/);
+  assert.match(webPlanStart, /showRoad10KScheduleGuardrails/);
+  assert.match(webPlanStart, /eligible_rolling_proposal/);
+  assert.match(webPlanStart, /eligible_taper_proposal/);
+  assert.match(webPlanStart, /Road 10K schedule guardrails/);
+  assert.match(webPlanStart, /road10KGuardrails\.committed_proposal_days/);
+  assert.match(webPlanStart, /road10KGuardrails\.advisory_reassessment_after_completed_days/);
+  assert.match(webPlanStart, /road10KGuardrails\.minimum_planned_low_intensity_running_minutes_fraction/);
+  assert.doesNotMatch(webPlanStart, />14<\/span>-day proposal/);
+  assert.doesNotMatch(webPlanStart, />75%<\/span> planned low-intensity/);
+  assert.match(
+    webPlanStart,
+    /data\/science\/decisions\/sdr-road-10k-plan-generation-policy-v2\.yaml/,
+  );
 
   assert.match(miniGoalScript, /performance_10k/);
   assert.match(miniGoalMarkup, /performance10kEnabled && goalKind === 'performance_10k'/);
@@ -60,4 +77,25 @@ test('web and miniapp add gated 10K performance plan support', async () => {
   assert.match(miniPlanStart, /preferred_longest_easy_weekday/);
   assert.match(miniPlanStart, /plan_returned/);
   assert.match(miniPlanStart, /route_state/);
+  assert.match(miniPlanStart, /road10kReadinessContext/);
+  assert.match(miniPlanStart, /readinessBadge/);
+  assert.match(miniPlanStartMarkup, /\{\{readinessBadge\}\}/);
+  assert.match(miniPlanStartMarkup, /readinessContextRows/);
+  assert.match(miniPlanStartMarkup, /\{\{proposalStateLabel\}\}/);
+  assert.doesNotMatch(miniPlanStartMarkup, /readiness\.result\.code/);
+});
+
+test('PlanStart keeps the plan-purpose Select controlled through selection', async () => {
+  const planStart = await read('../src/components/PlanStart.tsx');
+
+  assert.match(
+    planStart,
+    /\? purposeKey\(initialPurpose\.source, initialPurpose\.capability_id\)\s*: '',/,
+  );
+  assert.match(
+    planStart,
+    /<Select\s+value=\{selectedPurposeKey\}\s+onValueChange=\{selectPurpose\}/,
+  );
+  assert.match(planStart, /setSelectedPurposeKey\(value \?\? ''\);/);
+  assert.doesNotMatch(planStart, /value=\{selectedPurposeKey \|\| undefined\}/);
 });

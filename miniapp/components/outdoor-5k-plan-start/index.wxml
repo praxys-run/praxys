@@ -102,7 +102,7 @@
         <text class="plan-start-copy">{{tr.perDayUnsupportedDetail}}</text>
       </view>
 
-      <text wx:if="{{errorMessage}}" class="plan-start-error">{{errorMessage}}</text>
+      <text wx:if="{{errorMessage}}" class="plan-start-error" aria-live="assertive">{{errorMessage}}</text>
       <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{working === 'readiness' ? tr.checking : tr.check}}</text></view>
       <view wx:if="{{readinessIsPlanReady && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
       </block>
@@ -113,10 +113,17 @@
 
     <view wx:if="{{readiness}}" class="ts-card plan-start-card">
       <text class="plan-start-title">{{tr.result}}</text>
-      <text class="plan-start-badge">{{readiness.result.code}}</text>
+      <text class="plan-start-badge">{{readinessBadge}}</text>
       <text class="plan-start-copy">{{readinessReason}}</text>
-      <view wx:if="{{readiness.result.alternatives.length}}" class="plan-start-list">
-        <text wx:for="{{readiness.result.alternatives}}" wx:key="*this" class="plan-start-copy">· {{item}}</text>
+      <view wx:if="{{readinessContextRows.length}}" class="plan-start-version-grid">
+        <block wx:for="{{readinessContextRows}}" wx:key="label">
+          <text class="plan-start-copy">{{item.label}}</text>
+          <text class="plan-start-copy ts-value">{{item.value}}</text>
+        </block>
+      </view>
+      <text wx:if="{{readinessHistory}}" class="plan-start-copy ts-value">{{readinessHistory}}</text>
+      <view wx:if="{{readinessAlternatives.length}}" class="plan-start-list">
+        <text wx:for="{{readinessAlternatives}}" wx:key="*this" class="plan-start-copy">· {{item}}</text>
       </view>
     </view>
 
@@ -131,7 +138,7 @@
 
   <view wx:if="{{proposal}}" class="ts-card plan-start-card">
       <text class="plan-start-title">{{tr.proposal}}</text>
-      <text class="plan-start-badge">{{proposal.state}}</text>
+      <text class="plan-start-badge">{{proposalStateLabel}}</text>
       <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
       <view class="plan-start-version-grid">
         <text class="ts-muted">{{tr.purposeLabel}}</text><text>{{proposalPurposeLabel || '—'}}</text>
@@ -164,6 +171,6 @@
   </view>
 
   <text wx:if="{{notice}}" class="plan-start-success">{{notice}}</text>
-  <text wx:if="{{errorMessage && !capabilityAvailable}}" class="plan-start-error">{{errorMessage}}</text>
+  <text wx:if="{{errorMessage && !capabilityAvailable}}" class="plan-start-error" aria-live="assertive">{{errorMessage}}</text>
   <view wx:if="{{errorMessage}}" class="plan-start-retry" bindtap="onRefreshProposal" aria-role="button"><text>{{tr.refresh}}</text></view>
 </view>

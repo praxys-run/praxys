@@ -38,6 +38,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         Road10KBaselineConfirmation,
         Road10KBaselineSnapshot,
         Road10KPlanGeneration,
+        Road10KTrainingPatternSnapshot,
         RecoveryData,
         PlanProposal,
         TrainingPlan,
@@ -255,6 +256,48 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 change_comparability="not_assessed",
                 invalidators=[],
             ),
+            Road10KTrainingPatternSnapshot(
+                user_id=owner_id,
+                version=f"v1:{'a' * 64}",
+                schema_version="road-10k-training-pattern-v1",
+                policy_version="road-10k-plan-generation-policy-v2",
+                usable_completed_weeks=8,
+                recent_modal_running_frequency=3,
+                recent_median_usable_weekly_minutes=180,
+                recent_maximum_usable_weekly_minutes=190,
+                recent_maximum_session_minutes=70,
+                recent_maximum_session_distance_km=12.3,
+                latest_run_date=date(2026, 8, 1),
+                history_observation_count=24,
+                history_provenance_fingerprint="b" * 64,
+                intensity_observation_count=24,
+                intensity_provenance_fingerprint="c" * 64,
+                reserved_date_count=1,
+                reservation_fingerprint="d" * 64,
+                canonical_fingerprint="a" * 64,
+                created_at=datetime(2026, 8, 2, 7, 0),
+            ),
+            Road10KTrainingPatternSnapshot(
+                user_id=other_id,
+                version=f"v1:{'e' * 64}",
+                schema_version="road-10k-training-pattern-v1",
+                policy_version="road-10k-plan-generation-policy-v2",
+                usable_completed_weeks=8,
+                recent_modal_running_frequency=6,
+                recent_median_usable_weekly_minutes=500,
+                recent_maximum_usable_weekly_minutes=600,
+                recent_maximum_session_minutes=180,
+                recent_maximum_session_distance_km=50.0,
+                latest_run_date=date(2026, 8, 2),
+                history_observation_count=48,
+                history_provenance_fingerprint="f" * 64,
+                intensity_observation_count=48,
+                intensity_provenance_fingerprint="0" * 64,
+                reserved_date_count=2,
+                reservation_fingerprint="1" * 64,
+                canonical_fingerprint="e" * 64,
+                created_at=datetime(2026, 8, 2, 8, 0),
+            ),
             Road10KPlanGeneration(
                 id="owner-road-10k-generation",
                 user_id=owner_id,
@@ -270,8 +313,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 source_goal_id=None,
                 source_goal_revision=None,
                 history_cutoff_completed_days=56,
-                history_observation_ids=["owner-activity"],
-                training_pattern_snapshot_version="road-10k-training-pattern-v1",
+                training_pattern_snapshot_version=f"v1:{'a' * 64}",
                 event_context_snapshot_version="road-10k-event-context-v1",
                 active_zone_model_id=None,
                 active_zone_model_version=None,
@@ -466,7 +508,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         'attachment; filename="praxys-data-export-'
     )
     payload = response.json()
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]
@@ -550,14 +592,45 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert payload["road_10k_plan_generation"] == {
         "schema_version": 1,
         "exported_at": payload["road_10k_plan_generation"]["exported_at"],
+        "training_pattern_snapshots": [
+            payload["road_10k_plan_generation"][
+                "training_pattern_snapshots"
+            ][0]
+        ],
         "records": [payload["road_10k_plan_generation"]["records"][0]],
+    }
+    road_10k_snapshot = payload["road_10k_plan_generation"][
+        "training_pattern_snapshots"
+    ][0]
+    assert road_10k_snapshot == {
+        "version": f"v1:{'a' * 64}",
+        "schema_version": "road-10k-training-pattern-v1",
+        "policy_version": "road-10k-plan-generation-policy-v2",
+        "usable_completed_weeks": 8,
+        "recent_modal_running_frequency": 3,
+        "recent_median_usable_weekly_minutes": 180,
+        "recent_maximum_usable_weekly_minutes": 190,
+        "recent_maximum_session_minutes": 70,
+        "recent_maximum_session_distance_km": 12.3,
+        "latest_run_date": "2026-08-01",
+        "history_observation_count": 24,
+        "history_provenance_fingerprint": "b" * 64,
+        "intensity_observation_count": 24,
+        "intensity_provenance_fingerprint": "c" * 64,
+        "reserved_date_count": 1,
+        "reservation_fingerprint": "d" * 64,
+        "canonical_fingerprint": "a" * 64,
+        "created_at": "2026-08-02T07:00:00+00:00",
     }
     road_10k_record = payload["road_10k_plan_generation"]["records"][0]
     assert road_10k_record["id"] == "owner-road-10k-generation"
     assert road_10k_record["baseline_snapshot_id"] == "owner-road-10k-snapshot"
     assert road_10k_record["baseline_source"] == "race"
     assert road_10k_record["history_cutoff_completed_days"] == 56
-    assert road_10k_record["history_observation_ids"] == ["owner-activity"]
+    assert road_10k_record["training_pattern_snapshot_version"] == (
+        f"v1:{'a' * 64}"
+    )
+    assert "history_observation_ids" not in road_10k_record
     assert road_10k_record["selected_template_ids"] == [
         "road-10k-controlled-threshold-quality-v1"
     ]

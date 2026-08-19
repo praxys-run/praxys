@@ -18,7 +18,7 @@
 | Direct 10K baseline qualification | `analysis/road_10k_baseline.py` + `api/road_10k_baseline.py` |
 | Deterministic schedule generation | `analysis/road_10k_plan_generation.py` |
 | Proposal persistence / replay / adoption revalidation | `api/road_10k_plan_generation.py` |
-| Append-only audit tables | `db/models.py` + `alembic/versions/a7f3c2d1e9b4_add_road_10k_generation_and_baseline.py` |
+| Append-only audit tables | `db/models.py` + road 10K migration and merge-head snapshot migration |
 | Canonical client request / response types | `web/src/types/api.ts` |
 | Miniapp generated copy of canonical types | `miniapp/types/api.ts` via `miniapp/scripts/sync-types.cjs` |
 
@@ -65,9 +65,12 @@ Generation binds the reviewed input set into `Road10KGenerationInput`:
 - eight completed weeks of running history
 - split/sample `intensity_sources` provenance per activity
 - reserved dates and athlete-stated constraints
-- reviewed training-pattern and event-context snapshot versions
+- an ephemeral `v1:<sha256>` training-pattern reference and the reviewed event-context version
 
-The generator never uses activity `avg_power` for intensity provenance.
+Readiness computes that training-pattern reference without writing. Generate
+and regenerate recompute it under the owner plan-write lock and persist only
+the matching aggregate snapshot in the proposal transaction. The generator
+never uses activity `avg_power` for intensity provenance.
 
 ## Outputs, typed failures, and schedule rules
 
@@ -108,23 +111,32 @@ Append-only audit rows keep only the reviewed replay surface:
 
 - selected purpose and goal revision fence
 - baseline snapshot id + source
-- completed-history observation ids
+- owner-resolved immutable training-pattern snapshot reference
 - normalized constraints
 - selected quality template ids
 - deterministic input hash / source revision
 - stable result code + validation reason code
 
-Road 10K audit rows and JSON export do **not** persist raw target values, full
-history rows, reserved dates, full event-context payloads, workout payloads, or
-narrative reason text. Idempotent replay reconstructs the richer response
-envelope from the canonical proposal, baseline snapshot, and currently-linked
-activity records where possible; otherwise it returns only the stable typed
-codes.
+The dedicated training-pattern table stores exactly the seven reviewed history
+aggregates (including latest-run date), bounded history/intensity/reservation
+counts and fingerprints, schema/policy identifiers, canonical fingerprint,
+owner, reference, and timestamp. It has no JSON column or raw-payload escape
+hatch. It never stores activity ids, workout rows, reservation dates, targets,
+samples, or narrative text. Database constraints make `(owner, version)`
+idempotent, and database triggers reject updates while allowing owner deletion.
 
-Replay and adoption revalidation re-run the generator from current inputs. Any
-change to split/sample provenance, baseline evidence, history, event context,
-or constraints changes the source revision and blocks stale generation or
-adoption.
+Idempotent replay reads only the immutable proposal, exact owner-scoped
+training-pattern snapshot, and exact owner-scoped baseline snapshot. It never
+rereads `Activity`, so source correction or deletion cannot rewrite history.
+Missing, cross-owner, legacy, or invalid references fail closed with
+`ROAD_10K_REGENERATE_REQUIRED`.
+
+Adoption validates those persisted references first, then re-runs the current
+server-derived input boundary. Any change to split/sample provenance, baseline
+evidence, history, reservations, event context, or constraints changes the
+source revision and requires regeneration. Managed delivery also rejects this
+inactive policy at the delivery-service boundary, even if a caller bypasses the
+route-level post-adoption trigger fence.
 
 ## Web and miniapp semantics
 

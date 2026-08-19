@@ -143,13 +143,11 @@ function purposeKey(source: PurposeOptionSource, capabilityId: string): string {
 function proposalPurposeKey(
   proposal: AdaptivePlanProposal | null,
 ): string | null {
-  const capabilityId = proposal?.policy_version
-    ? proposal.policy_version === 'outdoor-5k-plan-generation-policy-v1'
-      ? 'outdoor_road_5k_v1'
-      : proposal.policy_version === 'road-10k-plan-generation-policy-v2'
-        ? 'outdoor_road_10k_performance_v1'
-      : null
-    : null;
+  const capabilityId = proposal?.goal?.goal_kind === 'performance_5k'
+    ? 'outdoor_road_5k_v1'
+    : proposal?.goal?.goal_kind === 'performance_10k'
+      ? 'outdoor_road_10k_performance_v1'
+      : null;
   const source = proposal?.goal?.purpose_source;
   return capabilityId && source
     ? purposeKey(source, capabilityId)
@@ -681,6 +679,12 @@ export default function PlanStart({
 
   useEffect(() => {
     if (selectedPurposeTouched || !capabilityDiscovery) return;
+    let cancelled = false;
+    const applyDefaultPurpose = (value: string) => {
+      queueMicrotask(() => {
+        if (!cancelled) setSelectedPurposeKey(value);
+      });
+    };
     const existingPurposeKey = proposalPurposeKey(currentProposal ?? null);
     const [
       existingPurposeSource = '',
@@ -705,14 +709,15 @@ export default function PlanStart({
       existingPurposeKey
       && existingPurposeSelectable
     ) {
-      setSelectedPurposeKey(existingPurposeKey);
-      return;
-    }
-    if (currentCapability && capabilityDiscovery.current_goal) {
-      setSelectedPurposeKey(
+      applyDefaultPurpose(existingPurposeKey);
+    } else if (currentCapability && capabilityDiscovery.current_goal) {
+      applyDefaultPurpose(
         purposeKey('current_goal', currentCapability.id),
       );
     }
+    return () => {
+      cancelled = true;
+    };
   }, [
     capabilityDiscovery,
     currentCapability,
@@ -821,6 +826,35 @@ export default function PlanStart({
           ? t`Per-day limits are unsupported by this policy. Use one shared limit for all selected days.`
           : t`Enter one whole-minute limit for every selected day.`
         : null;
+  const focusFirstInvalidConstraint = () => {
+    let targetId = 'plan-start-purpose';
+    if (purposeSelection) {
+      if (road10kMode) {
+        targetId = !adult
+          ? 'plan-start-road-10k-adult'
+          : availableDays.length === 0
+            ? 'plan-start-day-0'
+            : !Number.isInteger(weeklyTimeLimitNumber) || weeklyTimeLimitNumber <= 0
+              ? 'road-10k-weekly-limit'
+              : 'road-10k-session-limit';
+      } else if (!scopeComplete) {
+        targetId = !adult
+          ? 'plan-start-scope-adult'
+          : !selfCoached
+            ? 'plan-start-scope-self-coached'
+            : !canComplete
+              ? 'plan-start-scope-can-complete'
+              : 'plan-start-scope-outdoor-road';
+      } else if (availableDays.length === 0) {
+        targetId = 'plan-start-day-0';
+      } else {
+        targetId = `outdoor-5k-day-${availableDays[0]}`;
+      }
+    }
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.focus();
+    });
+  };
   const dayName = (day: Outdoor5KWeekday, short = false): string => (
     new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { weekday: short ? 'short' : 'long' })
       .format(new Date(Date.UTC(2024, 0, day + 1)))
@@ -882,6 +916,7 @@ export default function PlanStart({
       setError({
         message: formError ?? t`Review the constraints and try again.`,
       });
+      focusFirstInvalidConstraint();
       return null;
     }
     if (road10kMode) {
@@ -1302,6 +1337,23 @@ export default function PlanStart({
       ? readiness.baseline
       : undefined;
   const result = readiness?.result;
+  const road10KGuardrails = (
+    road10kMode
+    && readiness
+    && 'guardrails' in readiness
+  )
+    ? readiness.guardrails
+    : null;
+  const showRoad10KScheduleGuardrails = Boolean(
+    road10KGuardrails
+    && result
+    && 'plan_returned' in result
+    && result.plan_returned
+    && (
+      result.code === 'eligible_rolling_proposal'
+      || result.code === 'eligible_taper_proposal'
+    ),
+  );
   const isDraft = displayedProposal?.state === 'draft';
   const isAdopted = displayedProposal?.state === 'adopted';
   const hasLifecycleState = displayedProposal && !isDraft && !isAdopted;
@@ -1344,11 +1396,11 @@ export default function PlanStart({
               </p>
             </div>
             <Select
-              value={selectedPurposeKey || undefined}
+              value={selectedPurposeKey}
               onValueChange={selectPurpose}
               disabled={working != null}
             >
-              <SelectTrigger aria-label={t`Plan purpose`}>
+              <SelectTrigger id="plan-start-purpose" aria-label={t`Plan purpose`}>
                 <SelectValue placeholder={t`Choose an accepted plan purpose`}>
                   {selectedPurposeLabel}
                 </SelectValue>
@@ -1425,6 +1477,7 @@ export default function PlanStart({
                 </span>
                 {policyProposalPurposeKey && (
                   <Button
+                    id="plan-start-road-10k-adult"
                     type="button"
                     size="sm"
                     variant="outline"
@@ -1496,6 +1549,7 @@ export default function PlanStart({
                     const selected = availableDays.includes(day);
                     return (
                       <Button
+                        id={`plan-start-day-${day}`}
                         key={day}
                         type="button"
                         variant="outline"
@@ -1598,12 +1652,13 @@ export default function PlanStart({
 
               <div className="grid gap-2 sm:grid-cols-2">
                 {[
-                  { value: adult, set: setAdult, label: t`I am 18 or older.` },
-                  { value: selfCoached, set: setSelfCoached, label: t`I am self-coached for recreational road running.` },
-                  { value: canComplete, set: setCanComplete, label: t`I can currently complete 5 km.` },
-                  { value: outdoorRoad, set: setOutdoorRoad, label: t`My goal is an outdoor road 5K.` },
+                  { id: 'plan-start-scope-adult', value: adult, set: setAdult, label: t`I am 18 or older.` },
+                  { id: 'plan-start-scope-self-coached', value: selfCoached, set: setSelfCoached, label: t`I am self-coached for recreational road running.` },
+                  { id: 'plan-start-scope-can-complete', value: canComplete, set: setCanComplete, label: t`I can currently complete 5 km.` },
+                  { id: 'plan-start-scope-outdoor-road', value: outdoorRoad, set: setOutdoorRoad, label: t`My goal is an outdoor road 5K.` },
                 ].map((item) => (
                   <Button
+                    id={item.id}
                     key={item.label}
                     type="button"
                     variant="outline"
@@ -1649,6 +1704,7 @@ export default function PlanStart({
                     const selected = availableDays.includes(day);
                     return (
                       <Button
+                        id={`plan-start-day-${day}`}
                         key={day}
                         type="button"
                         variant="outline"
@@ -1731,7 +1787,11 @@ export default function PlanStart({
             </>
           )}
 
-          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          {formError && (
+            <p className="text-sm text-destructive" aria-live="polite">
+              {formError}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button disabled={isDemo || working != null || !purposeSelection} onClick={() => void requestReadiness()} className="min-h-11">
               {working === 'readiness' ? <Trans>Checking readiness…</Trans> : <Trans>Check readiness</Trans>}
@@ -1791,6 +1851,19 @@ export default function PlanStart({
                 <span className="font-data">{result.history_statistics.latest_run_date ?? '—'}</span>.
               </p>
             )}
+            {showRoad10KScheduleGuardrails && road10KGuardrails && (
+              <ScienceNote
+                label={<Trans>Road 10K schedule guardrails</Trans>}
+                sourceUrl="https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml"
+                sourceLabel={t`Accepted road 10K plan-generation policy`}
+              >
+                <p>
+                  <Trans>
+                    The accepted <span className="font-data">{road10KGuardrails.committed_proposal_days}</span>-day proposal and <span className="font-data">{road10KGuardrails.advisory_reassessment_after_completed_days}</span>-day reassessment, one quality session per week, at least <span className="font-data">{new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'percent', maximumFractionDigits: 0 }).format(road10KGuardrails.minimum_planned_low_intensity_running_minutes_fraction)}</span> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety.
+                  </Trans>
+                </p>
+              </ScienceNote>
+            )}
             {result.alternatives.length > 0 && (
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 {result.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}
@@ -1822,7 +1895,7 @@ export default function PlanStart({
       )}
 
       {proposalLoadError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" role="alert">
           <AlertTitle><Trans>Could not refresh proposal state</Trans></AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>{proposalLoadError}</span>

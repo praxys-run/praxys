@@ -1244,6 +1244,13 @@ export interface Road10KOutcomeResponse {
   alternatives: string[];
 }
 
+export interface Road10KGuardrailProjection {
+  committed_proposal_days: number;
+  advisory_reassessment_after_completed_days: number;
+  minimum_planned_low_intensity_running_minutes_fraction: number;
+  baseline_current_through_completed_days: number;
+}
+
 export interface Road10KReadinessResponse {
   schema_version: 1;
   capability_id: string;
@@ -1253,6 +1260,7 @@ export interface Road10KReadinessResponse {
   contract_digest: string;
   source_decision_digest: string;
   source_revision: string;
+  guardrails: Road10KGuardrailProjection;
   purpose: PlanGenerationResolvedPurpose;
   baseline: Road10KBaselineResponse;
   athlete_today: string;
@@ -1276,6 +1284,7 @@ export interface Road10KProposalResponse {
   contract_digest: string;
   source_decision_digest: string;
   source_revision: string;
+  guardrails: Road10KGuardrailProjection;
   purpose: PlanGenerationResolvedPurpose;
   event_context: Road10KEventContext;
   history_cutoff_completed_days: number;
@@ -2152,8 +2161,120 @@ export interface UserDataExportOutdoor5KPlanGeneration {
   records: UserDataExportOutdoor5KGeneration[];
 }
 
+export interface UserDataExportRoad10KBaselineConfirmation {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  activity_id: string;
+  response: string;
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  completed_at: string;
+  elapsed_time_sec: number;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KBaselineSnapshot {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  source_kind: string;
+  source_id: string | null;
+  provenance: string;
+  observed_date: string | null;
+  completed_at: string;
+  distance_km: number | null;
+  elapsed_time_sec: number | null;
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
+  qualification_status: string;
+  change_comparability: string;
+  invalidators: string[];
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KBaseline {
+  schema_version: 1;
+  exported_at: string;
+  confirmations: UserDataExportRoad10KBaselineConfirmation[];
+  snapshots: UserDataExportRoad10KBaselineSnapshot[];
+}
+
+export interface UserDataExportRoad10KTrainingPatternSnapshot {
+  version: string;
+  schema_version: string;
+  policy_version: string;
+  usable_completed_weeks: number;
+  recent_modal_running_frequency: number;
+  recent_median_usable_weekly_minutes: number;
+  recent_maximum_usable_weekly_minutes: number;
+  recent_maximum_session_minutes: number;
+  recent_maximum_session_distance_km: number;
+  latest_run_date: string;
+  history_observation_count: number;
+  history_provenance_fingerprint: string;
+  intensity_observation_count: number;
+  intensity_provenance_fingerprint: string;
+  reserved_date_count: number;
+  reservation_fingerprint: string;
+  canonical_fingerprint: string;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KGeneration {
+  id: string;
+  proposal_id: string;
+  capability_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  source_decision_digest: string;
+  contract_digest: string;
+  baseline_snapshot_id: string | null;
+  baseline_source: string | null;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
+  history_cutoff_completed_days: number;
+  training_pattern_snapshot_version: string;
+  event_context_snapshot_version: string;
+  active_zone_model_id: string | null;
+  active_zone_model_version: string | null;
+  normalized_constraints: Record<string, unknown>;
+  selected_template_ids: string[];
+  source_revision: string;
+  deterministic_input_hash: string;
+  request_kind: string;
+  request_fingerprint: string;
+  predecessor_proposal_id: string | null;
+  predecessor_version: number | null;
+  result_code: string;
+  validation_reason_code: string | null;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KPlanGeneration {
+  schema_version: 1;
+  exported_at: string;
+  training_pattern_snapshots: UserDataExportRoad10KTrainingPatternSnapshot[];
+  records: UserDataExportRoad10KGeneration[];
+}
+
 export interface UserDataExportResponse {
-  schema_version: 4;
+  schema_version: 5;
   exported_at: string;
   user_config: UserDataExportConfig;
   activities: UserDataExportActivity[];
@@ -2164,6 +2285,8 @@ export interface UserDataExportResponse {
   adaptive_plan_proposals: UserDataExportAdaptivePlanProposals;
   goal_baseline: UserDataExportGoalBaseline;
   outdoor_5k_plan_generation: UserDataExportOutdoor5KPlanGeneration;
+  road_10k_baseline: UserDataExportRoad10KBaseline;
+  road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;
   personal_context: PersonalContextExportResponse;
 }
 
@@ -2833,6 +2956,7 @@ export interface Road10KBaselineResponse {
   science_decision_id: string;
   contract_digest: string;
   baseline_snapshot_version: string;
+  guardrails: Road10KGuardrailProjection;
   status: Road10KBaselineStatus;
   readiness: Road10KBaselineReadiness;
   history_search_complete: true;
@@ -2867,6 +2991,7 @@ export interface Road10KBaselineConfirmationRecord {
 }
 export interface Road10KBaselineMutationResponse {
   replayed: boolean;
+  guardrails: Road10KGuardrailProjection;
   baseline: Road10KBaselineResponse;
   confirmation?: Road10KBaselineConfirmationRecord | null;
 }

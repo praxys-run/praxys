@@ -19,7 +19,10 @@ from analysis.config import (
     is_praxys_managed_plan,
     normalize_plan_source,
 )
-from analysis.road_10k_contract import ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS
+from analysis.road_10k_contract import (
+    ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
+    ROAD_10K_PROPOSAL_DAYS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1133,7 +1136,7 @@ def load_road_10k_plan_generation_data(
         and pd.notna(row.duration_sec)
         and float(row.duration_sec) > 0
     )
-    reservation_end = block_start + timedelta(days=13)
+    reservation_end = block_start + timedelta(days=ROAD_10K_PROPOSAL_DAYS - 1)
     reservations = pd.read_sql(
         text(
             "SELECT date, source "

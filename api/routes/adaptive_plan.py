@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from sqlalchemy.orm import Session
 
 from analysis.config import effective_athlete_date, load_config_from_db
+from analysis.outdoor_5k_plan_generation import OUTDOOR_5K_POLICY_VERSION
+from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
 from api.adaptive_plan_service import (
     AdaptivePlanError,
     ProposalInput,
@@ -415,8 +417,8 @@ def adopt_plan_proposal(
         result["status"] == "adopted"
         and result["proposal"].get("policy_version")
         not in {
-            "outdoor-5k-plan-generation-policy-v1",
-            "road-10k-plan-generation-policy-v2",
+            OUTDOOR_5K_POLICY_VERSION,
+            ROAD_10K_POLICY_VERSION,
         }
     ):
         _trigger_managed_delivery(

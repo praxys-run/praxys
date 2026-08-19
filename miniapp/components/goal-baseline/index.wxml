@@ -13,7 +13,7 @@
     <text wx:else class="baseline-copy">{{copy.noMeaningfulChange}}</text>
     <text class="baseline-copy">{{copy.segmentRule}}</text>
     <text wx:if="{{notice}}" class="baseline-success">{{notice}}</text>
-    <text wx:if="{{errorMessage}}" class="baseline-error">{{errorMessage}}</text>
+    <text wx:if="{{errorMessage && !dialogMode}}" class="baseline-error" aria-live="assertive">{{errorMessage}}</text>
     <text class="baseline-copy">{{copy.scienceDescription}}</text>
     <view class="baseline-action" bindtap="onCopyScienceSource"><text>{{copy.sourceLabel}}</text></view>
   </view>
@@ -122,6 +122,7 @@
         </picker>
       </block>
 
+      <text wx:if="{{errorMessage}}" class="baseline-error" aria-live="assertive">{{errorMessage}}</text>
       <view class="baseline-footer">
         <view class="baseline-secondary" bindtap="closeDialog"><text>{{copy.cancel}}</text></view>
         <view wx:if="{{dialogMode === 'confirm'}}" class="baseline-primary" bindtap="submitConfirm"><text>{{copy.save}}</text></view>

@@ -119,7 +119,7 @@ function Road10KBaselinePanel({
       insufficient_evidence: t`This is not a failure; it means current direct 10K evidence is still missing or stale.`,
     },
     target: t`Goal`,
-    evidence: t`Current evidence`,
+    evidence: t`Status`,
     age: t`Evidence age`,
     protocol: t`Accepted surface or protocol`,
     routeOrVenue: t`Route or venue`,
@@ -130,10 +130,8 @@ function Road10KBaselinePanel({
     changeCandidate: t`Change confirmation`,
     fullActivityOnly: t`Full activity only`,
     segmentRule: t`Passive fastest 10K splits, best laps, or hard sections inside longer runs never count as direct 10K baseline evidence.`,
-    cutoff: t`The 56-day rule is a reviewed guardrail, not a physiological cutoff.`,
     benchmarkTitle: t`Optional 10K benchmark`,
     benchmarkHint: t`Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it.`,
-    scienceDescription: t`Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The 56-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.`,
     options: {
       race: t`Measured 10K race`,
       intentional_all_out: t`Intentional all-out complete 10K`,
@@ -223,28 +221,34 @@ function Road10KBaselinePanel({
   const handleConfirm = async () => {
     if (!activeCandidate) return;
     const directQualificationClaim = response === 'race' || response === 'intentional_all_out';
+    const invalidControlId = response === 'unset'
+      ? 'road-10k-confirm-effort'
+      : measured === 'unset'
+        ? 'road-10k-confirm-measured'
+        : timing === 'unset'
+          ? 'road-10k-confirm-timing'
+          : directQualificationClaim && surfaceOrProtocol === 'unset'
+            ? 'road-10k-confirm-protocol'
+            : directQualificationClaim && routeOrVenue.trim().length === 0
+              ? 'road-10k-route-venue'
+              : assistanceStatus === 'unset'
+                ? 'road-10k-assistance-status'
+                : null;
     if (
-      response === 'unset'
-      || measured === 'unset'
-      || timing === 'unset'
-      || assistanceStatus === 'unset'
-      || (
-        directQualificationClaim
-        && (
-          surfaceOrProtocol === 'unset'
-          || routeOrVenue.trim().length === 0
-        )
-      )
+      invalidControlId
     ) {
       setError(copy.choose);
+      requestAnimationFrame(() => {
+        document.getElementById(invalidControlId)?.focus();
+      });
       return;
     }
     const body: Road10KHistoryConfirmationRequest = {
       activity_id: activeCandidate.activity_id,
-      response,
+      response: response as Exclude<ConfirmResponse, 'unset'>,
       measured_10k: measured === 'yes',
       elapsed_timing_confirmed: timing === 'yes',
-      assistance_status: assistanceStatus,
+      assistance_status: assistanceStatus as Road10KAssistanceStatus,
     };
     if (directQualificationClaim) {
       body.surface_or_protocol = surfaceOrProtocol as Road10KSurfaceOrProtocol;
@@ -275,7 +279,7 @@ function Road10KBaselinePanel({
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.evidence}</p>
-              <p className="mt-1 text-sm text-foreground">{baseline.evidence ? `${copy.status.current} · ${baseline.evidence.provenance}` : '—'}</p>
+              <p className="mt-1 text-sm text-foreground">{baseline.evidence ? `${copy.status[baseline.status]} · ${baseline.evidence.provenance}` : '—'}</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{copy.age}</p>
@@ -283,7 +287,7 @@ function Road10KBaselinePanel({
             </div>
           </div>
           {baseline.evidence && (
-            <div className="rounded-lg border border-border p-4">
+            <div className="border-t border-border pt-4">
               <p className="text-sm text-foreground">
                 <span className="font-medium">{formatDate(baseline.evidence.observed_date, locale)}</span>
                 <span className="font-data"> · {baseline.evidence.distance_km?.toFixed(2)} km · {baseline.evidence.elapsed_time_sec ? formatTime(Math.round(baseline.evidence.elapsed_time_sec)) : '—'}</span>
@@ -310,7 +314,11 @@ function Road10KBaselinePanel({
                   {baseline.evidence.source_provider ?? '—'}
                 </p>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{copy.cutoff}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                <Trans>
+                  The <span className="font-data">{baseline.guardrails.baseline_current_through_completed_days}</span>-day rule is a reviewed guardrail, not a physiological cutoff.
+                </Trans>
+              </p>
             </div>
           )}
           <Alert>
@@ -319,7 +327,13 @@ function Road10KBaselinePanel({
           </Alert>
           {notice && <p className="text-sm text-primary">{notice}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <ScienceNote text={copy.scienceDescription} sources={baseline.science_note.citations} />
+          <ScienceNote sources={baseline.science_note.citations}>
+            <p>
+              <Trans>
+                Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The <span className="font-data">{baseline.guardrails.baseline_current_through_completed_days}</span>-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.
+              </Trans>
+            </p>
+          </ScienceNote>
           {alternatives.length > 0 && (
             <p className="text-sm text-muted-foreground">{alternatives.join(' · ')}</p>
           )}
@@ -453,7 +467,11 @@ function Road10KBaselinePanel({
                 </SelectContent>
               </Select>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{copy.dialog.cancel}</Button>
@@ -465,24 +483,15 @@ function Road10KBaselinePanel({
   );
 }
 
-export default function GoalBaselinePanel({
+function GoalBaseline5KPanel({
   baseline,
   goal,
   purpose,
   isDemo,
   onChanged,
-}: GoalBaselinePanelProps) {
-  if (isRoad10KBaseline(baseline)) {
-    return (
-      <Road10KBaselinePanel
-        baseline={baseline}
-        goal={goal}
-        purpose={purpose}
-        isDemo={isDemo}
-        onChanged={onChanged}
-      />
-    );
-  }
+}: Omit<GoalBaselinePanelProps, 'baseline'> & {
+  baseline: GoalBaselineResponse;
+}) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const copy = {
@@ -716,7 +725,7 @@ export default function GoalBaselinePanel({
             </div>
           </div>
           {baseline.evidence && (
-            <div className="rounded-lg border border-border p-4">
+            <div className="border-t border-border pt-4">
               <p className="text-sm text-foreground">
                 <span className="font-medium">{formatDate(baseline.evidence.observed_date, locale)}</span>
                 <span className="font-data"> · {baseline.evidence.distance_km?.toFixed(2)} km · {baseline.evidence.elapsed_time_sec ? formatTime(Math.round(baseline.evidence.elapsed_time_sec)) : '—'}</span>
@@ -949,5 +958,34 @@ export default function GoalBaselinePanel({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function GoalBaselinePanel({
+  baseline,
+  goal,
+  purpose,
+  isDemo,
+  onChanged,
+}: GoalBaselinePanelProps) {
+  if (isRoad10KBaseline(baseline)) {
+    return (
+      <Road10KBaselinePanel
+        baseline={baseline}
+        goal={goal}
+        purpose={purpose}
+        isDemo={isDemo}
+        onChanged={onChanged}
+      />
+    );
+  }
+  return (
+    <GoalBaseline5KPanel
+      baseline={baseline}
+      goal={goal}
+      purpose={purpose}
+      isDemo={isDemo}
+      onChanged={onChanged}
+    />
   );
 }

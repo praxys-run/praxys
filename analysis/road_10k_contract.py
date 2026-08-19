@@ -1,6 +1,7 @@
 """Reviewed machine-contract helpers for the inactive road 10K capability."""
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from analysis.science_artifacts import load_policy_contract
@@ -62,6 +63,21 @@ ROAD_10K_ACTIVATION = ROAD_10K_PARAMETER_VALUES[
 ]
 ROAD_10K_AUDIT = ROAD_10K_PARAMETER_VALUES["road_10k_v2_privacy_and_audit"]
 
+
+@dataclass(frozen=True)
+class Road10KGuardrailProjection:
+    """Public read-only values used to explain the accepted policy."""
+
+    committed_proposal_days: int
+    advisory_reassessment_after_completed_days: int
+    minimum_planned_low_intensity_running_minutes_fraction: float
+    baseline_current_through_completed_days: int
+
+    def public_payload(self) -> dict[str, int | float]:
+        """Return the response-safe projection without policy provenance."""
+        return asdict(self)
+
+
 ROAD_10K_HISTORY_LOOKBACK_COMPLETED_WEEKS = int(
     ROAD_10K_REQUIRED_INPUTS["recent_history_lookback_completed_weeks"]
 )
@@ -77,6 +93,26 @@ ROAD_10K_BASELINE_STALE_FROM_COMPLETED_DAYS = int(
 ROAD_10K_PROPOSAL_DAYS = int(ROAD_10K_EXECUTION["committed_proposal_days"])
 ROAD_10K_REASSESSMENT_COMPLETED_DAYS = int(
     ROAD_10K_EXECUTION["advisory_reassessment_after_completed_days"]
+)
+ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT = int(
+    ROAD_10K_EVENTS["taper"]["supported_window_days_before_event"]["minimum"]
+)
+ROAD_10K_TAPER_MAXIMUM_DAYS_BEFORE_EVENT = int(
+    ROAD_10K_EVENTS["taper"]["supported_window_days_before_event"]["maximum"]
+)
+ROAD_10K_GUARDRAILS = Road10KGuardrailProjection(
+    committed_proposal_days=ROAD_10K_PROPOSAL_DAYS,
+    advisory_reassessment_after_completed_days=(
+        ROAD_10K_REASSESSMENT_COMPLETED_DAYS
+    ),
+    minimum_planned_low_intensity_running_minutes_fraction=float(
+        ROAD_10K_INTENSITY[
+            "minimum_planned_low_intensity_running_minutes_fraction"
+        ]
+    ),
+    baseline_current_through_completed_days=(
+        ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
+    ),
 )
 ROAD_10K_RESULT_CODES = frozenset(str(code) for code in ROAD_10K_TYPED_OUTCOMES)
 _ROAD_10K_TYPED_OUTCOME_FIELDS = frozenset({
