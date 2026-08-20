@@ -23,6 +23,7 @@ from api.road_10k_control import (
     Road10KDeletionFailed,
     enroll_owner,
     export_owner_records,
+    receipt_matches_authority,
     require_road_10k_participation,
     withdraw_owner,
 )
@@ -43,14 +44,7 @@ def _require_surface() -> None:
     if (
         authority is None
         or authority.stage_id != "road-10k-controlled-opt-in-v1"
-        or not authority.is_fresh
-        or authority.state == "off"
-        or authority.readiness != "ready"
-        or authority.provider_fence != "closed"
-        or (
-            authority.state == "active"
-            and not authority.is_usable
-        )
+        or authority.lifecycle_status is None
     ):
         raise HTTPException(
             status_code=404,
@@ -271,7 +265,7 @@ def get_access(
     """Return the owner-scoped catalog only after authority and invitation."""
     user_id = _owner(request, db)
     authority = load_stage_authority()
-    if authority is None or not authority.is_usable:
+    if authority is None or authority.lifecycle_status is None:
         return _hidden(response)
     receipt = (
         db.query(Road10KOwnerStageReceipt)
@@ -283,20 +277,12 @@ def get_access(
     )
     if (
         receipt is None
-        or receipt.authority_digest != authority.authority_digest
-        or receipt.schema_version != 2
-        or receipt.policy_version != "road-10k-plan-generation-policy-v2"
-        or receipt.notice_digest != authority.notice_digest
+        or not receipt_matches_authority(receipt, authority)
     ):
         return _hidden(response)
     _private(response)
-    if authority.state != "active":
-        rollout_status = {
-            "paused": "paused",
-            "killed": "killed",
-            "hold": "hold",
-            "rollback": "rollback",
-        }.get(authority.state)
+    if authority.lifecycle_status != "active":
+        rollout_status = authority.lifecycle_status
     else:
         rollout_status = {
             "invited_only": "invited",
@@ -326,7 +312,7 @@ def opt_in(
     """Reauthenticate and enroll the current invited owner."""
     user_id = _owner(request, db)
     authority = load_stage_authority()
-    if authority is None or not authority.is_usable:
+    if authority is None or authority.lifecycle_status != "active":
         return _hidden(response)
     try:
         require_road_10k_participation(

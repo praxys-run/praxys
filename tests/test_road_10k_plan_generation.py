@@ -660,6 +660,8 @@ def test_hidden_authority_is_404_before_auth_for_every_control_surface(
     for response in responses:
         assert response.json() == {"detail": "Not found"}
         assert response.headers["cache-control"] == "private, no-store"
+        assert response.headers["pragma"] == "no-cache"
+        assert response.headers["vary"] == "Authorization"
 
 
 def test_control_lifecycle_contract_is_private_and_maps_withdrawn(
@@ -697,6 +699,45 @@ def test_control_lifecycle_contract_is_private_and_maps_withdrawn(
     assert access.status_code == 200
     assert access.json()["rollout_status"] == "withdrawn"
     assert access.json()["plan_status"] == "none"
+
+
+@pytest.mark.parametrize("state", ["paused", "killed", "hold", "rollback"])
+def test_access_exposes_read_only_lifecycle_state_without_mutation(
+    road_10k_client,
+    monkeypatch,
+    state,
+):
+    client, _db_session = road_10k_client
+    from dataclasses import replace
+    from api.routes import road_10k as road_10k_route
+    from api.routes import road_10k_plan_generation as generation_route
+    from api.road_10k_stage_authority import load_stage_authority
+
+    current = load_stage_authority()
+    assert current is not None
+    monkeypatch.setattr(
+        road_10k_route,
+        "load_stage_authority",
+        lambda: replace(current, state=state),
+    )
+    monkeypatch.setattr(
+        generation_route,
+        "load_stage_authority",
+        lambda: replace(current, state=state),
+    )
+    headers = {"Authorization": f"Bearer {_road_10k_token('road-10k-owner')}"}
+    response = client.get("/api/road-10k/access", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["rollout_status"] == state
+    assert response.json()["plan_status"] == "none"
+
+    # The same authority must not make generation a readable/result-producing
+    # boundary while its lifecycle is read-only.
+    blocked = client.post(
+        "/api/plan/road-10k/readiness",
+        json=_road_10k_api_request(),
+    )
+    assert blocked.status_code == 404
 
 
 def test_stage_authority_enables_only_owner_scoped_catalog_entry(

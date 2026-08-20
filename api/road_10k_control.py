@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
-from typing import Any
+from typing import Any, Mapping
 from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
@@ -71,6 +71,22 @@ class Road10KDeletionFailed(Road10KControlError):
     """Deletion could not be staged or completed authoritatively."""
 
 
+def receipt_matches_authority(
+    receipt: Road10KOwnerStageReceipt,
+    authority: Road10KStageAuthority,
+) -> bool:
+    """Validate the complete receipt contract at every control boundary."""
+    return (
+        receipt.stage_id == authority.stage_id
+        and receipt.capability_id == authority.capability_id
+        and receipt.authority_digest == authority.authority_digest
+        and receipt.notice_digest == authority.notice_digest
+        and receipt.cohort_rule_digest == authority.cohort_rule_digest
+        and receipt.schema_version == ROAD_10K_CONTROL_SCHEMA_VERSION
+        and receipt.policy_version == ROAD_10K_POLICY_VERSION
+    )
+
+
 def _now(now: datetime | None = None) -> datetime:
     value = now or datetime.now(timezone.utc)
     if value.tzinfo is None:
@@ -92,12 +108,8 @@ def _authority(*, lifecycle: bool = False) -> Road10KStageAuthority:
     authority = load_stage_authority()
     if authority is None:
         raise Road10KControlUnavailable("authority_missing_or_malformed")
-    if not authority.is_usable and not (
-        lifecycle
-        and authority.state in {"active", "paused", "killed", "hold", "rollback"}
-        and authority.is_fresh
-        and authority.readiness == "ready"
-        and authority.provider_fence == "closed"
+    if authority.lifecycle_status is None or (
+        authority.lifecycle_status != "active" and not lifecycle
     ):
         raise Road10KControlUnavailable(
             authority_denial_reason(authority)
@@ -223,6 +235,8 @@ def issue_invitation(
             stage_id=authority.stage_id,
         )
         if existing is not None:
+            if not receipt_matches_authority(existing, authority):
+                raise Road10KControlUnavailable("receipt_contract_mismatch")
             if existing.request_fingerprint != fingerprint:
                 raise Road10KControlConflict("owner_stage_conflict")
             db.commit()
@@ -291,6 +305,8 @@ def enroll_owner(
     )
     if preflight is None:
         raise Road10KControlDenied("invitation_required")
+    if not receipt_matches_authority(preflight, authority):
+        raise Road10KControlUnavailable("receipt_contract_mismatch")
     if preflight.state in {"withdrawn", "deleted"}:
         raise Road10KControlDenied("same_stage_reenrollment_denied")
     db.rollback()
@@ -305,11 +321,8 @@ def enroll_owner(
         )
         if receipt is None:
             raise Road10KControlDenied("invitation_required")
-        if (
-            receipt.authority_digest != authority.authority_digest
-            or receipt.cohort_rule_digest != authority.cohort_rule_digest
-        ):
-            raise Road10KControlUnavailable("authority_mismatch")
+        if not receipt_matches_authority(receipt, authority):
+            raise Road10KControlUnavailable("receipt_contract_mismatch")
         if receipt.state in {"withdrawn", "deleted"}:
             raise Road10KControlDenied("same_stage_reenrollment_denied")
         if receipt.state in {"enrolled_unexposed", "exposed"}:
@@ -362,11 +375,8 @@ def authorize_first_exposure(
         )
         if receipt is None or receipt.state not in {"enrolled_unexposed", "exposed"}:
             raise Road10KControlDenied("enrollment_required")
-        if (
-            receipt.authority_digest != authority.authority_digest
-            or receipt.cohort_rule_digest != authority.cohort_rule_digest
-        ):
-            raise Road10KControlUnavailable("authority_mismatch")
+        if not receipt_matches_authority(receipt, authority):
+            raise Road10KControlUnavailable("receipt_contract_mismatch")
         existing = (
             db.query(Road10KExposureReceipt)
             .with_for_update()
@@ -440,7 +450,7 @@ def require_road_10k_gate(
         receipt is None
         or receipt.state
         not in ({"exposed", "withdrawn"} if allow_withdrawn else {"exposed"})
-        or receipt.authority_digest != authority.authority_digest
+        or not receipt_matches_authority(receipt, authority)
     ):
         raise Road10KControlDenied("road_10k_exposure_required")
     exposure = (
@@ -485,7 +495,7 @@ def require_road_10k_participation(
     if (
         receipt is None
         or receipt.state not in states
-        or receipt.authority_digest != authority.authority_digest
+        or not receipt_matches_authority(receipt, authority)
     ):
         raise Road10KControlDenied("participation_required")
     return authority
@@ -555,6 +565,50 @@ def _delete_evaluation_rows(
             Road10KScreenshotReference.evaluation_id == row.id
         ).delete(synchronize_session=False)
         db.delete(row)
+
+
+def _delete_feedback_for_manifest(
+    db: Session,
+    manifest: dict[str, object] | Mapping[str, object],
+) -> None:
+    """Remove restored feedback links covered by an account-deletion marker."""
+    keys = {
+        str(key)
+        for key in manifest["screenshot_keys"]
+        if isinstance(key, str) and key.startswith("feedback/")
+    }
+    if not keys:
+        return
+    owner_id = str(manifest["owner_id"])
+    rows = (
+        db.query(Feedback)
+        .filter(Feedback.user_id == owner_id)
+        .with_for_update()
+        .all()
+    )
+    for row in rows:
+        image_keys = row.image_keys
+        if not isinstance(image_keys, list):
+            continue
+        remaining = [
+            key
+            for key in image_keys
+            if not (isinstance(key, str) and key in keys)
+        ]
+        if len(remaining) == len(image_keys):
+            continue
+        if remaining:
+            row.image_keys = remaining
+        else:
+            # Account deletion already removes the row in the live path.  If
+            # the primary DB is restored independently, delete the resurrected
+            # row instead of allowing its screenshot linkage to return.
+            db.delete(row)
+
+
+def _evaluation_expiry(row: Road10KEvaluation) -> datetime:
+    """Return the immutable creation-based retention deadline."""
+    return row.created_at + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
 
 
 def _owner_deletion_manifest(
@@ -659,7 +713,7 @@ def withdraw_owner(
         db.rollback()
         raise
     try:
-        complete_deletion_manifests([marker], now=timestamp)
+        complete_deletion_manifests([marker], db=db, now=timestamp)
     except Exception as exc:
         raise Road10KDeletionFailed("deletion_marker_completion_failed") from exc
     return receipt
@@ -739,12 +793,16 @@ def prepare_account_deletion(
 def complete_deletion_manifests(
     manifests: list[dict[str, object]],
     *,
+    db: Session | None = None,
     now: datetime | None = None,
 ) -> None:
     timestamp = _now(now)
     for manifest in manifests:
         for object_key in manifest["screenshot_keys"]:
             delete_manifest_object(str(object_key))
+        if db is not None:
+            _delete_feedback_for_manifest(db, manifest)
+            db.commit()
         mark_completed(manifest, timestamp)
 
 
@@ -755,14 +813,13 @@ def purge_expired_evaluations(
 ) -> int:
     """Explicit maintenance primitive; no scheduler invokes it in production."""
     timestamp = _now(now)
-    rows = (
-        db.query(Road10KEvaluation)
-        .filter(
-            Road10KEvaluation.expires_at <= timestamp,
-            Road10KEvaluation.deleted_at.is_(None),
-        )
+    rows = [
+        row
+        for row in db.query(Road10KEvaluation)
+        .filter(Road10KEvaluation.deleted_at.is_(None))
         .all()
-    )
+        if _evaluation_expiry(row) <= timestamp
+    ]
     count = 0
     for row in rows:
         marker = _owner_deletion_manifest(
@@ -775,7 +832,7 @@ def purge_expired_evaluations(
         )
         _delete_evaluation_rows(db, [row.id], reason="retention")
         db.commit()
-        complete_deletion_manifests([marker], now=timestamp)
+        complete_deletion_manifests([marker], db=db, now=timestamp)
         count += 1
     return count
 
@@ -783,6 +840,13 @@ def purge_expired_evaluations(
 def export_owner_records(db: Session, *, user_id: str) -> dict[str, object]:
     """Return only the authenticated owner's current Road 10K records."""
     authority = _authority(lifecycle=True)
+    require_road_10k_participation(
+        db,
+        user_id=user_id,
+        allow_withdrawn=True,
+        lifecycle=True,
+    )
+    timestamp = _now()
     receipt = _receipt(
         db,
         user_id=user_id,
@@ -798,6 +862,9 @@ def export_owner_records(db: Session, *, user_id: str) -> dict[str, object]:
         .order_by(Road10KEvaluation.created_at.asc())
         .all()
     )
+    evaluations = [
+        row for row in evaluations if _evaluation_expiry(row) > timestamp
+    ]
     return {
         "stage_id": authority.stage_id,
         "receipt": (
@@ -855,9 +922,14 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
             ).delete(synchronize_session=False)
         db.commit()
 
+    def delete_feedback(manifest: dict[str, object]) -> None:
+        _delete_feedback_for_manifest(db, manifest)
+        db.commit()
+
     count = replay_manifests(
         delete_object=delete_manifest_object,
         delete_evaluation=delete_evaluation,
+        delete_feedback=delete_feedback,
     )
     return count
 

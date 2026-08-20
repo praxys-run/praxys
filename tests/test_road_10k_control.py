@@ -1,5 +1,6 @@
 """Road 10K control-ledger tests."""
 from datetime import datetime, timedelta, timezone
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from api import road_10k_control, road_10k_deletion_storage
 from api.road_10k_control import (
     Road10KControlDenied,
+    Road10KControlUnavailable,
     authorize_first_exposure,
     enroll_owner,
     issue_invitation,
@@ -230,6 +232,39 @@ def test_screenshot_upload_is_unavailable():
         store_screenshot(b"image")
 
 
+def test_stale_receipt_contract_cannot_expose_or_participate(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "stale-owner")
+    authority = _authority()
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: authority)
+    issue_invitation(
+        db,
+        user_id="stale-owner",
+        idempotency_key="stale-invitation",
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    enroll_owner(db, user_id="stale-owner", notice_digest=authority.notice_digest)
+    receipt = (
+        db.query(road_10k_control.Road10KOwnerStageReceipt)
+        .filter_by(user_id="stale-owner")
+        .one()
+    )
+    receipt.policy_version = "stale-policy"
+    db.commit()
+
+    with pytest.raises(Road10KControlUnavailable, match="receipt_contract"):
+        authorize_first_exposure(db, user_id="stale-owner")
+    with pytest.raises(Road10KControlDenied, match="participation_required"):
+        road_10k_control.require_road_10k_participation(
+            db,
+            user_id="stale-owner",
+        )
+
+
 def test_stage_authority_mixed_versions_fail_closed():
     with pytest.raises(StageAuthorityError):
         parse_stage_authority(
@@ -240,3 +275,11 @@ def test_stage_authority_mixed_versions_fail_closed():
                 "exposure_ceiling": 30,
             }
         )
+
+
+@pytest.mark.parametrize("state", ["paused", "killed", "hold", "rollback"])
+def test_lifecycle_authority_is_visible_but_not_mutation_usable(state):
+    authority = _authority()
+    authority = replace(authority, state=state)
+    assert authority.lifecycle_status == state
+    assert authority.is_usable is False

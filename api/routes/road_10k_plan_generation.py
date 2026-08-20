@@ -31,6 +31,12 @@ from api.road_10k_plan_generation import (
 from api.road_10k_stage_authority import load_stage_authority
 from db.session import get_db
 
+_PRIVATE_HEADERS = {
+    "Cache-Control": "private, no-store",
+    "Pragma": "no-cache",
+    "Vary": "Authorization",
+}
+
 
 def _require_road_10k_capability_available() -> None:
     authority = load_stage_authority()
@@ -42,11 +48,7 @@ def _require_road_10k_capability_available() -> None:
         raise HTTPException(
             status_code=404,
             detail="Not found",
-            headers={
-                "Cache-Control": "private, no-store",
-                "Pragma": "no-cache",
-                "Vary": "Authorization",
-            },
+            headers=_PRIVATE_HEADERS,
         )
 
 
@@ -383,14 +385,35 @@ class Road10KBaselineResponse(BaseModel):
     science_note: Road10KScienceNoteResponse
 
 
-class Road10KWorkoutTerminationResponse(BaseModel):
+class Road10KWorkoutTerminationTimeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["time"]
     seconds: int
 
 
-class Road10KWorkoutTargetResponse(BaseModel):
+class Road10KWorkoutTerminationDistanceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["distance"]
+    meters: int
+
+
+class Road10KWorkoutTerminationOpenResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["open", "manual"]
+
+
+Road10KWorkoutTerminationResponse = Annotated[
+    Road10KWorkoutTerminationTimeResponse
+    | Road10KWorkoutTerminationDistanceResponse
+    | Road10KWorkoutTerminationOpenResponse,
+    Field(discriminator="type"),
+]
+
+
+class Road10KWorkoutTargetNoneResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     metric: Literal["none"]
@@ -398,21 +421,110 @@ class Road10KWorkoutTargetResponse(BaseModel):
     reference: Literal["none"]
 
 
+class _Road10KBoundedWorkoutTargetResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min: float | None = None
+    max: float | None = None
+
+    @model_validator(mode="after")
+    def require_one_bound(self):
+        if self.min is None and self.max is None:
+            raise ValueError("a bounded workout target requires min or max")
+        return self
+
+
+class Road10KWorkoutPowerWattsTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["power"]
+    unit: Literal["watts"]
+    reference: Literal["absolute"]
+
+
+class Road10KWorkoutPowerPercentTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["power"]
+    unit: Literal["percent_cp"]
+    reference: Literal["critical_power"]
+
+
+class Road10KWorkoutHeartRateBpmTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["heart_rate"]
+    unit: Literal["bpm"]
+    reference: Literal["absolute"]
+
+
+class Road10KWorkoutHeartRatePercentTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["heart_rate"]
+    unit: Literal["percent_lthr"]
+    reference: Literal["lthr"]
+
+
+class Road10KWorkoutPaceTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["pace"]
+    unit: Literal["sec_per_km"]
+    reference: Literal["absolute"]
+
+
+class Road10KWorkoutPaceDeltaTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["pace"]
+    unit: Literal["sec_per_km_delta"]
+    reference: Literal["threshold_pace"]
+
+
+class Road10KWorkoutRpeTargetResponse(_Road10KBoundedWorkoutTargetResponse):
+    metric: Literal["rpe"]
+    unit: Literal["scale_10"]
+    reference: Literal["perceived_exertion"]
+
+
+Road10KWorkoutTargetResponse = (
+    Road10KWorkoutTargetNoneResponse
+    | Road10KWorkoutPowerWattsTargetResponse
+    | Road10KWorkoutPowerPercentTargetResponse
+    | Road10KWorkoutHeartRateBpmTargetResponse
+    | Road10KWorkoutHeartRatePercentTargetResponse
+    | Road10KWorkoutPaceTargetResponse
+    | Road10KWorkoutPaceDeltaTargetResponse
+    | Road10KWorkoutRpeTargetResponse
+)
+
+
 class Road10KWorkoutStepResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: Literal["step", "repeat"]
-    phase: str | None = None
-    termination: Road10KWorkoutTerminationResponse | None = None
-    target: Road10KWorkoutTargetResponse | None = None
-    repetitions: int | None = None
-    steps: list["Road10KWorkoutStepResponse"] = Field(default_factory=list)
+    type: Literal["step"]
+    phase: Literal[
+        "warmup",
+        "work",
+        "recovery",
+        "rest",
+        "cooldown",
+        "other",
+    ]
+    label: str | None = None
+    instructions: str | None = None
+    termination: Road10KWorkoutTerminationResponse
+    target: Road10KWorkoutTargetResponse
+
+
+class Road10KWorkoutRepeatGroupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["repeat"]
+    label: str | None = None
+    repetitions: int = Field(ge=1)
+    steps: list[Road10KWorkoutStepResponse]
+
+
+Road10KWorkoutStructureStepResponse = Annotated[
+    Road10KWorkoutStepResponse | Road10KWorkoutRepeatGroupResponse,
+    Field(discriminator="type"),
+]
 
 
 class Road10KWorkoutStructureResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    steps: list[Road10KWorkoutStepResponse]
+    steps: list[Road10KWorkoutStructureStepResponse]
 
 
 class Road10KProposalWorkoutResponse(BaseModel):
@@ -469,7 +581,7 @@ class Road10KAdaptivePlanResponse(BaseModel):
     id: str
     discipline: Literal["running"]
     version: int
-    lifecycle: str
+    lifecycle: Literal["draft", "active", "completed", "archived"]
     active_proposal_id: str | None
 
 
@@ -615,18 +727,26 @@ def _raise_generation(error: Exception) -> None:
         raise HTTPException(
             status_code=404,
             detail="Not found",
-            headers={
-                "Cache-Control": "private, no-store",
-                "Pragma": "no-cache",
-                "Vary": "Authorization",
-            },
+            headers=_PRIVATE_HEADERS,
         )
     if isinstance(error, Road10KGenerationError):
-        raise HTTPException(status_code=error.status_code, detail=error.detail)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+            headers=_PRIVATE_HEADERS,
+        )
     if isinstance(error, AdaptivePlanError):
-        raise HTTPException(status_code=error.status_code, detail=error.detail)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+            headers=_PRIVATE_HEADERS,
+        )
     if isinstance(error, PlanPurposeError):
-        raise HTTPException(status_code=error.status_code, detail=error.detail)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+            headers=_PRIVATE_HEADERS,
+        )
     raise error
 
 
@@ -635,14 +755,14 @@ def _raise_baseline(error: Exception) -> None:
         raise HTTPException(
             status_code=404,
             detail="Not found",
-            headers={
-                "Cache-Control": "private, no-store",
-                "Pragma": "no-cache",
-                "Vary": "Authorization",
-            },
+            headers=_PRIVATE_HEADERS,
         )
     if isinstance(error, PlanPurposeError):
-        raise HTTPException(status_code=error.status_code, detail=error.detail)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+            headers=_PRIVATE_HEADERS,
+        )
     if isinstance(error, Road10KBaselineConflict):
         raise HTTPException(
             status_code=409,
@@ -650,6 +770,7 @@ def _raise_baseline(error: Exception) -> None:
                 "code": "ROAD_10K_BASELINE_IDEMPOTENCY_CONFLICT",
                 "message": "This Idempotency-Key was already used for a different road 10K baseline request.",
             },
+            headers=_PRIVATE_HEADERS,
         )
     if isinstance(error, Road10KBaselineNotFound):
         raise HTTPException(
@@ -658,6 +779,7 @@ def _raise_baseline(error: Exception) -> None:
                 "code": "ROAD_10K_BASELINE_NOT_FOUND",
                 "message": "The requested 10K baseline activity was not found for this athlete.",
             },
+            headers=_PRIVATE_HEADERS,
         )
     if isinstance(error, Road10KBaselineForbidden):
         message = {
@@ -669,6 +791,7 @@ def _raise_baseline(error: Exception) -> None:
                 "code": "ROAD_10K_BASELINE_MUTATION_FORBIDDEN",
                 "message": message,
             },
+            headers=_PRIVATE_HEADERS,
         )
     if isinstance(error, Road10KBaselineInvalid):
         raise HTTPException(
@@ -677,6 +800,7 @@ def _raise_baseline(error: Exception) -> None:
                 "code": "ROAD_10K_BASELINE_INVALID_REQUEST",
                 "message": str(error),
             },
+            headers=_PRIVATE_HEADERS,
         )
     raise error
 

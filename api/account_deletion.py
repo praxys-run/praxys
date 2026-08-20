@@ -467,7 +467,7 @@ def delete_user_account(
 
     complete_account_deletion_manifests(context_manifests)
     try:
-        complete_deletion_manifests(road_manifests)
+        complete_deletion_manifests(road_manifests, db=db)
     except Exception:
         # Requested markers remain authoritative and will replay on the next
         # startup. Do not expose a false "completed" marker or report a

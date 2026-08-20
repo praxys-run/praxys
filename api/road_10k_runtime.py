@@ -61,25 +61,15 @@ def evaluate_boundary(
             False,
             False,
         )
-    usable = authority.is_usable
-    lifecycle_allowed = (
-        lifecycle
-        and authority.state in {"active", "paused", "killed", "hold", "rollback"}
-        and authority.is_fresh
-        and authority.readiness == "ready"
-        and authority.provider_fence == "closed"
+    lifecycle_state = authority.lifecycle_status
+    allowed = lifecycle_state == "active" or (
+        lifecycle and lifecycle_state in {"paused", "killed", "hold", "rollback"}
     )
-    allowed = usable or lifecycle_allowed
-    read_only = authority.state in {
-        "paused",
-        "killed",
-        "hold",
-        "rollback",
-    }
+    read_only = lifecycle_state in {"paused", "killed", "hold", "rollback"}
     return Road10KRuntimeDecision(
         allowed,
         authority_denial_reason(authority) if not allowed else "allowed",
-        "enrolled" if allowed else authority.state,
+        "enrolled" if allowed else (lifecycle_state or authority.state),
         read_only,
         False,
     )

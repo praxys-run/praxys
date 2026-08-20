@@ -223,6 +223,7 @@ const EN_GOAL = {
 
 const EN_ROAD_10K = {
   'Review invitation': 'Review invitation',
+  'Not now': 'Not now',
   'Leave rollout': 'Leave rollout',
   'Continue to sign in': 'Continue to sign in',
   'Rollout status: On hold': 'Rollout status: On hold',
@@ -231,6 +232,8 @@ const EN_ROAD_10K = {
   'Rollout status: Left rollout': 'Rollout status: Left rollout',
   'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
     'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.',
+  'You left the Road 10K rollout. Your proposal is read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
+    'You left the Road 10K rollout. Your proposal is read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.',
   'Your rollout access ended': 'Your rollout access ended',
   'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.':
     'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.',
@@ -724,6 +727,7 @@ const ZH_GOAL = {
 
 const ZH_ROAD_10K = {
   'Review invitation': '查看邀请',
+  'Not now': '暂不',
   'Leave rollout': '退出试点',
   'Continue to sign in': '继续登录',
   'Rollout status: On hold': '试点状态：审核中',
@@ -732,6 +736,8 @@ const ZH_ROAD_10K = {
   'Rollout status: Left rollout': '试点状态：已退出',
   'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
     '你的提案将变为只读，无法采纳或重新生成。任何已采纳计划都会保留在训练中，不会暂停或结束。你仍可导出数据或删除账号。试点数据按当前说明处理。',
+  'You left the Road 10K rollout. Your proposal is read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
+    '你已退出公路 10K 试点。你的提案为只读，无法采纳或重新生成。任何已采纳计划都会保留在训练中，不会暂停或结束。你仍可导出数据或删除账号。试点数据按当前说明处理。',
   'Your rollout access ended': '你的试点访问权限已结束',
   'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.':
     '如有提案，它现在仅作为只读记录，无法采纳或重新生成。已采纳的计划保持不变，仍可在训练中管理。',

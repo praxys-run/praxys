@@ -176,6 +176,7 @@ async def _road_10k_private_no_store(request, call_next):
         request.url.path.startswith("/api/road-10k")
         or request.url.path.startswith("/api/plan/road-10k")
         or request.url.path == "/api/plan/generation/capabilities"
+        or request.url.path == "/api/me/export"
     ):
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["Pragma"] = "no-cache"
@@ -224,6 +225,23 @@ if is_rate_limit_disabled():
     )
 else:
     app.add_middleware(AuthRateLimitMiddleware)
+
+
+@app.middleware("http")
+async def _finalize_private_no_store_headers(request, call_next):
+    """Keep the private contract exact after compression middleware runs."""
+    response = await call_next(request)
+    if (
+        request.url.path.startswith("/api/road-10k")
+        or request.url.path.startswith("/api/plan/road-10k")
+        or request.url.path == "/api/plan/generation/capabilities"
+        or request.url.path == "/api/me/export"
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Vary"] = "Authorization"
+    return response
+
 
 # Auth routes
 from api.users import fastapi_users, auth_backend
@@ -426,6 +444,8 @@ def export_my_data(
         f'attachment; filename="praxys-data-export-{filename_date}.json"'
     )
     response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Vary"] = "Authorization"
     return build_user_data_export(user_id, db)
 
 

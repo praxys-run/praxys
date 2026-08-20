@@ -225,6 +225,7 @@ def replay_manifests(
     *,
     delete_object: Callable[[str], None],
     delete_evaluation: Callable[[str, Mapping[str, object]], None],
+    delete_feedback: Callable[[Mapping[str, object]], None] | None = None,
     now: datetime | None = None,
 ) -> int:
     """Replay every active marker before Road 10K traffic is considered ready."""
@@ -236,6 +237,8 @@ def replay_manifests(
                 delete_object(str(key))
             for evaluation_id in manifest["evaluation_ids"]:
                 delete_evaluation(str(evaluation_id), manifest)
+            if delete_feedback is not None:
+                delete_feedback(manifest)
             mark_completed(manifest, now or datetime.now(timezone.utc))
             completed += 1
     except Exception as exc:

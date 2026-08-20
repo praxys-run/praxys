@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Road10KAccessResponse } from '@/types/api';
-import { road10kCopy, type Road10KCopyKey } from '@/lib/road-10k-control';
+import {
+  ROAD_10K_PLAN_STATE_COPY,
+  road10kCopy,
+  type Road10KCopyKey,
+} from '@/lib/road-10k-control';
 
 type FlowState = 'idle' | 'reauth' | 'notice' | 'joining' | 'withdrawn';
 
@@ -20,7 +24,7 @@ const ROLLOUT_TITLE_COPY: Record<Road10KAccessResponse['rollout_status'], Road10
   enrolled: 'status.rollout_enrolled',
   'enrollment-closed': 'life.close_title',
   hold: 'life.hold_title',
-  withdrawn: 'life.withdraw_title',
+  withdrawn: 'status.rollout_withdrawn',
   removed: 'life.removed_title',
   paused: 'life.pause_title',
   killed: 'life.kill_title',
@@ -36,7 +40,7 @@ const ROLLOUT_BODY_COPY: Record<Road10KAccessResponse['rollout_status'], Road10K
   enrolled: 'empty.no_proposal',
   'enrollment-closed': 'life.close_out',
   hold: 'life.hold_body',
-  withdrawn: 'life.withdraw_body',
+  withdrawn: 'success.withdrawn',
   removed: 'life.removed_body',
   paused: 'life.pause_body',
   killed: 'life.kill_body',
@@ -67,7 +71,14 @@ export default function Road10KControlledOptIn() {
   const [flow, setFlow] = useState<FlowState>('idle');
   const [password, setPassword] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
+  const [invitationDismissed, setInvitationDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const planKeys = ROAD_10K_PLAN_STATE_COPY[data?.plan_status ?? 'none'];
+  const planTitle = localized(planKeys[0], locale);
+  const planBody = localized(
+    planKeys[planKeys.length - 1] ?? planKeys[0],
+    locale,
+  );
 
   if (loading || !data) return null;
 
@@ -110,7 +121,7 @@ export default function Road10KControlledOptIn() {
 
   return (
     <>
-      {data.rollout_status === 'invited' && (
+      {data.rollout_status === 'invited' && !invitationDismissed && (
         <Card className="mt-6 border-slate-200 dark:border-slate-800">
           <CardHeader>
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
@@ -124,7 +135,13 @@ export default function Road10KControlledOptIn() {
             <Button onClick={() => setFlow('reauth')}>
               {copy('action.review_invitation')} <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button variant="ghost" onClick={() => setFlow('idle')}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFlow('idle');
+                setInvitationDismissed(true);
+              }}
+            >
               {copy('action.not_now')}
             </Button>
           </CardContent>
@@ -138,8 +155,8 @@ export default function Road10KControlledOptIn() {
               <ShieldCheck className="h-4 w-4 text-accent-cobalt" aria-hidden="true" />
               {copy('status.rollout_enrolled')}
             </div>
-            <CardTitle>{copy('status.plan_none')}</CardTitle>
-            <CardDescription>{copy('empty.no_proposal')}</CardDescription>
+            <CardTitle>{planTitle}</CardTitle>
+            <CardDescription>{planBody}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button variant="outline" onClick={leave}>{copy('action.leave')}</Button>
@@ -164,7 +181,7 @@ export default function Road10KControlledOptIn() {
               {copy('action.latest')}
             </Button>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300" role="status">
-              {copy('status.plan_none')}
+              {planTitle}: {planBody}
             </p>
           </CardContent>
         </Card>

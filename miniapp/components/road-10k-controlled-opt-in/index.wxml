@@ -1,16 +1,19 @@
 <view wx:if="{{visible && access}}" class="road-10k-card ts-card">
-  <block wx:if="{{access.rollout_status === 'invited'}}">
+  <block wx:if="{{access.rollout_status === 'invited' && !invitationDismissed}}">
     <text class="road-10k-eyebrow">{{tr.invited}}</text>
     <text class="road-10k-title">{{tr.invited}}</text>
     <text class="road-10k-body">{{tr.invitedBody}}</text>
     <view class="road-10k-action road-10k-action--primary" bindtap="onReview" aria-role="button">
       <text>{{tr.review}}</text>
     </view>
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onNotNow" aria-role="button">
+      <text>{{tr.notNow}}</text>
+    </view>
   </block>
   <block wx:elif="{{access.rollout_status === 'enrolled'}}">
     <text class="road-10k-eyebrow">{{tr.enrolled}}</text>
-    <text class="road-10k-title">{{tr.noPlan}}</text>
-    <text class="road-10k-body">{{tr.empty}}</text>
+    <text class="road-10k-title">{{planStatusLabel}}</text>
+    <text class="road-10k-body">{{access.plan_status === 'none' ? tr.empty : planStatusLabel}}</text>
     <view class="road-10k-action road-10k-action--secondary" bindtap="onLeave" aria-role="button">
       <text>{{tr.leave}}</text>
     </view>
@@ -22,16 +25,18 @@
     <text class="road-10k-eyebrow">{{tr.withdrawn}}</text>
     <text class="road-10k-title">{{tr.withdrawn}}</text>
     <text class="road-10k-body">{{tr.withdrawnBody}}</text>
+    <text class="road-10k-body">{{planStatusLabel}}</text>
   </block>
   <block wx:elif="{{access.rollout_status === 'removed'}}">
     <text class="road-10k-eyebrow">{{tr.removed}}</text>
     <text class="road-10k-title">{{tr.removed}}</text>
     <text class="road-10k-body">{{tr.removedBody}}</text>
+    <text class="road-10k-body">{{planStatusLabel}}</text>
   </block>
   <block wx:else>
     <text class="road-10k-eyebrow">{{access.rollout_status === 'hold' ? tr.hold : access.rollout_status === 'paused' ? tr.paused : tr.stopped}}</text>
-    <text class="road-10k-title">{{tr.noPlan}}</text>
-    <text class="road-10k-body">{{tr.empty}}</text>
+    <text class="road-10k-title">{{planStatusLabel}}</text>
+    <text class="road-10k-body">{{access.plan_status === 'none' ? tr.empty : planStatusLabel}}</text>
     <view class="road-10k-disabled" aria-disabled="true"><text>{{tr.screenshot}}</text></view>
   </block>
   <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>

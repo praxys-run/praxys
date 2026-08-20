@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from api import road_10k_deletion_storage as storage
+from api import feedback_storage
 from api.road_10k_screenshot_storage import (
     Road10KScreenshotUnavailable,
     delete_object,
@@ -56,7 +57,7 @@ def test_old_marker_is_expired_only_after_restore_window(tmp_path, monkeypatch):
     old = datetime.now(timezone.utc) - timedelta(
         days=storage.MARKER_RETENTION_DAYS + 1
     )
-    storage.stage_manifest(
+    marker = storage.stage_manifest(
         owner_id="native-owner",
         stage_id="road-10k-controlled-opt-in-v1",
         reason="retention",
@@ -265,3 +266,163 @@ def test_account_deletion_manifest_captures_orphan_road_evaluations(
         manifests = prepare_account_deletion(db, user_id="owner")
 
     assert manifests[0]["evaluation_ids"] == ["orphan-evaluation"]
+
+
+def test_startup_replay_removes_restored_feedback_row_and_object(
+    tmp_path,
+    monkeypatch,
+):
+    """A restored primary DB cannot resurrect a deleted screenshot linkage."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api.road_10k_control import replay_road_10k_deletion_manifests
+    from db.models import Base, Feedback, User
+
+    manifest_store = _MemoryManifestStore()
+    monkeypatch.setattr(storage, "_test_store", manifest_store)
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    engine = create_engine(f"sqlite:///{tmp_path / 'restore.db'}")
+    Base.metadata.create_all(engine)
+    key = "feedback/7/0.png"
+    object_path = Path(tmp_path) / "feedback_images" / key
+    object_path.parent.mkdir(parents=True, exist_ok=True)
+    object_path.write_bytes(b"restored-screenshot")
+
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(
+            Feedback(
+                user_id="owner",
+                kind="other",
+                message="private",
+                image_keys=[key],
+            )
+        )
+        db.commit()
+        marker = storage.stage_manifest(
+            owner_id="owner",
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="account_deletion",
+            evaluation_ids=[],
+            screenshot_keys=[key],
+            requested_at=datetime.now(timezone.utc),
+        )
+
+        # Complete the live deletion, then simulate an independent DB and
+        # private-object restore before the next process accepts traffic.
+        from api.road_10k_control import complete_deletion_manifests
+
+        complete_deletion_manifests(
+            [marker],
+            db=db,
+        )
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(b"restored-screenshot")
+        db.add(
+            Feedback(
+                user_id="owner",
+                kind="other",
+                message="restored",
+                image_keys=[key],
+            )
+        )
+        db.commit()
+
+        assert replay_road_10k_deletion_manifests(db) == 1
+        assert db.query(Feedback).filter(Feedback.user_id == "owner").count() == 0
+        assert not object_path.exists()
+
+
+def test_private_manifest_storage_unavailable_fails_closed(
+    monkeypatch,
+):
+    monkeypatch.setattr(feedback_storage, "_use_blob", lambda: True)
+    monkeypatch.setattr(
+        feedback_storage,
+        "_blob_container_client",
+        lambda: None,
+    )
+    with pytest.raises(storage.Road10KDeletionStorageError, match="unavailable"):
+        storage.stage_manifest(
+            owner_id="owner",
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="account_deletion",
+            evaluation_ids=[],
+            screenshot_keys=[],
+            requested_at=datetime.now(timezone.utc),
+        )
+    with pytest.raises(storage.Road10KDeletionStorageError, match="failed"):
+        storage.replay_manifests(
+            delete_object=lambda _key: None,
+            delete_evaluation=lambda _id, _manifest: None,
+        )
+
+
+def test_evaluation_retention_is_creation_based_until_explicit_purge(
+    tmp_path,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api import road_10k_control
+    from db.models import Base, Road10KEvaluation, User
+
+    monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
+    monkeypatch.setattr(
+        road_10k_control,
+        "_authority",
+        lambda lifecycle=True: SimpleNamespace(
+            stage_id="road-10k-controlled-opt-in-v1",
+        ),
+    )
+    monkeypatch.setattr(
+        road_10k_control,
+        "require_road_10k_participation",
+        lambda *args, **kwargs: None,
+    )
+    engine = create_engine(f"sqlite:///{tmp_path / 'retention.db'}")
+    Base.metadata.create_all(engine)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    expired_created = now - timedelta(days=31)
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add_all(
+            [
+                Road10KEvaluation(
+                    id="expired",
+                    user_id="owner",
+                    stage_id="road-10k-controlled-opt-in-v1",
+                    result_code="validation_failed",
+                    payload={"private": "expired"},
+                    created_at=expired_created,
+                    # A caller/restore must not be able to slide this deadline.
+                    expires_at=now + timedelta(days=90),
+                ),
+                Road10KEvaluation(
+                    id="fresh",
+                    user_id="owner",
+                    stage_id="road-10k-controlled-opt-in-v1",
+                    result_code="validation_failed",
+                    payload={"private": "fresh"},
+                    created_at=now,
+                    expires_at=now + timedelta(days=30),
+                ),
+            ]
+        )
+        db.commit()
+
+        exported = road_10k_control.export_owner_records(db, user_id="owner")
+        assert [item["id"] for item in exported["evaluations"]] == ["fresh"]
+
+        # Reads do not rewrite the original creation deadline.
+        expired = db.get(Road10KEvaluation, "expired")
+        assert expired is not None
+        assert expired.expires_at == now + timedelta(days=90)
+
+        assert road_10k_control.purge_expired_evaluations(
+            db,
+            now=now,
+        ) == 1
+        assert db.get(Road10KEvaluation, "expired") is None
+        assert db.get(Road10KEvaluation, "fresh") is not None

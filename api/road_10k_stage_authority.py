@@ -29,6 +29,9 @@ ROAD_10K_CONTROL_SCHEMA_VERSION = 2
 ROAD_10K_COMPILED_INVITATION_CEILING = 60
 ROAD_10K_COMPILED_EXPOSURE_CEILING = 30
 ROAD_10K_MAX_HEARTBEAT_AGE_SECONDS = 300
+ROAD_10K_LIFECYCLE_STATES = frozenset(
+    {"paused", "killed", "hold", "rollback"}
+)
 
 
 class StageAuthorityError(ValueError):
@@ -84,6 +87,34 @@ class Road10KStageAuthority:
             and self.invitation_ceiling <= ROAD_10K_COMPILED_INVITATION_CEILING
             and self.exposure_ceiling <= ROAD_10K_COMPILED_EXPOSURE_CEILING
         )
+
+    @property
+    def lifecycle_status(self) -> str | None:
+        """Return the owner-visible state of a compatible authority.
+
+        ``is_usable`` is intentionally narrower than structural authority
+        validity.  A fresh, contract-compatible pause/kill/hold/rollback must
+        remain visible to an already-authorized owner so the client can render
+        the accepted read-only lifecycle state.  ``off`` and an active
+        authority that is stale, not ready, or provider-fenced remain hidden.
+        """
+        if not self.is_fresh or self.readiness != "ready":
+            return None
+        if self.provider_fence != "closed":
+            return None
+        if self.invitation_ceiling > ROAD_10K_COMPILED_INVITATION_CEILING:
+            return None
+        if self.exposure_ceiling > ROAD_10K_COMPILED_EXPOSURE_CEILING:
+            return None
+        if self.kill or self.state == "killed":
+            return "killed"
+        if self.pause or self.state == "paused":
+            return "paused"
+        if self.state in ROAD_10K_LIFECYCLE_STATES:
+            return self.state
+        if self.is_usable:
+            return "active"
+        return None
 
 
 def _utc(value: Any, field: str) -> datetime:

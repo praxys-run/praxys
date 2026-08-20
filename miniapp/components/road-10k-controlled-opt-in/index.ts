@@ -1,18 +1,20 @@
 import { apiGet, apiPost } from '../../utils/api-client';
 import { t } from '../../utils/i18n';
 import type { Road10KAccessResponse } from '../../types/api';
+import type { Road10KPlanStatus } from '../../types/api';
 
 function buildCopy() {
   return {
     invited: t('Try a Road 10K plan proposal'),
     invitedBody: t('You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.'),
     review: t('Review invitation'),
+    notNow: t('Not now'),
     enrolled: t('Rollout status: Enrolled'),
     hold: t('Rollout status: On hold'),
     paused: t('Rollout status: Paused'),
     stopped: t('Rollout status: Ended'),
     withdrawn: t('Rollout status: Left rollout'),
-    withdrawnBody: t('Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.'),
+    withdrawnBody: t('You left the Road 10K rollout. Your proposal is read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.'),
     removed: t('Your rollout access ended'),
     removedBody: t('Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.'),
     noPlan: t('Plan status: No Road 10K plan'),
@@ -35,10 +37,17 @@ function buildCopy() {
   };
 }
 
+function planStatusLabel(status: Road10KPlanStatus): string {
+  if (status === 'none') return t('Plan status: No Road 10K plan');
+  return t(`Plan status: ${status}`);
+}
+
 Component({
   data: {
     access: null as Road10KAccessResponse | null,
+    planStatusLabel: '',
     visible: false,
+    invitationDismissed: false,
     loading: true,
     flow: 'idle' as 'idle' | 'notice' | 'joining',
     acknowledged: false,
@@ -64,7 +73,11 @@ Component({
         const access = await apiGet<Road10KAccessResponse>('/api/road-10k/access');
         this.setData({
           access,
-          visible: true,
+          planStatusLabel: planStatusLabel(access.plan_status),
+          visible: !(
+            this.data.invitationDismissed
+            && access.rollout_status === 'invited'
+          ),
           loading: false,
           tr: buildCopy(),
           error: '',
@@ -80,13 +93,21 @@ Component({
       this.setData({ flow: 'notice', error: '', acknowledged: false });
     },
 
+    onNotNow() {
+      this.setData({
+        invitationDismissed: true,
+        visible: false,
+        flow: 'idle',
+        error: '',
+      });
+    },
+
     async onJoin() {
       const access = this.data.access as Road10KAccessResponse | null;
       if (!access || this.data.flow === 'joining' || !this.data.acknowledged) return;
       this.setData({ flow: 'joining', error: '' });
       try {
         await apiPost('/api/road-10k/opt-in', {
-          password: undefined,
           notice_digest: access.notice_digest,
           client: 'miniapp',
         });

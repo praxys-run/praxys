@@ -884,7 +884,7 @@ export interface AdaptivePlanGoalSnapshotSummary {
   source_goal_id: string | null;
   source_goal_revision: string | null;
   goal_kind: string;
-  target: Record<string, unknown>;
+  target: object;
   horizon_start: string;
   horizon_end: string;
   acknowledged_at: string | null;
@@ -1251,7 +1251,7 @@ export type Road10KResultCode =
   | 'validation_failed';
 
 export interface Road10KConstraintsRequest {
-  purpose?: PlanGenerationPurposeSelection;
+  purpose?: PlanGenerationPurposeSelection | null;
   adult_confirmed: boolean;
   current_symptom_stop?: boolean;
   available_weekdays: Road10KWeekday[];
@@ -1282,7 +1282,7 @@ export interface Road10KHistoryConfirmationRequest {
   route_or_venue_identifier?: string | null;
   assistance_status: Road10KAssistanceStatus;
   supersedes_confirmation_id?: string | null;
-  purpose?: PlanGenerationPurposeSelection;
+  purpose?: PlanGenerationPurposeSelection | null;
 }
 
 export interface Road10KHistoryStatistics {
@@ -1381,14 +1381,13 @@ export interface Road10KProposalResponse {
 }
 
 export interface Road10KProposalTarget {
-  [key: string]: unknown;
   distance: string;
   criterion: string;
   setting: string;
   target_time_sec: number | null;
   target_event_date: string | null;
   benchmark_date: string | null;
-  event_state: string;
+  event_state: 'confirmed_none' | 'single_target' | 'race_dense';
 }
 
 export interface Road10KProposalGoalSnapshot {
