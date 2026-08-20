@@ -127,7 +127,12 @@ jobs:
 
       - name: Stage Tencent static package
         shell: bash
-        run: tar -C web/dist -czf praxys-web.tgz .
+        run: |
+          mkdir -p tencent-package
+          cp -a web/dist china-dist
+          node web/scripts/stamp-china-compliance.mjs china-dist
+          tar -C china-dist -czf tencent-package/praxys-web.tgz .
+          cp deploy/tencent/nginx-praxys.conf tencent-package/nginx-praxys.conf
 
       - name: Upload Azure package
         uses: actions/upload-artifact@v7
@@ -141,7 +146,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
-          path: praxys-web.tgz
+          path: tencent-package
           if-no-files-found: error
           retention-days: 7
 
@@ -191,6 +196,8 @@ jobs:
           release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           root="/var/www/praxys"
           archive="${GITHUB_WORKSPACE}/china-package/praxys-web.tgz"
+          expected_nginx="${GITHUB_WORKSPACE}/china-package/nginx-praxys.conf"
+          installed_nginx="/etc/nginx/sites-available/praxys"
           release="${root}/releases/${release_id}"
           activated=0
 
@@ -203,6 +210,11 @@ jobs:
           trap cleanup EXIT
 
           test -f "${archive}"
+          test -f "${expected_nginx}"
+          if ! cmp --silent "${expected_nginx}" "${installed_nginx}"; then
+            echo "ERROR: install and reload the reviewed Tencent Nginx config before deploying." >&2
+            exit 1
+          fi
           mkdir -p "${release}"
           tar -xzf "${archive}" -C "${release}"
           test -s "${release}/index.html"
@@ -224,6 +236,26 @@ jobs:
           set -euo pipefail
           deployed_sha="$(cat /var/www/praxys/current/deployed_sha.txt)"
           test "${deployed_sha}" = "${GITHUB_SHA}"
-          curl --fail --silent --show-error --max-time 10 \
-            --header 'Host: www.praxys.run' \
-            http://127.0.0.1/healthz >/dev/null
+          for host in praxys.cn www.praxys.cn; do
+            redirect="$(
+              curl --silent --show-error --max-time 10 \
+                --resolve "${host}:80:127.0.0.1" \
+                --output /dev/null --write-out '%{http_code} %{redirect_url}' \
+                "http://${host}/"
+            )"
+            test "${redirect}" = "308 https://${host}/"
+            curl --fail --silent --show-error --max-time 10 \
+              --resolve "${host}:443:127.0.0.1" \
+              "https://${host}/healthz" >/dev/null
+            curl --fail --silent --show-error --max-time 10 \
+              --resolve "${host}:443:127.0.0.1" \
+              "https://${host}/" \
+              | grep --fixed-strings --quiet '沪ICP备2025109616号-2'
+          done
+          unknown_status="$(
+            curl --insecure --silent --show-error --max-time 10 \
+              --resolve "unknown.invalid:443:127.0.0.1" \
+              --output /dev/null --write-out '%{http_code}' \
+              https://unknown.invalid/ || true
+          )"
+          test "${unknown_status}" = "000"

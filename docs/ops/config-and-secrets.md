@@ -72,6 +72,23 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
 | `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after Nginx and the workflow-restricted `praxys-production` Runner Group are healthy. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
 
+### Tencent public website filing
+
+The approved service filing for `praxys.cn` and `www.praxys.cn` is
+`沪ICP备2025109616号-2`, linked to `https://beian.miit.gov.cn/`. Its code source
+of truth is `web/scripts/stamp-china-compliance.mjs`; the frontend workflow
+applies it only to the Tencent staging copy. This is public regulatory metadata,
+not a secret or mutable Actions variable. Update it only after an approved
+filing change, together with `docs/ops/tencent-frontend.md` and deployment
+verification.
+
+The `.cn` hosts resolve directly to Tencent Lighthouse. They are not a second
+EdgeOne site. The existing `praxys.run` EdgeOne site remains configured for the
+global availability zone excluding the Chinese mainland; its optional mainland
+handoff is an HTTP `302` rule managed in the EdgeOne console. Azure App Service
+CORS must include `https://praxys.cn` and `https://www.praxys.cn`; provisioning
+and rollback commands live in `docs/ops/tencent-frontend.md`.
+
 Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
 numbers. Feedback sync and adjudication compare each stored GitHub URL with the
 current repo and fail closed on a mismatch, exposing the skipped count in Admin
