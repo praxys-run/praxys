@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "policy_version": "agent-invocation-control-v1",
+  "status": "instrument-shadow-only",
+  "default_mode": "instrument",
+  "approved_modes": [
+    "instrument",
+    "shadow"
+  ],
+  "enforcement_approved": false,
+  "ledger_schema_version": 1,
+  "limits": {
+    "maximum_ancestry_depth": 6,
+    "maximum_active_per_contract": 8,
+    "maximum_logical_per_contract": 32,
+    "maximum_attempts_per_logical": 3,
+    "maximum_retries_per_failure_fingerprint": 1,
+    "no_progress_identical_terminals": 2
+  }
+}
