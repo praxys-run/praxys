@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://praxys.run/schemas/road-10k-owner-opt-in-v1.json",
+  "title": "Road 10K owner opt-in receipt",
+  "description": "Schema only. No live rollout, user, or runtime values belong here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capability_id",
+    "schema_version",
+    "policy_version",
+    "decision",
+    "consent_text_version",
+    "client"
+  ],
+  "properties": {
+    "capability_id": {
+      "const": "outdoor_road_10k_performance_v1"
+    },
+    "schema_version": {
+      "const": "road-10k-owner-opt-in-v1"
+    },
+    "policy_version": {
+      "const": "road-10k-plan-generation-policy-v2"
+    },
+    "decision": {
+      "enum": ["granted", "withdrawn"]
+    },
+    "consent_text_version": {
+      "const": "road-10k-owner-consent-v1"
+    },
+    "client": {
+      "enum": ["web", "miniapp"]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    }
+  }
+}

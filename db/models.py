@@ -1968,6 +1968,90 @@ def _reject_road_10k_training_pattern_snapshot_update(
     raise ValueError("road 10K training pattern snapshots are immutable")
 
 
+class Road10KOwnerOptInReceipt(Base):
+    """Append-only owner authorization receipt for the inactive Road 10K pilot.
+
+    This is deliberately not a feature flag or rollout assignment.  Absence
+    (and any malformed or stale receipt) fails closed; a future activation
+    decision must still wire this receipt into the already-inactive capability.
+    """
+
+    __tablename__ = "road_10k_owner_opt_in_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    capability_id = Column(String(80), nullable=False)
+    schema_version = Column(String(80), nullable=False)
+    policy_version = Column(String(80), nullable=False)
+    decision = Column(String(20), nullable=False)
+    consent_text_version = Column(String(80), nullable=False)
+    client = Column(String(20), nullable=False)
+    idempotency_key = Column(String(128), nullable=True)
+    decided_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_road_10k_owner_opt_in_idempotency",
+        ),
+        CheckConstraint(
+            "capability_id = 'outdoor_road_10k_performance_v1'",
+            name="ck_road_10k_owner_opt_in_capability",
+        ),
+        CheckConstraint(
+            "schema_version = 'road-10k-owner-opt-in-v1'",
+            name="ck_road_10k_owner_opt_in_schema",
+        ),
+        CheckConstraint(
+            "policy_version = 'road-10k-plan-generation-policy-v2'",
+            name="ck_road_10k_owner_opt_in_policy",
+        ),
+        CheckConstraint(
+            "decision IN ('granted','withdrawn')",
+            name="ck_road_10k_owner_opt_in_decision",
+        ),
+        CheckConstraint(
+            "client IN ('web','miniapp')",
+            name="ck_road_10k_owner_opt_in_client",
+        ),
+        Index(
+            "ix_road_10k_owner_opt_in_user_decided",
+            "user_id",
+            "decided_at",
+            "id",
+        ),
+    )
+
+
+event.listen(
+    Road10KOwnerOptInReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_owner_opt_in_receipts_immutable "
+        "BEFORE UPDATE ON road_10k_owner_opt_in_receipts "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K opt-in receipts are immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+@event.listens_for(Road10KOwnerOptInReceipt, "before_update")
+def _reject_road_10k_owner_opt_in_receipt_update(
+    _mapper: object,
+    _connection: object,
+    _target: Road10KOwnerOptInReceipt,
+) -> None:
+    raise ValueError("road 10K opt-in receipts are immutable")
+
+
 class Road10KPlanGeneration(Base):
     """Immutable audit record for one deterministic road 10K proposal."""
 
