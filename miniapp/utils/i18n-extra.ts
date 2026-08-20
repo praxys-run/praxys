@@ -228,6 +228,12 @@ const EN_ROAD_10K = {
   'Rollout status: On hold': 'Rollout status: On hold',
   'Rollout status: Paused': 'Rollout status: Paused',
   'Rollout status: Ended': 'Rollout status: Ended',
+  'Rollout status: Left rollout': 'Rollout status: Left rollout',
+  'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
+    'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.',
+  'Your rollout access ended': 'Your rollout access ended',
+  'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.':
+    'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.',
   'Join rollout': 'Join rollout',
   'Join the Road 10K rollout?': 'Join the Road 10K rollout?',
   'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
@@ -723,6 +729,12 @@ const ZH_ROAD_10K = {
   'Rollout status: On hold': '试点状态：审核中',
   'Rollout status: Paused': '试点状态：已暂停',
   'Rollout status: Ended': '试点状态：已结束',
+  'Rollout status: Left rollout': '试点状态：已退出',
+  'Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.':
+    '你的提案将变为只读，无法采纳或重新生成。任何已采纳计划都会保留在训练中，不会暂停或结束。你仍可导出数据或删除账号。试点数据按当前说明处理。',
+  'Your rollout access ended': '你的试点访问权限已结束',
+  'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.':
+    '如有提案，它现在仅作为只读记录，无法采纳或重新生成。已采纳的计划保持不变，仍可在训练中管理。',
   'Join rollout': '加入试点',
   'Join the Road 10K rollout?': '加入公路 10K 试点？',
   'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':

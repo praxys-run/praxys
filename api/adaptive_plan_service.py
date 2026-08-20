@@ -974,6 +974,14 @@ def read_current_proposal(db: Session, *, user_id: str) -> dict[str, Any] | None
         return None
     if _proposal_expired(proposal, now=datetime.utcnow()):
         return None
+    try:
+        _require_road_10k_proposal_read_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
+    except AdaptivePlanError:
+        return None
     return _proposal_to_dict(db, proposal)
 
 
@@ -990,7 +998,44 @@ def read_proposal(
             PlanProposal.id == proposal_id,
         )
     ).scalar_one_or_none()
-    return _proposal_to_dict(db, proposal) if proposal is not None else None
+    if proposal is None:
+        return None
+    try:
+        _require_road_10k_proposal_read_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
+    except AdaptivePlanError:
+        return None
+    return _proposal_to_dict(db, proposal)
+
+
+def _require_road_10k_proposal_read_gate(
+    db: Session,
+    *,
+    user_id: str,
+    proposal: PlanProposal,
+) -> None:
+    """Keep generic proposal reads behind the current Road 10K owner gate."""
+    if proposal.policy_version != "road-10k-plan-generation-policy-v2":
+        return
+    from api.road_10k_control import require_road_10k_gate
+
+    try:
+        require_road_10k_gate(
+            db,
+            user_id=user_id,
+            expose=False,
+            allow_lifecycle=True,
+            allow_withdrawn=True,
+        )
+    except Exception as exc:
+        raise AdaptivePlanError(
+            404,
+            "PLAN_PROPOSAL_NOT_FOUND",
+            "No active plan proposal exists.",
+        ) from exc
 
 
 def create_successor_proposal(
@@ -1577,6 +1622,21 @@ def adopt_proposal(
         ).scalar_one_or_none()
         if proposal is None:
             raise AdaptivePlanError(404, "PLAN_PROPOSAL_NOT_FOUND", "Plan proposal not found.")
+        if proposal.policy_version == "road-10k-plan-generation-policy-v2":
+            from api.road_10k_control import require_road_10k_gate
+
+            try:
+                require_road_10k_gate(
+                    db,
+                    user_id=user_id,
+                    expose=False,
+                )
+            except Exception as exc:
+                raise AdaptivePlanError(
+                    404,
+                    "PLAN_PROPOSAL_NOT_FOUND",
+                    "Plan proposal not found.",
+                ) from exc
         if proposal.state == "adopted":
             if proposal.decision_idempotency_key != idempotency_key:
                 raise AdaptivePlanError(409, "PLAN_PROPOSAL_ALREADY_ADOPTED", "The proposal was adopted with a different idempotency key.")

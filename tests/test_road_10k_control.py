@@ -131,12 +131,37 @@ def test_caps_deny_without_slot_reuse(tmp_path, monkeypatch):
     assert db.query(Road10KStageCounter).one().invitation_slots_consumed == 60
 
 
+def test_uninvited_authorization_and_enrollment_do_not_create_counter(
+    tmp_path, monkeypatch
+):
+    db = _db(tmp_path)
+    _owner(db, "uninvited")
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
+    authority = _authority()
+
+    with pytest.raises(Road10KControlDenied, match="enrollment_required"):
+        authorize_first_exposure(db, user_id="uninvited")
+    with pytest.raises(Road10KControlDenied, match="invitation_required"):
+        enroll_owner(
+            db,
+            user_id="uninvited",
+            notice_digest=authority.notice_digest,
+        )
+
+    assert db.query(Road10KStageCounter).count() == 0
+
+
 def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
     tmp_path, monkeypatch
 ):
     data_dir = tmp_path / "data"
     monkeypatch.setattr("db.session.get_data_dir", lambda: str(data_dir))
     db = _db(tmp_path)
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        _MemoryManifestStore(),
+    )
     _owner(db, "owner-withdraw")
     monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
     authority = _authority()
@@ -152,6 +177,49 @@ def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
     withdrawn = withdraw_owner(db, user_id="owner-withdraw")
     assert withdrawn.state == "withdrawn"
     assert db.query(Road10KStageCounter).one().distinct_exposed_owners_consumed == 1
+
+
+class _MemoryManifestStore:
+    def __init__(self):
+        self.items: dict[str, bytes] = {}
+
+    def put(self, key: str, payload: bytes) -> None:
+        self.items[key] = payload
+
+    def iter(self, prefix: str):
+        for key, payload in list(self.items.items()):
+            if key.startswith(prefix):
+                yield key, payload
+
+    def delete(self, key: str) -> None:
+        self.items.pop(key, None)
+
+
+def test_runtime_snapshot_with_authority_present_is_low_cardinality(
+    tmp_path, monkeypatch
+):
+    db = _db(tmp_path)
+    authority = _authority()
+    db.add(
+        Road10KStageCounter(
+            stage_id=authority.stage_id,
+            schema_version=2,
+            capability_id=authority.capability_id,
+            invitation_ceiling=authority.invitation_ceiling,
+            exposure_ceiling=authority.exposure_ceiling,
+        )
+    )
+    db.commit()
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: authority)
+    monkeypatch.setattr(road_10k_control, "replay_status", lambda: "ready")
+
+    snapshot = road_10k_control.road_10k_runtime_snapshot(db)
+
+    assert snapshot["authority"] == "allowed"
+    assert snapshot["stage"] == authority.stage_id
+    assert snapshot["invitation_slots_consumed"] == 0
+    assert snapshot["distinct_exposed_owners_consumed"] == 0
+    assert snapshot["ready"] is True
 
 
 def test_screenshot_upload_is_unavailable():

@@ -66,6 +66,8 @@ def evaluate_boundary(
         lifecycle
         and authority.state in {"active", "paused", "killed", "hold", "rollback"}
         and authority.is_fresh
+        and authority.readiness == "ready"
+        and authority.provider_fence == "closed"
     )
     allowed = usable or lifecycle_allowed
     read_only = authority.state in {

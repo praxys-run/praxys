@@ -175,6 +175,7 @@ async def _road_10k_private_no_store(request, call_next):
     if (
         request.url.path.startswith("/api/road-10k")
         or request.url.path.startswith("/api/plan/road-10k")
+        or request.url.path == "/api/plan/generation/capabilities"
     ):
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["Pragma"] = "no-cache"

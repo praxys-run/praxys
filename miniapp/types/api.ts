@@ -285,7 +285,7 @@ export interface Road10KActionResponse {
 export interface Road10KExportResponse {
   stage_id: string;
   receipt: {
-    state: string;
+    state: 'invited_only' | 'enrolled_unexposed' | 'exposed' | 'withdrawn' | 'deleted';
     invitation_issued_at: string;
     enrolled_at: string | null;
     first_exposed_at: string | null;
@@ -293,7 +293,7 @@ export interface Road10KExportResponse {
   evaluations: Array<{
     id: string;
     stage_id: string;
-    result_code: string;
+    result_code: Road10KResultCode;
     payload: Record<string, unknown>;
     created_at: string;
     expires_at: string;
@@ -1378,9 +1378,66 @@ export interface Road10KProposalResponse {
   history_cutoff_completed_days: number;
   template_ids: string[];
   result: Road10KOutcomeResponse;
-  proposal: AdaptivePlanProposal | null;
+  proposal: Road10KProposal | null;
   replayed: boolean;
   reassessment_dates: string[];
+}
+
+export interface Road10KProposalTarget {
+  [key: string]: unknown;
+  distance: string;
+  criterion: string;
+  setting: string;
+  target_time_sec: number | null;
+  target_event_date: string | null;
+  benchmark_date: string | null;
+  event_state: string;
+}
+
+export interface Road10KProposalGoalSnapshot {
+  id: string;
+  version: number;
+  state: 'draft' | 'active' | 'superseded';
+  purpose_source: PlanGenerationPurposeSource;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
+  goal_kind: string;
+  target: Road10KProposalTarget;
+  horizon_start: string;
+  horizon_end: string;
+  acknowledged_at: string | null;
+}
+
+export interface Road10KProposalWorkout extends AdaptivePlanProposalWorkout {
+  canonical_id: string;
+  activity_type: 'running';
+}
+
+export interface Road10KProposal {
+  id: string;
+  adaptive_plan_id: string;
+  goal_snapshot_id: string;
+  discipline: 'running';
+  version: number;
+  state: 'draft' | 'superseded' | 'rejected' | 'adopted' | 'expired';
+  base_plan_version: number;
+  supersedes_proposal_id: string | null;
+  origin: string;
+  actor_type: 'user' | 'agent' | 'system';
+  actor_id: string | null;
+  policy_version: string | null;
+  model_version: string | null;
+  science_version: string | null;
+  assumptions: unknown[];
+  unknowns: unknown[];
+  warnings: unknown[];
+  alternatives: unknown[];
+  expires_at: string | null;
+  created_at: string | null;
+  decided_at: string | null;
+  workouts: Road10KProposalWorkout[];
+  adaptive_plan: AdaptivePlanSummary | null;
+  goal: Road10KProposalGoalSnapshot | null;
 }
 
 export type Road10KGenerateResponse =

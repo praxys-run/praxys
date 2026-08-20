@@ -18,6 +18,16 @@
       <text>{{tr.screenshot}}</text>
     </view>
   </block>
+  <block wx:elif="{{access.rollout_status === 'withdrawn'}}">
+    <text class="road-10k-eyebrow">{{tr.withdrawn}}</text>
+    <text class="road-10k-title">{{tr.withdrawn}}</text>
+    <text class="road-10k-body">{{tr.withdrawnBody}}</text>
+  </block>
+  <block wx:elif="{{access.rollout_status === 'removed'}}">
+    <text class="road-10k-eyebrow">{{tr.removed}}</text>
+    <text class="road-10k-title">{{tr.removed}}</text>
+    <text class="road-10k-body">{{tr.removedBody}}</text>
+  </block>
   <block wx:else>
     <text class="road-10k-eyebrow">{{access.rollout_status === 'hold' ? tr.hold : access.rollout_status === 'paused' ? tr.paused : tr.stopped}}</text>
     <text class="road-10k-title">{{tr.noPlan}}</text>

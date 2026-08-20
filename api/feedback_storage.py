@@ -62,6 +62,9 @@ MAX_IMAGE_COUNT = 3
 # validate against this shape so a malformed/tampered key can never escape the
 # container/dir (path traversal) or read an arbitrary file.
 _KEY_RE = re.compile(r"^feedback/\d+/\d+\.(png|jpg|jpeg|webp)$")
+_ROAD_10K_KEY_RE = re.compile(
+    r"^road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)$"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +292,87 @@ def load_image(key: str) -> tuple[bytes, str] | None:
             return fh.read(), content_type
     except OSError:
         return None
+
+
+def delete_private_object(key: str) -> None:
+    """Delete one private feedback or Road 10K object, including variants.
+
+    The caller supplies only a server-created reference.  A configured blob
+    backend is fail-closed: an unavailable client never falls through to a
+    local path that could make a deletion look successful.  Local files remain
+    available for the existing development feedback backend and explicit
+    repository tests.
+    """
+    if not (_KEY_RE.fullmatch(key) or _ROAD_10K_KEY_RE.fullmatch(key)):
+        raise ValueError("invalid private screenshot object key")
+
+    if _use_blob():
+        client = _blob_container_client()
+        if client is None:
+            raise OSError("private blob storage unavailable")
+        _delete_blob_variants(client, key)
+        return
+
+    path = os.path.join(_local_dir(), *key.split("/"))
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        raise
+
+
+def _delete_blob_variants(client, key: str) -> None:
+    """Delete the base object and any provider-reported snapshots/versions."""
+    blob = client.get_blob_client(key)
+    try:
+        try:
+            blob.delete_blob(delete_snapshots=True)
+        except TypeError:
+            blob.delete_blob()
+    except Exception as exc:
+        if not _is_not_found(exc):
+            raise
+
+    # Azure versioning exposes immutable versions through list_blobs.  Fakes
+    # and other private-store adapters may expose list_blob_versions instead;
+    # support either without requiring credentials in local tests.
+    listed = []
+    list_versions = getattr(client, "list_blob_versions", None)
+    if callable(list_versions):
+        listed = list(list_versions(name=key))
+    else:
+        list_blobs = getattr(client, "list_blobs", None)
+        if callable(list_blobs):
+            try:
+                listed = list(list_blobs(name_starts_with=key, include=["versions", "snapshots"]))
+            except TypeError:
+                listed = list(list_blobs(name_starts_with=key))
+
+    for item in listed:
+        version_id = getattr(item, "version_id", None)
+        snapshot = getattr(item, "snapshot", None)
+        if version_id is None and isinstance(item, dict):
+            version_id = item.get("version_id")
+            snapshot = item.get("snapshot")
+        if version_id is None and snapshot is None:
+            continue
+        kwargs = {}
+        if version_id is not None:
+            kwargs["version_id"] = version_id
+        else:
+            kwargs["snapshot"] = snapshot
+        variant = client.get_blob_client(key, **kwargs)
+        try:
+            variant.delete_blob()
+        except Exception as exc:
+            if not _is_not_found(exc):
+                raise
+
+
+def _is_not_found(exc: Exception) -> bool:
+    text = str(exc).casefold()
+    return "not found" in text or "resourcenotfound" in text or "404" in text
 
 
 def _blob_content_settings(content_type: str | None):

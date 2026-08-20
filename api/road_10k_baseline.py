@@ -195,6 +195,9 @@ def confirm_road_10k_history_candidate(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Persist one owner-scoped 10K history confirmation."""
+    from api.road_10k_control import require_road_10k_gate
+
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     timestamp = _utc_naive(now or datetime.utcnow())
     payload = {
         "activity_id": activity_id,

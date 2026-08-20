@@ -124,7 +124,7 @@ export default function Road10KControlledOptIn() {
             <Button onClick={() => setFlow('reauth')}>
               {copy('action.review_invitation')} <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button variant="ghost" onClick={() => setFlow('withdrawn')}>
+            <Button variant="ghost" onClick={() => setFlow('idle')}>
               {copy('action.not_now')}
             </Button>
           </CardContent>

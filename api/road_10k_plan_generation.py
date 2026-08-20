@@ -63,6 +63,7 @@ from api.road_10k_baseline import (
     build_road_10k_baseline_view,
     resolve_road_10k_baseline_snapshot_id,
 )
+from api.road_10k_control import require_road_10k_gate
 from db.models import (
     AdaptivePlanGoalSnapshot,
     PlanProposal,
@@ -111,6 +112,7 @@ def build_road_10k_readiness(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the typed road 10K readiness envelope without persisting."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
@@ -133,6 +135,7 @@ def build_road_10k_alternatives(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return bounded alternatives for the exact current road 10K readiness."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
@@ -160,6 +163,7 @@ def generate_road_10k_proposal(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Persist one valid immutable proposal or return a typed no-plan result."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     request_fingerprint = _request_fingerprint(
         request_kind="generate",
         expected_source_revision=expected_source_revision,
@@ -307,6 +311,7 @@ def regenerate_road_10k_proposal(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Create one bounded immutable successor after an exact source revision."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     request_fingerprint = _request_fingerprint(
         request_kind="regenerate",
         expected_source_revision=expected_source_revision,
@@ -493,6 +498,14 @@ def validate_road_10k_proposal_adoption(
     proposal: PlanProposal,
 ) -> None:
     """Revalidate a generated proposal before canonical adoption."""
+    try:
+        require_road_10k_gate(db, user_id=user_id, expose=False)
+    except Exception as exc:
+        raise AdaptivePlanError(
+            404,
+            "ROAD_10K_PROPOSAL_NOT_AVAILABLE",
+            "The road 10K proposal is not available under the current rollout.",
+        ) from exc
     audit = _generation_for_proposal(db, user_id=user_id, proposal_id=proposal.id)
     if audit is None:
         raise AdaptivePlanError(

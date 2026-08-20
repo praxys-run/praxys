@@ -6,7 +6,7 @@ independently issued stage authority every response is the accepted hidden
 """
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -16,19 +16,54 @@ from sqlalchemy.orm import Session
 
 from api.auth import get_authenticated_identity
 from api.road_10k_control import (
+    Road10KControlError,
     Road10KControlConflict,
     Road10KControlDenied,
     Road10KControlUnavailable,
     Road10KDeletionFailed,
     enroll_owner,
     export_owner_records,
+    require_road_10k_participation,
     withdraw_owner,
 )
 from api.road_10k_stage_authority import load_stage_authority
-from db.models import Road10KOwnerStageReceipt
+from db.models import AdaptivePlan, PlanProposal, Road10KOwnerStageReceipt
 from db.session import get_db
 
-router = APIRouter(prefix="/road-10k", tags=["road-10k"])
+_PRIVATE_HEADERS = {
+    "Cache-Control": "private, no-store",
+    "Pragma": "no-cache",
+    "Vary": "Authorization",
+}
+
+
+def _require_surface() -> None:
+    """Keep dormant or stale authority hidden before authentication runs."""
+    authority = load_stage_authority()
+    if (
+        authority is None
+        or authority.stage_id != "road-10k-controlled-opt-in-v1"
+        or not authority.is_fresh
+        or authority.state == "off"
+        or authority.readiness != "ready"
+        or authority.provider_fence != "closed"
+        or (
+            authority.state == "active"
+            and not authority.is_usable
+        )
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+            headers=_PRIVATE_HEADERS,
+        )
+
+
+router = APIRouter(
+    prefix="/road-10k",
+    tags=["road-10k"],
+    dependencies=[Depends(_require_surface)],
+)
 _password_helper = PasswordHelper()
 
 
@@ -43,6 +78,8 @@ class Road10KOptInRequest(BaseModel):
     def require_client_reauthentication(self) -> "Road10KOptInRequest":
         if self.client == "web" and self.password is None:
             raise ValueError("web reauthentication requires password")
+        if self.client == "miniapp" and "password" in self.model_fields_set:
+            raise ValueError("miniapp reauthentication must omit password")
         return self
 
 
@@ -59,8 +96,40 @@ class Road10KStatusResponse(BaseModel):
 class Road10KAccessResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    rollout_status: Literal["invited", "enrolled", "withdrawn", "removed"]
-    plan_status: Literal["none"]
+    rollout_status: Literal[
+        "invited",
+        "reauth-required",
+        "notice-unavailable",
+        "enrolled",
+        "enrollment-closed",
+        "hold",
+        "withdrawn",
+        "removed",
+        "paused",
+        "killed",
+        "rollback",
+        "stopped",
+        "revision",
+    ]
+    plan_status: Literal[
+        "none",
+        "checking",
+        "baseline-required",
+        "limited-guidance",
+        "safety-stop",
+        "generating",
+        "generation-failed",
+        "proposal-ready",
+        "review-later",
+        "rejected",
+        "successor-requested",
+        "expired",
+        "active",
+        "paused-by-owner",
+        "ended-by-owner",
+        "completed",
+        "deleted",
+    ]
     stage_id: str
     notice_digest: str
     screenshot_available: Literal[False]
@@ -80,8 +149,21 @@ class Road10KEvaluationExport(BaseModel):
 
     id: str
     stage_id: str
-    result_code: str
-    payload: dict[str, Any]
+    result_code: Literal[
+        "eligible_rolling_proposal",
+        "eligible_taper_proposal",
+        "missing_or_stale_direct_baseline",
+        "insufficient_recent_history",
+        "limited_guidance_event_conflict",
+        "limited_near_term_guidance",
+        "safety_stop",
+        "adult_scope_or_constraints_unconfirmed",
+        "contradictory_input",
+        "unsupported_intent_distance_surface_or_population",
+        "no_schedule_within_envelope",
+        "validation_failed",
+    ]
+    payload: dict[str, object]
     created_at: str
     expires_at: str
 
@@ -89,7 +171,13 @@ class Road10KEvaluationExport(BaseModel):
 class Road10KExportReceipt(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    state: str
+    state: Literal[
+        "invited_only",
+        "enrolled_unexposed",
+        "exposed",
+        "withdrawn",
+        "deleted",
+    ]
     invitation_issued_at: str
     enrolled_at: str | None
     first_exposed_at: str | None
@@ -110,15 +198,10 @@ def _private(response: Response) -> None:
 
 
 def _hidden(response: Response) -> JSONResponse:
-    headers = {
-        "Cache-Control": "private, no-store",
-        "Pragma": "no-cache",
-        "Vary": "Authorization",
-    }
     return JSONResponse(
         status_code=404,
         content={"detail": "Not found"},
-        headers=headers,
+        headers=_PRIVATE_HEADERS,
     )
 
 
@@ -131,6 +214,35 @@ def _owner(request: Request, db: Session) -> str:
     ):
         raise HTTPException(403, "First-party authentication required")
     return identity.user_id
+
+
+def _plan_status(db: Session, *, user_id: str) -> str:
+    """Project the actual Road 10K proposal/canonical plan state."""
+    proposals = (
+        db.query(PlanProposal)
+        .filter(
+            PlanProposal.user_id == user_id,
+            PlanProposal.policy_version == "road-10k-plan-generation-policy-v2",
+        )
+        .order_by(PlanProposal.created_at.desc(), PlanProposal.version.desc())
+        .all()
+    )
+    for proposal in proposals:
+        if proposal.state == "adopted":
+            plan = db.get(AdaptivePlan, proposal.adaptive_plan_id)
+            return {
+                "active": "active",
+                "completed": "completed",
+                "archived": "ended-by-owner",
+                "draft": "active",
+            }.get(plan.lifecycle if plan is not None else "active", "active")
+        if proposal.state == "draft":
+            return "proposal-ready"
+        if proposal.state == "expired":
+            return "expired"
+        if proposal.state == "rejected":
+            return "rejected"
+    return "none"
 
 
 def _control_error(exc: Exception) -> HTTPException:
@@ -178,18 +290,26 @@ def get_access(
     ):
         return _hidden(response)
     _private(response)
-    rollout_status = {
-        "invited_only": "invited",
-        "enrolled_unexposed": "enrolled",
-        "exposed": "enrolled",
-        "withdrawn": "withdrawn",
-        "deleted": "removed",
-    }.get(receipt.state)
+    if authority.state != "active":
+        rollout_status = {
+            "paused": "paused",
+            "killed": "killed",
+            "hold": "hold",
+            "rollback": "rollback",
+        }.get(authority.state)
+    else:
+        rollout_status = {
+            "invited_only": "invited",
+            "enrolled_unexposed": "enrolled",
+            "exposed": "enrolled",
+            "withdrawn": "withdrawn",
+            "deleted": "removed",
+        }.get(receipt.state)
     if rollout_status is None:
         return _hidden(response)
     return {
         "rollout_status": rollout_status,
-        "plan_status": "none",
+        "plan_status": _plan_status(db, user_id=user_id),
         "stage_id": authority.stage_id,
         "notice_digest": authority.notice_digest,
         "screenshot_available": False,
@@ -208,6 +328,13 @@ def opt_in(
     authority = load_stage_authority()
     if authority is None or not authority.is_usable:
         return _hidden(response)
+    try:
+        require_road_10k_participation(
+            db,
+            user_id=user_id,
+        )
+    except Road10KControlError as exc:
+        raise _control_error(exc) from exc
     # Fetching the native user is deliberately separate from the control
     # receipt; the client can never select an owner through the request body.
     from db.models import User
@@ -249,6 +376,15 @@ def withdraw(
 ):
     """Withdraw the current owner without changing cumulative accounting."""
     user_id = _owner(request, db)
+    try:
+        require_road_10k_participation(
+            db,
+            user_id=user_id,
+            allow_withdrawn=True,
+            lifecycle=True,
+        )
+    except Road10KControlError as exc:
+        raise _control_error(exc) from exc
     try:
         receipt = withdraw_owner(db, user_id=user_id)
     except Exception as exc:

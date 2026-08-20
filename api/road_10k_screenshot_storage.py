@@ -6,8 +6,6 @@ so a future verified storage reference can be removed safely.
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from uuid import UUID
 
 from api import feedback_storage
@@ -23,16 +21,16 @@ def screenshot_capture_available() -> bool:
 
 def _validate_key(object_key: str) -> str:
     parts = object_key.split("/")
-    if len(parts) != 3 or parts[0] != "road-10k" or parts[1] != "screenshots":
-        raise ValueError("invalid Road 10K screenshot object key")
-    UUID(parts[2].split(".", 1)[0])
-    if "." not in parts[2] or parts[2].rsplit(".", 1)[1] not in {
-        "png",
-        "jpg",
-        "webp",
-    }:
-        raise ValueError("invalid Road 10K screenshot object key")
-    return object_key
+    if len(parts) == 3 and parts[0] == "road-10k" and parts[1] == "screenshots":
+        UUID(parts[2].split(".", 1)[0])
+        if "." not in parts[2] or parts[2].rsplit(".", 1)[1] not in {
+            "png",
+            "jpg",
+            "webp",
+        }:
+            raise ValueError("invalid Road 10K screenshot object key")
+        return object_key
+    raise ValueError("invalid Road 10K screenshot object key")
 
 
 def store_screenshot(*_args: object, **_kwargs: object) -> str:
@@ -45,35 +43,23 @@ def store_screenshot(*_args: object, **_kwargs: object) -> str:
 def delete_object(object_key: str) -> None:
     """Idempotently delete a previously referenced private object."""
     key = _validate_key(object_key)
-    if feedback_storage.private_blob_enabled():
-        client = feedback_storage.private_container_client()
-        if client is None:
-            raise Road10KScreenshotUnavailable("private screenshot storage unavailable")
-        try:
-            blob = client.get_blob_client(key)
-            try:
-                # Azure requires the snapshot flag to remove snapshots with
-                # the base object. Versioned containers retain no separately
-                # addressable Road 10K key; the provider's delete operation
-                # removes all versions for this private reference.
-                try:
-                    blob.delete_blob(delete_snapshots=True)
-                except TypeError:
-                    blob.delete_blob()
-            except Exception as exc:
-                if "not found" not in str(exc).lower() and "resourceNotFound" not in str(exc):
-                    raise
-        except Exception as exc:
-            raise Road10KScreenshotUnavailable(
-                "private screenshot deletion failed"
-            ) from exc
-        return
-    from db.session import get_data_dir
+    _delete_private(key)
 
-    path = Path(get_data_dir()) / "feedback_images" / key
+
+def delete_manifest_object(object_key: str) -> None:
+    """Delete a Road 10K or owner-scoped feedback object during replay."""
+    key = object_key
+    if key.startswith("road-10k/"):
+        key = _validate_key(key)
+    elif not key.startswith("feedback/"):
+        raise ValueError("invalid private screenshot object key")
+    _delete_private(key)
+
+
+def _delete_private(key: str) -> None:
     try:
-        path.unlink(missing_ok=True)
-    except OSError as exc:
+        feedback_storage.delete_private_object(key)
+    except (OSError, ValueError) as exc:
         raise Road10KScreenshotUnavailable(
             "private screenshot deletion failed"
         ) from exc

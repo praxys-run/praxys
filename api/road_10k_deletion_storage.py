@@ -8,9 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
-import os
-from pathlib import Path
-from typing import Callable, Iterator, Mapping
+from typing import Callable, Iterator, Mapping, Protocol
 from uuid import UUID, uuid4
 
 from api import feedback_storage
@@ -22,6 +20,16 @@ _last_replay_status = "not_run"
 
 class Road10KDeletionStorageError(RuntimeError):
     """A marker could not be staged, replayed, or completed."""
+
+
+class Road10KDeletionManifestStore(Protocol):
+    """Private object-store seam used by production and explicit test stores."""
+
+    def put(self, key: str, payload: bytes) -> None: ...
+
+    def iter(self, prefix: str) -> Iterator[tuple[str, bytes]]: ...
+
+    def delete(self, key: str) -> None: ...
 
 
 def _utc(value: datetime) -> datetime:
@@ -39,14 +47,17 @@ def _job_id(value: str | None) -> str:
         raise Road10KDeletionStorageError("invalid deletion marker id") from exc
 
 
-def _local_dir() -> Path:
-    from db.session import get_data_dir
-
-    return Path(get_data_dir()) / "road_10k_deletion_manifests"
-
-
 def _key(job_id: str) -> str:
     return f"{_PREFIX}/{job_id}.json"
+
+
+_test_store: Road10KDeletionManifestStore | None = None
+
+
+def set_test_store(store: Road10KDeletionManifestStore | None) -> None:
+    """Install an explicit independent store for repository-only tests."""
+    global _test_store
+    _test_store = store
 
 
 def _validate_manifest(manifest: Mapping[str, object]) -> None:
@@ -108,17 +119,11 @@ def _store(manifest: Mapping[str, object]) -> None:
             raise Road10KDeletionStorageError(
                 "could not persist Road 10K deletion marker"
             ) from exc
-    path = _local_dir() / f"{manifest['job_id']}.json"
-    temporary = path.with_name(f"{path.name}.{uuid4().hex}.tmp")
+    if _test_store is None:
+        raise Road10KDeletionStorageError("private marker storage unavailable")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary.write_bytes(payload)
-        os.replace(temporary, path)
-    except OSError as exc:
-        try:
-            temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
+        _test_store.put(key, payload)
+    except Exception as exc:
         raise Road10KDeletionStorageError(
             "could not persist Road 10K deletion marker"
         ) from exc
@@ -196,23 +201,21 @@ def iter_active(now: datetime | None = None) -> Iterator[dict[str, object]]:
                 "could not enumerate Road 10K deletion markers"
             ) from exc
         return
-    root = _local_dir()
-    if not root.exists():
-        return
+    if _test_store is None:
+        raise Road10KDeletionStorageError("private marker storage unavailable")
     try:
-        paths = list(root.glob("*.json"))
-        for path in paths:
-            value = _decode(path.read_bytes())
+        for key, raw in _test_store.iter(_PREFIX + "/"):
+            value = _decode(raw)
             requested = datetime.fromisoformat(
                 str(value["requested_at"]).replace("Z", "+00:00")
             )
             if requested >= cutoff:
                 yield value
             else:
-                path.unlink(missing_ok=True)
+                _test_store.delete(key)
     except Road10KDeletionStorageError:
         raise
-    except OSError as exc:
+    except Exception as exc:
         raise Road10KDeletionStorageError(
             "could not enumerate Road 10K deletion markers"
         ) from exc

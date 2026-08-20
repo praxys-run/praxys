@@ -23,13 +23,14 @@ from api.road_10k_deletion_storage import (
     replay_status,
     stage_manifest,
 )
-from api.road_10k_screenshot_storage import delete_object
+from api.road_10k_screenshot_storage import delete_manifest_object
 from api.road_10k_stage_authority import (
     Road10KStageAuthority,
     authority_denial_reason,
     load_stage_authority,
 )
 from db.models import (
+    Feedback,
     Road10KEvaluation,
     Road10KExposureReceipt,
     Road10KOwnerStageReceipt,
@@ -95,6 +96,8 @@ def _authority(*, lifecycle: bool = False) -> Road10KStageAuthority:
         lifecycle
         and authority.state in {"active", "paused", "killed", "hold", "rollback"}
         and authority.is_fresh
+        and authority.readiness == "ready"
+        and authority.provider_fence == "closed"
     ):
         raise Road10KControlUnavailable(
             authority_denial_reason(authority)
@@ -280,6 +283,16 @@ def enroll_owner(
     authority = _authority()
     if notice_digest != authority.notice_digest:
         raise Road10KControlUnavailable("notice_mismatch")
+    preflight = _receipt(
+        db,
+        user_id=user_id,
+        stage_id=authority.stage_id,
+        lock=False,
+    )
+    if preflight is None:
+        raise Road10KControlDenied("invitation_required")
+    if preflight.state in {"withdrawn", "deleted"}:
+        raise Road10KControlDenied("same_stage_reenrollment_denied")
     db.rollback()
     _begin_control_write(db)
     try:
@@ -320,6 +333,23 @@ def authorize_first_exposure(
 ) -> Road10KExposureReceipt:
     """Commit the first exposure receipt before a result can be serialized."""
     authority = _authority()
+    if not isinstance(user_id, str) or not user_id:
+        raise Road10KControlDenied("owner_required")
+    preflight_user = db.query(User).filter(User.id == user_id).first()
+    preflight_receipt = _receipt(
+        db,
+        user_id=user_id,
+        stage_id=authority.stage_id,
+        lock=False,
+    )
+    if (
+        preflight_user is None
+        or not preflight_user.is_active
+        or preflight_user.is_demo
+        or preflight_receipt is None
+        or preflight_receipt.state not in {"enrolled_unexposed", "exposed"}
+    ):
+        raise Road10KControlDenied("enrollment_required")
     db.rollback()
     _begin_control_write(db)
     try:
@@ -374,6 +404,91 @@ def authorize_first_exposure(
     except Exception:
         db.rollback()
         raise
+
+
+def require_road_10k_gate(
+    db: Session,
+    *,
+    user_id: str,
+    expose: bool,
+    allow_lifecycle: bool = False,
+    allow_withdrawn: bool = False,
+) -> Road10KStageAuthority:
+    """Apply the shared owner/authority gate before a Road 10K service read.
+
+    New readiness/result requests use ``expose=True`` so the serialized
+    exposure receipt and cap counter commit before any policy data is read.
+    Adoption revalidation uses ``expose=False`` inside the existing plan
+    transaction and therefore only accepts an already-exposed owner.
+    """
+    authority = _authority(lifecycle=allow_lifecycle)
+    if expose:
+        authorize_first_exposure(db, user_id=user_id)
+        return authority
+    if not isinstance(user_id, str) or not user_id:
+        raise Road10KControlDenied("owner_required")
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active or user.is_demo:
+        raise Road10KControlDenied("first_party_owner_required")
+    receipt = _receipt(
+        db,
+        user_id=user_id,
+        stage_id=authority.stage_id,
+        lock=False,
+    )
+    if (
+        receipt is None
+        or receipt.state
+        not in ({"exposed", "withdrawn"} if allow_withdrawn else {"exposed"})
+        or receipt.authority_digest != authority.authority_digest
+    ):
+        raise Road10KControlDenied("road_10k_exposure_required")
+    exposure = (
+        db.query(Road10KExposureReceipt)
+        .filter(
+            Road10KExposureReceipt.stage_id == authority.stage_id,
+            Road10KExposureReceipt.user_id == user_id,
+        )
+        .first()
+    )
+    if exposure is None or exposure.authority_digest != authority.authority_digest:
+        raise Road10KControlDenied("road_10k_exposure_required")
+    counter = _counter(db, authority, create=False)
+    if counter.distinct_exposed_owners_consumed > authority.exposure_ceiling:
+        raise Road10KControlUnavailable("exposure_cap_mismatch")
+    return authority
+
+
+def require_road_10k_participation(
+    db: Session,
+    *,
+    user_id: str,
+    allow_withdrawn: bool = False,
+    lifecycle: bool = False,
+) -> Road10KStageAuthority:
+    """Check owner participation without creating an exposure receipt."""
+    authority = _authority(lifecycle=lifecycle)
+    if not isinstance(user_id, str) or not user_id:
+        raise Road10KControlDenied("owner_required")
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active or user.is_demo:
+        raise Road10KControlDenied("first_party_owner_required")
+    states = {"invited_only", "enrolled_unexposed", "exposed"}
+    if allow_withdrawn:
+        states.add("withdrawn")
+    receipt = _receipt(
+        db,
+        user_id=user_id,
+        stage_id=authority.stage_id,
+        lock=False,
+    )
+    if (
+        receipt is None
+        or receipt.state not in states
+        or receipt.authority_digest != authority.authority_digest
+    ):
+        raise Road10KControlDenied("participation_required")
+    return authority
 
 
 def record_result(
@@ -450,6 +565,7 @@ def _owner_deletion_manifest(
     reason: str,
     now: datetime,
     evaluation_ids: list[str] | None = None,
+    include_feedback: bool = False,
 ) -> dict[str, object]:
     if evaluation_ids is None:
         evaluations = (
@@ -468,6 +584,17 @@ def _owner_deletion_manifest(
         .filter(Road10KScreenshotReference.evaluation_id.in_(evaluation_ids))
         .all()
     ] if evaluation_ids else []
+    if include_feedback:
+        feedback_rows = (
+            db.query(Feedback.image_keys)
+            .filter(Feedback.user_id == user_id)
+            .all()
+        )
+        for (image_keys,) in feedback_rows:
+            if isinstance(image_keys, list):
+                screenshot_keys.extend(
+                    str(key) for key in image_keys if isinstance(key, str)
+                )
     try:
         return stage_manifest(
             owner_id=user_id,
@@ -489,6 +616,12 @@ def withdraw_owner(
 ) -> Road10KOwnerStageReceipt:
     """Revoke current evaluation access without decrementing either counter."""
     authority = _authority(lifecycle=True)
+    require_road_10k_participation(
+        db,
+        user_id=user_id,
+        allow_withdrawn=True,
+        lifecycle=True,
+    )
     timestamp = _now(now)
     db.rollback()
     # Stage the marker before destructive work.  This read is intentionally
@@ -540,15 +673,35 @@ def prepare_account_deletion(
 ) -> list[dict[str, object]]:
     """Stage markers before account deletion and unlink Road 10K owner rows."""
     timestamp = _now(now)
-    stage_ids = [
+    stage_ids = {
         stage_id
         for (stage_id,) in db.query(Road10KOwnerStageReceipt.stage_id)
         .filter(Road10KOwnerStageReceipt.user_id == user_id)
         .distinct()
         .all()
-    ]
+    }
+    stage_ids.update(
+        stage_id
+        for (stage_id,) in db.query(Road10KEvaluation.stage_id)
+        .filter(
+            Road10KEvaluation.user_id == user_id,
+            Road10KEvaluation.deleted_at.is_(None),
+        )
+        .distinct()
+        .all()
+    )
+    feedback_has_objects = any(
+        isinstance(image_keys, list) and any(
+            isinstance(key, str) and key for key in image_keys
+        )
+        for (image_keys,) in db.query(Feedback.image_keys)
+        .filter(Feedback.user_id == user_id)
+        .all()
+    )
+    if feedback_has_objects and not stage_ids:
+        stage_ids.add(ROAD_10K_STAGE_ID)
     manifests: list[dict[str, object]] = []
-    for stage_id in stage_ids:
+    for index, stage_id in enumerate(sorted(stage_ids)):
         manifests.append(
             _owner_deletion_manifest(
                 db,
@@ -556,6 +709,7 @@ def prepare_account_deletion(
                 stage_id=stage_id,
                 reason="account_deletion",
                 now=timestamp,
+                include_feedback=feedback_has_objects and index == 0,
             )
         )
     evaluation_ids = [
@@ -590,7 +744,7 @@ def complete_deletion_manifests(
     timestamp = _now(now)
     for manifest in manifests:
         for object_key in manifest["screenshot_keys"]:
-            delete_object(str(object_key))
+            delete_manifest_object(str(object_key))
         mark_completed(manifest, timestamp)
 
 
@@ -691,11 +845,18 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
                 or row.stage_id != manifest["stage_id"]
             ):
                 raise Road10KDeletionFailed("deletion_marker_owner_mismatch")
+            db.query(Road10KScreenshotReference).filter(
+                Road10KScreenshotReference.evaluation_id == evaluation_id
+            ).delete(synchronize_session=False)
             db.delete(row)
-            db.commit()
+        else:
+            db.query(Road10KScreenshotReference).filter(
+                Road10KScreenshotReference.evaluation_id == evaluation_id
+            ).delete(synchronize_session=False)
+        db.commit()
 
     count = replay_manifests(
-        delete_object=delete_object,
+        delete_object=delete_manifest_object,
         delete_evaluation=delete_evaluation,
     )
     return count
@@ -720,7 +881,7 @@ def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
     )
     counter_valid = bool(
         counter is not None
-        and counter.schema_version == ROAD10K_CONTROL_SCHEMA_VERSION
+        and counter.schema_version == ROAD_10K_CONTROL_SCHEMA_VERSION
         and counter.capability_id == authority.capability_id
         and 0 <= counter.invitation_slots_consumed <= ROAD_10K_INVITATION_CEILING
         and 0 <= counter.distinct_exposed_owners_consumed <= ROAD_10K_EXPOSURE_CEILING

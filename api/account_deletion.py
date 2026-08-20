@@ -470,11 +470,13 @@ def delete_user_account(
         complete_deletion_manifests(road_manifests)
     except Exception:
         # Requested markers remain authoritative and will replay on the next
-        # startup.  Do not expose a false "completed" marker.
+        # startup. Do not expose a false "completed" marker or report a
+        # successful deletion while private objects remain pending.
         logger.exception(
             "Road 10K deletion completed but marker completion failed for user %s",
             user_id,
         )
+        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
         _clear_legacy_plan_status(db, deleted_user_id)

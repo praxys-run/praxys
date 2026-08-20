@@ -1,16 +1,6 @@
 import { apiGet, apiPost } from '../../utils/api-client';
 import { t } from '../../utils/i18n';
-
-interface AccessResponse {
-  rollout_status:
-    | 'invited' | 'reauth-required' | 'notice-unavailable' | 'enrolled'
-    | 'enrollment-closed' | 'hold' | 'withdrawn' | 'removed' | 'paused'
-    | 'killed' | 'rollback' | 'stopped' | 'revision';
-  plan_status: string;
-  stage_id: string;
-  notice_digest: string;
-  screenshot_available: false;
-}
+import type { Road10KAccessResponse } from '../../types/api';
 
 function buildCopy() {
   return {
@@ -21,6 +11,10 @@ function buildCopy() {
     hold: t('Rollout status: On hold'),
     paused: t('Rollout status: Paused'),
     stopped: t('Rollout status: Ended'),
+    withdrawn: t('Rollout status: Left rollout'),
+    withdrawnBody: t('Your proposal will become read-only and cannot be adopted or regenerated. Any adopted plan stays in Training and is not paused or ended. Export and account deletion remain available. Rollout data follows the current notice.'),
+    removed: t('Your rollout access ended'),
+    removedBody: t('Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.'),
     noPlan: t('Plan status: No Road 10K plan'),
     empty: t('No Road 10K proposal has been created. Check the current status to continue.'),
     leave: t('Leave rollout'),
@@ -43,7 +37,7 @@ function buildCopy() {
 
 Component({
   data: {
-    access: null as AccessResponse | null,
+    access: null as Road10KAccessResponse | null,
     visible: false,
     loading: true,
     flow: 'idle' as 'idle' | 'notice' | 'joining',
@@ -67,7 +61,7 @@ Component({
   methods: {
     async refresh() {
       try {
-        const access = await apiGet<AccessResponse>('/api/road-10k/access');
+        const access = await apiGet<Road10KAccessResponse>('/api/road-10k/access');
         this.setData({
           access,
           visible: true,
@@ -87,7 +81,7 @@ Component({
     },
 
     async onJoin() {
-      const access = this.data.access as AccessResponse | null;
+      const access = this.data.access as Road10KAccessResponse | null;
       if (!access || this.data.flow === 'joining' || !this.data.acknowledged) return;
       this.setData({ flow: 'joining', error: '' });
       try {

@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import importlib
+import hashlib
+import json
 import os
 import tempfile
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -465,6 +468,59 @@ def test_typed_outcomes_match_the_accepted_contract_and_fail_closed() -> None:
         road_10k_typed_outcome("unknown_result_code")
 
 
+def _write_stage_authority(path) -> None:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "authority_digest": "",
+        "stage_id": "road-10k-controlled-opt-in-v1",
+        "capability_id": "outdoor_road_10k_performance_v1",
+        "object_id": "road-10k-controlled-opt-in-foundation-v1",
+        "work_contract_digest": "sha256:1bdbdeded8149881cf610df2309a607561d9ff599c3da24f48f400d20400adb1",
+        "route_digest": "sha256:62ef1a983cd560f6dfab10e6508fbf9a73c68bd9ad3ca0c59f911f3e48237f08",
+        "schema_version": "road-10k-stage-authority-v1",
+        "control_schema_version": 2,
+        "state": "active",
+        "invitation_ceiling": 60,
+        "exposure_ceiling": 30,
+        "notice_digest": "sha256:" + "a" * 64,
+        "cohort_rule_digest": "sha256:" + "b" * 64,
+        "sampling_run_evidence_digest": "sha256:" + "c" * 64,
+        "valid_from": (now - timedelta(minutes=1)).isoformat(),
+        "valid_until": (now + timedelta(hours=1)).isoformat(),
+        "heartbeat_at": now.isoformat(),
+        "heartbeat_max_age_seconds": 300,
+        "readiness": "ready",
+        "provider_fence": "closed",
+        "pause": False,
+        "kill": False,
+        "build_id": "road-10k-test",
+    }
+    encoded = json.dumps(
+        {key: value for key, value in payload.items() if key != "authority_digest"},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    payload["authority_digest"] = "sha256:" + hashlib.sha256(encoded).hexdigest()
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+class _MemoryManifestStore:
+    def __init__(self):
+        self.items: dict[str, bytes] = {}
+
+    def put(self, key: str, payload: bytes) -> None:
+        self.items[key] = payload
+
+    def iter(self, prefix: str):
+        for key, payload in list(self.items.items()):
+            if key.startswith(prefix):
+                yield key, payload
+
+    def delete(self, key: str) -> None:
+        self.items.pop(key, None)
+
+
 @pytest.fixture
 def road_10k_client(monkeypatch):
     """Authenticated TestClient with the reviewed 10K route activated for tests."""
@@ -472,6 +528,9 @@ def road_10k_client(monkeypatch):
 
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
+    authority_path = os.path.join(tmpdir.name, "road-10k-authority.json")
+    _write_stage_authority(Path(authority_path))
+    monkeypatch.setenv("PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH", authority_path)
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
@@ -487,35 +546,11 @@ def road_10k_client(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
-    import api.plan_generation_capabilities as capabilities
-    import api.routes.road_10k_plan_generation as road_10k_route
-
-    monkeypatch.setattr(
-        capabilities,
-        "PLAN_GENERATION_CAPABILITIES",
-        (
-            capabilities.OUTDOOR_ROAD_5K_CAPABILITY,
-            replace(
-                capabilities.OUTDOOR_ROAD_10K_CAPABILITY,
-                status="available",
-            ),
-        ),
-    )
-    # These legacy Science route tests use a synthetic capability fixture.
-    # Keep that fixture test-only; production routes require external stage
-    # authority and a committed exposure receipt.
-    monkeypatch.setattr(
-        road_10k_route,
-        "_authorize_result_exposure",
-        lambda _db, _user_id: None,
-    )
-
     import api.main
+    import api.road_10k_deletion_storage as deletion_storage
     importlib.reload(api.main)
     app = api.main.app
-    app.dependency_overrides[
-        road_10k_route._require_road_10k_capability_available
-    ] = lambda: None
+    monkeypatch.setattr(deletion_storage, "_test_store", _MemoryManifestStore())
     current_user_id = {"value": "road-10k-owner"}
 
     def _override_user() -> str:
@@ -529,6 +564,8 @@ def road_10k_client(monkeypatch):
             db.close()
 
     from api.auth import get_current_user_id, get_data_user_id, require_write_access
+    from api.road_10k_control import enroll_owner, issue_invitation
+    from api.road_10k_stage_authority import load_stage_authority
     from api.routes import adaptive_plan as adaptive_plan_route
     from db.models import User
     from db.session import get_db
@@ -536,6 +573,20 @@ def road_10k_client(monkeypatch):
     with db_session.SessionLocal() as db:
         db.add(User(id="road-10k-owner", email="road-10k@test.local", hashed_password="x"))
         db.commit()
+        authority = load_stage_authority()
+        assert authority is not None
+        issue_invitation(
+            db,
+            user_id="road-10k-owner",
+            idempotency_key="road-10k-test-invitation",
+            notice_digest=authority.notice_digest,
+            cohort_rule_digest=authority.cohort_rule_digest,
+        )
+        enroll_owner(
+            db,
+            user_id="road-10k-owner",
+            notice_digest=authority.notice_digest,
+        )
 
     app.dependency_overrides[get_current_user_id] = _override_user
     app.dependency_overrides[get_data_user_id] = _override_user
@@ -572,6 +623,142 @@ def road_10k_client(monkeypatch):
         db_session.async_engine = None
         db_session.AsyncSessionLocal = None
         tmpdir.cleanup()
+
+
+def _road_10k_token(user_id: str) -> str:
+    import jwt
+
+    from api.auth_secrets import get_jwt_secret
+
+    return jwt.encode(
+        {
+            "sub": user_id,
+            "aud": "fastapi-users:auth",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        },
+        get_jwt_secret(),
+        algorithm="HS256",
+    )
+
+
+def test_hidden_authority_is_404_before_auth_for_every_control_surface(
+    road_10k_client,
+    monkeypatch,
+):
+    client, _db_session = road_10k_client
+    monkeypatch.delenv("PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH")
+
+    responses = [
+        client.get("/api/road-10k/access"),
+        client.post("/api/road-10k/opt-in", json={}),
+        client.post("/api/road-10k/withdraw"),
+        client.get("/api/road-10k/export"),
+        client.post("/api/plan/road-10k/readiness", json={}),
+    ]
+
+    assert [response.status_code for response in responses] == [404] * 5
+    for response in responses:
+        assert response.json() == {"detail": "Not found"}
+        assert response.headers["cache-control"] == "private, no-store"
+
+
+def test_control_lifecycle_contract_is_private_and_maps_withdrawn(
+    road_10k_client,
+):
+    client, _db_session = road_10k_client
+    headers = {"Authorization": f"Bearer {_road_10k_token('road-10k-owner')}"}
+
+    invited = client.get("/api/road-10k/access", headers=headers)
+    assert invited.status_code == 200
+    assert invited.json()["rollout_status"] == "enrolled"
+    assert invited.json()["plan_status"] == "none"
+
+    enrolled = client.post(
+        "/api/road-10k/opt-in",
+        headers=headers,
+        json={
+            "notice_digest": "a" * 64,
+            "client": "miniapp",
+        },
+    )
+    assert enrolled.status_code == 200, enrolled.text
+    assert enrolled.json()["rollout_status"] == "enrolled"
+
+    exported = client.get("/api/road-10k/export", headers=headers)
+    assert exported.status_code == 200
+    assert exported.json()["receipt"]["state"] == "enrolled_unexposed"
+    assert exported.headers["cache-control"] == "private, no-store"
+
+    withdrawn = client.post("/api/road-10k/withdraw", headers=headers)
+    assert withdrawn.status_code == 200, withdrawn.text
+    assert withdrawn.json()["rollout_status"] == "withdrawn"
+
+    access = client.get("/api/road-10k/access", headers=headers)
+    assert access.status_code == 200
+    assert access.json()["rollout_status"] == "withdrawn"
+    assert access.json()["plan_status"] == "none"
+
+
+def test_stage_authority_enables_only_owner_scoped_catalog_entry(
+    road_10k_client,
+    monkeypatch,
+):
+    client, _db_session = road_10k_client
+
+    active = client.get("/api/plan/generation/capabilities")
+    assert active.status_code == 200
+    assert active.headers["cache-control"] == "private, no-store"
+    assert any(
+        item["id"] == "outdoor_road_10k_performance_v1"
+        for item in active.json()["capabilities"]
+    )
+
+    monkeypatch.delenv("PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH")
+    dormant = client.get("/api/plan/generation/capabilities")
+    assert dormant.status_code == 200
+    assert all(
+        item["id"] != "outdoor_road_10k_performance_v1"
+        for item in dormant.json()["capabilities"]
+    )
+
+
+def test_withdrawn_road_proposal_is_readable_but_generic_adoption_is_hidden(
+    road_10k_client,
+):
+    client, db_session = road_10k_client
+    _seed_road_10k_api_context(db_session, "road-10k-owner")
+    readiness = client.post(
+        "/api/plan/road-10k/readiness",
+        json=_road_10k_api_request(),
+    ).json()
+    created = client.post(
+        "/api/plan/road-10k/generate",
+        json={
+            **_road_10k_api_request(),
+            "expected_source_revision": readiness["source_revision"],
+            "idempotency_key": "withdraw-read-only",
+        },
+    )
+    assert created.status_code == 201
+    proposal_id = created.json()["proposal"]["id"]
+
+    headers = {"Authorization": f"Bearer {_road_10k_token('road-10k-owner')}"}
+    withdrawn = client.post("/api/road-10k/withdraw", headers=headers)
+    assert withdrawn.status_code == 200
+
+    readable = client.get("/api/plan/proposals/current")
+    assert readable.status_code == 200
+    assert readable.json()["id"] == proposal_id
+
+    adopted = client.post(
+        f"/api/plan/proposals/{proposal_id}/adopt",
+        json={
+            "expected_proposal_version": 1,
+            "expected_plan_version": 0,
+            "idempotency_key": "withdrawn-adoption",
+        },
+    )
+    assert adopted.status_code == 404
 
 
 def _seed_road_10k_api_context(db_session, user_id: str) -> None:

@@ -6,17 +6,13 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from analysis.road_10k_plan_generation import Road10KPlanGenerationConstraints
 from api.adaptive_plan_service import AdaptivePlanError
 from api.auth import get_current_user_id
-from api.plan_generation_capabilities import (
-    PlanPurposeError,
-    road_10k_capability_available,
-)
+from api.plan_generation_capabilities import PlanPurposeError
 from api.road_10k_baseline import (
     Road10KBaselineConflict,
     Road10KBaselineForbidden,
@@ -24,6 +20,7 @@ from api.road_10k_baseline import (
     Road10KBaselineNotFound,
     confirm_road_10k_history_candidate,
 )
+from api.road_10k_control import Road10KControlError
 from api.road_10k_plan_generation import (
     Road10KGenerationError,
     build_road_10k_alternatives,
@@ -31,18 +28,26 @@ from api.road_10k_plan_generation import (
     generate_road_10k_proposal,
     regenerate_road_10k_proposal,
 )
-from api.road_10k_control import (
-    Road10KControlError,
-    authorize_first_exposure,
-)
 from api.road_10k_stage_authority import load_stage_authority
 from db.session import get_db
 
 
 def _require_road_10k_capability_available() -> None:
     authority = load_stage_authority()
-    if authority is None or not authority.is_usable:
-        raise HTTPException(status_code=404, detail="Not found")
+    if (
+        authority is None
+        or authority.stage_id != "road-10k-controlled-opt-in-v1"
+        or not authority.is_usable
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Pragma": "no-cache",
+                "Vary": "Authorization",
+            },
+        )
 
 
 def _require_road_10k_owner(
@@ -61,26 +66,6 @@ def _private_response(response: Response) -> None:
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Pragma"] = "no-cache"
     response.headers["Vary"] = "Authorization"
-
-
-def _private_json_response(content: dict[str, Any], status_code: int) -> JSONResponse:
-    return JSONResponse(
-        content=content,
-        status_code=status_code,
-        headers={
-            "Cache-Control": "private, no-store",
-            "Pragma": "no-cache",
-            "Vary": "Authorization",
-        },
-    )
-
-
-def _authorize_result_exposure(db: Session, user_id: str) -> None:
-    """Commit the exposure receipt before FastAPI serializes a result."""
-    try:
-        authorize_first_exposure(db, user_id=user_id)
-    except Road10KControlError as exc:
-        raise HTTPException(status_code=404, detail="Not found") from exc
 
 
 router = APIRouter(
@@ -127,9 +112,13 @@ class PlanGenerationPurposeRequest(BaseModel):
 
     capability_id: str = Field(min_length=1, max_length=80)
     source: Literal["current_goal", "capability", "unlinked"]
-    expected_goal_id: str | None = Field(default=None, min_length=36, max_length=36)
+    expected_goal_id: str | None = Field(
+        ...,
+        min_length=36,
+        max_length=36,
+    )
     expected_goal_revision: str | None = Field(
-        default=None,
+        ...,
         min_length=64,
         max_length=64,
         pattern=r"^[0-9a-f]{64}$",
@@ -209,6 +198,29 @@ class Road10KHistoryConfirmationRequest(BaseModel):
     purpose: PlanGenerationPurposeRequest | None = None
 
 
+class Road10KEventContextResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_version: str
+    state: Literal["confirmed_none", "single_target", "race_dense"]
+    goal_target_date: str | None
+    benchmark_date: str | None
+    target_date: str | None
+    target_source: Literal["goal", "benchmark"] | None
+
+
+class Road10KHistoryStatisticsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    usable_completed_weeks: int
+    recent_modal_running_frequency: int
+    recent_median_usable_weekly_minutes: int
+    recent_maximum_usable_weekly_minutes: int
+    recent_maximum_session_minutes: int
+    recent_maximum_session_distance_km: float | None
+    latest_run_date: str | None
+
+
 class Road10KOutcomeResponse(BaseModel):
     """Typed road 10K outcome envelope shared by readiness and proposals."""
 
@@ -231,8 +243,8 @@ class Road10KOutcomeResponse(BaseModel):
     goal_remains_recorded: bool | None = None
     limited_guidance_returned: bool | None = None
     deterministic_input_hash: str
-    event_context: dict[str, Any]
-    history_statistics: dict[str, Any]
+    event_context: Road10KEventContextResponse
+    history_statistics: Road10KHistoryStatisticsResponse
     failed_rule_id: str | None
     observed_or_stated_reason: str | None
     uncertainty_or_missing_field: str | None
@@ -259,7 +271,255 @@ class Road10KPurposeResponse(BaseModel):
     source: Literal["current_goal", "capability", "unlinked"]
     expected_goal_id: str | None
     expected_goal_revision: str | None
-    goal: dict[str, Any]
+    goal: "Road10KPurposeGoalResponse"
+
+
+class Road10KPurposeGoalResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    goal_kind: str | None
+    distance: str | None
+    target_time_sec: int | None
+    race_date: str | None
+
+
+class Road10KBaselineEvidenceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provenance: Literal["race", "intentional_all_out"]
+    observed_date: str
+    age_days: int
+    completed_at: str | None
+    distance_km: float | None
+    elapsed_time_sec: float | None
+    activity_id: str | None
+    measured_10k_confirmed: bool
+    elapsed_timing_confirmed: bool
+    surface_or_protocol: Road10KSurfaceOrProtocol | None
+    route_or_venue_identifier: str | None
+    assistance_status: Road10KAssistanceStatus | None
+    source_provider: str | None
+    change_comparability: Literal[
+        "not_assessed",
+        "supporting",
+        "incomparable",
+        "directly_comparable",
+    ]
+
+
+class Road10KBaselineCandidateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    activity_id: str
+    observed_date: str
+    distance_km: float | None
+    duration_sec: float | None
+    source: str | None
+    completed_at: str | None
+    review_state: Literal[
+        "needs_confirmation",
+        "qualified",
+        "excluded",
+        "distance_unverified",
+        "timing_unresolved",
+    ]
+    confirmation_response: Literal[
+        "race",
+        "intentional_all_out",
+        "not_all_out",
+    ] | None
+    measured_10k_confirmed: bool | None
+    elapsed_timing_confirmed: bool | None
+    surface_or_protocol: Road10KSurfaceOrProtocol | None
+    route_or_venue_identifier: str | None
+    assistance_status: Road10KAssistanceStatus | None
+    source_provider: str | None
+    full_activity_only: Literal[True]
+    split_count: int
+    sample_observed_duration_sec: float | None
+    timing_gap_count: int
+
+
+class Road10KBenchmarkResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    available: bool
+    automatic_scheduling: Literal[False]
+    explicit_choice_required: Literal[True]
+
+
+class Road10KScienceCitationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str
+    url: str
+
+
+class Road10KScienceNoteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str
+    citations: list[Road10KScienceCitationResponse]
+
+
+class Road10KBaselineResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    policy_version: str
+    science_decision_id: str
+    contract_digest: str
+    baseline_snapshot_version: str
+    guardrails: Road10KGuardrailProjectionResponse
+    status: Literal["current", "stale", "incomparable", "missing", "not_required"]
+    readiness: Literal["sufficient_baseline", "insufficient_evidence"]
+    history_search_complete: Literal[True]
+    full_activity_only: Literal[True]
+    history_cutoff_completed_days: int
+    alternatives: list[str]
+    evidence: Road10KBaselineEvidenceResponse | None
+    candidates: list[Road10KBaselineCandidateResponse]
+    benchmark: Road10KBenchmarkResponse
+    science_note: Road10KScienceNoteResponse
+
+
+class Road10KWorkoutTerminationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["time"]
+    seconds: int
+
+
+class Road10KWorkoutTargetResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metric: Literal["none"]
+    unit: Literal["none"]
+    reference: Literal["none"]
+
+
+class Road10KWorkoutStepResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["step", "repeat"]
+    phase: str | None = None
+    termination: Road10KWorkoutTerminationResponse | None = None
+    target: Road10KWorkoutTargetResponse | None = None
+    repetitions: int | None = None
+    steps: list["Road10KWorkoutStepResponse"] = Field(default_factory=list)
+
+
+class Road10KWorkoutStructureResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    steps: list[Road10KWorkoutStepResponse]
+
+
+class Road10KProposalWorkoutResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    canonical_id: str
+    date: str
+    activity_type: Literal["running"]
+    workout_type: str
+    planned_duration_min: float | None
+    planned_distance_km: float | None
+    target_power_min: float | None
+    target_power_max: float | None
+    target_hr_min: float | None
+    target_hr_max: float | None
+    target_pace_min: str | None
+    target_pace_max: str | None
+    workout_description: str
+    workout_structure_version: Literal["v1"]
+    workout_structure: Road10KWorkoutStructureResponse
+
+
+class Road10KProposalTargetResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    distance: str
+    criterion: str
+    setting: str
+    target_time_sec: int | None
+    target_event_date: str | None
+    benchmark_date: str | None
+    event_state: Literal["confirmed_none", "single_target", "race_dense"]
+
+
+class Road10KProposalGoalResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    version: int
+    state: Literal["draft", "active", "superseded"]
+    goal_kind: str
+    purpose_source: Literal["current_goal", "capability", "unlinked"]
+    source_goal_id: str | None
+    source_goal_revision: str | None
+    target: Road10KProposalTargetResponse
+    horizon_start: str
+    horizon_end: str
+    acknowledged_at: str | None
+
+
+class Road10KAdaptivePlanResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    discipline: Literal["running"]
+    version: int
+    lifecycle: str
+    active_proposal_id: str | None
+
+
+class Road10KProposalDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    adaptive_plan_id: str
+    goal_snapshot_id: str
+    discipline: Literal["running"]
+    version: int
+    state: Literal["draft", "superseded", "rejected", "adopted", "expired"]
+    base_plan_version: int
+    supersedes_proposal_id: str | None
+    origin: str
+    actor_type: Literal["user", "agent", "system"]
+    actor_id: str | None
+    policy_version: str | None
+    model_version: str | None
+    science_version: str | None
+    assumptions: list[object]
+    unknowns: list[object]
+    warnings: list[object]
+    alternatives: list[object]
+    expires_at: str | None
+    created_at: str | None
+    decided_at: str | None
+    workouts: list[Road10KProposalWorkoutResponse]
+    adaptive_plan: Road10KAdaptivePlanResponse | None
+    goal: Road10KProposalGoalResponse | None
+
+
+class Road10KConfirmationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    lineage_id: str
+    version: int
+    supersedes_id: str | None
+    activity_id: str
+    response: Literal["race", "intentional_all_out", "not_all_out", "deleted"]
+    measured_10k: bool
+    elapsed_timing_confirmed: bool
+    completed_at: str
+    elapsed_time_sec: float | None
+    surface_or_protocol: Road10KSurfaceOrProtocol | None
+    route_or_venue_identifier: str | None
+    assistance_status: Road10KAssistanceStatus
+    source_provider: str
+    created_at: str
 
 
 class Road10KReadinessResponse(BaseModel):
@@ -277,10 +537,10 @@ class Road10KReadinessResponse(BaseModel):
     source_revision: str
     guardrails: Road10KGuardrailProjectionResponse
     purpose: Road10KPurposeResponse
-    baseline: dict[str, Any]
+    baseline: Road10KBaselineResponse
     athlete_today: str
     block_start: str
-    event_context: dict[str, Any]
+    event_context: Road10KEventContextResponse
     history_cutoff_completed_days: int
     template_ids: list[str]
     result: Road10KOutcomeResponse
@@ -307,11 +567,11 @@ class Road10KProposalResponse(BaseModel):
     source_revision: str
     guardrails: Road10KGuardrailProjectionResponse
     purpose: Road10KPurposeResponse
-    event_context: dict[str, Any]
+    event_context: Road10KEventContextResponse
     history_cutoff_completed_days: int
     template_ids: list[str]
     result: Road10KOutcomeResponse
-    proposal: dict[str, Any] | None = None
+    proposal: Road10KProposalDetailResponse | None = None
     replayed: bool = False
     reassessment_dates: list[str] = Field(default_factory=list)
 
@@ -323,8 +583,8 @@ class Road10KBaselineMutationResponse(BaseModel):
 
     replayed: bool
     guardrails: Road10KGuardrailProjectionResponse
-    baseline: dict[str, Any]
-    confirmation: dict[str, Any] | None = None
+    baseline: Road10KBaselineResponse
+    confirmation: Road10KConfirmationResponse | None = None
 
 
 def _constraints(body: Road10KConstraintsRequest) -> Road10KPlanGenerationConstraints:
@@ -351,6 +611,16 @@ def _purpose(body: Road10KConstraintsRequest | Road10KHistoryConfirmationRequest
 
 
 def _raise_generation(error: Exception) -> None:
+    if isinstance(error, Road10KControlError):
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Pragma": "no-cache",
+                "Vary": "Authorization",
+            },
+        )
     if isinstance(error, Road10KGenerationError):
         raise HTTPException(status_code=error.status_code, detail=error.detail)
     if isinstance(error, AdaptivePlanError):
@@ -361,6 +631,16 @@ def _raise_generation(error: Exception) -> None:
 
 
 def _raise_baseline(error: Exception) -> None:
+    if isinstance(error, Road10KControlError):
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Pragma": "no-cache",
+                "Vary": "Authorization",
+            },
+        )
     if isinstance(error, PlanPurposeError):
         raise HTTPException(status_code=error.status_code, detail=error.detail)
     if isinstance(error, Road10KBaselineConflict):
@@ -419,7 +699,6 @@ def post_road_10k_readiness(
             constraints=_constraints(body),
             purpose_selection=_purpose(body),
         )
-        _authorize_result_exposure(db, user_id)
         return result
     except Exception as exc:
         _raise_generation(exc)
@@ -444,7 +723,6 @@ def post_road_10k_alternatives(
             constraints=_constraints(body),
             purpose_selection=_purpose(body),
         )
-        _authorize_result_exposure(db, user_id)
         return result
     except Exception as exc:
         _raise_generation(exc)
@@ -458,9 +736,10 @@ def post_road_10k_alternatives(
 )
 def post_road_10k_generate(
     body: Road10KGenerateRequest,
+    response: Response,
     user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
-) -> dict[str, Any] | JSONResponse:
+) -> dict[str, Any]:
     """Create a non-canonical road 10K proposal after exact readiness validation."""
     try:
         result, replayed = generate_road_10k_proposal(
@@ -474,10 +753,10 @@ def post_road_10k_generate(
     except Exception as exc:
         _raise_generation(exc)
         raise
-    _authorize_result_exposure(db, user_id)
     if not result["result"]["plan_returned"] or replayed:
         return result
-    return _private_json_response(result, status.HTTP_201_CREATED)
+    response.status_code = status.HTTP_201_CREATED
+    return result
 
 
 @router.post(
@@ -488,9 +767,10 @@ def post_road_10k_generate(
 def post_road_10k_regenerate(
     proposal_id: UUID,
     body: Road10KRegenerateRequest,
+    response: Response,
     user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
-) -> dict[str, Any] | JSONResponse:
+) -> dict[str, Any]:
     """Create an exact-version road 10K successor when source inputs changed."""
     try:
         result, replayed = regenerate_road_10k_proposal(
@@ -506,10 +786,10 @@ def post_road_10k_regenerate(
     except Exception as exc:
         _raise_generation(exc)
         raise
-    _authorize_result_exposure(db, user_id)
     if not result["result"]["plan_returned"] or replayed:
         return result
-    return _private_json_response(result, status.HTTP_201_CREATED)
+    response.status_code = status.HTTP_201_CREATED
+    return result
 
 
 @router.post(
@@ -520,6 +800,7 @@ def post_road_10k_regenerate(
 def post_road_10k_history_confirmation(
     body: Road10KHistoryConfirmationRequest,
     idempotency_key: IdempotencyKey,
+    response: Response,
     user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -543,5 +824,5 @@ def post_road_10k_history_confirmation(
         _raise_baseline(exc)
         raise
     if result["replayed"]:
-        return _private_json_response(result, 200)
+        response.status_code = 200
     return result
