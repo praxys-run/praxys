@@ -245,7 +245,8 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["b8d4e6f7a9c1"]
+    assert script.get_heads() == ["d2e3f4a5b6c7"]
+    assert script.get_revision("d2e3f4a5b6c7").down_revision == "c1d2e3f4a5b6"
     assert set(script.get_revision("b8d4e6f7a9c1").down_revision) == {
         "a7f3c2d1e9b4",
         "ae1f2a3b4c5d",
@@ -379,7 +380,7 @@ def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
             }
             assert conn.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == "b8d4e6f7a9c1"
+            ).scalar_one() == "d2e3f4a5b6c7"
         assert "history_observation_ids" not in columns
         with open(database_path, "rb") as database_file:
             assert marker.encode() not in database_file.read()

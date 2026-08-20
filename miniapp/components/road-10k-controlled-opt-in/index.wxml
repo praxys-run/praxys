@@ -1,0 +1,54 @@
+<view wx:if="{{visible && access}}" class="road-10k-card ts-card">
+  <block wx:if="{{access.rollout_status === 'invited'}}">
+    <text class="road-10k-eyebrow">{{tr.invited}}</text>
+    <text class="road-10k-title">{{tr.invited}}</text>
+    <text class="road-10k-body">{{tr.invitedBody}}</text>
+    <view class="road-10k-action road-10k-action--primary" bindtap="onReview" aria-role="button">
+      <text>{{tr.review}}</text>
+    </view>
+  </block>
+  <block wx:elif="{{access.rollout_status === 'enrolled'}}">
+    <text class="road-10k-eyebrow">{{tr.enrolled}}</text>
+    <text class="road-10k-title">{{tr.noPlan}}</text>
+    <text class="road-10k-body">{{tr.empty}}</text>
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onLeave" aria-role="button">
+      <text>{{tr.leave}}</text>
+    </view>
+    <view class="road-10k-disabled" aria-disabled="true">
+      <text>{{tr.screenshot}}</text>
+    </view>
+  </block>
+  <block wx:else>
+    <text class="road-10k-eyebrow">{{access.rollout_status === 'hold' ? tr.hold : access.rollout_status === 'paused' ? tr.paused : tr.stopped}}</text>
+    <text class="road-10k-title">{{tr.noPlan}}</text>
+    <text class="road-10k-body">{{tr.empty}}</text>
+    <view class="road-10k-disabled" aria-disabled="true"><text>{{tr.screenshot}}</text></view>
+  </block>
+  <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>
+</view>
+
+<view wx:if="{{flow === 'notice'}}" class="road-10k-mask" aria-role="dialog">
+  <view class="road-10k-sheet">
+    <text class="road-10k-title">{{tr.noticeTitle}}</text>
+    <text class="road-10k-body">{{tr.noticeIntro}}</text>
+    <text class="road-10k-body">{{tr.noticeScope}}</text>
+    <text class="road-10k-body">{{tr.noticeClaims}}</text>
+    <text class="road-10k-body">{{tr.noticeControl}}</text>
+    <text class="road-10k-body">{{tr.noticeData}}</text>
+    <text class="road-10k-body">{{tr.noticeLeave}}</text>
+    <label class="road-10k-check">
+      <checkbox-group bindchange="onAck"><checkbox value="ack" checked="{{acknowledged}}" /></checkbox-group>
+      <text>{{tr.noticeAck}}</text>
+    </label>
+    <view class="road-10k-action road-10k-action--primary" bindtap="onJoin" aria-role="button">
+      <text>{{tr.join}}</text>
+    </view>
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onCancel" aria-role="button">
+      <text>{{tr.cancel}}</text>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{flow === 'joining'}}" class="road-10k-mask" aria-role="status">
+  <view class="road-10k-sheet"><text class="road-10k-title">{{tr.joining}}</text></view>
+</view>

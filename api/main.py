@@ -99,6 +99,9 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
+        from api.road_10k_control import replay_road_10k_deletion_manifests
+
+        replay_road_10k_deletion_manifests(context_db)
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)
@@ -163,6 +166,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Praxys API", version=get_api_version(), lifespan=lifespan)
+
+
+@app.middleware("http")
+async def _road_10k_private_no_store(request, call_next):
+    """Keep Road 10K success and auth/error responses out of shared caches."""
+    response = await call_next(request)
+    if (
+        request.url.path.startswith("/api/road-10k")
+        or request.url.path.startswith("/api/plan/road-10k")
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Vary"] = "Authorization"
+    return response
+
+
 app.add_exception_handler(
     RequestValidationError,
     private_context_validation_error,
@@ -255,6 +274,8 @@ app.include_router(announcements_router, prefix="/api", tags=["announcements"])
 # list/retry are guarded by require_admin inside the route.
 from api.routes.feedback import router as feedback_router
 app.include_router(feedback_router, prefix="/api", tags=["feedback"])
+from api.routes.road_10k import router as road_10k_control_router
+app.include_router(road_10k_control_router, prefix="/api")
 
 # Data routes
 from api.routes import analysis as activity_analysis_routes
@@ -282,12 +303,8 @@ router_modules = [
     insights,
     product_events,
     status,
+    road_10k_plan_generation,
 ]
-if any(
-    capability.capability_id == "outdoor_road_10k_performance_v1"
-    for capability in PLAN_GENERATION_CAPABILITIES
-):
-    router_modules.append(road_10k_plan_generation)
 
 for router_module in router_modules:
     app.include_router(router_module.router, prefix="/api")

@@ -36,6 +36,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [secret-rotation.md](./secret-rotation.md) | Rotating a secret (JWT, WeChat, feedback App key, Key Vault key). |
 | [cost-and-scaling.md](./cost-and-scaling.md) | Setting cost guardrails or scaling the backend. |
 | [disaster-recovery.md](./disaster-recovery.md) | Rebuilding the whole deployment from scratch + restoring data. |
+| [road-10k-controlled-opt-in.md](./road-10k-controlled-opt-in.md) | Road 10K authority, ledger, deletion, restore, and rollback boundaries (default-off). |
 
 ## Environment at a glance
 

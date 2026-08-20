@@ -1,33 +1,67 @@
 # Road 10K controlled opt-in foundation
 
-The Road 10K performance capability remains **inactive and default-hidden**.
-This repository-only foundation does not expose a route or client control,
-invite users, collect evaluation data, adopt plans, deliver workouts, or
-change deployment configuration.
+Road 10K is **default-off and default-hidden**.  The only activation input is a
+read-only, independently issued stage-authority artifact consumed by
+`api/road_10k_stage_authority.py`.  There is no application writer, seed,
+admin toggle, permissive local override, or public navigation/deep link.
+Missing, off, malformed, stale, incompatible, mixed-version, paused, killed,
+not-ready, or provider-fence-open authority is denied.
 
-## Durable control primitive
+## Ledger and boundaries
 
-`road_10k_owner_opt_in_receipts` is an owner-scoped receipt table whose decision
-rows are append-only while the account exists. It is not a feature flag, rollout
-assignment, or live configuration value. Receipts are constrained to the reviewed
-capability, schema/policy versions, `granted`/`withdrawn` decisions, and
-first-party client names. Account deletion cascades to receipts so privacy
-deletions remain authoritative; this is the only supported history removal.
+The additive `d2e3f4a5b6c7` migration adds a Road-10K-specific ledger:
 
-`api.road_10k_opt_in.road_10k_owner_opted_in` is intentionally unused by
-runtime routes. It requires the capability to be active before it can return
-true, and missing, stale, withdrawn, malformed, or unavailable state fails
-closed. A future rollout must separately authorize activation, wire an
-explicit user journey, and complete independent trust/operations review.
+* `road_10k_stage_counters` stores monotonic invitation and first-exposure
+  counts.  Compiled maximums are 60 cumulative invitations and 30 cumulative
+  distinct exposed native owners; authority may only tighten them.
+* `road_10k_owner_stage_receipts` is unique on native `users.id` plus stage.
+  Invitation retries and same-stage reenrollment are idempotent; withdrawal,
+  deletion, retry, rollback, or expiry never decrements a counter or reuses a
+  slot.
+* `road_10k_exposure_receipts` is committed under the serialized write before
+  any Road-10K result is serialized, cached, exported, or downloaded.
+* `road_10k_evaluations` is owner-scoped, deletable payload state.  Expiry is
+  calculated once from creation and is never slid by reads, updates, restore,
+  or reenrollment.  Retention is at most 30 days.
+* `road_10k_screenshot_references` stores only private object references.  The
+  independent screenshot capture/upload fence is permanently closed in this
+  foundation; no screenshot bytes are accepted.
 
-The JSON file in `config/` is a schema only. It contains no live values,
-assignments, users, or deployment settings. Do not add a percentage rollout,
-global allow rule, invite list, or environment value for this foundation.
+SQLite uses `BEGIN IMMEDIATE`; PostgreSQL uses the stage-counter and
+owner-receipt row locks.  Counters are never rebuilt from logs and no owner
+identifier, hash, pseudonym, roster, raw event, payload, or screenshot enters
+aggregate status or telemetry.
 
-## Evaluation boundary
+## Owner lifecycle
 
-No Road 10K evaluation telemetry, aggregate report, cohort, or runtime
-collection is added by this change. Future evaluation requires a separate
-privacy-reviewed contract and may only use aggregate result/reason/version
-signals; it must not include users, activities, dates, routes, targets,
-workouts, samples, personal context, or provider identifiers.
+Only an active, non-demo first-party JWT can discover a returned owner catalog,
+reauthenticate, enroll, withdraw, or receive a result.  MCP, plugin, context,
+service, AI, demo, and anonymous identities are denied.  Explicit proposal
+adoption remains a separate exact-version action; no provider delivery,
+automatic adoption, automatic successor, or AI path exists.
+
+Withdrawal immediately deletes evaluation payloads and screenshot references
+without changing counters.  Account deletion stages an out-of-database,
+payload-free private marker before unlinking native owner links.  The marker
+contains only deletion references and retains for the 14-day restore horizon;
+startup replays markers before traffic/readiness and fails closed if storage or
+replay is unavailable.  A deleted account cannot be linked to a later account.
+
+## Operations and rollback
+
+`road_10k_runtime_snapshot()` is a restricted, read-only low-cardinality
+snapshot of authority/readiness, cap state, and replay readiness.  No live
+metric resource, schedule, alert, action group, actor binding, or purge job is
+created here.  The explicit `purge_expired_evaluations()` primitive is
+repository-only and must not be scheduled by deployment.
+
+Pause and kill are independent authority states.  They make proposals
+read-only while leaving export, withdrawal, deletion, private feedback, and
+existing adopted-plan controls available; they never mutate adopted content.
+Rollback is a soft kill that leaves the ledger, manifests, migration, and
+objects intact.  A future known-good revision must be forward-compatible and
+inactive until fresh authority and independent verification exist.
+
+The checked-in schema/config files document names and shapes only.  They
+contain no live authority, user, ceiling override, secret, provider
+credential, or deployment value.

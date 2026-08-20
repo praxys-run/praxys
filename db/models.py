@@ -2052,6 +2052,215 @@ def _reject_road_10k_owner_opt_in_receipt_update(
     raise ValueError("road 10K opt-in receipts are immutable")
 
 
+class Road10KStageCounter(Base):
+    """Monotonic, non-identifying counters for one controlled Road 10K stage."""
+
+    __tablename__ = "road_10k_stage_counters"
+
+    stage_id = Column(String(80), primary_key=True)
+    schema_version = Column(Integer, nullable=False, default=2)
+    capability_id = Column(String(80), nullable=False)
+    invitation_slots_consumed = Column(Integer, nullable=False, default=0)
+    distinct_exposed_owners_consumed = Column(Integer, nullable=False, default=0)
+    invitation_ceiling = Column(Integer, nullable=False, default=60)
+    exposure_ceiling = Column(Integer, nullable=False, default=30)
+    aggregate = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "schema_version = 2",
+            name="ck_road_10k_stage_counter_schema",
+        ),
+        CheckConstraint(
+            "capability_id = 'outdoor_road_10k_performance_v1'",
+            name="ck_road_10k_stage_counter_capability",
+        ),
+        CheckConstraint(
+            "invitation_slots_consumed >= 0 AND invitation_slots_consumed <= 60",
+            name="ck_road_10k_stage_counter_invitations",
+        ),
+        CheckConstraint(
+            "distinct_exposed_owners_consumed >= 0 "
+            "AND distinct_exposed_owners_consumed <= 30",
+            name="ck_road_10k_stage_counter_exposures",
+        ),
+        CheckConstraint(
+            "invitation_ceiling >= 0 AND invitation_ceiling <= 60 "
+            "AND exposure_ceiling >= 0 AND exposure_ceiling <= 30",
+            name="ck_road_10k_stage_counter_ceilings",
+        ),
+    )
+
+
+class Road10KOwnerStageReceipt(Base):
+    """Owner/stage control receipt.
+
+    ``user_id`` is nullable solely for account deletion.  A null owner link
+    retains the consumed receipt without creating a pseudonym or allowing a
+    future account to inherit it.
+    """
+
+    __tablename__ = "road_10k_owner_stage_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stage_id = Column(String(80), nullable=False, index=True)
+    capability_id = Column(String(80), nullable=False)
+    schema_version = Column(Integer, nullable=False, default=2)
+    policy_version = Column(String(80), nullable=False)
+    authority_digest = Column(String(64), nullable=False)
+    notice_digest = Column(String(64), nullable=False)
+    cohort_rule_digest = Column(String(64), nullable=False)
+    invitation_idempotency_key = Column(String(128), nullable=False)
+    state = Column(String(24), nullable=False, default="invited_only")
+    invitation_issued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    enrolled_at = Column(DateTime, nullable=True)
+    first_exposed_at = Column(DateTime, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    request_fingerprint = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "stage_id",
+            name="uq_road_10k_owner_stage_receipt_owner_stage",
+        ),
+        UniqueConstraint(
+            "stage_id",
+            "invitation_idempotency_key",
+            name="uq_road_10k_owner_stage_receipt_invitation_key",
+        ),
+        CheckConstraint(
+            "capability_id = 'outdoor_road_10k_performance_v1'",
+            name="ck_road_10k_owner_stage_receipt_capability",
+        ),
+        CheckConstraint(
+            "schema_version = 2",
+            name="ck_road_10k_owner_stage_receipt_schema",
+        ),
+        CheckConstraint(
+            "state IN ('invited_only','enrolled_unexposed','exposed',"
+            "'withdrawn','deleted')",
+            name="ck_road_10k_owner_stage_receipt_state",
+        ),
+        Index(
+            "ix_road_10k_owner_stage_receipt_stage_state",
+            "stage_id",
+            "state",
+        ),
+    )
+
+
+class Road10KExposureReceipt(Base):
+    """First-result exposure receipt, committed before any result bytes escape."""
+
+    __tablename__ = "road_10k_exposure_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    stage_id = Column(String(80), nullable=False, index=True)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    owner_stage_receipt_id = Column(
+        String(36),
+        ForeignKey("road_10k_owner_stage_receipts.id"),
+        nullable=False,
+    )
+    authority_digest = Column(String(64), nullable=False)
+    exposed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "stage_id",
+            "user_id",
+            name="uq_road_10k_exposure_owner_stage",
+        ),
+        CheckConstraint(
+            "length(authority_digest) = 64",
+            name="ck_road_10k_exposure_authority_digest",
+        ),
+    )
+
+
+class Road10KEvaluation(Base):
+    """Owner-scoped, deletable evaluation payload and result record."""
+
+    __tablename__ = "road_10k_evaluations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stage_id = Column(String(80), nullable=False, index=True)
+    result_code = Column(String(80), nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
+    deletion_reason = Column(String(32), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "result_code IN ('eligible_rolling_proposal',"
+            "'eligible_taper_proposal','missing_or_stale_direct_baseline',"
+            "'insufficient_recent_history','limited_guidance_event_conflict',"
+            "'limited_near_term_guidance','safety_stop',"
+            "'adult_scope_or_constraints_unconfirmed','contradictory_input',"
+            "'unsupported_intent_distance_surface_or_population',"
+            "'no_schedule_within_envelope','validation_failed')",
+            name="ck_road_10k_evaluation_result",
+        ),
+    )
+
+
+class Road10KScreenshotReference(Base):
+    """Private screenshot reference; screenshot bytes never enter the DB."""
+
+    __tablename__ = "road_10k_screenshot_references"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    evaluation_id = Column(
+        String(36),
+        ForeignKey("road_10k_evaluations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    object_key = Column(String(240), nullable=False, unique=True)
+    content_type = Column(String(40), nullable=False)
+    captured_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "object_key NOT LIKE '%@%' AND object_key NOT LIKE '%email%'",
+            name="ck_road_10k_screenshot_key_private",
+        ),
+    )
+
+
 class Road10KPlanGeneration(Base):
     """Immutable audit record for one deterministic road 10K proposal."""
 

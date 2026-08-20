@@ -488,6 +488,7 @@ def road_10k_client(monkeypatch):
     db_session.init_db()
 
     import api.plan_generation_capabilities as capabilities
+    import api.routes.road_10k_plan_generation as road_10k_route
 
     monkeypatch.setattr(
         capabilities,
@@ -500,11 +501,21 @@ def road_10k_client(monkeypatch):
             ),
         ),
     )
+    # These legacy Science route tests use a synthetic capability fixture.
+    # Keep that fixture test-only; production routes require external stage
+    # authority and a committed exposure receipt.
+    monkeypatch.setattr(
+        road_10k_route,
+        "_authorize_result_exposure",
+        lambda _db, _user_id: None,
+    )
 
     import api.main
-
     importlib.reload(api.main)
     app = api.main.app
+    app.dependency_overrides[
+        road_10k_route._require_road_10k_capability_available
+    ] = lambda: None
     current_user_id = {"value": "road-10k-owner"}
 
     def _override_user() -> str:

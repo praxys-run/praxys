@@ -221,6 +221,43 @@ const EN_GOAL = {
   current: 'current',
 };
 
+const EN_ROAD_10K = {
+  'Review invitation': 'Review invitation',
+  'Leave rollout': 'Leave rollout',
+  'Continue to sign in': 'Continue to sign in',
+  'Rollout status: On hold': 'Rollout status: On hold',
+  'Rollout status: Paused': 'Rollout status: Paused',
+  'Rollout status: Ended': 'Rollout status: Ended',
+  'Join rollout': 'Join rollout',
+  'Join the Road 10K rollout?': 'Join the Road 10K rollout?',
+  'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
+    'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.',
+  'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.':
+    'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.',
+  'This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.':
+    'This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.',
+  'No AI chooses or adopts the plan. Nothing is sent to a training provider. Nothing changes until you explicitly adopt the exact proposal.':
+    'No AI chooses or adopts the plan. Nothing is sent to a training provider. Nothing changes until you explicitly adopt the exact proposal.',
+  'The exact data used, access roles, retention, private feedback handling, export, and deletion terms appear in the current data notice below.':
+    'The exact data used, access roles, retention, private feedback handling, export, and deletion terms appear in the current data notice below.',
+  'You can leave the rollout, export your data, or delete your account. Leaving the rollout does not pause or end an adopted plan.':
+    'You can leave the rollout, export your data, or delete your account. Leaving the rollout does not pause or end an adopted plan.',
+  'I understand and want to join this Road 10K rollout.':
+    'I understand and want to join this Road 10K rollout.',
+  'Try a Road 10K plan proposal': 'Try a Road 10K plan proposal',
+  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
+    'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.',
+  'Rollout status: Enrolled': 'Rollout status: Enrolled',
+  'Plan status: No Road 10K plan': 'Plan status: No Road 10K plan',
+  'No Road 10K proposal has been created. Check the current status to continue.':
+    'No Road 10K proposal has been created. Check the current status to continue.',
+  'Screenshots are unavailable until private deletion and restore handling are verified.':
+    'Screenshots are unavailable until private deletion and restore handling are verified.',
+  'Joining the Road 10K rollout…': 'Joining the Road 10K rollout…',
+  'Praxys could not complete this action. Nothing changed.':
+    'Praxys could not complete this action. Nothing changed.',
+};
+
 const EN_TODAY = {
   'Training base': 'Training base',
   Power: 'Power',
@@ -677,6 +714,43 @@ const ZH_GOAL = {
   'To target': '距目标',
   Direction: '趋势方向',
   current: '当前',
+};
+
+const ZH_ROAD_10K = {
+  'Review invitation': '查看邀请',
+  'Leave rollout': '退出试点',
+  'Continue to sign in': '继续登录',
+  'Rollout status: On hold': '试点状态：审核中',
+  'Rollout status: Paused': '试点状态：已暂停',
+  'Rollout status: Ended': '试点状态：已结束',
+  'Join rollout': '加入试点',
+  'Join the Road 10K rollout?': '加入公路 10K 试点？',
+  'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
+    '这是一项默认关闭的有限流程试点，用于生成一个确定性的 14 天户外公路 10K 提案。加入试点不会创建或采纳计划。',
+  'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.':
+    'Praxys 会按已接受的公路 10K 规则，检查你现有的目标、直接 10K 基准、近期跑步历史和已确认的日程限制。',
+  'This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.':
+    '此试点不承诺更快成绩、预防损伤、医疗安全、诊断、治疗、许可或个人结果。',
+  'No AI chooses or adopts the plan. Nothing is sent to a training provider. Nothing changes until you explicitly adopt the exact proposal.':
+    'AI 不会选择或采纳计划。任何内容都不会发送给训练服务提供商。在你明确采纳确切提案前，不会发生任何更改。',
+  'The exact data used, access roles, retention, private feedback handling, export, and deletion terms appear in the current data notice below.':
+    '下方当前数据说明列出了确切的数据使用、访问、保留、私密反馈处理、导出和删除条款。',
+  'You can leave the rollout, export your data, or delete your account. Leaving the rollout does not pause or end an adopted plan.':
+    '你可以退出试点、导出数据或删除账号。退出试点不会暂停或结束已采纳计划。',
+  'I understand and want to join this Road 10K rollout.':
+    '我已了解，并希望加入此公路 10K 试点。',
+  'Try a Road 10K plan proposal': '试用公路 10K 计划提案',
+  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
+    '你受邀参加一项有限流程试点。加入后，Praxys 可检查是否能为你创建一个确定性的 14 天户外公路 10K 提案。加入不会创建或采纳计划。',
+  'Rollout status: Enrolled': '试点状态：已加入',
+  'Plan status: No Road 10K plan': '计划状态：没有公路 10K 计划',
+  'No Road 10K proposal has been created. Check the current status to continue.':
+    '尚未创建公路 10K 提案。请检查当前状态后继续。',
+  'Screenshots are unavailable until private deletion and restore handling are verified.':
+    '在私密删除和恢复处理完成验证前，截图不可用。',
+  'Joining the Road 10K rollout…': '正在加入公路 10K 试点…',
+  'Praxys could not complete this action. Nothing changed.':
+    'Praxys 无法完成此操作。没有任何内容发生更改。',
 };
 
 const ZH_TODAY = {
@@ -1158,6 +1232,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
   en: {
     ...EN_AUTH,
     ...EN_GOAL,
+    ...EN_ROAD_10K,
     ...EN_TODAY,
     ...EN_TRAINING,
     ...EN_COACH,
@@ -1174,6 +1249,7 @@ export const I18N_EXTRA: Record<Locale, Record<string, string>> = {
   zh: {
     ...ZH_AUTH,
     ...ZH_GOAL,
+    ...ZH_ROAD_10K,
     ...ZH_TODAY,
     ...ZH_TRAINING,
     ...ZH_COACH,

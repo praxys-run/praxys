@@ -22,6 +22,7 @@ import ScienceNote from '@/components/ScienceNote';
 import { formatTime, formatPace } from '@/lib/format';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { tDisplay } from '@/lib/display-labels';
+import Road10KControlledOptIn from '@/pages/Road10KControlledOptIn';
 
 function formatThreshold(value: number, unit: string): string {
   if (unit === '/km') return formatPace(value);
@@ -509,6 +510,7 @@ export default function Goal() {
       ) : data ? (
         <TrajectoryGoal data={data} onFeedbackStale={refetch} />
       ) : null}
+      <Road10KControlledOptIn />
     </div>
   );
 }

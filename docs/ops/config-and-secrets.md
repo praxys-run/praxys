@@ -1024,3 +1024,19 @@ outgrown.
 
 ---
 _Last reviewed: 2026-08-04 · Owner: @dddtc2005_
+
+## Road 10K controlled opt-in (repository-only, inactive)
+
+The Road 10K authority is an external, read-only artifact consumed through
+`PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH`.  This variable is a locator only; no
+boolean, ceiling, user, cohort, provider credential, or activation value may
+be supplied through environment configuration.  It is intentionally absent
+from deployment configuration in this change.  Missing, malformed, stale,
+incompatible, or mixed-version authority is the healthy dormant state.
+
+The compiled ceilings are 60 cumulative invitations and 30 cumulative
+distinct exposed native owners.  The authority may lower, never raise, them.
+Pause, kill, heartbeat, readiness, and provider-fence values are read from the
+same independently issued artifact; the application has no writer or toggle.
+Do not add a secret, scheduled purge, alert resource, action group, or live
+stage value for this foundation.

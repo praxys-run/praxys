@@ -1,0 +1,91 @@
+.road-10k-card {
+  margin: 24rpx 0;
+  padding: 28rpx;
+}
+
+.road-10k-eyebrow {
+  color: var(--text-muted);
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  text-transform: uppercase;
+}
+
+.road-10k-title {
+  display: block;
+  color: var(--text-primary);
+  font-size: 34rpx;
+  font-weight: 650;
+  margin: 12rpx 0;
+}
+
+.road-10k-body {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 27rpx;
+  line-height: 1.6;
+  margin-bottom: 18rpx;
+}
+
+.road-10k-action {
+  min-height: 88rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16rpx;
+  padding: 0 24rpx;
+}
+
+.road-10k-action--primary {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.road-10k-action--secondary {
+  border: 1rpx solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.road-10k-disabled {
+  border: 1rpx solid var(--border-default);
+  border-radius: 16rpx;
+  color: var(--text-muted);
+  font-size: 24rpx;
+  line-height: 1.5;
+  margin-top: 16rpx;
+  padding: 18rpx;
+}
+
+.road-10k-check {
+  align-items: flex-start;
+  color: var(--text-secondary);
+  display: flex;
+  font-size: 25rpx;
+  gap: 14rpx;
+  line-height: 1.5;
+  margin: 20rpx 0;
+}
+
+.road-10k-error {
+  color: var(--text-danger);
+  display: block;
+  font-size: 24rpx;
+  margin-top: 16rpx;
+}
+
+.road-10k-mask {
+  background: rgba(0, 0, 0, .45);
+  inset: 0;
+  position: fixed;
+  z-index: 20;
+}
+
+.road-10k-sheet {
+  background: var(--bg-surface);
+  border-radius: 24rpx 24rpx 0 0;
+  bottom: 0;
+  left: 0;
+  padding: 32rpx;
+  position: absolute;
+  right: 0;
+}

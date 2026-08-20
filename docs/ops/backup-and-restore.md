@@ -212,3 +212,21 @@ estimated.
 
 ---
 _Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+
+## Road 10K deletion replay boundary
+
+Road 10K evaluation and screenshot deletion writes a payload-free marker to
+the existing private object-storage capability before destructive DB work.
+Markers retain only owner/stage and deletion references, never evaluation or
+screenshot bytes, and are retained for the 14-day restore horizon plus
+successful replay.  `api.main.lifespan` replays markers before readiness or
+traffic; unavailable storage, malformed markers, object-delete failures, or
+DB replay failures keep startup/readiness closed.  Replay is idempotent and
+prevents deleted evaluation or screenshot data from resurrecting after either
+DB or object-storage restore.
+
+The 30-day evaluation deadline is measured from record creation and never
+slides.  `purge_expired_evaluations()` is an explicit repository primitive;
+there is no active production schedule in this change.  Do not run a
+destructive downgrade after any Road 10K slot is consumed.  Rollback leaves
+the migration, counters, receipts, markers, and private objects in place.

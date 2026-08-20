@@ -5,14 +5,14 @@ from datetime import date
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from analysis.road_10k_plan_generation import Road10KPlanGenerationConstraints
 from api.adaptive_plan_service import AdaptivePlanError
-from api.auth import get_data_user_id, require_write_access
+from api.auth import get_current_user_id
 from api.plan_generation_capabilities import (
     PlanPurposeError,
     road_10k_capability_available,
@@ -31,16 +31,63 @@ from api.road_10k_plan_generation import (
     generate_road_10k_proposal,
     regenerate_road_10k_proposal,
 )
+from api.road_10k_control import (
+    Road10KControlError,
+    authorize_first_exposure,
+)
+from api.road_10k_stage_authority import load_stage_authority
 from db.session import get_db
 
 
 def _require_road_10k_capability_available() -> None:
-    if not road_10k_capability_available():
+    authority = load_stage_authority()
+    if authority is None or not authority.is_usable:
         raise HTTPException(status_code=404, detail="Not found")
 
 
+def _require_road_10k_owner(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> str:
+    from db.models import User
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or user.is_demo or not user.is_active:
+        raise HTTPException(403, "First-party authentication required")
+    return user_id
+
+
+def _private_response(response: Response) -> None:
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Vary"] = "Authorization"
+
+
+def _private_json_response(content: dict[str, Any], status_code: int) -> JSONResponse:
+    return JSONResponse(
+        content=content,
+        status_code=status_code,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Pragma": "no-cache",
+            "Vary": "Authorization",
+        },
+    )
+
+
+def _authorize_result_exposure(db: Session, user_id: str) -> None:
+    """Commit the exposure receipt before FastAPI serializes a result."""
+    try:
+        authorize_first_exposure(db, user_id=user_id)
+    except Road10KControlError as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+
+
 router = APIRouter(
-    dependencies=[Depends(_require_road_10k_capability_available)]
+    dependencies=[
+        Depends(_require_road_10k_capability_available),
+        Depends(_private_response),
+    ]
 )
 Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
 IdempotencyKey = Annotated[
@@ -272,6 +319,8 @@ class Road10KProposalResponse(BaseModel):
 class Road10KBaselineMutationResponse(BaseModel):
     """Append-only confirmation response for direct 10K baseline review."""
 
+    model_config = ConfigDict(extra="forbid")
+
     replayed: bool
     guardrails: Road10KGuardrailProjectionResponse
     baseline: dict[str, Any]
@@ -359,17 +408,19 @@ def _raise_baseline(error: Exception) -> None:
 )
 def post_road_10k_readiness(
     body: Road10KReadinessRequest,
-    user_id: str = Depends(get_data_user_id),
+    user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Evaluate the reviewed road 10K policy without persisting a proposal."""
     try:
-        return build_road_10k_readiness(
+        result = build_road_10k_readiness(
             db,
             user_id=user_id,
             constraints=_constraints(body),
             purpose_selection=_purpose(body),
         )
+        _authorize_result_exposure(db, user_id)
+        return result
     except Exception as exc:
         _raise_generation(exc)
         raise
@@ -382,17 +433,19 @@ def post_road_10k_readiness(
 )
 def post_road_10k_alternatives(
     body: Road10KReadinessRequest,
-    user_id: str = Depends(get_data_user_id),
+    user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Return only policy-bounded alternatives for the current 10K state."""
     try:
-        return build_road_10k_alternatives(
+        result = build_road_10k_alternatives(
             db,
             user_id=user_id,
             constraints=_constraints(body),
             purpose_selection=_purpose(body),
         )
+        _authorize_result_exposure(db, user_id)
+        return result
     except Exception as exc:
         _raise_generation(exc)
         raise
@@ -405,7 +458,7 @@ def post_road_10k_alternatives(
 )
 def post_road_10k_generate(
     body: Road10KGenerateRequest,
-    user_id: str = Depends(require_write_access),
+    user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any] | JSONResponse:
     """Create a non-canonical road 10K proposal after exact readiness validation."""
@@ -421,9 +474,10 @@ def post_road_10k_generate(
     except Exception as exc:
         _raise_generation(exc)
         raise
+    _authorize_result_exposure(db, user_id)
     if not result["result"]["plan_returned"] or replayed:
         return result
-    return JSONResponse(content=result, status_code=status.HTTP_201_CREATED)
+    return _private_json_response(result, status.HTTP_201_CREATED)
 
 
 @router.post(
@@ -434,7 +488,7 @@ def post_road_10k_generate(
 def post_road_10k_regenerate(
     proposal_id: UUID,
     body: Road10KRegenerateRequest,
-    user_id: str = Depends(require_write_access),
+    user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any] | JSONResponse:
     """Create an exact-version road 10K successor when source inputs changed."""
@@ -452,9 +506,10 @@ def post_road_10k_regenerate(
     except Exception as exc:
         _raise_generation(exc)
         raise
+    _authorize_result_exposure(db, user_id)
     if not result["result"]["plan_returned"] or replayed:
         return result
-    return JSONResponse(content=result, status_code=status.HTTP_201_CREATED)
+    return _private_json_response(result, status.HTTP_201_CREATED)
 
 
 @router.post(
@@ -465,7 +520,7 @@ def post_road_10k_regenerate(
 def post_road_10k_history_confirmation(
     body: Road10KHistoryConfirmationRequest,
     idempotency_key: IdempotencyKey,
-    user_id: str = Depends(require_write_access),
+    user_id: str = Depends(_require_road_10k_owner),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Confirm a surfaced 10K activity as direct baseline evidence."""
@@ -488,5 +543,5 @@ def post_road_10k_history_confirmation(
         _raise_baseline(exc)
         raise
     if result["replayed"]:
-        return JSONResponse(content=result, status_code=200)
+        return _private_json_response(result, 200)
     return result

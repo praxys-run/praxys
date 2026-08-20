@@ -389,6 +389,31 @@ def delete_user_account(
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
+    # Road 10K evaluation and screenshot references have a separate
+    # out-of-database marker because the primary DB backup can be restored
+    # independently of private object storage.  Stage those markers before
+    # changing the account or owner links; a storage failure aborts the
+    # deletion rather than claiming success.
+    from api.road_10k_control import (
+        Road10KDeletionFailed,
+        complete_deletion_manifests,
+        prepare_account_deletion,
+    )
+
+    road_manifests = []
+    try:
+        for deleting_user_id in [user_id, *demo_user_ids]:
+            road_manifests.extend(
+                prepare_account_deletion(db, user_id=deleting_user_id)
+            )
+    except Road10KDeletionFailed:
+        db.rollback()
+        logger.exception(
+            "Road 10K deletion manifest failed for user %s",
+            user_id,
+        )
+        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
+
     user.is_active = False
     _cancel_active_labs_work(db, user_id)
     for demo_user in demo_users:
@@ -441,6 +466,15 @@ def delete_user_account(
     from api.personal_context import complete_account_deletion_manifests
 
     complete_account_deletion_manifests(context_manifests)
+    try:
+        complete_deletion_manifests(road_manifests)
+    except Exception:
+        # Requested markers remain authoritative and will replay on the next
+        # startup.  Do not expose a false "completed" marker.
+        logger.exception(
+            "Road 10K deletion completed but marker completion failed for user %s",
+            user_id,
+        )
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
         _clear_legacy_plan_status(db, deleted_user_id)

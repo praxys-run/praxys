@@ -208,3 +208,17 @@ user dashboard.
 
 ---
 _Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+
+## Road 10K control incident
+
+Treat any authority/schema mismatch, cap mismatch, provider-fence access,
+owner isolation issue, unauthorized enrollment/adoption, deletion or restore
+failure, or screenshot upload as a zero-tolerance incident.  The server
+denies the affected boundary; Operations may apply the independent kill or
+pause authority, but no client, cache, environment toggle, or application
+writer can resume it.  Preserve adopted plans unchanged.
+
+For deletion or restore failures, keep the payload-free marker, block
+readiness, and replay before traffic.  Do not reconstruct counts from logs or
+retain raw owner data.  Escalation, live alerts, actor binding, and production
+purge scheduling remain deferred until a separate Operations decision.

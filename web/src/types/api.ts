@@ -209,6 +209,94 @@ export interface GoalPlanKeepResponse {
   revision_id: string;
 }
 
+/** The closed, owner-scoped Road 10K control contract. */
+export type Road10KRolloutStatus =
+  | 'invited'
+  | 'reauth-required'
+  | 'notice-unavailable'
+  | 'enrolled'
+  | 'enrollment-closed'
+  | 'hold'
+  | 'withdrawn'
+  | 'removed'
+  | 'paused'
+  | 'killed'
+  | 'rollback'
+  | 'stopped'
+  | 'revision';
+
+export type Road10KPlanStatus =
+  | 'none'
+  | 'checking'
+  | 'baseline-required'
+  | 'limited-guidance'
+  | 'safety-stop'
+  | 'generating'
+  | 'generation-failed'
+  | 'proposal-ready'
+  | 'review-later'
+  | 'rejected'
+  | 'successor-requested'
+  | 'expired'
+  | 'active'
+  | 'paused-by-owner'
+  | 'ended-by-owner'
+  | 'completed'
+  | 'deleted';
+
+export interface Road10KAccessResponse {
+  rollout_status: Road10KRolloutStatus;
+  plan_status: Road10KPlanStatus;
+  stage_id: string;
+  notice_digest: string;
+  screenshot_available: false;
+}
+
+export type Road10KOptInRequest =
+  | {
+      password: string;
+      notice_digest: string;
+      client: 'web';
+    }
+  | {
+      password?: never;
+      notice_digest: string;
+      client: 'miniapp';
+    };
+
+export interface Road10KStatusResponse {
+  rollout_status: Road10KRolloutStatus;
+  plan_status: Road10KPlanStatus;
+  invitation_issued_at: string | null;
+  enrolled_at: string | null;
+  first_exposed_at: string | null;
+}
+
+export interface Road10KActionResponse {
+  outcome: 'enrolled' | 'withdrawn';
+  rollout_status: 'enrolled' | 'withdrawn';
+  plan_status: 'none' | 'unchanged';
+  receipt_id: string;
+}
+
+export interface Road10KExportResponse {
+  stage_id: string;
+  receipt: {
+    state: string;
+    invitation_issued_at: string;
+    enrolled_at: string | null;
+    first_exposed_at: string | null;
+  } | null;
+  evaluations: Array<{
+    id: string;
+    stage_id: string;
+    result_code: string;
+    payload: Record<string, unknown>;
+    created_at: string;
+    expires_at: string;
+  }>;
+}
+
 export type PlatformConnectionStatus =
   | 'connected'
   | 'error'
