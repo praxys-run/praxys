@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Trans } from '@lingui/react/macro';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useLocale } from '@/contexts/LocaleContext';
 import { apiFetch, useApi } from '@/hooks/useApi';
@@ -16,6 +18,7 @@ import {
   road10kAccessStateCopy,
   road10kCopy,
   type Road10KCopyKey,
+  type Road10KExperienceRolloutState,
 } from '@/lib/road-10k-control';
 
 type FlowState = 'idle' | 'reauth' | 'notice' | 'joining';
@@ -28,7 +31,10 @@ interface Road10KControlledOptInProps {
   intent?: Road10KNavigationIntent | null;
 }
 
-const ROLLOUT_STATUS_COPY: Record<Road10KAccessResponse['rollout_status'], Road10KCopyKey> = {
+const ROLLOUT_STATUS_COPY: Record<
+  Road10KExperienceRolloutState,
+  Road10KCopyKey
+> = {
   invited: 'status.rollout_invited',
   'reauth-required': 'status.rollout_reauth',
   'notice-unavailable': 'status.rollout_notice',
@@ -52,8 +58,11 @@ function localized(
 }
 
 function scrollToPlanStart() {
+  const reduceMotion = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  ).matches;
   document.getElementById('plan-start')?.scrollIntoView({
-    behavior: 'smooth',
+    behavior: reduceMotion ? 'auto' : 'smooth',
     block: 'start',
   });
 }
@@ -64,6 +73,7 @@ export default function Road10KControlledOptIn({
 }: Road10KControlledOptInProps) {
   const { locale } = useLocale();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const copy = <K extends Parameters<typeof road10kCopy>[0]>(key: K) =>
     localized(key, locale);
   const { data, loading, refetch } = useApi<Road10KAccessResponse>(
@@ -75,6 +85,8 @@ export default function Road10KControlledOptIn({
   const [acknowledged, setAcknowledged] = useState(false);
   const [invitationDismissed, setInvitationDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const consumedIntentRef = useRef<Road10KNavigationIntent | null>(null);
 
   useEffect(() => {
@@ -88,9 +100,16 @@ export default function Road10KControlledOptIn({
     }
     consumedIntentRef.current = intent;
     if (intent === 'review_invitation' && data.rollout_status === 'invited') {
-      setInvitationDismissed(false);
-      setFlow('reauth');
-      setError(null);
+      let active = true;
+      queueMicrotask(() => {
+        if (!active) return;
+        setInvitationDismissed(false);
+        setFlow('reauth');
+        setError(null);
+      });
+      return () => {
+        active = false;
+      };
     }
   }, [data, intent, surface]);
 
@@ -137,7 +156,6 @@ export default function Road10KControlledOptIn({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password,
-          notice_digest: data.notice_digest,
           client: 'web',
         }),
       });
@@ -145,7 +163,12 @@ export default function Road10KControlledOptIn({
       setFlow('idle');
       setPassword('');
       setAcknowledged(false);
-      await refetch();
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({
+          queryKey: ['/api/plan/generation/capabilities'],
+        }),
+      ]);
     } catch {
       setFlow('reauth');
       setError(copy('error.generic'));
@@ -153,22 +176,55 @@ export default function Road10KControlledOptIn({
   };
 
   const leave = async () => {
+    if (leaving) return;
+    setLeaving(true);
     setError(null);
     try {
       const response = await apiFetch('/api/road-10k/withdraw', { method: 'POST' });
       if (!response.ok) throw new Error(copy('error.generic'));
+      setLeaveDialogOpen(false);
       await refetch();
     } catch {
       setError(copy('error.generic'));
+    } finally {
+      setLeaving(false);
     }
   };
+
+  const leaveConfirmation = (
+    <Dialog
+      open={leaveDialogOpen}
+      onOpenChange={(open) => {
+        if (!leaving) setLeaveDialogOpen(open);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{copy('life.withdraw_title')}</DialogTitle>
+          <DialogDescription>{copy('life.withdraw_body')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setLeaveDialogOpen(false)}
+            disabled={leaving}
+          >
+            {copy('action.cancel')}
+          </Button>
+          <Button onClick={leave} disabled={leaving}>
+            {leaving ? copy('progress.leaving') : copy('action.leave')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (surface === 'goal') {
     if (data.rollout_status === 'invited') {
       return (
-        <Card className="mt-6 border-slate-200 dark:border-slate-800">
+        <Card className="mt-6 border-border">
           <CardHeader>
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-accent-cobalt" aria-hidden="true" />
               {rolloutStatus}
             </div>
@@ -194,13 +250,13 @@ export default function Road10KControlledOptIn({
     }
 
     return (
-      <Card className="mt-6 border-slate-200 dark:border-slate-800">
+      <Card className="mt-6 border-border">
         <CardHeader>
           <CardTitle>{rolloutStatus}</CardTitle>
           <CardDescription>{planStatus}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-muted-foreground">
             {rolloutBody}
           </p>
           <Button variant="outline" onClick={() => openTraining('review_status')}>
@@ -214,9 +270,9 @@ export default function Road10KControlledOptIn({
   if (surface === 'settings') {
     return (
       <>
-        <Card id="road-10k-settings" className="mb-8 border-slate-200 dark:border-slate-800">
+        <Card id="road-10k-settings" className="mb-8 border-border">
           <CardHeader>
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-accent-cobalt" aria-hidden="true" />
               {copy('action.training')}
             </div>
@@ -225,34 +281,35 @@ export default function Road10KControlledOptIn({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <p className="text-sm text-slate-700 dark:text-slate-200">{rolloutStatus}</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200">{planStatus}</p>
+              <p className="text-sm text-foreground">{rolloutStatus}</p>
+              <p className="text-sm text-foreground">{planStatus}</p>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+            <p className="text-sm text-muted-foreground">
               {copy('notice.leave')}
             </p>
             {showLeaveControl && (
-              <Button variant="outline" onClick={leave}>
+              <Button variant="outline" onClick={() => setLeaveDialogOpen(true)}>
                 {copy('action.leave')}
               </Button>
             )}
           </CardContent>
         </Card>
-        {error && (
+        {error && flow === 'idle' && (
           <Alert variant="destructive" className="mb-8" role="alert">
             <AlertTitle>{copy('error.generic')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        {leaveConfirmation}
       </>
     );
   }
 
   return (
     <>
-      <Card className="mt-8 border-slate-200 dark:border-slate-800">
+      <Card className="mt-8 border-border">
         <CardHeader>
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-accent-cobalt" aria-hidden="true" />
             {rolloutStatus}
           </div>
@@ -261,13 +318,18 @@ export default function Road10KControlledOptIn({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <p className="text-sm text-slate-700 dark:text-slate-200">{rolloutStatus}</p>
-            <p className="text-sm text-slate-700 dark:text-slate-200">{planStatus}</p>
+            <p className="text-sm text-foreground">{rolloutStatus}</p>
+            <p className="text-sm text-foreground">{planStatus}</p>
           </div>
 
           {data.rollout_status === 'invited' && (
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setFlow('reauth')}>
+              <Button
+                onClick={() => {
+                  setError(null);
+                  setFlow('reauth');
+                }}
+              >
                 {copy('action.review_invitation')}
               </Button>
               <Button
@@ -294,14 +356,14 @@ export default function Road10KControlledOptIn({
               >
                 {copy('action.add_screenshot')}
               </Button>
-              <p className="text-sm text-slate-600 dark:text-slate-300" role="status">
+              <p className="text-sm text-muted-foreground" role="status">
                 {copy('feedback.screenshot_blocked')}
               </p>
             </>
           )}
 
           {data.rollout_status !== 'invited' && data.rollout_status !== 'enrolled' && (
-            <p className="text-sm text-slate-600 dark:text-slate-300" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               {planBody}
             </p>
           )}
@@ -335,7 +397,7 @@ export default function Road10KControlledOptIn({
               <div className="space-y-2">
                 <Label htmlFor="road-10k-password">
                   <LockKeyhole className="mr-2 inline h-4 w-4" aria-hidden="true" />
-                  Password
+                  <Trans>Password</Trans>
                 </Label>
                 <Input
                   id="road-10k-password"
@@ -345,6 +407,11 @@ export default function Road10KControlledOptIn({
                   autoComplete="current-password"
                 />
               </div>
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setFlow('idle')}>
                   {copy('action.cancel')}
@@ -361,7 +428,7 @@ export default function Road10KControlledOptIn({
                 <DialogTitle>{copy('notice.title')}</DialogTitle>
                 <DialogDescription>{copy('notice.intro')}</DialogDescription>
               </DialogHeader>
-              <div className="max-h-[50vh] space-y-3 overflow-y-auto text-sm text-slate-700 dark:text-slate-200">
+              <div className="max-h-[50vh] space-y-3 overflow-y-auto text-sm text-foreground">
                 <p>{copy('notice.scope')}</p>
                 <p>{copy('notice.claims')}</p>
                 <p>{copy('notice.control')}</p>
@@ -377,6 +444,11 @@ export default function Road10KControlledOptIn({
                   <span>{copy('notice.ack')}</span>
                 </label>
               </div>
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
               <DialogFooter>
                 <Button
                   variant="outline"
@@ -393,6 +465,8 @@ export default function Road10KControlledOptIn({
           )}
         </DialogContent>
       </Dialog>
+
+      {leaveConfirmation}
     </>
   );
 }

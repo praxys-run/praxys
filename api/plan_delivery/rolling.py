@@ -1454,17 +1454,24 @@ def _run_rolling_delivery_for_user(
 
     def finish(result: ManagedDeliveryRunResult) -> ManagedDeliveryRunResult:
         duration_ms = int((time.monotonic() - started_at) * 1000)
-        telemetry.record_managed_plan_event(
-            category="delivery_run",
-            action="reconcile_and_deliver",
-            outcome=result.status,
-            user_id=user_id,
-            target=result.target,
-            trigger=trigger,
-            reason=result.reason,
-            duration_ms=duration_ms,
+        road_policy_only = bool(result.items) and all(
+            item.reason == "road_10k_policy_delivery_blocked"
+            for item in result.items
         )
+        if not road_policy_only:
+            telemetry.record_managed_plan_event(
+                category="delivery_run",
+                action="reconcile_and_deliver",
+                outcome=result.status,
+                user_id=user_id,
+                target=result.target,
+                trigger=trigger,
+                reason=result.reason,
+                duration_ms=duration_ms,
+            )
         for item in result.items:
+            if item.reason == "road_10k_policy_delivery_blocked":
+                continue
             telemetry.record_managed_plan_event(
                 category="delivery_item",
                 action=item.action,

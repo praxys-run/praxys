@@ -17,6 +17,8 @@ test('Road 10K stays off-route while Goal, Training, and Settings/Me keep the ac
     miniSettingsMarkup,
     miniSettingsJson,
     miniComponent,
+    miniMarkup,
+    webComponent,
   ] = await Promise.all([
     read('web/src/App.tsx'),
     read('web/src/pages/Goal.tsx'),
@@ -28,6 +30,8 @@ test('Road 10K stays off-route while Goal, Training, and Settings/Me keep the ac
     read('miniapp/pages/settings/index.wxml'),
     read('miniapp/pages/settings/index.json'),
     read('miniapp/components/road-10k-controlled-opt-in/index.ts'),
+    read('miniapp/components/road-10k-controlled-opt-in/index.wxml'),
+    read('web/src/pages/Road10KControlledOptIn.tsx'),
   ]);
 
   assert.doesNotMatch(app, /path="\/road-10k/);
@@ -36,7 +40,7 @@ test('Road 10K stays off-route while Goal, Training, and Settings/Me keep the ac
   assert.match(webSettings, /surface="settings"/);
 
   assert.match(miniGoalMarkup, /road-10k-controlled-opt-in surface="goal"/);
-  assert.match(miniTrainingMarkup, /road-10k-controlled-opt-in id="training-road-10k" surface="training"/);
+  assert.match(miniTrainingMarkup, /road-10k-controlled-opt-in[^>]*id="training-road-10k"[^>]*surface="training"/s);
   assert.match(miniTrainingJson, /road-10k-controlled-opt-in/);
   assert.match(miniSettingsMarkup, /road-10k-controlled-opt-in surface="settings"/);
   assert.match(miniSettingsJson, /road-10k-controlled-opt-in/);
@@ -44,6 +48,12 @@ test('Road 10K stays off-route while Goal, Training, and Settings/Me keep the ac
   assert.match(miniComponent, /pendingRoad10KIntent/);
   assert.match(miniComponent, /password:/);
   assert.match(miniComponent, /client: 'miniapp'/);
+  assert.match(miniComponent, /wx\.showModal/);
+  assert.match(miniComponent, /confirmLeave/);
+  assert.match(miniMarkup, /bindtap="onCheck"/);
+  assert.match(miniMarkup, /text\.addScreenshot/);
+  assert.match(webComponent, /life\.withdraw_title/);
+  assert.match(webComponent, /leaveDialogOpen/);
 });
 
 test('web and miniapp ship the exact Road 10K copy catalog and state maps', async () => {
@@ -102,9 +112,122 @@ test('Road 10K opt-in contracts require server-verified reauthentication for eve
     assert.match(source, /interface Road10KOptInRequest/);
     assert.match(source, /password: string;/);
     assert.match(source, /client: 'web' \| 'miniapp';/);
+    assert.doesNotMatch(source, /interface Road10KOptInRequest \{[^}]*notice_digest/s);
     assert.doesNotMatch(source, /password\?: never/);
   }
 
   assert.match(typechecks, /miniappRoad10KOptIn/);
   assert.match(typechecks, /invalidMiniappRoad10KOptIn/);
+});
+
+test('Road 10K synthetic state fixtures stay test-only and preserve platform parity', async () => {
+  const [
+    webFixtureSource,
+    miniappFixtureSource,
+    webApp,
+    webComponent,
+    miniappComponent,
+    miniappProject,
+    miniappPublish,
+  ] = await Promise.all([
+    read('web/tests/fixtures/road-10k-controlled-opt-in.fixtures.json'),
+    read('miniapp/tests/fixtures/road-10k-controlled-opt-in.fixtures.json'),
+    read('web/src/App.tsx'),
+    read('web/src/pages/Road10KControlledOptIn.tsx'),
+    read('miniapp/components/road-10k-controlled-opt-in/index.ts'),
+    read('miniapp/project.config.json'),
+    read('.github/workflows/miniapp-publish.yml'),
+  ]);
+  const webFixture = JSON.parse(webFixtureSource);
+  const miniappFixture = JSON.parse(miniappFixtureSource);
+  const parityKeys = [
+    'schema_version',
+    'synthetic_only',
+    'locales',
+    'access',
+    'readiness',
+    'baseline_inputs',
+    'proposal',
+    'managed_plan',
+    'lifecycle',
+    'network',
+    'unavailable_capabilities',
+  ];
+
+  assert.equal(webFixture.synthetic_only, true);
+  assert.equal(miniappFixture.synthetic_only, true);
+  for (const key of parityKeys) {
+    assert.deepEqual(miniappFixture[key], webFixture[key], key);
+  }
+  assert.deepEqual(webFixture.unavailable_capabilities, [
+    'feedback-screenshot-upload',
+  ]);
+
+  const productionSources = [webApp, webComponent, miniappComponent].join('\n');
+  assert.doesNotMatch(
+    productionSources,
+    /road-10k-controlled-opt-in\.fixtures|road-10k-synthetic-ui-fixtures-v1/,
+  );
+  assert.deepEqual(
+    JSON.parse(miniappProject).packOptions.ignore,
+    [{ type: 'folder', value: 'tests' }],
+  );
+  assert.match(miniappPublish, /'tests\/\*\*\/\*'/);
+});
+
+test('Road proposal UI uses accepted copy, confirmations, and bounded motion-safe sheets', async () => {
+  const [
+    webPlanStart,
+    webOptIn,
+    miniPlanStart,
+    miniPlanMarkup,
+    miniOptInMarkup,
+    miniOptInStyles,
+    miniAppStyles,
+  ] = await Promise.all([
+    read('web/src/components/PlanStart.tsx'),
+    read('web/src/pages/Road10KControlledOptIn.tsx'),
+    read('miniapp/components/outdoor-5k-plan-start/index.ts'),
+    read('miniapp/components/outdoor-5k-plan-start/index.wxml'),
+    read('miniapp/components/road-10k-controlled-opt-in/index.wxml'),
+    read('miniapp/components/road-10k-controlled-opt-in/index.scss'),
+    read('miniapp/app.scss'),
+  ]);
+
+  assert.match(webPlanStart, /ROAD_10K_OUTCOME_COPY/);
+  assert.match(webPlanStart, /roadCopy\('inputs\.title'\)/);
+  assert.match(webPlanStart, /roadCopy\('proposal\.badge'\)/);
+  assert.match(webPlanStart, /roadCopy\('action\.review_later'\)/);
+  assert.match(webPlanStart, /proposal\.reject_title/);
+  assert.match(webPlanStart, /proposal\.regen_title/);
+  assert.match(webPlanStart, /proposal\.adopt_title/);
+  assert.match(webPlanStart, /onReviewLater/);
+  assert.match(webPlanStart, /proposal\.policy_version/);
+  assert.match(webPlanStart, /!road10kMode/);
+  assert.match(webOptIn, /prefers-reduced-motion: reduce/);
+  assert.match(
+    webOptIn,
+    /queryKey: \['\/api\/plan\/generation\/capabilities'\]/,
+  );
+  assert.doesNotMatch(webOptIn, /slate-|#fff/);
+
+  assert.match(miniPlanStart, /roadOutcomeCopyKeys/);
+  assert.match(miniPlanStart, /road10kTitle: roadCopy\('inputs\.title'\)/);
+  assert.match(miniPlanStart, /roadProposalBadge: roadCopy\('proposal\.badge'\)/);
+  assert.match(miniPlanStart, /wx\.showModal/);
+  assert.match(miniPlanStart, /proposal\.reject_title/);
+  assert.match(miniPlanStart, /proposal\.regen_title/);
+  assert.match(miniPlanStart, /proposal\.adopt_title/);
+  assert.match(miniPlanMarkup, /road10kMode \? tr\.road10kInputBody/);
+  assert.doesNotMatch(
+    miniOptInStyles,
+    /--(?:text-primary|text-secondary|accent-primary|border-default|text-danger|bg-surface)|rgba\(/,
+  );
+  assert.match(miniAppStyles, /--overlay:/);
+  assert.match(miniPlanMarkup, /bindtap="onReviewLater"/);
+  assert.match(miniOptInMarkup, /wx:if="\{\{error\}\}".*road-10k-error/s);
+  assert.match(miniOptInStyles, /max-height: calc\(100vh/);
+  assert.match(miniOptInStyles, /env\(safe-area-inset-bottom\)/);
+  assert.match(miniOptInStyles, /var\(--primary-on\)/);
+  assert.doesNotMatch(miniOptInStyles, /#fff/);
 });

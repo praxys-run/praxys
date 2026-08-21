@@ -15,7 +15,11 @@
       </view>
 
       <view class="train-section">
-        <road-10k-controlled-opt-in id="training-road-10k" surface="training" />
+        <road-10k-controlled-opt-in
+          id="training-road-10k"
+          surface="training"
+          bindcheck="onRoad10KCheck"
+        />
       </view>
       <view class="train-section">
         <outdoor-5k-plan-start id="training-plan-start" />

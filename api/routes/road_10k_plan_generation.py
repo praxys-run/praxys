@@ -577,6 +577,22 @@ class Road10KProposalGoalResponse(BaseModel):
     horizon_end: str
     acknowledged_at: str | None
 
+    @model_validator(mode="after")
+    def validate_purpose_provenance(self) -> "Road10KProposalGoalResponse":
+        """Keep current-Goal provenance paired and absent elsewhere."""
+        has_goal_id = self.source_goal_id is not None
+        has_goal_revision = self.source_goal_revision is not None
+        if self.purpose_source == "current_goal":
+            if not has_goal_id or not has_goal_revision:
+                raise ValueError(
+                    "current_goal requires source Goal provenance"
+                )
+        elif has_goal_id or has_goal_revision:
+            raise ValueError(
+                "non-current Goal purpose cannot carry source provenance"
+            )
+        return self
+
 
 class Road10KAdaptivePlanResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")

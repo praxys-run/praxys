@@ -1,7 +1,11 @@
 import { apiGet, apiPost } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import type { IAppOption } from '../../app';
-import { t } from '../../utils/i18n';
+import { detectLocale, t } from '../../utils/i18n';
+import {
+  road10kCopy,
+  type Road10KCopyKey,
+} from '../../utils/road-10k-control';
 import type {
   AdaptivePlanProposal,
   AdaptivePlanProposalAdoptResponse,
@@ -37,6 +41,10 @@ interface PurposeOption {
 
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 
+function roadCopy(key: Road10KCopyKey): string {
+  return road10kCopy(key, detectLocale() === 'zh' ? 'zh-CN' : 'en');
+}
+
 function purposeValue(
   source: PlanGenerationPurposeSelection['source'],
   capabilityId: string,
@@ -61,7 +69,8 @@ function samePurposeSelection(
 function copy() {
   return {
     title: t('Plan preview'),
-    road10kTitle: t('10K performance'),
+    road10kTitle: roadCopy('inputs.title'),
+    road10kInputBody: roadCopy('inputs.body'),
     unsupportedTitle: t('Plan generation for this goal'),
     supportedGoal: t('No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.'),
     purpose: t('Plan purpose'),
@@ -110,6 +119,10 @@ function copy() {
     checking: t('Checking readiness…'),
     create: t('Create proposal'),
     creating: t('Creating proposal…'),
+    roadCheck: roadCopy('action.check'),
+    roadChecking: roadCopy('progress.checking'),
+    roadCreate: roadCopy('action.generate'),
+    roadCreating: roadCopy('progress.generating'),
     result: t('Readiness result'),
     planCandidate: t('Plan candidate'),
     readinessOnly: t('Readiness first'),
@@ -153,18 +166,32 @@ function copy() {
     alternativeReviewBeforeAdopting: t('Review before adopting'),
     alternativeKeepCurrentPlan: t('Keep the current plan until adoption'),
     proposal: t('Plan proposal'),
+    roadProposal: roadCopy('proposal.title'),
+    roadProposalBadge: roadCopy('proposal.badge'),
+    roadProposalBody: roadCopy('proposal.body'),
     purposeLabel: t('Purpose'),
     policy: t('Policy'),
+    roadPolicy: roadCopy('proposal.policy'),
     generator: t('Generator'),
+    roadGenerator: roadCopy('proposal.generator'),
     science: t('Science'),
+    roadScience: roadCopy('proposal.science'),
     proposalNotPlan: t('This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.'),
     inputsOnly: t('Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client.'),
     regenerate: t('Regenerate successor'),
     regenerating: t('Regenerating…'),
+    roadRegenerate: roadCopy('action.regenerate'),
+    roadRegenerating: roadCopy('progress.regenerating'),
     adopt: t('Adopt exact proposal'),
     adopting: t('Adopting…'),
+    roadAdopt: roadCopy('action.adopt'),
+    roadAdopting: roadCopy('progress.adopting'),
     reject: t('Reject or defer'),
     rejecting: t('Rejecting…'),
+    roadReject: roadCopy('action.reject'),
+    roadRejecting: roadCopy('progress.rejecting'),
+    roadReviewLater: roadCopy('action.review_later'),
+    roadPlanActive: roadCopy('plan.active_body'),
     deliveryDisabled: t('Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
     refresh: t('Refresh proposal'),
     retry: t('Retry'),
@@ -209,9 +236,71 @@ function reason(
   result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
   fallback: string,
 ): string {
+  if ('route_state' in result) {
+    return roadCopy(roadOutcomeCopyKeys(result.code)[1]);
+  }
   return result.observed_or_stated_reason
     ?? result.uncertainty_or_missing_field
     ?? fallback;
+}
+
+function roadOutcomeCopyKeys(
+  code: Road10KOutcomeResponse['code'],
+): readonly [Road10KCopyKey, Road10KCopyKey] {
+  const mapping: Record<
+    Road10KOutcomeResponse['code'],
+    readonly [Road10KCopyKey, Road10KCopyKey]
+  > = {
+    eligible_rolling_proposal: [
+      'eligibility.ready_title',
+      'eligibility.ready_body',
+    ],
+    eligible_taper_proposal: [
+      'eligibility.ready_title',
+      'eligibility.ready_body',
+    ],
+    missing_or_stale_direct_baseline: [
+      'eligibility.baseline_title',
+      'eligibility.baseline_body',
+    ],
+    insufficient_recent_history: [
+      'eligibility.history_title',
+      'eligibility.history_body',
+    ],
+    limited_guidance_event_conflict: [
+      'eligibility.limited_title',
+      'eligibility.event_body',
+    ],
+    limited_near_term_guidance: [
+      'eligibility.limited_title',
+      'eligibility.near_body',
+    ],
+    safety_stop: [
+      'eligibility.safety_title',
+      'eligibility.safety_body',
+    ],
+    adult_scope_or_constraints_unconfirmed: [
+      'eligibility.confirm_title',
+      'eligibility.confirm_body',
+    ],
+    contradictory_input: [
+      'eligibility.conflict_title',
+      'eligibility.conflict_body',
+    ],
+    unsupported_intent_distance_surface_or_population: [
+      'eligibility.unsupported_title',
+      'eligibility.unsupported_body',
+    ],
+    no_schedule_within_envelope: [
+      'eligibility.schedule_title',
+      'eligibility.schedule_body',
+    ],
+    validation_failed: [
+      'eligibility.unavailable_title',
+      'eligibility.unavailable_body',
+    ],
+  };
+  return mapping[code];
 }
 
 type ReadinessResponse =
@@ -227,12 +316,7 @@ function readinessBadge(
   tr: ReturnType<typeof copy>,
 ): string {
   if ('route_state' in result) {
-    return {
-      plan_candidate: tr.planCandidate,
-      readiness_only: tr.readinessOnly,
-      clarification_required: tr.clarificationRequired,
-      policy_unavailable: tr.policyUnavailable,
-    }[result.route_state] ?? tr.readinessOnly;
+    return roadCopy(roadOutcomeCopyKeys(result.code)[0]);
   }
   return result.code === 'ready' ? tr.ready : tr.readinessOnly;
 }
@@ -1012,7 +1096,22 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onRegenerate() {
+    onRegenerate() {
+      if (!this.data.road10kMode) {
+        void this.performRegenerate();
+        return;
+      }
+      wx.showModal({
+        title: roadCopy('proposal.regen_title'),
+        content: roadCopy('proposal.regen_body'),
+        confirmText: roadCopy('action.regenerate'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performRegenerate();
+        },
+      });
+    },
+    async performRegenerate() {
       if (this.data.working) return;
       if (!this.data.proposalMatchesPurpose) {
         this.setData({ errorMessage: this.data.tr.conflictingPurpose });
@@ -1089,7 +1188,22 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onReject() {
+    onReject() {
+      if (!this.data.road10kMode) {
+        void this.performReject();
+        return;
+      }
+      wx.showModal({
+        title: roadCopy('proposal.reject_title'),
+        content: roadCopy('proposal.reject_body'),
+        confirmText: roadCopy('action.reject'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performReject();
+        },
+      });
+    },
+    async performReject() {
       if (this.data.working) return;
       const proposal = this.data.proposal;
       if (!proposal) return;
@@ -1114,7 +1228,32 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onAdopt() {
+    onReviewLater() {
+      this.setData({
+        notice: roadCopy('success.later'),
+        errorMessage: '',
+      });
+    },
+    onAdopt() {
+      if (!this.data.road10kMode) {
+        void this.performAdopt();
+        return;
+      }
+      const version = String(this.data.proposal?.version ?? '');
+      wx.showModal({
+        title: roadCopy('proposal.adopt_title'),
+        content: roadCopy('proposal.adopt_body').replace(
+          '{version}',
+          version,
+        ),
+        confirmText: roadCopy('action.adopt'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performAdopt();
+        },
+      });
+    },
+    async performAdopt() {
       if (this.data.working) return;
       if (!this.data.proposalMatchesPurpose) {
         this.setData({ errorMessage: this.data.tr.conflictingPurpose });
@@ -1146,8 +1285,22 @@ Component({
             this.data.tr,
           ),
           notice: result.status === 'already_adopted'
-            ? this.data.tr.alreadyAdopted
-            : this.data.tr.adopted,
+            ? (
+              this.data.road10kMode
+                ? roadCopy('success.adopted').replace(
+                  '{version}',
+                  String(result.proposal.version),
+                )
+                : this.data.tr.alreadyAdopted
+            )
+            : (
+              this.data.road10kMode
+                ? roadCopy('success.adopted').replace(
+                  '{version}',
+                  String(result.proposal.version),
+                )
+                : this.data.tr.adopted
+            ),
         });
         this.clearOperationKey('adopt');
       } catch (error) {

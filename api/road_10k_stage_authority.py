@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from analysis.road_10k_contract import ROAD_10K_CAPABILITY
+from api.version import get_api_version, is_valid_build_version
 
 ROAD_10K_OBJECT_ID = "road-10k-controlled-opt-in-foundation-v1"
 ROAD_10K_WORK_CONTRACT_DIGEST = (
@@ -30,7 +31,7 @@ ROAD_10K_COMPILED_INVITATION_CEILING = 60
 ROAD_10K_COMPILED_EXPOSURE_CEILING = 30
 ROAD_10K_MAX_HEARTBEAT_AGE_SECONDS = 300
 ROAD_10K_LIFECYCLE_STATES = frozenset(
-    {"paused", "killed", "hold", "rollback"}
+    {"paused", "killed", "hold", "rollback", "stopped", "revision"}
 )
 
 
@@ -204,7 +205,16 @@ def parse_stage_authority(payload: Mapping[str, Any]) -> Road10KStageAuthority:
         raise StageAuthorityError("authority schema mismatch")
     if payload["control_schema_version"] != ROAD_10K_CONTROL_SCHEMA_VERSION:
         raise StageAuthorityError("control schema mismatch")
-    if payload["state"] not in {"active", "off", "paused", "killed", "hold", "rollback"}:
+    if payload["state"] not in {
+        "active",
+        "off",
+        "paused",
+        "killed",
+        "hold",
+        "rollback",
+        "stopped",
+        "revision",
+    }:
         raise StageAuthorityError("unknown authority state")
     invitation_ceiling = payload["invitation_ceiling"]
     exposure_ceiling = payload["exposure_ceiling"]
@@ -231,6 +241,13 @@ def parse_stage_authority(payload: Mapping[str, Any]) -> Road10KStageAuthority:
     build_id = payload["build_id"]
     if not isinstance(build_id, str) or not build_id or len(build_id) > 120:
         raise StageAuthorityError("build_id is malformed")
+    running_build = get_api_version()
+    if (
+        running_build == "develop"
+        or not is_valid_build_version(running_build)
+        or build_id != running_build
+    ):
+        raise StageAuthorityError("build mismatch")
     valid_from = _utc(payload["valid_from"], "valid_from")
     valid_until = _utc(payload["valid_until"], "valid_until")
     heartbeat_at = _utc(payload["heartbeat_at"], "heartbeat_at")

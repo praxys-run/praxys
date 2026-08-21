@@ -37,6 +37,8 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         Outdoor5KPlanGeneration,
         Road10KBaselineConfirmation,
         Road10KBaselineSnapshot,
+        Road10KExposureReceipt,
+        Road10KOwnerStageReceipt,
         Road10KPlanGeneration,
         Road10KTrainingPatternSnapshot,
         RecoveryData,
@@ -126,6 +128,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 actor_type="user",
                 actor_id=owner_id,
                 base_plan_version=0,
+                policy_version="road-10k-plan-generation-policy-v2",
                 assumptions=[],
                 unknowns=[],
                 warnings=[],
@@ -500,6 +503,64 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     finally:
         db.close()
 
+    unexposed = client.get("/api/me/export")
+    assert unexposed.status_code == 200, unexposed.text
+    unexposed_payload = unexposed.json()
+    assert unexposed_payload["activities"]
+    assert unexposed_payload["training_plans"] == []
+    assert (
+        unexposed_payload["adaptive_plan_proposals"]["goal_snapshots"]
+        == []
+    )
+    assert unexposed_payload["adaptive_plan_proposals"]["plans"] == []
+    assert unexposed_payload["adaptive_plan_proposals"]["proposals"] == []
+    assert unexposed_payload["road_10k_baseline"]["confirmations"] == []
+    assert unexposed_payload["road_10k_baseline"]["snapshots"] == []
+    assert (
+        unexposed_payload["road_10k_plan_generation"][
+            "training_pattern_snapshots"
+        ]
+        == []
+    )
+    assert unexposed_payload["road_10k_plan_generation"]["records"] == []
+
+    db = SessionLocal()
+    try:
+        db.add(
+            Road10KOwnerStageReceipt(
+                id="owner-road-10k-control-receipt",
+                user_id=owner_id,
+                stage_id="road-10k-controlled-opt-in-v1",
+                capability_id="outdoor_road_10k_performance_v1",
+                schema_version=2,
+                policy_version="road-10k-plan-generation-policy-v2",
+                authority_digest="a" * 64,
+                notice_digest="b" * 64,
+                cohort_rule_digest="c" * 64,
+                sampling_run_evidence_digest="d" * 64,
+                invitation_idempotency_key="owner-road-10k-export-invitation",
+                state="exposed",
+                invitation_issued_at=datetime(2026, 8, 1, 8, 0),
+                enrolled_at=datetime(2026, 8, 1, 8, 1),
+                first_exposed_at=datetime(2026, 8, 1, 8, 2),
+                created_at=datetime(2026, 8, 1, 8, 0),
+                updated_at=datetime(2026, 8, 1, 8, 2),
+            )
+        )
+        db.add(
+            Road10KExposureReceipt(
+                id="owner-road-10k-exposure-receipt",
+                stage_id="road-10k-controlled-opt-in-v1",
+                user_id=owner_id,
+                owner_stage_receipt_id="owner-road-10k-control-receipt",
+                authority_digest="a" * 64,
+                exposed_at=datetime(2026, 8, 1, 8, 2),
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
     response = client.get("/api/me/export")
 
     assert response.status_code == 200, response.text
@@ -648,6 +709,23 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         "linked_revisions": [],
     }
     assert "user_id" not in json.dumps(payload)
+
+    db = SessionLocal()
+    try:
+        receipt = db.get(
+            Road10KOwnerStageReceipt,
+            "owner-road-10k-control-receipt",
+        )
+        receipt.state = "withdrawn"
+        receipt.withdrawn_at = datetime(2026, 8, 20, 8, 0)
+        receipt.updated_at = datetime(2026, 8, 20, 8, 0)
+        db.commit()
+    finally:
+        db.close()
+    lifecycle_export = client.get("/api/me/export")
+    assert lifecycle_export.status_code == 200
+    assert lifecycle_export.json()["road_10k_plan_generation"]["records"]
+    assert lifecycle_export.json()["adaptive_plan_proposals"]["proposals"]
 
     serialized = response.text
     for excluded in (

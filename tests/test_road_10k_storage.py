@@ -1,5 +1,6 @@
 """Road 10K private marker and screenshot-fence tests."""
 from datetime import datetime, timedelta, timezone
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -7,6 +8,7 @@ import pytest
 
 from api import road_10k_deletion_storage as storage
 from api import feedback_storage
+from api.account_deletion import delete_user_account
 from api.road_10k_screenshot_storage import (
     Road10KScreenshotUnavailable,
     delete_object,
@@ -28,6 +30,12 @@ class _MemoryManifestStore:
 
     def delete(self, key: str) -> None:
         self.items.pop(key, None)
+
+
+def test_road_10k_account_deletion_logs_are_not_owner_dimensional():
+    source = inspect.getsource(delete_user_account)
+    assert "Road 10K deletion manifest failed for user" not in source
+    assert "marker completion failed for user" not in source
 
 
 def test_marker_is_payload_free_and_replayed_before_traffic(tmp_path, monkeypatch):
@@ -53,7 +61,7 @@ def test_marker_is_payload_free_and_replayed_before_traffic(tmp_path, monkeypatc
     assert deleted == ["evaluation-1"]
 
 
-def test_old_marker_is_expired_only_after_restore_window(tmp_path, monkeypatch):
+def test_old_completed_marker_is_expired_after_restore_window(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
     old = datetime.now(timezone.utc) - timedelta(
         days=storage.MARKER_RETENTION_DAYS + 1
@@ -66,6 +74,37 @@ def test_old_marker_is_expired_only_after_restore_window(tmp_path, monkeypatch):
         screenshot_keys=[],
         requested_at=old,
     )
+    storage.mark_completed(marker, old)
+    assert list(storage.iter_active(now=datetime.now(timezone.utc))) == []
+
+
+def test_unreplayed_marker_survives_restore_window_until_replay(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
+    old = datetime.now(timezone.utc) - timedelta(
+        days=storage.MARKER_RETENTION_DAYS + 1
+    )
+    marker = storage.stage_manifest(
+        owner_id="native-owner",
+        stage_id="road-10k-controlled-opt-in-v1",
+        reason="account_deletion",
+        evaluation_ids=["evaluation-1"],
+        screenshot_keys=[],
+        requested_at=old,
+    )
+    storage.mark_committed(marker, old)
+    deleted: list[str] = []
+
+    assert storage.replay_manifests(
+        delete_object=lambda _key: None,
+        delete_evaluation=lambda evaluation_id, _manifest: deleted.append(
+            evaluation_id
+        ),
+        now=datetime.now(timezone.utc),
+    ) == 1
+    assert deleted == ["evaluation-1"]
     assert list(storage.iter_active(now=datetime.now(timezone.utc))) == []
 
 
@@ -201,6 +240,7 @@ def test_partial_replay_keeps_committed_marker_until_all_targets_are_deleted(
             delete_object=flaky_delete,
             delete_evaluation=lambda _id, _manifest: None,
         )
+    assert storage.replay_status() == "blocked"
     assert list(storage.iter_active())
     storage.replay_manifests(
         delete_object=lambda _key: None,
@@ -208,6 +248,7 @@ def test_partial_replay_keeps_committed_marker_until_all_targets_are_deleted(
     )
     active = list(storage.iter_active())
     assert active and active[0]["status"] == "completed"
+    assert storage.replay_status() == "ready"
 
 
 def test_account_deletion_manifest_captures_feedback_objects_without_road_rows(
@@ -320,7 +361,10 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
 ):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from api.road_10k_control import replay_road_10k_deletion_manifests
+    from api.road_10k_control import (
+        initialize_road_10k_runtime,
+        road_10k_requires_replay_ready,
+    )
     from db.models import Base, Feedback, User
 
     manifest_store = _MemoryManifestStore()
@@ -356,7 +400,8 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
         db.query(User).delete()
         db.commit()
 
-        assert replay_road_10k_deletion_manifests(db) == 1
+        assert road_10k_requires_replay_ready(db) is False
+        assert initialize_road_10k_runtime(db) == 1
         assert not object_path.exists()
         active = list(storage.iter_active())
         assert active and active[0]["status"] == "completed"
@@ -468,6 +513,7 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
         "_authority",
         lambda lifecycle=True: SimpleNamespace(
             stage_id="road-10k-controlled-opt-in-v1",
+            authority_digest="retention-test-authority",
         ),
     )
     monkeypatch.setattr(

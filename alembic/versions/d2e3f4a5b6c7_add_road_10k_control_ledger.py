@@ -1,7 +1,7 @@
 """add the Road 10K control ledger and deletable evaluation references
 
 Revision ID: d2e3f4a5b6c7
-Revises: c1d2e3f4a5b6
+Revises: b8d4e6f7a9c1
 """
 from typing import Sequence, Union
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision: str = "d2e3f4a5b6c7"
-down_revision: Union[str, Sequence[str], None] = "c1d2e3f4a5b6"
+down_revision: Union[str, Sequence[str], None] = "b8d4e6f7a9c1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -83,6 +83,11 @@ def upgrade() -> None:
         sa.Column("authority_digest", sa.String(length=64), nullable=False),
         sa.Column("notice_digest", sa.String(length=64), nullable=False),
         sa.Column("cohort_rule_digest", sa.String(length=64), nullable=False),
+        sa.Column(
+            "sampling_run_evidence_digest",
+            sa.String(length=64),
+            nullable=False,
+        ),
         sa.Column("invitation_idempotency_key", sa.String(length=128), nullable=False),
         sa.Column("state", sa.String(length=24), nullable=False),
         sa.Column("invitation_issued_at", sa.DateTime(), nullable=False),
@@ -90,7 +95,6 @@ def upgrade() -> None:
         sa.Column("first_exposed_at", sa.DateTime(), nullable=True),
         sa.Column("withdrawn_at", sa.DateTime(), nullable=True),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
-        sa.Column("request_fingerprint", sa.String(length=64), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
@@ -112,6 +116,13 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "schema_version = 2",
             name="ck_road_10k_owner_stage_receipt_schema",
+        ),
+        sa.CheckConstraint(
+            "length(authority_digest) = 64 "
+            "AND length(notice_digest) = 64 "
+            "AND length(cohort_rule_digest) = 64 "
+            "AND length(sampling_run_evidence_digest) = 64",
+            name="ck_road_10k_owner_stage_receipt_digests",
         ),
         sa.CheckConstraint(
             "state IN ('invited_only','enrolled_unexposed','exposed',"
@@ -233,18 +244,105 @@ def upgrade() -> None:
     if bind.dialect.name == "sqlite":
         op.execute(
             "CREATE TRIGGER "
+            "trg_road_10k_stage_counters_monotonic "
+            "BEFORE UPDATE ON road_10k_stage_counters "
+            "WHEN NEW.invitation_slots_consumed "
+            "< OLD.invitation_slots_consumed "
+            "OR NEW.distinct_exposed_owners_consumed "
+            "< OLD.distinct_exposed_owners_consumed "
+            "BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'road 10K counters cannot decrement'); "
+            "END"
+        )
+        op.execute(
+            "CREATE TRIGGER "
+            "trg_road_10k_owner_stage_receipts_no_delete "
+            "BEFORE DELETE ON road_10k_owner_stage_receipts "
+            "BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'road 10K owner receipts cannot be deleted'); "
+            "END"
+        )
+        op.execute(
+            "CREATE TRIGGER "
             "trg_road_10k_exposure_receipts_immutable "
             "BEFORE UPDATE ON road_10k_exposure_receipts "
+            "WHEN NOT ("
+            "OLD.user_id IS NOT NULL AND NEW.user_id IS NULL "
+            "AND NEW.id = OLD.id "
+            "AND NEW.stage_id = OLD.stage_id "
+            "AND NEW.owner_stage_receipt_id = OLD.owner_stage_receipt_id "
+            "AND NEW.authority_digest = OLD.authority_digest "
+            "AND NEW.exposed_at = OLD.exposed_at"
+            ") "
             "BEGIN "
             "SELECT RAISE(ABORT, "
             "'road 10K exposure receipts are immutable'); "
             "END"
         )
+        op.execute(
+            "CREATE TRIGGER "
+            "trg_road_10k_exposure_receipts_no_delete "
+            "BEFORE DELETE ON road_10k_exposure_receipts "
+            "BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'road 10K exposure receipts cannot be deleted'); "
+            "END"
+        )
     elif bind.dialect.name == "postgresql":
+        op.execute(
+            "CREATE FUNCTION road_10k_stage_counters_monotonic() "
+            "RETURNS trigger AS $$ "
+            "BEGIN "
+            "IF NEW.invitation_slots_consumed "
+            "< OLD.invitation_slots_consumed "
+            "OR NEW.distinct_exposed_owners_consumed "
+            "< OLD.distinct_exposed_owners_consumed THEN "
+            "RAISE EXCEPTION 'road 10K counters cannot decrement'; "
+            "END IF; "
+            "RETURN NEW; "
+            "END; "
+            "$$ LANGUAGE plpgsql"
+        )
+        op.execute(
+            "CREATE TRIGGER trg_road_10k_stage_counters_monotonic "
+            "BEFORE UPDATE ON road_10k_stage_counters "
+            "FOR EACH ROW EXECUTE FUNCTION "
+            "road_10k_stage_counters_monotonic()"
+        )
+        op.execute(
+            "CREATE FUNCTION road_10k_receipts_no_delete() "
+            "RETURNS trigger AS $$ "
+            "BEGIN "
+            "RAISE EXCEPTION 'road 10K receipts cannot be deleted'; "
+            "END; "
+            "$$ LANGUAGE plpgsql"
+        )
+        op.execute(
+            "CREATE TRIGGER trg_road_10k_owner_stage_receipts_no_delete "
+            "BEFORE DELETE ON road_10k_owner_stage_receipts "
+            "FOR EACH ROW EXECUTE FUNCTION road_10k_receipts_no_delete()"
+        )
+        op.execute(
+            "CREATE TRIGGER trg_road_10k_exposure_receipts_no_delete "
+            "BEFORE DELETE ON road_10k_exposure_receipts "
+            "FOR EACH ROW EXECUTE FUNCTION road_10k_receipts_no_delete()"
+        )
         op.execute(
             "CREATE FUNCTION road_10k_exposure_receipts_immutable() "
             "RETURNS trigger AS $$ "
             "BEGIN "
+            "IF OLD.user_id IS NOT NULL AND NEW.user_id IS NULL "
+            "AND NEW.id IS NOT DISTINCT FROM OLD.id "
+            "AND NEW.stage_id IS NOT DISTINCT FROM OLD.stage_id "
+            "AND NEW.owner_stage_receipt_id IS NOT DISTINCT FROM "
+            "OLD.owner_stage_receipt_id "
+            "AND NEW.authority_digest IS NOT DISTINCT FROM "
+            "OLD.authority_digest "
+            "AND NEW.exposed_at IS NOT DISTINCT FROM OLD.exposed_at "
+            "THEN RETURN NEW; "
+            "END IF; "
             "RAISE EXCEPTION 'road 10K exposure receipts are immutable'; "
             "END; "
             "$$ LANGUAGE plpgsql"
@@ -259,14 +357,54 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
-    if bind.dialect.name == "sqlite":
-        op.execute(
-            "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_immutable"
+    consumed = bind.execute(
+        sa.text(
+            "SELECT CASE WHEN "
+            "EXISTS (SELECT 1 FROM road_10k_stage_counters "
+            "WHERE invitation_slots_consumed > 0 "
+            "OR distinct_exposed_owners_consumed > 0) "
+            "OR EXISTS (SELECT 1 FROM road_10k_owner_stage_receipts) "
+            "OR EXISTS (SELECT 1 FROM road_10k_exposure_receipts) "
+            "THEN 1 ELSE 0 END"
         )
+    ).scalar_one()
+    if consumed:
+        raise RuntimeError(
+            "Cannot downgrade Road 10K control ledger after slot or receipt consumption"
+        )
+    if bind.dialect.name == "sqlite":
+        for trigger_name in (
+            "trg_road_10k_stage_counters_monotonic",
+            "trg_road_10k_owner_stage_receipts_no_delete",
+            "trg_road_10k_exposure_receipts_immutable",
+            "trg_road_10k_exposure_receipts_no_delete",
+        ):
+            op.execute(f"DROP TRIGGER IF EXISTS {trigger_name}")
     elif bind.dialect.name == "postgresql":
+        op.execute(
+            "DROP TRIGGER IF EXISTS "
+            "trg_road_10k_stage_counters_monotonic "
+            "ON road_10k_stage_counters"
+        )
+        op.execute(
+            "DROP TRIGGER IF EXISTS "
+            "trg_road_10k_owner_stage_receipts_no_delete "
+            "ON road_10k_owner_stage_receipts"
+        )
         op.execute(
             "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_immutable "
             "ON road_10k_exposure_receipts"
+        )
+        op.execute(
+            "DROP TRIGGER IF EXISTS "
+            "trg_road_10k_exposure_receipts_no_delete "
+            "ON road_10k_exposure_receipts"
+        )
+        op.execute(
+            "DROP FUNCTION IF EXISTS road_10k_stage_counters_monotonic()"
+        )
+        op.execute(
+            "DROP FUNCTION IF EXISTS road_10k_receipts_no_delete()"
         )
         op.execute(
             "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_immutable()"

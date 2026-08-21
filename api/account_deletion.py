@@ -410,8 +410,7 @@ def delete_user_account(
     except Road10KDeletionFailed:
         db.rollback()
         logger.exception(
-            "Road 10K deletion manifest failed for user %s",
-            user_id,
+            "Road 10K deletion manifest failed",
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
@@ -476,8 +475,7 @@ def delete_user_account(
         # false "completed" marker or report a successful deletion while
         # private objects remain pending.
         logger.exception(
-            "Road 10K deletion completed but marker completion failed for user %s",
-            user_id,
+            "Road 10K deletion completed but marker completion failed",
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
     for deleted_user_id in deleted_user_ids:

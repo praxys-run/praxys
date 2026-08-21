@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from '../../utils/api-client';
-import { detectLocale } from '../../utils/i18n';
+import { detectLocale, t } from '../../utils/i18n';
 import type { IAppOption } from '../../app';
 import type { Road10KAccessResponse } from '../../types/api';
 import {
@@ -25,7 +25,10 @@ function uiText() {
     cancel: copy('action.cancel'),
     continue: copy('action.continue'),
     join: copy('action.join'),
+    check: copy('action.check'),
+    addScreenshot: copy('action.add_screenshot'),
     joining: copy('progress.joining'),
+    leaving: copy('progress.leaving'),
     reauthTitle: copy('reauth.title'),
     reauthBody: copy('reauth.body'),
     noticeTitle: copy('notice.title'),
@@ -36,7 +39,9 @@ function uiText() {
     noticeData: copy('notice.data'),
     noticeLeave: copy('notice.leave'),
     noticeAck: copy('notice.ack'),
-    passwordPlaceholder: 'Password',
+    withdrawTitle: copy('life.withdraw_title'),
+    withdrawBody: copy('life.withdraw_body'),
+    passwordPlaceholder: t('Password'),
   };
 }
 
@@ -76,6 +81,7 @@ Component({
     leaveHint: '',
     screenshotHint: '',
     leaveAvailable: false,
+    leaving: false,
   },
 
   lifetimes: {
@@ -204,7 +210,6 @@ Component({
       try {
         await apiPost('/api/road-10k/opt-in', {
           password: this.data.password,
-          notice_digest: access.notice_digest,
           client: 'miniapp',
         });
         this.setData({
@@ -222,12 +227,32 @@ Component({
     },
 
     async onLeave() {
+      if (this.data.leaving) return;
+      wx.showModal({
+        title: copy('life.withdraw_title'),
+        content: copy('life.withdraw_body'),
+        confirmText: copy('action.leave'),
+        cancelText: copy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.confirmLeave();
+        },
+      });
+    },
+
+    async confirmLeave() {
+      this.setData({ leaving: true, error: '' });
       try {
         await apiPost('/api/road-10k/withdraw', {});
         await this.refresh();
       } catch {
         this.setData({ error: copy('error.generic') });
+      } finally {
+        this.setData({ leaving: false });
       }
+    },
+
+    onCheck() {
+      this.triggerEvent('check');
     },
 
     onCancel() {

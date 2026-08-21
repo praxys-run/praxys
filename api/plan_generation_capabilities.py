@@ -452,11 +452,16 @@ def discover_plan_generation_capabilities(
     *,
     user_id: str,
     intent: PlanIntent | None = None,
+    include_road_10k: bool = True,
 ) -> dict[str, Any]:
     """Return the owner-scoped current Goal and all accepted policies."""
     config = load_config_from_db(user_id, db)
     raw_goal = dict(config.goal or {})
-    visible_capabilities = _owner_visible_capabilities(db, user_id=user_id)
+    visible_capabilities = _owner_visible_capabilities(
+        db,
+        user_id=user_id,
+        include_road_10k=include_road_10k,
+    )
     normalized_goal = _normalize_goal(
         raw_goal
         if any(
@@ -497,6 +502,7 @@ def discover_plan_generation_capabilities(
         "goal_plan_impact": goal_plan_reconciliation_impact(
             db,
             user_id=user_id,
+            include_road_10k=include_road_10k,
         ),
         "routing": _build_plan_routing(
             db,
@@ -518,12 +524,14 @@ def build_plan_generation_capability_discovery(
     *,
     user_id: str,
     intent: PlanIntent | None = None,
+    include_road_10k: bool = True,
 ) -> dict[str, Any]:
     """Backward-compatible capability discovery entry point."""
     return discover_plan_generation_capabilities(
         db,
         user_id=user_id,
         intent=intent,
+        include_road_10k=include_road_10k,
     )
 
 
@@ -625,6 +633,7 @@ def goal_plan_reconciliation_impact(
     db: Session,
     *,
     user_id: str,
+    include_road_10k: bool = True,
 ) -> dict[str, Any] | None:
     """Return a changed-Goal decision only when plan provenance is stale."""
     config = load_config_from_db(user_id, db)
@@ -632,7 +641,11 @@ def goal_plan_reconciliation_impact(
     current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
     if current_goal is None:
         return None
-    capabilities = _owner_visible_capabilities(db, user_id=user_id)
+    capabilities = _owner_visible_capabilities(
+        db,
+        user_id=user_id,
+        include_road_10k=include_road_10k,
+    )
     selected = _select_capability(raw_goal, capabilities=capabilities)
     plan = db.execute(
         select(AdaptivePlan)
@@ -800,12 +813,16 @@ def _owner_visible_capabilities(
     db: Session,
     *,
     user_id: str,
+    include_road_10k: bool = True,
 ) -> tuple[PlanGenerationCapability, ...]:
     """Add Road 10K only to a valid invited native owner's catalog."""
     capabilities = list(PLAN_GENERATION_CAPABILITIES)
+    if not include_road_10k:
+        return tuple(capabilities)
     from api.road_10k_control import (
         Road10KControlError,
         coerce_road_10k_control_error,
+        receipt_matches_authority,
         require_road_10k_replay_ready,
     )
     from api.road_10k_stage_authority import load_stage_authority
@@ -824,11 +841,8 @@ def _owner_visible_capabilities(
                 Road10KOwnerStageReceipt.user_id == user_id,
                 Road10KOwnerStageReceipt.stage_id == authority.stage_id,
                 Road10KOwnerStageReceipt.state.in_(
-                    ("invited_only", "enrolled_unexposed", "exposed")
+                    ("enrolled_unexposed", "exposed")
                 ),
-                Road10KOwnerStageReceipt.authority_digest
-                == authority.authority_digest,
-                Road10KOwnerStageReceipt.notice_digest == authority.notice_digest,
             )
             .first()
         )
@@ -836,7 +850,7 @@ def _owner_visible_capabilities(
         if isinstance(coerce_road_10k_control_error(exc), Road10KControlError):
             return tuple(capabilities)
         raise
-    if receipt is None:
+    if receipt is None or not receipt_matches_authority(receipt, authority):
         return tuple(capabilities)
     return tuple(
         [

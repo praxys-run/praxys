@@ -16,6 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,6 +44,10 @@ import { apiFetch, useApi } from '@/hooks/useApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import { extractApiError } from '@/lib/api-error';
 import { formatProposalDetail } from '@/lib/proposal-display';
+import {
+  road10kCopy,
+  type Road10KCopyKey,
+} from '@/lib/road-10k-control';
 import type {
   AdaptivePlanProposal,
   AdaptivePlanProposalAdoptResponse,
@@ -71,6 +83,7 @@ type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 type PurposeOptionSource = PlanGenerationPurposeSelection['source'];
 type PlanStartWorkingState = LifecycleOperation | 'readiness' | 'refresh';
+type ConfirmedRoadAction = 'regenerate' | 'reject' | 'adopt';
 
 interface PlanStartErrorState {
   message: string;
@@ -122,6 +135,60 @@ function outcomeCopy(
   if (result.uncertainty_or_missing_field) return result.uncertainty_or_missing_field;
   return fallback;
 }
+
+const ROAD_10K_OUTCOME_COPY: Record<
+  Road10KOutcomeResponse['code'],
+  readonly [Road10KCopyKey, Road10KCopyKey]
+> = {
+  eligible_rolling_proposal: [
+    'eligibility.ready_title',
+    'eligibility.ready_body',
+  ],
+  eligible_taper_proposal: [
+    'eligibility.ready_title',
+    'eligibility.ready_body',
+  ],
+  missing_or_stale_direct_baseline: [
+    'eligibility.baseline_title',
+    'eligibility.baseline_body',
+  ],
+  insufficient_recent_history: [
+    'eligibility.history_title',
+    'eligibility.history_body',
+  ],
+  limited_guidance_event_conflict: [
+    'eligibility.limited_title',
+    'eligibility.event_body',
+  ],
+  limited_near_term_guidance: [
+    'eligibility.limited_title',
+    'eligibility.near_body',
+  ],
+  safety_stop: [
+    'eligibility.safety_title',
+    'eligibility.safety_body',
+  ],
+  adult_scope_or_constraints_unconfirmed: [
+    'eligibility.confirm_title',
+    'eligibility.confirm_body',
+  ],
+  contradictory_input: [
+    'eligibility.conflict_title',
+    'eligibility.conflict_body',
+  ],
+  unsupported_intent_distance_surface_or_population: [
+    'eligibility.unsupported_title',
+    'eligibility.unsupported_body',
+  ],
+  no_schedule_within_envelope: [
+    'eligibility.schedule_title',
+    'eligibility.schedule_body',
+  ],
+  validation_failed: [
+    'eligibility.unavailable_title',
+    'eligibility.unavailable_body',
+  ],
+};
 
 function proposalStateLabel(state: AdaptivePlanProposal['state']): string {
   return state.replace(/_/g, ' ');
@@ -253,21 +320,20 @@ export function PlanStartGoalEntry() {
     if (!selectedRoute?.capability_id || !selectedRoute.purpose_source) {
       return null;
     }
-    if (
-      selectedRoute.purpose_source === 'current_goal'
-      && !discovery?.current_goal
-    ) {
-      return null;
+    if (selectedRoute.purpose_source === 'current_goal') {
+      if (!discovery?.current_goal) return null;
+      return {
+        capability_id: selectedRoute.capability_id,
+        source: 'current_goal',
+        expected_goal_id: discovery.current_goal.id,
+        expected_goal_revision: discovery.current_goal.revision,
+      };
     }
     return {
       capability_id: selectedRoute.capability_id,
       source: selectedRoute.purpose_source,
-      expected_goal_id: selectedRoute.purpose_source === 'current_goal'
-        ? discovery?.current_goal?.id ?? null
-        : null,
-      expected_goal_revision: selectedRoute.purpose_source === 'current_goal'
-        ? discovery?.current_goal?.revision ?? null
-        : null,
+      expected_goal_id: null,
+      expected_goal_revision: null,
     };
   }, [discovery?.current_goal, selectedRoute]);
   const capabilityUpdateRequired = routedCapability != null
@@ -495,46 +561,106 @@ function ProposalRecoveryCard({
   isDemo,
   rejecting,
   onReject,
+  onReviewLater,
+  copy,
 }: {
   proposal: AdaptivePlanProposal;
   isDemo: boolean;
   rejecting: boolean;
   onReject: () => void;
+  onReviewLater: () => void;
+  copy: (key: Road10KCopyKey) => string;
 }) {
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+  const isRoad10K = proposal.policy_version
+    === 'road-10k-plan-generation-policy-v2';
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle><Trans>Plan proposal</Trans></CardTitle>
-          <Badge variant="outline">{proposalStateLabel(proposal.state)}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 border-t border-border pt-4">
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
-          <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{proposal.policy_version ?? '—'}</dd></div>
-          <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{proposal.model_version ?? '—'}</dd></div>
-          <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{proposal.science_version ?? '—'}</dd></div>
-        </dl>
-        <div className="divide-y divide-border border-y border-border">
-          {proposal.workouts.map((workout) => (
-            <div key={`${workout.date}-${workout.workout_type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">
-              <span><span className="font-data">{workout.date}</span> · {workout.workout_type.replace(/_/g, ' ')}</span>
-              <span className="font-data text-muted-foreground">{workout.planned_duration_min ?? '—'} min</span>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CardTitle>
+              {isRoad10K ? copy('proposal.title') : <Trans>Plan proposal</Trans>}
+            </CardTitle>
+            <Badge variant="outline">
+              {isRoad10K
+                ? copy('proposal.badge')
+                : proposalStateLabel(proposal.state)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5 border-t border-border pt-4">
+          <dl className="grid gap-3 text-sm sm:grid-cols-3">
+            <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{proposal.policy_version ?? '—'}</dd></div>
+            <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{proposal.model_version ?? '—'}</dd></div>
+            <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{proposal.science_version ?? '—'}</dd></div>
+          </dl>
+          <div className="divide-y divide-border border-y border-border">
+            {proposal.workouts.map((workout) => (
+              <div key={`${workout.date}-${workout.workout_type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">
+                <span><span className="font-data">{workout.date}</span> · {workout.workout_type.replace(/_/g, ' ')}</span>
+                <span className="font-data text-muted-foreground">{workout.planned_duration_min ?? '—'} min</span>
+              </div>
+            ))}
+          </div>
+          {proposal.state === 'draft' && (
+            <div className="flex flex-wrap gap-2">
+              {isRoad10K && (
+                <Button
+                  variant="ghost"
+                  disabled={rejecting}
+                  onClick={onReviewLater}
+                  className="min-h-11"
+                >
+                  {copy('action.review_later')}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                disabled={isDemo || rejecting}
+                onClick={() => {
+                  if (isRoad10K) setConfirmRejectOpen(true);
+                  else onReject();
+                }}
+                className="min-h-11"
+              >
+                {isRoad10K
+                  ? rejecting
+                    ? copy('progress.rejecting')
+                    : copy('action.reject')
+                  : rejecting
+                    ? <Trans>Rejecting…</Trans>
+                    : <Trans>Reject or defer</Trans>}
+              </Button>
             </div>
-          ))}
-        </div>
-        {proposal.state === 'draft' && (
-          <Button
-            variant="ghost"
-            disabled={isDemo || rejecting}
-            onClick={onReject}
-            className="min-h-11"
-          >
-            {rejecting ? <Trans>Rejecting…</Trans> : <Trans>Reject or defer</Trans>}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog open={confirmRejectOpen} onOpenChange={setConfirmRejectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copy('proposal.reject_title')}</DialogTitle>
+            <DialogDescription>{copy('proposal.reject_body')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmRejectOpen(false)}
+            >
+              {copy('action.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmRejectOpen(false);
+                onReject();
+              }}
+            >
+              {copy('action.reject')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -543,6 +669,10 @@ export default function PlanStart({
 }: PlanStartProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
+  const roadCopy = (key: Road10KCopyKey) => road10kCopy(
+    key,
+    locale === 'zh' ? 'zh-CN' : 'en',
+  );
   const { isDemo } = useAuth();
   const {
     config,
@@ -675,6 +805,8 @@ export default function PlanStart({
   const [working, setWorking] = useState<PlanStartWorkingState | null>(null);
   const [error, setError] = useState<PlanStartErrorState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirmedRoadAction, setConfirmedRoadAction] =
+    useState<ConfirmedRoadAction | null>(null);
   const idempotencyKeys = useRef<Partial<Record<LifecycleOperation, string>>>({});
 
   useEffect(() => {
@@ -1135,9 +1267,14 @@ export default function PlanStart({
         t`Could not adopt the proposal.`,
       );
       setProposal(value.proposal);
-      setNotice(value.status === 'already_adopted'
-        ? t`This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it.`
-        : t`Plan adopted. Delivery remains disabled until you explicitly enable it.`);
+      setNotice(road10kMode
+        ? roadCopy('success.adopted').replace(
+          '{version}',
+          String(value.proposal.version),
+        )
+        : value.status === 'already_adopted'
+          ? t`This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it.`
+          : t`Plan adopted. Delivery remains disabled until you explicitly enable it.`);
       clearOperationKey('adopt');
       void refetchProposal();
       void refetchCapabilities();
@@ -1149,6 +1286,30 @@ export default function PlanStart({
     } finally {
       setWorking(null);
     }
+  };
+
+  const requestProposalAction = (
+    action: ConfirmedRoadAction,
+  ) => {
+    if (
+      road10kMode
+      || displayedProposal?.policy_version
+        === 'road-10k-plan-generation-policy-v2'
+    ) {
+      setConfirmedRoadAction(action);
+      return;
+    }
+    if (action === 'regenerate') void regenerate();
+    if (action === 'reject') void reject();
+    if (action === 'adopt') void adopt();
+  };
+
+  const confirmRoadAction = () => {
+    const action = confirmedRoadAction;
+    setConfirmedRoadAction(null);
+    if (action === 'regenerate') void regenerate();
+    if (action === 'reject') void reject();
+    if (action === 'adopt') void adopt();
   };
 
   const refreshPlanContext = async () => {
@@ -1175,6 +1336,8 @@ export default function PlanStart({
         isDemo={isDemo}
         rejecting={working === 'reject'}
         onReject={() => void reject()}
+        onReviewLater={() => setNotice(roadCopy('success.later'))}
+        copy={roadCopy}
       />
       {notice && <p className="text-sm text-primary" role="status">{notice}</p>}
       {error && (
@@ -1337,6 +1500,13 @@ export default function PlanStart({
       ? readiness.baseline
       : undefined;
   const result = readiness?.result;
+  const roadOutcomeCopyKeys = (
+    road10kMode
+    && result
+    && 'plan_returned' in result
+  )
+    ? ROAD_10K_OUTCOME_COPY[result.code]
+    : null;
   const road10KGuardrails = (
     road10kMode
     && readiness
@@ -1366,6 +1536,26 @@ export default function PlanStart({
   const baselineBadge = baseline
     ? baselineCopy(baseline, t`Baseline ready`, t`Baseline needs review`)
     : t`Readiness not checked`;
+  const confirmationCopy = confirmedRoadAction === 'adopt'
+    ? {
+        title: roadCopy('proposal.adopt_title'),
+        body: roadCopy('proposal.adopt_body').replace(
+          '{version}',
+          String(displayedProposal?.version ?? ''),
+        ),
+        action: roadCopy('action.adopt'),
+      }
+    : confirmedRoadAction === 'regenerate'
+      ? {
+          title: roadCopy('proposal.regen_title'),
+          body: roadCopy('proposal.regen_body'),
+          action: roadCopy('action.regenerate'),
+        }
+      : {
+          title: roadCopy('proposal.reject_title'),
+          body: roadCopy('proposal.reject_body'),
+          action: roadCopy('action.reject'),
+        };
 
   return (
     <section id="plan-start" aria-labelledby="plan-start-title" className="scroll-mt-6 space-y-5">
@@ -1373,11 +1563,19 @@ export default function PlanStart({
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="max-w-2xl">
-              <CardTitle id="plan-start-title"><Trans>Plan preview</Trans></CardTitle>
+              <CardTitle id="plan-start-title">
+                {road10kMode
+                  ? roadCopy('inputs.title')
+                  : <Trans>Plan preview</Trans>}
+              </CardTitle>
               <CardDescription className="mt-2">
-                <Trans>
-                  Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <span className="font-data">{displayCapability.horizon_days}</span>-day proposal; it is not yet your plan.
-                </Trans>
+                {road10kMode
+                  ? roadCopy('inputs.body')
+                  : (
+                    <Trans>
+                      Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <span className="font-data">{displayCapability.horizon_days}</span>-day proposal; it is not yet your plan.
+                    </Trans>
+                  )}
               </CardDescription>
             </div>
             <Badge variant={baseline?.readiness === 'sufficient_baseline' ? 'default' : 'outline'}>
@@ -1794,11 +1992,23 @@ export default function PlanStart({
           )}
           <div className="flex flex-wrap gap-2">
             <Button disabled={isDemo || working != null || !purposeSelection} onClick={() => void requestReadiness()} className="min-h-11">
-              {working === 'readiness' ? <Trans>Checking readiness…</Trans> : <Trans>Check readiness</Trans>}
+              {road10kMode
+                ? working === 'readiness'
+                  ? roadCopy('progress.checking')
+                  : roadCopy('action.check')
+                : working === 'readiness'
+                  ? <Trans>Checking readiness…</Trans>
+                  : <Trans>Check readiness</Trans>}
             </Button>
             {result && isPlanReadyResult(result) && !activeProposal && !conflictingProposal && (
               <Button variant="outline" disabled={isDemo || working != null} onClick={() => void generate()} className="min-h-11">
-                {working === 'generate' ? <Trans>Creating proposal…</Trans> : <Trans>Create proposal</Trans>}
+                {road10kMode
+                  ? working === 'generate'
+                    ? roadCopy('progress.generating')
+                    : roadCopy('action.generate')
+                  : working === 'generate'
+                    ? <Trans>Creating proposal…</Trans>
+                    : <Trans>Create proposal</Trans>}
               </Button>
             )}
           </div>
@@ -1810,10 +2020,25 @@ export default function PlanStart({
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle><Trans>Readiness result</Trans></CardTitle>
-              <Badge variant={isPlanReadyResult(result) ? 'default' : 'outline'}>{result.code.replace(/_/g, ' ')}</Badge>
+              <CardTitle>
+                {roadOutcomeCopyKeys
+                  ? roadCopy(roadOutcomeCopyKeys[0])
+                  : <Trans>Readiness result</Trans>}
+              </CardTitle>
+              <Badge variant={isPlanReadyResult(result) ? 'default' : 'outline'}>
+                {roadOutcomeCopyKeys
+                  ? roadCopy(roadOutcomeCopyKeys[0])
+                  : result.code.replace(/_/g, ' ')}
+              </Badge>
             </div>
-            <CardDescription>{outcomeCopy(result, t`The deterministic policy returned no additional explanation.`)}</CardDescription>
+            <CardDescription>
+              {roadOutcomeCopyKeys
+                ? roadCopy(roadOutcomeCopyKeys[1])
+                : outcomeCopy(
+                  result,
+                  t`The deterministic policy returned no additional explanation.`,
+                )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 border-t border-border pt-4">
             {road10kMode ? (
@@ -1909,12 +2134,22 @@ export default function PlanStart({
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle><Trans>Plan proposal</Trans></CardTitle>
+                <CardTitle>
+                  {road10kMode
+                    ? roadCopy('proposal.title')
+                    : <Trans>Plan proposal</Trans>}
+                </CardTitle>
                 <CardDescription className="mt-2">
-                  <Trans>This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.</Trans>
+                  {road10kMode
+                    ? roadCopy('proposal.body')
+                    : <Trans>This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.</Trans>}
                 </CardDescription>
               </div>
-              <Badge variant={isAdopted ? 'default' : 'outline'}>{proposalStateLabel(displayedProposal.state)}</Badge>
+              <Badge variant={isAdopted ? 'default' : 'outline'}>
+                {road10kMode
+                  ? roadCopy('proposal.badge')
+                  : proposalStateLabel(displayedProposal.state)}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-5 border-t border-border pt-4">
@@ -1931,9 +2166,9 @@ export default function PlanStart({
                         : <Trans>Legacy purpose</Trans>}
                 </dd>
               </div>
-              <div><dt className="text-muted-foreground"><Trans>Policy</Trans></dt><dd className="mt-1 font-data">{displayedProposal.policy_version ?? '—'}</dd></div>
-              <div><dt className="text-muted-foreground"><Trans>Generator</Trans></dt><dd className="mt-1 font-data">{displayedProposal.model_version ?? '—'}</dd></div>
-              <div><dt className="text-muted-foreground"><Trans>Science decision</Trans></dt><dd className="mt-1 font-data">{displayedProposal.science_version ?? '—'}</dd></div>
+              <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.policy') : <Trans>Policy</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.policy_version ?? '—'}</dd></div>
+              <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.generator') : <Trans>Generator</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.model_version ?? '—'}</dd></div>
+              <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.science') : <Trans>Science decision</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.science_version ?? '—'}</dd></div>
             </dl>
             <div className="divide-y divide-border border-y border-border">
               {displayedProposal.workouts.map((workout) => (
@@ -1956,7 +2191,10 @@ export default function PlanStart({
                 <p key={index} className="text-sm text-muted-foreground">{items.map(formatProposalDetail).join(' · ')}</p>
               ))}
             {displayedProposal.expires_at && (
-              <p className="text-sm text-muted-foreground"><Trans>Expires:</Trans> <span className="font-data">{displayedProposal.expires_at}</span></p>
+              <p className="text-sm text-muted-foreground">
+                {road10kMode ? roadCopy('proposal.expires') : <Trans>Expires:</Trans>}{' '}
+                <span className="font-data">{displayedProposal.expires_at}</span>
+              </p>
             )}
 
             {proposalNeedsReassessment && (
@@ -1972,17 +2210,45 @@ export default function PlanStart({
               <div className="flex flex-wrap gap-2">
                 {!proposalPurposeConflict && (
                   <>
-                    <Button disabled={isDemo || working != null || proposalNeedsReassessment} onClick={() => void adopt()} className="min-h-11">
-                      {working === 'adopt' ? <Trans>Adopting…</Trans> : <Trans>Adopt exact proposal</Trans>}
+                    <Button disabled={isDemo || working != null || proposalNeedsReassessment} onClick={() => requestProposalAction('adopt')} className="min-h-11">
+                      {road10kMode
+                        ? working === 'adopt'
+                          ? roadCopy('progress.adopting')
+                          : roadCopy('action.adopt')
+                        : working === 'adopt'
+                          ? <Trans>Adopting…</Trans>
+                          : <Trans>Adopt exact proposal</Trans>}
                     </Button>
-                    <Button variant="outline" disabled={isDemo || working != null} onClick={() => void regenerate()} className="min-h-11">
+                    <Button variant="outline" disabled={isDemo || working != null} onClick={() => requestProposalAction('regenerate')} className="min-h-11">
                       <RefreshCw aria-hidden="true" />
-                      {working === 'regenerate' ? <Trans>Regenerating…</Trans> : <Trans>Regenerate successor</Trans>}
+                      {road10kMode
+                        ? working === 'regenerate'
+                          ? roadCopy('progress.regenerating')
+                          : roadCopy('action.regenerate')
+                        : working === 'regenerate'
+                          ? <Trans>Regenerating…</Trans>
+                          : <Trans>Regenerate successor</Trans>}
                     </Button>
                   </>
                 )}
-                <Button variant="ghost" disabled={isDemo || working != null} onClick={() => void reject()} className="min-h-11">
-                  {working === 'reject' ? <Trans>Rejecting…</Trans> : <Trans>Reject or defer</Trans>}
+                {road10kMode && (
+                  <Button
+                    variant="ghost"
+                    disabled={working != null}
+                    onClick={() => setNotice(roadCopy('success.later'))}
+                    className="min-h-11"
+                  >
+                    {roadCopy('action.review_later')}
+                  </Button>
+                )}
+                <Button variant="ghost" disabled={isDemo || working != null} onClick={() => requestProposalAction('reject')} className="min-h-11">
+                  {road10kMode
+                    ? working === 'reject'
+                      ? roadCopy('progress.rejecting')
+                      : roadCopy('action.reject')
+                    : working === 'reject'
+                      ? <Trans>Rejecting…</Trans>
+                      : <Trans>Reject or defer</Trans>}
                 </Button>
               </div>
             )}
@@ -1999,9 +2265,15 @@ export default function PlanStart({
             )}
             {isAdopted && (
               <Alert>
-                <AlertTitle><Trans>Plan adopted</Trans></AlertTitle>
+                <AlertTitle>
+                  {road10kMode
+                    ? roadCopy('plan.active_title')
+                    : <Trans>Plan adopted</Trans>}
+                </AlertTitle>
                 <AlertDescription>
-                  <Trans>Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.</Trans>
+                  {road10kMode
+                    ? roadCopy('plan.active_body')
+                    : <Trans>Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.</Trans>}
                 </AlertDescription>
               </Alert>
             )}
@@ -2009,7 +2281,7 @@ export default function PlanStart({
         </Card>
       )}
 
-      {isAdopted && config && (
+      {isAdopted && config && !road10kMode && (
         <ManagedPlanSettingsCard
           config={config}
           planDeliveryOptions={planDeliveryOptions}
@@ -2036,6 +2308,31 @@ export default function PlanStart({
           </AlertDescription>
         </Alert>
       )}
+      <Dialog
+        open={confirmedRoadAction !== null}
+        onOpenChange={(open) => {
+          if (!open && working == null) setConfirmedRoadAction(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmationCopy.title}</DialogTitle>
+            <DialogDescription>{confirmationCopy.body}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={working != null}
+              onClick={() => setConfirmedRoadAction(null)}
+            >
+              {roadCopy('action.cancel')}
+            </Button>
+            <Button disabled={working != null} onClick={confirmRoadAction}>
+              {confirmationCopy.action}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

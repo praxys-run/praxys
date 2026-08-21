@@ -1968,90 +1968,6 @@ def _reject_road_10k_training_pattern_snapshot_update(
     raise ValueError("road 10K training pattern snapshots are immutable")
 
 
-class Road10KOwnerOptInReceipt(Base):
-    """Append-only owner authorization receipt for the inactive Road 10K pilot.
-
-    This is deliberately not a feature flag or rollout assignment.  Absence
-    (and any malformed or stale receipt) fails closed; a future activation
-    decision must still wire this receipt into the already-inactive capability.
-    """
-
-    __tablename__ = "road_10k_owner_opt_in_receipts"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    user_id = Column(
-        String(36),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    capability_id = Column(String(80), nullable=False)
-    schema_version = Column(String(80), nullable=False)
-    policy_version = Column(String(80), nullable=False)
-    decision = Column(String(20), nullable=False)
-    consent_text_version = Column(String(80), nullable=False)
-    client = Column(String(20), nullable=False)
-    idempotency_key = Column(String(128), nullable=True)
-    decided_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "idempotency_key",
-            name="uq_road_10k_owner_opt_in_idempotency",
-        ),
-        CheckConstraint(
-            "capability_id = 'outdoor_road_10k_performance_v1'",
-            name="ck_road_10k_owner_opt_in_capability",
-        ),
-        CheckConstraint(
-            "schema_version = 'road-10k-owner-opt-in-v1'",
-            name="ck_road_10k_owner_opt_in_schema",
-        ),
-        CheckConstraint(
-            "policy_version = 'road-10k-plan-generation-policy-v2'",
-            name="ck_road_10k_owner_opt_in_policy",
-        ),
-        CheckConstraint(
-            "decision IN ('granted','withdrawn')",
-            name="ck_road_10k_owner_opt_in_decision",
-        ),
-        CheckConstraint(
-            "client IN ('web','miniapp')",
-            name="ck_road_10k_owner_opt_in_client",
-        ),
-        Index(
-            "ix_road_10k_owner_opt_in_user_decided",
-            "user_id",
-            "decided_at",
-            "id",
-        ),
-    )
-
-
-event.listen(
-    Road10KOwnerOptInReceipt.__table__,
-    "after_create",
-    DDL(
-        "CREATE TRIGGER IF NOT EXISTS "
-        "trg_road_10k_owner_opt_in_receipts_immutable "
-        "BEFORE UPDATE ON road_10k_owner_opt_in_receipts "
-        "BEGIN "
-        "SELECT RAISE(ABORT, 'road 10K opt-in receipts are immutable'); "
-        "END"
-    ).execute_if(dialect="sqlite"),
-)
-
-
-@event.listens_for(Road10KOwnerOptInReceipt, "before_update")
-def _reject_road_10k_owner_opt_in_receipt_update(
-    _mapper: object,
-    _connection: object,
-    _target: Road10KOwnerOptInReceipt,
-) -> None:
-    raise ValueError("road 10K opt-in receipts are immutable")
-
-
 class Road10KStageCounter(Base):
     """Monotonic, non-identifying counters for one controlled Road 10K stage."""
 
@@ -2118,6 +2034,7 @@ class Road10KOwnerStageReceipt(Base):
     authority_digest = Column(String(64), nullable=False)
     notice_digest = Column(String(64), nullable=False)
     cohort_rule_digest = Column(String(64), nullable=False)
+    sampling_run_evidence_digest = Column(String(64), nullable=False)
     invitation_idempotency_key = Column(String(128), nullable=False)
     state = Column(String(24), nullable=False, default="invited_only")
     invitation_issued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -2125,7 +2042,6 @@ class Road10KOwnerStageReceipt(Base):
     first_exposed_at = Column(DateTime, nullable=True)
     withdrawn_at = Column(DateTime, nullable=True)
     deleted_at = Column(DateTime, nullable=True)
-    request_fingerprint = Column(String(64), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -2147,6 +2063,13 @@ class Road10KOwnerStageReceipt(Base):
         CheckConstraint(
             "schema_version = 2",
             name="ck_road_10k_owner_stage_receipt_schema",
+        ),
+        CheckConstraint(
+            "length(authority_digest) = 64 "
+            "AND length(notice_digest) = 64 "
+            "AND length(cohort_rule_digest) = 64 "
+            "AND length(sampling_run_evidence_digest) = 64",
+            name="ck_road_10k_owner_stage_receipt_digests",
         ),
         CheckConstraint(
             "state IN ('invited_only','enrolled_unexposed','exposed',"
@@ -2193,6 +2116,70 @@ class Road10KExposureReceipt(Base):
             name="ck_road_10k_exposure_authority_digest",
         ),
     )
+
+
+event.listen(
+    Road10KStageCounter.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_stage_counters_monotonic "
+        "BEFORE UPDATE ON road_10k_stage_counters "
+        "WHEN NEW.invitation_slots_consumed < OLD.invitation_slots_consumed "
+        "OR NEW.distinct_exposed_owners_consumed "
+        "< OLD.distinct_exposed_owners_consumed "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K counters cannot decrement'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KOwnerStageReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_owner_stage_receipts_no_delete "
+        "BEFORE DELETE ON road_10k_owner_stage_receipts "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K owner receipts cannot be deleted'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_immutable "
+        "BEFORE UPDATE ON road_10k_exposure_receipts "
+        "WHEN NOT ("
+        "OLD.user_id IS NOT NULL AND NEW.user_id IS NULL "
+        "AND NEW.id = OLD.id "
+        "AND NEW.stage_id = OLD.stage_id "
+        "AND NEW.owner_stage_receipt_id = OLD.owner_stage_receipt_id "
+        "AND NEW.authority_digest = OLD.authority_digest "
+        "AND NEW.exposed_at = OLD.exposed_at"
+        ") "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K exposure receipts are immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_no_delete "
+        "BEFORE DELETE ON road_10k_exposure_receipts "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K exposure receipts cannot be deleted'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
 
 
 class Road10KEvaluation(Base):

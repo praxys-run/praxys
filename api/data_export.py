@@ -5,6 +5,7 @@ from dataclasses import asdict
 from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from analysis.config import load_config_from_db
@@ -22,12 +23,17 @@ from db.models import (
     Outdoor5KPlanGeneration,
     Road10KBaselineConfirmation,
     Road10KBaselineSnapshot,
+    Road10KExposureReceipt,
+    Road10KOwnerStageReceipt,
     Road10KPlanGeneration,
     Road10KTrainingPatternSnapshot,
     RecoveryData,
     PlanProposal,
     TrainingPlan,
 )
+
+_ROAD_10K_POLICY_VERSION = "road-10k-plan-generation-policy-v2"
+_ROAD_10K_STAGE_ID = "road-10k-controlled-opt-in-v1"
 
 
 _SENSITIVE_KEY_PARTS = frozenset({
@@ -403,6 +409,88 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     from api.personal_context import build_personal_context_export
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
+    road_10k_exposed = (
+        db.query(Road10KExposureReceipt.id)
+        .join(
+            Road10KOwnerStageReceipt,
+            Road10KOwnerStageReceipt.id
+            == Road10KExposureReceipt.owner_stage_receipt_id,
+        )
+        .filter(
+            Road10KExposureReceipt.user_id == user_id,
+            Road10KExposureReceipt.stage_id == _ROAD_10K_STAGE_ID,
+            Road10KOwnerStageReceipt.user_id == user_id,
+            Road10KOwnerStageReceipt.stage_id == _ROAD_10K_STAGE_ID,
+            Road10KOwnerStageReceipt.state.in_(("exposed", "withdrawn")),
+        )
+        .first()
+        is not None
+    )
+    road_proposals = (
+        db.query(PlanProposal)
+        .filter(
+            PlanProposal.user_id == user_id,
+            PlanProposal.policy_version == _ROAD_10K_POLICY_VERSION,
+        )
+        .all()
+    )
+    road_adaptive_plan_ids = {
+        row.adaptive_plan_id for row in road_proposals
+    }
+    road_goal_snapshot_ids = {
+        row.goal_snapshot_id for row in road_proposals
+    }
+    road_canonical_workout_ids = {
+        str(workout["canonical_id"])
+        for row in road_proposals
+        if isinstance(row.workout_snapshot, list)
+        for workout in row.workout_snapshot
+        if (
+            isinstance(workout, dict)
+            and isinstance(workout.get("canonical_id"), str)
+        )
+    }
+    proposal_query = db.query(PlanProposal).filter(
+        PlanProposal.user_id == user_id
+    )
+    training_plan_query = db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user_id
+    )
+    goal_snapshot_query = db.query(AdaptivePlanGoalSnapshot).filter(
+        AdaptivePlanGoalSnapshot.user_id == user_id
+    )
+    adaptive_plan_query = db.query(AdaptivePlan).filter(
+        AdaptivePlan.user_id == user_id
+    )
+    if not road_10k_exposed:
+        proposal_query = proposal_query.filter(
+            (PlanProposal.policy_version.is_(None))
+            | (PlanProposal.policy_version != _ROAD_10K_POLICY_VERSION)
+        )
+        if road_adaptive_plan_ids:
+            training_plan_query = training_plan_query.filter(
+                or_(
+                    TrainingPlan.adaptive_plan_id.is_(None),
+                    TrainingPlan.adaptive_plan_id.notin_(
+                        road_adaptive_plan_ids
+                    ),
+                )
+            )
+            adaptive_plan_query = adaptive_plan_query.filter(
+                AdaptivePlan.id.notin_(road_adaptive_plan_ids)
+            )
+        if road_canonical_workout_ids:
+            training_plan_query = training_plan_query.filter(
+                TrainingPlan.canonical_id.notin_(
+                    road_canonical_workout_ids
+                )
+            )
+        if road_goal_snapshot_ids:
+            goal_snapshot_query = goal_snapshot_query.filter(
+                AdaptivePlanGoalSnapshot.id.notin_(
+                    road_goal_snapshot_ids
+                )
+            )
     return {
         "schema_version": 5,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
@@ -436,8 +524,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             _FITNESS_FIELDS,
         ),
         "training_plans": _serialize_rows(
-            db.query(TrainingPlan)
-            .filter(TrainingPlan.user_id == user_id)
+            training_plan_query
             .order_by(TrainingPlan.date, TrainingPlan.id)
             .all(),
             _TRAINING_PLAN_FIELDS,
@@ -446,22 +533,19 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             "schema_version": 1,
             "exported_at": utc_isoformat(datetime.now(timezone.utc)),
             "goal_snapshots": _serialize_rows(
-                db.query(AdaptivePlanGoalSnapshot)
-                .filter(AdaptivePlanGoalSnapshot.user_id == user_id)
+                goal_snapshot_query
                 .order_by(AdaptivePlanGoalSnapshot.created_at, AdaptivePlanGoalSnapshot.version)
                 .all(),
                 _ADAPTIVE_GOAL_SNAPSHOT_FIELDS,
             ),
             "plans": _serialize_rows(
-                db.query(AdaptivePlan)
-                .filter(AdaptivePlan.user_id == user_id)
+                adaptive_plan_query
                 .order_by(AdaptivePlan.created_at, AdaptivePlan.id)
                 .all(),
                 _ADAPTIVE_PLAN_FIELDS,
             ),
             "proposals": _serialize_rows(
-                db.query(PlanProposal)
-                .filter(PlanProposal.user_id == user_id)
+                proposal_query
                 .order_by(PlanProposal.created_at, PlanProposal.version)
                 .all(),
                 _PLAN_PROPOSAL_FIELDS,
@@ -515,7 +599,10 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             "exported_at": utc_isoformat(datetime.now(timezone.utc)),
             "confirmations": _serialize_rows(
                 db.query(Road10KBaselineConfirmation)
-                .filter(Road10KBaselineConfirmation.user_id == user_id)
+                .filter(
+                    Road10KBaselineConfirmation.user_id == user_id,
+                    road_10k_exposed,
+                )
                 .order_by(
                     Road10KBaselineConfirmation.created_at,
                     Road10KBaselineConfirmation.version,
@@ -525,7 +612,10 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             ),
             "snapshots": _serialize_rows(
                 db.query(Road10KBaselineSnapshot)
-                .filter(Road10KBaselineSnapshot.user_id == user_id)
+                .filter(
+                    Road10KBaselineSnapshot.user_id == user_id,
+                    road_10k_exposed,
+                )
                 .order_by(
                     Road10KBaselineSnapshot.created_at,
                     Road10KBaselineSnapshot.version,
@@ -539,7 +629,10 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             "exported_at": utc_isoformat(datetime.now(timezone.utc)),
             "training_pattern_snapshots": _serialize_rows(
                 db.query(Road10KTrainingPatternSnapshot)
-                .filter(Road10KTrainingPatternSnapshot.user_id == user_id)
+                .filter(
+                    Road10KTrainingPatternSnapshot.user_id == user_id,
+                    road_10k_exposed,
+                )
                 .order_by(
                     Road10KTrainingPatternSnapshot.created_at,
                     Road10KTrainingPatternSnapshot.version,
@@ -549,7 +642,10 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             ),
             "records": _serialize_rows(
                 db.query(Road10KPlanGeneration)
-                .filter(Road10KPlanGeneration.user_id == user_id)
+                .filter(
+                    Road10KPlanGeneration.user_id == user_id,
+                    road_10k_exposed,
+                )
                 .order_by(
                     Road10KPlanGeneration.created_at,
                     Road10KPlanGeneration.id,

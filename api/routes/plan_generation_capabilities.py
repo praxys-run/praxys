@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user_id
+from api.auth import get_authenticated_identity, get_current_user_id
 from api.plan_generation_capabilities import (
     build_plan_generation_capability_discovery,
 )
@@ -204,6 +204,7 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     response_model=PlanGenerationCapabilityDiscoveryResponse,
 )
 def get_plan_generation_capabilities(
+    request: Request,
     intent: Literal[
         "first_completion",
         "performance",
@@ -213,8 +214,14 @@ def get_plan_generation_capabilities(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Return accepted policies and the match for the caller's current goal."""
+    identity = get_authenticated_identity(request, db)
     return build_plan_generation_capability_discovery(
         db,
         user_id=user_id,
         intent=intent,
+        include_road_10k=(
+            identity.credential_kind == "first_party_jwt"
+            and not identity.is_demo
+            and identity.user_id == user_id
+        ),
     )

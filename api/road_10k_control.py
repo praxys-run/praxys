@@ -6,9 +6,8 @@ does not call provider, AI, MCP, plugin, or automatic-adoption code.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import hashlib
-import json
 import logging
+import re
 from typing import Any, Mapping
 from uuid import uuid4
 
@@ -19,11 +18,12 @@ from sqlalchemy.exc import (
     OperationalError,
     ProgrammingError,
 )
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from api.road_10k_deletion_storage import (
     Road10KDeletionStorageError,
+    confirm_replay_ready,
     mark_committed,
     mark_completed,
     private_marker_store_available,
@@ -57,6 +57,14 @@ ROAD_10K_INVITATION_CEILING = 60
 ROAD_10K_EXPOSURE_CEILING = 30
 ROAD_10K_EVALUATION_RETENTION_DAYS = 30
 _ROAD_10K_STAGE_LOCK_KEY = 0x524F414431304B
+_ROAD_10K_INVITATION_KEY = re.compile(r"^inv_[0-9a-f]{32}$")
+_ROAD_10K_CONTROL_TABLES = frozenset({
+    "road_10k_stage_counters",
+    "road_10k_owner_stage_receipts",
+    "road_10k_exposure_receipts",
+    "road_10k_evaluations",
+    "road_10k_screenshot_references",
+})
 _ROAD_10K_SCHEMA_ERROR_MARKERS = (
     "no such table",
     "no such column",
@@ -110,14 +118,21 @@ def receipt_matches_authority(
     receipt: Road10KOwnerStageReceipt,
     authority: Road10KStageAuthority,
 ) -> bool:
-    """Validate the complete receipt contract at every control boundary."""
+    """Validate the stable receipt contract at every control boundary.
+
+    ``authority_digest`` records the authority that consumed the slot.  It is
+    immutable evidence, not a pointer to the latest heartbeat/lifecycle
+    artifact, so a compatible refresh must not invalidate an existing receipt.
+    """
     return (
         receipt.stage_id == authority.stage_id
         and receipt.capability_id == authority.capability_id
-        and receipt.authority_digest == authority.authority_digest
         and receipt.notice_digest == authority.notice_digest
         and receipt.cohort_rule_digest == authority.cohort_rule_digest
-        and receipt.schema_version == ROAD_10K_CONTROL_SCHEMA_VERSION
+        and receipt.sampling_run_evidence_digest
+        == authority.sampling_run_evidence_digest
+        and receipt.schema_version == authority.control_schema_version
+        == ROAD_10K_CONTROL_SCHEMA_VERSION
         and receipt.policy_version == ROAD_10K_POLICY_VERSION
     )
 
@@ -129,21 +144,20 @@ def _now(now: datetime | None = None) -> datetime:
     return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-def _fingerprint(operation: str, **values: object) -> str:
-    payload = json.dumps(
-        {"operation": operation, **values},
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    ).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
-
-
 def _has_road_10k_runtime_obligation(db: Session) -> bool:
     """Whether startup or request handling must require replay-capable storage."""
     try:
         checks = (
-            db.query(Road10KStageCounter.stage_id).limit(1).first(),
+            db.query(Road10KStageCounter.stage_id)
+            .filter(
+                (Road10KStageCounter.invitation_slots_consumed > 0)
+                | (
+                    Road10KStageCounter.distinct_exposed_owners_consumed
+                    > 0
+                ),
+            )
+            .limit(1)
+            .first(),
             db.query(Road10KOwnerStageReceipt.id).limit(1).first(),
             db.query(Road10KExposureReceipt.id).limit(1).first(),
             db.query(Road10KEvaluation.id).limit(1).first(),
@@ -154,6 +168,95 @@ def _has_road_10k_runtime_obligation(db: Session) -> bool:
             return False
         raise
     return any(check is not None for check in checks)
+
+
+def validate_road_10k_runtime_obligations(db: Session) -> bool:
+    """Validate durable counters and receipts before traffic is ready.
+
+    Returns whether any Road control/evaluation obligation exists.  A wholly
+    absent schema remains a healthy rolling-deploy/dormant state.
+    """
+    table_names = set(inspect(db.get_bind()).get_table_names())
+    present_tables = table_names & _ROAD_10K_CONTROL_TABLES
+    if not present_tables:
+        return False
+    if present_tables != _ROAD_10K_CONTROL_TABLES:
+        raise Road10KControlUnavailable("schema_unavailable")
+
+    counters = db.query(Road10KStageCounter).all()
+    owner_receipts = db.query(Road10KOwnerStageReceipt).all()
+    exposure_receipts = db.query(Road10KExposureReceipt).all()
+    evaluations = db.query(Road10KEvaluation).all()
+    screenshots = db.query(Road10KScreenshotReference).all()
+    has_payload_obligation = bool(evaluations or screenshots)
+
+    has_obligation = bool(
+        owner_receipts
+        or exposure_receipts
+        or has_payload_obligation
+        or any(
+            row.invitation_slots_consumed > 0
+            or row.distinct_exposed_owners_consumed > 0
+            for row in counters
+        )
+    )
+    if not has_obligation:
+        return False
+
+    counters_by_stage = {row.stage_id: row for row in counters}
+    owner_by_id = {row.id: row for row in owner_receipts}
+    stages = {
+        *(row.stage_id for row in owner_receipts),
+        *(row.stage_id for row in exposure_receipts),
+        *(row.stage_id for row in evaluations),
+        *counters_by_stage,
+    }
+    if stages != set(counters_by_stage):
+        raise Road10KControlUnavailable("counter_mismatch")
+
+    for stage_id in stages:
+        counter = counters_by_stage[stage_id]
+        stage_owners = [
+            row for row in owner_receipts if row.stage_id == stage_id
+        ]
+        stage_exposures = [
+            row for row in exposure_receipts if row.stage_id == stage_id
+        ]
+        if (
+            counter.schema_version != ROAD_10K_CONTROL_SCHEMA_VERSION
+            or counter.capability_id
+            != "outdoor_road_10k_performance_v1"
+            or not 0
+            <= counter.invitation_slots_consumed
+            <= counter.invitation_ceiling
+            <= ROAD_10K_INVITATION_CEILING
+            or not 0
+            <= counter.distinct_exposed_owners_consumed
+            <= counter.exposure_ceiling
+            <= ROAD_10K_EXPOSURE_CEILING
+            or counter.invitation_slots_consumed != len(stage_owners)
+            or counter.distinct_exposed_owners_consumed
+            != len(stage_exposures)
+        ):
+            raise Road10KControlUnavailable("counter_mismatch")
+        for exposure in stage_exposures:
+            owner_receipt = owner_by_id.get(exposure.owner_stage_receipt_id)
+            if (
+                owner_receipt is None
+                or owner_receipt.stage_id != stage_id
+                or owner_receipt.state
+                not in {"exposed", "withdrawn", "deleted"}
+                or owner_receipt.first_exposed_at is None
+                or exposure.user_id != owner_receipt.user_id
+            ):
+                raise Road10KControlUnavailable("receipt_mismatch")
+    evaluation_ids = {row.id for row in evaluations}
+    if any(
+        row.evaluation_id not in evaluation_ids
+        for row in screenshots
+    ):
+        raise Road10KControlUnavailable("receipt_mismatch")
+    return True
 
 
 def road_10k_requires_replay_ready(
@@ -235,9 +338,19 @@ def _counter(
         or counter.invitation_ceiling != authority.invitation_ceiling
         or counter.exposure_ceiling != authority.exposure_ceiling
         or counter.invitation_slots_consumed < 0
+        or counter.invitation_slots_consumed > counter.invitation_ceiling
         or counter.invitation_slots_consumed > ROAD_10K_INVITATION_CEILING
         or counter.distinct_exposed_owners_consumed < 0
+        or counter.distinct_exposed_owners_consumed > counter.exposure_ceiling
         or counter.distinct_exposed_owners_consumed > ROAD_10K_EXPOSURE_CEILING
+        or counter.invitation_slots_consumed
+        != db.query(Road10KOwnerStageReceipt.id)
+        .filter(Road10KOwnerStageReceipt.stage_id == authority.stage_id)
+        .count()
+        or counter.distinct_exposed_owners_consumed
+        != db.query(Road10KExposureReceipt.id)
+        .filter(Road10KExposureReceipt.stage_id == authority.stage_id)
+        .count()
     ):
         raise Road10KControlUnavailable("counter_mismatch")
     return counter
@@ -251,6 +364,18 @@ def _begin_control_write(db: Session) -> None:
             text("SELECT pg_advisory_xact_lock(:road_10k_lock)"),
             {"road_10k_lock": _ROAD_10K_STAGE_LOCK_KEY},
         )
+
+
+def _transaction_authority(
+    expected: Road10KStageAuthority,
+    *,
+    lifecycle: bool = False,
+) -> Road10KStageAuthority:
+    """Reload external authority after the database write lock is held."""
+    current = _authority(lifecycle=lifecycle)
+    if current.authority_digest != expected.authority_digest:
+        raise Road10KControlUnavailable("authority_changed")
+    return current
 
 
 def _assert_owner(db: Session, user_id: str) -> User:
@@ -295,23 +420,18 @@ def issue_invitation(
     """Consume one cumulative invitation, idempotently, under the counter lock."""
     authority = _authority()
     require_road_10k_replay_ready(db, authority=authority)
-    if not 8 <= len(idempotency_key) <= 128:
+    if _ROAD_10K_INVITATION_KEY.fullmatch(idempotency_key) is None:
         raise Road10KControlDenied("invalid_idempotency_key")
     if (
         notice_digest != authority.notice_digest
         or cohort_rule_digest != authority.cohort_rule_digest
     ):
         raise Road10KControlUnavailable("authority_digest_mismatch")
-    fingerprint = _fingerprint(
-        "invitation",
-        user_id=user_id,
-        stage_id=authority.stage_id,
-        notice_digest=notice_digest,
-        cohort_rule_digest=cohort_rule_digest,
-    )
     db.rollback()
     _begin_control_write(db)
     try:
+        authority = _transaction_authority(authority)
+        require_road_10k_replay_ready(db, authority=authority)
         _assert_owner(db, user_id)
         counter = _counter(db, authority)
         existing = _receipt(
@@ -322,8 +442,6 @@ def issue_invitation(
         if existing is not None:
             if not receipt_matches_authority(existing, authority):
                 raise Road10KControlUnavailable("receipt_contract_mismatch")
-            if existing.request_fingerprint != fingerprint:
-                raise Road10KControlConflict("owner_stage_conflict")
             db.commit()
             return existing
         by_key = (
@@ -337,7 +455,7 @@ def issue_invitation(
             .first()
         )
         if by_key is not None:
-            if by_key.request_fingerprint != fingerprint:
+            if by_key.user_id != user_id:
                 raise Road10KControlConflict("idempotency_conflict")
             db.commit()
             return by_key
@@ -354,10 +472,12 @@ def issue_invitation(
             authority_digest=authority.authority_digest,
             notice_digest=notice_digest,
             cohort_rule_digest=cohort_rule_digest,
+            sampling_run_evidence_digest=(
+                authority.sampling_run_evidence_digest
+            ),
             invitation_idempotency_key=idempotency_key,
             state="invited_only",
             invitation_issued_at=timestamp,
-            request_fingerprint=fingerprint,
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -393,11 +513,13 @@ def enroll_owner(
         raise Road10KControlDenied("invitation_required")
     if not receipt_matches_authority(preflight, authority):
         raise Road10KControlUnavailable("receipt_contract_mismatch")
-    if preflight.state in {"withdrawn", "deleted"}:
+    if preflight.state == "deleted":
         raise Road10KControlDenied("same_stage_reenrollment_denied")
     db.rollback()
     _begin_control_write(db)
     try:
+        authority = _transaction_authority(authority)
+        require_road_10k_replay_ready(db, authority=authority)
         _assert_owner(db, user_id)
         _counter(db, authority)
         receipt = _receipt(
@@ -409,14 +531,27 @@ def enroll_owner(
             raise Road10KControlDenied("invitation_required")
         if not receipt_matches_authority(receipt, authority):
             raise Road10KControlUnavailable("receipt_contract_mismatch")
-        if receipt.state in {"withdrawn", "deleted"}:
+        if receipt.state == "deleted":
             raise Road10KControlDenied("same_stage_reenrollment_denied")
         if receipt.state in {"enrolled_unexposed", "exposed"}:
             db.commit()
             return receipt
-        receipt.state = "enrolled_unexposed"
-        receipt.enrolled_at = _now(now)
-        receipt.updated_at = _now(now)
+        existing_exposure = (
+            db.query(Road10KExposureReceipt)
+            .filter(
+                Road10KExposureReceipt.stage_id == authority.stage_id,
+                Road10KExposureReceipt.user_id == user_id,
+                Road10KExposureReceipt.owner_stage_receipt_id == receipt.id,
+            )
+            .first()
+        )
+        timestamp = _now(now)
+        receipt.state = (
+            "exposed" if existing_exposure is not None else "enrolled_unexposed"
+        )
+        receipt.enrolled_at = receipt.enrolled_at or timestamp
+        receipt.withdrawn_at = None
+        receipt.updated_at = timestamp
         db.commit()
         return receipt
     except Exception:
@@ -453,6 +588,8 @@ def authorize_first_exposure(
     db.rollback()
     _begin_control_write(db)
     try:
+        authority = _transaction_authority(authority)
+        require_road_10k_replay_ready(db, authority=authority)
         _assert_owner(db, user_id)
         counter = _counter(db, authority)
         receipt = _receipt(
@@ -549,7 +686,7 @@ def require_road_10k_gate(
         )
         .first()
     )
-    if exposure is None or exposure.authority_digest != authority.authority_digest:
+    if exposure is None:
         raise Road10KControlDenied("road_10k_exposure_required")
     counter = _counter(db, authority, create=False)
     if counter.distinct_exposed_owners_consumed > authority.exposure_ceiling:
@@ -617,19 +754,44 @@ def record_result(
         raise Road10KControlDenied("invalid_result_code")
     authorize_first_exposure(db, user_id=user_id, now=now)
     timestamp = _now(now)
-    db.add(
-        evaluation := Road10KEvaluation(
-            id=str(uuid4()),
+    db.rollback()
+    _begin_control_write(db)
+    try:
+        authority = _transaction_authority(authority)
+        require_road_10k_replay_ready(db, authority=authority)
+        _assert_owner(db, user_id)
+        _counter(db, authority)
+        receipt = _receipt(
+            db,
             user_id=user_id,
             stage_id=authority.stage_id,
-            result_code=result_code,
-            payload=dict(payload),
-            created_at=timestamp,
-            expires_at=timestamp + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS),
+            lock=True,
         )
-    )
-    db.commit()
-    return evaluation
+        if (
+            receipt is None
+            or receipt.state != "exposed"
+            or not receipt_matches_authority(receipt, authority)
+        ):
+            raise Road10KControlDenied("road_10k_exposure_required")
+        db.add(
+            evaluation := Road10KEvaluation(
+                id=str(uuid4()),
+                user_id=user_id,
+                stage_id=authority.stage_id,
+                result_code=result_code,
+                payload=dict(payload),
+                created_at=timestamp,
+                expires_at=(
+                    timestamp
+                    + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
+                ),
+            )
+        )
+        db.commit()
+        return evaluation
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _delete_evaluation_rows(
@@ -834,17 +996,10 @@ def withdraw_owner(
     )
     timestamp = _now(now)
     db.rollback()
-    # Stage the marker before destructive work.  This read is intentionally
-    # owner-scoped and does not emit any data.
-    marker = _owner_deletion_manifest(
-        db,
-        user_id=user_id,
-        stage_id=authority.stage_id,
-        reason="withdrawal",
-        now=timestamp,
-    )
     _begin_control_write(db)
     try:
+        authority = _transaction_authority(authority, lifecycle=True)
+        require_road_10k_replay_ready(db, authority=authority)
         _assert_owner(db, user_id)
         _counter(db, authority)
         receipt = _receipt(db, user_id=user_id, stage_id=authority.stage_id)
@@ -853,6 +1008,16 @@ def withdraw_owner(
         if receipt.state in {"withdrawn", "deleted"}:
             db.commit()
             return receipt
+        # Snapshot and durably stage every target while the same serialized
+        # control lock that fences evaluation writes is held.  A concurrent
+        # result is therefore either included here or denied after withdrawal.
+        marker = _owner_deletion_manifest(
+            db,
+            user_id=user_id,
+            stage_id=authority.stage_id,
+            reason="withdrawal",
+            now=timestamp,
+        )
         _delete_evaluation_rows(
             db,
             [row.id for row in db.query(Road10KEvaluation).filter(
@@ -961,6 +1126,7 @@ def complete_deletion_manifests(
             _delete_feedback_for_manifest(db, manifest)
             db.commit()
         mark_completed(manifest, timestamp)
+    confirm_replay_ready(timestamp.replace(tzinfo=timezone.utc))
 
 
 def purge_expired_evaluations(
@@ -1023,7 +1189,7 @@ def export_owner_records(db: Session, *, user_id: str) -> dict[str, object]:
     evaluations = [
         row for row in evaluations if _evaluation_expiry(row) > timestamp
     ]
-    return {
+    result = {
         "stage_id": authority.stage_id,
         "receipt": (
             {
@@ -1053,6 +1219,8 @@ def export_owner_records(db: Session, *, user_id: str) -> dict[str, object]:
             for row in evaluations
         ],
     }
+    _transaction_authority(authority, lifecycle=True)
+    return result
 
 
 def replay_road_10k_deletion_manifests(db: Session) -> int:
@@ -1095,22 +1263,51 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
 
 def initialize_road_10k_runtime(db: Session) -> int:
     """Replay Road 10K markers only when runtime access could rely on them."""
-    if not road_10k_requires_replay_ready(db):
-        return 0
-    if not private_marker_store_available():
+    if private_marker_store_available():
+        replayed = replay_road_10k_deletion_manifests(db)
+        validate_road_10k_runtime_obligations(db)
+        return replayed
+    has_obligation = validate_road_10k_runtime_obligations(db)
+    if has_obligation or replay_status() == "blocked":
         raise Road10KDeletionFailed("deletion_storage_unavailable")
-    return replay_road_10k_deletion_manifests(db)
+    return 0
 
 
 def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
     """Low-cardinality restricted status; never includes owner dimensions."""
     authority = load_stage_authority()
     if authority is None:
+        try:
+            has_obligation = validate_road_10k_runtime_obligations(db)
+            counter = (
+                db.query(Road10KStageCounter)
+                .filter(Road10KStageCounter.stage_id == ROAD_10K_STAGE_ID)
+                .first()
+                if has_obligation
+                else None
+            )
+        except Exception:
+            return {
+                "authority": "counter_mismatch",
+                "stage": ROAD_10K_STAGE_ID,
+                "invitation_slots_consumed": 0,
+                "distinct_exposed_owners_consumed": 0,
+                "deletion_replay_status": replay_status(),
+                "ready": False,
+            }
         return {
             "authority": "missing_or_malformed",
-            "stage": None,
-            "invitation_slots_consumed": 0,
-            "distinct_exposed_owners_consumed": 0,
+            "stage": counter.stage_id if counter is not None else None,
+            "invitation_slots_consumed": (
+                counter.invitation_slots_consumed
+                if counter is not None
+                else 0
+            ),
+            "distinct_exposed_owners_consumed": (
+                counter.distinct_exposed_owners_consumed
+                if counter is not None
+                else 0
+            ),
             "deletion_replay_status": replay_status(),
             "ready": False,
         }
@@ -1137,10 +1334,23 @@ def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
         counter is not None
         and counter.schema_version == ROAD_10K_CONTROL_SCHEMA_VERSION
         and counter.capability_id == authority.capability_id
-        and 0 <= counter.invitation_slots_consumed <= ROAD_10K_INVITATION_CEILING
-        and 0 <= counter.distinct_exposed_owners_consumed <= ROAD_10K_EXPOSURE_CEILING
+        and 0 <= counter.invitation_slots_consumed <= counter.invitation_ceiling
+        and counter.invitation_slots_consumed <= ROAD_10K_INVITATION_CEILING
+        and 0
+        <= counter.distinct_exposed_owners_consumed
+        <= counter.exposure_ceiling
+        and counter.distinct_exposed_owners_consumed
+        <= ROAD_10K_EXPOSURE_CEILING
         and counter.invitation_ceiling == authority.invitation_ceiling
         and counter.exposure_ceiling == authority.exposure_ceiling
+        and counter.invitation_slots_consumed
+        == db.query(Road10KOwnerStageReceipt.id)
+        .filter(Road10KOwnerStageReceipt.stage_id == authority.stage_id)
+        .count()
+        and counter.distinct_exposed_owners_consumed
+        == db.query(Road10KExposureReceipt.id)
+        .filter(Road10KExposureReceipt.stage_id == authority.stage_id)
+        .count()
     )
     return {
         "authority": (

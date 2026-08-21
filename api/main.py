@@ -175,6 +175,7 @@ async def _road_10k_private_no_store(request, call_next):
     if (
         request.url.path.startswith("/api/road-10k")
         or request.url.path.startswith("/api/plan/road-10k")
+        or request.url.path.startswith("/api/plan/proposals")
         or request.url.path == "/api/plan/generation/capabilities"
         or request.url.path == "/api/me/export"
     ):
@@ -353,6 +354,17 @@ def health_ready(response: Response):
         db = SessionLocal()
         try:
             db.execute(_text("SELECT 1"))
+            from api.road_10k_control import (
+                require_road_10k_replay_ready,
+                validate_road_10k_runtime_obligations,
+            )
+            from api.road_10k_deletion_storage import replay_status
+
+            has_road_obligation = validate_road_10k_runtime_obligations(db)
+            if has_road_obligation:
+                require_road_10k_replay_ready(db)
+            elif replay_status() == "blocked":
+                raise RuntimeError("Road 10K deletion replay is blocked")
         finally:
             db.close()
     except Exception as exc:

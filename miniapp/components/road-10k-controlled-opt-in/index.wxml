@@ -35,6 +35,12 @@
   </block>
 
   <block wx:elif="{{surface === 'training' && access.rollout_status === 'enrolled'}}">
+    <view class="road-10k-action road-10k-action--primary" bindtap="onCheck" aria-role="button">
+      <text>{{text.check}}</text>
+    </view>
+    <view class="road-10k-action road-10k-action--disabled" aria-disabled="true">
+      <text>{{text.addScreenshot}}</text>
+    </view>
     <view class="road-10k-disabled" aria-disabled="true">
       <text>{{screenshotHint}}</text>
     </view>
@@ -47,12 +53,13 @@
       class="road-10k-action road-10k-action--secondary"
       bindtap="onLeave"
       aria-role="button"
+      aria-disabled="{{leaving}}"
     >
-      <text>{{text.leave}}</text>
+      <text>{{leaving ? text.leaving : text.leave}}</text>
     </view>
   </block>
 
-  <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>
+  <text wx:if="{{error && flow === 'idle'}}" class="road-10k-error" role="alert">{{error}}</text>
 </view>
 
 <view wx:if="{{flow === 'reauth'}}" class="road-10k-mask" aria-role="dialog">
@@ -67,6 +74,7 @@
       placeholder="{{text.passwordPlaceholder}}"
       aria-label="{{text.passwordPlaceholder}}"
     />
+    <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>
     <view class="road-10k-action road-10k-action--secondary" bindtap="onCancel" aria-role="button">
       <text>{{text.cancel}}</text>
     </view>
@@ -74,6 +82,7 @@
       class="road-10k-action road-10k-action--primary {{!password ? 'road-10k-action--disabled' : ''}}"
       bindtap="onContinue"
       aria-role="button"
+      aria-disabled="{{!password}}"
     >
       <text>{{text.continue}}</text>
     </view>
@@ -93,6 +102,7 @@
       <checkbox-group bindchange="onAck"><checkbox value="ack" checked="{{acknowledged}}" /></checkbox-group>
       <text>{{text.noticeAck}}</text>
     </label>
+    <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>
     <view class="road-10k-action road-10k-action--secondary" bindtap="onCancel" aria-role="button">
       <text>{{text.cancel}}</text>
     </view>
@@ -100,6 +110,7 @@
       class="road-10k-action road-10k-action--primary {{!acknowledged ? 'road-10k-action--disabled' : ''}}"
       bindtap="onJoin"
       aria-role="button"
+      aria-disabled="{{!acknowledged}}"
     >
       <text>{{text.join}}</text>
     </view>

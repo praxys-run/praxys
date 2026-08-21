@@ -166,6 +166,8 @@ def stage_manifest(
 
 def mark_committed(manifest: Mapping[str, object], committed_at: datetime) -> dict[str, object]:
     """Persist that the related DB deletion intent committed authoritatively."""
+    global _last_replay_status
+    _last_replay_status = "blocked"
     committed = dict(manifest)
     committed["status"] = "committed"
     committed["committed_at"] = _utc(committed_at).isoformat()
@@ -211,10 +213,10 @@ def iter_active(now: datetime | None = None) -> Iterator[dict[str, object]]:
                 requested = datetime.fromisoformat(
                     str(value["requested_at"]).replace("Z", "+00:00")
                 )
-                if requested >= cutoff:
-                    yield value
-                else:
+                if requested < cutoff and value["status"] == "completed":
                     blob.delete_blob()
+                else:
+                    yield value
         except Road10KDeletionStorageError:
             raise
         except Exception as exc:
@@ -230,10 +232,10 @@ def iter_active(now: datetime | None = None) -> Iterator[dict[str, object]]:
             requested = datetime.fromisoformat(
                 str(value["requested_at"]).replace("Z", "+00:00")
             )
-            if requested >= cutoff:
-                yield value
-            else:
+            if requested < cutoff and value["status"] == "completed":
                 _test_store.delete(key)
+            else:
+                yield value
     except Road10KDeletionStorageError:
         raise
     except Exception as exc:
@@ -280,6 +282,22 @@ def replay_manifests(
 def replay_status() -> str:
     """Return only a bounded replay status for readiness/operations."""
     return _last_replay_status
+
+
+def confirm_replay_ready(now: datetime | None = None) -> None:
+    """Mark replay ready only when storage has no unresolved committed marker."""
+    global _last_replay_status
+    try:
+        pending = any(
+            manifest["status"] == "committed"
+            for manifest in iter_active(now)
+        )
+    except Exception as exc:
+        _last_replay_status = "blocked"
+        raise Road10KDeletionStorageError(
+            "could not confirm Road 10K deletion replay"
+        ) from exc
+    _last_replay_status = "blocked" if pending else "ready"
 
 
 def marker_contains_payload(manifest: Mapping[str, object]) -> bool:

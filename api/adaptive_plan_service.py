@@ -761,6 +761,7 @@ def create_draft_proposal(
     idempotency_replay_state: MutableMapping[str, bool] | None = None,
     on_created: Callable[[Session, PlanProposal], None] | None = None,
     validated_policy_purpose: bool = False,
+    allow_road_10k_policy: bool = False,
 ) -> dict[str, Any]:
     """Create the first immutable proposal for a new adaptive plan aggregate.
 
@@ -771,6 +772,15 @@ def create_draft_proposal(
     ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
     persisted response when an in-flight exact retry is found under that lock.
     """
+    if (
+        payload.policy_version == "road-10k-plan-generation-policy-v2"
+        and not allow_road_10k_policy
+    ):
+        raise AdaptivePlanError(
+            409,
+            "ROAD_10K_SERVICE_ENDPOINT_REQUIRED",
+            "Use the Road 10K generation endpoint for this policy.",
+        )
     goal = _validate_goal(payload.goal)
     _require_validated_policy_purpose(
         goal,
@@ -1051,6 +1061,7 @@ def create_successor_proposal(
     on_created: Callable[[Session, PlanProposal], None] | None = None,
     allow_policy_successor: bool = False,
     validated_policy_purpose: bool = False,
+    allow_road_10k_policy: bool = False,
 ) -> dict[str, Any]:
     """Supersede a draft proposal with a new immutable edited version.
 
@@ -1060,6 +1071,15 @@ def create_successor_proposal(
     ``idempotency_replay_state`` lets a policy wrapper reconstruct its own
     persisted response when an in-flight exact retry is found under that lock.
     """
+    if (
+        payload.policy_version == "road-10k-plan-generation-policy-v2"
+        and not allow_road_10k_policy
+    ):
+        raise AdaptivePlanError(
+            409,
+            "ROAD_10K_SERVICE_ENDPOINT_REQUIRED",
+            "Use the Road 10K regenerate endpoint for this policy.",
+        )
     goal = _validate_goal(payload.goal)
     _require_validated_policy_purpose(
         goal,
@@ -1250,6 +1270,30 @@ def create_successor_proposal(
     return _proposal_to_dict(db, proposal)
 
 
+def _require_road_10k_proposal_gate(
+    db: Session,
+    *,
+    user_id: str,
+    proposal: PlanProposal,
+) -> None:
+    if proposal.policy_version != "road-10k-plan-generation-policy-v2":
+        return
+    from api.road_10k_control import require_road_10k_gate
+
+    try:
+        require_road_10k_gate(
+            db,
+            user_id=user_id,
+            expose=False,
+        )
+    except Exception as exc:
+        raise AdaptivePlanError(
+            404,
+            "PLAN_PROPOSAL_NOT_FOUND",
+            "Plan proposal not found.",
+        ) from exc
+
+
 def reject_proposal(
     db: Session,
     *,
@@ -1269,8 +1313,22 @@ def reject_proposal(
             ).with_for_update()
         ).scalar_one_or_none()
         if proposal is None:
-            raise AdaptivePlanError(404, "PLAN_PROPOSAL_NOT_FOUND", "Plan proposal not found.")
+            raise AdaptivePlanError(
+                404,
+                "PLAN_PROPOSAL_NOT_FOUND",
+                "Plan proposal not found.",
+            )
+        _require_road_10k_proposal_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
         if proposal.state == "rejected" and proposal.decision_idempotency_key == idempotency_key:
+            _require_road_10k_proposal_gate(
+                db,
+                user_id=user_id,
+                proposal=proposal,
+            )
             db.commit()
             return _proposal_to_dict(db, proposal)
         if proposal.state == "expired":
@@ -1301,6 +1359,11 @@ def reject_proposal(
         adaptive_plan.active_proposal_id = None
         if adaptive_plan.lifecycle == "draft":
             adaptive_plan.lifecycle = "archived"
+        _require_road_10k_proposal_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
         db.commit()
     except AdaptivePlanError:
         db.rollback()
@@ -1621,22 +1684,16 @@ def adopt_proposal(
             ).with_for_update()
         ).scalar_one_or_none()
         if proposal is None:
-            raise AdaptivePlanError(404, "PLAN_PROPOSAL_NOT_FOUND", "Plan proposal not found.")
-        if proposal.policy_version == "road-10k-plan-generation-policy-v2":
-            from api.road_10k_control import require_road_10k_gate
-
-            try:
-                require_road_10k_gate(
-                    db,
-                    user_id=user_id,
-                    expose=False,
-                )
-            except Exception as exc:
-                raise AdaptivePlanError(
-                    404,
-                    "PLAN_PROPOSAL_NOT_FOUND",
-                    "Plan proposal not found.",
-                ) from exc
+            raise AdaptivePlanError(
+                404,
+                "PLAN_PROPOSAL_NOT_FOUND",
+                "Plan proposal not found.",
+            )
+        _require_road_10k_proposal_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
         if proposal.state == "adopted":
             if proposal.decision_idempotency_key != idempotency_key:
                 raise AdaptivePlanError(409, "PLAN_PROPOSAL_ALREADY_ADOPTED", "The proposal was adopted with a different idempotency key.")
@@ -1663,6 +1720,11 @@ def adopt_proposal(
                 )
             proposal_snapshot = _proposal_snapshot_for_replay(
                 proposal_snapshot
+            )
+            _require_road_10k_proposal_gate(
+                db,
+                user_id=user_id,
+                proposal=proposal,
             )
             db.commit()
             return {
@@ -1813,6 +1875,11 @@ def adopt_proposal(
             idempotency_key=idempotency_key,
         )
         bump_revisions(db, user_id, ["plans"])
+        _require_road_10k_proposal_gate(
+            db,
+            user_id=user_id,
+            proposal=proposal,
+        )
         db.commit()
     except AdaptivePlanError:
         db.rollback()

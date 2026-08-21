@@ -39,7 +39,18 @@
     "route_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "schema_version": { "const": "road-10k-stage-authority-v1" },
     "control_schema_version": { "const": 2 },
-    "state": { "enum": ["active", "off", "paused", "killed", "hold", "rollback"] },
+    "state": {
+      "enum": [
+        "active",
+        "off",
+        "paused",
+        "killed",
+        "hold",
+        "rollback",
+        "stopped",
+        "revision"
+      ]
+    },
     "invitation_ceiling": { "type": "integer", "minimum": 0, "maximum": 60 },
     "exposure_ceiling": { "type": "integer", "minimum": 0, "maximum": 30 },
     "notice_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },

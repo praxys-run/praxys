@@ -171,6 +171,7 @@ jobs:
               ignores: [
                 'node_modules/**/*',
                 'scripts/**/*',
+                'tests/**/*',
                 'tsconfig.json',
                 'package*.json',
                 '.gitignore',

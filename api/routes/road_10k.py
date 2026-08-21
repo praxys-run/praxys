@@ -11,7 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi_users.password import PasswordHelper
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy.orm import Session
 
 from api.auth import get_authenticated_identity
@@ -67,7 +67,6 @@ class Road10KOptInRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     password: SecretStr = Field(min_length=1, max_length=512)
-    notice_digest: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     client: Literal["web", "miniapp"]
 
 
@@ -86,10 +85,7 @@ class Road10KAccessResponse(BaseModel):
 
     rollout_status: Literal[
         "invited",
-        "reauth-required",
-        "notice-unavailable",
         "enrolled",
-        "enrollment-closed",
         "hold",
         "withdrawn",
         "removed",
@@ -101,25 +97,14 @@ class Road10KAccessResponse(BaseModel):
     ]
     plan_status: Literal[
         "none",
-        "checking",
-        "baseline-required",
-        "limited-guidance",
-        "safety-stop",
-        "generating",
-        "generation-failed",
         "proposal-ready",
-        "review-later",
         "rejected",
-        "successor-requested",
         "expired",
         "active",
-        "paused-by-owner",
         "ended-by-owner",
         "completed",
-        "deleted",
     ]
     stage_id: str
-    notice_digest: str
     screenshot_available: Literal[False]
 
 
@@ -129,7 +114,17 @@ class Road10KActionResponse(BaseModel):
     outcome: Literal["enrolled", "withdrawn"]
     rollout_status: Literal["enrolled", "withdrawn"]
     plan_status: Literal["none", "unchanged"]
-    receipt_id: str
+
+    @model_validator(mode="after")
+    def validate_action_outcome(self) -> "Road10KActionResponse":
+        """Keep action fields correlated as one exact wire outcome."""
+        expected = {
+            "enrolled": ("enrolled", "none"),
+            "withdrawn": ("withdrawn", "unchanged"),
+        }[self.outcome]
+        if (self.rollout_status, self.plan_status) != expected:
+            raise ValueError("Road 10K action outcome fields conflict")
+        return self
 
 
 class Road10KEvaluationExport(BaseModel):
@@ -243,6 +238,8 @@ def _control_error(exc: Exception) -> HTTPException:
     if isinstance(error, Road10KControlUnavailable):
         return HTTPException(404, "Not found", headers=headers)
     if isinstance(error, Road10KControlDenied):
+        if str(error) == "participation_required":
+            return HTTPException(404, "Not found", headers=headers)
         return HTTPException(409, {"code": str(error)}, headers=headers)
     if isinstance(error, Road10KControlConflict):
         return HTTPException(409, {"code": str(error)}, headers=headers)
@@ -280,8 +277,15 @@ def get_access(
     ):
         return _hidden(response)
     _private(response)
-    if authority.lifecycle_status != "active":
-        rollout_status = authority.lifecycle_status
+    current_authority = load_stage_authority()
+    if (
+        current_authority is None
+        or current_authority.lifecycle_status is None
+        or not receipt_matches_authority(receipt, current_authority)
+    ):
+        return _hidden(response)
+    if current_authority.lifecycle_status != "active":
+        rollout_status = current_authority.lifecycle_status
     else:
         rollout_status = {
             "invited_only": "invited",
@@ -295,8 +299,7 @@ def get_access(
     return {
         "rollout_status": rollout_status,
         "plan_status": _plan_status(db, user_id=user_id),
-        "stage_id": authority.stage_id,
-        "notice_digest": authority.notice_digest,
+        "stage_id": current_authority.stage_id,
         "screenshot_available": False,
     }
 
@@ -317,6 +320,7 @@ def opt_in(
         require_road_10k_participation(
             db,
             user_id=user_id,
+            allow_withdrawn=True,
         )
     except Road10KControlError as exc:
         raise _control_error(exc) from exc
@@ -336,10 +340,10 @@ def opt_in(
     if updated_hash:
         user.hashed_password = updated_hash
     try:
-        receipt = enroll_owner(
+        enroll_owner(
             db,
             user_id=user_id,
-            notice_digest=body.notice_digest,
+            notice_digest=authority.notice_digest,
         )
     except Exception as exc:
         raise _control_error(exc) from exc
@@ -348,7 +352,6 @@ def opt_in(
         "outcome": "enrolled",
         "rollout_status": "enrolled",
         "plan_status": "none",
-        "receipt_id": receipt.id,
     }
 
 
@@ -370,7 +373,7 @@ def withdraw(
     except Road10KControlError as exc:
         raise _control_error(exc) from exc
     try:
-        receipt = withdraw_owner(db, user_id=user_id)
+        withdraw_owner(db, user_id=user_id)
     except Exception as exc:
         raise _control_error(exc) from exc
     _private(response)
@@ -378,7 +381,6 @@ def withdraw(
         "outcome": "withdrawn",
         "rollout_status": "withdrawn",
         "plan_status": "unchanged",
-        "receipt_id": receipt.id,
     }
 
 

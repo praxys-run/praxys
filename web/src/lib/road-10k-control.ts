@@ -1,8 +1,3 @@
-import type {
-  Road10KPlanStatus,
-  Road10KRolloutStatus,
-} from "../types/api";
-
 export const ROAD_10K_COPY = {
   "action.add_screenshot": { en: "Add optional screenshot", 'zh-CN': "添加可选截图" },
   "action.adopt": { en: "Adopt exact proposal", 'zh-CN': "采纳此确切提案" },
@@ -253,11 +248,15 @@ export const ROAD_10K_SCREENSHOT_AVAILABLE = false as const;
 
 export const ROAD_10K_ROLLOUT_STATES = [
   "invited", "reauth-required", "notice-unavailable", "enrolled", "enrollment-closed", "hold", "withdrawn", "removed", "paused", "killed", "rollback", "stopped", "revision",
-] as const satisfies readonly Road10KRolloutStatus[];
+] as const;
+export type Road10KExperienceRolloutState =
+  (typeof ROAD_10K_ROLLOUT_STATES)[number];
 
 export const ROAD_10K_PLAN_STATES = [
   "none", "checking", "baseline-required", "limited-guidance", "safety-stop", "generating", "generation-failed", "proposal-ready", "review-later", "rejected", "successor-requested", "expired", "active", "paused-by-owner", "ended-by-owner", "completed", "deleted",
-] as const satisfies readonly Road10KPlanStatus[];
+] as const;
+export type Road10KExperiencePlanState =
+  (typeof ROAD_10K_PLAN_STATES)[number];
 
 export const ROAD_10K_ROLLOUT_STATUS_COPY = {
   "invited": "status.rollout_invited",
@@ -273,7 +272,7 @@ export const ROAD_10K_ROLLOUT_STATUS_COPY = {
   "rollback": "status.rollout_rollback",
   "stopped": "status.rollout_stopped",
   "revision": "status.rollout_revision",
-} as const satisfies Record<Road10KRolloutStatus, Road10KCopyKey>;
+} as const satisfies Record<Road10KExperienceRolloutState, Road10KCopyKey>;
 
 export const ROAD_10K_ACCESS_STATE_COPY = {
   "invited": ["invitation.title", "invitation.body", "status.rollout_invited", "status.plan_none"],
@@ -289,11 +288,14 @@ export const ROAD_10K_ACCESS_STATE_COPY = {
   "rollback": ["life.rollback_title", "life.rollback_body"],
   "stopped": ["life.stop_title", "life.stop_body"],
   "revision": ["life.revision_title", "life.revision_body"],
-} as const satisfies Record<Road10KRolloutStatus, readonly Road10KCopyKey[]>;
+} as const satisfies Record<
+  Road10KExperienceRolloutState,
+  readonly Road10KCopyKey[]
+>;
 
 export function road10kAccessStateCopy(
-  rolloutStatus: Road10KRolloutStatus,
-  planStatus: Road10KPlanStatus,
+  rolloutStatus: Road10KExperienceRolloutState,
+  planStatus: Road10KExperiencePlanState,
 ): readonly Road10KCopyKey[] {
   if (rolloutStatus === 'enrollment-closed' && planStatus !== 'none') {
     return ['life.close_title', 'life.close_in'];
@@ -319,7 +321,10 @@ export const ROAD_10K_PLAN_STATE_COPY = {
   "ended-by-owner": ["status.plan_ended", "plan.ended_title", "plan.ended_body"],
   "completed": ["status.plan_completed", "plan.complete_title", "plan.complete_body"],
   "deleted": ["status.plan_deleted", "success.deleted"],
-} as const satisfies Record<Road10KPlanStatus, readonly Road10KCopyKey[]>;
+} as const satisfies Record<
+  Road10KExperiencePlanState,
+  readonly Road10KCopyKey[]
+>;
 
 export const ROAD_10K_NETWORK_STATE_COPY = {
     "offline": ["network.offline_title", "network.offline_body", "action.retry"],

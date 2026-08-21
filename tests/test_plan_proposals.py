@@ -8,6 +8,7 @@ import io
 import os
 import tempfile
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -54,6 +55,7 @@ def proposal_client(monkeypatch):
     from api.auth import get_current_user_id, get_data_user_id, require_write_access
     from api.routes import ai as ai_route
     from api.routes import adaptive_plan as adaptive_plan_route
+    from api.routes import plan_generation_capabilities as capability_route
     from db.models import User
     from db.session import get_db
 
@@ -86,6 +88,15 @@ def proposal_client(monkeypatch):
         adaptive_plan_route,
         "_trigger_managed_delivery",
         _record_delivery,
+    )
+    monkeypatch.setattr(
+        capability_route,
+        "get_authenticated_identity",
+        lambda request, db: SimpleNamespace(
+            credential_kind="first_party_jwt",
+            is_demo=False,
+            user_id=current_user_id["value"],
+        ),
     )
     monkeypatch.setattr(
         ai_route,
@@ -412,6 +423,80 @@ def test_http_validation_errors_use_typed_proposal_contract(proposal_client):
         "PLAN_PROPOSAL_VALIDATION_FAILED"
     )
     assert invalid_path.json()["detail"]["errors"][0]["field"] == "proposal_id"
+
+
+def test_generic_proposal_endpoints_cannot_manufacture_road_policy_proposals(
+    proposal_client,
+):
+    client, db_session, _ = proposal_client
+    from db.models import PlanProposal
+
+    road_create = _proposal_payload(key="generic-road-create")
+    road_create["policy_version"] = "road-10k-plan-generation-policy-v2"
+    denied_create = client.post("/api/plan/proposals", json=road_create)
+
+    assert denied_create.status_code == 409
+    assert denied_create.json()["detail"]["code"] == (
+        "ROAD_10K_SERVICE_ENDPOINT_REQUIRED"
+    )
+    with db_session.SessionLocal() as db:
+        assert db.query(PlanProposal).count() == 0
+
+    created = client.post(
+        "/api/plan/proposals",
+        json=_proposal_payload(key="ordinary-proposal"),
+    )
+    assert created.status_code == 201, created.text
+    road_edit = _proposal_payload(key="generic-road-edit")
+    road_edit["policy_version"] = "road-10k-plan-generation-policy-v2"
+    road_edit["expected_version"] = created.json()["version"]
+    denied_edit = client.post(
+        f"/api/plan/proposals/{created.json()['id']}/edits",
+        json=road_edit,
+    )
+
+    assert denied_edit.status_code == 409
+    assert denied_edit.json()["detail"]["code"] == (
+        "ROAD_10K_SERVICE_ENDPOINT_REQUIRED"
+    )
+    with db_session.SessionLocal() as db:
+        rows = db.query(PlanProposal).all()
+        assert len(rows) == 1
+        assert rows[0].policy_version == "structured-only-v1"
+        assert rows[0].state == "draft"
+
+
+def test_generic_proposal_service_rejects_road_policy_before_validation_or_io():
+    from api.adaptive_plan_service import (
+        AdaptivePlanError,
+        ProposalInput,
+        create_draft_proposal,
+    )
+
+    class NoDatabaseAccess:
+        def __getattribute__(self, name):
+            raise AssertionError(f"unexpected database access: {name}")
+
+    payload = ProposalInput(
+        goal={},
+        discipline="",
+        workouts=[],
+        origin="generic-test",
+        actor_type="user",
+        actor_id="owner",
+        idempotency_key="generic-road-service",
+        policy_version="road-10k-plan-generation-policy-v2",
+    )
+
+    with pytest.raises(AdaptivePlanError) as raised:
+        create_draft_proposal(
+            NoDatabaseAccess(),  # type: ignore[arg-type]
+            user_id="owner",
+            payload=payload,
+            current_date=date.today(),
+        )
+
+    assert raised.value.detail["code"] == "ROAD_10K_SERVICE_ENDPOINT_REQUIRED"
 
 
 def test_create_read_successor_and_reject_preserve_noncanonical_history(proposal_client):

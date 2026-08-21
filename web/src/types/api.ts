@@ -212,10 +212,7 @@ export interface GoalPlanKeepResponse {
 /** The closed, owner-scoped Road 10K control contract. */
 export type Road10KRolloutStatus =
   | 'invited'
-  | 'reauth-required'
-  | 'notice-unavailable'
   | 'enrolled'
-  | 'enrollment-closed'
   | 'hold'
   | 'withdrawn'
   | 'removed'
@@ -227,34 +224,22 @@ export type Road10KRolloutStatus =
 
 export type Road10KPlanStatus =
   | 'none'
-  | 'checking'
-  | 'baseline-required'
-  | 'limited-guidance'
-  | 'safety-stop'
-  | 'generating'
-  | 'generation-failed'
   | 'proposal-ready'
-  | 'review-later'
   | 'rejected'
-  | 'successor-requested'
   | 'expired'
   | 'active'
-  | 'paused-by-owner'
   | 'ended-by-owner'
-  | 'completed'
-  | 'deleted';
+  | 'completed';
 
 export interface Road10KAccessResponse {
   rollout_status: Road10KRolloutStatus;
   plan_status: Road10KPlanStatus;
   stage_id: string;
-  notice_digest: string;
   screenshot_available: false;
 }
 
 export interface Road10KOptInRequest {
   password: string;
-  notice_digest: string;
   client: 'web' | 'miniapp';
 }
 
@@ -266,12 +251,17 @@ export interface Road10KStatusResponse {
   first_exposed_at: string | null;
 }
 
-export interface Road10KActionResponse {
-  outcome: 'enrolled' | 'withdrawn';
-  rollout_status: 'enrolled' | 'withdrawn';
-  plan_status: 'none' | 'unchanged';
-  receipt_id: string;
-}
+export type Road10KActionResponse =
+  | {
+      outcome: 'enrolled';
+      rollout_status: 'enrolled';
+      plan_status: 'none';
+    }
+  | {
+      outcome: 'withdrawn';
+      rollout_status: 'withdrawn';
+      plan_status: 'unchanged';
+    };
 
 export interface Road10KExportResponse {
   stage_id: string;
@@ -1004,21 +994,28 @@ export type PlanGenerationPurposeSource =
   | 'capability'
   | 'unlinked';
 
-export interface PlanGenerationPurposeSelection {
-  capability_id: string;
-  source: PlanGenerationPurposeSource;
-  expected_goal_id: string | null;
-  expected_goal_revision: string | null;
-}
+export type PlanGenerationPurposeSelection =
+  | {
+      capability_id: string;
+      source: 'current_goal';
+      expected_goal_id: string;
+      expected_goal_revision: string;
+    }
+  | {
+      capability_id: string;
+      source: 'capability' | 'unlinked';
+      expected_goal_id: null;
+      expected_goal_revision: null;
+    };
 
-export interface PlanGenerationResolvedPurpose extends PlanGenerationPurposeSelection {
+export type PlanGenerationResolvedPurpose = PlanGenerationPurposeSelection & {
   goal: {
     goal_kind: string | null;
     distance: string | null;
     target_time_sec: number | null;
     race_date: string | null;
   };
-}
+};
 
 export type PlanIntent =
   | 'first_completion'
@@ -1256,7 +1253,7 @@ export interface Road10KConstraintsRequest {
   benchmark_date?: string | null;
 }
 
-export interface Road10KReadinessRequest extends Road10KConstraintsRequest {}
+export type Road10KReadinessRequest = Road10KConstraintsRequest;
 
 export interface Road10KGenerateRequest extends Road10KConstraintsRequest {
   expected_source_revision: string;
@@ -1298,22 +1295,12 @@ export interface Road10KEventContext {
   target_source: 'goal' | 'benchmark' | null;
 }
 
-export interface Road10KOutcomeResponse {
+interface Road10KOutcomeCommon {
   policy_version: string;
   generator_version: string;
   science_decision_id: string;
   contract_digest: string;
   source_decision_digest: string;
-  code: Road10KResultCode;
-  route_state:
-    | 'plan_candidate'
-    | 'readiness_only'
-    | 'clarification_required'
-    | 'policy_unavailable';
-  plan_returned: boolean;
-  adoption_required?: boolean;
-  goal_remains_recorded?: boolean;
-  limited_guidance_returned?: boolean;
   deterministic_input_hash: string;
   event_context: Road10KEventContext;
   history_statistics: Road10KHistoryStatistics;
@@ -1322,6 +1309,60 @@ export interface Road10KOutcomeResponse {
   uncertainty_or_missing_field: string | null;
   alternatives: string[];
 }
+
+type Road10KOutcomeState =
+  | {
+      code: 'eligible_rolling_proposal' | 'eligible_taper_proposal';
+      route_state: 'plan_candidate';
+      plan_returned: true;
+      adoption_required: true;
+      goal_remains_recorded?: never;
+      limited_guidance_returned?: never;
+    }
+  | {
+      code:
+        | 'adult_scope_or_constraints_unconfirmed'
+        | 'contradictory_input';
+      route_state: 'clarification_required';
+      plan_returned: false;
+      goal_remains_recorded: true;
+      adoption_required?: never;
+      limited_guidance_returned?: never;
+    }
+  | {
+      code:
+        | 'missing_or_stale_direct_baseline'
+        | 'insufficient_recent_history'
+        | 'safety_stop'
+        | 'no_schedule_within_envelope'
+        | 'validation_failed';
+      route_state: 'readiness_only';
+      plan_returned: false;
+      goal_remains_recorded: true;
+      adoption_required?: never;
+      limited_guidance_returned?: never;
+    }
+  | {
+      code:
+        | 'limited_guidance_event_conflict'
+        | 'limited_near_term_guidance';
+      route_state: 'readiness_only';
+      plan_returned: false;
+      goal_remains_recorded: true;
+      limited_guidance_returned: true;
+      adoption_required?: never;
+    }
+  | {
+      code: 'unsupported_intent_distance_surface_or_population';
+      route_state: 'policy_unavailable';
+      plan_returned: false;
+      goal_remains_recorded: true;
+      adoption_required?: never;
+      limited_guidance_returned?: never;
+    };
+
+export type Road10KOutcomeResponse =
+  Road10KOutcomeCommon & Road10KOutcomeState;
 
 export interface Road10KGuardrailProjection {
   committed_proposal_days: number;
@@ -1384,19 +1425,30 @@ export interface Road10KProposalTarget {
   event_state: 'confirmed_none' | 'single_target' | 'race_dense';
 }
 
-export interface Road10KProposalGoalSnapshot {
+interface Road10KProposalGoalSnapshotCommon {
   id: string;
   version: number;
   state: 'draft' | 'active' | 'superseded';
-  purpose_source: PlanGenerationPurposeSource;
-  source_goal_id: string | null;
-  source_goal_revision: string | null;
   goal_kind: string;
   target: Road10KProposalTarget;
   horizon_start: string;
   horizon_end: string;
   acknowledged_at: string | null;
 }
+
+export type Road10KProposalGoalSnapshot =
+  Road10KProposalGoalSnapshotCommon & (
+    | {
+        purpose_source: 'current_goal';
+        source_goal_id: string;
+        source_goal_revision: string;
+      }
+    | {
+        purpose_source: 'capability' | 'unlinked';
+        source_goal_id: null;
+        source_goal_revision: null;
+      }
+  );
 
 export interface Road10KProposalWorkout extends AdaptivePlanProposalWorkout {
   canonical_id: string;
@@ -1426,7 +1478,10 @@ export interface Road10KProposal {
   created_at: string | null;
   decided_at: string | null;
   workouts: Road10KProposalWorkout[];
-  adaptive_plan: AdaptivePlanSummary | null;
+  adaptive_plan: (
+    Omit<AdaptivePlanSummary, 'discipline'>
+    & { discipline: 'running' }
+  ) | null;
   goal: Road10KProposalGoalSnapshot | null;
 }
 
