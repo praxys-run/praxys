@@ -28,11 +28,17 @@
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
 | CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
 
-## Tencent
+## Regional delivery target (gated; not current production)
 
 | Thing | Value | Source |
 |---|---|---|
-| Mainland frontend origin | Lighthouse static Nginx host with the workflow-restricted `praxys-cn-frontend` Runner; disabled until provisioned/ICP-ready | [tencent-frontend.md](./tencent-frontend.md) |
+| Planned mainland frontend | EdgeOne Makers Git-integrated project `praxys-cn`; protected `main`, global area with mainland availability, managed HTTPS | [tencent-frontend.md](./tencent-frontend.md) |
+| Planned international frontend edge | Cloudflare Free authoritative zone for `praxys.run`, proxying only apex and `www` to Azure with `Full (strict)` | [tencent-frontend.md](./tencent-frontend.md) |
+| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net` | [tencent-frontend.md](./tencent-frontend.md) |
+
+None of these target-state rows becomes current until the runbook's Release
+Evidence exists. Today the frontend remains the Azure App Service named above,
+and EdgeOne Production Auto Deploy is not enabled.
 
 ## Hostnames
 
@@ -40,6 +46,7 @@
 |---|---|
 | API | `https://api.praxys.run` |
 | Web app | `https://www.praxys.run` |
+| Planned mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (not cut over) |
 
 ## Identity & auth model
 
@@ -93,4 +100,4 @@
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---
-_Last reviewed: 2026-07-26 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-20 · Owner: @dddtc2005_

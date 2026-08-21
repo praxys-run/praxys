@@ -20,7 +20,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [config-and-secrets.md](./config-and-secrets.md) | You're adding, changing, or rotating an env var / secret / variable, and need to know **where** it's set. |
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
-| [tencent-frontend.md](./tencent-frontend.md) | Provisioning or operating the mainland-China Lighthouse static frontend. |
+| [tencent-frontend.md](./tencent-frontend.md) | Operating EdgeOne for `.cn`, Cloudflare for `.run`, or their DNS/certificate cutovers. |
 | [search-discovery.md](./search-discovery.md) | You're submitting public pages to search engines, measuring SEO/GEO, or preparing the `praxys.cn` cutover. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
@@ -45,8 +45,8 @@ diagnose X". It complements — and links out to — the setup-oriented
 | Subscription | `3ff02750-211c-4579-94a6-8c9af4e6d891` |
 | Resource group | `rg-trainsight` |
 | Backend (API) | App Service `trainsight-app` → `api.praxys.run` |
-| Frontend (SPA) | App Service `praxys-frontend` → `www.praxys.run` |
-| Mainland frontend origin | Tencent Lighthouse (static-only; gated until ICP-ready) |
+| Current frontend (SPA) | App Service `praxys-frontend` → `www.praxys.run` |
+| Gated regional target | Cloudflare Free → Azure for `.run`; EdgeOne Makers `praxys-cn` for `.cn` (not cut over) |
 | Secrets at rest | Key Vault `kv-trainsight` (RSA key `credential-encryption-key`) |
 | Observability | Application Insights (signals prefixed `praxys.`) |
 

@@ -10,12 +10,13 @@
 |---|---|---|---|
 | Backend (API) | `deploy-backend.yml` | push to `main` touching backend runtime code, observability config/scripts, dependencies, or the workflow; or `api-*` tag | App Service `trainsight-app` |
 | Labs analysis worker | `deploy-labs-worker.yml` | push to `main` touching worker/backend analysis code, its Dockerfile/requirements, Bicep, tests, or the workflow; manual dispatch | Service Bus + Container Apps Job; Azure deploy is gated by `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true` |
-| Frontend (SPA) | `deploy-frontend-appservice.yml` | push to `main` touching the SPA/static server, observability config/scripts, or the workflow; or `web-*` tag | App Service `praxys-frontend`; optionally Tencent Lighthouse |
+| Frontend (SPA) | `deploy-frontend-appservice.yml`; EdgeOne native Git integration | push to protected `main` touching the SPA/static server, observability config/scripts, or the workflow; `web-*` tag; manual `main` dispatch | App Service `praxys-frontend`; gated EdgeOne Git build for `.cn` |
 | Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
 
-Targets authenticate through Azure OIDC or the WeChat upload key. The Tencent
-lane uses an outbound-only self-hosted Runner restricted to the production
-workflow; GitHub Actions does not SSH into Lighthouse.
+Targets authenticate through Azure OIDC or the WeChat upload key. EdgeOne uses
+a least-privilege read-only GitHub App repository grant and no GitHub Actions
+deployment token. There is no production self-hosted frontend Runner and
+GitHub Actions does not SSH into a Tencent host.
 
 **Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent
 backend and frontend validation on every PR to `main`. A red required context
@@ -91,18 +92,23 @@ an older worker cannot consume jobs created by a newer model deployment.
 
 ## Frontend deploy
 
-Automatic on merge touching `web/`. The workflow builds `web/dist/` once with
-`VITE_API_URL` baked in, then fans the same artifact out to:
+Automatic on merge touching `web/`. GitHub first builds the filing-free Azure
+artifact, then independently runs the checked-in deterministic EdgeOne build
+for evidence:
 
-- Azure `praxys-frontend`, packaged with `frontend_server/`.
-- Tencent Lighthouse when `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED=true`, packaged as
-  static files and atomically activated under `/var/www/praxys/current` by the
-  `praxys-cn-frontend` self-hosted Runner.
+- Azure `praxys-frontend`, packaged with `frontend_server/`. This copy never
+  receives the China filing footer and is the Cloudflare origin for `.run`.
+- The independent `.cn` artifact is stamped, telemetry-disabled, bound to the
+  source SHA, and given a SHA-256 manifest. It is retained as evidence, not
+  uploaded by GitHub.
 
-Both deployments expose the same `deployed_sha`. The Tencent lane is disabled
-until the server bootstrap and workflow-restricted Runner configuration in
-[tencent-frontend.md](./tencent-frontend.md) are complete. A skipped Tencent
-lane never blocks the existing Azure deployment.
+EdgeOne separately checks out protected `main` and runs the same
+`web/edgeone.json` install/build/output configuration. Production Auto Deploy
+stays off until the regional release gates pass. After public cutover,
+`EDGEONE_CN_PUBLIC_VERIFY_ENABLED` makes GitHub compare both hosts' source SHA
+and served manifest with its independent build evidence. Cloudflare requires no
+application deployment; it proxies the Azure response and honors its cache
+headers.
 
 ## Mini program
 
@@ -150,18 +156,13 @@ a known-good revision:
 > Config-only revert (a bad App Service setting): fix the GitHub secret/variable
 > and re-deploy — don't hand-edit the portal (it's overwritten next deploy).
 
-Tencent rollback is independent: atomically repoint
-`/var/www/praxys/current` to one of the retained run-addressed releases. See
-[tencent-frontend.md](./tencent-frontend.md).
-
-## Related
-
-- [config-and-secrets.md](./config-and-secrets.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
-- [labs-analysis-worker.md](./labs-analysis-worker.md)
-- `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
-
----
-_Last reviewed: 2026-08-07 · Owner: @dddtc2005_
+EdgeOne rollback is independent: turn Production Auto Deploy off, select a
+known-good deployment whose source SHA and manifest evidence are retained, then
+revert the bad change through protected `main` so source and production
+converge. Re-enable Auto Deploy only after the known-good public SHA, routes,
+and manifest checks pass. Cloudflare proxy rollback must restore a publicly
+trusted Azure certificate before gray-clouding a hostname that uses Cloudflare
+Origin CA. See [tencent-frontend.md](./tencent-frontend.md).
 
 ## Road 10K deployment boundary
 
@@ -182,3 +183,12 @@ dormant whole-product state and does not require Road 10K-specific storage
 configuration.  Any visible Road 10K authority or committed replay obligation
 must still fail closed unless the existing private marker storage is available
 and startup replay succeeded.
+
+## Related
+
+- [config-and-secrets.md](./config-and-secrets.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
+- [labs-analysis-worker.md](./labs-analysis-worker.md)
+- `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
+
+---
+_Last reviewed: 2026-08-20 · Owner: @dddtc2005_

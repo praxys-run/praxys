@@ -12,19 +12,19 @@ signals:
   - id: api-health
     tool: http.get
     policy: observe
-    command: curl -fsS https://api.praxys.run/api/health
+    command: curl -fsS --connect-timeout 5 --max-time 15 https://api.praxys.run/api/health
     success:
       stdout_contains: '"status":"ok"'
   - id: api-ready
     tool: http.get
     policy: observe
-    command: curl -fsS https://api.praxys.run/api/health/ready
+    command: curl -fsS --connect-timeout 5 --max-time 15 https://api.praxys.run/api/health/ready
     success:
       exit_code: 0
   - id: frontend-health
     tool: http.get
     policy: observe
-    command: curl -fsS https://www.praxys.run/healthz
+    command: curl -fsS --connect-timeout 5 --max-time 15 https://www.praxys.run/healthz
     success:
       exit_code: 0
   - id: backend-state
@@ -100,9 +100,9 @@ actions, update the status page, and leave the incident escalated.
 ## Quick triage
 
 ```bash
-curl -s https://api.praxys.run/api/health      # expect {"status":"ok"}
-curl -s https://api.praxys.run/api/version     # which build is live?
-curl -s -o /dev/null -w "%{http_code}\n" https://www.praxys.run/healthz   # expect 200
+curl -s --connect-timeout 5 --max-time 15 https://api.praxys.run/api/health      # expect {"status":"ok"}
+curl -s --connect-timeout 5 --max-time 15 https://api.praxys.run/api/version     # which build is live?
+curl -s --connect-timeout 5 --max-time 15 -o /dev/null -w "%{http_code}\n" https://www.praxys.run/healthz   # expect 200
 ```
 
 | Symptom | Likely area | Go to |
@@ -129,12 +129,28 @@ AppTraces | where timestamp > ago(2h)
   | where Message has "All login strategies exhausted" or Message has "IP rate limited by Garmin"
 ```
 
-## Frontend (`praxys-frontend`)
+## Frontend delivery
 
 ```bash
+# Current public frontend and Azure origin
+curl -fsS --connect-timeout 5 --max-time 15 https://www.praxys.run/healthz
 az webapp show -n praxys-frontend -g rg-trainsight --query state -o tsv
 az webapp restart -n praxys-frontend -g rg-trainsight
 ```
+
+After the regional cutover has accepted Release Evidence, add the provider
+checks below to the first-response path:
+
+```bash
+curl -fsSI --connect-timeout 5 --max-time 15 https://www.praxys.run/ | grep -i '^cf-ray:'
+curl -fsS --connect-timeout 5 --max-time 15 https://praxys.cn/deployed_sha.txt
+curl -fsS --connect-timeout 5 --max-time 15 https://praxys.cn/ | grep -F '沪ICP备2025109616号-2'
+```
+
+At that point, if `.run` fails but the Azure origin is healthy, inspect
+Cloudflare before restarting App Service. If `.cn` fails, inspect `praxys-cn`
+in EdgeOne; an Azure restart cannot repair it. See
+[tencent-frontend.md](./tencent-frontend.md).
 
 ## Database (`praxys-pg`, Postgres)
 
@@ -142,7 +158,7 @@ Liveness `/api/health` returns 200 even when the DB is down — **check
 readiness**, which runs a real `SELECT 1`:
 
 ```bash
-curl -s https://api.praxys.run/api/health/ready   # ready 200  vs  503 {"database":"error"}
+curl -s --connect-timeout 5 --max-time 15 https://api.praxys.run/api/health/ready   # ready 200  vs  503 {"database":"error"}
 ```
 
 A 503 here means the app can't reach Postgres. Most often it's **connection
