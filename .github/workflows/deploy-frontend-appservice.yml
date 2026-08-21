@@ -1,14 +1,12 @@
-name: Deploy Frontend (Azure + Tencent)
+name: Deploy Frontend (Azure + EdgeOne)
 
-# Region-pinned static SPA host in East Asia (the "F4" perf fix —
-# replaced the SWA-Amsterdam path that added 200-300ms RTT for CN
-# users). Both this site and trainsight-app share plan-trainsight at
-# $0 incremental.
+# Build two deliberately different artifacts from the same source commit:
+# - Azure App Service receives the filing-free build for praxys.run.
+# - GitHub archives an independently prepared, stamped praxys.cn artifact.
 #
-# The same web/dist build can also deploy to the Tencent Lighthouse
-# mainland-China static origin. That lane is gated by the
-# TENCENT_LIGHTHOUSE_DEPLOY_ENABLED repository variable so Azure remains
-# deployable while the server and ICP filing are being provisioned.
+# Cloudflare fronts the existing Azure origin and needs no application deploy.
+# EdgeOne's native Git integration separately runs the checked-in web build
+# configuration from protected main; GitHub holds no EdgeOne deployment token.
 
 on:
   push:
@@ -34,25 +32,43 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install frontend_server deps + pytest
-        # Only the static-server's runtime deps (~30 MB) plus pytest —
-        # not the backend's full requirements. Keeps this job fast.
         run: |
           pip install -r frontend_server/requirements-frontend.txt
           pip install pytest httpx
       - name: Run frontend_server tests
-        run: python -m pytest tests/test_frontend_server_spa.py -v
+        run: >-
+          python -m pytest
+          tests/test_frontend_server_spa.py
+          tests/test_regional_frontend_config.py
+          -v
 
   build:
     needs: test
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
+
+      - name: Initialize frontend build evidence
+        shell: bash
+        run: |
+          mkdir -p release-evidence
+          jq -n \
+            --arg sourceSha "${GITHUB_SHA}" \
+            --arg startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              status: "started",
+              sourceSha: $sourceSha,
+              startedAt: $startedAt
+            }' > release-evidence/frontend-build.json
 
       - name: Load observability resource names
         shell: bash
@@ -71,16 +87,11 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '24.11.0'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
       - name: Compute build version
-        # Synthetic CalVer-ish version baked into the bundle and
-        # surfaced by the Settings footer. Matches the mini-program
-        # publish workflow so all three surfaces (web / api /
-        # miniapp) read identically. Tagged releases ``web-YYYY.MM.MICRO``
-        # strip the prefix so the displayed string matches the tag.
         id: version
         shell: bash
         run: |
@@ -94,8 +105,6 @@ jobs:
 
       - name: Build web bundle
         working-directory: web
-        # --legacy-peer-deps because vite-plugin-pwa@1.2 declares older
-        # peer ranges than vite@8 (already documented in web/.npmrc).
         run: |
           npm ci --legacy-peer-deps
           npm run build
@@ -112,22 +121,49 @@ jobs:
           printf '{"ok":true,"service":"praxys-frontend","deployed_sha":"%s"}\n' \
             "${GITHUB_SHA}" > web/dist/healthz
 
+      - name: Verify shared build is filing-free
+        shell: bash
+        run: |
+          set -euo pipefail
+          for forbidden in \
+            '沪ICP备2025109616号-2' \
+            'name="praxys-deployment-region" content="cn"'; do
+            if grep -R --binary-files=text -Fq "${forbidden}" web/dist; then
+              echo "The shared Azure build contains China-only metadata: ${forbidden}" >&2
+              exit 1
+            fi
+          done
+
       - name: Stage Azure deploy package
-        # The deploy zip mirrors the repo layout that frontend_server.main
-        # expects: ``frontend_server/`` and ``web/dist/`` as siblings of
-        # ``requirements.txt`` so Oryx installs only the static-server's
-        # minimal deps (FastAPI + uvicorn), not the backend's full set.
         run: |
           mkdir -p deploy-pkg/web
           cp -r frontend_server deploy-pkg/
           cp -r web/dist deploy-pkg/web/dist
           cp frontend_server/requirements-frontend.txt deploy-pkg/requirements.txt
           printf '%s\n' "${GITHUB_SHA}" > deploy-pkg/frontend_server/_deployed_sha.txt
-          ls -R deploy-pkg | head -50
+          find deploy-pkg -maxdepth 3 -print | LC_ALL=C sort | head -50
 
-      - name: Stage Tencent static package
+      - name: Stage EdgeOne Git-build evidence
         shell: bash
-        run: tar -C web/dist -czf praxys-web.tgz .
+        run: |
+          set -euo pipefail
+          rm -rf edgeone-site
+          npm --prefix web run build:edgeone
+          mkdir -p edgeone-site
+          cp -a web/dist/. edgeone-site/
+
+          (
+            cd edgeone-site
+            sha256sum --check SHA256SUMS
+          )
+
+          test "$(cat edgeone-site/deployed_sha.txt)" = "${GITHUB_SHA}"
+          grep -F '沪ICP备2025109616号-2' edgeone-site/index.html
+          grep -F 'name="praxys-deployment-region" content="cn"' \
+            edgeone-site/index.html
+          test "$(jq -r '.buildCommand' web/edgeone.json)" = \
+            "npm run build:edgeone"
+          test "$(jq -r '.outputDirectory' web/edgeone.json)" = "./dist"
 
       - name: Upload Azure package
         uses: actions/upload-artifact@v7
@@ -135,20 +171,144 @@ jobs:
           name: frontend-azure-${{ github.run_id }}-${{ github.run_attempt }}
           path: deploy-pkg
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
-      - name: Upload Tencent package
+      - name: Upload EdgeOne package
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
-          path: praxys-web.tgz
+          name: frontend-edgeone-cn-${{ github.run_id }}-${{ github.run_attempt }}
+          path: edgeone-site
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
+
+      - name: Finalize frontend build evidence
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          evidence="release-evidence/frontend-build.json"
+          mkdir -p release-evidence
+          if [[ ! -f "${evidence}" ]]; then
+            jq -n \
+              --arg sourceSha "${GITHUB_SHA}" \
+              --arg startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                status: "started",
+                sourceSha: $sourceSha,
+                startedAt: $startedAt
+              }' > "${evidence}"
+          fi
+
+          hash_tree() {
+            local directory="${1}"
+            if [[ ! -d "${directory}" ]] \
+              || ! find "${directory}" -type f -print -quit | grep -q .; then
+              return 0
+            fi
+            find "${directory}" -type f -print0 \
+              | LC_ALL=C sort -z \
+              | xargs -0 sha256sum \
+              | sha256sum \
+              | cut -d' ' -f1
+          }
+
+          azure_tree_sha="$(hash_tree deploy-pkg/web/dist)"
+          azure_package_tree_sha="$(hash_tree deploy-pkg)"
+          edgeone_manifest_sha=""
+          if [[ -f edgeone-site/SHA256SUMS ]]; then
+            edgeone_manifest_sha="$(
+              sha256sum edgeone-site/SHA256SUMS | cut -d' ' -f1
+            )"
+          fi
+          edgeone_config_sha=""
+          if [[ -f web/edgeone.json ]]; then
+            edgeone_config_sha="$(
+              sha256sum web/edgeone.json | cut -d' ' -f1
+            )"
+          fi
+          azure_package_present=false
+          if [[ -d deploy-pkg ]]; then
+            azure_package_present=true
+          fi
+          edgeone_package_present=false
+          if [[ -d edgeone-site ]]; then
+            edgeone_package_present=true
+          fi
+
+          jq \
+            --arg workflowStatus "${JOB_STATUS}" \
+            --arg finishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg buildVersion "${{ steps.version.outputs.version }}" \
+            --arg azureTreeSha256 "${azure_tree_sha}" \
+            --arg azurePackageTreeSha256 "${azure_package_tree_sha}" \
+            --arg edgeoneManifestSha256 "${edgeone_manifest_sha}" \
+            --arg edgeoneConfigSha256 "${edgeone_config_sha}" \
+            --argjson azurePackagePresent "${azure_package_present}" \
+            --argjson edgeonePackagePresent "${edgeone_package_present}" \
+            '. + {
+              status: $workflowStatus,
+              workflowStatus: $workflowStatus,
+              finishedAt: $finishedAt,
+              buildVersion: (
+                if $buildVersion == "" then null else $buildVersion end
+              ),
+              azureTreeSha256: (
+                if $azureTreeSha256 == "" then null else $azureTreeSha256 end
+              ),
+              azurePackageTreeSha256: (
+                if $azurePackageTreeSha256 == ""
+                then null
+                else $azurePackageTreeSha256
+                end
+              ),
+              edgeoneManifestSha256: (
+                if $edgeoneManifestSha256 == ""
+                then null
+                else $edgeoneManifestSha256
+                end
+              ),
+              edgeoneConfigSha256: (
+                if $edgeoneConfigSha256 == ""
+                then null
+                else $edgeoneConfigSha256
+                end
+              ),
+              artifacts: {
+                azurePackagePresent: $azurePackagePresent,
+                edgeonePackagePresent: $edgeonePackagePresent
+              }
+            }' "${evidence}" > "${evidence}.tmp"
+          mv "${evidence}.tmp" "${evidence}"
+
+      - name: Upload frontend build evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-evidence/frontend-build.json
+          if-no-files-found: error
+          retention-days: 90
 
   deploy_azure:
     needs: build
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - name: Initialize Azure deployment evidence
+        shell: bash
+        run: |
+          jq -n \
+            --arg sourceSha "${GITHUB_SHA}" \
+            --arg startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              status: "started",
+              sourceSha: $sourceSha,
+              startedAt: $startedAt
+            }' > "${RUNNER_TEMP}/azure-frontend-deployment.json"
+
       - name: Azure Login (OIDC)
         uses: azure/login@v3
         with:
@@ -169,61 +329,287 @@ jobs:
           resource-group-name: rg-trainsight
           package: deploy-pkg
 
-  deploy_tencent:
-    if: >-
-      vars.TENCENT_LIGHTHOUSE_DEPLOY_ENABLED == 'true' &&
-      github.ref == 'refs/heads/main'
+      - name: Verify Azure deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fetch_matching_health() {
+            local url="${1}"
+            local output="${2}"
+            for _ in {1..12}; do
+              if curl --fail --silent --show-error \
+                --connect-timeout 5 --max-time 15 \
+                "${url}" > "${output}" \
+                && test "$(jq -r '.deployed_sha // empty' "${output}")" = "${GITHUB_SHA}"; then
+                return 0
+              fi
+              sleep 10
+            done
+            return 1
+          }
+
+          origin_health="${RUNNER_TEMP}/azure-origin-health.json"
+          public_health="${RUNNER_TEMP}/azure-public-health.json"
+          fetch_matching_health \
+            "https://praxys-frontend.azurewebsites.net/healthz" \
+            "${origin_health}"
+          fetch_matching_health \
+            "https://www.praxys.run/healthz" \
+            "${public_health}"
+
+          jq -n \
+            --arg status "success" \
+            --arg sourceSha "${GITHUB_SHA}" \
+            --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg packageTreeSha256 "$(
+              find deploy-pkg -type f -print0 \
+                | LC_ALL=C sort -z \
+                | xargs -0 sha256sum \
+                | sha256sum \
+                | cut -d' ' -f1
+            )" \
+            --slurpfile origin "${origin_health}" \
+            --slurpfile public "${public_health}" \
+            '{
+              status: $status,
+              sourceSha: $sourceSha,
+              checkedAt: $checkedAt,
+              packageTreeSha256: $packageTreeSha256,
+              originUrl: "https://praxys-frontend.azurewebsites.net/healthz",
+              publicUrl: "https://www.praxys.run/healthz",
+              origin: $origin[0],
+              public: $public[0]
+            }' > "${RUNNER_TEMP}/azure-frontend-deployment.json"
+
+      - name: Finalize Azure deployment evidence
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/azure-frontend-deployment.json"
+          jq \
+            --arg workflowStatus "${JOB_STATUS}" \
+            --arg finishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            'if .status == "success" then
+               . + {
+                 workflowStatus: $workflowStatus,
+                 finishedAt: $finishedAt
+               }
+             else
+               . + {
+                 status: $workflowStatus,
+                 workflowStatus: $workflowStatus,
+                 finishedAt: $finishedAt
+               }
+             end' "${evidence}" > "${evidence}.tmp"
+          mv "${evidence}.tmp" "${evidence}"
+
+      - name: Upload Azure deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: azure-frontend-deployment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azure-frontend-deployment.json
+          if-no-files-found: error
+          retention-days: 90
+
+  verify_edgeone_public:
     needs: build
-    runs-on:
-      group: praxys-production
-      labels: praxys-cn-frontend
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      vars.EDGEONE_CN_PUBLIC_VERIFY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - name: Download Tencent package
+      - name: Initialize EdgeOne public verification evidence
+        run: |
+          jq -n \
+            --arg sourceSha "${GITHUB_SHA}" \
+            --arg startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              status: "started",
+              sourceSha: $sourceSha,
+              startedAt: $startedAt,
+              hosts: ["praxys.cn", "www.praxys.cn"]
+            }' > "${RUNNER_TEMP}/edgeone-public-verification.json"
+
+      - name: Download independently built EdgeOne evidence
         uses: actions/download-artifact@v8
         with:
-          name: frontend-tencent-${{ github.run_id }}-${{ github.run_attempt }}
-          path: china-package
+          name: frontend-edgeone-cn-${{ github.run_id }}-${{ github.run_attempt }}
+          path: expected-edgeone
 
-      - name: Activate static release
-        shell: bash
+      - name: Verify public hosts
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          root="/var/www/praxys"
-          archive="${GITHUB_WORKSPACE}/china-package/praxys-web.tgz"
-          release="${root}/releases/${release_id}"
-          activated=0
 
-          cleanup() {
-            rm -f -- "${archive}"
-            if [[ "${activated}" -eq 0 ]]; then
-              rm -rf -- "${release}"
-            fi
+          retry() {
+            for _ in {1..8}; do
+              if "$@"; then
+                return 0
+              fi
+              sleep 15
+            done
+            return 1
           }
-          trap cleanup EXIT
 
-          test -f "${archive}"
-          mkdir -p "${release}"
-          tar -xzf "${archive}" -C "${release}"
-          test -s "${release}/index.html"
-          test "$(cat "${release}/deployed_sha.txt")" = "${GITHUB_SHA}"
+          verify_manifest_asset() {
+            local host="${1}"
+            local extension="${2}"
+            local entry
+            entry="$(
+              awk -v extension="${extension}" \
+                '$2 ~ "^\\./assets/.*\\." extension "$" {
+                  print $1 "\t" $2
+                  exit
+                }' expected-edgeone/SHA256SUMS
+            )"
+            test -n "${entry}"
 
-          ln -sfn "${release}" "${root}/current.next"
-          mv -Tf "${root}/current.next" "${root}/current"
-          activated=1
+            local expected_digest
+            local relative_path
+            IFS=$'\t' read -r expected_digest relative_path <<< "${entry}"
+            case "${relative_path}" in
+              ./assets/*) ;;
+              *) return 1 ;;
+            esac
 
-          find "${root}/releases" -mindepth 1 -maxdepth 1 -type d \
-            -printf '%T@ %p\n' \
-            | sort -nr \
-            | awk 'NR > 5 {sub(/^[^ ]+ /, ""); print}' \
-            | xargs -r rm -rf --
+            local downloaded_asset
+            downloaded_asset="$(
+              printf '%s/%s-%s' \
+                "${RUNNER_TEMP}" \
+                "${host//./-}" \
+                "$(basename "${relative_path}")"
+            )"
+            curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 15 \
+              "https://${host}/${relative_path#./}" \
+              > "${downloaded_asset}"
+            test "$(
+              sha256sum "${downloaded_asset}" | cut -d' ' -f1
+            )" = "${expected_digest}"
+          }
 
-      - name: Verify Lighthouse deployment
-        shell: bash
+          verify_host() {
+            local host="${1}"
+            local expected_sha="${2}"
+            local evidence_prefix="${RUNNER_TEMP}/${host//./-}"
+            test "$(
+              curl --fail --silent --show-error \
+                --connect-timeout 5 --max-time 8 \
+                "https://${host}/deployed_sha.txt"
+            )" = "${expected_sha}"
+            curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/" > "${evidence_prefix}-root.html"
+            grep -Fq '沪ICP备2025109616号-2' \
+              "${evidence_prefix}-root.html"
+            curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/today" > "${evidence_prefix}-today.html"
+            grep -Fq 'id="root"' "${evidence_prefix}-today.html"
+            curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/product" > "${evidence_prefix}-product.html"
+            grep -Fq '<title>Praxys product' \
+              "${evidence_prefix}-product.html"
+            local health_payload
+            health_payload="$(
+              curl --fail --silent --show-error \
+                --connect-timeout 5 --max-time 8 \
+                "https://${host}/healthz"
+            )"
+            test "$(jq -r '.ok' <<< "${health_payload}")" = "true"
+            test "$(
+              jq -r '.service' <<< "${health_payload}"
+            )" = "praxys-frontend-cn"
+            test "$(
+              jq -r '.deployed_sha' <<< "${health_payload}"
+            )" = "${expected_sha}"
+            curl --fail --silent --show-error --head \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/" \
+              | grep -iq '^x-content-type-options: nosniff'
+            curl --fail --silent --show-error --head \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/today" \
+              | grep -iq '^x-robots-tag: noindex, nofollow'
+            curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 8 \
+              "https://${host}/SHA256SUMS" \
+              > "${RUNNER_TEMP}/${host//./-}-SHA256SUMS"
+            cmp \
+              expected-edgeone/SHA256SUMS \
+              "${RUNNER_TEMP}/${host//./-}-SHA256SUMS"
+            verify_manifest_asset "${host}" js
+            verify_manifest_asset "${host}" css
+          }
+
+          for host in praxys.cn www.praxys.cn; do
+            retry verify_host "${host}" "${EXPECTED_SHA}"
+          done
+
+          jq -n \
+            --arg sourceSha "${EXPECTED_SHA}" \
+            --arg manifestSha256 "$(
+              sha256sum expected-edgeone/SHA256SUMS | cut -d' ' -f1
+            )" \
+            --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              status: "success",
+              sourceSha: $sourceSha,
+              manifestSha256: $manifestSha256,
+              checkedAt: $checkedAt,
+              hosts: ["praxys.cn", "www.praxys.cn"],
+              verifiedPaths: [
+                "/",
+                "/today",
+                "/product",
+                "/healthz",
+                "/deployed_sha.txt",
+                "/SHA256SUMS"
+              ],
+              verifiedManifestAssetTypes: ["js", "css"]
+            }' > "${RUNNER_TEMP}/edgeone-public-verification.json"
+
+      - name: Finalize EdgeOne public verification evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
-          deployed_sha="$(cat /var/www/praxys/current/deployed_sha.txt)"
-          test "${deployed_sha}" = "${GITHUB_SHA}"
-          curl --fail --silent --show-error --max-time 10 \
-            --header 'Host: www.praxys.run' \
-            http://127.0.0.1/healthz >/dev/null
+          evidence="${RUNNER_TEMP}/edgeone-public-verification.json"
+          jq \
+            --arg workflowStatus "${JOB_STATUS}" \
+            --arg finishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            'if .status == "success" then
+               . + {
+                 workflowStatus: $workflowStatus,
+                 finishedAt: $finishedAt
+               }
+             else
+               . + {
+                 status: $workflowStatus,
+                 workflowStatus: $workflowStatus,
+                 finishedAt: $finishedAt
+               }
+             end' "${evidence}" > "${evidence}.tmp"
+          mv "${evidence}.tmp" "${evidence}"
+
+      - name: Upload EdgeOne public verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: edgeone-cn-public-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/edgeone-public-verification.json
+          if-no-files-found: error
+          retention-days: 90

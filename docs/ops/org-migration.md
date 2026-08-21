@@ -267,7 +267,9 @@ verification commands.
 - The org has **$0 Copilot** of its own — expected. Copilot runs on *your*
   personal entitlement when *you* initiate it (verified). Other members/bots
   would need their own seats or org Copilot Business.
-- DNS (`praxys.run`, `api.`, `www.`) points at Azure, **unaffected** by transfer.
+- DNS/CDN state is **unaffected** by a GitHub repository transfer. Use
+  [environment.md](./environment.md) for the current topology and
+  [tencent-frontend.md](./tencent-frontend.md) for the gated regional target.
 
 ## Related
 

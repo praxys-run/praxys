@@ -448,15 +448,21 @@ Interpretation:
 
 ## Alert inventory (source of truth)
 
-Every rule below lives in `rg-trainsight` (region **eastasia**) and routes to the
-`praxys-feedback-ag` action group (→ `support@praxys.run`). Costs are the eastasia
-retail rate per the [cost model](#alert-cost-model) below.
+Every unmarked rule below lives in `rg-trainsight` (region **eastasia**) and
+routes to the `praxys-feedback-ag` action group
+(→ `support@praxys.run`). Rows marked **planned** are required regional-cutover
+gates; they are not provisioned, enabled, or billed until the accepted
+Operations Decision Record authorizes that step. Costs are the eastasia retail
+rate per the [cost model](#alert-cost-model) below.
 
 | Rule | Type | Scope | Watches | Eval | Sev | ~USD/mo |
 |---|---|---|---|---|---|---|
 | `praxys-db-health-unhealthy` | log | `appi-praxys-backend` | `praxys.db_health` failure (corrupt/unreachable DB) | 5 min | 1 | **1.50** |
 | `praxys-pg-connections-high` | metric | `praxys-pg` | `active_connections` avg > 40 | 5 min | 2 | ~0.10 |
 | `wt-praxys-homepage` | metric (web test) | `appi-trainsight` + homepage test | `https://www.praxys.run/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-run-apex` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.run/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-cn-apex` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-cn-www` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | ~0.10 |
 | `wt-praxys-api-health` | metric (web test) | `appi-praxys-backend` + API test | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `appi-praxys-backend` | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
@@ -467,8 +473,8 @@ retail rate per the [cost model](#alert-cost-model) below.
 | `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
 | `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Total ≈ 4.5–5.0 USD/mo** (the five metric alerts may fall inside the small free
-allotment, making the effective figure closer to the 4.50 log-alert subtotal).
+**Current total ≈ 4.5–5.0 USD/mo.** Provisioning the three planned regional
+frontend tests adds at most ~0.30 USD/mo before the metric-alert free allotment.
 
 ### Labs analysis worker alerts (deployment-owned)
 
@@ -785,25 +791,54 @@ AG=$(az monitor action-group show -g rg-trainsight -n praxys-feedback-ag --query
 az monitor scheduled-query create -g rg-trainsight -n praxys-today-latency-regression --scopes "$AI" --condition "count 'q' > 0" --condition-query "q=<KQL>" --evaluation-frequency 1h --window-size 24h --severity 3 --action-groups "$AG"
 ```
 
-### External availability — `wt-praxys-homepage`, `wt-praxys-api-health`
+### External availability
 
-Two **Standard availability tests** ping outside-in every 15 min (30 s timeout)
-from **US-West (San Jose, `us-ca-sjc-azr`)** and **APAC (Hong Kong,
-`apac-hk-hkn-azr`)** — the vantages that match the audience (US + CN/APAC). Each
-has an auto-created **metric alert** (Sev 1, `praxys-feedback-ag`) that fires when
-**≥1 location** reports failure. This is black-box coverage that complements the
+The live **Standard availability tests** ping outside-in every 15 min (30 s
+timeout) from **US-West (San Jose, `us-ca-sjc-azr`)** and **APAC (Hong Kong,
+`apac-hk-hkn-azr`)** — the vantages that match the audience (US + CN/APAC).
+Each has a same-named **metric alert** (Sev 1,
+`praxys-feedback-ag`) that evaluates every minute and fires when **≥1
+location** reports failure. This is black-box coverage that complements the
 inside-the-process db-health / readiness probes.
 
-| Web test | Component | Target |
-|---|---|---|
-| `wt-praxys-homepage` | `appi-trainsight` | `https://www.praxys.run/` |
-| `wt-praxys-api-health` | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
+| Web test | State | Component | Target |
+|---|---|---|---|
+| `wt-praxys-homepage` | live | `appi-trainsight` | `https://www.praxys.run/` |
+| `wt-praxys-run-apex` | planned | `appi-trainsight` | `https://praxys.run/` |
+| `wt-praxys-cn-apex` | planned | `appi-trainsight` | `https://praxys.cn/` |
+| `wt-praxys-cn-www` | planned | `appi-trainsight` | `https://www.praxys.cn/` |
+| `wt-praxys-api-health` | live | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
 
-Standard web-test execution is **0.00** in eastasia (free grant); the two alerts
-are cheap metric alerts. **Keep each web test and its alert in the same enabled
-state** — a probe that runs while its alert is disabled pays to watch nothing
-(found and fixed 2026-07-05). Re-point locations via the availability test's
-*Locations* in the portal or `az resource update`.
+Standard web-test execution is **0.00** in eastasia (free grant); the two live
+alerts and three planned alerts are cheap metric alerts. **Keep each web test
+and its alert in the same enabled state** — a probe that runs while its alert is
+disabled pays to watch nothing (found and fixed 2026-07-05). Re-point locations
+via the availability test's *Locations* in the portal or
+`az resource update`.
+
+Before either regional frontend cutover, provision the three planned tests in
+**Application Insights → `appi-trainsight` → Availability → Add Standard
+test**:
+
+1. Use the exact name and HTTPS target in the table. Set frequency to 15 min,
+   timeout to 30 s, and locations to San Jose plus Hong Kong.
+2. Require a successful HTTP response and valid TLS certificate. Do not follow
+   a hostname to an unapproved preview or origin URL.
+3. Create the same-named Sev 1 metric alert, evaluate every minute, fire when
+   at least one location fails, and attach only `praxys-feedback-ag`.
+4. Verify the action group and its `support@praxys.run` receiver are enabled.
+   Record the web-test resource ID, alert resource ID, and a successful sample
+   in the regional Release Evidence before DNS or proxy cutover.
+5. Enable each test and alert together only after its public hostname is ready
+   for outside-in traffic. A planned row becomes live in this inventory in the
+   same reviewed operations change.
+
+For an aborted cutover, disable the same-named metric alert and web test in the
+same maintenance window, then verify neither continues evaluating. Delete both
+only if the hostname is permanently retired; otherwise keep them disabled for
+the next window. A provider rollback normally keeps the tests enabled because
+they watch the public contract rather than a specific CDN. Re-pointing a test
+to an origin hostname is not a rollback and would hide the user-visible outage.
 
 ## Rollback / Recovery
 
