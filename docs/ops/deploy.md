@@ -177,3 +177,8 @@ After any future restore, replay Road 10K deletion markers and validate ledger
 consistency before readiness or traffic.  A valid authority, independent
 pause/kill control, provider fence, and Quality/Operations evidence are
 separate prerequisites for any later exposure and are not created here.
+Absent/off authority with no committed Road 10K obligation remains a healthy
+dormant whole-product state and does not require Road 10K-specific storage
+configuration.  Any visible Road 10K authority or committed replay obligation
+must still fail closed unless the existing private marker storage is available
+and startup replay succeeded.

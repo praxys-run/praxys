@@ -510,7 +510,7 @@ export default function Goal() {
       ) : data ? (
         <TrajectoryGoal data={data} onFeedbackStale={refetch} />
       ) : null}
-      <Road10KControlledOptIn />
+      <Road10KControlledOptIn surface="goal" />
     </div>
   );
 }

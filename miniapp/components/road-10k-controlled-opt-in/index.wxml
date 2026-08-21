@@ -1,69 +1,113 @@
 <view wx:if="{{visible && access}}" class="road-10k-card ts-card">
-  <block wx:if="{{access.rollout_status === 'invited' && !invitationDismissed}}">
-    <text class="road-10k-eyebrow">{{tr.invited}}</text>
-    <text class="road-10k-title">{{tr.invited}}</text>
-    <text class="road-10k-body">{{tr.invitedBody}}</text>
+  <text class="road-10k-eyebrow">{{rolloutStatusLabel}}</text>
+  <text class="road-10k-title">{{rolloutTitle}}</text>
+  <text class="road-10k-body">{{rolloutBody}}</text>
+
+  <block wx:if="{{surface !== 'goal'}}">
+    <text class="road-10k-body">{{planStatusLabel}}</text>
+  </block>
+  <block wx:elif="{{surface === 'goal' && access.rollout_status !== 'invited'}}">
+    <text class="road-10k-body">{{planStatusLabel}}</text>
+  </block>
+
+  <block wx:if="{{surface === 'goal' && access.rollout_status === 'invited'}}">
     <view class="road-10k-action road-10k-action--primary" bindtap="onReview" aria-role="button">
-      <text>{{tr.review}}</text>
+      <text>{{text.reviewInvitation}}</text>
     </view>
     <view class="road-10k-action road-10k-action--secondary" bindtap="onNotNow" aria-role="button">
-      <text>{{tr.notNow}}</text>
+      <text>{{text.notNow}}</text>
     </view>
   </block>
-  <block wx:elif="{{access.rollout_status === 'enrolled'}}">
-    <text class="road-10k-eyebrow">{{tr.enrolled}}</text>
-    <text class="road-10k-title">{{planStatusLabel}}</text>
-    <text class="road-10k-body">{{access.plan_status === 'none' ? tr.empty : planStatusLabel}}</text>
-    <view class="road-10k-action road-10k-action--secondary" bindtap="onLeave" aria-role="button">
-      <text>{{tr.leave}}</text>
+
+  <block wx:elif="{{surface === 'goal'}}">
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onOpenTraining" aria-role="button">
+      <text>{{text.viewTraining}}</text>
     </view>
+  </block>
+
+  <block wx:elif="{{surface === 'training' && access.rollout_status === 'invited'}}">
+    <view class="road-10k-action road-10k-action--primary" bindtap="onReview" aria-role="button">
+      <text>{{text.reviewInvitation}}</text>
+    </view>
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onNotNow" aria-role="button">
+      <text>{{text.notNow}}</text>
+    </view>
+  </block>
+
+  <block wx:elif="{{surface === 'training' && access.rollout_status === 'enrolled'}}">
     <view class="road-10k-disabled" aria-disabled="true">
-      <text>{{tr.screenshot}}</text>
+      <text>{{screenshotHint}}</text>
     </view>
   </block>
-  <block wx:elif="{{access.rollout_status === 'withdrawn'}}">
-    <text class="road-10k-eyebrow">{{tr.withdrawn}}</text>
-    <text class="road-10k-title">{{tr.withdrawn}}</text>
-    <text class="road-10k-body">{{tr.withdrawnBody}}</text>
-    <text class="road-10k-body">{{planStatusLabel}}</text>
+
+  <block wx:elif="{{surface === 'settings'}}">
+    <text class="road-10k-body">{{leaveHint}}</text>
+    <view
+      wx:if="{{leaveAvailable}}"
+      class="road-10k-action road-10k-action--secondary"
+      bindtap="onLeave"
+      aria-role="button"
+    >
+      <text>{{text.leave}}</text>
+    </view>
   </block>
-  <block wx:elif="{{access.rollout_status === 'removed'}}">
-    <text class="road-10k-eyebrow">{{tr.removed}}</text>
-    <text class="road-10k-title">{{tr.removed}}</text>
-    <text class="road-10k-body">{{tr.removedBody}}</text>
-    <text class="road-10k-body">{{planStatusLabel}}</text>
-  </block>
-  <block wx:else>
-    <text class="road-10k-eyebrow">{{access.rollout_status === 'hold' ? tr.hold : access.rollout_status === 'paused' ? tr.paused : tr.stopped}}</text>
-    <text class="road-10k-title">{{planStatusLabel}}</text>
-    <text class="road-10k-body">{{access.plan_status === 'none' ? tr.empty : planStatusLabel}}</text>
-    <view class="road-10k-disabled" aria-disabled="true"><text>{{tr.screenshot}}</text></view>
-  </block>
+
   <text wx:if="{{error}}" class="road-10k-error" role="alert">{{error}}</text>
+</view>
+
+<view wx:if="{{flow === 'reauth'}}" class="road-10k-mask" aria-role="dialog">
+  <view class="road-10k-sheet">
+    <text class="road-10k-title">{{text.reauthTitle}}</text>
+    <text class="road-10k-body">{{text.reauthBody}}</text>
+    <input
+      class="road-10k-input"
+      password="{{true}}"
+      value="{{password}}"
+      bindinput="onPasswordInput"
+      placeholder="{{text.passwordPlaceholder}}"
+      aria-label="{{text.passwordPlaceholder}}"
+    />
+    <view class="road-10k-action road-10k-action--secondary" bindtap="onCancel" aria-role="button">
+      <text>{{text.cancel}}</text>
+    </view>
+    <view
+      class="road-10k-action road-10k-action--primary {{!password ? 'road-10k-action--disabled' : ''}}"
+      bindtap="onContinue"
+      aria-role="button"
+    >
+      <text>{{text.continue}}</text>
+    </view>
+  </view>
 </view>
 
 <view wx:if="{{flow === 'notice'}}" class="road-10k-mask" aria-role="dialog">
   <view class="road-10k-sheet">
-    <text class="road-10k-title">{{tr.noticeTitle}}</text>
-    <text class="road-10k-body">{{tr.noticeIntro}}</text>
-    <text class="road-10k-body">{{tr.noticeScope}}</text>
-    <text class="road-10k-body">{{tr.noticeClaims}}</text>
-    <text class="road-10k-body">{{tr.noticeControl}}</text>
-    <text class="road-10k-body">{{tr.noticeData}}</text>
-    <text class="road-10k-body">{{tr.noticeLeave}}</text>
+    <text class="road-10k-title">{{text.noticeTitle}}</text>
+    <text class="road-10k-body">{{text.noticeIntro}}</text>
+    <text class="road-10k-body">{{text.noticeScope}}</text>
+    <text class="road-10k-body">{{text.noticeClaims}}</text>
+    <text class="road-10k-body">{{text.noticeControl}}</text>
+    <text class="road-10k-body">{{text.noticeData}}</text>
+    <text class="road-10k-body">{{text.noticeLeave}}</text>
     <label class="road-10k-check">
       <checkbox-group bindchange="onAck"><checkbox value="ack" checked="{{acknowledged}}" /></checkbox-group>
-      <text>{{tr.noticeAck}}</text>
+      <text>{{text.noticeAck}}</text>
     </label>
-    <view class="road-10k-action road-10k-action--primary" bindtap="onJoin" aria-role="button">
-      <text>{{tr.join}}</text>
-    </view>
     <view class="road-10k-action road-10k-action--secondary" bindtap="onCancel" aria-role="button">
-      <text>{{tr.cancel}}</text>
+      <text>{{text.cancel}}</text>
+    </view>
+    <view
+      class="road-10k-action road-10k-action--primary {{!acknowledged ? 'road-10k-action--disabled' : ''}}"
+      bindtap="onJoin"
+      aria-role="button"
+    >
+      <text>{{text.join}}</text>
     </view>
   </view>
 </view>
 
 <view wx:if="{{flow === 'joining'}}" class="road-10k-mask" aria-role="status">
-  <view class="road-10k-sheet"><text class="road-10k-title">{{tr.joining}}</text></view>
+  <view class="road-10k-sheet">
+    <text class="road-10k-title">{{text.joining}}</text>
+  </view>
 </view>

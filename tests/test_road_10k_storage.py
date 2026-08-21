@@ -41,6 +41,7 @@ def test_marker_is_payload_free_and_replayed_before_traffic(tmp_path, monkeypatc
         screenshot_keys=[],
         requested_at=requested_at,
     )
+    marker = storage.mark_committed(marker, requested_at)
     assert not storage.marker_contains_payload(marker)
     deleted = []
     replayed = storage.replay_manifests(
@@ -170,7 +171,7 @@ def test_blob_fake_deletes_base_snapshots_and_versions_for_each_object_form(
     assert any(kwargs.get("snapshot") == "snapshot-1" for _key, kwargs in calls)
 
 
-def test_partial_replay_keeps_requested_marker_until_all_targets_are_deleted(
+def test_partial_replay_keeps_committed_marker_until_all_targets_are_deleted(
     monkeypatch,
 ):
     store = _MemoryManifestStore()
@@ -186,6 +187,7 @@ def test_partial_replay_keeps_requested_marker_until_all_targets_are_deleted(
         ],
         requested_at=datetime.now(timezone.utc),
     )
+    marker = storage.mark_committed(marker, datetime.now(timezone.utc))
     attempts = {"count": 0}
 
     def flaky_delete(_key: str) -> None:
@@ -266,6 +268,98 @@ def test_account_deletion_manifest_captures_orphan_road_evaluations(
         manifests = prepare_account_deletion(db, user_id="owner")
 
     assert manifests[0]["evaluation_ids"] == ["orphan-evaluation"]
+
+
+def test_prepared_account_deletion_marker_does_not_replay_before_db_commit(
+    tmp_path,
+    monkeypatch,
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api.road_10k_control import replay_road_10k_deletion_manifests
+    from db.models import Base, Feedback, User
+
+    manifest_store = _MemoryManifestStore()
+    monkeypatch.setattr(storage, "_test_store", manifest_store)
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    engine = create_engine(f"sqlite:///{tmp_path / 'prepared-ignore.db'}")
+    Base.metadata.create_all(engine)
+    key = "feedback/7/0.png"
+    object_path = Path(tmp_path) / "feedback_images" / key
+    object_path.parent.mkdir(parents=True, exist_ok=True)
+    object_path.write_bytes(b"live-screenshot")
+
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(
+            Feedback(
+                user_id="owner",
+                kind="other",
+                message="private",
+                image_keys=[key],
+            )
+        )
+        db.commit()
+        storage.stage_manifest(
+            owner_id="owner",
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="account_deletion",
+            evaluation_ids=[],
+            screenshot_keys=[key],
+            requested_at=datetime.now(timezone.utc),
+        )
+
+        assert replay_road_10k_deletion_manifests(db) == 0
+        assert db.query(Feedback).filter(Feedback.user_id == "owner").count() == 1
+        assert object_path.exists()
+
+
+def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit_ack(
+    tmp_path,
+    monkeypatch,
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api.road_10k_control import replay_road_10k_deletion_manifests
+    from db.models import Base, Feedback, User
+
+    manifest_store = _MemoryManifestStore()
+    monkeypatch.setattr(storage, "_test_store", manifest_store)
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    engine = create_engine(f"sqlite:///{tmp_path / 'prepared-replay.db'}")
+    Base.metadata.create_all(engine)
+    key = "feedback/7/0.png"
+    object_path = Path(tmp_path) / "feedback_images" / key
+    object_path.parent.mkdir(parents=True, exist_ok=True)
+    object_path.write_bytes(b"restored-screenshot")
+
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(
+            Feedback(
+                user_id="owner",
+                kind="other",
+                message="private",
+                image_keys=[key],
+            )
+        )
+        db.commit()
+        storage.stage_manifest(
+            owner_id="owner",
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="account_deletion",
+            evaluation_ids=[],
+            screenshot_keys=[key],
+            requested_at=datetime.now(timezone.utc),
+        )
+        db.query(Feedback).delete()
+        db.query(User).delete()
+        db.commit()
+
+        assert replay_road_10k_deletion_manifests(db) == 1
+        assert not object_path.exists()
+        active = list(storage.iter_active())
+        assert active and active[0]["status"] == "completed"
 
 
 def test_startup_replay_removes_restored_feedback_row_and_object(

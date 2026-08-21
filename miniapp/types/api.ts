@@ -255,17 +255,11 @@ export interface Road10KAccessResponse {
   screenshot_available: false;
 }
 
-export type Road10KOptInRequest =
-  | {
-      password: string;
-      notice_digest: string;
-      client: 'web';
-    }
-  | {
-      password?: never;
-      notice_digest: string;
-      client: 'miniapp';
-    };
+export interface Road10KOptInRequest {
+  password: string;
+  notice_digest: string;
+  client: 'web' | 'miniapp';
+}
 
 export interface Road10KStatusResponse {
   rollout_status: Road10KRolloutStatus;

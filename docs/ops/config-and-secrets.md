@@ -1039,4 +1039,8 @@ distinct exposed native owners.  The authority may lower, never raise, them.
 Pause, kill, heartbeat, readiness, and provider-fence values are read from the
 same independently issued artifact; the application has no writer or toggle.
 Do not add a secret, scheduled purge, alert resource, action group, or live
-stage value for this foundation.
+stage value for this foundation.  The inactive default also does not require a
+separate Road 10K Blob setting: the app stays healthy while authority is
+absent/off and no committed Road 10K replay obligation exists.  Any visible
+Road 10K authority or committed replay obligation still fails closed unless the
+existing private marker storage is available and startup replay has succeeded.

@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+ROAD_10K_TEST_PASSWORD = "road-10k-secret"
+
 
 def _history(today: date):
     from analysis.road_10k_plan_generation import RunningHistoryObservation
@@ -521,6 +523,72 @@ class _MemoryManifestStore:
         self.items.pop(key, None)
 
 
+def _fresh_road_10k_app(
+    monkeypatch,
+    *,
+    authority: bool,
+):
+    monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
+    monkeypatch.setenv(
+        "PRAXYS_LOCAL_ENCRYPTION_KEY",
+        "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
+    )
+    monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+
+    tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+    monkeypatch.setenv("DATA_DIR", os.path.join(tmpdir.name, "data"))
+    if authority:
+        authority_path = os.path.join(tmpdir.name, "road-10k-authority.json")
+        _write_stage_authority(Path(authority_path))
+        monkeypatch.setenv("PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH", authority_path)
+    else:
+        monkeypatch.delenv("PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH", raising=False)
+
+    from db import session as db_session
+
+    db_session.engine = None
+    db_session.SessionLocal = None
+    db_session.async_engine = None
+    db_session.AsyncSessionLocal = None
+    db_session.init_db()
+
+    import api.main
+    import api.road_10k_deletion_storage as deletion_storage
+
+    importlib.reload(api.main)
+    monkeypatch.setattr(deletion_storage, "_test_store", None)
+    return api.main.app, db_session, tmpdir
+
+
+def test_dormant_startup_succeeds_without_private_marker_storage(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    app, db_session, tmpdir = _fresh_road_10k_app(monkeypatch, authority=False)
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/health").status_code == 200
+    finally:
+        if db_session.engine is not None:
+            db_session.engine.dispose()
+        tmpdir.cleanup()
+
+
+def test_startup_fails_closed_when_active_authority_lacks_private_marker_storage(
+    monkeypatch,
+):
+    from fastapi.testclient import TestClient
+
+    app, db_session, tmpdir = _fresh_road_10k_app(monkeypatch, authority=True)
+    try:
+        with pytest.raises(Exception, match="deletion_storage_unavailable"):
+            with TestClient(app):
+                pass
+    finally:
+        if db_session.engine is not None:
+            db_session.engine.dispose()
+        tmpdir.cleanup()
+
+
 @pytest.fixture
 def road_10k_client(monkeypatch):
     """Authenticated TestClient with the reviewed 10K route activated for tests."""
@@ -547,10 +615,12 @@ def road_10k_client(monkeypatch):
     db_session.init_db()
 
     import api.main
+    import api.road_10k_control as road_10k_control
     import api.road_10k_deletion_storage as deletion_storage
     importlib.reload(api.main)
     app = api.main.app
     monkeypatch.setattr(deletion_storage, "_test_store", _MemoryManifestStore())
+    monkeypatch.setattr(road_10k_control, "replay_status", lambda: "ready")
     current_user_id = {"value": "road-10k-owner"}
 
     def _override_user() -> str:
@@ -567,11 +637,18 @@ def road_10k_client(monkeypatch):
     from api.road_10k_control import enroll_owner, issue_invitation
     from api.road_10k_stage_authority import load_stage_authority
     from api.routes import adaptive_plan as adaptive_plan_route
+    from fastapi_users.password import PasswordHelper
     from db.models import User
     from db.session import get_db
 
     with db_session.SessionLocal() as db:
-        db.add(User(id="road-10k-owner", email="road-10k@test.local", hashed_password="x"))
+        db.add(
+            User(
+                id="road-10k-owner",
+                email="road-10k@test.local",
+                hashed_password=PasswordHelper().hash(ROAD_10K_TEST_PASSWORD),
+            )
+        )
         db.commit()
         authority = load_stage_authority()
         assert authority is not None
@@ -679,6 +756,7 @@ def test_control_lifecycle_contract_is_private_and_maps_withdrawn(
         "/api/road-10k/opt-in",
         headers=headers,
         json={
+            "password": ROAD_10K_TEST_PASSWORD,
             "notice_digest": "a" * 64,
             "client": "miniapp",
         },
@@ -699,6 +777,35 @@ def test_control_lifecycle_contract_is_private_and_maps_withdrawn(
     assert access.status_code == 200
     assert access.json()["rollout_status"] == "withdrawn"
     assert access.json()["plan_status"] == "none"
+
+
+def test_opt_in_requires_server_verified_reauthentication_for_miniapp(
+    road_10k_client,
+):
+    client, _db_session = road_10k_client
+    headers = {"Authorization": f"Bearer {_road_10k_token('road-10k-owner')}"}
+
+    missing_password = client.post(
+        "/api/road-10k/opt-in",
+        headers=headers,
+        json={
+            "notice_digest": "a" * 64,
+            "client": "miniapp",
+        },
+    )
+    assert missing_password.status_code == 422
+
+    wrong_password = client.post(
+        "/api/road-10k/opt-in",
+        headers=headers,
+        json={
+            "password": "wrong-password",
+            "notice_digest": "a" * 64,
+            "client": "miniapp",
+        },
+    )
+    assert wrong_password.status_code == 401
+    assert wrong_password.json() == {"detail": "Reauthentication required"}
 
 
 @pytest.mark.parametrize("state", ["paused", "killed", "hold", "rollback"])
@@ -738,6 +845,47 @@ def test_access_exposes_read_only_lifecycle_state_without_mutation(
         json=_road_10k_api_request(),
     )
     assert blocked.status_code == 404
+
+
+def test_pre_d2_schema_paths_fail_closed_without_db_500s(road_10k_client):
+    from sqlalchemy import text
+    from api import road_10k_control
+
+    client, db_session = road_10k_client
+    engine = db_session.engine
+    assert engine is not None
+    with engine.begin() as conn:
+        for table in (
+            "road_10k_exposure_receipts",
+            "road_10k_evaluations",
+            "road_10k_owner_stage_receipts",
+            "road_10k_stage_counters",
+        ):
+            conn.execute(text(f"DROP TABLE {table}"))
+
+    headers = {"Authorization": f"Bearer {_road_10k_token('road-10k-owner')}"}
+    access = client.get("/api/road-10k/access", headers=headers)
+    assert access.status_code == 404
+    assert access.json() == {"detail": "Not found"}
+
+    readiness = client.post(
+        "/api/plan/road-10k/readiness",
+        json=_road_10k_api_request(),
+    )
+    assert readiness.status_code == 404
+    assert readiness.json() == {"detail": "Not found"}
+
+    discovery = client.get("/api/plan/generation/capabilities")
+    assert discovery.status_code == 200
+    assert all(
+        item["id"] != "outdoor_road_10k_performance_v1"
+        for item in discovery.json()["capabilities"]
+    )
+
+    with db_session.SessionLocal() as db:
+        snapshot = road_10k_control.road_10k_runtime_snapshot(db)
+    assert snapshot["authority"] == "counter_mismatch"
+    assert snapshot["ready"] is False
 
 
 def test_stage_authority_enables_only_owner_scoped_catalog_entry(

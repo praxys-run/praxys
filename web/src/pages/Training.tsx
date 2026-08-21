@@ -6,10 +6,16 @@ import PlanStart, {
   type PlanStartNavigationState,
 } from '@/components/PlanStart';
 import UpcomingPlanCard from '@/components/UpcomingPlanCard';
+import Road10KControlledOptIn, {
+  type Road10KNavigationIntent,
+} from '@/pages/Road10KControlledOptIn';
 
 export default function Training() {
   const location = useLocation();
-  const navigationState = location.state as PlanStartNavigationState | null;
+  const navigationState = location.state as (
+    PlanStartNavigationState
+    & { road10kIntent?: Road10KNavigationIntent | null }
+  ) | null;
 
   if (location.hash === '#heat-adaptation') {
     return <Navigate to="/analysis#heat-adaptation" replace />;
@@ -25,6 +31,10 @@ export default function Training() {
       </p>
 
       <div className="mt-8 space-y-12">
+        <Road10KControlledOptIn
+          surface="training"
+          intent={navigationState?.road10kIntent ?? null}
+        />
         <PlanStart initialPurpose={navigationState?.planPurpose ?? null} />
         <UpcomingPlanCard />
       </div>

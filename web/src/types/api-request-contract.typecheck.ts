@@ -3,6 +3,7 @@ import type {
   PersonalContextAiConsentRequest,
   PersonalContextDraftRequest,
   PlanWorkoutUpdateRequest,
+  Road10KOptInRequest,
   ScopedPersonalContextAccessRequest,
   ScopedPersonalContextDraftRequest,
   WorkoutIntensityTarget,
@@ -116,6 +117,23 @@ const withdrawnAiConsent: PersonalContextAiConsentRequest = {
   decision: 'withdrawn',
   provider: null,
   consent_text_version: 'ai-v1',
+  client: 'miniapp',
+};
+const webRoad10KOptIn: Road10KOptInRequest = {
+  password: 'correct horse battery staple',
+  notice_digest: 'a'.repeat(64),
+  client: 'web',
+};
+const miniappRoad10KOptIn: Road10KOptInRequest = {
+  password: 'correct horse battery staple',
+  notice_digest: 'b'.repeat(64),
+  client: 'miniapp',
+};
+void webRoad10KOptIn;
+void miniappRoad10KOptIn;
+// @ts-expect-error Every Road 10K opt-in client must submit server-verified reauthentication.
+const invalidMiniappRoad10KOptIn: Road10KOptInRequest = {
+  notice_digest: 'c'.repeat(64),
   client: 'miniapp',
 };
 // @ts-expect-error Granted consent requires the Azure OpenAI provider.

@@ -867,7 +867,8 @@ surface and no live dashboard or alert is provisioned.  Allowed dimensions are
 only:
 
 * authority/readiness (`missing_or_malformed`, `off`, `paused`, `killed`,
-  `heartbeat_or_validity_stale`, `not_ready`, `provider_fence_open`, `allowed`);
+  `hold`, `rollback`, `heartbeat_or_validity_stale`, `not_ready`,
+  `provider_fence_open`, `counter_mismatch`, `allowed`);
 * cumulative cap state and consumed counts (60 invitations, 30 first exposed
   owners);
 * deletion-marker replay status/readiness and bounded failure classes.

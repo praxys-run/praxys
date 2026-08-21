@@ -25,6 +25,32 @@ from api.road_10k_stage_authority import StageAuthorityError, parse_stage_author
 from db.models import Base, Road10KStageCounter, User
 
 
+class _MemoryManifestStore:
+    def __init__(self):
+        self.items: dict[str, bytes] = {}
+
+    def put(self, key: str, payload: bytes) -> None:
+        self.items[key] = payload
+
+    def iter(self, prefix: str):
+        for key, payload in list(self.items.items()):
+            if key.startswith(prefix):
+                yield key, payload
+
+    def delete(self, key: str) -> None:
+        self.items.pop(key, None)
+
+
+@pytest.fixture(autouse=True)
+def _runtime_ready(monkeypatch):
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        _MemoryManifestStore(),
+    )
+    monkeypatch.setattr(road_10k_control, "replay_status", lambda: "ready")
+
+
 def _db(tmp_path: Path):
     engine = create_engine(
         f"sqlite:///{tmp_path / 'road.db'}",
@@ -179,23 +205,6 @@ def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
     withdrawn = withdraw_owner(db, user_id="owner-withdraw")
     assert withdrawn.state == "withdrawn"
     assert db.query(Road10KStageCounter).one().distinct_exposed_owners_consumed == 1
-
-
-class _MemoryManifestStore:
-    def __init__(self):
-        self.items: dict[str, bytes] = {}
-
-    def put(self, key: str, payload: bytes) -> None:
-        self.items[key] = payload
-
-    def iter(self, prefix: str):
-        for key, payload in list(self.items.items()):
-            if key.startswith(prefix):
-                yield key, payload
-
-    def delete(self, key: str) -> None:
-        self.items.pop(key, None)
-
 
 def test_runtime_snapshot_with_authority_present_is_low_cardinality(
     tmp_path, monkeypatch

@@ -56,7 +56,7 @@ def evaluate_boundary(
     if authority is None:
         return Road10KRuntimeDecision(
             False,
-            "authority_missing_or_malformed",
+            "missing_or_malformed",
             "hidden",
             False,
             False,

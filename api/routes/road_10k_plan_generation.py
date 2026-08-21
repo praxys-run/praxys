@@ -20,7 +20,10 @@ from api.road_10k_baseline import (
     Road10KBaselineNotFound,
     confirm_road_10k_history_candidate,
 )
-from api.road_10k_control import Road10KControlError
+from api.road_10k_control import (
+    Road10KControlError,
+    coerce_road_10k_control_error,
+)
 from api.road_10k_plan_generation import (
     Road10KGenerationError,
     build_road_10k_alternatives,
@@ -723,7 +726,8 @@ def _purpose(body: Road10KConstraintsRequest | Road10KHistoryConfirmationRequest
 
 
 def _raise_generation(error: Exception) -> None:
-    if isinstance(error, Road10KControlError):
+    normalized = coerce_road_10k_control_error(error)
+    if isinstance(normalized, Road10KControlError):
         raise HTTPException(
             status_code=404,
             detail="Not found",
@@ -751,7 +755,8 @@ def _raise_generation(error: Exception) -> None:
 
 
 def _raise_baseline(error: Exception) -> None:
-    if isinstance(error, Road10KControlError):
+    normalized = coerce_road_10k_control_error(error)
+    if isinstance(normalized, Road10KControlError):
         raise HTTPException(
             status_code=404,
             detail="Not found",

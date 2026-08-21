@@ -396,6 +396,7 @@ def delete_user_account(
     # deletion rather than claiming success.
     from api.road_10k_control import (
         Road10KDeletionFailed,
+        commit_deletion_manifests,
         complete_deletion_manifests,
         prepare_account_deletion,
     )
@@ -467,11 +468,13 @@ def delete_user_account(
 
     complete_account_deletion_manifests(context_manifests)
     try:
-        complete_deletion_manifests(road_manifests, db=db)
+        committed_road_manifests = commit_deletion_manifests(road_manifests)
+        complete_deletion_manifests(committed_road_manifests, db=db)
     except Exception:
-        # Requested markers remain authoritative and will replay on the next
-        # startup. Do not expose a false "completed" marker or report a
-        # successful deletion while private objects remain pending.
+        # Prepared/committed markers remain authoritative and will replay on
+        # the next startup once runtime prerequisites are met. Do not expose a
+        # false "completed" marker or report a successful deletion while
+        # private objects remain pending.
         logger.exception(
             "Road 10K deletion completed but marker completion failed for user %s",
             user_id,

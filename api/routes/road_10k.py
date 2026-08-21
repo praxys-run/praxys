@@ -11,7 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi_users.password import PasswordHelper
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy.orm import Session
 
 from api.auth import get_authenticated_identity
@@ -21,6 +21,8 @@ from api.road_10k_control import (
     Road10KControlDenied,
     Road10KControlUnavailable,
     Road10KDeletionFailed,
+    coerce_road_10k_control_error,
+    require_road_10k_replay_ready,
     enroll_owner,
     export_owner_records,
     receipt_matches_authority,
@@ -64,17 +66,9 @@ _password_helper = PasswordHelper()
 class Road10KOptInRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    password: SecretStr | None = Field(default=None, min_length=1, max_length=512)
+    password: SecretStr = Field(min_length=1, max_length=512)
     notice_digest: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     client: Literal["web", "miniapp"]
-
-    @model_validator(mode="after")
-    def require_client_reauthentication(self) -> "Road10KOptInRequest":
-        if self.client == "web" and self.password is None:
-            raise ValueError("web reauthentication requires password")
-        if self.client == "miniapp" and "password" in self.model_fields_set:
-            raise ValueError("miniapp reauthentication must omit password")
-        return self
 
 
 class Road10KStatusResponse(BaseModel):
@@ -240,19 +234,20 @@ def _plan_status(db: Session, *, user_id: str) -> str:
 
 
 def _control_error(exc: Exception) -> HTTPException:
+    error = coerce_road_10k_control_error(exc)
     headers = {
         "Cache-Control": "private, no-store",
         "Pragma": "no-cache",
         "Vary": "Authorization",
     }
-    if isinstance(exc, Road10KControlUnavailable):
+    if isinstance(error, Road10KControlUnavailable):
         return HTTPException(404, "Not found", headers=headers)
-    if isinstance(exc, Road10KControlDenied):
-        return HTTPException(409, {"code": str(exc)}, headers=headers)
-    if isinstance(exc, Road10KControlConflict):
-        return HTTPException(409, {"code": str(exc)}, headers=headers)
-    if isinstance(exc, Road10KDeletionFailed):
-        return HTTPException(503, {"code": str(exc)}, headers=headers)
+    if isinstance(error, Road10KControlDenied):
+        return HTTPException(409, {"code": str(error)}, headers=headers)
+    if isinstance(error, Road10KControlConflict):
+        return HTTPException(409, {"code": str(error)}, headers=headers)
+    if isinstance(error, Road10KDeletionFailed):
+        return HTTPException(503, {"code": str(error)}, headers=headers)
     return HTTPException(500, {"code": "ROAD_10K_CONTROL_FAILED"}, headers=headers)
 
 
@@ -267,14 +262,18 @@ def get_access(
     authority = load_stage_authority()
     if authority is None or authority.lifecycle_status is None:
         return _hidden(response)
-    receipt = (
-        db.query(Road10KOwnerStageReceipt)
-        .filter(
-            Road10KOwnerStageReceipt.user_id == user_id,
-            Road10KOwnerStageReceipt.stage_id == authority.stage_id,
+    try:
+        require_road_10k_replay_ready(db, authority=authority)
+        receipt = (
+            db.query(Road10KOwnerStageReceipt)
+            .filter(
+                Road10KOwnerStageReceipt.user_id == user_id,
+                Road10KOwnerStageReceipt.stage_id == authority.stage_id,
+            )
+            .first()
         )
-        .first()
-    )
+    except Exception as exc:
+        raise _control_error(exc) from exc
     if (
         receipt is None
         or not receipt_matches_authority(receipt, authority)
@@ -328,15 +327,14 @@ def opt_in(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(401, "User not found")
-    if body.client == "web":
-        valid, updated_hash = _password_helper.verify_and_update(
-            body.password.get_secret_value() if body.password else "",
-            user.hashed_password,
-        )
-        if not valid:
-            raise HTTPException(401, "Reauthentication required")
-        if updated_hash:
-            user.hashed_password = updated_hash
+    valid, updated_hash = _password_helper.verify_and_update(
+        body.password.get_secret_value(),
+        user.hashed_password,
+    )
+    if not valid:
+        raise HTTPException(401, "Reauthentication required")
+    if updated_hash:
+        user.hashed_password = updated_hash
     try:
         receipt = enroll_owner(
             db,

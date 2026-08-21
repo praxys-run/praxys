@@ -12,13 +12,21 @@ import logging
 from typing import Any, Mapping
 from uuid import uuid4
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import (
+    DBAPIError,
+    IntegrityError,
+    NoSuchTableError,
+    OperationalError,
+    ProgrammingError,
+)
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from api.road_10k_deletion_storage import (
     Road10KDeletionStorageError,
+    mark_committed,
     mark_completed,
+    private_marker_store_available,
     replay_manifests,
     replay_status,
     stage_manifest,
@@ -49,6 +57,15 @@ ROAD_10K_INVITATION_CEILING = 60
 ROAD_10K_EXPOSURE_CEILING = 30
 ROAD_10K_EVALUATION_RETENTION_DAYS = 30
 _ROAD_10K_STAGE_LOCK_KEY = 0x524F414431304B
+_ROAD_10K_SCHEMA_ERROR_MARKERS = (
+    "no such table",
+    "no such column",
+    "no column named",
+    "undefined table",
+    "undefined column",
+    "unknown column",
+    "does not exist",
+)
 
 
 class Road10KControlError(RuntimeError):
@@ -69,6 +86,24 @@ class Road10KControlDenied(Road10KControlError):
 
 class Road10KDeletionFailed(Road10KControlError):
     """Deletion could not be staged or completed authoritatively."""
+
+
+def _is_schema_unavailable_error(exc: BaseException) -> bool:
+    if isinstance(exc, NoSuchTableError):
+        return True
+    if isinstance(exc, (OperationalError, ProgrammingError, DBAPIError)):
+        message = str(exc).lower()
+        return any(marker in message for marker in _ROAD_10K_SCHEMA_ERROR_MARKERS)
+    return False
+
+
+def coerce_road_10k_control_error(exc: Exception) -> Exception:
+    """Normalize known fail-closed schema/read errors to the control boundary."""
+    if isinstance(exc, Road10KControlError):
+        return exc
+    if _is_schema_unavailable_error(exc):
+        return Road10KControlUnavailable("schema_unavailable")
+    return exc
 
 
 def receipt_matches_authority(
@@ -102,6 +137,55 @@ def _fingerprint(operation: str, **values: object) -> str:
         default=str,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _has_road_10k_runtime_obligation(db: Session) -> bool:
+    """Whether startup or request handling must require replay-capable storage."""
+    try:
+        checks = (
+            db.query(Road10KStageCounter.stage_id).limit(1).first(),
+            db.query(Road10KOwnerStageReceipt.id).limit(1).first(),
+            db.query(Road10KExposureReceipt.id).limit(1).first(),
+            db.query(Road10KEvaluation.id).limit(1).first(),
+            db.query(Road10KScreenshotReference.id).limit(1).first(),
+        )
+    except Exception as exc:
+        if _is_schema_unavailable_error(exc):
+            return False
+        raise
+    return any(check is not None for check in checks)
+
+
+def road_10k_requires_replay_ready(
+    db: Session,
+    *,
+    authority: Road10KStageAuthority | None = None,
+) -> bool:
+    """Whether the current runtime must require marker storage and replay."""
+    current = authority
+    if current is None:
+        try:
+            current = load_stage_authority()
+        except Exception:
+            current = None
+    return bool(
+        (current is not None and current.stage_id == ROAD_10K_STAGE_ID and current.state != "off")
+        or _has_road_10k_runtime_obligation(db)
+    )
+
+
+def require_road_10k_replay_ready(
+    db: Session,
+    *,
+    authority: Road10KStageAuthority | None = None,
+) -> None:
+    """Fail closed unless replay-capable marker storage is available and ready."""
+    if not road_10k_requires_replay_ready(db, authority=authority):
+        return
+    if not private_marker_store_available():
+        raise Road10KControlUnavailable("deletion_storage_unavailable")
+    if replay_status() != "ready":
+        raise Road10KControlUnavailable("replay_not_ready")
 
 
 def _authority(*, lifecycle: bool = False) -> Road10KStageAuthority:
@@ -210,6 +294,7 @@ def issue_invitation(
 ) -> Road10KOwnerStageReceipt:
     """Consume one cumulative invitation, idempotently, under the counter lock."""
     authority = _authority()
+    require_road_10k_replay_ready(db, authority=authority)
     if not 8 <= len(idempotency_key) <= 128:
         raise Road10KControlDenied("invalid_idempotency_key")
     if (
@@ -295,6 +380,7 @@ def enroll_owner(
 ) -> Road10KOwnerStageReceipt:
     """Move an invited owner to enrolled_unexposed without consuming exposure."""
     authority = _authority()
+    require_road_10k_replay_ready(db, authority=authority)
     if notice_digest != authority.notice_digest:
         raise Road10KControlUnavailable("notice_mismatch")
     preflight = _receipt(
@@ -346,6 +432,7 @@ def authorize_first_exposure(
 ) -> Road10KExposureReceipt:
     """Commit the first exposure receipt before a result can be serialized."""
     authority = _authority()
+    require_road_10k_replay_ready(db, authority=authority)
     if not isinstance(user_id, str) or not user_id:
         raise Road10KControlDenied("owner_required")
     preflight_user = db.query(User).filter(User.id == user_id).first()
@@ -432,6 +519,7 @@ def require_road_10k_gate(
     transaction and therefore only accepts an already-exposed owner.
     """
     authority = _authority(lifecycle=allow_lifecycle)
+    require_road_10k_replay_ready(db, authority=authority)
     if expose:
         authorize_first_exposure(db, user_id=user_id)
         return authority
@@ -478,6 +566,7 @@ def require_road_10k_participation(
 ) -> Road10KStageAuthority:
     """Check owner participation without creating an exposure receipt."""
     authority = _authority(lifecycle=lifecycle)
+    require_road_10k_replay_ready(db, authority=authority)
     if not isinstance(user_id, str) or not user_id:
         raise Road10KControlDenied("owner_required")
     user = db.query(User).filter(User.id == user_id).first()
@@ -662,6 +751,73 @@ def _owner_deletion_manifest(
         raise Road10KDeletionFailed("deletion_storage_unavailable") from exc
 
 
+def _db_intent_committed(
+    db: Session,
+    manifest: Mapping[str, object],
+) -> bool:
+    """Whether a prepared marker reflects already-committed DB deletion intent."""
+    reason = str(manifest["reason"])
+    owner_id = str(manifest["owner_id"])
+    stage_id = str(manifest["stage_id"])
+    evaluation_ids = [
+        str(item)
+        for item in manifest["evaluation_ids"]
+        if isinstance(item, str)
+    ]
+    try:
+        if reason == "withdrawal":
+            live_evaluation = db.query(Road10KEvaluation.id).filter(
+                Road10KEvaluation.user_id == owner_id,
+                Road10KEvaluation.stage_id == stage_id,
+                Road10KEvaluation.deleted_at.is_(None),
+            ).first()
+            receipt = db.query(Road10KOwnerStageReceipt).filter(
+                Road10KOwnerStageReceipt.user_id == owner_id,
+                Road10KOwnerStageReceipt.stage_id == stage_id,
+            ).first()
+            return live_evaluation is None and receipt is not None and receipt.state == "withdrawn"
+        if reason == "account_deletion":
+            user_exists = db.query(User.id).filter(User.id == owner_id).first() is not None
+            live_evaluation = db.query(Road10KEvaluation.id).filter(
+                Road10KEvaluation.user_id == owner_id,
+                Road10KEvaluation.deleted_at.is_(None),
+            ).first()
+            return (not user_exists) and live_evaluation is None
+        if reason == "retention":
+            if not evaluation_ids:
+                return False
+            live = db.query(Road10KEvaluation.id).filter(
+                Road10KEvaluation.id.in_(evaluation_ids),
+                Road10KEvaluation.deleted_at.is_(None),
+            ).first()
+            return live is None
+    except Exception as exc:
+        if _is_schema_unavailable_error(exc):
+            return False
+        raise
+    return False
+
+
+def _manifest_is_replayable(
+    db: Session,
+    manifest: Mapping[str, object],
+) -> bool:
+    status = str(manifest["status"])
+    return status in {"committed", "completed"} or (
+        status == "prepared" and _db_intent_committed(db, manifest)
+    )
+
+
+def commit_deletion_manifests(
+    manifests: list[dict[str, object]],
+    *,
+    now: datetime | None = None,
+) -> list[dict[str, object]]:
+    """Promote prepared markers to replayable committed intent after DB commit."""
+    timestamp = _now(now)
+    return [mark_committed(manifest, timestamp) for manifest in manifests]
+
+
 def withdraw_owner(
     db: Session,
     *,
@@ -713,7 +869,8 @@ def withdraw_owner(
         db.rollback()
         raise
     try:
-        complete_deletion_manifests([marker], db=db, now=timestamp)
+        committed = commit_deletion_manifests([marker], now=timestamp)
+        complete_deletion_manifests(committed, db=db, now=timestamp)
     except Exception as exc:
         raise Road10KDeletionFailed("deletion_marker_completion_failed") from exc
     return receipt
@@ -832,7 +989,8 @@ def purge_expired_evaluations(
         )
         _delete_evaluation_rows(db, [row.id], reason="retention")
         db.commit()
-        complete_deletion_manifests([marker], db=db, now=timestamp)
+        committed = commit_deletion_manifests([marker], now=timestamp)
+        complete_deletion_manifests(committed, db=db, now=timestamp)
         count += 1
     return count
 
@@ -930,8 +1088,18 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
         delete_object=delete_manifest_object,
         delete_evaluation=delete_evaluation,
         delete_feedback=delete_feedback,
+        should_replay=lambda manifest: _manifest_is_replayable(db, manifest),
     )
     return count
+
+
+def initialize_road_10k_runtime(db: Session) -> int:
+    """Replay Road 10K markers only when runtime access could rely on them."""
+    if not road_10k_requires_replay_ready(db):
+        return 0
+    if not private_marker_store_available():
+        raise Road10KDeletionFailed("deletion_storage_unavailable")
+    return replay_road_10k_deletion_manifests(db)
 
 
 def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
@@ -946,11 +1114,25 @@ def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
             "deletion_replay_status": replay_status(),
             "ready": False,
         }
-    counter = (
-        db.query(Road10KStageCounter)
-        .filter(Road10KStageCounter.stage_id == authority.stage_id)
-        .first()
-    )
+    try:
+        counter = (
+            db.query(Road10KStageCounter)
+            .filter(Road10KStageCounter.stage_id == authority.stage_id)
+            .first()
+        )
+    except Exception as exc:
+        if not _is_schema_unavailable_error(exc):
+            raise
+        return {
+            "authority": "counter_mismatch",
+            "stage": authority.stage_id,
+            "invitation_slots_consumed": 0,
+            "distinct_exposed_owners_consumed": 0,
+            "invitation_ceiling": authority.invitation_ceiling,
+            "exposure_ceiling": authority.exposure_ceiling,
+            "deletion_replay_status": replay_status(),
+            "ready": False,
+        }
     counter_valid = bool(
         counter is not None
         and counter.schema_version == ROAD_10K_CONTROL_SCHEMA_VERSION

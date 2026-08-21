@@ -379,6 +379,8 @@
         </view>
       </view>
 
+      <road-10k-controlled-opt-in surface="settings" />
+
       <view class="settings-actions">
         <button class="ts-button ts-button--secondary settings-action-btn" bindtap="onSendFeedback">
           {{tr.sendFeedback}}

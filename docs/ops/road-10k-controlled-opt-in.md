@@ -42,10 +42,15 @@ automatic adoption, automatic successor, or AI path exists.
 
 Withdrawal immediately deletes evaluation payloads and screenshot references
 without changing counters.  Account deletion stages an out-of-database,
-payload-free private marker before unlinking native owner links.  The marker
-contains only deletion references and retains for the 14-day restore horizon;
-startup replays markers before traffic/readiness and fails closed if storage or
-replay is unavailable.  A deleted account cannot be linked to a later account.
+payload-free prepared marker before unlinking native owner links, then commits
+that marker only after the DB deletion intent commits.  Replay acts only on
+committed/completed intent and uses the committed DB state as compensation if a
+post-commit marker promotion fails.  The marker contains only deletion
+references and retains for the 14-day restore horizon; startup replays markers
+before traffic/readiness whenever Road 10K authority or committed obligations
+exist, and fails closed if storage or replay is unavailable.  With absent/off
+authority and no Road 10K obligation, missing private marker storage is the
+healthy dormant state.  A deleted account cannot be linked to a later account.
 
 ## Operations and rollback
 

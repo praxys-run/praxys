@@ -60,6 +60,13 @@ def set_test_store(store: Road10KDeletionManifestStore | None) -> None:
     _test_store = store
 
 
+def private_marker_store_available() -> bool:
+    """Whether the existing private marker store is currently usable."""
+    if feedback_storage.private_blob_enabled():
+        return feedback_storage.private_container_client() is not None
+    return _test_store is not None
+
+
 def _validate_manifest(manifest: Mapping[str, object]) -> None:
     required = {
         "job_id",
@@ -69,6 +76,7 @@ def _validate_manifest(manifest: Mapping[str, object]) -> None:
         "evaluation_ids",
         "screenshot_keys",
         "requested_at",
+        "committed_at",
         "completed_at",
         "status",
     }
@@ -89,7 +97,7 @@ def _validate_manifest(manifest: Mapping[str, object]) -> None:
         raise Road10KDeletionStorageError("invalid Road 10K deletion owner")
     if manifest["reason"] not in {"withdrawal", "account_deletion", "retention"}:
         raise Road10KDeletionStorageError("invalid Road 10K deletion reason")
-    if manifest["status"] not in {"requested", "completed"}:
+    if manifest["status"] not in {"prepared", "committed", "completed"}:
         raise Road10KDeletionStorageError("invalid Road 10K deletion status")
     for key in ("evaluation_ids", "screenshot_keys"):
         values = manifest[key]
@@ -139,7 +147,7 @@ def stage_manifest(
     requested_at: datetime,
     job_id: str | None = None,
 ) -> dict[str, object]:
-    """Write a requested marker before deleting any DB/object data."""
+    """Write a prepared marker before deleting any DB/object data."""
     manifest: dict[str, object] = {
         "job_id": _job_id(job_id),
         "owner_id": owner_id,
@@ -148,17 +156,30 @@ def stage_manifest(
         "evaluation_ids": list(evaluation_ids),
         "screenshot_keys": list(screenshot_keys),
         "requested_at": _utc(requested_at).isoformat(),
+        "committed_at": None,
         "completed_at": None,
-        "status": "requested",
+        "status": "prepared",
     }
     _store(manifest)
     return manifest
+
+
+def mark_committed(manifest: Mapping[str, object], committed_at: datetime) -> dict[str, object]:
+    """Persist that the related DB deletion intent committed authoritatively."""
+    committed = dict(manifest)
+    committed["status"] = "committed"
+    committed["committed_at"] = _utc(committed_at).isoformat()
+    _store(committed)
+    return committed
 
 
 def mark_completed(manifest: Mapping[str, object], completed_at: datetime) -> None:
     """Persist the completion state without changing target references."""
     completed = dict(manifest)
     completed["status"] = "completed"
+    completed["committed_at"] = completed.get("committed_at") or _utc(
+        completed_at
+    ).isoformat()
     completed["completed_at"] = _utc(completed_at).isoformat()
     _store(completed)
 
@@ -226,13 +247,19 @@ def replay_manifests(
     delete_object: Callable[[str], None],
     delete_evaluation: Callable[[str, Mapping[str, object]], None],
     delete_feedback: Callable[[Mapping[str, object]], None] | None = None,
+    should_replay: Callable[[Mapping[str, object]], bool] | None = None,
     now: datetime | None = None,
 ) -> int:
-    """Replay every active marker before Road 10K traffic is considered ready."""
+    """Replay every committed Road 10K marker before traffic is considered ready."""
     global _last_replay_status
     completed = 0
     try:
         for manifest in iter_active(now):
+            if should_replay is not None:
+                if not should_replay(manifest):
+                    continue
+            elif manifest["status"] == "prepared":
+                continue
             for key in manifest["screenshot_keys"]:
                 delete_object(str(key))
             for evaluation_id in manifest["evaluation_ids"]:

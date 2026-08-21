@@ -111,7 +111,11 @@ Page<TrainingState, PageMethods>({
       '#training-personal-context',
     ) as unknown as RefreshableComponent | null;
     try {
+      const road10k = this.selectComponent(
+        '#training-road-10k',
+      ) as unknown as RefreshableComponent | null;
       await Promise.all([
+        road10k?.refresh?.() ?? Promise.resolve(),
         planStart?.refresh?.() ?? Promise.resolve(),
         managedPlan?.refresh?.() ?? Promise.resolve(),
         personalContext?.refresh?.() ?? Promise.resolve(),

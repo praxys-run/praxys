@@ -803,28 +803,39 @@ def _owner_visible_capabilities(
 ) -> tuple[PlanGenerationCapability, ...]:
     """Add Road 10K only to a valid invited native owner's catalog."""
     capabilities = list(PLAN_GENERATION_CAPABILITIES)
+    from api.road_10k_control import (
+        Road10KControlError,
+        coerce_road_10k_control_error,
+        require_road_10k_replay_ready,
+    )
     from api.road_10k_stage_authority import load_stage_authority
 
     authority = load_stage_authority()
     if authority is None or not authority.is_usable:
         return tuple(capabilities)
-    owner = db.query(User).filter(User.id == user_id).first()
-    if owner is None or not owner.is_active or owner.is_demo:
-        return tuple(capabilities)
-    receipt = (
-        db.query(Road10KOwnerStageReceipt)
-        .filter(
-            Road10KOwnerStageReceipt.user_id == user_id,
-            Road10KOwnerStageReceipt.stage_id == authority.stage_id,
-            Road10KOwnerStageReceipt.state.in_(
-                ("invited_only", "enrolled_unexposed", "exposed")
-            ),
-            Road10KOwnerStageReceipt.authority_digest
-            == authority.authority_digest,
-            Road10KOwnerStageReceipt.notice_digest == authority.notice_digest,
+    try:
+        require_road_10k_replay_ready(db, authority=authority)
+        owner = db.query(User).filter(User.id == user_id).first()
+        if owner is None or not owner.is_active or owner.is_demo:
+            return tuple(capabilities)
+        receipt = (
+            db.query(Road10KOwnerStageReceipt)
+            .filter(
+                Road10KOwnerStageReceipt.user_id == user_id,
+                Road10KOwnerStageReceipt.stage_id == authority.stage_id,
+                Road10KOwnerStageReceipt.state.in_(
+                    ("invited_only", "enrolled_unexposed", "exposed")
+                ),
+                Road10KOwnerStageReceipt.authority_digest
+                == authority.authority_digest,
+                Road10KOwnerStageReceipt.notice_digest == authority.notice_digest,
+            )
+            .first()
         )
-        .first()
-    )
+    except Exception as exc:
+        if isinstance(coerce_road_10k_control_error(exc), Road10KControlError):
+            return tuple(capabilities)
+        raise
     if receipt is None:
         return tuple(capabilities)
     return tuple(
@@ -1019,19 +1030,11 @@ def _routing_baseline_readiness(
                 "Unsupported plan-routing readiness strategy: "
                 f"{capability.routing_readiness_strategy}"
             )
-        from api.road_10k_control import require_road_10k_gate
-
-        try:
-            require_road_10k_gate(
-                db,
-                user_id=user_id,
-                expose=False,
-                allow_withdrawn=True,
-            )
-        except Exception:
-            # Invitation/catalog discovery never reads the Road 10K data
-            # surface before the committed first-exposure receipt.
-            return None
+        from api.road_10k_control import (
+            Road10KControlError,
+            coerce_road_10k_control_error,
+            require_road_10k_gate,
+        )
         from api.road_10k_baseline import build_road_10k_baseline_view
 
         purpose_selection = {
@@ -1046,11 +1049,25 @@ def _routing_baseline_readiness(
                 else None
             ),
         }
-        baseline = build_road_10k_baseline_view(
-            db,
-            user_id=user_id,
-            purpose_selection=purpose_selection,
-        )["baseline"]
+
+        try:
+            require_road_10k_gate(
+                db,
+                user_id=user_id,
+                expose=False,
+                allow_withdrawn=True,
+            )
+            baseline = build_road_10k_baseline_view(
+                db,
+                user_id=user_id,
+                purpose_selection=purpose_selection,
+            )["baseline"]
+        except Exception as exc:
+            if isinstance(coerce_road_10k_control_error(exc), Road10KControlError):
+                # Invitation/catalog discovery never reads the Road 10K data
+                # surface before the committed first-exposure receipt.
+                return None
+            raise
         return str(baseline["readiness"])
     from api.goal_baseline import build_goal_baseline_view
 

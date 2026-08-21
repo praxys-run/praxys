@@ -290,9 +290,9 @@ def authority_denial_reason(
 ) -> str:
     """Return a low-cardinality status for restricted diagnostics."""
     if authority is None:
-        return "authority_missing_or_malformed"
+        return "missing_or_malformed"
     if authority.state != "active":
-        return f"authority_{authority.state}"
+        return authority.state
     if authority.pause:
         return "paused"
     if authority.kill:

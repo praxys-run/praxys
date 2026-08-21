@@ -28,7 +28,7 @@
           </view>
         </view>
 
-        <road-10k-controlled-opt-in />
+        <road-10k-controlled-opt-in surface="goal" />
 
         <view id="plan-routing" class="ts-card plan-generation-goal-entry">
           <view class="plan-generation-header">

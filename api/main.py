@@ -99,9 +99,9 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
-        from api.road_10k_control import replay_road_10k_deletion_manifests
+        from api.road_10k_control import initialize_road_10k_runtime
 
-        replay_road_10k_deletion_manifests(context_db)
+        initialize_road_10k_runtime(context_db)
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)

@@ -46,6 +46,10 @@
   color: var(--text-primary);
 }
 
+.road-10k-action--disabled {
+  opacity: .45;
+}
+
 .road-10k-disabled {
   border: 1rpx solid var(--border-default);
   border-radius: 16rpx;
@@ -88,4 +92,14 @@
   padding: 32rpx;
   position: absolute;
   right: 0;
+}
+
+.road-10k-input {
+  border: 1rpx solid var(--border-default);
+  border-radius: 16rpx;
+  color: var(--text-primary);
+  font-size: 28rpx;
+  margin: 20rpx 0 4rpx;
+  min-height: 88rpx;
+  padding: 0 24rpx;
 }

@@ -4,7 +4,8 @@
     "outdoor-5k-plan-start": "../../components/outdoor-5k-plan-start/index",
     "nav-bar": "/components/nav-bar/index",
     "managed-plan": "/components/managed-plan/index",
-    "personal-context": "/components/personal-context/index"
+    "personal-context": "/components/personal-context/index",
+    "road-10k-controlled-opt-in": "../../components/road-10k-controlled-opt-in/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",
