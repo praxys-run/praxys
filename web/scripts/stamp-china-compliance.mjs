@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 export const ICP_FILING_NUMBER = '沪ICP备2025109616号-2';
 export const MIIT_FILING_URL = 'https://beian.miit.gov.cn/';
+export const CHINA_DEPLOYMENT_REGION = 'cn';
 
 const COMPLIANCE_MARKER = 'data-praxys-cn-compliance="icp"';
+const DEPLOYMENT_MARKER = `name="praxys-deployment-region" content="${CHINA_DEPLOYMENT_REGION}"`;
 
 function escapeHtml(value) {
   return value
@@ -24,11 +26,26 @@ export function complianceFooterHtml() {
 }
 
 export function stampHtml(html) {
-  if (html.includes(COMPLIANCE_MARKER)) return html;
-  if (!html.includes('</body>')) {
-    throw new Error('Cannot stamp China compliance footer: HTML has no </body>');
+  let stamped = html;
+  if (!stamped.includes(DEPLOYMENT_MARKER)) {
+    if (!stamped.includes('</head>')) {
+      throw new Error('Cannot stamp China deployment marker: HTML has no </head>');
+    }
+    stamped = stamped.replace(
+      '</head>',
+      `    <meta ${DEPLOYMENT_MARKER} />\n  </head>`,
+    );
   }
-  return html.replace('</body>', `${complianceFooterHtml()}  </body>`);
+  if (!stamped.includes(COMPLIANCE_MARKER)) {
+    if (!stamped.includes('</body>')) {
+      throw new Error('Cannot stamp China compliance footer: HTML has no </body>');
+    }
+    stamped = stamped.replace(
+      '</body>',
+      `${complianceFooterHtml()}  </body>`,
+    );
+  }
+  return stamped;
 }
 
 async function findHtmlFiles(directory) {

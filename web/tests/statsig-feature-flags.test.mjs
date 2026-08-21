@@ -13,7 +13,7 @@ test('Statsig provider waits for authenticated identity changes', async () => {
   assert.match(app, /<AuthProvider>\s*<StatsigProvider>/);
   assert.match(
     context,
-    /if \(!CLIENT_KEY \|\| isLoading \|\| !isAuthenticated \|\| !userId\)/,
+    /if \(\s*!isBrowserTelemetryAllowed\(Boolean\(CLIENT_KEY\)\)\s*\|\| isLoading\s*\|\| !isAuthenticated\s*\|\| !userId\s*\)/,
   );
   assert.match(context, /updateUserAsync\(user\)/);
   assert.doesNotMatch(context, /useFeatureGate/);

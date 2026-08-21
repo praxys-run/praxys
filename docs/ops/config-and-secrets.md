@@ -42,7 +42,8 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent review-governance App key. The App has Contents write + Pull requests write to approve qualifying PRs, enable normal auto-merge, and commit verified science approval-ledger updates without using `GITHUB_TOKEN`. Optional for ordinary review-required PRs without science acceptance; required for autonomous review actions and science approval materialization. | `selective-review.yml`, `science-approval-ledger.yml` |
 
 ### GitHub Actions → Variables
-`… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
+`… → Variables` (non-secret; only `VITE_*` build variables are inlined into
+the SPA and ship to browsers)
 
 | Variable | Purpose | Consumed by |
 |---|---|---|
@@ -70,24 +71,33 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies every minted privileged identity. | `selective-review.yml`, `selective-review-emergency-stop.yml`, `science-approval-ledger.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
-| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after Nginx and the workflow-restricted `praxys-production` Runner Group are healthy. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
+| `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default-off public-host probe. Exact `true` only after both `.cn` custom domains resolve to the accepted EdgeOne project. | `deploy-frontend-appservice.yml` |
 
 ### Tencent public website filing
 
 The approved service filing for `praxys.cn` and `www.praxys.cn` is
 `沪ICP备2025109616号-2`, linked to `https://beian.miit.gov.cn/`. Its code source
 of truth is `web/scripts/stamp-china-compliance.mjs`; the frontend workflow
-applies it only to the Tencent staging copy. This is public regulatory metadata,
-not a secret or mutable Actions variable. Update it only after an approved
-filing change, together with `docs/ops/tencent-frontend.md` and deployment
-verification.
+applies it only to the independently built EdgeOne evidence artifact, while the
+EdgeOne Git integration runs the same checked-in regional build. This is public
+regulatory metadata, not a secret or mutable Actions variable. Update it only
+after an approved filing change, together with
+`docs/ops/tencent-frontend.md` and deployment verification.
 
-The `.cn` hosts resolve directly to Tencent Lighthouse. They are not a second
-EdgeOne site. The existing `praxys.run` EdgeOne site remains configured for the
-global availability zone excluding the Chinese mainland; its optional mainland
-handoff is an HTTP `302` rule managed in the EdgeOne console. Azure App Service
-CORS must include `https://praxys.cn` and `https://www.praxys.cn`; provisioning
-and rollback commands live in `docs/ops/tencent-frontend.md`.
+Under the gated regional target, the `.cn` hosts will be served by the
+Git-integrated EdgeOne Makers project `praxys-cn` in the global area, with
+platform-managed HTTPS. EdgeOne receives read-only access only to this
+repository and uses no build secrets. The filing-free `.run` build will remain
+on Azure behind Cloudflare Free, while `api.praxys.run` stays DNS-only. Azure
+App Service CORS must then include exactly `https://praxys.cn` and
+`https://www.praxys.cn`. Repository access, Auto Deploy, the Cloudflare
+origin-certificate sequence, DNS migration, and rollback commands live in
+`docs/ops/tencent-frontend.md`.
+
+The China stamping step also adds a deployment-region marker. Browser-side
+Application Insights and Statsig read that marker and remain disabled for the
+EdgeOne artifact. Enabling either processor for `.cn` is a separate privacy and
+runtime-config change, not an Actions variable toggle.
 
 Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
 numbers. Feedback sync and adjudication compare each stored GitHub URL with the
