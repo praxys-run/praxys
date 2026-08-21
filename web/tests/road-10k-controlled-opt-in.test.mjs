@@ -39,10 +39,10 @@ test('Road 10K stays off-route while Goal, Training, and Settings/Me keep the ac
   assert.match(webTraining, /surface="training"/);
   assert.match(webSettings, /surface="settings"/);
 
-  assert.match(miniGoalMarkup, /road-10k-controlled-opt-in surface="goal"/);
+  assert.match(miniGoalMarkup, /road-10k-controlled-opt-in[^>]*id="goal-road-10k"[^>]*surface="goal"/s);
   assert.match(miniTrainingMarkup, /road-10k-controlled-opt-in[^>]*id="training-road-10k"[^>]*surface="training"/s);
   assert.match(miniTrainingJson, /road-10k-controlled-opt-in/);
-  assert.match(miniSettingsMarkup, /road-10k-controlled-opt-in surface="settings"/);
+  assert.match(miniSettingsMarkup, /road-10k-controlled-opt-in[^>]*id="settings-road-10k"[^>]*surface="settings"/s);
   assert.match(miniSettingsJson, /road-10k-controlled-opt-in/);
 
   assert.match(miniComponent, /pendingRoad10KIntent/);
