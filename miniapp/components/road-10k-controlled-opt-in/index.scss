@@ -24,6 +24,12 @@
   font-size: 27rpx;
   line-height: 1.6;
   margin-bottom: 18rpx;
+  word-break: normal;
+}
+
+.road-10k-word {
+  display: inline-block;
+  margin-right: .28em;
 }
 
 .road-10k-action {
@@ -78,24 +84,29 @@
 }
 
 .road-10k-mask {
-  background: var(--overlay);
-  inset: 0;
+  background-color: var(--overlay);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  left: 0;
   position: fixed;
-  z-index: 20;
+  right: 0;
+  top: 0;
+  z-index: 240;
 }
 
 .road-10k-sheet {
-  background: var(--surface);
+  background-color: var(--surface);
   border-radius: 24rpx 24rpx 0 0;
-  bottom: 0;
   box-sizing: border-box;
-  left: 0;
+  flex-shrink: 0;
+  margin-bottom: calc(110rpx + env(safe-area-inset-bottom));
   max-height: calc(100vh - env(safe-area-inset-top) - 48rpx);
   overflow-y: auto;
   padding: 32rpx;
-  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
-  position: absolute;
-  right: 0;
+  padding-bottom: 32rpx;
+  width: 100%;
 }
 
 .road-10k-input {

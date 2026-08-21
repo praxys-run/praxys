@@ -16,7 +16,23 @@ function copy(key: Parameters<typeof road10kCopy>[0]) {
   return road10kCopy(key, detectLocale() === 'zh' ? 'zh-CN' : 'en');
 }
 
+function languageClass() {
+  return detectLocale() === 'en' ? 'lang-en' : 'lang-zh';
+}
+
+function wordList(value: string): string[] {
+  return value.split(/\s+/).filter(Boolean);
+}
+
 function uiText() {
+  const reauthBody = copy('reauth.body');
+  const noticeIntro = copy('notice.intro');
+  const noticeScope = copy('notice.scope');
+  const noticeClaims = copy('notice.claims');
+  const noticeControl = copy('notice.control');
+  const noticeData = copy('notice.data');
+  const noticeLeave = copy('notice.leave');
+
   return {
     reviewInvitation: copy('action.review_invitation'),
     notNow: copy('action.not_now'),
@@ -30,14 +46,21 @@ function uiText() {
     joining: copy('progress.joining'),
     leaving: copy('progress.leaving'),
     reauthTitle: copy('reauth.title'),
-    reauthBody: copy('reauth.body'),
+    reauthBody,
+    reauthBodyWords: wordList(reauthBody),
     noticeTitle: copy('notice.title'),
-    noticeIntro: copy('notice.intro'),
-    noticeScope: copy('notice.scope'),
-    noticeClaims: copy('notice.claims'),
-    noticeControl: copy('notice.control'),
-    noticeData: copy('notice.data'),
-    noticeLeave: copy('notice.leave'),
+    noticeIntro,
+    noticeIntroWords: wordList(noticeIntro),
+    noticeScope,
+    noticeScopeWords: wordList(noticeScope),
+    noticeClaims,
+    noticeClaimsWords: wordList(noticeClaims),
+    noticeControl,
+    noticeControlWords: wordList(noticeControl),
+    noticeData,
+    noticeDataWords: wordList(noticeData),
+    noticeLeave,
+    noticeLeaveWords: wordList(noticeLeave),
     noticeAck: copy('notice.ack'),
     withdrawTitle: copy('life.withdraw_title'),
     withdrawBody: copy('life.withdraw_body'),
@@ -72,13 +95,17 @@ Component({
     acknowledged: false,
     password: '',
     error: '',
+    languageClass: languageClass(),
     text: uiText(),
     rolloutTitle: '',
     rolloutBody: '',
+    rolloutBodyWords: [] as string[],
     rolloutStatusLabel: '',
     planStatusLabel: '',
+    planStatusLabelWords: [] as string[],
     planBody: '',
     leaveHint: '',
+    leaveHintWords: [] as string[],
     screenshotHint: '',
     leaveAvailable: false,
     leaving: false,
@@ -109,14 +136,20 @@ Component({
       const rolloutBodyKey = access.rollout_status === 'enrolled'
         ? 'success.joined'
         : (rolloutKeys[rolloutKeys.length - 1] ?? rolloutTitleKey);
+      const rolloutBody = copy(rolloutBodyKey);
+      const planStatusLabel = copy(planKeys[0]);
+      const leaveHint = copy('notice.leave');
 
       return {
         rolloutTitle: copy(rolloutTitleKey),
-        rolloutBody: copy(rolloutBodyKey),
+        rolloutBody,
+        rolloutBodyWords: wordList(rolloutBody),
         rolloutStatusLabel: copy(ROAD_10K_ROLLOUT_STATUS_COPY[access.rollout_status]),
-        planStatusLabel: copy(planKeys[0]),
+        planStatusLabel,
+        planStatusLabelWords: wordList(planStatusLabel),
         planBody: copy(planKeys[planKeys.length - 1] ?? planKeys[0]),
-        leaveHint: copy('notice.leave'),
+        leaveHint,
+        leaveHintWords: wordList(leaveHint),
         screenshotHint: copy('feedback.screenshot_blocked'),
         leaveAvailable: canLeaveRollout(access),
       };
@@ -152,6 +185,7 @@ Component({
           visible: !(this.data.invitationDismissed && access.rollout_status === 'invited'),
           loading: false,
           error: '',
+          languageClass: languageClass(),
           text: uiText(),
           ...this.summarize(access),
         });
