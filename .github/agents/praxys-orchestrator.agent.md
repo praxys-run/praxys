@@ -69,6 +69,26 @@ listed order is not an execution order. `outcome_artifacts` are future
 observation obligations: register their observers without pretending the
 post-release outcome already exists.
 
+## Cooperative invocation admission
+
+Before each manifest-coordinated loop or role-agent call, cooperatively submit a
+versioned request to `scripts/agent_invocation_control.py` using the exact
+recomputed Work Contract. Reuse a stable opaque contract and slot identity, use
+a generation-independent slot identity through resumptions, and issue distinct
+generation, logical-invocation, and attempt identities. Carry the active parent
+attempt identity for nested calls and record an explicit finish or leaf-first
+recovery afterward. Initialize the Git-common-dir ledger explicitly before the
+first instrumented run.
+
+The checked-in mode starts at `instrument`; `shadow` is an explicit observation
+step. In either mode, ordinary `would_reject` decisions and missing, corrupt, or
+unsupported state remain non-blocking because enforcement is unavailable. Do not invoke the
+mediated child when `launch_authorized` is false under the explicit kill switch.
+Never request `enforce` or silently alias it to another mode. This is cooperative
+repository mediation only: the repository cannot intercept native agent calls,
+and unmediated activity remains outside coverage. See
+`docs/dev/agent-invocation-control.md`.
+
 ## Environment parity
 
 Before execution, run:
