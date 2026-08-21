@@ -251,7 +251,7 @@ msgstr "{conflictCount, plural, other {# 个待处理}}"
 #~ msgid "{conflictCount} need review"
 #~ msgstr "{conflictCount} 个待处理"
 
-#: src/components/PlanStart.tsx:1729
+#: src/components/PlanStart.tsx:1927
 msgid "{dayLabel} time limit (minutes)"
 msgstr "{dayLabel} 时间上限（分钟）"
 
@@ -501,7 +501,7 @@ msgstr "7 天"
 msgid "A clinician or restriction already rules out vigorous testing"
 msgstr "已有医疗限制或临床建议不要做高强度测试"
 
-#: src/components/PlanStart.tsx:1473
+#: src/components/PlanStart.tsx:1671
 msgid "A draft exists for another plan purpose"
 msgstr "另一项计划用途已有草稿"
 
@@ -568,7 +568,7 @@ msgstr "单次活动对结果的影响过大。"
 msgid "A Stryd-aligned Critical Power value is required for this experiment."
 msgstr "此实验需要与 Stryd 数据一致的临界功率值。"
 
-#: src/components/PlanStart.tsx:1062
+#: src/components/PlanStart.tsx:1194
 msgid "A successor proposal is ready. The earlier proposal is preserved as superseded."
 msgstr "后继提案已就绪。此前的提案会保留为已取代。"
 
@@ -608,7 +608,7 @@ msgstr "绝对跑步功率（瓦）。"
 #~ msgid "Absorbing training while maintaining fitness."
 #~ msgstr "在保持体能的同时吸收训练负荷。"
 
-#: src/components/PlanStart.tsx:1858
+#: src/components/PlanStart.tsx:2083
 msgid "Accepted road 10K plan-generation policy"
 msgstr "已接受的公路 10 公里计划生成政策"
 
@@ -830,7 +830,7 @@ msgstr "管理后台"
 msgid "Admin sections"
 msgstr "管理模块"
 
-#: src/components/PlanStart.tsx:1976
+#: src/components/PlanStart.tsx:2220
 msgid "Adopt exact proposal"
 msgstr "采纳此精确提案"
 
@@ -842,11 +842,11 @@ msgstr "前往设置启用"
 msgid "Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only."
 msgstr "将 Praxys 设为计划方后，才能启用自动调整。目前仍仅提供建议。"
 
-#: src/components/PlanStart.tsx:1976
+#: src/components/PlanStart.tsx:2219
 msgid "Adopting…"
 msgstr "正在采纳…"
 
-#: src/components/PlanStart.tsx:1964
+#: src/components/PlanStart.tsx:2202
 msgid "Adoption is paused"
 msgstr "暂时无法采纳"
 
@@ -996,11 +996,11 @@ msgstr "已有邀请码？"
 msgid "Also send my optional note"
 msgstr "同时发送补充说明"
 
-#: src/components/PlanStart.tsx:317
+#: src/components/PlanStart.tsx:383
 msgid "An active policy matches this intent and distance."
 msgstr "当前已有与该计划方向和距离匹配的生效政策。"
 
-#: src/components/PlanStart.tsx:325
+#: src/components/PlanStart.tsx:391
 msgid "An active policy matches, but current evidence is not sufficient or fresh enough for a proposal."
 msgstr "当前已有匹配的生效政策，但现有证据不足或已不够新，暂时无法生成提案。"
 
@@ -1204,8 +1204,8 @@ msgstr "可参与的实验"
 msgid "Available minutes must be a whole number from 1 to 1440."
 msgstr "可训练时长须为 1 到 1440 之间的整数。"
 
-#: src/components/PlanStart.tsx:1543
-#: src/components/PlanStart.tsx:1698
+#: src/components/PlanStart.tsx:1741
+#: src/components/PlanStart.tsx:1896
 msgid "Available run days"
 msgstr "可跑步的日期"
 
@@ -1328,15 +1328,15 @@ msgstr "基准"
 msgid "Baseline evidence is currently sufficient."
 msgstr "当前基线证据足够。"
 
-#: src/components/PlanStart.tsx:1367
+#: src/components/PlanStart.tsx:1537
 msgid "Baseline needs review"
 msgstr "基线需要复核"
 
-#: src/components/PlanStart.tsx:1367
+#: src/components/PlanStart.tsx:1537
 msgid "Baseline ready"
 msgstr "基线已就绪"
 
-#: src/components/PlanStart.tsx:1823
+#: src/components/PlanStart.tsx:2048
 msgid "Baseline source"
 msgstr "基线来源"
 
@@ -1567,7 +1567,7 @@ msgstr "后续已更改"
 msgid "Changed what I'll do"
 msgstr "调整了今天的训练安排"
 
-#: src/components/PlanStart.tsx:1797
+#: src/components/PlanStart.tsx:2001
 msgid "Check readiness"
 msgstr "检查准备情况"
 
@@ -1591,7 +1591,7 @@ msgstr "正在检查交付兼容性…"
 #~ msgid "Checking provider compatibility…"
 #~ msgstr "正在检查平台兼容性…"
 
-#: src/components/PlanStart.tsx:1797
+#: src/components/PlanStart.tsx:2000
 msgid "Checking readiness…"
 msgstr "正在检查准备情况…"
 
@@ -1629,12 +1629,12 @@ msgstr "选择比赛目标、持续追踪进步，或使用 5 公里基线试点
 msgid "Choose a recent workout"
 msgstr "选择近期训练"
 
-#: src/components/PlanStart.tsx:1404
+#: src/components/PlanStart.tsx:1602
 msgid "Choose an accepted plan purpose"
 msgstr "选择已接受的计划用途"
 
-#: src/components/PlanStart.tsx:806
-#: src/components/PlanStart.tsx:819
+#: src/components/PlanStart.tsx:938
+#: src/components/PlanStart.tsx:951
 msgid "Choose an accepted plan purpose first."
 msgstr "请先选择已接受的计划用途。"
 
@@ -1646,11 +1646,11 @@ msgstr "选择一个可选的 10K 基准测试日期"
 msgid "Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it."
 msgstr "如果你需要，可在训练计划预览里选择并标注一个可选基准日期。Praxys 不会自动安排。"
 
-#: src/components/PlanStart.tsx:1636
+#: src/components/PlanStart.tsx:1834
 msgid "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
 msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys 不会自动安排，目标完赛时间差距本身也不会提高训练负荷。"
 
-#: src/components/PlanStart.tsx:393
+#: src/components/PlanStart.tsx:459
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 msgstr "请明确选择。Praxys 会结合计划方向、当前距离、生效政策和已有证据来决定下一步。"
 
@@ -1658,7 +1658,7 @@ msgstr "请明确选择。Praxys 会结合计划方向、当前距离、生效�
 msgid "Choose how much historical data to pull"
 msgstr "选择要同步多少历史数据"
 
-#: src/components/PlanStart.tsx:339
+#: src/components/PlanStart.tsx:405
 msgid "Choose intent"
 msgstr "选择计划方向"
 
@@ -1683,8 +1683,8 @@ msgstr "选择首选数据来源"
 #~ msgid "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 #~ msgstr "在训练页选择已接受的 5 公里计划用途。除非明确关联，否则它与当前目标保持独立。"
 
-#: src/components/PlanStart.tsx:810
-#: src/components/PlanStart.tsx:823
+#: src/components/PlanStart.tsx:942
+#: src/components/PlanStart.tsx:955
 msgid "Choose the days you are available to run."
 msgstr "请选择可以跑步的日期。"
 
@@ -1692,7 +1692,7 @@ msgstr "请选择可以跑步的日期。"
 msgid "Choose the workout that changed."
 msgstr "请选择要说明的训练。"
 
-#: src/components/PlanStart.tsx:1545
+#: src/components/PlanStart.tsx:1743
 msgid "Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap."
 msgstr "请选择你真正能执行的 3 到 6 个跑步日。Praxys 会把负荷锚定在你近期的中位数，而不是目标时间差距。"
 
@@ -1706,7 +1706,7 @@ msgid "Choose voluntary experiments that help you inspect your own training hist
 msgstr "选择自愿参与的实验，用自己的训练历史探索规律，同时避免把早期研究包装成建议。"
 
 #. placeholder {0}: displayCapability.horizon_days
-#: src/components/PlanStart.tsx:1378
+#: src/components/PlanStart.tsx:1575
 msgid "Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 msgstr "先选择计划用途，再设置能够坚持的约束。Praxys 会生成带版本的 <0>{0}</0> 天提案；它尚未成为正式计划。"
 
@@ -1718,7 +1718,7 @@ msgstr "请选择这项安排的开始和结束日期。"
 msgid "Choose whether it was missed or modified."
 msgstr "请选择这次训练是未完成还是做了调整。"
 
-#: src/components/PlanStart.tsx:341
+#: src/components/PlanStart.tsx:407
 msgid "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 msgstr "请选择这份计划是为了完成距离、提升表现，还是恢复规律训练。之后可随时更改。"
 
@@ -1830,7 +1830,7 @@ msgstr "兼容性预览暂不可用。请检查网络后重试。"
 msgid "Complete these steps to unlock your training insights"
 msgstr "完成以下步骤，解锁训练解读"
 
-#: src/components/PlanStart.tsx:1850
+#: src/components/PlanStart.tsx:2075
 msgid "complete weeks; latest run"
 msgstr "个完整周；最近一次跑步"
 
@@ -1882,11 +1882,11 @@ msgstr "确认已满 18 周岁后才能加入此实验。"
 msgid "Confirm the boundary before Praxys writes to {targetLabel}."
 msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 
-#: src/components/PlanStart.tsx:808
+#: src/components/PlanStart.tsx:940
 msgid "Confirm the reviewed adult scope first."
 msgstr "请先确认经过审查的成人范围。"
 
-#: src/components/PlanStart.tsx:821
+#: src/components/PlanStart.tsx:953
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "请先确认受支持的运动员和目标范围。"
 
@@ -2090,13 +2090,13 @@ msgstr "更正计划个性化信息"
 msgid "Could not add this workout"
 msgstr "无法添加这项训练"
 
-#: src/components/PlanStart.tsx:1135
-#: src/components/PlanStart.tsx:1147
+#: src/components/PlanStart.tsx:1267
+#: src/components/PlanStart.tsx:1284
 msgid "Could not adopt the proposal."
 msgstr "无法采纳该提案。"
 
-#: src/components/PlanStart.tsx:967
-#: src/components/PlanStart.tsx:974
+#: src/components/PlanStart.tsx:1099
+#: src/components/PlanStart.tsx:1106
 msgid "Could not assess this plan start."
 msgstr "无法评估此计划起点。"
 
@@ -2118,8 +2118,8 @@ msgstr "无法转换此旧版训练。"
 msgid "Could not convert this workout to rest"
 msgstr "无法将这项训练改为休息"
 
-#: src/components/PlanStart.tsx:1008
-#: src/components/PlanStart.tsx:1022
+#: src/components/PlanStart.tsx:1140
+#: src/components/PlanStart.tsx:1154
 msgid "Could not create the proposal."
 msgstr "无法创建提案。"
 
@@ -2158,12 +2158,12 @@ msgstr "无法退出托管模式"
 msgid "Could not load automatic change history."
 msgstr "无法加载自动调整记录。"
 
-#: src/components/PlanStart.tsx:1195
-#: src/components/PlanStart.tsx:1281
+#: src/components/PlanStart.tsx:1358
+#: src/components/PlanStart.tsx:1444
 msgid "Could not load plan-start context"
 msgstr "无法加载计划起点上下文"
 
-#: src/components/PlanStart.tsx:302
+#: src/components/PlanStart.tsx:368
 msgid "Could not load the accepted plan-generation policies."
 msgstr "无法加载已接受的计划生成政策。"
 
@@ -2180,17 +2180,17 @@ msgstr "无法加载这条计划个性化信息。"
 msgid "Could not pause delivery"
 msgstr "无法暂停下发"
 
-#: src/components/PlanStart.tsx:1899
+#: src/components/PlanStart.tsx:2124
 msgid "Could not refresh proposal state"
 msgstr "无法刷新提案状态"
 
-#: src/components/PlanStart.tsx:1058
-#: src/components/PlanStart.tsx:1072
+#: src/components/PlanStart.tsx:1190
+#: src/components/PlanStart.tsx:1204
 msgid "Could not regenerate the proposal."
 msgstr "无法重新生成提案。"
 
-#: src/components/PlanStart.tsx:1097
-#: src/components/PlanStart.tsx:1109
+#: src/components/PlanStart.tsx:1229
+#: src/components/PlanStart.tsx:1241
 msgid "Could not reject the proposal."
 msgstr "无法拒绝该提案。"
 
@@ -2342,7 +2342,7 @@ msgstr "创建账号"
 msgid "Create and manage dismissible banners shown to all users."
 msgstr "创建和管理向所有用户显示、可关闭的横幅公告。"
 
-#: src/components/PlanStart.tsx:1801
+#: src/components/PlanStart.tsx:2011
 msgid "Create proposal"
 msgstr "创建提案"
 
@@ -2366,7 +2366,7 @@ msgstr "创建时间"
 msgid "Creating account…"
 msgstr "正在创建账号…"
 
-#: src/components/PlanStart.tsx:1801
+#: src/components/PlanStart.tsx:2010
 msgid "Creating proposal…"
 msgstr "正在创建提案…"
 
@@ -2459,16 +2459,16 @@ msgstr "当前证据"
 
 #. placeholder {0}: capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? '5K'
 #. placeholder {0}: capabilityDiscovery?.current_goal?.goal.distance?.toUpperCase() ?? '5K'
-#: src/components/PlanStart.tsx:865
-#: src/components/PlanStart.tsx:1411
+#: src/components/PlanStart.tsx:997
+#: src/components/PlanStart.tsx:1609
 msgid "Current Goal · {0}"
 msgstr "当前目标 · {0}"
 
-#: src/components/PlanStart.tsx:1440
+#: src/components/PlanStart.tsx:1638
 msgid "Current Goal has no accepted automatic policy"
 msgstr "当前目标暂无已接受的自动计划政策"
 
-#: src/components/PlanStart.tsx:1259
+#: src/components/PlanStart.tsx:1422
 msgid "Current goal:"
 msgstr "当前目标："
 
@@ -2730,7 +2730,7 @@ msgstr "下发结果"
 msgid "Delivery preview"
 msgstr "交付预览"
 
-#: src/components/PlanStart.tsx:2004
+#: src/components/PlanStart.tsx:2276
 msgid "Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
 msgstr "投递仍处于禁用状态。请查看现有的 14 天托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。"
 
@@ -3255,11 +3255,11 @@ msgstr "源数据足以尝试这项实验"
 msgid "Enter a complete value in this unit."
 msgstr "请使用当前显示的单位输入完整数值。"
 
-#: src/components/PlanStart.tsx:814
+#: src/components/PlanStart.tsx:946
 msgid "Enter a whole-number single-session limit."
 msgstr "请输入整数的单次训练上限。"
 
-#: src/components/PlanStart.tsx:812
+#: src/components/PlanStart.tsx:944
 msgid "Enter a whole-number weekly time limit."
 msgstr "请输入整数的每周时间上限。"
 
@@ -3267,7 +3267,7 @@ msgstr "请输入整数的每周时间上限。"
 msgid "Enter numeric temperature and humidity values."
 msgstr "请输入有效的温度和湿度数值。"
 
-#: src/components/PlanStart.tsx:827
+#: src/components/PlanStart.tsx:959
 msgid "Enter one whole-minute limit for every selected day."
 msgstr "请为每个选定日期输入相同的整分钟上限。"
 
@@ -3326,7 +3326,7 @@ msgstr "基于当前体能估算比赛表现。"
 msgid "EU"
 msgstr "欧盟"
 
-#: src/components/PlanStart.tsx:1831
+#: src/components/PlanStart.tsx:2056
 msgid "Event state"
 msgstr "赛事状态"
 
@@ -3411,7 +3411,7 @@ msgstr "执行平台已更换，下发仍保持暂停。"
 msgid "Expired"
 msgstr "已过期"
 
-#: src/components/PlanStart.tsx:1959
+#: src/components/PlanStart.tsx:2195
 msgid "Expires:"
 msgstr "到期时间："
 
@@ -3650,11 +3650,11 @@ msgstr "解读要点"
 msgid "Finish the required step fields to preview delivery."
 msgstr "完成必填的步骤字段后即可预览交付。"
 
-#: src/components/PlanStart.tsx:284
+#: src/components/PlanStart.tsx:350
 msgid "Finish this distance"
 msgstr "完成这个距离"
 
-#: src/components/PlanStart.tsx:467
+#: src/components/PlanStart.tsx:533
 msgid "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 msgstr "首次完赛、提升表现和恢复规律训练适用不同的证据边界。Praxys 不会把记录缺失当作体能下降的证明，也不会套用统一的新手或重启训练安排。"
 
@@ -3841,8 +3841,8 @@ msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 msgid "Generating…"
 msgstr "正在生成…"
 
-#: src/components/PlanStart.tsx:515
-#: src/components/PlanStart.tsx:1935
+#: src/components/PlanStart.tsx:595
+#: src/components/PlanStart.tsx:2170
 msgid "Generator"
 msgstr "生成器"
 
@@ -3889,7 +3889,7 @@ msgstr "前往登录"
 msgid "Goal"
 msgstr "目标"
 
-#: src/components/PlanStart.tsx:340
+#: src/components/PlanStart.tsx:406
 msgid "Goal distance alone does not tell Praxys which outcome matters."
 msgstr "只看距离，Praxys 无法判断你更看重哪种结果。"
 
@@ -4087,7 +4087,7 @@ msgstr "历史同步可能需要几分钟"
 msgid "History candidates"
 msgstr "历史候选活动"
 
-#: src/components/PlanStart.tsx:1827
+#: src/components/PlanStart.tsx:2052
 msgid "History cutoff"
 msgstr "历史窗口"
 
@@ -4095,8 +4095,8 @@ msgstr "历史窗口"
 msgid "History first: you already have usable current 5K evidence."
 msgstr "先看历史：已有可用的当前 5 公里能力证据。"
 
-#: src/components/PlanStart.tsx:1840
-#: src/components/PlanStart.tsx:1848
+#: src/components/PlanStart.tsx:2065
+#: src/components/PlanStart.tsx:2073
 msgid "History used:"
 msgstr "已使用的历史："
 
@@ -4284,16 +4284,16 @@ msgstr "湿度（%）"
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
-#: src/components/PlanStart.tsx:1519
-#: src/components/PlanStart.tsx:1655
+#: src/components/PlanStart.tsx:1717
+#: src/components/PlanStart.tsx:1853
 msgid "I am 18 or older."
 msgstr "我已满 18 周岁。"
 
-#: src/components/PlanStart.tsx:1656
+#: src/components/PlanStart.tsx:1854
 msgid "I am self-coached for recreational road running."
 msgstr "我是自主训练的休闲公路跑者。"
 
-#: src/components/PlanStart.tsx:1657
+#: src/components/PlanStart.tsx:1855
 msgid "I can currently complete 5 km."
 msgstr "我目前可以完成 5 公里。"
 
@@ -4319,7 +4319,7 @@ msgstr "已定位"
 msgid "Illness"
 msgstr "生病或不适"
 
-#: src/components/PlanStart.tsx:289
+#: src/components/PlanStart.tsx:355
 msgid "Improve performance"
 msgstr "提升表现"
 
@@ -4590,11 +4590,11 @@ msgid "Keep suggestion-only"
 msgstr "保持仅建议"
 
 #. placeholder {0}: capabilityDiscovery.current_goal.goal.distance?.toUpperCase() ?? 'goal'
-#: src/components/PlanStart.tsx:1442
+#: src/components/PlanStart.tsx:1640
 msgid "Keep the current {0} unchanged, or choose an accepted separate purpose above."
 msgstr "保留当前的{0}不变，或在上方选择已接受的独立计划用途。"
 
-#: src/components/PlanStart.tsx:334
+#: src/components/PlanStart.tsx:400
 msgid "Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population."
 msgstr "保留当前目标、改选其他计划方向，或手动管理训练。Praxys 不会借用其他距离或人群的政策。"
 
@@ -4751,7 +4751,7 @@ msgstr "正在退出…"
 msgid "Legacy flat summary"
 msgstr "旧版扁平摘要"
 
-#: src/components/PlanStart.tsx:1931
+#: src/components/PlanStart.tsx:2166
 msgid "Legacy purpose"
 msgstr "旧版计划用途"
 
@@ -4834,7 +4834,7 @@ msgstr "链接地址（可选）"
 msgid "Link your training devices and services"
 msgstr "连接训练设备和服务"
 
-#: src/components/PlanStart.tsx:1926
+#: src/components/PlanStart.tsx:2161
 msgid "Linked to current Goal"
 msgstr "已关联当前目标"
 
@@ -5043,7 +5043,7 @@ msgstr "管理席位、角色、邀请和候补名单接入。"
 #~ msgid "Manage users and invitation codes"
 #~ msgstr "管理用户和邀请码"
 
-#: src/components/PlanStart.tsx:459
+#: src/components/PlanStart.tsx:525
 msgid "Manage workouts"
 msgstr "管理训练"
 
@@ -5377,7 +5377,7 @@ msgstr "上移"
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "多个平台都提供 <0>{0}</0> 数据。要将哪个设为主要来源？"
 
-#: src/components/PlanStart.tsx:1658
+#: src/components/PlanStart.tsx:1856
 msgid "My goal is an outdoor road 5K."
 msgstr "我的目标是户外公路 5 公里。"
 
@@ -5549,11 +5549,11 @@ msgstr "下次同步"
 msgid "No"
 msgstr "否"
 
-#: src/components/PlanStart.tsx:1244
+#: src/components/PlanStart.tsx:1407
 msgid "No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy."
 msgstr "目前没有已接受的自动政策与此目标匹配。Praxys 会保留手动计划管理，而不会将 5 公里政策挪作他用。"
 
-#: src/components/PlanStart.tsx:1249
+#: src/components/PlanStart.tsx:1412
 msgid "No accepted policy"
 msgstr "暂无已接受政策"
 
@@ -5561,7 +5561,7 @@ msgstr "暂无已接受政策"
 msgid "No access was granted. You can close this tab and return to the plugin."
 msgstr "未授予任何权限。你可以关闭此页面并返回插件。"
 
-#: src/components/PlanStart.tsx:333
+#: src/components/PlanStart.tsx:399
 msgid "No active automatic policy matches this intent and distance yet."
 msgstr "暂无与该计划方向和距离匹配的生效自动政策。"
 
@@ -5736,11 +5736,11 @@ msgstr "本周暂无计划负荷"
 msgid "No Praxys workouts are scheduled in this window. Future Praxys-created workouts will enter the rolling window automatically."
 msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会自动进入滚动窗口。"
 
-#: src/components/PlanStart.tsx:870
-#: src/components/PlanStart.tsx:1609
-#: src/components/PlanStart.tsx:1614
-#: src/components/PlanStart.tsx:1763
-#: src/components/PlanStart.tsx:1768
+#: src/components/PlanStart.tsx:1002
+#: src/components/PlanStart.tsx:1807
+#: src/components/PlanStart.tsx:1812
+#: src/components/PlanStart.tsx:1961
+#: src/components/PlanStart.tsx:1966
 msgid "No preference"
 msgstr "无偏好"
 
@@ -5785,7 +5785,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 #~ msgid "No reliable heat history yet"
 #~ msgstr "尚无可靠的热适应历史"
 
-#: src/components/PlanStart.tsx:1693
+#: src/components/PlanStart.tsx:1891
 msgid "No safety stop"
 msgstr "没有安全停止条件"
 
@@ -5819,7 +5819,7 @@ msgstr "无受支持的天气证据"
 msgid "No supported workload evidence"
 msgstr "无受支持的负荷证据"
 
-#: src/components/PlanStart.tsx:1538
+#: src/components/PlanStart.tsx:1736
 msgid "No symptom stop"
 msgstr "无症状停止"
 
@@ -6222,7 +6222,7 @@ msgstr "查看反馈"
 #~ msgid "Open incident"
 #~ msgstr "发布事故"
 
-#: src/components/PlanStart.tsx:442
+#: src/components/PlanStart.tsx:508
 msgid "Open plan preview"
 msgstr "打开计划预览"
 
@@ -6230,7 +6230,7 @@ msgstr "打开计划预览"
 #~ msgid "Open telemetry queries"
 #~ msgstr "打开遥测查询"
 
-#: src/components/PlanStart.tsx:327
+#: src/components/PlanStart.tsx:393
 msgid "Open the readiness path for this separate plan purpose. Your current Goal remains unchanged."
 msgstr "打开这项独立计划用途的准备度流程。当前目标保持不变。"
 
@@ -6295,7 +6295,7 @@ msgstr "可选 10K 基准"
 msgid "Optional 5K pilot test"
 msgstr "可选 5 公里试点测试"
 
-#: src/components/PlanStart.tsx:1624
+#: src/components/PlanStart.tsx:1822
 msgid "Optional benchmark date"
 msgstr "可选基准测试日期"
 
@@ -6461,7 +6461,7 @@ msgstr "更长跑里的被动最快 10K 分段、最佳圈段，或中途高强�
 #: src/pages/admin/AdminUsers.tsx:991
 #: src/pages/Login.tsx:368
 #: src/pages/Login.tsx:565
-#: src/pages/Road10KControlledOptIn.tsx:385
+#: src/pages/Road10KControlledOptIn.tsx:400
 #: src/pages/Setup.tsx:218
 msgid "Password"
 msgstr "密码"
@@ -6509,11 +6509,11 @@ msgstr "训练指标"
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
-#: src/components/PlanStart.tsx:1746
+#: src/components/PlanStart.tsx:1944
 msgid "Per-day limits are unsupported"
 msgstr "不支持按日设置上限"
 
-#: src/components/PlanStart.tsx:826
+#: src/components/PlanStart.tsx:958
 msgid "Per-day limits are unsupported by this policy. Use one shared limit for all selected days."
 msgstr "此政策不支持按日设置上限。请为所有选定日期使用一个共享上限。"
 
@@ -6558,15 +6558,15 @@ msgstr "计划活动"
 msgid "Plan adjustment"
 msgstr "计划调整"
 
-#: src/components/PlanStart.tsx:2002
+#: src/components/PlanStart.tsx:2271
 msgid "Plan adopted"
 msgstr "计划已采纳"
 
-#: src/components/PlanStart.tsx:1140
+#: src/components/PlanStart.tsx:1277
 msgid "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "计划已采纳。在你明确启用前，投递仍处于禁用状态。"
 
-#: src/components/PlanStart.tsx:316
+#: src/components/PlanStart.tsx:382
 msgid "Plan candidate"
 msgstr "计划候选"
 
@@ -6578,11 +6578,11 @@ msgstr "计划个性化信息"
 msgid "Plan decision not saved"
 msgstr "计划选择未保存"
 
-#: src/components/PlanStart.tsx:1242
+#: src/components/PlanStart.tsx:1405
 msgid "Plan generation for this goal"
 msgstr "此目标的计划生成"
 
-#: src/components/PlanStart.tsx:410
+#: src/components/PlanStart.tsx:476
 msgid "Plan intent"
 msgstr "计划方向"
 
@@ -6590,21 +6590,21 @@ msgstr "计划方向"
 msgid "Plan management"
 msgstr "计划托管"
 
-#: src/components/PlanStart.tsx:1376
+#: src/components/PlanStart.tsx:1569
 msgid "Plan preview"
 msgstr "计划预览"
 
-#: src/components/PlanStart.tsx:508
-#: src/components/PlanStart.tsx:1912
+#: src/components/PlanStart.tsx:583
+#: src/components/PlanStart.tsx:2140
 msgid "Plan proposal"
 msgstr "计划提案"
 
-#: src/components/PlanStart.tsx:1391
-#: src/components/PlanStart.tsx:1403
+#: src/components/PlanStart.tsx:1589
+#: src/components/PlanStart.tsx:1601
 msgid "Plan purpose"
 msgstr "计划用途"
 
-#: src/components/PlanStart.tsx:1462
+#: src/components/PlanStart.tsx:1660
 msgid "Plan purpose needs reassessment"
 msgstr "计划用途需要重新评估"
 
@@ -6616,12 +6616,12 @@ msgstr "计划用途需要重新评估"
 msgid "Plan window"
 msgstr "计划范围"
 
-#: src/components/PlanStart.tsx:1182
-#: src/components/PlanStart.tsx:2023
+#: src/components/PlanStart.tsx:1345
+#: src/components/PlanStart.tsx:2295
 msgid "Plan-start action did not complete"
 msgstr "计划起点操作未完成"
 
-#: src/components/PlanStart.tsx:1311
+#: src/components/PlanStart.tsx:1474
 msgid "Plan-start context changed"
 msgstr "计划起点上下文已变化"
 
@@ -6670,8 +6670,8 @@ msgstr "请检查邮箱格式后重试。"
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
-#: src/components/PlanStart.tsx:514
-#: src/components/PlanStart.tsx:1934
+#: src/components/PlanStart.tsx:594
+#: src/components/PlanStart.tsx:2169
 msgid "Policy"
 msgstr "政策"
 
@@ -6681,11 +6681,11 @@ msgstr "政策"
 msgid "Policy {0} · decision {1}"
 msgstr "策略 {0} · 决策 {1}"
 
-#: src/components/PlanStart.tsx:301
+#: src/components/PlanStart.tsx:367
 msgid "Policy check failed"
 msgstr "政策检查失败"
 
-#: src/components/PlanStart.tsx:332
+#: src/components/PlanStart.tsx:398
 msgid "Policy unavailable"
 msgstr "政策暂不可用"
 
@@ -6697,7 +6697,7 @@ msgstr "策略门禁自动合并"
 msgid "Pool"
 msgstr "泳池"
 
-#: src/components/PlanStart.tsx:469
+#: src/components/PlanStart.tsx:535
 msgid "Population evidence boundary"
 msgstr "人群证据边界"
 
@@ -7022,15 +7022,15 @@ msgstr "不想说明"
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
-#: src/components/PlanStart.tsx:1603
+#: src/components/PlanStart.tsx:1801
 msgid "Preferred longest-easy day"
 msgstr "偏好的最长轻松跑日"
 
-#: src/components/PlanStart.tsx:1757
+#: src/components/PlanStart.tsx:1955
 msgid "Preferred longest-run day"
 msgstr "偏好的最长跑日期"
 
-#: src/components/PlanStart.tsx:285
+#: src/components/PlanStart.tsx:351
 msgid "Prepare to complete the selected distance."
 msgstr "为完成所选距离做准备。"
 
@@ -7161,15 +7161,15 @@ msgstr "设为管理员"
 msgid "Prompt-semantic slice:"
 msgstr "提示词语义样本："
 
-#: src/components/PlanStart.tsx:1012
+#: src/components/PlanStart.tsx:1144
 msgid "Proposal created. It has not changed your canonical plan."
 msgstr "提案已创建。它尚未更改你的规范计划。"
 
-#: src/components/PlanStart.tsx:1099
+#: src/components/PlanStart.tsx:1231
 msgid "Proposal rejected. Your canonical plan was not changed."
 msgstr "提案已拒绝。你的规范计划未被更改。"
 
-#: src/components/PlanStart.tsx:1992
+#: src/components/PlanStart.tsx:2258
 msgid "Proposal state needs a fresh preview"
 msgstr "提案状态需要新的预览"
 
@@ -7228,7 +7228,7 @@ msgstr "同步最新活动、功率数据和恢复指标"
 #: src/components/PersonalContextPanel.tsx:1155
 #: src/components/PersonalContextPanel.tsx:1342
 #: src/components/PersonalContextPanel.tsx:1602
-#: src/components/PlanStart.tsx:1923
+#: src/components/PlanStart.tsx:2158
 #: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
 msgstr "用途"
@@ -7423,15 +7423,15 @@ msgstr "镜像主页数据的只读账号。"
 msgid "Readiness"
 msgstr "准备度"
 
-#: src/components/PlanStart.tsx:324
+#: src/components/PlanStart.tsx:390
 msgid "Readiness first"
 msgstr "先评估准备度"
 
-#: src/components/PlanStart.tsx:1368
+#: src/components/PlanStart.tsx:1538
 msgid "Readiness not checked"
 msgstr "尚未检查准备情况"
 
-#: src/components/PlanStart.tsx:1813
+#: src/components/PlanStart.tsx:2026
 msgid "Readiness result"
 msgstr "准备情况结果"
 
@@ -7451,7 +7451,7 @@ msgstr "可行的替代目标"
 msgid "Reasonable model variations do not preserve the same historical relationship."
 msgstr "在合理的模型变化下，历史关系无法保持一致。"
 
-#: src/components/PlanStart.tsx:294
+#: src/components/PlanStart.tsx:360
 msgid "Rebuild consistency"
 msgstr "恢复规律训练"
 
@@ -7825,8 +7825,8 @@ msgstr "刷新失败，正在显示上次成功的快照。"
 #~ msgid "Refresh failed\" \"刷新失败"
 #~ msgstr ""
 
-#: src/components/PlanStart.tsx:1324
-#: src/components/PlanStart.tsx:2033
+#: src/components/PlanStart.tsx:1487
+#: src/components/PlanStart.tsx:2305
 msgid "Refresh plan context"
 msgstr "刷新计划上下文"
 
@@ -7851,11 +7851,11 @@ msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
 msgstr "刷新数据来源日历，重新核对所有权，然后仅允许此项进行一次受保护的重试。"
 
-#: src/components/PlanStart.tsx:1980
+#: src/components/PlanStart.tsx:2230
 msgid "Regenerate successor"
 msgstr "重新生成后继提案"
 
-#: src/components/PlanStart.tsx:1980
+#: src/components/PlanStart.tsx:2229
 msgid "Regenerating…"
 msgstr "正在重新生成…"
 
@@ -7900,8 +7900,8 @@ msgstr "注册设置暂不可用"
 msgid "Reject"
 msgstr "驳回"
 
-#: src/components/PlanStart.tsx:533
-#: src/components/PlanStart.tsx:1985
+#: src/components/PlanStart.tsx:633
+#: src/components/PlanStart.tsx:2251
 msgid "Reject or defer"
 msgstr "拒绝或暂缓"
 
@@ -7910,8 +7910,8 @@ msgstr "拒绝或暂缓"
 msgid "Rejected"
 msgstr "已拒绝"
 
-#: src/components/PlanStart.tsx:533
-#: src/components/PlanStart.tsx:1985
+#: src/components/PlanStart.tsx:632
+#: src/components/PlanStart.tsx:2250
 msgid "Rejecting…"
 msgstr "正在拒绝…"
 
@@ -8169,9 +8169,9 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/components/ManagedPlanSettingsCard.tsx:611
 #: src/components/ManagedPlanSettingsCard.tsx:1029
 #: src/components/PersonalContextPanel.tsx:760
-#: src/components/PlanStart.tsx:1206
-#: src/components/PlanStart.tsx:1285
-#: src/components/PlanStart.tsx:1902
+#: src/components/PlanStart.tsx:1369
+#: src/components/PlanStart.tsx:1448
+#: src/components/PlanStart.tsx:2127
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
 #: src/pages/admin/AdminFeedback.tsx:582
@@ -8205,7 +8205,7 @@ msgstr "重试清理"
 msgid "Retry delivery"
 msgstr "重试下发"
 
-#: src/components/PlanStart.tsx:435
+#: src/components/PlanStart.tsx:501
 msgid "Retry policy check"
 msgstr "重试政策检查"
 
@@ -8217,7 +8217,7 @@ msgstr "重试政策检查"
 msgid "Retry queue"
 msgstr "重试队列"
 
-#: src/components/PlanStart.tsx:303
+#: src/components/PlanStart.tsx:369
 msgid "Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone."
 msgstr "请重试政策检查后再选择路径。Praxys 不会只根据当前目标推断可用性。"
 
@@ -8253,11 +8253,11 @@ msgstr "重试此训练操作"
 msgid "Retrying"
 msgstr "正在重试"
 
-#: src/components/PlanStart.tsx:295
+#: src/components/PlanStart.tsx:361
 msgid "Return to regular training without guessing what missing records mean."
 msgstr "在不猜测记录缺失含义的前提下，恢复规律训练。"
 
-#: src/components/PlanStart.tsx:1476
+#: src/components/PlanStart.tsx:1674
 msgid "Return to that purpose to review or reject it before creating a different draft."
 msgstr "请返回该计划用途，先审核或拒绝现有草稿，再创建其他草稿。"
 
@@ -8305,7 +8305,7 @@ msgstr "处理冲突"
 msgid "Review delivery queue"
 msgstr "查看下发队列"
 
-#: src/components/PlanStart.tsx:1486
+#: src/components/PlanStart.tsx:1684
 msgid "Review existing draft"
 msgstr "审核现有草稿"
 
@@ -8317,7 +8317,7 @@ msgstr "审核现有草稿"
 msgid "Review first issue"
 msgstr "查看第一个问题"
 
-#: src/components/PlanStart.tsx:1268
+#: src/components/PlanStart.tsx:1431
 msgid "Review goal"
 msgstr "复核目标"
 
@@ -8341,7 +8341,7 @@ msgstr "回顾计划结果"
 msgid "Review purpose and expiry"
 msgstr "确认用途和保留期限"
 
-#: src/components/PlanStart.tsx:450
+#: src/components/PlanStart.tsx:516
 msgid "Review readiness"
 msgstr "查看准备度"
 
@@ -8355,7 +8355,7 @@ msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 msgid "Review required"
 msgstr "需要审核"
 
-#: src/components/PlanStart.tsx:917
+#: src/components/PlanStart.tsx:1049
 msgid "Review the constraints and try again."
 msgstr "请复核限制条件后重试。"
 
@@ -8367,7 +8367,7 @@ msgstr "回顾当前目标"
 msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 msgstr "请核对以下具体用途和权限。插件无法批准此请求、读取补充说明、授予 AI 权限或自行保存计划个性化信息。"
 
-#: src/components/PlanStart.tsx:328
+#: src/components/PlanStart.tsx:394
 msgid "Review the existing history-first readiness path before asking Praxys to create a proposal."
 msgstr "请先查看现有的历史优先准备度流程，再让 Praxys 创建提案。"
 
@@ -8419,11 +8419,11 @@ msgstr "上升"
 msgid "Road"
 msgstr "公路"
 
-#: src/components/PlanStart.tsx:1856
+#: src/components/PlanStart.tsx:2081
 msgid "Road 10K schedule guardrails"
 msgstr "公路 10 公里训练安排护栏"
 
-#: src/components/PlanStart.tsx:1254
+#: src/components/PlanStart.tsx:1417
 msgid "Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned."
 msgstr "只有在人群、目标和安全边界完成审核并版本化后，公路与越野政策才会在此开放。"
 
@@ -8526,11 +8526,11 @@ msgstr "安全"
 msgid "Safety policy"
 msgstr "安全策略"
 
-#: src/components/PlanStart.tsx:1679
+#: src/components/PlanStart.tsx:1877
 msgid "Safety stop"
 msgstr "安全停止"
 
-#: src/components/PlanStart.tsx:1693
+#: src/components/PlanStart.tsx:1891
 msgid "Safety stop applies"
 msgstr "存在安全停止条件"
 
@@ -8652,8 +8652,8 @@ msgstr "安排测试会通过标准的训练、修订和投递流程写入计划
 msgid "Science"
 msgstr "科学"
 
-#: src/components/PlanStart.tsx:516
-#: src/components/PlanStart.tsx:1936
+#: src/components/PlanStart.tsx:596
+#: src/components/PlanStart.tsx:2171
 msgid "Science decision"
 msgstr "科学决策"
 
@@ -8669,8 +8669,8 @@ msgstr "科学模型"
 msgid "Scientific models"
 msgstr "科学模型"
 
-#: src/components/PlanStart.tsx:1501
-#: src/components/PlanStart.tsx:1645
+#: src/components/PlanStart.tsx:1699
+#: src/components/PlanStart.tsx:1843
 msgid "Scope and guardrails"
 msgstr "范围与护栏"
 
@@ -8719,7 +8719,7 @@ msgstr "选择一个指标，查看图表或依据。"
 msgid "Select an execution target in Settings to continue delivery."
 msgstr "请先在设置中选择执行平台，再继续下发。"
 
-#: src/components/PlanStart.tsx:1700
+#: src/components/PlanStart.tsx:1898
 msgid "Select availability, then give the same supported session limit for each selected day."
 msgstr "选择可用日期，然后为每个选定日期填写相同的受支持单次训练上限。"
 
@@ -8786,16 +8786,16 @@ msgstr "已发送"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? 'running'
 #. placeholder {0}: item.purpose.distance?.toUpperCase() ?? 'running'
-#: src/components/PlanStart.tsx:867
-#: src/components/PlanStart.tsx:1420
+#: src/components/PlanStart.tsx:999
+#: src/components/PlanStart.tsx:1618
 msgid "Separate {0} plan purpose"
 msgstr "独立的{0}计划用途"
 
-#: src/components/PlanStart.tsx:1451
+#: src/components/PlanStart.tsx:1649
 msgid "Separate from the current Goal"
 msgstr "与当前目标保持独立"
 
-#: src/components/PlanStart.tsx:1928
+#: src/components/PlanStart.tsx:2163
 msgid "Separate plan purpose"
 msgstr "独立计划用途"
 
@@ -9002,7 +9002,7 @@ msgstr "正在登录…"
 #~ msgid "Simple"
 #~ msgstr "简要"
 
-#: src/components/PlanStart.tsx:1585
+#: src/components/PlanStart.tsx:1783
 msgid "Single-session limit (minutes)"
 msgstr "单次训练上限（分钟）"
 
@@ -9134,7 +9134,7 @@ msgstr "标准化户外公路 10K 计时测试"
 msgid "Standardized track 10K time trial"
 msgstr "标准化田径场 10K 计时测试"
 
-#: src/components/PlanStart.tsx:375
+#: src/components/PlanStart.tsx:441
 msgid "Start a training plan"
 msgstr "开始训练计划"
 
@@ -9387,11 +9387,11 @@ msgstr "切换到浅色主题"
 msgid "Switch to system theme"
 msgstr "切换到系统主题"
 
-#: src/components/PlanStart.tsx:1524
+#: src/components/PlanStart.tsx:1722
 msgid "Symptom stop"
 msgstr "症状停止"
 
-#: src/components/PlanStart.tsx:1538
+#: src/components/PlanStart.tsx:1736
 msgid "Symptom stop applies"
 msgstr "存在症状停止"
 
@@ -9597,11 +9597,11 @@ msgstr "目标类型"
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "遥测信任边界"
 
-#: src/components/PlanStart.tsx:1526
+#: src/components/PlanStart.tsx:1724
 msgid "Tell Praxys if a current symptom stop applies. It will stop this plan path and return only bounded guidance."
 msgstr "如当前存在症状停止条件，请告知 Praxys。系统将停止此计划流程，仅提供限定范围内的指导。"
 
-#: src/components/PlanStart.tsx:1681
+#: src/components/PlanStart.tsx:1879
 msgid "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 msgstr "如果存在安全停止条件，请告知 Praxys。它将停止此计划路径并显示政策限定的替代方案。"
 
@@ -9621,7 +9621,7 @@ msgstr "同时包含温度和湿度的活动数量不足。"
 msgid "Temperature is missing from too many otherwise eligible activities."
 msgstr "其他条件合格的活动中，温度缺失过多。"
 
-#: src/components/PlanStart.tsx:1835
+#: src/components/PlanStart.tsx:2060
 msgid "Templates"
 msgstr "训练模板"
 
@@ -9653,7 +9653,7 @@ msgstr "结束条件"
 msgid "Termination"
 msgstr "结束条件"
 
-#: src/components/PlanStart.tsx:1779
+#: src/components/PlanStart.tsx:1977
 msgid "Terrain and equipment"
 msgstr "地形和装备"
 
@@ -9702,7 +9702,7 @@ msgstr "42 天规则是 Praxys 的试点护栏，不是生理学界值。"
 #. placeholder {0}: road10KGuardrails.committed_proposal_days
 #. placeholder {1}: road10KGuardrails.advisory_reassessment_after_completed_days
 #. placeholder {2}: new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'percent', maximumFractionDigits: 0 }).format(road10KGuardrails.minimum_planned_low_intensity_running_minutes_fraction)
-#: src/components/PlanStart.tsx:1861
+#: src/components/PlanStart.tsx:2086
 msgid "The accepted <0>{0}</0>-day proposal and <1>{1}</1>-day reassessment, one quality session per week, at least <2>{2}</2> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety."
 msgstr "已接受的 <0>{0}</0> 天计划与第 <1>{1}</1> 天复评、每周一次质量训练、至少 <2>{2}</2> 的计划低强度跑步时长、受历史与约束上限限制的训练安排，以及两套固定质量训练模板，均属于 Praxys 护栏，并非已发表的最优方案，也不承诺效果或安全性。"
 
@@ -9710,7 +9710,7 @@ msgstr "已接受的 <0>{0}</0> 天计划与第 <1>{1}</1> 天复评、每周一
 #~ msgid "The accepted <0>14</0>-day proposal and <1>7</1>-day reassessment, one quality session per week, at least <2>75%</2> planned low-intensity running minutes, history- and constraint-capped schedule, and the exact two quality templates are Praxys guardrails. They are not published optima or promises of efficacy or safety."
 #~ msgstr "已接受的 <0>14</0> 天计划与第 <1>7</1> 天复评、每周一次质量训练、至少 <2>75%</2> 的计划低强度跑步时长、受历史与约束上限限制的训练安排，以及两套固定质量训练模板，均属于 Praxys 护栏，并非已发表的最优方案，也不承诺效果或安全性。"
 
-#: src/components/PlanStart.tsx:1748
+#: src/components/PlanStart.tsx:1946
 msgid "The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days."
 msgstr "已接受的确定性政策只有一个共享的单次训练上限字段。Praxys 不会臆造按日规则，也不会悄悄缩减你的安排；请为所有选定日期使用同一个上限。"
 
@@ -9790,7 +9790,7 @@ msgstr "连续采样覆盖过于稀疏，无法进行稳定比较。"
 msgid "The cooldown prevents accidental repeat analysis."
 msgstr "冷却期可避免意外重复分析。"
 
-#: src/components/PlanStart.tsx:1464
+#: src/components/PlanStart.tsx:1662
 msgid "The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption."
 msgstr "记录此计划用途后，当前目标已发生变化。请重新检查准备情况并生成新提案，再进行采纳。"
 
@@ -9802,7 +9802,7 @@ msgstr "当前目标不在本次 5 公里基线试点范围内。"
 msgid "The current goal is outside this direct 10K baseline flow."
 msgstr "当前目标不在这个直接 10K 基线流程内。"
 
-#: src/components/PlanStart.tsx:1393
+#: src/components/PlanStart.tsx:1591
 msgid "The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged."
 msgstr "如果当前目标匹配已接受政策，系统会默认选择它。选择独立计划用途不会更改当前目标。"
 
@@ -9810,7 +9810,7 @@ msgstr "如果当前目标匹配已接受政策，系统会默认选择它。选
 #~ msgid "The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview."
 #~ msgstr "当前目标保持不变，同时可以预览一个已接受的独立 5 公里计划用途。"
 
-#: src/components/PlanStart.tsx:1816
+#: src/components/PlanStart.tsx:2039
 msgid "The deterministic policy returned no additional explanation."
 msgstr "确定性政策没有返回额外说明。"
 
@@ -9838,7 +9838,7 @@ msgstr "重新抽样活动后，估算方向变化过大。"
 msgid "The feedback aggregate could not be refreshed."
 msgstr "无法刷新反馈汇总。"
 
-#: src/components/PlanStart.tsx:1313
+#: src/components/PlanStart.tsx:1476
 msgid "The goal response and capability response no longer agree. Refresh before creating a proposal."
 msgstr "目标响应与能力响应已不一致。创建提案前请刷新。"
 
@@ -9893,7 +9893,7 @@ msgstr "曲线仅显示在支持充足的历史区间。空白区间表示可比
 #~ msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
 #~ msgstr "此曲线仅表示核心支持范围内的历史模型，阴影带表示汇总不确定性。它不代表个人因果系数，也不会外推到已观测范围之外。不同跑步之间的风、太阳辐射、衣着、补水、疲劳和其他未测量条件仍可能不同。"
 
-#: src/components/PlanStart.tsx:1966
+#: src/components/PlanStart.tsx:2204
 msgid "The linked Goal changed. Recheck readiness and regenerate this proposal before adopting it."
 msgstr "关联的目标已发生变化。请重新检查准备情况并生成新提案，再进行采纳。"
 
@@ -10076,11 +10076,11 @@ msgstr "按时间顺序的数据不足，无法评估该关系在后续活动中
 msgid "This appears only when history is missing, stale, or still needs review. It is a maximal-effort outdoor 5K pilot."
 msgstr "仅在历史证据缺失、过期或仍待确认时提供。这是一项户外 5 公里最大努力试点测试。"
 
-#: src/components/PlanStart.tsx:319
+#: src/components/PlanStart.tsx:385
 msgid "This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "此候选使用独立的计划用途，不会更改当前目标。Praxys 创建提案前，仍需确认适用范围与安全条件。"
 
-#: src/components/PlanStart.tsx:320
+#: src/components/PlanStart.tsx:386
 msgid "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "此候选沿用当前目标中已明确的计划方向。Praxys 创建提案前，仍需确认适用范围与安全条件。"
 
@@ -10100,7 +10100,7 @@ msgstr "这次调整使用了已确认的计划个性化信息，具体内容不
 #~ msgid "This checks portable workout content only. It never connects to a provider or delivers a workout."
 #~ msgstr "此检查仅验证可移植训练内容。不会连接平台或发送训练。"
 
-#: src/components/PlanStart.tsx:1227
+#: src/components/PlanStart.tsx:1390
 msgid "This client does not recognize the accepted policy input contract and will not guess how to create a plan."
 msgstr "此客户端无法识别已接受政策的输入约定，也不会猜测如何创建计划。"
 
@@ -10128,7 +10128,7 @@ msgstr "无法自动重试此次下发。请查看已刷新的队列，确认所
 msgid "This delivery changed before recovery started. Review the refreshed queue."
 msgstr "恢复开始前，此次下发状态已变更。请查看已刷新的队列。"
 
-#: src/components/PlanStart.tsx:1873
+#: src/components/PlanStart.tsx:2098
 msgid "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 msgstr "此确定性结果使用政策响应中列出的已发表和试点护栏。它不是 AI 指导，也不对受伤、准备情况或目标达成作出保证。"
 
@@ -10141,7 +10141,7 @@ msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys �
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 
-#: src/components/PlanStart.tsx:1139
+#: src/components/PlanStart.tsx:1276
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "此精确提案已被采纳。在你明确启用前，投递仍处于禁用状态。"
 
@@ -10181,7 +10181,7 @@ msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 msgid "This is a maximal-effort test, and the no-test path always stays available."
 msgstr "这是最大努力测试；始终可以选择不测试。"
 
-#: src/components/PlanStart.tsx:1647
+#: src/components/PlanStart.tsx:1845
 msgid "This is a pilot for adult, self-coached recreational outdoor-road 5K runners. It does not diagnose, clear, or guarantee a performance outcome."
 msgstr "这是面向成年、自主训练休闲户外公路 5 公里跑者的试点。它不进行诊断、不作出健康许可，也不保证表现结果。"
 
@@ -10265,7 +10265,7 @@ msgstr "当前试点仅支持户外公路完整 5 公里耗时目标。"
 msgid "This pilot is only for adults who already can complete 5 km."
 msgstr "本试点仅适用于已经能够完成 5 公里的成年人。"
 
-#: src/components/PlanStart.tsx:309
+#: src/components/PlanStart.tsx:375
 msgid "This plan route uses an accepted policy that this client does not recognize yet."
 msgstr "此计划路径使用了一项当前客户端尚不识别的已接受政策。"
 
@@ -10273,7 +10273,7 @@ msgstr "此计划路径使用了一项当前客户端尚不识别的已接受政
 #~ msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 #~ msgstr "此计划起点试点仅适用于受支持的户外公路 5 公里表现目标。"
 
-#: src/components/PlanStart.tsx:1781
+#: src/components/PlanStart.tsx:1979
 msgid "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备偏好均为不受支持的输入，也不会被推断。"
 
@@ -10282,16 +10282,16 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #~ msgstr "此便携结构可以不压扁地表达。"
 
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
-#: src/components/PlanStart.tsx:1994
+#: src/components/PlanStart.tsx:2260
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
 msgstr "此提案为 {0}。它无法更改规范计划；准备好后请复核准备情况并创建新提案。"
 
-#: src/components/PlanStart.tsx:1914
+#: src/components/PlanStart.tsx:2145
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
 msgstr "此提案尚未成为你的计划。在明确采纳并单独同意投递前，它不能投递训练。"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? '5K'
-#: src/components/PlanStart.tsx:1453
+#: src/components/PlanStart.tsx:1651
 msgid "This proposal uses the accepted {0} goal contract without changing or linking to the Goal page."
 msgstr "此提案使用已接受的{0}目标约定，不会更改或关联目标页。"
 
@@ -10320,7 +10320,7 @@ msgstr "此结果未通过实验的发布门槛。"
 msgid "This result uses an earlier experiment model and needs to be run again."
 msgstr "该结果使用了旧版实验模型，需要重新运行。"
 
-#: src/components/PlanStart.tsx:1503
+#: src/components/PlanStart.tsx:1701
 msgid "This reviewed 10K performance capability uses adult confirmation, direct 10K evidence, and history-anchored load caps. It does not diagnose, clear, or guarantee a performance outcome."
 msgstr "这个经过审查的 10K 表现能力使用成人确认、直接 10K 证据和以近期历史为锚的负荷上限。它不用于诊断、出具许可或保证成绩结果。"
 
@@ -10784,12 +10784,12 @@ msgstr "未知或未报告"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? 'running'
 #. placeholder {0}: item.purpose.distance?.toUpperCase() ?? 'running'
-#: src/components/PlanStart.tsx:868
-#: src/components/PlanStart.tsx:1430
+#: src/components/PlanStart.tsx:1000
+#: src/components/PlanStart.tsx:1628
 msgid "Unlinked {0} base plan"
 msgstr "未关联的{0}基础计划"
 
-#: src/components/PlanStart.tsx:1930
+#: src/components/PlanStart.tsx:2165
 msgid "Unlinked plan"
 msgstr "未关联计划"
 
@@ -10822,11 +10822,11 @@ msgstr "近期计划"
 msgid "Update message (optional)"
 msgstr "更新信息（可选）"
 
-#: src/components/PlanStart.tsx:308
+#: src/components/PlanStart.tsx:374
 msgid "Update required"
 msgstr "需要更新"
 
-#: src/components/PlanStart.tsx:1225
+#: src/components/PlanStart.tsx:1388
 msgid "Update required for this plan policy"
 msgstr "此计划政策需要更新客户端"
 
@@ -10834,7 +10834,7 @@ msgstr "此计划政策需要更新客户端"
 msgid "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
 msgstr "在这里更新主计划。只有启用托管交付后，变更才会同步到执行平台。"
 
-#: src/components/PlanStart.tsx:310
+#: src/components/PlanStart.tsx:376
 msgid "Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs."
 msgstr "请先更新客户端再打开预览。Praxys 不会猜测如何收集或提交政策输入。"
 
@@ -10878,7 +10878,7 @@ msgstr "更新中…"
 msgid "US"
 msgstr "US"
 
-#: src/components/PlanStart.tsx:1842
+#: src/components/PlanStart.tsx:2067
 msgid "usable completed weeks; latest run"
 msgstr "个可用完整周；最近跑步"
 
@@ -10906,7 +10906,7 @@ msgstr "改用完赛或保持规律的目标"
 msgid "Use confirmed context for plan generation"
 msgstr "使用已确认的信息生成计划"
 
-#: src/components/PlanStart.tsx:290
+#: src/components/PlanStart.tsx:356
 msgid "Use current evidence to work toward a faster result."
 msgstr "使用当前证据争取更快的结果。"
 
@@ -11187,7 +11187,7 @@ msgstr "周训练负荷"
 #~ msgid "Weekly Review"
 #~ msgstr "周度回顾"
 
-#: src/components/PlanStart.tsx:1570
+#: src/components/PlanStart.tsx:1768
 msgid "Weekly time limit (minutes)"
 msgstr "每周时间上限（分钟）"
 
@@ -11239,7 +11239,7 @@ msgstr "遇到了什么问题，或希望我们做些什么？"
 msgid "What happened?"
 msgstr "这次训练怎么了？"
 
-#: src/components/PlanStart.tsx:390
+#: src/components/PlanStart.tsx:456
 msgid "What should this plan help you do?"
 msgstr "这份计划应该帮助你做什么？"
 
@@ -11272,7 +11272,7 @@ msgstr "训练目标是什么？（可选）"
 msgid "Which accepted surface or protocol matched this effort?"
 msgstr "这次训练符合哪种已接受的场地或协议？"
 
-#: src/components/PlanStart.tsx:466
+#: src/components/PlanStart.tsx:532
 msgid "Why these routes stay separate"
 msgstr "为什么这些路径要分开"
 
@@ -11351,7 +11351,7 @@ msgstr "训练"
 msgid "Workout conflict requires athlete input"
 msgstr "训练冲突需要运动员介入"
 
-#: src/components/PlanStart.tsx:1948
+#: src/components/PlanStart.tsx:2183
 msgid "Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client."
 msgstr "在此确定性政策中，训练内容只能查看。请更改上方的受限输入并重新生成，以创建不可变的后继提案；Praxys 不会在此客户端构造替换训练。"
 
