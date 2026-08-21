@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -342,7 +343,13 @@ def test_cloud_mcp_launcher_resolves_workspace_from_symlink(
     root = run_praxys_mcp.project_root()
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "python").symlink_to(sys.executable)
+    python_launcher = bin_dir / "python"
+    python_launcher.write_text(
+        "#!/usr/bin/env bash\n"
+        f"exec {shlex.quote(sys.executable)} \"$@\"\n",
+        encoding="utf-8",
+    )
+    python_launcher.chmod(0o755)
     installed_launcher = bin_dir / "praxys-local-mcp"
     installed_launcher.symlink_to(
         root / "scripts" / "run_praxys_mcp_cloud.sh",
