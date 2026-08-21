@@ -38,7 +38,6 @@ from api.road_10k_stage_authority import (
     load_stage_authority,
 )
 from db.models import (
-    Feedback,
     Road10KEvaluation,
     Road10KExposureReceipt,
     Road10KOwnerStageReceipt,
@@ -818,45 +817,6 @@ def _delete_evaluation_rows(
         db.delete(row)
 
 
-def _delete_feedback_for_manifest(
-    db: Session,
-    manifest: dict[str, object] | Mapping[str, object],
-) -> None:
-    """Remove restored feedback links covered by an account-deletion marker."""
-    keys = {
-        str(key)
-        for key in manifest["screenshot_keys"]
-        if isinstance(key, str) and key.startswith("feedback/")
-    }
-    if not keys:
-        return
-    owner_id = str(manifest["owner_id"])
-    rows = (
-        db.query(Feedback)
-        .filter(Feedback.user_id == owner_id)
-        .with_for_update()
-        .all()
-    )
-    for row in rows:
-        image_keys = row.image_keys
-        if not isinstance(image_keys, list):
-            continue
-        remaining = [
-            key
-            for key in image_keys
-            if not (isinstance(key, str) and key in keys)
-        ]
-        if len(remaining) == len(image_keys):
-            continue
-        if remaining:
-            row.image_keys = remaining
-        else:
-            # Account deletion already removes the row in the live path.  If
-            # the primary DB is restored independently, delete the resurrected
-            # row instead of allowing its screenshot linkage to return.
-            db.delete(row)
-
-
 def _evaluation_expiry(row: Road10KEvaluation) -> datetime:
     """Return the immutable creation-based retention deadline."""
     return row.created_at + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
@@ -870,7 +830,6 @@ def _owner_deletion_manifest(
     reason: str,
     now: datetime,
     evaluation_ids: list[str] | None = None,
-    include_feedback: bool = False,
 ) -> dict[str, object]:
     if evaluation_ids is None:
         evaluations = (
@@ -889,17 +848,6 @@ def _owner_deletion_manifest(
         .filter(Road10KScreenshotReference.evaluation_id.in_(evaluation_ids))
         .all()
     ] if evaluation_ids else []
-    if include_feedback:
-        feedback_rows = (
-            db.query(Feedback.image_keys)
-            .filter(Feedback.user_id == user_id)
-            .all()
-        )
-        for (image_keys,) in feedback_rows:
-            if isinstance(image_keys, list):
-                screenshot_keys.extend(
-                    str(key) for key in image_keys if isinstance(key, str)
-                )
     try:
         return stage_manifest(
             owner_id=user_id,
@@ -1066,18 +1014,8 @@ def prepare_account_deletion(
         .distinct()
         .all()
     )
-    feedback_has_objects = any(
-        isinstance(image_keys, list) and any(
-            isinstance(key, str) and key for key in image_keys
-        )
-        for (image_keys,) in db.query(Feedback.image_keys)
-        .filter(Feedback.user_id == user_id)
-        .all()
-    )
-    if feedback_has_objects and not stage_ids:
-        stage_ids.add(ROAD_10K_STAGE_ID)
     manifests: list[dict[str, object]] = []
-    for index, stage_id in enumerate(sorted(stage_ids)):
+    for stage_id in sorted(stage_ids):
         manifests.append(
             _owner_deletion_manifest(
                 db,
@@ -1085,7 +1023,6 @@ def prepare_account_deletion(
                 stage_id=stage_id,
                 reason="account_deletion",
                 now=timestamp,
-                include_feedback=feedback_has_objects and index == 0,
             )
         )
     evaluation_ids = [
@@ -1118,13 +1055,12 @@ def complete_deletion_manifests(
     db: Session | None = None,
     now: datetime | None = None,
 ) -> None:
+    if not manifests:
+        return
     timestamp = _now(now)
     for manifest in manifests:
         for object_key in manifest["screenshot_keys"]:
             delete_manifest_object(str(object_key))
-        if db is not None:
-            _delete_feedback_for_manifest(db, manifest)
-            db.commit()
         mark_completed(manifest, timestamp)
     confirm_replay_ready(timestamp.replace(tzinfo=timezone.utc))
 
@@ -1248,14 +1184,9 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
             ).delete(synchronize_session=False)
         db.commit()
 
-    def delete_feedback(manifest: dict[str, object]) -> None:
-        _delete_feedback_for_manifest(db, manifest)
-        db.commit()
-
     count = replay_manifests(
         delete_object=delete_manifest_object,
         delete_evaluation=delete_evaluation,
-        delete_feedback=delete_feedback,
         should_replay=lambda manifest: _manifest_is_replayable(db, manifest),
     )
     return count

@@ -256,35 +256,6 @@ def test_partial_replay_keeps_committed_marker_until_all_targets_are_deleted(
     assert storage.replay_status() == "ready"
 
 
-def test_account_deletion_manifest_captures_feedback_objects_without_road_rows(
-    tmp_path,
-    monkeypatch,
-):
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-    from api.road_10k_control import prepare_account_deletion
-    from db.models import Base, Feedback, User
-
-    monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
-    engine = create_engine(f"sqlite:///{tmp_path / 'feedback.db'}")
-    Base.metadata.create_all(engine)
-    with Session(engine) as db:
-        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(
-            Feedback(
-                user_id="owner",
-                kind="other",
-                message="private",
-                image_keys=["feedback/7/0.png"],
-            )
-        )
-        db.commit()
-        manifests = prepare_account_deletion(db, user_id="owner")
-
-    assert len(manifests) == 1
-    assert manifests[0]["screenshot_keys"] == ["feedback/7/0.png"]
-
-
 def test_account_deletion_manifest_captures_orphan_road_evaluations(
     tmp_path,
     monkeypatch,
@@ -410,71 +381,6 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
         assert not object_path.exists()
         active = list(storage.iter_active())
         assert active and active[0]["status"] == "completed"
-
-
-def test_startup_replay_removes_restored_feedback_row_and_object(
-    tmp_path,
-    monkeypatch,
-):
-    """A restored primary DB cannot resurrect a deleted screenshot linkage."""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-    from api.road_10k_control import replay_road_10k_deletion_manifests
-    from db.models import Base, Feedback, User
-
-    manifest_store = _MemoryManifestStore()
-    monkeypatch.setattr(storage, "_test_store", manifest_store)
-    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
-    engine = create_engine(f"sqlite:///{tmp_path / 'restore.db'}")
-    Base.metadata.create_all(engine)
-    key = "feedback/7/0.png"
-    object_path = Path(tmp_path) / "feedback_images" / key
-    object_path.parent.mkdir(parents=True, exist_ok=True)
-    object_path.write_bytes(b"restored-screenshot")
-
-    with Session(engine) as db:
-        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(
-            Feedback(
-                user_id="owner",
-                kind="other",
-                message="private",
-                image_keys=[key],
-            )
-        )
-        db.commit()
-        marker = storage.stage_manifest(
-            owner_id="owner",
-            stage_id="road-10k-controlled-opt-in-v1",
-            reason="account_deletion",
-            evaluation_ids=[],
-            screenshot_keys=[key],
-            requested_at=datetime.now(timezone.utc),
-        )
-
-        # Complete the live deletion, then simulate an independent DB and
-        # private-object restore before the next process accepts traffic.
-        from api.road_10k_control import complete_deletion_manifests
-
-        complete_deletion_manifests(
-            [marker],
-            db=db,
-        )
-        object_path.parent.mkdir(parents=True, exist_ok=True)
-        object_path.write_bytes(b"restored-screenshot")
-        db.add(
-            Feedback(
-                user_id="owner",
-                kind="other",
-                message="restored",
-                image_keys=[key],
-            )
-        )
-        db.commit()
-
-        assert replay_road_10k_deletion_manifests(db) == 1
-        assert db.query(Feedback).filter(Feedback.user_id == "owner").count() == 0
-        assert not object_path.exists()
 
 
 def test_private_manifest_storage_unavailable_fails_closed(
