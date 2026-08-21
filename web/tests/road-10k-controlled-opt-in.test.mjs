@@ -99,6 +99,16 @@ test('web and miniapp ship the exact Road 10K copy catalog and state maps', asyn
     webControl.road10kAccessStateCopy('enrollment-closed', 'active'),
     ['life.close_title', 'life.close_in'],
   );
+  for (const control of [webControl, miniControl]) {
+    assert.deepEqual(
+      control.road10kRolloutSummaryCopy('invited', 'none'),
+      { title: 'invitation.title', body: 'invitation.body' },
+    );
+    assert.deepEqual(
+      control.road10kRolloutSummaryCopy('enrolled', 'active'),
+      { title: 'status.rollout_enrolled', body: 'success.joined' },
+    );
+  }
 });
 
 test('Road 10K opt-in contracts require server-verified reauthentication for every client', async () => {

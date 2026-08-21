@@ -6461,7 +6461,7 @@ msgstr "更长跑里的被动最快 10K 分段、最佳圈段，或中途高强�
 #: src/pages/admin/AdminUsers.tsx:991
 #: src/pages/Login.tsx:368
 #: src/pages/Login.tsx:565
-#: src/pages/Road10KControlledOptIn.tsx:400
+#: src/pages/Road10KControlledOptIn.tsx:396
 #: src/pages/Setup.tsx:218
 msgid "Password"
 msgstr "密码"

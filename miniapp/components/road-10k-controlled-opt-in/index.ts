@@ -5,7 +5,7 @@ import type { Road10KAccessResponse } from '../../types/api';
 import {
   ROAD_10K_PLAN_STATE_COPY,
   ROAD_10K_ROLLOUT_STATUS_COPY,
-  road10kAccessStateCopy,
+  road10kRolloutSummaryCopy,
   road10kCopy,
 } from '../../utils/road-10k-control';
 
@@ -125,17 +125,13 @@ Component({
 
   methods: {
     summarize(access: Road10KAccessResponse) {
-      const rolloutKeys = road10kAccessStateCopy(
+      const rolloutSummary = road10kRolloutSummaryCopy(
         access.rollout_status,
         access.plan_status,
       );
       const planKeys = ROAD_10K_PLAN_STATE_COPY[access.plan_status];
-      const rolloutTitleKey = access.rollout_status === 'enrolled'
-        ? 'status.rollout_enrolled'
-        : rolloutKeys[0];
-      const rolloutBodyKey = access.rollout_status === 'enrolled'
-        ? 'success.joined'
-        : (rolloutKeys[rolloutKeys.length - 1] ?? rolloutTitleKey);
+      const rolloutTitleKey = rolloutSummary.title;
+      const rolloutBodyKey = rolloutSummary.body;
       const rolloutBody = copy(rolloutBodyKey);
       const planStatusLabel = copy(planKeys[0]);
       const leaveHint = copy('notice.leave');

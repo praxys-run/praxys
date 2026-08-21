@@ -303,6 +303,22 @@ export function road10kAccessStateCopy(
   return ROAD_10K_ACCESS_STATE_COPY[rolloutStatus];
 }
 
+export function road10kRolloutSummaryCopy(
+  rolloutStatus: Road10KExperienceRolloutState,
+  planStatus: Road10KExperiencePlanState,
+): { title: Road10KCopyKey; body: Road10KCopyKey } {
+  const keys = road10kAccessStateCopy(rolloutStatus, planStatus);
+  const title = rolloutStatus === 'enrolled'
+    ? 'status.rollout_enrolled'
+    : keys[0];
+  const body = rolloutStatus === 'enrolled'
+    ? 'success.joined'
+    : rolloutStatus === 'invited'
+      ? 'invitation.body'
+      : (keys[keys.length - 1] ?? title);
+  return { title, body };
+}
+
 export const ROAD_10K_PLAN_STATE_COPY = {
   "none": ["status.plan_none", "empty.no_proposal"],
   "checking": ["status.plan_checking", "progress.checking"],

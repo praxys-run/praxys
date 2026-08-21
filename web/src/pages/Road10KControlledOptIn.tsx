@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import type { Road10KAccessResponse } from '@/types/api';
 import {
   ROAD_10K_PLAN_STATE_COPY,
-  road10kAccessStateCopy,
+  road10kRolloutSummaryCopy,
   road10kCopy,
   type Road10KCopyKey,
   type Road10KExperienceRolloutState,
@@ -115,17 +115,13 @@ export default function Road10KControlledOptIn({
 
   if (loading || !data) return null;
 
-  const rolloutKeys = road10kAccessStateCopy(
+  const rolloutSummary = road10kRolloutSummaryCopy(
     data.rollout_status,
     data.plan_status,
   );
   const planKeys = ROAD_10K_PLAN_STATE_COPY[data.plan_status];
-  const rolloutTitleKey: Road10KCopyKey = data.rollout_status === 'enrolled'
-    ? 'status.rollout_enrolled'
-    : rolloutKeys[0];
-  const rolloutBodyKey: Road10KCopyKey = data.rollout_status === 'enrolled'
-    ? 'success.joined'
-    : (rolloutKeys[rolloutKeys.length - 1] ?? rolloutTitleKey);
+  const rolloutTitleKey: Road10KCopyKey = rolloutSummary.title;
+  const rolloutBodyKey: Road10KCopyKey = rolloutSummary.body;
   const rolloutTitle = copy(rolloutTitleKey);
   const rolloutBody = copy(rolloutBodyKey);
   const rolloutStatus = copy(ROLLOUT_STATUS_COPY[data.rollout_status]);

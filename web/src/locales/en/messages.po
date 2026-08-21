@@ -6394,7 +6394,7 @@ msgstr "Passive fastest 10K splits, best laps, or hard sections inside longer ru
 #: src/pages/admin/AdminUsers.tsx:991
 #: src/pages/Login.tsx:368
 #: src/pages/Login.tsx:565
-#: src/pages/Road10KControlledOptIn.tsx:400
+#: src/pages/Road10KControlledOptIn.tsx:396
 #: src/pages/Setup.tsx:218
 msgid "Password"
 msgstr "Password"
