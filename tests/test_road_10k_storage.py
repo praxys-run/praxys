@@ -185,6 +185,8 @@ def test_blob_fake_deletes_base_snapshots_and_versions_for_each_object_form(
             self.kwargs = kwargs
 
         def delete_blob(self, **kwargs):
+            if "delete_snapshots" in kwargs:
+                assert kwargs["delete_snapshots"] in {"include", "only"}
             calls.append((self.key, {**self.kwargs, **kwargs}))
 
     class Client:
@@ -205,7 +207,10 @@ def test_blob_fake_deletes_base_snapshots_and_versions_for_each_object_form(
     )
 
     assert len(calls) == 6
-    assert any(kwargs.get("delete_snapshots") is True for _key, kwargs in calls)
+    assert any(
+        kwargs.get("delete_snapshots") == "include"
+        for _key, kwargs in calls
+    )
     assert any(kwargs.get("version_id") == "version-1" for _key, kwargs in calls)
     assert any(kwargs.get("snapshot") == "snapshot-1" for _key, kwargs in calls)
 

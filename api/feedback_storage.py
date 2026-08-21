@@ -326,10 +326,7 @@ def _delete_blob_variants(client, key: str) -> None:
     """Delete the base object and any provider-reported snapshots/versions."""
     blob = client.get_blob_client(key)
     try:
-        try:
-            blob.delete_blob(delete_snapshots=True)
-        except TypeError:
-            blob.delete_blob()
+        blob.delete_blob(delete_snapshots="include")
     except Exception as exc:
         if not _is_not_found(exc):
             raise
