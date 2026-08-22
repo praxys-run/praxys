@@ -90,7 +90,8 @@ platform-managed HTTPS. EdgeOne receives read-only access only to this
 repository and uses no build secrets. The filing-free `.run` build will remain
 on Azure behind Cloudflare Free, while `api.praxys.run` stays DNS-only. Azure
 App Service CORS must then include exactly `https://praxys.cn` and
-`https://www.praxys.cn`. Repository access, Auto Deploy, the Cloudflare
+`https://www.praxys.cn` only for an accepted authenticated `.cn` release.
+Repository access, the protected-main deployment boundary, the Cloudflare
 origin-certificate sequence, DNS migration, and rollback commands live in
 `docs/ops/tencent-frontend.md`.
 

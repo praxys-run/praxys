@@ -155,7 +155,10 @@ def test_runbook_preserves_provider_and_data_boundaries() -> None:
     assert "Cloudflare Origin CA" in normalized
     assert "App Service managed certificate" in normalized
     assert "Full (strict)" in normalized
-    assert "EdgeOne `Auto Deploy` off" in normalized
+    assert "does not itself create a public data path" in normalized
+    assert "may not expose Auto Deploy or Preview switches" in normalized
+    assert "deployment-history entry" in normalized
+    assert "Do not use the ruleset admin bypass" in normalized
     assert "cross-border" in normalized
     assert (
         "Do not enable a geographic redirect during the initial cutover"
@@ -181,3 +184,35 @@ def test_operations_docs_match_edgeone_git_and_monitoring_boundaries() -> None:
     assert "wt-praxys-cn-www" in monitoring
     assert "praxys-feedback-ag" in monitoring
     assert "A planned row becomes live" in monitoring
+    assert (
+        "| `wt-praxys-run-apex` | planned | `appi-trainsight` | "
+        "`https://praxys.run/` |"
+    ) in monitoring
+    assert (
+        "| `wt-praxys-cn-apex` | planned | `appi-trainsight` | "
+        "`https://praxys.cn/` |"
+    ) in monitoring
+    assert (
+        "| `wt-praxys-cn-www` | planned | `appi-trainsight` | "
+        "`https://www.praxys.cn/` |"
+    ) in monitoring
+    assert "provisioned-disabled" in monitoring
+    assert "WebtestLocationAvailabilityCriteria" in monitoring
+    assert "--enabled false" in monitoring
+    assert "enabled: false" in monitoring
+    assert "enable_availability_pair wt-praxys-run-apex" in monitoring
+    assert "if ! az monitor metrics alert update" in monitoring
+    assert 'if ! az resource update --ids "$web_test_id"' in monitoring
+    assert "--set properties.Enabled=true; then" in monitoring
+    assert '--set properties.Enabled=false || rc=1' in monitoring
+    assert '-n "$name" --enabled false || rc=1' in monitoring
+    assert 'disable_availability_pair "$name" || true' in monitoring
+    assert 'if ! test_enabled="$(az resource show' in monitoring
+    assert '! alert_enabled="$(az monitor metrics alert show' in monitoring
+    assert "--query properties.Enabled -o tsv" in monitoring
+    assert "--query enabled -o tsv" in monitoring
+    assert "does not depend on an Auto Deploy switch" in deploy_runbook
+    environment = (ROOT / "docs/ops/environment.md").read_text(encoding="utf-8")
+    assert "Pending preparation" in environment
+    assert "currently report `httpsOnly=false`" in environment
+    assert "approved target is `httpsOnly=true`" in environment

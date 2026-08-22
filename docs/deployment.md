@@ -117,6 +117,11 @@ az webapp create \
   --resource-group rg-trainsight \
   --plan plan-trainsight \
   --runtime "PYTHON:3.12"
+
+az webapp update \
+  --name trainsight-app \
+  --resource-group rg-trainsight \
+  --https-only true
 ```
 
 ### 4. Enable Managed Identity
@@ -169,7 +174,12 @@ az webapp create \
   --plan plan-trainsight \
   --runtime "PYTHON:3.12"
 
-# Startup command + Always On + HTTP/2 + Oryx build during deploy
+# HTTPS-only + startup command + Always On + HTTP/2 + Oryx build during deploy
+az webapp update \
+  --name praxys-frontend \
+  --resource-group rg-trainsight \
+  --https-only true
+
 az webapp config set \
   --name praxys-frontend --resource-group rg-trainsight \
   --startup-file "uvicorn frontend_server.main:app --host 0.0.0.0 --port 8000" \
@@ -197,14 +207,17 @@ commit:
   disables browser-side Application Insights and Statsig until a separate
   regional privacy decision accepts those processors.
 
-EdgeOne Production Auto Deploy remains off until the regional release gates
-pass. The EdgeOne GitHub App receives read-only access only to this repository;
-GitHub Actions stores no EdgeOne deployment token. Cloudflare changes DNS and
-edge delivery only; it does not replace the Azure App Service deployment.
-Project bootstrap, Git access, managed TLS, full-zone DNS migration, origin
-certificate sequencing, CORS, verification, and rollback are documented in
-[`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md). The API remains
-singular at `https://api.praxys.run` and stays DNS-only in Cloudflare.
+The current EdgeOne Makers project does not expose a reliable Auto Deploy or
+Preview toggle, so release safety does not depend on one. Every accepted
+deployment must trace to protected `main`, required CI, an exact source SHA and
+manifest, and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
+App receives read-only access only to this repository; GitHub Actions stores no
+EdgeOne deployment token. Cloudflare changes DNS and edge delivery only; it
+does not replace the Azure App Service deployment. Project bootstrap, Git
+access, managed TLS, full-zone DNS migration, CORS, verification, and rollback
+are documented in [`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
+The API remains singular at `https://api.praxys.run` and stays DNS-only in
+Cloudflare.
 
 ### 9. Custom domains + managed certs
 

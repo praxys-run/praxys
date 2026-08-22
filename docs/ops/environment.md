@@ -17,6 +17,7 @@
 | Resource group | `rg-trainsight` | `.github/workflows/deploy-backend.yml` |
 | Backend App Service | `trainsight-app` | `deploy-backend.yml` (`--name trainsight-app`) |
 | Frontend App Service | `praxys-frontend` | `deploy-frontend-appservice.yml` |
+| App Service transport target | Pending preparation: both sites currently report `httpsOnly=false`; the approved target is `httpsOnly=true`, with HTTP redirecting to HTTPS | [deploy.md](./deploy.md), [tencent-frontend.md](./tencent-frontend.md) |
 | App Service plan | `plan-trainsight` (Linux B1, East Asia) | `docs/deployment.md`, `frontend_server` notes |
 | PostgreSQL (**primary DB**, live 2026-07-04) | `praxys-pg` Flexible Server (Burstable B1ms, PG16, DB `praxys`, Entra auth, PITR 14d) | [postgres-migration.md](./postgres-migration.md); `PRAXYS_PG_SERVER` var |
 | Labs isolated compute (opt-in) | Service Bus namespace tagged `praxysComponent=labs-analysis`, queue `labs-environment-response`; Container Apps environment `cae-praxys-jobs`, job `praxys-labs-environment-worker`, UAMI `id-praxys-labs-worker` | `infra/labs-worker.bicep`; [labs-analysis-worker.md](./labs-analysis-worker.md) |
@@ -36,9 +37,12 @@
 | Planned international frontend edge | Cloudflare Free authoritative zone for `praxys.run`, proxying only apex and `www` to Azure with `Full (strict)` | [tencent-frontend.md](./tencent-frontend.md) |
 | Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net` | [tencent-frontend.md](./tencent-frontend.md) |
 
-None of these target-state rows becomes current until the runbook's Release
-Evidence exists. Today the frontend remains the Azure App Service named above,
-and EdgeOne Production Auto Deploy is not enabled.
+The EdgeOne Git project and its first candidate deployment exist, but neither
+public `.cn` hostname is bound or resolving. The project UI does not expose a
+reliable Auto Deploy/Preview toggle, so the deployment boundary is protected
+`main`, required CI, exact source/manifest evidence, and a recorded deployment
+history entry. None of the public target-state rows becomes current until the
+runbook's Release Evidence exists.
 
 ## Hostnames
 
@@ -100,4 +104,4 @@ and EdgeOne Production Auto Deploy is not enabled.
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---
-_Last reviewed: 2026-08-20 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_

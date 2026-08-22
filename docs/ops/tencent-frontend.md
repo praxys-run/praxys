@@ -35,8 +35,9 @@ The `.cn` SPA calls `https://api.praxys.run`, so authenticated account and
 training data can cross the mainland border to Azure. Public production
 acceptance requires a reviewed privacy/legal basis, accurate user disclosure,
 and Trust approval for that cross-border path. Until that evidence and the
-EdgeOne filing/access confirmation exist, keep EdgeOne `Auto Deploy` off, do
-not bind the public `.cn` domains, and do not cut over DNS.
+EdgeOne filing/access confirmation exist, do not bind the public `.cn` domains
+or cut over DNS. A Git-triggered EdgeOne build does not itself create a public
+data path.
 
 The stamped China artifact disables browser-side Azure Application Insights and
 Statsig initialization, including their identity payloads. Re-enabling either
@@ -49,12 +50,16 @@ Production acceptance also requires:
 - outside-in probes and action-group alerts for `.run` apex/`www` and both
   `.cn` hosts, provisioned from the canonical inventory in
   [monitoring-and-alerts.md](./monitoring-and-alerts.md#external-availability);
-- an owned Origin CA expiry check and rotation threshold;
+- Azure App Service `httpsOnly=true` for both frontend and API sites;
 - aggregated Release Evidence retained outside short-lived job logs.
 
-This repository change prepares reversible artifacts only. It does not create
-the EdgeOne project, move nameservers, change DNS, issue certificates, alter
-CORS, or enable production traffic.
+Cloudflare Origin CA is optional `.run` origin hardening, not a `.cn` cutover
+gate while the Azure origin keeps a publicly trusted certificate. If it is
+adopted later, record its expiry and rotation threshold before binding it.
+
+The EdgeOne Git project and first candidate deployment now exist. Preparation
+may harden Azure HTTPS and provision monitoring, but it does not bind public
+`.cn` domains, change DNS, add `.cn` CORS, or enable production traffic.
 
 ## Prerequisites
 
@@ -110,10 +115,12 @@ Create a new Git-integrated project from the outset:
 3. Set the project root to `web`. The checked-in `web/edgeone.json` pins:
    `npm ci --legacy-peer-deps`, `npm run build:edgeone`, output `./dist`, and
    Node `24.11.0`.
-4. Keep Production **Auto Deploy off** and Preview disabled. Do not add build
-   secrets or EdgeOne preview origins to API CORS.
-5. After the release gates are accepted, run one console deployment from the
-   reviewed `main` SHA and inspect it before enabling Auto Deploy.
+4. Record the project's actual Git trigger and preview/default-URL behavior;
+   current Makers projects may not expose Auto Deploy or Preview switches. Do
+   not add build secrets or EdgeOne preview origins to API CORS.
+5. Before release, inspect the deployment-history entry for the reviewed
+   `main` SHA and record the project ID, deployment ID, source SHA, manifest,
+   and known-good rollback deployment.
 6. Add `praxys.cn` and `www.praxys.cn` only after that deployment is accepted.
    Use the exact ownership/CNAME records shown by EdgeOne and wait for
    EdgeOne-managed HTTPS to become active.
@@ -128,22 +135,26 @@ Official references:
 ### 3. Protect the Git deployment boundary
 
 - Require pull-request review and required CI checks on `main`; disable force
-  pushes and branch deletion. Once Auto Deploy is enabled, merging to `main`
-  authorizes an EdgeOne production deployment.
+  pushes and branch deletion. A merge to protected `main` may trigger EdgeOne,
+  but it is accepted for release only when deployment history, source SHA, and
+  manifest evidence all match.
+- Do not use the ruleset admin bypass for a regional release.
 - Keep the EdgeOne GitHub App repository grant read-only and limited to this
   repository. Revoke the grant to stop source access.
 - Configure no EdgeOne build secrets. The regional build hard-codes only the
   public API URL and deliberately clears browser telemetry keys.
-- Keep Preview disabled by default. If it is later enabled, require access
-  control and `noindex`, and never add preview domains to production CORS.
+- Treat preview/default URLs as non-production: require access control and
+  `noindex`, never add them to production CORS, and never accept them as public
+  release evidence.
 - The only GitHub Actions control is
   `EDGEONE_CN_PUBLIC_VERIFY_ENABLED`; leave it false until both public `.cn`
   names resolve to the accepted project.
 
 ### 4. Allow only the two `.cn` browser origins
 
-Azure App Service owns production API CORS. Add exact HTTPS origins before
-public `.cn` traffic:
+Azure App Service owns production API CORS. Add exact HTTPS origins only after
+Trust accepts a full authenticated `.cn` release. A public-only `.cn` site must
+keep both origins absent.
 
 ```bash
 az webapp cors add \
@@ -173,9 +184,10 @@ After the human release gates are accepted, inspect:
 - the EdgeOne project/deployment record and preview;
 - ICP footer isolation, SPA routes, security headers, and the source SHA.
 
-Keep Auto Deploy and `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` off during this
-inspection. If the source SHA and behavior are accepted, enable Auto Deploy for
-Production `main`; branch protection becomes the ongoing deployment gate.
+Keep `EDGEONE_CN_PUBLIC_VERIFY_ENABLED=false` during this inspection. Accept
+only a deployment-history entry whose source SHA and manifest match the
+independent GitHub evidence; protected `main` and required CI remain the
+ongoing deployment gate.
 
 ### 6. Cut over `praxys.cn` inside Tencent
 
@@ -188,10 +200,12 @@ EdgeOne. Wait for:
 - the expected `praxys-cn` deployment selected as production;
 - the ICP footer and source SHA visible through the custom names.
 
-Then set:
+After both hosts are public and accepted, set:
 
 ```bash
-gh variable set EDGEONE_CN_PUBLIC_VERIFY_ENABLED --body true
+gh variable set EDGEONE_CN_PUBLIC_VERIFY_ENABLED \
+  --repo praxys-run/praxys \
+  --body true
 ```
 
 The next frontend deployment verifies both hosts, the deployed SHA, ICP footer,
@@ -405,12 +419,12 @@ alone expire after 90 days.
 
 ### EdgeOne deployment
 
-Turn Production Auto Deploy off while investigating. Use the EdgeOne
-deployment-history rollback only when the prior deployment's source SHA and
-manifest evidence are known, then revert the bad change on protected `main` so
-source and production converge. Verify the known-good SHA before re-enabling
-Auto Deploy. Until public cutover, leave custom domains on their prior records.
-If source access must stop, revoke the EdgeOne GitHub App repository grant.
+Use EdgeOne deployment-history rollback only when the prior deployment's source
+SHA and manifest evidence are known. Select that known-good deployment
+immediately, then revert the bad change through protected `main` so source and
+production converge. Verify the known-good SHA before resuming merges. Until
+public cutover, leave custom domains on their prior records. If source access
+must stop, revoke the EdgeOne GitHub App repository grant.
 
 ### Cloudflare proxy
 
@@ -444,4 +458,4 @@ is required.
 - `web/scripts/stamp-china-compliance.mjs`
 
 ---
-_Last reviewed: 2026-08-20 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_
