@@ -103,8 +103,10 @@ for evidence:
   uploaded by GitHub.
 
 EdgeOne separately checks out protected `main` and runs the same
-`web/edgeone.json` install/build/output configuration. Production Auto Deploy
-stays off until the regional release gates pass. After public cutover,
+`web/edgeone.json` install/build/output configuration. The release boundary
+does not depend on an Auto Deploy switch: protected `main`, required CI, exact
+source/manifest evidence, and the EdgeOne deployment-history entry authorize
+the selected deployment. After public cutover,
 `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` makes GitHub compare both hosts' source SHA
 and served manifest with its independent build evidence. Cloudflare requires no
 application deployment; it proxies the Azure response and honors its cache
@@ -156,13 +158,13 @@ a known-good revision:
 > Config-only revert (a bad App Service setting): fix the GitHub secret/variable
 > and re-deploy — don't hand-edit the portal (it's overwritten next deploy).
 
-EdgeOne rollback is independent: turn Production Auto Deploy off, select a
-known-good deployment whose source SHA and manifest evidence are retained, then
-revert the bad change through protected `main` so source and production
-converge. Re-enable Auto Deploy only after the known-good public SHA, routes,
-and manifest checks pass. Cloudflare proxy rollback must restore a publicly
-trusted Azure certificate before gray-clouding a hostname that uses Cloudflare
-Origin CA. See [tencent-frontend.md](./tencent-frontend.md).
+EdgeOne rollback is independent: select the recorded known-good deployment
+whose source SHA and manifest evidence are retained, then revert the bad change
+through protected `main` so source and production converge. Confirm the
+known-good public SHA, routes, and manifest before resuming merges. Cloudflare
+proxy rollback must restore a publicly trusted Azure certificate before
+gray-clouding a hostname that uses Cloudflare Origin CA. See
+[tencent-frontend.md](./tencent-frontend.md).
 
 ## Related
 
@@ -171,4 +173,4 @@ Origin CA. See [tencent-frontend.md](./tencent-frontend.md).
 - `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
 
 ---
-_Last reviewed: 2026-08-20 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_
