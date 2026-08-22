@@ -210,23 +210,27 @@ estimated.
 
 - [disaster-recovery.md](./disaster-recovery.md) · [deploy.md](./deploy.md) · `db/session.py` (`init_db`, `_SQLITE_PRAGMAS`)
 
----
-_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
-
 ## Road 10K deletion replay boundary
 
-Road 10K evaluation and screenshot deletion writes a payload-free marker to
-the existing private object-storage capability before destructive DB work.
-Markers retain only owner/stage and deletion references, never evaluation or
-screenshot bytes, and are retained for the 14-day restore horizon plus
-successful replay.  `api.main.lifespan` replays markers before readiness or
-traffic; unavailable storage, malformed markers, object-delete failures, or
-DB replay failures keep startup/readiness closed.  Replay is idempotent and
-prevents deleted evaluation or screenshot data from resurrecting after either
-DB or object-storage restore.
+Road evaluation and private-object deletion uses a payload-free private marker
+plus a matching database obligation. The destructive database transaction
+commits the obligation; startup probes marker storage only while a committed
+obligation exists. Missing storage, a missing or malformed matching marker, or
+a failed delete keeps readiness closed. Prepared markers without a committed
+obligation are ignored, completed obligations are immutable, and empty
+withdrawals do not create markers.
 
-The 30-day evaluation deadline is measured from record creation and never
-slides.  `purge_expired_evaluations()` is an explicit repository primitive;
-there is no active production schedule in this change.  Do not run a
-destructive downgrade after any Road 10K slot is consumed.  Rollback leaves
-the migration, counters, receipts, markers, and private objects in place.
+Evaluation expiry remains fixed at no more than 30 days from creation. The purge
+primitive is unscheduled, and this change performs no purge or live restore.
+Never run the destructive Road migration downgrade after any receipt, slot, or
+obligation exists.
+
+A database snapshot older than a deletion may also predate its database
+obligation. Therefore repository tests do not prove post-restore reconciliation.
+Before any future traffic, a separately authorized live restore drill must
+reconcile current obligations with private markers and verify that evaluation
+and screenshot data does not reappear. Until then this is release-only evidence
+and restore safety is unvalidated.
+
+---
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_

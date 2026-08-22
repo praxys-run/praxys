@@ -9,14 +9,13 @@ from threading import Barrier, Event
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from api import road_10k_control, road_10k_deletion_storage
 from api.road_10k_control import (
     Road10KControlDenied,
     Road10KControlUnavailable,
-    authorize_first_exposure,
     enroll_owner,
     issue_invitation,
     prepare_account_deletion,
@@ -29,8 +28,10 @@ from api.road_10k_screenshot_storage import (
 )
 from api.road_10k_stage_authority import Road10KStageAuthority
 from api.road_10k_stage_authority import StageAuthorityError, parse_stage_authority
+from api.road_10k_runtime import ROAD_10K_BOUNDARIES, evaluate_boundary, provider_fence_is_closed
 from db.models import (
     Base,
+    Road10KDeletionObligation,
     Road10KExposureReceipt,
     Road10KEvaluation,
     Road10KOwnerStageReceipt,
@@ -56,13 +57,27 @@ class _MemoryManifestStore:
 
 
 @pytest.fixture(autouse=True)
-def _runtime_ready(monkeypatch):
+def _runtime_ready(monkeypatch, request):
     monkeypatch.setattr(
         road_10k_deletion_storage,
         "_test_store",
         _MemoryManifestStore(),
     )
-    monkeypatch.setattr(road_10k_control, "replay_status", lambda: "ready")
+    # Ledger tests use an explicit in-memory authority seam. Production callers
+    # always pass through the hard-off authority reader.
+    excluded = {
+        "test_valid_looking_non_off_authority_cannot_enable_any_boundary",
+        "test_invitation_and_exposure_are_monotonic_and_idempotent",
+        "test_authority_is_rechecked_after_the_serialized_write_begins",
+    }
+    if request.node.name not in excluded:
+        monkeypatch.setattr(
+            road_10k_control,
+            "_authority",
+            lambda lifecycle=False: road_10k_control.load_stage_authority(),
+        )
+
+
 
 
 def _db(tmp_path: Path):
@@ -83,8 +98,8 @@ def _authority() -> Road10KStageAuthority:
         authority_digest="b" * 64,
         capability_id="outdoor_road_10k_performance_v1",
         object_id="road-10k-controlled-opt-in-foundation-v1",
-        work_contract_digest="1bdbdeded8149881cf610df2309a607561d9ff599c3da24f48f400d20400adb1",
-        route_digest="62ef1a983cd560f6dfab10e6508fbf9a73c68bd9ad3ca0c59f911f3e48237f08",
+        work_contract_digest="b2c668dc304e44407a743c8b8c2710cc6c133ac4106045986bfd1726d2a7725e",
+        route_digest="a916feab2d029de3d6996933a7aece668670facc016f6abf8b932aa747af8214",
         schema_version="road-10k-stage-authority-v1",
         control_schema_version=2,
         state="active",
@@ -107,6 +122,23 @@ def _authority() -> Road10KStageAuthority:
 
 def _invitation_key(label: str) -> str:
     return "inv_" + hashlib.sha256(label.encode("utf-8")).hexdigest()[:32]
+
+
+def test_valid_looking_non_off_authority_cannot_enable_any_boundary(monkeypatch):
+    """This revision is mechanically hard-off, even for a complete artifact."""
+    authority = _authority()
+    monkeypatch.setattr(
+        "api.road_10k_runtime.load_stage_authority",
+        lambda: authority,
+    )
+
+    assert authority.is_usable is False
+    assert authority.lifecycle_status is None
+    for boundary in (*ROAD_10K_BOUNDARIES, "unknown-boundary"):
+        decision = evaluate_boundary(boundary)
+        assert decision.allowed is False
+        assert decision.provider_calls_allowed is False
+    assert provider_fence_is_closed() is True
 
 
 def _parsed_authority(
@@ -159,6 +191,18 @@ def _parsed_authority(
     return parse_stage_authority(payload)
 
 
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"invitation_ceiling": 59},
+        {"exposure_ceiling": 29},
+    ],
+)
+def test_stage_authority_rejects_nonfixed_ceiling(monkeypatch, updates):
+    with pytest.raises(StageAuthorityError, match="fixed policy"):
+        _parsed_authority(monkeypatch, **updates)
+
+
 def _owner(db, user_id: str):
     db.add(
         User(
@@ -208,6 +252,13 @@ def test_invitation_and_exposure_are_monotonic_and_idempotent(
     _owner(db, "owner-1")
     monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
     authority = _authority()
+    # This isolates the legacy ledger fixture from the production hard-off
+    # authority gate; it is not a runtime activation mechanism.
+    monkeypatch.setattr(
+        road_10k_control,
+        "_authority",
+        lambda lifecycle=False: authority,
+    )
     receipt = issue_invitation(
         db,
         user_id="owner-1",
@@ -227,8 +278,27 @@ def test_invitation_and_exposure_are_monotonic_and_idempotent(
         cohort_rule_digest=authority.cohort_rule_digest,
     ).id == receipt.id
     enroll_owner(db, user_id="owner-1", notice_digest=authority.notice_digest)
-    first = authorize_first_exposure(db, user_id="owner-1")
-    assert authorize_first_exposure(db, user_id="owner-1").id == first.id
+    with pytest.raises(
+        Road10KControlDenied,
+        match="first_exposure_requires_durable_result",
+    ):
+        road_10k_control.authorize_first_exposure(db, user_id="owner-1")
+    assert db.query(Road10KExposureReceipt).count() == 0
+    assert db.query(Road10KStageCounter).one().distinct_exposed_owners_consumed == 0
+
+    first = record_result(
+        db,
+        user_id="owner-1",
+        result_code="validation_failed",
+        payload={"boundary": "test"},
+    )
+    retry = record_result(
+        db,
+        user_id="owner-1",
+        result_code="validation_failed",
+        payload={"boundary": "test-retry"},
+    )
+    assert first.id != retry.id
     counter = db.query(Road10KStageCounter).one()
     assert counter.invitation_slots_consumed == 1
     assert counter.distinct_exposed_owners_consumed == 1
@@ -331,7 +401,7 @@ def test_sqlite_concurrent_attempts_cannot_consume_slot_61_or_exposure_31(
                 notice_digest=authority.notice_digest,
             )
         for user_id in invited_owner_ids[:29]:
-            authorize_first_exposure(db, user_id=user_id)
+            record_result(db, user_id=user_id, result_code="validation_failed", payload={"scope": "ledger-unit"})
 
     exposure_barrier = Barrier(2)
 
@@ -339,7 +409,7 @@ def test_sqlite_concurrent_attempts_cannot_consume_slot_61_or_exposure_31(
         with SessionLocal() as db:
             exposure_barrier.wait()
             try:
-                authorize_first_exposure(db, user_id=user_id)
+                record_result(db, user_id=user_id, result_code="validation_failed", payload={"scope": "ledger-unit"})
                 return "exposed"
             except Road10KControlDenied as exc:
                 return str(exc)
@@ -365,7 +435,7 @@ def test_uninvited_authorization_and_enrollment_do_not_create_counter(
     authority = _authority()
 
     with pytest.raises(Road10KControlDenied, match="enrollment_required"):
-        authorize_first_exposure(db, user_id="uninvited")
+        record_result(db, user_id="uninvited", result_code="validation_failed", payload={"scope": "ledger-unit"})
     with pytest.raises(Road10KControlDenied, match="invitation_required"):
         enroll_owner(
             db,
@@ -374,6 +444,34 @@ def test_uninvited_authorization_and_enrollment_do_not_create_counter(
         )
 
     assert db.query(Road10KStageCounter).count() == 0
+
+
+def test_withdrawal_without_payload_does_not_require_private_storage(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    authority = _authority()
+    monkeypatch.setattr(road_10k_deletion_storage, "_test_store", None)
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
+    _owner(db, "owner-empty-withdrawal")
+    issue_invitation(
+        db,
+        user_id="owner-empty-withdrawal",
+        idempotency_key=_invitation_key("empty-withdrawal-invitation"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    enroll_owner(
+        db,
+        user_id="owner-empty-withdrawal",
+        notice_digest=authority.notice_digest,
+    )
+
+    withdrawn = withdraw_owner(db, user_id="owner-empty-withdrawal")
+
+    assert withdrawn.state == "withdrawn"
+    assert db.query(road_10k_control.Road10KDeletionObligation).count() == 0
 
 
 def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
@@ -398,13 +496,13 @@ def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
         cohort_rule_digest=authority.cohort_rule_digest,
     )
     enroll_owner(db, user_id="owner-withdraw", notice_digest=authority.notice_digest)
-    authorize_first_exposure(db, user_id="owner-withdraw")
+    record_result(db, user_id="owner-withdraw", result_code="validation_failed", payload={"scope": "withdrawal"})
     withdrawn = withdraw_owner(db, user_id="owner-withdraw")
     assert withdrawn.state == "withdrawn"
     assert db.query(Road10KStageCounter).one().distinct_exposed_owners_consumed == 1
 
 
-def test_withdrawn_owner_reopts_into_existing_receipt_and_counters(
+def test_withdrawn_owner_cannot_reopt_or_reuse_a_slot(
     tmp_path,
     monkeypatch,
 ):
@@ -412,7 +510,7 @@ def test_withdrawn_owner_reopts_into_existing_receipt_and_counters(
     authority = _authority()
     monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
     _owner(db, "owner-reopt")
-    receipt = issue_invitation(
+    issue_invitation(
         db,
         user_id="owner-reopt",
         idempotency_key=_invitation_key("owner-reopt-invitation"),
@@ -420,22 +518,15 @@ def test_withdrawn_owner_reopts_into_existing_receipt_and_counters(
         cohort_rule_digest=authority.cohort_rule_digest,
     )
     enroll_owner(db, user_id="owner-reopt", notice_digest=authority.notice_digest)
-    exposure = authorize_first_exposure(db, user_id="owner-reopt")
+    record_result(db, user_id="owner-reopt", result_code="validation_failed", payload={"scope": "withdrawal"})
     withdraw_owner(db, user_id="owner-reopt")
 
-    reenrolled = enroll_owner(
-        db,
-        user_id="owner-reopt",
-        notice_digest=authority.notice_digest,
-    )
-
-    assert reenrolled.id == receipt.id
-    assert reenrolled.state == "exposed"
-    assert reenrolled.withdrawn_at is None
-    assert db.query(Road10KExposureReceipt).one().id == exposure.id
+    with pytest.raises(Road10KControlDenied, match="same_stage_reenrollment_denied"):
+        enroll_owner(db, user_id="owner-reopt", notice_digest=authority.notice_digest)
     counter = db.query(Road10KStageCounter).one()
     assert counter.invitation_slots_consumed == 1
     assert counter.distinct_exposed_owners_consumed == 1
+
 
 def test_runtime_snapshot_with_authority_present_is_low_cardinality(
     tmp_path, monkeypatch
@@ -453,11 +544,10 @@ def test_runtime_snapshot_with_authority_present_is_low_cardinality(
     )
     db.commit()
     monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: authority)
-    monkeypatch.setattr(road_10k_control, "replay_status", lambda: "ready")
 
     snapshot = road_10k_control.road_10k_runtime_snapshot(db)
 
-    assert snapshot["authority"] == "allowed"
+    assert snapshot["authority"] == "inactive_revision"
     assert snapshot["stage"] == authority.stage_id
     assert snapshot["invitation_slots_consumed"] == 0
     assert snapshot["distinct_exposed_owners_consumed"] == 0
@@ -491,11 +581,11 @@ def test_dormant_runtime_snapshot_keeps_retained_consumption_visible(
 
     snapshot = road_10k_control.road_10k_runtime_snapshot(db)
 
-    assert snapshot["authority"] == "missing_or_malformed"
+    assert snapshot["authority"] == "inactive_revision"
     assert snapshot["stage"] == authority.stage_id
     assert snapshot["invitation_slots_consumed"] == 1
     assert snapshot["distinct_exposed_owners_consumed"] == 0
-    assert snapshot["ready"] is False
+    assert snapshot["ready"] is True
 
 
 def test_screenshot_upload_is_unavailable():
@@ -528,15 +618,9 @@ def test_stale_receipt_contract_cannot_expose_or_participate(
         .one()
     )
     receipt.policy_version = "stale-policy"
-    db.commit()
-
-    with pytest.raises(Road10KControlUnavailable, match="receipt_contract"):
-        authorize_first_exposure(db, user_id="stale-owner")
-    with pytest.raises(Road10KControlDenied, match="participation_required"):
-        road_10k_control.require_road_10k_participation(
-            db,
-            user_id="stale-owner",
-        )
+    with pytest.raises(IntegrityError, match="owner receipt (immutable|lifecycle invalid)"):
+        db.commit()
+    db.rollback()
 
 
 def test_account_deletion_unlinks_native_owner_without_pseudonym_or_slot_reuse(
@@ -563,7 +647,7 @@ def test_account_deletion_unlinks_native_owner_without_pseudonym_or_slot_reuse(
         user_id="deleted-native-owner",
         notice_digest=authority.notice_digest,
     )
-    authorize_first_exposure(db, user_id="deleted-native-owner")
+    record_result(db, user_id="deleted-native-owner", result_code="validation_failed", payload={"scope": "account-deletion"})
 
     prepare_account_deletion(db, user_id="deleted-native-owner")
     db.commit()
@@ -614,29 +698,21 @@ def test_authority_is_rechecked_after_the_serialized_write_begins(
     tmp_path,
     monkeypatch,
 ):
+    """An apparently active artifact fails before the first ledger write."""
     db = _db(tmp_path)
     _owner(db, "owner-authority-race")
-    active = _authority()
-    paused = replace(active, state="paused", pause=True)
-    authorities = iter((active, paused))
-    monkeypatch.setattr(
-        road_10k_control,
-        "load_stage_authority",
-        lambda: next(authorities),
-    )
+    authority = _authority()
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: authority)
 
-    with pytest.raises(Road10KControlUnavailable, match="paused"):
+    with pytest.raises(Road10KControlUnavailable, match="inactive_revision"):
         issue_invitation(
             db,
             user_id="owner-authority-race",
-            idempotency_key=_invitation_key("authority-race-invitation"),
-            notice_digest=active.notice_digest,
-            cohort_rule_digest=active.cohort_rule_digest,
+            idempotency_key=_invitation_key("authority-race"),
+            notice_digest=authority.notice_digest,
+            cohort_rule_digest=authority.cohort_rule_digest,
         )
-
     assert db.query(Road10KStageCounter).count() == 0
-    assert db.query(Road10KOwnerStageReceipt).count() == 0
-
 
 def test_counter_and_receipt_disagreement_fails_closed(
     tmp_path,
@@ -678,10 +754,9 @@ def test_counter_and_receipt_disagreement_fails_closed(
     "state",
     ["paused", "killed", "hold", "rollback", "stopped", "revision"],
 )
-def test_lifecycle_authority_is_visible_but_not_mutation_usable(state):
-    authority = _authority()
-    authority = replace(authority, state=state)
-    assert authority.lifecycle_status == state
+def test_lifecycle_authority_is_hidden_and_not_mutation_usable(state):
+    authority = replace(_authority(), state=state)
+    assert authority.lifecycle_status is None
     assert authority.is_usable is False
 
 
@@ -709,7 +784,7 @@ def test_parsed_heartbeat_and_lifecycle_refresh_preserve_consumed_evidence(
         user_id="authority-refresh-owner",
         notice_digest=initial.notice_digest,
     )
-    authorize_first_exposure(db, user_id="authority-refresh-owner")
+    record_result(db, user_id="authority-refresh-owner", result_code="validation_failed", payload={"scope": "receipt-refresh"})
 
     refreshed = _parsed_authority(
         monkeypatch,
@@ -748,13 +823,103 @@ def test_parsed_heartbeat_and_lifecycle_refresh_preserve_consumed_evidence(
             db,
             user_id="authority-refresh-owner",
             lifecycle=True,
-        ).lifecycle_status in {"paused", "killed"}
-        with pytest.raises(Road10KControlUnavailable):
-            road_10k_control.require_road_10k_gate(
-                db,
-                user_id="authority-refresh-owner",
-                expose=False,
-            )
+        ).lifecycle_status is None
+
+
+def test_sqlite_ledger_constraints_freeze_ceilings_timestamps_and_expiry(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "invariant-owner")
+    authority = _authority()
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: authority)
+    issue_invitation(
+        db,
+        user_id="invariant-owner",
+        idempotency_key=_invitation_key("invariant"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    counter = db.query(Road10KStageCounter).one()
+    counter.invitation_ceiling = 59
+    with pytest.raises(IntegrityError, match="counters cannot decrement"):
+        db.commit()
+    db.rollback()
+
+    receipt = db.query(Road10KOwnerStageReceipt).one()
+    receipt.updated_at = receipt.updated_at + timedelta(seconds=1)
+    with pytest.raises(IntegrityError, match="owner receipt lifecycle invalid"):
+        db.commit()
+    db.rollback()
+
+    created = datetime.utcnow()
+    db.add(
+        Road10KEvaluation(
+            id="invalid-expiry",
+            user_id="invariant-owner",
+            stage_id=authority.stage_id,
+            result_code="validation_failed",
+            payload={},
+            created_at=created,
+            expires_at=created + timedelta(days=31),
+        )
+    )
+    with pytest.raises(IntegrityError, match="evaluation expiry invalid"):
+        db.commit()
+    db.rollback()
+
+    obligation_time = datetime.utcnow()
+    obligation = Road10KDeletionObligation(
+        id="00000000-0000-4000-8000-000000000735",
+        manifest_digest="a" * 64,
+        stage_id=authority.stage_id,
+        reason="withdrawal",
+        status="committed",
+        requested_at=obligation_time,
+        committed_at=obligation_time,
+    )
+    db.add(obligation)
+    db.commit()
+    obligation.reason = "retention"
+    with pytest.raises(IntegrityError, match="deletion obligation immutable"):
+        db.commit()
+    db.rollback()
+
+    obligation = db.get(Road10KDeletionObligation, obligation.id)
+    obligation.status = "completed"
+    obligation.completed_at = obligation_time + timedelta(seconds=1)
+    db.commit()
+    obligation.status = "committed"
+    obligation.completed_at = None
+    with pytest.raises(IntegrityError, match="deletion obligation immutable"):
+        db.commit()
+    db.rollback()
+
+    obligation = db.get(Road10KDeletionObligation, obligation.id)
+    db.delete(obligation)
+    with pytest.raises(IntegrityError, match="cannot be deleted"):
+        db.commit()
+    db.rollback()
+
+
+def test_ledger_migration_declares_postgresql_and_sqlite_invariants():
+    migration = Path(
+        "alembic/versions/d2e3f4a5b6c7_add_road_10k_control_ledger.py"
+    ).read_text(encoding="utf-8")
+
+    for required in (
+        "invitation_ceiling = 60 AND exposure_ceiling = 30",
+        "trg_road_10k_owner_stage_receipts_lifecycle",
+        "road_10k_owner_stage_receipts_immutable",
+        "NEW.enrolled_at IS OLD.enrolled_at",
+        "trg_road_10k_deletion_obligations_immutable",
+        "road_10k_deletion_obligations_immutable",
+        "trg_road_10k_evaluations_expiry_immutable",
+        "road_10k_evaluation_expiry_insert",
+        "DROP FUNCTION IF EXISTS road_10k_evaluation_expiry_update()",
+    ):
+        assert required in migration
 
 
 def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
@@ -773,6 +938,8 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
             exposure_ceiling=30,
         )
     )
+    receipt_time = datetime.utcnow()
+    exposed_time = receipt_time + timedelta(seconds=1)
     receipt = Road10KOwnerStageReceipt(
         id="durable-owner-receipt",
         user_id="durable-owner",
@@ -786,8 +953,11 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
         sampling_run_evidence_digest="d" * 64,
         invitation_idempotency_key="durable-owner-invitation",
         state="exposed",
-        invitation_issued_at=datetime.utcnow(),
-        first_exposed_at=datetime.utcnow(),
+        invitation_issued_at=receipt_time,
+        enrolled_at=receipt_time,
+        first_exposed_at=exposed_time,
+        created_at=receipt_time,
+        updated_at=exposed_time,
     )
     exposure = Road10KExposureReceipt(
         id="durable-owner-exposure",
@@ -802,6 +972,7 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
 
     receipt.state = "withdrawn"
     receipt.withdrawn_at = datetime.utcnow()
+    receipt.updated_at = receipt.withdrawn_at
     db.commit()
 
     counter = db.query(Road10KStageCounter).one()
@@ -862,7 +1033,6 @@ def test_withdrawal_serialization_cannot_omit_concurrent_result(
             user_id="withdrawal-race-owner",
             notice_digest=authority.notice_digest,
         )
-        authorize_first_exposure(db, user_id="withdrawal-race-owner")
         existing = record_result(
             db,
             user_id="withdrawal-race-owner",

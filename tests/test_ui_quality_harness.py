@@ -37,6 +37,7 @@ def test_rendered_surface_classification_is_strict_but_cross_client():
     assert rendered_surface("web/src/pages/Today.test.tsx") is None
     assert rendered_surface("miniapp/pages/today/index.wxml") == "miniapp"
     assert rendered_surface("miniapp/app.json") == "miniapp"
+    assert rendered_surface("miniapp/components/road-10k/index.scss") == "miniapp"
     assert rendered_surface("miniapp/scripts/sync-types.cjs") is None
     assert rendered_surface("api/routes/today.py") is None
     assert is_design_governance_path("DESIGN.md")

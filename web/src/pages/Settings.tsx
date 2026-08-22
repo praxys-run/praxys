@@ -36,7 +36,6 @@ import { GarminWordmark, StrydWordmark, StravaWordmark, OuraWordmark, CorosWordm
 import { Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
-import Road10KControlledOptIn from '@/pages/Road10KControlledOptIn';
 
 // --- Constants ---
 
@@ -1543,7 +1542,6 @@ export default function Settings() {
 
       <MobileAppCard />
 
-      <Road10KControlledOptIn surface="settings" />
 
       {/* ===== SECTION 7: Data export ===== */}
       <Card className="mb-8">

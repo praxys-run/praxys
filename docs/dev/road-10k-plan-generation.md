@@ -8,7 +8,7 @@
 - Science decision id: `sdr-road-10k-plan-generation-policy-v2`
 - Contract digest: `sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496`
 - Source decision digest: `sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad`
-- Runtime state: **inactive by default** until a separate rollout decision explicitly moves the capability into `PLAN_GENERATION_CAPABILITIES`
+- Runtime state: **mechanically inactive and hidden**. This revision has no activation path; authority binding is parsing-only and cannot authorize a capability.
 
 ## Machine-contract mapping
 
@@ -28,11 +28,11 @@ While the capability stays inactive:
 
 - `PUT /api/settings` rejects new `performance_10k` goal writes with `GOAL_KIND_UNAVAILABLE`.
 - Existing stored `performance_10k` config is preserved in the database, but `/api/settings`, `/api/goal`, and `/api/plan/generation/capabilities` all fall back to honest generic race/continuous presentation instead of leaking the inactive goal kind to clients.
-- Web and miniapp only expose the 10K editor / baseline panel when discovery advertises the 10K constraint schema.
-- The main app leaves `/api/plan/road-10k/*` unmounted while inactive, and the router itself also fails closed with 404 if mounted accidentally.
-- Plan-start discovery still reports honest `policy_unavailable` / `readiness_only` states instead of claiming activation.
+- Web and miniapp mount no Road opt-in surface and reject the Road constraint schema even if stale discovery data contains it.
+- The mounted route dependency fails closed with 404 before authentication or Road side effects; it is not an activation path.
+- Road access, opt-in, readiness, generation, regeneration, and baseline routes return a private 404 before request-side effects.
 
-When tests or a future rollout mock the capability active, the 10K settings, goal page, baseline flow, readiness flow, and proposal flow all continue to work on the same code path.
+Future activation authority, signer rotation, and signed-file-versus-database design are unresolved and intentionally absent.
 
 ## Required inputs and accepted baseline metadata
 

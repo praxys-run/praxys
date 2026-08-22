@@ -391,28 +391,18 @@ def delete_user_account(
 
     # Road 10K evaluation and screenshot references have a separate
     # out-of-database marker because the primary DB backup can be restored
-    # independently of private object storage.  Stage those markers before
-    # changing the account or owner links; a storage failure aborts the
-    # deletion rather than claiming success.
+    # independently of private object storage.  Markers are prepared only in
+    # the final deletion transaction so their DB-durable replay obligations
+    # cannot be visible before the associated rows are gone.
     from api.road_10k_control import (
         Road10KDeletionFailed,
         commit_deletion_manifests,
         complete_deletion_manifests,
         prepare_account_deletion,
+        record_deletion_obligations,
     )
 
     road_manifests = []
-    try:
-        for deleting_user_id in [user_id, *demo_user_ids]:
-            road_manifests.extend(
-                prepare_account_deletion(db, user_id=deleting_user_id)
-            )
-    except Road10KDeletionFailed:
-        db.rollback()
-        logger.exception(
-            "Road 10K deletion manifest failed",
-        )
-        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
     user.is_active = False
     _cancel_active_labs_work(db, user_id)
@@ -447,6 +437,16 @@ def delete_user_account(
         .filter(User.demo_of == user_id)
         .all()
     )
+    try:
+        for deleting_user_id in [user_id, *demo_user_ids]:
+            road_manifests.extend(
+                prepare_account_deletion(db, user_id=deleting_user_id)
+            )
+    except Road10KDeletionFailed:
+        db.rollback()
+        logger.exception("Road 10K deletion manifest failed")
+        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
+
     for demo_user in demo_users:
         _delete_user_owned_rows(db, demo_user.id)
         db.delete(demo_user)
@@ -457,6 +457,7 @@ def delete_user_account(
     deleted_user_ids.append(user_id)
 
     try:
+        record_deletion_obligations(db, road_manifests)
         db.commit()
     except Exception:
         db.rollback()

@@ -2,8 +2,7 @@
   "orientation": "portrait",
   "usingComponents": {
     "nav-bar": "/components/nav-bar/index",
-    "state-card": "../../components/state-card/index",
-    "road-10k-controlled-opt-in": "../../components/road-10k-controlled-opt-in/index"
+    "state-card": "../../components/state-card/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",

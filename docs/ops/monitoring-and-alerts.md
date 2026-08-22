@@ -1079,27 +1079,22 @@ quiescence, so a stale workflow variable snapshot is not the final authority.
 
 ## Road 10K dormant control signals
 
-The repository defines a restricted read-only snapshot via
-`api.road_10k_control.road_10k_runtime_snapshot`.  It is not an activation
-surface and no live dashboard or alert is provisioned.  Allowed dimensions are
-only:
+road_10k_runtime_snapshot is a restricted in-process diagnostic, not an
+activation surface, dashboard, metric, or live alert. Its bounded values are:
 
-* authority/readiness (`missing_or_malformed`, `off`, `paused`, `killed`,
-  `hold`, `rollback`, `heartbeat_or_validity_stale`, `not_ready`,
-  `provider_fence_open`, `counter_mismatch`, `allowed`);
-* cumulative cap state and consumed counts (60 invitations, 30 first exposed
-  owners);
-* deletion-marker replay status/readiness and bounded failure classes.
+- authority: inactive_revision or counter_mismatch;
+- the fixed ceilings and aggregate consumed counts: 60 invitations and 30
+  first-result exposures;
+- deletion_replay_status: pending or not_required;
+- ready: false for an invalid ledger or pending replay, otherwise true.
 
 Never add owner IDs, hashes, pseudonyms, invitation IDs, object keys, payloads,
-screenshots, raw latency, logs, traces, or locale/device/provider dimensions.
-An attempted 61st invitation, attempted 31st distinct exposure, counter
-mismatch, invalid authority, stale heartbeat, provider-fence violation,
-deletion failure, or restore replay failure is a fail-closed private
-operations signal.  The in-process snapshot exposes only the bounded
-`deletion_replay_status` (`not_run`, `ready`, or `blocked`) in addition to
-authority and cap state.  Defining a future alert remains deferred until
-Operations accepts a live resource and action group.
+screenshots, raw latency, traces, locale, device, cohort, or provider dimensions.
+A cap attempt, counter mismatch, committed obligation without a matching marker,
+storage failure, or replay failure is fail-closed private operations evidence.
+The old process-local not_run, ready, and blocked values are diagnostic only and
+must not drive health. Defining a future alert remains deferred until Operations
+accepts live resources and action-group behavior.
 
 ## Related
 

@@ -235,8 +235,8 @@ def capability_is_available(capability_id: str) -> bool:
 
 
 def road_10k_capability_available() -> bool:
-    """Return whether the reviewed road 10K capability is active."""
-    return capability_is_available(OUTDOOR_ROAD_10K_CAPABILITY.capability_id)
+    """The Road 10K capability is mechanically unavailable in this revision."""
+    return False
 
 
 def client_visible_goal(goal: Mapping[str, Any] | None) -> dict[str, Any]:

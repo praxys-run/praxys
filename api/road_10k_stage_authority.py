@@ -20,10 +20,10 @@ from api.version import get_api_version, is_valid_build_version
 
 ROAD_10K_OBJECT_ID = "road-10k-controlled-opt-in-foundation-v1"
 ROAD_10K_WORK_CONTRACT_DIGEST = (
-    "sha256:1bdbdeded8149881cf610df2309a607561d9ff599c3da24f48f400d20400adb1"
+    "sha256:b2c668dc304e44407a743c8b8c2710cc6c133ac4106045986bfd1726d2a7725e"
 )
 ROAD_10K_ROUTE_DIGEST = (
-    "sha256:62ef1a983cd560f6dfab10e6508fbf9a73c68bd9ad3ca0c59f911f3e48237f08"
+    "sha256:a916feab2d029de3d6996933a7aece668670facc016f6abf8b932aa747af8214"
 )
 ROAD_10K_AUTHORITY_SCHEMA_VERSION = "road-10k-stage-authority-v1"
 ROAD_10K_CONTROL_SCHEMA_VERSION = 2
@@ -77,45 +77,19 @@ class Road10KStageAuthority:
 
     @property
     def is_usable(self) -> bool:
-        """Whether this artifact can authorize a Road 10K boundary."""
-        return (
-            self.state == "active"
-            and not self.pause
-            and not self.kill
-            and self.readiness == "ready"
-            and self.provider_fence == "closed"
-            and self.is_fresh
-            and self.invitation_ceiling <= ROAD_10K_COMPILED_INVITATION_CEILING
-            and self.exposure_ceiling <= ROAD_10K_COMPILED_EXPOSURE_CEILING
-        )
+        """Return false: this repository revision has no activation path.
+
+        Artifacts remain parseable solely for migration and malformed-input
+        fixtures.  Neither an environment locator nor a complete, fresh
+        authority may make a stage capability usable in this revision.
+        """
+        return False
 
     @property
-    def lifecycle_status(self) -> str | None:
-        """Return the owner-visible state of a compatible authority.
-
-        ``is_usable`` is intentionally narrower than structural authority
-        validity.  A fresh, contract-compatible pause/kill/hold/rollback must
-        remain visible to an already-authorized owner so the client can render
-        the accepted read-only lifecycle state.  ``off`` and an active
-        authority that is stale, not ready, or provider-fenced remain hidden.
-        """
-        if not self.is_fresh or self.readiness != "ready":
-            return None
-        if self.provider_fence != "closed":
-            return None
-        if self.invitation_ceiling > ROAD_10K_COMPILED_INVITATION_CEILING:
-            return None
-        if self.exposure_ceiling > ROAD_10K_COMPILED_EXPOSURE_CEILING:
-            return None
-        if self.kill or self.state == "killed":
-            return "killed"
-        if self.pause or self.state == "paused":
-            return "paused"
-        if self.state in ROAD_10K_LIFECYCLE_STATES:
-            return self.state
-        if self.is_usable:
-            return "active"
+    def lifecycle_status(self) -> None:
+        """No lifecycle is owner-visible while the revision is hard-off."""
         return None
+
 
 
 def _utc(value: Any, field: str) -> datetime:
@@ -221,10 +195,10 @@ def parse_stage_authority(payload: Mapping[str, Any]) -> Road10KStageAuthority:
     if (
         type(invitation_ceiling) is not int
         or type(exposure_ceiling) is not int
-        or not 0 <= invitation_ceiling <= ROAD_10K_COMPILED_INVITATION_CEILING
-        or not 0 <= exposure_ceiling <= ROAD_10K_COMPILED_EXPOSURE_CEILING
+        or invitation_ceiling != ROAD_10K_COMPILED_INVITATION_CEILING
+        or exposure_ceiling != ROAD_10K_COMPILED_EXPOSURE_CEILING
     ):
-        raise StageAuthorityError("authority ceiling exceeds compiled maximum")
+        raise StageAuthorityError("authority ceilings must match fixed policy")
     heartbeat_max_age = payload["heartbeat_max_age_seconds"]
     if (
         type(heartbeat_max_age) is not int
@@ -308,6 +282,9 @@ def authority_denial_reason(
     """Return a low-cardinality status for restricted diagnostics."""
     if authority is None:
         return "missing_or_malformed"
+    # A structurally valid artifact is deliberately not activation authority.
+    if not authority.is_usable:
+        return "inactive_revision"
     if authority.state != "active":
         return authority.state
     if authority.pause:

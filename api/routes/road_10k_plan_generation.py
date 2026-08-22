@@ -31,7 +31,6 @@ from api.road_10k_plan_generation import (
     generate_road_10k_proposal,
     regenerate_road_10k_proposal,
 )
-from api.road_10k_stage_authority import load_stage_authority
 from db.session import get_db
 
 _PRIVATE_HEADERS = {
@@ -42,17 +41,12 @@ _PRIVATE_HEADERS = {
 
 
 def _require_road_10k_capability_available() -> None:
-    authority = load_stage_authority()
-    if (
-        authority is None
-        or authority.stage_id != "road-10k-controlled-opt-in-v1"
-        or not authority.is_usable
-    ):
-        raise HTTPException(
-            status_code=404,
-            detail="Not found",
-            headers=_PRIVATE_HEADERS,
-        )
+    """Statically deny every Road stage request before request I/O."""
+    raise HTTPException(
+        status_code=404,
+        detail="Not found",
+        headers=_PRIVATE_HEADERS,
+    )
 
 
 def _require_road_10k_owner(
@@ -153,13 +147,32 @@ class Road10KConstraintsRequest(BaseModel):
 
     purpose: PlanGenerationPurposeRequest | None = None
     adult_confirmed: bool
-    current_symptom_stop: bool = False
+    current_symptom_stop: bool | None
     available_weekdays: list[Weekday] = Field(min_length=1, max_length=7)
     weekly_time_limit_min: int = Field(ge=1)
     maximum_session_duration_min: int = Field(ge=1)
-    unavailable_dates: list[date] = Field(default_factory=list, max_length=28)
+    unavailable_dates: list[date] | None = Field(default=None, max_length=28)
+    unavailable_dates_confirmed_none: bool = False
+    event_context_confirmed_none: bool = False
+    outdoor_road_intent_confirmed: bool
     preferred_longest_easy_weekday: Weekday | None = None
     benchmark_date: date | None = None
+
+    @model_validator(mode="after")
+    def validate_explicit_statements(self) -> "Road10KConstraintsRequest":
+        dates = self.unavailable_dates
+        if dates is None:
+            if self.unavailable_dates_confirmed_none:
+                self.unavailable_dates = []
+            else:
+                raise ValueError("unavailable dates require dates or explicit none")
+        elif not dates and not self.unavailable_dates_confirmed_none:
+            raise ValueError("empty unavailable dates require explicit none")
+        elif dates and self.unavailable_dates_confirmed_none:
+            raise ValueError("unavailable dates conflict with explicit none")
+        elif dates != sorted(set(dates)):
+            raise ValueError("unavailable dates must be unique and sorted")
+        return self
 
 
 class Road10KReadinessRequest(Road10KConstraintsRequest):
@@ -207,7 +220,7 @@ class Road10KEventContextResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     snapshot_version: str
-    state: Literal["confirmed_none", "single_target", "race_dense"]
+    state: Literal["unconfirmed", "confirmed_none", "single_target", "race_dense"]
     goal_target_date: str | None
     benchmark_date: str | None
     target_date: str | None
@@ -725,7 +738,10 @@ def _constraints(body: Road10KConstraintsRequest) -> Road10KPlanGenerationConstr
         available_weekdays=tuple(int(item) for item in body.available_weekdays),
         weekly_time_limit_min=body.weekly_time_limit_min,
         maximum_session_duration_min=body.maximum_session_duration_min,
-        unavailable_dates=tuple(body.unavailable_dates),
+        unavailable_dates=tuple(body.unavailable_dates or ()),
+        unavailable_dates_confirmed_none=body.unavailable_dates_confirmed_none,
+        event_context_confirmed_none=body.event_context_confirmed_none,
+        outdoor_road_intent_confirmed=body.outdoor_road_intent_confirmed,
         preferred_longest_easy_weekday=(
             int(body.preferred_longest_easy_weekday)
             if body.preferred_longest_easy_weekday is not None

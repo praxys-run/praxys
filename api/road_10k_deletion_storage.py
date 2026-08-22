@@ -7,6 +7,7 @@ are never copied into a marker.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 from typing import Callable, Iterator, Mapping, Protocol
 from uuid import UUID, uuid4
@@ -67,6 +68,26 @@ def private_marker_store_available() -> bool:
     return _test_store is not None
 
 
+def _manifest_time(value: object, field: str) -> datetime | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        )
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        )
+    return _utc(parsed)
+
+
 def _validate_manifest(manifest: Mapping[str, object]) -> None:
     required = {
         "job_id",
@@ -97,14 +118,62 @@ def _validate_manifest(manifest: Mapping[str, object]) -> None:
         raise Road10KDeletionStorageError("invalid Road 10K deletion owner")
     if manifest["reason"] not in {"withdrawal", "account_deletion", "retention"}:
         raise Road10KDeletionStorageError("invalid Road 10K deletion reason")
-    if manifest["status"] not in {"prepared", "committed", "completed"}:
+    status = manifest["status"]
+    if status not in {"prepared", "committed", "completed"}:
         raise Road10KDeletionStorageError("invalid Road 10K deletion status")
     for key in ("evaluation_ids", "screenshot_keys"):
         values = manifest[key]
-        if not isinstance(values, list) or any(
-            not isinstance(item, str) or not item for item in values
+        if (
+            not isinstance(values, list)
+            or any(not isinstance(item, str) or not item for item in values)
+            or len(values) != len(set(values))
         ):
             raise Road10KDeletionStorageError("invalid Road 10K deletion targets")
+    requested_at = _manifest_time(manifest["requested_at"], "requested_at")
+    committed_at = _manifest_time(manifest["committed_at"], "committed_at")
+    completed_at = _manifest_time(manifest["completed_at"], "completed_at")
+    if requested_at is None:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion requested_at")
+    if status == "prepared" and (committed_at is not None or completed_at is not None):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if status == "committed" and (
+        committed_at is None or completed_at is not None
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if status == "completed" and (
+        committed_at is None or completed_at is None
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if committed_at is not None and committed_at < requested_at:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if completed_at is not None and (
+        committed_at is None or completed_at < committed_at
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+
+
+def manifest_intent_digest(manifest: Mapping[str, object]) -> str:
+    """Bind a durable obligation to the marker owner and exact targets."""
+    _validate_manifest(manifest)
+    intent = {
+        key: manifest[key]
+        for key in (
+            "job_id",
+            "owner_id",
+            "stage_id",
+            "reason",
+            "evaluation_ids",
+            "screenshot_keys",
+            "requested_at",
+        )
+    }
+    encoded = json.dumps(
+        intent,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _store(manifest: Mapping[str, object]) -> None:

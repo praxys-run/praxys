@@ -23,9 +23,11 @@ from db.models import (
     Outdoor5KPlanGeneration,
     Road10KBaselineConfirmation,
     Road10KBaselineSnapshot,
+    Road10KEvaluation,
     Road10KExposureReceipt,
     Road10KOwnerStageReceipt,
     Road10KPlanGeneration,
+    Road10KScreenshotReference,
     Road10KTrainingPatternSnapshot,
     RecoveryData,
     PlanProposal,
@@ -276,6 +278,26 @@ _ROAD_10K_PLAN_GENERATION_FIELDS = (
     "validation_reason_code",
     "created_at",
 )
+_ROAD_10K_EVALUATION_FIELDS = (
+    "id", "stage_id", "result_code", "payload", "created_at",
+    "expires_at", "deleted_at", "deletion_reason",
+)
+_ROAD_10K_OWNER_RECEIPT_FIELDS = (
+    "id", "stage_id", "capability_id", "schema_version",
+    "policy_version", "authority_digest", "notice_digest",
+    "cohort_rule_digest", "sampling_run_evidence_digest", "state",
+    "invitation_issued_at", "enrolled_at", "first_exposed_at",
+    "withdrawn_at", "deleted_at",
+)
+_ROAD_10K_EXPOSURE_RECEIPT_FIELDS = (
+    "id", "stage_id", "owner_stage_receipt_id", "authority_digest",
+    "exposed_at",
+)
+_ROAD_10K_SCREENSHOT_REFERENCE_FIELDS = (
+    "id", "evaluation_id", "object_key", "content_type",
+    "captured_at", "expires_at", "deleted_at",
+)
+
 _ROAD_10K_TRAINING_PATTERN_SNAPSHOT_FIELDS = (
     "version",
     "schema_version",
@@ -409,23 +431,8 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     from api.personal_context import build_personal_context_export
 
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
-    road_10k_exposed = (
-        db.query(Road10KExposureReceipt.id)
-        .join(
-            Road10KOwnerStageReceipt,
-            Road10KOwnerStageReceipt.id
-            == Road10KExposureReceipt.owner_stage_receipt_id,
-        )
-        .filter(
-            Road10KExposureReceipt.user_id == user_id,
-            Road10KExposureReceipt.stage_id == _ROAD_10K_STAGE_ID,
-            Road10KOwnerStageReceipt.user_id == user_id,
-            Road10KOwnerStageReceipt.stage_id == _ROAD_10K_STAGE_ID,
-            Road10KOwnerStageReceipt.state.in_(("exposed", "withdrawn")),
-        )
-        .first()
-        is not None
-    )
+    # Export is a data right, not a stage capability.
+    road_10k_exposed = True
     road_proposals = (
         db.query(PlanProposal)
         .filter(
@@ -492,7 +499,7 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
                 )
             )
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "user_config": config,
         "activities": _serialize_rows(
@@ -622,6 +629,38 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
                 )
                 .all(),
                 _ROAD_10K_BASELINE_SNAPSHOT_FIELDS,
+            ),
+        },
+        "road_10k_control": {
+            "schema_version": 1,
+            "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+            "owner_receipts": _serialize_rows(
+                db.query(Road10KOwnerStageReceipt)
+                .filter(Road10KOwnerStageReceipt.user_id == user_id)
+                .order_by(Road10KOwnerStageReceipt.created_at, Road10KOwnerStageReceipt.id)
+                .all(),
+                _ROAD_10K_OWNER_RECEIPT_FIELDS,
+            ),
+            "exposure_receipts": _serialize_rows(
+                db.query(Road10KExposureReceipt)
+                .filter(Road10KExposureReceipt.user_id == user_id)
+                .order_by(Road10KExposureReceipt.exposed_at, Road10KExposureReceipt.id)
+                .all(),
+                _ROAD_10K_EXPOSURE_RECEIPT_FIELDS,
+            ),
+            "evaluations": _serialize_rows(
+                db.query(Road10KEvaluation)
+                .filter(Road10KEvaluation.user_id == user_id)
+                .order_by(Road10KEvaluation.created_at, Road10KEvaluation.id)
+                .all(),
+                _ROAD_10K_EVALUATION_FIELDS,
+            ),
+            "screenshot_references": _serialize_rows(
+                db.query(Road10KScreenshotReference)
+                .filter(Road10KScreenshotReference.user_id == user_id)
+                .order_by(Road10KScreenshotReference.captured_at, Road10KScreenshotReference.id)
+                .all(),
+                _ROAD_10K_SCREENSHOT_REFERENCE_FIELDS,
             ),
         },
         "road_10k_plan_generation": {

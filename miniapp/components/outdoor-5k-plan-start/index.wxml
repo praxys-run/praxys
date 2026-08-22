@@ -138,7 +138,7 @@
 
   <view wx:if="{{proposal}}" class="ts-card plan-start-card">
       <text class="plan-start-title">{{road10kMode ? tr.roadProposal : tr.proposal}}</text>
-      <text wx:if="{{road10kMode}}" class="plan-start-badge">{{tr.roadProposalBadge}}</text>
+      <text wx:if="{{road10kMode && proposal.state === 'draft'}}" class="plan-start-badge">{{tr.roadProposalBadge}}</text>
       <text wx:else class="plan-start-badge">{{proposalStateLabel}}</text>
       <text class="plan-start-copy">{{road10kMode ? tr.roadProposalBody : tr.proposalNotPlan}}</text>
       <view class="plan-start-version-grid">

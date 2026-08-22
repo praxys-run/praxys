@@ -26,13 +26,8 @@ interface RefreshableComponent {
   refresh?: () => Promise<void>;
 }
 
-interface PlanStartComponent extends RefreshableComponent {
-  checkReadiness?: () => Promise<unknown>;
-}
-
 interface PageMethods extends WechatMiniprogram.IAnyObject {
   onScrollRefresh(): void;
-  onRoad10KCheck(): void;
 }
 
 function hasLegacyHeatTarget(): boolean {
@@ -116,11 +111,7 @@ Page<TrainingState, PageMethods>({
       '#training-personal-context',
     ) as unknown as RefreshableComponent | null;
     try {
-      const road10k = this.selectComponent(
-        '#training-road-10k',
-      ) as unknown as RefreshableComponent | null;
       await Promise.all([
-        road10k?.refresh?.() ?? Promise.resolve(),
         planStart?.refresh?.() ?? Promise.resolve(),
         managedPlan?.refresh?.() ?? Promise.resolve(),
         personalContext?.refresh?.() ?? Promise.resolve(),
@@ -128,12 +119,5 @@ Page<TrainingState, PageMethods>({
     } finally {
       this.setData({ refreshing: false });
     }
-  },
-
-  onRoad10KCheck() {
-    const planStart = this.selectComponent(
-      '#training-plan-start',
-    ) as unknown as PlanStartComponent | null;
-    void planStart?.checkReadiness?.();
   },
 });

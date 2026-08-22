@@ -216,16 +216,12 @@ export const ROAD_10K_COPY = {
   "status.plan_review_later": { en: "Plan status: Proposal saved for later review", 'zh-CN': "计划状态：提案已保留供稍后查看" },
   "status.plan_safety": { en: "Plan status: Safety stop", 'zh-CN': "计划状态：安全停止" },
   "status.plan_successor": { en: "Plan status: Revised proposal ready", 'zh-CN': "计划状态：修订后的提案已就绪" },
-  "status.rollout_closed": { en: "Rollout status: Enrollment closed", 'zh-CN': "试点状态：报名已关闭" },
   "status.rollout_enrolled": { en: "Rollout status: Enrolled", 'zh-CN': "试点状态：已加入" },
   "status.rollout_hold": { en: "Rollout status: On hold", 'zh-CN': "试点状态：审核中" },
   "status.rollout_invited": { en: "Rollout status: Invited", 'zh-CN': "试点状态：已邀请" },
   "status.rollout_killed": { en: "Rollout status: Access stopped", 'zh-CN': "试点状态：访问已停止" },
-  "status.rollout_notice": { en: "Rollout status: Notice unavailable", 'zh-CN': "试点状态：说明不可用" },
   "status.rollout_paused": { en: "Rollout status: Paused", 'zh-CN': "试点状态：已暂停" },
-  "status.rollout_reauth": { en: "Rollout status: Reauthentication required", 'zh-CN': "试点状态：需要重新验证身份" },
   "status.rollout_removed": { en: "Rollout status: Access ended", 'zh-CN': "试点状态：访问已结束" },
-  "status.rollout_resumed": { en: "Rollout status: Available again", 'zh-CN': "试点状态：再次可用" },
   "status.rollout_revision": { en: "Rollout status: Revision required", 'zh-CN': "试点状态：需要修订" },
   "status.rollout_rollback": { en: "Rollout status: Rolled back", 'zh-CN': "试点状态：已回滚" },
   "status.rollout_stopped": { en: "Rollout status: Ended", 'zh-CN': "试点状态：已结束" },
@@ -247,7 +243,7 @@ export type Road10KCopyKey = keyof typeof ROAD_10K_COPY;
 export const ROAD_10K_SCREENSHOT_AVAILABLE = false as const;
 
 export const ROAD_10K_ROLLOUT_STATES = [
-  "invited", "reauth-required", "notice-unavailable", "enrolled", "enrollment-closed", "hold", "withdrawn", "removed", "paused", "killed", "rollback", "stopped", "revision",
+  "invited", "enrolled", "hold", "withdrawn", "removed", "paused", "killed", "rollback", "stopped", "revision",
 ] as const;
 export type Road10KExperienceRolloutState =
   (typeof ROAD_10K_ROLLOUT_STATES)[number];
@@ -260,10 +256,7 @@ export type Road10KExperiencePlanState =
 
 export const ROAD_10K_ROLLOUT_STATUS_COPY = {
   "invited": "status.rollout_invited",
-  "reauth-required": "status.rollout_reauth",
-  "notice-unavailable": "status.rollout_notice",
   "enrolled": "status.rollout_enrolled",
-  "enrollment-closed": "status.rollout_closed",
   "hold": "status.rollout_hold",
   "withdrawn": "status.rollout_withdrawn",
   "removed": "status.rollout_removed",
@@ -276,10 +269,7 @@ export const ROAD_10K_ROLLOUT_STATUS_COPY = {
 
 export const ROAD_10K_ACCESS_STATE_COPY = {
   "invited": ["invitation.title", "invitation.body", "status.rollout_invited", "status.plan_none"],
-  "reauth-required": ["reauth.title", "reauth.body"],
-  "notice-unavailable": ["notice.blocked_title", "notice.blocked_body"],
   "enrolled": ["success.joined", "status.rollout_enrolled", "status.plan_none"],
-  "enrollment-closed": ["life.close_title", "life.close_out"],
   "hold": ["life.hold_title", "life.hold_body"],
   "withdrawn": ["status.rollout_withdrawn", "success.withdrawn"],
   "removed": ["life.removed_title", "life.removed_body"],
@@ -297,9 +287,7 @@ export function road10kAccessStateCopy(
   rolloutStatus: Road10KExperienceRolloutState,
   planStatus: Road10KExperiencePlanState,
 ): readonly Road10KCopyKey[] {
-  if (rolloutStatus === 'enrollment-closed' && planStatus !== 'none') {
-    return ['life.close_title', 'life.close_in'];
-  }
+  void planStatus;
   return ROAD_10K_ACCESS_STATE_COPY[rolloutStatus];
 }
 

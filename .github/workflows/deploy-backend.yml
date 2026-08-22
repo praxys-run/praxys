@@ -20,6 +20,8 @@ on:
       - 'analysis/**'
       - 'sync/**'
       - 'db/**'
+      - 'alembic/**'
+      - 'config/road-10k-stage-authority.schema.json'
       - 'config/agent-loop-policies.json'
       - 'data/science/**'
       - 'requirements.txt'

@@ -1050,25 +1050,23 @@ outgrown.
 - `.github/workflows/deploy-backend.yml` and `scripts/appinsights_boundary.sh`
   (source of truth for App Service settings and telemetry routing)
 
----
-_Last reviewed: 2026-08-04 · Owner: @dddtc2005_
-
 ## Road 10K controlled opt-in (repository-only, inactive)
 
-The Road 10K authority is an external, read-only artifact consumed through
-`PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH`.  This variable is a locator only; no
-boolean, ceiling, user, cohort, provider credential, or activation value may
-be supplied through environment configuration.  It is intentionally absent
-from deployment configuration in this change.  Missing, malformed, stale,
-incompatible, or mixed-version authority is the healthy dormant state.
+This revision has no Road activation configuration. The optional
+PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH reader exists only for dormant parser
+fixtures and diagnostics; request paths do not consult it, and even a complete
+non-off artifact is unusable. Do not add it to deployment configuration.
 
-The compiled ceilings are 60 cumulative invitations and 30 cumulative
-distinct exposed native owners.  The authority may lower, never raise, them.
-Pause, kill, heartbeat, readiness, and provider-fence values are read from the
-same independently issued artifact; the application has no writer or toggle.
-Do not add a secret, scheduled purge, alert resource, action group, or live
-stage value for this foundation.  The inactive default also does not require a
-separate Road 10K Blob setting: the app stays healthy while authority is
-absent/off and no committed Road 10K replay obligation exists.  Any visible
-Road 10K authority or committed replay obligation still fails closed unless the
-existing private marker storage is available and startup replay has succeeded.
+The cumulative ceilings are fixed at exactly 60 invitations and 30 first-result
+exposures. No authority or environment value can lower, raise, reset, or recycle
+them. There is no pause, kill, heartbeat, readiness, provider, cohort, actor, or
+notice value that can authorize a stage action in this revision.
+
+Do not add a Road secret, scheduled purge, live alert, action group, or storage
+resource. Dormant startup does not construct or probe private storage. Existing
+private marker storage is required only when the application database contains
+a committed deletion obligation; missing storage or a missing matching marker
+then fails readiness closed.
+
+---
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_

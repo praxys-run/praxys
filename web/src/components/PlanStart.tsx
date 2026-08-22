@@ -76,7 +76,6 @@ import type {
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
 const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([
   'outdoor_road_5k_constraints_v1',
-  'outdoor_road_10k_constraints_v1',
 ]);
 
 type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
@@ -1044,27 +1043,16 @@ export default function PlanStart({
   };
 
   const constraints = (): Outdoor5KConstraintsRequest | Road10KConstraintsRequest | null => {
-    if (!purposeSelection || formError || (road10kMode ? false : sharedDuration == null)) {
+    if (road10kMode) {
+      setError({ message: 'Road 10K planning is unavailable in this revision.' });
+      return null;
+    }
+    if (!purposeSelection || formError || sharedDuration == null) {
       setError({
         message: formError ?? t`Review the constraints and try again.`,
       });
       focusFirstInvalidConstraint();
       return null;
-    }
-    if (road10kMode) {
-      return {
-        purpose: purposeSelection,
-        adult_confirmed: adult,
-        current_symptom_stop: safetyStop,
-        available_weekdays: availableDays,
-        weekly_time_limit_min: weeklyTimeLimitNumber,
-        maximum_session_duration_min: singleSessionLimitNumber,
-        unavailable_dates: [],
-        preferred_longest_easy_weekday: preferredLongestDay === ''
-          ? null
-          : Number(preferredLongestDay) as Outdoor5KWeekday,
-        benchmark_date: benchmarkDate || null,
-      };
     }
     return {
       purpose: purposeSelection,
@@ -2146,7 +2134,7 @@ export default function PlanStart({
                 </CardDescription>
               </div>
               <Badge variant={isAdopted ? 'default' : 'outline'}>
-                {road10kMode
+                {road10kMode && displayedProposal.state === 'draft'
                   ? roadCopy('proposal.badge')
                   : proposalStateLabel(displayedProposal.state)}
               </Badge>

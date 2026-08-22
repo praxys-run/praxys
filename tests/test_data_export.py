@@ -507,22 +507,11 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert unexposed.status_code == 200, unexposed.text
     unexposed_payload = unexposed.json()
     assert unexposed_payload["activities"]
-    assert unexposed_payload["training_plans"] == []
-    assert (
-        unexposed_payload["adaptive_plan_proposals"]["goal_snapshots"]
-        == []
-    )
-    assert unexposed_payload["adaptive_plan_proposals"]["plans"] == []
-    assert unexposed_payload["adaptive_plan_proposals"]["proposals"] == []
-    assert unexposed_payload["road_10k_baseline"]["confirmations"] == []
-    assert unexposed_payload["road_10k_baseline"]["snapshots"] == []
-    assert (
-        unexposed_payload["road_10k_plan_generation"][
-            "training_pattern_snapshots"
-        ]
-        == []
-    )
-    assert unexposed_payload["road_10k_plan_generation"]["records"] == []
+    # Export is a data right: retained Road records are never authority-gated.
+    assert [row["canonical_id"] for row in unexposed_payload["training_plans"]] == ["owner-plan"]
+    assert unexposed_payload["adaptive_plan_proposals"]["proposals"]
+    assert unexposed_payload["road_10k_baseline"]["confirmations"]
+    assert unexposed_payload["road_10k_plan_generation"]["records"]
 
     db = SessionLocal()
     try:
@@ -569,7 +558,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         'attachment; filename="praxys-data-export-'
     )
     payload = response.json()
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]

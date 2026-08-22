@@ -41,6 +41,10 @@ interface PurposeOption {
 
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 
+const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([
+  'outdoor_road_5k_constraints_v1',
+]);
+
 function roadCopy(key: Road10KCopyKey): string {
   return road10kCopy(key, detectLocale() === 'zh' ? 'zh-CN' : 'en');
 }
@@ -591,15 +595,13 @@ Component({
         );
         if (componentState._loadRequestId !== requestId) return;
         const capabilities = discovery.capabilities.filter(
-          (item) => [
-            'outdoor_road_5k_constraints_v1',
-            'outdoor_road_10k_constraints_v1',
-          ].includes(item.constraint_schema_id),
+          (item) => SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
+            item.constraint_schema_id,
+          ),
         );
-        const currentCapability = [
-          'outdoor_road_5k_constraints_v1',
-          'outdoor_road_10k_constraints_v1',
-        ].includes(discovery.selected_capability?.constraint_schema_id ?? '')
+        const currentCapability = SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
+          discovery.selected_capability?.constraint_schema_id ?? '',
+        )
           ? discovery.selected_capability
           : null;
         const capabilityAvailable = Boolean(
@@ -916,38 +918,8 @@ Component({
       }
       const road10kMode = this.data.road10kMode;
       if (road10kMode) {
-        const days = this.data.dayOptions.filter((option) => option.selected);
-        const weeklyTimeLimit = Number(this.data.weeklyTimeLimit);
-        const singleSessionLimit = Number(this.data.singleSessionLimit);
-        if (!this.data.adult) {
-          this.setData({ errorMessage: this.data.tr.road10kScopeRequired });
-          return null;
-        }
-        if (days.length === 0) {
-          this.setData({ errorMessage: this.data.tr.daysRequired });
-          return null;
-        }
-        if (!Number.isInteger(weeklyTimeLimit) || weeklyTimeLimit <= 0) {
-          this.setData({ errorMessage: this.data.tr.weeklyLimitRequired });
-          return null;
-        }
-        if (!Number.isInteger(singleSessionLimit) || singleSessionLimit <= 0) {
-          this.setData({ errorMessage: this.data.tr.singleSessionRequired });
-          return null;
-        }
-        return {
-          purpose,
-          adult_confirmed: this.data.adult,
-          current_symptom_stop: this.data.safetyStop,
-          available_weekdays: days.map((option) => option.value),
-          weekly_time_limit_min: weeklyTimeLimit,
-          maximum_session_duration_min: singleSessionLimit,
-          unavailable_dates: [],
-          preferred_longest_easy_weekday: this.data.longDayIndex === 0
-            ? null
-            : days[this.data.longDayIndex - 1]?.value ?? null,
-          benchmark_date: this.data.benchmarkDate || null,
-        };
+        this.setData({ errorMessage: this.data.tr.road10kScopeRequired });
+        return null;
       }
       const scopeComplete = this.data.adult
         && this.data.selfCoached

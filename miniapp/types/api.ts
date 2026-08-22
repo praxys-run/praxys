@@ -212,59 +212,11 @@ export interface GoalPlanKeepResponse {
   revision_id: string;
 }
 
-/** The closed, owner-scoped Road 10K control contract. */
-export type Road10KRolloutStatus =
-  | 'invited'
-  | 'enrolled'
-  | 'hold'
-  | 'withdrawn'
-  | 'removed'
-  | 'paused'
-  | 'killed'
-  | 'rollback'
-  | 'stopped'
-  | 'revision';
-
-export type Road10KPlanStatus =
-  | 'none'
-  | 'proposal-ready'
-  | 'rejected'
-  | 'expired'
-  | 'active'
-  | 'ended-by-owner'
-  | 'completed';
-
-export interface Road10KAccessResponse {
-  rollout_status: Road10KRolloutStatus;
-  plan_status: Road10KPlanStatus;
-  stage_id: string;
-  screenshot_available: false;
+export interface Road10KActionResponse {
+  outcome: 'withdrawn';
+  rollout_status: 'withdrawn';
+  plan_status: 'unchanged';
 }
-
-export interface Road10KOptInRequest {
-  password: string;
-  client: 'web' | 'miniapp';
-}
-
-export interface Road10KStatusResponse {
-  rollout_status: Road10KRolloutStatus;
-  plan_status: Road10KPlanStatus;
-  invitation_issued_at: string | null;
-  enrolled_at: string | null;
-  first_exposed_at: string | null;
-}
-
-export type Road10KActionResponse =
-  | {
-      outcome: 'enrolled';
-      rollout_status: 'enrolled';
-      plan_status: 'none';
-    }
-  | {
-      outcome: 'withdrawn';
-      rollout_status: 'withdrawn';
-      plan_status: 'unchanged';
-    };
 
 export interface Road10KExportResponse {
   stage_id: string;
@@ -1247,11 +1199,14 @@ export type Road10KResultCode =
 export interface Road10KConstraintsRequest {
   purpose?: PlanGenerationPurposeSelection | null;
   adult_confirmed: boolean;
-  current_symptom_stop?: boolean;
+  current_symptom_stop: boolean | null;
   available_weekdays: Road10KWeekday[];
   weekly_time_limit_min: number;
   maximum_session_duration_min: number;
-  unavailable_dates?: string[];
+  unavailable_dates: string[];
+  unavailable_dates_confirmed_none: boolean;
+  event_context_confirmed_none: boolean;
+  outdoor_road_intent_confirmed: boolean;
   preferred_longest_easy_weekday?: Road10KWeekday | null;
   benchmark_date?: string | null;
 }

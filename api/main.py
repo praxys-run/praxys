@@ -358,13 +358,9 @@ def health_ready(response: Response):
                 require_road_10k_replay_ready,
                 validate_road_10k_runtime_obligations,
             )
-            from api.road_10k_deletion_storage import replay_status
-
             has_road_obligation = validate_road_10k_runtime_obligations(db)
             if has_road_obligation:
                 require_road_10k_replay_ready(db)
-            elif replay_status() == "blocked":
-                raise RuntimeError("Road 10K deletion replay is blocked")
         finally:
             db.close()
     except Exception as exc:

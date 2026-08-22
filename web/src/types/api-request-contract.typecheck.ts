@@ -6,7 +6,6 @@ import type {
   PlanWorkoutUpdateRequest,
   Road10KActionResponse,
   Road10KOutcomeResponse,
-  Road10KOptInRequest,
   Road10KProposalGoalSnapshot,
   ScopedPersonalContextAccessRequest,
   ScopedPersonalContextDraftRequest,
@@ -86,16 +85,16 @@ const invalidRoadOutcome: Road10KOutcomeResponse = {
   // @ts-expect-error Safety stop can only be a no-plan readiness outcome.
   adoption_required: true,
 };
-const enrolledRoadAction: Road10KActionResponse = {
-  outcome: 'enrolled',
-  rollout_status: 'enrolled',
-  plan_status: 'none',
-};
-// @ts-expect-error Enrolled cannot advertise the withdrawal plan outcome.
-const invalidRoadAction: Road10KActionResponse = {
-  outcome: 'enrolled',
-  rollout_status: 'enrolled',
+const withdrawnRoadAction: Road10KActionResponse = {
+  outcome: 'withdrawn',
+  rollout_status: 'withdrawn',
   plan_status: 'unchanged',
+};
+const invalidRoadAction: Road10KActionResponse = {
+  outcome: 'withdrawn',
+  rollout_status: 'withdrawn',
+  // @ts-expect-error Withdrawal preserves the separate plan state.
+  plan_status: 'none',
 };
 const currentGoalSnapshot: Road10KProposalGoalSnapshot = {
   id: 'goal-snapshot',
@@ -232,21 +231,6 @@ const withdrawnAiConsent: PersonalContextAiConsentRequest = {
   consent_text_version: 'ai-v1',
   client: 'miniapp',
 };
-const webRoad10KOptIn: Road10KOptInRequest = {
-  password: 'correct horse battery staple',
-  client: 'web',
-};
-const miniappRoad10KOptIn: Road10KOptInRequest = {
-  password: 'correct horse battery staple',
-  client: 'miniapp',
-};
-void webRoad10KOptIn;
-void miniappRoad10KOptIn;
-// @ts-expect-error Every Road 10K opt-in client must submit server-verified reauthentication.
-const invalidMiniappRoad10KOptIn: Road10KOptInRequest = {
-  client: 'miniapp',
-};
-void invalidMiniappRoad10KOptIn;
 // @ts-expect-error Granted consent requires the Azure OpenAI provider.
 const invalidGrantedAiConsent: PersonalContextAiConsentRequest = {
   expected_version: 1,
@@ -335,7 +319,7 @@ void [
   invalidCapabilityPurpose,
   roadPlanCandidate,
   invalidRoadOutcome,
-  enrolledRoadAction,
+  withdrawnRoadAction,
   invalidRoadAction,
   currentGoalSnapshot,
   invalidGoalSnapshot,

@@ -273,6 +273,7 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
     from sqlalchemy.orm import sessionmaker
 
     from db.models import (
+        Road10KDeletionObligation,
         Road10KExposureReceipt,
         Road10KOwnerStageReceipt,
         Road10KStageCounter,
@@ -319,6 +320,7 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
                 invitation_idempotency_key="migration-invitation",
                 state="exposed",
                 invitation_issued_at=datetime(2026, 8, 20),
+                enrolled_at=datetime(2026, 8, 20),
                 first_exposed_at=datetime(2026, 8, 20),
                 created_at=datetime(2026, 8, 20),
                 updated_at=datetime(2026, 8, 20),
@@ -342,6 +344,7 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
         )
         owner_receipt.state = "withdrawn"
         owner_receipt.withdrawn_at = datetime(2026, 8, 21)
+        owner_receipt.updated_at = owner_receipt.withdrawn_at
         db.commit()
 
         counter = db.get(
@@ -394,6 +397,33 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
             DatabaseError,
             match="owner receipts cannot be deleted",
         ):
+            db.commit()
+        db.rollback()
+
+        obligation = Road10KDeletionObligation(
+            id="00000000-0000-4000-8000-000000000736",
+            manifest_digest="a" * 64,
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="withdrawal",
+            status="committed",
+            requested_at=datetime(2026, 8, 21),
+            committed_at=datetime(2026, 8, 21),
+        )
+        db.add(obligation)
+        db.commit()
+        obligation.status = "completed"
+        obligation.completed_at = datetime(2026, 8, 21, 0, 0, 1)
+        db.commit()
+
+        obligation.status = "committed"
+        obligation.completed_at = None
+        with pytest.raises(DatabaseError, match="deletion obligation immutable"):
+            db.commit()
+        db.rollback()
+
+        obligation = db.get(Road10KDeletionObligation, obligation.id)
+        db.delete(obligation)
+        with pytest.raises(DatabaseError, match="cannot be deleted"):
             db.commit()
         db.rollback()
     engine.dispose()

@@ -91,7 +91,7 @@ def test_health_ready_503_for_inconsistent_existing_road_obligation(
     }
 
 
-def test_health_ready_503_when_road_deletion_replay_becomes_blocked(
+def test_health_ready_ignores_process_local_replay_status_without_obligation(
     ready_env,
     monkeypatch,
 ):
@@ -106,10 +106,10 @@ def test_health_ready_503_when_road_deletion_replay_becomes_blocked(
 
     response = client.get("/api/health/ready")
 
-    assert response.status_code == 503
+    assert response.status_code == 200
     assert response.json() == {
-        "status": "unavailable",
-        "database": "error",
+        "status": "ready",
+        "database": "ok",
     }
 
 

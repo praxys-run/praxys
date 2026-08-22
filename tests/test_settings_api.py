@@ -2188,7 +2188,7 @@ def test_get_settings_hides_stored_inactive_road_10k_goal_but_preserves_db(
         }
 
 
-def test_active_road_10k_goal_can_persist_when_registry_is_enabled(
+def test_registry_mutation_cannot_activate_road_10k_goal(
     api_client,
     monkeypatch,
 ):
@@ -2216,21 +2216,12 @@ def test_active_road_10k_goal_can_persist_when_registry_is_enabled(
         }
     })
 
-    assert response.status_code == 200, response.text
-    assert response.json()["config"]["goal"] == {
-        "goal_kind": "performance_10k",
-        "distance": "10k",
-        "race_date": "2026-09-20",
-        "target_time_sec": 2520,
-    }
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["code"] == "GOAL_KIND_UNAVAILABLE"
     current = client.get("/api/settings")
     assert current.status_code == 200, current.text
-    assert current.json()["config"]["goal"] == {
-        "goal_kind": "performance_10k",
-        "distance": "10k",
-        "race_date": "2026-09-20",
-        "target_time_sec": 2520,
-    }
+    goal = current.json()["config"].get("goal") or {}
+    assert goal.get("goal_kind") != "performance_10k"
 
 
 def test_detect_thresholds_options_deduped_and_date_sorted(api_client):

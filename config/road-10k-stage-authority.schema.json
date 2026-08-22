@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://praxys.run/schemas/road-10k-stage-authority-v1.json",
   "title": "Road 10K stage authority",
-  "description": "Schema only. The application never writes or seeds this artifact.",
+  "description": "Dormant fixture schema only. This revision never treats the artifact as authority.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -35,8 +35,8 @@
     "stage_id": { "type": "string", "minLength": 1, "maxLength": 80 },
     "capability_id": { "const": "outdoor_road_10k_performance_v1" },
     "object_id": { "const": "road-10k-controlled-opt-in-foundation-v1" },
-    "work_contract_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-    "route_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "work_contract_digest": { "const": "sha256:b2c668dc304e44407a743c8b8c2710cc6c133ac4106045986bfd1726d2a7725e" },
+    "route_digest": { "const": "sha256:a916feab2d029de3d6996933a7aece668670facc016f6abf8b932aa747af8214" },
     "schema_version": { "const": "road-10k-stage-authority-v1" },
     "control_schema_version": { "const": 2 },
     "state": {
@@ -51,8 +51,8 @@
         "revision"
       ]
     },
-    "invitation_ceiling": { "type": "integer", "minimum": 0, "maximum": 60 },
-    "exposure_ceiling": { "type": "integer", "minimum": 0, "maximum": 30 },
+    "invitation_ceiling": { "const": 60 },
+    "exposure_ceiling": { "const": 30 },
     "notice_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "cohort_rule_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "sampling_run_evidence_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },

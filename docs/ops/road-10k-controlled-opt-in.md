@@ -1,118 +1,102 @@
 # Road 10K controlled opt-in foundation
 
-> **Summary:** Inspect and recover the dormant Road 10K repository foundation
-> without activating, inviting, exposing, collecting, purging, or provisioning
-> anything.
-> **Use when:** A deploy, restore, rollback, or readiness investigation touches
-> the Road 10K control ledger, external authority reader, or deletion replay.
+> **Summary:** Inspect the repository-only Road 10K foundation. This revision is
+> mechanically hard-off and cannot activate, invite, expose, collect, purge, or
+> authorize a stage action.
+> **Use when:** A repository review, restore plan, or readiness investigation
+> touches the dormant Road ledger or deletion replay contract.
 
 ## Prerequisites
 
-- Repository access to the exact deployed revision and its Alembic history.
-- Restricted read access to aggregate readiness output and startup logs.
-- A separately authorized operator for any future deployment or stage action.
-  This runbook authorizes no live configuration, authority publication,
-  invitation, exposure, purge, alert, or provider action.
+- Repository access to the exact deployed revision and Alembic history.
+- Restricted access to aggregate readiness output when separately authorized.
+- A future Product, Trust, Architecture, Science, Design, and Operations
+  decision before any activation design or live evidence collection.
 
-## Steps
+This runbook does not authorize deployment, live configuration, stage actions,
+provider calls, purge work, alerts, resources, or drills.
 
-1. Confirm that the deployed revision contains one Road migration head and no
-   live authority artifact or permissive application writer.
+## Repository checks
 
-   ```bash
-   python -m alembic heads
-   git grep -n "PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH"
-   ```
+1. Confirm one Road migration head with python -m alembic heads.
+2. Treat every Road authority file as a dormant parser fixture. The stage
+   access, opt-in, readiness, generation, regeneration, and baseline routes
+   return a private 404 before authority, authentication, database, storage, or
+   provider work. No file, environment value, configuration, receipt, or
+   deployment can change that behavior in this revision.
+3. Confirm web and miniapp do not mount a Road opt-in surface and reject the
+   Road constraint schema from plan-start discovery.
+4. Inspect road_10k_runtime_snapshot only as low-cardinality evidence. Its
+   authority value is inactive_revision for a valid dormant ledger or
+   counter_mismatch for invalid state. Replay is pending or not_required and
+   never contains an owner dimension.
 
-2. Treat Road 10K as **default-off and default-hidden**. The only activation
-   input is a read-only, independently issued stage-authority artifact consumed
-   by `api/road_10k_stage_authority.py`. There is no application writer, seed,
-   admin toggle, permissive local override, or public navigation/deep link.
-   Missing, off, malformed, stale, incompatible, mixed-version, paused, killed,
-   not-ready, provider-fence-open, or nonmatching deployed-build authority is
-   denied. The local `develop` fallback is never an authorizable build.
+## Ledger and rights invariants
 
-3. Inspect the restricted `road_10k_runtime_snapshot()` only as aggregate
-   evidence. With authority absent it must still report retained consumed
-   counts, remain unready, and expose no owner dimension. Never reconstruct
-   counters from logs.
+- The cumulative ceilings are exactly 60 distinct-owner invitations and 30
+  distinct-owner first-result exposures. They cannot be lowered, raised,
+  decremented, or recycled after withdrawal or deletion.
+- First exposure and its durable evaluation result commit in one serialized
+  transaction. A standalone pre-result exposure reservation is rejected.
+- Owner, authority, receipt, lifecycle, and timestamp identity is protected by
+  database constraints and triggers. Exposure receipts are immutable except
+  for owner unlink during account deletion.
+- Evaluations expire no later than 30 days after creation. Reads, updates,
+  restore, and reenrollment never slide that deadline. Screenshot capture is
+  unavailable.
+- Authenticated first-party owner export and withdrawal, and global account
+  export and deletion, remain rights independent of stage authority. They do
+  not activate or expose the capability.
 
-4. Validate ledger and deletion behavior before considering traffic ready.
+## Deletion replay
 
-   - `road_10k_stage_counters` stores monotonic invitation and first-exposure
-     counts. Compiled maximums are 60 cumulative invitations and 30 cumulative
-     distinct exposed native owners; authority may only tighten them.
-   - `road_10k_owner_stage_receipts` is unique on native `users.id` plus stage.
-     Invitation retries and same-stage reenrollment are idempotent; withdrawal,
-     deletion, retry, rollback, or expiry never decrements a counter or reuses
-     a slot.
-   - `road_10k_exposure_receipts` is committed under the serialized write
-     before any Road result is serialized, cached, exported, or downloaded.
-   - `road_10k_evaluations` expires at most 30 days from creation. Reads,
-     updates, restore, and reenrollment never slide the deadline.
-   - `road_10k_screenshot_references` contains only private object references.
-     Capture/upload remains unavailable in this foundation.
+A deletion with evaluation or private-object targets first writes a payload-free
+private marker, then commits a matching database obligation in the destructive
+transaction. Startup touches private marker storage only while a committed
+obligation exists. A missing or malformed matching marker, unavailable storage,
+or failed delete keeps readiness closed. Prepared markers without a committed
+obligation are ignored. Completion is monotonic and obligations cannot be
+mutated or deleted.
 
-   SQLite uses `BEGIN IMMEDIATE`; PostgreSQL uses the stage lock and row locks.
-   Database triggers prevent counter decrements and receipt deletion.
+A withdrawal with no evaluation or object target creates no empty marker and
+does not depend on private storage. The in-process replay flag is diagnostic
+only; database obligations are the cross-worker source of truth.
 
-5. Preserve owner lifecycle and deletion replay. Only an active, non-demo
-   first-party JWT can discover a returned catalog, reauthenticate, enroll,
-   withdraw, or receive a result. MCP, plugin, context, service, AI, demo, and
-   anonymous identities are denied. Adoption is a separate exact-version
-   action; provider delivery, automatic adoption/successor, and AI remain
-   unavailable.
+The 14-day marker cleanup horizon matches the current database restore horizon.
+A restore from a snapshot older than a deletion may also be older than its
+database obligation. Live database/private-store restore reconciliation has not
+been demonstrated and remains a separately authorized release obligation; do
+not claim restore safety or resume traffic from repository tests alone.
 
-   Withdrawal immediately deletes evaluation payloads and screenshot
-   references without changing counters. Account deletion stages a
-   payload-free out-of-database marker before unlinking native owner links,
-   then commits it only after DB deletion intent commits. Replay acts only on
-   committed/completed intent. Completed markers remain through the 14-day
-   restore horizon; unresolved markers are never aged out. Startup replays
-   markers and validates ledger consistency before readiness whenever Road
-   authority or durable Road obligations exist.
+## Verification boundaries
 
-6. Keep operations definitions inactive. No live metric resource, schedule,
-   alert, action group, actor binding, or purge job is created here. The
-   explicit `purge_expired_evaluations()` primitive must not be scheduled by
-   this repository authorization.
+Repository tests cover static route denial, fixed counters, SQLite serialization,
+ledger triggers, payload retention, deletion replay, data rights, and hidden
+web/miniapp clients. Live PostgreSQL concurrency, private-store deletion and
+restore, purge scheduling and alerts, provider audit, monitoring, rollback, and
+post-release outcomes remain release-only evidence.
 
-## Verify
+The purge_expired_evaluations primitive is unscheduled. Do not run or schedule
+it under this repository authorization.
 
-- `python -m alembic history --rev-range=b8d4e6f7a9c1:heads` shows only
-  `d2e3f4a5b6c7` after the merge point.
-- `/api/health/ready` denies partial Road schemas, counter/receipt mismatch, and
-  blocked replay; absent schema or absent/off authority with no Road obligation
-  remains a healthy dormant state.
-- The restricted runtime snapshot preserves actual aggregate consumed counts
-  when authority is absent and never exposes an owner ID, hash, roster, raw
-  payload, or screenshot.
-- Provider audit shows zero Road delivery, removal, AI, MCP, or automatic
-  adoption calls.
-- Repository tests cover SQLite concurrency, migration triggers, deletion
-  replay, marker retention, and default-hidden clients. Live PostgreSQL and
-  private-object restore evidence remains a later operator obligation.
+## Rollback / recovery
 
-## Rollback / Recovery
-
-- Pause and kill are independent authority states. They make proposals
-  read-only while preserving export, withdrawal, deletion, and adopted-plan
-  owner controls.
-- Rollback is a soft kill plus redeploy of a verified known-good inactive
-  revision. Leave ledgers, manifests, migration, and objects intact.
-- Never run the destructive migration downgrade after any slot or receipt has
-  been consumed; the migration refuses it. Use a forward fix.
-- A restored database must replay out-of-database deletion markers and pass
-  ledger consistency before traffic. Never resume automatically.
+- There is no operational pause, kill, resume, or activation artifact in this
+  revision. A code rollback must remain on a verified hard-off revision.
+- Preserve ledgers, obligations, manifests, migration, and private objects.
+- Never run the destructive migration downgrade after any receipt, slot, or
+  deletion obligation exists; use a forward fix.
+- Keep traffic closed when a committed obligation cannot replay. Never infer
+  completion from elapsed time or a process-local flag.
 
 ## Related
 
-- `api/road_10k_control.py`
-- `api/road_10k_stage_authority.py`
-- `api/road_10k_deletion_storage.py`
-- `config/road-10k-stage-authority.schema.json`
-- `docs/ops/backup-and-restore.md`
-- `docs/ops/monitoring-and-alerts.md`
+- api/road_10k_control.py
+- api/road_10k_stage_authority.py
+- api/road_10k_deletion_storage.py
+- config/road-10k-stage-authority.schema.json
+- docs/ops/backup-and-restore.md
+- docs/ops/monitoring-and-alerts.md
 
 ---
-_Last reviewed: 2026-08-21 · Owner: Operations_
+_Last reviewed: 2026-08-22 · Owner: Operations_

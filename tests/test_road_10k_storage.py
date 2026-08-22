@@ -1,6 +1,7 @@
 """Road 10K private marker and screenshot-fence tests."""
 from datetime import datetime, timedelta, timezone
 import inspect
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -112,12 +113,13 @@ def test_retention_marker_targets_only_the_expired_record(tmp_path, monkeypatch)
     from api.road_10k_control import _owner_deletion_manifest
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from db.models import Base, Road10KEvaluation, User
+    from db.models import Base, Road10KEvaluation, Road10KOwnerStageReceipt, User
 
     monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
         db.add_all(
             [
@@ -127,10 +129,8 @@ def test_retention_marker_targets_only_the_expired_record(tmp_path, monkeypatch)
                     stage_id="road-10k-controlled-opt-in-v1",
                     result_code="validation_failed",
                     payload={"private": "old"},
-                    created_at=datetime.now(timezone.utc).replace(tzinfo=None)
-                    - timedelta(days=31),
-                    expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
-                    - timedelta(days=1),
+                    created_at=now - timedelta(days=31),
+                    expires_at=now - timedelta(days=1),
                 ),
                 Road10KEvaluation(
                     id="fresh",
@@ -138,9 +138,8 @@ def test_retention_marker_targets_only_the_expired_record(tmp_path, monkeypatch)
                     stage_id="road-10k-controlled-opt-in-v1",
                     result_code="validation_failed",
                     payload={"private": "new"},
-                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
-                    expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
-                    + timedelta(days=29),
+                    created_at=now,
+                    expires_at=now + timedelta(days=29),
                 ),
             ]
         )
@@ -153,6 +152,7 @@ def test_retention_marker_targets_only_the_expired_record(tmp_path, monkeypatch)
             now=datetime.now(timezone.utc).replace(tzinfo=None),
             evaluation_ids=["expired"],
         )
+    assert marker is not None
     assert marker["evaluation_ids"] == ["expired"]
 
 
@@ -339,14 +339,16 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
     from sqlalchemy.orm import Session
     from api.road_10k_control import (
         initialize_road_10k_runtime,
+        prepare_account_deletion,
+        record_deletion_obligations,
         road_10k_requires_replay_ready,
     )
-    from db.models import Base, Feedback, User
+    from db.models import Base, Feedback, Road10KDeletionObligation, User
 
     manifest_store = _MemoryManifestStore()
     monkeypatch.setattr(storage, "_test_store", manifest_store)
     monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
-    engine = create_engine(f"sqlite:///{tmp_path / 'prepared-replay.db'}")
+    engine = create_engine(f"sqlite:///{tmp_path / "prepared-replay.db"}")
     Base.metadata.create_all(engine)
     key = "feedback/7/0.png"
     object_path = Path(tmp_path) / "feedback_images" / key
@@ -364,23 +366,68 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
             )
         )
         db.commit()
-        storage.stage_manifest(
-            owner_id="owner",
-            stage_id="road-10k-controlled-opt-in-v1",
-            reason="account_deletion",
-            evaluation_ids=[],
-            screenshot_keys=[key],
-            requested_at=datetime.now(timezone.utc),
-        )
+        manifests = prepare_account_deletion(db, user_id="owner")
+        record_deletion_obligations(db, manifests)
+        # Simulate a crash after the account transaction commits but before the
+        # private marker receives its best-effort committed acknowledgement.
         db.query(Feedback).delete()
         db.query(User).delete()
         db.commit()
 
-        assert road_10k_requires_replay_ready(db) is False
+        assert road_10k_requires_replay_ready(db) is True
+        assert db.query(Road10KDeletionObligation).one().status == "committed"
         assert initialize_road_10k_runtime(db) == 1
         assert not object_path.exists()
+        assert db.query(Road10KDeletionObligation).one().status == "completed"
         active = list(storage.iter_active())
         assert active and active[0]["status"] == "completed"
+
+
+def test_committed_obligation_rejects_tampered_or_missing_marker(
+    tmp_path,
+    monkeypatch,
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api.road_10k_control import (
+        Road10KDeletionFailed,
+        initialize_road_10k_runtime,
+        prepare_account_deletion,
+        record_deletion_obligations,
+    )
+    from db.models import Base, Feedback, User
+
+    manifest_store = _MemoryManifestStore()
+    monkeypatch.setattr(storage, "_test_store", manifest_store)
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    engine = create_engine(f"sqlite:///{tmp_path / 'tampered-marker.db'}")
+    Base.metadata.create_all(engine)
+    key = "feedback/7/0.png"
+    object_path = Path(tmp_path) / "feedback_images" / key
+    object_path.parent.mkdir(parents=True, exist_ok=True)
+    object_path.write_bytes(b"private")
+
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(Feedback(user_id="owner", kind="other", message="private", image_keys=[key]))
+        db.commit()
+        manifests = prepare_account_deletion(db, user_id="owner")
+        record_deletion_obligations(db, manifests)
+        db.commit()
+
+        marker_key = next(iter(manifest_store.items))
+        tampered = json.loads(manifest_store.items[marker_key])
+        tampered["screenshot_keys"] = ["feedback/8/0.png"]
+        manifest_store.items[marker_key] = json.dumps(tampered).encode()
+
+        with pytest.raises(Road10KDeletionFailed, match="marker_mismatch"):
+            initialize_road_10k_runtime(db)
+        assert object_path.exists()
+
+        manifest_store.items.clear()
+        with pytest.raises(Road10KDeletionFailed, match="marker_missing"):
+            initialize_road_10k_runtime(db)
+        assert object_path.exists()
 
 
 def test_private_manifest_storage_unavailable_fails_closed(
@@ -408,6 +455,27 @@ def test_private_manifest_storage_unavailable_fails_closed(
         )
 
 
+def test_account_deletion_stages_feedback_image_keys_before_row_removal(
+    tmp_path, monkeypatch
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from api.road_10k_control import prepare_account_deletion
+    from db.models import Base, Feedback, User
+
+    monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
+    engine = create_engine(f"sqlite:///{tmp_path / 'feedback-delete.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(Feedback(user_id="owner", kind="other", message="private", image_keys=["feedback/7/0.png"]))
+        db.commit()
+
+        manifests = prepare_account_deletion(db, user_id="owner")
+        assert [manifest["screenshot_keys"] for manifest in manifests] == [["feedback/7/0.png"]]
+        assert db.query(Feedback).filter(Feedback.user_id == "owner").one().image_keys == ["feedback/7/0.png"]
+
+
 def test_evaluation_retention_is_creation_based_until_explicit_purge(
     tmp_path,
     monkeypatch,
@@ -416,7 +484,7 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
     from api import road_10k_control
-    from db.models import Base, Road10KEvaluation, User
+    from db.models import Base, Road10KEvaluation, Road10KOwnerStageReceipt, User
 
     monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
     monkeypatch.setattr(
@@ -438,6 +506,28 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
     expired_created = now - timedelta(days=31)
     with Session(engine) as db:
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        receipt_at = now - timedelta(days=32)
+        withdrawn_at = now - timedelta(days=1)
+        db.add(
+            Road10KOwnerStageReceipt(
+                id="retention-owner-receipt",
+                user_id="owner",
+                stage_id="road-10k-controlled-opt-in-v1",
+                capability_id="outdoor_road_10k_performance_v1",
+                schema_version=2,
+                policy_version="road-10k-plan-generation-policy-v2",
+                authority_digest="a" * 64,
+                notice_digest="b" * 64,
+                cohort_rule_digest="c" * 64,
+                sampling_run_evidence_digest="d" * 64,
+                invitation_idempotency_key="retention-owner-invitation",
+                state="withdrawn",
+                invitation_issued_at=receipt_at,
+                withdrawn_at=withdrawn_at,
+                created_at=receipt_at,
+                updated_at=withdrawn_at,
+            )
+        )
         db.add_all(
             [
                 Road10KEvaluation(
@@ -448,7 +538,7 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
                     payload={"private": "expired"},
                     created_at=expired_created,
                     # A caller/restore must not be able to slide this deadline.
-                    expires_at=now + timedelta(days=90),
+                    expires_at=expired_created + timedelta(days=30),
                 ),
                 Road10KEvaluation(
                     id="fresh",
@@ -469,7 +559,7 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
         # Reads do not rewrite the original creation deadline.
         expired = db.get(Road10KEvaluation, "expired")
         assert expired is not None
-        assert expired.expires_at == now + timedelta(days=90)
+        assert expired.expires_at == expired_created + timedelta(days=30)
 
         assert road_10k_control.purge_expired_evaluations(
             db,

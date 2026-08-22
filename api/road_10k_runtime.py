@@ -13,23 +13,21 @@ from sqlalchemy.orm import Session
 from api.road_10k_control import road_10k_runtime_snapshot
 from api.road_10k_stage_authority import (
     Road10KStageAuthority,
-    authority_denial_reason,
     load_stage_authority,
 )
 
 Road10KBoundary = Literal[
-    "discovery",
-    "invitation",
-    "enrollment",
-    "processing",
-    "first_exposure",
-    "screenshot",
-    "purge",
-    "restore",
-    "export",
-    "withdrawal",
+    "discovery", "invitation", "enrollment", "processing",
+    "generation", "adoption", "first_exposure", "screenshot",
+    "purge", "restore", "provider", "export", "withdrawal",
     "deletion",
 ]
+
+# This is the canonical stage-capability vocabulary.  Owner data rights are
+# intentionally listed for callers' audit clarity, but are never granted by
+# this evaluator; their authority-independent handlers own those rights.
+ROAD_10K_BOUNDARIES = frozenset(Road10KBoundary.__args__)
+
 
 
 @dataclass(frozen=True)
@@ -47,32 +45,20 @@ def read_stage_authority() -> Road10KStageAuthority | None:
 
 
 def evaluate_boundary(
-    boundary: Road10KBoundary,
+    boundary: Road10KBoundary | str,
     *,
     lifecycle: bool = False,
 ) -> Road10KRuntimeDecision:
-    """Evaluate one runtime boundary from the current authoritative artifact."""
-    authority = load_stage_authority()
-    if authority is None:
-        return Road10KRuntimeDecision(
-            False,
-            "missing_or_malformed",
-            "hidden",
-            False,
-            False,
-        )
-    lifecycle_state = authority.lifecycle_status
-    allowed = lifecycle_state == "active" or (
-        lifecycle and lifecycle_state in {"paused", "killed", "hold", "rollback"}
-    )
-    read_only = lifecycle_state in {"paused", "killed", "hold", "rollback"}
-    return Road10KRuntimeDecision(
-        allowed,
-        authority_denial_reason(authority) if not allowed else "allowed",
-        "enrolled" if allowed else (lifecycle_state or authority.state),
-        read_only,
-        False,
-    )
+    """Fail closed for every Road 10K stage boundary in this revision.
+
+    The authority artifact is parsed elsewhere only as dormant schema input.
+    No branch in this evaluator can authorize discovery, enrollment,
+    processing, result exposure, generation, adoption, storage, provider, or
+    lifecycle access.  Unknown boundaries receive the same deny decision.
+    """
+    del lifecycle
+    reason = "inactive_revision" if boundary in ROAD_10K_BOUNDARIES else "unknown_boundary"
+    return Road10KRuntimeDecision(False, reason, "hidden", False, False)
 
 
 def road_10k_ready(db: Session) -> bool:
@@ -83,5 +69,5 @@ def road_10k_ready(db: Session) -> bool:
 
 def provider_fence_is_closed() -> bool:
     """Provider/AI/MCP delivery is permanently closed in this foundation."""
-    authority = load_stage_authority()
-    return authority is None or authority.provider_fence == "closed"
+    # A closed provider fence is not provider authority.
+    return True

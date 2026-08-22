@@ -1526,8 +1526,17 @@ def _constraints_snapshot(
         "weekly_time_limit_min": constraints.weekly_time_limit_min,
         "maximum_session_duration_min": constraints.maximum_session_duration_min,
         "unavailable_dates": [
-            item.isoformat() for item in constraints.unavailable_dates
+            item.isoformat() for item in (constraints.unavailable_dates or ())
         ],
+        "unavailable_dates_confirmed_none": (
+            constraints.unavailable_dates_confirmed_none
+        ),
+        "event_context_confirmed_none": (
+            constraints.event_context_confirmed_none
+        ),
+        "outdoor_road_intent_confirmed": (
+            constraints.outdoor_road_intent_confirmed
+        ),
         "preferred_longest_easy_weekday": (
             constraints.preferred_longest_easy_weekday
         ),
@@ -1545,7 +1554,11 @@ def _constraints_from_snapshot(
     try:
         return Road10KPlanGenerationConstraints(
             adult_confirmed=bool(snapshot["adult_confirmed"]),
-            current_symptom_stop=bool(snapshot["current_symptom_stop"]),
+            current_symptom_stop=(
+                snapshot["current_symptom_stop"]
+                if type(snapshot.get("current_symptom_stop")) is bool
+                else None
+            ),
             available_weekdays=tuple(
                 int(item) for item in snapshot["available_weekdays"]
             ),
@@ -1553,9 +1566,22 @@ def _constraints_from_snapshot(
             maximum_session_duration_min=int(
                 snapshot["maximum_session_duration_min"]
             ),
-            unavailable_dates=tuple(
-                date.fromisoformat(str(item))
-                for item in snapshot["unavailable_dates"]
+            unavailable_dates=(
+                tuple(
+                    date.fromisoformat(str(item))
+                    for item in snapshot["unavailable_dates"]
+                )
+                if snapshot.get("unavailable_dates") is not None
+                else None
+            ),
+            unavailable_dates_confirmed_none=(
+                snapshot.get("unavailable_dates_confirmed_none") is True
+            ),
+            event_context_confirmed_none=(
+                snapshot.get("event_context_confirmed_none") is True
+            ),
+            outdoor_road_intent_confirmed=(
+                snapshot.get("outdoor_road_intent_confirmed") is True
             ),
             preferred_longest_easy_weekday=(
                 None

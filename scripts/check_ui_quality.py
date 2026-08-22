@@ -27,6 +27,7 @@ _WEB_CODE_EXTENSIONS = {
 }
 _MINIAPP_CODE_EXTENSIONS = {
     ".css",
+    ".scss",
     ".js",
     ".json",
     ".ts",

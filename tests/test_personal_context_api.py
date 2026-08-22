@@ -715,7 +715,7 @@ def test_export_includes_all_versions_and_receipts_but_no_other_owner(
 
     complete = client.get("/api/me/export", headers=_headers())
     assert complete.status_code == 200, complete.text
-    assert complete.json()["schema_version"] == 5
+    assert complete.json()["schema_version"] == 6
     assert {
         item["id"]
         for item in complete.json()["personal_context"]["items"]
