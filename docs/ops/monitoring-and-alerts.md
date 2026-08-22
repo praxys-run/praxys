@@ -455,6 +455,12 @@ gates; they are not provisioned, enabled, or billed until the accepted
 Operations Decision Record authorizes that step. Costs are the eastasia retail
 rate per the [cost model](#alert-cost-model) below.
 
+Regional availability states are exact:
+
+- **planned** — neither the web test nor its alert exists;
+- **provisioned-disabled** — both resources exist and both are disabled;
+- **live** — both resources exist and both are enabled.
+
 | Rule | Type | Scope | Watches | Eval | Sev | ~USD/mo |
 |---|---|---|---|---|---|---|
 | `praxys-db-health-unhealthy` | log | `appi-praxys-backend` | `praxys.db_health` failure (corrupt/unreachable DB) | 5 min | 1 | **1.50** |
@@ -833,6 +839,189 @@ test**:
    for outside-in traffic. A planned row becomes live in this inventory in the
    same reviewed operations change.
 
+The CLI equivalent below creates an exact test/alert pair in the disabled
+state. Run it once per planned hostname, then enable only a hostname that is
+already public and accepted:
+
+```bash
+set -euo pipefail
+
+RG=rg-trainsight
+SUB="$(az account show --query id -o tsv)"
+AI_ID="$(az resource show -g "$RG" -n appi-trainsight \
+  --resource-type Microsoft.Insights/components --query id -o tsv)"
+AG_ID="$(az monitor action-group show -g "$RG" \
+  -n praxys-feedback-ag --query id -o tsv)"
+
+provision_availability_pair() {
+  name="$1"
+  url="$2"
+  alert_id="/subscriptions/${SUB}/resourceGroups/${RG}/providers/Microsoft.Insights/metricAlerts/${name}"
+
+  if az resource show -g "$RG" -n "$name" \
+      --resource-type Microsoft.Insights/webtests \
+      --api-version 2022-06-15 --output none 2>/dev/null ||
+    az monitor metrics alert show -g "$RG" -n "$name" \
+      --output none 2>/dev/null; then
+    echo "Refusing to overwrite an existing partial or complete pair: ${name}" >&2
+    return 1
+  fi
+
+  az monitor app-insights web-test create \
+    --resource-group "$RG" \
+    --name "$name" \
+    --location eastasia \
+    --web-test-kind standard \
+    --defined-web-test-name "$name" \
+    --synthetic-monitor-id "$name" \
+    --description "Praxys outside-in availability: ${url}" \
+    --enabled false \
+    --frequency 900 \
+    --timeout 30 \
+    --retry-enabled true \
+    --locations Id=us-ca-sjc-azr \
+    --locations Id=apac-hk-hkn-azr \
+    --request-url "$url" \
+    --http-verb GET \
+    --parse-requests false \
+    --follow-redirects false \
+    --expected-status-code 200 \
+    --ignore-status-code false \
+    --ssl-check true \
+    --tags "hidden-link:${AI_ID}=Resource" \
+    --output none
+
+  web_test_id="$(az resource show -g "$RG" -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  body="$(jq -n \
+    --arg name "$name" \
+    --arg ai "$AI_ID" \
+    --arg web "$web_test_id" \
+    --arg ag "$AG_ID" \
+    --arg ai_tag "hidden-link:${AI_ID}" \
+    --arg web_tag "hidden-link:${web_test_id}" '
+    {
+      location: "global",
+      tags: {
+        ($ai_tag): "Resource",
+        ($web_tag): "Resource"
+      },
+      properties: {
+        description: ("Availability alert for " + $name),
+        severity: 1,
+        enabled: false,
+        scopes: [$web, $ai],
+        evaluationFrequency: "PT1M",
+        windowSize: "PT5M",
+        criteria: {
+          "odata.type":
+            "Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria",
+          webTestId: $web,
+          componentId: $ai,
+          failedLocationCount: 1
+        },
+        actions: [{actionGroupId: $ag}]
+      }
+    }')"
+
+  if ! az rest --method put \
+      --url "https://management.azure.com${alert_id}?api-version=2018-03-01" \
+      --body "$body" \
+      --output none; then
+    az resource delete --ids "$web_test_id" || true
+    return 1
+  fi
+
+  test "$(az resource show --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --query properties.Enabled -o tsv)" = "false"
+  test "$(az monitor metrics alert show -g "$RG" -n "$name" \
+    --query enabled -o tsv)" = "false"
+}
+
+provision_availability_pair wt-praxys-run-apex https://praxys.run/
+provision_availability_pair wt-praxys-cn-apex https://praxys.cn/
+provision_availability_pair wt-praxys-cn-www https://www.praxys.cn/
+```
+
+Enable or disable a pair transactionally. A failed enable compensates back to
+both resources disabled, and every transition is read back:
+
+```bash
+disable_availability_pair() {
+  name="$1"
+  rc=0
+  web_test_id="$(az resource show -g rg-trainsight -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  az resource update --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --set properties.Enabled=false || rc=1
+  az monitor metrics alert update -g rg-trainsight \
+    -n "$name" --enabled false || rc=1
+
+  test "$(az resource show --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --query properties.Enabled -o tsv)" = "false" || rc=1
+  test "$(az monitor metrics alert show -g rg-trainsight -n "$name" \
+    --query enabled -o tsv)" = "false" || rc=1
+
+  return "$rc"
+}
+
+enable_availability_pair() {
+  name="$1"
+  web_test_id="$(az resource show -g rg-trainsight -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  if ! az monitor metrics alert update -g rg-trainsight \
+      -n "$name" --enabled true; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if ! az resource update --ids "$web_test_id" \
+      --api-version 2022-06-15 \
+      --set properties.Enabled=true; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if ! test_enabled="$(az resource show --ids "$web_test_id" \
+      --api-version 2022-06-15 \
+      --query properties.Enabled -o tsv)" ||
+    ! alert_enabled="$(az monitor metrics alert show -g rg-trainsight \
+      -n "$name" --query enabled -o tsv)"; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if test "$test_enabled" != "true" ||
+    test "$alert_enabled" != "true"; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+}
+
+enable_availability_pair wt-praxys-run-apex
+```
+
+After the approved preparation executes successfully, update both inventory
+tables in the same reviewed follow-up so they state:
+
+| Web test | Required recorded state |
+|---|---|
+| `wt-praxys-run-apex` | `live` |
+| `wt-praxys-cn-apex` | `provisioned-disabled` |
+| `wt-praxys-cn-www` | `provisioned-disabled` |
+
+Until that Azure receipt exists, the source-of-truth inventory remains
+`planned`.
+
 For an aborted cutover, disable the same-named metric alert and web test in the
 same maintenance window, then verify neither continues evaluating. Delete both
 only if the hostname is permanently retired; otherwise keep them disabled for
@@ -892,4 +1081,4 @@ quiescence, so a stale workflow variable snapshot is not the final authority.
 - In-app: Admin → User Feedback (badge + Approve/Retry/Reject).
 
 ---
-_Last reviewed: 2026-07-29 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._
