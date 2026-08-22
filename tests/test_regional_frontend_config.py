@@ -173,6 +173,7 @@ def test_operations_docs_match_edgeone_git_and_monitoring_boundaries() -> None:
         ROOT / "docs/ops/monitoring-and-alerts.md"
     ).read_text(encoding="utf-8")
     normalized_deployment = " ".join(deployment.split())
+    normalized_monitoring = " ".join(monitoring.split())
 
     assert "protected EdgeOne environment" not in deployment
     assert "approve the protected environment" not in deploy_runbook
@@ -183,18 +184,24 @@ def test_operations_docs_match_edgeone_git_and_monitoring_boundaries() -> None:
     assert "wt-praxys-cn-apex" in monitoring
     assert "wt-praxys-cn-www" in monitoring
     assert "praxys-feedback-ag" in monitoring
-    assert "A planned row becomes live" in monitoring
     assert (
-        "| `wt-praxys-run-apex` | planned | `appi-trainsight` | "
+        "Creating a missing pair moves it from `planned` to "
+        "`provisioned-disabled`."
+    ) in normalized_monitoring
+    assert (
+        "that reviewed transition is `provisioned-disabled` to `live`."
+    ) in normalized_monitoring
+    assert (
+        "| `wt-praxys-run-apex` | live | `appi-trainsight` | "
         "`https://praxys.run/` |"
     ) in monitoring
     assert (
-        "| `wt-praxys-cn-apex` | planned | `appi-trainsight` | "
-        "`https://praxys.cn/` |"
+        "| `wt-praxys-cn-apex` | provisioned-disabled | "
+        "`appi-trainsight` | `https://praxys.cn/` |"
     ) in monitoring
     assert (
-        "| `wt-praxys-cn-www` | planned | `appi-trainsight` | "
-        "`https://www.praxys.cn/` |"
+        "| `wt-praxys-cn-www` | provisioned-disabled | "
+        "`appi-trainsight` | `https://www.praxys.cn/` |"
     ) in monitoring
     assert "provisioned-disabled" in monitoring
     assert "WebtestLocationAvailabilityCriteria" in monitoring
@@ -211,8 +218,17 @@ def test_operations_docs_match_edgeone_git_and_monitoring_boundaries() -> None:
     assert '! alert_enabled="$(az monitor metrics alert show' in monitoring
     assert "--query properties.Enabled -o tsv" in monitoring
     assert "--query enabled -o tsv" in monitoring
+    assert not any(
+        line.startswith("provision_availability_pair wt-praxys-")
+        for line in monitoring.splitlines()
+    )
+    for example in (
+        "# provision_availability_pair wt-praxys-run-apex",
+        "# provision_availability_pair wt-praxys-cn-apex",
+        "# provision_availability_pair wt-praxys-cn-www",
+    ):
+        assert example in monitoring
     assert "does not depend on an Auto Deploy switch" in deploy_runbook
     environment = (ROOT / "docs/ops/environment.md").read_text(encoding="utf-8")
-    assert "Pending preparation" in environment
-    assert "currently report `httpsOnly=false`" in environment
-    assert "approved target is `httpsOnly=true`" in environment
+    assert "both report `httpsOnly=true`" in environment
+    assert "direct HTTP requests redirect to HTTPS" in environment

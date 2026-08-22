@@ -448,12 +448,11 @@ Interpretation:
 
 ## Alert inventory (source of truth)
 
-Every unmarked rule below lives in `rg-trainsight` (region **eastasia**) and
+Every unmarked rule below is live in `rg-trainsight` (region **eastasia**) and
 routes to the `praxys-feedback-ag` action group
-(→ `support@praxys.run`). Rows marked **planned** are required regional-cutover
-gates; they are not provisioned, enabled, or billed until the accepted
-Operations Decision Record authorizes that step. Costs are the eastasia retail
-rate per the [cost model](#alert-cost-model) below.
+(→ `support@praxys.run`). Rows marked **provisioned-disabled** exist with both
+the web test and alert disabled. Rows marked **planned** do not exist. Costs are
+the eastasia retail rate per the [cost model](#alert-cost-model) below.
 
 Regional availability states are exact:
 
@@ -466,9 +465,9 @@ Regional availability states are exact:
 | `praxys-db-health-unhealthy` | log | `appi-praxys-backend` | `praxys.db_health` failure (corrupt/unreachable DB) | 5 min | 1 | **1.50** |
 | `praxys-pg-connections-high` | metric | `praxys-pg` | `active_connections` avg > 40 | 5 min | 2 | ~0.10 |
 | `wt-praxys-homepage` | metric (web test) | `appi-trainsight` + homepage test | `https://www.praxys.run/` reachable | 1 min | 1 | ~0.10 |
-| `wt-praxys-run-apex` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.run/` reachable | 1 min | 1 | ~0.10 |
-| `wt-praxys-cn-apex` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | ~0.10 |
-| `wt-praxys-cn-www` **planned** | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-run-apex` | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.run/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-cn-apex` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
+| `wt-praxys-cn-www` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
 | `wt-praxys-api-health` | metric (web test) | `appi-praxys-backend` + API test | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `appi-praxys-backend` | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
@@ -479,8 +478,9 @@ Regional availability states are exact:
 | `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
 | `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Current total ≈ 4.5–5.0 USD/mo.** Provisioning the three planned regional
-frontend tests adds at most ~0.30 USD/mo before the metric-alert free allotment.
+**Current total ≈ 4.6–5.1 USD/mo.** The live `.run` apex pair adds at most
+~0.10 USD/mo before the metric-alert free allotment. Enabling both disabled
+`.cn` pairs later adds at most another ~0.20 USD/mo.
 
 ### Labs analysis worker alerts (deployment-owned)
 
@@ -810,21 +810,21 @@ inside-the-process db-health / readiness probes.
 | Web test | State | Component | Target |
 |---|---|---|---|
 | `wt-praxys-homepage` | live | `appi-trainsight` | `https://www.praxys.run/` |
-| `wt-praxys-run-apex` | planned | `appi-trainsight` | `https://praxys.run/` |
-| `wt-praxys-cn-apex` | planned | `appi-trainsight` | `https://praxys.cn/` |
-| `wt-praxys-cn-www` | planned | `appi-trainsight` | `https://www.praxys.cn/` |
+| `wt-praxys-run-apex` | live | `appi-trainsight` | `https://praxys.run/` |
+| `wt-praxys-cn-apex` | provisioned-disabled | `appi-trainsight` | `https://praxys.cn/` |
+| `wt-praxys-cn-www` | provisioned-disabled | `appi-trainsight` | `https://www.praxys.cn/` |
 | `wt-praxys-api-health` | live | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
 
-Standard web-test execution is **0.00** in eastasia (free grant); the two live
-alerts and three planned alerts are cheap metric alerts. **Keep each web test
-and its alert in the same enabled state** — a probe that runs while its alert is
-disabled pays to watch nothing (found and fixed 2026-07-05). Re-point locations
-via the availability test's *Locations* in the portal or
-`az resource update`.
+Standard web-test execution is **0.00** in eastasia (free grant); three
+frontend/API availability alerts are live and both `.cn` pairs are
+provisioned-disabled. **Keep each web test and its alert in the same enabled
+state** — a probe that runs while its alert is disabled pays to watch nothing
+(found and fixed 2026-07-05). Re-point locations via the availability test's
+*Locations* in the portal or `az resource update`.
 
-Before either regional frontend cutover, provision the three planned tests in
-**Application Insights → `appi-trainsight` → Availability → Add Standard
-test**:
+The three regional pairs were provisioned on 2026-08-22. To recreate a missing
+pair, use **Application Insights → `appi-trainsight` → Availability → Add
+Standard test**:
 
 1. Use the exact name and HTTPS target in the table. Set frequency to 15 min,
    timeout to 30 s, and locations to San Jose plus Hong Kong.
@@ -835,13 +835,15 @@ test**:
 4. Verify the action group and its `support@praxys.run` receiver are enabled.
    Record the web-test resource ID, alert resource ID, and a successful sample
    in the regional Release Evidence before DNS or proxy cutover.
-5. Enable each test and alert together only after its public hostname is ready
-   for outside-in traffic. A planned row becomes live in this inventory in the
-   same reviewed operations change.
+5. Creating a missing pair moves it from `planned` to
+   `provisioned-disabled`. Enable each test and alert together only after its
+   public hostname is ready for outside-in traffic; that reviewed transition is
+   `provisioned-disabled` to `live`.
 
 The CLI equivalent below creates an exact test/alert pair in the disabled
-state. Run it once per planned hostname, then enable only a hostname that is
-already public and accepted:
+state. It refuses to overwrite an existing or partial pair. Use it only to
+recreate a missing pair, then enable only a hostname that is already public and
+accepted:
 
 ```bash
 set -euo pipefail
@@ -941,9 +943,10 @@ provision_availability_pair() {
     --query enabled -o tsv)" = "false"
 }
 
-provision_availability_pair wt-praxys-run-apex https://praxys.run/
-provision_availability_pair wt-praxys-cn-apex https://praxys.cn/
-provision_availability_pair wt-praxys-cn-www https://www.praxys.cn/
+# Invoke the function for only the pair proven missing. Examples:
+# provision_availability_pair wt-praxys-run-apex https://praxys.run/
+# provision_availability_pair wt-praxys-cn-apex https://praxys.cn/
+# provision_availability_pair wt-praxys-cn-www https://www.praxys.cn/
 ```
 
 Enable or disable a pair transactionally. A failed enable compensates back to
@@ -1010,17 +1013,16 @@ enable_availability_pair() {
 enable_availability_pair wt-praxys-run-apex
 ```
 
-After the approved preparation executes successfully, update both inventory
-tables in the same reviewed follow-up so they state:
+The 2026-08-22 preparation receipt records:
 
-| Web test | Required recorded state |
+| Web test | Recorded state |
 |---|---|
 | `wt-praxys-run-apex` | `live` |
 | `wt-praxys-cn-apex` | `provisioned-disabled` |
 | `wt-praxys-cn-www` | `provisioned-disabled` |
 
-Until that Azure receipt exists, the source-of-truth inventory remains
-`planned`.
+The first `.run` apex samples succeeded from both
+`apac-hk-hkn-azr` and `us-ca-sjc-azr` at `2026-08-22T03:25:02Z`.
 
 For an aborted cutover, disable the same-named metric alert and web test in the
 same maintenance window, then verify neither continues evaluating. Delete both
