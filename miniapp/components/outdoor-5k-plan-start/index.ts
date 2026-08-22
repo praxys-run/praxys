@@ -356,6 +356,7 @@ function road10kReadinessContext(
       ? t('Intentional all-out complete 10K')
       : '—';
   const eventState = {
+    unconfirmed: '—',
     confirmed_none: tr.noEvent,
     single_target: tr.singleTarget,
     race_dense: tr.eventConflict,

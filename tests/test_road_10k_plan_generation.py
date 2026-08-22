@@ -216,6 +216,107 @@ def test_explicit_science_statements_and_small_availability_fail_closed() -> Non
     assert one_or_two_days.code == "no_schedule_within_envelope"
 
 
+def test_missing_and_explicitly_empty_unavailable_dates_hash_differently() -> None:
+    from analysis.road_10k_plan_generation import deterministic_input_hash
+
+    explicit_none = _input()
+    unanswered = replace(
+        explicit_none,
+        constraints=replace(
+            explicit_none.constraints,
+            unavailable_dates=None,
+        ),
+    )
+
+    assert deterministic_input_hash(unanswered) != deterministic_input_hash(
+        explicit_none
+    )
+
+
+def test_symptom_stop_precedes_event_and_constraint_clarification() -> None:
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    base = _input()
+    result = generate_road_10k_plan(
+        replace(
+            base,
+            constraints=replace(
+                base.constraints,
+                current_symptom_stop=True,
+                event_context_confirmed_none=False,
+                available_weekdays=(0, 2),
+                unavailable_dates=None,
+            ),
+        )
+    )
+
+    assert result.code == "safety_stop"
+    assert result.failed_rule_id == "current_symptom_stop"
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"target_event_date": date(2026, 9, 2)},
+        {"benchmark_date": date(2026, 9, 2)},
+    ],
+)
+def test_confirmed_no_event_rejects_a_dated_target(updates) -> None:
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    base = _input(**updates)
+    result = generate_road_10k_plan(
+        replace(
+            base,
+            constraints=replace(
+                base.constraints,
+                event_context_confirmed_none=True,
+            ),
+        )
+    )
+
+    assert result.code == "contradictory_input"
+    assert result.failed_rule_id == "event_context_confirmation"
+    assert result.plan is None
+
+
+def test_outdoor_road_intent_requires_explicit_confirmation() -> None:
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    base = _input()
+    result = generate_road_10k_plan(
+        replace(
+            base,
+            constraints=replace(
+                base.constraints,
+                outdoor_road_intent_confirmed=False,
+            ),
+        )
+    )
+
+    assert result.code == "adult_scope_or_constraints_unconfirmed"
+    assert result.failed_rule_id == "outdoor_road_intent_confirmation"
+    assert result.plan is None
+
+
+def test_api_requires_explicit_unavailable_and_event_statements() -> None:
+    from pydantic import ValidationError
+    from api.routes.road_10k_plan_generation import Road10KConstraintsRequest
+
+    with pytest.raises(ValidationError):
+        Road10KConstraintsRequest.model_validate(
+            {
+                "adult_confirmed": True,
+                "current_symptom_stop": False,
+                "available_weekdays": [0, 2, 5],
+                "weekly_time_limit_min": 170,
+                "maximum_session_duration_min": 70,
+                "unavailable_dates": [date(2026, 8, 30)],
+                "outdoor_road_intent_confirmed": True,
+            }
+        )
+
+
 def test_schedule_never_silently_underfills_exact_weekly_target() -> None:
     from analysis.road_10k_plan_generation import generate_road_10k_plan
 
@@ -237,8 +338,49 @@ def test_easy_remainder_is_chronological_without_preference() -> None:
     ) == dates
 
 
-def test_eight_to_fourteen_day_targets_produce_a_truncated_taper() -> None:
-    """A single confirmed target inside the accepted taper window ends on event eve."""
+def test_easy_remainder_is_chronological_when_preferred_day_is_absent() -> None:
+    from analysis.road_10k_plan_generation import _easy_allocation_priority
+
+    dates = (date(2026, 8, 19), date(2026, 8, 21), date(2026, 8, 23))
+    assert _easy_allocation_priority(
+        dates,
+        preferred_longest_easy_weekday=0,
+    ) == dates
+
+
+def test_longest_easy_designation_never_labels_a_shorter_easy_run() -> None:
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    base = _input()
+    result = generate_road_10k_plan(
+        replace(
+            base,
+            constraints=replace(
+                base.constraints,
+                preferred_longest_easy_weekday=None,
+            ),
+        )
+    )
+
+    assert result.plan is not None
+    for week in result.plan.weeks:
+        easy_runs = [
+            workout
+            for workout in week.workouts
+            if workout.intensity_bucket == "low"
+        ]
+        designated = [
+            workout
+            for workout in easy_runs
+            if workout.workout_type == "longest_easy"
+        ]
+        assert not designated or designated[0].planned_duration_min == max(
+            workout.planned_duration_min for workout in easy_runs
+        )
+
+
+def test_eight_to_fourteen_day_target_can_fail_exact_taper_fill() -> None:
+    """Taper eligibility does not guarantee an exactly fillable schedule."""
     from analysis.road_10k_plan_generation import generate_road_10k_plan
 
     target_date = date(2026, 8, 29)
@@ -859,6 +1001,28 @@ def test_hard_off_stage_routes_deny_before_auth_or_request_side_effects(
     assert response.headers["cache-control"] == "private, no-store"
     assert response.headers["pragma"] == "no-cache"
     assert response.headers["vary"] == "Authorization"
+
+
+def test_hard_off_road_routes_are_absent_from_openapi(hard_off_road_client):
+    client, _db_session = hard_off_road_client
+    schema = client.get("/openapi.json").json()
+
+    hidden_paths = {
+        "/api/road-10k/access",
+        "/api/road-10k/opt-in",
+        "/api/plan/road-10k/readiness",
+        "/api/plan/road-10k/alternatives",
+        "/api/plan/road-10k/generate",
+        "/api/plan/road-10k/proposals/{proposal_id}/regenerate",
+        "/api/plan/road-10k/baseline/history/confirm",
+    }
+    assert hidden_paths.isdisjoint(schema["paths"])
+    assert "/api/road-10k/withdraw" in schema["paths"]
+    assert "/api/road-10k/export" in schema["paths"]
+    components = schema.get("components", {}).get("schemas", {})
+    assert "Road10KReadinessResponse" not in components
+    assert "Road10KProposalResponse" not in components
+    assert "Road10KExportResponse" in components
 
 
 def test_hard_off_road_discovery_stays_hidden(hard_off_road_client):

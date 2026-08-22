@@ -505,6 +505,59 @@ def test_road_10k_destructive_downgrade_refuses_consumed_receipt(
         engine.dispose()
 
 
+def test_road_10k_destructive_downgrade_refuses_evaluation_only(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    database_url = f"sqlite:///{tmp_path / 'road-10k-evaluation-downgrade.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO road_10k_evaluations (
+                    id, user_id, stage_id, result_code, payload,
+                    created_at, expires_at
+                ) VALUES (
+                    'evaluation-only', NULL,
+                    'road-10k-controlled-opt-in-v1', 'safety_stop', '{}',
+                    CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+1 day')
+                )
+                """
+            )
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade Road 10K control ledger",
+        ):
+            command.downgrade(config, "b8d4e6f7a9c1")
+
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "d2e3f4a5b6c7"
+    finally:
+        engine.dispose()
+
+
+def test_road_10k_downgrade_guards_screenshot_references() -> None:
+    from pathlib import Path
+
+    source = Path(
+        "alembic/versions/d2e3f4a5b6c7_add_road_10k_control_ledger.py"
+    ).read_text(encoding="utf-8")
+    downgrade = source.split("def downgrade() -> None:", 1)[1]
+    assert "EXISTS (SELECT 1 FROM road_10k_screenshot_references)" in downgrade
+
+
 def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
     tmp_path,
     monkeypatch,

@@ -138,13 +138,21 @@ def _control_error(exc: Exception) -> HTTPException:
     return HTTPException(500, {"code": "ROAD_10K_CONTROL_FAILED"}, headers=headers)
 
 
-@router.get("/access", dependencies=[Depends(_require_surface)])
+@router.get(
+    "/access",
+    dependencies=[Depends(_require_surface)],
+    include_in_schema=False,
+)
 def get_access() -> None:
     """This Road capability is mechanically hidden in this revision."""
     _require_surface()
 
 
-@router.post("/opt-in", dependencies=[Depends(_require_surface)])
+@router.post(
+    "/opt-in",
+    dependencies=[Depends(_require_surface)],
+    include_in_schema=False,
+)
 def opt_in() -> None:
     """This Road capability is mechanically hidden in this revision."""
     _require_surface()

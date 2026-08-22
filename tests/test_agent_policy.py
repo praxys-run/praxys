@@ -141,6 +141,15 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     assert review["promoted_classes"] == []
 
 
+def test_backend_deploy_paths_include_root_alembic_config() -> None:
+    """Migration configuration changes must trigger backend CI/deploy review."""
+    workflow = (
+        ROOT / ".github" / "workflows" / "deploy-backend.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "- 'alembic.ini'" in workflow
+
+
 def test_deploy_owns_agent_ready_runtime_controls() -> None:
     """Optional App Service controls must come from repository variables."""
     workflow = (

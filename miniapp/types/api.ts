@@ -1246,7 +1246,7 @@ export interface Road10KHistoryStatistics {
 
 export interface Road10KEventContext {
   snapshot_version: string;
-  state: 'confirmed_none' | 'single_target' | 'race_dense';
+  state: 'unconfirmed' | 'confirmed_none' | 'single_target' | 'race_dense';
   goal_target_date: string | null;
   benchmark_date: string | null;
   target_date: string | null;
@@ -2421,8 +2421,64 @@ export interface UserDataExportRoad10KPlanGeneration {
   records: UserDataExportRoad10KGeneration[];
 }
 
+export interface UserDataExportRoad10KOwnerReceipt {
+  id: string;
+  stage_id: string;
+  capability_id: string;
+  schema_version: 2;
+  policy_version: string;
+  authority_digest: string;
+  notice_digest: string;
+  cohort_rule_digest: string;
+  sampling_run_evidence_digest: string;
+  state: 'invited_only' | 'enrolled_unexposed' | 'exposed' | 'withdrawn' | 'deleted';
+  invitation_issued_at: string;
+  enrolled_at: string | null;
+  first_exposed_at: string | null;
+  withdrawn_at: string | null;
+  deleted_at: string | null;
+}
+
+export interface UserDataExportRoad10KExposureReceipt {
+  id: string;
+  stage_id: string;
+  owner_stage_receipt_id: string;
+  authority_digest: string;
+  exposed_at: string;
+}
+
+export interface UserDataExportRoad10KEvaluation {
+  id: string;
+  stage_id: string;
+  result_code: Road10KResultCode;
+  payload: Record<string, unknown>;
+  created_at: string;
+  expires_at: string;
+  deleted_at: string | null;
+  deletion_reason: string | null;
+}
+
+export interface UserDataExportRoad10KScreenshotReference {
+  id: string;
+  evaluation_id: string;
+  object_key: string;
+  content_type: string;
+  captured_at: string;
+  expires_at: string;
+  deleted_at: string | null;
+}
+
+export interface UserDataExportRoad10KControl {
+  schema_version: 1;
+  exported_at: string;
+  owner_receipts: UserDataExportRoad10KOwnerReceipt[];
+  exposure_receipts: UserDataExportRoad10KExposureReceipt[];
+  evaluations: UserDataExportRoad10KEvaluation[];
+  screenshot_references: UserDataExportRoad10KScreenshotReference[];
+}
+
 export interface UserDataExportResponse {
-  schema_version: 5;
+  schema_version: 6;
   exported_at: string;
   user_config: UserDataExportConfig;
   activities: UserDataExportActivity[];
@@ -2434,6 +2490,7 @@ export interface UserDataExportResponse {
   goal_baseline: UserDataExportGoalBaseline;
   outdoor_5k_plan_generation: UserDataExportOutdoor5KPlanGeneration;
   road_10k_baseline: UserDataExportRoad10KBaseline;
+  road_10k_control: UserDataExportRoad10KControl;
   road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;
   personal_context: PersonalContextExportResponse;
 }

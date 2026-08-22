@@ -592,6 +592,31 @@ def generate_road_10k_plan(
             missing="reviewed contract identifiers",
             alternatives=("refresh_policy_metadata",),
         )
+    if generation_input.constraints.current_symptom_stop is True:
+        return _no_plan(
+            code="safety_stop",
+            input_hash=input_hash,
+            statistics=statistics,
+            event_context=event_context,
+            rule="current_symptom_stop",
+            reason="The athlete reported a current symptom stop.",
+            missing=None,
+            alternatives=("defer_plan_generation", "use_non_medical_safety_guidance"),
+        )
+    if generation_input.constraints.event_context_confirmed_none and (
+        generation_input.goal.target_event_date is not None
+        or generation_input.constraints.benchmark_date is not None
+    ):
+        return _no_plan(
+            code="contradictory_input",
+            input_hash=input_hash,
+            statistics=statistics,
+            event_context=event_context,
+            rule="event_context_confirmation",
+            reason="A dated target conflicts with the explicit no-event confirmation.",
+            missing="one consistent event context statement",
+            alternatives=("revise_event_context",),
+        )
     if event_context.state == "unconfirmed":
         return _no_plan(
             code="adult_scope_or_constraints_unconfirmed",
@@ -637,17 +662,6 @@ def generate_road_10k_plan(
             reason=reason,
             missing=missing,
             alternatives=alternatives,
-        )
-    if generation_input.constraints.current_symptom_stop:
-        return _no_plan(
-            code="safety_stop",
-            input_hash=input_hash,
-            statistics=statistics,
-            event_context=event_context,
-            rule="current_symptom_stop",
-            reason="The athlete reported a current symptom stop.",
-            missing=None,
-            alternatives=("defer_plan_generation", "use_non_medical_safety_guidance"),
         )
     if not _baseline_is_current(generation_input):
         return _no_plan(
@@ -842,9 +856,13 @@ def deterministic_input_hash(
             "maximum_session_duration_min": (
                 generation_input.constraints.maximum_session_duration_min
             ),
-            "unavailable_dates": sorted(
-                item.isoformat()
-                for item in (generation_input.constraints.unavailable_dates or ())
+            "unavailable_dates": (
+                None
+                if generation_input.constraints.unavailable_dates is None
+                else sorted(
+                    item.isoformat()
+                    for item in generation_input.constraints.unavailable_dates
+                )
             ),
             "unavailable_dates_confirmed_none": (
                 generation_input.constraints.unavailable_dates_confirmed_none
@@ -1440,13 +1458,17 @@ def _easy_allocation_priority(
     ordered = tuple(sorted(dates))
     if preferred_longest_easy_weekday is None:
         return ordered
-    longest = _longest_easy_date(
-        dates,
-        preferred_longest_easy_weekday=preferred_longest_easy_weekday,
+    preferred = next(
+        (
+            item
+            for item in ordered
+            if item.weekday() == preferred_longest_easy_weekday
+        ),
+        None,
     )
-    if longest is None:
+    if preferred is None:
         return ordered
-    return (longest,) + tuple(item for item in ordered if item != longest)
+    return (preferred,) + tuple(item for item in ordered if item != preferred)
 
 
 def _longest_easy_date(
@@ -1460,7 +1482,7 @@ def _longest_easy_date(
         for candidate in sorted(dates):
             if candidate.weekday() == preferred_longest_easy_weekday:
                 return candidate
-    return max(dates)
+    return None
 
 
 def _select_schedule_dates(

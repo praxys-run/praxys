@@ -592,13 +592,15 @@ def downgrade() -> None:
             "OR distinct_exposed_owners_consumed > 0) "
             "OR EXISTS (SELECT 1 FROM road_10k_owner_stage_receipts) "
             "OR EXISTS (SELECT 1 FROM road_10k_exposure_receipts) "
+            "OR EXISTS (SELECT 1 FROM road_10k_evaluations) "
+            "OR EXISTS (SELECT 1 FROM road_10k_screenshot_references) "
             "OR EXISTS (SELECT 1 FROM road_10k_deletion_obligations) "
             "THEN 1 ELSE 0 END"
         )
     ).scalar_one()
     if consumed:
         raise RuntimeError(
-            "Cannot downgrade Road 10K control ledger after slot or receipt consumption"
+            "Cannot downgrade Road 10K control ledger after durable stage data exists"
         )
     if bind.dialect.name == "sqlite":
         for trigger_name in (

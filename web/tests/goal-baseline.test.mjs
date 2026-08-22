@@ -104,7 +104,7 @@ test('web and miniapp share the generated baseline contract', async () => {
   }
 });
 
-test('web and miniapp expose the exact schema-v5 road 10K export contract', async () => {
+test('web and miniapp expose the exact schema-v6 road 10K export contract', async () => {
   const [webTypes, miniTypes] = await Promise.all([
     read('../src/types/api.ts'),
     read('../../miniapp/types/api.ts'),
@@ -116,6 +116,11 @@ test('web and miniapp expose the exact schema-v5 road 10K export contract', asyn
     'UserDataExportRoad10KTrainingPatternSnapshot',
     'UserDataExportRoad10KGeneration',
     'UserDataExportRoad10KPlanGeneration',
+    'UserDataExportRoad10KOwnerReceipt',
+    'UserDataExportRoad10KExposureReceipt',
+    'UserDataExportRoad10KEvaluation',
+    'UserDataExportRoad10KScreenshotReference',
+    'UserDataExportRoad10KControl',
     'UserDataExportResponse',
   ];
   for (const name of interfaceNames) {
@@ -236,10 +241,28 @@ test('web and miniapp expose the exact schema-v5 road 10K export contract', asyn
       'created_at',
     ],
   );
+  assert.deepEqual(
+    interfaceProperties(interfaceBlock(webTypes, 'UserDataExportRoad10KControl')),
+    [
+      'schema_version',
+      'exported_at',
+      'owner_receipts',
+      'exposure_receipts',
+      'evaluations',
+      'screenshot_references',
+    ],
+  );
   const response = interfaceBlock(webTypes, 'UserDataExportResponse');
-  assert.match(response, /schema_version: 5;/);
+  assert.match(response, /schema_version: 6;/);
   assert.match(response, /road_10k_baseline: UserDataExportRoad10KBaseline;/);
+  assert.match(response, /road_10k_control: UserDataExportRoad10KControl;/);
   assert.match(response, /road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;/);
+  const eventContext = interfaceBlock(webTypes, 'Road10KEventContext');
+  assert.equal(eventContext, interfaceBlock(miniTypes, 'Road10KEventContext'));
+  assert.match(
+    eventContext,
+    /state: 'unconfirmed' \| 'confirmed_none' \| 'single_target' \| 'race_dense';/,
+  );
   assert.doesNotMatch(
     interfaceNames.map((name) => interfaceBlock(webTypes, name)).join('\n'),
     /history_observation_ids/,

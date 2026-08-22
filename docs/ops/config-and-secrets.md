@@ -1053,9 +1053,12 @@ outgrown.
 ## Road 10K controlled opt-in (repository-only, inactive)
 
 This revision has no Road activation configuration. The optional
-PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH reader exists only for dormant parser
-fixtures and diagnostics; request paths do not consult it, and even a complete
-non-off artifact is unusable. Do not add it to deployment configuration.
+PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH reader remains dormant scaffolding and a
+diagnostic input. Capability discovery may call it, but every artifact remains
+unusable and cannot expose Road. Activation, invitation, exposure, and plan
+generation routes are statically denied before authority, authentication,
+database, storage, or provider work. Do not add the reader to deployment
+configuration.
 
 The cumulative ceilings are fixed at exactly 60 invitations and 30 first-result
 exposures. No authority or environment value can lower, raise, reset, or recycle

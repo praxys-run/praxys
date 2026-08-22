@@ -71,7 +71,8 @@ router = APIRouter(
     dependencies=[
         Depends(_require_road_10k_capability_available),
         Depends(_private_response),
-    ]
+    ],
+    include_in_schema=False,
 )
 Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
 IdempotencyKey = Annotated[
@@ -151,9 +152,9 @@ class Road10KConstraintsRequest(BaseModel):
     available_weekdays: list[Weekday] = Field(min_length=1, max_length=7)
     weekly_time_limit_min: int = Field(ge=1)
     maximum_session_duration_min: int = Field(ge=1)
-    unavailable_dates: list[date] | None = Field(default=None, max_length=28)
-    unavailable_dates_confirmed_none: bool = False
-    event_context_confirmed_none: bool = False
+    unavailable_dates: list[date] = Field(max_length=28)
+    unavailable_dates_confirmed_none: bool
+    event_context_confirmed_none: bool
     outdoor_road_intent_confirmed: bool
     preferred_longest_easy_weekday: Weekday | None = None
     benchmark_date: date | None = None
@@ -161,12 +162,7 @@ class Road10KConstraintsRequest(BaseModel):
     @model_validator(mode="after")
     def validate_explicit_statements(self) -> "Road10KConstraintsRequest":
         dates = self.unavailable_dates
-        if dates is None:
-            if self.unavailable_dates_confirmed_none:
-                self.unavailable_dates = []
-            else:
-                raise ValueError("unavailable dates require dates or explicit none")
-        elif not dates and not self.unavailable_dates_confirmed_none:
+        if not dates and not self.unavailable_dates_confirmed_none:
             raise ValueError("empty unavailable dates require explicit none")
         elif dates and self.unavailable_dates_confirmed_none:
             raise ValueError("unavailable dates conflict with explicit none")

@@ -21,6 +21,7 @@ on:
       - 'sync/**'
       - 'db/**'
       - 'alembic/**'
+      - 'alembic.ini'
       - 'config/road-10k-stage-authority.schema.json'
       - 'config/agent-loop-policies.json'
       - 'data/science/**'

@@ -84,8 +84,9 @@ it under this repository authorization.
 - There is no operational pause, kill, resume, or activation artifact in this
   revision. A code rollback must remain on a verified hard-off revision.
 - Preserve ledgers, obligations, manifests, migration, and private objects.
-- Never run the destructive migration downgrade after any receipt, slot, or
-  deletion obligation exists; use a forward fix.
+- Never run the destructive migration downgrade after any counter consumption,
+  receipt, evaluation, screenshot reference, or deletion obligation exists; use
+  a forward fix.
 - Keep traffic closed when a committed obligation cannot replay. Never infer
   completion from elapsed time or a process-local flag.
 
