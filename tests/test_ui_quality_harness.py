@@ -133,6 +133,64 @@ def test_copilot_draft_can_record_truthful_pending_ui_evidence():
     )
 
 
+def test_unavailable_source_only_evidence_requires_draft_mode():
+    evidence = (
+        "## UI quality\n"
+        "- Impeccable: clarify web/src/pages/Road10KControlledOptIn.tsx - "
+        "existing source-level target\n"
+        "- Visual review: unavailable - desktop and mobile Chrome were not "
+        "performed\n"
+        "- Primary journey: invited Goal -> Training summary\n"
+        "- Reviewer handoff: none - exact-head captures are unavailable\n"
+        "- States checked: source and test only - invited and enrolled states\n"
+        "- Accessibility: source only - keyboard and focus were not verified\n"
+        "- Design system impact: none - accepted components cover the change\n"
+        "- Miniapp parity: preserved - native WeChat rendering is unavailable\n"
+        "- Exceptions: none\n"
+    )
+
+    errors = validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=True,
+    )
+    for field in (
+        "impeccable",
+        "visual review",
+        "reviewer handoff",
+        "states checked",
+        "accessibility",
+        "miniapp parity",
+    ):
+        assert any(field in error for error in errors)
+
+    assert validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=True,
+        allow_unverified=True,
+    ) == []
+
+    hyphenated = evidence.replace(
+        "source and test only",
+        "source-and-test-only",
+    )
+    assert any(
+        "states checked" in error
+        for error in validate_ui_evidence(
+            hyphenated,
+            has_web=True,
+            has_miniapp=True,
+        )
+    )
+    assert validate_ui_evidence(
+        hyphenated,
+        has_web=True,
+        has_miniapp=True,
+        allow_unverified=True,
+    ) == []
+
+
 def test_design_system_update_requires_changed_governance_path():
     evidence = VALID_WEB_EVIDENCE.replace(
         "none - existing tokens and components cover this change",

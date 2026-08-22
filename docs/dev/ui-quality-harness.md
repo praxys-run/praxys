@@ -179,8 +179,13 @@ and requires:
 ```
 
 Placeholders, planned checks, `not run`, and unexplained `N/A` values fail the
-gate. Image-only UI changes still require evidence even though the mechanical
-detector has no source file to scan.
+gate. Strict validation also rejects explicit unverified markers including
+`unavailable`, `not performed`, `not verified`, `source only`, `source-only`,
+`source-level`, `source and test only`, and `source-and-test-only`. Draft
+validation with
+`--allow-unverified-draft` accepts truthful limitations only when all nine
+fields are present. Image-only UI changes still require evidence even though
+the mechanical detector has no source file to scan.
 
 ## Design-system discoveries
 

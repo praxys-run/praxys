@@ -105,6 +105,11 @@ _PLACEHOLDER_RE = re.compile(
     r"(?:^|\b)(?:todo|tbd|pending|not checked|not run|n/?a)(?:\b|$)",
     re.IGNORECASE,
 )
+_UNVERIFIED_EVIDENCE_RE = re.compile(
+    r"(?:\bunavailable\b|\bnot[\s-]+(?:performed|verified)\b|"
+    r"\bsource(?:[\s-]+(?:level|only)|[\s-]+and[\s-]+tests?[\s-]+only)\b)",
+    re.IGNORECASE,
+)
 _REVIEWER_HANDOFF_RE = re.compile(
     r"^(?:local-only|pr media|ci artifact|preview|none)\s*-\s*\S.*$",
     re.IGNORECASE,
@@ -240,6 +245,7 @@ def _is_placeholder(value: str) -> bool:
         or "<!--" in value
         or "-->" in value
         or _PLACEHOLDER_RE.search(value) is not None
+        or _UNVERIFIED_EVIDENCE_RE.search(value) is not None
     )
 
 
