@@ -17,7 +17,7 @@
 | Resource group | `rg-trainsight` | `.github/workflows/deploy-backend.yml` |
 | Backend App Service | `trainsight-app` | `deploy-backend.yml` (`--name trainsight-app`) |
 | Frontend App Service | `praxys-frontend` | `deploy-frontend-appservice.yml` |
-| App Service transport target | Pending preparation: both sites currently report `httpsOnly=false`; the approved target is `httpsOnly=true`, with HTTP redirecting to HTTPS | [deploy.md](./deploy.md), [tencent-frontend.md](./tencent-frontend.md) |
+| App Service transport | `trainsight-app` and `praxys-frontend` both report `httpsOnly=true`; direct HTTP requests redirect to HTTPS (verified 2026-08-22) | [deploy.md](./deploy.md), [tencent-frontend.md](./tencent-frontend.md) |
 | App Service plan | `plan-trainsight` (Linux B1, East Asia) | `docs/deployment.md`, `frontend_server` notes |
 | PostgreSQL (**primary DB**, live 2026-07-04) | `praxys-pg` Flexible Server (Burstable B1ms, PG16, DB `praxys`, Entra auth, PITR 14d) | [postgres-migration.md](./postgres-migration.md); `PRAXYS_PG_SERVER` var |
 | Labs isolated compute (opt-in) | Service Bus namespace tagged `praxysComponent=labs-analysis`, queue `labs-environment-response`; Container Apps environment `cae-praxys-jobs`, job `praxys-labs-environment-worker`, UAMI `id-praxys-labs-worker` | `infra/labs-worker.bicep`; [labs-analysis-worker.md](./labs-analysis-worker.md) |
