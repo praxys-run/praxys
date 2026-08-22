@@ -502,6 +502,62 @@ def test_withdrawal_keeps_exposure_count_and_deletes_evidence(
     assert db.query(Road10KStageCounter).one().distinct_exposed_owners_consumed == 1
 
 
+def test_repeat_withdrawal_fails_while_deletion_replay_is_pending(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    authority = _authority()
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        _MemoryManifestStore(),
+    )
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
+    _owner(db, "owner-pending-withdrawal")
+    issue_invitation(
+        db,
+        user_id="owner-pending-withdrawal",
+        idempotency_key=_invitation_key("pending-withdrawal-invitation"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    enroll_owner(
+        db,
+        user_id="owner-pending-withdrawal",
+        notice_digest=authority.notice_digest,
+    )
+    record_result(
+        db,
+        user_id="owner-pending-withdrawal",
+        result_code="validation_failed",
+        payload={"scope": "withdrawal"},
+    )
+
+    complete = road_10k_control.complete_deletion_manifests
+    monkeypatch.setattr(
+        road_10k_control,
+        "complete_deletion_manifests",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("store down")),
+    )
+    with pytest.raises(
+        road_10k_control.Road10KDeletionFailed,
+        match="deletion_marker_completion_failed",
+    ):
+        withdraw_owner(db, user_id="owner-pending-withdrawal")
+    monkeypatch.setattr(
+        road_10k_control,
+        "complete_deletion_manifests",
+        complete,
+    )
+
+    with pytest.raises(
+        road_10k_control.Road10KDeletionFailed,
+        match="deletion_replay_pending",
+    ):
+        withdraw_owner(db, user_id="owner-pending-withdrawal")
+
+
 def test_withdrawn_owner_cannot_reopt_or_reuse_a_slot(
     tmp_path,
     monkeypatch,

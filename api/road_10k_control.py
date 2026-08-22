@@ -1047,6 +1047,13 @@ def withdraw_owner(
     try:
         receipt = _fixed_owner_receipt(db, user_id=user_id)
         if receipt.state == "withdrawn":
+            pending_replay = (
+                db.query(Road10KDeletionObligation.id)
+                .filter(Road10KDeletionObligation.status == "committed")
+                .first()
+            )
+            if pending_replay is not None:
+                raise Road10KDeletionFailed("deletion_replay_pending")
             db.commit()
             return receipt
         # Stage and persist the payload-free marker in this same DB
