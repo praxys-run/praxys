@@ -32,7 +32,8 @@ from db.agent_loop import (
     latest_outcomes_for_decisions,
     record_outcome,
 )
-from db.session import get_db
+from db.cache_revision import lock_revision_writes
+from db.session import begin_serialized_write, get_db
 
 if TYPE_CHECKING:
     from db.models import AgentDecision, AgentOutcome, Feedback
@@ -146,6 +147,22 @@ def _decode_and_validate_images(images: Optional[list[str]]) -> list[bytes]:
     return out
 
 
+def _delete_unpublished_images(
+    keys: list[str],
+    *,
+    feedback_id: int | None,
+) -> None:
+    """Compensate private uploads that never gained a durable DB key."""
+    for key in keys:
+        try:
+            feedback_storage.delete_private_object(key)
+        except Exception:
+            logger.exception(
+                "feedback unpublished-image cleanup failed for id=%s",
+                feedback_id,
+            )
+
+
 @router.post("/feedback")
 def submit_feedback(
     body: FeedbackRequest,
@@ -154,22 +171,40 @@ def submit_feedback(
     db: Session = Depends(get_db),
 ) -> dict:
     """Record a feedback submission and schedule background triage."""
-    from db.models import Feedback
+    from db.models import Feedback, User
 
-    cutoff = datetime.utcnow() - _WINDOW
-    recent = (
-        db.query(Feedback)
-        .filter(Feedback.user_id == user_id, Feedback.created_at >= cutoff)
-        .count()
-    )
-    if recent >= _MAX_PER_WINDOW:
-        raise HTTPException(429, detail="FEEDBACK_RATE_LIMITED")
-
-    # Validate + decode screenshots up-front so a bad image is rejected before
-    # we persist anything (issue #337).
-    decoded_images = _decode_and_validate_images(body.images)
-
+    # Authentication ends its read transaction before entering the route. Start
+    # one owner-fenced write so account deletion cannot enumerate screenshot
+    # keys between object upload and key publication. SQLite's immediate write
+    # and PostgreSQL's per-owner advisory lock mirror account deletion.
+    db.rollback()
+    stored_keys: list[str] = []
+    feedback_id: int | None = None
+    published = False
     try:
+        begin_serialized_write(db)
+        lock_revision_writes(db, user_id)
+        owner_is_active = (
+            db.query(User.id)
+            .filter(User.id == user_id, User.is_active == True)  # noqa: E712
+            .first()
+            is not None
+        )
+        if not owner_is_active:
+            raise HTTPException(401, "User account is deactivated")
+
+        cutoff = datetime.utcnow() - _WINDOW
+        recent = (
+            db.query(Feedback)
+            .filter(Feedback.user_id == user_id, Feedback.created_at >= cutoff)
+            .count()
+        )
+        if recent >= _MAX_PER_WINDOW:
+            raise HTTPException(429, detail="FEEDBACK_RATE_LIMITED")
+
+        # Bad image input is rejected before either the feedback row or object
+        # is persisted. The transaction stays fenced across the private upload.
+        decoded_images = _decode_and_validate_images(body.images)
         row = Feedback(
             user_id=user_id,
             kind=body.kind,
@@ -179,30 +214,37 @@ def submit_feedback(
             status="new",
         )
         db.add(row)
+        db.flush()
+        feedback_id = row.id
+
+        for index, data in enumerate(decoded_images):
+            key = feedback_storage.store_image(
+                data,
+                feedback_id=row.id,
+                index=index,
+            )
+            if key:
+                stored_keys.append(key)
+        if stored_keys:
+            row.image_keys = stored_keys
+
+        # Storage unavailability produces no keys but still commits the primary
+        # text report. Row and any successful keys become visible together.
         db.commit()
+        published = True
         db.refresh(row)
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception:
+        if not published:
+            _delete_unpublished_images(
+                stored_keys,
+                feedback_id=feedback_id,
+            )
         db.rollback()
         logger.exception("feedback save failed for user %s", user_id)
         raise HTTPException(500, detail="FEEDBACK_SAVE_FAILED")
-
-    # Persist screenshots privately and record their keys (never the raw image)
-    # on the row. A storage failure must not fail the submit — the text report
-    # is the primary artifact — so we log and carry on with whatever stored.
-    if decoded_images:
-        keys: list[str] = []
-        for i, data in enumerate(decoded_images):
-            key = feedback_storage.store_image(data, feedback_id=row.id, index=i)
-            if key:
-                keys.append(key)
-        if keys:
-            try:
-                row.image_keys = keys
-                db.commit()
-                db.refresh(row)
-            except Exception:
-                db.rollback()
-                logger.warning("feedback image-key save failed for id=%s", row.id, exc_info=True)
 
     telemetry.record_feedback(kind=body.kind, status="new")
     background_tasks.add_task(triage_and_publish, row.id)

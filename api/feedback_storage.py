@@ -174,8 +174,8 @@ def _blob_container_client():
         from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
     except ImportError:
         logger.warning(
-            "azure-storage-blob not installed — feedback screenshots fall back "
-            "to local filesystem storage"
+            "azure-storage-blob not installed — configured feedback Blob "
+            "storage is unavailable"
         )
         return None
     container = _blob_container()
@@ -199,7 +199,10 @@ def _blob_container_client():
             pass
         return client
     except Exception:
-        logger.warning("Azure Blob init failed — falling back to local storage", exc_info=True)
+        logger.warning(
+            "Azure Blob init failed — configured feedback storage is unavailable",
+            exc_info=True,
+        )
         return None
 
 
@@ -251,7 +254,11 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
             except Exception:
                 logger.warning("store_image: blob upload failed for %s", key, exc_info=True)
                 return None
-        # blob configured but client unavailable → fall through to local
+        logger.warning(
+            "store_image: configured blob storage is unavailable for %s",
+            key,
+        )
+        return None
 
     _warn_local_once()
     try:
@@ -311,15 +318,20 @@ def delete_private_object(key: str) -> None:
         if client is None:
             raise OSError("private blob storage unavailable")
         _delete_blob_variants(client, key)
-        return
 
+    # A previous configured-Blob outage could have written this key through
+    # the legacy local fallback. Delete those bytes only after Blob deletion
+    # succeeds so an unavailable configured backend never looks complete.
+    _delete_local_object(key)
+
+
+def _delete_local_object(key: str) -> None:
+    """Delete a legacy/local private object without masking I/O errors."""
     path = os.path.join(_local_dir(), *key.split("/"))
     try:
         os.unlink(path)
     except FileNotFoundError:
         pass
-    except OSError:
-        raise
 
 
 def _delete_blob_variants(client, key: str) -> None:

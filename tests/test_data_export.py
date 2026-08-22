@@ -536,6 +536,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 updated_at=datetime(2026, 8, 1, 8, 2),
             )
         )
+        db.flush()
         db.add(
             Road10KExposureReceipt(
                 id="owner-road-10k-exposure-receipt",

@@ -965,13 +965,15 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
         user_id="durable-owner",
         owner_stage_receipt_id=receipt.id,
         authority_digest="a" * 64,
-        exposed_at=datetime.utcnow(),
+        exposed_at=exposed_time,
     )
-    db.add_all([receipt, exposure])
+    db.add(receipt)
+    db.flush()
+    db.add(exposure)
     db.commit()
 
     receipt.state = "withdrawn"
-    receipt.withdrawn_at = datetime.utcnow()
+    receipt.withdrawn_at = exposed_time + timedelta(seconds=1)
     receipt.updated_at = receipt.withdrawn_at
     db.commit()
 
@@ -1095,3 +1097,278 @@ def test_withdrawal_serialization_cannot_omit_concurrent_result(
         for raw in road_10k_deletion_storage._test_store.items.values()
     ]
     assert any(existing_id in marker["evaluation_ids"] for marker in manifests)
+
+
+def test_invalid_runtime_snapshot_keeps_fixed_ceiling_fields(tmp_path):
+    db = _db(tmp_path)
+    db.add(
+        Road10KStageCounter(
+            stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+            schema_version=2,
+            capability_id="outdoor_road_10k_performance_v1",
+            invitation_slots_consumed=1,
+            distinct_exposed_owners_consumed=0,
+            invitation_ceiling=60,
+            exposure_ceiling=30,
+        )
+    )
+    db.commit()
+
+    snapshot = road_10k_control.road_10k_runtime_snapshot(db)
+
+    assert snapshot["authority"] == "counter_mismatch"
+    assert snapshot["invitation_ceiling"] == 60
+    assert snapshot["exposure_ceiling"] == 30
+    assert snapshot["deletion_replay_status"] == "blocked"
+    assert snapshot["ready"] is False
+
+
+def test_fixed_owner_receipt_rejects_withdrawal_before_latest_lifecycle(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "validator-owner")
+    invited_at = datetime(2026, 8, 1, 10, 0, 0)
+    enrolled_at = invited_at + timedelta(minutes=1)
+    exposed_at = invited_at + timedelta(minutes=2)
+    withdrawn_at = invited_at + timedelta(minutes=1, seconds=30)
+    receipt = Road10KOwnerStageReceipt(
+        id="validator-receipt",
+        user_id="validator-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        capability_id="outdoor_road_10k_performance_v1",
+        schema_version=2,
+        policy_version=road_10k_control.ROAD_10K_POLICY_VERSION,
+        authority_digest="a" * 64,
+        notice_digest="b" * 64,
+        cohort_rule_digest="c" * 64,
+        sampling_run_evidence_digest="d" * 64,
+        invitation_idempotency_key="validator-invitation",
+        state="withdrawn",
+        invitation_issued_at=invited_at,
+        enrolled_at=enrolled_at,
+        first_exposed_at=exposed_at,
+        withdrawn_at=withdrawn_at,
+        created_at=invited_at,
+        updated_at=withdrawn_at,
+    )
+    monkeypatch.setattr(road_10k_control, "_receipt", lambda *args, **kwargs: receipt)
+
+    with pytest.raises(Road10KControlDenied, match="receipt_contract_mismatch"):
+        road_10k_control._fixed_owner_receipt(db, user_id="validator-owner")
+
+
+def test_create_all_rejects_withdrawal_before_first_exposure(tmp_path):
+    db = _db(tmp_path)
+    _owner(db, "chronology-withdraw-owner")
+    invited_at = datetime(2026, 8, 1, 10, 0, 0)
+    enrolled_at = invited_at + timedelta(minutes=1)
+    exposed_at = invited_at + timedelta(minutes=2)
+    receipt = Road10KOwnerStageReceipt(
+        id="chronology-withdraw-receipt",
+        user_id="chronology-withdraw-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        capability_id="outdoor_road_10k_performance_v1",
+        schema_version=2,
+        policy_version=road_10k_control.ROAD_10K_POLICY_VERSION,
+        authority_digest="a" * 64,
+        notice_digest="b" * 64,
+        cohort_rule_digest="c" * 64,
+        sampling_run_evidence_digest="d" * 64,
+        invitation_idempotency_key="chronology-withdraw-invitation",
+        state="exposed",
+        invitation_issued_at=invited_at,
+        enrolled_at=enrolled_at,
+        first_exposed_at=exposed_at,
+        created_at=invited_at,
+        updated_at=exposed_at,
+    )
+    db.add(receipt)
+    db.commit()
+
+    receipt.state = "withdrawn"
+    receipt.withdrawn_at = enrolled_at + timedelta(seconds=30)
+    receipt.updated_at = receipt.withdrawn_at
+    with pytest.raises(IntegrityError):
+        db.commit()
+
+
+def test_create_all_rejects_deletion_before_withdrawal(tmp_path):
+    db = _db(tmp_path)
+    _owner(db, "chronology-delete-owner")
+    invited_at = datetime(2026, 8, 1, 10, 0, 0)
+    enrolled_at = invited_at + timedelta(minutes=1)
+    exposed_at = invited_at + timedelta(minutes=2)
+    withdrawn_at = invited_at + timedelta(minutes=3)
+    receipt = Road10KOwnerStageReceipt(
+        id="chronology-delete-receipt",
+        user_id="chronology-delete-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        capability_id="outdoor_road_10k_performance_v1",
+        schema_version=2,
+        policy_version=road_10k_control.ROAD_10K_POLICY_VERSION,
+        authority_digest="a" * 64,
+        notice_digest="b" * 64,
+        cohort_rule_digest="c" * 64,
+        sampling_run_evidence_digest="d" * 64,
+        invitation_idempotency_key="chronology-delete-invitation",
+        state="withdrawn",
+        invitation_issued_at=invited_at,
+        enrolled_at=enrolled_at,
+        first_exposed_at=exposed_at,
+        withdrawn_at=withdrawn_at,
+        created_at=invited_at,
+        updated_at=withdrawn_at,
+    )
+    db.add(receipt)
+    db.commit()
+
+    receipt.user_id = None
+    receipt.state = "deleted"
+    receipt.deleted_at = exposed_at + timedelta(seconds=30)
+    receipt.updated_at = receipt.deleted_at
+    with pytest.raises(IntegrityError):
+        db.commit()
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ["receipt_id", "stage", "user", "authority", "state", "timestamp"],
+)
+def test_create_all_exposure_insert_requires_exact_owner_receipt(
+    tmp_path,
+    mismatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "exposure-owner")
+    _owner(db, "other-exposure-owner")
+    invited_at = datetime(2026, 8, 1, 10, 0, 0)
+    enrolled_at = invited_at + timedelta(minutes=1)
+    exposed_at = invited_at + timedelta(minutes=2)
+    state = "enrolled_unexposed" if mismatch == "state" else "exposed"
+    receipt = Road10KOwnerStageReceipt(
+        id="exact-owner-receipt",
+        user_id="exposure-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        capability_id="outdoor_road_10k_performance_v1",
+        schema_version=2,
+        policy_version=road_10k_control.ROAD_10K_POLICY_VERSION,
+        authority_digest="a" * 64,
+        notice_digest="b" * 64,
+        cohort_rule_digest="c" * 64,
+        sampling_run_evidence_digest="d" * 64,
+        invitation_idempotency_key=f"exact-exposure-{mismatch}",
+        state=state,
+        invitation_issued_at=invited_at,
+        enrolled_at=enrolled_at,
+        first_exposed_at=None if mismatch == "state" else exposed_at,
+        created_at=invited_at,
+        updated_at=enrolled_at if mismatch == "state" else exposed_at,
+    )
+    db.add(receipt)
+    db.commit()
+
+    values = {
+        "owner_stage_receipt_id": receipt.id,
+        "stage_id": receipt.stage_id,
+        "user_id": receipt.user_id,
+        "authority_digest": receipt.authority_digest,
+        "exposed_at": exposed_at,
+    }
+    if mismatch == "receipt_id":
+        values["owner_stage_receipt_id"] = "different-receipt"
+    elif mismatch == "stage":
+        values["stage_id"] = "different-stage"
+    elif mismatch == "user":
+        values["user_id"] = "other-exposure-owner"
+    elif mismatch == "authority":
+        values["authority_digest"] = "e" * 64
+    elif mismatch == "timestamp":
+        values["exposed_at"] = exposed_at + timedelta(microseconds=1)
+
+    db.add(
+        Road10KExposureReceipt(
+            id=f"mismatched-exposure-{mismatch}",
+            **values,
+        )
+    )
+    with pytest.raises(IntegrityError, match="exposure receipt mismatch"):
+        db.commit()
+
+
+def test_first_exposure_after_authority_refresh_uses_receipt_authority(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "authority-refresh-first-exposure")
+    initial = _authority()
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: initial)
+    receipt = issue_invitation(
+        db,
+        user_id="authority-refresh-first-exposure",
+        idempotency_key=_invitation_key("authority-refresh-first-exposure"),
+        notice_digest=initial.notice_digest,
+        cohort_rule_digest=initial.cohort_rule_digest,
+    )
+    enroll_owner(
+        db,
+        user_id="authority-refresh-first-exposure",
+        notice_digest=initial.notice_digest,
+    )
+    refreshed = replace(initial, authority_digest="e" * 64)
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", lambda: refreshed)
+
+    record_result(
+        db,
+        user_id="authority-refresh-first-exposure",
+        result_code="validation_failed",
+        payload={"scope": "authority-refresh"},
+    )
+
+    exposure = db.query(Road10KExposureReceipt).one()
+    assert exposure.authority_digest == receipt.authority_digest
+    assert exposure.exposed_at == db.get(
+        Road10KOwnerStageReceipt, receipt.id
+    ).first_exposed_at
+
+
+def test_ledger_migration_source_covers_chronology_and_exposure_match():
+    migration = Path(
+        "alembic/versions/d2e3f4a5b6c7_add_road_10k_control_ledger.py"
+    ).read_text(encoding="utf-8")
+
+    for required in (
+        "(enrolled_at IS NULL OR withdrawn_at >= enrolled_at)",
+        "(withdrawn_at IS NULL OR deleted_at >= withdrawn_at)",
+        "NEW.withdrawn_at >= OLD.updated_at",
+        "NEW.deleted_at >= OLD.updated_at",
+        "trg_road_10k_exposure_receipts_insert_match",
+        "road_10k_exposure_receipts_insert_match()",
+        "owner_receipt.user_id IS NOT DISTINCT FROM NEW.user_id",
+        "owner_receipt.first_exposed_at = NEW.exposed_at",
+        "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_insert_match()",
+    ):
+        assert required in migration
+
+
+def test_road_10k_ops_docs_keep_hard_off_and_storage_boundaries_exact():
+    deploy = Path("docs/ops/deploy.md").read_text(encoding="utf-8")
+    setup = Path("docs/deployment.md").read_text(encoding="utf-8")
+    monitoring = Path("docs/ops/monitoring-and-alerts.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Only a committed Road 10K database deletion obligation" in deploy
+    assert "visible Road 10K authority or committed replay obligation" not in deploy
+    road_setup = setup.split("### Road 10K foundation", 1)[1].split("## CI/CD", 1)[0]
+    normalized_road_setup = " ".join(road_setup.split())
+    assert (
+        "unconditionally hard-off before stage-authority evaluation"
+        in normalized_road_setup
+    )
+    assert "paused" not in road_setup
+    assert "killed" not in road_setup
+    assert "fixed ceiling fields are always present" in monitoring
+    assert "pending, not_required, or blocked" in monitoring

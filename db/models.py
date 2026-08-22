@@ -2087,8 +2087,13 @@ class Road10KOwnerStageReceipt(Base):
             "created_at = invitation_issued_at AND updated_at >= invitation_issued_at AND "
             "(enrolled_at IS NULL OR enrolled_at >= invitation_issued_at) AND "
             "(first_exposed_at IS NULL OR (enrolled_at IS NOT NULL AND first_exposed_at >= enrolled_at)) AND "
-            "(withdrawn_at IS NULL OR withdrawn_at >= invitation_issued_at) AND "
-            "(deleted_at IS NULL OR deleted_at >= invitation_issued_at)",
+            "(withdrawn_at IS NULL OR (withdrawn_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR withdrawn_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR withdrawn_at >= first_exposed_at))) AND "
+            "(deleted_at IS NULL OR (deleted_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR deleted_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR deleted_at >= first_exposed_at) AND "
+            "(withdrawn_at IS NULL OR deleted_at >= withdrawn_at)))",
             name="ck_road_10k_owner_stage_receipt_timestamps",
         ),
         Index(
@@ -2214,14 +2219,38 @@ event.listen(
         "OR (OLD.state IN ('invited_only','enrolled_unexposed','exposed') AND NEW.state = 'withdrawn' "
         "AND NEW.user_id IS OLD.user_id AND NEW.enrolled_at IS OLD.enrolled_at "
         "AND NEW.first_exposed_at IS OLD.first_exposed_at AND NEW.withdrawn_at IS NOT NULL "
+        "AND NEW.withdrawn_at >= OLD.updated_at "
         "AND NEW.deleted_at IS OLD.deleted_at AND NEW.updated_at = NEW.withdrawn_at) "
         "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state = 'deleted' "
         "AND NEW.enrolled_at IS OLD.enrolled_at AND NEW.first_exposed_at IS OLD.first_exposed_at "
         "AND NEW.withdrawn_at IS OLD.withdrawn_at AND NEW.deleted_at IS NOT NULL "
+        "AND NEW.deleted_at >= OLD.updated_at "
         "AND NEW.updated_at = NEW.deleted_at)"
         ") "
         "BEGIN SELECT RAISE(ABORT, "
         "'road 10K owner receipt lifecycle invalid'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_insert_match "
+        "BEFORE INSERT ON road_10k_exposure_receipts "
+        "WHEN NOT EXISTS ("
+        "SELECT 1 FROM road_10k_owner_stage_receipts AS owner_receipt "
+        "WHERE owner_receipt.id = NEW.owner_stage_receipt_id "
+        "AND owner_receipt.stage_id = NEW.stage_id "
+        "AND owner_receipt.user_id IS NEW.user_id "
+        "AND owner_receipt.authority_digest = NEW.authority_digest "
+        "AND owner_receipt.state = 'exposed' "
+        "AND owner_receipt.first_exposed_at = NEW.exposed_at"
+        ") "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K exposure receipt mismatch'); END"
     ).execute_if(dialect="sqlite"),
 )
 

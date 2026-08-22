@@ -567,3 +567,98 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
         ) == 1
         assert db.get(Road10KEvaluation, "expired") is None
         assert db.get(Road10KEvaluation, "fresh") is not None
+
+
+def test_configured_blob_delete_also_removes_legacy_local_bytes(
+    tmp_path,
+    monkeypatch,
+):
+    key = "feedback/7/0.png"
+    local_path = tmp_path / "feedback_images" / key
+    local_path.parent.mkdir(parents=True)
+    local_path.write_bytes(b"legacy-private")
+    deleted: list[str] = []
+
+    class Blob:
+        def delete_blob(self, **_kwargs) -> None:
+            deleted.append(key)
+
+    class Client:
+        def get_blob_client(self, _key: str, **_kwargs):
+            return Blob()
+
+        def list_blob_versions(self, *, name: str):
+            assert name == key
+            return []
+
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(feedback_storage, "_use_blob", lambda: True)
+    monkeypatch.setattr(
+        feedback_storage,
+        "_blob_container_client",
+        lambda: Client(),
+    )
+
+    feedback_storage.delete_private_object(key)
+
+    assert deleted == [key]
+    assert not local_path.exists()
+
+
+def test_unavailable_configured_blob_delete_keeps_legacy_local_bytes(
+    tmp_path,
+    monkeypatch,
+):
+    key = "feedback/7/0.png"
+    local_path = tmp_path / "feedback_images" / key
+    local_path.parent.mkdir(parents=True)
+    local_path.write_bytes(b"legacy-private")
+
+    monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(feedback_storage, "_use_blob", lambda: True)
+    monkeypatch.setattr(
+        feedback_storage,
+        "_blob_container_client",
+        lambda: None,
+    )
+
+    with pytest.raises(OSError, match="blob storage unavailable"):
+        feedback_storage.delete_private_object(key)
+
+    assert local_path.read_bytes() == b"legacy-private"
+
+
+def test_feedback_manifest_storage_error_is_normalized(
+    tmp_path,
+    monkeypatch,
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from api import road_10k_control
+    from db.models import Base, Feedback, User
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'feedback-stage-error.db'}")
+    Base.metadata.create_all(engine)
+
+    def fail_stage(**_kwargs):
+        raise storage.Road10KDeletionStorageError("store unavailable")
+
+    monkeypatch.setattr(road_10k_control, "stage_manifest", fail_stage)
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        db.add(
+            Feedback(
+                user_id="owner",
+                kind="other",
+                message="private",
+                image_keys=["feedback/7/0.png"],
+            )
+        )
+        db.commit()
+
+        with pytest.raises(
+            road_10k_control.Road10KDeletionFailed,
+            match="deletion_storage_unavailable",
+        ):
+            road_10k_control.prepare_account_deletion(db, user_id="owner")

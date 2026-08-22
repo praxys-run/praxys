@@ -247,6 +247,8 @@ def validate_road_10k_runtime_obligations(db: Session) -> bool:
                 not in {"exposed", "withdrawn", "deleted"}
                 or owner_receipt.first_exposed_at is None
                 or exposure.user_id != owner_receipt.user_id
+                or exposure.authority_digest != owner_receipt.authority_digest
+                or exposure.exposed_at != owner_receipt.first_exposed_at
             ):
                 raise Road10KControlUnavailable("receipt_mismatch")
     evaluation_ids = {row.id for row in evaluations}
@@ -426,6 +428,59 @@ def _fixed_owner_receipt(
         receipt.cohort_rule_digest,
         receipt.sampling_run_evidence_digest,
     )
+    invitation_issued_at = receipt.invitation_issued_at
+    try:
+        chronology_is_valid = (
+            invitation_issued_at is not None
+            and receipt.created_at == invitation_issued_at
+            and receipt.updated_at is not None
+            and receipt.updated_at >= invitation_issued_at
+            and (
+                receipt.enrolled_at is None
+                or receipt.enrolled_at >= invitation_issued_at
+            )
+            and (
+                receipt.first_exposed_at is None
+                or (
+                    receipt.enrolled_at is not None
+                    and receipt.first_exposed_at >= receipt.enrolled_at
+                )
+            )
+            and (
+                receipt.withdrawn_at is None
+                or (
+                    receipt.withdrawn_at >= invitation_issued_at
+                    and (
+                        receipt.enrolled_at is None
+                        or receipt.withdrawn_at >= receipt.enrolled_at
+                    )
+                    and (
+                        receipt.first_exposed_at is None
+                        or receipt.withdrawn_at >= receipt.first_exposed_at
+                    )
+                )
+            )
+            and (
+                receipt.deleted_at is None
+                or (
+                    receipt.deleted_at >= invitation_issued_at
+                    and (
+                        receipt.enrolled_at is None
+                        or receipt.deleted_at >= receipt.enrolled_at
+                    )
+                    and (
+                        receipt.first_exposed_at is None
+                        or receipt.deleted_at >= receipt.first_exposed_at
+                    )
+                    and (
+                        receipt.withdrawn_at is None
+                        or receipt.deleted_at >= receipt.withdrawn_at
+                    )
+                )
+            )
+        )
+    except TypeError:
+        chronology_is_valid = False
     lifecycle_is_valid = (
         (
             receipt.state == "invited_only"
@@ -465,8 +520,7 @@ def _fixed_owner_receipt(
         or receipt.policy_version != ROAD_10K_POLICY_VERSION
         or receipt.state not in {"invited_only", "enrolled_unexposed", "exposed", "withdrawn"}
         or any(not isinstance(value, str) or len(value) != 64 for value in digests)
-        or receipt.invitation_issued_at is None
-        or receipt.created_at != receipt.invitation_issued_at
+        or not chronology_is_valid
         or not lifecycle_is_valid
     ):
         raise Road10KControlDenied("receipt_contract_mismatch")
@@ -712,20 +766,25 @@ def _record_first_exposure_locked(
         return existing
     if counter.distinct_exposed_owners_consumed >= counter.exposure_ceiling:
         raise Road10KControlDenied("exposure_cap")
-    exposure = Road10KExposureReceipt(
-        id=str(uuid4()),
-        stage_id=authority.stage_id,
-        user_id=user_id,
-        owner_stage_receipt_id=receipt.id,
-        authority_digest=authority.authority_digest,
-        exposed_at=timestamp,
-    )
-    db.add(exposure)
+    first_exposed_at = receipt.first_exposed_at or timestamp
     receipt.state = "exposed"
-    receipt.first_exposed_at = receipt.first_exposed_at or timestamp
-    receipt.updated_at = timestamp
+    receipt.first_exposed_at = first_exposed_at
+    receipt.updated_at = first_exposed_at
     counter.distinct_exposed_owners_consumed += 1
     counter.updated_at = timestamp
+
+    # The insert trigger reads the owner receipt. Flush its exposed lifecycle
+    # first, then insert the exactly matching receipt in the same transaction.
+    db.flush()
+    exposure = Road10KExposureReceipt(
+        id=str(uuid4()),
+        stage_id=receipt.stage_id,
+        user_id=receipt.user_id,
+        owner_stage_receipt_id=receipt.id,
+        authority_digest=receipt.authority_digest,
+        exposed_at=first_exposed_at,
+    )
+    db.add(exposure)
     db.flush()
     return exposure
 
@@ -1068,16 +1127,21 @@ def prepare_account_deletion(
         if isinstance(key, str) and key.startswith("feedback/")
     ]
     if feedback_keys:
-        manifests.append(
-            stage_manifest(
-                owner_id=user_id,
-                stage_id=ROAD_10K_STAGE_ID,
-                reason="account_deletion",
-                evaluation_ids=[],
-                screenshot_keys=sorted(set(feedback_keys)),
-                requested_at=timestamp,
+        try:
+            manifests.append(
+                stage_manifest(
+                    owner_id=user_id,
+                    stage_id=ROAD_10K_STAGE_ID,
+                    reason="account_deletion",
+                    evaluation_ids=[],
+                    screenshot_keys=sorted(set(feedback_keys)),
+                    requested_at=timestamp,
+                )
             )
-        )
+        except Road10KDeletionStorageError as exc:
+            raise Road10KDeletionFailed(
+                "deletion_storage_unavailable"
+            ) from exc
     for stage_id in sorted(stage_ids):
         manifest = _owner_deletion_manifest(
             db,
@@ -1324,6 +1388,8 @@ def road_10k_runtime_snapshot(db: Session) -> dict[str, object]:
             "stage": ROAD_10K_STAGE_ID,
             "invitation_slots_consumed": 0,
             "distinct_exposed_owners_consumed": 0,
+            "invitation_ceiling": ROAD_10K_INVITATION_CEILING,
+            "exposure_ceiling": ROAD_10K_EXPOSURE_CEILING,
             "deletion_replay_status": "blocked",
             "ready": False,
         }

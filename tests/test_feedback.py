@@ -9,9 +9,12 @@ dependency-bypass pattern as tests/test_announcements.py.
 from __future__ import annotations
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import json
+from pathlib import Path
 import tempfile
 from datetime import datetime
+from threading import Event
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
@@ -2425,3 +2428,166 @@ def test_retry_and_approve_blocked_on_linked_resolved_row(db_with_users):
     db.refresh(row)
     assert row.status == "resolved"
     assert row.github_issue_number == 101
+
+def test_configured_blob_outage_does_not_fall_back_to_local(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+
+    assert fs.store_image(_PNG_1PX, feedback_id=42, index=0) is None
+    assert not (Path(fs._local_dir()) / "feedback/42/0.png").exists()
+
+
+def test_submit_preserves_text_when_configured_blob_is_unavailable(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+
+    response = submit_feedback(
+        FeedbackRequest(
+            kind="bug",
+            message="keep the text report",
+            images=[base64.b64encode(_PNG_1PX).decode()],
+        ),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+
+    row = db.get(Feedback, response["id"])
+    assert row is not None
+    assert row.message == "keep the text report"
+    assert not row.image_keys
+    assert not (Path(fs._local_dir()) / f"feedback/{row.id}/0.png").exists()
+
+
+def test_submit_holds_owner_mutation_fence_through_key_publication(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api import road_10k_control
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.cache_revision import lock_revision_writes
+    from db.session import begin_serialized_write
+
+    _, db_session, _, user_id = db_with_users
+    upload_started = Event()
+    release_upload = Event()
+    deletion_attempted = Event()
+    deletion_fenced = Event()
+
+    def blocking_store(
+        _data: bytes,
+        *,
+        feedback_id: int,
+        index: int,
+    ) -> str:
+        upload_started.set()
+        assert release_upload.wait(timeout=10)
+        return f"feedback/{feedback_id}/{index}.png"
+
+    monkeypatch.setattr(fs, "store_image", blocking_store)
+    monkeypatch.setattr(
+        road_10k_control,
+        "stage_manifest",
+        lambda **kwargs: {"job_id": "test-feedback-fence", **kwargs},
+    )
+
+    def submit() -> dict:
+        with db_session.SessionLocal() as session:
+            return submit_feedback(
+                FeedbackRequest(
+                    kind="bug",
+                    message="fenced image",
+                    images=[base64.b64encode(_PNG_1PX).decode()],
+                ),
+                background_tasks=BackgroundTasks(),
+                user_id=user_id,
+                db=session,
+            )
+
+    def enumerate_deletion_targets() -> list[dict[str, object]]:
+        with db_session.SessionLocal() as session:
+            deletion_attempted.set()
+            begin_serialized_write(session)
+            lock_revision_writes(session, user_id)
+            deletion_fenced.set()
+            manifests = road_10k_control.prepare_account_deletion(
+                session,
+                user_id=user_id,
+            )
+            session.rollback()
+            return manifests
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        submit_future = executor.submit(submit)
+        assert upload_started.wait(timeout=10)
+        deletion_future = executor.submit(enumerate_deletion_targets)
+        assert deletion_attempted.wait(timeout=10)
+        try:
+            assert not deletion_fenced.wait(timeout=0.25)
+        finally:
+            release_upload.set()
+        response = submit_future.result(timeout=10)
+        manifests = deletion_future.result(timeout=10)
+
+    assert manifests
+    assert manifests[0]["screenshot_keys"] == [
+        f"feedback/{response['id']}/0.png"
+    ]
+
+
+def test_submit_deletes_uploaded_object_when_key_publication_fails(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    uploaded: list[str] = []
+    deleted: list[str] = []
+
+    def store(
+        _data: bytes,
+        *,
+        feedback_id: int,
+        index: int,
+    ) -> str:
+        key = f"feedback/{feedback_id}/{index}.png"
+        uploaded.append(key)
+        return key
+
+    monkeypatch.setattr(fs, "store_image", store)
+    monkeypatch.setattr(fs, "delete_private_object", deleted.append)
+    monkeypatch.setattr(db, "commit", lambda: (_ for _ in ()).throw(OSError("db down")))
+
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="publish failure",
+                images=[base64.b64encode(_PNG_1PX).decode()],
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 500
+    assert uploaded
+    assert deleted == uploaded
+    assert db.query(Feedback).count() == 0

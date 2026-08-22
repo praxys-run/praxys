@@ -326,6 +326,7 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
                 updated_at=datetime(2026, 8, 20),
             )
         )
+        db.flush()
         db.add(
             Road10KExposureReceipt(
                 id="migration-exposure-receipt",

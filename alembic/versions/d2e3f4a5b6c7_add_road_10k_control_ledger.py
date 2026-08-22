@@ -140,8 +140,13 @@ def upgrade() -> None:
             "created_at = invitation_issued_at AND updated_at >= invitation_issued_at AND "
             "(enrolled_at IS NULL OR enrolled_at >= invitation_issued_at) AND "
             "(first_exposed_at IS NULL OR (enrolled_at IS NOT NULL AND first_exposed_at >= enrolled_at)) AND "
-            "(withdrawn_at IS NULL OR withdrawn_at >= invitation_issued_at) AND "
-            "(deleted_at IS NULL OR deleted_at >= invitation_issued_at)",
+            "(withdrawn_at IS NULL OR (withdrawn_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR withdrawn_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR withdrawn_at >= first_exposed_at))) AND "
+            "(deleted_at IS NULL OR (deleted_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR deleted_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR deleted_at >= first_exposed_at) AND "
+            "(withdrawn_at IS NULL OR deleted_at >= withdrawn_at)))",
             name="ck_road_10k_owner_stage_receipt_timestamps",
         ),
     )
@@ -337,6 +342,21 @@ def upgrade() -> None:
         )
         op.execute(
             "CREATE TRIGGER "
+            "trg_road_10k_exposure_receipts_insert_match "
+            "BEFORE INSERT ON road_10k_exposure_receipts "
+            "WHEN NOT EXISTS ("
+            "SELECT 1 FROM road_10k_owner_stage_receipts AS owner_receipt "
+            "WHERE owner_receipt.id = NEW.owner_stage_receipt_id "
+            "AND owner_receipt.stage_id = NEW.stage_id "
+            "AND owner_receipt.user_id IS NEW.user_id "
+            "AND owner_receipt.authority_digest = NEW.authority_digest "
+            "AND owner_receipt.state = 'exposed' "
+            "AND owner_receipt.first_exposed_at = NEW.exposed_at"
+            ") BEGIN SELECT RAISE(ABORT, "
+            "'road 10K exposure receipt mismatch'); END"
+        )
+        op.execute(
+            "CREATE TRIGGER "
             "trg_road_10k_exposure_receipts_immutable "
             "BEFORE UPDATE ON road_10k_exposure_receipts "
             "WHEN NOT ("
@@ -377,10 +397,12 @@ def upgrade() -> None:
             "OR (OLD.state IN ('invited_only','enrolled_unexposed','exposed') AND NEW.state = 'withdrawn' "
             "AND NEW.user_id IS OLD.user_id AND NEW.enrolled_at IS OLD.enrolled_at "
             "AND NEW.first_exposed_at IS OLD.first_exposed_at AND NEW.withdrawn_at IS NOT NULL "
+            "AND NEW.withdrawn_at >= OLD.updated_at "
             "AND NEW.deleted_at IS OLD.deleted_at AND NEW.updated_at = NEW.withdrawn_at) "
             "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state = 'deleted' "
             "AND NEW.enrolled_at IS OLD.enrolled_at AND NEW.first_exposed_at IS OLD.first_exposed_at "
             "AND NEW.withdrawn_at IS OLD.withdrawn_at AND NEW.deleted_at IS NOT NULL "
+            "AND NEW.deleted_at >= OLD.updated_at "
             "AND NEW.updated_at = NEW.deleted_at)"
             ") "
             "BEGIN SELECT RAISE(ABORT, "
@@ -474,6 +496,25 @@ def upgrade() -> None:
             "FOR EACH ROW EXECUTE FUNCTION road_10k_receipts_no_delete()"
         )
         op.execute(
+            "CREATE FUNCTION road_10k_exposure_receipts_insert_match() "
+            "RETURNS trigger AS $$ BEGIN "
+            "IF NOT EXISTS (SELECT 1 FROM road_10k_owner_stage_receipts AS owner_receipt "
+            "WHERE owner_receipt.id = NEW.owner_stage_receipt_id "
+            "AND owner_receipt.stage_id = NEW.stage_id "
+            "AND owner_receipt.user_id IS NOT DISTINCT FROM NEW.user_id "
+            "AND owner_receipt.authority_digest = NEW.authority_digest "
+            "AND owner_receipt.state = 'exposed' "
+            "AND owner_receipt.first_exposed_at = NEW.exposed_at) THEN "
+            "RAISE EXCEPTION 'road 10K exposure receipt mismatch'; "
+            "END IF; RETURN NEW; END; $$ LANGUAGE plpgsql"
+        )
+        op.execute(
+            "CREATE TRIGGER trg_road_10k_exposure_receipts_insert_match "
+            "BEFORE INSERT ON road_10k_exposure_receipts "
+            "FOR EACH ROW EXECUTE FUNCTION "
+            "road_10k_exposure_receipts_insert_match()"
+        )
+        op.execute(
             "CREATE FUNCTION road_10k_exposure_receipts_immutable() "
             "RETURNS trigger AS $$ "
             "BEGIN "
@@ -523,10 +564,12 @@ def upgrade() -> None:
             "OR (OLD.state IN ('invited_only','enrolled_unexposed','exposed') AND NEW.state = 'withdrawn' "
             "AND NEW.user_id IS NOT DISTINCT FROM OLD.user_id AND NEW.enrolled_at IS NOT DISTINCT FROM OLD.enrolled_at "
             "AND NEW.first_exposed_at IS NOT DISTINCT FROM OLD.first_exposed_at AND NEW.withdrawn_at IS NOT NULL "
+            "AND NEW.withdrawn_at >= OLD.updated_at "
             "AND NEW.deleted_at IS NOT DISTINCT FROM OLD.deleted_at AND NEW.updated_at = NEW.withdrawn_at) "
             "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state = 'deleted' "
             "AND NEW.enrolled_at IS NOT DISTINCT FROM OLD.enrolled_at AND NEW.first_exposed_at IS NOT DISTINCT FROM OLD.first_exposed_at "
-            "AND NEW.withdrawn_at IS NOT DISTINCT FROM OLD.withdrawn_at AND NEW.deleted_at IS NOT NULL AND NEW.updated_at = NEW.deleted_at) "
+            "AND NEW.withdrawn_at IS NOT DISTINCT FROM OLD.withdrawn_at AND NEW.deleted_at IS NOT NULL "
+            "AND NEW.deleted_at >= OLD.updated_at AND NEW.updated_at = NEW.deleted_at) "
             "THEN RETURN NEW; END IF; "
             "RAISE EXCEPTION 'road 10K owner receipt lifecycle invalid'; "
             "END; $$ LANGUAGE plpgsql"
@@ -610,6 +653,7 @@ def downgrade() -> None:
             "trg_road_10k_owner_stage_receipts_lifecycle",
             "trg_road_10k_evaluations_expiry_immutable",
             "trg_road_10k_evaluations_expiry_no_update",
+            "trg_road_10k_exposure_receipts_insert_match",
             "trg_road_10k_exposure_receipts_immutable",
             "trg_road_10k_exposure_receipts_no_delete",
             "trg_road_10k_deletion_obligations_no_delete",
@@ -640,6 +684,10 @@ def downgrade() -> None:
             "ON road_10k_evaluations"
         )
         op.execute(
+            "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_insert_match "
+            "ON road_10k_exposure_receipts"
+        )
+        op.execute(
             "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_immutable "
             "ON road_10k_exposure_receipts"
         )
@@ -657,6 +705,9 @@ def downgrade() -> None:
         )
         op.execute(
             "DROP FUNCTION IF EXISTS road_10k_receipts_no_delete()"
+        )
+        op.execute(
+            "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_insert_match()"
         )
         op.execute(
             "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_immutable()"

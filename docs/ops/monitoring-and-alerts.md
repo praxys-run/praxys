@@ -1083,16 +1083,20 @@ road_10k_runtime_snapshot is a restricted in-process diagnostic, not an
 activation surface, dashboard, metric, or live alert. Its bounded values are:
 
 - authority: inactive_revision or counter_mismatch;
-- the fixed ceilings and aggregate consumed counts: 60 invitations and 30
-  first-result exposures;
-- deletion_replay_status: pending or not_required;
+- the fixed ceiling fields are always present: 60 invitations and 30
+  first-result exposures, including when ledger validation is blocked;
+- aggregate consumed counts, reported as zero when no trustworthy snapshot can
+  be produced;
+- deletion_replay_status: pending, not_required, or blocked. Blocked means
+  schema or ledger validation failed before replay state could be trusted;
 - ready: false for an invalid ledger or pending replay, otherwise true.
 
 Never add owner IDs, hashes, pseudonyms, invitation IDs, object keys, payloads,
 screenshots, raw latency, traces, locale, device, cohort, or provider dimensions.
 A cap attempt, counter mismatch, committed obligation without a matching marker,
 storage failure, or replay failure is fail-closed private operations evidence.
-The old process-local not_run, ready, and blocked values are diagnostic only and
+The snapshot's blocked replay value is DB-validation evidence. The separate
+old process-local not_run, ready, and blocked values remain diagnostic only and
 must not drive health. Defining a future alert remains deferred until Operations
 accepts live resources and action-group behavior.
 
