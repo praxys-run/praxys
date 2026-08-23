@@ -1322,11 +1322,23 @@ type Road10KOutcomeState =
 export type Road10KOutcomeResponse =
   Road10KOutcomeCommon & Road10KOutcomeState;
 
+export interface Road10KTaperGuardrailProjection {
+  planned_volume_reduction_fraction: number;
+  maintain_intensity_exposure_without_adding_quality: true;
+  evidence_population: 'mixed_endurance_athletes';
+  direct_recreational_road_10k_validation: false;
+  single_target_taper_result: 'taper_proposal_truncated_to_event_eve';
+  personal_performance_gain_claim: false;
+  causal_plan_benefit_claim: 'disabled';
+  personal_injury_probability: 'disabled';
+}
+
 export interface Road10KGuardrailProjection {
   committed_proposal_days: number;
   advisory_reassessment_after_completed_days: number;
   minimum_planned_low_intensity_running_minutes_fraction: number;
   baseline_current_through_completed_days: number;
+  taper: Road10KTaperGuardrailProjection;
 }
 
 export interface Road10KReadinessResponse {
@@ -2444,6 +2456,8 @@ export interface UserDataExportRoad10KExposureReceipt {
   stage_id: string;
   owner_stage_receipt_id: string;
   authority_digest: string;
+  evaluation_id: string;
+  evaluation_expires_at: string;
   exposed_at: string;
 }
 

@@ -46,6 +46,7 @@ import { extractApiError } from '@/lib/api-error';
 import { formatProposalDetail } from '@/lib/proposal-display';
 import {
   road10kCopy,
+  road10kTaperScienceCopy,
   type Road10KCopyKey,
 } from '@/lib/road-10k-control';
 import type {
@@ -188,6 +189,12 @@ const ROAD_10K_OUTCOME_COPY: Record<
     'eligibility.unavailable_body',
   ],
 };
+
+function road10KTaperEventEveLabel(
+  proposal: ReturnType<typeof road10kTaperScienceCopy>,
+): string {
+  return proposal.event_eve;
+}
 
 function proposalStateLabel(state: AdaptivePlanProposal['state']): string {
   return state.replace(/_/g, ' ');
@@ -1512,6 +1519,27 @@ export default function PlanStart({
       || result.code === 'eligible_taper_proposal'
     ),
   );
+  const isRoad10KTaperProposal = Boolean(
+    road10KGuardrails
+    && result
+    && 'plan_returned' in result
+    && result.code === 'eligible_taper_proposal'
+  );
+  const road10KTaperScience = isRoad10KTaperProposal && road10KGuardrails
+    ? road10kTaperScienceCopy(
+      road10KGuardrails.taper,
+      locale === 'zh' ? 'zh-CN' : 'en',
+    )
+    : null;
+  const taperEventEveLabel = road10KTaperScience
+    ? road10KTaperEventEveLabel(road10KTaperScience)
+    : null;
+  const displayedProposalHorizonStart = displayedProposal
+    ? displayedProposal.goal?.horizon_start ?? null
+    : null;
+  const displayedProposalHorizonEnd = displayedProposal
+    ? displayedProposal.goal?.horizon_end ?? null
+    : null;
   const isDraft = displayedProposal?.state === 'draft';
   const isAdopted = displayedProposal?.state === 'adopted';
   const hasLifecycleState = displayedProposal && !isDraft && !isAdopted;
@@ -2154,10 +2182,30 @@ export default function PlanStart({
                         : <Trans>Legacy purpose</Trans>}
                 </dd>
               </div>
+              {road10kMode && displayedProposalHorizonStart && displayedProposalHorizonEnd && (
+                <div>
+                  <dt className="text-muted-foreground">
+                    {road10KTaperScience?.horizon ?? roadCopy('proposal.horizon')}
+                  </dt>
+                  <dd className="mt-1 font-data">
+                    {displayedProposalHorizonStart} – {displayedProposalHorizonEnd}
+                    {taperEventEveLabel ? ` (${taperEventEveLabel})` : null}
+                  </dd>
+                </div>
+              )}
               <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.policy') : <Trans>Policy</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.policy_version ?? '—'}</dd></div>
               <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.generator') : <Trans>Generator</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.model_version ?? '—'}</dd></div>
               <div><dt className="text-muted-foreground">{road10kMode ? roadCopy('proposal.science') : <Trans>Science decision</Trans>}</dt><dd className="mt-1 font-data">{displayedProposal.science_version ?? '—'}</dd></div>
             </dl>
+            {road10KTaperScience && (
+              <ScienceNote
+                label={road10KTaperScience.title}
+                sourceUrl="https://github.com/praxys-run/praxys/blob/main/data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml"
+                sourceLabel={road10KTaperScience.source_label}
+              >
+                <p>{road10KTaperScience.body}</p>
+              </ScienceNote>
+            )}
             <div className="divide-y divide-border border-y border-border">
               {displayedProposal.workouts.map((workout) => (
                 <div key={`${workout.date}-${workout.workout_type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">

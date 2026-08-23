@@ -38,6 +38,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         Road10KBaselineConfirmation,
         Road10KBaselineSnapshot,
         Road10KExposureReceipt,
+        Road10KEvaluation,
         Road10KOwnerStageReceipt,
         Road10KPlanGeneration,
         Road10KTrainingPatternSnapshot,
@@ -538,12 +539,26 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         )
         db.flush()
         db.add(
+            Road10KEvaluation(
+                id="owner-road-10k-first-evaluation",
+                user_id=owner_id,
+                stage_id="road-10k-controlled-opt-in-v1",
+                result_code="validation_failed",
+                payload={},
+                created_at=datetime(2026, 8, 1, 8, 2),
+                expires_at=datetime(2026, 8, 31, 8, 2),
+            )
+        )
+        db.flush()
+        db.add(
             Road10KExposureReceipt(
                 id="owner-road-10k-exposure-receipt",
                 stage_id="road-10k-controlled-opt-in-v1",
                 user_id=owner_id,
                 owner_stage_receipt_id="owner-road-10k-control-receipt",
                 authority_digest="a" * 64,
+                evaluation_id="owner-road-10k-first-evaluation",
+                evaluation_expires_at=datetime(2026, 8, 31, 8, 2),
                 exposed_at=datetime(2026, 8, 1, 8, 2),
             )
         )
@@ -640,6 +655,12 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     assert payload["road_10k_baseline"]["snapshots"][0]["completed_at"] == (
         "2026-08-01T08:42:00+00:00"
     )
+    assert payload["road_10k_control"]["exposure_receipts"][0][
+        "evaluation_id"
+    ] == "owner-road-10k-first-evaluation"
+    assert payload["road_10k_control"]["exposure_receipts"][0][
+        "evaluation_expires_at"
+    ] == "2026-08-31T08:02:00+00:00"
     assert payload["road_10k_plan_generation"] == {
         "schema_version": 1,
         "exported_at": payload["road_10k_plan_generation"]["exported_at"],

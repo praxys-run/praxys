@@ -65,6 +65,20 @@ ROAD_10K_AUDIT = ROAD_10K_PARAMETER_VALUES["road_10k_v2_privacy_and_audit"]
 
 
 @dataclass(frozen=True)
+class Road10KTaperGuardrailProjection:
+    """Accepted taper and claim limits exposed without provenance."""
+
+    planned_volume_reduction_fraction: float
+    maintain_intensity_exposure_without_adding_quality: bool
+    evidence_population: str
+    direct_recreational_road_10k_validation: bool
+    single_target_taper_result: str
+    personal_performance_gain_claim: bool
+    causal_plan_benefit_claim: str
+    personal_injury_probability: str
+
+
+@dataclass(frozen=True)
 class Road10KGuardrailProjection:
     """Public read-only values used to explain the accepted policy."""
 
@@ -72,8 +86,9 @@ class Road10KGuardrailProjection:
     advisory_reassessment_after_completed_days: int
     minimum_planned_low_intensity_running_minutes_fraction: float
     baseline_current_through_completed_days: int
+    taper: Road10KTaperGuardrailProjection
 
-    def public_payload(self) -> dict[str, int | float]:
+    def public_payload(self) -> dict[str, Any]:
         """Return the response-safe projection without policy provenance."""
         return asdict(self)
 
@@ -112,6 +127,40 @@ ROAD_10K_GUARDRAILS = Road10KGuardrailProjection(
     ),
     baseline_current_through_completed_days=(
         ROAD_10K_BASELINE_CURRENT_THROUGH_COMPLETED_DAYS
+    ),
+    taper=Road10KTaperGuardrailProjection(
+        planned_volume_reduction_fraction=float(
+            ROAD_10K_EVENTS["taper"]["planned_volume_reduction_fraction"]
+        ),
+        maintain_intensity_exposure_without_adding_quality=bool(
+            ROAD_10K_EVENTS["taper"][
+                "maintain_intensity_exposure_without_adding_quality"
+            ]
+        ),
+        evidence_population=str(
+            ROAD_10K_EVENTS["taper"]["evidence_population"]
+        ),
+        direct_recreational_road_10k_validation=bool(
+            ROAD_10K_EVENTS["taper"][
+                "direct_recreational_road_10k_validation"
+            ]
+        ),
+        single_target_taper_result=str(
+            ROAD_10K_EVENTS["single_target"][
+                "target_8_to_14_days_after_start"
+            ]
+        ),
+        personal_performance_gain_claim=bool(
+            ROAD_10K_EVENTS["taper"][
+                "personal_performance_gain_claim"
+            ]
+        ),
+        causal_plan_benefit_claim=str(
+            ROAD_10K_DEMOGRAPHICS["causal_plan_benefit_claim"]
+        ),
+        personal_injury_probability=str(
+            ROAD_10K_DEMOGRAPHICS["personal_injury_probability"]
+        ),
     ),
 )
 ROAD_10K_RESULT_CODES = frozenset(str(code) for code in ROAD_10K_TYPED_OUTCOMES)

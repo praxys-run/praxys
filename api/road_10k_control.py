@@ -202,6 +202,8 @@ def validate_road_10k_runtime_obligations(db: Session) -> bool:
 
     counters_by_stage = {row.stage_id: row for row in counters}
     owner_by_id = {row.id: row for row in owner_receipts}
+    evaluation_by_id = {row.id: row for row in evaluations}
+    validation_time = datetime.utcnow()
     stages = {
         *(row.stage_id for row in owner_receipts),
         *(row.stage_id for row in exposure_receipts),
@@ -240,6 +242,14 @@ def validate_road_10k_runtime_obligations(db: Session) -> bool:
             raise Road10KControlUnavailable("counter_mismatch")
         for exposure in stage_exposures:
             owner_receipt = owner_by_id.get(exposure.owner_stage_receipt_id)
+            first_evaluation = evaluation_by_id.get(exposure.evaluation_id)
+            live_first_result_candidates = [
+                row
+                for row in evaluations
+                if row.stage_id == exposure.stage_id
+                and row.user_id == exposure.user_id
+                and row.created_at == exposure.exposed_at
+            ]
             if (
                 owner_receipt is None
                 or owner_receipt.stage_id != stage_id
@@ -249,8 +259,41 @@ def validate_road_10k_runtime_obligations(db: Session) -> bool:
                 or exposure.user_id != owner_receipt.user_id
                 or exposure.authority_digest != owner_receipt.authority_digest
                 or exposure.exposed_at != owner_receipt.first_exposed_at
+                or (
+                    first_evaluation is not None
+                    and (
+                        first_evaluation.stage_id != exposure.stage_id
+                        or first_evaluation.user_id != exposure.user_id
+                        or first_evaluation.created_at != exposure.exposed_at
+                        or first_evaluation.expires_at
+                        != exposure.evaluation_expires_at
+                    )
+                )
+                or exposure.evaluation_expires_at < exposure.exposed_at
+                or exposure.evaluation_expires_at > (
+                    exposure.exposed_at
+                    + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
+                )
+                or (
+                    first_evaluation is None
+                    and (
+                        bool(live_first_result_candidates)
+                        or (
+                            owner_receipt.state not in {"withdrawn", "deleted"}
+                            and exposure.evaluation_expires_at > validation_time
+                        )
+                    )
+                )
             ):
                 raise Road10KControlUnavailable("receipt_mismatch")
+    for evaluation in evaluations:
+        if (
+            evaluation.expires_at < evaluation.created_at
+            or evaluation.expires_at
+            > evaluation.created_at
+            + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
+        ):
+            raise Road10KControlUnavailable("retention_mismatch")
     evaluation_ids = {row.id for row in evaluations}
     if any(
         row.evaluation_id not in evaluation_ids
@@ -745,6 +788,7 @@ def _record_first_exposure_locked(
     authority: Road10KStageAuthority,
     user_id: str,
     counter: Road10KStageCounter,
+    evaluation: Road10KEvaluation,
     timestamp: datetime,
 ) -> Road10KExposureReceipt:
     """Create the first-result receipt inside the result transaction only."""
@@ -782,6 +826,8 @@ def _record_first_exposure_locked(
         user_id=receipt.user_id,
         owner_stage_receipt_id=receipt.id,
         authority_digest=receipt.authority_digest,
+        evaluation_id=evaluation.id,
+        evaluation_expires_at=evaluation.expires_at,
         exposed_at=first_exposed_at,
     )
     db.add(exposure)
@@ -911,26 +957,30 @@ def record_result(
         require_road_10k_replay_ready(db, authority=authority)
         _assert_owner(db, user_id)
         counter = _counter(db, authority)
+        evaluation = Road10KEvaluation(
+            id=str(uuid4()),
+            user_id=user_id,
+            stage_id=authority.stage_id,
+            result_code=result_code,
+            payload=dict(payload),
+            created_at=timestamp,
+            expires_at=(
+                timestamp
+                + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
+            ),
+        )
+        # The exposure insert trigger requires the exact durable first result.
+        # Insert it first, then bind the immutable receipt and counter in this
+        # same serialized transaction. Nothing can commit independently.
+        db.add(evaluation)
+        db.flush()
         _record_first_exposure_locked(
             db,
             authority=authority,
             user_id=user_id,
             counter=counter,
+            evaluation=evaluation,
             timestamp=timestamp,
-        )
-        db.add(
-            evaluation := Road10KEvaluation(
-                id=str(uuid4()),
-                user_id=user_id,
-                stage_id=authority.stage_id,
-                result_code=result_code,
-                payload=dict(payload),
-                created_at=timestamp,
-                expires_at=(
-                    timestamp
-                    + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
-                ),
-            )
         )
         db.commit()
         return evaluation
@@ -964,8 +1014,8 @@ def _delete_evaluation_rows(
 
 
 def _evaluation_expiry(row: Road10KEvaluation) -> datetime:
-    """Return the immutable creation-based retention deadline."""
-    return row.created_at + timedelta(days=ROAD_10K_EVALUATION_RETENTION_DAYS)
+    """Return the DB-immutable authoritative retention deadline."""
+    return row.expires_at
 
 
 def _owner_deletion_manifest(
@@ -1223,13 +1273,14 @@ def purge_expired_evaluations(
 ) -> int:
     """Explicit maintenance primitive; no scheduler invokes it in production."""
     timestamp = _now(now)
-    rows = [
-        row
-        for row in db.query(Road10KEvaluation)
-        .filter(Road10KEvaluation.deleted_at.is_(None))
+    rows = (
+        db.query(Road10KEvaluation)
+        .filter(
+            Road10KEvaluation.deleted_at.is_(None),
+            Road10KEvaluation.expires_at <= timestamp,
+        )
         .all()
-        if _evaluation_expiry(row) <= timestamp
-    ]
+    )
     count = 0
     for row in rows:
         marker = _owner_deletion_manifest(

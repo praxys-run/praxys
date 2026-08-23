@@ -1331,7 +1331,6 @@ Page({
       const supportedCapabilityIds = discovery?.capabilities.filter(
         (item) => [
           'outdoor_road_5k_constraints_v1',
-          'outdoor_road_10k_constraints_v1',
         ].includes(item.constraint_schema_id),
       ).map((item) => item.id) ?? [];
       const routing = discovery?.routing ?? null;
@@ -1380,9 +1379,7 @@ Page({
         planCurrentGoalRevision: currentGoalRevision,
         planRoutingOptions: routing?.options ?? [],
         planSupportedCapabilityIds: supportedCapabilityIds,
-        performance10kEnabled: supportedCapabilityIds.includes(
-          'outdoor_road_10k_performance_v1',
-        ),
+        performance10kEnabled: false,
         goalPlanImpact,
         _response: response,
       } as Record<string, unknown>);

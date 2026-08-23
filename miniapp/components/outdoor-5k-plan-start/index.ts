@@ -4,6 +4,7 @@ import type { IAppOption } from '../../app';
 import { detectLocale, t } from '../../utils/i18n';
 import {
   road10kCopy,
+  road10kTaperScienceCopy,
   type Road10KCopyKey,
 } from '../../utils/road-10k-control';
 import type {
@@ -170,6 +171,7 @@ function copy() {
     alternativeReviewBeforeAdopting: t('Review before adopting'),
     alternativeKeepCurrentPlan: t('Keep the current plan until adoption'),
     proposal: t('Plan proposal'),
+    proposalHorizon: roadCopy('proposal.horizon'),
     roadProposal: roadCopy('proposal.title'),
     roadProposalBadge: roadCopy('proposal.badge'),
     roadProposalBody: roadCopy('proposal.body'),
@@ -412,6 +414,29 @@ function readinessAlternatives(
     .filter((label): label is string => Boolean(label));
 }
 
+function hasProposalHorizon(
+  proposal: AdaptivePlanProposal | null,
+): boolean {
+  return Boolean(
+    proposal?.goal?.horizon_start
+    && proposal?.goal?.horizon_end,
+  );
+}
+
+function roadTaperScience(
+  response: ReadinessResponse,
+): ReturnType<typeof road10kTaperScienceCopy> | null {
+  if (
+    !('guardrails' in response)
+    || !('plan_returned' in response.result)
+    || response.result.code !== 'eligible_taper_proposal'
+  ) return null;
+  return road10kTaperScienceCopy(
+    response.guardrails.taper,
+    detectLocale() === 'zh' ? 'zh-CN' : 'en',
+  );
+}
+
 function isRoad10KCapability(
   capability: PlanGenerationCapability | null | undefined,
 ): boolean {
@@ -503,6 +528,8 @@ Component({
     readinessIsPlanReady: false,
     showBaselineRefreshPanel: false,
     proposal: null as AdaptivePlanProposal | null,
+    proposalHasHorizon: false,
+    roadTaperScience: null as ReturnType<typeof road10kTaperScienceCopy> | null,
     proposalStateLabel: '',
     working: '',
     operationKeys: {} as Partial<Record<LifecycleOperation, string>>,
@@ -565,6 +592,8 @@ Component({
         proposalMatchesPurpose: true,
         proposalPurposeLabel: '',
         proposal: null,
+        proposalHasHorizon: false,
+        roadTaperScience: null,
         proposalStateLabel: '',
         readiness: null,
         readinessReason: '',
@@ -740,6 +769,7 @@ Component({
               === 'reassessment_required',
           proposal,
           proposalMatchesPurpose,
+          proposalHasHorizon: hasProposalHorizon(proposal),
           proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposalSource === 'current_goal'
             ? this.data.tr.currentGoalPurpose
@@ -764,6 +794,7 @@ Component({
           selectedPurpose: null,
           proposal,
           proposalMatchesPurpose: !proposal,
+          proposalHasHorizon: hasProposalHorizon(proposal),
           proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposal?.goal?.purpose_source === 'current_goal'
             ? this.data.tr.currentGoalPurpose
@@ -976,6 +1007,7 @@ Component({
         const context = road10kReadinessContext(readiness, this.data.tr);
         this.setData({
           readiness,
+          roadTaperScience: roadTaperScience(readiness),
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
           readinessBadge: readinessBadge(readiness.result, this.data.tr),
           readinessContextRows: context.rows,
@@ -1031,6 +1063,8 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalHasHorizon: hasProposalHorizon(response.proposal),
+            roadTaperScience: roadTaperScience(response),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -1049,6 +1083,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
+            roadTaperScience: roadTaperScience(response),
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,
@@ -1120,6 +1155,8 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalHasHorizon: hasProposalHorizon(response.proposal),
+            roadTaperScience: roadTaperScience(response),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -1141,6 +1178,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
+            roadTaperScience: roadTaperScience(response),
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,
@@ -1192,6 +1230,8 @@ Component({
           proposalPurposeLabel: '',
           notice: this.data.tr.rejected,
           proposalStateLabel: '',
+          proposalHasHorizon: false,
+          roadTaperScience: null,
         });
         this.clearOperationKey('reject');
       } catch (error) {
@@ -1253,6 +1293,7 @@ Component({
         );
         this.setData({
           proposal: result.proposal,
+          proposalHasHorizon: hasProposalHorizon(result.proposal),
           proposalStateLabel: proposalStateLabel(
             result.proposal,
             this.data.tr,

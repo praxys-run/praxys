@@ -275,6 +275,7 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
     from db.models import (
         Road10KDeletionObligation,
         Road10KExposureReceipt,
+        Road10KEvaluation,
         Road10KOwnerStageReceipt,
         Road10KStageCounter,
         User,
@@ -328,12 +329,26 @@ def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
         )
         db.flush()
         db.add(
+            Road10KEvaluation(
+                id="migration-first-evaluation",
+                user_id="migration-owner",
+                stage_id="road-10k-controlled-opt-in-v1",
+                result_code="validation_failed",
+                payload={},
+                created_at=datetime(2026, 8, 20),
+                expires_at=datetime(2026, 9, 19),
+            )
+        )
+        db.flush()
+        db.add(
             Road10KExposureReceipt(
                 id="migration-exposure-receipt",
                 stage_id="road-10k-controlled-opt-in-v1",
                 user_id="migration-owner",
                 owner_stage_receipt_id="migration-owner-receipt",
                 authority_digest="a" * 64,
+                evaluation_id="migration-first-evaluation",
+                evaluation_expires_at=datetime(2026, 9, 19),
                 exposed_at=datetime(2026, 8, 20),
             )
         )

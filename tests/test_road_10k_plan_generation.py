@@ -447,9 +447,12 @@ def test_taper_window_and_public_guardrails_match_the_accepted_contract() -> Non
     ]
     intensity = parameters["road_10k_v2_intensity_quality_and_spacing"]
     readiness = parameters["road_10k_v2_readiness_and_missingness"]
-    taper_window = parameters[
+    event_policy = parameters[
         "road_10k_v2_event_benchmark_and_taper"
-    ]["taper"]["supported_window_days_before_event"]
+    ]
+    taper = event_policy["taper"]
+    taper_window = taper["supported_window_days_before_event"]
+    claims = parameters["road_10k_v2_demographic_and_claim_limits"]
     assert ROAD_10K_GUARDRAILS.public_payload() == {
         "committed_proposal_days": int(execution["committed_proposal_days"]),
         "advisory_reassessment_after_completed_days": int(
@@ -463,7 +466,42 @@ def test_taper_window_and_public_guardrails_match_the_accepted_contract() -> Non
         "baseline_current_through_completed_days": int(
             readiness["baseline_current_through_completed_days"]
         ),
+        "taper": {
+            "planned_volume_reduction_fraction": float(
+                taper["planned_volume_reduction_fraction"]
+            ),
+            "maintain_intensity_exposure_without_adding_quality": taper[
+                "maintain_intensity_exposure_without_adding_quality"
+            ],
+            "evidence_population": taper["evidence_population"],
+            "direct_recreational_road_10k_validation": taper[
+                "direct_recreational_road_10k_validation"
+            ],
+            "single_target_taper_result": event_policy["single_target"][
+                "target_8_to_14_days_after_start"
+            ],
+            "personal_performance_gain_claim": taper[
+                "personal_performance_gain_claim"
+            ],
+            "causal_plan_benefit_claim": claims[
+                "causal_plan_benefit_claim"
+            ],
+            "personal_injury_probability": claims[
+                "personal_injury_probability"
+            ],
+        },
     }
+    from api.routes.road_10k_plan_generation import (
+        Road10KGuardrailProjectionResponse,
+    )
+
+    projected = Road10KGuardrailProjectionResponse.model_validate(
+        ROAD_10K_GUARDRAILS.public_payload()
+    )
+    assert projected.taper.planned_volume_reduction_fraction == 0.5
+    assert projected.taper.single_target_taper_result == (
+        "taper_proposal_truncated_to_event_eve"
+    )
     assert ROAD_10K_TAPER_MINIMUM_DAYS_BEFORE_EVENT == int(
         taper_window["minimum"]
     )
@@ -1151,7 +1189,11 @@ def test_first_party_owner_withdrawal_is_authority_independent(
     )
 
     assert response.status_code == 200
-    assert response.json()["outcome"] == "withdrawn"
+    assert response.json() == {
+        "outcome": "withdrawn",
+        "rollout_status": "withdrawn",
+        "plan_status": "unchanged",
+    }
     with db_session.SessionLocal() as db:
         assert db.get(Road10KOwnerStageReceipt, "withdraw-rights-receipt").state == "withdrawn"
 

@@ -291,7 +291,7 @@ _ROAD_10K_OWNER_RECEIPT_FIELDS = (
 )
 _ROAD_10K_EXPOSURE_RECEIPT_FIELDS = (
     "id", "stage_id", "owner_stage_receipt_id", "authority_digest",
-    "exposed_at",
+    "evaluation_id", "evaluation_expires_at", "exposed_at",
 )
 _ROAD_10K_SCREENSHOT_REFERENCE_FIELDS = (
     "id", "evaluation_id", "object_key", "content_type",

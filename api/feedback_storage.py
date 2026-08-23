@@ -23,10 +23,12 @@ Tencent COS (CN audience, post-ICP) is a future third backend — the same
 key-in / bytes-out seam mirrors the ``frontend_server`` / COS decoupling noted
 in CLAUDE.md.
 
-Nothing here raises to the caller: a storage outage must not turn a feedback
-submit into a 500. :func:`store_image` returns ``None`` on failure (the text
-report is still captured); :func:`load_image` returns ``None`` when the key is
-missing or unreadable. All validation helpers are pure and unit-tested.
+Known pre-write storage unavailability does not turn a feedback submit into a
+500: :func:`store_image` returns ``None`` so the text report is still captured.
+Once a configured Blob upload is attempted, an exception cannot prove that no
+write occurred, so the deterministic key is raised as normalized uncertainty
+for durable publication or compensation by the caller. :func:`load_image`
+returns ``None`` when the key is missing or unreadable.
 """
 from __future__ import annotations
 
@@ -65,6 +67,16 @@ _KEY_RE = re.compile(r"^feedback/\d+/\d+\.(png|jpg|jpeg|webp)$")
 _ROAD_10K_KEY_RE = re.compile(
     r"^road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)$"
 )
+
+
+class FeedbackStorageWriteUncertain(OSError):
+    """A configured private upload may have written its deterministic key."""
+
+    def __init__(self, object_key: str):
+        if not _KEY_RE.fullmatch(object_key):
+            raise ValueError("invalid feedback screenshot object key")
+        super().__init__("private feedback upload outcome is uncertain")
+        self.object_key = object_key
 
 
 # ---------------------------------------------------------------------------
@@ -227,11 +239,12 @@ def private_container_client():
 
 
 def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
-    """Persist one screenshot and return its storage key, or ``None`` on failure.
+    """Persist one screenshot and return its deterministic storage key.
 
-    The key is ``feedback/<feedback_id>/<index>.<ext>`` where ext derives from
-    the sniffed content-type. The caller is expected to have validated ``data``
-    already; we re-sniff so a bad ext can never be written.
+    Known pre-write unavailability returns ``None``. A configured Blob call
+    that raises has an uncertain write outcome and raises
+    :class:`FeedbackStorageWriteUncertain` with the key. The caller is expected
+    to have validated ``data`` already; this function re-sniffs it.
     """
     content_type = sniff(data)
     ext = CONTENT_TYPE_TO_EXT.get(content_type or "")
@@ -251,9 +264,13 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
                     content_settings=_blob_content_settings(content_type),
                 )
                 return key
-            except Exception:
-                logger.warning("store_image: blob upload failed for %s", key, exc_info=True)
-                return None
+            except Exception as exc:
+                logger.warning(
+                    "store_image: blob upload outcome is uncertain for %s",
+                    key,
+                    exc_info=True,
+                )
+                raise FeedbackStorageWriteUncertain(key) from exc
         logger.warning(
             "store_image: configured blob storage is unavailable for %s",
             key,

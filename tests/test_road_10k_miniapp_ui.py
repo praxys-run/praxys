@@ -28,3 +28,17 @@ def test_native_plan_start_rejects_dormant_road_discovery() -> None:
     )[1].split("]);", 1)[0]
     assert "outdoor_road_5k_constraints_v1" in declaration
     assert "outdoor_road_10k_constraints_v1" not in declaration
+
+
+def test_native_goal_does_not_promote_stale_road_discovery() -> None:
+    source = _source("miniapp/pages/goal/index.ts")
+    declaration = source.split(
+        "const supportedCapabilityIds = discovery?.capabilities.filter(", 1
+    )[1].split(").map", 1)[0]
+    assert "outdoor_road_5k_constraints_v1" in declaration
+    assert "outdoor_road_10k_constraints_v1" not in declaration
+    assert "performance10kEnabled: false" in source
+    assert (
+        "performance10kEnabled: supportedCapabilityIds.includes"
+        not in source
+    )

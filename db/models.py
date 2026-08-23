@@ -2123,6 +2123,12 @@ class Road10KExposureReceipt(Base):
         nullable=False,
     )
     authority_digest = Column(String(64), nullable=False)
+    # Logical first-result reference. It intentionally has no foreign key: the
+    # evaluation payload is deleted at retention/withdrawal while this minimal
+    # no-recycling receipt remains immutable. The insert trigger proves the
+    # referenced evaluation exists and exactly matches this owner/stage/time.
+    evaluation_id = Column(String(36), nullable=False)
+    evaluation_expires_at = Column(DateTime, nullable=False)
     exposed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
@@ -2130,6 +2136,10 @@ class Road10KExposureReceipt(Base):
             "stage_id",
             "user_id",
             name="uq_road_10k_exposure_owner_stage",
+        ),
+        UniqueConstraint(
+            "evaluation_id",
+            name="uq_road_10k_exposure_first_evaluation",
         ),
         CheckConstraint(
             "length(authority_digest) = 64",
@@ -2268,6 +2278,8 @@ event.listen(
         "AND NEW.stage_id = OLD.stage_id "
         "AND NEW.owner_stage_receipt_id = OLD.owner_stage_receipt_id "
         "AND NEW.authority_digest = OLD.authority_digest "
+        "AND NEW.evaluation_id = OLD.evaluation_id "
+        "AND NEW.evaluation_expires_at = OLD.evaluation_expires_at "
         "AND NEW.exposed_at = OLD.exposed_at"
         ") "
         "BEGIN "
@@ -2425,14 +2437,36 @@ event.listen(
 )
 
 event.listen(
+    Base.metadata,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_result_match "
+        "BEFORE INSERT ON road_10k_exposure_receipts "
+        "WHEN NOT EXISTS ("
+        "SELECT 1 FROM road_10k_evaluations AS evaluation "
+        "WHERE evaluation.id = NEW.evaluation_id "
+        "AND evaluation.stage_id = NEW.stage_id "
+        "AND evaluation.user_id IS NEW.user_id "
+        "AND evaluation.created_at = NEW.exposed_at "
+        "AND evaluation.expires_at = NEW.evaluation_expires_at"
+        ") BEGIN SELECT RAISE(ABORT, "
+        "'road 10K exposure result mismatch'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
     Road10KEvaluation.__table__,
     "after_create",
     DDL(
         "CREATE TRIGGER IF NOT EXISTS "
-        "trg_road_10k_evaluations_expiry_no_update "
+        "trg_road_10k_evaluations_retention_immutable "
         "BEFORE UPDATE ON road_10k_evaluations "
-        "WHEN NEW.expires_at != OLD.expires_at "
-        "BEGIN SELECT RAISE(ABORT, 'road 10K evaluation expiry immutable'); END"
+        "WHEN NEW.created_at != OLD.created_at "
+        "OR NEW.expires_at != OLD.expires_at "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K evaluation retention deadline immutable'); END"
     ).execute_if(dialect="sqlite"),
 )
 

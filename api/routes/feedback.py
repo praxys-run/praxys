@@ -218,11 +218,17 @@ def submit_feedback(
         feedback_id = row.id
 
         for index, data in enumerate(decoded_images):
-            key = feedback_storage.store_image(
-                data,
-                feedback_id=row.id,
-                index=index,
-            )
+            try:
+                key = feedback_storage.store_image(
+                    data,
+                    feedback_id=row.id,
+                    index=index,
+                )
+            except feedback_storage.FeedbackStorageWriteUncertain as exc:
+                # Provider exceptions after an attempted write cannot prove
+                # absence. Publish the deterministic key in this owner-fenced
+                # transaction so deletion and replay can always discover it.
+                key = exc.object_key
             if key:
                 stored_keys.append(key)
         if stored_keys:

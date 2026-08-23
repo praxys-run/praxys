@@ -147,6 +147,15 @@
         <text class="ts-muted">{{road10kMode ? tr.roadGenerator : tr.generator}}</text><text class="ts-value">{{proposal.model_version || '—'}}</text>
         <text class="ts-muted">{{road10kMode ? tr.roadScience : tr.science}}</text><text class="ts-value">{{proposal.science_version || '—'}}</text>
       </view>
+      <view wx:if="{{road10kMode && proposalHasHorizon}}" class="plan-start-version-grid">
+        <text class="ts-muted">{{roadTaperScience ? roadTaperScience.horizon : tr.proposalHorizon}}</text>
+        <text class="ts-value">{{proposal.goal.horizon_start}} – {{proposal.goal.horizon_end}}<text wx:if="{{roadTaperScience}}"> ({{roadTaperScience.event_eve}})</text></text>
+      </view>
+      <view wx:if="{{road10kMode && roadTaperScience}}" class="plan-start-note">
+        <text class="plan-start-note-title">{{roadTaperScience.title}}</text>
+        <text class="plan-start-copy">{{roadTaperScience.body}}</text>
+        <text class="ts-muted">{{roadTaperScience.source_label}} · {{roadTaperScience.source_path}}</text>
+      </view>
       <view class="plan-start-workouts">
         <view wx:for="{{proposal.workouts}}" wx:key="date" class="plan-start-workout">
           <text><text class="ts-value">{{item.date}}</text> · {{item.workout_type}}</text>

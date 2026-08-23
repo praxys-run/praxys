@@ -6,7 +6,6 @@ import { useSettings } from '@/contexts/SettingsContext';
 import type {
   GoalKind,
   GoalResponse,
-  PlanGenerationCapabilitiesResponse,
 } from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -413,19 +412,10 @@ function GoalSkeleton() {
 
 export default function Goal() {
   const { data, loading, error, refetch } = useApi<GoalResponse>('/api/goal');
-  const { data: capabilityDiscovery } = useApi<PlanGenerationCapabilitiesResponse>(
-    '/api/plan/generation/capabilities',
-    { timeoutMs: 12_000 },
-  );
   const queryClient = useQueryClient();
   const { isDemo } = useAuth();
   const { config, updateSettings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
-  const enablePerformance10k = Boolean(
-    capabilityDiscovery?.capabilities.some(
-      (item) => item.constraint_schema_id === 'outdoor_road_10k_constraints_v1',
-    ),
-  );
 
   const currentRaceDate = config?.goal?.race_date ? String(config.goal.race_date) : '';
   const currentDistance = config?.goal?.distance ? String(config.goal.distance) : 'marathon';
@@ -441,9 +431,6 @@ export default function Goal() {
       || configured === 'performance_5k'
     ) {
       return configured as GoalType;
-    }
-    if (configured === 'performance_10k' && enablePerformance10k) {
-      return 'performance_10k';
     }
     return currentRaceDate ? 'race' : 'continuous';
   })();
@@ -489,17 +476,14 @@ export default function Goal() {
           initialRaceDate={currentRaceDate}
           initialDistance={currentDistance}
           initialTargetTime={currentTargetTime}
-          enablePerformance10k={enablePerformance10k}
+          enablePerformance10k={false}
           onSave={handleSaveGoal}
         />
       )}
 
       {data && <PlanStartGoalEntry />}
 
-      {data && (
-        data.goal_kind === 'performance_5k'
-        || (enablePerformance10k && data.goal_kind === 'performance_10k')
-      ) && data.baseline ? (
+      {data && data.goal_kind === 'performance_5k' && data.baseline ? (
         <GoalBaselinePanel
           baseline={data.baseline}
           goal={data.goal}

@@ -265,6 +265,23 @@ class Road10KOutcomeResponse(BaseModel):
     alternatives: list[str]
 
 
+class Road10KTaperGuardrailProjectionResponse(BaseModel):
+    """Digest-bound taper evidence and claim-limit projection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    planned_volume_reduction_fraction: float
+    maintain_intensity_exposure_without_adding_quality: Literal[True]
+    evidence_population: Literal["mixed_endurance_athletes"]
+    direct_recreational_road_10k_validation: Literal[False]
+    single_target_taper_result: Literal[
+        "taper_proposal_truncated_to_event_eve"
+    ]
+    personal_performance_gain_claim: Literal[False]
+    causal_plan_benefit_claim: Literal["disabled"]
+    personal_injury_probability: Literal["disabled"]
+
+
 class Road10KGuardrailProjectionResponse(BaseModel):
     """Read-only accepted values exposed without snapshot provenance."""
 
@@ -274,6 +291,7 @@ class Road10KGuardrailProjectionResponse(BaseModel):
     advisory_reassessment_after_completed_days: int
     minimum_planned_low_intensity_running_minutes_fraction: float
     baseline_current_through_completed_days: int
+    taper: Road10KTaperGuardrailProjectionResponse
 
 
 class Road10KPurposeResponse(BaseModel):

@@ -1,8 +1,9 @@
 # Road 10K controlled opt-in foundation
 
 > **Summary:** Inspect the repository-only Road 10K foundation. This revision is
-> mechanically hard-off and cannot activate, invite, expose, collect, purge, or
-> authorize a stage action.
+> mechanically hard-off: deployment or configuration cannot activate, invite,
+> expose, collect, or authorize a stage action, and cannot schedule or execute
+> the unscheduled explicit purge primitive.
 > **Use when:** A repository review, restore plan, or readiness investigation
 > touches the dormant Road ledger or deletion replay contract.
 

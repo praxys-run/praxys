@@ -172,6 +172,8 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(length=36), nullable=True),
         sa.Column("owner_stage_receipt_id", sa.String(length=36), nullable=False),
         sa.Column("authority_digest", sa.String(length=64), nullable=False),
+        sa.Column("evaluation_id", sa.String(length=36), nullable=False),
+        sa.Column("evaluation_expires_at", sa.DateTime(), nullable=False),
         sa.Column("exposed_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(
@@ -183,6 +185,10 @@ def upgrade() -> None:
             "stage_id",
             "user_id",
             name="uq_road_10k_exposure_owner_stage",
+        ),
+        sa.UniqueConstraint(
+            "evaluation_id",
+            name="uq_road_10k_exposure_first_evaluation",
         ),
         sa.CheckConstraint(
             "length(authority_digest) = 64",
@@ -357,6 +363,20 @@ def upgrade() -> None:
         )
         op.execute(
             "CREATE TRIGGER "
+            "trg_road_10k_exposure_receipts_result_match "
+            "BEFORE INSERT ON road_10k_exposure_receipts "
+            "WHEN NOT EXISTS ("
+            "SELECT 1 FROM road_10k_evaluations AS evaluation "
+            "WHERE evaluation.id = NEW.evaluation_id "
+            "AND evaluation.stage_id = NEW.stage_id "
+            "AND evaluation.user_id IS NEW.user_id "
+            "AND evaluation.created_at = NEW.exposed_at "
+            "AND evaluation.expires_at = NEW.evaluation_expires_at"
+            ") BEGIN SELECT RAISE(ABORT, "
+            "'road 10K exposure result mismatch'); END"
+        )
+        op.execute(
+            "CREATE TRIGGER "
             "trg_road_10k_exposure_receipts_immutable "
             "BEFORE UPDATE ON road_10k_exposure_receipts "
             "WHEN NOT ("
@@ -365,6 +385,8 @@ def upgrade() -> None:
             "AND NEW.stage_id = OLD.stage_id "
             "AND NEW.owner_stage_receipt_id = OLD.owner_stage_receipt_id "
             "AND NEW.authority_digest = OLD.authority_digest "
+            "AND NEW.evaluation_id = OLD.evaluation_id "
+            "AND NEW.evaluation_expires_at = OLD.evaluation_expires_at "
             "AND NEW.exposed_at = OLD.exposed_at"
             ") "
             "BEGIN "
@@ -446,11 +468,12 @@ def upgrade() -> None:
 
         op.execute(
             "CREATE TRIGGER "
-            "trg_road_10k_evaluations_expiry_no_update "
+            "trg_road_10k_evaluations_retention_immutable "
             "BEFORE UPDATE ON road_10k_evaluations "
-            "WHEN NEW.expires_at != OLD.expires_at "
+            "WHEN NEW.created_at != OLD.created_at "
+            "OR NEW.expires_at != OLD.expires_at "
             "BEGIN SELECT RAISE(ABORT, "
-            "'road 10K evaluation expiry immutable'); END"
+            "'road 10K evaluation retention deadline immutable'); END"
         )
     elif bind.dialect.name == "postgresql":
         op.execute(
@@ -515,6 +538,25 @@ def upgrade() -> None:
             "road_10k_exposure_receipts_insert_match()"
         )
         op.execute(
+            "CREATE FUNCTION road_10k_exposure_receipts_result_match() "
+            "RETURNS trigger AS $$ BEGIN "
+            "IF NOT EXISTS (SELECT 1 FROM road_10k_evaluations AS evaluation "
+            "WHERE evaluation.id = NEW.evaluation_id "
+            "AND evaluation.stage_id = NEW.stage_id "
+            "AND evaluation.user_id IS NOT DISTINCT FROM NEW.user_id "
+            "AND evaluation.created_at = NEW.exposed_at "
+            "AND evaluation.expires_at IS NOT DISTINCT FROM "
+            "NEW.evaluation_expires_at) THEN "
+            "RAISE EXCEPTION 'road 10K exposure result mismatch'; "
+            "END IF; RETURN NEW; END; $$ LANGUAGE plpgsql"
+        )
+        op.execute(
+            "CREATE TRIGGER trg_road_10k_exposure_receipts_result_match "
+            "BEFORE INSERT ON road_10k_exposure_receipts "
+            "FOR EACH ROW EXECUTE FUNCTION "
+            "road_10k_exposure_receipts_result_match()"
+        )
+        op.execute(
             "CREATE FUNCTION road_10k_exposure_receipts_immutable() "
             "RETURNS trigger AS $$ "
             "BEGIN "
@@ -525,6 +567,9 @@ def upgrade() -> None:
             "OLD.owner_stage_receipt_id "
             "AND NEW.authority_digest IS NOT DISTINCT FROM "
             "OLD.authority_digest "
+            "AND NEW.evaluation_id IS NOT DISTINCT FROM OLD.evaluation_id "
+            "AND NEW.evaluation_expires_at IS NOT DISTINCT FROM "
+            "OLD.evaluation_expires_at "
             "AND NEW.exposed_at IS NOT DISTINCT FROM OLD.exposed_at "
             "THEN RETURN NEW; "
             "END IF; "
@@ -615,13 +660,13 @@ def upgrade() -> None:
             "BEFORE INSERT ON road_10k_evaluations FOR EACH ROW EXECUTE FUNCTION road_10k_evaluation_expiry_insert()"
         )
         op.execute(
-            "CREATE FUNCTION road_10k_evaluation_expiry_update() RETURNS trigger AS $$ "
-            "BEGIN IF NEW.expires_at IS DISTINCT FROM OLD.expires_at THEN RAISE EXCEPTION 'road 10K evaluation expiry immutable'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql"
+            "CREATE FUNCTION road_10k_evaluation_retention_update() RETURNS trigger AS $$ "
+            "BEGIN IF NEW.created_at IS DISTINCT FROM OLD.created_at OR NEW.expires_at IS DISTINCT FROM OLD.expires_at THEN RAISE EXCEPTION 'road 10K evaluation retention deadline immutable'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql"
 
         )
         op.execute(
-            "CREATE TRIGGER trg_road_10k_evaluations_expiry_no_update "
-            "BEFORE UPDATE ON road_10k_evaluations FOR EACH ROW EXECUTE FUNCTION road_10k_evaluation_expiry_update()"
+            "CREATE TRIGGER trg_road_10k_evaluations_retention_immutable "
+            "BEFORE UPDATE ON road_10k_evaluations FOR EACH ROW EXECUTE FUNCTION road_10k_evaluation_retention_update()"
         )
 
 
@@ -652,7 +697,8 @@ def downgrade() -> None:
             "trg_road_10k_owner_stage_receipts_immutable",
             "trg_road_10k_owner_stage_receipts_lifecycle",
             "trg_road_10k_evaluations_expiry_immutable",
-            "trg_road_10k_evaluations_expiry_no_update",
+            "trg_road_10k_evaluations_retention_immutable",
+            "trg_road_10k_exposure_receipts_result_match",
             "trg_road_10k_exposure_receipts_insert_match",
             "trg_road_10k_exposure_receipts_immutable",
             "trg_road_10k_exposure_receipts_no_delete",
@@ -680,11 +726,15 @@ def downgrade() -> None:
             "ON road_10k_evaluations"
         )
         op.execute(
-            "DROP TRIGGER IF EXISTS trg_road_10k_evaluations_expiry_no_update "
+            "DROP TRIGGER IF EXISTS trg_road_10k_evaluations_retention_immutable "
             "ON road_10k_evaluations"
         )
         op.execute(
             "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_insert_match "
+            "ON road_10k_exposure_receipts"
+        )
+        op.execute(
+            "DROP TRIGGER IF EXISTS trg_road_10k_exposure_receipts_result_match "
             "ON road_10k_exposure_receipts"
         )
         op.execute(
@@ -710,6 +760,9 @@ def downgrade() -> None:
             "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_insert_match()"
         )
         op.execute(
+            "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_result_match()"
+        )
+        op.execute(
             "DROP FUNCTION IF EXISTS road_10k_exposure_receipts_immutable()"
         )
         op.execute(
@@ -722,7 +775,7 @@ def downgrade() -> None:
             "DROP FUNCTION IF EXISTS road_10k_evaluation_expiry_insert()"
         )
         op.execute(
-            "DROP FUNCTION IF EXISTS road_10k_evaluation_expiry_update()"
+            "DROP FUNCTION IF EXISTS road_10k_evaluation_retention_update()"
         )
     for index_name, table_name in (
         ("ix_road_10k_deletion_obligation_status", "road_10k_deletion_obligations"),

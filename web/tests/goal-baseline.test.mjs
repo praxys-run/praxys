@@ -18,7 +18,9 @@ test('web goal page switches into the baseline pilot flow', async () => {
     read('../src/components/GoalBaselinePanel.tsx'),
   ]);
 
-  assert.match(page, /data\.goal_kind === 'performance_5k'[\s\S]*enablePerformance10k && data\.goal_kind === 'performance_10k'/);
+  assert.match(page, /data\.goal_kind === 'performance_5k' && data\.baseline/);
+  assert.match(page, /enablePerformance10k=\{false\}/);
+  assert.doesNotMatch(page, /enablePerformance10k && data\.goal_kind === 'performance_10k'/);
   assert.match(page, /<GoalBaselinePanel/);
   assert.match(panel, /Road10KHistoryConfirmationRequest/);
   assert.match(panel, /\/api\/goal\/baseline\/history\/confirm|\/api\/plan\/road-10k\/baseline\/history\/confirm/);

@@ -1,3 +1,5 @@
+import type { Road10KTaperGuardrailProjection } from '../types/api';
+
 export const ROAD_10K_COPY = {
   "action.add_screenshot": { en: "Add optional screenshot", 'zh-CN': "添加可选截图" },
   "action.adopt": { en: "Adopt exact proposal", 'zh-CN': "采纳此确切提案" },
@@ -67,11 +69,11 @@ export const ROAD_10K_COPY = {
   "eligibility.confirm_title": { en: "We need your confirmation", 'zh-CN': "需要你的确认" },
   "eligibility.conflict_body": { en: "Review the conflicting details before Praxys checks again. No proposal or plan has been created.", 'zh-CN': "请先检查相互冲突的信息，Praxys 才会再次检查。尚未创建任何提案或计划。" },
   "eligibility.conflict_title": { en: "Some confirmed details conflict", 'zh-CN': "部分已确认信息相互冲突" },
-  "eligibility.event_body": { en: "Your confirmed event context does not allow a full 14-day proposal. Praxys will not create a fallback plan. Your Goal and Training are unchanged.", 'zh-CN': "你已确认的赛事情况不允许生成完整的 14 天提案。Praxys 不会创建替代计划。你的目标和训练保持不变。" },
+  "eligibility.event_body": { en: "Your confirmed event context does not allow a supported proposal. Praxys will not create a fallback plan. Your Goal and Training are unchanged.", 'zh-CN': "你已确认的赛事情况不允许生成受支持的提案。Praxys 不会创建替代计划。你的目标和训练保持不变。" },
   "eligibility.history_body": { en: "The accepted Road 10K rules cannot create this proposal from the current recent history. Praxys will not create a fallback plan. Your Goal and Training are unchanged.", 'zh-CN': "按已接受的公路 10K 规则，当前近期历史无法生成此提案。Praxys 不会创建替代计划。你的目标和训练保持不变。" },
   "eligibility.history_title": { en: "Not enough recent running history", 'zh-CN': "近期跑步历史不足" },
   "eligibility.limited_title": { en: "Limited guidance only", 'zh-CN': "仅提供有限指导" },
-  "eligibility.near_body": { en: "Your confirmed target is too near for a full 14-day proposal. Praxys will not create a fallback plan. Your Goal and Training are unchanged.", 'zh-CN': "你已确认的目标时间过近，无法生成完整的 14 天提案。Praxys 不会创建替代计划。你的目标和训练保持不变。" },
+  "eligibility.near_body": { en: "Your confirmed target is too near for a supported taper proposal. Praxys will not create a fallback plan. Your Goal and Training are unchanged.", 'zh-CN': "你已确认的目标时间过近，无法生成受支持的减量提案。Praxys 不会创建替代计划。你的目标和训练保持不变。" },
   "eligibility.ready_body": { en: "Praxys can continue to baseline and supported plan-input confirmation. Nothing changes until you adopt an exact proposal.", 'zh-CN': "Praxys 可以继续进行基准和受支持计划输入的确认。在你采纳某个确切提案前，不会发生任何更改。" },
   "eligibility.ready_title": { en: "Ready to confirm proposal inputs", 'zh-CN': "可以确认提案输入" },
   "eligibility.safety_body": { en: "Praxys has stopped this Road 10K proposal flow under the accepted Road 10K rules. No proposal or plan was created or changed. This is not a diagnosis, treatment, or medical clearance.", 'zh-CN': "Praxys 已按已接受的公路 10K 规则停止此提案流程。没有创建或更改任何提案或计划。这不是诊断、治疗或医疗许可。" },
@@ -97,7 +99,7 @@ export const ROAD_10K_COPY = {
   "feedback.sent": { en: "Your private report was sent for human review.", 'zh-CN': "你的私密报告已发送，将由人工审核。" },
   "feedback.trust_body": { en: "Send this privately for human Trust review. It will not be published or sent to AI. Do not include information about another person.", 'zh-CN': "此信息将私下发送，由人工信任审核处理；不会公开，也不会发送给 AI。请勿包含他人的信息。" },
   "feedback.trust_title": { en: "Report a privacy or trust concern", 'zh-CN': "报告隐私或信任问题" },
-  "generation.body": { en: "Praxys will use the confirmed versioned inputs and accepted Road 10K rules to create one immutable 14-day proposal. This does not adopt a plan.", 'zh-CN': "Praxys 将使用已确认且带版本的输入和已接受的公路 10K 规则，创建一个不可变的 14 天提案。此操作不会采纳计划。" },
+  "generation.body": { en: "Praxys will use the confirmed versioned inputs and accepted Road 10K rules to create one immutable proposal for the returned date horizon. This does not adopt a plan.", 'zh-CN': "Praxys 将使用已确认且带版本的输入和已接受的公路 10K 规则，创建一个覆盖返回日期范围的不可变提案。此操作不会采纳计划。" },
   "generation.fail_end": { en: "No proposal was created. The current Road 10K state does not allow another generation attempt.", 'zh-CN': "未创建提案。当前公路 10K 状态不允许再次生成。" },
   "generation.fail_retry": { en: "No proposal was created. Review the current status and try again only if the action remains available.", 'zh-CN': "未创建提案。请检查当前状态；仅在操作仍可用时重试。" },
   "generation.fail_title": { en: "Proposal generation failed", 'zh-CN': "提案生成失败" },
@@ -109,7 +111,7 @@ export const ROAD_10K_COPY = {
   "inputs.longest_day": { en: "Longest-run day", 'zh-CN': "最长跑日期" },
   "inputs.time_available": { en: "Time available", 'zh-CN': "可用时间" },
   "inputs.title": { en: "Confirm your plan inputs", 'zh-CN': "确认你的计划输入" },
-  "invitation.body": { en: "You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.", 'zh-CN': "你受邀参加一项有限流程试点。加入后，Praxys 可检查是否能为你创建一个确定性的 14 天户外公路 10K 提案。加入不会创建或采纳计划。" },
+  "invitation.body": { en: "You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic bounded outdoor road 10K proposal for you. Joining does not create or adopt a plan.", 'zh-CN': "你受邀参加一项有限流程试点。加入后，Praxys 可检查是否能为你创建一个确定且有界的户外公路 10K 提案。加入不会创建或采纳计划。" },
   "invitation.title": { en: "Try a Road 10K plan proposal", 'zh-CN': "试用公路 10K 计划提案" },
   "life.close_in": { en: "Enrollment has closed. Your existing proposal or plan follows the current rollout controls shown here; nothing changes automatically.", 'zh-CN': "报名已结束。你的现有提案或计划遵循此处显示的当前试点控制；不会自动发生任何更改。" },
   "life.close_out": { en: "You did not join before enrollment closed. No proposal or plan was created or changed.", 'zh-CN': "你未在报名关闭前加入。没有创建或更改任何提案或计划。" },
@@ -150,13 +152,13 @@ export const ROAD_10K_COPY = {
   "notice.claims": { en: "This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.", 'zh-CN': "此试点不承诺更快成绩、预防损伤、医疗安全、诊断、治疗、许可或个人结果。" },
   "notice.control": { en: "No AI chooses or adopts the plan. Nothing is sent to a training provider. Nothing changes until you explicitly adopt the exact proposal.", 'zh-CN': "AI 不会选择或采纳计划。任何内容都不会发送给训练服务提供商。在你明确采纳确切提案前，不会发生任何更改。" },
   "notice.data": { en: "The exact data used, access roles, retention, private feedback handling, export, and deletion terms appear in the current data notice below.", 'zh-CN': "下方当前数据说明列出了确切的数据使用、访问角色、保留期限、私密反馈处理、导出和删除条款。" },
-  "notice.intro": { en: "This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.", 'zh-CN': "这是一项默认关闭的有限流程试点，用于生成一个确定性的 14 天户外公路 10K 提案。加入试点不会创建或采纳计划。" },
+  "notice.intro": { en: "This is a limited, default-off process pilot for one deterministic bounded outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.", 'zh-CN': "这是一项默认关闭的有限流程试点，用于生成一个确定且有界的户外公路 10K 提案。加入试点不会创建或采纳计划。" },
   "notice.leave": { en: "You can leave the rollout, export your data, or delete your account. Leaving the rollout does not pause or end an adopted plan.", 'zh-CN': "你可以退出试点、导出数据或删除账户。退出试点不会暂停或结束已采纳计划。" },
   "notice.scope": { en: "Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.", 'zh-CN': "Praxys 会按已接受的公路 10K 规则，检查你现有的目标、直接 10K 基准、近期跑步历史和已确认的日程限制。" },
   "notice.title": { en: "Join the Road 10K rollout?", 'zh-CN': "加入公路 10K 试点？" },
   "plan.active_body": { en: "This is the exact proposal you adopted. Use existing managed Training controls to review, adjust, pause, end, or delete it. Rollout controls do not replace plan controls, and this rollout does not send the plan to a provider.", 'zh-CN': "这是你采纳的确切提案。请使用现有托管训练控制来查看、调整、暂停、结束或删除计划。试点控制不能替代计划控制，而且此试点不会将计划发送给服务提供商。" },
   "plan.active_title": { en: "Road 10K plan active", 'zh-CN': "公路 10K 计划进行中" },
-  "plan.complete_body": { en: "The 14-day plan window is complete. No extension or successor was created automatically. Rollout status is shown separately.", 'zh-CN': "14 天计划周期已完成。系统未自动创建延长计划或后续版本。试点状态会单独显示。" },
+  "plan.complete_body": { en: "The returned plan window is complete. No extension or successor was created automatically. Rollout status is shown separately.", 'zh-CN': "返回的计划周期已完成。系统未自动创建延长计划或后续版本。试点状态会单独显示。" },
   "plan.complete_title": { en: "Road 10K plan completed", 'zh-CN': "公路 10K 计划已完成" },
   "plan.ended_body": { en: "You ended this plan through managed Training. This did not leave or end the rollout.", 'zh-CN': "你已通过托管训练结束此计划。此操作没有退出或结束试点。" },
   "plan.ended_title": { en: "Road 10K plan ended by you", 'zh-CN': "你已结束公路 10K 计划" },
@@ -182,9 +184,10 @@ export const ROAD_10K_COPY = {
   "proposal.adopt_body": { en: "This makes proposal version {version} your managed Road 10K plan in Training. Praxys will not send it to a provider. Rollout status and Plan status remain separate.", 'zh-CN': "此操作会将提案版本 {version} 设为训练中的托管公路 10K 计划。Praxys 不会将其发送给服务提供商。试点状态和计划状态仍会分开显示。" },
   "proposal.adopt_title": { en: "Adopt this exact proposal?", 'zh-CN': "采纳此确切提案？" },
   "proposal.badge": { en: "Proposal — not adopted", 'zh-CN': "提案——尚未采纳" },
-  "proposal.body": { en: "This exact 14-day proposal is read-only. Reviewing it does not change Training. Nothing changes until you choose Adopt exact proposal and the server confirms that version.", 'zh-CN': "此确切的 14 天提案为只读。查看它不会更改训练。只有当你选择“采纳此确切提案”且服务器确认该版本后，才会发生更改。" },
+  "proposal.body": { en: "This exact proposal is read-only. Reviewing it does not change Training. Nothing changes until you choose Adopt exact proposal and the server confirms that version.", 'zh-CN': "此确切提案为只读。查看它不会更改训练。只有当你选择“采纳此确切提案”且服务器确认该版本后，才会发生更改。" },
   "proposal.created": { en: "Created", 'zh-CN': "创建时间" },
   "proposal.expires": { en: "Expires", 'zh-CN': "到期时间" },
+  "proposal.horizon": { en: "Proposal horizon", 'zh-CN': "提案日期范围" },
   "proposal.generator": { en: "Generator", 'zh-CN': "生成器" },
   "proposal.later_body": { en: "This keeps the proposal open until {expiry}. It does not reject it and does not adopt it.", 'zh-CN': "此操作会让提案保持开放至 {expiry}。它不会拒绝提案，也不会采纳提案。" },
   "proposal.later_title": { en: "Review this proposal later?", 'zh-CN': "稍后查看此提案？" },
@@ -347,4 +350,76 @@ export function road10kCopy(
   locale: 'en' | 'zh-CN' = 'en',
 ): string {
   return ROAD_10K_COPY[key][locale] ?? ROAD_10K_COPY[key].en;
+}
+
+export interface Road10KTaperScienceCopy {
+  title: string;
+  horizon: string;
+  event_eve: string;
+  body: string;
+  source_label: string;
+  source_path: string;
+}
+
+export function road10kTaperScienceCopy(
+  taper: Road10KTaperGuardrailProjection,
+  locale: 'en' | 'zh-CN' = 'en',
+): Road10KTaperScienceCopy {
+  const percent = new Intl.NumberFormat(locale, {
+    style: 'percent',
+    maximumFractionDigits: 0,
+  }).format(taper.planned_volume_reduction_fraction);
+  const intensity = taper.maintain_intensity_exposure_without_adding_quality
+    ? locale === 'zh-CN'
+      ? '保持强度接触且不增加质量课'
+      : 'maintains intensity exposure without adding quality'
+    : locale === 'zh-CN'
+      ? '不保证保持强度接触'
+      : 'does not promise maintained intensity exposure';
+  const evidence = taper.evidence_population === 'mixed_endurance_athletes'
+    ? locale === 'zh-CN'
+      ? '证据来自混合耐力运动员人群，属于间接证据'
+      : 'evidence is indirect from mixed-endurance athletes'
+    : locale === 'zh-CN'
+      ? '证据人群适用性有限'
+      : 'the evidence population has limited applicability';
+  const validation = taper.direct_recreational_road_10k_validation
+    ? locale === 'zh-CN'
+      ? '已有休闲公路 10K 跑者的直接验证'
+      : 'has direct validation in recreational road 10K runners'
+    : locale === 'zh-CN'
+      ? '没有休闲公路 10K 跑者的直接验证'
+      : 'has no direct validation in recreational road 10K runners';
+  const eventEve = taper.single_target_taper_result
+    === 'taper_proposal_truncated_to_event_eve'
+    ? locale === 'zh-CN'
+      ? '单一目标赛事提案在赛前一日结束'
+      : 'the single-target proposal is truncated to event eve'
+    : locale === 'zh-CN'
+      ? '提案遵循返回的赛事边界'
+      : 'the proposal follows its returned event boundary';
+  const noPersonalClaims = (
+    !taper.personal_performance_gain_claim
+    && taper.causal_plan_benefit_claim === 'disabled'
+    && taper.personal_injury_probability === 'disabled'
+  )
+    ? locale === 'zh-CN'
+      ? '不声称个人表现提升、计划因果收益或个人伤害概率及安全收益'
+      : 'does not claim a personal performance gain, causal plan benefit, or personal injury probability or safety benefit'
+    : locale === 'zh-CN'
+      ? '个人收益和安全结果仍存在不确定性'
+      : 'personal benefit and safety outcomes remain uncertain';
+
+  return {
+    title: locale === 'zh-CN' ? '减量依据与限制' : 'Taper evidence and limits',
+    horizon: locale === 'zh-CN' ? '提案日期范围' : 'Proposal horizon',
+    event_eve: locale === 'zh-CN' ? '赛前一日' : 'event eve',
+    body: locale === 'zh-CN'
+      ? `已接受的减量规则将计划量相对同日期非减量日程降低 ${percent}，${intensity}；${eventEve}。${evidence}，${validation}。此规则${noPersonalClaims}。`
+      : `The accepted taper guardrail reduces planned volume by ${percent} versus the matching non-taper schedule and ${intensity}; ${eventEve}. The ${evidence} and ${validation}. It ${noPersonalClaims}.`,
+    source_label: locale === 'zh-CN'
+      ? '已接受的公路 10K 计划生成政策'
+      : 'Accepted road 10K plan-generation policy',
+    source_path: 'data/science/decisions/sdr-road-10k-plan-generation-policy-v2.yaml',
+  };
 }

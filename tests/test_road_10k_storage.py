@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import DatabaseError
 
 from api import road_10k_deletion_storage as storage
 from api import feedback_storage
@@ -556,10 +557,21 @@ def test_evaluation_retention_is_creation_based_until_explicit_purge(
         exported = road_10k_control.export_owner_records(db, user_id="owner")
         assert [item["id"] for item in exported["evaluations"]] == ["fresh"]
 
-        # Reads do not rewrite the original creation deadline.
+        # Reads do not rewrite the original authoritative deadline.
         expired = db.get(Road10KEvaluation, "expired")
         assert expired is not None
         assert expired.expires_at == expired_created + timedelta(days=30)
+        assert road_10k_control._evaluation_expiry(expired) == expired.expires_at
+
+        # A direct update or restore-like creation-time rewrite cannot move the
+        # retention anchor while leaving the deadline untouched.
+        expired.created_at = now
+        with pytest.raises(
+            DatabaseError,
+            match="evaluation retention deadline immutable",
+        ):
+            db.commit()
+        db.rollback()
 
         assert road_10k_control.purge_expired_evaluations(
             db,

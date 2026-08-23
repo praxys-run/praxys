@@ -925,6 +925,25 @@ def test_sqlite_ledger_constraints_freeze_ceilings_timestamps_and_expiry(
         db.commit()
     db.rollback()
 
+    durable = Road10KEvaluation(
+        id="immutable-retention-anchor",
+        user_id="invariant-owner",
+        stage_id=authority.stage_id,
+        result_code="validation_failed",
+        payload={},
+        created_at=created,
+        expires_at=created + timedelta(days=30),
+    )
+    db.add(durable)
+    db.commit()
+    durable.created_at = created + timedelta(days=1)
+    with pytest.raises(
+        IntegrityError,
+        match="evaluation retention deadline immutable",
+    ):
+        db.commit()
+    db.rollback()
+
     obligation_time = datetime.utcnow()
     obligation = Road10KDeletionObligation(
         id="00000000-0000-4000-8000-000000000735",
@@ -973,7 +992,10 @@ def test_ledger_migration_declares_postgresql_and_sqlite_invariants():
         "road_10k_deletion_obligations_immutable",
         "trg_road_10k_evaluations_expiry_immutable",
         "road_10k_evaluation_expiry_insert",
-        "DROP FUNCTION IF EXISTS road_10k_evaluation_expiry_update()",
+        "road_10k_evaluations_retention_immutable",
+        "DROP FUNCTION IF EXISTS road_10k_evaluation_retention_update()",
+        "evaluation_id",
+        "exposure result mismatch",
     ):
         assert required in migration
 
@@ -1015,15 +1037,26 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
         created_at=receipt_time,
         updated_at=exposed_time,
     )
+    evaluation = Road10KEvaluation(
+        id="durable-owner-first-evaluation",
+        user_id="durable-owner",
+        stage_id=receipt.stage_id,
+        result_code="validation_failed",
+        payload={},
+        created_at=exposed_time,
+        expires_at=exposed_time + timedelta(days=30),
+    )
     exposure = Road10KExposureReceipt(
         id="durable-owner-exposure",
         stage_id=receipt.stage_id,
         user_id="durable-owner",
         owner_stage_receipt_id=receipt.id,
         authority_digest="a" * 64,
+        evaluation_id=evaluation.id,
+        evaluation_expires_at=evaluation.expires_at,
         exposed_at=exposed_time,
     )
-    db.add(receipt)
+    db.add_all([receipt, evaluation])
     db.flush()
     db.add(exposure)
     db.commit()
@@ -1052,12 +1085,222 @@ def test_create_all_ledger_blocks_decrements_and_receipt_deletes(
         db.commit()
     db.rollback()
 
+    native_exposure = db.get(Road10KExposureReceipt, exposure.id)
+    native_exposure.evaluation_expires_at += timedelta(seconds=1)
+    with pytest.raises(DatabaseError, match="exposure receipts are immutable"):
+        db.commit()
+    db.rollback()
+
     db.delete(db.get(Road10KExposureReceipt, exposure.id))
     with pytest.raises(
         DatabaseError,
         match="exposure receipts cannot be deleted",
     ):
         db.commit()
+
+
+def test_exposure_receipt_requires_matching_durable_first_result(
+    tmp_path,
+):
+    db = _db(tmp_path)
+    _owner(db, "result-bound-owner")
+    invited_at = datetime(2026, 8, 1, 10, 0, 0)
+    exposed_at = invited_at + timedelta(minutes=1)
+    receipt = Road10KOwnerStageReceipt(
+        id="result-bound-owner-receipt",
+        user_id="result-bound-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        capability_id="outdoor_road_10k_performance_v1",
+        schema_version=2,
+        policy_version=road_10k_control.ROAD_10K_POLICY_VERSION,
+        authority_digest="a" * 64,
+        notice_digest="b" * 64,
+        cohort_rule_digest="c" * 64,
+        sampling_run_evidence_digest="d" * 64,
+        invitation_idempotency_key="result-bound-invitation",
+        state="exposed",
+        invitation_issued_at=invited_at,
+        enrolled_at=invited_at,
+        first_exposed_at=exposed_at,
+        created_at=invited_at,
+        updated_at=exposed_at,
+    )
+    db.add(receipt)
+    db.flush()
+    db.add(
+        Road10KExposureReceipt(
+            id="result-bound-exposure",
+            stage_id=receipt.stage_id,
+            user_id=receipt.user_id,
+            owner_stage_receipt_id=receipt.id,
+            authority_digest=receipt.authority_digest,
+            evaluation_id="missing-first-evaluation",
+            evaluation_expires_at=exposed_at + timedelta(days=30),
+            exposed_at=exposed_at,
+        )
+    )
+
+    with pytest.raises(IntegrityError, match="exposure result mismatch"):
+        db.commit()
+    db.rollback()
+
+    evaluation = Road10KEvaluation(
+        id="result-bound-first-evaluation",
+        user_id=receipt.user_id,
+        stage_id=receipt.stage_id,
+        result_code="validation_failed",
+        payload={},
+        created_at=exposed_at,
+        expires_at=exposed_at + timedelta(days=30),
+    )
+    db.add(evaluation)
+    db.flush()
+    db.add(
+        Road10KExposureReceipt(
+            id="result-bound-expiry-mismatch",
+            stage_id=receipt.stage_id,
+            user_id=receipt.user_id,
+            owner_stage_receipt_id=receipt.id,
+            authority_digest=receipt.authority_digest,
+            evaluation_id=evaluation.id,
+            evaluation_expires_at=exposed_at + timedelta(days=29),
+            exposed_at=exposed_at,
+        )
+    )
+    with pytest.raises(IntegrityError, match="exposure result mismatch"):
+        db.commit()
+
+
+def test_runtime_validation_matches_live_first_result_to_exposure(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "runtime-result-owner")
+    authority = _authority()
+    monkeypatch.setattr(
+        road_10k_control,
+        "load_stage_authority",
+        lambda: authority,
+    )
+    issue_invitation(
+        db,
+        user_id="runtime-result-owner",
+        idempotency_key=_invitation_key("runtime-result"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    enroll_owner(
+        db,
+        user_id="runtime-result-owner",
+        notice_digest=authority.notice_digest,
+    )
+    evaluation = record_result(
+        db,
+        user_id="runtime-result-owner",
+        result_code="validation_failed",
+        payload={"scope": "startup-invariant"},
+    )
+    exposure = db.query(Road10KExposureReceipt).one()
+    assert exposure.evaluation_id == evaluation.id
+
+    db.execute(text(
+        "DROP TRIGGER trg_road_10k_exposure_receipts_immutable"
+    ))
+    db.execute(
+        text(
+            "UPDATE road_10k_exposure_receipts "
+            "SET evaluation_id = :evaluation_id WHERE id = :id"
+        ),
+        {
+            "evaluation_id": "missing-first-evaluation",
+            "id": exposure.id,
+        },
+    )
+    db.commit()
+
+    with pytest.raises(Road10KControlUnavailable, match="receipt_mismatch"):
+        road_10k_control.validate_road_10k_runtime_obligations(db)
+
+
+def test_runtime_validation_rejects_missing_unexpired_first_result(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "missing-live-result-owner")
+    authority = _authority()
+    monkeypatch.setattr(
+        road_10k_control,
+        "load_stage_authority",
+        lambda: authority,
+    )
+    issue_invitation(
+        db,
+        user_id="missing-live-result-owner",
+        idempotency_key=_invitation_key("missing-live-result"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+    )
+    enroll_owner(
+        db,
+        user_id="missing-live-result-owner",
+        notice_digest=authority.notice_digest,
+    )
+    evaluation = record_result(
+        db,
+        user_id="missing-live-result-owner",
+        result_code="validation_failed",
+        payload={"scope": "startup-invariant"},
+    )
+    db.delete(evaluation)
+    db.commit()
+
+    with pytest.raises(Road10KControlUnavailable, match="receipt_mismatch"):
+        road_10k_control.validate_road_10k_runtime_obligations(db)
+
+
+def test_runtime_validation_allows_missing_result_after_recorded_expiry(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    _owner(db, "expired-result-owner")
+    authority = _authority()
+    monkeypatch.setattr(
+        road_10k_control,
+        "load_stage_authority",
+        lambda: authority,
+    )
+    current_time = datetime.utcnow()
+    invited_at = current_time - timedelta(days=32)
+    enrolled_at = invited_at + timedelta(minutes=1)
+    exposed_at = current_time - timedelta(days=31)
+    issue_invitation(
+        db,
+        user_id="expired-result-owner",
+        idempotency_key=_invitation_key("expired-result"),
+        notice_digest=authority.notice_digest,
+        cohort_rule_digest=authority.cohort_rule_digest,
+        now=invited_at,
+    )
+    enroll_owner(
+        db,
+        user_id="expired-result-owner",
+        notice_digest=authority.notice_digest,
+        now=enrolled_at,
+    )
+    evaluation = record_result(
+        db,
+        user_id="expired-result-owner",
+        result_code="validation_failed",
+        payload={},
+        now=exposed_at,
+    )
+    db.delete(evaluation)
+    db.commit()
+
+    assert road_10k_control.validate_road_10k_runtime_obligations(db) is False
 
 
 def test_withdrawal_serialization_cannot_omit_concurrent_result(
@@ -1343,9 +1586,22 @@ def test_create_all_exposure_insert_requires_exact_owner_receipt(
     elif mismatch == "timestamp":
         values["exposed_at"] = exposed_at + timedelta(microseconds=1)
 
+    evaluation = Road10KEvaluation(
+        id=f"mismatched-evaluation-{mismatch}",
+        user_id=values["user_id"],
+        stage_id=values["stage_id"],
+        result_code="validation_failed",
+        payload={},
+        created_at=values["exposed_at"],
+        expires_at=values["exposed_at"] + timedelta(days=30),
+    )
+    db.add(evaluation)
+    db.flush()
     db.add(
         Road10KExposureReceipt(
             id=f"mismatched-exposure-{mismatch}",
+            evaluation_id=evaluation.id,
+            evaluation_expires_at=evaluation.expires_at,
             **values,
         )
     )
@@ -1427,4 +1683,10 @@ def test_road_10k_ops_docs_keep_hard_off_and_storage_boundaries_exact():
     assert "paused" not in road_setup
     assert "killed" not in road_setup
     assert "fixed ceiling fields are always present" in monitoring
+    runbook = Path("docs/ops/road-10k-controlled-opt-in.md").read_text(
+        encoding="utf-8"
+    )
+    assert "cannot activate, invite, expose, collect, purge" not in runbook
+    assert "deployment or configuration" in runbook
+    assert "cannot schedule or execute" in runbook
     assert "pending, not_required, or blocked" in monitoring

@@ -2442,6 +2442,33 @@ def test_configured_blob_outage_does_not_fall_back_to_local(
     assert not (Path(fs._local_dir()) / "feedback/42/0.png").exists()
 
 
+def test_configured_blob_write_then_raise_returns_normalized_uncertainty(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+
+    written: dict[str, bytes] = {}
+
+    class WriteThenRaiseClient:
+        def upload_blob(self, *, name, data, **_kwargs):
+            written[name] = data
+            raise TimeoutError("provider acknowledgement lost")
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(
+        fs,
+        "_blob_container_client",
+        lambda: WriteThenRaiseClient(),
+    )
+
+    with pytest.raises(fs.FeedbackStorageWriteUncertain) as exc:
+        fs.store_image(_PNG_1PX, feedback_id=42, index=0)
+
+    assert exc.value.object_key == "feedback/42/0.png"
+    assert written == {"feedback/42/0.png": _PNG_1PX}
+
+
 def test_submit_preserves_text_when_configured_blob_is_unavailable(
     db_with_users,
     monkeypatch,
@@ -2496,7 +2523,9 @@ def test_submit_holds_owner_mutation_fence_through_key_publication(
     ) -> str:
         upload_started.set()
         assert release_upload.wait(timeout=10)
-        return f"feedback/{feedback_id}/{index}.png"
+        raise fs.FeedbackStorageWriteUncertain(
+            f"feedback/{feedback_id}/{index}.png"
+        )
 
     monkeypatch.setattr(fs, "store_image", blocking_store)
     monkeypatch.setattr(
@@ -2589,5 +2618,145 @@ def test_submit_deletes_uploaded_object_when_key_publication_fails(
 
     assert exc.value.status_code == 500
     assert uploaded
+    assert deleted == uploaded
+    assert db.query(Feedback).count() == 0
+
+
+def test_ambiguous_blob_key_is_published_for_account_deletion_replay(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api import road_10k_control
+    from api import road_10k_deletion_storage as deletion_storage
+    from api.road_10k_screenshot_storage import Road10KScreenshotUnavailable
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback, Road10KDeletionObligation
+
+    db, _, _, user_id = db_with_users
+
+    class ManifestStore:
+        def __init__(self):
+            self.items: dict[str, bytes] = {}
+
+        def put(self, key: str, payload: bytes) -> None:
+            self.items[key] = payload
+
+        def iter(self, prefix: str):
+            for key, payload in list(self.items.items()):
+                if key.startswith(prefix):
+                    yield key, payload
+
+        def delete(self, key: str) -> None:
+            self.items.pop(key, None)
+
+    class BlobObject:
+        def __init__(self, client, key: str):
+            self.client = client
+            self.key = key
+
+        def delete_blob(self, **_kwargs) -> None:
+            if self.client.fail_delete:
+                raise OSError("private delete unavailable")
+            self.client.objects.pop(self.key, None)
+
+    class WriteThenRaiseClient:
+        def __init__(self):
+            self.objects: dict[str, bytes] = {}
+            self.fail_delete = False
+
+        def upload_blob(self, *, name, data, **_kwargs):
+            self.objects[name] = data
+            raise TimeoutError("provider acknowledgement lost")
+
+        def get_blob_client(self, key: str, **_kwargs):
+            return BlobObject(self, key)
+
+        def list_blob_versions(self, *, name: str):
+            return []
+
+    client = WriteThenRaiseClient()
+    marker_store = ManifestStore()
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: client)
+    monkeypatch.setattr(fs, "private_blob_enabled", lambda: False)
+    monkeypatch.setattr(deletion_storage, "_test_store", marker_store)
+
+    response = submit_feedback(
+        FeedbackRequest(
+            kind="bug",
+            message="ambiguous private upload",
+            images=[base64.b64encode(_PNG_1PX).decode()],
+        ),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+    key = "feedback/{}/0.png".format(response["id"])
+    row = db.get(Feedback, response["id"])
+    assert row is not None
+    assert row.image_keys == [key]
+    assert key in client.objects
+
+    manifests = road_10k_control.prepare_account_deletion(
+        db,
+        user_id=user_id,
+    )
+    assert [key] in [manifest["screenshot_keys"] for manifest in manifests]
+    road_10k_control.record_deletion_obligations(db, manifests)
+    db.commit()
+    committed = road_10k_control.commit_deletion_manifests(manifests)
+
+    client.fail_delete = True
+    with pytest.raises(Road10KScreenshotUnavailable):
+        road_10k_control.complete_deletion_manifests(committed, db=db)
+    db.rollback()
+    assert key in client.objects
+    assert db.query(Road10KDeletionObligation).one().status == "committed"
+
+    client.fail_delete = False
+    assert road_10k_control.replay_road_10k_deletion_manifests(db) == 1
+    assert key not in client.objects
+    assert db.query(Road10KDeletionObligation).one().status == "completed"
+
+
+def test_ambiguous_upload_is_compensated_when_database_publication_fails(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    uploaded: list[str] = []
+    deleted: list[str] = []
+
+    def store(_data: bytes, *, feedback_id: int, index: int) -> str:
+        key = f"feedback/{feedback_id}/{index}.png"
+        uploaded.append(key)
+        raise fs.FeedbackStorageWriteUncertain(key)
+
+    monkeypatch.setattr(fs, "store_image", store)
+    monkeypatch.setattr(fs, "delete_private_object", deleted.append)
+    monkeypatch.setattr(
+        db,
+        "commit",
+        lambda: (_ for _ in ()).throw(OSError("db down")),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="ambiguous publication failure",
+                images=[base64.b64encode(_PNG_1PX).decode()],
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 500
     assert deleted == uploaded
     assert db.query(Feedback).count() == 0

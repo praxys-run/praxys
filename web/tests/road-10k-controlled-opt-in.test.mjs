@@ -51,3 +51,25 @@ test('clients declare only the reachable Road rights response', async () => {
     assert.doesNotMatch(source, /outcome: 'enrolled'/);
   }
 });
+
+
+test("Goal editors ignore stale Road 10K discovery while preserving 5K", async () => {
+  const [webGoal, miniGoal, miniTemplate] = await Promise.all([
+    read("web/src/pages/Goal.tsx"),
+    read("miniapp/pages/goal/index.ts"),
+    read("miniapp/pages/goal/index.wxml"),
+  ]);
+
+  assert.match(webGoal, /enablePerformance10k=\{false\}/);
+  assert.doesNotMatch(webGoal, /capabilityDiscovery\?\.capabilities\.some/);
+  assert.doesNotMatch(webGoal, /enablePerformance10k && data\.goal_kind/);
+  assert.match(webGoal, /data\.goal_kind === \x27performance_5k\x27/);
+
+  const discoveryAllowlist = miniGoal.match(/const supportedCapabilityIds = discovery\?\.capabilities\.filter\(([\s\S]*?)\)\.map/);
+  assert.ok(discoveryAllowlist);
+  assert.match(discoveryAllowlist[1], /outdoor_road_5k_constraints_v1/);
+  assert.doesNotMatch(discoveryAllowlist[1], /outdoor_road_10k_constraints_v1/);
+  assert.match(miniGoal, /performance10kEnabled: false/);
+  assert.doesNotMatch(miniGoal, /performance10kEnabled: supportedCapabilityIds\.includes/);
+  assert.match(miniTemplate, /wx:if="\{\{performance10kEnabled\}\}"/);
+});
