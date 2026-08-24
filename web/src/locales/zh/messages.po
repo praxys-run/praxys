@@ -415,7 +415,7 @@ msgstr "10公里"
 
 #: src/components/GoalBaselinePanel.tsx:102
 msgid "10K direct baseline"
-msgstr "10K 直接基线"
+msgstr "10K 直接基准"
 
 #: src/components/GoalEditor.tsx:52
 msgid "10K performance"
@@ -957,7 +957,7 @@ msgstr "所有组件运行正常"
 
 #: src/pages/LabsEnvironment.tsx:1138
 msgid "All experiments"
-msgstr "所有实验"
+msgstr "全部实验"
 
 #: src/components/UpcomingPlanCard.tsx:695
 #~ msgid "All synced"
@@ -1068,7 +1068,7 @@ msgstr "已应用"
 
 #: src/components/UpcomingPlanCard.tsx:852
 msgid "Applying…"
-msgstr "正在应用…"
+msgstr "应用中…"
 
 #: src/pages/admin/AdminFeedback.tsx:570
 msgid "Approve & file"
@@ -1223,7 +1223,7 @@ msgstr "平均功率"
 
 #: src/components/DiagnosisCard.tsx:54
 msgid "Avg Work {intensityLabel}"
-msgstr "平均工作 {intensityLabel}"
+msgstr "平均{intensityLabel}强度"
 
 #: src/components/PersonalContextPanel.tsx:1141
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
@@ -1699,7 +1699,7 @@ msgstr "请选择你真正能执行的 3 到 6 个跑步日。Praxys 会把负�
 #: src/components/SetupChecklist.tsx:63
 #: src/pages/Setup.tsx:804
 msgid "Choose training base"
-msgstr "选择训练基准"
+msgstr "选择训练依据"
 
 #: src/pages/Labs.tsx:34
 msgid "Choose voluntary experiments that help you inspect your own training history without turning early research into advice."
@@ -1724,7 +1724,7 @@ msgstr "请选择这份计划是为了完成距离、提升表现，还是恢复
 
 #: src/pages/Settings.tsx:1300
 msgid "Choose which platform to use for each data type"
-msgstr "为每类数据选择使用哪个平台"
+msgstr "为每类数据选择使用的平台"
 
 #: src/components/ManagedPlanSettingsCard.tsx:516
 msgid "Choose who controls the plan and where Praxys delivers it"
@@ -1757,7 +1757,7 @@ msgstr "已关闭"
 
 #: src/pages/admin/AdminUsers.tsx:392
 msgid "Closed · cap reached"
-msgstr "已关闭 · 已达上限"
+msgstr "已关闭·名额已满"
 
 #: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
@@ -1769,7 +1769,7 @@ msgstr "Coach 有用投票率"
 
 #: src/components/ManagedPlanSettingsCard.tsx:909
 msgid "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
-msgstr "当前仅提供建议。Praxys 不会根据恢复信号修改训练。"
+msgstr "当前仅提供建议。Praxys 不会根据恢复信号调整训练。"
 
 #: src/pages/admin/AdminUsers.tsx:732
 msgid "Code"
@@ -3312,7 +3312,7 @@ msgstr "按目标估算"
 
 #: src/pages/LabsEnvironment.tsx:816
 msgid "Estimated psychrometric wet-bulb proxy"
-msgstr "估算的湿球温度代理值"
+msgstr "估算湿球温度代理值"
 
 #: src/pages/Science.tsx:29
 msgid "Estimates acclimatization from recent qualifying conditions."
@@ -3835,7 +3835,7 @@ msgstr "生成"
 
 #: src/pages/Setup.tsx:211
 msgid "Generate a token at cloud.ouraring.com/personal-access-tokens."
-msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
+msgstr "前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 
 #: src/pages/admin/AdminUsers.tsx:708
 msgid "Generating…"
@@ -4234,7 +4234,7 @@ msgstr "HRV 处于你的个人参考区间内，但模型估算的负荷平衡�
 #: src/components/RecoveryPanel.tsx:19
 #: src/pages/Today.tsx:225
 msgid "HRV is within your Praxys reference band"
-msgstr "HRV 处于你的 Praxys 参考区间内"
+msgstr "HRV 处于 Praxys 参考范围内"
 
 #: src/pages/Today.tsx:244
 #~ msgid "HRV rolling mean is declining. Reduce intensity as a conservative coaching adjustment."
@@ -5061,7 +5061,7 @@ msgstr "托管下发已启用，但此窗口内没有 Praxys 管理的训练。�
 
 #: src/components/UpcomingPlanCard.tsx:235
 msgid "Managed delivery paused"
-msgstr "托管下发已暂停"
+msgstr "自动下发已暂停"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1415
 msgid "Managed mode is off, but cleanup did not finish. {actionError}"
@@ -5526,7 +5526,7 @@ msgstr "较新版本的训练结构"
 
 #: src/pages/admin/AdminFeedback.tsx:381
 msgid "Newly triaged work will appear here when admin action is needed."
-msgstr "新分诊且需要管理员处理的工作会显示在这里。"
+msgstr "需要管理员处理的新分诊项会显示在这里。"
 
 #: src/pages/History.tsx:96
 msgid "Next"
@@ -5701,7 +5701,7 @@ msgstr "无热暴露记录"
 
 #: src/pages/Status.tsx:214
 msgid "No incidents reported recently."
-msgstr "最近没有报告故障。"
+msgstr "最近暂无故障报告。"
 
 #: src/pages/admin/AdminIncidents.tsx:198
 msgid "No incidents yet"
@@ -5866,7 +5866,7 @@ msgstr "未找到用户。"
 
 #: src/pages/admin/AdminUsers.tsx:881
 msgid "No waitlist signups yet."
-msgstr "候补名单里还没人报名。"
+msgstr "候补名单暂无报名"
 
 #: src/pages/Analysis.tsx:321
 msgid "No weekly distance history yet"
@@ -5952,7 +5952,7 @@ msgstr "不可直接处理"
 
 #: src/components/GoalBaselinePanel.tsx:564
 msgid "Not an all-out 5K effort"
-msgstr "不是 5 公里全力跑"
+msgstr "不是全力 5K"
 
 #: src/pages/Settings.tsx:935
 msgid "Not connected"
@@ -6224,7 +6224,7 @@ msgstr "查看反馈"
 
 #: src/components/PlanStart.tsx:442
 msgid "Open plan preview"
-msgstr "打开计划预览"
+msgstr "查看计划预览"
 
 #: src/pages/admin/AdminOps.tsx:442
 #~ msgid "Open telemetry queries"
@@ -6258,7 +6258,7 @@ msgstr "操作 {0}"
 #: src/pages/admin/AdminOps.tsx:715
 #: src/pages/Status.tsx:82
 msgid "Operational"
-msgstr "运行正常"
+msgstr "正常"
 
 #: src/pages/admin/AdminLayout.tsx:22
 #: src/pages/admin/AdminOps.tsx:743
@@ -6501,7 +6501,7 @@ msgstr "峰值间歇 {intensityLabel}"
 
 #: src/pages/Analysis.tsx:368
 msgid "Peer metrics"
-msgstr "训练指标"
+msgstr "对比指标"
 
 #. placeholder {0}: managedHealth.states.pending
 #: src/pages/admin/AdminOps.tsx:989
@@ -6686,7 +6686,7 @@ msgstr "政策检查失败"
 
 #: src/components/PlanStart.tsx:332
 msgid "Policy unavailable"
-msgstr "政策暂不可用"
+msgstr "策略不可用"
 
 #: src/pages/admin/AdminOps.tsx:1517
 msgid "Policy-gated auto-merge"
@@ -6733,7 +6733,7 @@ msgstr "功率 · %CP"
 
 #: src/components/WorkoutStructureEditor.tsx:332
 msgid "Power · watts"
-msgstr "功率 · 瓦"
+msgstr "功率 · W"
 
 #. placeholder {0}: session.power_provider ?? i18n._(msg`unknown`)
 #. placeholder {1}: session.cp_power_provider ?? i18n._(msg`unknown`)
@@ -6934,7 +6934,7 @@ msgstr "Praxys 实验室"
 
 #: src/components/UpcomingPlanCard.tsx:1581
 msgid "Praxys made a conservative plan change"
-msgstr "Praxys 已保守调整计划"
+msgstr "Praxys 对计划做了保守调整"
 
 #: src/components/AppSidebar.tsx:211
 #: src/components/AppSidebar.tsx:213
@@ -7149,7 +7149,7 @@ msgstr "预测"
 #: src/pages/admin/AdminUsers.tsx:645
 #: src/pages/admin/AdminUsers.tsx:1051
 msgid "Promote"
-msgstr "提升"
+msgstr "提升权限"
 
 #: src/pages/admin/AdminUsers.tsx:635
 #: src/pages/admin/AdminUsers.tsx:1025
@@ -8356,7 +8356,7 @@ msgstr "需要审核"
 
 #: src/components/PlanStart.tsx:917
 msgid "Review the constraints and try again."
-msgstr "请复核限制条件后重试。"
+msgstr "检查限制条件后重试。"
 
 #: src/pages/McpAuthorization.tsx:38
 msgid "Review the current goal"
@@ -8481,7 +8481,7 @@ msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
 #: src/pages/Today.tsx:299
 msgid "Run as planned but cap at low end of power range"
-msgstr "按计划跑步，但将功率控制在目标范围下限"
+msgstr "按计划跑，但功率控制在目标范围下限"
 
 #: src/pages/Today.tsx:275
 #~ msgid "Run as planned but cap at low end of power range\" \"按计划训练，但将功率控制在目标区间下限"
@@ -9388,7 +9388,7 @@ msgstr "切换到系统主题"
 
 #: src/components/PlanStart.tsx:1524
 msgid "Symptom stop"
-msgstr "症状停止"
+msgstr "症状中止"
 
 #: src/components/PlanStart.tsx:1538
 msgid "Symptom stop applies"
@@ -10045,7 +10045,7 @@ msgstr "主题"
 
 #: src/pages/LabsEnvironment.tsx:76
 msgid "There are not enough eligible Stryd activities yet."
-msgstr "符合条件的 Stryd 活动数量暂时不足。"
+msgstr "符合条件的 Stryd 活动还不够。"
 
 #: src/pages/LabsEnvironment.tsx:77
 msgid "There are not enough stable, comparable segments yet."
@@ -10283,7 +10283,7 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
 #: src/components/PlanStart.tsx:1994
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
-msgstr "此提案为 {0}。它无法更改规范计划；准备好后请复核准备情况并创建新提案。"
+msgstr "此提案当前为 {0}。无法直接修改原始计划；准备好后，先查看准备度，再创建新提案。"
 
 #: src/components/PlanStart.tsx:1914
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
@@ -10309,7 +10309,7 @@ msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回
 
 #: src/components/WorkoutPlanEditor.tsx:595
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
-msgstr "这会从 Praxys 主计划中删除该训练。外部训练不会受到影响。"
+msgstr "这会将该训练从 Praxys 主计划中移除，外部训练不受影响。"
 
 #: src/pages/LabsEnvironment.tsx:991
 msgid "This result did not pass the experiment’s release guardrails."
@@ -10510,7 +10510,7 @@ msgstr "令牌被拒绝"
 
 #: src/pages/Login.tsx:165
 msgid "Too many attempts from this network. Please email us instead."
-msgstr "当前网络请求次数过多，请直接发邮件联系我们。"
+msgstr "当前网络尝试次数过多，请改用邮件联系我们。"
 
 #: src/pages/admin/AdminUsers.tsx:512
 msgid "Total users tracked"
@@ -10819,7 +10819,7 @@ msgstr "近期计划"
 
 #: src/pages/admin/AdminIncidents.tsx:230
 msgid "Update message (optional)"
-msgstr "更新信息（可选）"
+msgstr "更新说明（可选）"
 
 #: src/components/PlanStart.tsx:308
 msgid "Update required"
@@ -11281,11 +11281,11 @@ msgstr "为什么这是保守调整"
 
 #: src/pages/LabsEnvironment.tsx:948
 msgid "Why this remains experimental"
-msgstr "为什么它仍属于实验"
+msgstr "为什么这项功能仍处于实验阶段"
 
 #: src/pages/Setup.tsx:900
 msgid "Will sync:"
-msgstr "将同步以下内容："
+msgstr "同步内容："
 
 #: src/pages/LabsEnvironment.tsx:1239
 msgid "Withdraw"
@@ -11544,10 +11544,12 @@ msgstr "Praxys 邀请"
 #. placeholder {0}: result.code
 #. placeholder {1}: result.invite_url
 #: src/pages/admin/AdminUsers.tsx:830
-msgid "Your Praxys invitation code: {0}\n"
+msgid ""
+"Your Praxys invitation code: {0}\n"
 "\n"
 "Finish registering here: {1}"
-msgstr "Praxys 邀请码：{0}\n"
+msgstr ""
+"Praxys 邀请码：{0}\n"
 "\n"
 "注册链接：{1}"
 
