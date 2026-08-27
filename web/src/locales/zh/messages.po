@@ -144,7 +144,7 @@ msgid "{0} of {1} steps complete"
 msgstr "已完成 {0}/{1} 步"
 
 #. placeholder {0}: provider.label
-#: src/components/PlatformConnectionNotice.tsx:52
+#: src/components/PlatformConnectionNotice.tsx:50
 msgid "{0} privacy and contact information"
 msgstr "{0} 的隐私与联系信息"
 
@@ -359,23 +359,23 @@ msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>�
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 msgstr "距比赛日还有 <0>{days}</0> 天。今日预测 <1>{predicted}</1>。"
 
-#: src/pages/Login.tsx:522
+#: src/pages/Login.tsx:531
 msgid "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
 msgstr "<0>就差一步。</0> 验证链接已发送到你的邮箱。点击链接激活账号，然后登录。"
 
-#: src/pages/Login.tsx:271
+#: src/pages/Login.tsx:280
 msgid "<0>Cited science.</0> No hype."
 msgstr "<0>科学有据。</0> 不靠噱头。"
 
-#: src/pages/Login.tsx:263
+#: src/pages/Login.tsx:272
 msgid "<0>Diagnosis & forecast</0> you can verify."
 msgstr "<0>诊断与预测</0>，经得起验证。"
 
-#: src/pages/Login.tsx:255
+#: src/pages/Login.tsx:264
 msgid "<0>Today's signal</0> · go, modify, or rest."
 msgstr "<0>今日信号</0> · 按计划训练、调整，或休息。"
 
-#: src/pages/Login.tsx:493
+#: src/pages/Login.tsx:502
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 msgstr "<0>你已进入候补名单。</0> 有名额时，我们会通过 <1>{SUPPORT_EMAIL}</1> 联系你。"
 
@@ -992,8 +992,8 @@ msgstr "仅当前版本已允许"
 #~ msgid "Allowed range"
 #~ msgstr "允许范围"
 
-#: src/pages/Login.tsx:476
-#: src/pages/Login.tsx:501
+#: src/pages/Login.tsx:485
+#: src/pages/Login.tsx:510
 msgid "Already have an invitation code?"
 msgstr "已有邀请码？"
 
@@ -1021,7 +1021,7 @@ msgstr "此前的自动调整已被后续更改覆盖"
 msgid "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 msgstr "其他计划源与 Praxys 计划有重叠。建议一次只使用一个计划源，避免重复或冲突训练。"
 
-#: src/pages/Login.tsx:130
+#: src/pages/Login.tsx:136
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
@@ -1130,7 +1130,7 @@ msgstr "尝试次数"
 msgid "Attempts {0}"
 msgstr "尝试 {0} 次"
 
-#: src/pages/Login.tsx:320
+#: src/pages/Login.tsx:329
 msgid "Authentication mode"
 msgstr "登录方式"
 
@@ -1279,8 +1279,8 @@ msgstr "返回"
 msgid "Back to Praxys"
 msgstr "返回 Praxys"
 
-#: src/pages/Login.tsx:534
-#: src/pages/Verify.tsx:70
+#: src/pages/Login.tsx:543
+#: src/pages/Verify.tsx:74
 msgid "Back to sign in"
 msgstr "返回登录"
 
@@ -2237,7 +2237,7 @@ msgstr "无法保存这条更正。"
 msgid "Could not save this private context."
 msgstr "无法保存这条计划个性化信息。"
 
-#: src/pages/Login.tsx:179
+#: src/pages/Login.tsx:188
 msgid "Could not save your email. Please email us instead."
 msgstr "无法保存邮箱，请直接发邮件联系我们。"
 
@@ -2340,12 +2340,12 @@ msgstr "CP 趋势"
 msgid "Create"
 msgstr "创建"
 
-#: src/pages/Login.tsx:338
-#: src/pages/Login.tsx:639
+#: src/pages/Login.tsx:347
+#: src/pages/Login.tsx:648
 msgid "Create account"
 msgstr "创建账号"
 
-#: src/pages/Login.tsx:414
+#: src/pages/Login.tsx:423
 msgid "Create an account"
 msgstr "创建账号"
 
@@ -2361,7 +2361,7 @@ msgstr "创建提案"
 msgid "Create service incident"
 msgstr "创建服务事件"
 
-#: src/pages/Login.tsx:312
+#: src/pages/Login.tsx:321
 msgid "Create your account."
 msgstr "创建账号。"
 
@@ -2373,7 +2373,7 @@ msgstr "创建时间"
 #~ msgid "Creating account..."
 #~ msgstr "创建中..."
 
-#: src/pages/Login.tsx:639
+#: src/pages/Login.tsx:648
 msgid "Creating account…"
 msgstr "正在创建账号…"
 
@@ -2528,7 +2528,7 @@ msgstr "每日评分"
 msgid "Dark"
 msgstr "深色"
 
-#: src/pages/Login.tsx:693
+#: src/pages/Login.tsx:702
 msgid "Dark theme (click for system)"
 msgstr "深色主题（点击切换为系统）"
 
@@ -2838,7 +2838,7 @@ msgstr "今日简报影响了你的训练安排吗？"
 msgid "Did you follow the exact protocol?"
 msgstr "是否完整执行了测试流程？"
 
-#: src/pages/Login.tsx:393
+#: src/pages/Login.tsx:402
 msgid "Didn't get the email?"
 msgstr "没收到邮件？"
 
@@ -2901,7 +2901,7 @@ msgstr "关闭"
 #~ msgid "Dismissible banners shown to all users"
 #~ msgstr "向所有用户显示的可关闭横幅"
 
-#: src/pages/Login.tsx:665
+#: src/pages/Login.tsx:674
 msgid "Display preferences"
 msgstr "显示偏好"
 
@@ -3187,14 +3187,14 @@ msgstr "椭圆机"
 #: src/pages/admin/AdminUsers.tsx:577
 #: src/pages/admin/AdminUsers.tsx:870
 #: src/pages/admin/AdminUsers.tsx:979
-#: src/pages/Login.tsx:351
-#: src/pages/Login.tsx:439
-#: src/pages/Login.tsx:548
+#: src/pages/Login.tsx:360
+#: src/pages/Login.tsx:448
+#: src/pages/Login.tsx:557
 #: src/pages/Setup.tsx:218
 msgid "Email"
 msgstr "邮箱"
 
-#: src/pages/Login.tsx:104
+#: src/pages/Login.tsx:110
 msgid "Email and password are required."
 msgstr "请输入邮箱和密码。"
 
@@ -3206,7 +3206,7 @@ msgstr "请输入邮箱和密码。"
 msgid "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
 msgstr "邮箱未配置。开放注册将不做邮箱验证，邀请码也无法自动发送。配置 SMTP 前请手动复制。"
 
-#: src/pages/Login.tsx:148
+#: src/pages/Login.tsx:154
 msgid "Email is required."
 msgstr "请输入邮箱。"
 
@@ -3214,7 +3214,7 @@ msgstr "请输入邮箱。"
 msgid "Email link"
 msgstr "邮件链接"
 
-#: src/pages/Verify.tsx:51
+#: src/pages/Verify.tsx:55
 msgid "Email verified"
 msgstr "邮箱已验证"
 
@@ -3857,7 +3857,7 @@ msgstr "正在生成…"
 msgid "Generator"
 msgstr "生成器"
 
-#: src/pages/Login.tsx:306
+#: src/pages/Login.tsx:315
 msgid "Get access"
 msgstr "获取访问权限"
 
@@ -3887,7 +3887,7 @@ msgstr "轻松训练"
 msgid "Go to dashboard"
 msgstr "前往主页"
 
-#: src/pages/Verify.tsx:57
+#: src/pages/Verify.tsx:61
 msgid "Go to sign in"
 msgstr "前往登录"
 
@@ -3929,7 +3929,7 @@ msgstr "半程"
 msgid "Half Marathon"
 msgstr "半程马拉松"
 
-#: src/pages/Login.tsx:602
+#: src/pages/Login.tsx:611
 msgid "Have an invitation code?"
 msgstr "有邀请码？"
 
@@ -4291,7 +4291,7 @@ msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 msgid "Humidity (%)"
 msgstr "湿度（%）"
 
-#: src/pages/Login.tsx:628
+#: src/pages/Login.tsx:637
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "我同意<0>服务条款</0>和<1>隐私政策</1>。"
 
@@ -4482,7 +4482,7 @@ msgstr "时间格式无效。请使用 H:MM:SS 或 H:MM"
 msgid "Investigating"
 msgstr "调查中"
 
-#: src/pages/Login.tsx:582
+#: src/pages/Login.tsx:591
 msgid "Invitation code"
 msgstr "邀请码"
 
@@ -4490,7 +4490,7 @@ msgstr "邀请码"
 #~ msgid "Invitation Code"
 #~ msgstr "邀请码"
 
-#: src/pages/Login.tsx:582
+#: src/pages/Login.tsx:591
 msgid "Invitation code (optional)"
 msgstr "邀请码（可选）"
 
@@ -4537,9 +4537,9 @@ msgstr "信息会保留到原定删除时间，但不会再用于新的评估。
 msgid "Join and analyze my history"
 msgstr "加入并分析我的历史数据"
 
-#: src/pages/Login.tsx:425
-#: src/pages/Login.tsx:472
-#: src/pages/Login.tsx:649
+#: src/pages/Login.tsx:434
+#: src/pages/Login.tsx:481
+#: src/pages/Login.tsx:658
 msgid "Join the waitlist"
 msgstr "加入候补名单"
 
@@ -4659,7 +4659,7 @@ msgstr "Labs 操作失败"
 msgid "Labs could not load"
 msgstr "无法加载 Labs"
 
-#: src/App.tsx:110
+#: src/App.tsx:111
 msgid "Labs page update required"
 msgstr "需要更新 Labs 页面"
 
@@ -4783,7 +4783,7 @@ msgstr "生活限制"
 msgid "Light"
 msgstr "浅色"
 
-#: src/pages/Login.tsx:691
+#: src/pages/Login.tsx:700
 msgid "Light theme (click for dark)"
 msgstr "浅色主题（点击切换为深色）"
 
@@ -4861,7 +4861,7 @@ msgstr "实时"
 msgid "Live component health is unavailable."
 msgstr "实时组件健康状态不可用。"
 
-#: src/components/Layout.tsx:39
+#: src/components/Layout.tsx:36
 msgid "Live demo — real training data, read-only"
 msgstr "实时演示：真实训练数据，仅供查看"
 
@@ -5412,7 +5412,7 @@ msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还需
 msgid "Need at least 3 activities with power data."
 msgstr "需要至少 3 次带功率数据的活动。"
 
-#: src/pages/Login.tsx:659
+#: src/pages/Login.tsx:668
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "需要帮助？{SUPPORT_EMAIL}"
 
@@ -5497,7 +5497,7 @@ msgstr "网络错误——请重试。"
 msgid "Network error. Is the server running?"
 msgstr "网络错误。服务器是否已启动？"
 
-#: src/pages/Login.tsx:185
+#: src/pages/Login.tsx:194
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "网络错误。请直接发邮件到 {SUPPORT_EMAIL}。"
 
@@ -5527,7 +5527,7 @@ msgstr "新建事件"
 msgid "New invitation code:"
 msgstr "新邀请码："
 
-#: src/pages/Login.tsx:408
+#: src/pages/Login.tsx:417
 msgid "New to Praxys?"
 msgstr "第一次使用 Praxys？"
 
@@ -5620,7 +5620,7 @@ msgstr "尚未将任何变更类别提升为免审类别。系统正在记录决
 msgid "No Coach votes were recorded in this window."
 msgstr "在此时间窗口内未记录 Coach 投票。"
 
-#: src/pages/Login.tsx:643
+#: src/pages/Login.tsx:652
 msgid "No code yet?"
 msgstr "还没有邀请码？"
 
@@ -6065,7 +6065,7 @@ msgstr "关于 Garmin 原生功率的说明"
 msgid "Nothing is stored until you confirm this exact purpose and expiry."
 msgstr "在你确认这个具体用途和到期时间前，不会存储任何内容。"
 
-#: src/pages/Login.tsx:206
+#: src/pages/Login.tsx:215
 msgid "Now open · Create your account"
 msgstr "现已开放 · 创建账号"
 
@@ -6470,8 +6470,8 @@ msgid "Passive fastest 10K splits, best laps, or hard sections inside longer run
 msgstr "更长跑里的被动最快 10K 分段、最佳圈段，或中途高强度片段，都不能作为直接 10K 基线证据。"
 
 #: src/pages/admin/AdminUsers.tsx:991
-#: src/pages/Login.tsx:368
-#: src/pages/Login.tsx:565
+#: src/pages/Login.tsx:377
+#: src/pages/Login.tsx:574
 #: src/pages/Setup.tsx:219
 msgid "Password"
 msgstr "密码"
@@ -6672,11 +6672,11 @@ msgstr "平台健康"
 msgid "Platform telemetry is unavailable."
 msgstr "平台遥测不可用。"
 
-#: src/pages/Login.tsx:171
+#: src/pages/Login.tsx:180
 msgid "Please check your email format and try again."
 msgstr "请检查邮箱格式后重试。"
 
-#: src/pages/Login.tsx:123
+#: src/pages/Login.tsx:129
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
@@ -6862,7 +6862,7 @@ msgstr "Praxys 无法确定所在时区。请检查设备设置后重试。"
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
-#: src/App.tsx:113
+#: src/App.tsx:114
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "应用更新后，此页面未能完成加载。重新加载一次即可使用最新版本。"
 
@@ -6923,7 +6923,7 @@ msgstr "Praxys 当前部分服务中断。"
 msgid "Praxys is experiencing degraded performance."
 msgstr "Praxys 当前服务性能下降。"
 
-#: src/pages/Login.tsx:313
+#: src/pages/Login.tsx:322
 msgid "Praxys is in private alpha."
 msgstr "Praxys 目前处于私测 alpha 阶段。"
 
@@ -7028,7 +7028,7 @@ msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.
 msgid "Prefer not to say"
 msgstr "不想说明"
 
-#: src/pages/Login.tsx:643
+#: src/pages/Login.tsx:652
 msgid "Prefer to wait?"
 msgstr "想先等等？"
 
@@ -7090,7 +7090,7 @@ msgstr "就绪评估不使用优先级。"
 msgid "Privacy Policy"
 msgstr "隐私政策"
 
-#: src/pages/Login.tsx:207
+#: src/pages/Login.tsx:216
 msgid "Private alpha · Invitation only"
 msgstr "内测中 · 仅限邀请"
 
@@ -7945,7 +7945,7 @@ msgstr "相对模型心率"
 msgid "Relative modeled HR (bpm)"
 msgstr "相对模型心率（bpm）"
 
-#: src/App.tsx:122
+#: src/App.tsx:123
 msgid "Reload Labs"
 msgstr "重新加载 Labs"
 
@@ -8036,7 +8036,7 @@ msgstr "反馈内容"
 msgid "Reported value rate"
 msgstr "用户自报价值率"
 
-#: src/pages/Login.tsx:414
+#: src/pages/Login.tsx:423
 msgid "Request an invite"
 msgstr "申请邀请"
 
@@ -8057,7 +8057,7 @@ msgstr "请求失败"
 msgid "Request failed. Try again."
 msgstr "请求失败，请重试。"
 
-#: src/pages/Login.tsx:338
+#: src/pages/Login.tsx:347
 msgid "Request invite"
 msgstr "申请邀请"
 
@@ -8065,7 +8065,7 @@ msgstr "申请邀请"
 msgid "Request p95"
 msgstr "请求 p95"
 
-#: src/pages/Login.tsx:400
+#: src/pages/Login.tsx:409
 msgid "Resend verification email"
 msgstr "重新发送验证邮件"
 
@@ -8634,7 +8634,7 @@ msgstr "保存后，这项训练会改期。"
 
 #: src/components/GoalEditor.tsx:61
 #: src/components/WorkoutPlanEditor.tsx:926
-#: src/pages/Login.tsx:472
+#: src/pages/Login.tsx:481
 msgid "Saving…"
 msgstr "保存中…"
 
@@ -8782,7 +8782,7 @@ msgstr "发送中…"
 
 #: src/components/FeedbackDialog.tsx:317
 #: src/pages/admin/AdminUsers.tsx:939
-#: src/pages/Login.tsx:400
+#: src/pages/Login.tsx:409
 msgid "Sending…"
 msgstr "发送中…"
 
@@ -8835,7 +8835,7 @@ msgstr "服务性能下降"
 
 #: src/components/StatusIndicator.tsx:31
 #: src/components/StatusIndicator.tsx:39
-#: src/pages/Login.tsx:662
+#: src/pages/Login.tsx:671
 msgid "Service status"
 msgstr "服务状态"
 
@@ -8851,6 +8851,10 @@ msgstr "服务状态"
 #: src/components/HeatAdaptationPanel.tsx:316
 #~ msgid "Session evidence · latest {0}"
 #~ msgstr "训练记录证据 · 最近 {0} 条"
+
+#: src/App.tsx:161
+msgid "Session verification is temporarily unavailable"
+msgstr "暂时无法验证登录状态"
 
 #: src/components/HeatAdaptationPanel.tsx:57
 #~ msgid "Set a current power threshold before workload can contribute."
@@ -8990,9 +8994,9 @@ msgstr "当前显示的是最近一次可用数据。"
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "显示的是昨天的快照。最近一次读数 {dataAsOfLabel}。"
 
-#: src/pages/Login.tsx:305
-#: src/pages/Login.tsx:329
-#: src/pages/Login.tsx:384
+#: src/pages/Login.tsx:314
+#: src/pages/Login.tsx:338
+#: src/pages/Login.tsx:393
 msgid "Sign in"
 msgstr "登录"
 
@@ -9004,7 +9008,7 @@ msgstr "登录"
 #~ msgid "Signing in..."
 #~ msgstr "登录中..."
 
-#: src/pages/Login.tsx:384
+#: src/pages/Login.tsx:393
 msgid "Signing in…"
 msgstr "正在登录…"
 
@@ -9109,7 +9113,7 @@ msgstr "源端所有"
 msgid "Split-weighted weather"
 msgstr "按分段加权的天气"
 
-#: src/pages/Login.tsx:246
+#: src/pages/Login.tsx:255
 msgid "Sports science that <0>meets you</0> where you are."
 msgstr "让你<0>轻松上手</0>的运动科学。"
 
@@ -9314,7 +9318,7 @@ msgstr "Stull 湿球温度代理值（°C）"
 #~ msgid "Stull wet-bulb approximation"
 #~ msgstr "Stull 湿球温度近似"
 
-#: src/pages/Login.tsx:462
+#: src/pages/Login.tsx:471
 msgid "Sub-3 marathon · 100K · stay healthy…"
 msgstr "全马破三 · 100K · 保持健康…"
 
@@ -9375,8 +9379,8 @@ msgstr "将 {workout} 改为轻松跑"
 msgid "Swimming"
 msgstr "游泳"
 
-#: src/pages/Login.tsx:670
-#: src/pages/Login.tsx:671
+#: src/pages/Login.tsx:679
+#: src/pages/Login.tsx:680
 msgid "Switch language"
 msgstr "切换语言"
 
@@ -9385,15 +9389,15 @@ msgstr "切换语言"
 msgid "Switch to {0}"
 msgstr "切换到 {0}"
 
-#: src/pages/Login.tsx:684
+#: src/pages/Login.tsx:693
 msgid "Switch to dark theme"
 msgstr "切换到深色主题"
 
-#: src/pages/Login.tsx:687
+#: src/pages/Login.tsx:696
 msgid "Switch to light theme"
 msgstr "切换到浅色主题"
 
-#: src/pages/Login.tsx:686
+#: src/pages/Login.tsx:695
 msgid "Switch to system theme"
 msgstr "切换到系统主题"
 
@@ -9538,7 +9542,7 @@ msgstr "系统公告"
 #~ msgid "System Announcements"
 #~ msgstr "系统公告"
 
-#: src/pages/Login.tsx:694
+#: src/pages/Login.tsx:703
 msgid "System theme (click for light)"
 msgstr "系统主题（点击切换为浅色）"
 
@@ -10243,7 +10247,7 @@ msgstr "这是根据气温和相对湿度计算的 Stull 干湿球湿球温度�
 msgid "This legacy workout has no structured tree to deliver."
 msgstr "此旧版训练没有可供交付的结构化步骤。"
 
-#: src/pages/Verify.tsx:67
+#: src/pages/Verify.tsx:71
 msgid "This link is invalid or has expired. Try signing in to request a new link."
 msgstr "此链接无效或已过期。请尝试登录以申请新链接。"
 
@@ -10519,7 +10523,7 @@ msgstr "今日恢复数据还未同步，当前显示的是 {latestDateLabel} �
 msgid "Token rejected"
 msgstr "令牌被拒绝"
 
-#: src/pages/Login.tsx:165
+#: src/pages/Login.tsx:174
 msgid "Too many attempts from this network. Please email us instead."
 msgstr "当前网络请求次数过多，请直接发邮件联系我们。"
 
@@ -10632,6 +10636,10 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 #: src/components/UpcomingPlanCard.tsx:1653
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
+
+#: src/App.tsx:173
+msgid "Try again"
+msgstr "重试"
 
 #: src/pages/admin/AdminFeedback.tsx:382
 msgid "Try another filter or sync again after new reports arrive."
@@ -10932,8 +10940,8 @@ msgstr "先使用历史基线，再决定是否需要可选试点测试"
 msgid "Use in Praxys"
 msgstr "采纳到 Praxys"
 
-#: src/pages/Login.tsx:482
-#: src/pages/Login.tsx:511
+#: src/pages/Login.tsx:491
+#: src/pages/Login.tsx:520
 msgid "Use it"
 msgstr "使用它"
 
@@ -11007,11 +11015,11 @@ msgstr "用户数据暂不可用"
 msgid "Verification code"
 msgstr "验证码"
 
-#: src/pages/Login.tsx:390
+#: src/pages/Login.tsx:399
 msgid "Verification email sent. Check your inbox."
 msgstr "验证邮件已发送。请查看收件箱。"
 
-#: src/pages/Verify.tsx:64
+#: src/pages/Verify.tsx:68
 msgid "Verification failed"
 msgstr "验证失败"
 
@@ -11024,7 +11032,7 @@ msgstr "验证"
 msgid "Verifying"
 msgstr "正在核对"
 
-#: src/pages/Verify.tsx:45
+#: src/pages/Verify.tsx:49
 msgid "Verifying your email…"
 msgstr "正在验证邮箱…"
 
@@ -11128,7 +11136,7 @@ msgstr "WAU"
 msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 msgstr "会附带基础诊断信息（页面、应用版本、浏览器），并在发送到问题追踪系统前自动移除个人信息。"
 
-#: src/pages/Login.tsx:427
+#: src/pages/Login.tsx:436
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮箱，有名额时我们会联系你。"
 
@@ -11209,7 +11217,7 @@ msgstr "周里程"
 msgid "Weekly Volume"
 msgstr "周里程"
 
-#: src/pages/Login.tsx:310
+#: src/pages/Login.tsx:319
 msgid "Welcome back."
 msgstr "欢迎回来。"
 
@@ -11270,13 +11278,13 @@ msgstr "这次完整活动属于哪种情况？"
 msgid "What was useful or missing?"
 msgstr "哪些内容有帮助，或还缺少什么？"
 
-#: src/pages/Login.tsx:456
+#: src/pages/Login.tsx:465
 msgid "What's your training goal? (optional)"
 msgstr "训练目标是什么？（可选）"
 
 #. placeholder {0}: provider.label
 #. placeholder {1}: provider.label
-#: src/components/PlatformConnectionNotice.tsx:44
+#: src/components/PlatformConnectionNotice.tsx:42
 msgid "When you continue, Praxys sends the authentication details needed for this connection to {0} and retrieves the activity, route, fitness, recovery, or plan data that this connection supports. {1} may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
 msgstr "继续后，Praxys 会将此连接所需的认证信息发送给 {0}，并获取该连接支持的活动、路线、体能、恢复或训练计划数据。{1} 可能依据其自身政策在中国大陆境外处理此次数据交换；断开连接后将停止后续获取。"
 
@@ -11471,7 +11479,7 @@ msgstr "你有较早的 10K 证据。Praxys 会继续显示，但在刷新前，
 msgid "You have older 5K evidence. Praxys keeps it visible and can optionally offer a new pilot test."
 msgstr "已有较早的 5 公里证据。Praxys 会保留它，也可以选择新的试点测试。"
 
-#: src/pages/Login.tsx:109
+#: src/pages/Login.tsx:115
 msgid "You must accept the Terms of Service to register."
 msgstr "注册前须接受服务条款。"
 
@@ -11479,13 +11487,13 @@ msgstr "注册前须接受服务条款。"
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "你最近已提交多条反馈——请过几分钟再提交。"
 
-#: src/pages/Login.tsx:357
-#: src/pages/Login.tsx:445
-#: src/pages/Login.tsx:554
+#: src/pages/Login.tsx:366
+#: src/pages/Login.tsx:454
+#: src/pages/Login.tsx:563
 msgid "you@example.com"
 msgstr "you@example.com"
 
-#: src/pages/Verify.tsx:54
+#: src/pages/Verify.tsx:58
 msgid "Your account is active. You can now sign in."
 msgstr "账号已激活，现在可以登录了。"
 
@@ -11579,6 +11587,10 @@ msgstr "你的结果不会与其他用户合并，也不会捐赠给群体研究
 #: src/pages/LabsEnvironment.tsx:1206
 msgid "Your result needs recomputing"
 msgstr "结果需要重新计算"
+
+#: src/App.tsx:164
+msgid "Your session is still saved. Check your connection and try again."
+msgstr "登录状态仍已保留。请检查网络连接后重试。"
 
 #: src/pages/LabsEnvironment.tsx:74
 msgid "Your source data changed while this result was being computed."
