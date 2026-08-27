@@ -77,9 +77,103 @@ Return the authenticated user's profile.
   "id": "uuid-string",
   "email": "user@example.com",
   "is_superuser": true,
-  "created_at": "2026-04-01T12:00:00"
+  "created_at": "2026-04-01T12:00:00",
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "terms_current": true
 }
 ```
+
+### POST /api/me/accept-terms
+
+Record acceptance of the exact current Terms/Privacy bundle for the
+authenticated account.
+
+**Request:**
+
+```json
+{
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "locale": "zh-CN"
+}
+```
+
+`locale` is optional. The version and digest are required and must match the
+server's current canonical bundle. A missing field fails request validation;
+a stale or mismatched bundle returns HTTP `409`:
+
+```json
+{
+  "detail": {
+    "code": "TERMS_BUNDLE_MISMATCH",
+    "terms_version": "2026.08.3",
+    "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e"
+  }
+}
+```
+
+Each successful acceptance appends an immutable receipt containing the legal
+version and digest, acceptance time, locale, delivery channel, and bounded
+client-release context. The fields on the user row are only the current
+projection used by the runtime gate; they do not replace receipt history.
+
+**Response:**
+
+```json
+{
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "terms_current": true,
+  "terms_accepted_at": "2026-08-26T12:00:00Z"
+}
+```
+
+`GET /api/auth/me` and this endpoint remain available when the stored receipt
+is stale. Other personal-data endpoints return:
+
+```json
+{
+  "detail": {
+    "code": "TERMS_ACCEPTANCE_REQUIRED",
+    "terms_version": "2026.08.3"
+  }
+}
+```
+
+with HTTP `428` until acceptance succeeds. Account deletion remains available;
+`GET /api/me/export` is also exempt so a user-rights request is not conditioned
+on accepting new terms.
+
+China clients have an earlier runtime precondition. `.cn` web requests carry
+client, version, source SHA, notice version, policy digest, and API-contract
+headers. WeChat requests carry the same exact release identity. The server
+matches those fields against `PRAXYS_CN_APPROVED_RELEASES`; missing, stale, or
+unlisted builds receive HTTP `428` with
+`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing.
+
+### GET /api/me/export
+
+Download the authenticated user's portable JSON export. Schema version `6`
+includes account and configuration data; non-secret connection metadata;
+activities, splits, samples, recovery, fitness, and plans; AI insight and
+feedback records; private feedback metadata and owned image-download paths;
+append-only Terms receipts; and the existing plan/context export groups.
+Credential material, tokens, passwords, secrets, encryption-shaped fields,
+and other users' records are excluded.
+
+The response uses `Content-Disposition: attachment` and
+`Cache-Control: private, no-store`. This rights route remains available when
+Terms are stale or China-channel processing is disabled.
+
+### GET /api/me/feedback/{feedback_id}/image/{index}
+
+Return one private feedback screenshot to the authenticated user who submitted
+that feedback. `index` is zero-based. A missing row, an image outside the
+available range, or feedback owned by another user returns `404`; ownership is
+not disclosed. The response preserves the stored media type and sets
+`Cache-Control: private, no-store`. Raw screenshots are never published to a
+GitHub issue.
 
 ### POST /api/auth/request-verify-token
 
@@ -2621,10 +2715,11 @@ identifiers, and context-category cohorts. See
 [`adaptive-plan-context-pilot.md`](./adaptive-plan-context-pilot.md) for the
 fixed scope, scenarios, falsification conditions, and expansion review gate.
 
-`GET /api/me/export` now uses schema version 2 and embeds the same complete
-context export under `personal_context`. Neither export includes idempotency
-keys, internal prompts, credentials, deletion-job operator metadata, or
-payload-free command tombstones, or another athlete's data.
+`GET /api/me/export` now uses schema version 6 and embeds the same complete
+context export under `personal_context`, alongside the other account-owned
+records documented above. Neither export includes idempotency keys, internal
+prompts, credentials, deletion-job operator metadata, payload-free command
+tombstones, or another athlete's data.
 
 ## Sync
 

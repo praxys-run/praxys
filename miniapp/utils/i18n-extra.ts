@@ -54,6 +54,64 @@ const EN_AUTH = {
   email: 'email',
   password: 'password',
   'Email and password are required': 'Email and password are required',
+  'How Praxys processes data to provide the service':
+    'How Praxys processes data to provide the service',
+  'Required for the service': 'Required for the service',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.',
+  'Overseas processing and recipient': 'Overseas processing and recipient',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).',
+  'Purposes and information': 'Purposes and information',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.',
+  'Sensitive personal information': 'Sensitive personal information',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.',
+  'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.':
+    'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.',
+  'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.':
+    'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.',
+  'Privacy Policy and Mainland China processing notice':
+    'Privacy Policy and Mainland China processing notice',
+  'Acknowledge and continue': 'Acknowledge and continue',
+  'Not now': 'Not now',
+  'Read the processing notice before continuing.':
+    'Read the processing notice before continuing.',
+  'Updated Terms and Privacy notice': 'Updated Terms and Privacy notice',
+  'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.':
+    'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.',
+  'I accept the': 'I accept the',
+  'and acknowledge that I have read the':
+    'and acknowledge that I have read the',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.',
+  'Accept Terms and continue': 'Accept Terms and continue',
+  'Could not save — please try again.': 'Could not save — please try again.',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    'You can still export your data, delete your account, or sign out without accepting.',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.',
+  'You can still sign out without accepting.':
+    'You can still sign out without accepting.',
+  'Could not load connected platforms — please try again.':
+    'Could not load connected platforms — please try again.',
+  'Could not disconnect platform — please try again.':
+    'Could not disconnect platform — please try again.',
+  'Export my data': 'Export my data',
+  'Exporting data…': 'Exporting data…',
+  'Saves a JSON export and opens WeChat share options.':
+    'Saves a JSON export and opens WeChat share options.',
+  'Your data export is ready to share.': 'Your data export is ready to share.',
+  'Could not export data — please try again.':
+    'Could not export data — please try again.',
+  'Delete account': 'Delete account',
+  'Delete account permanently?': 'Delete account permanently?',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.',
+  'Could not delete account — please try again.':
+    'Could not delete account — please try again.',
+  'Sign out': 'Sign out',
   // Old "Sign up at" footer copy retained for back-compat; the login
   // page itself now uses the explicit "New here?" / "Have an
   // invitation code?" rows below.
@@ -527,6 +585,61 @@ const ZH_AUTH = {
   email: '邮箱',
   password: '密码',
   'Email and password are required': '请填写邮箱和密码',
+  'How Praxys processes data to provide the service':
+    'Praxys 如何处理数据以提供服务',
+  'Required for the service': '提供服务所必需',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    '为创建和管理账号，并提供所请求的训练功能，Praxys 必须在中国大陆境外处理下列信息。该处理是履行服务所必需，不以同意为处理基础。',
+  'Overseas processing and recipient': '境外处理与接收方',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    '核心服务信息由 Microsoft Corporation 及其 Azure 关联方和公开列明的分包处理方在中国大陆境外处理；当前主要托管区域为 Azure East Asia（中国香港特别行政区）。',
+  'Purposes and information': '处理目的与信息',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    '账号访问、平台同步、训练与恢复分析、计划、安全及所请求的账号控制会使用账号标识、训练数据、设置、加密连接凭据和必要日志。',
+  'Sensitive personal information': '敏感个人信息',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    '心率、HRV、睡眠、恢复、活动路线及相关健康或运动推断可能属于敏感个人信息。缺少这些类别时，依赖它们的功能无法运行。',
+  'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.':
+    '可选 Azure AI 默认关闭；选择加入前会另行说明接收方、明确用途和最小化字段。',
+  'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.':
+    '继续即确认已经阅读本告知；这不构成对可选 AI 或其他非必要处理的同意。',
+  'Privacy Policy and Mainland China processing notice':
+    '《隐私政策》与中国大陆处理说明',
+  'Acknowledge and continue': '确认已阅读并继续',
+  'Not now': '暂不继续',
+  'Read the processing notice before continuing.':
+    '请先阅读处理告知再继续。',
+  'Updated Terms and Privacy notice': '条款与隐私告知已更新',
+  'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.':
+    '服务条款已经更新。隐私政策现已说明中国大陆用户的境外接收方、处理地点、敏感信息必要性及权利渠道。核心处理依据履约必要性；可选 AI 仍需另行选择加入。继续前，请阅读服务条款和隐私告知。',
+  'I accept the': '我接受',
+  'and acknowledge that I have read the': '，并确认已阅读',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    '接受服务条款，并确认已阅读隐私政策。',
+  'Accept Terms and continue': '接受条款并继续',
+  'Could not save — please try again.': '提交失败，请重试。',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、删除账号或退出登录。',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、管理已连接平台、删除账号或退出登录。',
+  'You can still sign out without accepting.':
+    '即使暂不接受，也可以退出登录。',
+  'Could not load connected platforms — please try again.':
+    '无法读取已连接平台，请重试。',
+  'Could not disconnect platform — please try again.':
+    '无法断开平台，请重试。',
+  'Export my data': '导出我的数据',
+  'Exporting data…': '正在导出数据…',
+  'Saves a JSON export and opens WeChat share options.':
+    '保存 JSON 数据导出文件，并打开微信分享选项。',
+  'Your data export is ready to share.': '数据导出文件已准备好，可选择分享。',
+  'Could not export data — please try again.': '无法导出数据，请重试。',
+  'Delete account': '删除账号',
+  'Delete account permanently?': '永久删除账号？',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    '此操作会永久删除账号、训练数据和已连接平台的凭据，且无法撤销。输入 DELETE 以确认。',
+  'Could not delete account — please try again.': '无法删除账号，请重试。',
+  'Sign out': '退出登录',
   'New here? Sign up at': '没有账号？立即注册',
   'New here?': '没有账号？',
   'Have an invitation code?': '有邀请码？',

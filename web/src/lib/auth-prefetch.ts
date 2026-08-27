@@ -6,6 +6,9 @@
 // The response body is parsed eagerly so the promise is safe to consume
 // multiple times (e.g. React StrictMode double-fires effects in dev).
 import { KEYS, getCompatItem } from './storage-compat';
+import { canStartPersonalDataRequests } from './china-processing';
+import { getChinaClientHeaders } from './client-boundary';
+import type { CurrentUserProfile } from '../types/api';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 
@@ -19,11 +22,17 @@ const token = (() => {
 
 export interface PrefetchedMe {
   status: number;
-  data: { id: string; is_superuser: boolean; is_demo?: boolean; terms_current?: boolean } | null;
+  data: CurrentUserProfile | null;
 }
 
-export const prefetchedMe: Promise<PrefetchedMe> | null = token
-  ? fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+export const prefetchedMe: Promise<PrefetchedMe> | null = token &&
+  canStartPersonalDataRequests()
+  ? fetch(`${API_BASE}/api/auth/me`, {
+      headers: {
+        ...getChinaClientHeaders(),
+        Authorization: `Bearer ${token}`,
+      },
+    })
       .then(async (r): Promise<PrefetchedMe> => ({
         status: r.status,
         data: r.ok ? await r.json() : null,

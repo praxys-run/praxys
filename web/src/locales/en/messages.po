@@ -22,7 +22,7 @@ msgstr " · "
 msgid "· last {0} weeks"
 msgstr "· last {0} weeks"
 
-#: src/pages/Setup.tsx:706
+#: src/pages/Setup.tsx:707
 msgid "(Garmin rate limits apply)"
 msgstr "(Garmin rate limits apply)"
 
@@ -139,9 +139,14 @@ msgstr "{0} narrow change class(es) may merge through the independent policy gat
 
 #. placeholder {0}: setup.completed
 #. placeholder {1}: setup.total
-#: src/pages/Setup.tsx:591
+#: src/pages/Setup.tsx:592
 msgid "{0} of {1} steps complete"
 msgstr "{0} of {1} steps complete"
+
+#. placeholder {0}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:52
+msgid "{0} privacy and contact information"
+msgstr "{0} privacy and contact information"
 
 #. placeholder {0}: node.repetitions
 #. placeholder {1}: node.steps.length
@@ -315,7 +320,7 @@ msgstr "{total, plural, one {# activity} other {# activities}}"
 
 #. placeholder {0}: failures.length
 #. placeholder {1}: failures.length
-#: src/pages/Setup.tsx:766
+#: src/pages/Setup.tsx:767
 msgid "{total, plural, one {Sync failed for {0} of # source.} other {Sync failed for {1} of # sources.}}"
 msgstr "{total, plural, one {Sync failed for {0} of # source.} other {Sync failed for {1} of # sources.}}"
 
@@ -374,7 +379,7 @@ msgstr "<0>Today's signal</0> · go, modify, or rest."
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 msgstr "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 
-#: src/pages/Setup.tsx:705
+#: src/pages/Setup.tsx:706
 msgid "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgstr "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 
@@ -382,7 +387,7 @@ msgstr "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgid "1 day ago"
 msgstr "1 day ago"
 
-#: src/pages/Setup.tsx:190
+#: src/pages/Setup.tsx:191
 msgid "1 month"
 msgstr "1 month"
 
@@ -390,7 +395,7 @@ msgstr "1 month"
 msgid "1 wk"
 msgstr "1 wk"
 
-#: src/pages/Setup.tsx:193
+#: src/pages/Setup.tsx:194
 msgid "1 year"
 msgstr "1 year"
 
@@ -399,17 +404,17 @@ msgid "100 Mi"
 msgstr "100 Mi"
 
 #: src/lib/display-labels.ts:73
-#: src/pages/Settings.tsx:189
+#: src/pages/Settings.tsx:190
 msgid "100 Mile"
 msgstr "100 Mile"
 
 #: src/lib/display-labels.ts:72
-#: src/pages/Settings.tsx:188
+#: src/pages/Settings.tsx:189
 msgid "100K"
 msgstr "100K"
 
 #: src/lib/display-labels.ts:69
-#: src/pages/Settings.tsx:183
+#: src/pages/Settings.tsx:184
 msgid "10K"
 msgstr "10K"
 
@@ -441,7 +446,7 @@ msgstr "24 hours"
 msgid "28 days"
 msgstr "28 days"
 
-#: src/pages/Setup.tsx:191
+#: src/pages/Setup.tsx:192
 msgid "3 months"
 msgstr "3 months"
 
@@ -458,17 +463,17 @@ msgid "50 Mi"
 msgstr "50 Mi"
 
 #: src/lib/display-labels.ts:71
-#: src/pages/Settings.tsx:187
+#: src/pages/Settings.tsx:188
 msgid "50 Mile"
 msgstr "50 Mile"
 
 #: src/lib/display-labels.ts:70
-#: src/pages/Settings.tsx:186
+#: src/pages/Settings.tsx:187
 msgid "50K"
 msgstr "50K"
 
 #: src/lib/display-labels.ts:68
-#: src/pages/Settings.tsx:182
+#: src/pages/Settings.tsx:183
 msgid "5K"
 msgstr "5K"
 
@@ -480,7 +485,7 @@ msgstr "5K baseline pilot"
 msgid "5K performance"
 msgstr "5K performance"
 
-#: src/pages/Setup.tsx:192
+#: src/pages/Setup.tsx:193
 msgid "6 months"
 msgstr "6 months"
 
@@ -694,13 +699,13 @@ msgstr "Active until"
 
 #: src/components/AppSidebar.tsx:128
 #: src/pages/History.tsx:38
-#: src/pages/Settings.tsx:56
-#: src/pages/Settings.tsx:67
-#: src/pages/Setup.tsx:226
+#: src/pages/Settings.tsx:57
+#: src/pages/Settings.tsx:68
+#: src/pages/Setup.tsx:227
 msgid "Activities"
 msgstr "Activities"
 
-#: src/pages/Setup.tsx:200
+#: src/pages/Setup.tsx:201
 msgid "Activities only: runs, rides, pace, heart rate, route data"
 msgstr "Activities only: runs, rides, pace, heart rate, route data"
 
@@ -708,8 +713,8 @@ msgstr "Activities only: runs, rides, pace, heart rate, route data"
 msgid "Activities passing quick prerequisites"
 msgstr "Activities passing quick prerequisites"
 
-#: src/pages/Settings.tsx:1182
-#: src/pages/Setup.tsx:1078
+#: src/pages/Settings.tsx:1186
+#: src/pages/Setup.tsx:1083
 msgid "Activities-only connection"
 msgstr "Activities-only connection"
 
@@ -733,7 +738,7 @@ msgstr "Activity is the schedule lane (for example road or trail), not the sessi
 msgid "Activity splits"
 msgstr "Activity splits"
 
-#: src/pages/Setup.tsx:1008
+#: src/pages/Setup.tsx:1013
 msgid "Activity types to sync"
 msgstr "Activity types to sync"
 
@@ -943,7 +948,7 @@ msgstr "Align the activity and threshold power sources before Praxys uses these 
 
 #: src/components/charts/CpTrendChart.tsx:56
 #: src/pages/admin/AdminFeedback.tsx:352
-#: src/pages/Setup.tsx:1024
+#: src/pages/Setup.tsx:1029
 msgid "All"
 msgstr "All"
 
@@ -1083,7 +1088,7 @@ msgstr "Approve access"
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "Asia/CN"
 msgstr "Asia/CN"
 
@@ -1134,19 +1139,19 @@ msgstr "Authentication mode"
 msgid "Authorization link unavailable"
 msgstr "Authorization link unavailable"
 
-#: src/pages/Setup.tsx:209
+#: src/pages/Setup.tsx:210
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 msgstr "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 
-#: src/pages/Settings.tsx:812
+#: src/pages/Settings.tsx:813
 msgid "Auto"
 msgstr "Auto"
 
-#: src/pages/Settings.tsx:870
+#: src/pages/Settings.tsx:871
 msgid "Auto sync frequency"
 msgstr "Auto sync frequency"
 
-#: src/pages/Settings.tsx:1379
+#: src/pages/Settings.tsx:1383
 msgid "Auto-merged"
 msgstr "Auto-merged"
 
@@ -1280,11 +1285,11 @@ msgstr "Back to Praxys"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
-#: src/pages/Settings.tsx:853
+#: src/pages/Settings.tsx:854
 msgid "Backfill All"
 msgstr "Backfill All"
 
-#: src/pages/Settings.tsx:832
+#: src/pages/Settings.tsx:833
 msgid "Backfill..."
 msgstr "Backfill..."
 
@@ -1470,13 +1475,13 @@ msgstr "Calculator"
 #: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
-#: src/pages/Settings.tsx:1085
-#: src/pages/Settings.tsx:1171
-#: src/pages/Settings.tsx:1208
-#: src/pages/Settings.tsx:1647
-#: src/pages/Setup.tsx:938
-#: src/pages/Setup.tsx:1066
-#: src/pages/Setup.tsx:1086
+#: src/pages/Settings.tsx:1089
+#: src/pages/Settings.tsx:1175
+#: src/pages/Settings.tsx:1212
+#: src/pages/Settings.tsx:1651
+#: src/pages/Setup.tsx:943
+#: src/pages/Setup.tsx:1071
+#: src/pages/Setup.tsx:1091
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -1576,7 +1581,7 @@ msgstr "Check readiness"
 #~ msgid "Check required"
 #~ msgstr "Check required"
 
-#: src/pages/Setup.tsx:780
+#: src/pages/Setup.tsx:781
 msgid "Check your credentials in the connection step, then try again."
 msgstr "Check your credentials in the connection step, then try again."
 
@@ -1600,8 +1605,8 @@ msgstr "Checking readiness…"
 msgid "Chest pain or pressure"
 msgstr "Chest pain or pressure"
 
-#: src/pages/Settings.tsx:1017
-#: src/pages/Settings.tsx:1115
+#: src/pages/Settings.tsx:1018
+#: src/pages/Settings.tsx:1119
 msgid "China"
 msgstr "China"
 
@@ -1655,7 +1660,7 @@ msgstr "Choose and date an optional benchmark only if you want one. Praxys never
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 msgstr "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 
-#: src/pages/Setup.tsx:670
+#: src/pages/Setup.tsx:671
 msgid "Choose how much historical data to pull"
 msgstr "Choose how much historical data to pull"
 
@@ -1676,7 +1681,7 @@ msgstr "Choose one category to continue."
 #~ msgid "Choose plan purpose"
 #~ msgstr "Choose plan purpose"
 
-#: src/pages/Setup.tsx:1112
+#: src/pages/Setup.tsx:1117
 msgid "Choose primary source"
 msgstr "Choose primary source"
 
@@ -1698,7 +1703,7 @@ msgid "Choose three to six days you can actually keep. Praxys anchors load to yo
 msgstr "Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap."
 
 #: src/components/SetupChecklist.tsx:63
-#: src/pages/Setup.tsx:804
+#: src/pages/Setup.tsx:805
 msgid "Choose training base"
 msgstr "Choose training base"
 
@@ -1723,7 +1728,7 @@ msgstr "Choose whether it was missed or modified."
 msgid "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 msgstr "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 
-#: src/pages/Settings.tsx:1300
+#: src/pages/Settings.tsx:1304
 msgid "Choose which platform to use for each data type"
 msgstr "Choose which platform to use for each data type"
 
@@ -1731,7 +1736,7 @@ msgstr "Choose which platform to use for each data type"
 msgid "Choose who controls the plan and where Praxys delivers it"
 msgstr "Choose who controls the plan and where Praxys delivers it"
 
-#: src/pages/Settings.tsx:856
+#: src/pages/Settings.tsx:857
 msgid "Clear"
 msgstr "Clear"
 
@@ -1827,7 +1832,7 @@ msgstr "Compatibility preview is unavailable. Check your connection and try agai
 #~ msgstr "Compatible"
 
 #: src/components/SetupChecklist.tsx:98
-#: src/pages/Setup.tsx:590
+#: src/pages/Setup.tsx:591
 msgid "Complete these steps to unlock your training insights"
 msgstr "Complete these steps to unlock your training insights"
 
@@ -1863,7 +1868,7 @@ msgstr "Component health is unavailable right now."
 msgid "Components"
 msgstr "Components"
 
-#: src/pages/Settings.tsx:703
+#: src/pages/Settings.tsx:704
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
@@ -1913,27 +1918,27 @@ msgid "Confusion or loss of coordination"
 msgstr "Confusion or loss of coordination"
 
 #: src/components/SetupChecklist.tsx:51
-#: src/pages/Settings.tsx:973
-#: src/pages/Settings.tsx:1174
-#: src/pages/Setup.tsx:655
-#: src/pages/Setup.tsx:1069
+#: src/pages/Settings.tsx:974
+#: src/pages/Settings.tsx:1178
+#: src/pages/Setup.tsx:656
+#: src/pages/Setup.tsx:1074
 msgid "Connect"
 msgstr "Connect"
 
 #. placeholder {0}: connectPlatform ? (PLATFORM_META[connectPlatform]?.label || connectPlatform) : ''
 #. placeholder {0}: connectPlatform ? PLATFORM_META[connectPlatform]?.label : ''
-#: src/pages/Settings.tsx:1051
-#: src/pages/Setup.tsx:890
+#: src/pages/Settings.tsx:1052
+#: src/pages/Setup.tsx:891
 msgid "Connect {0}"
 msgstr "Connect {0}"
 
 #: src/components/SetupChecklist.tsx:47
-#: src/pages/Settings.tsx:1325
-#: src/pages/Setup.tsx:613
+#: src/pages/Settings.tsx:1329
+#: src/pages/Setup.tsx:614
 msgid "Connect a platform"
 msgstr "Connect a platform"
 
-#: src/pages/Setup.tsx:669
+#: src/pages/Setup.tsx:670
 msgid "Connect a platform first"
 msgstr "Connect a platform first"
 
@@ -1958,16 +1963,22 @@ msgstr "Connect Praxys Coach?"
 #~ msgstr "Connect Stryd above before adopting managed delivery."
 
 #: src/pages/admin/AdminOps.tsx:427
-#: src/pages/Settings.tsx:932
+#: src/pages/Settings.tsx:933
 msgid "Connected"
 msgstr "Connected"
 
-#: src/pages/Settings.tsx:827
+#: src/pages/Settings.tsx:828
 msgid "Connected Platforms"
 msgstr "Connected Platforms"
 
-#: src/pages/Settings.tsx:1174
-#: src/pages/Setup.tsx:1069
+#. placeholder {0}: provider.label
+#. placeholder {1}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:47
+#~ msgid "Connecting {0} is optional. By continuing, you direct Praxys to send the authentication details entered here to {1} and retrieve the activity, route, fitness, recovery, or plan data supported by this connection. The provider may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+#~ msgstr "Connecting {0} is optional. By continuing, you direct Praxys to send the authentication details entered here to {1} and retrieve the activity, route, fitness, recovery, or plan data supported by this connection. The provider may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+
+#: src/pages/Settings.tsx:1178
+#: src/pages/Setup.tsx:1074
 msgid "Connecting..."
 msgstr "Connecting..."
 
@@ -1999,13 +2010,13 @@ msgstr "Context type"
 msgid "Context use"
 msgstr "Context use"
 
-#: src/pages/Settings.tsx:1184
-#: src/pages/Setup.tsx:1080
+#: src/pages/Settings.tsx:1188
+#: src/pages/Setup.tsx:1085
 msgid "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 msgstr "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 
-#: src/pages/Settings.tsx:1215
-#: src/pages/Setup.tsx:1089
+#: src/pages/Settings.tsx:1219
+#: src/pages/Setup.tsx:1094
 msgid "Continue to Strava"
 msgstr "Continue to Strava"
 
@@ -2021,11 +2032,11 @@ msgstr "Continuous"
 msgid "Continuous heart-rate samples are missing from too much of the eligible history."
 msgstr "Continuous heart-rate samples are missing from too much of the eligible history."
 
-#: src/pages/Settings.tsx:1408
+#: src/pages/Settings.tsx:1412
 msgid "Continuous Improvement"
 msgstr "Continuous Improvement"
 
-#: src/pages/Setup.tsx:852
+#: src/pages/Setup.tsx:853
 msgid "Continuous improvement configured"
 msgstr "Continuous improvement configured"
 
@@ -2391,7 +2402,7 @@ msgid "Critical"
 msgstr "Critical"
 
 #: src/lib/display-labels.ts:58
-#: src/pages/Settings.tsx:102
+#: src/pages/Settings.tsx:103
 msgid "Critical Power"
 msgstr "Critical Power"
 
@@ -2407,7 +2418,7 @@ msgstr "Critical: {0}. Major: {1}. Minor: {2}."
 msgid "Cross-training"
 msgstr "Cross-training"
 
-#: src/pages/Setup.tsx:1051
+#: src/pages/Setup.tsx:1056
 msgid "Cross-training activities affect your overall training load and recovery"
 msgstr "Cross-training activities affect your overall training load and recovery"
 
@@ -2498,7 +2509,7 @@ msgstr "Custom workout purpose"
 
 #: src/components/UpcomingPlanCard.tsx:567
 #: src/components/WorkoutPlanEditor.tsx:445
-#: src/pages/Setup.tsx:170
+#: src/pages/Setup.tsx:171
 msgid "Cycling"
 msgstr "Cycling"
 
@@ -2526,11 +2537,11 @@ msgstr "Dark theme (click for system)"
 msgid "Data coverage"
 msgstr "Data coverage"
 
-#: src/pages/Settings.tsx:1299
+#: src/pages/Settings.tsx:1303
 msgid "Data Preferences"
 msgstr "Data Preferences"
 
-#: src/pages/Setup.tsx:797
+#: src/pages/Setup.tsx:798
 msgid "Data synced successfully"
 msgstr "Data synced successfully"
 
@@ -2638,20 +2649,20 @@ msgstr "Degraded Performance"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/pages/Settings.tsx:1596
+#: src/pages/Settings.tsx:1600
 msgid "Delete account"
 msgstr "Delete account"
 
-#: src/pages/Settings.tsx:1616
+#: src/pages/Settings.tsx:1620
 msgid "Delete my account"
 msgstr "Delete my account"
 
-#: src/pages/Settings.tsx:1625
+#: src/pages/Settings.tsx:1629
 msgid "Delete my account?"
 msgstr "Delete my account?"
 
 #: src/components/PersonalContextPanel.tsx:1497
-#: src/pages/Settings.tsx:1654
+#: src/pages/Settings.tsx:1658
 msgid "Delete permanently"
 msgstr "Delete permanently"
 
@@ -2691,7 +2702,7 @@ msgstr "Deletes {0}"
 msgid "Deleting"
 msgstr "Deleting"
 
-#: src/pages/Settings.tsx:1654
+#: src/pages/Settings.tsx:1658
 msgid "Deleting..."
 msgstr "Deleting..."
 
@@ -2873,7 +2884,7 @@ msgstr "Disabled. Click to open"
 msgid "Disclosure choice"
 msgstr "Disclosure choice"
 
-#: src/pages/Settings.tsx:1036
+#: src/pages/Settings.tsx:1037
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -2906,7 +2917,7 @@ msgstr "Dist"
 #: src/components/WorkoutStructureEditor.tsx:817
 #: src/components/WorkoutStructureEditor.tsx:1437
 #: src/components/WorkoutStructureEditor.tsx:1486
-#: src/pages/Settings.tsx:1412
+#: src/pages/Settings.tsx:1416
 msgid "Distance"
 msgstr "Distance"
 
@@ -2961,7 +2972,7 @@ msgstr "Do not replay this item. The athlete must resolve it from the plan recon
 msgid "Done"
 msgstr "Done"
 
-#: src/pages/Settings.tsx:1555
+#: src/pages/Settings.tsx:1559
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 
@@ -2973,7 +2984,7 @@ msgstr "Draft one change for your review"
 msgid "Drag the range or type exact values."
 msgstr "Drag the range or type exact values."
 
-#: src/pages/Settings.tsx:1464
+#: src/pages/Settings.tsx:1468
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 
@@ -3108,8 +3119,8 @@ msgid "Easy Run"
 msgstr "Easy Run"
 
 #: src/components/UpcomingPlanCard.tsx:692
-#: src/pages/Settings.tsx:1398
-#: src/pages/Setup.tsx:855
+#: src/pages/Settings.tsx:1402
+#: src/pages/Setup.tsx:856
 msgid "Edit"
 msgstr "Edit"
 
@@ -3172,7 +3183,7 @@ msgstr "Elliptical"
 #: src/pages/Login.tsx:351
 #: src/pages/Login.tsx:439
 #: src/pages/Login.tsx:548
-#: src/pages/Setup.tsx:217
+#: src/pages/Setup.tsx:218
 msgid "Email"
 msgstr "Email"
 
@@ -3291,7 +3302,7 @@ msgid "Equipment still available (optional)"
 msgstr "Equipment still available (optional)"
 
 #: src/pages/admin/AdminOps.tsx:431
-#: src/pages/Settings.tsx:955
+#: src/pages/Settings.tsx:956
 msgid "Error"
 msgstr "Error"
 
@@ -3315,7 +3326,7 @@ msgstr "Estimates acclimatization from recent qualifying conditions."
 msgid "Estimates race performance from current fitness."
 msgstr "Estimates race performance from current fitness."
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "EU"
 msgstr "EU"
 
@@ -3324,7 +3335,7 @@ msgid "Event state"
 msgstr "Event state"
 
 #. placeholder {0}: option.hours
-#: src/pages/Settings.tsx:894
+#: src/pages/Settings.tsx:895
 msgid "Every <0>{0}</0> hours"
 msgstr "Every <0>{0}</0> hours"
 
@@ -3420,8 +3431,8 @@ msgstr "Explore whether modeled heart rate varied with temperature and humidity 
 msgid "Export context"
 msgstr "Export context"
 
-#: src/pages/Settings.tsx:1553
-#: src/pages/Settings.tsx:1583
+#: src/pages/Settings.tsx:1557
+#: src/pages/Settings.tsx:1587
 msgid "Export my data"
 msgstr "Export my data"
 
@@ -3492,7 +3503,7 @@ msgid "Failed to delete user."
 msgstr "Failed to delete user."
 
 #. placeholder {0}: res.status
-#: src/pages/Settings.tsx:628
+#: src/pages/Settings.tsx:629
 msgid "Failed to export data (HTTP {0})"
 msgstr "Failed to export data (HTTP {0})"
 
@@ -3524,7 +3535,7 @@ msgstr "Failed to load goal data"
 msgid "Failed to load science data."
 msgstr "Failed to load science data."
 
-#: src/pages/Settings.tsx:333
+#: src/pages/Settings.tsx:334
 msgid "Failed to load settings"
 msgstr "Failed to load settings"
 
@@ -3651,9 +3662,9 @@ msgstr "Finish this distance"
 msgid "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 msgstr "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 
-#: src/pages/Settings.tsx:58
-#: src/pages/Settings.tsx:1376
-#: src/pages/Setup.tsx:228
+#: src/pages/Settings.tsx:59
+#: src/pages/Settings.tsx:1380
+#: src/pages/Setup.tsx:229
 msgid "Fitness"
 msgstr "Fitness"
 
@@ -3752,7 +3763,7 @@ msgstr "From {dataAsOfLabel}"
 msgid "from {label}"
 msgstr "from {label}"
 
-#: src/pages/Settings.tsx:118
+#: src/pages/Settings.tsx:119
 msgid "From activities"
 msgstr "From activities"
 
@@ -3790,15 +3801,15 @@ msgstr "Gap"
 #~ msgid "Garmin delivery uses an undocumented interface and is off until you review its limits and opt in."
 #~ msgstr "Garmin delivery uses an undocumented interface and is off until you review its limits and opt in."
 
-#: src/pages/Settings.tsx:1132
+#: src/pages/Settings.tsx:1136
 msgid "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 msgstr "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 
-#: src/pages/Settings.tsx:1022
+#: src/pages/Settings.tsx:1023
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 msgstr "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 
-#: src/pages/Settings.tsx:1277
+#: src/pages/Settings.tsx:1281
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 msgstr "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 
@@ -3826,7 +3837,7 @@ msgstr "General feedback"
 msgid "Generate"
 msgstr "Generate"
 
-#: src/pages/Setup.tsx:211
+#: src/pages/Setup.tsx:212
 msgid "Generate a token at cloud.ouraring.com/personal-access-tokens."
 msgstr "Generate a token at cloud.ouraring.com/personal-access-tokens."
 
@@ -3865,7 +3876,7 @@ msgstr "GO"
 msgid "Go Easy"
 msgstr "Go Easy"
 
-#: src/pages/Setup.tsx:879
+#: src/pages/Setup.tsx:880
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
@@ -3878,7 +3889,7 @@ msgstr "Go to sign in"
 #: src/components/GoalBaselinePanel.tsx:520
 #: src/pages/admin/AdminUsers.tsx:871
 #: src/pages/Goal.tsx:142
-#: src/pages/Settings.tsx:1393
+#: src/pages/Settings.tsx:1397
 msgid "Goal"
 msgstr "Goal"
 
@@ -3907,7 +3918,7 @@ msgid "Half"
 msgstr "Half"
 
 #: src/lib/display-labels.ts:67
-#: src/pages/Settings.tsx:184
+#: src/pages/Settings.tsx:185
 msgid "Half Marathon"
 msgstr "Half Marathon"
 
@@ -3916,8 +3927,8 @@ msgid "Have an invitation code?"
 msgstr "Have an invitation code?"
 
 #: src/lib/display-labels.ts:55
-#: src/pages/Settings.tsx:82
-#: src/pages/Setup.tsx:183
+#: src/pages/Settings.tsx:83
+#: src/pages/Setup.tsx:184
 msgid "Heart Rate"
 msgstr "Heart Rate"
 
@@ -4004,7 +4015,7 @@ msgstr "Heat safety"
 msgid "Helpful"
 msgstr "Helpful"
 
-#: src/pages/Settings.tsx:832
+#: src/pages/Settings.tsx:833
 msgid "Hide backfill"
 msgstr "Hide backfill"
 
@@ -4042,7 +4053,7 @@ msgstr "High variability"
 
 #: src/components/UpcomingPlanCard.tsx:569
 #: src/components/WorkoutPlanEditor.tsx:447
-#: src/pages/Setup.tsx:172
+#: src/pages/Setup.tsx:173
 msgid "Hiking"
 msgstr "Hiking"
 
@@ -4071,7 +4082,7 @@ msgstr "Historical environmental-response curve"
 msgid "Historical slope"
 msgstr "Historical slope"
 
-#: src/pages/Settings.tsx:858
+#: src/pages/Settings.tsx:859
 msgid "Historical sync may take several minutes"
 msgstr "Historical sync may take several minutes"
 
@@ -4117,7 +4128,7 @@ msgstr "hour rolling window"
 #~ msgid "How is intensity classified?"
 #~ msgstr "How is intensity classified?"
 
-#: src/pages/Settings.tsx:872
+#: src/pages/Settings.tsx:873
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 msgstr "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 
@@ -4133,8 +4144,8 @@ msgstr "How this is calculated"
 msgid "How to read this experiment"
 msgstr "How to read this experiment"
 
-#: src/pages/Settings.tsx:1239
-#: src/pages/Setup.tsx:805
+#: src/pages/Settings.tsx:1243
+#: src/pages/Setup.tsx:806
 msgid "How your zones and training load are calculated"
 msgstr "How your zones and training load are calculated"
 
@@ -4146,7 +4157,7 @@ msgstr "hr"
 msgid "HR"
 msgstr "HR"
 
-#: src/pages/Setup.tsx:199
+#: src/pages/Setup.tsx:200
 msgid "HR, pace, distance, VO2max, training status"
 msgstr "HR, pace, distance, VO2max, training status"
 
@@ -4397,8 +4408,8 @@ msgstr "Intentional all-out complete 10K"
 msgid "Intentional all-out complete 5K"
 msgstr "Intentional all-out complete 5K"
 
-#: src/pages/Settings.tsx:1018
-#: src/pages/Settings.tsx:1115
+#: src/pages/Settings.tsx:1019
+#: src/pages/Settings.tsx:1119
 msgid "International"
 msgstr "International"
 
@@ -4601,7 +4612,7 @@ msgstr "Labs action failed"
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
-#: src/App.tsx:103
+#: src/App.tsx:110
 msgid "Labs page update required"
 msgstr "Labs page update required"
 
@@ -4609,7 +4620,7 @@ msgstr "Labs page update required"
 msgid "Lactate Threshold HR"
 msgstr "Lactate Threshold HR"
 
-#: src/pages/Settings.tsx:795
+#: src/pages/Settings.tsx:796
 msgid "Language"
 msgstr "Language"
 
@@ -4658,12 +4669,12 @@ msgid "Last known: {systemicTitle}"
 msgstr "Last known: {systemicTitle}"
 
 #. placeholder {0}: status.error
-#: src/pages/Settings.tsx:1006
+#: src/pages/Settings.tsx:1007
 msgid "Last sync failed: {0}"
 msgstr "Last sync failed: {0}"
 
 #. placeholder {0}: new Date(status.last_sync).toLocaleString()
-#: src/pages/Settings.tsx:1000
+#: src/pages/Settings.tsx:1001
 msgid "Last synced {0}"
 msgstr "Last synced {0}"
 
@@ -4766,7 +4777,7 @@ msgstr "Likely adapted to similar recent conditions."
 msgid "Link a supported platform to pull your training data"
 msgstr "Link a supported platform to pull your training data"
 
-#: src/pages/Setup.tsx:614
+#: src/pages/Setup.tsx:615
 msgid "Link at least one data source to start"
 msgstr "Link at least one data source to start"
 
@@ -4783,7 +4794,7 @@ msgstr "Link text (optional)"
 msgid "Link URL (optional)"
 msgstr "Link URL (optional)"
 
-#: src/pages/Settings.tsx:828
+#: src/pages/Settings.tsx:829
 msgid "Link your training devices and services"
 msgstr "Link your training devices and services"
 
@@ -4929,7 +4940,7 @@ msgstr "Low"
 msgid "Low coverage"
 msgstr "Low coverage"
 
-#: src/pages/Settings.tsx:103
+#: src/pages/Settings.tsx:104
 msgid "LTHR"
 msgstr "LTHR"
 
@@ -5083,8 +5094,8 @@ msgstr "manual recomputes remaining"
 
 #: src/components/GoalEditor.tsx:81
 #: src/lib/display-labels.ts:66
-#: src/pages/Settings.tsx:185
-#: src/pages/Settings.tsx:1414
+#: src/pages/Settings.tsx:186
+#: src/pages/Settings.tsx:1418
 msgid "Marathon"
 msgstr "Marathon"
 
@@ -5097,7 +5108,7 @@ msgstr "Matched"
 msgid "MAU"
 msgstr "MAU"
 
-#: src/pages/Settings.tsx:105
+#: src/pages/Settings.tsx:106
 msgid "Max HR"
 msgstr "Max HR"
 
@@ -5215,7 +5226,7 @@ msgstr "Mixed providers"
 msgid "Mobility"
 msgstr "Mobility"
 
-#: src/pages/Settings.tsx:1406
+#: src/pages/Settings.tsx:1410
 msgid "Mode"
 msgstr "Mode"
 
@@ -5322,7 +5333,7 @@ msgid "Move up"
 msgstr "Move up"
 
 #. placeholder {0}: primaryPrompt?.category
-#: src/pages/Setup.tsx:1114
+#: src/pages/Setup.tsx:1119
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 
@@ -5404,8 +5415,8 @@ msgid "negative balance"
 msgstr "negative balance"
 
 #: src/pages/admin/AdminOps.tsx:407
-#: src/pages/Settings.tsx:611
-#: src/pages/Settings.tsx:641
+#: src/pages/Settings.tsx:612
+#: src/pages/Settings.tsx:642
 msgid "Network error"
 msgstr "Network error"
 
@@ -5481,7 +5492,7 @@ msgstr "Next"
 msgid "Next plan window"
 msgstr "Next plan window"
 
-#: src/pages/Settings.tsx:876
+#: src/pages/Settings.tsx:877
 msgid "Next sync"
 msgstr "Next sync"
 
@@ -5635,7 +5646,7 @@ msgstr "No feedback rows are waiting for review or retry."
 #~ msgid "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
 #~ msgstr "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
 
-#: src/pages/Settings.tsx:1434
+#: src/pages/Settings.tsx:1438
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 msgstr "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 
@@ -5887,7 +5898,7 @@ msgstr "Not actionable"
 msgid "Not an all-out 5K effort"
 msgstr "Not an all-out 5K effort"
 
-#: src/pages/Settings.tsx:935
+#: src/pages/Settings.tsx:936
 msgid "Not connected"
 msgstr "Not connected"
 
@@ -5963,7 +5974,7 @@ msgstr "Not required"
 msgid "Not safely representable"
 msgstr "Not safely representable"
 
-#: src/pages/Settings.tsx:1497
+#: src/pages/Settings.tsx:1501
 msgid "Not set"
 msgstr "Not set"
 
@@ -5979,7 +5990,7 @@ msgstr "Note (optional)"
 msgid "Note deleted"
 msgstr "Note deleted"
 
-#: src/pages/Settings.tsx:1274
+#: src/pages/Settings.tsx:1278
 msgid "Note on Garmin native power"
 msgstr "Note on Garmin native power"
 
@@ -6216,7 +6227,7 @@ msgstr "Optional"
 msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
 msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
 
-#: src/pages/Setup.tsx:861
+#: src/pages/Setup.tsx:862
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "Optional — you can always set this later from the Goal page"
 
@@ -6320,8 +6331,8 @@ msgstr "Ownership conflict"
 #: src/components/ActivityCard.tsx:122
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
-#: src/pages/Settings.tsx:91
-#: src/pages/Setup.tsx:185
+#: src/pages/Settings.tsx:92
+#: src/pages/Setup.tsx:186
 msgid "Pace"
 msgstr "Pace"
 
@@ -6394,7 +6405,7 @@ msgstr "Passive fastest 10K splits, best laps, or hard sections inside longer ru
 #: src/pages/admin/AdminUsers.tsx:991
 #: src/pages/Login.tsx:368
 #: src/pages/Login.tsx:565
-#: src/pages/Setup.tsx:218
+#: src/pages/Setup.tsx:219
 msgid "Password"
 msgstr "Password"
 
@@ -6461,11 +6472,11 @@ msgstr "Percentage of the athlete's current critical power."
 msgid "Percentage of the athlete's lactate-threshold heart rate."
 msgstr "Percentage of the athlete's lactate-threshold heart rate."
 
-#: src/pages/Settings.tsx:1598
+#: src/pages/Settings.tsx:1602
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 msgstr "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 
-#: src/pages/Setup.tsx:219
+#: src/pages/Setup.tsx:220
 msgid "Personal Access Token"
 msgstr "Personal Access Token"
 
@@ -6477,8 +6488,8 @@ msgstr "Personal only"
 msgid "Pick a date"
 msgstr "Pick a date"
 
-#: src/pages/Settings.tsx:59
-#: src/pages/Setup.tsx:229
+#: src/pages/Settings.tsx:60
+#: src/pages/Setup.tsx:230
 msgid "Plan"
 msgstr "Plan"
 
@@ -6651,8 +6662,8 @@ msgstr "PostgreSQL connections"
 
 #: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
-#: src/pages/Settings.tsx:73
-#: src/pages/Setup.tsx:181
+#: src/pages/Settings.tsx:74
+#: src/pages/Setup.tsx:182
 msgid "Power"
 msgstr "Power"
 
@@ -6692,7 +6703,7 @@ msgstr "Power ceiling (W)"
 msgid "Power floor (W)"
 msgstr "Power floor (W)"
 
-#: src/pages/Setup.tsx:201
+#: src/pages/Setup.tsx:202
 msgid "Power metrics, Critical Power, training plans"
 msgstr "Power metrics, Critical Power, training plans"
 
@@ -6776,7 +6787,7 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/App.tsx:106
+#: src/App.tsx:113
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
@@ -6958,7 +6969,7 @@ msgstr "Preferred longest-run day"
 msgid "Prepare to complete the selected distance."
 msgstr "Prepare to complete the selected distance."
 
-#: src/pages/Settings.tsx:1583
+#: src/pages/Settings.tsx:1587
 msgid "Preparing export..."
 msgstr "Preparing export..."
 
@@ -6976,11 +6987,11 @@ msgid "Previous plan window"
 msgstr "Previous plan window"
 
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
-#: src/pages/Settings.tsx:992
+#: src/pages/Settings.tsx:993
 msgid "Primary for {0}"
 msgstr "Primary for {0}"
 
-#: src/pages/Settings.tsx:67
+#: src/pages/Settings.tsx:68
 msgid "Primary source for workout data"
 msgstr "Primary source for workout data"
 
@@ -7054,7 +7065,7 @@ msgstr "Product value"
 #~ msgid "productive load"
 #~ msgstr "productive load"
 
-#: src/pages/Settings.tsx:728
+#: src/pages/Settings.tsx:729
 msgid "Profile"
 msgstr "Profile"
 
@@ -7238,7 +7249,7 @@ msgstr "Race"
 msgid "Race date"
 msgstr "Race date"
 
-#: src/pages/Settings.tsx:1419
+#: src/pages/Settings.tsx:1423
 msgid "Race Date"
 msgstr "Race Date"
 
@@ -7254,11 +7265,11 @@ msgstr "Race forecast"
 msgid "Race goal"
 msgstr "Race goal"
 
-#: src/pages/Settings.tsx:1408
+#: src/pages/Settings.tsx:1412
 msgid "Race Goal"
 msgstr "Race Goal"
 
-#: src/pages/Setup.tsx:852
+#: src/pages/Setup.tsx:853
 msgid "Race goal configured"
 msgstr "Race goal configured"
 
@@ -7502,14 +7513,14 @@ msgstr "Recommendation available"
 msgid "Recommendations"
 msgstr "Recommendations"
 
-#: src/pages/Settings.tsx:898
+#: src/pages/Settings.tsx:899
 msgid "recommended"
 msgstr "recommended"
 
 #: src/pages/Science.tsx:416
 #: src/pages/Science.tsx:591
-#: src/pages/Setup.tsx:695
-#: src/pages/Setup.tsx:831
+#: src/pages/Setup.tsx:696
+#: src/pages/Setup.tsx:832
 msgid "Recommended"
 msgstr "Recommended"
 
@@ -7601,9 +7612,9 @@ msgstr "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 #: src/lib/display-labels.ts:42
 #: src/lib/phase-label.ts:16
 #: src/pages/Science.tsx:26
-#: src/pages/Settings.tsx:57
-#: src/pages/Settings.tsx:68
-#: src/pages/Setup.tsx:227
+#: src/pages/Settings.tsx:58
+#: src/pages/Settings.tsx:69
+#: src/pages/Setup.tsx:228
 msgid "Recovery"
 msgstr "Recovery"
 
@@ -7684,8 +7695,8 @@ msgstr "Recovery was skipped because delivery eligibility changed. Review the re
 msgid "Red-flag symptoms"
 msgstr "Red-flag symptoms"
 
-#: src/pages/Settings.tsx:1215
-#: src/pages/Setup.tsx:1089
+#: src/pages/Settings.tsx:1219
+#: src/pages/Setup.tsx:1094
 msgid "Redirecting..."
 msgstr "Redirecting..."
 
@@ -7755,11 +7766,11 @@ msgstr "Regenerate successor"
 msgid "Regenerating…"
 msgstr "Regenerating…"
 
-#: src/pages/Settings.tsx:1014
-#: src/pages/Settings.tsx:1113
-#: src/pages/Settings.tsx:1138
-#: src/pages/Setup.tsx:966
-#: src/pages/Setup.tsx:987
+#: src/pages/Settings.tsx:1015
+#: src/pages/Settings.tsx:1117
+#: src/pages/Settings.tsx:1142
+#: src/pages/Setup.tsx:971
+#: src/pages/Setup.tsx:992
 msgid "Region"
 msgstr "Region"
 
@@ -7831,7 +7842,7 @@ msgstr "Relative modeled HR"
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
-#: src/App.tsx:115
+#: src/App.tsx:122
 msgid "Reload Labs"
 msgstr "Reload Labs"
 
@@ -8003,7 +8014,7 @@ msgstr "Rest, walk, or do gentle mobility"
 msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
 msgstr "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
 
-#: src/pages/Settings.tsx:106
+#: src/pages/Settings.tsx:107
 msgid "Resting HR"
 msgstr "Resting HR"
 
@@ -8068,7 +8079,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/pages/LabsEnvironment.tsx:377
 #: src/pages/LabsEnvironment.tsx:1105
 #: src/pages/McpAuthorization.tsx:202
-#: src/pages/Settings.tsx:335
+#: src/pages/Settings.tsx:336
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
 msgid "Retry"
@@ -8380,7 +8391,7 @@ msgstr "Run easy instead"
 msgid "Run p95"
 msgstr "Run p95"
 
-#: src/pages/Setup.tsx:169
+#: src/pages/Setup.tsx:170
 msgid "Running"
 msgstr "Running"
 
@@ -8570,8 +8581,8 @@ msgstr "Seconds per kilometre faster or slower than threshold pace."
 msgid "Seconds per mile faster or slower than threshold pace."
 msgstr "Seconds per mile faster or slower than threshold pace."
 
-#: src/pages/Settings.tsx:1165
-#: src/pages/Setup.tsx:1060
+#: src/pages/Settings.tsx:1169
+#: src/pages/Setup.tsx:1065
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 
@@ -8599,7 +8610,7 @@ msgstr "Select availability, then give the same supported session limit for each
 msgid "Select one item to edit. Repeat children stay visibly nested."
 msgstr "Select one item to edit. Repeat children stay visibly nested."
 
-#: src/pages/Settings.tsx:1157
+#: src/pages/Settings.tsx:1161
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
 
@@ -8719,7 +8730,7 @@ msgstr "Service Status"
 #~ msgstr "Set a current power threshold before workload can contribute."
 
 #: src/components/SetupChecklist.tsx:71
-#: src/pages/Setup.tsx:843
+#: src/pages/Setup.tsx:844
 msgid "Set a goal"
 msgstr "Set a goal"
 
@@ -8728,8 +8739,8 @@ msgid "Set a power threshold so Praxys can identify sustained work without using
 msgstr "Set a power threshold so Praxys can identify sustained work without using diluted activity-average power."
 
 #: src/components/SetupChecklist.tsx:75
-#: src/pages/Settings.tsx:1398
-#: src/pages/Setup.tsx:864
+#: src/pages/Settings.tsx:1402
+#: src/pages/Setup.tsx:865
 msgid "Set goal"
 msgstr "Set goal"
 
@@ -8742,7 +8753,7 @@ msgstr "Set goal"
 #~ msgid "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 #~ msgstr "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 
-#: src/pages/Setup.tsx:587
+#: src/pages/Setup.tsx:588
 msgid "Set up Praxys"
 msgstr "Set up Praxys"
 
@@ -8754,12 +8765,12 @@ msgstr "Set your goal"
 #~ msgid "Set Your Goal"
 #~ msgstr "Set Your Goal"
 
-#: src/pages/Settings.tsx:769
+#: src/pages/Settings.tsx:770
 msgid "Set your name"
 msgstr "Set your name"
 
 #: src/components/AppSidebar.tsx:139
-#: src/pages/Settings.tsx:701
+#: src/pages/Settings.tsx:702
 msgid "Settings"
 msgstr "Settings"
 
@@ -8870,7 +8881,7 @@ msgstr "Signing in…"
 msgid "Single-session limit (minutes)"
 msgstr "Single-session limit (minutes)"
 
-#: src/pages/Setup.tsx:879
+#: src/pages/Setup.tsx:880
 msgid "Skip for now"
 msgstr "Skip for now"
 
@@ -8893,11 +8904,11 @@ msgstr "Sleep score is low ({sleep}). Consider reducing today's intensity."
 msgid "Sleep Score vs {metricLabel}"
 msgstr "Sleep Score vs {metricLabel}"
 
-#: src/pages/Setup.tsx:202
+#: src/pages/Setup.tsx:203
 msgid "Sleep score, HRV, readiness"
 msgstr "Sleep score, HRV, readiness"
 
-#: src/pages/Settings.tsx:68
+#: src/pages/Settings.tsx:69
 msgid "Sleep, HRV, readiness"
 msgstr "Sleep, HRV, readiness"
 
@@ -8990,7 +9001,7 @@ msgstr "Standardized track 10K time trial"
 msgid "Start a training plan"
 msgstr "Start a training plan"
 
-#: src/pages/Setup.tsx:715
+#: src/pages/Setup.tsx:716
 msgid "Start sync"
 msgstr "Start sync"
 
@@ -9089,17 +9100,17 @@ msgstr "Stopping or declining preserves your account and the no-test path."
 msgid "Stored until"
 msgstr "Stored until"
 
-#: src/pages/Settings.tsx:1188
+#: src/pages/Settings.tsx:1192
 msgid "Strava Client ID"
 msgstr "Strava Client ID"
 
-#: src/pages/Settings.tsx:1197
+#: src/pages/Settings.tsx:1201
 msgid "Strava Client Secret"
 msgstr "Strava Client Secret"
 
 #: src/components/UpcomingPlanCard.tsx:570
 #: src/components/WorkoutPlanEditor.tsx:448
-#: src/pages/Setup.tsx:174
+#: src/pages/Setup.tsx:175
 msgid "Strength"
 msgstr "Strength"
 
@@ -9209,7 +9220,7 @@ msgstr "Supported"
 msgid "Swap {workout} for easy run"
 msgstr "Swap {workout} for easy run"
 
-#: src/pages/Setup.tsx:171
+#: src/pages/Setup.tsx:172
 msgid "Swimming"
 msgstr "Swimming"
 
@@ -9244,7 +9255,7 @@ msgid "Symptom stop applies"
 msgstr "Symptom stop applies"
 
 #: src/components/SetupChecklist.tsx:59
-#: src/pages/Settings.tsx:957
+#: src/pages/Settings.tsx:958
 msgid "Sync"
 msgstr "Sync"
 
@@ -9252,7 +9263,7 @@ msgstr "Sync"
 #~ msgid "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 #~ msgstr "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 
-#: src/pages/Settings.tsx:835
+#: src/pages/Settings.tsx:836
 msgid "Sync All"
 msgstr "Sync All"
 
@@ -9264,7 +9275,7 @@ msgstr "Sync All"
 #~ msgid "Sync at least 6 weeks of activity data to see meaningful fitness, fatigue, and form curves."
 #~ msgstr "Sync at least 6 weeks of activity data to see meaningful fitness, fatigue, and form curves."
 
-#: src/pages/Setup.tsx:789
+#: src/pages/Setup.tsx:790
 msgid "Sync complete! Your data is ready."
 msgstr "Sync complete! Your data is ready."
 
@@ -9276,11 +9287,11 @@ msgstr "Sync failed."
 msgid "Sync from GitHub"
 msgstr "Sync from GitHub"
 
-#: src/pages/Settings.tsx:843
+#: src/pages/Settings.tsx:844
 msgid "Sync from:"
 msgstr "Sync from:"
 
-#: src/pages/Setup.tsx:680
+#: src/pages/Setup.tsx:681
 msgid "Sync history"
 msgstr "Sync history"
 
@@ -9334,11 +9345,11 @@ msgstr "Sync target to review"
 #~ msgstr "Sync training data to start a heat history."
 
 #: src/components/SetupChecklist.tsx:55
-#: src/pages/Setup.tsx:666
+#: src/pages/Setup.tsx:667
 msgid "Sync your data"
 msgstr "Sync your data"
 
-#: src/pages/Settings.tsx:953
+#: src/pages/Settings.tsx:954
 msgid "Synced"
 msgstr "Synced"
 
@@ -9351,11 +9362,11 @@ msgstr "Synced <0>{0}</0>"
 #~ msgid "Synced to Stryd. Click to re-push."
 #~ msgstr "Synced to Stryd. Click to re-push."
 
-#: src/pages/Settings.tsx:950
+#: src/pages/Settings.tsx:951
 msgid "Syncing"
 msgstr "Syncing"
 
-#: src/pages/Setup.tsx:712
+#: src/pages/Setup.tsx:713
 msgid "Syncing..."
 msgstr "Syncing..."
 
@@ -9410,8 +9421,8 @@ msgid "Target {metricName}"
 msgstr "Target {metricName}"
 
 #: src/components/SetupChecklist.tsx:72
-#: src/pages/Settings.tsx:1394
-#: src/pages/Setup.tsx:844
+#: src/pages/Settings.tsx:1398
+#: src/pages/Setup.tsx:845
 msgid "Target a race or track continuous improvement"
 msgstr "Target a race or track continuous improvement"
 
@@ -9433,7 +9444,7 @@ msgstr "Target range"
 msgid "Target time"
 msgstr "Target time"
 
-#: src/pages/Settings.tsx:1425
+#: src/pages/Settings.tsx:1429
 msgid "Target Time"
 msgstr "Target Time"
 
@@ -9925,7 +9936,7 @@ msgstr "This candidate uses a separate plan purpose and does not change your cur
 msgid "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 
-#: src/pages/Settings.tsx:1605
+#: src/pages/Settings.tsx:1609
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "This cannot be undone. If this is the last admin account, deletion will be blocked."
 
@@ -10086,7 +10097,7 @@ msgstr "This link is invalid, expired, or belongs to another account. Start a ne
 msgid "This page refreshes automatically every 30 seconds."
 msgstr "This page refreshes automatically every 30 seconds."
 
-#: src/pages/Settings.tsx:1627
+#: src/pages/Settings.tsx:1631
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 msgstr "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 
@@ -10238,7 +10249,7 @@ msgid "Threshold"
 msgstr "Threshold"
 
 #: src/lib/display-labels.ts:60
-#: src/pages/Settings.tsx:104
+#: src/pages/Settings.tsx:105
 msgid "Threshold Pace"
 msgstr "Threshold Pace"
 
@@ -10246,7 +10257,7 @@ msgstr "Threshold Pace"
 msgid "Threshold Pace Trend"
 msgstr "Threshold Pace Trend"
 
-#: src/pages/Settings.tsx:1462
+#: src/pages/Settings.tsx:1466
 msgid "Thresholds"
 msgstr "Thresholds"
 
@@ -10389,7 +10400,7 @@ msgstr "Train toward a specific race date"
 msgid "Training"
 msgstr "Training"
 
-#: src/pages/Settings.tsx:1238
+#: src/pages/Settings.tsx:1242
 msgid "Training Base"
 msgstr "Training Base"
 
@@ -10522,7 +10533,7 @@ msgstr "Turning on…"
 msgid "Type"
 msgstr "Type"
 
-#: src/pages/Settings.tsx:1634
+#: src/pages/Settings.tsx:1638
 msgid "Type DELETE to confirm."
 msgstr "Type DELETE to confirm."
 
@@ -10593,7 +10604,7 @@ msgstr "Undo"
 #~ msgid "Unit: watts · Reference: absolute"
 #~ msgstr "Unit: watts · Reference: absolute"
 
-#: src/pages/Settings.tsx:781
+#: src/pages/Settings.tsx:782
 msgid "Units"
 msgstr "Units"
 
@@ -10711,7 +10722,7 @@ msgstr "Updated the 5K baseline."
 msgid "Updating…"
 msgstr "Updating…"
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "US"
 msgstr "US"
 
@@ -10780,11 +10791,11 @@ msgstr "Use the Training plan preview to add, date, or decline an optional bench
 msgid "Use this {target} workout in Praxys?"
 msgstr "Use this {target} workout in Praxys?"
 
-#: src/pages/Setup.tsx:208
+#: src/pages/Setup.tsx:209
 msgid "Use your Garmin Connect credentials."
 msgstr "Use your Garmin Connect credentials."
 
-#: src/pages/Setup.tsx:210
+#: src/pages/Setup.tsx:211
 msgid "Use your Stryd account credentials (stryd.com)."
 msgstr "Use your Stryd account credentials (stryd.com)."
 
@@ -10829,8 +10840,8 @@ msgstr "Users and access"
 msgid "Users unavailable"
 msgstr "Users unavailable"
 
-#: src/pages/Settings.tsx:1070
-#: src/pages/Setup.tsx:923
+#: src/pages/Settings.tsx:1074
+#: src/pages/Setup.tsx:928
 msgid "Verification code"
 msgstr "Verification code"
 
@@ -10842,8 +10853,8 @@ msgstr "Verification email sent. Check your inbox."
 msgid "Verification failed"
 msgstr "Verification failed"
 
-#: src/pages/Settings.tsx:1088
-#: src/pages/Setup.tsx:941
+#: src/pages/Settings.tsx:1092
+#: src/pages/Setup.tsx:946
 msgid "Verify"
 msgstr "Verify"
 
@@ -10855,8 +10866,8 @@ msgstr "Verifying"
 msgid "Verifying your email…"
 msgstr "Verifying your email…"
 
-#: src/pages/Settings.tsx:1088
-#: src/pages/Setup.tsx:941
+#: src/pages/Settings.tsx:1092
+#: src/pages/Setup.tsx:946
 msgid "Verifying..."
 msgstr "Verifying..."
 
@@ -10868,7 +10879,7 @@ msgstr "view"
 msgid "View status"
 msgstr "View status"
 
-#: src/pages/Settings.tsx:703
+#: src/pages/Settings.tsx:704
 msgid "Viewing configuration (read-only demo)"
 msgstr "Viewing configuration (read-only demo)"
 
@@ -10876,7 +10887,7 @@ msgstr "Viewing configuration (read-only demo)"
 msgid "VO2max"
 msgstr "VO2max"
 
-#: src/pages/Settings.tsx:1377
+#: src/pages/Settings.tsx:1381
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max, CP, LTHR, training status"
 
@@ -10916,7 +10927,7 @@ msgstr "Waitlist unavailable"
 
 #: src/components/UpcomingPlanCard.tsx:568
 #: src/components/WorkoutPlanEditor.tsx:446
-#: src/pages/Setup.tsx:173
+#: src/pages/Setup.tsx:174
 msgid "Walking"
 msgstr "Walking"
 
@@ -11101,6 +11112,12 @@ msgstr "What was useful or missing?"
 msgid "What's your training goal? (optional)"
 msgstr "What's your training goal? (optional)"
 
+#. placeholder {0}: provider.label
+#. placeholder {1}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:44
+msgid "When you continue, Praxys sends the authentication details needed for this connection to {0} and retrieves the activity, route, fitness, recovery, or plan data that this connection supports. {1} may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+msgstr "When you continue, Praxys sends the authentication details needed for this connection to {0} and retrieves the activity, route, fitness, recovery, or plan data that this connection supports. {1} may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+
 #: src/pages/Settings.tsx:67
 #~ msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
 #~ msgstr "Where Praxys pushes your plan. Per-workout sync state shows in Training."
@@ -11121,7 +11138,7 @@ msgstr "Why this is conservative"
 msgid "Why this remains experimental"
 msgstr "Why this remains experimental"
 
-#: src/pages/Setup.tsx:900
+#: src/pages/Setup.tsx:901
 msgid "Will sync:"
 msgstr "Will sync:"
 
@@ -11322,7 +11339,7 @@ msgstr "Your comparable range"
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 msgstr "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 
-#: src/pages/Settings.tsx:639
+#: src/pages/Settings.tsx:640
 msgid "Your data export is downloading."
 msgstr "Your data export is downloading."
 
@@ -11334,7 +11351,7 @@ msgstr "Your data export is downloading."
 msgid "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 msgstr "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 
-#: src/pages/Settings.tsx:1563
+#: src/pages/Settings.tsx:1567
 msgid "Your export is a portable snapshot of the data stored in Praxys."
 msgstr "Your export is a portable snapshot of the data stored in Praxys."
 
@@ -11342,8 +11359,8 @@ msgstr "Your export is a portable snapshot of the data stored in Praxys."
 msgid "Your external planner remains in control."
 msgstr "Your external planner remains in control."
 
-#: src/pages/Settings.tsx:1067
-#: src/pages/Setup.tsx:920
+#: src/pages/Settings.tsx:1071
+#: src/pages/Setup.tsx:925
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 
@@ -11359,11 +11376,11 @@ msgstr "Your historical environmental-response curve"
 msgid "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 msgstr "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 
-#: src/pages/Settings.tsx:729
+#: src/pages/Settings.tsx:730
 msgid "Your identity in Praxys"
 msgstr "Your identity in Praxys"
 
-#: src/pages/Settings.tsx:755
+#: src/pages/Settings.tsx:756
 msgid "Your name"
 msgstr "Your name"
 
@@ -11405,11 +11422,11 @@ msgstr "Your result needs recomputing"
 msgid "Your source data changed while this result was being computed."
 msgstr "Your source data changed while this result was being computed."
 
-#: src/pages/Settings.tsx:1190
+#: src/pages/Settings.tsx:1194
 msgid "Your Strava API Client ID"
 msgstr "Your Strava API Client ID"
 
-#: src/pages/Settings.tsx:1200
+#: src/pages/Settings.tsx:1204
 msgid "Your Strava API Client Secret"
 msgstr "Your Strava API Client Secret"
 
@@ -11445,8 +11462,8 @@ msgstr "Zone labels"
 #~ msgid "Zone Labels"
 #~ msgstr "Zone Labels"
 
-#: src/pages/Settings.tsx:74
-#: src/pages/Setup.tsx:181
+#: src/pages/Settings.tsx:75
+#: src/pages/Setup.tsx:182
 msgid "Zones & load from Critical Power"
 msgstr "Zones & load from Critical Power"
 
@@ -11454,12 +11471,12 @@ msgstr "Zones & load from Critical Power"
 #~ msgid "Zones & load from Critical Power (best with Stryd)"
 #~ msgstr "Zones & load from Critical Power (best with Stryd)"
 
-#: src/pages/Settings.tsx:83
-#: src/pages/Setup.tsx:183
+#: src/pages/Settings.tsx:84
+#: src/pages/Setup.tsx:184
 msgid "Zones & load from Lactate Threshold HR"
 msgstr "Zones & load from Lactate Threshold HR"
 
-#: src/pages/Settings.tsx:92
-#: src/pages/Setup.tsx:185
+#: src/pages/Settings.tsx:93
+#: src/pages/Setup.tsx:186
 msgid "Zones & load from Threshold Pace"
 msgstr "Zones & load from Threshold Pace"

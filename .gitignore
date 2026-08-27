@@ -24,6 +24,9 @@ __pycache__/
 .env
 .private-deps/
 .garmin_tokens/
+/sync/.garmin_tokens
+/sync/.garmin_token_locks/
+/sync/.garmin_token_migration.lock
 .pytest_cache/
 
 # Build version stamp written by deploy-backend.yml — read by

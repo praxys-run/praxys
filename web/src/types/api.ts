@@ -8,7 +8,60 @@ export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones' | 'heat
  * so consumers don't need to handle a missing field. */
 export interface VersionResponse {
   version: string;
+  source_sha: string | null;
 }
+
+export interface ChinaProcessingStatus {
+  enabled: boolean;
+  disabled: boolean;
+  registry_configured: boolean;
+  approved_release_count: number;
+  registry_sha256: string | null;
+  notice_version: string;
+  legal_digest: string;
+  api_contract_version: string;
+}
+
+export type HealthReadyResponse =
+  | {
+      status: 'ready';
+      database: 'ok';
+      optional_processing: {
+        background_ai_enabled: boolean;
+        feedback_publication_enabled: boolean;
+      };
+      china_processing: ChinaProcessingStatus;
+    }
+  | { status: 'unavailable'; database: 'error' }
+  | {
+      status: 'unavailable';
+      database: 'ok';
+      privacy_controls: 'invalid';
+    };
+
+export type ClientPrivacyUpdateRequiredDetail =
+  | {
+      code: 'CLIENT_PRIVACY_UPDATE_REQUIRED';
+      client: 'cn-web';
+      message: string;
+      notice_version: string;
+    }
+  | {
+      code: 'CLIENT_PRIVACY_UPDATE_REQUIRED';
+      client: 'wechat-miniapp';
+      message: string;
+      notice_version: string;
+      minimum_version: string;
+    };
+
+export interface ChinaClientUnavailableErrorDetail {
+  code: 'CN_PROCESSING_DISABLED' | 'CN_CLIENT_REGISTRY_UNAVAILABLE';
+  message: string;
+}
+
+export type ChinaClientBoundaryErrorResponse =
+  | { detail: ClientPrivacyUpdateRequiredDetail }
+  | { detail: ChinaClientUnavailableErrorDetail };
 
 export interface TsbZoneConfig {
   min: number | null;
@@ -217,7 +270,7 @@ export type PlatformConnectionStatus =
   | 'disconnected';
 
 export interface PlatformConnection {
-  status: PlatformConnectionStatus;
+  status: PlatformConnectionStatus | null;
   last_sync: string | null;
   has_credentials: boolean;
   // Scheduler retry-state surfaced for UI: when status is "error", the
@@ -232,8 +285,42 @@ export interface PlatformConnection {
 }
 
 export interface ConnectionsResponse {
-  connections: Partial<Record<PlatformName, PlatformConnection>>;
+  connections: Record<string, PlatformConnection>;
 }
+
+export interface CurrentUserProfile {
+  id: string;
+  email: string;
+  is_superuser: boolean;
+  is_demo: boolean;
+  created_at: string | null;
+  terms_version: string | null;
+  terms_digest: string | null;
+  terms_current: boolean;
+}
+
+export interface TermsAcceptanceResponse {
+  terms_version: string;
+  terms_digest: string;
+  terms_current: true;
+  terms_accepted_at: string;
+}
+
+export interface TermsAcceptanceRequiredErrorDetail {
+  code: 'TERMS_ACCEPTANCE_REQUIRED';
+  terms_version: string;
+  terms_digest: string;
+}
+
+export interface TermsBundleMismatchErrorDetail {
+  code: 'TERMS_BUNDLE_MISMATCH';
+  terms_version: string;
+  terms_digest: string;
+}
+
+export type LegalContractErrorResponse =
+  | { detail: TermsAcceptanceRequiredErrorDetail }
+  | { detail: TermsBundleMismatchErrorDetail };
 
 export interface StravaOAuthStartRequest {
   web_origin: string;
@@ -2270,15 +2357,127 @@ export interface UserDataExportRoad10KPlanGeneration {
   records: UserDataExportRoad10KGeneration[];
 }
 
+export interface UserDataExportAccount {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_verified: boolean;
+  created_at: string | null;
+  last_seen_at: string | null;
+  terms_version: string | null;
+  terms_digest: string | null;
+  terms_accepted_at: string | null;
+  wechat_openid: string | null;
+  wechat_unionid: string | null;
+  wechat_nickname: string | null;
+  wechat_avatar_url: string | null;
+}
+
+export interface UserDataExportConnection {
+  platform: string;
+  preferences: Record<string, unknown> | null;
+  last_sync: string | null;
+  status: PlatformConnectionStatus | null;
+  consecutive_failures: number;
+  next_retry_at: string | null;
+  last_error: string | null;
+  tokens_updated_at: string | null;
+}
+
+export interface UserDataExportActivitySample {
+  activity_id: string;
+  source: string | null;
+  t_sec: number;
+  power_watts: number | null;
+  hr_bpm: number | null;
+  speed_ms: number | null;
+  pace_sec_km: number | null;
+  cadence_spm: number | null;
+  altitude_m: number | null;
+  distance_m: number | null;
+  lat: number | null;
+  lng: number | null;
+  grade_pct: number | null;
+  temperature_c: number | null;
+  ground_time_ms: number | null;
+  oscillation_mm: number | null;
+  leg_spring_kn_m: number | null;
+  vertical_ratio: number | null;
+  form_power_watts: number | null;
+  respiration_rate: number | null;
+}
+
+export interface UserDataExportAiInsight {
+  insight_type: string;
+  headline: string | null;
+  summary: string | null;
+  findings: unknown[] | null;
+  recommendations: unknown[] | null;
+  meta: Record<string, unknown> | null;
+  translations: Record<string, unknown> | null;
+  generated_at: string | null;
+}
+
+export interface UserDataExportAiInsightFeedback {
+  insight_type: string;
+  dataset_hash: string;
+  vote: "up" | "down";
+  submitted_at: string;
+}
+
+export interface UserDataExportFeedback {
+  id: number;
+  kind: string;
+  message: string;
+  context: Record<string, unknown> | null;
+  locale: string | null;
+  status: string;
+  ai_title: string | null;
+  ai_body: string | null;
+  ai_labels: string[] | null;
+  priority: string | null;
+  github_issue_number: number | null;
+  github_issue_url: string | null;
+  error: string | null;
+  private_image_count: number;
+  private_image_downloads: string[];
+  image_description: string | null;
+  image_sensitive: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserDataExportTermsAcceptanceReceipt {
+  id: string;
+  action: string;
+  terms_version: string;
+  terms_digest: string;
+  locale: string | null;
+  channel: string;
+  client_version: string | null;
+  source_sha: string | null;
+  notice_version: string | null;
+  release_id: string | null;
+  accepted_at: string;
+}
+
 export interface UserDataExportResponse {
-  schema_version: 5;
+  schema_version: 6;
   exported_at: string;
+  account: UserDataExportAccount;
   user_config: UserDataExportConfig;
+  connections: UserDataExportConnection[];
   activities: UserDataExportActivity[];
   activity_splits: UserDataExportActivitySplit[];
+  activity_samples: UserDataExportActivitySample[];
   recovery: UserDataExportRecovery[];
   fitness: UserDataExportFitness[];
   training_plans: UserDataExportTrainingPlan[];
+  ai_insights: UserDataExportAiInsight[];
+  ai_insight_feedback: UserDataExportAiInsightFeedback[];
+  feedback: UserDataExportFeedback[];
+  terms_acceptance_receipts: UserDataExportTermsAcceptanceReceipt[];
   adaptive_plan_proposals: UserDataExportAdaptivePlanProposals;
   goal_baseline: UserDataExportGoalBaseline;
   outdoor_5k_plan_generation: UserDataExportOutdoor5KPlanGeneration;
@@ -3689,7 +3888,7 @@ export type FeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
 /** Client → POST /api/feedback. `context` is auto-captured diagnostics
  * (page, app version, user agent, viewport, locale); the server scrubs it to
  * an allowlist before anything is published externally. */
-export interface FeedbackRequest {
+export type FeedbackRequest = {
   kind: FeedbackKind;
   message: string;
   context?: Record<string, string | number | boolean>;
@@ -3699,7 +3898,16 @@ export interface FeedbackRequest {
    * scrubbed description and sensitivity verdict — the raw image never reaches a
    * public issue. */
   images?: string[];
-}
+} & (
+  | {
+      external_publication_consent: true;
+      external_publication_consent_version: string;
+    }
+  | {
+      external_publication_consent?: false;
+      external_publication_consent_version?: never;
+    }
+);
 
 export interface FeedbackResponse {
   ok: boolean;

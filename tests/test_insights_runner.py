@@ -91,10 +91,68 @@ def db_session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    session.add(User(id=USER_ID, email="runner@example.test", hashed_password="x"))
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    session.add(User(
+        id=USER_ID,
+        email="runner@example.test",
+        hashed_password="x",
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+    ))
     session.commit()
     yield session
     session.close()
+
+
+@pytest.fixture(autouse=True)
+def enable_background_ai(monkeypatch):
+    """Existing runner tests exercise the explicitly enabled path."""
+    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+    monkeypatch.setattr(
+        insights_runner,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
+
+
+def test_background_ai_kill_switch_skips_before_context_build(
+    db_session, monkeypatch
+):
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+    monkeypatch.setattr(
+        insights_runner,
+        "_run_serialized",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("background AI must stop before context loading")
+        ),
+    )
+
+    assert insights_runner.run_insights_for_user(
+        USER_ID,
+        db_session,
+        {"activities": 1},
+        _session=db_session,
+    ) == {"skipped": "background_ai_disabled"}
+
+
+def test_background_ai_needs_purpose_authorization(
+    db_session,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        insights_runner,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: False,
+    )
+
+    assert insights_runner.run_insights_for_user(
+        USER_ID,
+        db_session,
+        {"activities": 1},
+        _session=db_session,
+    ) == {"skipped": "background_ai_authorization_required"}
 
 
 @pytest.fixture

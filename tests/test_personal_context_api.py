@@ -49,6 +49,7 @@ def context_api(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
@@ -58,12 +59,16 @@ def context_api(monkeypatch):
                 email="context-api-owner@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="context-api-other",
                 email="context-api-other@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
         ])
         db.commit()
@@ -715,7 +720,7 @@ def test_export_includes_all_versions_and_receipts_but_no_other_owner(
 
     complete = client.get("/api/me/export", headers=_headers())
     assert complete.status_code == 200, complete.text
-    assert complete.json()["schema_version"] == 5
+    assert complete.json()["schema_version"] == 6
     assert {
         item["id"]
         for item in complete.json()["personal_context"]["items"]

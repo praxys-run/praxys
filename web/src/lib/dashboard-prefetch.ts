@@ -6,8 +6,9 @@ import {
 export function initialDashboardUrl(
   pathname: string,
   hasToken: boolean,
+  personalDataRequestsAllowed: boolean = true,
 ): string | null {
-  if (!hasToken) return null;
+  if (!hasToken || !personalDataRequestsAllowed) return null;
   if (pathname === '/' || pathname === '/today') return '/api/today';
   if (pathname === '/training') {
     return planWindowUrl(MAX_MANAGED_PLAN_WINDOW_DAYS);

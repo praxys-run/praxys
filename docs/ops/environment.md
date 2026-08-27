@@ -24,25 +24,27 @@
 | Key Vault | `kv-trainsight` (`https://kv-trainsight.vault.azure.net`) | live `KEY_VAULT_URL` |
 | — RSA key | `trainsight-master-key` | live `KEY_VAULT_KEY_NAME` |
 | Frontend Application Insights | `appi-trainsight` (Application ID `d10e388f-3a26-4c3d-b57d-d83fc4637a9b`; browser/RUM, local auth enabled) | `.github/azure-observability.env` |
-| Backend Application Insights | `appi-praxys-backend` (Application ID `066f94a3-a340-498d-9ee1-6f093a7b8911`; managed-identity ingestion, local auth disabled) | `.github/azure-observability.env`, `scripts/appinsights_boundary.sh` |
-| Log Analytics workspace | `log-trainsight` (shared storage; queries must retain component scope / `_ResourceId`) | `.github/azure-observability.env` |
+| Backend Application Insights | `appi-praxys-backend` (Application ID `066f94a3-a340-498d-9ee1-6f093a7b8911`; managed-identity ingestion, local auth disabled, 30-day retention) | `.github/azure-observability.env`, `scripts/appinsights_boundary.sh`; live config verified 2026-08-22 |
+| Log Analytics workspace | `log-trainsight` (shared storage, 30-day retention; queries must retain component scope / `_ResourceId`) | `.github/azure-observability.env`; live config verified 2026-08-22 |
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
 | CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
 
-## Regional delivery target (gated; not current production)
+## Regional delivery target (proposed; pending operator approval and cutover)
 
 | Thing | Value | Source |
 |---|---|---|
-| Planned mainland frontend | EdgeOne Makers Git-integrated project `praxys-cn`; protected `main`, global area with mainland availability, managed HTTPS | [tencent-frontend.md](./tencent-frontend.md) |
-| Planned international frontend edge | Cloudflare Free authoritative zone for `praxys.run`, proxying only apex and `www` to Azure with `Full (strict)` | [tencent-frontend.md](./tencent-frontend.md) |
-| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net` | [tencent-frontend.md](./tencent-frontend.md) |
+| Proposed mainland frontend | EdgeOne Makers Git-integrated project `praxys-cn`; protected `main`, global area with mainland availability, managed HTTPS | [proposed ODR](./odr-2026-08-26-cn-provider-topology.md), [tencent-frontend.md](./tencent-frontend.md) |
+| Proposed international frontend edge | Cloudflare Free authoritative zone for `praxys.run`, proxying only apex and `www` to Azure with `Full (strict)` | [proposed ODR](./odr-2026-08-26-cn-provider-topology.md), [tencent-frontend.md](./tencent-frontend.md) |
+| Proposed preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net` | [proposed ODR](./odr-2026-08-26-cn-provider-topology.md), [tencent-frontend.md](./tencent-frontend.md) |
 
-The EdgeOne Git project and its first candidate deployment exist, but neither
-public `.cn` hostname is bound or resolving. The project UI does not expose a
-reliable Auto Deploy/Preview toggle, so the deployment boundary is protected
-`main`, required CI, exact source/manifest evidence, and a recorded deployment
-history entry. None of the public target-state rows becomes current until the
-runbook's Release Evidence exists.
+The EdgeOne Git project, first candidate deployment, ICP filing, and draft
+`PIPIA-CN-2026-08-25-01` exist, but the assessment is not yet operator-approved
+and neither public `.cn` hostname is bound or resolving. The project UI does
+not expose a reliable Auto Deploy/Preview toggle, so the deployment boundary
+is protected `main`, required CI, exact source/manifest evidence, and a
+recorded deployment history entry. None of the public target-state rows
+becomes current until the operator accepts the proposed ODR, approves the
+PIPIA, and the runbook's Release Evidence exists.
 
 ## Hostnames
 
@@ -50,7 +52,28 @@ runbook's Release Evidence exists.
 |---|---|
 | API | `https://api.praxys.run` |
 | Web app | `https://www.praxys.run` |
-| Planned mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (not cut over) |
+| Proposed mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (pending approval and cutover) |
+
+## China processing boundary
+
+- Core authenticated processing is proposed to remain in Azure East Asia
+  (Hong Kong SAR) under the pending operator decision in
+  [PIPIA-CN-2026-08-25-01](./cn-personal-information-impact-assessment.md).
+- `.cn` requests must identify the stamped source SHA and current notice
+  version. WeChat requests must identify Miniapp `2026.08.1` or newer plus its
+  reviewed source SHA; the API rejects missing, stale, or rolled-back clients.
+- `CN_PRIVACY_FLOOR_SHA` gates only China candidate validation, EdgeOne
+  artifact preparation, and Miniapp publication. Ordinary filing-free `.run`
+  backend and Azure frontend deployment remains operable without it and keeps
+  China/optional processing fixed disabled with `.cn` CORS absent.
+- `.cn` browser App Insights, browser Statsig, and product-event telemetry are
+  disabled. The mini program also disables product events.
+- Backend Statsig downloads rules and evaluates them locally with user logging
+  and diagnostics disabled.
+- Production background AI and external feedback publication are fixed
+  disabled by workflow literals; repository variables cannot enable them.
+- Backend request/security telemetry remains in Hong Kong with a 30-day
+  component/workspace retention limit.
 
 ## Identity & auth model
 
@@ -101,6 +124,7 @@ runbook's Release Evidence exists.
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md) · [deploy.md](./deploy.md)
+- [Proposed China Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md)
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---

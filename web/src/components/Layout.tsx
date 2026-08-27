@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import AppSidebar from '@/components/AppSidebar';
-import TermsGate from '@/components/TermsGate';
 import SystemBanner from '@/components/SystemBanner';
 import StatusBanner from '@/components/StatusBanner';
 import GoalPlanReconciliationDialog from '@/components/GoalPlanReconciliationDialog';
@@ -10,12 +9,10 @@ import { Eye } from 'lucide-react';
 import { Trans } from '@lingui/react/macro';
 
 export default function Layout() {
-  const { isDemo, termsCurrent } = useAuth();
+  const { isDemo } = useAuth();
 
   return (
     <SidebarProvider>
-      {/* EULA re-acceptance gate: block app use until stale terms are accepted. */}
-      {!termsCurrent && !isDemo && <TermsGate />}
       <AppSidebar />
       <main className="flex-1 min-h-screen">
         <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-border bg-background/80 backdrop-blur-sm px-4 lg:hidden">

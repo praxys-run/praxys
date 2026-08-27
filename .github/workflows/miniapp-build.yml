@@ -3,7 +3,7 @@ name: Miniapp build
 # Native WeChat Mini Program build-validation gate, runs on PR + main push.
 # Does NOT upload to WeChat — uploading is `miniapp-publish.yml`'s job. This
 # workflow exists so PRs get a typecheck signal: it runs the `pretypecheck`
-# chain (sync-types + sync-i18n) followed by `tsc --noEmit`, then
+# chain (sync-types + sync-i18n + sync-legal) followed by `tsc --noEmit`, then
 # sanity-checks the on-disk miniapp/ tree against the page list declared in
 # app.json.
 #
@@ -19,11 +19,15 @@ on:
     paths:
       - 'miniapp/**'
       - 'web/src/locales/**'
+      - 'web/src/types/api.ts'
+      - 'web/src/lib/legal.ts'
       - '.github/workflows/miniapp-build.yml'
   pull_request:
     paths:
       - 'miniapp/**'
       - 'web/src/locales/**'
+      - 'web/src/types/api.ts'
+      - 'web/src/lib/legal.ts'
       - '.github/workflows/miniapp-build.yml'
   workflow_dispatch:
 
@@ -45,7 +49,7 @@ jobs:
           cache-dependency-path: miniapp/package-lock.json
       - name: Install
         run: npm ci --no-audit --no-fund
-      - name: Typecheck (also runs sync-types + sync-i18n)
+      - name: Typecheck (also runs source synchronization)
         run: npm run typecheck
       - name: Require generated miniapp sources to be committed
         run: |

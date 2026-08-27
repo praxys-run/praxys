@@ -492,6 +492,8 @@ def _runner_session(monkeypatch, user_id: str):
     session = sessionmaker(bind=engine)()
     session.add(User(id=user_id, email=f"{user_id}@example.test", hashed_password="x"))
     session.commit()
+    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
 
     monkeypatch.setattr("api.ai.build_training_context", lambda **kw: _FAKE_CTX)
 

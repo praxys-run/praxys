@@ -13,6 +13,7 @@ import type { IAppOption } from '../../app';
 import { getLanguagePreference, setLanguagePreference } from '../../utils/share';
 import { t, tFmt } from '../../utils/i18n';
 import { copyUrlToClipboard } from '../../utils/markdown';
+import { exportAndShareMyData } from '../../utils/data-rights';
 import {
   beginManagedPlanRequest,
   formatWorkoutType,
@@ -77,8 +78,10 @@ function buildSettingsTr() {
     language: t('Language'),
     languageAuto: t('Auto'),
     openOnWeb: t('Open Praxys on web'),
-    exportDataOnWeb: t('Export my data on web'),
-    exportDataOnWebHint: t('Data exports are downloaded from the Praxys web app.'),
+    exportData: t('Export my data'),
+    exportingData: t('Exporting data…'),
+    exportDataHint: t('Saves a JSON export and opens WeChat share options.'),
+    exportDataFailed: t('Could not export data — please try again.'),
     sendFeedback: t('Send feedback'),
     feedbackBug: t('Bug report'),
     feedbackFeature: t('Feature request'),
@@ -480,6 +483,7 @@ interface SettingsState {
   // Manual sync trigger UI state.
   syncing: boolean;
   syncMessage: string;
+  exportingData: boolean;
 
   appVersion: string;
 }
@@ -633,6 +637,7 @@ const initialData: SettingsState = {
   webUrl: WEB_URL,
   syncing: false,
   syncMessage: '',
+  exportingData: false,
   appVersion: '',
 };
 
@@ -1567,9 +1572,20 @@ Page({
     wx.showToast({ title: t('URL copied'), icon: 'success', duration: 1500 });
   },
 
-  onExportDataOnWeb() {
-    wx.setClipboardData({ data: WEB_URL });
-    wx.showToast({ title: t('Open the web app to export your data.'), icon: 'none', duration: 1800 });
+  async onExportData() {
+    if (this.data.exportingData) return;
+    this.setData({ exportingData: true });
+    try {
+      await exportAndShareMyData();
+    } catch {
+      wx.showToast({
+        title: this.data.tr.exportDataFailed,
+        icon: 'none',
+        duration: 2000,
+      });
+    } finally {
+      this.setData({ exportingData: false });
+    }
   },
 
   /**

@@ -11,6 +11,11 @@ import {
   apiResponseError,
   extractApiError,
 } from '../lib/api-error';
+import { canStartPersonalDataRequests } from '../lib/china-processing';
+import {
+  getChinaClientHeaders,
+  TERMS_REQUIRED_EVENT,
+} from '../lib/client-boundary';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -38,16 +43,20 @@ interface UseApiOptions {
 }
 
 function getAuthHeaders(): HeadersInit {
+  if (!canStartPersonalDataRequests()) return {};
+  const headers: Record<string, string> = getChinaClientHeaders();
   const token = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
   if (token) {
-    return { 'Authorization': `Bearer ${token}` };
+    headers.Authorization = `Bearer ${token}`;
   }
-  return {};
+  return headers;
 }
 
 function getAuthCacheScope(): string {
   return tokenCacheScope(
-    getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy),
+    canStartPersonalDataRequests()
+      ? getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy)
+      : null,
   );
 }
 
@@ -65,6 +74,12 @@ async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> 
     // while the hard redirect clears the in-memory query cache.
     return new Promise<Response>(() => {});
   }
+  if (res.status === 428) {
+    const body = await res.clone().json().catch(() => null);
+    if (body?.detail?.code === 'TERMS_ACCEPTANCE_REQUIRED') {
+      window.dispatchEvent(new Event(TERMS_REQUIRED_EVENT));
+    }
+  }
   const requestPath = new URL(fullUrl, window.location.origin).pathname;
   if (res.status === 403 && requestPath.startsWith('/api/admin/')) {
     removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
@@ -80,7 +95,11 @@ const prefetchedResponses = new Map<string, Promise<Response | null>>();
 function startInitialDashboardPrefetch(): void {
   if (typeof window === 'undefined') return;
   const token = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
-  const url = initialDashboardUrl(window.location.pathname, Boolean(token));
+  const url = initialDashboardUrl(
+    window.location.pathname,
+    Boolean(token),
+    canStartPersonalDataRequests(),
+  );
   if (!url) return;
 
   // Auth verification and dashboard data are independent authenticated reads.

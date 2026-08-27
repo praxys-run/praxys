@@ -13,9 +13,20 @@
  * bypass this via 详情 → 本地设置 → 不校验合法域名.
  */
 
+import {
+  CHINA_PROCESSING_NOTICE_VERSION,
+  hasAcknowledgedChinaProcessingNotice,
+} from './china-processing';
+import {
+  MINIAPP_BUILD_VERSION,
+  MINIAPP_SOURCE_SHA,
+} from './version';
+import { TERMS_CONTENT_DIGEST } from './legal';
+
 export const API_BASE: string = 'https://api.praxys.run';
 
 export const TOKEN_KEY = 'praxys-auth-token';
+export const CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v1';
 
 export interface ApiError {
   status: number;
@@ -87,6 +98,25 @@ function redirectToLogin(): void {
   });
 }
 
+function redirectToProcessingNotice(): void {
+  if (isOnLoginPage()) return;
+  wx.reLaunch({
+    url: `/${LOGIN_PAGE}`,
+    fail: () => {},
+  });
+}
+
+function clientBoundaryHeaders(): Record<string, string> {
+  return {
+    'X-Praxys-Client': 'wechat-miniapp',
+    'X-Praxys-Client-Version': MINIAPP_BUILD_VERSION || 'develop',
+    'X-Praxys-Source-Sha': MINIAPP_SOURCE_SHA || 'develop',
+    'X-Praxys-Notice-Version': CHINA_PROCESSING_NOTICE_VERSION,
+    'X-Praxys-Policy-Digest': TERMS_CONTENT_DIGEST,
+    'X-Praxys-Api-Contract': CN_PRIVACY_CONTRACT_VERSION,
+  };
+}
+
 // Override wx.request's 60s default — failures should surface quickly
 // during dev so you don't wait a full minute when prod is unreachable
 // or a host isn't whitelisted.
@@ -104,6 +134,15 @@ function wxRequest(opts: WechatMiniprogram.RequestOption): Promise<WechatMinipro
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  if (!hasAcknowledgedChinaProcessingNotice()) {
+    redirectToProcessingNotice();
+    throw {
+      status: 0,
+      detail: 'PROCESSING_NOTICE_REQUIRED',
+      code: 'PROCESSING_NOTICE_REQUIRED',
+    } as ApiError;
+  }
+
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
   let response: WechatMiniprogram.RequestSuccessCallbackResult;
   try {
@@ -114,6 +153,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       data: options.body as WechatMiniprogram.RequestOption['data'],
       header: {
         'Content-Type': 'application/json',
+        ...clientBoundaryHeaders(),
         ...authHeader(),
         ...options.headers,
       },
@@ -136,6 +176,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   const status = response.statusCode;
+  const rawDetail = (
+    response.data as { detail?: unknown } | null | undefined
+  )?.detail;
+  const code = (
+    rawDetail != null
+    && typeof rawDetail === 'object'
+    && typeof (rawDetail as { code?: unknown }).code === 'string'
+  )
+    ? (rawDetail as { code: ApiError['code'] }).code
+    : undefined;
+
   if (status === 401 && !options.skipAuthRedirect) {
     // Always clear the dead token and surface a typed `UNAUTHENTICATED`
     // ApiError so callers' `finally`/`catch` branches actually run.
@@ -145,19 +196,20 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     if (!isOnLoginPage()) redirectToLogin();
     throw { status: 401, detail: 'UNAUTHENTICATED', code: 'UNAUTHENTICATED' } as ApiError;
   }
+  if (status === 428 && code === 'TERMS_ACCEPTANCE_REQUIRED') {
+    redirectToProcessingNotice();
+    throw {
+      status,
+      detail: 'TERMS_ACCEPTANCE_REQUIRED',
+      code,
+      data: rawDetail,
+    } as ApiError;
+  }
 
   if (status >= 200 && status < 300) {
     return response.data as T;
   }
 
-  const rawDetail = (response.data as { detail?: unknown } | null | undefined)?.detail;
-  const code = (
-    rawDetail != null
-    && typeof rawDetail === 'object'
-    && typeof (rawDetail as { code?: unknown }).code === 'string'
-  )
-    ? (rawDetail as { code: ApiError['code'] }).code
-    : undefined;
   const detail =
     typeof rawDetail === 'string'
       ? rawDetail

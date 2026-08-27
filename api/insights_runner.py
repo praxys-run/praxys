@@ -36,6 +36,10 @@ from api.insight_feedback import (
     build_generation_provenance,
     merge_feedback_meta,
 )
+from api.optional_processing import (
+    background_ai_authorized,
+    background_ai_disabled,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -67,8 +71,19 @@ def run_insights_for_user(
         ``cap_reached``, ``generator_returned_none``, or ``superseded``. A
         top-level ``skipped`` key short-circuits the whole run.
     """
+    if background_ai_disabled():
+        return {"skipped": "background_ai_disabled"}
+
     has_new_rows = _has_new_rows(counts)
     if _session is not None:
+        if not background_ai_authorized(
+            _session,
+            user_id=user_id,
+            # There is no account-wide purpose receipt for scheduled insight
+            # generation. A deployment flag cannot manufacture one.
+            purpose_authorized=False,
+        ):
+            return {"skipped": "background_ai_authorization_required"}
         if not has_new_rows:
             return {"skipped": "no_new_rows"}
         return _run_serialized(_session, user_id)
@@ -77,6 +92,12 @@ def run_insights_for_user(
 
     own_session = SessionLocal()
     try:
+        if not background_ai_authorized(
+            own_session,
+            user_id=user_id,
+            purpose_authorized=False,
+        ):
+            return {"skipped": "background_ai_authorization_required"}
         if not has_new_rows:
             return {"skipped": "no_new_rows"}
         return _run_serialized(own_session, user_id)
