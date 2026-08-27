@@ -61,15 +61,20 @@ def api_client(monkeypatch):
             db.close()
 
     # Seed both users so role-based endpoints can look them up.
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
     with db_session.SessionLocal() as db:
         db.add(User(
             id=test_user_id, email="user@test.local",
             hashed_password="x", is_active=True, is_superuser=False,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ))
         db.add(User(
             id=admin_user_id, email="admin@test.local",
             hashed_password="x", is_active=True, is_superuser=True,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ))
         db.commit()
 

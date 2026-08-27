@@ -485,15 +485,41 @@ def _runner_session(monkeypatch, user_id: str):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
+    from api import insights_runner
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.optional_processing import background_ai_authorized
     from db.models import Base, User
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()
-    session.add(User(id=user_id, email=f"{user_id}@example.test", hashed_password="x"))
+    session.add(User(
+        id=user_id,
+        email=f"{user_id}@example.test",
+        hashed_password="x",
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+    ))
     session.commit()
     monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+
+    def authorize_test_purpose(db, *, user_id, purpose_authorized):
+        # These tests exercise post-authorization telemetry. Inject the
+        # purpose grant while retaining the production global and current-
+        # Terms checks instead of replacing authorization with a bare True.
+        assert purpose_authorized is False
+        return background_ai_authorized(
+            db,
+            user_id=user_id,
+            purpose_authorized=True,
+        )
+
+    monkeypatch.setattr(
+        insights_runner,
+        "background_ai_authorized",
+        authorize_test_purpose,
+    )
 
     monkeypatch.setattr("api.ai.build_training_context", lambda **kw: _FAKE_CTX)
 
