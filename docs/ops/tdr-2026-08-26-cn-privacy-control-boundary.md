@@ -1,7 +1,7 @@
 # TDR-2026-08-26-cn-privacy-control-boundary
 
-- **Status:** **Proposed — blocked pending unresolved implementation decisions,
-  independent verification, and human review**
+- **Status:** **Proposed — implementation verified; blocked pending human
+  review and production evidence**
 - **Proposal date:** 2026-08-26
 - **Reconciled:** 2026-08-27
 - **Decision date:** Not decided
@@ -23,7 +23,12 @@
   identity and legal receipts server-authoritative, keep privacy rights
   available without new Terms acceptance, and fail closed for optional
   external processing.
-- **review state:** No independent approval or human acceptance is recorded.
+- **review state:** An independent Trust review of implementation commit
+  `635e5042dbb1f083bd8b6093a6d8488228b6a558` found no high-confidence
+  Trust implementation blocker or security vulnerability for the dormant,
+  fail-closed baseline. Human acceptance and production approval are not
+  recorded. The implementation review becomes stale after any Trust-relevant
+  change.
 - **routing metadata:** Reconciled to authoritative Work Contract task
   `artifact-reconciliation`; the contract records `decision_review: false`.
   This linkage imports no Trust approval or production authority.
@@ -31,24 +36,32 @@
   `sha256:ea5b438a17c6b0931f9e03a81606a55893e193438742364b8597e3b6dee34f8f`
 - **route digest:**
   `sha256:858b1429ea3e90b307923752d783f0ba9bc2665f978ddb2ef9381ddeae4216ab`
-- **record digest:** Unresolved until the final artifact and implementation are
-  frozen.
+- **implementation evidence:** Commit
+  `635e5042dbb1f083bd8b6093a6d8488228b6a558` over
+  `740dd72cc6eacc33cf19218b1158a27ca91f09bf`; the repository agent preflight
+  passed on that frozen implementation.
+- **record digest:** Pending human acceptance of this proposed decision.
 
 ## Residual authority blockers
 
-The dirty tree implements deterministic workflow guards, exact runtime
-readback and `.cn` CORS-denial checks, evidence artifacts, an exact release
-registry parser, and digest-bound append-only Terms receipts. Those are draft
-safeguards, not an accepted production gate, registry lifecycle authority,
-legal decision, provider release, or activation procedure. No live provider
-query or runtime readback, DNS/TLS cutover, permanent Release Evidence store,
-alert provisioning, or rollback rehearsal occurred.
+Frozen implementation commit `635e5042dbb1f083bd8b6093a6d8488228b6a558`
+implements deterministic workflow guards, exact runtime readback and `.cn`
+CORS-denial checks, evidence artifacts, an exact release-registry parser,
+digest-bound append-only Terms receipts, registration compensation, bounded
+rights access, per-user background Terms checks, and purpose-specific optional
+processing authorization. Those are verified draft safeguards, not an accepted
+production gate, registry lifecycle authority, legal decision, provider
+release, or activation procedure. No live provider query or runtime readback,
+DNS/TLS cutover, permanent Release Evidence store, alert provisioning, or
+rollback rehearsal occurred.
 
-Human review is still required for registration atomicity, rights-only login
-authority, the background-worker kill-switch lifecycle/source matrix, legal and
-PIPIA approval, receipt retention/erasure, registry lifecycle authority,
-production activation, and provider evidence. Export coverage and streaming
-remain blocked by separate Product, Architecture, and Trust decisions.
+Human review is still required for the final legal basis and PIPIA, the
+channel-versus-person interpretation, acceptance of sensitive cross-border and
+shared-API residual risk, receipt/deletion retention, and production or
+emergency authority. Export coverage and streaming remain blocked by separate
+Product, Architecture, and Trust decisions. Registry lifecycle, permanent
+evidence retention, and provider/live-runtime evidence remain unresolved
+release prerequisites.
 
 ## Scope
 
@@ -69,12 +82,14 @@ running.
 
 ## Current draft implementation boundary
 
-The dirty tree defaults the China client boundary off. Ordinary `.run` deploys
-write `PRAXYS_DISABLE_CN_PROCESSING=true`, keep both optional-processing
-positive enables false and kill switches true, remove `.cn` CORS, and include
-exact readback/evidence steps. The exact registry schema binds channel/version,
-a 12-character source ID, an exact 40-character protected-`main` commit, the
-current notice version and legal digest, API contract, and provider locator/ID.
+Frozen implementation commit
+`635e5042dbb1f083bd8b6093a6d8488228b6a558` defaults the China client boundary
+off. Ordinary `.run` deploys write `PRAXYS_DISABLE_CN_PROCESSING=true`, keep
+both optional-processing positive enables false and kill switches true, remove
+`.cn` CORS, and include exact readback/evidence steps. The exact registry
+schema binds channel/version, a 12-character source ID, an exact 40-character
+protected-`main` commit, the current notice version and legal digest, API
+contract, and provider locator/ID.
 For production Miniapp candidates the locator is deterministically
 `wechat:robot-1:<version>`; it is not a provider-generated opaque release ID.
 Robot 5 uses synthetic development versions and is never registry authority.
@@ -164,17 +179,17 @@ the exact optional-purpose authorization.
 
 ### Data export — policy and completeness blocked
 
-The dirty tree has a caller-owned JSON export and tests, but its coverage and
-streaming strategy are not accepted or complete. Separate human Product,
-Architecture, and Trust decisions must define the required inventory, binary
-asset path, scale/streaming boundary, and completion standard. Subject to those
-decisions, maintain a model-to-rights inventory and export caller-owned personal
-information, including account/contact data, non-secret connection metadata,
-activity samples, feedback, AI insight records, and legal receipts. Never
-export passwords, hashes, access tokens, provider credentials, encryption
-material, internal authorization secrets, or another user's data. Any binary
-asset not included directly must be explicitly identified with a usable rights
-path rather than silently omitted.
+The frozen implementation has a caller-owned JSON export and tests, but its
+coverage and streaming strategy are not accepted or complete. Separate human
+Product, Architecture, and Trust decisions must define the required inventory,
+binary asset path, scale/streaming boundary, and completion standard. Subject
+to those decisions, maintain a model-to-rights inventory and export
+caller-owned personal information, including account/contact data, non-secret
+connection metadata, activity samples, feedback, AI insight records, and legal
+receipts. Never export passwords, hashes, access tokens, provider credentials,
+encryption material, internal authorization secrets, or another user's data.
+Any binary asset not included directly must be explicitly identified with a
+usable rights path rather than silently omitted.
 
 ### Provider disclosure continuity
 
@@ -214,13 +229,14 @@ authority bound to the final content digest and protected-main release.
 
 ## Implementation gates
 
-- **Draft implemented:** exact server-owned registry validation, China kill
-  switch, version/digest-bound append-only Terms receipts, bounded stale-policy
-  rights routes, strict optional-processing switch pairs, protected-main
-  workflow safeguards, runtime/CORS readback logic, and evidence artifacts.
-- **Not accepted or complete:** registry lifecycle authority, registration
-  atomicity, rights-only login authority, receipt retention, worker
-  lifecycle/source rechecks, export coverage/streaming, and the permanent
+- **Draft implemented and verified:** exact server-owned registry validation,
+  China kill switch, version/digest-bound append-only Terms receipts,
+  registration compensation and retry safety, bounded stale-policy rights
+  routes, per-user background Terms checks, purpose-specific optional
+  processing authorization, protected-main workflow safeguards, runtime/CORS
+  readback logic, and evidence artifacts.
+- **Not accepted or complete:** registry lifecycle authority, receipt and
+  deletion-evidence retention, export coverage/streaming, and the permanent
   Release Evidence store.
 - **No live evidence:** provider query/upload success, DNS/TLS cutover, runtime
   readback, alert provisioning, or rollback rehearsal.

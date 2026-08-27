@@ -4,8 +4,10 @@
 - **Proposal date:** 2026-08-26
 - **Reconciled:** 2026-08-27
 - **Decision date:** Not decided
-- **Artifact implementation status:** logical-contract Markdown proposal; not
-  an accepted or schema-backed decision record
+- **Artifact implementation status:** logical-contract Markdown proposal
+  reconciled to frozen implementation commit
+  `635e5042dbb1f083bd8b6093a6d8488228b6a558`; not an accepted or schema-backed
+  decision record
 - **Owner role:** Operations
 - **Production authority:** None. This proposal does not authorize setting a
   production variable, publishing a Miniapp release, deploying enforcement,
@@ -82,25 +84,30 @@ outcome:
 - **route_digest:**
   `sha256:858b1429ea3e90b307923752d783f0ba9bc2665f978ddb2ef9381ddeae4216ab`
 
-The supporting Architecture, Trust, Quality, and Release Evidence artifacts
-remain unresolved. This Operations proposal does not substitute for them.
+The frozen branch has a passing repository agent preflight and an independent
+Trust implementation review with no high-confidence blocker. Architecture
+acceptance, human Trust/PIPIA acceptance, final merged-tree and provider
+journey verification, and permanent Release Evidence remain unresolved. This
+Operations proposal does not substitute for them.
 
 ## Reconciled implementation and evidence boundary
 
-The dirty tree implements fail-closed China defaults, ordinary `.run` deploys
-that omit `.cn` CORS, exact registry validation, runtime readback and CORS
-denial logic, workflow evidence artifacts, digest-bound append-only Terms
-receipts, bounded stale-policy rights routes, dual optional-processing switch
-pairs defaulted off, and fail-closed private feedback screenshot deletion.
-These are draft safeguards only.
+Frozen implementation commit
+`635e5042dbb1f083bd8b6093a6d8488228b6a558` implements fail-closed China
+defaults, ordinary `.run` deploys that omit `.cn` CORS, exact registry
+validation, runtime readback and CORS-denial logic, workflow evidence
+artifacts, digest-bound append-only Terms receipts, registration compensation,
+bounded stale-policy rights routes, per-user background Terms checks,
+purpose-specific optional-processing authorization, and fail-closed private
+feedback screenshot deletion. The repository agent preflight passed on this
+commit. These are verified draft safeguards only.
 
 No live provider query or Miniapp upload evidence, runtime readback, DNS/TLS
 cutover, permanent Release Evidence store, alert provisioning, or rollback
 rehearsal occurred. Export completeness and streaming remain blocked by
-separate Product, Architecture, and Trust decisions. Registration atomicity,
-rights-only login authority, background-worker kill-switch lifecycle/source
-semantics, legal/PIPIA approval, registry lifecycle authority, production
-activation, and provider evidence remain unresolved.
+separate Product, Architecture, and Trust decisions. Legal/PIPIA approval,
+receipt/deletion retention, registry lifecycle authority, production and
+emergency authority, and provider/live-runtime evidence remain unresolved.
 
 ## Proposed provider topology
 
@@ -368,10 +375,10 @@ and Quality must verify it before cutover.
 | Operations decision | **PROPOSED — PENDING HUMAN ACCEPTANCE**; no accepted digest |
 | Decision routing | Authoritative documentation Work Contract records `decision_review: false`; this is not acceptance or production authority |
 | Architecture boundary | Required Architecture Decision Record/handoff is not accepted |
-| Trust and cross-border boundary | Required Trust Decision Record/handoff and `PIPIA-CN-2026-08-25-01` operator decision are pending |
-| Exact release verification | Independent Quality evidence for the final merged tree and provider journey does not yet exist; no live provider query, upload-success query, or runtime readback was performed in this change |
+| Trust and cross-border boundary | Independent review found no high-confidence implementation blocker at `635e5042dbb1f083bd8b6093a6d8488228b6a558`; Trust Decision Record acceptance and the `PIPIA-CN-2026-08-25-01` operator decision remain pending |
+| Exact release verification | Repository agent preflight passed for the frozen branch commit; independent evidence for the final merged tree and provider journey does not yet exist, and no live provider query, upload-success query, or runtime readback was performed |
 | Production authority boundary | No production-environment approval gate or activation workflow is accepted or implemented; repository variables cannot substitute for authenticated human authority |
-| Registry lifecycle / receipt authority | Exact registry validation and append-only Terms receipts exist in the dirty tree, but no accepted registry lifecycle schema/authority, legal values, or receipt-retention decision exists |
+| Registry lifecycle / receipt authority | Exact registry validation and append-only Terms receipts exist at the frozen implementation commit, but no accepted registry lifecycle schema/authority, legal values, or receipt-retention decision exists |
 | Privacy floor | Exact SHA is unknowable until merge; `CN_PRIVACY_FLOOR_SHA` must remain unset until the accepted post-merge gate |
 | Miniapp | No `2026.08.1` public release or upload success is recorded; `wechat:robot-1:<version>` is only a deterministic locator, and the source mapping plus rehearsed emergency suspension path remain pending |
 | Monitoring | Workflow safeguards and evidence shapes exist, but no alert provisioning, `.cn` live samples, or action-group verification occurred |

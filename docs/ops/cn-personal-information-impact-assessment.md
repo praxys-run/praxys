@@ -163,7 +163,8 @@ to the core processing:
    version.
 3. Public product, FAQ, Terms, Privacy, and Status pages remain available
    without personal-data traffic.
-4. After authentication, the dirty tree records each exact Terms
+4. After authentication, frozen implementation commit
+   `635e5042dbb1f083bd8b6093a6d8488228b6a558` records each exact Terms
    version-and-digest acceptance in an append-only receipt table and updates
    `terms_version` / `terms_accepted_at` only as a current projection. The web
    Terms gate and the mini-program explicit accept-or-sign-out stage enforce
@@ -184,8 +185,9 @@ using an account-wide web receipt as a substitute for the Miniapp notice.
 The implemented append-only ledger currently records Terms-bundle acceptance;
 it does not establish an accepted standalone China-notice receipt or retention
 policy. Whether a distinct channel notice receipt is legally required remains a
-Trust/legal decision. Registration atomicity and rights-only login authority
-also remain unresolved and must not be inferred from the current route guards.
+Trust/legal decision. Registration compensation and bounded rights-route
+behavior are implemented and tested, but do not decide that legal question or
+the receipt-retention policy.
 
 ## Risk analysis
 
@@ -214,25 +216,30 @@ also remain unresolved and must not be inferred from the current route guards.
 
 ## Current draft safeguards and missing evidence
 
-The dirty tree implements a fail-closed China boundary, ordinary `.run` deploys
-that leave China disabled and omit `.cn` CORS, an exact registry shape, workflow
-readback/CORS-denial/evidence steps, version-and-digest-bound append-only Terms
-receipts, bounded stale-policy rights routes, dual optional-processing switches
-defaulted off, and account deletion that fails closed on private feedback
-screenshot deletion while preserving locators for retry. Registry entries bind
-channel/version, 12-character source ID, exact 40-character protected-`main`
-commit, current notice/digest/API contract, and provider locator/ID. The
-Miniapp production locator is exactly `wechat:robot-1:<version>`; it is
-deterministic robot/version evidence rather than a provider-generated opaque
-ID. Robot 5 synthetic development versions are never registry authority.
+Frozen implementation commit
+`635e5042dbb1f083bd8b6093a6d8488228b6a558` implements a fail-closed China
+boundary, ordinary `.run` deploys that leave China disabled and omit `.cn`
+CORS, an exact registry shape, workflow readback/CORS-denial/evidence steps,
+version-and-digest-bound append-only Terms receipts, registration compensation,
+bounded stale-policy rights routes, per-user background Terms checks,
+purpose-specific optional-processing authorization, and account deletion that
+fails closed on private feedback screenshot deletion while preserving locators
+for retry. Registry entries bind channel/version, 12-character source ID,
+exact 40-character protected-`main` commit, current notice/digest/API contract,
+and provider locator/ID. The Miniapp production locator is exactly
+`wechat:robot-1:<version>`; it is deterministic robot/version evidence rather
+than a provider-generated opaque ID. Robot 5 synthetic development versions
+are never registry authority. The repository agent preflight passed on this
+frozen implementation, and an independent Trust review found no
+high-confidence implementation blocker or security vulnerability; neither
+result grants legal or production approval.
 
 No live provider query or upload-success evidence, runtime readback, DNS/TLS
 cutover, permanent Release Evidence store, alert provisioning, or rollback
 rehearsal occurred. Export coverage and streaming are blocked by separate
-human Product, Architecture, and Trust decisions. Registration atomicity,
-rights-only login authority, background-worker kill-switch lifecycle/source
-semantics, legal/PIPIA approval, registry lifecycle authority, production
-activation, and provider evidence remain unresolved.
+human Product, Architecture, and Trust decisions. Legal/PIPIA approval,
+receipt/deletion retention, registry lifecycle authority, production and
+emergency authority, and provider/live-runtime evidence remain unresolved.
 
 ## Mandatory controls and release evidence
 

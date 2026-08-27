@@ -6,9 +6,10 @@
 - **Decision date:** Not decided
 - **Owner role:** Architecture
 - **Artifact scope:** Logical-contract proposal only
-- **Implementation status:** Draft safeguards exist in the dirty working tree,
-  but are not merged, accepted, deployed, or live evidence. This document is
-  not implementation or production evidence.
+- **Implementation status:** Draft safeguards are frozen at commit
+  `635e5042dbb1f083bd8b6093a6d8488228b6a558` and passed the repository agent
+  preflight, but are not merged, accepted, deployed, or live evidence. This
+  document is not production evidence.
 - **Production authority:** None. This record does not authorize a merge,
   migration, registry entry, credential use, deployment, Miniapp publication,
   DNS or CORS change, enforcement switch, or production-data operation.
@@ -34,7 +35,11 @@
   `sha256:893eaa8aab240dd9dbdc9048389feb9711a9bd47439b1d92ad2f82b3cc4a11ba`
 - **route digest:**
   `sha256:28d3b9453e5e841ecb7dc0a8ba6e454e06a330c6b2178edd69ebb3c49eaa6229`
-- **record digest:** **Unresolved** until the reviewed artifact is frozen.
+- **implementation evidence:** Commit
+  `635e5042dbb1f083bd8b6093a6d8488228b6a558` over
+  `740dd72cc6eacc33cf19218b1158a27ca91f09bf`.
+- **record digest:** **Unresolved** pending independent Architecture and human
+  acceptance of this proposal.
 
 Values present in another proposed or pending artifact are not imported as
 authority here. They must be independently reproduced and reviewed before an
@@ -42,23 +47,28 @@ accepted revision may cite them.
 
 ## Residual authority blockers
 
-The dirty tree contains deterministic deployment safeguards, runtime readback
-logic, exact-registry validation, CORS-denial checks, evidence-artifact
-generation, and a digest-bound append-only Terms receipt table. Those are draft
-implementation facts, not accepted policy or live evidence. No live provider
-query or runtime readback, DNS/TLS cutover, permanent Release Evidence store,
-alert provisioning, or rollback rehearsal occurred.
+Frozen implementation commit `635e5042dbb1f083bd8b6093a6d8488228b6a558`
+contains deterministic deployment safeguards, runtime readback logic,
+exact-registry validation, CORS-denial checks, evidence-artifact generation,
+digest-bound append-only Terms receipts, registration compensation, bounded
+rights access, per-user background Terms checks, and purpose-specific optional
+processing authorization. Those are verified draft implementation facts, not
+accepted architecture policy or live evidence. No live provider query or
+runtime readback, DNS/TLS cutover, permanent Release Evidence store, alert
+provisioning, or rollback rehearsal occurred.
 
-Human decisions remain required for registration atomicity, rights-only login
-authority, the background-worker kill-switch lifecycle/source matrix, legal and
-PIPIA approval, receipt retention/erasure, registry lifecycle authority,
-production activation, and provider evidence. Export coverage and streaming
-remain blocked by separate Product, Architecture, and Trust decisions and must
-not be described as complete.
+Human decisions remain required for legal and PIPIA approval, acceptance of the
+shared-API and sensitive cross-border residual risk, receipt/deletion
+retention, and production or emergency authority. Registry lifecycle,
+provider/live-runtime evidence, and permanent evidence retention remain
+unresolved release prerequisites. Export coverage and streaming remain blocked
+by separate Product, Architecture, and Trust decisions and must not be
+described as complete.
 
 ## Context and evidence boundary
 
-The current working-tree diff proposes:
+Frozen implementation commit
+`635e5042dbb1f083bd8b6093a6d8488228b6a558` implements:
 
 - a `.cn` web channel identified as `cn-web`;
 - a WeChat Miniapp channel identified as `wechat-miniapp`;
@@ -69,9 +79,9 @@ The current working-tree diff proposes:
 - a source-ancestry deployment floor; and
 - production negative switches for background AI and feedback publication.
 
-Those changes are implementation inputs, not evidence that controls are
-merged, approved, released, or operating. The dirty tree now implements an
-exact environment-backed release registry. Each entry binds channel and client
+Those changes are implementation facts, not evidence that controls are merged,
+approved, released, or operating. The frozen commit implements an exact
+environment-backed release registry. Each entry binds channel and client
 version, a 12-character source ID, the exact 40-character protected-`main`
 commit, current notice version and legal digest, API contract version, and a
 provider locator/ID. Miniapp entries require the deterministic locator
@@ -79,16 +89,18 @@ provider locator/ID. Miniapp entries require the deterministic locator
 never authorize a registry entry. This implemented shape is not the accepted
 append-only lifecycle registry proposed below.
 
-The dirty tree also implements version-and-digest-bound, append-only Terms
+The frozen commit also implements version-and-digest-bound, append-only Terms
 acceptance receipts while retaining mutable user fields as projections. Stale
-users retain bounded rights routes. Optional background AI and external
-feedback publication require independent positive-enable/kill-switch pairs and
-default off. Account deletion fails closed on private feedback screenshot
-deletion and preserves screenshot locators for retry. Neither the receipt implementation nor the
-current legal version/digest is human-approved by this ADR. Exact released
-source revisions, actual provider upload/deployment success, accepted registry
-lifecycle authority, and a permanent Release Evidence location remain
-unresolved.
+users retain bounded rights routes. Registration compensates if receipt
+persistence fails. Scheduled/background processing rechecks current Terms per
+user. Optional background AI and external feedback publication require both
+operational enablement and purpose-specific authorization; admin review cannot
+create publication consent. Account deletion fails closed on private feedback
+screenshot deletion and preserves screenshot locators for retry. Neither the
+receipt implementation nor the current legal version/digest is human-approved
+by this ADR. Exact released source revisions, actual provider
+upload/deployment success, accepted registry lifecycle authority, and a
+permanent Release Evidence location remain unresolved.
 
 ## Constraints, horizon, reversibility, and affected systems
 
@@ -231,7 +243,8 @@ changing the applicable digest is a build failure. Reusing a version with a
 different digest is an incompatible release, not an update in place.
 
 Actual manifest and content digest values are unresolved in this proposal and
-must not be inferred from filenames, version constants, or the current diff.
+must not be inferred from filenames, version constants, or the implementation
+commit.
 
 The server receipt ledger is append-only. A receipt event contains at least:
 
@@ -390,9 +403,10 @@ can precede the clients; backend-first enforcement cannot.
 
 Rejected. Format-only matching would allow an arbitrary well-formed source
 identifier or unreviewed descendant and a version-only local value could not
-prove which content was shown. The dirty tree has moved beyond this alternative
-by requiring an exact registry match and digest-bound Terms receipts, but that
-draft implementation is neither accepted lifecycle authority nor live proof.
+prove which content was shown. The frozen implementation has moved beyond this
+alternative by requiring an exact registry match and digest-bound Terms
+receipts, but that draft implementation is neither accepted lifecycle
+authority nor live proof.
 
 ### Backend-first enforcement
 
