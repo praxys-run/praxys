@@ -708,7 +708,7 @@ def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
 
 
 def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
-    from api.routes.feedback import update_feedback, FeedbackAction
+    from api.routes.feedback import FeedbackAction, list_feedback, update_feedback
     from api.feedback_triage import triage_and_publish
 
     db, _, admin_id, user_id = db_with_users
@@ -720,6 +720,12 @@ def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
     triage_and_publish(row.id, _session=db)
     db.refresh(row)
     assert row.status == "needs_review"
+    listed = next(
+        item
+        for item in list_feedback(user_id=admin_id, db=db)
+        if item["id"] == row.id
+    )
+    assert listed["external_publication_consent"] is True
 
     out = update_feedback(row.id, FeedbackAction(action="approve"), BackgroundTasks(), user_id=admin_id, db=db)
     assert out["status"] == "issue_created"
@@ -732,7 +738,7 @@ def test_admin_approve_cannot_substitute_for_submitter_consent(
     monkeypatch,
 ):
     from api.feedback_triage import triage_and_publish
-    from api.routes.feedback import FeedbackAction, update_feedback
+    from api.routes.feedback import FeedbackAction, list_feedback, update_feedback
 
     db, _, admin_id, user_id = db_with_users
     calls: list = []
@@ -744,6 +750,12 @@ def test_admin_approve_cannot_substitute_for_submitter_consent(
         publication_consent=False,
     )
     triage_and_publish(row.id, _session=db)
+    listed = next(
+        item
+        for item in list_feedback(user_id=admin_id, db=db)
+        if item["id"] == row.id
+    )
+    assert listed["external_publication_consent"] is False
 
     with pytest.raises(HTTPException) as exc:
         update_feedback(

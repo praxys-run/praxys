@@ -14,7 +14,7 @@ export default function Layout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 min-h-screen">
+      <main className="min-h-screen min-w-0 flex-1">
         <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-border bg-background/80 backdrop-blur-sm px-4 lg:hidden">
           <SidebarTrigger />
         </header>

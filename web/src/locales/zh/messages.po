@@ -1075,7 +1075,7 @@ msgstr "已应用"
 msgid "Applying…"
 msgstr "正在应用…"
 
-#: src/pages/admin/AdminFeedback.tsx:570
+#: src/pages/admin/AdminFeedback.tsx:571
 msgid "Approve & file"
 msgstr "批准并提交"
 
@@ -7138,6 +7138,10 @@ msgstr "补充说明"
 msgid "Private note (optional)"
 msgstr "补充说明（选填）"
 
+#: src/pages/admin/AdminFeedback.tsx:576
+msgid "Private submission"
+msgstr "私密提交"
+
 #: src/pages/Today.tsx:313
 msgid "Proceed but monitor heart-rate drift during the session"
 msgstr "继续训练，但注意观察训练中的心率漂移"
@@ -7928,7 +7932,7 @@ msgstr "注册时间"
 msgid "Registration settings unavailable"
 msgstr "注册设置暂不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:593
+#: src/pages/admin/AdminFeedback.tsx:600
 msgid "Reject"
 msgstr "驳回"
 
@@ -8206,7 +8210,7 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/components/PlanStart.tsx:1902
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/admin/AdminFeedback.tsx:582
+#: src/pages/admin/AdminFeedback.tsx:589
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171

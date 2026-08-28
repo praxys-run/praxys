@@ -254,8 +254,11 @@ bundles during backend-first rolling deployments.
 ### GET /api/admin/feedback
 
 List feedback rows, optionally filtered by `status`. Each row includes the
-admin-only raw message, scrubbed publication fields, linked GitHub issue, and a
-privacy-safe `agent_readiness` object:
+admin-only raw message, scrubbed publication fields, linked GitHub issue,
+`external_publication_consent`, and a privacy-safe `agent_readiness` object.
+Admin clients must not offer external filing when
+`external_publication_consent` is false; the write endpoint rechecks the grant
+and the current legal bundle before publishing:
 
 ```json
 {

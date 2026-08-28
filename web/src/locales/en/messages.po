@@ -1076,7 +1076,7 @@ msgstr "Applied"
 msgid "Applying…"
 msgstr "Applying…"
 
-#: src/pages/admin/AdminFeedback.tsx:570
+#: src/pages/admin/AdminFeedback.tsx:571
 msgid "Approve & file"
 msgstr "Approve & file"
 
@@ -7063,6 +7063,10 @@ msgstr "Private note"
 msgid "Private note (optional)"
 msgstr "Private note (optional)"
 
+#: src/pages/admin/AdminFeedback.tsx:576
+msgid "Private submission"
+msgstr "Private submission"
+
 #: src/pages/Today.tsx:313
 msgid "Proceed but monitor heart-rate drift during the session"
 msgstr "Proceed but monitor heart-rate drift during the session"
@@ -7825,7 +7829,7 @@ msgstr "Registration date"
 msgid "Registration settings unavailable"
 msgstr "Registration settings unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:593
+#: src/pages/admin/AdminFeedback.tsx:600
 msgid "Reject"
 msgstr "Reject"
 
@@ -8091,7 +8095,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/components/PlanStart.tsx:1902
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/admin/AdminFeedback.tsx:582
+#: src/pages/admin/AdminFeedback.tsx:589
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171

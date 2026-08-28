@@ -3977,6 +3977,8 @@ export interface AdminFeedbackItem {
   github_issue_number: number | null;
   github_issue_url: string | null;
   error: string | null;
+  /** Whether this exact submission carries the current external-publication consent. */
+  external_publication_consent: boolean;
   /** Number of attached screenshots. Each is fetched (admin-only) from
    * `GET /api/admin/feedback/{id}/image/{index}` for index in `0..image_count-1`. */
   image_count: number;

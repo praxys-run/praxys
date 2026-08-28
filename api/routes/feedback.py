@@ -421,6 +421,7 @@ def _serialize_admin(
         "github_issue_number": row.github_issue_number,
         "github_issue_url": row.github_issue_url,
         "error": row.error,
+        "external_publication_consent": feedback_has_publication_consent(row),
         # Screenshot attachment (issue #337): count + scrubbed vision outputs.
         # The raw image is served only via the admin image endpoint below.
         "image_count": len(row.image_keys or []),
