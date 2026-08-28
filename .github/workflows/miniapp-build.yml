@@ -87,12 +87,18 @@ jobs:
         # source is typically near 1:1 (no transpiled bundle to expand into).
         run: |
           # Measure file bytes rather than allocated filesystem blocks.
-          # Exclude generated sources that DevTools does not package.
+          # Mirror project.config.json packOptions.ignore for development-only
+          # metadata, and exclude generated TypeScript source that DevTools
+          # replaces with its compiled output.
           size=$(du --apparent-size -sk \
             --exclude=node_modules \
+            --exclude='package-lock.json' \
+            --exclude='package.json' \
+            --exclude='tsconfig.json' \
+            --exclude='scripts' \
             --exclude='utils/i18n-catalog.ts' \
             . | cut -f1)
-          echo "miniapp/ source size (excl. node_modules): ${size} KB"
+          echo "miniapp/ packaged-source proxy size: ${size} KB"
           if [ "$size" -gt 2000 ]; then
             echo "::error::miniapp/ source size exceeds 2 MB WeChat main-package limit"
             exit 1

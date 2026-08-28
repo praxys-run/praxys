@@ -585,6 +585,28 @@ def test_miniapp_upload_toolchain_is_lockfile_pinned() -> None:
     assert package["devDependencies"]["miniprogram-ci"] == "2.1.31"
 
 
+def test_miniapp_package_excludes_development_only_metadata() -> None:
+    config = json.loads((ROOT / "miniapp/project.config.json").read_text())
+    workflow = (
+        ROOT / ".github/workflows/miniapp-build.yml"
+    ).read_text(encoding="utf-8")
+
+    ignored = {
+        (rule["type"], rule["value"])
+        for rule in config["packOptions"]["ignore"]
+    }
+    expected = {
+        ("file", "package-lock.json"),
+        ("file", "package.json"),
+        ("file", "tsconfig.json"),
+        ("folder", "scripts"),
+    }
+    assert expected <= ignored
+    for _, path in expected:
+        assert f"--exclude='{path}'" in workflow
+    assert "packaged-source proxy size" in workflow
+
+
 def test_legal_bundle_changes_validate_and_publish_the_miniapp() -> None:
     miniapp_build = (
         ROOT / ".github/workflows/miniapp-build.yml"
