@@ -26,6 +26,9 @@ import {
   planTargetSelection,
 } from '../../utils/managed-plan';
 import type {
+  FeedbackKind,
+  FeedbackRequest,
+  FeedbackResponse,
   PlanAdjustment,
   PlanAdjustmentHistoryResponse,
   PlanCleanupRequest,
@@ -37,6 +40,7 @@ import type {
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
+import { feedbackPublicationConsent } from '../../utils/feedback';
 
 const ADJUSTMENT_SOURCES = {
   plews: 'https://doi.org/10.1007/s00421-012-2354-4',
@@ -87,6 +91,11 @@ function buildSettingsTr() {
     feedbackFeature: t('Feature request'),
     feedbackOther: t('General feedback'),
     feedbackPrompt: t('What happened, or what would you like to see?'),
+    feedbackPublish: t('Publish a scrubbed text summary to Praxys’s external issue tracker'),
+    feedbackPublishHelper: t('Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication.'),
+    feedbackCancel: t('Cancel'),
+    feedbackSubmit: t('Send feedback'),
+    feedbackSubmitting: t('Sending…'),
     feedbackThanks: t('Thanks for the feedback!'),
     feedbackError: t("Couldn't send your feedback. Please try again."),
     feedbackRateLimited: t("You've sent several reports recently — please wait a few minutes before sending more."),
@@ -485,6 +494,13 @@ interface SettingsState {
   syncMessage: string;
   exportingData: boolean;
 
+  feedbackFormOpen: boolean;
+  feedbackKind: FeedbackKind;
+  feedbackMessage: string;
+  feedbackPublicationConsent: boolean;
+  feedbackSubmitting: boolean;
+  feedbackError: string;
+
   appVersion: string;
 }
 
@@ -638,6 +654,12 @@ const initialData: SettingsState = {
   syncing: false,
   syncMessage: '',
   exportingData: false,
+  feedbackFormOpen: false,
+  feedbackKind: 'other',
+  feedbackMessage: '',
+  feedbackPublicationConsent: false,
+  feedbackSubmitting: false,
+  feedbackError: '',
   appVersion: '',
 };
 
@@ -1588,54 +1610,97 @@ Page({
     }
   },
 
-  /**
-   * In-app feedback (bug / feature / general). Mirrors the web "Send feedback"
-   * entry. Uses native WeChat surfaces — an action sheet to pick the category
-   * then an editable modal for the message — so no custom modal markup is
-   * needed. Posts to POST /api/feedback; the backend scrubs + triages it.
-   */
+  /** Open the real Miniapp feedback form after category selection. */
   onSendFeedback() {
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
-    const kinds: Array<'bug' | 'feature' | 'other'> = ['bug', 'feature', 'other'];
+    const kinds: FeedbackKind[] = ['bug', 'feature', 'other'];
     wx.showActionSheet({
       itemList: [tr.feedbackBug, tr.feedbackFeature, tr.feedbackOther],
       success: (sheet) => {
         const kind = kinds[sheet.tapIndex];
         if (!kind) return;
-        wx.showModal({
-          title: tr.sendFeedback,
-          editable: true,
-          placeholderText: tr.feedbackPrompt,
-          success: async (modal) => {
-            if (!modal.confirm) return;
-            const message = (modal.content ?? '').trim();
-            if (!message) return;
-            const image = await pickFeedbackScreenshot(tr);
-            const locale = getLanguagePreference();
-            try {
-              await apiPost('/api/feedback', {
-                kind,
-                message: message.slice(0, 5000),
-                context: {
-                  page: 'settings',
-                  app_version: MINIAPP_BUILD_VERSION,
-                  platform: 'wechat-miniapp',
-                  locale,
-                },
-                locale,
-                images: image ? [image] : undefined,
-              });
-              wx.showToast({ title: tr.feedbackThanks, icon: 'success', duration: 1800 });
-            } catch (e) {
-              const err = e as Partial<ApiError>;
-              if (err?.code === 'UNAUTHENTICATED') return;
-              const msg = err?.status === 429 ? tr.feedbackRateLimited : err?.detail ?? tr.feedbackError;
-              wx.showToast({ title: msg, icon: 'none', duration: 2000 });
-            }
-          },
+        this.setData({
+          feedbackFormOpen: true,
+          feedbackKind: kind,
+          feedbackMessage: '',
+          feedbackPublicationConsent: false,
+          feedbackSubmitting: false,
+          feedbackError: '',
         });
       },
     });
+  },
+
+  onFeedbackMessageInput(event: WechatMiniprogram.Input) {
+    this.setData({
+      feedbackMessage: String(event.detail.value ?? '').slice(0, 5000),
+      feedbackError: '',
+    });
+  },
+
+  onFeedbackPublicationChange(event: WechatMiniprogram.SwitchChange) {
+    this.setData({
+      feedbackPublicationConsent: event.detail.value,
+      feedbackError: '',
+    });
+  },
+
+  onCancelFeedback() {
+    if (this.data.feedbackSubmitting) return;
+    this.setData({
+      feedbackFormOpen: false,
+      feedbackMessage: '',
+      feedbackPublicationConsent: false,
+      feedbackError: '',
+    });
+  },
+
+  async onSubmitFeedback() {
+    if (this.data.feedbackSubmitting) return;
+    const message = this.data.feedbackMessage.trim();
+    if (!message) return;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({ feedbackSubmitting: true, feedbackError: '' });
+    try {
+      const image = await pickFeedbackScreenshot(tr);
+      const locale = getLanguagePreference();
+      const body: FeedbackRequest = {
+        kind: this.data.feedbackKind,
+        message,
+        context: {
+          page: 'settings',
+          app_version: MINIAPP_BUILD_VERSION,
+          platform: 'wechat-miniapp',
+          locale,
+        },
+        locale,
+        images: image ? [image] : undefined,
+        ...feedbackPublicationConsent(
+          this.data.feedbackPublicationConsent,
+        ),
+      };
+      await apiPost<FeedbackResponse>('/api/feedback', body);
+      this.setData({
+        feedbackFormOpen: false,
+        feedbackMessage: '',
+        feedbackPublicationConsent: false,
+      });
+      wx.showToast({
+        title: tr.feedbackThanks,
+        icon: 'success',
+        duration: 1800,
+      });
+    } catch (error) {
+      const apiError = error as Partial<ApiError>;
+      if (apiError.code === 'UNAUTHENTICATED') return;
+      this.setData({
+        feedbackError: apiError.status === 429
+          ? tr.feedbackRateLimited
+          : apiError.detail ?? tr.feedbackError,
+      });
+    } finally {
+      this.setData({ feedbackSubmitting: false });
+    }
   },
 
   onDeleteAccount() {

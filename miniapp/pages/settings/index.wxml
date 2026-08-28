@@ -383,6 +383,44 @@
         <button class="ts-button ts-button--secondary settings-action-btn" bindtap="onSendFeedback">
           {{tr.sendFeedback}}
         </button>
+        <view wx:if="{{feedbackFormOpen}}" class="settings-feedback ts-section">
+          <textarea
+            class="settings-feedback__message"
+            value="{{feedbackMessage}}"
+            maxlength="5000"
+            auto-height
+            placeholder="{{tr.feedbackPrompt}}"
+            disabled="{{feedbackSubmitting}}"
+            bindinput="onFeedbackMessageInput"
+          ></textarea>
+          <view class="settings-feedback__consent">
+            <view class="settings-feedback__consent-copy">
+              <text class="settings-feedback__consent-title">{{tr.feedbackPublish}}</text>
+              <text class="settings-feedback__consent-helper ts-muted">{{tr.feedbackPublishHelper}}</text>
+            </view>
+            <switch
+              checked="{{feedbackPublicationConsent}}"
+              disabled="{{feedbackSubmitting}}"
+              color="#1f7a4d"
+              aria-label="{{tr.feedbackPublish}}"
+              bindchange="onFeedbackPublicationChange"
+            />
+          </view>
+          <text wx:if="{{feedbackError}}" class="settings-feedback__error" role="alert">{{feedbackError}}</text>
+          <view class="settings-feedback__actions">
+            <button
+              class="ts-button ts-button--secondary settings-feedback__button"
+              disabled="{{feedbackSubmitting}}"
+              bindtap="onCancelFeedback"
+            >{{tr.feedbackCancel}}</button>
+            <button
+              class="ts-button settings-feedback__button"
+              loading="{{feedbackSubmitting}}"
+              disabled="{{feedbackSubmitting || !feedbackMessage}}"
+              bindtap="onSubmitFeedback"
+            >{{feedbackSubmitting ? tr.feedbackSubmitting : tr.feedbackSubmit}}</button>
+          </view>
+        </view>
         <button class="ts-button ts-button--secondary settings-action-btn" bindtap="onCopyUrl">
           {{tr.openOnWeb}}
         </button>

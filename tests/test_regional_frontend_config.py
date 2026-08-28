@@ -716,7 +716,10 @@ def test_proposed_trust_artifacts_bind_current_work_contract_without_approval() 
     route = "sha256:858b1429ea3e90b307923752d783f0ba9bc2665f978ddb2ef9381ddeae4216ab"
     for relative, pending_marker in (
         ("docs/ops/tdr-2026-08-26-cn-privacy-control-boundary.md", "Proposed"),
-        ("docs/ops/cn-personal-information-impact-assessment.md", "DRAFT"),
+        (
+            "docs/ops/cn-personal-information-impact-assessment.md",
+            "PROPOSED — BLOCKED PENDING HUMAN LEGAL/PIPIA REVIEW",
+        ),
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert classification in text

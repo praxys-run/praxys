@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:270
+#: src/components/AiInsightsCard.tsx:271
 msgid " · "
 msgstr " · "
 
@@ -36,12 +36,12 @@ msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, other {# 项活动}}"
 
 #. placeholder {0}: displayedContent.findings.length
-#: src/components/AiInsightsCard.tsx:268
+#: src/components/AiInsightsCard.tsx:269
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, other {# 条发现}}"
 
 #. placeholder {0}: displayedContent.recommendations.length
-#: src/components/AiInsightsCard.tsx:272
+#: src/components/AiInsightsCard.tsx:273
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
@@ -794,7 +794,7 @@ msgstr "将一项未来训练加入 Praxys 主计划。"
 msgid "Add repeat step"
 msgstr "添加重复步骤"
 
-#: src/components/FeedbackDialog.tsx:295
+#: src/components/FeedbackDialog.tsx:322
 msgid "Add screenshot"
 msgstr "添加截图"
 
@@ -1238,8 +1238,8 @@ msgstr "请勿填写姓名、疾病诊断、精确位置等敏感信息。即使
 msgid "Awaiting triage decision"
 msgstr "等待分诊判断"
 
-#: src/components/AiInsightsCard.tsx:217
-#: src/components/AiInsightsCard.tsx:247
+#: src/components/AiInsightsCard.tsx:218
+#: src/components/AiInsightsCard.tsx:248
 msgid "Azure AI insights are temporarily unavailable."
 msgstr "Azure AI 洞察暂时不可用。"
 
@@ -1403,7 +1403,7 @@ msgstr "浏览训练计划日期"
 msgid "Bug"
 msgstr "缺陷"
 
-#: src/components/FeedbackDialog.tsx:40
+#: src/components/FeedbackDialog.tsx:41
 msgid "Bug report"
 msgstr "问题反馈"
 
@@ -1464,8 +1464,8 @@ msgstr "计算代理值"
 msgid "Calculator"
 msgstr "计算器"
 
-#: src/components/AiInsightsCard.tsx:381
-#: src/components/FeedbackDialog.tsx:314
+#: src/components/AiInsightsCard.tsx:382
+#: src/components/FeedbackDialog.tsx:341
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
 #: src/components/GoalEditor.tsx:59
@@ -1755,7 +1755,7 @@ msgstr "点击复制"
 msgid "Client"
 msgstr "客户端"
 
-#: src/components/FeedbackDialog.tsx:203
+#: src/components/FeedbackDialog.tsx:208
 #: src/components/MetricDetailSheet.tsx:65
 msgid "Close"
 msgstr "关闭"
@@ -2304,12 +2304,12 @@ msgstr "无法保存更改。"
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "保存失败。请检查网络连接后重试。"
 
-#: src/components/AiInsightsCard.tsx:207
+#: src/components/AiInsightsCard.tsx:208
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "反馈发送失败，请重试。"
 
-#: src/components/FeedbackDialog.tsx:167
+#: src/components/FeedbackDialog.tsx:172
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
 
@@ -2803,7 +2803,7 @@ msgstr "拒绝"
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "当天暂无详细活动证据。"
 
-#: src/components/FeedbackDialog.tsx:228
+#: src/components/FeedbackDialog.tsx:233
 #: src/pages/Analysis.tsx:78
 msgid "Details"
 msgstr "详情"
@@ -2812,7 +2812,7 @@ msgstr "详情"
 msgid "deterministic"
 msgstr "确定"
 
-#: src/components/AiInsightsCard.tsx:235
+#: src/components/AiInsightsCard.tsx:236
 msgid "Deterministic training summary"
 msgstr "确定性训练摘要"
 
@@ -2958,7 +2958,7 @@ msgstr "距离未确认"
 msgid "Distribution match"
 msgstr "分布匹配度"
 
-#: src/components/ZoneAnalysisCard.tsx:139
+#: src/components/ZoneAnalysisCard.tsx:140
 msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
 msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。仅当近期每次活动的有效分段或时间戳采样均覆盖至少 90% 的活动时长时才会显示；采样流还要求中位采样间隔不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。"
 
@@ -3103,7 +3103,7 @@ msgstr "每个环境区间内，每次活动只计一次。可比功率范围以
 msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
 msgstr "每项实验都有独立的同意流程、数据要求、局限说明和退出控制。"
 
-#: src/components/FeedbackDialog.tsx:113
+#: src/components/FeedbackDialog.tsx:116
 msgid "Each image must be under 5 MB."
 msgstr "每张图片需小于 5 MB。"
 
@@ -3632,7 +3632,7 @@ msgstr "疲劳"
 msgid "Feature"
 msgstr "功能请求"
 
-#: src/components/FeedbackDialog.tsx:41
+#: src/components/FeedbackDialog.tsx:42
 msgid "Feature request"
 msgstr "功能建议"
 
@@ -3657,7 +3657,7 @@ msgstr "反馈状态不可用"
 msgid "Feedback triage"
 msgstr "反馈处理"
 
-#: src/components/AiInsightsCard.tsx:280
+#: src/components/AiInsightsCard.tsx:281
 msgid "Findings"
 msgstr "解读要点"
 
@@ -3730,7 +3730,7 @@ msgstr "按计划训练"
 #~ msgid "Form (TSB)"
 #~ msgstr "竞技状态 (TSB)"
 
-#: src/components/FeedbackDialog.tsx:187
+#: src/components/FeedbackDialog.tsx:192
 msgid "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 msgstr "发现问题或有想法？告诉我们。反馈会自动审阅并分流。"
 
@@ -3844,7 +3844,7 @@ msgstr "目前尚无法充分验证 Garmin 腕部功率来源，因此不能用�
 #~ msgid "Gate-passing semantic slice:"
 #~ msgstr "通过规则门槛的语义样本："
 
-#: src/components/FeedbackDialog.tsx:42
+#: src/components/FeedbackDialog.tsx:43
 msgid "General feedback"
 msgstr "其他反馈"
 
@@ -4026,7 +4026,7 @@ msgstr "高温安全"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "热适应证据正在衰减"
 
-#: src/components/AiInsightsCard.tsx:338
+#: src/components/AiInsightsCard.tsx:339
 msgid "Helpful"
 msgstr "有帮助"
 
@@ -4034,7 +4034,7 @@ msgstr "有帮助"
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
-#: src/components/AiInsightsCard.tsx:264
+#: src/components/AiInsightsCard.tsx:265
 msgid "Hide details"
 msgstr "收起详情"
 
@@ -5483,7 +5483,7 @@ msgstr "负平衡"
 msgid "Network error"
 msgstr "网络错误"
 
-#: src/components/FeedbackDialog.tsx:173
+#: src/components/FeedbackDialog.tsx:178
 msgid "Network error — please try again."
 msgstr "网络错误——请重试。"
 
@@ -6031,7 +6031,7 @@ msgstr "尚未建立"
 #~ msgid "Not evaluated"
 #~ msgstr "未评估"
 
-#: src/components/AiInsightsCard.tsx:348
+#: src/components/AiInsightsCard.tsx:349
 msgid "Not helpful"
 msgstr "帮助不大"
 
@@ -6172,7 +6172,7 @@ msgstr "只有明确确认距离、计时、协议、路线或场地及训练意
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 #~ msgstr "只有 Praxys 下发账本记录的训练才能取消排期。手动添加和其他教练平台的训练保持不变。"
 
-#: src/components/FeedbackDialog.tsx:109
+#: src/components/FeedbackDialog.tsx:112
 msgid "Only PNG, JPG, or WebP images are supported."
 msgstr "仅支持 PNG、JPG 或 WebP 图片。"
 
@@ -6297,9 +6297,13 @@ msgstr "选填"
 msgid "Optional"
 msgstr "选填"
 
+#: src/components/FeedbackDialog.tsx:325
+msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them only to help investigate your feedback."
+msgstr "可选：PNG、JPG 或 WebP，最多 3 张。截图会保持私密；我们只会读取截图来帮助调查你的反馈。"
+
 #: src/components/FeedbackDialog.tsx:298
-msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
-msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我们会读取截图以描述问题，并在提交前移除其中的敏感内容。"
+#~ msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
+#~ msgstr "可选：PNG、JPG 或 WebP，最多 3 张图片。截图会保密；我们会读取截图以描述问题，并在提交前移除其中的敏感内容。"
 
 #: src/pages/Setup.tsx:862
 msgid "Optional — you can always set this later from the Goal page"
@@ -6321,7 +6325,7 @@ msgstr "可选基准测试日期"
 msgid "Optional coaching cue"
 msgstr "可选教练提示"
 
-#: src/components/AiInsightsCard.tsx:362
+#: src/components/AiInsightsCard.tsx:363
 msgid "Optional comment"
 msgstr "可选备注"
 
@@ -6344,6 +6348,10 @@ msgstr "可选的整节训练备注"
 #: src/components/WorkoutPlanEditor.tsx:469
 #~ msgid "Optional structure, terrain, or intent"
 #~ msgstr "可填写训练结构、地形或训练目的"
+
+#: src/components/FeedbackDialog.tsx:272
+msgid "Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication."
+msgstr "可选。Praxys 会在发布前移除个人信息。截图始终保持私密。即使不允许发布，你仍可发送反馈。"
 
 #: src/components/WorkoutCard.tsx:82
 msgid "Options"
@@ -6849,11 +6857,11 @@ msgstr "Praxys 可以分析此日程，但不会在目标平台创建、替换�
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 msgstr "Praxys 会在显示参与同意或开始分析前，检查所需的环境、Stryd 功率、心率和临界功率覆盖情况。"
 
-#: src/components/AiInsightsCard.tsx:238
+#: src/components/AiInsightsCard.tsx:239
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
 
-#: src/components/AiInsightsCard.tsx:234
+#: src/components/AiInsightsCard.tsx:235
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
@@ -7238,6 +7246,10 @@ msgstr "发布人工覆盖"
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 msgstr "在上方发布横幅，用于通知维护窗口、功能上线或接入消息。"
 
+#: src/components/FeedbackDialog.tsx:269
+msgid "Publish a scrubbed text summary to Praxys’s external issue tracker"
+msgstr "将去除个人信息后的文字摘要发布到 Praxys 的外部问题追踪系统"
+
 #: src/pages/admin/AdminIncidents.tsx:153
 msgid "Publish service updates on the <0>public status page</0>."
 msgstr "在<0>公开状态页</0>发布服务动态。"
@@ -7606,7 +7618,7 @@ msgstr "已注册用户的近期使用情况。"
 msgid "Recommendation available"
 msgstr "有建议可供查看"
 
-#: src/components/AiInsightsCard.tsx:294
+#: src/components/AiInsightsCard.tsx:295
 msgid "Recommendations"
 msgstr "建议"
 
@@ -7977,7 +7989,7 @@ msgstr "移除并更换"
 msgid "Remove future Praxys deliveries"
 msgstr "移除未来由 Praxys 下发的训练"
 
-#: src/components/FeedbackDialog.tsx:276
+#: src/components/FeedbackDialog.tsx:303
 msgid "Remove image"
 msgstr "删除图片"
 
@@ -8500,7 +8512,7 @@ msgstr "规则"
 msgid "Run"
 msgstr "跑步"
 
-#: src/components/AiInsightsCard.tsx:306
+#: src/components/AiInsightsCard.tsx:307
 msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
@@ -8771,14 +8783,14 @@ msgstr "步骤类型"
 #~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 #~ msgstr "语义描述可移植的步骤。标签和说明保留你的措辞；Praxys 不会从中推断热身、放松或重复组。"
 
-#: src/components/AiInsightsCard.tsx:389
+#: src/components/AiInsightsCard.tsx:390
 msgid "Send"
 msgstr "发送"
 
 #: src/components/AppSidebar.tsx:217
 #: src/components/AppSidebar.tsx:219
-#: src/components/FeedbackDialog.tsx:184
-#: src/components/FeedbackDialog.tsx:317
+#: src/components/FeedbackDialog.tsx:189
+#: src/components/FeedbackDialog.tsx:344
 msgid "Send feedback"
 msgstr "发送反馈"
 
@@ -8790,11 +8802,11 @@ msgstr "发送反馈"
 msgid "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动关闭，因此提高上限前请先检查就绪情况。"
 
-#: src/components/AiInsightsCard.tsx:389
+#: src/components/AiInsightsCard.tsx:390
 msgid "Sending..."
 msgstr "发送中…"
 
-#: src/components/FeedbackDialog.tsx:317
+#: src/components/FeedbackDialog.tsx:344
 #: src/pages/admin/AdminUsers.tsx:939
 #: src/pages/Login.tsx:409
 msgid "Sending…"
@@ -8804,7 +8816,7 @@ msgstr "发送中…"
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
-#: src/components/AiInsightsCard.tsx:325
+#: src/components/AiInsightsCard.tsx:326
 msgid "Sent"
 msgstr "已发送"
 
@@ -9706,7 +9718,7 @@ msgstr "测试"
 msgid "Thanks - that helps us improve Today."
 msgstr "谢谢，这会帮助我们改进今日建议。"
 
-#: src/components/FeedbackDialog.tsx:197
+#: src/components/FeedbackDialog.tsx:202
 msgid "Thanks for the feedback!"
 msgstr "感谢你的反馈！"
 
@@ -10205,7 +10217,7 @@ msgstr "此导入或旧版训练没有便携结构树。可按原样编辑摘要
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 msgstr "无法安全编辑此导入结构。请先复制为受支持的 Praxys 训练。"
 
-#: src/components/AiInsightsCard.tsx:188
+#: src/components/AiInsightsCard.tsx:189
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
@@ -10596,7 +10608,7 @@ msgstr "训练诊断"
 #~ msgid "Training Insights"
 #~ msgstr "训练解读"
 
-#: src/components/AiInsightsCard.tsx:238
+#: src/components/AiInsightsCard.tsx:239
 msgid "Training metrics"
 msgstr "训练指标"
 
@@ -10720,7 +10732,7 @@ msgstr "正在启用…"
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler 热适应荟萃分析"
 
-#: src/components/FeedbackDialog.tsx:210
+#: src/components/FeedbackDialog.tsx:215
 #: src/pages/admin/AdminFeedback.tsx:389
 msgid "Type"
 msgstr "类型"
@@ -11105,7 +11117,7 @@ msgstr "对比{0}"
 msgid "vs {0} baseline"
 msgstr "对比基准 {0}"
 
-#: src/components/ZoneAnalysisCard.tsx:79
+#: src/components/ZoneAnalysisCard.tsx:80
 msgid "vs {theoryName}"
 msgstr "对比 {theoryName}"
 
@@ -11148,8 +11160,8 @@ msgstr "这次完整努力是实测 10K 吗？"
 msgid "Was the full effort a measured 5K?"
 msgstr "这是否是一次距离准确的完整 5 公里？"
 
-#: src/components/AiInsightsCard.tsx:329
-#: src/components/AiInsightsCard.tsx:333
+#: src/components/AiInsightsCard.tsx:330
+#: src/components/AiInsightsCard.tsx:334
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
@@ -11159,14 +11171,18 @@ msgid "WAU"
 msgstr "WAU"
 
 #: src/components/FeedbackDialog.tsx:247
-msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
-msgstr "会附带基础诊断信息（页面、应用版本、浏览器），并在发送到问题追踪系统前自动移除个人信息。"
+#~ msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
+#~ msgstr "会附带基础诊断信息（页面、应用版本、浏览器），并在发送到问题追踪系统前自动移除个人信息。"
+
+#: src/components/FeedbackDialog.tsx:252
+msgid "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
+msgstr "我们会附带基础诊断信息（页面、应用版本、浏览器）用于私下处理，并从你选择发布的任何文字中移除个人信息。"
 
 #: src/pages/Login.tsx:436
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮箱，有名额时我们会联系你。"
 
-#: src/components/FeedbackDialog.tsx:200
+#: src/components/FeedbackDialog.tsx:205
 msgid "We've logged it and will take a look."
 msgstr "我们已记录，会尽快查看。"
 
@@ -11275,7 +11291,7 @@ msgstr "这次训练变了什么？"
 #~ msgid "What does not count"
 #~ msgstr "未计入内容"
 
-#: src/components/FeedbackDialog.tsx:237
+#: src/components/FeedbackDialog.tsx:242
 msgid "What happened, or what would you like to see?"
 msgstr "遇到了什么问题，或希望我们做些什么？"
 
@@ -11300,7 +11316,7 @@ msgstr "它能说明什么，又不能说明什么"
 msgid "What was this full activity?"
 msgstr "这次完整活动属于哪种情况？"
 
-#: src/components/AiInsightsCard.tsx:369
+#: src/components/AiInsightsCard.tsx:370
 msgid "What was useful or missing?"
 msgstr "哪些内容有帮助，或还缺少什么？"
 
@@ -11473,7 +11489,7 @@ msgstr "你"
 msgid "You already have usable current 10K evidence."
 msgstr "你已经有可用且当前的 10K 证据。"
 
-#: src/components/FeedbackDialog.tsx:105
+#: src/components/FeedbackDialog.tsx:108
 msgid "You can attach up to 3 images."
 msgstr "最多可添加 3 张图片。"
 
@@ -11509,7 +11525,7 @@ msgstr "已有较早的 5 公里证据。Praxys 会保留它，也可以选择�
 msgid "You must accept the Terms of Service to register."
 msgstr "注册前须接受服务条款。"
 
-#: src/components/FeedbackDialog.tsx:163
+#: src/components/FeedbackDialog.tsx:168
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "你最近已提交多条反馈——请过几分钟再提交。"
 
@@ -11630,8 +11646,8 @@ msgstr "你的 Strava API 客户端 ID"
 msgid "Your Strava API Client Secret"
 msgstr "你的 Strava API 客户端密钥"
 
-#: src/components/AiInsightsCard.tsx:218
-#: src/components/AiInsightsCard.tsx:248
+#: src/components/AiInsightsCard.tsx:219
+#: src/components/AiInsightsCard.tsx:249
 msgid "Your synced data and deterministic training metrics remain available."
 msgstr "已同步的数据和确定性训练指标仍可使用。"
 

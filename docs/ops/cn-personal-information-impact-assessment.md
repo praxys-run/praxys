@@ -1,7 +1,7 @@
 # Mainland China personal-information protection impact assessment
 
-> **Status:** **DRAFT — BLOCKED PENDING HUMAN LEGAL/PIPIA REVIEW**
-> **Summary:** Draft assessment for the proposed authenticated `praxys.cn` service,
+> **Status:** **PROPOSED — BLOCKED PENDING HUMAN LEGAL/PIPIA REVIEW**
+> **Summary:** Proposed assessment for a future authenticated `praxys.cn` service,
 > including overseas processing, sensitive personal information, recipients,
 > necessity, safeguards, and residual risk.
 > **Use when:** Releasing or changing the China service, a recipient, a data
@@ -18,8 +18,8 @@
 | Operator / personal-information handler | Fei Tao |
 | Rights contact | `support@praxys.run` |
 | Service | Authenticated Praxys web service at `praxys.cn` and `www.praxys.cn`; WeChat mini program |
-| Decision | **Blocked draft; no approval or residual-risk acceptance recorded** |
-| Residual risk | **Medium** — principally the interpretation of contract necessity for a training service that handles sensitive fitness and recovery data |
+| Decision | **Proposed; blocked pending human legal/PIPIA review; no approval or residual-risk acceptance recorded** |
+| Residual risk | **Proposed Medium — human acceptance pending**; principally the interpretation of contract necessity for a training service that handles sensitive fitness and recovery data |
 | Proposed minimum record retention | Through 2029-08-25, and longer while the assessed processing continues or a dispute/investigation requires it; not accepted |
 | Next scheduled review | 2027-08-25, or immediately on any trigger below |
 
@@ -49,8 +49,9 @@ Praxys 的账号、同步、存储、训练计算和必要运维由 Microsoft Az
 - `.cn` 网页和小程序在任何个人信息请求前展示版本化告知；
 - 服务端以精确版本与内容摘要记录不可覆盖的条款收据；
 - 用户主动连接第三方平台前展示接收方、信息类别和官方隐私链接；
-- 浏览器分析、产品事件、自动后台 AI 和反馈境外发布在中国发布路径关闭；
-- 可选 Azure AI 只允许具有独立、明确、可撤回授权的用途；
+- 浏览器分析、产品事件和反馈境外发布在中国发布路径关闭；
+- 普通 Azure AI 是服务条件，仅在用户接受当前条款且服务端应急停止开关解除时可用；
+  用户仍可选择不提供私人计划上下文，每个已提供项目继续受精确用途、版本和字段最小化约束；
 - 服务端 Statsig 仅下载规则并在 Praxys 内本地判断，关闭用户日志和 SDK 诊断；
 - 香港后台必要遥测最小化并保留 30 天；
 - 用户可导出、断开连接和删除账号。
@@ -80,9 +81,11 @@ The assessment proposes the following basis for operator acceptance:
 3. The service still gives the complete pre-processing notice required by the
    PIPL, explains sensitive categories and their impact, and preserves rights
    channels.
-4. Optional overseas AI is outside the core basis. It remains off unless the
-   exact purpose, fields, destination, and current context version have a
-   separate, revocable authorization.
+4. The enumerated ordinary Azure AI purposes are proposed as part of the same
+   service contract and require current Terms plus the released server emergency
+   stop; they do not have a separate user opt-out. Supplying private plan context
+   remains optional, and any supplied item is restricted to its exact purpose,
+   current version, and minimized fields.
 
 Official sources:
 
@@ -147,7 +150,8 @@ sensitive personal information.
   stalking, account compromise, embarrassment, or other material harm.
 - **Controls:** encrypted transport and storage, per-user authorization,
   credential envelope encryption, no public screenshot storage, bounded logs,
-  no `.cn` browser telemetry, optional-AI separation, data export, disconnect,
+  no `.cn` browser telemetry, ordinary-AI Terms/emergency-stop enforcement,
+  optional-input purpose/version minimization, data export, disconnect,
   and account deletion.
 
 ## Notice and receipt design
@@ -199,7 +203,7 @@ the receipt-retention policy.
 | Personal traffic starts before notice | High | Web provider ordering, auth-prefetch guard, auth-restoration guard, Miniapp network guard, versioned local acknowledgement, runtime source/build headers, API rejection of stale clients, and server Terms receipt gate | Low |
 | Provider receives more data than expected or changes region/entity | High | User selects connection, just-in-time disclosure, official policy link, supported-category limits, disconnect | Medium |
 | Azure AI runs without current service authority or during an emergency stop | High | Current Terms receipt, centralized fail-closed AI kill switch, per-user/purpose/field isolation, explicit unavailable state | Low |
-| Feedback reaches a foreign/public tracker | High | Private storage, deterministic scrub, production publication kill switch, no background vision/AI | Low |
+| Feedback reaches a foreign/public tracker | High | Private storage, deterministic scrub, exact per-submission publication grant, and production publication kill switch; screenshots never publish | Low |
 | Telemetry contains sensitive payload or persists too long | High | No intentional payload/credential/email fields, pseudonymous hashes, IP masking, 30-day backend retention, `.cn` browser telemetry disabled | Low-medium |
 | Statsig gate evaluation discloses user identity | Medium | Server-side local evaluation; all SDK user logging and diagnostics disabled; `.cn` browser SDK absent | Low |
 | Deletion is incomplete because of backups or processors | High | Active deletion workflow, 14-day PostgreSQL PITR expiry, deletion records, processor coordination, user rights channel | Medium-low |

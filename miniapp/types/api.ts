@@ -3853,6 +3853,9 @@ export interface ServiceStatus {
 
 // --- Feedback (bug report / feature request / general) ---
 
+export const FEEDBACK_PUBLICATION_CONSENT_VERSION =
+  'feedback-publication-v1' as const;
+
 export type FeedbackKind = 'bug' | 'feature' | 'other';
 
 export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'resolved' | 'failed' | 'rejected';
@@ -3877,7 +3880,7 @@ export type FeedbackRequest = {
 } & (
   | {
       external_publication_consent: true;
-      external_publication_consent_version: string;
+      external_publication_consent_version: typeof FEEDBACK_PUBLICATION_CONSENT_VERSION;
     }
   | {
       external_publication_consent?: false;
