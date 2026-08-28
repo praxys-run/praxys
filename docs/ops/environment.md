@@ -60,18 +60,21 @@ PIPIA, and the runbook's Release Evidence exists.
   (Hong Kong SAR) under the pending operator decision in
   [PIPIA-CN-2026-08-25-01](./cn-personal-information-impact-assessment.md).
 - `.cn` requests must identify the stamped source SHA and current notice
-  version. WeChat requests must identify Miniapp `2026.08.1` or newer plus its
+  version. WeChat requests must identify Miniapp `2026.08.2` or newer plus its
   reviewed source SHA; the API rejects missing, stale, or rolled-back clients.
 - `CN_PRIVACY_FLOOR_SHA` gates only China candidate validation, EdgeOne
   artifact preparation, and Miniapp publication. Ordinary filing-free `.run`
-  backend and Azure frontend deployment remains operable without it and keeps
-  China/optional processing fixed disabled with `.cn` CORS absent.
+  backend and Azure frontend deployment remains operable without it, keeps
+  China processing and external feedback publication disabled, leaves ordinary
+  Azure AI available, and keeps `.cn` CORS absent.
 - `.cn` browser App Insights, browser Statsig, and product-event telemetry are
   disabled. The mini program also disables product events.
 - Backend Statsig downloads rules and evaluates them locally with user logging
   and diagnostics disabled.
-- Production background AI and external feedback publication are fixed
-  disabled by workflow literals; repository variables cannot enable them.
+- Ordinary production Azure AI is available under current Terms while its
+  fail-closed emergency stop is released. External feedback publication remains
+  fixed disabled by workflow literals and requires separate authorization;
+  repository variables cannot enable it.
 - Backend request/security telemetry remains in Hong Kong with a 30-day
   component/workspace retention limit.
 

@@ -19,7 +19,6 @@ from fastapi import BackgroundTasks, HTTPException
 @pytest.fixture(autouse=True)
 def enable_optional_feedback_processing(monkeypatch):
     """Feedback tests opt into AI/publication unless a test kills a path."""
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")

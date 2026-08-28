@@ -235,8 +235,8 @@ export default function TermsGate() {
         </p>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           {zh
-            ? "服务条款已经更新。隐私政策现已说明中国大陆用户的境外处理地点、接收方、敏感信息必要性及权利渠道。核心处理依据履约必要性；可选 AI 仍需另行选择加入。继续前，请阅读服务条款和隐私告知。"
-            : "The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing."}
+            ? "服务条款已经更新。隐私政策区分 Azure 核心托管与 Azure AI 处理，并说明已列明的普通 AI 用途、数据最小化、中断状态及权利渠道。普通服务不另设 AI 退出选项。继续前，请阅读服务条款和隐私告知。"
+            : "The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing."}
         </p>
 
         <label className="mt-5 flex items-start gap-2 text-sm text-muted-foreground">

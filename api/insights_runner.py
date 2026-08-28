@@ -7,9 +7,8 @@ generators, each gated by:
   insight haven't materially changed since the last generation.
 - A *per-user daily cap*: skip remaining types if the cap is exhausted.
 
-When the LLM is unavailable (Azure endpoint unset, SDK missing) the
-generators return ``None`` and the rule-based prose elsewhere in the app
-serves as the fallback. Sync never fails because of this hook — call sites
+When Azure AI is unavailable, AI insight generation reports that state;
+deterministic metrics continue through their separate API surfaces. Sync never fails because of this hook — call sites
 always wrap it in try/except.
 
 Transaction ownership: the runner opens its own ``SessionLocal`` so its
@@ -72,18 +71,15 @@ def run_insights_for_user(
         top-level ``skipped`` key short-circuits the whole run.
     """
     if background_ai_disabled():
-        return {"skipped": "background_ai_disabled"}
+        return {"skipped": "ai_unavailable"}
 
     has_new_rows = _has_new_rows(counts)
     if _session is not None:
         if not background_ai_authorized(
             _session,
             user_id=user_id,
-            # There is no account-wide purpose receipt for scheduled insight
-            # generation. A deployment flag cannot manufacture one.
-            purpose_authorized=False,
         ):
-            return {"skipped": "background_ai_authorization_required"}
+            return {"skipped": "current_terms_required"}
         if not has_new_rows:
             return {"skipped": "no_new_rows"}
         return _run_serialized(_session, user_id)
@@ -95,9 +91,8 @@ def run_insights_for_user(
         if not background_ai_authorized(
             own_session,
             user_id=user_id,
-            purpose_authorized=False,
         ):
-            return {"skipped": "background_ai_authorization_required"}
+            return {"skipped": "current_terms_required"}
         if not has_new_rows:
             return {"skipped": "no_new_rows"}
         return _run_serialized(own_session, user_id)

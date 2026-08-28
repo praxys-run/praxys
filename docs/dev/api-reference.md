@@ -2634,7 +2634,6 @@ MCP preview containing an unknown or out-of-range field fails closed.
 | `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts; set `include_narrative=true` to request retained narrative |
 | `POST` | `/api/personal-context/selection` | Select active context while non-destructively excluding item IDs; body field `include_narrative` requests retained narrative |
 | `POST` | `/api/personal-context/{item_id}/correct` | Append an immutable corrected successor |
-| `POST` | `/api/personal-context/{item_id}/ai-consent` | Grant, deny, or withdraw field-level AI processing consent |
 | `POST` | `/api/personal-context/{item_id}/expire` | Stop one current version from influencing decisions |
 | `DELETE` | `/api/personal-context/{item_id}?expected_version=N` | Delete the complete lineage and dependent private traces |
 | `GET` | `/api/personal-context/export` | Export all retained versions, receipts, and linked revision IDs |
@@ -2684,20 +2683,22 @@ Supported purposes are `plan_generation`, `execution_interpretation`,
 `plan_adjustment`, `goal_review`, and `outcome_review`. Structured values are
 bounded scalars or scalar arrays; unknown payload keys are rejected.
 
-AI processing remains off until the athlete grants consent for an exact
-version. `provider` is currently `azure_openai`; `disclosed_fields` uses
-`category`, `fields`, `fields.<name>`, or `narrative`. Granting narrative
-disclosure requires the item to contain a retained narrative.
+For the ordinary Azure AI purposes enumerated by the current Terms, the
+server verifies the current Terms receipt and centralized emergency switch;
+callers cannot grant or withdraw AI authority. Exact item identity, version,
+purpose, and minimized `category`, `fields.<name>`, and retained `narrative`
+disclosures remain enforced and recorded.
 
 ### Suggestion-first context pilot
 
 Pilot run and proposal-response commands require an `Idempotency-Key`. An
 athlete-context run accepts only `execution_interpretation` or
 `plan_adjustment` and requires `"source": "opt_in"` plus
-`"confirmed_opt_in": true`. Opted-in runs may set `"allow_ai": true`; the
-normal item-level Azure OpenAI consent and field-minimization checks still
-apply. Synthetic runs select a scenario returned by the catalog, do not accept
-`allow_ai`, and cannot be accepted.
+`"confirmed_opt_in": true`. This confirmation selects participation in the
+suggestion-first pilot; it is not AI-processing authority. Current Terms,
+server runtime state, and purpose/field minimization govern provider use.
+Synthetic runs select a scenario returned by the catalog and cannot be
+accepted.
 
 Every run preserves the stable five-outcome contract: `clarification`,
 `no_change`, `insufficient_evidence`, `safety`, or `suggestion`. The only

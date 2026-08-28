@@ -20,7 +20,6 @@ from db.models import Base, User
 
 
 _FLAGS = (
-    "PRAXYS_ENABLE_BACKGROUND_AI",
     "PRAXYS_DISABLE_BACKGROUND_AI",
     "PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
     "PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
@@ -32,7 +31,7 @@ def _clear(monkeypatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
-def test_optional_processing_defaults_off(monkeypatch) -> None:
+def test_ai_kill_switch_defaults_fail_closed(monkeypatch) -> None:
     _clear(monkeypatch)
 
     assert background_ai_enabled() is False
@@ -41,9 +40,8 @@ def test_optional_processing_defaults_off(monkeypatch) -> None:
     assert feedback_publication_disabled() is True
 
 
-def test_optional_processing_requires_positive_enable_and_kill_release(monkeypatch) -> None:
+def test_ai_requires_kill_release_while_publication_keeps_two_switches(monkeypatch) -> None:
     _clear(monkeypatch)
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
@@ -54,7 +52,6 @@ def test_optional_processing_requires_positive_enable_and_kill_release(monkeypat
 
 def test_negative_kill_switch_overrides_positive_enable(monkeypatch) -> None:
     _clear(monkeypatch)
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "true")
@@ -65,18 +62,17 @@ def test_negative_kill_switch_overrides_positive_enable(monkeypatch) -> None:
 
 def test_malformed_optional_processing_config_fails_closed(monkeypatch) -> None:
     _clear(monkeypatch)
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "sometimes")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "sometimes")
 
     assert background_ai_enabled() is False
     with pytest.raises(ValueError):
         validate_optional_processing_config()
 
 
-def test_individual_authorization_is_current_and_purpose_bound(
+def test_ai_authorization_uses_current_terms_and_runtime(
     monkeypatch,
 ) -> None:
     _clear(monkeypatch)
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
@@ -100,18 +96,9 @@ def test_individual_authorization_is_current_and_purpose_bound(
         ))
         db.commit()
 
-        assert background_ai_authorized(
-            db, user_id="current", purpose_authorized=True
-        )
-        assert not background_ai_authorized(
-            db, user_id="current", purpose_authorized=False
-        )
-        assert not background_ai_authorized(
-            db, user_id="stale", purpose_authorized=True
-        )
-        assert not background_ai_authorized(
-            db, user_id=None, purpose_authorized=True
-        )
+        assert background_ai_authorized(db, user_id="current")
+        assert not background_ai_authorized(db, user_id="stale")
+        assert not background_ai_authorized(db, user_id=None)
         assert feedback_publication_authorized(
             db, user_id="current", submission_authorized=True
         )
@@ -124,3 +111,15 @@ def test_individual_authorization_is_current_and_purpose_bound(
     finally:
         db.close()
         engine.dispose()
+
+
+def test_azure_client_construction_honors_emergency_stop(monkeypatch) -> None:
+    import api.llm as llm
+
+    cached_client = object()
+    monkeypatch.setattr(llm, "_get_cached_client", lambda: cached_client)
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+    assert llm.get_client() is cached_client
+
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+    assert llm.get_client() is None

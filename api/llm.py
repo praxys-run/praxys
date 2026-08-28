@@ -3,7 +3,7 @@
 Auth uses DefaultAzureCredential, picking up `az login` locally or workload
 identity / OIDC in cloud. No API key path. When `AZURE_AI_ENDPOINT` is unset
 or the optional `openai` / `azure-identity` SDKs are missing, `get_client()`
-returns None — callers fall back to rule-based prose rather than raising.
+returns None — callers report AI unavailability; deterministic metrics remain separate.
 
 Two model deployment names are exposed:
 - ``INSIGHT_MODEL`` (env ``PRAXYS_INSIGHT_MODEL``): reasoning model used by the
@@ -30,19 +30,18 @@ API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 
 
 @lru_cache(maxsize=1)
-def get_client() -> Any | None:
+def _get_cached_client() -> Any | None:
     """Return an AzureOpenAI client or None when unavailable.
 
     Returns None (rather than raising) when:
     - The optional ``openai`` or ``azure-identity`` SDKs are not installed.
     - The ``AZURE_AI_ENDPOINT`` env var is unset.
 
-    Both fallback paths log once at module-call time so operators see the
+    Both unavailable paths log once at module-call time so operators see the
     AI-tier state in deploy logs (otherwise a missing SDK or unset endpoint
     silently disables AI insights for the lifetime of the process).
 
-    Tests that mutate ``AZURE_AI_ENDPOINT`` should call ``get_client.cache_clear()``
-    afterwards because the result is memoised at process scope.
+    The result is memoised at process scope.
     """
     try:
         from openai import AzureOpenAI  # type: ignore[import-not-found]
@@ -52,15 +51,13 @@ def get_client() -> Any | None:
         )
     except ImportError as e:
         logger.warning(
-            "Azure OpenAI SDK missing — AI insights disabled, "
-            "rule-based fallback active (%s)", e
+            "Azure OpenAI SDK missing — AI insights unavailable (%s)", e
         )
         return None
     endpoint = os.environ.get("AZURE_AI_ENDPOINT")
     if not endpoint:
         logger.info(
-            "AZURE_AI_ENDPOINT unset — AI insights disabled, "
-            "rule-based fallback active"
+            "AZURE_AI_ENDPOINT unset — AI insights unavailable"
         )
         return None
     token_provider = get_bearer_token_provider(
@@ -77,6 +74,20 @@ def get_client() -> Any | None:
         api_version=API_VERSION,
         azure_ad_token_provider=token_provider,
     )
+
+
+def get_client() -> Any | None:
+    """Return the cached client unless the emergency switch is active."""
+    from api.optional_processing import background_ai_disabled
+
+    if background_ai_disabled():
+        logger.info("Azure AI emergency stop active — AI unavailable")
+        return None
+    return _get_cached_client()
+
+
+# Preserve the established test/configuration cache-reset API.
+get_client.cache_clear = _get_cached_client.cache_clear  # type: ignore[attr-defined]
 
 
 def chat_json(
@@ -104,8 +115,9 @@ def chat_json(
     Failure handling distinguishes operator-actionable errors (auth misconfig,
     bad request — logged at ERROR, no retry) from transient errors (rate
     limit, transient API error, JSON decode — logged at WARNING and retried).
-    Returns None in either case so callers fall back to rule-based prose;
-    distinct log levels let alerting route operator-actionable failures
+    Returns None in either case so callers expose AI unavailability; separately
+    labelled deterministic functionality may continue, but is never AI output.
+    Distinct log levels let alerting route operator-actionable failures
     differently from noisy transient ones.
 
     ``insight_type`` is forwarded to telemetry — when set, per-call token

@@ -21,8 +21,8 @@
   API?
 - **recommendation:** Preserve a channel-based boundary, make accepted release
   identity and legal receipts server-authoritative, keep privacy rights
-  available without new Terms acceptance, and fail closed for optional
-  external processing.
+  available without new Terms acceptance, and fail closed for Azure AI emergencies and independently authorized external
+  feedback publication.
 - **review state:** An independent Trust review of implementation commit
   `635e5042dbb1f083bd8b6093a6d8488228b6a558` found no high-confidence
   Trust implementation blocker or security vulnerability for the dormant,
@@ -48,8 +48,8 @@ Frozen implementation commit `635e5042dbb1f083bd8b6093a6d8488228b6a558`
 implements deterministic workflow guards, exact runtime readback and `.cn`
 CORS-denial checks, evidence artifacts, an exact release-registry parser,
 digest-bound append-only Terms receipts, registration compensation, bounded
-rights access, per-user background Terms checks, and purpose-specific optional
-processing authorization. Those are verified draft safeguards, not an accepted
+rights access, per-user current-Terms checks, a centralized AI emergency stop, and exact
+per-submission feedback-publication authorization. Those are verified draft safeguards, not an accepted
 production gate, registry lifecycle authority, legal decision, provider
 release, or activation procedure. No live provider query or runtime readback,
 DNS/TLS cutover, permanent Release Evidence store, alert provisioning, or
@@ -85,7 +85,8 @@ running.
 Frozen implementation commit
 `635e5042dbb1f083bd8b6093a6d8488228b6a558` defaults the China client boundary
 off. Ordinary `.run` deploys write `PRAXYS_DISABLE_CN_PROCESSING=true`, keep
-both optional-processing positive enables false and kill switches true, remove
+China processing disabled while ordinary Azure AI availability is expressed by
+releasing its negative emergency stop, keep feedback publication disabled, remove
 `.cn` CORS, and include exact readback/evidence steps. The exact registry
 schema binds channel/version, a 12-character source ID, an exact 40-character
 protected-`main` commit, the current notice version and legal digest, API
@@ -98,9 +99,11 @@ Terms acceptance is bound to the exact version and digest and recorded in an
 append-only receipt table; bounded export, disconnect, deletion, sign-out, and
 owned-feedback-image routes remain available to stale-policy users. Account
 deletion fails closed if private feedback screenshot deletion fails and retains
-its locators for retry. Optional background AI and external feedback
-publication each require both a positive enable and an independently clear
-kill switch; the current draft defaults both off. These statements describe
+its locators for retry. Ordinary Azure AI is an enumerated service condition,
+not optional processing; it requires current Terms and the server-owned negative
+emergency switch; no client opt-out or positive-purpose boolean is authority.
+External feedback publication retains its independent positive enable, kill
+switch, and exact per-submission consent. These statements describe
 repository behavior only, not accepted policy, a deployed state, or live
 verification.
 
@@ -160,22 +163,25 @@ Current Terms acceptance and a client upgrade must not be prerequisites for:
 - access to the Privacy Policy and support channel.
 
 The middleware and Terms gate must use exact method/path allowlists. Rights
-routes still require authentication and per-account authorization, never run
-optional processing, and must not expose credentials. The Miniapp must provide
+routes still require authentication and per-account authorization, never invoke
+Azure AI or external feedback publication, and must not expose credentials. The Miniapp must provide
 a usable export path for WeChat-only accounts rather than only copying a web
 login URL.
 
-### Optional external processing
+### Azure AI and external publication
 
-Background AI and external feedback publication require positive deployment
-enablement and remain disabled when settings are missing, blank, malformed, or
-contradictory. Existing negative kill switches remain authoritative. Invalid
-production values fail readiness/startup validation instead of silently
-enabling processing.
+Ordinary Azure AI processing requires a current Terms receipt and the
+server-owned negative emergency switch to be released. The switch defaults to
+the stopped state when missing, blank, or malformed and is checked before each
+provider path. Activating it does not activate China processing, which remains
+independently registry-gated and globally disabled. An AI stop does not fail
+core readiness or stop sync and deterministic metrics; AI-only functions report
+unavailable and deterministic output is not branded as AI.
 
-Per-purpose user authorization remains separate. A China notice, Terms
-acceptance, client release entry, or deployment switch cannot substitute for
-the exact optional-purpose authorization.
+External feedback publication remains a separate optional action. It requires
+the publication enable, a clear publication kill switch, and the exact
+per-submission grant. Terms acceptance never grants publication, and screenshots
+remain private.
 
 ### Data export — policy and completeness blocked
 
@@ -232,8 +238,8 @@ authority bound to the final content digest and protected-main release.
 - **Draft implemented and verified:** exact server-owned registry validation,
   China kill switch, version/digest-bound append-only Terms receipts,
   registration compensation and retry safety, bounded stale-policy rights
-  routes, per-user background Terms checks, purpose-specific optional
-  processing authorization, protected-main workflow safeguards, runtime/CORS
+  routes, per-user background Terms checks, centralized Azure AI runtime/Terms authorization and independent
+  per-submission publication consent, protected-main workflow safeguards, runtime/CORS
   readback logic, and evidence artifacts.
 - **Not accepted or complete:** registry lifecycle authority, receipt and
   deletion-evidence retention, export coverage/streaming, and the permanent
@@ -250,7 +256,7 @@ Independent Quality and Trust verification must demonstrate:
 
 - unknown but well-formed client source/build tuples are rejected;
 - a disabled/revoked release is rejected;
-- malformed or absent optional-processing settings cannot enable work;
+- malformed or absent AI-stop settings cannot enable Azure AI calls;
 - missing or stale policy version/digest cannot create a receipt;
 - multiple accepted receipts remain as immutable history;
 - stale clients can export, disconnect, delete, sign out, and reach legal

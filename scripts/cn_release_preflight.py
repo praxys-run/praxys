@@ -314,15 +314,14 @@ def verify_disabled_runtime(
         raise ValueError("runtime privacy contract does not exactly match the candidate")
     optional = ready.get("optional_processing")
     expected_optional = {
-        "background_ai_enabled": False,
-        "background_ai_positive_enable": False,
-        "background_ai_kill_switch": True,
+        "background_ai_enabled": True,
+        "background_ai_kill_switch": False,
         "feedback_publication_enabled": False,
         "feedback_publication_positive_enable": False,
         "feedback_publication_kill_switch": True,
     }
     if optional != expected_optional:
-        raise ValueError("runtime optional-processing switches are not exact disabled literals")
+        raise ValueError("runtime processing switches do not match the inactive-CN contract")
     if ready.get("status") != "ready":
         raise ValueError("deployed API readiness is not ready")
     denied_origins = ("https://praxys.cn", "https://www.praxys.cn")
@@ -347,7 +346,13 @@ def verify_disabled_runtime(
             else None
         ),
         "chinaProcessingDisabled": True,
-        "optionalProcessingDisabled": True,
+        "backgroundAiAvailable": expected_optional["background_ai_enabled"],
+        "backgroundAiKillSwitchActive": expected_optional[
+            "background_ai_kill_switch"
+        ],
+        "feedbackPublicationDisabled": not expected_optional[
+            "feedback_publication_enabled"
+        ],
         "chinaProcessing": compared_china,
         "optionalProcessing": expected_optional,
         "corsDeniedOrigins": list(denied_origins),

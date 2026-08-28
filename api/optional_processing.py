@@ -1,4 +1,4 @@
-"""Fail-closed runtime controls for optional external processing."""
+"""Fail-closed runtime controls for Azure AI and external publication."""
 from __future__ import annotations
 
 import os
@@ -26,7 +26,6 @@ def _strict_flag(name: str, *, default: bool) -> bool:
 def validate_optional_processing_config() -> None:
     """Raise when an optional-processing setting is malformed."""
     for name, default in (
-        ("PRAXYS_ENABLE_BACKGROUND_AI", False),
         ("PRAXYS_DISABLE_BACKGROUND_AI", True),
         ("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", False),
         ("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", True),
@@ -35,23 +34,23 @@ def validate_optional_processing_config() -> None:
 
 
 def background_ai_enabled() -> bool:
-    """Return whether nonessential background AI is explicitly enabled."""
+    """Return whether ordinary Azure AI processing is operationally available.
+
+    The negative switch is the single runtime authority and defaults to the
+    safe stopped state when absent or malformed. Current Terms authorization
+    is checked separately for every user-bound call.
+    """
     try:
-        enabled = _strict_flag(
-            "PRAXYS_ENABLE_BACKGROUND_AI",
-            default=False,
-        )
-        disabled = _strict_flag(
+        return not _strict_flag(
             "PRAXYS_DISABLE_BACKGROUND_AI",
             default=True,
         )
     except ValueError:
         return False
-    return enabled and not disabled
 
 
 def background_ai_disabled() -> bool:
-    """Return whether nonessential background AI processing is disabled."""
+    """Return whether the centralized Azure AI emergency stop is active."""
     return not background_ai_enabled()
 
 
@@ -59,19 +58,13 @@ def background_ai_authorized(
     db: Session,
     *,
     user_id: str | None,
-    purpose_authorized: bool,
 ) -> bool:
-    """Require operational enablement plus current purpose-level authority."""
-    if (
-        not purpose_authorized
-        or not user_id
-        or not background_ai_enabled()
-    ):
+    """Require the runtime switch and the user's current Terms receipt."""
+    if not user_id or not background_ai_enabled():
         return False
     from api.legal_receipts import user_has_current_legal_bundle
 
     return user_has_current_legal_bundle(db, user_id)
-
 
 def feedback_publication_enabled() -> bool:
     """Return whether external feedback publication is explicitly enabled."""
@@ -124,9 +117,6 @@ def feedback_has_publication_consent(feedback: object) -> bool:
 def optional_processing_status() -> dict[str, bool]:
     """Return effective non-secret runtime control values."""
     validate_optional_processing_config()
-    background_positive = _strict_flag(
-        "PRAXYS_ENABLE_BACKGROUND_AI", default=False
-    )
     background_kill = _strict_flag(
         "PRAXYS_DISABLE_BACKGROUND_AI", default=True
     )
@@ -137,8 +127,7 @@ def optional_processing_status() -> dict[str, bool]:
         "PRAXYS_DISABLE_FEEDBACK_PUBLICATION", default=True
     )
     return {
-        "background_ai_enabled": background_positive and not background_kill,
-        "background_ai_positive_enable": background_positive,
+        "background_ai_enabled": not background_kill,
         "background_ai_kill_switch": background_kill,
         "feedback_publication_enabled": (
             publication_positive and not publication_kill

@@ -194,9 +194,9 @@ def _miniapp_headers(
 
 
 def test_minimum_miniapp_privacy_floor_is_exact_calver() -> None:
-    assert MINIMUM_MINIAPP_VERSION == "2026.08.1"
-    assert _parse_calver(MINIMUM_MINIAPP_VERSION) == (2026, 8, 1)
-    assert _parse_calver("2026.08.1-dev") is None
+    assert MINIMUM_MINIAPP_VERSION == "2026.08.2"
+    assert _parse_calver(MINIMUM_MINIAPP_VERSION) == (2026, 8, 2)
+    assert _parse_calver("2026.08.2-dev") is None
     assert _parse_calver("٢٠٢٦.٠٨.١") is None
     assert _parse_calver("2026.13.1") is None
 
@@ -517,7 +517,7 @@ def test_runtime_registry_validation_matches_release_preflight(monkeypatch) -> N
         payload_with(lambda payload: payload[0].update({"release_id": "wechat:test"})),
         payload_with(
             lambda payload: payload[1].update(
-                {"client_version": "2026.08.1-dev"}
+                {"client_version": "2026.08.2-dev"}
             )
         ),
         payload_with(

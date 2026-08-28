@@ -26,7 +26,7 @@ import { TERMS_CONTENT_DIGEST } from './legal';
 export const API_BASE: string = 'https://api.praxys.run';
 
 export const TOKEN_KEY = 'praxys-auth-token';
-export const CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v1';
+export const CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v2';
 
 export interface ApiError {
   status: number;

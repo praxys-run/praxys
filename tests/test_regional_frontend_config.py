@@ -188,7 +188,7 @@ def test_china_privacy_floor_is_enforced_across_release_workflows() -> None:
     assert "selective-review-policy" in validator
     assert "candidateExactMatchCount" in validator
     assert "verify_disabled_runtime" in validator
-    assert "optional-processing switches are not exact disabled literals" in validator
+    assert "runtime processing switches do not match the inactive-CN contract" in validator
     assert "rules/branches/main" in validator
     assert "latest required check" in validator
     assert "not exactly registry-authorized" in validator
@@ -202,9 +202,55 @@ def test_china_privacy_floor_is_enforced_across_release_workflows() -> None:
         ROOT / "docs/ops/tencent-frontend.md"
     ).read_text(encoding="utf-8")
     assert "CN_PRIVACY_FLOOR_SHA" in config
-    assert "miniapp-2026.08.1" in runbook
+    assert "miniapp-2026.08.2" in runbook
     assert "CLIENT_PRIVACY_UPDATE_REQUIRED" not in runbook
     assert "final operator-approved" in runbook
+
+
+def test_cn_privacy_contract_version_matches_both_clients() -> None:
+    runtime_boundary = (
+        ROOT / "api/china_client_boundary.py"
+    ).read_text(encoding="utf-8")
+    web_boundary = (
+        ROOT / "web/src/lib/client-boundary.ts"
+    ).read_text(encoding="utf-8")
+    miniapp_client = (
+        ROOT / "miniapp/utils/api-client.ts"
+    ).read_text(encoding="utf-8")
+
+    assert 'CN_PRIVACY_CONTRACT_VERSION = "cn-privacy-v2"' in runtime_boundary
+    for client in (web_boundary, miniapp_client):
+        assert "CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v2'" in client
+        assert "'X-Praxys-Api-Contract': CN_PRIVACY_CONTRACT_VERSION" in client
+        assert "cn-privacy-v1" not in client
+
+
+def test_cn_release_registry_example_uses_current_inactive_contract() -> None:
+    config = (
+        ROOT / "docs/ops/config-and-secrets.md"
+    ).read_text(encoding="utf-8")
+    lines = config.splitlines()
+    start = lines.index(
+        "cat > /tmp/praxys-cn-approved-releases.json <<'JSON'"
+    ) + 1
+    end = lines.index("JSON", start)
+    registry = json.loads(chr(10).join(lines[start:end]))
+
+    assert len(registry) == 2
+    for release in registry:
+        assert release["notice_version"] == "2026.08.4"
+        assert release["terms_digest"] == (
+            "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1"
+        )
+        assert release["api_contract_version"] == "cn-privacy-v2"
+        assert release["source_commit"] == "<40-char-protected-main-sha>"
+
+    normalized = " ".join(config.split())
+    assert "processing must not be enabled until" in normalized
+    assert (
+        "Activation remains a separately reviewed human-authorized operation "
+        "with no implemented repository procedure."
+    ) in normalized
 
 
 def test_china_operations_decision_stays_blocked_and_orders_release() -> None:
@@ -251,7 +297,7 @@ def test_china_operations_decision_stays_blocked_and_orders_release() -> None:
     assert "`CN_PRIVACY_FLOOR_SHA` is an ancestry floor" in decision
     assert "no not-yet-created provider ID or registry authorization" in normalized
     assert "then construct the separately reviewed exact registry entry" in normalized
-    assert "version `2026.08.1` or newer" in decision
+    assert "version `2026.08.2` or newer" in decision
     assert "The repository workflow can upload but cannot unpublish" in decision
     assert "requires separate, explicit operator authorization" in decision
     assert "No public China rollout may proceed" in decision
@@ -282,15 +328,14 @@ def test_backend_workflow_keeps_privacy_controls_literal_disabled() -> None:
 
     for literal in (
         'PRAXYS_DISABLE_CN_PROCESSING="true"',
-        'PRAXYS_ENABLE_BACKGROUND_AI="false"',
-        'PRAXYS_DISABLE_BACKGROUND_AI="true"',
+        'PRAXYS_DISABLE_BACKGROUND_AI="false"',
         'PRAXYS_ENABLE_FEEDBACK_PUBLICATION="false"',
         'PRAXYS_DISABLE_FEEDBACK_PUBLICATION="true"',
     ):
         assert literal in workflow
+    assert "PRAXYS_ENABLE_BACKGROUND_AI" not in workflow
     for variable in (
         "vars.PRAXYS_DISABLE_CN_PROCESSING",
-        "vars.PRAXYS_ENABLE_BACKGROUND_AI",
         "vars.PRAXYS_DISABLE_BACKGROUND_AI",
         "vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
         "vars.PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
@@ -637,7 +682,6 @@ def test_backend_failure_restoration_reasserts_every_privacy_control() -> None:
 
     for literal in (
         "PRAXYS_DISABLE_CN_PROCESSING=true",
-        "PRAXYS_ENABLE_BACKGROUND_AI=false",
         "PRAXYS_DISABLE_BACKGROUND_AI=true",
         "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false",
         "PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true",

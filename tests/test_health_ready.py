@@ -24,7 +24,6 @@ def ready_env(monkeypatch, tmp_path):
     for name in (
         "PRAXYS_CN_APPROVED_RELEASES",
         "PRAXYS_DISABLE_CN_PROCESSING",
-        "PRAXYS_ENABLE_BACKGROUND_AI",
         "PRAXYS_DISABLE_BACKGROUND_AI",
         "PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
         "PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
@@ -54,7 +53,6 @@ def test_health_ready_ok(ready_env):
         "database": "ok",
         "optional_processing": {
             "background_ai_enabled": False,
-            "background_ai_positive_enable": False,
             "background_ai_kill_switch": True,
             "feedback_publication_enabled": False,
             "feedback_publication_positive_enable": False,
@@ -73,27 +71,18 @@ def test_health_ready_ok(ready_env):
     }
 
 
-def test_optional_processing_requires_explicit_negative_switch_release(
+def test_ai_emergency_stop_does_not_fail_core_readiness(
     ready_env,
     monkeypatch,
 ):
     client, _ = ready_env
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
-    monkeypatch.delenv("PRAXYS_DISABLE_BACKGROUND_AI", raising=False)
-    monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
-    monkeypatch.delenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", raising=False)
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
 
     response = client.get("/api/health/ready")
 
     assert response.status_code == 200
-    assert response.json()["optional_processing"] == {
-        "background_ai_enabled": False,
-        "background_ai_positive_enable": True,
-        "background_ai_kill_switch": True,
-        "feedback_publication_enabled": False,
-        "feedback_publication_positive_enable": True,
-        "feedback_publication_kill_switch": True,
-    }
+    assert response.json()["optional_processing"]["background_ai_enabled"] is False
+    assert response.json()["optional_processing"]["background_ai_kill_switch"] is True
 
 
 def test_health_ready_ignores_cn_registry_while_disabled(

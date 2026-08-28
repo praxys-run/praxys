@@ -277,7 +277,7 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
   assert.match(legal, /processed in Microsoft-managed Azure services outside mainland China/);
   assert.match(legal, /current primary hosting region is Azure East Asia \(Hong Kong SAR\)/);
   assert.match(legal, /change facilities or published subprocessors/);
-  assert.match(legal, /configured AI endpoint is in West US 3, United States/);
+  assert.match(legal, /configured endpoint in West US 3, United States/);
   assert.match(legal, /Microsoft Corporation/);
   assert.match(legal, /user-event logging and SDK diagnostics are disabled/);
   assert.match(gate, /not based on consent/);

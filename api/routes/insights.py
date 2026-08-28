@@ -405,13 +405,16 @@ def get_insights(
 ) -> dict:
     """Get durable AI insights; Today guidance is deterministic."""
     from db.models import AiInsight
+    from api.optional_processing import background_ai_enabled
 
+    ai_available = background_ai_enabled()
     feedback_allowed = current_user_id == data_user_id
     rows = db.query(AiInsight).filter(
         AiInsight.user_id == data_user_id,
         AiInsight.insight_type != "daily_brief",
     ).all()
     return {
+        "ai_available": ai_available,
         "insights": {
             row.insight_type: _serialize_insight(
                 row,
@@ -419,7 +422,7 @@ def get_insights(
                 feedback_allowed=feedback_allowed,
             )
             for row in rows
-        }
+        } if ai_available else {}
     }
 
 
@@ -431,11 +434,15 @@ def get_insight(
     data_user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get one durable AI insight."""
+    """Get one durable AI insight and its operational availability."""
     from db.models import AiInsight
+    from api.optional_processing import background_ai_enabled
 
+    ai_available = background_ai_enabled()
     if insight_type == "daily_brief":
-        return {"insight": None}
+        return {"insight": None, "ai_available": ai_available}
+    if not ai_available:
+        return {"insight": None, "ai_available": False}
 
     row = db.query(AiInsight).filter(
         AiInsight.user_id == data_user_id,
@@ -443,9 +450,10 @@ def get_insight(
     ).first()
 
     if not row:
-        return {"insight": None}
+        return {"insight": None, "ai_available": True}
 
     return {
+        "ai_available": True,
         "insight": _serialize_insight(
             row,
             db,

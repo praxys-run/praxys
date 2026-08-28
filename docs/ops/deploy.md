@@ -164,9 +164,9 @@ Tag-driven CalVer — see the **"How to release the mini program"** runbook in
 `YYYY.MM.DD.<run>-<sha>` development version so it cannot overwrite or
 impersonate the release candidate. Promoting 体验版 → 提交审核 → 发布 stays manual
 in mp.weixin.qq.com (no first-party API). `MINIMUM_MINIAPP_VERSION` is the
-separate oldest supported privacy floor, currently `2026.08.1`; choosing a
+separate oldest supported privacy floor, currently `2026.08.2`; choosing a
 newer release tag does not raise it. The first notice-capable production floor
-is `miniapp-2026.08.1`. Its upload and every later release candidate must descend
+is `miniapp-2026.08.2`. Its upload and every later release candidate must descend
 from the repository variable `CN_PRIVACY_FLOOR_SHA` and remain reachable from
 protected `main`; preserve the workflow SHA and exact
 `wechat:robot-1:<version>` provider locator in the China Release Evidence.

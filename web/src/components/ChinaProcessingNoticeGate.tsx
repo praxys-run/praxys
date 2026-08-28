@@ -127,13 +127,13 @@ export default function ChinaProcessingNoticeGate({
         <div className="mt-6 rounded-lg border border-accent-cobalt/30 bg-accent-cobalt/5 p-4">
           <p className="text-sm leading-6 text-foreground">
             {zh
-              ? "可选 Azure AI 处理默认关闭；选择加入前会另行说明接收方、明确用途和最小化字段。中国版网页的浏览器分析与产品遥测已关闭。"
-              : "Optional Azure AI processing is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in. Browser analytics and product telemetry are disabled on the China web deployment."}
+              ? "Azure 核心托管与 Azure AI 处理是不同功能。普通服务的已列明 AI 用途由当前条款和服务端运行状态授权，不另设退出选项；输入按账号、用途和字段最小化。中国版网页的浏览器分析与产品遥测已关闭。"
+              : "Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field. Browser analytics and product telemetry are disabled on the China web deployment."}
           </p>
         </div>
 
         <p className="mt-6 text-sm leading-6 text-muted-foreground">
-          {zh ? "继续即确认已经阅读本告知；这不构成对可选 AI、营销或其他非必要处理的同意。详见" : "Continuing acknowledges that this notice has been read. It does not consent to optional AI, marketing, or other nonessential processing. See the"}{" "}
+          {zh ? "继续即确认已经阅读本告知。若不接受当前条款，将无法使用普通服务，但仍可使用现有的权利行使流程。详见" : "Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available. See the"}{" "}
           <Link
             to="/privacy#mainland-china-processing"
             target="_blank"

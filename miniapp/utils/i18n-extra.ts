@@ -68,10 +68,12 @@ const EN_AUTH = {
   'Sensitive personal information': 'Sensitive personal information',
   'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
     'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.',
-  'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.':
-    'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.',
-  'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.':
-    'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.',
   'Privacy Policy and Mainland China processing notice':
     'Privacy Policy and Mainland China processing notice',
   'Acknowledge and continue': 'Acknowledge and continue',
@@ -79,8 +81,6 @@ const EN_AUTH = {
   'Read the processing notice before continuing.':
     'Read the processing notice before continuing.',
   'Updated Terms and Privacy notice': 'Updated Terms and Privacy notice',
-  'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.':
-    'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.',
   'I accept the': 'I accept the',
   'and acknowledge that I have read the':
     'and acknowledge that I have read the',
@@ -408,6 +408,8 @@ const EN_TRAINING = {
 // stays plural at count=1 (minor grammar imperfection accepted in
 // favour of simpler i18n).
 const EN_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.',
   '{0} findings': '{0} findings',
   '{0} recommendations': '{0} recommendations',
   '{0} findings · {1} recommendations': '{0} findings · {1} recommendations',
@@ -599,10 +601,12 @@ const ZH_AUTH = {
   'Sensitive personal information': '敏感个人信息',
   'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
     '心率、HRV、睡眠、恢复、活动路线及相关健康或运动推断可能属于敏感个人信息。缺少这些类别时，依赖它们的功能无法运行。',
-  'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.':
-    '可选 Azure AI 默认关闭；选择加入前会另行说明接收方、明确用途和最小化字段。',
-  'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.':
-    '继续即确认已经阅读本告知；这不构成对可选 AI 或其他非必要处理的同意。',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure 核心托管与 Azure AI 处理是不同功能。当前服务条款与服务器运行状态授权普通服务中列明的 AI 用途；没有单独退出选项，且输入按账号、用途和字段最小化。',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    '继续即确认已阅读本告知。如不接受当前服务条款，普通服务将不可用，但现有权利行使流程仍可使用。',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    '服务条款已经更新。隐私政策区分 Azure 核心托管与 Azure AI 处理，并说明普通服务中列明的 AI 用途、最小化措施、不可用情形和权利渠道。普通服务没有单独的 AI 退出选项。继续前，请阅读服务条款和隐私告知。',
   'Privacy Policy and Mainland China processing notice':
     '《隐私政策》与中国大陆处理说明',
   'Acknowledge and continue': '确认已阅读并继续',
@@ -610,8 +614,6 @@ const ZH_AUTH = {
   'Read the processing notice before continuing.':
     '请先阅读处理告知再继续。',
   'Updated Terms and Privacy notice': '条款与隐私告知已更新',
-  'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.':
-    '服务条款已经更新。隐私政策现已说明中国大陆用户的境外接收方、处理地点、敏感信息必要性及权利渠道。核心处理依据履约必要性；可选 AI 仍需另行选择加入。继续前，请阅读服务条款和隐私告知。',
   'I accept the': '我接受',
   'and acknowledge that I have read the': '，并确认已阅读',
   'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
@@ -904,6 +906,8 @@ const ZH_TRAINING = {
 };
 
 const ZH_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI 洞察暂时不可用。已同步的数据和确定性训练指标仍可使用。',
   '{0} findings': '{0} 个要点',
   '{0} recommendations': '{0} 条建议',
   '{0} findings · {1} recommendations': '{0} 个要点 · {1} 条建议',
@@ -1122,21 +1126,21 @@ const ZH_LEGAL = {
 };
 
 const EN_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.',
   Manage: 'Manage',
   'I confirm this purpose and expiry': 'I confirm this purpose and expiry',
   'Manage private context': 'Manage private context',
   'Private context JSON copied': 'Private context JSON copied',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.',
 };
 
 const ZH_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    '保存即确认这一项用途和有效期，不授权分析、模型训练或其他用途。',
   Manage: '管理',
   'I confirm this purpose and expiry': '我已确认上述用途和期限',
   'Manage private context': '管理计划个性化信息',
   'Private context JSON copied': '计划个性化信息 JSON 已复制',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    '后续请求发送前可随时撤回；已经由 AI 服务处理的请求无法撤回。',
 };
 
 const EN_PLAN_START = {

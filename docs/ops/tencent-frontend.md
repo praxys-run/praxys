@@ -57,7 +57,7 @@ The authenticated China release also requires:
   mini-program requests before acknowledgement;
 - `.cn` requests to carry the stamped source SHA, current notice version and
   digest, and `cn-privacy-v1` API contract;
-- WeChat requests to carry Miniapp version `2026.08.1` or newer, its stamped
+- WeChat requests to carry Miniapp version `2026.08.2` or newer, its stamped
   source SHA, current notice version and digest, and API contract; the API
   accepts only entries in the server-owned exact release registry and rejects
   missing, older, or unlisted clients before route processing;
@@ -67,8 +67,7 @@ The authenticated China release also requires:
   current receipt exists;
 - every provider connection dialog to show the provider transfer notice and
   official privacy/contact link before credentials or OAuth authorization;
-- `PRAXYS_ENABLE_BACKGROUND_AI=false`,
-  `PRAXYS_DISABLE_BACKGROUND_AI=true`,
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary Azure AI availability while the independent China boundary remains disabled,
   `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`, and
   `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true` in the backend App Service;
 - Statsig server evaluation to remain local with user logging and diagnostics
@@ -229,17 +228,18 @@ is pending:
    retain the successful upload evidence before any activation. Manually
    dispatch `deploy-backend.yml` with
    `china_release_validation=true` and `sync_config=true`.
-4. Require exact registry bytes/digest/count, all five fixed switch literals,
+4. Require exact registry bytes/digest/count, all four fixed runtime literals,
    disabled `.cn` CORS, readiness, privacy contract, API version, and deployed
-   source SHA. No current workflow can set the kill switch false or add CORS.
+   source SHA. No current workflow can set the China processing switch false
+   or add CORS.
 5. Dispatch the frontend workflow. Verify `.run` independently. EdgeOne
    artifact preparation proceeds only if its public disabled-runtime readback
    matches the same candidate; otherwise it is skipped fail closed. A prepared
    artifact remains unauthorized until step 3's provider evidence and registry
    binding are complete.
-6. Create the exact `miniapp-2026.08.1` Miniapp tag only after the matching
+6. Create the exact `miniapp-2026.08.2` Miniapp tag only after the matching
    disabled backend is deployed and the registry binds that SHA/version to
-   `wechat:robot-1:2026.08.1`. The robot 1 upload lane repeats the floor,
+   `wechat:robot-1:2026.08.2`. The robot 1 upload lane repeats the floor,
    registry, runtime, CORS, readiness, ref/version/provider-locator, and SHA
    checks before uploading a candidate.
 7. Promotion, publication, `.cn` CORS, DNS binding, and processing activation
@@ -527,8 +527,8 @@ Release evidence must record the EdgeOne Git repository grant, project and
 deployment IDs, source SHA, GitHub and served manifest digests, Azure
 origin/public deployment receipts, public DNS answers, certificate
 issuers/expiry, Cloudflare zone state and SSL mode, API DNS-only status, CORS
-results, monitoring readiness, `CN_PRIVACY_FLOOR_SHA`, Miniapp `2026.08.1`
-with its full source SHA and `wechat:robot-1:2026.08.1` provider locator, the human-accepted
+results, monitoring readiness, `CN_PRIVACY_FLOOR_SHA`, Miniapp `2026.08.2`
+with its full source SHA and `wechat:robot-1:2026.08.2` provider locator, the human-accepted
 [Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md), and the
 final operator-approved
 `PIPIA-CN-2026-08-25-01`. Preserve the aggregated record in the approved
@@ -554,7 +554,7 @@ grant.
 Backend, frontend, and Miniapp release workflows reject any candidate older
 than `CN_PRIVACY_FLOOR_SHA` or outside protected-`main` provenance. Miniapp
 rollback may select only an exact current registry-authorized provider
-release with its full source SHA and retained evidence. CalVer `2026.08.1` or
+release with its full source SHA and retained evidence. CalVer `2026.08.2` or
 newer is necessary metadata, not authorization. If
 no compliant revision is healthy, set `PRAXYS_DISABLE_CN_PROCESSING=true` and
 disable the affected `.cn` routing while preserving rights routes; stop the

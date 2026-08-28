@@ -43,7 +43,7 @@ def test_exact_sha_rejects_short_or_uppercase_values() -> None:
 def test_source_miniapp_minimum_is_exact_calver() -> None:
     boundary = preflight.module_constants("api/china_client_boundary.py")
     assert boundary["MINIMUM_MINIAPP_VERSION"] == MINIMUM_MINIAPP_VERSION
-    assert preflight.parse_calver(MINIMUM_MINIAPP_VERSION) == (2026, 8, 1)
+    assert preflight.parse_calver(MINIMUM_MINIAPP_VERSION) == (2026, 8, 2)
 
 
 def test_registry_validation_binds_current_contract_and_provider() -> None:
@@ -260,8 +260,8 @@ def test_miniapp_candidate_version_must_exactly_match_registry() -> None:
     payload = json.loads(registry())
     payload[0].update({
         "channel": "wechat-miniapp",
-        "client_version": "2026.08.1",
-        "release_id": "wechat:robot-1:2026.08.1",
+        "client_version": "2026.08.2",
+        "release_id": "wechat:robot-1:2026.08.2",
     })
     releases, _ = preflight.validate_registry(json.dumps(payload), disabled=True)
     candidate = releases[0]["source_commit"]
@@ -271,8 +271,8 @@ def test_miniapp_candidate_version_must_exactly_match_registry() -> None:
         candidate,
         "wechat-miniapp",
         disabled=True,
-        candidate_version="2026.08.1",
-        candidate_release_id="wechat:robot-1:2026.08.1",
+        candidate_version="2026.08.2",
+        candidate_release_id="wechat:robot-1:2026.08.2",
     ) == releases
     with pytest.raises(ValueError, match="provider release ID is required"):
         preflight.validate_candidate_authorization(
@@ -280,16 +280,7 @@ def test_miniapp_candidate_version_must_exactly_match_registry() -> None:
             candidate,
             "wechat-miniapp",
             disabled=True,
-            candidate_version="2026.08.1",
-        )
-    with pytest.raises(ValueError, match="not exactly registry-authorized"):
-        preflight.validate_candidate_authorization(
-            releases,
-            candidate,
-            "wechat-miniapp",
-            disabled=True,
-            candidate_version="2026.08.1",
-            candidate_release_id="wechat:robot-1:2026.08.2",
+            candidate_version="2026.08.2",
         )
     with pytest.raises(ValueError, match="not exactly registry-authorized"):
         preflight.validate_candidate_authorization(
@@ -298,7 +289,16 @@ def test_miniapp_candidate_version_must_exactly_match_registry() -> None:
             "wechat-miniapp",
             disabled=True,
             candidate_version="2026.08.2",
-            candidate_release_id="wechat:robot-1:2026.08.2",
+            candidate_release_id="wechat:robot-1:2026.08.3",
+        )
+    with pytest.raises(ValueError, match="not exactly registry-authorized"):
+        preflight.validate_candidate_authorization(
+            releases,
+            candidate,
+            "wechat-miniapp",
+            disabled=True,
+            candidate_version="2026.08.3",
+            candidate_release_id="wechat:robot-1:2026.08.3",
         )
 
 
@@ -306,12 +306,12 @@ def test_miniapp_candidate_version_is_required_and_strict() -> None:
     payload = json.loads(registry())
     payload[0].update({
         "channel": "wechat-miniapp",
-        "client_version": "2026.08.1",
-        "release_id": "wechat:robot-1:2026.08.1",
+        "client_version": "2026.08.2",
+        "release_id": "wechat:robot-1:2026.08.2",
     })
     releases, _ = preflight.validate_registry(json.dumps(payload), disabled=True)
 
-    for invalid in ("", "2026.08.1-dev", "2026.13.1"):
+    for invalid in ("", "2026.08.2-dev", "2026.13.1"):
         with pytest.raises(ValueError, match="exact CalVer"):
             preflight.validate_candidate_authorization(
                 releases,
@@ -389,15 +389,15 @@ def test_miniapp_workflow_keeps_release_and_dev_versions_distinct(
     }
 
     tag, tag_values = run_miniapp_meta(
-        tmp_path, "refs/tags/miniapp-2026.08.1"
+        tmp_path, "refs/tags/miniapp-2026.08.2"
     )
     assert tag.returncode == 0, tag.stderr
     assert tag_values == {
         "robot": "1",
         "lane": "release",
-        "version": "2026.08.1",
-        "desc": "release 2026.08.1 (aaaaaaa)",
-        "provider_locator": "wechat:robot-1:2026.08.1",
+        "version": "2026.08.2",
+        "desc": "release 2026.08.2 (aaaaaaa)",
+        "provider_locator": "wechat:robot-1:2026.08.2",
     }
 
 
@@ -591,9 +591,8 @@ def test_disabled_runtime_readback_is_exact_and_fail_closed(monkeypatch) -> None
                 "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
             },
             "optional_processing": {
-                "background_ai_enabled": False,
-                "background_ai_positive_enable": False,
-                "background_ai_kill_switch": True,
+                "background_ai_enabled": True,
+                "background_ai_kill_switch": False,
                 "feedback_publication_enabled": False,
                 "feedback_publication_positive_enable": False,
                 "feedback_publication_kill_switch": True,
@@ -611,11 +610,15 @@ def test_disabled_runtime_readback_is_exact_and_fail_closed(monkeypatch) -> None
     assert evidence["registryEntryCount"] == 1
     ready = responses["/api/health/ready"]
     assert evidence["chinaProcessing"] == ready["china_processing"]
+    assert evidence["backgroundAiAvailable"] is True
+    assert evidence["backgroundAiKillSwitchActive"] is False
+    assert evidence["feedbackPublicationDisabled"] is True
+    assert "optionalProcessingDisabled" not in evidence
     assert evidence["optionalProcessing"] == ready["optional_processing"]
     responses["/api/health/ready"]["optional_processing"][
         "background_ai_kill_switch"
-    ] = False
-    with pytest.raises(ValueError, match="switches are not exact disabled"):
+    ] = True
+    with pytest.raises(ValueError, match="inactive-CN contract"):
         preflight.verify_disabled_runtime(candidate, releases, digest)
 
 
@@ -628,8 +631,8 @@ def test_registry_provider_ids_and_versions_are_channel_exact() -> None:
     miniapp = json.loads(registry())
     miniapp[0].update({
         "channel": "wechat-miniapp",
-        "client_version": "2026.08.1-dev",
-        "release_id": "wechat:robot-1:2026.08.1-dev",
+        "client_version": "2026.08.2-dev",
+        "release_id": "wechat:robot-1:2026.08.2-dev",
     })
     with pytest.raises(ValueError, match="Miniapp release identity"):
         preflight.validate_registry(json.dumps(miniapp), disabled=True)
@@ -637,8 +640,8 @@ def test_registry_provider_ids_and_versions_are_channel_exact() -> None:
     wrong_locator = json.loads(registry())
     wrong_locator[0].update({
         "channel": "wechat-miniapp",
-        "client_version": "2026.08.1",
-        "release_id": "wechat:robot-5:2026.08.1",
+        "client_version": "2026.08.2",
+        "release_id": "wechat:robot-5:2026.08.2",
     })
     with pytest.raises(ValueError, match="bind robot 1 and version"):
         preflight.validate_registry(
@@ -671,6 +674,44 @@ def test_registry_rejects_coerced_extra_or_padded_provider_data() -> None:
         mutate(payload[0])
         with pytest.raises(ValueError, match="release registry"):
             preflight.validate_registry(json.dumps(payload), disabled=True)
+
+
+def test_fast_backend_deploy_restores_ai_before_exact_verification() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (preflight.ROOT / ".github/workflows/deploy-backend.yml").read_text(
+            encoding="utf-8"
+        ),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["deploy"]["steps"]
+    by_name = {step.get("name"): step for step in steps}
+    names = [step.get("name") for step in steps]
+    safe_name = "Establish disabled China deployment state"
+    restore_name = "Restore ordinary AI availability for fast deploys"
+    verify_name = "Verify exact non-secret CN runtime settings"
+
+    assert (
+        names.index(safe_name)
+        < names.index(restore_name)
+        < names.index(verify_name)
+    )
+    restore = by_name[restore_name]
+    assert restore["if"] == "steps.mode.outputs.sync_config == 'false'"
+    assert "PRAXYS_DISABLE_BACKGROUND_AI=false" in restore["run"]
+    assert restore["run"].count("PRAXYS_DISABLE_BACKGROUND_AI") == 1
+    for unchanged_control in (
+        "PRAXYS_DISABLE_CN_PROCESSING",
+        "PRAXYS_CN_APPROVED_RELEASES",
+        "PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
+        "PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
+        "cors",
+    ):
+        assert unchanged_control not in restore["run"]
+
+    failure_restore = by_name["Restore and record disabled state after deployment failure"]
+    assert "PRAXYS_DISABLE_BACKGROUND_AI=true" in failure_restore["run"]
 
 
 def test_backend_cutover_registry_is_limited_to_china_capable_lane(

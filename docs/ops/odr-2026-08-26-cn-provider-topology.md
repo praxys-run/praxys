@@ -98,7 +98,8 @@ defaults, ordinary `.run` deploys that omit `.cn` CORS, exact registry
 validation, runtime readback and CORS-denial logic, workflow evidence
 artifacts, digest-bound append-only Terms receipts, registration compensation,
 bounded stale-policy rights routes, per-user background Terms checks,
-purpose-specific optional-processing authorization, and fail-closed private
+ordinary Azure AI authorization, separately authorized external feedback
+publication, and fail-closed private
 feedback screenshot deletion. The repository agent preflight passed on this
 commit. These are verified draft safeguards only.
 
@@ -116,12 +117,12 @@ emergency authority, and provider/live-runtime evidence remain unresolved.
 | `praxys.cn`, `www.praxys.cn` | EdgeOne Makers project `praxys-cn`, global area with mainland availability | Static HTML, JavaScript, CSS, filing metadata, and ordinary edge delivery logs only | Protected `main`, read-only repository grant, no build secrets, managed HTTPS, exact source/manifest evidence |
 | `praxys.run`, `www.praxys.run` | Cloudflare Free → Azure App Service `praxys-frontend` | Cloudflare proxies only the filing-free international frontend | `Full (strict)`; proxy one hostname at a time; no `Cache Everything` rule |
 | `api.praxys.run` | DNS-only → Azure App Service `trainsight-app` | Shared authentication, API execution, credentials, database access, and essential telemetry in Azure East Asia (Hong Kong SAR) | Never proxy through Cloudflare or EdgeOne; exact `.cn` browser CORS origins only after enforcement is verified |
-| WeChat Miniapp | Tencent WeChat distribution → `api.praxys.run` | WeChat supplies login/distribution services; authenticated Praxys processing remains on the shared Azure API | Proposed production floor `2026.08.1` or newer, mapped to the full source SHA and deterministic `wechat:robot-1:<version>` locator; actual upload/publication evidence remains required |
+| WeChat Miniapp | Tencent WeChat distribution → `api.praxys.run` | WeChat supplies login/distribution services; authenticated Praxys processing remains on the shared Azure API | Proposed production floor `2026.08.2` or newer, mapped to the full source SHA and deterministic `wechat:robot-1:<version>` locator; actual upload/publication evidence remains required |
 | Primary data | Azure Database for PostgreSQL `praxys-pg` and existing Azure dependencies | No mainland-local application database or regional API replica is introduced | Existing backup, deletion, encryption, and 30-day backend telemetry boundaries remain in force |
 
 EdgeOne and Cloudflare are separate frontend delivery providers, not regional
-application failover. The API, database, sync, credentials, and optional
-processing remain a shared failure domain. A Git-triggered EdgeOne build is not
+application failover. The API, database, sync, credentials, Azure AI, and
+external feedback publication remain a shared failure domain. A Git-triggered EdgeOne build is not
 a public release while the `.cn` custom domains remain unbound.
 
 ### Client and deployment floor semantics
@@ -168,7 +169,8 @@ a public release while the `.cn` custom domains remain unbound.
 
 Every stage is a hold point. Stage 0 is repository preparation under normal
 protected-branch authority. Ordinary filing-free `.run` backend and Azure
-frontend deployment remains operable with fixed disabled privacy controls;
+frontend deployment remains operable with China processing and external
+feedback publication disabled while ordinary Azure AI remains available;
 China-capable validation, EdgeOne artifact preparation, and Miniapp publication
 remain floor/registry gated. **Stages 1–5 are production actions and none is
 authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
@@ -179,8 +181,8 @@ authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
    `main`. Do not preconfigure the floor to an unmerged branch or abbreviated
    SHA.
 2. The ordinary backend and Azure frontend lanes may deploy `.run` with China
-   processing and optional external processing fixed disabled and `.cn` CORS
-   absent. EdgeOne unpublished preparation fails closed while the exact floor
+   processing and external feedback publication fixed disabled, ordinary Azure
+   AI available, and `.cn` CORS absent. EdgeOne unpublished preparation fails closed while the exact floor
    and disabled-runtime evidence are absent; registry-authorized China
    validation and Miniapp publication additionally require the exact registry.
    Do not bypass those China gates.
@@ -203,13 +205,13 @@ authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
 ### Stage 2 — Establish the disabled backend baseline
 
 1. Deploy the protected-`main` backend candidate through the ordinary lane,
-   retaining all five fixed privacy switches, disabled `.cn` CORS, readiness,
+   retaining all four fixed runtime settings, disabled `.cn` CORS, readiness,
    privacy contract, API version, and deployed source SHA.
 2. Do not populate a `cn-web` registry entry yet: its exact provider deployment
    ID does not exist until EdgeOne completes Stage 3.
 3. Verify China non-rights processing remains disabled and rights routes remain
-   available. This baseline cannot set the kill switch false or add `.cn`
-   CORS.
+   available. This baseline cannot set the China processing switch false or
+   add `.cn` CORS.
 
 ### Stage 3 — Deploy updated `.run` and prepare the `.cn` artifact
 
@@ -231,10 +233,10 @@ authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
 
 1. Manually dispatch `deploy-backend.yml` from protected `main` with
    `china_release_validation=true` and configuration reconciliation enabled.
-   Require exact registry bytes and digest/count, all five fixed privacy
-   switches, disabled `.cn` CORS, readiness, privacy contract, API version, and
+   Require exact registry bytes and digest/count, all four fixed runtime
+   settings, disabled `.cn` CORS, readiness, privacy contract, API version, and
    deployed source SHA. Verify stale or unlisted clients remain rejected.
-2. Create `miniapp-2026.08.1` at the exact disabled backend candidate commit.
+2. Create `miniapp-2026.08.2` at the exact disabled backend candidate commit.
    The upload workflow requires the same floor, registry, disabled runtime,
    readiness, CORS denial, and deployed backend SHA evidence before upload.
 3. Record the full source SHA, workflow run and attempt, robot 1 upload result,
@@ -281,7 +283,7 @@ The public release makes the privacy boundary a one-way floor:
   `CN_PRIVACY_FLOOR_SHA`.
 - An EdgeOne rollback candidate must have retained source/manifest evidence and
   descend from the floor.
-- A Miniapp rollback candidate must be version `2026.08.1` or newer and have a
+- A Miniapp rollback candidate must be version `2026.08.2` or newer and have a
   retained full-source-SHA/deterministic-locator mapping plus upload-success
   evidence.
 - A protected-main revert may restore behavior only when the resulting commit
@@ -344,7 +346,7 @@ The final aggregated record must identify:
 - Miniapp tag/version, full source SHA, 12-character registry source ID, deterministic
   `wechat:robot-1:<version>` locator, retained robot 1 upload-success evidence,
   and WeChat review/publication status, plus positive
-  `2026.08.1` and negative older/missing-client checks;
+  `2026.08.2` and negative older/missing-client checks;
 - Azure frontend package receipt, EdgeOne project/deployment IDs, protected
   source SHA, GitHub and served manifest digests, public deployed SHA, and
   known-good rollback deployment;
@@ -380,7 +382,7 @@ and Quality must verify it before cutover.
 | Production authority boundary | No production-environment approval gate or activation workflow is accepted or implemented; repository variables cannot substitute for authenticated human authority |
 | Registry lifecycle / receipt authority | Exact registry validation and append-only Terms receipts exist at the frozen implementation commit, but no accepted registry lifecycle schema/authority, legal values, or receipt-retention decision exists |
 | Privacy floor | Exact SHA is unknowable until merge; `CN_PRIVACY_FLOOR_SHA` must remain unset until the accepted post-merge gate |
-| Miniapp | No `2026.08.1` public release or upload success is recorded; `wechat:robot-1:<version>` is only a deterministic locator, and the source mapping plus rehearsed emergency suspension path remain pending |
+| Miniapp | No `2026.08.2` public release or upload success is recorded; `wechat:robot-1:<version>` is only a deterministic locator, and the source mapping plus rehearsed emergency suspension path remain pending |
 | Monitoring | Workflow safeguards and evidence shapes exist, but no alert provisioning, `.cn` live samples, or action-group verification occurred |
 | Provider cutover | `.cn` CORS, EdgeOne public domains, Cloudflare/DNS/DNSSEC, certificates, and public verification are pending |
 | Release Evidence retention | Permanent approved evidence store/location is not recorded |

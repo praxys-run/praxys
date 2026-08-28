@@ -1629,27 +1629,6 @@ export interface PersonalContextCorrectionRequest {
   client: PersonalContextClient;
 }
 
-interface PersonalContextAiConsentRequestBase {
-  expected_version: number;
-  disclosed_fields?: string[];
-  narrative_disclosed?: boolean;
-  consent_text_version: string;
-  client: PersonalContextClient;
-}
-
-export type PersonalContextAiConsentRequest =
-  PersonalContextAiConsentRequestBase
-  & (
-    | {
-      decision: 'granted';
-      provider: 'azure_openai';
-    }
-    | {
-      decision: 'denied' | 'withdrawn';
-      provider?: 'azure_openai' | null;
-    }
-  );
-
 export interface PersonalContextExpireRequest {
   expected_version: number;
 }
@@ -1764,12 +1743,6 @@ export interface PersonalContextMutationResponse {
   replayed: boolean;
 }
 
-export interface PersonalContextAiConsentResponse {
-  item: PersonalContextItem;
-  receipt: PersonalContextConsentReceipt;
-  replayed: boolean;
-}
-
 export interface PersonalContextSelectionItem {
   id: string;
   lineage_id: string;
@@ -1846,14 +1819,12 @@ export type ContextPilotRunRequest =
     scenario_id: string;
     purpose?: never;
     confirmed_opt_in?: never;
-    allow_ai?: never;
   }
   | {
     source: 'opt_in';
     scenario_id?: never;
     purpose: 'execution_interpretation' | 'plan_adjustment';
     confirmed_opt_in: true;
-    allow_ai?: boolean;
   };
 
 export interface ContextPilotSnapshot {
@@ -3786,10 +3757,12 @@ export interface AiInsight {
 
 export interface AiInsightResponse {
   insight: AiInsight | null;
+  ai_available: boolean;
 }
 
 export type AiInsightsResponse = {
   insights: Partial<Record<string, AiInsight>>;
+  ai_available: boolean;
 };
 
 export interface HistoryResponse {

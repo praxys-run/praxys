@@ -81,13 +81,13 @@ def wechat_client(monkeypatch):
         json.dumps([
             {
                 "channel": "wechat-miniapp",
-                "client_version": "2026.08.1",
+                "client_version": "2026.08.2",
                 "source_id": "abcdef123456",
                 "source_commit": "abcdef123456" + ("0" * 28),
                 "notice_version": TERMS_VERSION,
                 "terms_digest": TERMS_CONTENT_DIGEST,
                 "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-                "release_id": "wechat:robot-1:2026.08.1",
+                "release_id": "wechat:robot-1:2026.08.2",
             }
         ]),
     )
@@ -139,7 +139,7 @@ def wechat_client(monkeypatch):
         app,
         headers={
             "X-Praxys-Client": "wechat-miniapp",
-            "X-Praxys-Client-Version": "2026.08.1",
+            "X-Praxys-Client-Version": "2026.08.2",
             "X-Praxys-Source-Sha": "abcdef123456" + ("0" * 28),
             "X-Praxys-Notice-Version": TERMS_VERSION,
             "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
@@ -835,7 +835,7 @@ def test_accept_terms_clears_stale_version(wechat_client):
         } == {"accept_terms_and_acknowledge_privacy"}
         assert {
             receipt.release_id for receipt in receipts
-        } == {"wechat:robot-1:2026.08.1"}
+        } == {"wechat:robot-1:2026.08.2"}
         user.is_demo = True
         user.terms_version = "0000.00.0"
         user.terms_digest = "sha256:" + ("0" * 64)

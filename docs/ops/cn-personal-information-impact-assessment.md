@@ -5,7 +5,7 @@
 > including overseas processing, sensitive personal information, recipients,
 > necessity, safeguards, and residual risk.
 > **Use when:** Releasing or changing the China service, a recipient, a data
-> category, an overseas destination, optional AI, telemetry, or a user-rights
+> category, an overseas destination, Azure AI, telemetry, or a user-rights
 > control.
 
 ## Assessment record
@@ -104,7 +104,7 @@ Official sources:
 | Athlete Architect LLC (Stryd) | United States and other locations in its policy | Authentication details, running power, activities, Critical Power, and supported plan exchange. | Optional, user-directed connection. Current notice: <https://www.stryd.com/privacy>. |
 | Oura Health Oy / Ouraring Inc. | Finland, United States, and other locations in its policy | User-created token and supported sleep, HRV, readiness, and recovery retrieval. | Optional, user-directed connection. Current notice: <https://ouraring.com/privacy-policy>. |
 | COROS Wearables, Inc. or the COROS entity selected by account region | Selected account region; may be outside mainland China | Authentication details and supported activities, sleep, HRV, fitness, and training-load retrieval. | Optional, user-directed connection. Current notice: <https://coros.com/privacy>. |
-| Microsoft Azure AI | West US 3, United States | Only the minimized fields disclosed for an independently authorized optional purpose. | The dirty-tree controls default this off and require positive enable plus a separately clear kill switch. No live production readback was performed. |
+| Microsoft Azure AI | West US 3, United States | Only the minimized fields needed for the ordinary AI purposes enumerated in the current Terms, plus any athlete-provided optional private input selected for an authorized item purpose. | Ordinary AI is a service condition governed by current Terms, per-user/purpose/field minimization, and a fail-closed emergency stop. The ordinary workflow releases that stop; no live production readback was performed. |
 | Statsig service operated by Amplitude | Rules are downloaded from the service; user evaluation occurs inside Praxys | The backend SDK downloads gate/config rules without user identity. `disable_all_logging` and `disable_diagnostics` prevent user exposure events, account identifiers, email, targeting attributes, and training values from being sent. | Not a recipient of China-user personal information under this configuration. Browser Statsig is absent from the `.cn` artifact. |
 | GitHub issue service | Outside mainland China | The feedback pipeline could publish scrubbed text in other deployments. | The dirty-tree controls require positive enable and a separately clear publication kill switch, defaulting off. No live production readback was performed; private feedback is intended to remain in Praxys for admin handling. |
 
@@ -122,8 +122,8 @@ starts the transfer. Provider-policy drift is a mandatory review trigger.
 | Activities, time, distance, pace, power, and route | Show history and compute the requested training analysis, load, forecast, and plan context | Dependent history, analysis, and forecast features cannot operate | Per-user authorization; encrypted transport/storage; route data is used only when supplied by an activated provider |
 | Heart rate, HRV, sleep, recovery, readiness, and related inferences | Produce recovery and training signals requested by the user | Recovery-dependent signals and recommendations cannot operate | Treated as sensitive personal information; purpose-limited computation; no advertising or cross-user model training |
 | Goals, thresholds, plans, settings, and language | Configure the requested service and make outputs intelligible | Personalized service cannot operate correctly | Account-scoped access; editable and exportable; deleted with account |
-| Optional private plan context | Avoid guessing in a bounded plan decision | Deterministic service remains available with less context | Encrypted; expiry and deletion schedule shown in product; optional notes deleted after 30 days; AI separately authorized |
-| Support text and screenshots | Respond to a support or defect report initiated by the user | Praxys may be unable to investigate the report | Screenshots remain private; external issue publication and background AI/vision are disabled for launch |
+| Optional private plan context | Avoid guessing in a bounded plan decision | Deterministic service remains available with less context | Encrypted; expiry and deletion schedule shown in product; optional notes deleted after 30 days; Azure AI use still requires current Terms and exact item purpose/version authority |
+| Support text and screenshots | Respond to a support or defect report initiated by the user | Praxys may be unable to investigate the report | Screenshots remain private; external issue publication is disabled for launch; ordinary private AI/vision triage requires current Terms and the released emergency stop |
 | Request/route/status timing, coarse client/network data, and pseudonymous account hash | Detect abuse, diagnose outages, preserve security, and verify deletion/reliability | Material security and availability failures become difficult to detect | No intentional raw training payload, credential, token, or email; backend component and workspace retention are 30 days; IP masking remains enabled |
 
 Primary account and training rows remain while the account is active. Account
@@ -177,7 +177,7 @@ to the core processing:
 
 The API also rejects any personal request from a `.cn` artifact without its
 stamped source SHA and current notice version. WeChat traffic must identify
-Miniapp `2026.08.1` or newer and its stamped full source SHA; official
+Miniapp `2026.08.2` or newer and its stamped full source SHA; official
 `wx.request` traffic is additionally identified by the platform-managed
 `servicewechat.com` Referer. This keeps cached notice-incapable clients from
 using an account-wide web receipt as a substitute for the Miniapp notice.
@@ -198,7 +198,7 @@ the receipt-retention policy.
 | Credentials enable unauthorized provider access | High | Per-user envelope encryption, generation fencing, no shared credential settings, disconnect/delete controls | Medium-low |
 | Personal traffic starts before notice | High | Web provider ordering, auth-prefetch guard, auth-restoration guard, Miniapp network guard, versioned local acknowledgement, runtime source/build headers, API rejection of stale clients, and server Terms receipt gate | Low |
 | Provider receives more data than expected or changes region/entity | High | User selects connection, just-in-time disclosure, official policy link, supported-category limits, disconnect | Medium |
-| Optional/background AI runs without specific authority | High | Production background-AI kill switch, per-purpose consent receipts for private context, deterministic fallback | Low |
+| Azure AI runs without current service authority or during an emergency stop | High | Current Terms receipt, centralized fail-closed AI kill switch, per-user/purpose/field isolation, explicit unavailable state | Low |
 | Feedback reaches a foreign/public tracker | High | Private storage, deterministic scrub, production publication kill switch, no background vision/AI | Low |
 | Telemetry contains sensitive payload or persists too long | High | No intentional payload/credential/email fields, pseudonymous hashes, IP masking, 30-day backend retention, `.cn` browser telemetry disabled | Low-medium |
 | Statsig gate evaluation discloses user identity | Medium | Server-side local evaluation; all SDK user logging and diagnostics disabled; `.cn` browser SDK absent | Low |
@@ -208,7 +208,7 @@ the receipt-retention policy.
 
 | Alternative | Proposed disposition |
 |---|---|
-| Separate consent for all core processing | Rejected for this release. It would misstate the selected legal basis and imply that the account/sync service could continue after withdrawal when it cannot. Optional AI still uses separate authorization. |
+| Separate consent for all core processing | Rejected for this release. It would misstate the selected legal basis and imply that the account/sync service could continue after withdrawal when it cannot. Ordinary Azure AI is an enumerated condition of the same service contract; external feedback publication remains separately authorized per submission. |
 | Public information-only `.cn` site | Proposed rejection because the assessed product is the complete authenticated service; final Product/operator authority is pending. |
 | Immediate mainland-local API/database rebuild | Not selected for this release due material migration, security, and operational risk. It remains a risk-reduction option if the current legal basis or performance becomes unacceptable. |
 | Disable Statsig globally | Rejected because it would fail closed and remove private Stryd and controlled delivery capabilities. Local evaluation with logging and diagnostics disabled preserves the control without user-data egress. |
@@ -222,7 +222,7 @@ boundary, ordinary `.run` deploys that leave China disabled and omit `.cn`
 CORS, an exact registry shape, workflow readback/CORS-denial/evidence steps,
 version-and-digest-bound append-only Terms receipts, registration compensation,
 bounded stale-policy rights routes, per-user background Terms checks,
-purpose-specific optional-processing authorization, and account deletion that
+centralized Azure AI runtime/Terms authorization and exact per-submission publication consent, and account deletion that
 fails closed on private feedback screenshot deletion while preserving locators
 for retry. Registry entries bind channel/version, 12-character source ID,
 exact 40-character protected-`main` commit, current notice/digest/API contract,
@@ -247,20 +247,20 @@ Before public DNS cutover, Release Evidence must show:
 
 - human acceptance of the
   [proposed China Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md);
-- policy version `2026.08.3` in web, API, and mini-program;
+- policy version `2026.08.4` in web, API, and mini-program;
 - pre-transfer web and mini-program request blocking;
 - `CN_PRIVACY_FLOOR_SHA` set to the first protected-main revision containing
   the runtime client boundary and server Terms gate;
 - `.cn` source-SHA/notice headers match one exact registry entry, while
   separate served-artifact evidence matches the retained source; replayable
   headers are identifiers, not artifact attestation;
-- Miniapp `2026.08.1` or newer mapped to its full source SHA and deterministic
+- Miniapp `2026.08.2` or newer mapped to its full source SHA and deterministic
   `wechat:robot-1:<version>` locator, with separate retained upload-success
   evidence and missing/older clients rejected;
 - personal-data endpoints returning `428 TERMS_ACCEPTANCE_REQUIRED` before the
   current account receipt and succeeding after explicit acceptance;
 - provider just-in-time disclosure in both web connection surfaces;
-- `PRAXYS_DISABLE_BACKGROUND_AI=true`;
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary availability, with the emergency stop independently tested;
 - `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`;
 - Statsig server `disable_all_logging=true` and
   `disable_diagnostics=true`;
@@ -280,8 +280,8 @@ the following occurs:
 
 - a new recipient, subprocessor, country/region, purpose, or personal-data
   category;
-- optional AI becomes automatic, its model region changes, or a purpose loses
-  its durable authorization;
+- the Azure AI model region or an enumerated purpose changes, current-Terms
+  enforcement is bypassed, or the emergency stop fails;
 - Statsig user logging/diagnostics are enabled or evaluation moves out of
   process;
 - feedback publication is enabled;

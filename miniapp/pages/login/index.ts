@@ -171,10 +171,10 @@ function buildLoginTr(locale: Locale) {
       'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.',
     ),
     noticeOptional: t(
-      'Optional Azure AI is off by default. The recipient, purpose, and minimized fields are disclosed before a separate opt-in.',
+      'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.',
     ),
     noticeAcknowledge: t(
-      'Continuing acknowledges that this notice has been read. It does not consent to optional AI or other nonessential processing.',
+      'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.',
     ),
     processingNoticeName: t(
       'Privacy Policy and Mainland China processing notice',
@@ -185,7 +185,7 @@ function buildLoginTr(locale: Locale) {
     noticeReadRequired: t('Read the processing notice before continuing.'),
     updatedTermsTitle: t('Updated Terms and Privacy notice'),
     updatedTermsDetail: t(
-      'The Terms of Service have been updated. The Privacy Policy now explains overseas recipients, locations, sensitive-data necessity, and rights for mainland China users. Core processing relies on contract necessity; optional AI still requires a separate opt-in. Review the Terms and Privacy notice before continuing.',
+      'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.',
     ),
     acceptTermsLead: t('I accept the'),
     privacyReadLead: t('and acknowledge that I have read the'),

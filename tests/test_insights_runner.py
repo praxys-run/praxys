@@ -108,7 +108,6 @@ def db_session():
 @pytest.fixture(autouse=True)
 def enable_background_ai(monkeypatch):
     """Existing runner tests exercise the explicitly enabled path."""
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setattr(
         insights_runner,
@@ -134,10 +133,10 @@ def test_background_ai_kill_switch_skips_before_context_build(
         db_session,
         {"activities": 1},
         _session=db_session,
-    ) == {"skipped": "background_ai_disabled"}
+    ) == {"skipped": "ai_unavailable"}
 
 
-def test_background_ai_needs_purpose_authorization(
+def test_background_ai_needs_current_terms_authorization(
     db_session,
     monkeypatch,
 ):
@@ -152,7 +151,7 @@ def test_background_ai_needs_purpose_authorization(
         db_session,
         {"activities": 1},
         _session=db_session,
-    ) == {"skipped": "background_ai_authorization_required"}
+    ) == {"skipped": "current_terms_required"}
 
 
 @pytest.fixture

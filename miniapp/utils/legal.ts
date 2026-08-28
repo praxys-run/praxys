@@ -5,9 +5,9 @@
 export interface LegalText { en: string; zh: string; }
 export interface LegalSection { id: string; title: LegalText; body: LegalText[]; }
 
-export const TERMS_VERSION = "2026.08.3";
-export const TERMS_CONTENT_DIGEST = "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e";
-export const EFFECTIVE_DATE = "2026-08-25";
+export const TERMS_VERSION = "2026.08.4";
+export const TERMS_CONTENT_DIGEST = "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1";
+export const EFFECTIVE_DATE = "2026-08-28";
 export const SUPPORT_EMAIL = "support@praxys.run";
 export const OPERATOR_NAME = "Fei Tao";
 export const JURISDICTION = "the People’s Republic of China";
@@ -81,8 +81,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
         "zh": "部分连接需要您的账户凭据，凭据加密存储且仅用于获取您的数据；非官方接入可能随时受限或中断。健康与健身数据可能属于敏感个人信息。启用连接后，处理已披露的信息类别是履行相应同步和训练分析功能所必需。断开连接会停止后续获取；删除账号会移除已存储副本。"
       },
       {
-        "en": "Optional information you provide to personalize a plan is processed by Praxys rules by default. It is sent to Microsoft's Azure-hosted AI service only when you separately opt in for that exact context version and disclosed fields. Microsoft states that these inputs and outputs are not available to OpenAI or used to train generative AI foundation models without permission; Praxys does not grant that permission. AI output may be wrong and is not medical advice; you remain in control of plan changes.",
-        "zh": "可选的计划个性化信息默认仅由 Praxys 规则处理。只有在您针对该版本及明确披露的字段另行同意后，相关最小化副本才会发送至 Microsoft Azure AI 服务。微软说明，这些输入和输出不会提供给 OpenAI，也不会在未经许可的情况下用于训练生成式 AI 基础模型；Praxys 不会授予该许可。AI 输出可能有误且不构成医疗建议；计划变更仍由您决定。"
+        "en": "Praxys uses Microsoft's Azure-hosted AI service for the ordinary AI features described in this Agreement, including training reviews, forecasts, support-feedback text or screenshot triage, and purpose-bounded plan-context interpretation. Accepting the current Agreement authorizes those enumerated purposes; there is no separate AI opt-out for ordinary service. Inputs are minimized and isolated per account and purpose. Microsoft states that inputs and outputs are not available to OpenAI or used to train generative AI foundation models without permission; Praxys does not grant that permission. AI output may be wrong and is not medical advice; you remain in control of plan changes.",
+        "zh": "Praxys 使用 Microsoft Azure 托管的 AI 服务提供本协议所述的普通 AI 功能，包括训练回顾、预测、支持反馈文本或截图分类，以及限定用途的计划个性化信息解读。接受当前协议即授权这些已列明用途；普通服务不另设 AI 退出选项。输入会按账号和用途进行最小化与隔离。微软说明，输入和输出不会提供给 OpenAI，也不会在未经许可的情况下用于训练生成式 AI 基础模型；Praxys 不会授予该许可。AI 输出可能有误且不构成医疗建议；计划变更仍由您决定。"
       }
     ]
   },
@@ -189,6 +189,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       {
         "en": "We do not sell personal information, use it for advertising, or place private context in browser analytics, public trackers, evaluation corpora, or cross-user model training. Browser analytics and product-event telemetry are disabled on the praxys.cn deployment.",
         "zh": "我们不出售个人信息，不将其用于广告，也不会把计划个性化信息放入浏览器分析、公开问题追踪、评估语料或跨用户模型训练。praxys.cn 部署已关闭浏览器分析和产品事件遥测。"
+      },
+      {
+        "en": "Azure AI may privately classify support feedback text and screenshots under this Agreement. Publishing feedback to an external issue tracker is separate and occurs only when you give the exact per-submission publication permission shown with the feedback form. Accepting these Terms does not grant publication permission, and screenshots remain private.",
+        "zh": "Azure AI 可依据本协议对支持反馈文本和截图进行私密分类。将反馈发布到外部问题追踪器属于独立处理，只有在您通过反馈表单针对该次提交明确授权时才会发生。接受本条款不构成发布授权，截图始终保持私密。"
       }
     ]
   },
@@ -232,8 +236,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         "zh": "敏感个人信息及影响：心率、HRV、睡眠、恢复、精确活动路线、健康或运动推断以及加密平台凭据可能属于敏感个人信息。这些信息仅在生成您所请求的信号、分析、计划、预测、连接或安全功能所必需时使用。境外处理可能增加网络截获、境外法律访问、服务商中断或未授权访问风险。Praxys 通过传输和静态加密、凭据加密、按用户授权、数据最小化、访问控制、私有截图存储、受监控删除及形成个人信息保护影响评估等措施降低风险。"
       },
       {
-        "en": "Optional overseas AI processing is separate from the core path and off by default. Before a purpose-specific opt-in, Praxys identifies the Microsoft Azure AI recipient, purpose, and minimized fields. At this policy's effective date, the configured AI endpoint is in West US 3, United States; Microsoft may use supporting facilities and published subprocessors in other locations under its terms. Withdrawing permission blocks new optional AI requests without disabling deterministic core training features.",
-        "zh": "可选境外 AI 处理与核心链路分离且默认关闭。在针对明确用途选择加入前，Praxys 会说明 Microsoft Azure AI 接收方、处理目的及最小化字段。本政策生效时，配置的 AI 服务端点位于美国 West US 3；Microsoft 可依据其条款使用其他地点的支持设施和公开列明的分包处理方。撤回权限会阻止新的可选 AI 请求，但不会关闭基于确定性规则的核心训练功能。"
+        "en": "Azure core hosting and Azure AI processing are distinct service functions. Core hosting currently uses Azure East Asia as described above. The ordinary Azure AI purposes enumerated in this policy use a configured endpoint in West US 3, United States; Microsoft may use supporting facilities and published subprocessors in other locations under its terms. Current Terms acceptance and server runtime state—not a mutable client preference—govern these AI requests. If you reject or do not renew the current Terms, ordinary service is unavailable and only the displayed rights flow remains. During an Azure AI outage or emergency stop, AI-only features are explicitly unavailable while provider sync and deterministic metrics continue.",
+        "zh": "Azure 核心托管与 Azure AI 处理是不同的服务功能。核心托管目前使用上述 Azure East Asia 区域。本政策列明的普通 Azure AI 用途使用位于美国 West US 3 的已配置端点；Microsoft 可依据其条款使用其他地点的支持设施和公开列明的分包处理方。当前条款接受记录和服务端运行状态（而非可变的客户端偏好）决定这些 AI 请求。若您拒绝或未重新接受当前条款，普通服务不可用，仅保留界面所示的权利行使流程。Azure AI 中断或紧急停止期间，AI 专属功能会明确显示不可用，但平台同步和确定性指标继续运行。"
       }
     ]
   },
@@ -249,8 +253,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         "zh": "计划个性化信息经加密保存，仅归属于您的账号，并只在您确认的用途和有效期内使用。可选备注会在 30 天后删除；临时结构化信息会在界面显示的日期失效，并按披露的保留期限清除。"
       },
       {
-        "en": "AI processing is off for each item by default. If you separately enable it, Praxys sends only the disclosed category and fields — and the optional note only if separately selected — to Microsoft's Azure-hosted AI service. Microsoft states that these inputs and outputs are not available to OpenAI or used to train generative AI foundation models without permission; Praxys does not grant that permission. Flagged content may be processed for abuse monitoring under Microsoft's Azure terms. Praxys does not log raw requests or responses. Withdrawing consent blocks new requests but cannot recall a request already processed.",
-        "zh": "每条信息默认关闭 AI 处理。若另行启用，Praxys 只会把已披露的类别和字段发送至 Microsoft Azure AI 服务；可选备注仅在单独勾选后发送。微软说明，这些输入和输出不会提供给 OpenAI，也不会在未经许可的情况下用于训练生成式 AI 基础模型；Praxys 不会授予该许可。被标记的内容可能会根据 Microsoft Azure 条款接受滥用监测。Praxys 不记录原始请求或响应。撤回同意会阻止后续请求，但无法撤回已经处理的请求。"
+        "en": "For a confirmed context purpose, Praxys may send only that item's selected category, provided structured fields, and provided optional note to Microsoft's Azure-hosted AI service. Item identity, version, purpose, field minimization, retention, safety exclusions, and payload-free use receipts remain enforced. Microsoft states that inputs and outputs are not available to OpenAI or used to train generative AI foundation models without permission; Praxys does not grant that permission. Flagged content may be processed for abuse monitoring under Microsoft's Azure terms. Praxys does not log raw requests or responses.",
+        "zh": "对于已确认的个性化信息用途，Praxys 仅可将该条目的所选类别、已提供的结构化字段和已提供的可选备注发送至 Microsoft Azure AI 服务。条目标识、版本、用途、字段最小化、保留期限、安全排除及不含载荷的使用记录仍受严格约束。微软说明，输入和输出不会提供给 OpenAI，也不会在未经许可的情况下用于训练生成式 AI 基础模型；Praxys 不会授予该许可。被标记的内容可能会根据 Microsoft Azure 条款接受滥用监测。Praxys 不记录原始请求或响应。"
       }
     ]
   },
@@ -288,8 +292,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     },
     "body": [
       {
-        "en": "You may ask Praxys to explain the processing rules; inspect, copy, correct, supplement, restrict, or delete personal information; withdraw optional AI permission; disconnect a provider; export your account data; or delete the account. Use the product controls where available or email support@praxys.run. For information processed by an overseas recipient, contact Praxys through the same channel; Praxys will verify the request and coordinate the response. You may also complain to the competent personal-information protection authority.",
-        "zh": "您可要求 Praxys 说明处理规则，查阅、复制、更正、补充、限制或删除个人信息，撤回可选 AI 权限，断开平台连接，导出账号数据或删除账号。请优先使用产品内控制；也可发送邮件至 support@praxys.run。对于境外接收方处理的信息，请通过同一渠道联系 Praxys；Praxys 会核验请求并协调响应。您也可向有权个人信息保护主管部门投诉。"
+        "en": "You may ask Praxys to explain the processing rules; inspect, copy, correct, supplement, restrict, or delete personal information; disconnect a provider; export your account data; or delete the account. Use the product controls where available or email support@praxys.run. For information processed by an overseas recipient, contact Praxys through the same channel; Praxys will verify the request and coordinate the response. You may also complain to the competent personal-information protection authority.",
+        "zh": "您可要求 Praxys 说明处理规则，查阅、复制、更正、补充、限制或删除个人信息，断开平台连接，导出账号数据或删除账号。请优先使用产品内控制；也可发送邮件至 support@praxys.run。对于境外接收方处理的信息，请通过同一渠道联系 Praxys；Praxys 会核验请求并协调响应。您也可向有权个人信息保护主管部门投诉。"
       },
       {
         "en": "Deleting the account stops future core processing and removes synced data and private context from active systems. Some requests may require identity verification or may be limited where retention is legally required or necessary to protect another person's rights.",

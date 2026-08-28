@@ -501,24 +501,16 @@ def _runner_session(monkeypatch, user_id: str):
         terms_digest=TERMS_CONTENT_DIGEST,
     ))
     session.commit()
-    monkeypatch.setenv("PRAXYS_ENABLE_BACKGROUND_AI", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
 
-    def authorize_test_purpose(db, *, user_id, purpose_authorized):
-        # These tests exercise post-authorization telemetry. Inject the
-        # purpose grant while retaining the production global and current-
-        # Terms checks instead of replacing authorization with a bare True.
-        assert purpose_authorized is False
-        return background_ai_authorized(
-            db,
-            user_id=user_id,
-            purpose_authorized=True,
-        )
+    def authorize_current_terms(db, *, user_id):
+        return background_ai_authorized(db, user_id=user_id)
+
 
     monkeypatch.setattr(
         insights_runner,
         "background_ai_authorized",
-        authorize_test_purpose,
+        authorize_current_terms,
     )
 
     monkeypatch.setattr("api.ai.build_training_context", lambda **kw: _FAKE_CTX)

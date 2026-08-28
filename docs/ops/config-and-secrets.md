@@ -81,10 +81,14 @@ The ordinary backend workflow writes and exactly reads back these literals;
 they are not repository-variable activation controls:
 
 - `PRAXYS_DISABLE_CN_PROCESSING=true`
-- `PRAXYS_ENABLE_BACKGROUND_AI=false`
-- `PRAXYS_DISABLE_BACKGROUND_AI=true`
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` (ordinary Azure AI available; set `true` for the emergency stop)
 - `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`
 - `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`
+
+The preflight runtime evidence records `backgroundAiAvailable`,
+`backgroundAiKillSwitchActive`, and `feedbackPublicationDisabled` independently;
+it does not collapse these distinct controls into an "optional processing
+is disabled" aggregate.
 
 Repository variables with those names are ignored by `deploy-backend.yml`.
 The workflow also removes `.cn` CORS on every ordinary deployment. A manual
@@ -124,8 +128,10 @@ The proposed authenticated `.cn` release is governed by
 `PIPIA-CN-2026-08-25-01`. The same policy version drives the pre-transfer web
 and mini-program notice and the server-side digest-bound, append-only Terms
 receipt. Provider connection dialogs add the just-in-time recipient notice on
-both `.run` and `.cn`. The four optional-processing controls remain in their
-disabled combination until a separately accepted purpose-specific rollout.
+both `.run` and `.cn`. The four fixed runtime settings keep China processing
+and external feedback publication disabled while releasing the Azure AI
+emergency stop for ordinary service. External publication still requires a
+separately accepted purpose-specific rollout.
 
 `CN_PRIVACY_FLOOR_SHA` is set only after the privacy-floor change lands on
 protected `main`. The command is not currently authorized: the
@@ -180,20 +186,20 @@ cat > /tmp/praxys-cn-approved-releases.json <<'JSON'
     "client_version": "<12-char-source-sha>",
     "source_id": "<12-char-source-sha>",
     "source_commit": "<40-char-protected-main-sha>",
-    "notice_version": "2026.08.3",
-    "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
-    "api_contract_version": "cn-privacy-v1",
+    "notice_version": "2026.08.4",
+    "terms_digest": "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1",
+    "api_contract_version": "cn-privacy-v2",
     "release_id": "edgeone:<deployment-id>"
   },
   {
     "channel": "wechat-miniapp",
-    "client_version": "2026.08.1",
+    "client_version": "2026.08.2",
     "source_id": "<12-char-source-sha>",
     "source_commit": "<40-char-protected-main-sha>",
-    "notice_version": "2026.08.3",
-    "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
-    "api_contract_version": "cn-privacy-v1",
-    "release_id": "wechat:robot-1:2026.08.1"
+    "notice_version": "2026.08.4",
+    "terms_digest": "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1",
+    "api_contract_version": "cn-privacy-v2",
+    "release_id": "wechat:robot-1:2026.08.2"
   }
 ]
 JSON
@@ -207,7 +213,7 @@ gh workflow run deploy-backend.yml --ref main \
 ```
 
 The disabled China validation lane performs byte-for-byte App Service readback
-for the registry and five fixed non-secret privacy settings without printing
+for the registry and four fixed non-secret runtime settings without printing
 registry contents, both before and after deployment. Its final evidence records
 the exact comparisons, setting and CORS values, registry count/digest,
 readiness, and deployed SHA. EdgeOne and Miniapp candidates independently
@@ -222,7 +228,8 @@ curl -fsS https://api.praxys.run/api/health/ready \
 
 Before launch this must show `china_processing.disabled=true`,
 `registry_configured=false`, approved-release count `0`, registry digest `null`,
-and both optional-processing values `false`. Disabled readiness deliberately
+`optional_processing.background_ai_enabled=true`, its kill switch `false`, and
+feedback-publication enablement `false`. Disabled readiness deliberately
 does not parse a potentially stale registry; the China-capable workflow uses
 its exact repository-owned Azure setting readback for registry bytes,
 digest, and count. The current workflows cannot set `PRAXYS_DISABLE_CN_PROCESSING=false`.

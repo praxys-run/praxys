@@ -301,9 +301,6 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         allow_background_ai = background_ai_authorized(
             db,
             user_id=row.user_id,
-            # Submitting support feedback authorizes private deterministic
-            # handling, not disclosure to an optional AI processor.
-            purpose_authorized=False,
         )
         image_section = ""
         used_vision = False

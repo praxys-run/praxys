@@ -33,6 +33,7 @@ def insights_client(monkeypatch):
     tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     monkeypatch.setenv("DATA_DIR", tmpdir.name)
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
@@ -175,7 +176,7 @@ def test_daily_brief_is_permanently_suppressed(insights_client):
     listed = insights_client.get("/api/insights")
 
     assert direct.status_code == 200
-    assert direct.json() == {"insight": None}
+    assert direct.json() == {"insight": None, "ai_available": True}
     assert "daily_brief" not in listed.json()["insights"]
 
 
@@ -248,6 +249,27 @@ def _push_feedback_insight(client, *, insight_type="training_review", dataset_ha
     }
     response = client.post("/api/insights", json=body)
     assert response.status_code == 200, response.text
+
+
+def test_ai_emergency_stop_suppresses_stored_insights_but_reports_unavailable(
+    insights_client,
+    monkeypatch,
+):
+    body = {
+        "insight_type": "training_review",
+        "headline": "Generated advice",
+        "summary": "Must not render while AI is stopped.",
+        "findings": [],
+        "recommendations": [],
+    }
+    assert insights_client.post("/api/insights", json=body).status_code == 200
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+
+    direct = insights_client.get("/api/insights/training_review")
+    listed = insights_client.get("/api/insights")
+
+    assert direct.json() == {"insight": None, "ai_available": False}
+    assert listed.json() == {"insights": {}, "ai_available": False}
 
 
 def test_demo_read_hides_feedback_controls(insights_client):

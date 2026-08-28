@@ -51,8 +51,8 @@ Frozen implementation commit `635e5042dbb1f083bd8b6093a6d8488228b6a558`
 contains deterministic deployment safeguards, runtime readback logic,
 exact-registry validation, CORS-denial checks, evidence-artifact generation,
 digest-bound append-only Terms receipts, registration compensation, bounded
-rights access, per-user background Terms checks, and purpose-specific optional
-processing authorization. Those are verified draft implementation facts, not
+rights access, per-user background Terms checks, ordinary Azure AI
+authorization, and purpose-specific external-publication authorization. Those are verified draft implementation facts, not
 accepted architecture policy or live evidence. No live provider query or
 runtime readback, DNS/TLS cutover, permanent Release Evidence store, alert
 provisioning, or rollback rehearsal occurred.
@@ -77,7 +77,7 @@ Frozen implementation commit
 - a local pre-transfer notice gate;
 - an account-level server Terms/Privacy receipt;
 - a source-ancestry deployment floor; and
-- production negative switches for background AI and feedback publication.
+- a production Azure AI emergency stop plus feedback-publication switches.
 
 Those changes are implementation facts, not evidence that controls are merged,
 approved, released, or operating. The frozen commit implements an exact
@@ -93,9 +93,10 @@ The frozen commit also implements version-and-digest-bound, append-only Terms
 acceptance receipts while retaining mutable user fields as projections. Stale
 users retain bounded rights routes. Registration compensates if receipt
 persistence fails. Scheduled/background processing rechecks current Terms per
-user. Optional background AI and external feedback publication require both
-operational enablement and purpose-specific authorization; admin review cannot
-create publication consent. Account deletion fails closed on private feedback
+user. Ordinary Azure AI requires the centralized runtime switch and a current
+Terms receipt; it has no separate user opt-out. External feedback publication
+remains independently gated by exact per-submission consent, which admin
+review cannot create. Account deletion fails closed on private feedback
 screenshot deletion and preserves screenshot locators for retry. Neither the
 receipt implementation nor the current legal version/digest is human-approved
 by this ADR. Exact released source revisions, actual provider
@@ -114,7 +115,7 @@ permanent Release Evidence location remain unresolved.
 - Authentication, authorization, per-user isolation, and encrypted provider
   credentials remain server-authoritative and independent of this contract.
 - A notice acknowledgement is evidence that a disclosure was presented and
-  read; it is not consent for core processing or optional AI.
+  read; it is not the Terms acceptance that authorizes ordinary service.
 - Rights to export, disconnect, and delete must not be conditioned on accepting
   updated service terms.
 - The existing API and PostgreSQL architecture is preserved. No new service,
@@ -266,10 +267,10 @@ but they are not the evidence record.
 
 | Receipt | Scope | May satisfy | Must not satisfy |
 |---|---|---|---|
-| Terms acceptance plus Privacy read acknowledgement | Account-wide, exact policy bundle version/digest | The current account policy gate on any compatible client | The pre-transfer notice on a new client/channel; optional-purpose consent |
-| China processing notice read acknowledgement | Client-channel, exact notice version/digest | Evidence for that account and channel after authentication | Another channel; account Terms acceptance; optional AI or marketing |
+| Terms acceptance plus Privacy read acknowledgement | Account-wide, exact policy bundle version/digest | Ordinary service, including the enumerated Azure AI purposes, on any compatible client | The pre-transfer notice on a new client/channel; external feedback publication |
+| China processing notice read acknowledgement | Client-channel, exact notice version/digest | Evidence for that account and channel after authentication | Another channel; account Terms acceptance; feedback publication or marketing |
 | Local pre-transfer acknowledgement | This browser storage/session or Miniapp installation/launch | Permitting that client instance to start its first personal-data request | Durable account evidence or another device/client |
-| Optional-purpose authorization | Account and exact purpose/context/recipient/field set | Only the named optional processing | Core processing, another purpose, or a future changed context |
+| Feedback-publication authorization | Exact submission and publication text version | Only publication of that submission text | AI processing, another submission, screenshots, or any general publication right |
 
 The local gate remains mandatory because the server cannot retrospectively
 prove that notice preceded the first authentication transfer. After the
@@ -299,19 +300,20 @@ only a separately justified minimal deletion receipt.
 | Authentication/bootstrap and pre-account collection | A compatible approved client and local pre-transfer notice are required for China channels. Account-wide receipt is not yet applicable. Only bounded bootstrap, policy, receipt, sign-out, and rights operations may proceed. |
 | Ordinary account, sync, analysis, or plan request | Exact active compatibility tuple, local/client-channel notice, current account-wide policy receipt, authentication, and per-account authorization are all required. |
 | Provider OAuth or credential submission | All ordinary requirements plus a just-in-time provider recipient/category notice. Credentials enter only the authenticated API credential plane, never the static frontend, release registry, or receipt payload. |
-| Export, provider disconnect, account deletion, and sign-out | Must remain reachable without accepting updated Terms. Export, disconnect, and deletion still require authentication, per-account authorization, a compatible China client and pre-transfer notice, or an independently approved rights channel. They cannot invoke optional processing. |
-| Background processing | A notice or Terms receipt is not purpose authorization. Enqueue records the triggering channel/release and applicable account/purpose state; execution rechecks account existence, deletion/cancellation fences, current required account policy, and any purpose-specific authorization before external transfer or persistence. |
+| Export, provider disconnect, account deletion, and sign-out | Must remain reachable without accepting updated Terms. Export, disconnect, and deletion still require authentication, per-account authorization, a compatible China client and pre-transfer notice, or an independently approved rights channel. They cannot invoke Azure AI or external feedback publication. |
+| Background processing | Enqueue records the triggering channel/release and applicable account/purpose state; execution rechecks account existence, deletion/cancellation fences, current Terms, the centralized AI emergency stop, and per-user isolation before any Azure AI transfer or persistence. |
 
 If no approved client can complete export or deletion, an independently
 verified support or rights path must remain available. The system must not
 coerce policy acceptance as the price of account exit.
 
-Optional AI remains separately authorized and off by default. China notice,
-Terms acceptance, a source header, or an approved release cannot enable it.
-Background AI and external feedback-publication switches remain fail-closed
-until separately accepted Operations and Trust decisions authorize a change.
-Deletion revokes credentials, cancels or fences queued work, and discards late
-writes.
+Azure AI is an enumerated condition of ordinary service and is authorized by
+the current Terms receipt plus server runtime state, not a mutable client
+preference. Its centralized negative emergency switch fails closed and may stop
+AI calls without stopping sync or deterministic metrics. External feedback
+publication remains separately fail-closed and requires exact per-submission
+consent. Deletion revokes credentials, cancels or fences queued work, and
+discards late writes.
 
 ### 7. Enforce protected-main and credential-plane boundaries
 
@@ -393,7 +395,8 @@ can precede the clients; backend-first enforcement cannot.
   client is not an emergency rollback.
 - If no compatible client or backend is healthy, disable the affected China
   entry point and preserve export/deletion through the approved rights path.
-- Rollback cannot enable optional/background processing, lower the protected
+- Rollback cannot enable external publication or bypass the AI emergency stop,
+  lower the protected
   source floor, accept an unregistered tuple, or grant credential-plane
   authority to client metadata.
 
@@ -471,7 +474,8 @@ Engineering must not claim conformance until all of the following exist:
    path that work without new Terms acceptance and cannot expose another
    account.
 9. Background-job enqueue provenance, execution-time authorization/deletion
-   fences, late-write rejection, and fail-closed optional-processing switches.
+   fences, late-write rejection, and fail-closed AI emergency-stop and
+   external-publication switches.
 10. Provider connection notices before credential/OAuth transfer, with all
     credential operations remaining in the authenticated encrypted backend
     plane.
@@ -510,8 +514,9 @@ Quality must independently verify the exact merged commit and artifacts:
   personal traffic; authenticated demos are gated; ordinary personal routes
   default deny; stale-policy accounts can still export, disconnect, delete,
   and sign out without cross-account access.
-- **Background work:** prove optional work cannot be authorized by notice or
-  Terms receipts; deletion/cancellation and changed authorization fence queued
+- **Background work:** prove external publication cannot be authorized by a
+  notice or general Terms receipt; prove Azure AI rechecks current Terms and its
+  emergency stop; deletion/cancellation and changed authorization fence queued
   jobs and discard late writes; production negative switches fail closed.
 - **Credential plane:** verify no secret enters static artifacts, headers,
   receipts, registry payloads, or logs; provider transfer begins only after the
@@ -558,7 +563,7 @@ Return to Architecture and independent review before:
 - using nationality, IP, residence, or person location;
 - making a client receipt account-global or using it for optional consent;
 - requiring updated Terms acceptance for export or deletion;
-- enabling automatic optional AI or external feedback publication;
+- expanding the enumerated ordinary Azure AI purposes or enabling external feedback publication;
 - adding cryptographic device/binary attestation; or
 - performing an incompatible or destructive receipt/registry migration.
 

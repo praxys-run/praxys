@@ -180,7 +180,6 @@ def run_context_pilot(
     scenario_id: str | None = None,
     purpose: str | None = None,
     confirmed_opt_in: bool = False,
-    allow_ai: bool = False,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Run one predefined synthetic or explicitly opted-in pilot scenario."""
@@ -192,11 +191,10 @@ def run_context_pilot(
         "scenario_id": scenario_id,
         "purpose": purpose,
         "confirmed_opt_in": confirmed_opt_in,
-        "allow_ai": allow_ai,
     })
 
     if source == "synthetic":
-        if purpose is not None or confirmed_opt_in or allow_ai:
+        if purpose is not None or confirmed_opt_in:
             raise ContextPilotValidationError(
                 "Synthetic scenarios do not accept athlete context options"
             )
@@ -269,7 +267,6 @@ def run_context_pilot(
                 user_id=user_id,
                 purpose=purpose,
                 kinds=(expected_kind,),
-                allow_ai=allow_ai,
                 now=timestamp,
             )
             db.rollback()
