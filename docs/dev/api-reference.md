@@ -2762,7 +2762,13 @@ Trigger sync for all configured sources.
 Returns durable model-generated insights for `training_review` and
 `race_forecast`. The list endpoint always omits legacy `daily_brief` rows, and
 `GET /api/insights/daily_brief` always returns `{"insight": null}`. Today clients
-must render `/api/today.signal` instead.
+must render `/api/today.signal` instead. Both endpoints return
+`ai_available`; it is `false` while the emergency stop is active, the Azure
+client cannot be initialized, or an authentication, rate-limit, transport, or
+provider failure remains unconfirmed as recovered. Only a successfully parsed
+model response clears the shared provider-failure state. In that state durable
+AI rows are withheld while separately sourced deterministic metrics remain
+available.
 
 ### POST /api/insights
 

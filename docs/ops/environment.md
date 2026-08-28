@@ -65,16 +65,18 @@ PIPIA, and the runbook's Release Evidence exists.
 - `CN_PRIVACY_FLOOR_SHA` gates only China candidate validation, EdgeOne
   artifact preparation, and Miniapp publication. Ordinary filing-free `.run`
   backend and Azure frontend deployment remains operable without it, keeps
-  China processing and external feedback publication disabled, leaves ordinary
-  Azure AI available, and keeps `.cn` CORS absent.
+  China processing and external feedback publication disabled, preserves the
+  exact pre-deploy Azure AI emergency-stop state, and keeps `.cn` CORS absent.
 - `.cn` browser App Insights, browser Statsig, and product-event telemetry are
   disabled. The mini program also disables product events.
 - Backend Statsig downloads rules and evaluates them locally with user logging
   and diagnostics disabled.
 - Ordinary production Azure AI is available under current Terms while its
-  fail-closed emergency stop is released. External feedback publication remains
-  fixed disabled by workflow literals and requires separate authorization;
-  repository variables cannot enable it.
+  fail-closed emergency stop is released. A backend deploy temporarily asserts
+  that stop, then restores its exact pre-deploy value; a successful deploy never
+  clears an operator-set stop. External feedback publication remains fixed
+  disabled by workflow literals and requires separate authorization; repository
+  variables cannot enable it.
 - Backend request/security telemetry remains in Hong Kong with a 30-day
   component/workspace retention limit.
 

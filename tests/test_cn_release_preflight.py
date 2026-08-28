@@ -676,7 +676,7 @@ def test_registry_rejects_coerced_extra_or_padded_provider_data() -> None:
             preflight.validate_registry(json.dumps(payload), disabled=True)
 
 
-def test_fast_backend_deploy_restores_ai_before_exact_verification() -> None:
+def test_fast_backend_deploy_restores_ai_stop_before_exact_verification() -> None:
     import yaml
 
     workflow = yaml.load(
@@ -689,7 +689,7 @@ def test_fast_backend_deploy_restores_ai_before_exact_verification() -> None:
     by_name = {step.get("name"): step for step in steps}
     names = [step.get("name") for step in steps]
     safe_name = "Establish disabled China deployment state"
-    restore_name = "Restore ordinary AI availability for fast deploys"
+    restore_name = "Restore pre-deploy AI emergency state for fast deploys"
     verify_name = "Verify exact non-secret CN runtime settings"
 
     assert (
@@ -699,8 +699,14 @@ def test_fast_backend_deploy_restores_ai_before_exact_verification() -> None:
     )
     restore = by_name[restore_name]
     assert restore["if"] == "steps.mode.outputs.sync_config == 'false'"
-    assert "PRAXYS_DISABLE_BACKGROUND_AI=false" in restore["run"]
-    assert restore["run"].count("PRAXYS_DISABLE_BACKGROUND_AI") == 1
+    assert restore["env"]["PRAXYS_DISABLE_BACKGROUND_AI"] == (
+        "${{ steps.cn_safe_state.outputs.background_ai_restore }}"
+    )
+    assert (
+        'PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}"'
+        in restore["run"]
+    )
+    assert restore["run"].count("PRAXYS_DISABLE_BACKGROUND_AI") == 2
     for unchanged_control in (
         "PRAXYS_DISABLE_CN_PROCESSING",
         "PRAXYS_CN_APPROVED_RELEASES",
@@ -712,6 +718,25 @@ def test_fast_backend_deploy_restores_ai_before_exact_verification() -> None:
 
     failure_restore = by_name["Restore and record disabled state after deployment failure"]
     assert "PRAXYS_DISABLE_BACKGROUND_AI=true" in failure_restore["run"]
+
+    safe_state = by_name[safe_name]
+    assert "previous_background_disabled" in safe_state["run"]
+    assert "background_ai_restore=" in safe_state["run"]
+    assert '>> "${GITHUB_OUTPUT}"' in safe_state["run"]
+
+    full_sync = by_name["Sync App Service settings"]
+    assert full_sync["env"]["PRAXYS_DISABLE_BACKGROUND_AI"] == (
+        "${{ steps.cn_safe_state.outputs.background_ai_restore }}"
+    )
+    assert (
+        'PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}"'
+        in full_sync["run"]
+    )
+
+    verify = by_name[verify_name]
+    assert verify["env"]["PRAXYS_DISABLE_BACKGROUND_AI"] == (
+        "${{ steps.cn_safe_state.outputs.background_ai_restore }}"
+    )
 
 
 def test_backend_cutover_registry_is_limited_to_china_capable_lane(

@@ -215,6 +215,14 @@ def submit_feedback(
             409,
             detail="FEEDBACK_PUBLICATION_CONSENT_MISMATCH",
         )
+    if (
+        not body.external_publication_consent
+        and "external_publication_consent_version" in body.model_fields_set
+    ):
+        raise HTTPException(
+            409,
+            detail="FEEDBACK_PUBLICATION_CONSENT_MISMATCH",
+        )
     begin_serialized_write(db)
     lock_revision_writes(db, user_id)
     user = (

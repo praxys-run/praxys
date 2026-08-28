@@ -67,7 +67,9 @@ The authenticated China release also requires:
   current receipt exists;
 - every provider connection dialog to show the provider transfer notice and
   official privacy/contact link before credentials or OAuth authorization;
-- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary Azure AI availability while the independent China boundary remains disabled,
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary Azure AI availability while
+  the independent China boundary remains disabled; successful backend deploys
+  preserve an operator-set `true` emergency stop rather than clearing it,
   `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`, and
   `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true` in the backend App Service;
 - Statsig server evaluation to remain local with user logging and diagnostics
@@ -228,10 +230,10 @@ is pending:
    retain the successful upload evidence before any activation. Manually
    dispatch `deploy-backend.yml` with
    `china_release_validation=true` and `sync_config=true`.
-4. Require exact registry bytes/digest/count, all four fixed runtime literals,
-   disabled `.cn` CORS, readiness, privacy contract, API version, and deployed
-   source SHA. No current workflow can set the China processing switch false
-   or add CORS.
+4. Require exact registry bytes/digest/count, the three fixed fail-closed
+   literals, the preserved Azure AI emergency-stop state, disabled `.cn` CORS,
+   readiness, privacy contract, API version, and deployed source SHA. No
+   current workflow can set the China processing switch false or add CORS.
 5. Dispatch the frontend workflow. Verify `.run` independently. EdgeOne
    artifact preparation proceeds only if its public disabled-runtime readback
    matches the same candidate; otherwise it is skipped fail closed. A prepared

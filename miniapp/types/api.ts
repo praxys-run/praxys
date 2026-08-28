@@ -31,7 +31,10 @@ export type HealthReadyResponse =
       database: 'ok';
       optional_processing: {
         background_ai_enabled: boolean;
+        background_ai_kill_switch: boolean;
         feedback_publication_enabled: boolean;
+        feedback_publication_positive_enable: boolean;
+        feedback_publication_kill_switch: boolean;
       };
       china_processing: ChinaProcessingStatus;
     }

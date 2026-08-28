@@ -24,7 +24,7 @@ def _strict_flag(name: str, *, default: bool) -> bool:
 
 
 def validate_optional_processing_config() -> None:
-    """Raise when an optional-processing setting is malformed."""
+    """Raise when an AI or external-publication setting is malformed."""
     for name, default in (
         ("PRAXYS_DISABLE_BACKGROUND_AI", True),
         ("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", False),
@@ -65,6 +65,7 @@ def background_ai_authorized(
     from api.legal_receipts import user_has_current_legal_bundle
 
     return user_has_current_legal_bundle(db, user_id)
+
 
 def feedback_publication_enabled() -> bool:
     """Return whether external feedback publication is explicitly enabled."""

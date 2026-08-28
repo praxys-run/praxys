@@ -8,8 +8,8 @@ generators, each gated by:
 - A *per-user daily cap*: skip remaining types if the cap is exhausted.
 
 When Azure AI is unavailable, AI insight generation reports that state;
-deterministic metrics continue through their separate API surfaces. Sync never fails because of this hook — call sites
-always wrap it in try/except.
+deterministic metrics continue through their separate API surfaces. Sync never
+fails because of this hook — call sites always wrap it in try/except.
 
 Transaction ownership: the runner opens its own ``SessionLocal`` so its
 commits / rollbacks are fully isolated from the caller's sync session.
@@ -74,30 +74,19 @@ def run_insights_for_user(
         return {"skipped": "ai_unavailable"}
 
     has_new_rows = _has_new_rows(counts)
+    if not has_new_rows:
+        return {"skipped": "no_new_rows"}
     if _session is not None:
-        if not background_ai_authorized(
-            _session,
-            user_id=user_id,
-        ):
-            return {"skipped": "current_terms_required"}
-        if not has_new_rows:
-            return {"skipped": "no_new_rows"}
         return _run_serialized(_session, user_id)
 
     from db.session import SessionLocal
 
     own_session = SessionLocal()
     try:
-        if not background_ai_authorized(
-            own_session,
-            user_id=user_id,
-        ):
-            return {"skipped": "current_terms_required"}
-        if not has_new_rows:
-            return {"skipped": "no_new_rows"}
         return _run_serialized(own_session, user_id)
     finally:
         own_session.close()
+
 
 def _generation_lock_key(user_id: str) -> int:
     """Return a stable transaction-lock key for one user's LLM generation."""
@@ -193,38 +182,59 @@ def _run(db: Session, user_id: str) -> dict:
     run_started_at = datetime.utcnow()
 
     from api import telemetry
+    from db.account_lifecycle import (
+        AccountLifecycleBusy,
+        account_lifecycle_lease,
+    )
 
     results: dict[str, str] = {}
     pending: list[tuple[str, dict, str]] = []
-    for itype in GENERATORS_ORDER:
-        new_hash = compute_dataset_hash(context, itype, science_pillars=pillars)
-        existing = (
-            db.query(AiInsight)
-            .filter(AiInsight.user_id == user_id, AiInsight.insight_type == itype)
-            .first()
-        )
-        if (
-            existing is not None
-            and (existing.meta or {}).get("dataset_hash") == new_hash
-            and _generation_started_at(existing.meta) is not None
-        ):
-            results[itype] = "hash_match"
-            continue
-        if used_today + len(pending) >= cap:
-            results[itype] = "cap_reached"
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite and db.in_transaction():
+        db.rollback()
+    try:
+        with account_lifecycle_lease(user_id, timeout_seconds=30.0):
+            for itype in GENERATORS_ORDER:
+                new_hash = compute_dataset_hash(
+                    context,
+                    itype,
+                    science_pillars=pillars,
+                )
+                existing = (
+                    db.query(AiInsight)
+                    .filter(
+                        AiInsight.user_id == user_id,
+                        AiInsight.insight_type == itype,
+                    )
+                    .first()
+                )
+                if (
+                    existing is not None
+                    and (existing.meta or {}).get("dataset_hash") == new_hash
+                    and _generation_started_at(existing.meta) is not None
+                ):
+                    results[itype] = "hash_match"
+                    continue
+                if used_today + len(pending) >= cap:
+                    results[itype] = "cap_reached"
+                    continue
+                if not background_ai_authorized(db, user_id=user_id):
+                    if sqlite and db.in_transaction():
+                        db.rollback()
+                    return {"skipped": "current_terms_required"}
+                if sqlite and db.in_transaction():
+                    db.rollback()
+                payload = generators[itype](context, pillars)
+                if payload is None:
+                    results[itype] = "generator_returned_none"
+                    continue
+                pending.append((itype, payload, new_hash))
+            if sqlite and db.in_transaction():
+                db.rollback()
+    except AccountLifecycleBusy:
+        logger.info("Insight generation skipped: account lifecycle busy")
+        return {"skipped": "account_unavailable"}
 
-            continue
-        payload = generators[itype](context, pillars)
-        if payload is None:
-            results[itype] = "generator_returned_none"
-
-            continue
-        pending.append((itype, payload, new_hash))
-
-    # No database row locks are held during the LLM calls above. Serialize the
-    # short write batch before its active-user and revision checks. PostgreSQL
-    # uses the revision advisory lock inside the write helpers; SQLite needs an
-    # explicit writer transaction so deletion cannot interleave before commit.
     if pending:
         from db.session import begin_serialized_write
 

@@ -324,6 +324,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! previous_background_disabled="$(
+            az webapp config appsettings list \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query "[?name=='PRAXYS_DISABLE_BACKGROUND_AI'].value | [0]" \
+              --output tsv
+          )"; then
+            echo "::error::Could not read the existing Azure AI emergency-stop state."
+            exit 1
+          fi
+          previous_background_disabled="${previous_background_disabled,,}"
+          case "${previous_background_disabled}" in
+            true|false)
+              background_ai_restore="${previous_background_disabled}"
+              ;;
+            "")
+              background_ai_restore=true
+              ;;
+            *)
+              echo "::error::Existing PRAXYS_DISABLE_BACKGROUND_AI must be true or false."
+              exit 1
+              ;;
+          esac
+          echo "background_ai_restore=${background_ai_restore}" >> "${GITHUB_OUTPUT}"
           az webapp config appsettings set \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -340,7 +364,15 @@ jobs:
           base_origins='["https://praxys.run","https://www.praxys.run","https://praxys-frontend.azurewebsites.net"]'
           jq -e --argjson expected "${base_origins}"             'sort == ($expected | sort)' <<< "${cors_origins}" >/dev/null
           evidence=release-evidence/cn-release-preflight.json
-          jq --argjson origins "${cors_origins}"             '. + {initialDisabledReadback: {status: "exact-match", corsOrigins: ($origins | sort)}}'             "${evidence}" > "${evidence}.tmp"
+          jq \
+            --argjson origins "${cors_origins}" \
+            --arg backgroundRestore "${background_ai_restore}" \
+            '. + {initialDisabledReadback: {
+              status: "exact-match",
+              backgroundAiRestoreState: $backgroundRestore,
+              corsOrigins: ($origins | sort)
+            }}' \
+            "${evidence}" > "${evidence}.tmp"
           mv "${evidence}.tmp" "${evidence}"
 
       - name: Wait for compatible Labs worker
@@ -384,6 +416,7 @@ jobs:
         if: steps.mode.outputs.sync_config == 'true'
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
+          PRAXYS_DISABLE_BACKGROUND_AI: ${{ steps.cn_safe_state.outputs.background_ai_restore }}
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
           KEY_VAULT_KEY_NAME: ${{ vars.KEY_VAULT_KEY_NAME }}
           PRAXYS_JWT_SECRET: ${{ secrets.PRAXYS_JWT_SECRET }}
@@ -413,8 +446,9 @@ jobs:
           # China release registry and kill switch. The manifest is non-secret
           # exact-release metadata; processing stays disabled by default.
           PRAXYS_CN_APPROVED_RELEASES: ${{ steps.cn_preflight.outputs.china_capable == 'true' && vars.PRAXYS_CN_APPROVED_RELEASES || '' }}
-          # Privacy controls are fixed fail-closed literals. Repository variables
-          # cannot activate China or optional external processing.
+          # China and publication controls are fixed fail-closed literals.
+          # The Azure AI emergency stop restores the exact pre-deploy operator
+          # state and is never sourced from a repository variable.
           WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
           # Optional: in-app feedback → GitHub issue auto-filing. Safe to leave
@@ -477,6 +511,11 @@ jobs:
             jq -e 'type == "array" and length > 0' \
               <<< "${PRAXYS_CN_APPROVED_RELEASES}" >/dev/null
           fi
+          if [[ "${PRAXYS_DISABLE_BACKGROUND_AI}" != "true" &&
+                "${PRAXYS_DISABLE_BACKGROUND_AI}" != "false" ]]; then
+            echo "ERROR: preserved Azure AI emergency-stop state must be true or false" >&2
+            exit 1
+          fi
           LABS_SERVICE_BUS_FQDN=""
           LABS_SERVICE_BUS_QUEUE="labs-environment-response"
           if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
@@ -502,7 +541,7 @@ jobs:
             --settings \
               AZURE_AI_ENDPOINT="${AZURE_AI_ENDPOINT}" \
               PRAXYS_DISABLE_CN_PROCESSING="true" \
-              PRAXYS_DISABLE_BACKGROUND_AI="false" \
+              PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}" \
               PRAXYS_ENABLE_FEEDBACK_PUBLICATION="false" \
               PRAXYS_DISABLE_FEEDBACK_PUBLICATION="true" \
               KEY_VAULT_URL="${KEY_VAULT_URL}" \
@@ -562,8 +601,10 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --always-on true
 
-      - name: Restore ordinary AI availability for fast deploys
+      - name: Restore pre-deploy AI emergency state for fast deploys
         if: steps.mode.outputs.sync_config == 'false'
+        env:
+          PRAXYS_DISABLE_BACKGROUND_AI: ${{ steps.cn_safe_state.outputs.background_ai_restore }}
         shell: bash
         run: |
           set -euo pipefail
@@ -571,14 +612,14 @@ jobs:
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --settings \
-              PRAXYS_DISABLE_BACKGROUND_AI=false \
+              PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}" \
             --output none
 
       - name: Verify exact non-secret CN runtime settings
         env:
           PRAXYS_CN_APPROVED_RELEASES: ${{ steps.cn_preflight.outputs.china_capable == 'true' && vars.PRAXYS_CN_APPROVED_RELEASES || '' }}
           PRAXYS_DISABLE_CN_PROCESSING: true
-          PRAXYS_DISABLE_BACKGROUND_AI: false
+          PRAXYS_DISABLE_BACKGROUND_AI: ${{ steps.cn_safe_state.outputs.background_ai_restore }}
           PRAXYS_ENABLE_FEEDBACK_PUBLICATION: false
           PRAXYS_DISABLE_FEEDBACK_PUBLICATION: true
           CN_CAPABLE: ${{ steps.cn_preflight.outputs.china_capable }}
@@ -609,13 +650,15 @@ jobs:
             fi
           done
           evidence="release-evidence/cn-release-preflight.json"
-          jq --argjson chinaCapable "${CN_CAPABLE}" \
+          jq \
+            --argjson chinaCapable "${CN_CAPABLE}" \
+            --arg backgroundDisabled "${PRAXYS_DISABLE_BACKGROUND_AI}" \
             ". + {runtimeConfigurationReadback: {
               status: \"exact-match\",
               chinaCapable: \$chinaCapable,
               settings: {
                 PRAXYS_DISABLE_CN_PROCESSING: \"true\",
-                PRAXYS_DISABLE_BACKGROUND_AI: \"false\",
+                PRAXYS_DISABLE_BACKGROUND_AI: \$backgroundDisabled,
                 PRAXYS_ENABLE_FEEDBACK_PUBLICATION: \"false\",
                 PRAXYS_DISABLE_FEEDBACK_PUBLICATION: \"true\"
               },
@@ -703,7 +746,7 @@ jobs:
         env:
           EXPECTED_CN_REGISTRY: ${{ steps.cn_preflight.outputs.china_capable == 'true' && vars.PRAXYS_CN_APPROVED_RELEASES || '' }}
           EXPECTED_CN_DISABLED: true
-          EXPECTED_BACKGROUND_DISABLED: false
+          EXPECTED_BACKGROUND_DISABLED: ${{ steps.cn_safe_state.outputs.background_ai_restore }}
           EXPECTED_PUBLICATION_ENABLED: false
           EXPECTED_PUBLICATION_DISABLED: true
           CN_CAPABLE: ${{ steps.cn_preflight.outputs.china_capable }}
@@ -791,6 +834,7 @@ jobs:
               --arg legalDigest "${expected_legal_digest}" \
               --arg apiContract "${expected_api_contract}" \
               --argjson background "${expected_background_effective}" \
+              --argjson backgroundDisabled "${EXPECTED_BACKGROUND_DISABLED}" \
               --argjson publication "${expected_publication_effective}" \
               ".china_processing.enabled == false
                and .china_processing.disabled == \$disabled
@@ -803,7 +847,7 @@ jobs:
                  and .china_processing.api_contract_version == \$apiContract
                ))
                and .optional_processing.background_ai_enabled == \$background
-               and .optional_processing.background_ai_kill_switch == false
+               and .optional_processing.background_ai_kill_switch == \$backgroundDisabled
                and .optional_processing.feedback_publication_enabled == \$publication
                and .optional_processing.feedback_publication_positive_enable == false
                and .optional_processing.feedback_publication_kill_switch == true" \
@@ -963,12 +1007,12 @@ jobs:
 
       - name: Restore and record disabled state after deployment failure
         id: cn_failure_restore
-        if: failure() && steps.azure_login.outcome == 'success'
+        if: (failure() || cancelled()) && steps.azure_login.outcome == 'success'
         shell: bash
         run: |
-          # A failed deploy may have occurred after a config-sync step. Reassert
-          # every fixed privacy control and record only an exact readback; this
-          # is fail-safe restoration evidence, not a code rollback claim.
+          # A failed or cancelled deploy may have occurred after a config-sync
+          # step. Reassert every fixed privacy control and record only an exact
+          # Readback is fail-safe restoration evidence, not a code rollback claim.
           set +e
           rc=0
           az webapp config appsettings set \

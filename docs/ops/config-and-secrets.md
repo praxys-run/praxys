@@ -75,15 +75,34 @@ the SPA and ship to browsers)
 | `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default-off public-host probe. Exact `true` only after both `.cn` custom domains resolve to the accepted EdgeOne project. | `deploy-frontend-appservice.yml` |
 | `CN_PRIVACY_FLOOR_SHA` | Required 40-character SHA of the first protected-`main` commit containing the reviewed China web/Miniapp build boundary, server Terms gate, and privacy switches. China-capable backend, EdgeOne, and Miniapp lanes fail closed when it is missing or the candidate does not descend from it; filing-free `.run` lanes retain protected-main provenance without requiring China-only values. | GitHub Actions variable consumed by `deploy-backend.yml`, `deploy-frontend-appservice.yml`, and `miniapp-publish.yml`; matching non-secret build variable on the EdgeOne Makers project `praxys-cn` |
 
-### Fixed fail-closed deployment literals
+### Fail-closed deployment controls
 
-The ordinary backend workflow writes and exactly reads back these literals;
-they are not repository-variable activation controls:
+The ordinary backend workflow writes and exactly reads back three fixed
+fail-closed literals:
 
 - `PRAXYS_DISABLE_CN_PROCESSING=true`
-- `PRAXYS_DISABLE_BACKGROUND_AI=false` (ordinary Azure AI available; set `true` for the emergency stop)
 - `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`
 - `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`
+
+`PRAXYS_DISABLE_BACKGROUND_AI` is different: the workflow first reads its
+existing App Service value, treats a missing value as fail-closed `true`,
+temporarily asserts `true` during deployment preparation, and restores the
+exact pre-deploy `true` or `false` value on both full and fast successful
+deploys. It never clears an operator-set emergency stop. A failed deploy leaves
+all processing controls, including Azure AI, in the disabled state. A cancelled
+deploy follows the same fail-closed restoration path.
+
+Runtime Azure provider failures are latched across backend workers and App
+Service instances by
+`DATA_DIR/.runtime_state/azure_ai_provider_health.json`. Each failure creates a
+new shared epoch; only a successfully parsed response from a request started
+against that same epoch can clear it, so a stale concurrent success cannot
+overwrite a newer failure. Do not edit this state manually to claim recovery;
+use the emergency switch for operator control and let a confirmed Azure
+response restore runtime availability. If the primary state lock or write
+fails, the runtime independently writes
+`DATA_DIR/.runtime_state/azure_ai_provider_fail_closed.json`; every worker
+treats that epoch as unavailable until a later confirmed request clears it.
 
 The preflight runtime evidence records `backgroundAiAvailable`,
 `backgroundAiKillSwitchActive`, and `feedbackPublicationDisabled` independently;
@@ -128,10 +147,11 @@ The proposed authenticated `.cn` release is governed by
 `PIPIA-CN-2026-08-25-01`. The same policy version drives the pre-transfer web
 and mini-program notice and the server-side digest-bound, append-only Terms
 receipt. Provider connection dialogs add the just-in-time recipient notice on
-both `.run` and `.cn`. The four fixed runtime settings keep China processing
-and external feedback publication disabled while releasing the Azure AI
-emergency stop for ordinary service. External publication still requires a
-separately accepted purpose-specific rollout.
+both `.run` and `.cn`. The three fixed fail-closed literals keep China
+processing and external feedback publication disabled. The Azure AI emergency
+stop remains a separate operator control whose pre-deploy state survives
+successful code deployments. External publication still requires a separately
+accepted purpose-specific rollout.
 
 `CN_PRIVACY_FLOOR_SHA` is set only after the privacy-floor change lands on
 protected `main`. The command is not currently authorized: the
@@ -228,8 +248,11 @@ curl -fsS https://api.praxys.run/api/health/ready \
 
 Before launch this must show `china_processing.disabled=true`,
 `registry_configured=false`, approved-release count `0`, registry digest `null`,
-`optional_processing.background_ai_enabled=true`, its kill switch `false`, and
-feedback-publication enablement `false`. Disabled readiness deliberately
+and feedback-publication enablement `false`. The ordinary launch target also
+requires `optional_processing.background_ai_enabled=true` and its kill switch
+`false`; if an operator stop is active, deployments preserve it and launch
+remains operationally blocked until the incident owner explicitly releases it.
+Disabled readiness deliberately
 does not parse a potentially stale registry; the China-capable workflow uses
 its exact repository-owned Azure setting readback for registry bytes,
 digest, and count. The current workflows cannot set `PRAXYS_DISABLE_CN_PROCESSING=false`.

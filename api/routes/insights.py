@@ -405,9 +405,11 @@ def get_insights(
 ) -> dict:
     """Get durable AI insights; Today guidance is deterministic."""
     from db.models import AiInsight
-    from api.optional_processing import background_ai_enabled
+    from api import llm
 
-    ai_available = background_ai_enabled()
+    ai_available = llm.runtime_ai_available()
+    if not ai_available:
+        return {"ai_available": False, "insights": {}}
     feedback_allowed = current_user_id == data_user_id
     rows = db.query(AiInsight).filter(
         AiInsight.user_id == data_user_id,
@@ -422,7 +424,7 @@ def get_insights(
                 feedback_allowed=feedback_allowed,
             )
             for row in rows
-        } if ai_available else {}
+        },
     }
 
 
@@ -436,9 +438,9 @@ def get_insight(
 ) -> dict:
     """Get one durable AI insight and its operational availability."""
     from db.models import AiInsight
-    from api.optional_processing import background_ai_enabled
+    from api import llm
 
-    ai_available = background_ai_enabled()
+    ai_available = llm.runtime_ai_available()
     if insight_type == "daily_brief":
         return {"insight": None, "ai_available": ai_available}
     if not ai_available:

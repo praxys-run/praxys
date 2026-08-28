@@ -86,8 +86,9 @@ Frozen implementation commit
 `635e5042dbb1f083bd8b6093a6d8488228b6a558` defaults the China client boundary
 off. Ordinary `.run` deploys write `PRAXYS_DISABLE_CN_PROCESSING=true`, keep
 China processing disabled while ordinary Azure AI availability is expressed by
-releasing its negative emergency stop, keep feedback publication disabled, remove
-`.cn` CORS, and include exact readback/evidence steps. The exact registry
+releasing its negative emergency stop, preserve that stop's exact pre-deploy
+operator state, keep feedback publication disabled, remove `.cn` CORS, and
+include exact readback/evidence steps. The exact registry
 schema binds channel/version, a 12-character source ID, an exact 40-character
 protected-`main` commit, the current notice version and legal digest, API
 contract, and provider locator/ID.

@@ -318,7 +318,7 @@ def test_china_operations_decision_stays_blocked_and_orders_release() -> None:
     assert "| Approved regional target |" not in handbook
 
 
-def test_backend_workflow_keeps_privacy_controls_literal_disabled() -> None:
+def test_backend_workflow_preserves_ai_stop_and_disables_other_boundaries() -> None:
     workflow = (
         ROOT / ".github/workflows/deploy-backend.yml"
     ).read_text(encoding="utf-8")
@@ -328,11 +328,19 @@ def test_backend_workflow_keeps_privacy_controls_literal_disabled() -> None:
 
     for literal in (
         'PRAXYS_DISABLE_CN_PROCESSING="true"',
-        'PRAXYS_DISABLE_BACKGROUND_AI="false"',
         'PRAXYS_ENABLE_FEEDBACK_PUBLICATION="false"',
         'PRAXYS_DISABLE_FEEDBACK_PUBLICATION="true"',
     ):
         assert literal in workflow
+    assert (
+        "PRAXYS_DISABLE_BACKGROUND_AI: "
+        "${{ steps.cn_safe_state.outputs.background_ai_restore }}"
+    ) in workflow
+    assert (
+        'PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}"'
+        in workflow
+    )
+    assert "previous_background_disabled" in workflow
     assert "PRAXYS_ENABLE_BACKGROUND_AI" not in workflow
     for variable in (
         "vars.PRAXYS_DISABLE_CN_PROCESSING",
@@ -544,7 +552,10 @@ def test_backend_deploy_is_disabled_and_failure_safe() -> None:
     assert "PRAXYS_DISABLE_CN_PROCESSING=true" in workflow
     assert "PRAXYS_DISABLE_CN_PROCESSING=false" not in workflow
     assert "az webapp cors add" not in workflow
-    assert "failure() && steps.azure_login.outcome == 'success'" in workflow
+    assert (
+        "(failure() || cancelled()) && "
+        "steps.azure_login.outcome == 'success'"
+    ) in workflow
     assert "Finalize backend CN deployment evidence" in workflow
     assert "failed-before-azure-mutation" in workflow
     assert "failure-restore-unverified" in workflow

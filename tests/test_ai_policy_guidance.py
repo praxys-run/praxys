@@ -39,14 +39,14 @@ def test_primary_guidance_keeps_ai_mandatory_and_deterministic_output_separate()
         assert stale_claim not in design
 
 
-def test_operations_guidance_keeps_ai_available_and_publication_disabled() -> None:
+def test_operations_guidance_preserves_ai_stop_and_disables_publication() -> None:
     environment = _read("docs/ops/environment.md")
     config = _read("docs/ops/config-and-secrets.md")
 
-    assert "leaves ordinary\n  Azure AI available" in environment
-    assert "External feedback publication remains\n  fixed disabled" in environment
-    assert "four fixed runtime settings" in config
-    assert "optional_processing.background_ai_enabled=true" in config
+    assert "exact pre-deploy Azure AI emergency-stop state" in environment
+    assert "External feedback publication remains fixed" in environment
+    assert "three fixed fail-closed literals" in config
+    assert "never clears an operator-set emergency stop" in config
     assert "feedback-publication enablement `false`" in config
     assert "four optional-processing controls" not in config
     assert "five fixed non-secret privacy settings" not in config

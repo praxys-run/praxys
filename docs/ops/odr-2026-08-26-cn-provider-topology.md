@@ -205,8 +205,9 @@ authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
 ### Stage 2 — Establish the disabled backend baseline
 
 1. Deploy the protected-`main` backend candidate through the ordinary lane,
-   retaining all four fixed runtime settings, disabled `.cn` CORS, readiness,
-   privacy contract, API version, and deployed source SHA.
+   retaining the three fixed fail-closed literals, the exact pre-deploy Azure
+   AI emergency-stop state, disabled `.cn` CORS, readiness, privacy contract,
+   API version, and deployed source SHA.
 2. Do not populate a `cn-web` registry entry yet: its exact provider deployment
    ID does not exist until EdgeOne completes Stage 3.
 3. Verify China non-rights processing remains disabled and rights routes remain
@@ -233,9 +234,10 @@ authorized while this record remains PROPOSED — PENDING HUMAN ACCEPTANCE.**
 
 1. Manually dispatch `deploy-backend.yml` from protected `main` with
    `china_release_validation=true` and configuration reconciliation enabled.
-   Require exact registry bytes and digest/count, all four fixed runtime
-   settings, disabled `.cn` CORS, readiness, privacy contract, API version, and
-   deployed source SHA. Verify stale or unlisted clients remain rejected.
+   Require exact registry bytes and digest/count, the three fixed fail-closed
+   literals, the preserved Azure AI emergency-stop state, disabled `.cn` CORS,
+   readiness, privacy contract, API version, and deployed source SHA. Verify
+   stale or unlisted clients remain rejected.
 2. Create `miniapp-2026.08.2` at the exact disabled backend candidate commit.
    The upload workflow requires the same floor, registry, disabled runtime,
    readiness, CORS denial, and deployed backend SHA evidence before upload.

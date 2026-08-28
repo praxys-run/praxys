@@ -434,6 +434,36 @@ def test_submit_rejects_stale_publication_consent_version(db_with_users):
     assert db.query(Feedback).count() == 0
 
 
+@pytest.mark.parametrize(
+    "consent_version",
+    ["", "feedback-publication-v1"],
+)
+def test_submit_rejects_publication_version_without_consent(
+    db_with_users,
+    consent_version,
+):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="Charts fail to load",
+                external_publication_consent=False,
+                external_publication_consent_version=consent_version,
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "FEEDBACK_PUBLICATION_CONSENT_MISMATCH"
+    assert db.query(Feedback).count() == 0
+
+
 def test_submit_rate_limited(db_with_users):
     from api.routes.feedback import submit_feedback, FeedbackRequest, _MAX_PER_WINDOW
 

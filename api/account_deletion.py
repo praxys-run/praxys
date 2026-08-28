@@ -62,6 +62,10 @@ from db.models import (
     WaitlistSignup,
 )
 from api import feedback_storage
+from db.account_lifecycle import (
+    AccountLifecycleBusy,
+    account_lifecycle_lease,
+)
 from db.cache_revision import lock_revision_writes
 from db.plan_ledger import legacy_stryd_status_lock, lock_plan_writes
 from db.session import begin_serialized_write
@@ -346,6 +350,26 @@ def delete_user_account(
     enforced for self-service deletion and kept enabled for admin deletion as a
     defense-in-depth check.
     """
+    try:
+        with account_lifecycle_lease(user_id, timeout_seconds=60.0):
+            return _delete_user_account_locked(
+                db,
+                user_id,
+                enforce_last_admin_guard=enforce_last_admin_guard,
+            )
+    except AccountLifecycleBusy as exc:
+        db.rollback()
+        logger.warning("Account deletion lease busy for user %s", user_id)
+        raise HTTPException(503, "ACCOUNT_DELETE_BUSY") from exc
+
+
+def _delete_user_account_locked(
+    db: Session,
+    user_id: str,
+    *,
+    enforce_last_admin_guard: bool,
+) -> AccountDeletionResult:
+    """Delete an account while its lifecycle lease is held."""
     begin_active_admin_guard(db)
     lock_revision_writes(db, user_id)
     user = (

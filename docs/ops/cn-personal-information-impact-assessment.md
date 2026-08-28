@@ -134,6 +134,11 @@ deletion removes active rows and connected credentials. Azure PostgreSQL
 point-in-time recovery can retain deleted content in encrypted backups for up
 to 14 days before expiry. Deletion receipts and legally required records may
 be retained longer without retaining the active training dataset.
+Background insight generation builds its snapshot without a database write
+lock, then acquires the same cross-worker per-account lifecycle lease used by
+deletion, rechecks current Terms authority before each Azure transfer, and
+releases the lease after external I/O. SQLite therefore does not hold a
+database-wide writer lock across Azure latency.
 
 ## Sensitive-personal-information assessment
 
@@ -151,8 +156,9 @@ sensitive personal information.
 - **Controls:** encrypted transport and storage, per-user authorization,
   credential envelope encryption, no public screenshot storage, bounded logs,
   no `.cn` browser telemetry, ordinary-AI Terms/emergency-stop enforcement,
-  optional-input purpose/version minimization, data export, disconnect,
-  and account deletion.
+  recent-provider-failure availability signalling, optional-input
+  purpose/version minimization, transfer/deletion fencing, data export,
+  disconnect, and account deletion.
 
 ## Notice and receipt design
 

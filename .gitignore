@@ -10,6 +10,8 @@ analysis/reports/
 
 # SQLite database (and WAL-mode sidecars created at runtime)
 data/trainsight.db
+data/.account_lifecycle_locks/
+data/.runtime_state/
 *.db-journal
 *.db-wal
 *.db-shm

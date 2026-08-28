@@ -603,14 +603,22 @@ def test_current_terms_authorize_context_ai_without_separate_consent(
 def test_provider_failure_is_private_and_has_no_fallback_provider(
     processing_db,
     caplog,
+    monkeypatch,
     provider_failure: Exception,
 ) -> None:
+    from api import llm
     from api.personal_context_processing import process_personal_context
     from db.models import PersonalContextUseReceipt
 
     now = datetime(2026, 9, 5, 9, 0)
     private_marker = "PRIVATE-CONTEXT-612"
     fake = _FakeClient(failure=provider_failure)
+    provider_failures: list[bool] = []
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_failure",
+        lambda: provider_failures.append(True),
+    )
     with processing_db.SessionLocal() as db:
         item = _confirm_context(
             db,
@@ -646,6 +654,7 @@ def test_provider_failure_is_private_and_has_no_fallback_provider(
         assert item.id not in caplog.text
         assert "caregiving" not in caplog.text
         assert "provider_unavailable" in caplog.text
+        assert provider_failures == [True]
         receipts = db.query(PersonalContextUseReceipt).all()
         assert {receipt.consumer_type for receipt in receipts} == {
             "deterministic_policy",
@@ -659,6 +668,38 @@ def test_provider_failure_is_private_and_has_no_fallback_provider(
             }
             for receipt in receipts
         )
+
+
+def test_invalid_provider_json_does_not_confirm_recovery(monkeypatch) -> None:
+    """Malformed model output must leave the shared outage state latched."""
+    from api import llm
+    from api.personal_context_processing import (
+        AiContextRequest,
+        _call_azure_context_model,
+    )
+
+    request = AiContextRequest(
+        purpose="plan_adjustment",
+        allowed_proposal_scope="week",
+        system_prompt="system",
+        user_prompt="user",
+        disclosures=(),
+    )
+    fake = _FakeClient("not-json")
+    events: list[str] = []
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_failure",
+        lambda: events.append("failure"),
+    )
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_success",
+        lambda _attempt: events.append("success"),
+    )
+
+    assert _call_azure_context_model(fake, request) is None
+    assert events == ["failure"]
 
 
 def test_model_free_text_or_scope_expansion_is_rejected_without_logging(

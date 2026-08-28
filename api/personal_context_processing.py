@@ -648,6 +648,7 @@ def _call_azure_context_model(
     client: Any,
     request: AiContextRequest,
 ) -> Mapping[str, Any] | None:
+    provider_attempt = llm.begin_runtime_provider_attempt()
     try:
         from openai import APIError  # type: ignore[import-not-found]
     except ImportError:  # pragma: no cover - production client is unavailable
@@ -680,17 +681,20 @@ def _call_azure_context_model(
         ConnectionError,
         OSError,
     ):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=provider_unavailable"
         )
         return None
     except (AttributeError, IndexError, TypeError):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_response"
         )
         return None
 
     if not isinstance(content, str):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_response"
         )
@@ -698,11 +702,19 @@ def _call_azure_context_model(
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_json"
         )
         return None
-    return parsed if isinstance(parsed, Mapping) else None
+    if not isinstance(parsed, Mapping):
+        llm.record_runtime_provider_failure()
+        logger.warning(
+            "Personal-context AI request failed: code=invalid_response"
+        )
+        return None
+    llm.record_runtime_provider_success(provider_attempt)
+    return parsed
 
 
 @contextmanager
@@ -718,6 +730,7 @@ def _get_azure_context_client() -> Any | None:
     try:
         return llm.get_client()
     except (AzureError, OSError, ValueError):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=client_unavailable"
         )

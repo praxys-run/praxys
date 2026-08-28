@@ -46,6 +46,7 @@ def insights_client(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api import llm
     from api.main import app
     from api.auth import get_current_user_id, get_data_user_id, require_write_access
     from api.auth_rate_limit import _SlidingWindow
@@ -64,6 +65,10 @@ def insights_client(monkeypatch):
     app.dependency_overrides[get_data_user_id] = lambda: user_id
     app.dependency_overrides[require_write_access] = lambda: user_id
     insights._INSIGHT_FEEDBACK_RATE_LIMIT = _SlidingWindow(12, 60, 10_000)
+    monkeypatch.setattr(llm, "_get_cached_client", lambda: object())
+    provider_attempt = llm.begin_runtime_provider_attempt()
+    assert provider_attempt is not None
+    assert llm.record_runtime_provider_success(provider_attempt) is True
 
     yield TestClient(app)
 
@@ -264,6 +269,21 @@ def test_ai_emergency_stop_suppresses_stored_insights_but_reports_unavailable(
     }
     assert insights_client.post("/api/insights", json=body).status_code == 200
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+
+    direct = insights_client.get("/api/insights/training_review")
+    listed = insights_client.get("/api/insights")
+
+    assert direct.json() == {"insight": None, "ai_available": False}
+    assert listed.json() == {"insights": {}, "ai_available": False}
+
+
+def test_provider_outage_suppresses_stored_insights_but_reports_unavailable(
+    insights_client,
+    monkeypatch,
+):
+    from api import llm
+
+    monkeypatch.setattr(llm, "runtime_ai_available", lambda: False)
 
     direct = insights_client.get("/api/insights/training_review")
     listed = insights_client.get("/api/insights")
