@@ -5,14 +5,17 @@
 - **artifact_type:** `evaluation-report`
 - **artifact implementation status:** repository-native Markdown; not schema-backed
 - **owner_role:** `meta-eval`
-- **status:** Accepted
+- **status:** Accepted 2026-08-20 baseline; bounded 2026-08-29 correction semantically authorized for implementation
 - **report_date:** `2026-08-20`
+- **latest iteration date:** `2026-08-29`
 - **evaluated subject:** `policy-change-proposal-agent-invocation-control-v1`
-- **accepted subject digest:** `sha256:d6b9a136b44ae52d993ae07dd0000d946e201f73ea1b4db5cb116f01bab9e0f6`
+- **accepted baseline subject digest:** `sha256:d6b9a136b44ae52d993ae07dd0000d946e201f73ea1b4db5cb116f01bab9e0f6`
 
-The accepted subject digest identifies the proposal reviewed and approved by the
-human authority. It is not asserted to be the hash of this rendered Markdown
-file or of this Evaluation Report.
+The accepted baseline subject digest identifies the proposal reviewed and
+approved by the human authority on 2026-08-20. The bounded correction has
+explicit semantic user authority; no new digest-bound approval is asserted or
+fabricated. The accepted baseline digest is not asserted to be the hash of this
+rendered Markdown file or of this Evaluation Report.
 
 ## Work Contract binding
 
@@ -186,3 +189,142 @@ Explicitly deferred pending evidence and separate review:
 - tuning any accepted starting bound;
 - operating-model version changes; and
 - final implementation-bound Architecture Decision Record approval.
+
+## 2026-08-29 Meta/Eval iteration
+
+### Route, authority, and scope
+
+This iteration remains bound to classification digest
+`sha256:3d80f3eca01b1bff2207d6e28cefe8daa3cdfc9f3480c80b99bd3f252dde35a2`
+and route digest
+`sha256:dfe65e8c108c06411ad84d7e7d8ec32d8206429780243973a31e840fb7c11f51`
+from the exact Work Contract above. After the upstream investigation, the user
+explicitly authorized the bounded PR improvement with “好，那根据这个改进一下这个PR？”
+and then “继续没做完的工作”. Meta/Eval treats that as sufficient semantic
+authority for deterministic implementation. The independent Decision Review
+route for that implementation is `agent-resolved`. No digest-bound approval,
+activation, replay execution, shadow observation, or independent Quality
+verification is claimed.
+
+The 2026-08-20 approval remains accurate history and covers only its original
+instrument/shadow subject. It does not extend to the 2026-08-29 successor
+subject by implication; the later authority is semantic and bounded to the
+behaviors stated in the implementation request. No one-off lifecycle invocation
+identifiers are recorded in this durable report.
+
+### Privacy-safe upstream evidence
+
+As of 2026-08-29, four relevant community reports on GitHub's official Copilot
+CLI tracker provide upstream context. They are not maintainer-confirmed root
+causes or fixes:
+
+| Public issue | Privacy-safe signal | Evaluation boundary |
+|---|---|---|
+| https://github.com/github/copilot-cli/issues/4533 | Parallel subagent fan-out is associated with terminal or completion-event hangs; sequential execution was reported not to reproduce the original case. | Public reports support a cooperative serialization mitigation, not causal proof or a repository runtime fix. |
+| https://github.com/github/copilot-cli/issues/3350 | Some background `general-purpose` agents were reported to remain running without completion notification. | The historical workaround of replacing them with parallel `explore` agents is not current Praxys policy because it conflicts with the direct-sibling bound. |
+| https://github.com/github/copilot-cli/issues/4225 | A sole background subagent was reported to leave the coordinator stuck in a working state until manual cancellation. | Background labeling cannot be treated as proof that coordinator work is independent or non-blocking. |
+| https://github.com/github/copilot-cli/issues/2595 | Community reports describe agent lifecycle or completion-state inconsistency around task handling. | This supports explicit identity and lifecycle boundaries, not a claim about one native defect or fix. |
+
+WSL2 is one reproducing environment but is not established as causal. Reports
+also span other environments, and environment correlation is not cause. The
+published release notes for `1.0.81` and `1.0.82-1` declare no relevant fix.
+That does not prove that no fix exists. The expansion is therefore framed only
+as a repository-owned,
+manifest-coordinated cooperative mitigation. It cannot fix terminal event
+consumption, native completion delivery, coordinator scheduling, native task
+state, process disposal, or shutdown behavior.
+
+### Aggregate outcomes and limits
+
+The available evidence is an upstream issue set, not a privacy-safe Praxys
+batch of completed decisions. It has no common invocation ledger, denominator,
+or reviewed outcome edge. No rates are computed and no individual prompt,
+repository, user, task, output, stack trace, or local path is retained here.
+
+| Required Meta/Eval measure | 2026-08-29 result |
+|---|---|
+| Corrections | No authoritative Praxys batch; not measurable |
+| Overrides | No authoritative Praxys batch; not measurable |
+| Missed escalations | No routed-decision denominator; not measurable |
+| Unnecessary escalations | No routed-decision denominator; not measurable |
+| Adverse outcomes | Four community-reported upstream risk signals; no attributable Praxys adverse-outcome count |
+| Reverts | None linked to an evaluated Praxys policy batch |
+| Incidents | Public issue reports are not reclassified as Praxys incidents |
+| Target or guardrail movement | No pre/post deployment or policy baseline |
+| Review effort | This drafting iteration does not establish an operational review-effort measure |
+| Decision and execution latency | No comparable mediated sample |
+| False blocks and policy escapes | Not measurable before implementation, replay, and shadow reconciliation |
+| Mediated coverage | No expanded-policy runtime exists; native and unmediated coverage remains unknown |
+
+These gaps prohibit an autonomy promotion, enforcement proposal, runtime-fix
+claim, or activation recommendation. A cooperative policy draft can still be
+justified because it is narrow, reversible, and preserves the existing
+observation and human-authority gates.
+
+### Candidate-policy replay and shadow comparison
+
+At the time of this evaluation draft no executable expansion had been
+authorized. The later semantic authorization permits implementation, but no
+runtime replay, live shadow result, or independent verification is claimed
+here. The following remains a pre-verification case comparison; `expected` is
+not `verified`.
+
+| Case | Accepted baseline | Expanded subject expected result |
+|---|---|---|
+| First direct child under a parent | Existing admission and lifecycle guards apply | Admit when all existing guards pass |
+| Second direct child while the first is active under the same parent | No explicit narrow parent-sibling serialization | Do not launch; serialize until the first direct child is terminal |
+| Direct children under unrelated parents | Contract-wide bounds apply | No global serialization; each narrow parent scope is evaluated independently |
+| Child launches one nested child | Existing ancestry and depth rules apply | Preserve sequential nesting under the child parent scope and existing depth-six bound |
+| Ordinary invocation mode | Native sync or background choice is not frozen by the accepted policy | Sync is the default |
+| Background with concrete independent immediate parent work | Existing contract-wide bounds apply | Eligible only when that provenance is recorded and all existing bounds pass |
+| Background followed by idle wait, status checks, or polling | One-read and no-poll lifecycle rules partly constrain reads | Ineligible; no speculative launch, idle waiting, status checking, or polling |
+| Completion notification received | One claimed read | Exactly one claimed and performed read, then permanent refusal |
+| Completion notification unavailable | Stop rather than poll | Same boundary preserved |
+| Session shutdown, resume, or context replacement | Prior binding remains otherwise usable | Invalidate the exact old binding permanently without registry lookup, polling, loss, replacement, or relaunch |
+| External rebind or rediscovery | No accepted native exact-match capability | Deferred; do not infer, search, guess, or rebind |
+| Kill switch or cooperative-call removal | Existing immediate mediated stop or rollback path | Same immediate reversibility preserved |
+
+Later implementation evidence must include focused tests for every row and for
+provenance, privacy rejection, replacement limits, Local and Cloud parity, and
+rollback. Independent Quality must verify the exact implementation revision;
+this report does not replace that verification. Runtime replay and shadow
+observation must still cover at least five distinct root runs over at least
+seven calendar days and aggregate all outcome measures named in the accepted
+baseline. The zero-false-block, zero-policy-escape, and zero-human-correction
+thresholds remain prerequisites rather than automatic authorization.
+
+### Evaluation conclusion
+
+The bounded successor is preferable to either preserving unspecified
+sibling/background behavior or waiting without mitigation for an upstream fix.
+The narrowest-parent scope avoids a global lock, sequential nesting preserves
+necessary delegation, sync default reduces exposure, and the restricted
+background exception preserves useful concurrency only when the caller begins
+concrete independent work immediately. Session invalidation, one-read behavior, privacy-minimized provenance, leaf-first
+recovery, tests, documentation parity, and immediate reversibility form one
+indivisible approval subject.
+
+No separate successor digest is used as an approval mechanism for this
+correction. The later user statements provide semantic implementation
+authority only. Independent Quality verification is still required and is not
+claimed here.
+
+No distinct recurring authority class emerges from this iteration. Meta/Eval
+continues to own policy evaluation, Engineering would execute only an accepted
+later change, Quality remains independently responsible for current-change
+verification, and the Decision Review Router and human authority retain their
+existing boundaries. No role is created, merged, or retired.
+
+Explicitly deferred:
+
+- activation, release, and merge;
+- parallel direct siblings, unbounded background work, polling, repeated reads,
+  automatic replacement, and automatic relaunch;
+- native runtime repair, launcher interception, cancellation, global
+  enforcement, and claims of complete native coverage;
+- schema v2, context epochs, keyed/native ID schemes, generalized aliasing,
+  registry rediscovery, and external rebind;
+- autonomy promotion, starting-bound tuning, operating-model changes, and role,
+  route, or reviewer-authority changes; and
+- any later enforcement decision until complete replay and shadow evidence,
+  independent review, and human approval exist.

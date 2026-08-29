@@ -23,6 +23,7 @@ from analysis.agentic_invocation_control import (
     format_identity,
     is_valid_fingerprint,
     is_valid_identity,
+    is_valid_public_agent_id,
 )
 from analysis.agentic_task_routing import TaskClassification, TaskRoute, route_task
 from scripts.agent_invocation_control import (
@@ -145,6 +146,8 @@ def lifecycle_admission(
     revision: int = 1,
     transition: str = 'initial_launch',
     replacement_of: int | None = None,
+    dispatch_mode: str | None = None,
+    execution_provenance: str | None = None,
     **values: object,
 ) -> dict[str, object]:
     request = admission(number, **values)
@@ -158,7 +161,20 @@ def lifecycle_admission(
             ),
         }
     )
+    if dispatch_mode is not None:
+        request['dispatch_mode'] = dispatch_mode
+    if execution_provenance is not None:
+        request['execution_provenance'] = execution_provenance
     return request
+
+
+def background_admission(number: int, **values: object) -> dict[str, object]:
+    return lifecycle_admission(
+        number,
+        dispatch_mode='background',
+        execution_provenance='background_independent_immediate_no_poll',
+        **values,
+    )
 
 
 def new_ledger(tmp_path: Path) -> Ledger:
@@ -285,6 +301,11 @@ def test_reason_code_schemas_and_docs_are_exact() -> None:
         'progress_idempotent',
         'tree_termination_recorded',
         'tree_termination_idempotent',
+        'direct_sibling_active',
+        'execution_provenance_invalid',
+        'native_binding_mismatch',
+        'native_binding_invalidated',
+        'native_invalidated',
     )
 
     implementation = (ROOT / 'docs/dev/agent-invocation-control.md').read_text(
@@ -762,12 +783,141 @@ def test_concurrent_process_duplicate_admissions_are_atomic(tmp_path: Path) -> N
     }
 
 
+def test_concurrent_same_parent_lifecycle_siblings_create_at_most_one_attempt(
+    tmp_path: Path,
+) -> None:
+    repository = init_repository(tmp_path)
+    parent = run_cli(repository, lifecycle_admission(100, slot=100))
+    assert parent.returncode == 0
+    coordination = tmp_path / 'concurrent-siblings'
+    coordination.mkdir()
+    gate_path = coordination / 'release'
+    processes: list[subprocess.Popen[str]] = []
+    ready_paths: list[Path] = []
+
+    for number in (101, 102):
+        request_path = coordination / f'request-{number}.json'
+        ready_path = coordination / f'ready-{number}'
+        request_path.write_text(
+            json.dumps(
+                lifecycle_admission(
+                    number,
+                    slot=number,
+                    revision=number,
+                    parent=opaque('attempt', 100),
+                )
+            ),
+            encoding='utf-8',
+        )
+        ready_paths.append(ready_path)
+        processes.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    '-c',
+                    CONCURRENT_ADMISSION_WRAPPER,
+                    str(request_path),
+                    str(ready_path),
+                    str(gate_path),
+                    str(SCRIPT),
+                ],
+                cwd=repository,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+
+    ready_deadline = time.monotonic() + 30
+    while not all(path.exists() for path in ready_paths):
+        assert all(process.poll() is None for process in processes)
+        assert time.monotonic() < ready_deadline
+        time.sleep(0.005)
+    gate_path.touch()
+
+    results: list[tuple[int, dict[str, object]]] = []
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=30)
+        assert not stderr
+        results.append((int(process.returncode), json.loads(stdout)))
+
+    assert sorted(result[0] for result in results) == [0, 2]
+    assert [result[1]['reason_code'] for result in results].count(
+        'direct_sibling_active'
+    ) == 1
+    with sqlite3.connect(
+        repository / '.git' / 'praxys' / 'agent-invocation-control-v1.sqlite3'
+    ) as connection:
+        assert connection.execute(
+            """SELECT COUNT(*) FROM attempts
+            WHERE parent_attempt_id = ? AND lifecycle_status = 'active'""",
+            (opaque('attempt', 100),),
+        ).fetchone()[0] == 1
+
+
+def test_lifecycle_sibling_scope_allows_finish_nesting_and_unrelated_parents(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    for number in (1, 2):
+        ledger.admit(
+            lifecycle_admission(number, slot=number, revision=number),
+            route,
+            'engineering',
+            limits(),
+        )
+    first_child = ledger.admit(
+        lifecycle_admission(
+            3, slot=3, revision=3, parent=opaque('attempt', 1)
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    unrelated_child = ledger.admit(
+        lifecycle_admission(
+            4, slot=4, revision=4, parent=opaque('attempt', 2)
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    nested = ledger.admit(
+        lifecycle_admission(
+            5, slot=5, revision=5, parent=opaque('attempt', 3)
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert first_child['launch_authorized'] is True
+    assert unrelated_child['launch_authorized'] is True
+    assert nested['launch_authorized'] is True
+
+    finish(ledger, 5, 5, 'succeeded')
+    finish(ledger, 3, 3, 'succeeded')
+    next_sibling = ledger.admit(
+        lifecycle_admission(
+            6, slot=6, revision=6, parent=opaque('attempt', 1)
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert next_sibling['launch_authorized'] is True
+
+
 def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path) -> None:
     repository = init_repository(tmp_path)
     valid = admission(1, mode='instrument')
     recorded = run_cli(repository, valid)
     assert recorded.returncode == 0
     assert json.loads(recorded.stdout)['reason_code'] == 'instrument_recorded'
+    background = run_cli(
+        repository, background_admission(3, mode='instrument')
+    )
+    assert background.returncode == 0
 
     sentinels = {
         'prompt': 'RAW_PROMPT_SENTINEL',
@@ -777,7 +927,21 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
         'code': 'RAW_CODE_SENTINEL',
         'credential': 'RAW_CREDENTIAL_SENTINEL',
         'artifact': 'RAW_ARTIFACT_SENTINEL',
+        'public_agent_id': 'RAW_PUBLIC_AGENT_ID_SENTINEL',
     }
+    bound = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'bind_native',
+            'attempt_id': opaque('attempt', 3),
+            'native_alias': opaque('native', 3),
+            'public_agent_id': sentinels['public_agent_id'],
+            'binding_source': 'task_result',
+            'notifications_available': True,
+        },
+    )
+    assert bound.returncode == 0
     invalid = dict(admission(2))
     invalid.update(sentinels)
     rejected = run_cli(repository, invalid)
@@ -796,6 +960,7 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
                 'decisions', 'attempts', 'lifecycle_decisions', 'work_history',
                 'active_work_keys', 'replacement_eligibility',
                 'native_invocations', 'progress_evidence',
+                'lifecycle_dispatch', 'native_binding_provenance',
             )
             for row in connection.execute(f'PRAGMA table_info({table})')
         }
@@ -816,6 +981,8 @@ def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> 
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('PRAGMA foreign_keys=OFF')
         for table in (
+            'native_binding_provenance',
+            'lifecycle_dispatch',
             'active_work_keys',
             'replacement_eligibility',
             'native_invocations',
@@ -841,6 +1008,39 @@ def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> 
         'replacement_eligibility',
         'native_invocations',
         'progress_evidence',
+        'lifecycle_dispatch',
+        'native_binding_provenance',
+    }.issubset(tables)
+
+
+def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute('DROP TABLE native_binding_provenance')
+        connection.execute('DROP TABLE lifecycle_dispatch')
+    assert ledger.initialize() is False
+    with sqlite3.connect(ledger.path) as connection:
+        dispatch = connection.execute(
+            """SELECT dispatch_mode, execution_provenance, admission_reason
+            FROM lifecycle_dispatch WHERE attempt_id = ?""",
+            (opaque('attempt', 1),),
+        ).fetchone()
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert dispatch == ('sync', 'sync_inline', 'admit')
+    assert {
+        'lifecycle_dispatch',
+        'native_binding_provenance',
     }.issubset(tables)
 
 
@@ -900,21 +1100,28 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
     ledger = new_ledger(tmp_path)
     route = accepted_route()
     ledger.admit(
-        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+        background_admission(1, slot=1), route, 'engineering', limits()
     )
     native = opaque('native', 1)
-    assert ledger.bind_native(opaque('attempt', 1), native, True) == 'active'
+    public_id = 'agent-public-1'
+    assert ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    ) == 'active'
     with pytest.raises(NativeBoundary, match='completion_notification_required'):
-        ledger.claim_native_read(native)
-    assert ledger.native_notification(native) is False
-    ledger.claim_native_read(native)
-    state, orphaned = ledger.observe_native(native, 'not_found', fingerprint(10))
+        ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    assert ledger.native_notification(
+        opaque('attempt', 1), native, public_id
+    ) is False
+    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    state, orphaned = ledger.observe_native(
+        opaque('attempt', 1), native, public_id, 'not_found', fingerprint(10)
+    )
     assert (state, orphaned) == ('lost', [])
     with pytest.raises(NativeBoundary, match='native_read_refused'):
-        ledger.claim_native_read(native)
+        ledger.claim_native_read(opaque('attempt', 1), native, public_id)
 
     replacement = ledger.admit(
-        lifecycle_admission(
+        background_admission(
             2,
             slot=1,
             generation=2,
@@ -928,7 +1135,7 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
     )
     assert replacement['lifecycle_transition'] == 'replacement'
     second_for_source = ledger.admit(
-        lifecycle_admission(
+        background_admission(
             3,
             slot=1,
             generation=3,
@@ -943,10 +1150,21 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
     assert second_for_source['lifecycle_transition'] == 'duplicate_launch'
 
     replacement_native = opaque('native', 2)
-    ledger.bind_native(opaque('attempt', 2), replacement_native, True)
-    ledger.native_notification(replacement_native)
-    ledger.claim_native_read(replacement_native)
-    ledger.observe_native(replacement_native, 'not_found', fingerprint(11))
+    replacement_public_id = 'agent-public-2'
+    ledger.bind_native(
+        opaque('attempt', 2), replacement_native,
+        replacement_public_id, 'task_result',
+    )
+    ledger.native_notification(
+        opaque('attempt', 2), replacement_native, replacement_public_id
+    )
+    ledger.claim_native_read(
+        opaque('attempt', 2), replacement_native, replacement_public_id
+    )
+    ledger.observe_native(
+        opaque('attempt', 2), replacement_native, replacement_public_id,
+        'not_found', fingerprint(11),
+    )
     chained = ledger.admit(
         lifecycle_admission(
             4,
@@ -1104,13 +1322,18 @@ def test_progress_only_advances_for_new_substantive_evidence(
 ) -> None:
     ledger = new_ledger(tmp_path)
     ledger.admit(
-        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+        background_admission(1), accepted_route(), 'engineering', limits()
     )
     native = opaque('native', 1)
-    ledger.bind_native(opaque('attempt', 1), native, True)
-    ledger.native_notification(native)
-    ledger.claim_native_read(native)
-    ledger.observe_native(native, 'found', None)
+    public_id = 'agent-public-progress'
+    ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    )
+    ledger.native_notification(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.observe_native(
+        opaque('attempt', 1), native, public_id, 'found', None
+    )
     with sqlite3.connect(ledger.path) as connection:
         assert connection.execute(
             'SELECT last_progress_at_ms FROM work_history'
@@ -1133,54 +1356,332 @@ def test_progress_only_advances_for_new_substantive_evidence(
         ).fetchone()[0] == first_at
 
 
-def test_notifications_unavailable_exposes_limitation_without_read(
+def test_sync_default_explicit_sync_and_background_provenance(tmp_path: Path) -> None:
+    repository = init_repository(tmp_path)
+    default_sync = run_cli(repository, lifecycle_admission(1, slot=1))
+    assert default_sync.returncode == 0
+    assert json.loads(default_sync.stdout)['execution_provenance'] == 'sync_inline'
+    explicit_sync = run_cli(
+        repository,
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            dispatch_mode='sync',
+            execution_provenance='sync_inline',
+        ),
+    )
+    assert explicit_sync.returncode == 0
+    assert json.loads(explicit_sync.stdout)['dispatch_mode'] == 'sync'
+
+    invalid_background = lifecycle_admission(
+        3,
+        slot=3,
+        revision=3,
+        dispatch_mode='background',
+        execution_provenance='sync_inline',
+    )
+    rejected = run_cli(repository, invalid_background)
+    assert rejected.returncode == 2
+    assert json.loads(rejected.stdout) == {
+        'schema_version': 1,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'admit',
+        'reason_code': 'execution_provenance_invalid',
+        'policy_reason': None,
+        'would_reject': True,
+        'launch_authorized': False,
+    }
+
+    valid_background = run_cli(
+        repository, background_admission(4, slot=4, revision=4)
+    )
+    assert valid_background.returncode == 0
+    background_payload = json.loads(valid_background.stdout)
+    assert background_payload['dispatch_mode'] == 'background'
+    assert background_payload['execution_provenance'] == (
+        'background_independent_immediate_no_poll'
+    )
+
+    native = opaque('native', 1)
+    sync_bind = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'bind_native',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': native,
+            'public_agent_id': 'agent-sync-must-return-inline',
+            'binding_source': 'task_result',
+            'notifications_available': True,
+        },
+    )
+    assert sync_bind.returncode == 2
+    assert json.loads(sync_bind.stdout)['reason_code'] == (
+        'execution_provenance_invalid'
+    )
+    sync_read = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'native_read',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': native,
+            'public_agent_id': 'agent-sync-must-return-inline',
+        },
+    )
+    assert sync_read.returncode == 2
+    assert json.loads(sync_read.stdout)['reason_code'] == (
+        'native_binding_mismatch'
+    )
+
+
+def test_lifecycle_dispatch_distinguishes_policy_denial(tmp_path: Path) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.set_kill_switch(True)
+    denied = ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    assert denied['policy_reason'] == 'kill_switch_active'
+    assert denied['launch_authorized'] is False
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT admission_reason FROM lifecycle_dispatch'
+        ).fetchone()[0] == 'policy_denied'
+
+
+@pytest.mark.parametrize(
+    'value',
+    [
+        '',
+        ' public-agent',
+        'public-agent ',
+        'public\nagent',
+        'call_123456',
+        'dummy',
+        'nonexistent',
+        'placeholder',
+        'UNKNOWN',
+        'x',
+        opaque('native', 1),
+        opaque('attempt', 1),
+        'x' * 513,
+        '界' * 171,
+    ],
+)
+def test_public_agent_id_validation_rejects_non_task_result_ids(value: str) -> None:
+    assert is_valid_public_agent_id(value) is False
+
+
+def test_public_agent_id_validation_accepts_opaque_non_uuid_format() -> None:
+    assert is_valid_public_agent_id('task-agent-01HZY6Q91M')
+    assert is_valid_public_agent_id(f'abc_{"1" * 32}')
+    assert is_valid_public_agent_id('界' * 170)
+
+
+def test_notifications_unavailable_stops_native_reads_and_polling(
     tmp_path: Path,
 ) -> None:
     repository = init_repository(tmp_path)
-    started = run_cli(repository, lifecycle_admission(1, slot=1))
-    assert started.returncode == 0
-    duplicate = run_cli(
-        repository,
-        lifecycle_admission(
-            2, slot=1, generation=2, logical=2, transition='resume'
-        ),
-    )
-    assert duplicate.returncode == 2
-    duplicate_payload = json.loads(duplicate.stdout)
-    assert duplicate_payload['reason_code'] == 'lifecycle_transition_rejected'
-    assert duplicate_payload['lifecycle_transition'] == 'duplicate_launch'
-    assert duplicate_payload['launch_authorized'] is False
-    native = opaque('native', 1)
+    assert run_cli(repository, background_admission(1)).returncode == 0
+    alias = opaque('native', 1)
+    public_id = 'task-agent-no-notifications'
     bound = run_cli(
         repository,
         {
             'schema_version': 1,
             'command': 'bind_native',
             'attempt_id': opaque('attempt', 1),
-            'native_invocation_id': native,
+            'native_alias': alias,
+            'public_agent_id': public_id,
+            'binding_source': 'task_result',
             'notifications_available': False,
         },
     )
     assert bound.returncode == 0
-    assert json.loads(bound.stdout)['wait_strategy'] == (
-        'notifications_unavailable_no_polling'
-    )
-    refused = run_cli(
+    assert json.loads(bound.stdout) == {
+        'schema_version': 1,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'bind_native',
+        'reason_code': 'native_bound',
+        'native_status': 'notifications_unavailable',
+        'wait_strategy': 'notifications_unavailable_no_polling',
+    }
+    for command in ('native_notification', 'native_read'):
+        refused = run_cli(
+            repository,
+            {
+                'schema_version': 1,
+                'command': command,
+                'attempt_id': opaque('attempt', 1),
+                'native_alias': alias,
+                'public_agent_id': public_id,
+            },
+        )
+        assert refused.returncode == 5
+        assert json.loads(refused.stdout)['reason_code'] == (
+            'native_notifications_unavailable'
+        )
+    observed = run_cli(
         repository,
         {
             'schema_version': 1,
-            'command': 'native_read',
-            'native_invocation_id': native,
+            'command': 'native_observation',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+            'observation': 'found',
+            'terminal_fingerprint': None,
         },
     )
-    assert refused.returncode == 5
-    assert json.loads(refused.stdout) == {
-        'schema_version': 1,
-        'policy_version': 'agent-invocation-control-v1',
-        'command': 'native_read',
-        'reason_code': 'native_notifications_unavailable',
-        'read_authorized': False,
-    }
+    assert observed.returncode == 5
+    assert json.loads(observed.stdout)['reason_code'] == (
+        'native_notifications_unavailable'
+    )
+
+
+def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(background_admission(1), route, 'engineering', limits())
+    ledger.admit(
+        background_admission(2, slot=2, revision=2),
+        route,
+        'engineering',
+        limits(),
+    )
+    alias = opaque('native', 1)
+    public_id = 'task-agent-01HZY6Q91M'
+    ledger.bind_native(
+        opaque('attempt', 1), alias, public_id, 'task_result'
+    )
+
+    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
+        ledger.native_notification(
+            opaque('attempt', 1), alias, 'task-agent-guessed'
+        )
+    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
+        ledger.native_notification(opaque('attempt', 2), alias, public_id)
+
+    assert ledger.native_notification(
+        opaque('attempt', 1), alias, public_id
+    ) is False
+    assert ledger.native_notification(
+        opaque('attempt', 1), alias, public_id
+    ) is True
+    ledger.claim_native_read(opaque('attempt', 1), alias, public_id)
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.claim_native_read(opaque('attempt', 1), alias, public_id)
+    assert ledger.observe_native(
+        opaque('attempt', 1), alias, public_id, 'found', None
+    ) == ('found', [])
+
+    assert ledger.invalidate_native(
+        opaque('attempt', 1), alias, public_id, 'context_replacement'
+    ) is False
+    assert ledger.invalidate_native(
+        opaque('attempt', 1), alias, public_id, 'context_replacement'
+    ) is True
+    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
+        ledger.native_notification(
+            opaque('attempt', 1), alias, 'task-agent-wrong-after-invalidation'
+        )
+    with pytest.raises(NativeBoundary, match='native_binding_invalidated'):
+        ledger.invalidate_native(
+            opaque('attempt', 1), alias, public_id, 'resume'
+        )
+    for operation in (
+        lambda: ledger.native_notification(
+            opaque('attempt', 1), alias, public_id
+        ),
+        lambda: ledger.claim_native_read(
+            opaque('attempt', 1), alias, public_id
+        ),
+        lambda: ledger.observe_native(
+            opaque('attempt', 1), alias, public_id, 'found', None
+        ),
+    ):
+        with pytest.raises(NativeBoundary, match='native_binding_invalidated'):
+            operation()
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT lifecycle_status FROM work_history WHERE attempt_id = ?',
+            (opaque('attempt', 1),),
+        ).fetchone()[0] == 'active'
+        assert connection.execute(
+            'SELECT COUNT(*) FROM replacement_eligibility'
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            """SELECT public_agent_id_fingerprint, invalidation_reason
+            FROM native_binding_provenance WHERE native_alias = ?""",
+            (alias,),
+        ).fetchone() == (
+            _expected_native_fingerprint(public_id),
+            'context_replacement',
+        )
+
+
+def _expected_native_fingerprint(public_agent_id: str) -> str:
+    import hashlib
+
+    digest = hashlib.sha256(
+        b'praxys-native-public-agent-id-v1\x00'
+        + public_agent_id.encode('utf-8')
+    ).hexdigest()
+    return f'sha256:{digest}'
+
+
+@pytest.mark.parametrize('reason', ['shutdown', 'resume', 'context_replacement'])
+def test_cli_native_invalidation_has_stable_reason(
+    tmp_path: Path, reason: str
+) -> None:
+    repository = init_repository(tmp_path)
+    assert run_cli(repository, background_admission(1)).returncode == 0
+    alias = opaque('native', 1)
+    public_id = f'task-agent-invalidate-{reason}'
+    bound = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'bind_native',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+            'binding_source': 'task_result',
+            'notifications_available': True,
+        },
+    )
+    assert bound.returncode == 0
+    invalidated = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'invalidate_native',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+            'invalidation_reason': reason,
+        },
+    )
+    assert invalidated.returncode == 0
+    assert json.loads(invalidated.stdout)['reason_code'] == 'native_invalidated'
+    stale = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'native_notification',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+        },
+    )
+    assert stale.returncode == 2
+    assert json.loads(stale.stdout)['reason_code'] == (
+        'native_binding_invalidated'
+    )
 
 
 def test_exact_work_contract_and_autonomy_composition_are_unchanged() -> None:
@@ -1229,6 +1730,20 @@ def test_policy_parity_and_cooperative_manifest_boundaries() -> None:
         'approved_modes': ['instrument', 'shadow'],
         'enforcement_approved': False,
         'ledger_schema_version': 1,
+        'dispatch_profiles': {
+            'default': 'sync_inline',
+            'sync': 'sync_inline',
+            'background': 'background_independent_immediate_no_poll',
+        },
+        'native_binding': {
+            'binding_source': 'task_result',
+            'public_id_storage': 'domain-separated-sha256-fingerprint',
+            'invalidation_reasons': [
+                'shutdown',
+                'resume',
+                'context_replacement',
+            ],
+        },
         'limits': {
             'maximum_ancestry_depth': 6,
             'maximum_active_per_contract': 8,
@@ -1257,3 +1772,8 @@ def test_policy_parity_and_cooperative_manifest_boundaries() -> None:
         assert 'notification' in manifest.lower()
         assert 'poll' in manifest.lower()
         assert 'replacement' in manifest.lower()
+        assert 'sync_inline' in manifest
+        assert 'background_independent_immediate_no_poll' in manifest
+        assert 'direct child' in manifest.lower()
+        assert 'task_result' in manifest
+        assert 'invalidate' in manifest.lower()

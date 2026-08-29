@@ -5,6 +5,33 @@
 - **Artifact implementation status:** repository-native Markdown; not schema-backed
 - **Owner role:** Architecture
 
+## 2026-08-29 bounded architecture addendum
+
+Architecture accepts a schema-v1 additive correction for lifecycle-aware,
+manifest-coordinated calls:
+
+- serialize admission with `BEGIN IMMEDIATE` so one non-null parent attempt has
+  at most one active direct child, without serializing roots or unrelated
+  parents;
+- keep omitted dispatch fields compatible as sync, while cooperative manifests
+  explicitly use `sync`/`sync_inline` or the sole accepted background pair
+  `background`/`background_independent_immediate_no_poll`;
+- split sync inline return from background notification-driven one-read
+  completion, with no polling or `read_agent(wait:true)` loops;
+- keep `nat_*` as a repository alias and bind it to a domain-separated SHA-256
+  fingerprint of the exact public ID returned by successful `task`;
+- require attempt ID, alias, and exact public ID for notification, read, and
+  observation; and
+- add explicit binding invalidation for shutdown, resume, and context
+  replacement without registry lookup, automatic loss, replacement, relaunch,
+  or external rebind.
+
+The change keeps JSON schema 1 and ledger schema 1 by adding auxiliary tables
+and a transactional `init` upgrade for #745-era lifecycle ledgers. Schema v2,
+context epochs, keyed/native ID formats, generalized alias/rebind design, and
+external rediscovery are explicitly deferred as overbroad. A future exact-match
+native capability would require separate architecture and policy review.
+
 ## Decision record
 
 - **id:** `ADR-2026-08-20-agent-invocation-control`
@@ -123,7 +150,10 @@ Stable v1 exit contract:
 - `4`: ledger, transaction, or recovery failure; and
 - `5`: requested mode unavailable or unapproved.
 
-These meanings cannot be repurposed within v1. Cooperative instrument/shadow integration must never gate a native invocation on these exits; it records and continues.
+These meanings cannot be repurposed within v1. Ordinary candidate-policy
+would-denials remain observational in instrument/shadow. Lifecycle protocol
+violations added by the bounded addendum fail closed for cooperative dispatch;
+this is not native interception and does not affect unmediated calls.
 
 Stable v1 machine reason-code namespace:
 
@@ -159,7 +189,14 @@ The same design also has hard limits. It creates no cross-machine authority, no 
 
 ## Activation boundaries
 
-Only explicit instrument/shadow configuration and cooperative integrations may activate this path. Instrument mode observes lifecycle and identity only. Shadow mode computes the exact would-admit or would-deny result but never blocks dispatch. Enforcement mode must be unavailable and return the stable unavailable result; it cannot silently alias to shadow or instrument.
+Only explicit instrument/shadow configuration and cooperative integrations may
+activate this path. Instrument mode observes candidate-policy lifecycle and
+identity; shadow mode computes the exact ordinary would-admit or would-deny
+result without blocking dispatch. Direct-sibling conflicts, invalid dispatch
+provenance, invalid lifecycle transitions, binding mismatch/invalidation, and
+one-read violations are protocol correctness failures and do block the
+cooperative action. Enforcement mode remains unavailable and cannot silently
+alias to shadow or instrument.
 
 ## Rollback and migration
 

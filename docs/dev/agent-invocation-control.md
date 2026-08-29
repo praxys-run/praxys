@@ -7,10 +7,12 @@ Implementation Change for the accepted instrument/shadow implementation. The
 control is repository-owned and cooperatively mediated. It is not native
 launcher interception, cross-machine authority, or global protection.
 Enforcement is unavailable and unapproved. The lifecycle-first P0/P1
-extension described below is a local, uncommitted implementation and is **not
-approved for release**. It corrects cooperative lifecycle bookkeeping inside
-the accepted policy; it changes no policy value, role, route, reviewer
-authority, or autonomy level.
+extension at PR #745 HEAD `3fd00fa8a658f221f270465d5847fc0304edb3c3`
+is committed. The bounded lifecycle correction described here was subsequently
+accepted through explicit semantic user authority and an `agent-resolved`
+Decision Review route; it is implemented in the working tree but has not yet
+received independent Quality verification. It changes no policy bound, role,
+route, reviewer authority, autonomy level, or release state.
 
 The proposed ADR remains Proposed — instrument/shadow scope human-authorized;
 final implementation-bound ADR approval pending separate review. This document
@@ -40,15 +42,6 @@ does not approve that ADR or any deferred decision.
 - route_digest:
   sha256:dfe65e8c108c06411ad84d7e7d8ec32d8206429780243973a31e840fb7c11f51
 
-Current bounded local handoff: contract `ctr_124fe6b57155999474f3aa7f3829426b`,
-slot `slt_a3f95d836676a59960d82b3b15499648`, generation
-`gen_ef44174f758181040c7bcb4c734a7b19`, logical invocation
-`log_22311bf9d8ac4ea54ed3f8bb01859ace`, attempt
-`att_2db630c4f73b35c6b303ee7ba1cf3093`, and parent
-`att_177f2b079711adc654290353bd85fffa`. Admission was explicitly recorded as
-`launch_authorized=true` with policy reason `admit`. These opaque IDs are a
-durable handoff record, not a claim of native cancellation or callback control.
-
 Every admission recomputes this kind of authoritative Work Contract from the
 bounded classification before ledger access or candidate-policy evaluation.
 Caller-supplied digests and slot roles must match the recomputed contract. The
@@ -63,7 +56,12 @@ The governing artifacts are:
 - docs/dev/policy-change-proposal-agent-invocation-control-v1.md
 - docs/dev/adr-2026-08-20-agent-invocation-control.md
 
-Independent Decision Review Router outcome: human-review-required.
+The original instrument/shadow proposal used a `human-review-required` route
+and the recorded approval below. For the 2026-08-29 bounded correction, the
+Decision Review route is `agent-resolved` because implementation is
+deterministic within the accepted behavior. The user's statements “好，那根据这个改进一下这个PR？”
+and “继续没做完的工作” provide semantic authority for that bounded correction.
+No digest-bound approval is fabricated or implied.
 
 Recorded human approval timestamp: 2026-08-20T23:38:10.880+08:00
 
@@ -80,13 +78,13 @@ approval remain deferred.
 
 | Area | Impact |
 |---|---|
-| Data | Compatibly extends the disposable Git-common-dir SQLite v1 ledger with additive lifecycle, immutable-revision, native-binding, one-read, replacement-eligibility, and progress-evidence tables. It remains outside the application database and stores no task, prompt, source, user, issue, artifact content, credential, output, stack trace, or free-form diagnostic text. |
+| Data | Compatibly extends the disposable Git-common-dir SQLite v1 ledger with additive lifecycle tables plus `lifecycle_dispatch` and `native_binding_provenance`. Existing #745-era lifecycle ledgers upgrade transactionally during explicit `init`. Public agent IDs are stored only as domain-separated SHA-256 fingerprints. The ledger remains outside the application database and stores no task, prompt, source, user, issue, artifact content, credential, output, stack trace, free-form work description, or free-form diagnostic text. |
 | Analysis | Adds analysis/agentic_invocation_control.py, an I/O-free stdlib identity validator and deterministic candidate-policy evaluator. Existing static routing remains authoritative and unchanged. |
 | API | No application API or authentication change. |
-| Clients | Adds a versioned stdin/stdout CLI and cooperative instructions in the Orchestrator and Delivery Loop manifests. No UI, provider, sync, or native-agent API changes. |
-| Operations | Adds no service, deployment setting, secret, alert, or production runtime. Local and Cloud use the same repository protocol, subject to the same native-interception limitation. |
-| Migration | Explicit `init` transactionally adds the compatible lifecycle tables to a valid original v1 ledger; no mandatory v2, application migration, destructive rewrite, or automatic incompatible migration is introduced. Partial or unsupported state fails visibly. |
-| Tests | Extends focused policy/lifecycle tests for logical-key deduplication, first loss, permanent read refusal, one replacement/no chain, leaf-first parent cleanup, new-revision review, illegal transitions, explicit progress, original #737 behavior, manifests, and parity. Independent Quality verification remains a separate artifact and has not yet occurred for this local change. |
+| Clients | Extends the versioned stdin/stdout CLI and cooperative Orchestrator/Delivery Loop instructions with explicit sync/background dispatch profiles, direct-sibling serialization, exact public-ID binding, one-read completion, and binding invalidation. No UI, provider, sync, or native-agent API changes. |
+| Operations | Adds no service, deployment setting, secret, alert, registry lookup, polling loop, or production runtime. Local and Cloud use the same repository protocol and the same native-interception limitation. |
+| Migration | Keeps JSON schema 1 and ledger schema 1. Explicit `init` transactionally adds the compatible lifecycle and auxiliary tables to a valid original-v1 or #745-era ledger; no schema v2, application migration, destructive rewrite, or automatic incompatible migration is introduced. Partial or unsupported state fails visibly. |
+| Tests | Adds focused coverage for cross-process same-parent sibling races, sequential siblings and nesting, unrelated parents and roots, dispatch provenance, sync completion boundaries, task-returned public-ID validation and mismatch rejection, notification-then-one-read, invalidation, stale-ID refusal, no automatic loss/replacement, additive upgrade, privacy, original #737 behavior, manifests, and parity. Independent Quality verification remains a separate artifact and has not yet occurred for this change. |
 
 ## Implementation Change
 
@@ -120,15 +118,40 @@ accepted starting limits. The implementation adds:
    `review_after_new_digest`, `duplicate_launch`, and `illegal_transition`
    records. Duplicate and illegal lifecycle transitions fail closed even though
    ordinary instrument/shadow candidate-policy denials remain observational.
-10. Completion-notification-driven one-read native bindings. The first claimed
+10. A transactionally serialized direct-child boundary for lifecycle-aware
+    calls. One non-null parent attempt may have at most one active direct child;
+    another direct sibling receives `direct_sibling_active` and no attempt is
+    created. A nested chain remains allowed because every link has a different
+    parent. Roots and unrelated parents are not globally serialized.
+11. Closed dispatch provenance. Omitted fields retain compatibility as
+    `sync`/`sync_inline`; cooperative manifests send that pair explicitly.
+    Background is valid only as
+    `background`/`background_independent_immediate_no_poll`. Unknown, partial,
+    or mismatched provenance fails closed as `execution_provenance_invalid`.
+12. Split completion semantics. Sync work returns inline and cannot bind or
+    read a native agent. Background work may bind the exact public agent ID
+    returned by successful `task` with `binding_source=task_result`, wait for
+    an external completion notification without polling, and claim one read.
+    If notifications are unavailable, it records that capability result and
+    stops without a read or poll.
+13. Completion-notification-driven one-read native bindings. `nat_*` is only a
+    repository alias. The raw public ID is validated but never persisted; a
+    domain-separated SHA-256 fingerprint is bound to the alias and attempt.
+    Notification, read, and observation require the exact attempt, alias, and
+    public ID. Mismatch and cross-attempt use fail closed. The first claimed
     `not_found` result records loss, permanently closes that opaque native ID,
     and creates at most one explicit, manually consumed replacement eligibility.
     A replacement is separately identified, never automatic, and cannot create
     a replacement chain.
-11. Idempotent `terminate_tree` cleanup for abort, shutdown, and failure. Active
+14. Explicit `invalidate_native` state for `shutdown`, `resume`, and
+    `context_replacement`. Invalidation permanently refuses the old
+    alias/public-ID binding without registry lookup, polling, inference,
+    relaunch, replacement, or automatic loss. External rebind is deferred.
+    Mediated pre-completion native write is unsupported.
+15. Idempotent `terminate_tree` cleanup for abort, shutdown, and failure. Active
     descendants terminalize leaf first as `orphaned` before the parent. This is
     ledger cleanup, not a native kill or cancellation claim.
-12. Explicit substantive progress fingerprints. Duplicate evidence is
+16. Explicit substantive progress fingerprints. Duplicate evidence is
     idempotent; reads, notifications, and elapsed time never advance
     `last_progress_at_ms`, and phase one infers no staleness.
 
@@ -139,8 +162,9 @@ change.
 
 ## Identity and privacy contract
 
-The CLI accepts only exact command-specific key sets. Opaque identities, including repository-side aliases for native
-invocations, use a kind prefix plus 128 random bits. Immutable work revisions
+The CLI accepts only exact command-specific key sets. Opaque repository identities, including `nat_*` repository-side aliases, use a
+kind prefix plus 128 random bits. A `nat_*` value is never the native/public
+agent ID. Immutable work revisions
 are lowercase `sha256:<64 hex>` digests or `git:<40 or 64 hex>` heads. Failure,
 progress, and terminal fingerprints use the
 fpr_ prefix plus 256 hexadecimal bits. Callers hash or otherwise derive a
@@ -152,6 +176,12 @@ its generations. A logical identity spans its permitted retry attempts. Every
 execution gets a fresh attempt identity. Nested calls carry only the active
 parent attempt identity. Contract and slot identities are durably bound to the
 recomputed route and bounded role, and conflicting reuse is invalid.
+
+Task-returned public agent IDs must be non-empty, bounded, trim-stable,
+control-free values that are not repository identities, `call_*` call IDs, or
+obvious placeholders. The binding persists only
+`SHA-256("praxys-native-public-agent-id-v1\0" || exact_public_id)`, never the
+raw ID.
 
 Permitted ledger facts are versions, route/classification digests, bounded role
 IDs, opaque identities and parent links, lifecycle state, opaque fingerprints,
@@ -172,14 +202,17 @@ Commands:
   decision and any authorized instrument/shadow launch. Lifecycle-aware calls
   also supply artifact_revision, lifecycle_transition, and nullable
   replacement_of_attempt_id.
-- bind_native: bind one opaque native alias and declare whether authoritative
-  completion notifications are available.
+- bind_native: for background only, bind a `nat_*` alias to the fingerprint of
+  the exact task-returned public ID with `binding_source=task_result`, recording
+  whether completion notifications are available.
 - native_notification: record the authoritative completion notification.
 - native_read: claim the single native read after that notification.
 - native_observation: record the claimed read as found or authoritative
   not_found; not_found atomically records loss and cleanup.
 - progress: record a new substantive progress fingerprint.
 - terminate_tree: leaf-first terminal cleanup for abort, shutdown, or failure.
+- invalidate_native: permanently invalidate one exact alias/public-ID binding
+  for shutdown, resume, or context replacement without changing attempt state.
 - finish: terminally record succeeded or failed with an opaque fingerprint.
 - recover: terminally record recovered with an opaque fingerprint, leaf first.
 - kill_switch: atomically enable or disable mediated-launch rejection.
@@ -237,7 +270,10 @@ Stable machine reason codes are `instrument_recorded`,
 `native_notifications_unavailable`, `native_read_authorized`,
 `native_read_refused`, `native_observation_recorded`, `progress_recorded`,
 `progress_idempotent`, `tree_termination_recorded`, and
-`tree_termination_idempotent`. Additions must remain additive within v1.
+`tree_termination_idempotent`, `direct_sibling_active`,
+`execution_provenance_invalid`, `native_binding_mismatch`,
+`native_binding_invalidated`, and `native_invalidated`. Additions must remain
+additive within v1.
 
 ## Starting limits
 
@@ -273,9 +309,15 @@ the bounded classification arrays, recomputed classification and route digests,
 contract_id, stable slot_id and slot_role, generation_id, logical_id,
 attempt_id, nullable parent_attempt_id, nullable retry_fingerprint, immutable
 artifact_revision, an explicit lifecycle_transition, and nullable
-replacement_of_attempt_id. Retain attempt IDs until their finish or recovery is
-recorded. The original request shape remains accepted for #737 compatibility,
-but orchestrator/change-loop calls use lifecycle-aware admissions. Move individual
+replacement_of_attempt_id. Lifecycle-aware requests may omit dispatch fields
+for compatibility, which means `dispatch_mode=sync` and
+`execution_provenance=sync_inline`; Orchestrator and Change Loop calls send
+that pair explicitly. They use background only with
+`dispatch_mode=background` and
+`execution_provenance=background_independent_immediate_no_poll`. Retain attempt
+IDs until their finish or recovery is recorded. The original request shape
+remains accepted for #737 compatibility, but orchestrator/change-loop calls use
+lifecycle-aware admissions. Move individual
 cooperative requests to shadow only after instrument lifecycle and recovery
 records are healthy; this is not enforcement promotion.
 
@@ -291,14 +333,21 @@ The switch affects only calls that cooperate with this protocol.
 
 ## Notification, read, and replacement sequence
 
-After native launch, bind its repository-side opaque alias. If the binding says
-notifications are available, do no read and no polling while waiting. Record
-the native completion notification, claim exactly one `native_read`, perform
-that native read once, then record `found` or `not_found`. A read before the
-notification and every read after the first claim are refused. If notifications
-are unavailable, the binding returns `notifications_unavailable_no_polling`;
-record that limitation and stop rather than substituting polling. The
-repository provides no native callback adapter in phase one.
+Sync dispatch returns inline. Do not call `bind_native`, `native_read`, or
+`read_agent` for sync work.
+
+For a valid background dispatch, take the public agent ID returned by successful
+`task`, create a separate `nat_*` repository alias, and submit `bind_native`
+with the attempt ID, alias, exact public ID, and
+`binding_source=task_result`. The ledger stores only a domain-separated
+fingerprint. If completion notifications are unavailable, record that
+capability result and stop without reading or polling. Otherwise, wait for the
+external completion notification without reads, status checks,
+`read_agent(wait:true)`, or any polling loop. The notification, one
+`native_read` claim, and the resulting `native_observation` must each carry the
+same exact attempt ID, alias, and public ID. A read before notification, every
+read after the first claim, any mismatch, and any cross-attempt reuse are
+refused.
 
 An authoritative `not_found` terminalizes that attempt as `lost` and active
 descendants as `orphaned`. It creates one replacement eligibility only for a
@@ -306,6 +355,10 @@ non-replacement attempt. A caller may later submit one separately identified
 `replacement` admission that names the lost attempt; admission consumes the
 eligibility transactionally but never launches by itself. Loss of that
 replacement creates no new eligibility.
+
+Mediated native write is unsupported. Do not invent a pre-completion multi-turn
+write subsystem. If a future native capability supports exact writes or exact
+external rebind, it requires a separately reviewed policy.
 
 ## Recovery
 
@@ -319,6 +372,15 @@ fingerprint conflicts and does not mutate state. For parent abort, shutdown,
 or failure, use `terminate_tree`; it atomically marks every active descendant
 `orphaned` from deepest leaf upward and then terminalizes the parent. It does
 not call or claim native cancellation.
+
+For session shutdown, resume, or context replacement, use `invalidate_native`
+with the exact attempt, alias, and public ID. This writes only the invalidation
+enum and timestamp. The old binding is permanently unusable for notification,
+read, observation, or any future write. Invalidation performs zero native
+registry lookup, polling, or inference; it does not mark the attempt lost,
+create replacement eligibility, relaunch work, or select a replacement.
+External rebind remains deferred unless a future native capability supplies an
+exact match under separately reviewed policy.
 
 Example request shape:
 
@@ -344,7 +406,10 @@ could fail closed on unavailable state.
 
 Local and Cloud use the same checked-in policy, pure evaluator, CLI, Work
 Contract recomputation, manifests, JSON surface, reason codes, and ledger
-semantics. Each clone or ephemeral Cloud checkout has its own Git-common-dir
+semantics, including explicit dispatch profiles, parent-scoped direct-sibling
+serialization, exact binding verification, no-poll notification waiting,
+one-read completion, and invalidation. Each clone or ephemeral Cloud checkout
+has its own Git-common-dir
 ledger. There is no shared or cross-machine authority and no known denominator
 for all platform invocations.
 

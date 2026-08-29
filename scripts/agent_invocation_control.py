@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -19,6 +21,7 @@ if str(ROOT) not in sys.path:
 from analysis.agentic_invocation_control import (  # noqa: E402
     APPROVED_MODES,
     DECISION_REASONS,
+    DISPATCH_PROFILES,
     MACHINE_REASON_CODES,
     POLICY_REASONS,
     POLICY_VERSION,
@@ -30,6 +33,7 @@ from analysis.agentic_invocation_control import (  # noqa: E402
     is_valid_artifact_revision,
     is_valid_fingerprint,
     is_valid_identity,
+    is_valid_public_agent_id,
 )
 from analysis.agentic_task_routing import TaskClassification, TaskRoute, route_task  # noqa: E402
 
@@ -46,6 +50,11 @@ LIFECYCLE_TRANSITIONS = (
 TERMINATION_STATUSES = {
     'abort': 'aborted', 'shutdown': 'shutdown', 'failure': 'failed'
 }
+NATIVE_INVALIDATION_REASONS = (
+    'shutdown', 'resume', 'context_replacement'
+)
+NATIVE_BINDING_SOURCE = 'task_result'
+_NATIVE_FINGERPRINT_DOMAIN = b'praxys-native-public-agent-id-v1\x00'
 
 
 class RequestFailure(ValueError):
@@ -134,7 +143,8 @@ def _read_request() -> dict[str, object]:
     if payload.get('command') not in {
         'init', 'new_identity', 'admit', 'finish', 'recover',
         'kill_switch', 'status', 'bind_native', 'native_notification',
-        'native_read', 'native_observation', 'progress', 'terminate_tree',
+        'native_read', 'native_observation', 'invalidate_native',
+        'progress', 'terminate_tree',
     }:
         raise RequestFailure('unsupported command')
     return payload
@@ -148,7 +158,7 @@ def _load_policy() -> InvocationLimits:
     expected_keys = {
         'schema_version', 'policy_version', 'status', 'default_mode',
         'approved_modes', 'enforcement_approved', 'ledger_schema_version',
-        'limits',
+        'dispatch_profiles', 'native_binding', 'limits',
     }
     if not isinstance(payload, dict) or set(payload) != expected_keys:
         raise ContractFailure('policy_unavailable')
@@ -160,6 +170,15 @@ def _load_policy() -> InvocationLimits:
         or payload['approved_modes'] != list(APPROVED_MODES)
         or payload['enforcement_approved'] is not False
         or payload['ledger_schema_version'] != LEDGER_SCHEMA_VERSION
+        or payload['dispatch_profiles'] != {
+            'default': DISPATCH_PROFILES['sync'],
+            **DISPATCH_PROFILES,
+        }
+        or payload['native_binding'] != {
+            'binding_source': NATIVE_BINDING_SOURCE,
+            'public_id_storage': 'domain-separated-sha256-fingerprint',
+            'invalidation_reasons': list(NATIVE_INVALIDATION_REASONS),
+        }
         or not isinstance(payload['limits'], dict)
     ):
         raise ContractFailure('policy_unavailable')
@@ -267,6 +286,32 @@ def _validate_lifecycle_fields(request: dict[str, object]) -> None:
         raise RequestFailure('replacement requires replacement_of_attempt_id')
     if transition != 'replacement' and replacement is not None:
         raise RequestFailure('replacement_of_attempt_id is only valid for replacement')
+
+
+def _dispatch_profile(request: dict[str, object]) -> tuple[str, str]:
+    """Return the closed lifecycle dispatch pair, defaulting legacy calls to sync."""
+    has_mode = 'dispatch_mode' in request
+    has_provenance = 'execution_provenance' in request
+    if not has_mode and not has_provenance:
+        return 'sync', DISPATCH_PROFILES['sync']
+    if not has_mode or not has_provenance:
+        raise NativeBoundary('execution_provenance_invalid')
+    mode = request['dispatch_mode']
+    provenance = request['execution_provenance']
+    if (
+        not isinstance(mode, str)
+        or not isinstance(provenance, str)
+        or DISPATCH_PROFILES.get(mode) != provenance
+    ):
+        raise NativeBoundary('execution_provenance_invalid')
+    return mode, provenance
+
+
+def _native_public_fingerprint(public_agent_id: str) -> str:
+    digest = hashlib.sha256(
+        _NATIVE_FINGERPRINT_DOMAIN + public_agent_id.encode('utf-8')
+    ).hexdigest()
+    return f'sha256:{digest}'
 
 
 def _machine_reason(mode: str, policy_reason: str) -> str:
@@ -419,7 +464,21 @@ _LIFECYCLE_SCHEMA_COLUMNS = {
     ),
     'progress_evidence': ('attempt_id', 'progress_fingerprint', 'recorded_at_ms'),
 }
-_SCHEMA_COLUMNS = {**_BASE_SCHEMA_COLUMNS, **_LIFECYCLE_SCHEMA_COLUMNS}
+_AUXILIARY_SCHEMA_COLUMNS = {
+    'lifecycle_dispatch': (
+        'decision_id', 'attempt_id', 'dispatch_mode',
+        'execution_provenance', 'admission_reason', 'recorded_at_ms',
+    ),
+    'native_binding_provenance': (
+        'native_alias', 'attempt_id', 'public_agent_id_fingerprint',
+        'binding_source', 'invalidation_reason', 'invalidated_at_ms',
+    ),
+}
+_SCHEMA_COLUMNS = {
+    **_BASE_SCHEMA_COLUMNS,
+    **_LIFECYCLE_SCHEMA_COLUMNS,
+    **_AUXILIARY_SCHEMA_COLUMNS,
+}
 _LIFECYCLE_SCHEMA_INDEXES = {
     'work_history_slot_revision',
     'work_history_replacement',
@@ -497,6 +556,35 @@ CREATE INDEX work_history_replacement
     ON work_history(replacement_of_attempt_id);
 CREATE INDEX native_invocations_attempt ON native_invocations(attempt_id);
 """
+_AUXILIARY_SCHEMA = """
+CREATE TABLE lifecycle_dispatch (
+    decision_id TEXT PRIMARY KEY REFERENCES lifecycle_decisions(decision_id),
+    attempt_id TEXT NOT NULL UNIQUE,
+    dispatch_mode TEXT NOT NULL CHECK (dispatch_mode IN ('sync', 'background')),
+    execution_provenance TEXT NOT NULL CHECK (execution_provenance IN (
+        'sync_inline', 'background_independent_immediate_no_poll'
+    )),
+    admission_reason TEXT NOT NULL CHECK (admission_reason IN (
+        'admit', 'policy_denied', 'direct_sibling_active',
+        'lifecycle_transition_rejected'
+    )),
+    recorded_at_ms INTEGER NOT NULL
+) STRICT;
+CREATE TABLE native_binding_provenance (
+    native_alias TEXT PRIMARY KEY REFERENCES native_invocations(native_invocation_id),
+    attempt_id TEXT NOT NULL UNIQUE REFERENCES work_history(attempt_id),
+    public_agent_id_fingerprint TEXT NOT NULL UNIQUE,
+    binding_source TEXT NOT NULL CHECK (binding_source = 'task_result'),
+    invalidation_reason TEXT CHECK (invalidation_reason IN (
+        'shutdown', 'resume', 'context_replacement'
+    )),
+    invalidated_at_ms INTEGER,
+    CHECK (
+        (invalidation_reason IS NULL AND invalidated_at_ms IS NULL)
+        OR (invalidation_reason IS NOT NULL AND invalidated_at_ms IS NOT NULL)
+    )
+) STRICT;
+"""
 
 
 class Ledger:
@@ -512,12 +600,36 @@ class Ledger:
             try:
                 tables = self._table_names(connection)
                 lifecycle_tables = set(_LIFECYCLE_SCHEMA_COLUMNS)
-                present = tables & lifecycle_tables
-                if present and present != lifecycle_tables:
+                lifecycle_present = tables & lifecycle_tables
+                auxiliary_tables = set(_AUXILIARY_SCHEMA_COLUMNS)
+                auxiliary_present = tables & auxiliary_tables
+                if (
+                    lifecycle_present and lifecycle_present != lifecycle_tables
+                ) or (
+                    auxiliary_present and auxiliary_present != auxiliary_tables
+                ) or (auxiliary_present and not lifecycle_present):
                     raise StateCorrupt
-                if not present:
+                if not lifecycle_present or not auxiliary_present:
                     connection.execute('BEGIN IMMEDIATE')
-                    self._execute_schema(connection, _LIFECYCLE_SCHEMA)
+                    if not lifecycle_present:
+                        self._execute_schema(connection, _LIFECYCLE_SCHEMA)
+                    if not auxiliary_present:
+                        self._execute_schema(connection, _AUXILIARY_SCHEMA)
+                        connection.execute(
+                            """INSERT INTO lifecycle_dispatch
+                            SELECT decision_id, attempt_id, 'sync', 'sync_inline',
+                                   CASE
+                                     WHEN effective_transition IN (
+                                         'duplicate_launch', 'illegal_transition'
+                                     )
+                                     THEN 'lifecycle_transition_rejected'
+                                     WHEN launch_authorized = 0
+                                     THEN 'policy_denied'
+                                     ELSE 'admit'
+                                   END,
+                                   decided_at_ms
+                            FROM lifecycle_decisions"""
+                        )
                     connection.commit()
                 self._validate(connection)
             except Exception:
@@ -542,6 +654,7 @@ class Ledger:
             connection.execute('BEGIN IMMEDIATE')
             self._execute_schema(connection, _SCHEMA)
             self._execute_schema(connection, _LIFECYCLE_SCHEMA)
+            self._execute_schema(connection, _AUXILIARY_SCHEMA)
             connection.executemany(
                 'INSERT INTO metadata(key, value) VALUES (?, ?)',
                 (
@@ -688,6 +801,27 @@ class Ledger:
                         "AND attempts.lifecycle_status != 'active' LIMIT 1"
                     ).fetchone() is not None
                 )
+                or (
+                    require_lifecycle
+                    and connection.execute(
+                        """SELECT 1 FROM lifecycle_decisions
+                        LEFT JOIN lifecycle_dispatch USING (decision_id)
+                        WHERE lifecycle_dispatch.decision_id IS NULL LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    require_lifecycle
+                    and connection.execute(
+                        """SELECT 1 FROM native_binding_provenance
+                        JOIN lifecycle_dispatch USING (attempt_id)
+                        WHERE lifecycle_dispatch.dispatch_mode != 'background'
+                           OR length(public_agent_id_fingerprint) != 71
+                           OR substr(public_agent_id_fingerprint, 1, 7) != 'sha256:'
+                           OR substr(public_agent_id_fingerprint, 8)
+                              GLOB '*[^0-9a-f]*'
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
             ):
                 raise StateCorrupt
         except sqlite3.Error as exc:
@@ -744,6 +878,7 @@ class Ledger:
         limits: InvocationLimits,
     ) -> dict[str, object]:
         """Evaluate and record admission in one immediate transaction."""
+        dispatch_mode, execution_provenance = _dispatch_profile(request)
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
@@ -869,6 +1004,14 @@ class Ledger:
                             requested_transition, lifecycle_transition, replacement_of, now,
                         ),
                     )
+                    connection.execute(
+                        """INSERT INTO lifecycle_dispatch VALUES
+                        (?, ?, ?, ?, 'lifecycle_transition_rejected', ?)""",
+                        (
+                            decision_id, attempt_id, dispatch_mode,
+                            execution_provenance, now,
+                        ),
+                    )
                     connection.commit()
                     return {
                         'decision_id': decision_id,
@@ -876,6 +1019,8 @@ class Ledger:
                         'would_reject': True,
                         'launch_authorized': False,
                         'lifecycle_transition': lifecycle_transition,
+                        'dispatch_mode': dispatch_mode,
+                        'execution_provenance': execution_provenance,
                     }
 
             ancestor_slots: list[str] = []
@@ -906,6 +1051,46 @@ class Ledger:
                 ancestor_slots.append(parent['slot_id'])
                 proposed_depth += 1
                 current_parent = parent['parent_attempt_id']
+
+            if 'artifact_revision' in request and parent_id is not None:
+                active_sibling = connection.execute(
+                    """SELECT 1 FROM attempts
+                    WHERE parent_attempt_id = ? AND lifecycle_status = 'active'
+                    LIMIT 1""",
+                    (parent_id,),
+                ).fetchone()
+                if active_sibling is not None:
+                    connection.execute(
+                        """INSERT INTO lifecycle_decisions VALUES
+                        (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                        (
+                            decision_id, attempt_id, contract_id, slot_id,
+                            request['artifact_revision'],
+                            request['lifecycle_transition'],
+                            lifecycle_transition,
+                            request['replacement_of_attempt_id'],
+                            now,
+                        ),
+                    )
+                    connection.execute(
+                        """INSERT INTO lifecycle_dispatch VALUES
+                        (?, ?, ?, ?, 'direct_sibling_active', ?)""",
+                        (
+                            decision_id, attempt_id, dispatch_mode,
+                            execution_provenance, now,
+                        ),
+                    )
+                    connection.commit()
+                    return {
+                        'decision_id': decision_id,
+                        'policy_reason': None,
+                        'would_reject': True,
+                        'launch_authorized': False,
+                        'lifecycle_transition': lifecycle_transition,
+                        'protocol_reason': 'direct_sibling_active',
+                        'dispatch_mode': dispatch_mode,
+                        'execution_provenance': execution_provenance,
+                    }
 
             duplicate = connection.execute(
                 """SELECT 1 FROM attempts
@@ -1011,6 +1196,20 @@ class Ledger:
                         int(decision.launch_authorized), now,
                     ),
                 )
+                connection.execute(
+                    """INSERT INTO lifecycle_dispatch VALUES
+                    (?, ?, ?, ?, ?, ?)""",
+                    (
+                        decision_id, attempt_id, dispatch_mode,
+                        execution_provenance,
+                        (
+                            'admit'
+                            if decision.launch_authorized
+                            else 'policy_denied'
+                        ),
+                        now,
+                    ),
+                )
             if decision.launch_authorized:
                 connection.execute(
                     """INSERT INTO attempts(
@@ -1058,6 +1257,8 @@ class Ledger:
             }
             if lifecycle_transition is not None:
                 outcome['lifecycle_transition'] = lifecycle_transition
+                outcome['dispatch_mode'] = dispatch_mode
+                outcome['execution_provenance'] = execution_provenance
             return outcome
         except (IdentityConflict, StateCorrupt):
             connection.rollback()
@@ -1191,73 +1392,139 @@ class Ledger:
     def bind_native(
         self,
         attempt_id: str,
-        native_invocation_id: str,
-        notifications_available: bool,
+        native_alias: str,
+        public_agent_id: str,
+        binding_source: str,
+        notifications_available: bool = True,
     ) -> str:
-        """Bind one opaque native invocation to one active mediated attempt."""
+        """Bind a task-returned public ID fingerprint to one background attempt."""
+        if (
+            not is_valid_public_agent_id(public_agent_id)
+            or binding_source != NATIVE_BINDING_SOURCE
+            or not isinstance(notifications_available, bool)
+        ):
+            raise NativeBoundary('native_binding_mismatch')
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
             active = connection.execute(
-                """SELECT 1 FROM attempts JOIN work_history USING (attempt_id)
+                """SELECT lifecycle_dispatch.dispatch_mode,
+                          lifecycle_dispatch.execution_provenance
+                FROM attempts
+                JOIN work_history USING (attempt_id)
+                JOIN lifecycle_dispatch USING (attempt_id)
                 WHERE attempt_id = ? AND attempts.lifecycle_status = 'active'""",
                 (attempt_id,),
             ).fetchone()
             if active is None:
                 raise IdentityConflict
-            state = 'active' if notifications_available else 'notifications_unavailable'
+            if tuple(active) != (
+                'background',
+                DISPATCH_PROFILES['background'],
+            ):
+                raise NativeBoundary('execution_provenance_invalid')
             connection.execute(
                 "INSERT INTO native_invocations VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)",
                 (
-                    native_invocation_id,
+                    native_alias,
                     attempt_id,
                     int(notifications_available),
-                    state,
+                    (
+                        'active'
+                        if notifications_available
+                        else 'notifications_unavailable'
+                    ),
                     _now_ms(),
                 ),
             )
+            connection.execute(
+                """INSERT INTO native_binding_provenance
+                VALUES (?, ?, ?, ?, NULL, NULL)""",
+                (
+                    native_alias,
+                    attempt_id,
+                    _native_public_fingerprint(public_agent_id),
+                    binding_source,
+                ),
+            )
             connection.commit()
-            return state
-        except IdentityConflict:
+            return (
+                'active'
+                if notifications_available
+                else 'notifications_unavailable'
+            )
+        except (IdentityConflict, NativeBoundary):
             connection.rollback()
             raise
         except sqlite3.IntegrityError as exc:
             connection.rollback()
-            raise IdentityConflict from exc
+            raise NativeBoundary('native_binding_mismatch') from exc
         except sqlite3.Error as exc:
             connection.rollback()
             raise StateCorrupt from exc
         finally:
             connection.close()
 
-    def native_notification(self, native_invocation_id: str) -> bool:
+    @staticmethod
+    def _verified_native_binding(
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+    ) -> sqlite3.Row:
+        native = connection.execute(
+            """SELECT native_invocations.notifications_available,
+                      native_invocations.lifecycle_status,
+                      native_binding_provenance.attempt_id,
+                      native_binding_provenance.public_agent_id_fingerprint,
+                      native_binding_provenance.invalidation_reason
+            FROM native_invocations
+            JOIN native_binding_provenance
+              ON native_binding_provenance.native_alias =
+                 native_invocations.native_invocation_id
+            WHERE native_invocations.native_invocation_id = ?""",
+            (native_alias,),
+        ).fetchone()
+        if native is None:
+            raise NativeBoundary('native_binding_mismatch')
+        expected = _native_public_fingerprint(public_agent_id)
+        if (
+            native['attempt_id'] != attempt_id
+            or not hmac.compare_digest(
+                native['public_agent_id_fingerprint'], expected
+            )
+        ):
+            raise NativeBoundary('native_binding_mismatch')
+        if native['invalidation_reason'] is not None:
+            raise NativeBoundary('native_binding_invalidated')
+        return native
+
+    def native_notification(
+        self, attempt_id: str, native_alias: str, public_agent_id: str
+    ) -> bool:
         """Record a platform completion notification without inferring progress."""
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
-            native = connection.execute(
-                """SELECT notifications_available, lifecycle_status
-                FROM native_invocations WHERE native_invocation_id = ?""",
-                (native_invocation_id,),
-            ).fetchone()
-            if native is None:
-                raise IdentityConflict
-            if not native[0]:
+            native = self._verified_native_binding(
+                connection, attempt_id, native_alias, public_agent_id
+            )
+            if not native['notifications_available']:
                 raise NativeBoundary('native_notifications_unavailable')
-            if native[1] == 'completion_notified':
+            if native['lifecycle_status'] == 'completion_notified':
                 connection.commit()
                 return True
-            if native[1] != 'active':
+            if native['lifecycle_status'] != 'active':
                 raise NativeBoundary('native_read_refused')
             connection.execute(
                 """UPDATE native_invocations
                 SET lifecycle_status = 'completion_notified', notified_at_ms = ?
                 WHERE native_invocation_id = ?""",
-                (_now_ms(), native_invocation_id),
+                (_now_ms(), native_alias),
             )
             connection.commit()
             return False
-        except (IdentityConflict, NativeBoundary):
+        except NativeBoundary:
             connection.rollback()
             raise
         except sqlite3.Error as exc:
@@ -1266,32 +1533,30 @@ class Ledger:
         finally:
             connection.close()
 
-    def claim_native_read(self, native_invocation_id: str) -> None:
+    def claim_native_read(
+        self, attempt_id: str, native_alias: str, public_agent_id: str
+    ) -> None:
         """Authorize exactly one read, and only after completion notification."""
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
-            native = connection.execute(
-                """SELECT notifications_available, lifecycle_status
-                FROM native_invocations WHERE native_invocation_id = ?""",
-                (native_invocation_id,),
-            ).fetchone()
-            if native is None:
-                raise IdentityConflict
-            if not native[0]:
+            native = self._verified_native_binding(
+                connection, attempt_id, native_alias, public_agent_id
+            )
+            if not native['notifications_available']:
                 raise NativeBoundary('native_notifications_unavailable')
-            if native[1] == 'active':
+            if native['lifecycle_status'] == 'active':
                 raise NativeBoundary('completion_notification_required')
-            if native[1] != 'completion_notified':
+            if native['lifecycle_status'] != 'completion_notified':
                 raise NativeBoundary('native_read_refused')
             connection.execute(
                 """UPDATE native_invocations
                 SET lifecycle_status = 'read_claimed', read_claimed_at_ms = ?
                 WHERE native_invocation_id = ?""",
-                (_now_ms(), native_invocation_id),
+                (_now_ms(), native_alias),
             )
             connection.commit()
-        except (IdentityConflict, NativeBoundary):
+        except NativeBoundary:
             connection.rollback()
             raise
         except sqlite3.Error as exc:
@@ -1302,7 +1567,9 @@ class Ledger:
 
     def observe_native(
         self,
-        native_invocation_id: str,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
         observation: str,
         terminal_fingerprint: str | None,
     ) -> tuple[str, list[str]]:
@@ -1310,13 +1577,11 @@ class Ledger:
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
-            native = connection.execute(
-                """SELECT attempt_id, lifecycle_status
-                FROM native_invocations WHERE native_invocation_id = ?""",
-                (native_invocation_id,),
-            ).fetchone()
-            if native is None:
-                raise IdentityConflict
+            native = self._verified_native_binding(
+                connection, attempt_id, native_alias, public_agent_id
+            )
+            if not native['notifications_available']:
+                raise NativeBoundary('native_notifications_unavailable')
             if native['lifecycle_status'] != 'read_claimed':
                 raise NativeBoundary('native_read_refused')
             descendants: list[str] = []
@@ -1326,7 +1591,7 @@ class Ledger:
                     raise FinishConflict
                 descendants, _ = self._terminate_tree_in_transaction(
                     connection,
-                    native['attempt_id'],
+                    attempt_id,
                     'lost',
                     terminal_fingerprint,
                 )
@@ -1337,11 +1602,59 @@ class Ledger:
                 """UPDATE native_invocations
                 SET lifecycle_status = ?, observed_at_ms = ?
                 WHERE native_invocation_id = ?""",
-                (state, now, native_invocation_id),
+                (state, now, native_alias),
             )
             connection.commit()
             return state, descendants
-        except (IdentityConflict, NativeBoundary, FinishConflict):
+        except (NativeBoundary, FinishConflict):
+            connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def invalidate_native(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        invalidation_reason: str,
+    ) -> bool:
+        """Permanently invalidate one exact native binding without registry access."""
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            native = connection.execute(
+                """SELECT attempt_id, public_agent_id_fingerprint,
+                          invalidation_reason
+                FROM native_binding_provenance WHERE native_alias = ?""",
+                (native_alias,),
+            ).fetchone()
+            expected = _native_public_fingerprint(public_agent_id)
+            if (
+                native is None
+                or native['attempt_id'] != attempt_id
+                or not hmac.compare_digest(
+                    native['public_agent_id_fingerprint'], expected
+                )
+            ):
+                raise NativeBoundary('native_binding_mismatch')
+            if native['invalidation_reason'] is not None:
+                if native['invalidation_reason'] != invalidation_reason:
+                    raise NativeBoundary('native_binding_invalidated')
+                connection.commit()
+                return True
+            connection.execute(
+                """UPDATE native_binding_provenance
+                SET invalidation_reason = ?, invalidated_at_ms = ?
+                WHERE native_alias = ?""",
+                (invalidation_reason, _now_ms(), native_alias),
+            )
+            connection.commit()
+            return False
+        except NativeBoundary:
             connection.rollback()
             raise
         except sqlite3.Error as exc:
@@ -1550,8 +1863,13 @@ def main() -> int:
                 'artifact_revision', 'lifecycle_transition',
                 'replacement_of_attempt_id',
             }
+            dispatch_keys = {'dispatch_mode', 'execution_provenance'}
             if frozenset(request) not in {
-                frozenset(legacy_keys), frozenset(lifecycle_keys)
+                frozenset(legacy_keys),
+                frozenset(lifecycle_keys),
+                frozenset(lifecycle_keys | dispatch_keys),
+                frozenset(lifecycle_keys | {'dispatch_mode'}),
+                frozenset(lifecycle_keys | {'execution_provenance'}),
             }:
                 raise RequestFailure('request keys do not match schema v1')
             mode = request['mode']
@@ -1566,10 +1884,17 @@ def main() -> int:
             _validate_identity_fields(request)
             if 'artifact_revision' in request:
                 _validate_lifecycle_fields(request)
+                _dispatch_profile(request)
             route, slot_role = _validate_contract(request)
             limits = _load_policy()
             ledger = Ledger(_ledger_path())
             outcome = ledger.admit(request, route, slot_role, limits)
+            if outcome.get('protocol_reason') == 'direct_sibling_active':
+                outcome.pop('protocol_reason')
+                _emit(
+                    _response(command, 'direct_sibling_active', **outcome),
+                    EXIT_INVALID,
+                )
             if outcome.get('lifecycle_transition') in {
                 'duplicate_launch', 'illegal_transition'
             }:
@@ -1594,25 +1919,32 @@ def main() -> int:
                 request,
                 {
                     'schema_version', 'command', 'attempt_id',
-                    'native_invocation_id', 'notifications_available',
+                    'native_alias', 'public_agent_id', 'binding_source',
+                    'notifications_available',
                 },
             )
             if not is_valid_identity(request['attempt_id'], 'attempt'):
                 raise RequestFailure('invalid attempt_id')
-            if not is_valid_identity(request['native_invocation_id'], 'native'):
-                raise RequestFailure('invalid native_invocation_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if request['binding_source'] != NATIVE_BINDING_SOURCE:
+                raise RequestFailure('invalid binding_source')
             if not isinstance(request['notifications_available'], bool):
                 raise RequestFailure('notifications_available must be boolean')
             state = Ledger(_ledger_path()).bind_native(
                 str(request['attempt_id']),
-                str(request['native_invocation_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['binding_source']),
                 request['notifications_available'],
             )
             _emit(
                 _response(
                     command, 'native_bound', native_status=state,
                     wait_strategy=(
-                        'completion_notification'
+                        'external_completion_notification_no_poll'
                         if request['notifications_available']
                         else 'notifications_unavailable_no_polling'
                     ),
@@ -1623,12 +1955,22 @@ def main() -> int:
         if command == 'native_notification':
             _load_policy()
             _require_exact_keys(
-                request, {'schema_version', 'command', 'native_invocation_id'}
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id',
+                },
             )
-            if not is_valid_identity(request['native_invocation_id'], 'native'):
-                raise RequestFailure('invalid native_invocation_id')
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
             idempotent = Ledger(_ledger_path()).native_notification(
-                str(request['native_invocation_id'])
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
             )
             _emit(
                 _response(
@@ -1640,12 +1982,22 @@ def main() -> int:
         if command == 'native_read':
             _load_policy()
             _require_exact_keys(
-                request, {'schema_version', 'command', 'native_invocation_id'}
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id',
+                },
             )
-            if not is_valid_identity(request['native_invocation_id'], 'native'):
-                raise RequestFailure('invalid native_invocation_id')
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
             Ledger(_ledger_path()).claim_native_read(
-                str(request['native_invocation_id'])
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
             )
             _emit(
                 _response(command, 'native_read_authorized', read_authorized=True),
@@ -1657,12 +2009,17 @@ def main() -> int:
             _require_exact_keys(
                 request,
                 {
-                    'schema_version', 'command', 'native_invocation_id',
-                    'observation', 'terminal_fingerprint',
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id', 'observation',
+                    'terminal_fingerprint',
                 },
             )
-            if not is_valid_identity(request['native_invocation_id'], 'native'):
-                raise RequestFailure('invalid native_invocation_id')
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
             observation = request['observation']
             terminal = request['terminal_fingerprint']
             if observation not in {'found', 'not_found'}:
@@ -1673,7 +2030,9 @@ def main() -> int:
             ) or (observation == 'found' and terminal is not None):
                 raise RequestFailure('invalid native observation fingerprint')
             state, orphaned = Ledger(_ledger_path()).observe_native(
-                str(request['native_invocation_id']),
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
                 str(observation),
                 str(terminal) if terminal is not None else None,
             )
@@ -1681,6 +2040,39 @@ def main() -> int:
                 _response(
                     command, 'native_observation_recorded', native_status=state,
                     orphaned_attempt_ids=orphaned,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'invalidate_native':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id',
+                    'invalidation_reason',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if request['invalidation_reason'] not in NATIVE_INVALIDATION_REASONS:
+                raise RequestFailure('invalid invalidation_reason')
+            idempotent = Ledger(_ledger_path()).invalidate_native(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['invalidation_reason']),
+            )
+            _emit(
+                _response(
+                    command, 'native_invalidated',
+                    invalidation_reason=request['invalidation_reason'],
+                    idempotent=idempotent,
                 ),
                 EXIT_OK,
             )
@@ -1820,6 +2212,14 @@ def main() -> int:
         values: dict[str, object] = {}
         if command == 'native_read':
             values['read_authorized'] = False
+        if command == 'admit':
+            values.update(
+                {
+                    'policy_reason': None,
+                    'would_reject': True,
+                    'launch_authorized': False,
+                }
+            )
         _emit(
             _response(command, exc.reason_code, **values),
             EXIT_MODE

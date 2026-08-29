@@ -88,13 +88,29 @@ of `initial_launch`, `resume`, `replacement`, or
 is separately identified, is consumed once, and is never launched
 automatically or chained.
 
-After native launch, bind one opaque native alias. Wait for the native
-completion notification without reads or polling, claim one read, perform it
-once, and record `found` or authoritative `not_found`. If notifications are
-unavailable, expose that limitation and stop waiting rather than poll. First
-not-found records loss and permanently refuses another read of that alias. For
-parent abort, shutdown, or failure, run idempotent `terminate_tree` cleanup so
-active descendants become explicit leaf-first `orphaned` records before the
+Send explicit dispatch provenance. Default to `dispatch_mode=sync` with
+`execution_provenance=sync_inline`. Use background only with
+`dispatch_mode=background` and
+`execution_provenance=background_independent_immediate_no_poll`, and only when
+independent parent work starts immediately. One non-null parent attempt may
+have at most one active direct child; wait for it to terminalize before
+admitting a sibling. Sequential nesting is allowed because the child becomes a
+different parent. Roots and unrelated parents are not globally serialized.
+
+Sync returns inline: do not bind or call `read_agent`. For valid background,
+bind a new `nat_*` repository alias to the exact public agent ID returned by
+successful `task` with `binding_source=task_result`. Carry the attempt ID,
+alias, and exact public ID on completion notification, the single read claim,
+and observation. Wait for external notification without status checks,
+`read_agent(wait:true)`, or polling, then claim and perform exactly one read.
+If completion notifications are unavailable, record that limitation and stop
+without reading or polling.
+On shutdown, resume, or context replacement, invalidate the exact binding;
+never search the registry, infer identity, rebind, mark loss, replace, or
+relaunch automatically. Mediated pre-completion write is unsupported.
+
+For parent abort, shutdown, or failure, run idempotent `terminate_tree` cleanup
+so active descendants become explicit leaf-first `orphaned` records before the
 parent terminalizes. Record progress only through new substantive progress
 fingerprints; notifications, reads, and elapsed time are not progress and never
 imply staleness.
@@ -102,9 +118,10 @@ imply staleness.
 The checked-in mode starts at `instrument`; `shadow` is an explicit observation
 step. Ordinary candidate-policy `would_reject` decisions and unavailable state
 remain non-blocking because enforcement is unavailable. Lifecycle duplicates,
-illegal transitions, the one-read boundary, and the explicit kill switch fail
-closed for cooperative calls. Never request `enforce` or silently alias it to
-another mode. This is cooperative repository mediation only: the repository
+illegal transitions, direct-sibling conflicts, invalid dispatch provenance,
+binding mismatch/invalidation, the one-read boundary, and the explicit kill
+switch fail closed for cooperative calls. Never request `enforce` or silently
+alias it to another mode. This is cooperative repository mediation only: the repository
 cannot intercept, poll, or cancel native agent calls, and unmediated activity
 remains outside coverage. See `docs/dev/agent-invocation-control.md`.
 

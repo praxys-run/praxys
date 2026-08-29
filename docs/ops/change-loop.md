@@ -92,20 +92,39 @@ A lost non-replacement attempt may make one separately identified replacement
 eligible; an operator or orchestrator must explicitly consume it. Nothing
 auto-launches, and replacements never chain.
 
-Native waiting is notification-driven: bind an opaque native alias, wait for
-the platform completion notification without reading or polling, claim one
-read, then record found or authoritative not-found. If native notifications are
-unavailable, record the limitation and stop; do not add a polling fallback.
-The first not-found record closes that native alias permanently. On parent
+Lifecycle-aware calls also serialize only at the direct-parent boundary: one
+non-null parent may have one active direct child. A sibling waits until that
+child terminalizes. Sequential nesting, roots, and unrelated parents are not
+globally serialized.
+
+Cooperative callers explicitly use `sync`/`sync_inline` by default. Sync returns
+inline and does not bind or read an agent. Background is allowed only with
+`background`/`background_independent_immediate_no_poll` and immediate,
+independent parent work. Bind a `nat_*` repository alias to the exact public
+agent ID returned by successful `task`; the ledger keeps only its
+domain-separated fingerprint. Wait for external completion notification
+without status checks, `read_agent(wait:true)`, or polling, claim one read, then
+record found or authoritative not-found using the same attempt, alias, and
+exact public ID. The first not-found record closes that binding permanently.
+If completion notifications are unavailable, record the limitation and stop
+without reading or polling.
+On parent
 abort, shutdown, or failure, invoke `terminate_tree` to make active descendants
 leaf-first `orphaned` records before the parent terminal record. This does not
 cancel or kill native activity. Only an explicit new progress fingerprint
 updates last progress; elapsed time establishes no loss or staleness.
 
+For shutdown, resume, or context replacement, explicitly invalidate the exact
+binding. Invalidation performs no native registry lookup, polling, inference,
+automatic loss, replacement, relaunch, or external rebind. Mediated
+pre-completion write is unsupported. Use `terminate_tree` separately when
+attempt cleanup is intended.
+
 This is accepted-policy lifecycle correctness, not a role, routing, policy
-limit, reviewer-authority, autonomy, or enforcement change. The current local
-implementation is not approved for release and still requires independent
-Quality verification. The repository does not own Copilot's native registry,
+limit, reviewer-authority, autonomy, or enforcement change. The bounded PR
+correction is semantically authorized for implementation but is not approved
+for release and still requires independent Quality verification. The
+repository does not own Copilot's native registry,
 notification delivery, read API, or cancellation, and cannot govern unmediated
 calls.
 

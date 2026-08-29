@@ -74,18 +74,35 @@ immutable artifact digest or Git head. Explicitly record `initial_launch`,
 identified, manually admitted, one-use transition from a lost non-replacement
 attempt and cannot chain.
 
-Bind native invocations through opaque aliases. Wait only for native completion
-notification, then claim and perform exactly one read and record its result. Do
-not create read or poll loops; expose unavailable notifications as a limitation.
-First authoritative not-found records loss and closes that native alias
-permanently. Parent abort, shutdown, or failure uses idempotent `terminate_tree`
-so active descendants become leaf-first `orphaned` records before the parent
-terminalizes. Only explicit new progress evidence updates last progress; do not
-infer staleness from reads or elapsed time.
+Send `dispatch_mode=sync` and `execution_provenance=sync_inline` by default.
+Background is valid only as `dispatch_mode=background` with
+`execution_provenance=background_independent_immediate_no_poll`, when concrete
+independent parent work begins immediately. One non-null parent attempt may
+have only one active direct child; admit the next sibling only after the first
+terminalizes. Sequential nesting remains allowed under the child's distinct
+parent attempt. Roots and unrelated parents remain independent.
+
+Sync returns inline and must not bind or call `read_agent`. For valid
+background, bind a `nat_*` repository alias to the exact public agent ID
+returned by successful `task`, using `binding_source=task_result`. Carry the
+attempt ID, alias, and exact public ID through notification, one read claim, and
+observation. Wait for external completion notification without status checks,
+`read_agent(wait:true)`, or polling. On shutdown, resume, or context
+replacement, invalidate that exact binding without registry lookup, inference,
+loss, replacement, relaunch, or external rebind. Mediated pre-completion write
+is unsupported. If completion notifications are unavailable, expose that
+limitation and stop without reading or polling.
+
+Parent abort, shutdown, or failure uses idempotent `terminate_tree` so active
+descendants become leaf-first `orphaned` records before the parent terminalizes.
+Only explicit new progress evidence updates last progress; do not infer
+staleness from reads or elapsed time.
 
 Only `instrument` and `shadow` are available. Ordinary candidate-policy denies
 do not block dispatch; lifecycle duplicates/illegal transitions, one-read
-violations, and the explicit kill switch fail closed for cooperative calls.
+violations, direct-sibling conflicts, invalid dispatch provenance, native
+binding mismatch/invalidation, and the explicit kill switch fail closed for
+cooperative calls.
 This integration cannot intercept, poll, kill, cancel, or otherwise govern
 native/unmediated invocations and must not claim global enforcement. Follow
 `docs/dev/agent-invocation-control.md`.

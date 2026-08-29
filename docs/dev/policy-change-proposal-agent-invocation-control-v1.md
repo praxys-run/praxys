@@ -5,12 +5,15 @@
 - **artifact_type:** `policy-change-proposal`
 - **artifact implementation status:** repository-native Markdown; not schema-backed
 - **owner_role:** `meta-eval`
-- **status:** Accepted for instrument/shadow implementation only
+- **status:** Accepted 2026-08-20 baseline; bounded 2026-08-29 correction semantically authorized for implementation
 - **proposal_date:** `2026-08-20`
-- **digest:** `sha256:d6b9a136b44ae52d993ae07dd0000d946e201f73ea1b4db5cb116f01bab9e0f6`
+- **accepted baseline digest:** `sha256:d6b9a136b44ae52d993ae07dd0000d946e201f73ea1b4db5cb116f01bab9e0f6`
+- **bounded correction date:** `2026-08-29`
 
-The digest above is the accepted proposal subject identifier supplied to and
-approved by the human authority. It is not asserted to be a hash of this
+The accepted baseline digest identifies the 2026-08-20 proposal subject
+supplied to and approved by the human authority. The bounded correction has
+explicit semantic user authority; no new digest-bound approval is asserted or
+fabricated. The accepted baseline digest is not asserted to be a hash of this
 rendered Markdown file.
 
 ## Work Contract binding
@@ -224,3 +227,117 @@ This proposal does not authorize or decide:
 
 Each deferred item requires evidence from the observation plan and a separate
 independent decision route. No successful single run can promote autonomy.
+
+## Bounded lifecycle correction: 2026-08-29
+
+This section preserves the accepted 2026-08-20 history. After the upstream
+investigation, the user explicitly authorized the bounded PR improvement with
+“好，那根据这个改进一下这个PR？” and “继续没做完的工作”.
+Meta/Eval determined that this is sufficient semantic authority for
+deterministic implementation, and the Decision Review route is
+`agent-resolved`. Implementation does not complete independent verification,
+approve release, or silently alter any individual live decision.
+
+### Decision packet
+
+- **bounded question:** Should Praxys adopt the minimal cooperative invocation
+  correction below for implementation and independent Quality verification?
+- **recommendation:** Implement the bounded correction while leaving activation,
+  release, enforcement, native interception, autonomy, bound tuning, and all
+  other listed deferrals closed.
+- **alternative A:** Retain only the accepted 2026-08-20 instrument/shadow
+  baseline. This avoids a policy expansion but leaves direct-sibling
+  serialization, sync default, and stale-binding invalidation unspecified.
+- **alternative B:** Defer all repository mitigation until an upstream runtime
+  fix is declared and verified. This avoids local policy complexity but leaves
+  known cooperative risk signals unmitigated.
+- **user impact:** Manifest-coordinated direct siblings would be serialized at
+  the narrowest parent scope. Sync would be the default. Background work would
+  remain possible only under the concrete, independent, immediate-work and
+  no-poll conditions frozen below. Unmediated native activity would remain
+  possible and outside repository coverage.
+- **review route:** `agent-resolved` for deterministic implementation of the
+  bounded accepted behaviors.
+- **authorization state:** semantically authorized by the user's explicit
+  request; no digest-bound approval claimed.
+
+### Upstream context and claim boundary
+
+This is a cooperative mitigation informed by community reports on GitHub's
+official Copilot CLI tracker, not a maintainer-confirmed root cause, runtime
+fix, or fix verification:
+
+- https://github.com/github/copilot-cli/issues/4533
+- https://github.com/github/copilot-cli/issues/3350
+- https://github.com/github/copilot-cli/issues/4225
+- https://github.com/github/copilot-cli/issues/2595
+
+WSL2 reproduces the behavior but is not established as causal. The published
+notes for versions `1.0.81` and `1.0.82-1` declare no relevant fix; this does
+not prove that no fix exists. The
+historical issue-report workaround that replaced a stuck background
+`general-purpose` agent with parallel `explore` agents is not current Praxys
+policy; it conflicts with the bounded direct-sibling serialization proposed
+here. Repository cooperation cannot repair terminal event consumption,
+subagent completion delivery, coordinator scheduling, native task state, or
+process shutdown.
+
+### Rejected expansion concepts
+
+An interrupted pre-authorization draft considered schema v2, context epochs,
+keyed native IDs, generalized aliases, registry rediscovery, and external
+rebind. Independent review rejected those mechanisms as unnecessary for this
+correction. They are not an approval artifact or implementation input and
+remain deferred.
+
+### Governing semantically authorized behavior
+
+The implementation authority is bounded to the following corrected behavior:
+
+- at most one active lifecycle-aware direct child per non-null parent attempt,
+  transactionally, while sequential nesting, unrelated parents, and roots
+  remain independent;
+- default/explicit sync provenance `sync_inline`, and background only with the
+  categorical attestation `background_independent_immediate_no_poll`;
+- sync inline completion with no bind/read, or background external-notification
+  completion with exactly one claimed read and no polling;
+- a `nat_*` repository alias bound from `binding_source=task_result` to only a
+  domain-separated fingerprint of the exact public agent ID;
+- attempt + alias + exact-public-ID verification for notification, read, and
+  observation, with mismatch and stale binding use rejected;
+- explicit binding invalidation for shutdown, resume, and context replacement,
+  with no registry lookup, inference, automatic loss, replacement, relaunch, or
+  external rebind;
+- additive schema-v1 auxiliary tables and transactional `init` upgrade; and
+- stable additive reason codes, focused tests, privacy, and Local/Cloud parity.
+
+The subject retains the accepted starting limits, instrument-then-shadow
+observation boundary, privacy boundary, mediated kill switch, and immediate
+removal or demotion path. It narrows direct-sibling concurrency only at the
+active parent-attempt boundary, so it does not create a global lock and does
+not prohibit a sequential nested chain under the existing depth and contract
+bounds.
+
+### Human approval subject
+
+No digest-bound approval statement is recorded or required for this bounded
+correction. The user's explicit semantic authorization governs the behavior
+listed immediately above. Meta/Eval does not self-approve activation, release,
+enforcement, native interception, autonomy promotion, bound tuning, or any
+listed deferral.
+
+### Expansion-specific deferrals
+
+The semantic authorization does not authorize any of the following:
+
+- activation, release, or merge;
+- a claim of completed replay, shadow observation, or Quality verification;
+- parallel direct siblings, unbounded background work, polling, repeated reads,
+  automatic replacement, or automatic relaunch;
+- native runtime repair, interception, cancellation, or global enforcement;
+- schema v2, context epochs, keyed/native ID schemes, generalized aliases,
+  registry rediscovery, or external rebind;
+- changes to roles, routes, reviewer authority, the operating-model version,
+  starting bounds, or autonomy; or
+- treatment of one successful run or one environment reproduction as promotion
+  evidence.
