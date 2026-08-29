@@ -457,7 +457,7 @@ The post-sync hook (`api/insights_runner.py`) runs two durable bilingual generat
 
 - **Content-addressable cache.** Each durable insight type has a SHA-256 fingerprint (`analysis/insight_hash.py`) of the inputs that drive it (sessions, CP trend, goal, etc.). The user's selected science pillars are folded in, so swapping load model from Banister to Seiler invalidates the hash and regenerates on next sync. A matching hash is trusted only when the row also carries server-owned generation provenance.
 - **Per-user daily cap.** `PRAXYS_INSIGHT_DAILY_CAP` (default 30) bounds LLM calls per user per UTC day. When the cap is exhausted the runner short-circuits and existing rows persist.
-- **Graceful fallback.** When `AZURE_AI_ENDPOINT` is unset (or the openai/azure-identity SDKs are missing), `api.llm.get_client()` returns `None`, generators return `None`, and rule-based product surfaces continue to render. Sync never fails because of insight generation; both hook sites catch and log exceptions.
+- **Explicit AI unavailability.** When the centralized AI stop is active or the Azure client is unavailable, AI-only surfaces report unavailable. Deterministic metrics remain available on separately labeled surfaces; they are not presented as AI output. Sync never fails because of insight generation; both hook sites catch and log exceptions.
 
 **Deterministic Today.** Same-day guidance comes only from `daily_training_signal()`.
 The runner never generates or refreshes `daily_brief`; insight reads hide legacy
@@ -471,7 +471,7 @@ from contradicting the canonical verdict.
 **Auth.** `api/llm.py::get_client()` uses `DefaultAzureCredential` + `get_bearer_token_provider` — same scaffolding as `scripts/translate_missing.py`. No API key path. Reasoning deployment configured via `PRAXYS_INSIGHT_MODEL`; new-string translation via `TRANSLATE_MODEL`; native-language catalog editor/critic review via `TRANSLATE_REVIEW_MODEL`.
 
 **Mini program.** Analysis and Goal render the same durable insight receipts as
-web with deterministic fallbacks. Today renders only the canonical deterministic
+web beside separately labeled deterministic summaries. Today renders only the canonical deterministic
 signal and never requests a `daily_brief` row.
 
 ### MCP Plugin

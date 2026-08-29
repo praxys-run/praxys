@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useLocale } from "@/contexts/LocaleContext";
 import {
   TERMS_VERSION, EFFECTIVE_DATE, SUPPORT_EMAIL,
@@ -12,10 +13,17 @@ interface Props {
 
 export default function LegalPage({ kind, sections }: Props) {
   const { locale, setLocale } = useLocale();
+  const location = useLocation();
   const zh = locale === "zh";
   const title = kind === "terms"
     ? (zh ? "服务条款与最终用户许可" : "Terms of Service & EULA")
     : (zh ? "隐私政策" : "Privacy Policy");
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    target?.scrollIntoView({ block: "start" });
+  }, [location.hash, locale]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -41,7 +49,7 @@ export default function LegalPage({ kind, sections }: Props) {
 
         <div className="mt-8 space-y-6">
           {sections.map((s) => (
-            <section key={s.id}>
+            <section key={s.id} id={s.id} className="scroll-mt-6">
               <h3 className="text-base font-semibold">{zh ? s.title.zh : s.title.en}</h3>
               {s.body.map((p, i) => (
                 <p key={i} className="mt-1 text-sm leading-relaxed text-muted-foreground">

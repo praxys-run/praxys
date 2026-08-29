@@ -44,6 +44,11 @@ from api import (
     llm,
     telemetry,
 )
+from api.optional_processing import (
+    background_ai_authorized,
+    feedback_has_publication_consent,
+    feedback_publication_authorized,
+)
 from db.agent_loop import (
     canonical_json_hash,
     record_decision,
@@ -293,6 +298,10 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         # screenshot is present but couldn't be vision-verified, which the gate
         # treats as unsafe to auto-publish.
         image_keys = list(row.image_keys or [])
+        allow_background_ai = background_ai_authorized(
+            db,
+            user_id=row.user_id,
+        )
         image_section = ""
         used_vision = False
         image_flag: Optional[bool] = None
@@ -302,7 +311,11 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 got = feedback_storage.load_image(key)
                 if got is not None:
                     loaded.append(got)
-            vision = feedback_vision.analyze_images(loaded) if loaded else None
+            vision = (
+                feedback_vision.analyze_images(loaded)
+                if loaded and allow_background_ai
+                else None
+            )
             if vision is not None:
                 used_vision = True
                 description = feedback_scrub.scrub_text(vision["description"])
@@ -333,7 +346,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         agent_eligible: Optional[bool] = None
         challenger_version = _challenger_prompt_version()
         challenger_output: feedback_prompt.TriageModelOutput | None = None
-        client = llm.get_client()
+        client = llm.get_client() if allow_background_ai else None
         title = body = None
         if client is not None:
             active_output = _call_triage_model(
@@ -536,24 +549,41 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             row.error = None
             outcome_type = "held_for_review"
         else:
-            issue = github_issues.create_issue(title=title, body=body, labels=labels)
-            if issue and issue.get("number"):
-                row.github_issue_number = issue["number"]
-                row.github_issue_url = issue.get("url")
-                row.status = "issue_created"
+            if not feedback_publication_authorized(
+                db,
+                user_id=row.user_id,
+                submission_authorized=feedback_has_publication_consent(row),
+            ):
+                # A submission authorizes private support handling, not public
+                # publication. Preserve the scrubbed draft for explicit admin
+                # review; only the approve route may call create_issue().
+                row.status = "needs_review"
                 row.error = None
-                outcome_type = "github_issue_created"
-                if AGENT_READY_LABEL in labels:
-                    applied_output = {
-                        **decision.output_json,
-                        "agent_ready_applied": True,
-                    }
-                    decision.output_json = applied_output
-                    decision_kwargs["output_data"] = applied_output
+                outcome_type = "held_for_publication_authorization"
             else:
-                row.status = "failed"
-                row.error = "github_publish_failed"
-                outcome_type = "github_publish_failed"
+                issue = github_issues.create_issue(
+                    title=title,
+                    body=body,
+                    labels=labels,
+                    publication_authorized=True,
+                )
+                if issue and issue.get("number"):
+                    row.github_issue_number = issue["number"]
+                    row.github_issue_url = issue.get("url")
+                    row.status = "issue_created"
+                    row.error = None
+                    outcome_type = "github_issue_created"
+                    if AGENT_READY_LABEL in labels:
+                        applied_output = {
+                            **decision.output_json,
+                            "agent_ready_applied": True,
+                        }
+                        decision.output_json = applied_output
+                        decision_kwargs["output_data"] = applied_output
+                else:
+                    row.status = "failed"
+                    row.error = "github_publish_failed"
+                    outcome_type = "github_publish_failed"
 
         outcome_payload = {"status": row.status}
         if row.github_issue_number is not None:

@@ -58,8 +58,11 @@ class User(Base):
     last_seen_at = Column(DateTime, nullable=True, index=True)
 
     # EULA acceptance recorded at registration: proves which Terms/EULA
-    # version each user agreed to and when. See api/legal.py::TERMS_VERSION.
+    # version/content bundle is currently accepted. The append-only evidence
+    # lives in TermsAcceptanceReceipt; these fields are only a current
+    # projection for request gating.
     terms_version = Column(String(20), nullable=True)
+    terms_digest = Column(String(71), nullable=True)
     terms_accepted_at = Column(DateTime, nullable=True)
 
     # WeChat Mini Program identity. openid is per-app, unionid spans apps under the
@@ -74,6 +77,50 @@ class User(Base):
 
     config = relationship("UserConfig", back_populates="user", uselist=False)
     connections = relationship("UserConnection", back_populates="user")
+
+
+class TermsAcceptanceReceipt(Base):
+    """Append-only evidence of a Terms acceptance and Privacy read action."""
+
+    __tablename__ = "terms_acceptance_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    action = Column(
+        String(40),
+        nullable=False,
+        default="accept_terms_and_acknowledge_privacy",
+    )
+    terms_version = Column(String(20), nullable=False)
+    terms_digest = Column(String(71), nullable=False)
+    locale = Column(String(10), nullable=True)
+    channel = Column(String(30), nullable=False)
+    client_version = Column(String(80), nullable=True)
+    source_sha = Column(String(64), nullable=True)
+    notice_version = Column(String(20), nullable=True)
+    release_id = Column(String(128), nullable=True)
+    accepted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "action = 'accept_terms_and_acknowledge_privacy'",
+            name="ck_terms_receipt_action",
+        ),
+        CheckConstraint(
+            "terms_digest LIKE 'sha256:%'",
+            name="ck_terms_receipt_digest",
+        ),
+        Index(
+            "ix_terms_receipt_user_accepted",
+            "user_id",
+            "accepted_at",
+        ),
+    )
 
 
 class Invitation(Base):
@@ -2421,6 +2468,11 @@ class Feedback(Base):
     # describe their environment. Scrubbed before publication.
     context_json = Column(JSON, nullable=True)
     locale = Column(String(10), nullable=True)
+    # Explicit, purpose-specific submitter grant for publishing this one
+    # scrubbed submission to the configured external issue tracker. Legacy
+    # rows and ordinary private feedback leave both fields NULL.
+    publication_consent_version = Column(String(64), nullable=True)
+    publication_consented_at = Column(DateTime, nullable=True)
     # new | triaged | needs_review | issue_created | resolved | failed | rejected
     # ``resolved`` is set when the linked GitHub issue is closed (synced back via
     # the admin "Sync from GitHub" action); a reopen flips it to issue_created.

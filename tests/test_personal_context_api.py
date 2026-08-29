@@ -26,6 +26,7 @@ def context_api(monkeypatch):
     monkeypatch.setenv("DATA_DIR", tmpdir.name)
     monkeypatch.setenv("PRAXYS_SYNC_SCHEDULER", "false")
     monkeypatch.setenv("PRAXYS_JWT_SECRET", "context-api-test-secret")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.setenv(
         "PRAXYS_LOCAL_ENCRYPTION_KEY",
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
@@ -49,6 +50,7 @@ def context_api(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
@@ -58,12 +60,16 @@ def context_api(monkeypatch):
                 email="context-api-owner@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="context-api-other",
                 email="context-api-other@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
         ])
         db.commit()
@@ -502,75 +508,24 @@ def test_correction_appends_and_stale_versions_conflict(context_api) -> None:
         ]
 
 
-def test_only_athlete_can_grant_ai_consent_and_retries_are_idempotent(
-    context_api,
-) -> None:
+def test_personal_context_has_no_user_ai_opt_out_endpoint(context_api) -> None:
     client, _ = context_api
     created = _confirm(
         client,
-        key="context-consent-create",
+        key="context-no-ai-opt-out",
         narrative=None,
     ).json()["item"]
-    delegated = _headers(
-        praxys_actor_type="delegated_agent",
-        praxys_actor_id="agent:test",
-        scope="plan:context:ai-consent plan:context:read",
-        context_purposes=["plan_adjustment"],
-        context_kinds=["temporary_constraint"],
-    )
-    consent_body = {
-        "expected_version": 1,
-        "decision": "granted",
-        "provider": "azure_openai",
-        "disclosed_fields": [
-            "category",
-            "fields.maximum_available_minutes",
-        ],
-        "narrative_disclosed": False,
-        "consent_text_version": "ai-context-v1",
-        "client": "web",
-    }
-    assert client.post(
+    response = client.post(
         f"/api/personal-context/{created['id']}/ai-consent",
-        headers={**delegated, "Idempotency-Key": "context-ai-consent-1"},
-        json=consent_body,
-    ).status_code == 404
-
-    granted = client.post(
-        f"/api/personal-context/{created['id']}/ai-consent",
-        headers={
-            **_headers(),
-            "Idempotency-Key": "context-ai-consent-1",
+        headers={**_headers(), "Idempotency-Key": "obsolete-ai-consent"},
+        json={
+            "expected_version": 1,
+            "decision": "withdrawn",
+            "consent_text_version": "obsolete",
+            "client": "web",
         },
-        json=consent_body,
     )
-    assert granted.status_code == 200, granted.text
-    assert granted.json()["item"]["processing_mode"] == "ai_allowed"
-    assert granted.json()["receipt"]["consent_scope"] == "ai_processing"
-    assert granted.json()["replayed"] is False
-
-    replayed = client.post(
-        f"/api/personal-context/{created['id']}/ai-consent",
-        headers={
-            **_headers(),
-            "Idempotency-Key": "context-ai-consent-1",
-        },
-        json=consent_body,
-    )
-    assert replayed.status_code == 200
-    assert replayed.json()["replayed"] is True
-
-    changed = dict(consent_body)
-    changed["decision"] = "denied"
-    changed["provider"] = None
-    assert client.post(
-        f"/api/personal-context/{created['id']}/ai-consent",
-        headers={
-            **_headers(),
-            "Idempotency-Key": "context-ai-consent-1",
-        },
-        json=changed,
-    ).status_code == 409
+    assert response.status_code == 404
 
 
 def test_selection_excludes_without_mutation_and_expiry_blocks_use(
@@ -644,22 +599,6 @@ def test_export_includes_all_versions_and_receipts_but_no_other_owner(
         category="travel",
         narrative="Other athlete export secret",
     )
-    consent = client.post(
-        f"/api/personal-context/{created['id']}/ai-consent",
-        headers={
-            **_headers(),
-            "Idempotency-Key": "context-export-ai",
-        },
-        json={
-            "expected_version": 1,
-            "decision": "granted",
-            "provider": "azure_openai",
-            "disclosed_fields": ["category"],
-            "consent_text_version": "ai-context-v1",
-            "client": "web",
-        },
-    )
-    assert consent.status_code == 200
 
     from api.personal_context import record_context_use
 
@@ -709,13 +648,13 @@ def test_export_includes_all_versions_and_receipts_but_no_other_owner(
     assert {
         receipt["consent_scope"]
         for receipt in payload["consent_receipts"]
-    } == {"purpose_confirmation", "ai_processing"}
+    } == {"purpose_confirmation"}
     assert len(payload["use_receipts"]) == 1
     assert "Other athlete export secret" not in json.dumps(payload)
 
     complete = client.get("/api/me/export", headers=_headers())
     assert complete.status_code == 200, complete.text
-    assert complete.json()["schema_version"] == 5
+    assert complete.json()["schema_version"] == 6
     assert {
         item["id"]
         for item in complete.json()["personal_context"]["items"]
@@ -736,22 +675,6 @@ def test_delete_is_non_enumerating_and_stale_lineage_delete_conflicts(
         key="context-delete-create",
         body=confirmation,
     ).json()["item"]
-    consent = client.post(
-        f"/api/personal-context/{created['id']}/ai-consent",
-        headers={
-            **_headers(),
-            "Idempotency-Key": "context-delete-ai",
-        },
-        json={
-            "expected_version": 1,
-            "decision": "granted",
-            "provider": "azure_openai",
-            "disclosed_fields": ["category"],
-            "consent_text_version": "ai-context-v1",
-            "client": "web",
-        },
-    )
-    assert consent.status_code == 200
     from api.personal_context import record_context_use
 
     with db_session.SessionLocal() as db:

@@ -1,5 +1,10 @@
 import { apiPost, TOKEN_KEY } from './api-client';
 import { recordProductEvent } from './product-events';
+import { detectLocale } from './i18n';
+import {
+  TERMS_CONTENT_DIGEST,
+  TERMS_VERSION,
+} from './legal';
 
 /**
  * Three-endpoint WeChat auth flow, mirroring api/routes/wechat.py:
@@ -82,6 +87,10 @@ export async function wechatRegister(
     {
       wechat_login_ticket: ticket,
       invitation_code: invitationCode,
+      accepted_terms: true,
+      terms_version: TERMS_VERSION,
+      terms_digest: TERMS_CONTENT_DIGEST,
+      terms_locale: detectLocale(),
       email: email || null,
       password: password || null,
       nickname: nickname || null,

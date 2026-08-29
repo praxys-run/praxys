@@ -29,6 +29,15 @@ optional Coach-feedback comment, is PII/secret-scrubbed, whitespace-collapsed,
 and truncated to 120 characters before it reaches telemetry; the raw comment is
 never persisted or logged.
 
+For the China release, browser Application Insights and product-event
+telemetry are disabled in the stamped `.cn` artifact, and the mini program does
+not send product events. Essential backend request/security telemetry remains
+in `appi-praxys-backend` in East Asia (Hong Kong), with the backend component
+and shared workspace configured for 30-day retention. Server-side Statsig
+evaluations are local and disable both user-event logging and SDK diagnostics.
+These controls are part of
+[`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md).
+
 Custom signals are emitted by `api/telemetry.py`. Each lands as either:
 - a **customEvent** with that name through the required
   `azure-monitor-events-extension` runtime dependency, **or**

@@ -21,6 +21,7 @@ import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { StatsigProvider } from './contexts/StatsigContext';
 import LocaleSync from './contexts/LocaleSync';
 import Layout from './components/Layout';
+import TermsGate from './components/TermsGate';
 import { Skeleton } from './components/ui/skeleton';
 // Eagerly imported: Landing is the anonymous first-impression, Login is
 // the auth entry point, Today is where every logged-in user lands. All
@@ -35,6 +36,13 @@ import Privacy from './pages/Privacy';
 import Verify from './pages/Verify';
 import Status from './pages/Status';
 import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatus';
+import ChinaProcessingNoticeGate from './components/ChinaProcessingNoticeGate';
+import {
+  acknowledgeChinaProcessingNotice,
+  hasAcknowledgedChinaProcessingNotice,
+  isChinaProcessingPublicPath,
+} from './lib/china-processing';
+import { isChinaFrontendDeployment } from './lib/runtime-region';
 // Lazy-loaded: secondary routes the user navigates to after landing on
 // Today. Chunks load on first visit to each route; cached immutably
 // thereafter (cache headers set by frontend_server/main.py).
@@ -134,7 +142,7 @@ function LabsRoute({ children }: { children: ReactNode }) {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, restoreStatus } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -146,16 +154,89 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (restoreStatus === 'retryable') {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl items-center px-4 py-8">
+        <Alert>
+          <AlertTitle><Trans>Session verification is temporarily unavailable</Trans></AlertTitle>
+          <AlertDescription className="mt-2">
+            <p>
+              <Trans>Your session is still saved. Check your connection and try again.</Trans>
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-4 w-4" />
+              <Trans>Try again</Trans>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </main>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function RequireCurrentTerms({ children }: { children: React.ReactNode }) {
+  const { termsCurrent } = useAuth();
+
+  if (!termsCurrent) {
+    return <TermsGate />;
+  }
+
+  return <>{children}</>;
+}
+
+function AuthenticatedApp() {
+  return (
+    <RequireCurrentTerms>
+      <SettingsProvider>
+        <LocaleSync />
+        <ScienceProvider>
+          <Layout />
+        </ScienceProvider>
+      </SettingsProvider>
+    </RequireCurrentTerms>
+  );
+}
+
+function ChinaProcessingBoundary({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const [acknowledged, setAcknowledged] = useState(
+    hasAcknowledgedChinaProcessingNotice,
+  );
+  const noticeRequired =
+    isChinaFrontendDeployment() &&
+    !isChinaProcessingPublicPath(location.pathname) &&
+    !acknowledged &&
+    !hasAcknowledgedChinaProcessingNotice();
+
+  if (noticeRequired) {
+    return (
+      <ChinaProcessingNoticeGate
+        onContinue={() => {
+          acknowledgeChinaProcessingNotice();
+          setAcknowledged(true);
+        }}
+      />
+    );
+  }
+
   return <>{children}</>;
 }
 
 export default function App() {
   return (
     <LocaleProvider>
-      <AuthProvider>
-        <StatsigProvider>
-          <TooltipProvider>
-            <BrowserRouter>
+      <BrowserRouter>
+        <ChinaProcessingBoundary>
+          <AuthProvider>
+            <StatsigProvider>
+              <TooltipProvider>
               <Routes>
               <Route path="/" element={<LandingOrApp />} />
               <Route path="/zh" element={<Landing publicLocale="zh" />} />
@@ -172,21 +253,18 @@ export default function App() {
                 path="/mcp/authorize"
                 element={
                   <RequireAuth>
-                    <Suspense fallback={<RouteChunkSkeleton />}>
-                      <McpAuthorization />
-                    </Suspense>
+                    <RequireCurrentTerms>
+                      <Suspense fallback={<RouteChunkSkeleton />}>
+                        <McpAuthorization />
+                      </Suspense>
+                    </RequireCurrentTerms>
                   </RequireAuth>
                 }
               />
               <Route
                 element={
                   <RequireAuth>
-                    <SettingsProvider>
-                      <LocaleSync />
-                      <ScienceProvider>
-                        <Layout />
-                      </ScienceProvider>
-                    </SettingsProvider>
+                    <AuthenticatedApp />
                   </RequireAuth>
                 }
               >
@@ -210,10 +288,11 @@ export default function App() {
                 </Route>
               </Route>
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </StatsigProvider>
-      </AuthProvider>
+              </TooltipProvider>
+            </StatsigProvider>
+          </AuthProvider>
+        </ChinaProcessingBoundary>
+      </BrowserRouter>
     </LocaleProvider>
   );
 }

@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:254
+#: src/components/AiInsightsCard.tsx:271
 msgid " · "
 msgstr " · "
 
@@ -22,11 +22,11 @@ msgstr " · "
 msgid "· last {0} weeks"
 msgstr "· last {0} weeks"
 
-#: src/pages/Setup.tsx:706
+#: src/pages/Setup.tsx:707
 msgid "(Garmin rate limits apply)"
 msgstr "(Garmin rate limits apply)"
 
-#: src/components/PersonalContextPanel.tsx:1060
+#: src/components/PersonalContextPanel.tsx:975
 msgid "(optional)"
 msgstr "(optional)"
 
@@ -35,13 +35,13 @@ msgstr "(optional)"
 msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, one {# activity} other {# activities}}"
 
-#. placeholder {0}: content.findings.length
-#: src/components/AiInsightsCard.tsx:252
+#. placeholder {0}: displayedContent.findings.length
+#: src/components/AiInsightsCard.tsx:269
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, one {# finding} other {# findings}}"
 
-#. placeholder {0}: content.recommendations.length
-#: src/components/AiInsightsCard.tsx:256
+#. placeholder {0}: displayedContent.recommendations.length
+#: src/components/AiInsightsCard.tsx:273
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
@@ -139,9 +139,14 @@ msgstr "{0} narrow change class(es) may merge through the independent policy gat
 
 #. placeholder {0}: setup.completed
 #. placeholder {1}: setup.total
-#: src/pages/Setup.tsx:591
+#: src/pages/Setup.tsx:592
 msgid "{0} of {1} steps complete"
 msgstr "{0} of {1} steps complete"
+
+#. placeholder {0}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:50
+msgid "{0} privacy and contact information"
+msgstr "{0} privacy and contact information"
 
 #. placeholder {0}: node.repetitions
 #. placeholder {1}: node.steps.length
@@ -315,7 +320,7 @@ msgstr "{total, plural, one {# activity} other {# activities}}"
 
 #. placeholder {0}: failures.length
 #. placeholder {1}: failures.length
-#: src/pages/Setup.tsx:766
+#: src/pages/Setup.tsx:767
 msgid "{total, plural, one {Sync failed for {0} of # source.} other {Sync failed for {1} of # sources.}}"
 msgstr "{total, plural, one {Sync failed for {0} of # source.} other {Sync failed for {1} of # sources.}}"
 
@@ -354,27 +359,27 @@ msgstr "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>
 msgid "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 msgstr "<0>{days}</0> days to race day. Today's prediction is <1>{predicted}</1>."
 
-#: src/pages/Login.tsx:522
+#: src/pages/Login.tsx:531
 msgid "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
 msgstr "<0>Almost there.</0> We sent a verification link to your email. Click it to activate your account, then sign in."
 
-#: src/pages/Login.tsx:271
+#: src/pages/Login.tsx:280
 msgid "<0>Cited science.</0> No hype."
 msgstr "<0>Cited science.</0> No hype."
 
-#: src/pages/Login.tsx:263
+#: src/pages/Login.tsx:272
 msgid "<0>Diagnosis & forecast</0> you can verify."
 msgstr "<0>Diagnosis & forecast</0> you can verify."
 
-#: src/pages/Login.tsx:255
+#: src/pages/Login.tsx:264
 msgid "<0>Today's signal</0> · go, modify, or rest."
 msgstr "<0>Today's signal</0> · go, modify, or rest."
 
-#: src/pages/Login.tsx:493
+#: src/pages/Login.tsx:502
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 msgstr "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
 
-#: src/pages/Setup.tsx:705
+#: src/pages/Setup.tsx:706
 msgid "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgstr "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 
@@ -382,7 +387,7 @@ msgstr "~{estimatedActivities} activities, ~{estimatedMinutes} min"
 msgid "1 day ago"
 msgstr "1 day ago"
 
-#: src/pages/Setup.tsx:190
+#: src/pages/Setup.tsx:191
 msgid "1 month"
 msgstr "1 month"
 
@@ -390,7 +395,7 @@ msgstr "1 month"
 msgid "1 wk"
 msgstr "1 wk"
 
-#: src/pages/Setup.tsx:193
+#: src/pages/Setup.tsx:194
 msgid "1 year"
 msgstr "1 year"
 
@@ -399,17 +404,17 @@ msgid "100 Mi"
 msgstr "100 Mi"
 
 #: src/lib/display-labels.ts:73
-#: src/pages/Settings.tsx:189
+#: src/pages/Settings.tsx:190
 msgid "100 Mile"
 msgstr "100 Mile"
 
 #: src/lib/display-labels.ts:72
-#: src/pages/Settings.tsx:188
+#: src/pages/Settings.tsx:189
 msgid "100K"
 msgstr "100K"
 
 #: src/lib/display-labels.ts:69
-#: src/pages/Settings.tsx:183
+#: src/pages/Settings.tsx:184
 msgid "10K"
 msgstr "10K"
 
@@ -441,7 +446,7 @@ msgstr "24 hours"
 msgid "28 days"
 msgstr "28 days"
 
-#: src/pages/Setup.tsx:191
+#: src/pages/Setup.tsx:192
 msgid "3 months"
 msgstr "3 months"
 
@@ -458,17 +463,17 @@ msgid "50 Mi"
 msgstr "50 Mi"
 
 #: src/lib/display-labels.ts:71
-#: src/pages/Settings.tsx:187
+#: src/pages/Settings.tsx:188
 msgid "50 Mile"
 msgstr "50 Mile"
 
 #: src/lib/display-labels.ts:70
-#: src/pages/Settings.tsx:186
+#: src/pages/Settings.tsx:187
 msgid "50K"
 msgstr "50K"
 
 #: src/lib/display-labels.ts:68
-#: src/pages/Settings.tsx:182
+#: src/pages/Settings.tsx:183
 msgid "5K"
 msgstr "5K"
 
@@ -480,7 +485,7 @@ msgstr "5K baseline pilot"
 msgid "5K performance"
 msgstr "5K performance"
 
-#: src/pages/Setup.tsx:192
+#: src/pages/Setup.tsx:193
 msgid "6 months"
 msgstr "6 months"
 
@@ -656,8 +661,8 @@ msgid "Activate managed plan"
 msgstr "Activate managed plan"
 
 #: src/components/ManagedPlanSettingsCard.tsx:490
-#: src/components/PersonalContextPanel.tsx:802
-#: src/components/PersonalContextPanel.tsx:1335
+#: src/components/PersonalContextPanel.tsx:721
+#: src/components/PersonalContextPanel.tsx:1250
 #: src/pages/admin/AdminFeedback.tsx:351
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
@@ -687,20 +692,20 @@ msgstr "Active Incidents"
 msgid "Active incidents: {0}"
 msgstr "Active incidents: {0}"
 
-#: src/components/PersonalContextPanel.tsx:1169
-#: src/components/PersonalContextPanel.tsx:1350
+#: src/components/PersonalContextPanel.tsx:1084
+#: src/components/PersonalContextPanel.tsx:1265
 msgid "Active until"
 msgstr "Active until"
 
 #: src/components/AppSidebar.tsx:128
 #: src/pages/History.tsx:38
-#: src/pages/Settings.tsx:56
-#: src/pages/Settings.tsx:67
-#: src/pages/Setup.tsx:226
+#: src/pages/Settings.tsx:57
+#: src/pages/Settings.tsx:68
+#: src/pages/Setup.tsx:227
 msgid "Activities"
 msgstr "Activities"
 
-#: src/pages/Setup.tsx:200
+#: src/pages/Setup.tsx:201
 msgid "Activities only: runs, rides, pace, heart rate, route data"
 msgstr "Activities only: runs, rides, pace, heart rate, route data"
 
@@ -708,8 +713,8 @@ msgstr "Activities only: runs, rides, pace, heart rate, route data"
 msgid "Activities passing quick prerequisites"
 msgstr "Activities passing quick prerequisites"
 
-#: src/pages/Settings.tsx:1182
-#: src/pages/Setup.tsx:1078
+#: src/pages/Settings.tsx:1186
+#: src/pages/Setup.tsx:1083
 msgid "Activities-only connection"
 msgstr "Activities-only connection"
 
@@ -733,7 +738,7 @@ msgstr "Activity is the schedule lane (for example road or trail), not the sessi
 msgid "Activity splits"
 msgstr "Activity splits"
 
-#: src/pages/Setup.tsx:1008
+#: src/pages/Setup.tsx:1013
 msgid "Activity types to sync"
 msgstr "Activity types to sync"
 
@@ -774,7 +779,7 @@ msgstr "Add a step or repeat group to begin."
 msgid "Add at least one step to this repeat."
 msgstr "Add at least one step to this repeat."
 
-#: src/components/PersonalContextPanel.tsx:734
+#: src/components/PersonalContextPanel.tsx:653
 msgid "Add availability"
 msgstr "Add availability"
 
@@ -790,7 +795,7 @@ msgstr "Add one future workout to the Praxys canonical plan."
 msgid "Add repeat step"
 msgstr "Add repeat step"
 
-#: src/components/FeedbackDialog.tsx:295
+#: src/components/FeedbackDialog.tsx:322
 msgid "Add screenshot"
 msgstr "Add screenshot"
 
@@ -859,15 +864,15 @@ msgstr "Adoption is paused"
 msgid "Aerobic"
 msgstr "Aerobic"
 
-#: src/components/PersonalContextPanel.tsx:274
+#: src/components/PersonalContextPanel.tsx:264
 msgid "Affected dates"
 msgstr "Affected dates"
 
-#: src/components/PersonalContextPanel.tsx:275
+#: src/components/PersonalContextPanel.tsx:265
 msgid "Affected weekdays"
 msgstr "Affected weekdays"
 
-#: src/components/PersonalContextPanel.tsx:1080
+#: src/components/PersonalContextPanel.tsx:995
 msgid "Affected weekdays (optional)"
 msgstr "Affected weekdays (optional)"
 
@@ -900,36 +905,36 @@ msgid "Aggregate storage"
 msgstr "Aggregate storage"
 
 #: src/components/PersonalContextPanel.tsx:818
-msgid "AI allowed"
-msgstr "AI allowed"
+#~ msgid "AI allowed"
+#~ msgstr "AI allowed"
 
 #: src/components/PersonalContextPanel.tsx:1525
-msgid "AI option"
-msgstr "AI option"
+#~ msgid "AI option"
+#~ msgstr "AI option"
 
 #: src/components/PersonalContextPanel.tsx:1645
-msgid "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
-msgstr "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
+#~ msgid "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
+#~ msgstr "AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries."
 
 #: src/components/PersonalContextPanel.tsx:1356
-msgid "AI processing"
-msgstr "AI processing"
+#~ msgid "AI processing"
+#~ msgstr "AI processing"
 
 #: src/components/PersonalContextPanel.tsx:638
-msgid "AI processing enabled for this item only."
-msgstr "AI processing enabled for this item only."
+#~ msgid "AI processing enabled for this item only."
+#~ msgstr "AI processing enabled for this item only."
 
 #: src/components/PersonalContextPanel.tsx:1578
-msgid "AI processing for one item"
-msgstr "AI processing for one item"
+#~ msgid "AI processing for one item"
+#~ msgstr "AI processing for one item"
 
 #: src/components/PersonalContextPanel.tsx:639
-msgid "AI processing withdrawn. No new provider requests are allowed."
-msgstr "AI processing withdrawn. No new provider requests are allowed."
+#~ msgid "AI processing withdrawn. No new provider requests are allowed."
+#~ msgstr "AI processing withdrawn. No new provider requests are allowed."
 
 #: src/components/PersonalContextPanel.tsx:1587
-msgid "AI service: Microsoft Azure"
-msgstr "AI service: Microsoft Azure"
+#~ msgid "AI service: Microsoft Azure"
+#~ msgstr "AI service: Microsoft Azure"
 
 #. placeholder {0}: alerts.total
 #. placeholder {1}: alerts.resolved
@@ -943,7 +948,7 @@ msgstr "Align the activity and threshold power sources before Praxys uses these 
 
 #: src/components/charts/CpTrendChart.tsx:56
 #: src/pages/admin/AdminFeedback.tsx:352
-#: src/pages/Setup.tsx:1024
+#: src/pages/Setup.tsx:1029
 msgid "All"
 msgstr "All"
 
@@ -973,29 +978,29 @@ msgid "All Systems Operational"
 msgstr "All Systems Operational"
 
 #: src/components/PersonalContextPanel.tsx:1700
-msgid "Allow for this item"
-msgstr "Allow for this item"
+#~ msgid "Allow for this item"
+#~ msgstr "Allow for this item"
 
 #: src/pages/McpAuthorization.tsx:160
 msgid "Allow structured plan context?"
 msgstr "Allow structured plan context?"
 
 #: src/components/PersonalContextPanel.tsx:1362
-msgid "Allowed for this item"
-msgstr "Allowed for this item"
+#~ msgid "Allowed for this item"
+#~ msgstr "Allowed for this item"
 
 #: src/components/WorkoutStructureEditor.tsx:619
 #~ msgid "Allowed range"
 #~ msgstr "Allowed range"
 
-#: src/pages/Login.tsx:476
-#: src/pages/Login.tsx:501
+#: src/pages/Login.tsx:485
+#: src/pages/Login.tsx:510
 msgid "Already have an invitation code?"
 msgstr "Already have an invitation code?"
 
 #: src/components/PersonalContextPanel.tsx:1633
-msgid "Also send my optional note"
-msgstr "Also send my optional note"
+#~ msgid "Also send my optional note"
+#~ msgstr "Also send my optional note"
 
 #: src/components/PlanStart.tsx:317
 msgid "An active policy matches this intent and distance."
@@ -1017,7 +1022,7 @@ msgstr "An earlier automatic change was superseded"
 msgid "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 msgstr "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions."
 
-#: src/pages/Login.tsx:130
+#: src/pages/Login.tsx:136
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
@@ -1071,7 +1076,7 @@ msgstr "Applied"
 msgid "Applying…"
 msgstr "Applying…"
 
-#: src/pages/admin/AdminFeedback.tsx:570
+#: src/pages/admin/AdminFeedback.tsx:571
 msgid "Approve & file"
 msgstr "Approve & file"
 
@@ -1083,7 +1088,7 @@ msgstr "Approve access"
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "Asia/CN"
 msgstr "Asia/CN"
 
@@ -1126,7 +1131,7 @@ msgstr "attempts"
 msgid "Attempts {0}"
 msgstr "Attempts {0}"
 
-#: src/pages/Login.tsx:320
+#: src/pages/Login.tsx:329
 msgid "Authentication mode"
 msgstr "Authentication mode"
 
@@ -1134,19 +1139,19 @@ msgstr "Authentication mode"
 msgid "Authorization link unavailable"
 msgstr "Authorization link unavailable"
 
-#: src/pages/Setup.tsx:209
+#: src/pages/Setup.tsx:210
 msgid "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 msgstr "Authorize Praxys with Strava in your browser. Praxys only syncs activities from Strava."
 
-#: src/pages/Settings.tsx:812
+#: src/pages/Settings.tsx:813
 msgid "Auto"
 msgstr "Auto"
 
-#: src/pages/Settings.tsx:870
+#: src/pages/Settings.tsx:871
 msgid "Auto sync frequency"
 msgstr "Auto sync frequency"
 
-#: src/pages/Settings.tsx:1379
+#: src/pages/Settings.tsx:1383
 msgid "Auto-merged"
 msgstr "Auto-merged"
 
@@ -1178,9 +1183,9 @@ msgstr "Automatic recovery guardrail"
 msgid "Automatic retries exhausted"
 msgstr "Automatic retries exhausted"
 
-#: src/components/PersonalContextPanel.tsx:228
-#: src/components/PersonalContextPanel.tsx:229
-#: src/components/PersonalContextPanel.tsx:230
+#: src/components/PersonalContextPanel.tsx:218
+#: src/components/PersonalContextPanel.tsx:219
+#: src/components/PersonalContextPanel.tsx:220
 msgid "Availability"
 msgstr "Availability"
 
@@ -1193,7 +1198,7 @@ msgstr "Availability rate"
 msgid "Available"
 msgstr "Available"
 
-#: src/components/PersonalContextPanel.tsx:277
+#: src/components/PersonalContextPanel.tsx:267
 msgid "Available equipment"
 msgstr "Available equipment"
 
@@ -1201,7 +1206,7 @@ msgstr "Available equipment"
 msgid "Available experiments"
 msgstr "Available experiments"
 
-#: src/components/PersonalContextPanel.tsx:386
+#: src/components/PersonalContextPanel.tsx:370
 msgid "Available minutes must be a whole number from 1 to 1440."
 msgstr "Available minutes must be a whole number from 1 to 1440."
 
@@ -1210,7 +1215,7 @@ msgstr "Available minutes must be a whole number from 1 to 1440."
 msgid "Available run days"
 msgstr "Available run days"
 
-#: src/components/PersonalContextPanel.tsx:278
+#: src/components/PersonalContextPanel.tsx:268
 msgid "Available terrain"
 msgstr "Available terrain"
 
@@ -1226,13 +1231,18 @@ msgstr "Avg Power"
 msgid "Avg Work {intensityLabel}"
 msgstr "Avg Work {intensityLabel}"
 
-#: src/components/PersonalContextPanel.tsx:1141
+#: src/components/PersonalContextPanel.tsx:1056
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 msgstr "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 
 #: src/pages/admin/AdminFeedback.tsx:555
 msgid "Awaiting triage decision"
 msgstr "Awaiting triage decision"
+
+#: src/components/AiInsightsCard.tsx:218
+#: src/components/AiInsightsCard.tsx:248
+msgid "Azure AI insights are temporarily unavailable."
+msgstr "Azure AI insights are temporarily unavailable."
 
 #: src/pages/admin/AdminOps.tsx:850
 msgid "Azure alert state unavailable"
@@ -1267,7 +1277,7 @@ msgstr "Azure Monitor returned an incomplete result, so this section was not ref
 #~ msgid "Azure-backed summary"
 #~ msgstr "Azure-backed summary"
 
-#: src/components/PersonalContextPanel.tsx:1267
+#: src/components/PersonalContextPanel.tsx:1182
 msgid "Back"
 msgstr "Back"
 
@@ -1275,16 +1285,16 @@ msgstr "Back"
 msgid "Back to Praxys"
 msgstr "Back to Praxys"
 
-#: src/pages/Login.tsx:534
-#: src/pages/Verify.tsx:70
+#: src/pages/Login.tsx:543
+#: src/pages/Verify.tsx:74
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
-#: src/pages/Settings.tsx:853
+#: src/pages/Settings.tsx:854
 msgid "Backfill All"
 msgstr "Backfill All"
 
-#: src/pages/Settings.tsx:832
+#: src/pages/Settings.tsx:833
 msgid "Backfill..."
 msgstr "Backfill..."
 
@@ -1365,7 +1375,7 @@ msgstr "Below caution band"
 #~ msgid "Below threshold"
 #~ msgstr "Below threshold"
 
-#: src/components/PersonalContextPanel.tsx:261
+#: src/components/PersonalContextPanel.tsx:251
 msgid "Bike"
 msgstr "Bike"
 
@@ -1394,7 +1404,7 @@ msgstr "Browse plan dates"
 msgid "Bug"
 msgstr "Bug"
 
-#: src/components/FeedbackDialog.tsx:40
+#: src/components/FeedbackDialog.tsx:41
 msgid "Bug report"
 msgstr "Bug report"
 
@@ -1455,8 +1465,8 @@ msgstr "Calculate proxy"
 msgid "Calculator"
 msgstr "Calculator"
 
-#: src/components/AiInsightsCard.tsx:365
-#: src/components/FeedbackDialog.tsx:314
+#: src/components/AiInsightsCard.tsx:382
+#: src/components/FeedbackDialog.tsx:341
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
 #: src/components/GoalEditor.tsx:59
@@ -1464,19 +1474,19 @@ msgstr "Calculator"
 #: src/components/ManagedPlanSettingsCard.tsx:1213
 #: src/components/ManagedPlanSettingsCard.tsx:1438
 #: src/components/ManagedPlanSettingsCard.tsx:1457
-#: src/components/PersonalContextPanel.tsx:1480
+#: src/components/PersonalContextPanel.tsx:1384
 #: src/components/UpcomingPlanCard.tsx:844
 #: src/components/WorkoutPlanEditor.tsx:917
 #: src/pages/admin/AdminOps.tsx:1215
 #: src/pages/admin/AdminUsers.tsx:1043
 #: src/pages/admin/AdminUsers.tsx:1073
-#: src/pages/Settings.tsx:1085
-#: src/pages/Settings.tsx:1171
-#: src/pages/Settings.tsx:1208
-#: src/pages/Settings.tsx:1647
-#: src/pages/Setup.tsx:938
-#: src/pages/Setup.tsx:1066
-#: src/pages/Setup.tsx:1086
+#: src/pages/Settings.tsx:1089
+#: src/pages/Settings.tsx:1175
+#: src/pages/Settings.tsx:1212
+#: src/pages/Settings.tsx:1651
+#: src/pages/Setup.tsx:943
+#: src/pages/Setup.tsx:1071
+#: src/pages/Setup.tsx:1091
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -1501,7 +1511,7 @@ msgstr "Canonical workout remains safe"
 msgid "CAPTCHA required"
 msgstr "CAPTCHA required"
 
-#: src/components/PersonalContextPanel.tsx:231
+#: src/components/PersonalContextPanel.tsx:221
 msgid "Caregiving"
 msgstr "Caregiving"
 
@@ -1519,9 +1529,8 @@ msgstr "Carry your training signal outdoors. Scan to open Praxys in WeChat."
 msgid "cases"
 msgstr "cases"
 
-#: src/components/PersonalContextPanel.tsx:306
-#: src/components/PersonalContextPanel.tsx:976
-#: src/components/PersonalContextPanel.tsx:1163
+#: src/components/PersonalContextPanel.tsx:891
+#: src/components/PersonalContextPanel.tsx:1078
 msgid "Category"
 msgstr "Category"
 
@@ -1576,7 +1585,7 @@ msgstr "Check readiness"
 #~ msgid "Check required"
 #~ msgstr "Check required"
 
-#: src/pages/Setup.tsx:780
+#: src/pages/Setup.tsx:781
 msgid "Check your credentials in the connection step, then try again."
 msgstr "Check your credentials in the connection step, then try again."
 
@@ -1600,8 +1609,8 @@ msgstr "Checking readiness…"
 msgid "Chest pain or pressure"
 msgstr "Chest pain or pressure"
 
-#: src/pages/Settings.tsx:1017
-#: src/pages/Settings.tsx:1115
+#: src/pages/Settings.tsx:1018
+#: src/pages/Settings.tsx:1119
 msgid "China"
 msgstr "China"
 
@@ -1610,7 +1619,7 @@ msgstr "China"
 msgid "Chinese"
 msgstr "Chinese"
 
-#: src/components/PersonalContextPanel.tsx:988
+#: src/components/PersonalContextPanel.tsx:903
 msgid "Choose a category"
 msgstr "Choose a category"
 
@@ -1626,7 +1635,7 @@ msgstr "Choose a category"
 msgid "Choose a race target, track continuous progress, or use the 5K baseline pilot."
 msgstr "Choose a race target, track continuous progress, or use the 5K baseline pilot."
 
-#: src/components/PersonalContextPanel.tsx:919
+#: src/components/PersonalContextPanel.tsx:834
 msgid "Choose a recent workout"
 msgstr "Choose a recent workout"
 
@@ -1655,7 +1664,7 @@ msgstr "Choose and date an optional benchmark only if you want one. Praxys never
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 msgstr "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 
-#: src/pages/Setup.tsx:670
+#: src/pages/Setup.tsx:671
 msgid "Choose how much historical data to pull"
 msgstr "Choose how much historical data to pull"
 
@@ -1668,7 +1677,7 @@ msgstr "Choose intent"
 msgid "Choose one"
 msgstr "Choose one"
 
-#: src/components/PersonalContextPanel.tsx:365
+#: src/components/PersonalContextPanel.tsx:349
 msgid "Choose one category to continue."
 msgstr "Choose one category to continue."
 
@@ -1676,7 +1685,7 @@ msgstr "Choose one category to continue."
 #~ msgid "Choose plan purpose"
 #~ msgstr "Choose plan purpose"
 
-#: src/pages/Setup.tsx:1112
+#: src/pages/Setup.tsx:1117
 msgid "Choose primary source"
 msgstr "Choose primary source"
 
@@ -1689,7 +1698,7 @@ msgstr "Choose primary source"
 msgid "Choose the days you are available to run."
 msgstr "Choose the days you are available to run."
 
-#: src/components/PersonalContextPanel.tsx:370
+#: src/components/PersonalContextPanel.tsx:354
 msgid "Choose the workout that changed."
 msgstr "Choose the workout that changed."
 
@@ -1698,7 +1707,7 @@ msgid "Choose three to six days you can actually keep. Praxys anchors load to yo
 msgstr "Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap."
 
 #: src/components/SetupChecklist.tsx:63
-#: src/pages/Setup.tsx:804
+#: src/pages/Setup.tsx:805
 msgid "Choose training base"
 msgstr "Choose training base"
 
@@ -1711,11 +1720,11 @@ msgstr "Choose voluntary experiments that help you inspect your own training his
 msgid "Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 msgstr "Choose what this plan is for, then set constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 
-#: src/components/PersonalContextPanel.tsx:375
+#: src/components/PersonalContextPanel.tsx:359
 msgid "Choose when this constraint starts and ends."
 msgstr "Choose when this constraint starts and ends."
 
-#: src/components/PersonalContextPanel.tsx:371
+#: src/components/PersonalContextPanel.tsx:355
 msgid "Choose whether it was missed or modified."
 msgstr "Choose whether it was missed or modified."
 
@@ -1723,7 +1732,7 @@ msgstr "Choose whether it was missed or modified."
 msgid "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 msgstr "Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time."
 
-#: src/pages/Settings.tsx:1300
+#: src/pages/Settings.tsx:1304
 msgid "Choose which platform to use for each data type"
 msgstr "Choose which platform to use for each data type"
 
@@ -1731,7 +1740,7 @@ msgstr "Choose which platform to use for each data type"
 msgid "Choose who controls the plan and where Praxys delivers it"
 msgstr "Choose who controls the plan and where Praxys delivers it"
 
-#: src/pages/Settings.tsx:856
+#: src/pages/Settings.tsx:857
 msgid "Clear"
 msgstr "Clear"
 
@@ -1747,7 +1756,7 @@ msgstr "Click to copy"
 msgid "Client"
 msgstr "Client"
 
-#: src/components/FeedbackDialog.tsx:203
+#: src/components/FeedbackDialog.tsx:208
 #: src/components/MetricDetailSheet.tsx:65
 msgid "Close"
 msgstr "Close"
@@ -1827,7 +1836,7 @@ msgstr "Compatibility preview is unavailable. Check your connection and try agai
 #~ msgstr "Compatible"
 
 #: src/components/SetupChecklist.tsx:98
-#: src/pages/Setup.tsx:590
+#: src/pages/Setup.tsx:591
 msgid "Complete these steps to unlock your training insights"
 msgstr "Complete these steps to unlock your training insights"
 
@@ -1863,7 +1872,7 @@ msgstr "Component health is unavailable right now."
 msgid "Components"
 msgstr "Components"
 
-#: src/pages/Settings.tsx:703
+#: src/pages/Settings.tsx:704
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
@@ -1913,27 +1922,27 @@ msgid "Confusion or loss of coordination"
 msgstr "Confusion or loss of coordination"
 
 #: src/components/SetupChecklist.tsx:51
-#: src/pages/Settings.tsx:973
-#: src/pages/Settings.tsx:1174
-#: src/pages/Setup.tsx:655
-#: src/pages/Setup.tsx:1069
+#: src/pages/Settings.tsx:974
+#: src/pages/Settings.tsx:1178
+#: src/pages/Setup.tsx:656
+#: src/pages/Setup.tsx:1074
 msgid "Connect"
 msgstr "Connect"
 
 #. placeholder {0}: connectPlatform ? (PLATFORM_META[connectPlatform]?.label || connectPlatform) : ''
 #. placeholder {0}: connectPlatform ? PLATFORM_META[connectPlatform]?.label : ''
-#: src/pages/Settings.tsx:1051
-#: src/pages/Setup.tsx:890
+#: src/pages/Settings.tsx:1052
+#: src/pages/Setup.tsx:891
 msgid "Connect {0}"
 msgstr "Connect {0}"
 
 #: src/components/SetupChecklist.tsx:47
-#: src/pages/Settings.tsx:1325
-#: src/pages/Setup.tsx:613
+#: src/pages/Settings.tsx:1329
+#: src/pages/Setup.tsx:614
 msgid "Connect a platform"
 msgstr "Connect a platform"
 
-#: src/pages/Setup.tsx:669
+#: src/pages/Setup.tsx:670
 msgid "Connect a platform first"
 msgstr "Connect a platform first"
 
@@ -1958,16 +1967,22 @@ msgstr "Connect Praxys Coach?"
 #~ msgstr "Connect Stryd above before adopting managed delivery."
 
 #: src/pages/admin/AdminOps.tsx:427
-#: src/pages/Settings.tsx:932
+#: src/pages/Settings.tsx:933
 msgid "Connected"
 msgstr "Connected"
 
-#: src/pages/Settings.tsx:827
+#: src/pages/Settings.tsx:828
 msgid "Connected Platforms"
 msgstr "Connected Platforms"
 
-#: src/pages/Settings.tsx:1174
-#: src/pages/Setup.tsx:1069
+#. placeholder {0}: provider.label
+#. placeholder {1}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:47
+#~ msgid "Connecting {0} is optional. By continuing, you direct Praxys to send the authentication details entered here to {1} and retrieve the activity, route, fitness, recovery, or plan data supported by this connection. The provider may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+#~ msgstr "Connecting {0} is optional. By continuing, you direct Praxys to send the authentication details entered here to {1} and retrieve the activity, route, fitness, recovery, or plan data supported by this connection. The provider may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+
+#: src/pages/Settings.tsx:1178
+#: src/pages/Setup.tsx:1074
 msgid "Connecting..."
 msgstr "Connecting..."
 
@@ -1983,11 +1998,11 @@ msgstr "Connection funnel"
 msgid "Consent text version"
 msgstr "Consent text version"
 
-#: src/components/PersonalContextPanel.tsx:578
+#: src/components/PersonalContextPanel.tsx:562
 msgid "Context and dependent private traces deleted."
 msgstr "Context and dependent private traces deleted."
 
-#: src/components/PersonalContextPanel.tsx:550
+#: src/components/PersonalContextPanel.tsx:534
 msgid "Context excluded from future assessments."
 msgstr "Context excluded from future assessments."
 
@@ -1995,17 +2010,17 @@ msgstr "Context excluded from future assessments."
 msgid "Context type"
 msgstr "Context type"
 
-#: src/components/PersonalContextPanel.tsx:1410
+#: src/components/PersonalContextPanel.tsx:1314
 msgid "Context use"
 msgstr "Context use"
 
-#: src/pages/Settings.tsx:1184
-#: src/pages/Setup.tsx:1080
+#: src/pages/Settings.tsx:1188
+#: src/pages/Setup.tsx:1085
 msgid "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 msgstr "Continue in your browser to authorize Strava. Praxys imports activities from Strava, while recovery, fitness, and plans come from your other connected platforms."
 
-#: src/pages/Settings.tsx:1215
-#: src/pages/Setup.tsx:1089
+#: src/pages/Settings.tsx:1219
+#: src/pages/Setup.tsx:1094
 msgid "Continue to Strava"
 msgstr "Continue to Strava"
 
@@ -2021,11 +2036,11 @@ msgstr "Continuous"
 msgid "Continuous heart-rate samples are missing from too much of the eligible history."
 msgstr "Continuous heart-rate samples are missing from too much of the eligible history."
 
-#: src/pages/Settings.tsx:1408
+#: src/pages/Settings.tsx:1412
 msgid "Continuous Improvement"
 msgstr "Continuous Improvement"
 
-#: src/pages/Setup.tsx:852
+#: src/pages/Setup.tsx:853
 msgid "Continuous improvement configured"
 msgstr "Continuous improvement configured"
 
@@ -2075,11 +2090,11 @@ msgstr "Copy code"
 msgid "copy the target workout into Praxys; future management follows that version."
 msgstr "copy the target workout into Praxys; future management follows that version."
 
-#: src/components/PersonalContextPanel.tsx:1512
+#: src/components/PersonalContextPanel.tsx:1416
 msgid "Correct"
 msgstr "Correct"
 
-#: src/components/PersonalContextPanel.tsx:868
+#: src/components/PersonalContextPanel.tsx:783
 msgid "Correct private context"
 msgstr "Correct private context"
 
@@ -2124,8 +2139,8 @@ msgstr "Could not convert this workout to rest"
 msgid "Could not create the proposal."
 msgstr "Could not create the proposal."
 
-#: src/components/PersonalContextPanel.tsx:574
-#: src/components/PersonalContextPanel.tsx:583
+#: src/components/PersonalContextPanel.tsx:558
+#: src/components/PersonalContextPanel.tsx:567
 msgid "Could not delete this private context."
 msgstr "Could not delete this private context."
 
@@ -2134,15 +2149,15 @@ msgid "Could not delete this workout"
 msgstr "Could not delete this workout"
 
 #: src/components/PersonalContextPanel.tsx:632
-msgid "Could not enable AI processing."
-msgstr "Could not enable AI processing."
+#~ msgid "Could not enable AI processing."
+#~ msgstr "Could not enable AI processing."
 
 #: src/components/ManagedPlanSettingsCard.tsx:259
 msgid "Could not enable managed delivery"
 msgstr "Could not enable managed delivery"
 
-#: src/components/PersonalContextPanel.tsx:659
-#: src/components/PersonalContextPanel.tsx:678
+#: src/components/PersonalContextPanel.tsx:581
+#: src/components/PersonalContextPanel.tsx:600
 msgid "Could not export private context."
 msgstr "Could not export private context."
 
@@ -2172,8 +2187,8 @@ msgstr "Could not load the accepted plan-generation policies."
 msgid "Could not load the managed-window preview."
 msgstr "Could not load the managed-window preview."
 
-#: src/components/PersonalContextPanel.tsx:514
-#: src/components/PersonalContextPanel.tsx:521
+#: src/components/PersonalContextPanel.tsx:498
+#: src/components/PersonalContextPanel.tsx:505
 msgid "Could not load this private context."
 msgstr "Could not load this private context."
 
@@ -2212,33 +2227,33 @@ msgstr "Could not resolve this workout"
 msgid "Could not restore the previous workout"
 msgstr "Could not restore the previous workout"
 
-#: src/components/PersonalContextPanel.tsx:409
-#: src/components/PersonalContextPanel.tsx:416
+#: src/components/PersonalContextPanel.tsx:393
+#: src/components/PersonalContextPanel.tsx:400
 msgid "Could not review this private context."
 msgstr "Could not review this private context."
 
-#: src/components/PersonalContextPanel.tsx:460
-#: src/components/PersonalContextPanel.tsx:495
+#: src/components/PersonalContextPanel.tsx:444
+#: src/components/PersonalContextPanel.tsx:479
 msgid "Could not save this correction."
 msgstr "Could not save this correction."
 
-#: src/components/PersonalContextPanel.tsx:478
-#: src/components/PersonalContextPanel.tsx:496
+#: src/components/PersonalContextPanel.tsx:462
+#: src/components/PersonalContextPanel.tsx:480
 msgid "Could not save this private context."
 msgstr "Could not save this private context."
 
-#: src/pages/Login.tsx:179
+#: src/pages/Login.tsx:188
 msgid "Could not save your email. Please email us instead."
 msgstr "Could not save your email. Please email us instead."
 
-#: src/components/PersonalContextPanel.tsx:548
-#: src/components/PersonalContextPanel.tsx:555
+#: src/components/PersonalContextPanel.tsx:532
+#: src/components/PersonalContextPanel.tsx:539
 msgid "Could not stop using this context."
 msgstr "Could not stop using this context."
 
 #: src/components/PersonalContextPanel.tsx:645
-msgid "Could not update AI processing."
-msgstr "Could not update AI processing."
+#~ msgid "Could not update AI processing."
+#~ msgstr "Could not update AI processing."
 
 #: src/components/ManagedPlanSettingsCard.tsx:443
 msgid "Could not update automatic plan changes"
@@ -2254,8 +2269,8 @@ msgid "Could not update this workout"
 msgstr "Could not update this workout"
 
 #: src/components/PersonalContextPanel.tsx:633
-msgid "Could not withdraw AI processing."
-msgstr "Could not withdraw AI processing."
+#~ msgid "Could not withdraw AI processing."
+#~ msgstr "Could not withdraw AI processing."
 
 #: src/pages/admin/AdminUsers.tsx:329
 #~ msgid "Couldn't load admin management data"
@@ -2290,12 +2305,12 @@ msgstr "Couldn't save changes."
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "Couldn't save. Check your connection and try again."
 
-#: src/components/AiInsightsCard.tsx:210
+#: src/components/AiInsightsCard.tsx:208
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "Couldn't send feedback. Try again."
 
-#: src/components/FeedbackDialog.tsx:167
+#: src/components/FeedbackDialog.tsx:172
 msgid "Couldn't send your feedback. Please try again."
 msgstr "Couldn't send your feedback. Please try again."
 
@@ -2330,12 +2345,12 @@ msgstr "CP Trend"
 msgid "Create"
 msgstr "Create"
 
-#: src/pages/Login.tsx:338
-#: src/pages/Login.tsx:639
+#: src/pages/Login.tsx:347
+#: src/pages/Login.tsx:648
 msgid "Create account"
 msgstr "Create account"
 
-#: src/pages/Login.tsx:414
+#: src/pages/Login.tsx:423
 msgid "Create an account"
 msgstr "Create an account"
 
@@ -2351,7 +2366,7 @@ msgstr "Create proposal"
 msgid "Create service incident"
 msgstr "Create service incident"
 
-#: src/pages/Login.tsx:312
+#: src/pages/Login.tsx:321
 msgid "Create your account."
 msgstr "Create your account."
 
@@ -2363,7 +2378,7 @@ msgstr "Created"
 #~ msgid "Creating account..."
 #~ msgstr "Creating account..."
 
-#: src/pages/Login.tsx:639
+#: src/pages/Login.tsx:648
 msgid "Creating account…"
 msgstr "Creating account…"
 
@@ -2391,7 +2406,7 @@ msgid "Critical"
 msgstr "Critical"
 
 #: src/lib/display-labels.ts:58
-#: src/pages/Settings.tsx:102
+#: src/pages/Settings.tsx:103
 msgid "Critical Power"
 msgstr "Critical Power"
 
@@ -2407,7 +2422,7 @@ msgstr "Critical: {0}. Major: {1}. Minor: {2}."
 msgid "Cross-training"
 msgstr "Cross-training"
 
-#: src/pages/Setup.tsx:1051
+#: src/pages/Setup.tsx:1056
 msgid "Cross-training activities affect your overall training load and recovery"
 msgstr "Cross-training activities affect your overall training load and recovery"
 
@@ -2498,7 +2513,7 @@ msgstr "Custom workout purpose"
 
 #: src/components/UpcomingPlanCard.tsx:567
 #: src/components/WorkoutPlanEditor.tsx:445
-#: src/pages/Setup.tsx:170
+#: src/pages/Setup.tsx:171
 msgid "Cycling"
 msgstr "Cycling"
 
@@ -2518,7 +2533,7 @@ msgstr "daily score"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/pages/Login.tsx:693
+#: src/pages/Login.tsx:702
 msgid "Dark theme (click for system)"
 msgstr "Dark theme (click for system)"
 
@@ -2526,11 +2541,11 @@ msgstr "Dark theme (click for system)"
 msgid "Data coverage"
 msgstr "Data coverage"
 
-#: src/pages/Settings.tsx:1299
+#: src/pages/Settings.tsx:1303
 msgid "Data Preferences"
 msgstr "Data Preferences"
 
-#: src/pages/Setup.tsx:797
+#: src/pages/Setup.tsx:798
 msgid "Data synced successfully"
 msgstr "Data synced successfully"
 
@@ -2632,34 +2647,34 @@ msgstr "Degraded performance"
 msgid "Degraded Performance"
 msgstr "Degraded Performance"
 
-#: src/components/PersonalContextPanel.tsx:1543
+#: src/components/PersonalContextPanel.tsx:1433
 #: src/components/WorkoutPlanEditor.tsx:880
 #: src/components/WorkoutStructureEditor.tsx:1785
 msgid "Delete"
 msgstr "Delete"
 
-#: src/pages/Settings.tsx:1596
+#: src/pages/Settings.tsx:1600
 msgid "Delete account"
 msgstr "Delete account"
 
-#: src/pages/Settings.tsx:1616
+#: src/pages/Settings.tsx:1620
 msgid "Delete my account"
 msgstr "Delete my account"
 
-#: src/pages/Settings.tsx:1625
+#: src/pages/Settings.tsx:1629
 msgid "Delete my account?"
 msgstr "Delete my account?"
 
-#: src/components/PersonalContextPanel.tsx:1497
-#: src/pages/Settings.tsx:1654
+#: src/components/PersonalContextPanel.tsx:1401
+#: src/pages/Settings.tsx:1658
 msgid "Delete permanently"
 msgstr "Delete permanently"
 
-#: src/components/PersonalContextPanel.tsx:1558
+#: src/components/PersonalContextPanel.tsx:1448
 msgid "Delete retained history"
 msgstr "Delete retained history"
 
-#: src/components/PersonalContextPanel.tsx:1459
+#: src/components/PersonalContextPanel.tsx:1363
 msgid "Delete this context permanently?"
 msgstr "Delete this context permanently?"
 
@@ -2682,16 +2697,16 @@ msgid "Delete workout"
 msgstr "Delete workout"
 
 #. placeholder {0}: formatDate(currentDetailItem.narrative_purge_at)
-#: src/components/PersonalContextPanel.tsx:1399
+#: src/components/PersonalContextPanel.tsx:1303
 msgid "Deletes {0}"
 msgstr "Deletes {0}"
 
-#: src/components/PersonalContextPanel.tsx:805
-#: src/components/PersonalContextPanel.tsx:1338
+#: src/components/PersonalContextPanel.tsx:724
+#: src/components/PersonalContextPanel.tsx:1253
 msgid "Deleting"
 msgstr "Deleting"
 
-#: src/pages/Settings.tsx:1654
+#: src/pages/Settings.tsx:1658
 msgid "Deleting..."
 msgstr "Deleting..."
 
@@ -2789,7 +2804,7 @@ msgstr "Deny"
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "Detailed activity evidence is unavailable for this day."
 
-#: src/components/FeedbackDialog.tsx:228
+#: src/components/FeedbackDialog.tsx:233
 #: src/pages/Analysis.tsx:78
 msgid "Details"
 msgstr "Details"
@@ -2797,6 +2812,10 @@ msgstr "Details"
 #: src/components/WorkoutStructureEditor.tsx:975
 msgid "deterministic"
 msgstr "deterministic"
+
+#: src/components/AiInsightsCard.tsx:236
+msgid "Deterministic training summary"
+msgstr "Deterministic training summary"
 
 #: src/components/HeatAdaptationPanel.tsx:27
 msgid "Developing"
@@ -2828,7 +2847,7 @@ msgstr "Did today's brief affect your training decision?"
 msgid "Did you follow the exact protocol?"
 msgstr "Did you follow the exact protocol?"
 
-#: src/pages/Login.tsx:393
+#: src/pages/Login.tsx:402
 msgid "Didn't get the email?"
 msgstr "Didn't get the email?"
 
@@ -2868,12 +2887,12 @@ msgstr "Disable delivery from any other planner first. Two planners can create o
 msgid "Disabled. Click to open"
 msgstr "Disabled. Click to open"
 
-#: src/components/PersonalContextPanel.tsx:240
-#: src/components/PersonalContextPanel.tsx:244
+#: src/components/PersonalContextPanel.tsx:230
+#: src/components/PersonalContextPanel.tsx:234
 msgid "Disclosure choice"
 msgstr "Disclosure choice"
 
-#: src/pages/Settings.tsx:1036
+#: src/pages/Settings.tsx:1037
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -2891,7 +2910,7 @@ msgstr "Dismiss"
 #~ msgid "Dismissible banners shown to all users"
 #~ msgstr "Dismissible banners shown to all users"
 
-#: src/pages/Login.tsx:665
+#: src/pages/Login.tsx:674
 msgid "Display preferences"
 msgstr "Display preferences"
 
@@ -2906,7 +2925,7 @@ msgstr "Dist"
 #: src/components/WorkoutStructureEditor.tsx:817
 #: src/components/WorkoutStructureEditor.tsx:1437
 #: src/components/WorkoutStructureEditor.tsx:1486
-#: src/pages/Settings.tsx:1412
+#: src/pages/Settings.tsx:1416
 msgid "Distance"
 msgstr "Distance"
 
@@ -2940,7 +2959,7 @@ msgstr "Distance not verified"
 msgid "Distribution match"
 msgstr "Distribution match"
 
-#: src/components/ZoneAnalysisCard.tsx:139
+#: src/components/ZoneAnalysisCard.tsx:140
 msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
 msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
 
@@ -2961,7 +2980,7 @@ msgstr "Do not replay this item. The athlete must resolve it from the plan recon
 msgid "Done"
 msgstr "Done"
 
-#: src/pages/Settings.tsx:1555
+#: src/pages/Settings.tsx:1559
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 
@@ -2973,7 +2992,7 @@ msgstr "Draft one change for your review"
 msgid "Drag the range or type exact values."
 msgstr "Drag the range or type exact values."
 
-#: src/pages/Settings.tsx:1464
+#: src/pages/Settings.tsx:1468
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 
@@ -3077,7 +3096,7 @@ msgstr "Each activity counts once per environmental range. The comparable-power 
 msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
 msgstr "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
 
-#: src/components/FeedbackDialog.tsx:113
+#: src/components/FeedbackDialog.tsx:116
 msgid "Each image must be under 5 MB."
 msgstr "Each image must be under 5 MB."
 
@@ -3108,8 +3127,8 @@ msgid "Easy Run"
 msgstr "Easy Run"
 
 #: src/components/UpcomingPlanCard.tsx:692
-#: src/pages/Settings.tsx:1398
-#: src/pages/Setup.tsx:855
+#: src/pages/Settings.tsx:1402
+#: src/pages/Setup.tsx:856
 msgid "Edit"
 msgstr "Edit"
 
@@ -3162,21 +3181,21 @@ msgstr "Eligible"
 msgid "Eligible activities"
 msgstr "Eligible activities"
 
-#: src/components/PersonalContextPanel.tsx:262
+#: src/components/PersonalContextPanel.tsx:252
 msgid "Elliptical"
 msgstr "Elliptical"
 
 #: src/pages/admin/AdminUsers.tsx:577
 #: src/pages/admin/AdminUsers.tsx:870
 #: src/pages/admin/AdminUsers.tsx:979
-#: src/pages/Login.tsx:351
-#: src/pages/Login.tsx:439
-#: src/pages/Login.tsx:548
-#: src/pages/Setup.tsx:217
+#: src/pages/Login.tsx:360
+#: src/pages/Login.tsx:448
+#: src/pages/Login.tsx:557
+#: src/pages/Setup.tsx:218
 msgid "Email"
 msgstr "Email"
 
-#: src/pages/Login.tsx:104
+#: src/pages/Login.tsx:110
 msgid "Email and password are required."
 msgstr "Email and password are required."
 
@@ -3188,7 +3207,7 @@ msgstr "Email and password are required."
 msgid "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
 msgstr "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
 
-#: src/pages/Login.tsx:148
+#: src/pages/Login.tsx:154
 msgid "Email is required."
 msgstr "Email is required."
 
@@ -3196,7 +3215,7 @@ msgstr "Email is required."
 msgid "Email link"
 msgstr "Email link"
 
-#: src/pages/Verify.tsx:51
+#: src/pages/Verify.tsx:55
 msgid "Email verified"
 msgstr "Email verified"
 
@@ -3224,11 +3243,11 @@ msgstr "Enabled. Click to close"
 msgid "Enabling…"
 msgstr "Enabling…"
 
-#: src/components/PersonalContextPanel.tsx:833
+#: src/components/PersonalContextPanel.tsx:748
 msgid "Encrypted at rest · excluded from analytics and model training"
 msgstr "Encrypted at rest · excluded from analytics and model training"
 
-#: src/components/PersonalContextPanel.tsx:1040
+#: src/components/PersonalContextPanel.tsx:955
 msgid "Ends"
 msgstr "Ends"
 
@@ -3272,8 +3291,8 @@ msgstr "Enter pace as minutes:seconds per kilometre."
 msgid "Enter pace as minutes:seconds per mile."
 msgstr "Enter pace as minutes:seconds per mile."
 
-#: src/components/PersonalContextPanel.tsx:238
-#: src/components/PersonalContextPanel.tsx:239
+#: src/components/PersonalContextPanel.tsx:228
+#: src/components/PersonalContextPanel.tsx:229
 msgid "Environment"
 msgstr "Environment"
 
@@ -3282,16 +3301,16 @@ msgstr "Environment"
 msgid "Environmental response"
 msgstr "Environmental response"
 
-#: src/components/PersonalContextPanel.tsx:239
+#: src/components/PersonalContextPanel.tsx:229
 msgid "Equipment access"
 msgstr "Equipment access"
 
-#: src/components/PersonalContextPanel.tsx:1093
+#: src/components/PersonalContextPanel.tsx:1008
 msgid "Equipment still available (optional)"
 msgstr "Equipment still available (optional)"
 
 #: src/pages/admin/AdminOps.tsx:431
-#: src/pages/Settings.tsx:955
+#: src/pages/Settings.tsx:956
 msgid "Error"
 msgstr "Error"
 
@@ -3315,7 +3334,7 @@ msgstr "Estimates acclimatization from recent qualifying conditions."
 msgid "Estimates race performance from current fitness."
 msgstr "Estimates race performance from current fitness."
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "EU"
 msgstr "EU"
 
@@ -3324,7 +3343,7 @@ msgid "Event state"
 msgstr "Event state"
 
 #. placeholder {0}: option.hours
-#: src/pages/Settings.tsx:894
+#: src/pages/Settings.tsx:895
 msgid "Every <0>{0}</0> hours"
 msgstr "Every <0>{0}</0> hours"
 
@@ -3399,8 +3418,8 @@ msgstr "Execution target changed. Delivery remains paused."
 #~ msgid "Experimental Garmin delivery"
 #~ msgstr "Experimental Garmin delivery"
 
-#: src/components/PersonalContextPanel.tsx:803
-#: src/components/PersonalContextPanel.tsx:1336
+#: src/components/PersonalContextPanel.tsx:722
+#: src/components/PersonalContextPanel.tsx:1251
 msgid "Expired"
 msgstr "Expired"
 
@@ -3408,7 +3427,7 @@ msgstr "Expired"
 msgid "Expires:"
 msgstr "Expires:"
 
-#: src/components/PersonalContextPanel.tsx:726
+#: src/components/PersonalContextPanel.tsx:645
 msgid "Explain a workout"
 msgstr "Explain a workout"
 
@@ -3416,12 +3435,12 @@ msgstr "Explain a workout"
 msgid "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
 msgstr "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
 
-#: src/components/PersonalContextPanel.tsx:846
+#: src/components/PersonalContextPanel.tsx:761
 msgid "Export context"
 msgstr "Export context"
 
-#: src/pages/Settings.tsx:1553
-#: src/pages/Settings.tsx:1583
+#: src/pages/Settings.tsx:1557
+#: src/pages/Settings.tsx:1587
 msgid "Export my data"
 msgstr "Export my data"
 
@@ -3492,7 +3511,7 @@ msgid "Failed to delete user."
 msgstr "Failed to delete user."
 
 #. placeholder {0}: res.status
-#: src/pages/Settings.tsx:628
+#: src/pages/Settings.tsx:629
 msgid "Failed to export data (HTTP {0})"
 msgstr "Failed to export data (HTTP {0})"
 
@@ -3524,7 +3543,7 @@ msgstr "Failed to load goal data"
 msgid "Failed to load science data."
 msgstr "Failed to load science data."
 
-#: src/pages/Settings.tsx:333
+#: src/pages/Settings.tsx:334
 msgid "Failed to load settings"
 msgstr "Failed to load settings"
 
@@ -3582,7 +3601,7 @@ msgstr "falling"
 msgid "Falling"
 msgstr "Falling"
 
-#: src/components/PersonalContextPanel.tsx:233
+#: src/components/PersonalContextPanel.tsx:223
 msgid "Fatigue"
 msgstr "Fatigue"
 
@@ -3606,7 +3625,7 @@ msgstr "Fatigue"
 msgid "Feature"
 msgstr "Feature"
 
-#: src/components/FeedbackDialog.tsx:41
+#: src/components/FeedbackDialog.tsx:42
 msgid "Feature request"
 msgstr "Feature request"
 
@@ -3631,7 +3650,7 @@ msgstr "Feedback state unavailable"
 msgid "Feedback triage"
 msgstr "Feedback triage"
 
-#: src/components/AiInsightsCard.tsx:264
+#: src/components/AiInsightsCard.tsx:281
 msgid "Findings"
 msgstr "Findings"
 
@@ -3651,9 +3670,9 @@ msgstr "Finish this distance"
 msgid "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 msgstr "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
 
-#: src/pages/Settings.tsx:58
-#: src/pages/Settings.tsx:1376
-#: src/pages/Setup.tsx:228
+#: src/pages/Settings.tsx:59
+#: src/pages/Settings.tsx:1380
+#: src/pages/Setup.tsx:229
 msgid "Fitness"
 msgstr "Fitness"
 
@@ -3673,7 +3692,7 @@ msgstr "Fix the marked structured step before saving."
 msgid "flat"
 msgstr "flat"
 
-#: src/components/PersonalContextPanel.tsx:270
+#: src/components/PersonalContextPanel.tsx:260
 #: src/pages/Goal.tsx:59
 msgid "Flat"
 msgstr "Flat"
@@ -3704,7 +3723,7 @@ msgstr "Follow Plan"
 #~ msgid "Form (TSB)"
 #~ msgstr "Form (TSB)"
 
-#: src/components/FeedbackDialog.tsx:187
+#: src/components/FeedbackDialog.tsx:192
 msgid "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 msgstr "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 
@@ -3736,7 +3755,7 @@ msgstr "Fourteen-day activity record"
 #~ msgid "Freshened up — good window for racing or testing."
 #~ msgstr "Freshened up — good window for racing or testing."
 
-#: src/components/PersonalContextPanel.tsx:252
+#: src/components/PersonalContextPanel.tsx:242
 msgid "Fri"
 msgstr "Fri"
 
@@ -3752,7 +3771,7 @@ msgstr "From {dataAsOfLabel}"
 msgid "from {label}"
 msgstr "from {label}"
 
-#: src/pages/Settings.tsx:118
+#: src/pages/Settings.tsx:119
 msgid "From activities"
 msgstr "From activities"
 
@@ -3790,15 +3809,15 @@ msgstr "Gap"
 #~ msgid "Garmin delivery uses an undocumented interface and is off until you review its limits and opt in."
 #~ msgstr "Garmin delivery uses an undocumented interface and is off until you review its limits and opt in."
 
-#: src/pages/Settings.tsx:1132
+#: src/pages/Settings.tsx:1136
 msgid "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 msgstr "Garmin International and Garmin China are separate account systems. Pick the one your credentials belong to."
 
-#: src/pages/Settings.tsx:1022
+#: src/pages/Settings.tsx:1023
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 msgstr "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
 
-#: src/pages/Settings.tsx:1277
+#: src/pages/Settings.tsx:1281
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 msgstr "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
 
@@ -3818,7 +3837,7 @@ msgstr "Garmin wrist-power origin cannot yet be verified well enough for this ex
 #~ msgid "Gate-passing semantic slice:"
 #~ msgstr "Gate-passing semantic slice:"
 
-#: src/components/FeedbackDialog.tsx:42
+#: src/components/FeedbackDialog.tsx:43
 msgid "General feedback"
 msgstr "General feedback"
 
@@ -3826,7 +3845,7 @@ msgstr "General feedback"
 msgid "Generate"
 msgstr "Generate"
 
-#: src/pages/Setup.tsx:211
+#: src/pages/Setup.tsx:212
 msgid "Generate a token at cloud.ouraring.com/personal-access-tokens."
 msgstr "Generate a token at cloud.ouraring.com/personal-access-tokens."
 
@@ -3839,7 +3858,7 @@ msgstr "Generating…"
 msgid "Generator"
 msgstr "Generator"
 
-#: src/pages/Login.tsx:306
+#: src/pages/Login.tsx:315
 msgid "Get access"
 msgstr "Get access"
 
@@ -3865,11 +3884,11 @@ msgstr "GO"
 msgid "Go Easy"
 msgstr "Go Easy"
 
-#: src/pages/Setup.tsx:879
+#: src/pages/Setup.tsx:880
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
-#: src/pages/Verify.tsx:57
+#: src/pages/Verify.tsx:61
 msgid "Go to sign in"
 msgstr "Go to sign in"
 
@@ -3878,7 +3897,7 @@ msgstr "Go to sign in"
 #: src/components/GoalBaselinePanel.tsx:520
 #: src/pages/admin/AdminUsers.tsx:871
 #: src/pages/Goal.tsx:142
-#: src/pages/Settings.tsx:1393
+#: src/pages/Settings.tsx:1397
 msgid "Goal"
 msgstr "Goal"
 
@@ -3898,7 +3917,7 @@ msgstr "Goal type"
 #~ msgid "Good balance of fitness and recovery. Ready for quality work."
 #~ msgstr "Good balance of fitness and recovery. Ready for quality work."
 
-#: src/components/PersonalContextPanel.tsx:260
+#: src/components/PersonalContextPanel.tsx:250
 msgid "Gym"
 msgstr "Gym"
 
@@ -3907,17 +3926,17 @@ msgid "Half"
 msgstr "Half"
 
 #: src/lib/display-labels.ts:67
-#: src/pages/Settings.tsx:184
+#: src/pages/Settings.tsx:185
 msgid "Half Marathon"
 msgstr "Half Marathon"
 
-#: src/pages/Login.tsx:602
+#: src/pages/Login.tsx:611
 msgid "Have an invitation code?"
 msgstr "Have an invitation code?"
 
 #: src/lib/display-labels.ts:55
-#: src/pages/Settings.tsx:82
-#: src/pages/Setup.tsx:183
+#: src/pages/Settings.tsx:83
+#: src/pages/Setup.tsx:184
 msgid "Heart Rate"
 msgstr "Heart Rate"
 
@@ -4000,15 +4019,15 @@ msgstr "Heat safety"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "Heat-adaptation evidence is decaying"
 
-#: src/components/AiInsightsCard.tsx:322
+#: src/components/AiInsightsCard.tsx:339
 msgid "Helpful"
 msgstr "Helpful"
 
-#: src/pages/Settings.tsx:832
+#: src/pages/Settings.tsx:833
 msgid "Hide backfill"
 msgstr "Hide backfill"
 
-#: src/components/AiInsightsCard.tsx:248
+#: src/components/AiInsightsCard.tsx:265
 msgid "Hide details"
 msgstr "Hide details"
 
@@ -4042,7 +4061,7 @@ msgstr "High variability"
 
 #: src/components/UpcomingPlanCard.tsx:569
 #: src/components/WorkoutPlanEditor.tsx:447
-#: src/pages/Setup.tsx:172
+#: src/pages/Setup.tsx:173
 msgid "Hiking"
 msgstr "Hiking"
 
@@ -4051,7 +4070,7 @@ msgstr "Hiking"
 msgid "Hill repeats"
 msgstr "Hill repeats"
 
-#: src/components/PersonalContextPanel.tsx:271
+#: src/components/PersonalContextPanel.tsx:261
 msgid "Hilly"
 msgstr "Hilly"
 
@@ -4071,7 +4090,7 @@ msgstr "Historical environmental-response curve"
 msgid "Historical slope"
 msgstr "Historical slope"
 
-#: src/pages/Settings.tsx:858
+#: src/pages/Settings.tsx:859
 msgid "Historical sync may take several minutes"
 msgstr "Historical sync may take several minutes"
 
@@ -4117,7 +4136,7 @@ msgstr "hour rolling window"
 #~ msgid "How is intensity classified?"
 #~ msgstr "How is intensity classified?"
 
-#: src/pages/Settings.tsx:872
+#: src/pages/Settings.tsx:873
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 msgstr "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
 
@@ -4133,8 +4152,8 @@ msgstr "How this is calculated"
 msgid "How to read this experiment"
 msgstr "How to read this experiment"
 
-#: src/pages/Settings.tsx:1239
-#: src/pages/Setup.tsx:805
+#: src/pages/Settings.tsx:1243
+#: src/pages/Setup.tsx:806
 msgid "How your zones and training load are calculated"
 msgstr "How your zones and training load are calculated"
 
@@ -4146,7 +4165,7 @@ msgstr "hr"
 msgid "HR"
 msgstr "HR"
 
-#: src/pages/Setup.tsx:199
+#: src/pages/Setup.tsx:200
 msgid "HR, pace, distance, VO2max, training status"
 msgstr "HR, pace, distance, VO2max, training status"
 
@@ -4237,7 +4256,7 @@ msgstr "HRV variability is high (CV {cv}%), above the selected coaching caution 
 msgid "Humidity (%)"
 msgstr "Humidity (%)"
 
-#: src/pages/Login.tsx:628
+#: src/pages/Login.tsx:637
 msgid "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 msgstr "I agree to the <0>Terms of Service</0> and <1>Privacy Policy</1>."
 
@@ -4272,7 +4291,7 @@ msgstr "I'm not training today"
 msgid "Identified"
 msgstr "Identified"
 
-#: src/components/PersonalContextPanel.tsx:235
+#: src/components/PersonalContextPanel.tsx:225
 msgid "Illness"
 msgstr "Illness"
 
@@ -4352,7 +4371,7 @@ msgstr "Insert before"
 msgid "Inspect context"
 msgstr "Inspect context"
 
-#: src/components/PersonalContextPanel.tsx:1318
+#: src/components/PersonalContextPanel.tsx:1233
 msgid "Inspect what is stored, where it was used, and who may process it."
 msgstr "Inspect what is stored, where it was used, and who may process it."
 
@@ -4397,20 +4416,20 @@ msgstr "Intentional all-out complete 10K"
 msgid "Intentional all-out complete 5K"
 msgstr "Intentional all-out complete 5K"
 
-#: src/pages/Settings.tsx:1018
-#: src/pages/Settings.tsx:1115
+#: src/pages/Settings.tsx:1019
+#: src/pages/Settings.tsx:1119
 msgid "International"
 msgstr "International"
 
 #: src/components/PersonalContextPanel.tsx:1607
-msgid "Interpret one missed or modified workout without diagnosing a cause."
-msgstr "Interpret one missed or modified workout without diagnosing a cause."
+#~ msgid "Interpret one missed or modified workout without diagnosing a cause."
+#~ msgstr "Interpret one missed or modified workout without diagnosing a cause."
 
 #: src/pages/McpAuthorization.tsx:32
 msgid "Interpret one workout without guessing a cause"
 msgstr "Interpret one workout without guessing a cause"
 
-#: src/components/PersonalContextPanel.tsx:1159
+#: src/components/PersonalContextPanel.tsx:1074
 msgid "Interpret this workout without guessing a cause"
 msgstr "Interpret this workout without guessing a cause"
 
@@ -4428,7 +4447,7 @@ msgstr "Invalid time format. Use H:MM:SS or H:MM"
 msgid "Investigating"
 msgstr "Investigating"
 
-#: src/pages/Login.tsx:582
+#: src/pages/Login.tsx:591
 msgid "Invitation code"
 msgstr "Invitation code"
 
@@ -4436,7 +4455,7 @@ msgstr "Invitation code"
 #~ msgid "Invitation Code"
 #~ msgstr "Invitation Code"
 
-#: src/pages/Login.tsx:582
+#: src/pages/Login.tsx:591
 msgid "Invitation code (optional)"
 msgstr "Invitation code (optional)"
 
@@ -4475,7 +4494,7 @@ msgstr "Issue"
 msgid "Issue created"
 msgstr "Issue created"
 
-#: src/components/PersonalContextPanel.tsx:1463
+#: src/components/PersonalContextPanel.tsx:1367
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
 msgstr "It stays in your private history until its purge date, but cannot influence a new assessment."
 
@@ -4483,9 +4502,9 @@ msgstr "It stays in your private history until its purge date, but cannot influe
 msgid "Join and analyze my history"
 msgstr "Join and analyze my history"
 
-#: src/pages/Login.tsx:425
-#: src/pages/Login.tsx:472
-#: src/pages/Login.tsx:649
+#: src/pages/Login.tsx:434
+#: src/pages/Login.tsx:481
+#: src/pages/Login.tsx:658
 msgid "Join the waitlist"
 msgstr "Join the waitlist"
 
@@ -4551,7 +4570,7 @@ msgstr "Keep the current {0} unchanged, or choose an accepted separate purpose a
 msgid "Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population."
 msgstr "Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population."
 
-#: src/components/PersonalContextPanel.tsx:367
+#: src/components/PersonalContextPanel.tsx:351
 msgid "Keep the optional note to 280 characters or fewer."
 msgstr "Keep the optional note to 280 characters or fewer."
 
@@ -4601,7 +4620,7 @@ msgstr "Labs action failed"
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
-#: src/App.tsx:103
+#: src/App.tsx:111
 msgid "Labs page update required"
 msgstr "Labs page update required"
 
@@ -4609,7 +4628,7 @@ msgstr "Labs page update required"
 msgid "Lactate Threshold HR"
 msgstr "Lactate Threshold HR"
 
-#: src/pages/Settings.tsx:795
+#: src/pages/Settings.tsx:796
 msgid "Language"
 msgstr "Language"
 
@@ -4658,12 +4677,12 @@ msgid "Last known: {systemicTitle}"
 msgstr "Last known: {systemicTitle}"
 
 #. placeholder {0}: status.error
-#: src/pages/Settings.tsx:1006
+#: src/pages/Settings.tsx:1007
 msgid "Last sync failed: {0}"
 msgstr "Last sync failed: {0}"
 
 #. placeholder {0}: new Date(status.last_sync).toLocaleString()
-#: src/pages/Settings.tsx:1000
+#: src/pages/Settings.tsx:1001
 msgid "Last synced {0}"
 msgstr "Last synced {0}"
 
@@ -4708,7 +4727,7 @@ msgstr "Legacy flat summary"
 msgid "Legacy purpose"
 msgstr "Legacy purpose"
 
-#: src/components/PersonalContextPanel.tsx:228
+#: src/components/PersonalContextPanel.tsx:218
 msgid "Less time"
 msgstr "Less time"
 
@@ -4716,8 +4735,8 @@ msgstr "Less time"
 msgid "Let Praxys manage this plan?"
 msgstr "Let Praxys manage this plan?"
 
-#: src/components/PersonalContextPanel.tsx:231
-#: src/components/PersonalContextPanel.tsx:232
+#: src/components/PersonalContextPanel.tsx:221
+#: src/components/PersonalContextPanel.tsx:222
 msgid "Life constraint"
 msgstr "Life constraint"
 
@@ -4725,7 +4744,7 @@ msgstr "Life constraint"
 msgid "Light"
 msgstr "Light"
 
-#: src/pages/Login.tsx:691
+#: src/pages/Login.tsx:700
 msgid "Light theme (click for dark)"
 msgstr "Light theme (click for dark)"
 
@@ -4766,7 +4785,7 @@ msgstr "Likely adapted to similar recent conditions."
 msgid "Link a supported platform to pull your training data"
 msgstr "Link a supported platform to pull your training data"
 
-#: src/pages/Setup.tsx:614
+#: src/pages/Setup.tsx:615
 msgid "Link at least one data source to start"
 msgstr "Link at least one data source to start"
 
@@ -4783,7 +4802,7 @@ msgstr "Link text (optional)"
 msgid "Link URL (optional)"
 msgstr "Link URL (optional)"
 
-#: src/pages/Settings.tsx:828
+#: src/pages/Settings.tsx:829
 msgid "Link your training devices and services"
 msgstr "Link your training devices and services"
 
@@ -4791,7 +4810,7 @@ msgstr "Link your training devices and services"
 msgid "Linked to current Goal"
 msgstr "Linked to current Goal"
 
-#: src/components/PersonalContextPanel.tsx:897
+#: src/components/PersonalContextPanel.tsx:812
 msgid "Linked workout"
 msgstr "Linked workout"
 
@@ -4803,7 +4822,7 @@ msgstr "Live"
 msgid "Live component health is unavailable."
 msgstr "Live component health is unavailable."
 
-#: src/components/Layout.tsx:39
+#: src/components/Layout.tsx:36
 msgid "Live demo — real training data, read-only"
 msgstr "Live demo — real training data, read-only"
 
@@ -4850,11 +4869,11 @@ msgstr "Load compliance"
 msgid "Loading components…"
 msgstr "Loading components…"
 
-#: src/components/PersonalContextPanel.tsx:749
+#: src/components/PersonalContextPanel.tsx:668
 msgid "Loading private context"
 msgstr "Loading private context"
 
-#: src/components/PersonalContextPanel.tsx:918
+#: src/components/PersonalContextPanel.tsx:833
 msgid "Loading recent workouts…"
 msgstr "Loading recent workouts…"
 
@@ -4929,7 +4948,7 @@ msgstr "Low"
 msgid "Low coverage"
 msgstr "Low coverage"
 
-#: src/pages/Settings.tsx:103
+#: src/pages/Settings.tsx:104
 msgid "LTHR"
 msgstr "LTHR"
 
@@ -5083,8 +5102,8 @@ msgstr "manual recomputes remaining"
 
 #: src/components/GoalEditor.tsx:81
 #: src/lib/display-labels.ts:66
-#: src/pages/Settings.tsx:185
-#: src/pages/Settings.tsx:1414
+#: src/pages/Settings.tsx:186
+#: src/pages/Settings.tsx:1418
 msgid "Marathon"
 msgstr "Marathon"
 
@@ -5097,15 +5116,15 @@ msgstr "Matched"
 msgid "MAU"
 msgstr "MAU"
 
-#: src/pages/Settings.tsx:105
+#: src/pages/Settings.tsx:106
 msgid "Max HR"
 msgstr "Max HR"
 
-#: src/components/PersonalContextPanel.tsx:1058
+#: src/components/PersonalContextPanel.tsx:973
 msgid "Maximum minutes available per affected day"
 msgstr "Maximum minutes available per affected day"
 
-#: src/components/PersonalContextPanel.tsx:276
+#: src/components/PersonalContextPanel.tsx:266
 msgid "Maximum training minutes per day"
 msgstr "Maximum training minutes per day"
 
@@ -5142,7 +5161,7 @@ msgstr "MFA"
 msgid "MFA required"
 msgstr "MFA required"
 
-#: src/components/PersonalContextPanel.tsx:1423
+#: src/components/PersonalContextPanel.tsx:1327
 msgid "Microsoft Azure AI"
 msgstr "Microsoft Azure AI"
 
@@ -5188,8 +5207,8 @@ msgstr "mirrors {0}"
 msgid "Mismatch"
 msgstr "Mismatch"
 
-#: src/components/PersonalContextPanel.tsx:286
-#: src/components/PersonalContextPanel.tsx:950
+#: src/components/PersonalContextPanel.tsx:276
+#: src/components/PersonalContextPanel.tsx:865
 msgid "Missed"
 msgstr "Missed"
 
@@ -5215,7 +5234,7 @@ msgstr "Mixed providers"
 msgid "Mobility"
 msgstr "Mobility"
 
-#: src/pages/Settings.tsx:1406
+#: src/pages/Settings.tsx:1410
 msgid "Mode"
 msgstr "Mode"
 
@@ -5247,8 +5266,8 @@ msgstr "Moderate coverage"
 #~ msgid "Moderate evidence"
 #~ msgstr "Moderate evidence"
 
-#: src/components/PersonalContextPanel.tsx:287
-#: src/components/PersonalContextPanel.tsx:951
+#: src/components/PersonalContextPanel.tsx:277
+#: src/components/PersonalContextPanel.tsx:866
 msgid "Modified"
 msgstr "Modified"
 
@@ -5257,7 +5276,7 @@ msgstr "Modified"
 msgid "MODIFY"
 msgstr "MODIFY"
 
-#: src/components/PersonalContextPanel.tsx:248
+#: src/components/PersonalContextPanel.tsx:238
 msgid "Mon"
 msgstr "Mon"
 
@@ -5301,7 +5320,7 @@ msgstr "More historical HRV observations are needed before Praxys can form a per
 #~ msgid "Most under-target: {0} at {1}% (target {2}%). Add 1-2 sessions in this zone next week."
 #~ msgstr "Most under-target: {0} at {1}% (target {2}%). Add 1-2 sessions in this zone next week."
 
-#: src/components/PersonalContextPanel.tsx:234
+#: src/components/PersonalContextPanel.tsx:224
 msgid "Motivation"
 msgstr "Motivation"
 
@@ -5322,7 +5341,7 @@ msgid "Move up"
 msgstr "Move up"
 
 #. placeholder {0}: primaryPrompt?.category
-#: src/pages/Setup.tsx:1114
+#: src/pages/Setup.tsx:1119
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 
@@ -5350,7 +5369,7 @@ msgstr "Need 2 weeks of synced activity to compare planned vs actual. {daysToCom
 msgid "Need at least 3 activities with power data."
 msgstr "Need at least 3 activities with power data."
 
-#: src/pages/Login.tsx:659
+#: src/pages/Login.tsx:668
 msgid "Need help? {SUPPORT_EMAIL}"
 msgstr "Need help? {SUPPORT_EMAIL}"
 
@@ -5404,12 +5423,12 @@ msgid "negative balance"
 msgstr "negative balance"
 
 #: src/pages/admin/AdminOps.tsx:407
-#: src/pages/Settings.tsx:611
-#: src/pages/Settings.tsx:641
+#: src/pages/Settings.tsx:612
+#: src/pages/Settings.tsx:642
 msgid "Network error"
 msgstr "Network error"
 
-#: src/components/FeedbackDialog.tsx:173
+#: src/components/FeedbackDialog.tsx:178
 msgid "Network error — please try again."
 msgstr "Network error — please try again."
 
@@ -5431,7 +5450,7 @@ msgstr "Network error — please try again."
 msgid "Network error. Is the server running?"
 msgstr "Network error. Is the server running?"
 
-#: src/pages/Login.tsx:185
+#: src/pages/Login.tsx:194
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
 msgstr "Network error. Please email {SUPPORT_EMAIL} directly."
 
@@ -5461,7 +5480,7 @@ msgstr "New incident"
 msgid "New invitation code:"
 msgstr "New invitation code:"
 
-#: src/pages/Login.tsx:408
+#: src/pages/Login.tsx:417
 msgid "New to Praxys?"
 msgstr "New to Praxys?"
 
@@ -5481,7 +5500,7 @@ msgstr "Next"
 msgid "Next plan window"
 msgstr "Next plan window"
 
-#: src/pages/Settings.tsx:876
+#: src/pages/Settings.tsx:877
 msgid "Next sync"
 msgstr "Next sync"
 
@@ -5538,7 +5557,7 @@ msgstr "No admin configuration found"
 msgid "No announcements yet"
 msgstr "No announcements yet"
 
-#: src/components/PersonalContextPanel.tsx:1442
+#: src/components/PersonalContextPanel.tsx:1346
 msgid "No assessment or plan change has used this context yet."
 msgstr "No assessment or plan change has used this context yet."
 
@@ -5554,7 +5573,7 @@ msgstr "No change class is promoted. Decisions and outcomes are being recorded w
 msgid "No Coach votes were recorded in this window."
 msgstr "No Coach votes were recorded in this window."
 
-#: src/pages/Login.tsx:643
+#: src/pages/Login.tsx:652
 msgid "No code yet?"
 msgstr "No code yet?"
 
@@ -5611,11 +5630,11 @@ msgstr "No executable steps yet."
 msgid "No execution target is selected. Compatibility remains informational until plan delivery is configured."
 msgstr "No execution target is selected. Compatibility remains informational until plan delivery is configured."
 
-#: src/components/PersonalContextPanel.tsx:815
+#: src/components/PersonalContextPanel.tsx:734
 msgid "no expiry"
 msgstr "no expiry"
 
-#: src/components/PersonalContextPanel.tsx:315
+#: src/components/PersonalContextPanel.tsx:299
 msgid "No expiry"
 msgstr "No expiry"
 
@@ -5635,7 +5654,7 @@ msgstr "No feedback rows are waiting for review or retry."
 #~ msgid "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
 #~ msgstr "No Garmin or Stryd execution target is selected. Compatibility remains informational until plan delivery is configured."
 
-#: src/pages/Settings.tsx:1434
+#: src/pages/Settings.tsx:1438
 msgid "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 msgstr "No goal set. Set a race target or distance goal to unlock predictions and countdown."
 
@@ -5689,7 +5708,7 @@ msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created w
 msgid "No preference"
 msgstr "No preference"
 
-#: src/components/PersonalContextPanel.tsx:769
+#: src/components/PersonalContextPanel.tsx:688
 msgid "No private context saved"
 msgstr "No private context saved"
 
@@ -5718,7 +5737,7 @@ msgstr "No prompt"
 #~ msgid "No recent activity reached the model's {0}-minute inclusion threshold."
 #~ msgstr "No recent activity reached the model's {0}-minute inclusion threshold."
 
-#: src/components/PersonalContextPanel.tsx:937
+#: src/components/PersonalContextPanel.tsx:852
 msgid "No recent Praxys workout is available to link."
 msgstr "No recent Praxys workout is available to link."
 
@@ -5850,7 +5869,7 @@ msgstr "No workout scheduled."
 msgid "No workouts scheduled in this window."
 msgstr "No workouts scheduled in this window."
 
-#: src/components/PersonalContextPanel.tsx:257
+#: src/components/PersonalContextPanel.tsx:247
 msgid "None"
 msgstr "None"
 
@@ -5887,7 +5906,7 @@ msgstr "Not actionable"
 msgid "Not an all-out 5K effort"
 msgstr "Not an all-out 5K effort"
 
-#: src/pages/Settings.tsx:935
+#: src/pages/Settings.tsx:936
 msgid "Not connected"
 msgstr "Not connected"
 
@@ -5945,7 +5964,7 @@ msgstr "Not established"
 #~ msgid "Not evaluated"
 #~ msgstr "Not evaluated"
 
-#: src/components/AiInsightsCard.tsx:332
+#: src/components/AiInsightsCard.tsx:349
 msgid "Not helpful"
 msgstr "Not helpful"
 
@@ -5963,7 +5982,7 @@ msgstr "Not required"
 msgid "Not safely representable"
 msgstr "Not safely representable"
 
-#: src/pages/Settings.tsx:1497
+#: src/pages/Settings.tsx:1501
 msgid "Not set"
 msgstr "Not set"
 
@@ -5975,19 +5994,19 @@ msgstr "Note"
 msgid "Note (optional)"
 msgstr "Note (optional)"
 
-#: src/components/PersonalContextPanel.tsx:1182
+#: src/components/PersonalContextPanel.tsx:1097
 msgid "Note deleted"
 msgstr "Note deleted"
 
-#: src/pages/Settings.tsx:1274
+#: src/pages/Settings.tsx:1278
 msgid "Note on Garmin native power"
 msgstr "Note on Garmin native power"
 
-#: src/components/PersonalContextPanel.tsx:875
+#: src/components/PersonalContextPanel.tsx:790
 msgid "Nothing is stored until you confirm this exact purpose and expiry."
 msgstr "Nothing is stored until you confirm this exact purpose and expiry."
 
-#: src/pages/Login.tsx:206
+#: src/pages/Login.tsx:215
 msgid "Now open · Create your account"
 msgstr "Now open · Create your account"
 
@@ -6038,13 +6057,12 @@ msgid "of"
 msgstr "of"
 
 #: src/components/ManagedPlanSettingsCard.tsx:896
-#: src/components/PersonalContextPanel.tsx:1363
 msgid "Off"
 msgstr "Off"
 
 #: src/components/PersonalContextPanel.tsx:1636
-msgid "Off by default. The note may contain more private detail than the structured fields."
-msgstr "Off by default. The note may contain more private detail than the structured fields."
+#~ msgid "Off by default. The note may contain more private detail than the structured fields."
+#~ msgstr "Off by default. The note may contain more private detail than the structured fields."
 
 #: src/components/ManagedPlanSettingsCard.tsx:896
 msgid "On"
@@ -6087,7 +6105,7 @@ msgstr "Only explicit distance, timing, protocol, route or venue, and intent con
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 #~ msgstr "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 
-#: src/components/FeedbackDialog.tsx:109
+#: src/components/FeedbackDialog.tsx:112
 msgid "Only PNG, JPG, or WebP images are supported."
 msgstr "Only PNG, JPG, or WebP images are supported."
 
@@ -6096,8 +6114,8 @@ msgid "Only supported and eligible platforms can receive workouts."
 msgstr "Only supported and eligible platforms can receive workouts."
 
 #: src/components/PersonalContextPanel.tsx:1589
-msgid "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
-msgstr "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
+#~ msgid "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
+#~ msgstr "Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses."
 
 #: src/components/ManagedPlanSettingsCard.tsx:1253
 msgid "Only today's single Praxys-generated hard workout can become rest, and only for same-day individualized HRV below the caution band."
@@ -6212,11 +6230,15 @@ msgstr "optional"
 msgid "Optional"
 msgstr "Optional"
 
-#: src/components/FeedbackDialog.tsx:298
-msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
-msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
+#: src/components/FeedbackDialog.tsx:325
+msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them only to help investigate your feedback."
+msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them only to help investigate your feedback."
 
-#: src/pages/Setup.tsx:861
+#: src/components/FeedbackDialog.tsx:298
+#~ msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
+#~ msgstr "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe the issue and remove anything sensitive before filing."
+
+#: src/pages/Setup.tsx:862
 msgid "Optional — you can always set this later from the Goal page"
 msgstr "Optional — you can always set this later from the Goal page"
 
@@ -6236,11 +6258,11 @@ msgstr "Optional benchmark date"
 msgid "Optional coaching cue"
 msgstr "Optional coaching cue"
 
-#: src/components/AiInsightsCard.tsx:346
+#: src/components/AiInsightsCard.tsx:363
 msgid "Optional comment"
 msgstr "Optional comment"
 
-#: src/components/PersonalContextPanel.tsx:876
+#: src/components/PersonalContextPanel.tsx:791
 msgid "Optional context helps Praxys avoid guessing. Share only what changes the plan."
 msgstr "Optional context helps Praxys avoid guessing. Share only what changes the plan."
 
@@ -6260,6 +6282,10 @@ msgstr "Optional session-level notes"
 #~ msgid "Optional structure, terrain, or intent"
 #~ msgstr "Optional structure, terrain, or intent"
 
+#: src/components/FeedbackDialog.tsx:272
+msgid "Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication."
+msgstr "Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication."
+
 #: src/components/WorkoutCard.tsx:82
 msgid "Options"
 msgstr "Options"
@@ -6268,7 +6294,7 @@ msgstr "Options"
 msgid "Organized outdoor road 10K race"
 msgstr "Organized outdoor road 10K race"
 
-#: src/components/PersonalContextPanel.tsx:240
+#: src/components/PersonalContextPanel.tsx:230
 #: src/components/UpcomingPlanCard.tsx:574
 #: src/components/WorkoutPlanEditor.tsx:452
 #: src/components/WorkoutStructureEditor.tsx:328
@@ -6320,8 +6346,8 @@ msgstr "Ownership conflict"
 #: src/components/ActivityCard.tsx:122
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
-#: src/pages/Settings.tsx:91
-#: src/pages/Setup.tsx:185
+#: src/pages/Settings.tsx:92
+#: src/pages/Setup.tsx:186
 msgid "Pace"
 msgstr "Pace"
 
@@ -6357,7 +6383,7 @@ msgstr "Pace maximum (min/km)"
 msgid "Pace minimum (min/km)"
 msgstr "Pace minimum (min/km)"
 
-#: src/components/PersonalContextPanel.tsx:236
+#: src/components/PersonalContextPanel.tsx:226
 msgid "Pain or injury"
 msgstr "Pain or injury"
 
@@ -6392,9 +6418,9 @@ msgid "Passive fastest 10K splits, best laps, or hard sections inside longer run
 msgstr "Passive fastest 10K splits, best laps, or hard sections inside longer runs never count as direct 10K baseline evidence."
 
 #: src/pages/admin/AdminUsers.tsx:991
-#: src/pages/Login.tsx:368
-#: src/pages/Login.tsx:565
-#: src/pages/Setup.tsx:218
+#: src/pages/Login.tsx:377
+#: src/pages/Login.tsx:574
+#: src/pages/Setup.tsx:219
 msgid "Password"
 msgstr "Password"
 
@@ -6461,11 +6487,11 @@ msgstr "Percentage of the athlete's current critical power."
 msgid "Percentage of the athlete's lactate-threshold heart rate."
 msgstr "Percentage of the athlete's lactate-threshold heart rate."
 
-#: src/pages/Settings.tsx:1598
+#: src/pages/Settings.tsx:1602
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 msgstr "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
 
-#: src/pages/Setup.tsx:219
+#: src/pages/Setup.tsx:220
 msgid "Personal Access Token"
 msgstr "Personal Access Token"
 
@@ -6477,8 +6503,8 @@ msgstr "Personal only"
 msgid "Pick a date"
 msgstr "Pick a date"
 
-#: src/pages/Settings.tsx:59
-#: src/pages/Setup.tsx:229
+#: src/pages/Settings.tsx:60
+#: src/pages/Setup.tsx:230
 msgid "Plan"
 msgstr "Plan"
 
@@ -6486,7 +6512,7 @@ msgstr "Plan"
 msgid "Plan activity"
 msgstr "Plan activity"
 
-#: src/components/PersonalContextPanel.tsx:1345
+#: src/components/PersonalContextPanel.tsx:1260
 msgid "Plan adjustment"
 msgstr "Plan adjustment"
 
@@ -6502,7 +6528,7 @@ msgstr "Plan adopted. Delivery remains disabled until you explicitly enable it."
 msgid "Plan candidate"
 msgstr "Plan candidate"
 
-#: src/components/PersonalContextPanel.tsx:707
+#: src/components/PersonalContextPanel.tsx:626
 msgid "Plan context"
 msgstr "Plan context"
 
@@ -6594,11 +6620,11 @@ msgstr "Platform health"
 msgid "Platform telemetry is unavailable."
 msgstr "Platform telemetry is unavailable."
 
-#: src/pages/Login.tsx:171
+#: src/pages/Login.tsx:180
 msgid "Please check your email format and try again."
 msgstr "Please check your email format and try again."
 
-#: src/pages/Login.tsx:123
+#: src/pages/Login.tsx:129
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "Please verify your email before signing in. Check your inbox for the link."
 
@@ -6625,7 +6651,7 @@ msgstr "Policy unavailable"
 msgid "Policy-gated auto-merge"
 msgstr "Policy-gated auto-merge"
 
-#: src/components/PersonalContextPanel.tsx:263
+#: src/components/PersonalContextPanel.tsx:253
 msgid "Pool"
 msgstr "Pool"
 
@@ -6651,8 +6677,8 @@ msgstr "PostgreSQL connections"
 
 #: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
-#: src/pages/Settings.tsx:73
-#: src/pages/Setup.tsx:181
+#: src/pages/Settings.tsx:74
+#: src/pages/Setup.tsx:182
 msgid "Power"
 msgstr "Power"
 
@@ -6692,7 +6718,7 @@ msgstr "Power ceiling (W)"
 msgid "Power floor (W)"
 msgstr "Power floor (W)"
 
-#: src/pages/Setup.tsx:201
+#: src/pages/Setup.tsx:202
 msgid "Power metrics, Critical Power, training plans"
 msgstr "Power metrics, Critical Power, training plans"
 
@@ -6732,7 +6758,7 @@ msgstr "Power-source match"
 msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 msgstr "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact reference-band and caution-band cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 
-#: src/components/PersonalContextPanel.tsx:1467
+#: src/components/PersonalContextPanel.tsx:1371
 msgid "Praxys also removes dependent private reasoning and use receipts. Accepted workout changes remain without the private reason."
 msgstr "Praxys also removes dependent private reasoning and use receipts. Accepted workout changes remain without the private reason."
 
@@ -6756,11 +6782,11 @@ msgstr "Praxys can analyze this schedule, but it will not create, replace, or re
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 msgstr "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 
-#: src/components/AiInsightsCard.tsx:229
+#: src/components/AiInsightsCard.tsx:239
 msgid "Praxys Coach"
 msgstr "Praxys Coach"
 
-#: src/components/AiInsightsCard.tsx:227
+#: src/components/AiInsightsCard.tsx:235
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
@@ -6776,7 +6802,7 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/App.tsx:106
+#: src/App.tsx:114
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
@@ -6837,7 +6863,7 @@ msgstr "Praxys is experiencing a partial service outage."
 msgid "Praxys is experiencing degraded performance."
 msgstr "Praxys is experiencing degraded performance."
 
-#: src/pages/Login.tsx:313
+#: src/pages/Login.tsx:322
 msgid "Praxys is in private alpha."
 msgstr "Praxys is in private alpha."
 
@@ -6912,7 +6938,7 @@ msgstr "Praxys will analyze eligible past runs to see whether modeled heart rate
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 
-#: src/components/PersonalContextPanel.tsx:1001
+#: src/components/PersonalContextPanel.tsx:916
 msgid "Praxys will preserve the reason as unknown. This never counts against you."
 msgstr "Praxys will preserve the reason as unknown. This never counts against you."
 
@@ -6938,11 +6964,11 @@ msgstr "Predicted using Riegel's formula (T₂ = T₁ × (D₂/D₁)^1.06), trea
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
 msgstr "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
 
-#: src/components/PersonalContextPanel.tsx:243
+#: src/components/PersonalContextPanel.tsx:233
 msgid "Prefer not to say"
 msgstr "Prefer not to say"
 
-#: src/pages/Login.tsx:643
+#: src/pages/Login.tsx:652
 msgid "Prefer to wait?"
 msgstr "Prefer to wait?"
 
@@ -6958,7 +6984,7 @@ msgstr "Preferred longest-run day"
 msgid "Prepare to complete the selected distance."
 msgstr "Prepare to complete the selected distance."
 
-#: src/pages/Settings.tsx:1583
+#: src/pages/Settings.tsx:1587
 msgid "Preparing export..."
 msgstr "Preparing export..."
 
@@ -6976,11 +7002,11 @@ msgid "Previous plan window"
 msgstr "Previous plan window"
 
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
-#: src/pages/Settings.tsx:992
+#: src/pages/Settings.tsx:993
 msgid "Primary for {0}"
 msgstr "Primary for {0}"
 
-#: src/pages/Settings.tsx:67
+#: src/pages/Settings.tsx:68
 msgid "Primary source for workout data"
 msgstr "Primary source for workout data"
 
@@ -7001,37 +7027,45 @@ msgid "Priority is excluded from readiness evaluation."
 msgstr "Priority is excluded from readiness evaluation."
 
 #: src/components/PersonalContextPanel.tsx:1665
-msgid "Privacy Policy"
-msgstr "Privacy Policy"
+#~ msgid "Privacy Policy"
+#~ msgstr "Privacy Policy"
 
-#: src/pages/Login.tsx:207
+#: src/pages/Login.tsx:216
 msgid "Private alpha · Invitation only"
 msgstr "Private alpha · Invitation only"
 
-#: src/components/PersonalContextPanel.tsx:1315
+#: src/components/PersonalContextPanel.tsx:1230
 msgid "Private context"
 msgstr "Private context"
 
-#: src/components/PersonalContextPanel.tsx:758
+#: src/components/PersonalContextPanel.tsx:677
 msgid "Private context could not be loaded."
 msgstr "Private context could not be loaded."
 
-#: src/components/PersonalContextPanel.tsx:674
+#: src/components/PersonalContextPanel.tsx:596
 msgid "Private context export downloaded."
 msgstr "Private context export downloaded."
 
-#: src/components/PersonalContextPanel.tsx:488
-msgid "Private context saved. AI processing remains off."
-msgstr "Private context saved. AI processing remains off."
+#: src/components/PersonalContextPanel.tsx:472
+msgid "Private context saved for the confirmed purpose."
+msgstr "Private context saved for the confirmed purpose."
 
-#: src/components/PersonalContextPanel.tsx:1217
-#: src/components/PersonalContextPanel.tsx:1393
+#: src/components/PersonalContextPanel.tsx:488
+#~ msgid "Private context saved. AI processing remains off."
+#~ msgstr "Private context saved. AI processing remains off."
+
+#: src/components/PersonalContextPanel.tsx:1132
+#: src/components/PersonalContextPanel.tsx:1297
 msgid "Private note"
 msgstr "Private note"
 
-#: src/components/PersonalContextPanel.tsx:1122
+#: src/components/PersonalContextPanel.tsx:1037
 msgid "Private note (optional)"
 msgstr "Private note (optional)"
+
+#: src/pages/admin/AdminFeedback.tsx:576
+msgid "Private submission"
+msgstr "Private submission"
 
 #: src/pages/Today.tsx:313
 msgid "Proceed but monitor heart-rate drift during the session"
@@ -7042,7 +7076,7 @@ msgstr "Proceed but monitor heart-rate drift during the session"
 msgid "Processing"
 msgstr "Processing"
 
-#: src/components/PersonalContextPanel.tsx:1189
+#: src/components/PersonalContextPanel.tsx:1104
 msgid "Processing method"
 msgstr "Processing method"
 
@@ -7054,7 +7088,7 @@ msgstr "Product value"
 #~ msgid "productive load"
 #~ msgstr "productive load"
 
-#: src/pages/Settings.tsx:728
+#: src/pages/Settings.tsx:729
 msgid "Profile"
 msgstr "Profile"
 
@@ -7137,6 +7171,10 @@ msgstr "publication overrides"
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 msgstr "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 
+#: src/components/FeedbackDialog.tsx:269
+msgid "Publish a scrubbed text summary to Praxys’s external issue tracker"
+msgstr "Publish a scrubbed text summary to Praxys’s external issue tracker"
+
 #: src/pages/admin/AdminIncidents.tsx:153
 msgid "Publish service updates on the <0>public status page</0>."
 msgstr "Publish service updates on the <0>public status page</0>."
@@ -7145,9 +7183,8 @@ msgstr "Publish service updates on the <0>public status page</0>."
 msgid "Pull your latest activities, power data, and recovery metrics"
 msgstr "Pull your latest activities, power data, and recovery metrics"
 
-#: src/components/PersonalContextPanel.tsx:1155
-#: src/components/PersonalContextPanel.tsx:1342
-#: src/components/PersonalContextPanel.tsx:1602
+#: src/components/PersonalContextPanel.tsx:1070
+#: src/components/PersonalContextPanel.tsx:1257
 #: src/components/PlanStart.tsx:1923
 #: src/pages/McpAuthorization.tsx:220
 msgid "Purpose"
@@ -7238,7 +7275,7 @@ msgstr "Race"
 msgid "Race date"
 msgstr "Race date"
 
-#: src/pages/Settings.tsx:1419
+#: src/pages/Settings.tsx:1423
 msgid "Race Date"
 msgstr "Race Date"
 
@@ -7254,11 +7291,11 @@ msgstr "Race forecast"
 msgid "Race goal"
 msgstr "Race goal"
 
-#: src/pages/Settings.tsx:1408
+#: src/pages/Settings.tsx:1412
 msgid "Race Goal"
 msgstr "Race Goal"
 
-#: src/pages/Setup.tsx:852
+#: src/pages/Setup.tsx:853
 msgid "Race goal configured"
 msgstr "Race goal configured"
 
@@ -7498,18 +7535,18 @@ msgstr "Recent usage across the registered base."
 msgid "Recommendation available"
 msgstr "Recommendation available"
 
-#: src/components/AiInsightsCard.tsx:278
+#: src/components/AiInsightsCard.tsx:295
 msgid "Recommendations"
 msgstr "Recommendations"
 
-#: src/pages/Settings.tsx:898
+#: src/pages/Settings.tsx:899
 msgid "recommended"
 msgstr "recommended"
 
 #: src/pages/Science.tsx:416
 #: src/pages/Science.tsx:591
-#: src/pages/Setup.tsx:695
-#: src/pages/Setup.tsx:831
+#: src/pages/Setup.tsx:696
+#: src/pages/Setup.tsx:832
 msgid "Recommended"
 msgstr "Recommended"
 
@@ -7601,9 +7638,9 @@ msgstr "Recoverable: {0}. Retry exhausted: {1}. Stuck in progress: {2}."
 #: src/lib/display-labels.ts:42
 #: src/lib/phase-label.ts:16
 #: src/pages/Science.tsx:26
-#: src/pages/Settings.tsx:57
-#: src/pages/Settings.tsx:68
-#: src/pages/Setup.tsx:227
+#: src/pages/Settings.tsx:58
+#: src/pages/Settings.tsx:69
+#: src/pages/Setup.tsx:228
 msgid "Recovery"
 msgstr "Recovery"
 
@@ -7680,12 +7717,12 @@ msgstr "Recovery was inadequate or fatigue stayed unresolved"
 msgid "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 msgstr "Recovery was skipped because delivery eligibility changed. Review the refreshed queue."
 
-#: src/components/PersonalContextPanel.tsx:237
+#: src/components/PersonalContextPanel.tsx:227
 msgid "Red-flag symptoms"
 msgstr "Red-flag symptoms"
 
-#: src/pages/Settings.tsx:1215
-#: src/pages/Setup.tsx:1089
+#: src/pages/Settings.tsx:1219
+#: src/pages/Setup.tsx:1094
 msgid "Redirecting..."
 msgstr "Redirecting..."
 
@@ -7695,7 +7732,7 @@ msgid "Reduce Intensity"
 msgstr "Reduce Intensity"
 
 #. placeholder {0}: detail.linked_revision_ids.length
-#: src/components/PersonalContextPanel.tsx:1433
+#: src/components/PersonalContextPanel.tsx:1337
 msgid "Referenced by {0} plan change record(s)."
 msgstr "Referenced by {0} plan change record(s)."
 
@@ -7755,11 +7792,11 @@ msgstr "Regenerate successor"
 msgid "Regenerating…"
 msgstr "Regenerating…"
 
-#: src/pages/Settings.tsx:1014
-#: src/pages/Settings.tsx:1113
-#: src/pages/Settings.tsx:1138
-#: src/pages/Setup.tsx:966
-#: src/pages/Setup.tsx:987
+#: src/pages/Settings.tsx:1015
+#: src/pages/Settings.tsx:1117
+#: src/pages/Settings.tsx:1142
+#: src/pages/Setup.tsx:971
+#: src/pages/Setup.tsx:992
 msgid "Region"
 msgstr "Region"
 
@@ -7792,7 +7829,7 @@ msgstr "Registration date"
 msgid "Registration settings unavailable"
 msgstr "Registration settings unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:593
+#: src/pages/admin/AdminFeedback.tsx:600
 msgid "Reject"
 msgstr "Reject"
 
@@ -7831,7 +7868,7 @@ msgstr "Relative modeled HR"
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
-#: src/App.tsx:115
+#: src/App.tsx:123
 msgid "Reload Labs"
 msgstr "Reload Labs"
 
@@ -7853,7 +7890,7 @@ msgstr "Remove and switch"
 msgid "Remove future Praxys deliveries"
 msgstr "Remove future Praxys deliveries"
 
-#: src/components/FeedbackDialog.tsx:276
+#: src/components/FeedbackDialog.tsx:303
 msgid "Remove image"
 msgstr "Remove image"
 
@@ -7922,7 +7959,7 @@ msgstr "Report"
 msgid "Reported value rate"
 msgstr "Reported value rate"
 
-#: src/pages/Login.tsx:414
+#: src/pages/Login.tsx:423
 msgid "Request an invite"
 msgstr "Request an invite"
 
@@ -7943,7 +7980,7 @@ msgstr "Request failed"
 msgid "Request failed. Try again."
 msgstr "Request failed. Try again."
 
-#: src/pages/Login.tsx:338
+#: src/pages/Login.tsx:347
 msgid "Request invite"
 msgstr "Request invite"
 
@@ -7951,7 +7988,7 @@ msgstr "Request invite"
 msgid "Request p95"
 msgstr "Request p95"
 
-#: src/pages/Login.tsx:400
+#: src/pages/Login.tsx:409
 msgid "Resend verification email"
 msgstr "Resend verification email"
 
@@ -8003,7 +8040,7 @@ msgstr "Rest, walk, or do gentle mobility"
 msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
 msgstr "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
 
-#: src/pages/Settings.tsx:106
+#: src/pages/Settings.tsx:107
 msgid "Resting HR"
 msgstr "Resting HR"
 
@@ -8052,13 +8089,13 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 
 #: src/components/ManagedPlanSettingsCard.tsx:611
 #: src/components/ManagedPlanSettingsCard.tsx:1029
-#: src/components/PersonalContextPanel.tsx:760
+#: src/components/PersonalContextPanel.tsx:679
 #: src/components/PlanStart.tsx:1206
 #: src/components/PlanStart.tsx:1285
 #: src/components/PlanStart.tsx:1902
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/admin/AdminFeedback.tsx:582
+#: src/pages/admin/AdminFeedback.tsx:589
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171
@@ -8068,7 +8105,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/pages/LabsEnvironment.tsx:377
 #: src/pages/LabsEnvironment.tsx:1105
 #: src/pages/McpAuthorization.tsx:202
-#: src/pages/Settings.tsx:335
+#: src/pages/Settings.tsx:336
 #: src/pages/Today.tsx:352
 #: src/pages/Today.tsx:511
 msgid "Retry"
@@ -8150,8 +8187,8 @@ msgid "Return to the plugin to finish the one-time exchange. You can close this 
 msgstr "Return to the plugin to finish the one-time exchange. You can close this tab."
 
 #: src/components/PersonalContextPanel.tsx:1524
-msgid "Review AI access"
-msgstr "Review AI access"
+#~ msgid "Review AI access"
+#~ msgstr "Review AI access"
 
 #: src/components/ManagedPlanSettingsCard.tsx:803
 msgid "Review and activate"
@@ -8173,7 +8210,7 @@ msgstr "Review and update plan"
 #~ msgid "Review baseline"
 #~ msgstr "Review baseline"
 
-#: src/components/PersonalContextPanel.tsx:866
+#: src/components/PersonalContextPanel.tsx:781
 msgid "Review before saving"
 msgstr "Review before saving"
 
@@ -8221,7 +8258,7 @@ msgstr "Review optional test"
 msgid "Review plan outcomes"
 msgstr "Review plan outcomes"
 
-#: src/components/PersonalContextPanel.tsx:1291
+#: src/components/PersonalContextPanel.tsx:1206
 msgid "Review purpose and expiry"
 msgstr "Review purpose and expiry"
 
@@ -8248,8 +8285,12 @@ msgid "Review the current goal"
 msgstr "Review the current goal"
 
 #: src/pages/McpAuthorization.tsx:166
-msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
-msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
+msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, change Azure AI processing authority, or save context on its own."
+msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, change Azure AI processing authority, or save context on its own."
+
+#: src/pages/McpAuthorization.tsx:166
+#~ msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
+#~ msgstr "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, grant AI consent, or save context on its own."
 
 #: src/components/PlanStart.tsx:328
 msgid "Review the existing history-first readiness path before asking Praxys to create a proposal."
@@ -8299,7 +8340,7 @@ msgstr "rising"
 msgid "Rising"
 msgstr "Rising"
 
-#: src/components/PersonalContextPanel.tsx:266
+#: src/components/PersonalContextPanel.tsx:256
 msgid "Road"
 msgstr "Road"
 
@@ -8344,23 +8385,23 @@ msgstr "RPE · 0–10"
 msgid "Rule based"
 msgstr "Rule based"
 
-#: src/components/PersonalContextPanel.tsx:1422
+#: src/components/PersonalContextPanel.tsx:1326
 msgid "Rules"
 msgstr "Rules"
 
 #: src/components/PersonalContextPanel.tsx:819
-msgid "rules only"
-msgstr "rules only"
+#~ msgid "rules only"
+#~ msgstr "rules only"
 
 #: src/components/PersonalContextPanel.tsx:1191
-msgid "Rules only · nothing sent to AI"
-msgstr "Rules only · nothing sent to AI"
+#~ msgid "Rules only · nothing sent to AI"
+#~ msgstr "Rules only · nothing sent to AI"
 
 #: src/lib/phase-label.ts:10
 msgid "Run"
 msgstr "Run"
 
-#: src/components/AiInsightsCard.tsx:290
+#: src/components/AiInsightsCard.tsx:307
 msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 msgstr "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 
@@ -8380,7 +8421,7 @@ msgstr "Run easy instead"
 msgid "Run p95"
 msgstr "Run p95"
 
-#: src/pages/Setup.tsx:169
+#: src/pages/Setup.tsx:170
 msgid "Running"
 msgstr "Running"
 
@@ -8388,9 +8429,9 @@ msgstr "Running"
 msgid "Runs"
 msgstr "Runs"
 
-#: src/components/PersonalContextPanel.tsx:235
-#: src/components/PersonalContextPanel.tsx:236
-#: src/components/PersonalContextPanel.tsx:237
+#: src/components/PersonalContextPanel.tsx:225
+#: src/components/PersonalContextPanel.tsx:226
+#: src/components/PersonalContextPanel.tsx:227
 msgid "Safety"
 msgstr "Safety"
 
@@ -8428,7 +8469,7 @@ msgstr "Safety stop applies"
 #~ msgid "Samples incomplete · {coverage}% coverage"
 #~ msgstr "Samples incomplete · {coverage}% coverage"
 
-#: src/components/PersonalContextPanel.tsx:253
+#: src/components/PersonalContextPanel.tsx:243
 msgid "Sat"
 msgstr "Sat"
 
@@ -8442,7 +8483,7 @@ msgstr "Sat"
 msgid "Save"
 msgstr "Save"
 
-#: src/components/PersonalContextPanel.tsx:1278
+#: src/components/PersonalContextPanel.tsx:1193
 msgid "Save correction"
 msgstr "Save correction"
 
@@ -8454,7 +8495,7 @@ msgstr "Save goal"
 #~ msgid "Save Goal"
 #~ msgstr "Save Goal"
 
-#: src/components/PersonalContextPanel.tsx:1279
+#: src/components/PersonalContextPanel.tsx:1194
 msgid "Save private context"
 msgstr "Save private context"
 
@@ -8470,11 +8511,11 @@ msgstr "Save workout"
 msgid "Saved"
 msgstr "Saved"
 
-#: src/components/PersonalContextPanel.tsx:487
+#: src/components/PersonalContextPanel.tsx:471
 msgid "Saved without guessing a reason. The cause remains unknown."
 msgstr "Saved without guessing a reason. The cause remains unknown."
 
-#: src/components/PersonalContextPanel.tsx:1239
+#: src/components/PersonalContextPanel.tsx:1154
 msgid "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 msgstr "Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training."
 
@@ -8496,11 +8537,11 @@ msgstr "Saving will reschedule this workout."
 
 #: src/components/GoalEditor.tsx:61
 #: src/components/WorkoutPlanEditor.tsx:926
-#: src/pages/Login.tsx:472
+#: src/pages/Login.tsx:481
 msgid "Saving…"
 msgstr "Saving…"
 
-#: src/components/PersonalContextPanel.tsx:230
+#: src/components/PersonalContextPanel.tsx:220
 msgid "Schedule conflict"
 msgstr "Schedule conflict"
 
@@ -8570,8 +8611,8 @@ msgstr "Seconds per kilometre faster or slower than threshold pace."
 msgid "Seconds per mile faster or slower than threshold pace."
 msgstr "Seconds per mile faster or slower than threshold pace."
 
-#: src/pages/Settings.tsx:1165
-#: src/pages/Setup.tsx:1060
+#: src/pages/Settings.tsx:1169
+#: src/pages/Setup.tsx:1065
 msgid "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 msgstr "Securely signing in to Garmin. This can take 15-30 seconds because Garmin rate-limits automated logins. Please keep this window open."
 
@@ -8599,7 +8640,7 @@ msgstr "Select availability, then give the same supported session limit for each
 msgid "Select one item to edit. Repeat children stay visibly nested."
 msgstr "Select one item to edit. Repeat children stay visibly nested."
 
-#: src/pages/Settings.tsx:1157
+#: src/pages/Settings.tsx:1161
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
 
@@ -8619,14 +8660,14 @@ msgstr "semantic"
 #~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 #~ msgstr "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 
-#: src/components/AiInsightsCard.tsx:373
+#: src/components/AiInsightsCard.tsx:390
 msgid "Send"
 msgstr "Send"
 
 #: src/components/AppSidebar.tsx:217
 #: src/components/AppSidebar.tsx:219
-#: src/components/FeedbackDialog.tsx:184
-#: src/components/FeedbackDialog.tsx:317
+#: src/components/FeedbackDialog.tsx:189
+#: src/components/FeedbackDialog.tsx:344
 msgid "Send feedback"
 msgstr "Send feedback"
 
@@ -8638,13 +8679,13 @@ msgstr "Send feedback"
 msgid "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 msgstr "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
 
-#: src/components/AiInsightsCard.tsx:373
+#: src/components/AiInsightsCard.tsx:390
 msgid "Sending..."
 msgstr "Sending..."
 
-#: src/components/FeedbackDialog.tsx:317
+#: src/components/FeedbackDialog.tsx:344
 #: src/pages/admin/AdminUsers.tsx:939
-#: src/pages/Login.tsx:400
+#: src/pages/Login.tsx:409
 msgid "Sending…"
 msgstr "Sending…"
 
@@ -8652,7 +8693,7 @@ msgstr "Sending…"
 msgid "Sensitivity gate"
 msgstr "Sensitivity gate"
 
-#: src/components/AiInsightsCard.tsx:309
+#: src/components/AiInsightsCard.tsx:326
 msgid "Sent"
 msgstr "Sent"
 
@@ -8697,7 +8738,7 @@ msgstr "Service performance degraded"
 
 #: src/components/StatusIndicator.tsx:31
 #: src/components/StatusIndicator.tsx:39
-#: src/pages/Login.tsx:662
+#: src/pages/Login.tsx:671
 msgid "Service status"
 msgstr "Service status"
 
@@ -8714,12 +8755,16 @@ msgstr "Service Status"
 #~ msgid "Session evidence · latest {0}"
 #~ msgstr "Session evidence · latest {0}"
 
+#: src/App.tsx:161
+msgid "Session verification is temporarily unavailable"
+msgstr "Session verification is temporarily unavailable"
+
 #: src/components/HeatAdaptationPanel.tsx:57
 #~ msgid "Set a current power threshold before workload can contribute."
 #~ msgstr "Set a current power threshold before workload can contribute."
 
 #: src/components/SetupChecklist.tsx:71
-#: src/pages/Setup.tsx:843
+#: src/pages/Setup.tsx:844
 msgid "Set a goal"
 msgstr "Set a goal"
 
@@ -8728,8 +8773,8 @@ msgid "Set a power threshold so Praxys can identify sustained work without using
 msgstr "Set a power threshold so Praxys can identify sustained work without using diluted activity-average power."
 
 #: src/components/SetupChecklist.tsx:75
-#: src/pages/Settings.tsx:1398
-#: src/pages/Setup.tsx:864
+#: src/pages/Settings.tsx:1402
+#: src/pages/Setup.tsx:865
 msgid "Set goal"
 msgstr "Set goal"
 
@@ -8742,7 +8787,7 @@ msgstr "Set goal"
 #~ msgid "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 #~ msgstr "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 
-#: src/pages/Setup.tsx:587
+#: src/pages/Setup.tsx:588
 msgid "Set up Praxys"
 msgstr "Set up Praxys"
 
@@ -8754,12 +8799,12 @@ msgstr "Set your goal"
 #~ msgid "Set Your Goal"
 #~ msgstr "Set Your Goal"
 
-#: src/pages/Settings.tsx:769
+#: src/pages/Settings.tsx:770
 msgid "Set your name"
 msgstr "Set your name"
 
 #: src/components/AppSidebar.tsx:139
-#: src/pages/Settings.tsx:701
+#: src/pages/Settings.tsx:702
 msgid "Settings"
 msgstr "Settings"
 
@@ -8768,13 +8813,17 @@ msgstr "Settings"
 msgid "Setup"
 msgstr "Setup"
 
-#: src/components/PersonalContextPanel.tsx:1133
+#: src/components/PersonalContextPanel.tsx:1048
 msgid "Share only what changes your plan."
 msgstr "Share only what changes your plan."
 
 #: src/components/PersonalContextPanel.tsx:711
-msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it."
-msgstr "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it."
+#~ msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it."
+#~ msgstr "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it."
+
+#: src/components/PersonalContextPanel.tsx:630
+msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
+msgstr "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
 
 #: src/pages/Today.tsx:309
 msgid "Shorten the session if fatigue develops"
@@ -8844,9 +8893,9 @@ msgstr "Showing the last available data."
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 
-#: src/pages/Login.tsx:305
-#: src/pages/Login.tsx:329
-#: src/pages/Login.tsx:384
+#: src/pages/Login.tsx:314
+#: src/pages/Login.tsx:338
+#: src/pages/Login.tsx:393
 msgid "Sign in"
 msgstr "Sign in"
 
@@ -8858,7 +8907,7 @@ msgstr "Sign in"
 #~ msgid "Signing in..."
 #~ msgstr "Signing in..."
 
-#: src/pages/Login.tsx:384
+#: src/pages/Login.tsx:393
 msgid "Signing in…"
 msgstr "Signing in…"
 
@@ -8870,7 +8919,7 @@ msgstr "Signing in…"
 msgid "Single-session limit (minutes)"
 msgstr "Single-session limit (minutes)"
 
-#: src/pages/Setup.tsx:879
+#: src/pages/Setup.tsx:880
 msgid "Skip for now"
 msgstr "Skip for now"
 
@@ -8893,11 +8942,11 @@ msgstr "Sleep score is low ({sleep}). Consider reducing today's intensity."
 msgid "Sleep Score vs {metricLabel}"
 msgstr "Sleep Score vs {metricLabel}"
 
-#: src/pages/Setup.tsx:202
+#: src/pages/Setup.tsx:203
 msgid "Sleep score, HRV, readiness"
 msgstr "Sleep score, HRV, readiness"
 
-#: src/pages/Settings.tsx:68
+#: src/pages/Settings.tsx:69
 msgid "Sleep, HRV, readiness"
 msgstr "Sleep, HRV, readiness"
 
@@ -8951,7 +9000,7 @@ msgstr "Source-owned"
 msgid "Split-weighted weather"
 msgstr "Split-weighted weather"
 
-#: src/pages/Login.tsx:246
+#: src/pages/Login.tsx:255
 msgid "Sports science that <0>meets you</0> where you are."
 msgstr "Sports science that <0>meets you</0> where you are."
 
@@ -8990,7 +9039,7 @@ msgstr "Standardized track 10K time trial"
 msgid "Start a training plan"
 msgstr "Start a training plan"
 
-#: src/pages/Setup.tsx:715
+#: src/pages/Setup.tsx:716
 msgid "Start sync"
 msgstr "Start sync"
 
@@ -9006,12 +9055,12 @@ msgstr "Start, review, and adjust the plan Praxys manages for you."
 msgid "Started"
 msgstr "Started"
 
-#: src/components/PersonalContextPanel.tsx:1026
+#: src/components/PersonalContextPanel.tsx:941
 msgid "Starts"
 msgstr "Starts"
 
 #: src/components/GoalBaselinePanel.tsx:122
-#: src/components/PersonalContextPanel.tsx:1333
+#: src/components/PersonalContextPanel.tsx:1248
 #: src/pages/admin/AdminFeedback.tsx:390
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
@@ -9072,12 +9121,12 @@ msgstr "Stop reason"
 msgid "Stop this test"
 msgstr "Stop this test"
 
-#: src/components/PersonalContextPanel.tsx:1496
-#: src/components/PersonalContextPanel.tsx:1534
+#: src/components/PersonalContextPanel.tsx:1400
+#: src/components/PersonalContextPanel.tsx:1424
 msgid "Stop using"
 msgstr "Stop using"
 
-#: src/components/PersonalContextPanel.tsx:1458
+#: src/components/PersonalContextPanel.tsx:1362
 msgid "Stop using this context?"
 msgstr "Stop using this context?"
 
@@ -9085,21 +9134,21 @@ msgstr "Stop using this context?"
 msgid "Stopping or declining preserves your account and the no-test path."
 msgstr "Stopping or declining preserves your account and the no-test path."
 
-#: src/components/PersonalContextPanel.tsx:1175
+#: src/components/PersonalContextPanel.tsx:1090
 msgid "Stored until"
 msgstr "Stored until"
 
-#: src/pages/Settings.tsx:1188
+#: src/pages/Settings.tsx:1192
 msgid "Strava Client ID"
 msgstr "Strava Client ID"
 
-#: src/pages/Settings.tsx:1197
+#: src/pages/Settings.tsx:1201
 msgid "Strava Client Secret"
 msgstr "Strava Client Secret"
 
 #: src/components/UpcomingPlanCard.tsx:570
 #: src/components/WorkoutPlanEditor.tsx:448
-#: src/pages/Setup.tsx:174
+#: src/pages/Setup.tsx:175
 msgid "Strength"
 msgstr "Strength"
 
@@ -9119,14 +9168,14 @@ msgstr "Stretch"
 #~ msgid "strongly positive"
 #~ msgstr "strongly positive"
 
-#: src/components/PersonalContextPanel.tsx:1198
-#: src/components/PersonalContextPanel.tsx:1371
+#: src/components/PersonalContextPanel.tsx:1113
+#: src/components/PersonalContextPanel.tsx:1275
 msgid "Structured details"
 msgstr "Structured details"
 
 #: src/components/PersonalContextPanel.tsx:1613
-msgid "Structured fields sent"
-msgstr "Structured fields sent"
+#~ msgid "Structured fields sent"
+#~ msgstr "Structured fields sent"
 
 #: src/components/WorkoutStructureEditor.tsx:265
 #~ msgid "Structured steps"
@@ -9156,7 +9205,7 @@ msgstr "Stull psychrometric wet-bulb proxy (°C)"
 #~ msgid "Stull wet-bulb approximation"
 #~ msgstr "Stull wet-bulb approximation"
 
-#: src/pages/Login.tsx:462
+#: src/pages/Login.tsx:471
 msgid "Sub-3 marathon · 100K · stay healthy…"
 msgstr "Sub-3 marathon · 100K · stay healthy…"
 
@@ -9170,10 +9219,10 @@ msgid "successful"
 msgstr "successful"
 
 #: src/components/PersonalContextPanel.tsx:1606
-msgid "Suggest a bounded adjustment to the current plan."
-msgstr "Suggest a bounded adjustment to the current plan."
+#~ msgid "Suggest a bounded adjustment to the current plan."
+#~ msgstr "Suggest a bounded adjustment to the current plan."
 
-#: src/components/PersonalContextPanel.tsx:1158
+#: src/components/PersonalContextPanel.tsx:1073
 #: src/pages/McpAuthorization.tsx:29
 msgid "Suggest adjustments to the current plan"
 msgstr "Suggest adjustments to the current plan"
@@ -9189,7 +9238,7 @@ msgstr "Suggestions"
 msgid "Summary window"
 msgstr "Summary window"
 
-#: src/components/PersonalContextPanel.tsx:254
+#: src/components/PersonalContextPanel.tsx:244
 msgid "Sun"
 msgstr "Sun"
 
@@ -9209,12 +9258,12 @@ msgstr "Supported"
 msgid "Swap {workout} for easy run"
 msgstr "Swap {workout} for easy run"
 
-#: src/pages/Setup.tsx:171
+#: src/pages/Setup.tsx:172
 msgid "Swimming"
 msgstr "Swimming"
 
-#: src/pages/Login.tsx:670
-#: src/pages/Login.tsx:671
+#: src/pages/Login.tsx:679
+#: src/pages/Login.tsx:680
 msgid "Switch language"
 msgstr "Switch language"
 
@@ -9223,15 +9272,15 @@ msgstr "Switch language"
 msgid "Switch to {0}"
 msgstr "Switch to {0}"
 
-#: src/pages/Login.tsx:684
+#: src/pages/Login.tsx:693
 msgid "Switch to dark theme"
 msgstr "Switch to dark theme"
 
-#: src/pages/Login.tsx:687
+#: src/pages/Login.tsx:696
 msgid "Switch to light theme"
 msgstr "Switch to light theme"
 
-#: src/pages/Login.tsx:686
+#: src/pages/Login.tsx:695
 msgid "Switch to system theme"
 msgstr "Switch to system theme"
 
@@ -9244,7 +9293,7 @@ msgid "Symptom stop applies"
 msgstr "Symptom stop applies"
 
 #: src/components/SetupChecklist.tsx:59
-#: src/pages/Settings.tsx:957
+#: src/pages/Settings.tsx:958
 msgid "Sync"
 msgstr "Sync"
 
@@ -9252,7 +9301,7 @@ msgstr "Sync"
 #~ msgid "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 #~ msgstr "Sync activities together with sleep data (Garmin, Oura, or similar) so we can pair them by date."
 
-#: src/pages/Settings.tsx:835
+#: src/pages/Settings.tsx:836
 msgid "Sync All"
 msgstr "Sync All"
 
@@ -9264,7 +9313,7 @@ msgstr "Sync All"
 #~ msgid "Sync at least 6 weeks of activity data to see meaningful fitness, fatigue, and form curves."
 #~ msgstr "Sync at least 6 weeks of activity data to see meaningful fitness, fatigue, and form curves."
 
-#: src/pages/Setup.tsx:789
+#: src/pages/Setup.tsx:790
 msgid "Sync complete! Your data is ready."
 msgstr "Sync complete! Your data is ready."
 
@@ -9276,11 +9325,11 @@ msgstr "Sync failed."
 msgid "Sync from GitHub"
 msgstr "Sync from GitHub"
 
-#: src/pages/Settings.tsx:843
+#: src/pages/Settings.tsx:844
 msgid "Sync from:"
 msgstr "Sync from:"
 
-#: src/pages/Setup.tsx:680
+#: src/pages/Setup.tsx:681
 msgid "Sync history"
 msgstr "Sync history"
 
@@ -9334,11 +9383,11 @@ msgstr "Sync target to review"
 #~ msgstr "Sync training data to start a heat history."
 
 #: src/components/SetupChecklist.tsx:55
-#: src/pages/Setup.tsx:666
+#: src/pages/Setup.tsx:667
 msgid "Sync your data"
 msgstr "Sync your data"
 
-#: src/pages/Settings.tsx:953
+#: src/pages/Settings.tsx:954
 msgid "Synced"
 msgstr "Synced"
 
@@ -9351,11 +9400,11 @@ msgstr "Synced <0>{0}</0>"
 #~ msgid "Synced to Stryd. Click to re-push."
 #~ msgstr "Synced to Stryd. Click to re-push."
 
-#: src/pages/Settings.tsx:950
+#: src/pages/Settings.tsx:951
 msgid "Syncing"
 msgstr "Syncing"
 
-#: src/pages/Setup.tsx:712
+#: src/pages/Setup.tsx:713
 msgid "Syncing..."
 msgstr "Syncing..."
 
@@ -9376,7 +9425,7 @@ msgstr "System announcements"
 #~ msgid "System Announcements"
 #~ msgstr "System Announcements"
 
-#: src/pages/Login.tsx:694
+#: src/pages/Login.tsx:703
 msgid "System theme (click for light)"
 msgstr "System theme (click for light)"
 
@@ -9410,8 +9459,8 @@ msgid "Target {metricName}"
 msgstr "Target {metricName}"
 
 #: src/components/SetupChecklist.tsx:72
-#: src/pages/Settings.tsx:1394
-#: src/pages/Setup.tsx:844
+#: src/pages/Settings.tsx:1398
+#: src/pages/Setup.tsx:845
 msgid "Target a race or track continuous improvement"
 msgstr "Target a race or track continuous improvement"
 
@@ -9433,7 +9482,7 @@ msgstr "Target range"
 msgid "Target time"
 msgstr "Target time"
 
-#: src/pages/Settings.tsx:1425
+#: src/pages/Settings.tsx:1429
 msgid "Target Time"
 msgstr "Target Time"
 
@@ -9480,12 +9529,12 @@ msgstr "Templates"
 msgid "Tempo"
 msgstr "Tempo"
 
-#: src/components/PersonalContextPanel.tsx:811
+#: src/components/PersonalContextPanel.tsx:730
 #: src/pages/McpAuthorization.tsx:48
 msgid "Temporary availability"
 msgstr "Temporary availability"
 
-#: src/components/PersonalContextPanel.tsx:381
+#: src/components/PersonalContextPanel.tsx:365
 msgid "Temporary context can stay active for at most 90 days."
 msgstr "Temporary context can stay active for at most 90 days."
 
@@ -9505,7 +9554,7 @@ msgstr "Termination"
 msgid "Terrain and equipment"
 msgstr "Terrain and equipment"
 
-#: src/components/PersonalContextPanel.tsx:1107
+#: src/components/PersonalContextPanel.tsx:1022
 msgid "Terrain still available (optional)"
 msgstr "Terrain still available (optional)"
 
@@ -9522,7 +9571,7 @@ msgstr "Testing"
 msgid "Thanks - that helps us improve Today."
 msgstr "Thanks - that helps us improve Today."
 
-#: src/components/FeedbackDialog.tsx:197
+#: src/components/FeedbackDialog.tsx:202
 msgid "Thanks for the feedback!"
 msgstr "Thanks for the feedback!"
 
@@ -9530,7 +9579,7 @@ msgstr "Thanks for the feedback!"
 msgid "That date is now completed history and can no longer be changed."
 msgstr "That date is now completed history and can no longer be changed."
 
-#: src/components/PersonalContextPanel.tsx:772
+#: src/components/PersonalContextPanel.tsx:691
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 msgstr "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
 
@@ -9666,7 +9715,7 @@ msgstr "The deterministic policy returned no additional explanation."
 msgid "The eligible history crosses incompatible power-device or algorithm regimes."
 msgstr "The eligible history crosses incompatible power-device or algorithm regimes."
 
-#: src/components/PersonalContextPanel.tsx:379
+#: src/components/PersonalContextPanel.tsx:363
 msgid "The end date must be after the start date."
 msgstr "The end date must be after the start date."
 
@@ -9925,7 +9974,7 @@ msgstr "This candidate uses a separate plan purpose and does not change your cur
 msgid "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 msgstr "This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal."
 
-#: src/pages/Settings.tsx:1605
+#: src/pages/Settings.tsx:1609
 msgid "This cannot be undone. If this is the last admin account, deletion will be blocked."
 msgstr "This cannot be undone. If this is the last admin account, deletion will be blocked."
 
@@ -9958,8 +10007,8 @@ msgid "This connects the official Praxys Coach plugin to your account. Personal 
 msgstr "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 
 #: src/components/PersonalContextPanel.tsx:1580
-msgid "This decision is separate from saving context and applies only to this exact version."
-msgstr "This decision is separate from saving context and applies only to this exact version."
+#~ msgid "This decision is separate from saving context and applies only to this exact version."
+#~ msgstr "This decision is separate from saving context and applies only to this exact version."
 
 #: src/pages/admin/AdminOps.tsx:653
 msgid "This delivery cannot be replayed automatically. Review the refreshed queue for the required action."
@@ -9973,8 +10022,8 @@ msgstr "This delivery changed before recovery started. Review the refreshed queu
 msgid "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 msgstr "This deterministic result uses the published and pilot guardrails named by the policy response. It is not AI coaching and does not make an injury, readiness, or goal guarantee."
 
-#: src/components/PersonalContextPanel.tsx:1013
-#: src/components/PersonalContextPanel.tsx:1228
+#: src/components/PersonalContextPanel.tsx:928
+#: src/components/PersonalContextPanel.tsx:1143
 msgid "This enters the safety path and stops ordinary performance optimization. Praxys cannot diagnose, clear you to train, or set a return-to-sport timeline."
 msgstr "This enters the safety path and stops ordinary performance optimization. Praxys cannot diagnose, clear you to train, or set a return-to-sport timeline."
 
@@ -10014,7 +10063,7 @@ msgstr "This imported or older workout has no portable tree. Edit its summary as
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 msgstr "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 
-#: src/components/AiInsightsCard.tsx:191
+#: src/components/AiInsightsCard.tsx:189
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "This insight changed. Refresh the page before sending feedback."
 
@@ -10074,7 +10123,7 @@ msgstr "This is Stull’s psychrometric estimate from air temperature and relati
 msgid "This legacy workout has no structured tree to deliver."
 msgstr "This legacy workout has no structured tree to deliver."
 
-#: src/pages/Verify.tsx:67
+#: src/pages/Verify.tsx:71
 msgid "This link is invalid or has expired. Try signing in to request a new link."
 msgstr "This link is invalid or has expired. Try signing in to request a new link."
 
@@ -10086,7 +10135,7 @@ msgstr "This link is invalid, expired, or belongs to another account. Start a ne
 msgid "This page refreshes automatically every 30 seconds."
 msgstr "This page refreshes automatically every 30 seconds."
 
-#: src/pages/Settings.tsx:1627
+#: src/pages/Settings.tsx:1631
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 msgstr "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
 
@@ -10238,7 +10287,7 @@ msgid "Threshold"
 msgstr "Threshold"
 
 #: src/lib/display-labels.ts:60
-#: src/pages/Settings.tsx:104
+#: src/pages/Settings.tsx:105
 msgid "Threshold Pace"
 msgstr "Threshold Pace"
 
@@ -10246,11 +10295,11 @@ msgstr "Threshold Pace"
 msgid "Threshold Pace Trend"
 msgstr "Threshold Pace Trend"
 
-#: src/pages/Settings.tsx:1462
+#: src/pages/Settings.tsx:1466
 msgid "Thresholds"
 msgstr "Thresholds"
 
-#: src/components/PersonalContextPanel.tsx:251
+#: src/components/PersonalContextPanel.tsx:241
 msgid "Thu"
 msgstr "Thu"
 
@@ -10346,7 +10395,7 @@ msgstr "Today's recovery hasn't synced yet. Showing the latest reading from {lat
 msgid "Token rejected"
 msgstr "Token rejected"
 
-#: src/pages/Login.tsx:165
+#: src/pages/Login.tsx:174
 msgid "Too many attempts from this network. Please email us instead."
 msgstr "Too many attempts from this network. Please email us instead."
 
@@ -10358,8 +10407,8 @@ msgstr "Total users tracked"
 msgid "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
 msgstr "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
 
-#: src/components/PersonalContextPanel.tsx:259
-#: src/components/PersonalContextPanel.tsx:268
+#: src/components/PersonalContextPanel.tsx:249
+#: src/components/PersonalContextPanel.tsx:258
 msgid "Track"
 msgstr "Track"
 
@@ -10371,7 +10420,7 @@ msgstr "Track trend over time"
 msgid "Tracking"
 msgstr "Tracking"
 
-#: src/components/PersonalContextPanel.tsx:267
+#: src/components/PersonalContextPanel.tsx:257
 msgid "Trail"
 msgstr "Trail"
 
@@ -10389,7 +10438,7 @@ msgstr "Train toward a specific race date"
 msgid "Training"
 msgstr "Training"
 
-#: src/pages/Settings.tsx:1238
+#: src/pages/Settings.tsx:1242
 msgid "Training Base"
 msgstr "Training Base"
 
@@ -10400,6 +10449,10 @@ msgstr "Training Diagnosis"
 #: src/pages/Training.tsx:66
 #~ msgid "Training Insights"
 #~ msgstr "Training Insights"
+
+#: src/components/AiInsightsCard.tsx:239
+msgid "Training metrics"
+msgstr "Training metrics"
 
 #: src/pages/Settings.tsx:62
 #~ msgid "Training plan & targets"
@@ -10413,8 +10466,8 @@ msgstr "Training review"
 msgid "Training Science"
 msgstr "Training Science"
 
-#: src/components/PersonalContextPanel.tsx:233
-#: src/components/PersonalContextPanel.tsx:234
+#: src/components/PersonalContextPanel.tsx:223
+#: src/components/PersonalContextPanel.tsx:224
 msgid "Training state"
 msgstr "Training state"
 
@@ -10426,12 +10479,12 @@ msgstr "Training Zones"
 msgid "Translates training stress into fitness."
 msgstr "Translates training stress into fitness."
 
-#: src/components/PersonalContextPanel.tsx:232
+#: src/components/PersonalContextPanel.tsx:222
 msgid "Travel"
 msgstr "Travel"
 
-#: src/components/PersonalContextPanel.tsx:258
-#: src/components/PersonalContextPanel.tsx:269
+#: src/components/PersonalContextPanel.tsx:248
+#: src/components/PersonalContextPanel.tsx:259
 msgid "Treadmill"
 msgstr "Treadmill"
 
@@ -10460,6 +10513,10 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
+#: src/App.tsx:173
+msgid "Try again"
+msgstr "Try again"
+
 #: src/pages/admin/AdminFeedback.tsx:382
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "Try another filter or sync again after new reports arrive."
@@ -10476,7 +10533,7 @@ msgstr "TSB"
 msgid "TSB (load balance)"
 msgstr "TSB (load balance)"
 
-#: src/components/PersonalContextPanel.tsx:249
+#: src/components/PersonalContextPanel.tsx:239
 msgid "Tue"
 msgstr "Tue"
 
@@ -10517,12 +10574,12 @@ msgstr "Turning on…"
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler heat-acclimation meta-analysis"
 
-#: src/components/FeedbackDialog.tsx:210
+#: src/components/FeedbackDialog.tsx:215
 #: src/pages/admin/AdminFeedback.tsx:389
 msgid "Type"
 msgstr "Type"
 
-#: src/pages/Settings.tsx:1634
+#: src/pages/Settings.tsx:1638
 msgid "Type DELETE to confirm."
 msgstr "Type DELETE to confirm."
 
@@ -10549,13 +10606,13 @@ msgstr "Unassisted"
 msgid "Unavailable"
 msgstr "Unavailable"
 
-#: src/components/PersonalContextPanel.tsx:229
+#: src/components/PersonalContextPanel.tsx:219
 msgid "Unavailable day"
 msgstr "Unavailable day"
 
 #: src/components/PersonalContextPanel.tsx:1360
-msgid "Unavailable for safety context"
-msgstr "Unavailable for safety context"
+#~ msgid "Unavailable for safety context"
+#~ msgstr "Unavailable for safety context"
 
 #: src/pages/admin/AdminOps.tsx:500
 msgid "Unclassified"
@@ -10593,7 +10650,7 @@ msgstr "Undo"
 #~ msgid "Unit: watts · Reference: absolute"
 #~ msgstr "Unit: watts · Reference: absolute"
 
-#: src/pages/Settings.tsx:781
+#: src/pages/Settings.tsx:782
 msgid "Units"
 msgstr "Units"
 
@@ -10631,7 +10688,7 @@ msgid "Unlinked plan"
 msgstr "Unlinked plan"
 
 #. placeholder {0}: formatDate(item.expires_at)
-#: src/components/PersonalContextPanel.tsx:814
+#: src/components/PersonalContextPanel.tsx:733
 msgid "until {0}"
 msgstr "until {0}"
 
@@ -10711,7 +10768,7 @@ msgstr "Updated the 5K baseline."
 msgid "Updating…"
 msgstr "Updating…"
 
-#: src/pages/Settings.tsx:1140
+#: src/pages/Settings.tsx:1144
 msgid "US"
 msgstr "US"
 
@@ -10759,8 +10816,8 @@ msgstr "Use history first, then decide whether the optional pilot test is needed
 msgid "Use in Praxys"
 msgstr "Use in Praxys"
 
-#: src/pages/Login.tsx:482
-#: src/pages/Login.tsx:511
+#: src/pages/Login.tsx:491
+#: src/pages/Login.tsx:520
 msgid "Use it"
 msgstr "Use it"
 
@@ -10780,11 +10837,11 @@ msgstr "Use the Training plan preview to add, date, or decline an optional bench
 msgid "Use this {target} workout in Praxys?"
 msgstr "Use this {target} workout in Praxys?"
 
-#: src/pages/Setup.tsx:208
+#: src/pages/Setup.tsx:209
 msgid "Use your Garmin Connect credentials."
 msgstr "Use your Garmin Connect credentials."
 
-#: src/pages/Setup.tsx:210
+#: src/pages/Setup.tsx:211
 msgid "Use your Stryd account credentials (stryd.com)."
 msgstr "Use your Stryd account credentials (stryd.com)."
 
@@ -10799,6 +10856,10 @@ msgstr "Used by"
 #: src/pages/Admin.tsx:751
 #~ msgid "Used By"
 #~ msgstr "Used By"
+
+#: src/components/PersonalContextPanel.tsx:1106
+msgid "Used only for the confirmed purpose and active period"
+msgstr "Used only for the confirmed purpose and active period"
 
 #: src/pages/admin/AdminUsers.tsx:620
 msgid "User"
@@ -10829,21 +10890,21 @@ msgstr "Users and access"
 msgid "Users unavailable"
 msgstr "Users unavailable"
 
-#: src/pages/Settings.tsx:1070
-#: src/pages/Setup.tsx:923
+#: src/pages/Settings.tsx:1074
+#: src/pages/Setup.tsx:928
 msgid "Verification code"
 msgstr "Verification code"
 
-#: src/pages/Login.tsx:390
+#: src/pages/Login.tsx:399
 msgid "Verification email sent. Check your inbox."
 msgstr "Verification email sent. Check your inbox."
 
-#: src/pages/Verify.tsx:64
+#: src/pages/Verify.tsx:68
 msgid "Verification failed"
 msgstr "Verification failed"
 
-#: src/pages/Settings.tsx:1088
-#: src/pages/Setup.tsx:941
+#: src/pages/Settings.tsx:1092
+#: src/pages/Setup.tsx:946
 msgid "Verify"
 msgstr "Verify"
 
@@ -10851,12 +10912,12 @@ msgstr "Verify"
 msgid "Verifying"
 msgstr "Verifying"
 
-#: src/pages/Verify.tsx:45
+#: src/pages/Verify.tsx:49
 msgid "Verifying your email…"
 msgstr "Verifying your email…"
 
-#: src/pages/Settings.tsx:1088
-#: src/pages/Setup.tsx:941
+#: src/pages/Settings.tsx:1092
+#: src/pages/Setup.tsx:946
 msgid "Verifying..."
 msgstr "Verifying..."
 
@@ -10868,7 +10929,7 @@ msgstr "view"
 msgid "View status"
 msgstr "View status"
 
-#: src/pages/Settings.tsx:703
+#: src/pages/Settings.tsx:704
 msgid "Viewing configuration (read-only demo)"
 msgstr "Viewing configuration (read-only demo)"
 
@@ -10876,7 +10937,7 @@ msgstr "Viewing configuration (read-only demo)"
 msgid "VO2max"
 msgstr "VO2max"
 
-#: src/pages/Settings.tsx:1377
+#: src/pages/Settings.tsx:1381
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max, CP, LTHR, training status"
 
@@ -10898,7 +10959,7 @@ msgstr "vs {0}"
 msgid "vs {0} baseline"
 msgstr "vs {0} baseline"
 
-#: src/components/ZoneAnalysisCard.tsx:79
+#: src/components/ZoneAnalysisCard.tsx:80
 msgid "vs {theoryName}"
 msgstr "vs {theoryName}"
 
@@ -10916,7 +10977,7 @@ msgstr "Waitlist unavailable"
 
 #: src/components/UpcomingPlanCard.tsx:568
 #: src/components/WorkoutPlanEditor.tsx:446
-#: src/pages/Setup.tsx:173
+#: src/pages/Setup.tsx:174
 msgid "Walking"
 msgstr "Walking"
 
@@ -10941,8 +11002,8 @@ msgstr "Was the full effort a measured 10K?"
 msgid "Was the full effort a measured 5K?"
 msgstr "Was the full effort a measured 5K?"
 
-#: src/components/AiInsightsCard.tsx:313
-#: src/components/AiInsightsCard.tsx:317
+#: src/components/AiInsightsCard.tsx:330
+#: src/components/AiInsightsCard.tsx:334
 msgid "Was this insight useful?"
 msgstr "Was this insight useful?"
 
@@ -10952,18 +11013,22 @@ msgid "WAU"
 msgstr "WAU"
 
 #: src/components/FeedbackDialog.tsx:247
-msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
-msgstr "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
+#~ msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
+#~ msgstr "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 
-#: src/pages/Login.tsx:427
+#: src/components/FeedbackDialog.tsx:252
+msgid "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
+msgstr "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
+
+#: src/pages/Login.tsx:436
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 msgstr "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
 
-#: src/components/FeedbackDialog.tsx:200
+#: src/components/FeedbackDialog.tsx:205
 msgid "We've logged it and will take a look."
 msgstr "We've logged it and will take a look."
 
-#: src/components/PersonalContextPanel.tsx:238
+#: src/components/PersonalContextPanel.tsx:228
 msgid "Weather"
 msgstr "Weather"
 
@@ -10987,7 +11052,7 @@ msgstr "WeChat Mini Program"
 msgid "WeChat Mini Program QR code"
 msgstr "WeChat Mini Program QR code"
 
-#: src/components/PersonalContextPanel.tsx:250
+#: src/components/PersonalContextPanel.tsx:240
 msgid "Wed"
 msgstr "Wed"
 
@@ -11036,7 +11101,7 @@ msgstr "Weekly volume"
 msgid "Weekly Volume"
 msgstr "Weekly Volume"
 
-#: src/pages/Login.tsx:310
+#: src/pages/Login.tsx:319
 msgid "Welcome back."
 msgstr "Welcome back."
 
@@ -11052,11 +11117,11 @@ msgstr "wet-bulb proxy"
 msgid "Wet-bulb proxy calculator"
 msgstr "Wet-bulb proxy calculator"
 
-#: src/components/PersonalContextPanel.tsx:871
+#: src/components/PersonalContextPanel.tsx:786
 msgid "What availability changed?"
 msgstr "What availability changed?"
 
-#: src/components/PersonalContextPanel.tsx:870
+#: src/components/PersonalContextPanel.tsx:785
 msgid "What changed with this workout?"
 msgstr "What changed with this workout?"
 
@@ -11068,11 +11133,11 @@ msgstr "What changed with this workout?"
 #~ msgid "What does not count"
 #~ msgstr "What does not count"
 
-#: src/components/FeedbackDialog.tsx:237
+#: src/components/FeedbackDialog.tsx:242
 msgid "What happened, or what would you like to see?"
 msgstr "What happened, or what would you like to see?"
 
-#: src/components/PersonalContextPanel.tsx:946
+#: src/components/PersonalContextPanel.tsx:861
 msgid "What happened?"
 msgstr "What happened?"
 
@@ -11093,13 +11158,19 @@ msgstr "What this can—and cannot—tell you"
 msgid "What was this full activity?"
 msgstr "What was this full activity?"
 
-#: src/components/AiInsightsCard.tsx:353
+#: src/components/AiInsightsCard.tsx:370
 msgid "What was useful or missing?"
 msgstr "What was useful or missing?"
 
-#: src/pages/Login.tsx:456
+#: src/pages/Login.tsx:465
 msgid "What's your training goal? (optional)"
 msgstr "What's your training goal? (optional)"
+
+#. placeholder {0}: provider.label
+#. placeholder {1}: provider.label
+#: src/components/PlatformConnectionNotice.tsx:42
+msgid "When you continue, Praxys sends the authentication details needed for this connection to {0} and retrieves the activity, route, fitness, recovery, or plan data that this connection supports. {1} may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
+msgstr "When you continue, Praxys sends the authentication details needed for this connection to {0} and retrieves the activity, route, fitness, recovery, or plan data that this connection supports. {1} may process this exchange outside mainland China under its own policy. Disconnecting stops future retrieval."
 
 #: src/pages/Settings.tsx:67
 #~ msgid "Where Praxys pushes your plan. Per-workout sync state shows in Training."
@@ -11121,7 +11192,7 @@ msgstr "Why this is conservative"
 msgid "Why this remains experimental"
 msgstr "Why this remains experimental"
 
-#: src/pages/Setup.tsx:900
+#: src/pages/Setup.tsx:901
 msgid "Will sync:"
 msgstr "Will sync:"
 
@@ -11130,8 +11201,8 @@ msgid "Withdraw"
 msgstr "Withdraw"
 
 #: src/components/PersonalContextPanel.tsx:1689
-msgid "Withdraw AI permission"
-msgstr "Withdraw AI permission"
+#~ msgid "Withdraw AI permission"
+#~ msgstr "Withdraw AI permission"
 
 #: src/pages/LabsEnvironment.tsx:1395
 msgid "Withdraw and delete"
@@ -11157,8 +11228,8 @@ msgstr "Withdrawal deletes the experiment consent and aggregate result. Rejoinin
 msgid "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 msgstr "Withdrawal immediately deletes experiment consent and the derived result. Your ordinary account activities remain unchanged."
 
-#: src/components/PersonalContextPanel.tsx:804
-#: src/components/PersonalContextPanel.tsx:1337
+#: src/components/PersonalContextPanel.tsx:723
+#: src/components/PersonalContextPanel.tsx:1252
 msgid "Withdrawn"
 msgstr "Withdrawn"
 
@@ -11179,7 +11250,7 @@ msgid "Workload evidence"
 msgstr "Workload evidence"
 
 #: src/components/ManagedPlanSettingsCard.tsx:982
-#: src/components/PersonalContextPanel.tsx:884
+#: src/components/PersonalContextPanel.tsx:799
 #: src/components/UpcomingPlanCard.tsx:1598
 msgid "Workout"
 msgstr "Workout"
@@ -11204,12 +11275,12 @@ msgstr "Workout delivery is not supported."
 #~ msgid "Workout differs on Stryd — re-push to overwrite"
 #~ msgstr "Workout differs on Stryd — re-push to overwrite"
 
-#: src/components/PersonalContextPanel.tsx:810
+#: src/components/PersonalContextPanel.tsx:729
 #: src/pages/McpAuthorization.tsx:51
 msgid "Workout explanation"
 msgstr "Workout explanation"
 
-#: src/components/PersonalContextPanel.tsx:1346
+#: src/components/PersonalContextPanel.tsx:1261
 msgid "Workout interpretation"
 msgstr "Workout interpretation"
 
@@ -11231,7 +11302,7 @@ msgstr "Workout profile"
 msgid "Workout purpose"
 msgstr "Workout purpose"
 
-#: src/components/PersonalContextPanel.tsx:279
+#: src/components/PersonalContextPanel.tsx:269
 msgid "Workout status"
 msgstr "Workout status"
 
@@ -11260,7 +11331,7 @@ msgstr "you"
 msgid "You already have usable current 10K evidence."
 msgstr "You already have usable current 10K evidence."
 
-#: src/components/FeedbackDialog.tsx:105
+#: src/components/FeedbackDialog.tsx:108
 msgid "You can attach up to 3 images."
 msgstr "You can attach up to 3 images."
 
@@ -11277,8 +11348,8 @@ msgid "You can still save this workout in Praxys, but managed delivery cannot pr
 msgstr "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
 
 #: src/components/PersonalContextPanel.tsx:1654
-msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
-msgstr "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
+#~ msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
+#~ msgstr "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 
 #: src/pages/LabsEnvironment.tsx:1332
 msgid "You control this experiment"
@@ -11292,21 +11363,21 @@ msgstr "You have older 10K evidence. Praxys keeps it visible, but new planning s
 msgid "You have older 5K evidence. Praxys keeps it visible and can optionally offer a new pilot test."
 msgstr "You have older 5K evidence. Praxys keeps it visible and can optionally offer a new pilot test."
 
-#: src/pages/Login.tsx:109
+#: src/pages/Login.tsx:115
 msgid "You must accept the Terms of Service to register."
 msgstr "You must accept the Terms of Service to register."
 
-#: src/components/FeedbackDialog.tsx:163
+#: src/components/FeedbackDialog.tsx:168
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "You've sent several reports recently — please wait a few minutes before sending more."
 
-#: src/pages/Login.tsx:357
-#: src/pages/Login.tsx:445
-#: src/pages/Login.tsx:554
+#: src/pages/Login.tsx:366
+#: src/pages/Login.tsx:454
+#: src/pages/Login.tsx:563
 msgid "you@example.com"
 msgstr "you@example.com"
 
-#: src/pages/Verify.tsx:54
+#: src/pages/Verify.tsx:58
 msgid "Your account is active. You can now sign in."
 msgstr "Your account is active. You can now sign in."
 
@@ -11322,7 +11393,7 @@ msgstr "Your comparable range"
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 msgstr "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 
-#: src/pages/Settings.tsx:639
+#: src/pages/Settings.tsx:640
 msgid "Your data export is downloading."
 msgstr "Your data export is downloading."
 
@@ -11334,7 +11405,7 @@ msgstr "Your data export is downloading."
 msgid "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 msgstr "Your eligible runs do not cover enough different temperature-and-humidity conditions."
 
-#: src/pages/Settings.tsx:1563
+#: src/pages/Settings.tsx:1567
 msgid "Your export is a portable snapshot of the data stored in Praxys."
 msgstr "Your export is a portable snapshot of the data stored in Praxys."
 
@@ -11342,8 +11413,8 @@ msgstr "Your export is a portable snapshot of the data stored in Praxys."
 msgid "Your external planner remains in control."
 msgstr "Your external planner remains in control."
 
-#: src/pages/Settings.tsx:1067
-#: src/pages/Setup.tsx:920
+#: src/pages/Settings.tsx:1071
+#: src/pages/Setup.tsx:925
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 msgstr "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
 
@@ -11359,11 +11430,11 @@ msgstr "Your historical environmental-response curve"
 msgid "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 msgstr "Your history includes enough broad sample coverage, but the full analysis must confirm that power, heart rate, and Critical Power use one compatible Stryd regime."
 
-#: src/pages/Settings.tsx:729
+#: src/pages/Settings.tsx:730
 msgid "Your identity in Praxys"
 msgstr "Your identity in Praxys"
 
-#: src/pages/Settings.tsx:755
+#: src/pages/Settings.tsx:756
 msgid "Your name"
 msgstr "Your name"
 
@@ -11401,17 +11472,26 @@ msgstr "Your result is not pooled with other users and is not donated to cohort 
 msgid "Your result needs recomputing"
 msgstr "Your result needs recomputing"
 
+#: src/App.tsx:164
+msgid "Your session is still saved. Check your connection and try again."
+msgstr "Your session is still saved. Check your connection and try again."
+
 #: src/pages/LabsEnvironment.tsx:74
 msgid "Your source data changed while this result was being computed."
 msgstr "Your source data changed while this result was being computed."
 
-#: src/pages/Settings.tsx:1190
+#: src/pages/Settings.tsx:1194
 msgid "Your Strava API Client ID"
 msgstr "Your Strava API Client ID"
 
-#: src/pages/Settings.tsx:1200
+#: src/pages/Settings.tsx:1204
 msgid "Your Strava API Client Secret"
 msgstr "Your Strava API Client Secret"
+
+#: src/components/AiInsightsCard.tsx:219
+#: src/components/AiInsightsCard.tsx:249
+msgid "Your synced data and deterministic training metrics remain available."
+msgstr "Your synced data and deterministic training metrics remain available."
 
 #: src/components/ZoneAnalysisCard.tsx:62
 #~ msgid "Zone"
@@ -11445,8 +11525,8 @@ msgstr "Zone labels"
 #~ msgid "Zone Labels"
 #~ msgstr "Zone Labels"
 
-#: src/pages/Settings.tsx:74
-#: src/pages/Setup.tsx:181
+#: src/pages/Settings.tsx:75
+#: src/pages/Setup.tsx:182
 msgid "Zones & load from Critical Power"
 msgstr "Zones & load from Critical Power"
 
@@ -11454,12 +11534,12 @@ msgstr "Zones & load from Critical Power"
 #~ msgid "Zones & load from Critical Power (best with Stryd)"
 #~ msgstr "Zones & load from Critical Power (best with Stryd)"
 
-#: src/pages/Settings.tsx:83
-#: src/pages/Setup.tsx:183
+#: src/pages/Settings.tsx:84
+#: src/pages/Setup.tsx:184
 msgid "Zones & load from Lactate Threshold HR"
 msgstr "Zones & load from Lactate Threshold HR"
 
-#: src/pages/Settings.tsx:92
-#: src/pages/Setup.tsx:185
+#: src/pages/Settings.tsx:93
+#: src/pages/Setup.tsx:186
 msgid "Zones & load from Threshold Pace"
 msgstr "Zones & load from Threshold Pace"

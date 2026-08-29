@@ -62,7 +62,7 @@ Engineering capabilities preserve repository-specific rules:
 | Analysis | `analysis/metrics.py`, `api/deps.py` | Metrics are pure; intensity uses splits/samples, never activity `avg_power` |
 | API | `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/` | Routes stay thin; authenticated data is recomputed through deps; only register/token are public |
 | Frontend | `web/src/`, `miniapp/` | Use `useApi<T>`, strict types, UI quality, and web/miniapp parity; use `wechat-devtools` only in a user-approved foreground window |
-| AI features | `api/ai.py`, `api/routes/ai.py`, `analysis/providers/ai.py`, `plugins/praxys/` | AI remains optional with deterministic fallbacks; plugin edits land in its submodule repository first |
+| AI features | `api/ai.py`, `api/routes/ai.py`, `analysis/providers/ai.py`, `plugins/praxys/` | Azure AI is an ordinary authenticated-service capability, not an optional enhancement. During an outage or emergency stop, AI-only features report unavailable while separately labelled deterministic metrics continue; deterministic content is never presented as AI. Plugin edits land in its submodule repository first |
 
 ### Architecture
 
