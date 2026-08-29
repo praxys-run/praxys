@@ -177,7 +177,7 @@ execution gets a fresh attempt identity. Nested calls carry only the active
 parent attempt identity. Contract and slot identities are durably bound to the
 recomputed route and bounded role, and conflicting reuse is invalid.
 
-Task-returned public agent IDs must be non-empty, bounded, trim-stable,
+Task-returned public agent IDs must be non-empty, bounded, whitespace-free,
 control-free values that are not repository identities, `call_*` call IDs, or
 obvious placeholders. The binding persists only
 `SHA-256("praxys-native-public-agent-id-v1\0" || exact_public_id)`, never the
@@ -227,7 +227,7 @@ Stable exit meanings:
 | 2 | Invalid request, identity, parent binding, or conflicting terminal transition. |
 | 3 | Policy or recomputed Work Contract unavailable, invalid, or mismatched. |
 | 4 | Ledger, transaction, state validation, or leaf-first recovery failure. |
-| 5 | Requested mode unavailable or unapproved. |
+| 5 | Requested mode or required native notification capability unavailable or unapproved. |
 
 Ordinary instrument/shadow candidate-policy denials remain observational. A
 cooperative caller must not dispatch when the lifecycle response has

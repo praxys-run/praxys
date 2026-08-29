@@ -630,16 +630,24 @@ class Ledger:
                                    decided_at_ms
                             FROM lifecycle_decisions"""
                         )
+                    self._validate(connection)
                     connection.commit()
-                self._validate(connection)
-            except Exception:
-                connection.rollback()
+                else:
+                    self._validate(connection)
+            except (StateCorrupt, StateUnsupported):
+                if connection.in_transaction:
+                    connection.rollback()
                 raise
+            except sqlite3.Error as exc:
+                if connection.in_transaction:
+                    connection.rollback()
+                raise StateCorrupt from exc
             finally:
                 connection.close()
             return False
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.path.parent.chmod(0o700)
+        connection: sqlite3.Connection | None = None
         try:
             descriptor = os.open(
                 self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600
@@ -666,13 +674,21 @@ class Ledger:
                 'INSERT INTO control(singleton, kill_switch, updated_at_ms) VALUES (1, 0, ?)',
                 (_now_ms(),),
             )
+            self._validate(connection)
             connection.commit()
             self.path.chmod(0o600)
-            self._validate(connection)
-            connection.close()
             return True
+        except (StateCorrupt, StateUnsupported):
+            if connection is not None and connection.in_transaction:
+                connection.rollback()
+            raise
         except (sqlite3.Error, OSError) as exc:
+            if connection is not None and connection.in_transaction:
+                connection.rollback()
             raise StateCorrupt from exc
+        finally:
+            if connection is not None:
+                connection.close()
 
     @staticmethod
     def _execute_schema(connection: sqlite3.Connection, schema: str) -> None:

@@ -236,7 +236,11 @@ def is_valid_public_agent_id(value: object) -> bool:
         or _REPOSITORY_IDENTITY_RE.fullmatch(value) is not None
     ):
         return False
-    return not any(unicodedata.category(character).startswith("C") for character in value)
+    return not any(
+        character.isspace()
+        or unicodedata.category(character).startswith("C")
+        for character in value
+    )
 
 
 def evaluate_admission(

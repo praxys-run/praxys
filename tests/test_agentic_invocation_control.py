@@ -32,6 +32,7 @@ from scripts.agent_invocation_control import (
     Ledger,
     NativeBoundary,
     RecoveryRequired,
+    StateCorrupt,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1044,6 +1045,55 @@ def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
     }.issubset(tables)
 
 
+def test_failed_745_ledger_upgrade_rolls_back_auxiliary_schema(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute('DROP TABLE native_binding_provenance')
+        connection.execute('DROP TABLE lifecycle_dispatch')
+        connection.execute('ALTER TABLE work_history ADD COLUMN unexpected TEXT')
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert 'lifecycle_dispatch' not in tables
+    assert 'native_binding_provenance' not in tables
+
+
+def test_new_ledger_validation_failure_rolls_back_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger = Ledger(tmp_path / 'ledger.sqlite3')
+
+    def reject_schema(
+        _connection: sqlite3.Connection, *, require_lifecycle: bool = True
+    ) -> None:
+        del require_lifecycle
+        raise StateCorrupt
+
+    monkeypatch.setattr(Ledger, '_validate', staticmethod(reject_schema))
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert tables == set()
+
+
 def test_lifecycle_key_deduplicates_active_work_and_allows_new_digest(
     tmp_path: Path,
 ) -> None:
@@ -1456,7 +1506,11 @@ def test_lifecycle_dispatch_distinguishes_policy_denial(tmp_path: Path) -> None:
         '',
         ' public-agent',
         'public-agent ',
+        'public agent',
+        'public\tagent',
         'public\nagent',
+        'public\u00a0agent',
+        'public\u2003agent',
         'call_123456',
         'dummy',
         'nonexistent',
@@ -1540,6 +1594,36 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
     )
 
 
+def test_upgraded_unverified_native_binding_cannot_authenticate(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    alias = opaque('native', 1)
+    public_id = 'task-agent-before-provenance'
+    ledger.bind_native(
+        opaque('attempt', 1), alias, public_id, 'task_result'
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute('DROP TABLE native_binding_provenance')
+        connection.execute('DROP TABLE lifecycle_dispatch')
+    assert ledger.initialize() is False
+    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
+        ledger.native_notification(
+            opaque('attempt', 1), alias, public_id
+        )
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM native_invocations'
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            'SELECT COUNT(*) FROM native_binding_provenance'
+        ).fetchone()[0] == 0
+
+
 def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
     tmp_path: Path,
 ) -> None:
@@ -1557,6 +1641,13 @@ def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
     ledger.bind_native(
         opaque('attempt', 1), alias, public_id, 'task_result'
     )
+    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
+        ledger.bind_native(
+            opaque('attempt', 2),
+            opaque('native', 2),
+            public_id,
+            'task_result',
+        )
 
     with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
         ledger.native_notification(
