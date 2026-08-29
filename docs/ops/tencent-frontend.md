@@ -56,7 +56,7 @@ The authenticated China release also requires:
 - the versioned processing notice to block auth prefetch/restoration and all
   mini-program requests before acknowledgement;
 - `.cn` requests to carry the stamped source SHA, current notice version and
-  digest, and `cn-privacy-v1` API contract;
+  digest, and `cn-privacy-v2` API contract;
 - WeChat requests to carry Miniapp version `2026.08.2` or newer, its stamped
   source SHA, current notice version and digest, and API contract; the API
   accepts only entries in the server-owned exact release registry and rejects
