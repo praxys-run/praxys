@@ -148,7 +148,8 @@ Stable v1 exit contract:
 - `2`: invalid request, schema, or identity;
 - `3`: policy or Work Contract unavailable, invalid, or mismatched for evaluation;
 - `4`: ledger, transaction, or recovery failure; and
-- `5`: requested mode unavailable or unapproved.
+- `5`: requested mode or required native notification capability unavailable
+  or unapproved.
 
 These meanings cannot be repurposed within v1. Ordinary candidate-policy
 would-denials remain observational in instrument/shadow. Lifecycle protocol
@@ -178,6 +179,23 @@ Stable v1 machine reason-code namespace:
 - `recovery_recorded`
 - `kill_switch_updated`
 - `status_reported`
+- `lifecycle_transition_rejected`
+- `native_bound`
+- `native_notification_recorded`
+- `completion_notification_required`
+- `native_notifications_unavailable`
+- `native_read_authorized`
+- `native_read_refused`
+- `native_observation_recorded`
+- `progress_recorded`
+- `progress_idempotent`
+- `tree_termination_recorded`
+- `tree_termination_idempotent`
+- `direct_sibling_active`
+- `execution_provenance_invalid`
+- `native_binding_mismatch`
+- `native_binding_invalidated`
+- `native_invalidated`
 
 Meanings cannot change within schema v1. Additions are additive and require documentation and tests. Human or task text is not permitted as a reason. Exact policy bounds and tuning remain deferred to approved policy review.
 

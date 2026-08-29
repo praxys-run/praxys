@@ -333,7 +333,7 @@ def test_reason_code_schemas_and_docs_are_exact() -> None:
         'Stable v1 machine reason-code namespace:', 1
     )[1].split('Meanings cannot change', 1)[0]
     assert tuple(re.findall(r'`([a-z_]+)`', adr_machine_section)) == (
-        MACHINE_REASON_CODES[:21]
+        MACHINE_REASON_CODES
     )
 
     proposal = (
