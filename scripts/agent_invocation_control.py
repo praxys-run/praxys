@@ -709,6 +709,7 @@ class Ledger:
     def _connect_for_initialization(self) -> sqlite3.Connection:
         if not self.path.is_file():
             raise StateMissing
+        connection: sqlite3.Connection | None = None
         try:
             connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
             connection.row_factory = sqlite3.Row
@@ -719,12 +720,19 @@ class Ledger:
                 raise StateCorrupt
             self._validate(connection, require_lifecycle=False)
             return connection
+        except (StateCorrupt, StateUnsupported):
+            if connection is not None:
+                connection.close()
+            raise
         except (sqlite3.Error, OSError, UnicodeError) as exc:
+            if connection is not None:
+                connection.close()
             raise StateCorrupt from exc
 
     def _connect(self) -> sqlite3.Connection:
         if not self.path.is_file():
             raise StateMissing
+        connection: sqlite3.Connection | None = None
         try:
             connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
             connection.row_factory = sqlite3.Row
@@ -735,7 +743,13 @@ class Ledger:
                 raise StateCorrupt
             self._validate(connection)
             return connection
+        except (StateCorrupt, StateUnsupported):
+            if connection is not None:
+                connection.close()
+            raise
         except (sqlite3.Error, OSError, UnicodeError) as exc:
+            if connection is not None:
+                connection.close()
             raise StateCorrupt from exc
 
     @staticmethod

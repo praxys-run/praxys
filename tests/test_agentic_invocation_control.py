@@ -33,6 +33,7 @@ from scripts.agent_invocation_control import (
     NativeBoundary,
     RecoveryRequired,
     StateCorrupt,
+    StateUnsupported,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1092,6 +1093,76 @@ def test_new_ledger_validation_failure_rolls_back_schema(
             )
         }
     assert tables == set()
+
+
+@pytest.mark.parametrize(
+    ('failure', 'expected_error'),
+    [
+        ('corrupt', StateCorrupt),
+        ('unsupported', StateUnsupported),
+        ('sqlite', StateCorrupt),
+    ],
+)
+def test_existing_ledger_prevalidation_failure_closes_connection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    expected_error: type[Exception],
+) -> None:
+    ledger = new_ledger(tmp_path)
+    real_connect = sqlite3.connect
+    if failure == 'corrupt':
+        with real_connect(ledger.path) as connection:
+            connection.execute(
+                'ALTER TABLE metadata ADD COLUMN unexpected TEXT'
+            )
+    elif failure == 'unsupported':
+        with real_connect(ledger.path) as connection:
+            connection.execute(
+                "UPDATE metadata SET value = '999' WHERE key = 'schema_version'"
+            )
+
+    class TrackedConnection:
+        def __init__(
+            self, connection: sqlite3.Connection, fail_with_sqlite: bool
+        ) -> None:
+            object.__setattr__(self, '_connection', connection)
+            object.__setattr__(self, '_fail_with_sqlite', fail_with_sqlite)
+            object.__setattr__(self, 'closed', False)
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self._connection, name)
+
+        def __setattr__(self, name: str, value: object) -> None:
+            if name in {'_connection', '_fail_with_sqlite', 'closed'}:
+                object.__setattr__(self, name, value)
+                return
+            setattr(self._connection, name, value)
+
+        def execute(
+            self, statement: str, parameters: tuple[object, ...] = ()
+        ) -> sqlite3.Cursor:
+            if self._fail_with_sqlite and statement == 'PRAGMA busy_timeout=30000':
+                raise sqlite3.OperationalError('injected prevalidation failure')
+            return self._connection.execute(statement, parameters)
+
+        def close(self) -> None:
+            object.__setattr__(self, 'closed', True)
+            self._connection.close()
+
+    tracked: list[TrackedConnection] = []
+
+    def tracked_connect(*args: object, **kwargs: object) -> TrackedConnection:
+        connection = real_connect(*args, **kwargs)
+        wrapper = TrackedConnection(connection, failure == 'sqlite')
+        tracked.append(wrapper)
+        return wrapper
+
+    monkeypatch.setattr(sqlite3, 'connect', tracked_connect)
+    with pytest.raises(expected_error):
+        ledger.initialize()
+    assert len(tracked) == 1
+    assert tracked[0].closed is True
 
 
 def test_lifecycle_key_deduplicates_active_work_and_allows_new_digest(
