@@ -6,7 +6,11 @@ This document is the durable Engineering Implementation Impact Map and
 Implementation Change for the accepted instrument/shadow implementation. The
 control is repository-owned and cooperatively mediated. It is not native
 launcher interception, cross-machine authority, or global protection.
-Enforcement is unavailable and unapproved.
+Enforcement is unavailable and unapproved. The lifecycle-first P0/P1
+extension described below is a local, uncommitted implementation and is **not
+approved for release**. It corrects cooperative lifecycle bookkeeping inside
+the accepted policy; it changes no policy value, role, route, reviewer
+authority, or autonomy level.
 
 The proposed ADR remains Proposed — instrument/shadow scope human-authorized;
 final implementation-bound ADR approval pending separate review. This document
@@ -35,6 +39,15 @@ does not approve that ADR or any deferred decision.
 - decision_review: required
 - route_digest:
   sha256:dfe65e8c108c06411ad84d7e7d8ec32d8206429780243973a31e840fb7c11f51
+
+Current bounded local handoff: contract `ctr_124fe6b57155999474f3aa7f3829426b`,
+slot `slt_a3f95d836676a59960d82b3b15499648`, generation
+`gen_ef44174f758181040c7bcb4c734a7b19`, logical invocation
+`log_22311bf9d8ac4ea54ed3f8bb01859ace`, attempt
+`att_2db630c4f73b35c6b303ee7ba1cf3093`, and parent
+`att_177f2b079711adc654290353bd85fffa`. Admission was explicitly recorded as
+`launch_authorized=true` with policy reason `admit`. These opaque IDs are a
+durable handoff record, not a claim of native cancellation or callback control.
 
 Every admission recomputes this kind of authoritative Work Contract from the
 bounded classification before ledger access or candidate-policy evaluation.
@@ -67,13 +80,13 @@ approval remain deferred.
 
 | Area | Impact |
 |---|---|
-| Data | Adds only a disposable, local SQLite control ledger under the Git common directory. It is not the application database and stores no task, prompt, source, user, issue, artifact, credential, output, stack-trace, or free-form diagnostic text. |
+| Data | Compatibly extends the disposable Git-common-dir SQLite v1 ledger with additive lifecycle, immutable-revision, native-binding, one-read, replacement-eligibility, and progress-evidence tables. It remains outside the application database and stores no task, prompt, source, user, issue, artifact content, credential, output, stack trace, or free-form diagnostic text. |
 | Analysis | Adds analysis/agentic_invocation_control.py, an I/O-free stdlib identity validator and deterministic candidate-policy evaluator. Existing static routing remains authoritative and unchanged. |
 | API | No application API or authentication change. |
 | Clients | Adds a versioned stdin/stdout CLI and cooperative instructions in the Orchestrator and Delivery Loop manifests. No UI, provider, sync, or native-agent API changes. |
 | Operations | Adds no service, deployment setting, secret, alert, or production runtime. Local and Cloud use the same repository protocol, subject to the same native-interception limitation. |
-| Migration | Ledger schema v1 is created only by explicit init. There is no application migration and no in-place incompatible ledger migration; unsupported state is reported visibly. |
-| Tests | Adds pure-policy, lifecycle, boundary, privacy, Work Contract, Local/Cloud parity, and multi-process SQLite regression coverage. Independent Quality verification remains a separate artifact. |
+| Migration | Explicit `init` transactionally adds the compatible lifecycle tables to a valid original v1 ledger; no mandatory v2, application migration, destructive rewrite, or automatic incompatible migration is introduced. Partial or unsupported state fails visibly. |
+| Tests | Extends focused policy/lifecycle tests for logical-key deduplication, first loss, permanent read refusal, one replacement/no chain, leaf-first parent cleanup, new-revision review, illegal transitions, explicit progress, original #737 behavior, manifests, and parity. Independent Quality verification remains a separate artifact and has not yet occurred for this local change. |
 
 ## Implementation Change
 
@@ -100,6 +113,24 @@ accepted starting limits. The implementation adds:
    heartbeat expiry, elapsed-time inference, or stale timeout exists.
 7. Cooperative Local/Cloud agent-manifest guidance with no native-interception
    or global-enforcement claim.
+8. A lifecycle work key of contract, stable bounded-role slot, and immutable
+   artifact digest or Git head. One active key is allowed; a different immutable
+   revision is an explicit `review_after_new_digest`, not a duplicate.
+9. Explicit `initial_launch`, `resume`, `replacement`,
+   `review_after_new_digest`, `duplicate_launch`, and `illegal_transition`
+   records. Duplicate and illegal lifecycle transitions fail closed even though
+   ordinary instrument/shadow candidate-policy denials remain observational.
+10. Completion-notification-driven one-read native bindings. The first claimed
+    `not_found` result records loss, permanently closes that opaque native ID,
+    and creates at most one explicit, manually consumed replacement eligibility.
+    A replacement is separately identified, never automatic, and cannot create
+    a replacement chain.
+11. Idempotent `terminate_tree` cleanup for abort, shutdown, and failure. Active
+    descendants terminalize leaf first as `orphaned` before the parent. This is
+    ledger cleanup, not a native kill or cancellation claim.
+12. Explicit substantive progress fingerprints. Duplicate evidence is
+    idempotent; reads, notifications, and elapsed time never advance
+    `last_progress_at_ms`, and phase one infers no staleness.
 
 scripts/route_agentic_task.py, Decision Review behavior, role/reviewer
 authority, autonomy policy, operating-model version, application storage,
@@ -108,8 +139,10 @@ change.
 
 ## Identity and privacy contract
 
-The CLI accepts only exact command-specific key sets. Opaque identities use a
-kind prefix plus 128 random bits. Failure and terminal fingerprints use the
+The CLI accepts only exact command-specific key sets. Opaque identities, including repository-side aliases for native
+invocations, use a kind prefix plus 128 random bits. Immutable work revisions
+are lowercase `sha256:<64 hex>` digests or `git:<40 or 64 hex>` heads. Failure,
+progress, and terminal fingerprints use the
 fpr_ prefix plus 256 hexadecimal bits. Callers hash or otherwise derive a
 privacy-safe fingerprint before invoking the CLI; raw failures and task text
 must never be supplied.
@@ -134,9 +167,19 @@ standard output.
 Commands:
 
 - init: explicitly create or validate ledger schema v1.
-- new_identity: create contract, slot, generation, logical, or attempt identity.
+- new_identity: create contract, slot, generation, logical, attempt, or native identity.
 - admit: recompute the Work Contract, evaluate atomically, and record the
-  decision and any authorized instrument/shadow launch.
+  decision and any authorized instrument/shadow launch. Lifecycle-aware calls
+  also supply artifact_revision, lifecycle_transition, and nullable
+  replacement_of_attempt_id.
+- bind_native: bind one opaque native alias and declare whether authoritative
+  completion notifications are available.
+- native_notification: record the authoritative completion notification.
+- native_read: claim the single native read after that notification.
+- native_observation: record the claimed read as found or authoritative
+  not_found; not_found atomically records loss and cleanup.
+- progress: record a new substantive progress fingerprint.
+- terminate_tree: leaf-first terminal cleanup for abort, shutdown, or failure.
 - finish: terminally record succeeded or failed with an opaque fingerprint.
 - recover: terminally record recovered with an opaque fingerprint, leaf first.
 - kill_switch: atomically enable or disable mediated-launch rejection.
@@ -153,11 +196,14 @@ Stable exit meanings:
 | 4 | Ledger, transaction, state validation, or leaf-first recovery failure. |
 | 5 | Requested mode unavailable or unapproved. |
 
-Cooperative instrument/shadow integration records exits and continues native
-dispatch unless the response explicitly has launch_authorized false from the
-kill switch. It must not convert exits 2 through 5 into unapproved enforcement.
-An enforce request returns enforcement_unavailable and does not silently alias
-to another mode.
+Ordinary instrument/shadow candidate-policy denials remain observational. A
+cooperative caller must not dispatch when the lifecycle response has
+`launch_authorized=false` because the same logical work is already active, the
+transition is illegal, or the accepted kill switch is active. It must also not
+perform a native read unless `native_read` returns `read_authorized=true`. These
+are local protocol/state-machine correctness boundaries, not enforcement of a
+new policy or interception of an unmediated native call. An enforce request
+returns enforcement_unavailable and does not silently alias to another mode.
 
 Stable policy reasons:
 
@@ -185,8 +231,13 @@ Stable machine reason codes are `instrument_recorded`,
 `recovery_required`, `ledger_unavailable`, `enforcement_unavailable`,
 `kill_switch_active`, `ledger_initialized`, `ledger_ready`,
 `identity_created`, `finish_recorded`, `finish_idempotent`,
-`recovery_recorded`, `kill_switch_updated`, and `status_reported`. Additions must
-remain additive within v1.
+`recovery_recorded`, `kill_switch_updated`, `status_reported`,
+`lifecycle_transition_rejected`, `native_bound`,
+`native_notification_recorded`, `completion_notification_required`,
+`native_notifications_unavailable`, `native_read_authorized`,
+`native_read_refused`, `native_observation_recorded`, `progress_recorded`,
+`progress_idempotent`, `tree_termination_recorded`, and
+`tree_termination_idempotent`. Additions must remain additive within v1.
 
 ## Starting limits
 
@@ -220,8 +271,11 @@ Create each opaque identity separately, changing kind as needed:
 Begin with admit requests whose mode is instrument. Each request also carries
 the bounded classification arrays, recomputed classification and route digests,
 contract_id, stable slot_id and slot_role, generation_id, logical_id,
-attempt_id, nullable parent_attempt_id, and nullable retry_fingerprint. Retain
-attempt IDs until their finish or recovery is recorded. Move individual
+attempt_id, nullable parent_attempt_id, nullable retry_fingerprint, immutable
+artifact_revision, an explicit lifecycle_transition, and nullable
+replacement_of_attempt_id. Retain attempt IDs until their finish or recovery is
+recorded. The original request shape remains accepted for #737 compatibility,
+but orchestrator/change-loop calls use lifecycle-aware admissions. Move individual
 cooperative requests to shadow only after instrument lifecycle and recovery
 records are healthy; this is not enforcement promotion.
 
@@ -235,6 +289,24 @@ Activate the immediate mediated-launch stop path with:
 
 The switch affects only calls that cooperate with this protocol.
 
+## Notification, read, and replacement sequence
+
+After native launch, bind its repository-side opaque alias. If the binding says
+notifications are available, do no read and no polling while waiting. Record
+the native completion notification, claim exactly one `native_read`, perform
+that native read once, then record `found` or `not_found`. A read before the
+notification and every read after the first claim are refused. If notifications
+are unavailable, the binding returns `notifications_unavailable_no_polling`;
+record that limitation and stop rather than substituting polling. The
+repository provides no native callback adapter in phase one.
+
+An authoritative `not_found` terminalizes that attempt as `lost` and active
+descendants as `orphaned`. It creates one replacement eligibility only for a
+non-replacement attempt. A caller may later submit one separately identified
+`replacement` admission that names the lost attempt; admission consumes the
+eligibility transactionally but never launches by itself. Loss of that
+replacement creates no new eligibility.
+
 ## Recovery
 
 There is no stale timeout. A process ending or elapsed time alone never changes
@@ -243,7 +315,10 @@ depths. Determine that recovery is appropriate outside this content-free
 ledger, then submit recover commands from greatest depth to least depth. An
 ancestor with an active child returns recovery_required without mutation.
 Repeating the exact terminal transition is idempotent; a different status or
-fingerprint conflicts and does not mutate state.
+fingerprint conflicts and does not mutate state. For parent abort, shutdown,
+or failure, use `terminate_tree`; it atomically marks every active descendant
+`orphaned` from deepest leaf upward and then terminalizes the parent. It does
+not call or claim native cancellation.
 
 Example request shape:
 
@@ -274,8 +349,9 @@ ledger. There is no shared or cross-machine authority and no known denominator
 for all platform invocations.
 
 This protocol mediates only agent calls whose repository manifest cooperates.
-The repository has no native hook that can intercept Copilot, platform, user,
-or other unmediated invocations. Those calls remain possible and unknown. Any
+It does not own the Copilot registry, completion-notification delivery, native
+read implementation, or native cancellation. The repository has no native hook
+that can intercept Copilot, platform, user, or other unmediated invocations. Those calls remain possible and unknown. Any
 report must distinguish mediated coverage from all native invocation volume and
 must not claim global prevention or enforcement.
 

@@ -173,7 +173,7 @@ The canonical limitations are machine-readable in
 | Automatic Cloud triggers | `agent-ready` is automatic; other Cloud task types require explicit orchestrator selection. |
 | Default-branch activation | Custom agents and setup changes require a disposable Cloud smoke task after merge. |
 | External source access | Use public sources, record the actual verification level, and block strong claims when full text is unavailable. |
-| Cooperative invocation mediation | Use the same repository instrument/shadow protocol for manifest-coordinated calls; only its explicit kill switch rejects a mediated launch. Native and unmediated calls remain outside repository coverage. |
+| Cooperative invocation mediation | Use the same lifecycle-aware instrument/shadow protocol for manifest-coordinated calls: one active contract/slot/revision key, explicit transitions, completion-notification-driven one-read behavior, and leaf-first cleanup. Lifecycle misuse fails closed locally; ordinary candidate-policy denials stay observational. Native registry, notification delivery, reads, cancellation, and unmediated calls remain outside repository authority. |
 
 An unavailable capability never authorizes a weaker substitute. The agent
 records the limitation, leaves the affected artifact unverified, and blocks or

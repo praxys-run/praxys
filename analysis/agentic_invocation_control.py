@@ -60,6 +60,18 @@ MACHINE_REASON_CODES = (
     "recovery_recorded",
     "kill_switch_updated",
     "status_reported",
+    "lifecycle_transition_rejected",
+    "native_bound",
+    "native_notification_recorded",
+    "completion_notification_required",
+    "native_notifications_unavailable",
+    "native_read_authorized",
+    "native_read_refused",
+    "native_observation_recorded",
+    "progress_recorded",
+    "progress_idempotent",
+    "tree_termination_recorded",
+    "tree_termination_idempotent",
 )
 ID_PREFIXES = {
     "contract": "ctr",
@@ -68,9 +80,13 @@ ID_PREFIXES = {
     "logical": "log",
     "attempt": "att",
     "decision": "dec",
+    "native": "nat",
 }
 _IDENTITY_RE = re.compile(r"^[a-z]{3}_[0-9a-f]{32}$")
 _FINGERPRINT_RE = re.compile(r"^fpr_[0-9a-f]{64}$")
+_ARTIFACT_REVISION_RE = re.compile(
+    r"^(?:sha256:[0-9a-f]{64}|git:[0-9a-f]{40}|git:[0-9a-f]{64})$"
+)
 
 
 @dataclass(frozen=True)
@@ -159,6 +175,14 @@ def is_valid_identity(value: object, kind: str) -> bool:
 def is_valid_fingerprint(value: object) -> bool:
     """Return whether value is a versioned opaque fingerprint."""
     return isinstance(value, str) and _FINGERPRINT_RE.fullmatch(value) is not None
+
+
+def is_valid_artifact_revision(value: object) -> bool:
+    """Return whether value is an immutable artifact digest or Git head."""
+    return (
+        isinstance(value, str)
+        and _ARTIFACT_REVISION_RE.fullmatch(value) is not None
+    )
 
 
 def evaluate_admission(

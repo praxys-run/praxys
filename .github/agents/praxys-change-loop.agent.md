@@ -67,11 +67,28 @@ recomputed Work Contract and opaque contract, stable slot, generation, logical,
 attempt, and parent identities. Record finish transitions and recover crashes
 explicitly leaf first; elapsed time never proves a crash.
 
-Only `instrument` and `shadow` are available. Ordinary hypothetical denies do
-not block dispatch; only the explicit kill switch makes
-`launch_authorized=false` for a mediated launch. This cooperative integration
-cannot intercept native or otherwise unmediated invocations and must not claim
-global enforcement. Follow `docs/dev/agent-invocation-control.md`.
+Use a logical work key comprising contract, stable bounded-role slot, and
+immutable artifact digest or Git head. Explicitly record `initial_launch`,
+`resume`, `replacement`, or `review_after_new_digest`; do not dispatch a
+`duplicate_launch` or `illegal_transition`. Replacement is a separately
+identified, manually admitted, one-use transition from a lost non-replacement
+attempt and cannot chain.
+
+Bind native invocations through opaque aliases. Wait only for native completion
+notification, then claim and perform exactly one read and record its result. Do
+not create read or poll loops; expose unavailable notifications as a limitation.
+First authoritative not-found records loss and closes that native alias
+permanently. Parent abort, shutdown, or failure uses idempotent `terminate_tree`
+so active descendants become leaf-first `orphaned` records before the parent
+terminalizes. Only explicit new progress evidence updates last progress; do not
+infer staleness from reads or elapsed time.
+
+Only `instrument` and `shadow` are available. Ordinary candidate-policy denies
+do not block dispatch; lifecycle duplicates/illegal transitions, one-read
+violations, and the explicit kill switch fail closed for cooperative calls.
+This integration cannot intercept, poll, kill, cancel, or otherwise govern
+native/unmediated invocations and must not claim global enforcement. Follow
+`docs/dev/agent-invocation-control.md`.
 
 ## Required execution order
 

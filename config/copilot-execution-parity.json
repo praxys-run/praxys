@@ -178,8 +178,8 @@
         "local",
         "cloud"
       ],
-      "behavior": "Use the repository mediator for manifest-coordinated calls in instrument or shadow mode. Only its explicit kill switch rejects a mediated launch; ordinary would-reject and unavailable-state results remain non-blocking.",
-      "rationale": "The repository can cooperatively mediate its own agent manifests but cannot intercept platform-native or otherwise unmediated agent invocations."
+      "behavior": "Use lifecycle-aware repository mediation for manifest-coordinated calls. Deduplicate active contract/slot/revision keys, wait for completion notifications without polling, allow one claimed native read, and perform explicit leaf-first cleanup. Ordinary candidate-policy would-reject and unavailable-state results remain non-blocking; duplicate or illegal lifecycle transitions and read violations fail closed cooperatively.",
+      "rationale": "The repository can maintain its own ledger and cooperative call boundary but cannot own the native registry, notification delivery, reads, cancellation, or otherwise unmediated agent invocations."
     }
   ]
 }

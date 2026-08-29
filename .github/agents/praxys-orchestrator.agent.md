@@ -80,14 +80,33 @@ attempt identity for nested calls and record an explicit finish or leaf-first
 recovery afterward. Initialize the Git-common-dir ledger explicitly before the
 first instrumented run.
 
+For every lifecycle-aware call, bind the logical work key to the contract,
+stable bounded-role slot, and immutable artifact digest or Git head. Record one
+of `initial_launch`, `resume`, `replacement`, or
+`review_after_new_digest`. Never dispatch a `duplicate_launch` or
+`illegal_transition`. A replacement must name one lost non-replacement attempt,
+is separately identified, is consumed once, and is never launched
+automatically or chained.
+
+After native launch, bind one opaque native alias. Wait for the native
+completion notification without reads or polling, claim one read, perform it
+once, and record `found` or authoritative `not_found`. If notifications are
+unavailable, expose that limitation and stop waiting rather than poll. First
+not-found records loss and permanently refuses another read of that alias. For
+parent abort, shutdown, or failure, run idempotent `terminate_tree` cleanup so
+active descendants become explicit leaf-first `orphaned` records before the
+parent terminalizes. Record progress only through new substantive progress
+fingerprints; notifications, reads, and elapsed time are not progress and never
+imply staleness.
+
 The checked-in mode starts at `instrument`; `shadow` is an explicit observation
-step. In either mode, ordinary `would_reject` decisions and missing, corrupt, or
-unsupported state remain non-blocking because enforcement is unavailable. Do not invoke the
-mediated child when `launch_authorized` is false under the explicit kill switch.
-Never request `enforce` or silently alias it to another mode. This is cooperative
-repository mediation only: the repository cannot intercept native agent calls,
-and unmediated activity remains outside coverage. See
-`docs/dev/agent-invocation-control.md`.
+step. Ordinary candidate-policy `would_reject` decisions and unavailable state
+remain non-blocking because enforcement is unavailable. Lifecycle duplicates,
+illegal transitions, the one-read boundary, and the explicit kill switch fail
+closed for cooperative calls. Never request `enforce` or silently alias it to
+another mode. This is cooperative repository mediation only: the repository
+cannot intercept, poll, or cancel native agent calls, and unmediated activity
+remains outside coverage. See `docs/dev/agent-invocation-control.md`.
 
 ## Environment parity
 

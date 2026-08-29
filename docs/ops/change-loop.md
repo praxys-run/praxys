@@ -80,6 +80,35 @@ marked ready. This is especially important for miniapp work when the cloud
 session lacks a WeChat DevTools/Skyline runtime: a human completes that rendered
 review, updates the PR body, waits for draft CI, and then marks the PR ready.
 
+### Cooperative invocation lifecycle
+
+Manifest-coordinated Delivery Loop calls use
+`scripts/agent_invocation_control.py`; see
+[the developer protocol](../dev/agent-invocation-control.md). The local ledger
+allows one active contract/stable-slot/immutable-revision key and records
+initial launch, resume, replacement, review after a new digest, duplicate, and
+illegal transitions. Duplicate and illegal transitions are not dispatched.
+A lost non-replacement attempt may make one separately identified replacement
+eligible; an operator or orchestrator must explicitly consume it. Nothing
+auto-launches, and replacements never chain.
+
+Native waiting is notification-driven: bind an opaque native alias, wait for
+the platform completion notification without reading or polling, claim one
+read, then record found or authoritative not-found. If native notifications are
+unavailable, record the limitation and stop; do not add a polling fallback.
+The first not-found record closes that native alias permanently. On parent
+abort, shutdown, or failure, invoke `terminate_tree` to make active descendants
+leaf-first `orphaned` records before the parent terminal record. This does not
+cancel or kill native activity. Only an explicit new progress fingerprint
+updates last progress; elapsed time establishes no loss or staleness.
+
+This is accepted-policy lifecycle correctness, not a role, routing, policy
+limit, reviewer-authority, autonomy, or enforcement change. The current local
+implementation is not approved for release and still requires independent
+Quality verification. The repository does not own Copilot's native registry,
+notification delivery, read API, or cancellation, and cannot govern unmediated
+calls.
+
 ### Shadow mode
 
 Set `PRAXYS_AGENT_READY_SHADOW=true` (App Service setting) to compute the

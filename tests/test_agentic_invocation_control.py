@@ -29,6 +29,7 @@ from scripts.agent_invocation_control import (
     FinishConflict,
     IdentityConflict,
     Ledger,
+    NativeBoundary,
     RecoveryRequired,
 )
 
@@ -136,6 +137,28 @@ def admission(
         'parent_attempt_id': parent,
         'retry_fingerprint': retry,
     }
+
+
+def lifecycle_admission(
+    number: int,
+    *,
+    revision: int = 1,
+    transition: str = 'initial_launch',
+    replacement_of: int | None = None,
+    **values: object,
+) -> dict[str, object]:
+    request = admission(number, **values)
+    request.update(
+        {
+            'artifact_revision': f'sha256:{revision:064x}',
+            'lifecycle_transition': transition,
+            'replacement_of_attempt_id': (
+                opaque('attempt', replacement_of)
+                if replacement_of is not None else None
+            ),
+        }
+    )
+    return request
 
 
 def new_ledger(tmp_path: Path) -> Ledger:
@@ -250,6 +273,18 @@ def test_reason_code_schemas_and_docs_are_exact() -> None:
         'recovery_recorded',
         'kill_switch_updated',
         'status_reported',
+        'lifecycle_transition_rejected',
+        'native_bound',
+        'native_notification_recorded',
+        'completion_notification_required',
+        'native_notifications_unavailable',
+        'native_read_authorized',
+        'native_read_refused',
+        'native_observation_recorded',
+        'progress_recorded',
+        'progress_idempotent',
+        'tree_termination_recorded',
+        'tree_termination_idempotent',
     )
 
     implementation = (ROOT / 'docs/dev/agent-invocation-control.md').read_text(
@@ -275,7 +310,7 @@ def test_reason_code_schemas_and_docs_are_exact() -> None:
         'Stable v1 machine reason-code namespace:', 1
     )[1].split('Meanings cannot change', 1)[0]
     assert tuple(re.findall(r'`([a-z_]+)`', adr_machine_section)) == (
-        MACHINE_REASON_CODES
+        MACHINE_REASON_CODES[:21]
     )
 
     proposal = (
@@ -758,7 +793,9 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
             row[1]
             for table in (
                 'contracts', 'slots', 'generations', 'logical_invocations',
-                'decisions', 'attempts',
+                'decisions', 'attempts', 'lifecycle_decisions', 'work_history',
+                'active_work_keys', 'replacement_eligibility',
+                'native_invocations', 'progress_evidence',
             )
             for row in connection.execute(f'PRAGMA table_info({table})')
         }
@@ -771,6 +808,379 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
     )
     for sentinel in sentinels.values():
         assert sentinel.encode() not in persisted
+
+
+def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(admission(1), accepted_route(), 'engineering', limits())
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        for table in (
+            'active_work_keys',
+            'replacement_eligibility',
+            'native_invocations',
+            'progress_evidence',
+            'work_history',
+            'lifecycle_decisions',
+        ):
+            connection.execute(f'DROP TABLE {table}')
+    assert ledger.initialize() is False
+    assert ledger.status()['counts']['active_attempts'] == 1
+    assert finish(ledger, 1, 1, 'succeeded') == ('succeeded', False)
+    with sqlite3.connect(ledger.path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert {
+        'lifecycle_decisions',
+        'work_history',
+        'active_work_keys',
+        'replacement_eligibility',
+        'native_invocations',
+        'progress_evidence',
+    }.issubset(tables)
+
+
+def test_lifecycle_key_deduplicates_active_work_and_allows_new_digest(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    first = ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    assert first['lifecycle_transition'] == 'initial_launch'
+
+    duplicate = ledger.admit(
+        lifecycle_admission(
+            2, slot=1, generation=2, logical=2, transition='resume'
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert duplicate['lifecycle_transition'] == 'duplicate_launch'
+    assert duplicate['launch_authorized'] is False
+
+    review = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=1,
+            generation=3,
+            logical=3,
+            revision=2,
+            transition='review_after_new_digest',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert review['lifecycle_transition'] == 'review_after_new_digest'
+    assert review['launch_authorized'] is True
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM active_work_keys"
+        ).fetchone()[0] == 2
+        assert connection.execute(
+            """SELECT effective_transition, launch_authorized
+            FROM lifecycle_decisions ORDER BY decided_at_ms, rowid"""
+        ).fetchall() == [
+            ('initial_launch', 1),
+            ('duplicate_launch', 0),
+            ('review_after_new_digest', 1),
+        ]
+
+
+def test_first_not_found_refuses_reread_and_allows_one_replacement(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    native = opaque('native', 1)
+    assert ledger.bind_native(opaque('attempt', 1), native, True) == 'active'
+    with pytest.raises(NativeBoundary, match='completion_notification_required'):
+        ledger.claim_native_read(native)
+    assert ledger.native_notification(native) is False
+    ledger.claim_native_read(native)
+    state, orphaned = ledger.observe_native(native, 'not_found', fingerprint(10))
+    assert (state, orphaned) == ('lost', [])
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.claim_native_read(native)
+
+    replacement = ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=1,
+            generation=2,
+            logical=2,
+            transition='replacement',
+            replacement_of=1,
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert replacement['lifecycle_transition'] == 'replacement'
+    second_for_source = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=1,
+            generation=3,
+            logical=3,
+            transition='replacement',
+            replacement_of=1,
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert second_for_source['lifecycle_transition'] == 'duplicate_launch'
+
+    replacement_native = opaque('native', 2)
+    ledger.bind_native(opaque('attempt', 2), replacement_native, True)
+    ledger.native_notification(replacement_native)
+    ledger.claim_native_read(replacement_native)
+    ledger.observe_native(replacement_native, 'not_found', fingerprint(11))
+    chained = ledger.admit(
+        lifecycle_admission(
+            4,
+            slot=1,
+            generation=4,
+            logical=4,
+            transition='replacement',
+            replacement_of=2,
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert chained['lifecycle_transition'] == 'illegal_transition'
+    assert chained['launch_authorized'] is False
+    reused_source = ledger.admit(
+        lifecycle_admission(
+            5, slot=1, generation=5, logical=5,
+            transition='replacement', replacement_of=1,
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert reused_source['lifecycle_transition'] == 'illegal_transition'
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM replacement_eligibility'
+        ).fetchone()[0] == 1
+
+
+def test_parent_shutdown_is_leaf_first_idempotent_and_orphans_descendants(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=3,
+            revision=3,
+            parent=opaque('attempt', 2),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    status, orphaned, idempotent = ledger.terminate_tree(
+        opaque('attempt', 1), 'shutdown', fingerprint(20)
+    )
+    assert status == 'shutdown'
+    assert orphaned == [opaque('attempt', 3), opaque('attempt', 2)]
+    assert idempotent is False
+    assert ledger.terminate_tree(
+        opaque('attempt', 1), 'shutdown', fingerprint(20)
+    ) == ('shutdown', [], True)
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(
+            connection.execute(
+                'SELECT attempt_id, lifecycle_status FROM work_history'
+            )
+        ) == {
+            opaque('attempt', 1): 'shutdown',
+            opaque('attempt', 2): 'orphaned',
+            opaque('attempt', 3): 'orphaned',
+        }
+        assert connection.execute(
+            "SELECT COUNT(*) FROM attempts WHERE lifecycle_status = 'active'"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            'SELECT COUNT(*) FROM active_work_keys'
+        ).fetchone()[0] == 0
+
+
+@pytest.mark.parametrize('reason, expected', [('abort', 'aborted'), ('failure', 'failed')])
+def test_parent_abort_and_failure_cleanup(
+    tmp_path: Path, reason: str, expected: str
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(lifecycle_admission(1), route, 'engineering', limits())
+    ledger.admit(
+        lifecycle_admission(
+            2, slot=2, revision=2, parent=opaque('attempt', 1)
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    status, orphaned, _ = ledger.terminate_tree(
+        opaque('attempt', 1), reason, fingerprint(21)
+    )
+    assert status == expected
+    assert orphaned == [opaque('attempt', 2)]
+
+
+def test_illegal_transitions_fail_closed_and_resume_is_explicit(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(lifecycle_admission(1), route, 'engineering', limits())
+    finish(ledger, 1, 1, 'succeeded')
+
+    repeated_initial = ledger.admit(
+        lifecycle_admission(2, slot=1, generation=2, logical=2),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert repeated_initial['lifecycle_transition'] == 'illegal_transition'
+    assert repeated_initial['launch_authorized'] is False
+
+    resumed = ledger.admit(
+        lifecycle_admission(
+            3, slot=1, generation=3, logical=3, transition='resume'
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert resumed['lifecycle_transition'] == 'resume'
+    finish(ledger, 3, 3, 'succeeded')
+    wrong_review = ledger.admit(
+        lifecycle_admission(
+            4,
+            slot=1,
+            generation=4,
+            logical=4,
+            transition='review_after_new_digest',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert wrong_review['lifecycle_transition'] == 'illegal_transition'
+
+
+def test_progress_only_advances_for_new_substantive_evidence(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    native = opaque('native', 1)
+    ledger.bind_native(opaque('attempt', 1), native, True)
+    ledger.native_notification(native)
+    ledger.claim_native_read(native)
+    ledger.observe_native(native, 'found', None)
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT last_progress_at_ms FROM work_history'
+        ).fetchone()[0] is None
+    first_at, first_idempotent = ledger.record_progress(
+        opaque('attempt', 1), fingerprint(30)
+    )
+    repeated_at, repeated_idempotent = ledger.record_progress(
+        opaque('attempt', 1), fingerprint(30)
+    )
+    assert first_idempotent is False
+    assert repeated_idempotent is True
+    assert repeated_at == first_at
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM progress_evidence'
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            'SELECT last_progress_at_ms FROM work_history'
+        ).fetchone()[0] == first_at
+
+
+def test_notifications_unavailable_exposes_limitation_without_read(
+    tmp_path: Path,
+) -> None:
+    repository = init_repository(tmp_path)
+    started = run_cli(repository, lifecycle_admission(1, slot=1))
+    assert started.returncode == 0
+    duplicate = run_cli(
+        repository,
+        lifecycle_admission(
+            2, slot=1, generation=2, logical=2, transition='resume'
+        ),
+    )
+    assert duplicate.returncode == 2
+    duplicate_payload = json.loads(duplicate.stdout)
+    assert duplicate_payload['reason_code'] == 'lifecycle_transition_rejected'
+    assert duplicate_payload['lifecycle_transition'] == 'duplicate_launch'
+    assert duplicate_payload['launch_authorized'] is False
+    native = opaque('native', 1)
+    bound = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'bind_native',
+            'attempt_id': opaque('attempt', 1),
+            'native_invocation_id': native,
+            'notifications_available': False,
+        },
+    )
+    assert bound.returncode == 0
+    assert json.loads(bound.stdout)['wait_strategy'] == (
+        'notifications_unavailable_no_polling'
+    )
+    refused = run_cli(
+        repository,
+        {
+            'schema_version': 1,
+            'command': 'native_read',
+            'native_invocation_id': native,
+        },
+    )
+    assert refused.returncode == 5
+    assert json.loads(refused.stdout) == {
+        'schema_version': 1,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'native_read',
+        'reason_code': 'native_notifications_unavailable',
+        'read_authorized': False,
+    }
 
 
 def test_exact_work_contract_and_autonomy_composition_are_unchanged() -> None:
@@ -843,3 +1253,7 @@ def test_policy_parity_and_cooperative_manifest_boundaries() -> None:
         assert 'native' in manifest.lower()
         assert 'instrument' in manifest.lower()
         assert 'shadow' in manifest.lower()
+        assert 'completion' in manifest.lower()
+        assert 'notification' in manifest.lower()
+        assert 'poll' in manifest.lower()
+        assert 'replacement' in manifest.lower()
