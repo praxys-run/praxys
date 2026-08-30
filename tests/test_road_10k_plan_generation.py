@@ -1289,7 +1289,7 @@ def test_protocol_qualified_off_device_distance_can_still_be_confirmed(
 def test_history_confirmation_requires_contract_metadata_and_replays_idempotently(
     road_10k_client,
 ) -> None:
-    today = date.today()
+    today = _api_today()
     current_week = today - timedelta(days=today.weekday())
     baseline_date = current_week - timedelta(days=1)
     client, db_session = road_10k_client
@@ -1385,7 +1385,9 @@ def test_history_confirmation_requires_contract_metadata_and_replays_idempotentl
             Activity.user_id == "road-10k-owner",
             Activity.activity_id == "road-10k-current-baseline",
         ).one()
-        activity.start_time = f"{(date.today() - timedelta(days=5)).isoformat()}T09:15:00Z"
+        activity.start_time = (
+            f"{(today - timedelta(days=5)).isoformat()}T09:15:00Z"
+        )
         activity.duration_sec = 2_700
         activity.source = "strava"
         db.commit()
