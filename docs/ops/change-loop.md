@@ -790,4 +790,4 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-08-31 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-30 · Owner: @dddtc2005_
