@@ -40,6 +40,11 @@ diagnose X". It complements — and links out to — the setup-oriented
 
 ## Operations decision records
 
+- [ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md)
+  — **ACCEPTED FOR REPOSITORY IMPLEMENTATION — NO MIGRATION OR RESET
+  AUTHORITY**. Defines quiesced explicit migration, evidence, pre-commit
+  recovery, and separately authorized reset-based rollback for the local
+  invocation-control ledger.
 - [ODR-2026-08-26-cn-provider-topology](./odr-2026-08-26-cn-provider-topology.md)
   — **PROPOSED — BLOCKED PENDING INDEPENDENT AND HUMAN REVIEW**. It grants no production
   authority and defines the proposed China topology, rollout order, rollback

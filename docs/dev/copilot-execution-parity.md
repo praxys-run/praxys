@@ -128,7 +128,12 @@ in `scripts/agent_invocation_control.py` for manifest-coordinated calls. The
 protocol is instrument/shadow only and keeps its disposable SQLite ledger under
 the checkout Git common directory, so it creates no shared cross-machine
 authority. Ordinary hypothetical denies do not block dispatch; only the
-explicit kill switch rejects a mediated launch.
+explicit kill switch and lifecycle protocol failures reject a mediated action.
+Both environments use the same explicit sync/background provenance, direct
+parent-scoped sibling serialization, exact task-result public-ID binding,
+external-notification/no-poll wait, caller-owned same-token claim retry, at
+most one physical read, token-matched one-shot observation, and binding
+invalidation semantics.
 
 This is cooperative mediation, not native interception. The repository cannot
 intercept platform-native or otherwise unmediated invocations, and those calls
@@ -173,7 +178,7 @@ The canonical limitations are machine-readable in
 | Automatic Cloud triggers | `agent-ready` is automatic; other Cloud task types require explicit orchestrator selection. |
 | Default-branch activation | Custom agents and setup changes require a disposable Cloud smoke task after merge. |
 | External source access | Use public sources, record the actual verification level, and block strong claims when full text is unavailable. |
-| Cooperative invocation mediation | Use the same repository instrument/shadow protocol for manifest-coordinated calls; only its explicit kill switch rejects a mediated launch. Native and unmediated calls remain outside repository coverage. |
+| Cooperative invocation mediation | Use the same lifecycle-aware instrument/shadow protocol for manifest-coordinated calls: one active contract/slot/revision key, at most one active direct child per non-null parent, explicit sync/background provenance, sync inline return, exact task-result public-ID binding for background, external-notification/no-poll waiting, one claimed read, explicit binding invalidation, and leaf-first cleanup. Lifecycle misuse fails closed locally; ordinary candidate-policy denials stay observational. Native registry lookup, external rebind, native writes/cancellation, and unmediated calls remain outside repository authority. |
 
 An unavailable capability never authorizes a weaker substitute. The agent
 records the limitation, leaves the affected artifact unverified, and blocks or
