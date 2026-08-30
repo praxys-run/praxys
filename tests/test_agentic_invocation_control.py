@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -9,10 +11,12 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
 
+import scripts.agent_invocation_control as invocation_control
 from analysis.agentic_invocation_control import (
     AdmissionFacts,
     DECISION_REASONS,
@@ -27,6 +31,7 @@ from analysis.agentic_invocation_control import (
 )
 from analysis.agentic_task_routing import TaskClassification, TaskRoute, route_task
 from scripts.agent_invocation_control import (
+    CommitOutcomeAmbiguous,
     FinishConflict,
     IdentityConflict,
     Ledger,
@@ -183,6 +188,37 @@ def new_ledger(tmp_path: Path) -> Ledger:
     ledger = Ledger(tmp_path / 'control.sqlite3')
     assert ledger.initialize() is True
     return ledger
+
+
+def downgrade_ledger_to_v1(ledger: Ledger, layout: str) -> None:
+    drop_tables = {
+        'full': (),
+        'lifecycle': (
+            'native_binding_provenance',
+            'lifecycle_dispatch',
+        ),
+        'base': (
+            'native_binding_provenance',
+            'lifecycle_dispatch',
+            'active_work_keys',
+            'replacement_eligibility',
+            'native_invocations',
+            'progress_evidence',
+            'work_history',
+            'lifecycle_decisions',
+        ),
+    }
+    connection = sqlite3.connect(ledger.path)
+    try:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        for table in drop_tables[layout]:
+            connection.execute(f'DROP TABLE {table}')
+        connection.execute(
+            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
 
 def finish(
@@ -857,6 +893,63 @@ def test_concurrent_same_parent_lifecycle_siblings_create_at_most_one_attempt(
         ).fetchone()[0] == 1
 
 
+def test_open_validation_uses_one_snapshot_across_dispatch_queries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1),
+        route,
+        'engineering',
+        limits(),
+    )
+    main_thread = threading.get_ident()
+    start_writer = threading.Event()
+    writer_done = threading.Event()
+    writer_errors: list[BaseException] = []
+    real_expected_dispatch = Ledger._expected_dispatch_records
+    coordinated = False
+
+    def expected_dispatch(
+        connection: sqlite3.Connection,
+    ) -> dict[str, tuple[str, str, int]]:
+        nonlocal coordinated
+        result = real_expected_dispatch(connection)
+        if threading.get_ident() == main_thread and not coordinated:
+            coordinated = True
+            start_writer.set()
+            assert writer_done.wait(30)
+        return result
+
+    def write_lifecycle_decision() -> None:
+        assert start_writer.wait(30)
+        try:
+            ledger.admit(
+                lifecycle_admission(2, slot=2, revision=2),
+                route,
+                'engineering',
+                limits(),
+            )
+        except BaseException as exc:
+            writer_errors.append(exc)
+        finally:
+            writer_done.set()
+
+    monkeypatch.setattr(
+        Ledger,
+        '_expected_dispatch_records',
+        staticmethod(expected_dispatch),
+    )
+    writer = threading.Thread(target=write_lifecycle_decision)
+    writer.start()
+    assert ledger.status()['counts']['decisions'] == 2
+    writer.join(timeout=30)
+    assert not writer.is_alive()
+    assert writer_errors == []
+
+
 def test_lifecycle_sibling_scope_allows_finish_nesting_and_unrelated_parents(
     tmp_path: Path,
 ) -> None:
@@ -977,7 +1070,7 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
         assert sentinel.encode() not in persisted
 
 
-def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> None:
+def test_explicit_init_migrates_original_v1_ledger_to_v2(tmp_path: Path) -> None:
     ledger = new_ledger(tmp_path)
     ledger.admit(admission(1), accepted_route(), 'engineering', limits())
     with sqlite3.connect(ledger.path) as connection:
@@ -993,9 +1086,13 @@ def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> 
             'lifecycle_decisions',
         ):
             connection.execute(f'DROP TABLE {table}')
+        connection.execute(
+            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
+        )
     assert ledger.initialize() is False
     assert ledger.status()['counts']['active_attempts'] == 1
     assert finish(ledger, 1, 1, 'succeeded') == ('succeeded', False)
+    assert finish(ledger, 1, 1, 'succeeded') == ('succeeded', True)
     with sqlite3.connect(ledger.path) as connection:
         tables = {
             row[0]
@@ -1013,6 +1110,10 @@ def test_explicit_init_compatibly_extends_original_v1_ledger(tmp_path: Path) -> 
         'lifecycle_dispatch',
         'native_binding_provenance',
     }.issubset(tables)
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '2'
 
 
 def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
@@ -1026,6 +1127,9 @@ def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
         connection.execute('PRAGMA foreign_keys=OFF')
         connection.execute('DROP TABLE native_binding_provenance')
         connection.execute('DROP TABLE lifecycle_dispatch')
+        connection.execute(
+            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
+        )
     assert ledger.initialize() is False
     with sqlite3.connect(ledger.path) as connection:
         dispatch = connection.execute(
@@ -1046,6 +1150,1374 @@ def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
     }.issubset(tables)
 
 
+def test_explicit_init_versions_full_v1_without_rewriting_auxiliary_rows(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    ledger.bind_native(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'task-agent-full-v1',
+        'task_result',
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        dispatch_before = connection.execute(
+            'SELECT * FROM lifecycle_dispatch ORDER BY decision_id'
+        ).fetchall()
+        provenance_before = connection.execute(
+            'SELECT * FROM native_binding_provenance ORDER BY native_alias'
+        ).fetchall()
+    downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateUnsupported):
+        ledger.status()
+    assert ledger.initialize() is False
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '2'
+        assert connection.execute(
+            'SELECT * FROM lifecycle_dispatch ORDER BY decision_id'
+        ).fetchall() == dispatch_before
+        assert connection.execute(
+            'SELECT * FROM native_binding_provenance ORDER BY native_alias'
+        ).fetchall() == provenance_before
+
+
+def test_existing_init_locks_before_inspecting_migration_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, 'base')
+    real_read_metadata = Ledger._read_metadata
+    real_classify_layout = Ledger._classify_layout
+
+    def locked_read_metadata(
+        connection: sqlite3.Connection,
+    ) -> dict[str, str]:
+        assert connection.in_transaction
+        return real_read_metadata(connection)
+
+    def locked_classify_layout(
+        cls: type[Ledger], connection: sqlite3.Connection
+    ) -> str:
+        del cls
+        assert connection.in_transaction
+        return real_classify_layout(connection)
+
+    monkeypatch.setattr(
+        Ledger, '_read_metadata', staticmethod(locked_read_metadata)
+    )
+    monkeypatch.setattr(
+        Ledger, '_classify_layout', classmethod(locked_classify_layout)
+    )
+    assert ledger.initialize() is False
+
+
+def test_concurrent_explicit_initializers_share_one_v1_to_v2_migration(
+    tmp_path: Path,
+) -> None:
+    repository = init_repository(tmp_path)
+    ledger = Ledger(
+        repository / '.git' / 'praxys' / 'agent-invocation-control-v1.sqlite3'
+    )
+    downgrade_ledger_to_v1(ledger, 'base')
+    coordination = tmp_path / 'concurrent-init'
+    coordination.mkdir()
+    gate_path = coordination / 'release'
+    processes: list[subprocess.Popen[str]] = []
+    ready_paths: list[Path] = []
+
+    for number in range(4):
+        request_path = coordination / f'request-{number}.json'
+        ready_path = coordination / f'ready-{number}'
+        request_path.write_text(
+            json.dumps({'schema_version': 1, 'command': 'init'}),
+            encoding='utf-8',
+        )
+        ready_paths.append(ready_path)
+        processes.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    '-c',
+                    CONCURRENT_ADMISSION_WRAPPER,
+                    str(request_path),
+                    str(ready_path),
+                    str(gate_path),
+                    str(SCRIPT),
+                ],
+                cwd=repository,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+
+    ready_deadline = time.monotonic() + 30
+    while not all(path.exists() for path in ready_paths):
+        assert all(process.poll() is None for process in processes)
+        assert time.monotonic() < ready_deadline
+        time.sleep(0.005)
+    gate_path.touch()
+
+    results: list[dict[str, object]] = []
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=30)
+        assert process.returncode == 0, stderr
+        results.append(json.loads(stdout))
+    assert {result['reason_code'] for result in results} == {'ledger_ready'}
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '2'
+
+
+def test_concurrent_explicit_initializers_share_one_new_v2_ledger(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / 'repository'
+    repository.mkdir()
+    subprocess.run(['git', 'init', '-q', str(repository)], check=True)
+    coordination = tmp_path / 'concurrent-new-init'
+    coordination.mkdir()
+    gate_path = coordination / 'release'
+    processes: list[subprocess.Popen[str]] = []
+    ready_paths: list[Path] = []
+
+    for number in range(4):
+        request_path = coordination / f'request-{number}.json'
+        ready_path = coordination / f'ready-{number}'
+        request_path.write_text(
+            json.dumps({'schema_version': 1, 'command': 'init'}),
+            encoding='utf-8',
+        )
+        ready_paths.append(ready_path)
+        processes.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    '-c',
+                    CONCURRENT_ADMISSION_WRAPPER,
+                    str(request_path),
+                    str(ready_path),
+                    str(gate_path),
+                    str(SCRIPT),
+                ],
+                cwd=repository,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+
+    ready_deadline = time.monotonic() + 30
+    while not all(path.exists() for path in ready_paths):
+        assert all(process.poll() is None for process in processes)
+        assert time.monotonic() < ready_deadline
+        time.sleep(0.005)
+    gate_path.touch()
+
+    results: list[dict[str, object]] = []
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=30)
+        assert process.returncode == 0, stderr
+        results.append(json.loads(stdout))
+    reasons = [result['reason_code'] for result in results]
+    assert reasons.count('ledger_initialized') == 1
+    assert reasons.count('ledger_ready') == 3
+
+
+def test_new_initializers_publish_only_a_complete_v2_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = Ledger(tmp_path / 'control.sqlite3')
+    initialized = threading.Barrier(3)
+    publish = threading.Event()
+    results: list[bool] = []
+    errors: list[BaseException] = []
+    real_initialize_new = Ledger._initialize_new
+
+    def delayed_initialize_new(candidate: Ledger) -> bool:
+        result = real_initialize_new(candidate)
+        initialized.wait(timeout=30)
+        assert publish.wait(30)
+        return result
+
+    def initialize() -> None:
+        try:
+            results.append(ledger.initialize())
+        except BaseException as exc:
+            errors.append(exc)
+
+    monkeypatch.setattr(Ledger, '_initialize_new', delayed_initialize_new)
+    threads = [threading.Thread(target=initialize) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    initialized.wait(timeout=30)
+    assert not ledger.path.exists()
+    publish.set()
+    for thread in threads:
+        thread.join(timeout=30)
+        assert not thread.is_alive()
+    assert errors == []
+    assert sorted(results) == [False, True]
+    assert ledger.status()['counts']['decisions'] == 0
+
+
+def test_fresh_init_allocation_failure_uses_the_json_error_protocol(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ledger_path = tmp_path / 'control.sqlite3'
+
+    def fail_allocation(*_args: object, **_kwargs: object) -> tuple[int, str]:
+        raise OSError('injected allocation failure')
+
+    monkeypatch.setattr(invocation_control, '_ledger_path', lambda: ledger_path)
+    monkeypatch.setattr(invocation_control.tempfile, 'mkstemp', fail_allocation)
+    monkeypatch.setattr(
+        sys,
+        'stdin',
+        io.StringIO(json.dumps({'schema_version': 1, 'command': 'init'})),
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        invocation_control.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 4
+    assert captured.err == ''
+    assert json.loads(captured.out) == {
+        'schema_version': 1,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'init',
+        'reason_code': 'ledger_unavailable',
+        'policy_reason': 'state_corrupt',
+    }
+
+
+def test_existing_init_does_not_change_non_wal_v1_before_refusing(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, 'base')
+    connection = sqlite3.connect(ledger.path)
+    try:
+        assert connection.execute(
+            'PRAGMA wal_checkpoint(TRUNCATE)'
+        ).fetchone() is not None
+    finally:
+        connection.close()
+    connection = sqlite3.connect(ledger.path)
+    try:
+        assert connection.execute('PRAGMA journal_mode=DELETE').fetchone()[0] == (
+            'delete'
+        )
+    finally:
+        connection.close()
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute('PRAGMA journal_mode').fetchone()[0] == 'delete'
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert 'lifecycle_decisions' not in tables
+
+
+@pytest.mark.parametrize(
+    'mutation', ['extra_table', 'extra_view', 'changed_constraint']
+)
+def test_v1_migration_refuses_unknown_schema_fingerprints(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        if mutation == 'extra_table':
+            connection.execute('CREATE TABLE unexpected(value TEXT) STRICT')
+        elif mutation == 'extra_view':
+            connection.execute(
+                'CREATE VIEW unexpected_view AS SELECT value FROM metadata'
+            )
+        else:
+            connection.execute('ALTER TABLE control RENAME TO old_control')
+            connection.execute(
+                """CREATE TABLE control (
+                    singleton INTEGER PRIMARY KEY,
+                    kill_switch INTEGER NOT NULL,
+                    updated_at_ms INTEGER NOT NULL
+                ) STRICT"""
+            )
+            connection.execute(
+                'INSERT INTO control SELECT * FROM old_control'
+            )
+            connection.execute('DROP TABLE old_control')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+
+
+def test_lifecycle_v1_dispatch_backfill_preserves_all_historical_reasons(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1, revision=1),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    direct_sibling = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=3,
+            revision=3,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    duplicate = ledger.admit(
+        lifecycle_admission(
+            4,
+            slot=1,
+            generation=4,
+            logical=4,
+            revision=1,
+            transition='resume',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.set_kill_switch(True)
+    denied = ledger.admit(
+        lifecycle_admission(5, slot=5, revision=5),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.set_kill_switch(False)
+    finish(ledger, 2, 2, 'succeeded')
+
+    expected_reasons = {
+        direct_sibling['decision_id']: 'direct_sibling_active',
+        duplicate['decision_id']: 'lifecycle_transition_rejected',
+        denied['decision_id']: 'policy_denied',
+    }
+    with sqlite3.connect(ledger.path) as connection:
+        admitted = connection.execute(
+            """SELECT decision_id FROM lifecycle_dispatch
+            WHERE admission_reason = 'admit' ORDER BY decision_id"""
+        ).fetchall()
+        expected_reasons.update(
+            {decision_id: 'admit' for (decision_id,) in admitted}
+        )
+    downgrade_ledger_to_v1(ledger, 'lifecycle')
+
+    assert ledger.initialize() is False
+    with sqlite3.connect(ledger.path) as connection:
+        actual = {
+            decision_id: (reason, recorded_at_ms, decided_at_ms)
+            for decision_id, reason, recorded_at_ms, decided_at_ms
+            in connection.execute(
+                """SELECT dispatch.decision_id, dispatch.admission_reason,
+                          dispatch.recorded_at_ms, lifecycle.decided_at_ms
+                FROM lifecycle_dispatch dispatch
+                JOIN lifecycle_decisions lifecycle USING (decision_id)"""
+            )
+        }
+    assert {key: value[0] for key, value in actual.items()} == expected_reasons
+    assert all(recorded == decided for _, recorded, decided in actual.values())
+
+
+def test_full_v1_migration_refuses_conflicting_auxiliary_rows(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    downgrade_ledger_to_v1(ledger, 'full')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE lifecycle_dispatch
+            SET admission_reason = 'policy_denied'"""
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+
+
+def test_full_v1_migration_refuses_mismatched_dispatch_profile(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    downgrade_ledger_to_v1(ledger, 'full')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE lifecycle_dispatch
+            SET execution_provenance =
+                'background_independent_immediate_no_poll'"""
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+
+
+def test_full_v1_migration_requires_provenance_for_every_native_invocation(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    ledger.bind_native(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'task-agent-missing-provenance',
+        'task_result',
+    )
+    downgrade_ledger_to_v1(ledger, 'full')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute('DELETE FROM native_binding_provenance')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    ['missing_attempt', 'generation_id', 'logical_id', 'parent_attempt_id'],
+)
+def test_validation_requires_exact_authorized_base_attempt(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    ledger.admit(
+        lifecycle_admission(2, slot=2, revision=2),
+        route,
+        'engineering',
+        limits(),
+    )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        if mutation == 'missing_attempt':
+            if schema_version == 2:
+                connection.execute(
+                    'DELETE FROM active_work_keys WHERE attempt_id = ?',
+                    (opaque('attempt', 2),),
+                )
+                connection.execute(
+                    'DELETE FROM work_history WHERE attempt_id = ?',
+                    (opaque('attempt', 2),),
+                )
+            connection.execute(
+                'DELETE FROM attempts WHERE attempt_id = ?',
+                (opaque('attempt', 2),),
+            )
+        elif mutation == 'generation_id':
+            connection.execute(
+                'UPDATE attempts SET generation_id = ? WHERE attempt_id = ?',
+                (opaque('generation', 2), opaque('attempt', 1)),
+            )
+        elif mutation == 'logical_id':
+            connection.execute(
+                'UPDATE attempts SET logical_id = ? WHERE attempt_id = ?',
+                (opaque('logical', 2), opaque('attempt', 1)),
+            )
+        else:
+            connection.execute(
+                'UPDATE attempts SET parent_attempt_id = ? WHERE attempt_id = ?',
+                (opaque('attempt', 1), opaque('attempt', 2)),
+            )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    ['self_cycle', 'two_node_cycle', 'root_depth', 'child_depth'],
+)
+def test_validation_rejects_parent_cycles_and_inconsistent_depths(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        if mutation == 'self_cycle':
+            connection.execute(
+                'UPDATE attempts SET parent_attempt_id = ? WHERE attempt_id = ?',
+                (opaque('attempt', 2), opaque('attempt', 2)),
+            )
+            connection.execute(
+                'UPDATE decisions SET parent_attempt_id = ? WHERE attempt_id = ?',
+                (opaque('attempt', 2), opaque('attempt', 2)),
+            )
+        elif mutation == 'two_node_cycle':
+            connection.execute(
+                'UPDATE attempts SET parent_attempt_id = ? WHERE attempt_id = ?',
+                (opaque('attempt', 2), opaque('attempt', 1)),
+            )
+            connection.execute(
+                'UPDATE decisions SET parent_attempt_id = ? WHERE attempt_id = ?',
+                (opaque('attempt', 2), opaque('attempt', 1)),
+            )
+        elif mutation == 'root_depth':
+            connection.execute(
+                'UPDATE attempts SET depth = 2 WHERE attempt_id = ?',
+                (opaque('attempt', 1),),
+            )
+        else:
+            connection.execute(
+                'UPDATE attempts SET depth = 1 WHERE attempt_id = ?',
+                (opaque('attempt', 2),),
+            )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+def test_validation_rejects_multiple_active_lifecycle_direct_siblings(
+    tmp_path: Path,
+    schema_version: int,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.admit(
+        lifecycle_admission(3, slot=3, revision=3),
+        route,
+        'engineering',
+        limits(),
+    )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute(
+            """UPDATE attempts SET parent_attempt_id = ?, depth = 2
+            WHERE attempt_id = ?""",
+            (opaque('attempt', 1), opaque('attempt', 3)),
+        )
+        connection.execute(
+            """UPDATE decisions SET parent_attempt_id = ?
+            WHERE attempt_id = ?""",
+            (opaque('attempt', 1), opaque('attempt', 3)),
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    ['slot_contract', 'generation_slot', 'logical_slot'],
+)
+def test_validation_requires_canonical_identity_bindings(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        if mutation == 'slot_contract':
+            source = connection.execute(
+                """SELECT classification_digest, route_digest, routing_version,
+                          operating_model_version, created_at_ms
+                FROM contracts LIMIT 1"""
+            ).fetchone()
+            connection.execute(
+                'INSERT INTO contracts VALUES (?, ?, ?, ?, ?, ?)',
+                (opaque('contract', 2), *source),
+            )
+            connection.execute(
+                'UPDATE slots SET contract_id = ?',
+                (opaque('contract', 2),),
+            )
+        else:
+            connection.execute(
+                'INSERT INTO slots VALUES (?, ?, ?, ?)',
+                (
+                    opaque('slot', 2),
+                    opaque('contract', 1),
+                    'engineering',
+                    1,
+                ),
+            )
+            if mutation == 'generation_slot':
+                connection.execute(
+                    'UPDATE generations SET slot_id = ?',
+                    (opaque('slot', 2),),
+                )
+            else:
+                connection.execute(
+                    'UPDATE logical_invocations SET slot_id = ?',
+                    (opaque('slot', 2),),
+                )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('identity_kind', ['generation', 'logical'])
+def test_denied_decision_identity_binding_cannot_be_reused(
+    tmp_path: Path,
+    identity_kind: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.set_kill_switch(True)
+    denied = ledger.admit(
+        admission(1, slot=1), route, 'engineering', limits()
+    )
+    assert denied['launch_authorized'] is False
+    ledger.set_kill_switch(False)
+    values = {
+        'contract': 2,
+        'slot': 2,
+        'generation': 1 if identity_kind == 'generation' else 2,
+        'logical': 1 if identity_kind == 'logical' else 2,
+    }
+
+    with pytest.raises(IdentityConflict):
+        ledger.admit(
+            admission(2, **values), route, 'engineering', limits()
+        )
+    assert ledger.status()['counts']['active_attempts'] == 0
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('identity_kind', ['generation', 'logical'])
+def test_validation_rejects_conflicting_unmaterialized_decision_bindings(
+    tmp_path: Path,
+    schema_version: int,
+    identity_kind: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.set_kill_switch(True)
+    ledger.admit(admission(1, slot=1), route, 'engineering', limits())
+    ledger.admit(admission(2, slot=2), route, 'engineering', limits())
+    ledger.set_kill_switch(False)
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            f'UPDATE decisions SET {identity_kind}_id = ? WHERE attempt_id = ?',
+            (opaque(identity_kind, 1), opaque('attempt', 2)),
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    ['missing_active_key', 'stale_active_key', 'mismatched_active_key'],
+)
+def test_validation_requires_exact_active_work_key_mapping(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    if mutation == 'stale_active_key':
+        finish(ledger, 1, 1, 'succeeded')
+        with sqlite3.connect(ledger.path) as connection:
+            connection.execute(
+                """INSERT INTO active_work_keys
+                SELECT contract_id, slot_id, artifact_revision, attempt_id
+                FROM work_history WHERE attempt_id = ?""",
+                (opaque('attempt', 1),),
+            )
+    else:
+        with sqlite3.connect(ledger.path) as connection:
+            if mutation == 'missing_active_key':
+                connection.execute('DELETE FROM active_work_keys')
+            else:
+                connection.execute(
+                    """UPDATE active_work_keys
+                    SET artifact_revision = ?""",
+                    (f'sha256:{9:064x}',),
+                )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    [
+        'missing_history',
+        'contract_id',
+        'slot_id',
+        'artifact_revision',
+        'lifecycle_transition',
+        'replacement_source',
+    ],
+)
+def test_validation_requires_exact_authorized_lifecycle_history(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        if mutation == 'missing_history':
+            connection.execute('DELETE FROM active_work_keys')
+            connection.execute('DELETE FROM work_history')
+        elif mutation == 'contract_id':
+            source = connection.execute(
+                """SELECT classification_digest, route_digest, routing_version,
+                          operating_model_version, created_at_ms
+                FROM contracts LIMIT 1"""
+            ).fetchone()
+            connection.execute(
+                'INSERT INTO contracts VALUES (?, ?, ?, ?, ?, ?)',
+                (opaque('contract', 2), *source),
+            )
+            connection.execute(
+                'UPDATE work_history SET contract_id = ?',
+                (opaque('contract', 2),),
+            )
+            connection.execute(
+                'UPDATE active_work_keys SET contract_id = ?',
+                (opaque('contract', 2),),
+            )
+        elif mutation == 'slot_id':
+            connection.execute(
+                'INSERT INTO slots VALUES (?, ?, ?, ?)',
+                (
+                    opaque('slot', 2),
+                    opaque('contract', 1),
+                    'engineering',
+                    1,
+                ),
+            )
+            connection.execute(
+                'UPDATE work_history SET slot_id = ?',
+                (opaque('slot', 2),),
+            )
+            connection.execute(
+                'UPDATE active_work_keys SET slot_id = ?',
+                (opaque('slot', 2),),
+            )
+        elif mutation == 'artifact_revision':
+            changed_revision = f'sha256:{9:064x}'
+            connection.execute(
+                'UPDATE work_history SET artifact_revision = ?',
+                (changed_revision,),
+            )
+            connection.execute(
+                'UPDATE active_work_keys SET artifact_revision = ?',
+                (changed_revision,),
+            )
+        elif mutation == 'lifecycle_transition':
+            connection.execute(
+                "UPDATE work_history SET lifecycle_transition = 'resume'"
+            )
+        else:
+            connection.execute(
+                'UPDATE work_history SET replacement_of_attempt_id = ?',
+                (opaque('attempt', 9),),
+            )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    ('native_status', 'work_status'),
+    [
+        ('active', 'succeeded'),
+        ('notifications_unavailable', 'succeeded'),
+        ('completion_notified', 'succeeded'),
+        ('read_claimed', 'succeeded'),
+        ('found', 'succeeded'),
+        ('lost', 'active'),
+        ('orphaned', 'active'),
+        ('aborted', 'active'),
+        ('shutdown', 'active'),
+        ('failed', 'active'),
+        ('recovered', 'active'),
+        ('succeeded', 'active'),
+        ('failed', 'succeeded'),
+    ],
+)
+def test_validation_rejects_contradictory_native_and_work_states(
+    tmp_path: Path,
+    schema_version: int,
+    native_status: str,
+    work_status: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    ledger.bind_native(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'native-state-matrix',
+        'task_result',
+    )
+    if work_status == 'succeeded':
+        finish(ledger, 1, 1, 'succeeded')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE native_invocations
+            SET lifecycle_status = ?, notifications_available = ?""",
+            (
+                native_status,
+                0 if native_status == 'notifications_unavailable' else 1,
+            ),
+        )
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('mutation', ['stale_latest', 'missing_evidence'])
+def test_validation_requires_exact_latest_progress_timestamp(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    recorded_at, _ = ledger.record_progress(
+        opaque('attempt', 1), fingerprint(1)
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        if mutation == 'stale_latest':
+            connection.execute(
+                'UPDATE work_history SET last_progress_at_ms = ?',
+                (recorded_at + 1,),
+            )
+        else:
+            connection.execute('DELETE FROM progress_evidence')
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize(
+    'mutation',
+    [
+        'consumed_without_replacement',
+        'replacement_without_consumed',
+        'reset_consumed_pair',
+        'wrong_replacement',
+        'missing_eligibility',
+    ],
+)
+def test_validation_requires_exact_replacement_eligibility_history(
+    tmp_path: Path,
+    schema_version: int,
+    mutation: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(background_admission(1), route, 'engineering', limits())
+    native = opaque('native', 1)
+    public_id = 'replacement-integrity-source'
+    ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    )
+    ledger.native_notification(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.observe_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        'not_found',
+        fingerprint(1),
+    )
+    if mutation != 'consumed_without_replacement':
+        admitted = ledger.admit(
+            background_admission(
+                2,
+                slot=1,
+                generation=2,
+                logical=2,
+                transition='replacement',
+                replacement_of=1,
+            ),
+            route,
+            'engineering',
+            limits(),
+        )
+        assert admitted['launch_authorized'] is True
+
+    with sqlite3.connect(ledger.path) as connection:
+        if mutation == 'consumed_without_replacement':
+            connection.execute(
+                'UPDATE replacement_eligibility SET consumed_at_ms = 1'
+            )
+        elif mutation == 'replacement_without_consumed':
+            connection.execute(
+                'UPDATE replacement_eligibility SET consumed_at_ms = NULL'
+            )
+        elif mutation == 'reset_consumed_pair':
+            connection.execute(
+                """UPDATE replacement_eligibility
+                SET replacement_attempt_id = NULL, consumed_at_ms = NULL"""
+            )
+        elif mutation == 'wrong_replacement':
+            connection.execute(
+                """UPDATE replacement_eligibility
+                SET replacement_attempt_id = ?""",
+                (opaque('attempt', 1),),
+            )
+        else:
+            connection.execute('DELETE FROM replacement_eligibility')
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+@pytest.mark.parametrize('schema_version', [1, 2])
+def test_validation_requires_eligibility_for_every_lost_source(
+    tmp_path: Path,
+    schema_version: int,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    native = opaque('native', 1)
+    public_id = 'missing-loss-eligibility'
+    ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    )
+    ledger.native_notification(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.observe_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        'not_found',
+        fingerprint(1),
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute('DELETE FROM replacement_eligibility')
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, 'full')
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+    assert metadata['schema_version'] == str(schema_version)
+
+
+def test_rejected_lifecycle_attempt_identity_cannot_be_reused(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1), route, 'engineering', limits()
+    )
+    rejected = ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=1,
+            generation=2,
+            logical=2,
+            transition='resume',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert rejected['lifecycle_transition'] == 'duplicate_launch'
+    finish(ledger, 1, 1, 'succeeded')
+
+    with pytest.raises(IdentityConflict):
+        ledger.admit(
+            lifecycle_admission(
+                2,
+                slot=1,
+                generation=3,
+                logical=3,
+                transition='resume',
+            ),
+            route,
+            'engineering',
+            limits(),
+        )
+    assert ledger.status()['counts']['active_attempts'] == 0
+
+
+def test_lifecycle_v1_migration_refuses_ambiguous_dispatch_history(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        lifecycle_admission(1, slot=1),
+        route,
+        'engineering',
+        limits(),
+    )
+    ledger.admit(
+        lifecycle_admission(
+            2,
+            slot=2,
+            revision=2,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    refused = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=3,
+            revision=3,
+            parent=opaque('attempt', 1),
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    downgrade_ledger_to_v1(ledger, 'lifecycle')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE lifecycle_decisions SET launch_authorized = 1
+            WHERE decision_id = ?""",
+            (refused['decision_id'],),
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert 'lifecycle_dispatch' not in tables
+
+
+@pytest.mark.parametrize(
+    ('source_layout', 'failure_schema'),
+    [
+        ('base', 'CREATE TABLE lifecycle_decisions'),
+        ('lifecycle', 'CREATE TABLE lifecycle_dispatch'),
+    ],
+)
+def test_v1_migration_schema_failure_rolls_back_logical_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_layout: str,
+    failure_schema: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, source_layout)
+    with sqlite3.connect(ledger.path) as connection:
+        before = (
+            dict(connection.execute('SELECT key, value FROM metadata')),
+            Ledger._schema_objects(connection),
+        )
+    real_execute_schema = Ledger._execute_schema
+
+    def fail_after_schema(
+        connection: sqlite3.Connection, schema: str
+    ) -> None:
+        real_execute_schema(connection, schema)
+        database_path = connection.execute(
+            'PRAGMA database_list'
+        ).fetchone()[2]
+        if database_path and failure_schema in schema:
+            raise sqlite3.OperationalError('injected migration failure')
+
+    monkeypatch.setattr(
+        Ledger, '_execute_schema', staticmethod(fail_after_schema)
+    )
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        after = (
+            dict(connection.execute('SELECT key, value FROM metadata')),
+            Ledger._schema_objects(connection),
+        )
+    assert after == before
+
+
+def test_v1_migration_final_validation_failure_rolls_back(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, 'base')
+    with sqlite3.connect(ledger.path) as connection:
+        before = (
+            dict(connection.execute('SELECT key, value FROM metadata')),
+            Ledger._schema_objects(connection),
+        )
+    real_validate = Ledger._validate
+
+    def reject_v2(
+        cls: type[Ledger],
+        connection: sqlite3.Connection,
+        *,
+        layout: str = 'full',
+        schema_version: int = 2,
+    ) -> None:
+        del cls
+        if schema_version == 2:
+            raise StateCorrupt
+        real_validate(
+            connection,
+            layout=layout,
+            schema_version=schema_version,
+        )
+
+    monkeypatch.setattr(Ledger, '_validate', classmethod(reject_v2))
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+    with sqlite3.connect(ledger.path) as connection:
+        after = (
+            dict(connection.execute('SELECT key, value FROM metadata')),
+            Ledger._schema_objects(connection),
+        )
+    assert after == before
+
+
+def test_ambiguous_migration_commit_is_revalidated_under_a_fresh_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v1(ledger, 'base')
+
+    def commit_then_raise(connection: sqlite3.Connection) -> None:
+        connection.commit()
+        raise CommitOutcomeAmbiguous
+
+    monkeypatch.setattr(Ledger, '_commit', staticmethod(commit_then_raise))
+    assert ledger.initialize() is False
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '2'
+
+
+def test_released_v1_client_fresh_open_reports_v2_as_unsupported(
+    tmp_path: Path,
+) -> None:
+    commit = 'c99b3d45b4f15bda9ed8632ca40c78779875e089'
+    script_result = subprocess.run(
+        ['git', 'show', f'{commit}:scripts/agent_invocation_control.py'],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    config_result = subprocess.run(
+        ['git', 'show', f'{commit}:config/agent-invocation-control.json'],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if script_result.returncode != 0 or config_result.returncode != 0:
+        pytest.skip('immutable released v1 artifact is unavailable in shallow checkout')
+    assert hashlib.sha256(script_result.stdout.encode()).hexdigest() == (
+        '24c397303ed592c7bc0835a75bbe421da5dda59fe20f6e92d0139dcca06162ff'
+    )
+    assert hashlib.sha256(config_result.stdout.encode()).hexdigest() == (
+        '416d4f4293ea4d4c7fd6be71c4ec3710607eddb799492f7daeea73fe0777ec11'
+    )
+
+    repository = init_repository(tmp_path)
+    released_root = tmp_path / 'released-v1'
+    (released_root / 'scripts').mkdir(parents=True)
+    (released_root / 'config').mkdir()
+    (released_root / 'scripts' / 'agent_invocation_control.py').write_text(
+        script_result.stdout,
+        encoding='utf-8',
+    )
+    (released_root / 'config' / 'agent-invocation-control.json').write_text(
+        config_result.stdout,
+        encoding='utf-8',
+    )
+    shutil.copytree(ROOT / 'analysis', released_root / 'analysis')
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(released_root / 'scripts' / 'agent_invocation_control.py'),
+        ],
+        cwd=repository,
+        input=json.dumps({'schema_version': 1, 'command': 'status'}),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 4
+    assert json.loads(result.stdout)['policy_reason'] == 'state_unsupported'
+
+
 def test_failed_745_ledger_upgrade_rolls_back_auxiliary_schema(
     tmp_path: Path,
 ) -> None:
@@ -1058,6 +2530,9 @@ def test_failed_745_ledger_upgrade_rolls_back_auxiliary_schema(
         connection.execute('DROP TABLE native_binding_provenance')
         connection.execute('DROP TABLE lifecycle_dispatch')
         connection.execute('ALTER TABLE work_history ADD COLUMN unexpected TEXT')
+        connection.execute(
+            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
+        )
     with pytest.raises(StateCorrupt):
         ledger.initialize()
     with sqlite3.connect(ledger.path) as connection:
@@ -1077,9 +2552,12 @@ def test_new_ledger_validation_failure_rolls_back_schema(
     ledger = Ledger(tmp_path / 'ledger.sqlite3')
 
     def reject_schema(
-        _connection: sqlite3.Connection, *, require_lifecycle: bool = True
+        _connection: sqlite3.Connection,
+        *,
+        layout: str = 'full',
+        schema_version: int = 2,
     ) -> None:
-        del require_lifecycle
+        del layout, schema_version
         raise StateCorrupt
 
     monkeypatch.setattr(Ledger, '_validate', staticmethod(reject_schema))
@@ -1317,6 +2795,135 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
         ).fetchone()[0] == 1
 
 
+def test_completed_replacement_cannot_resume_into_a_new_replacement_chain(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        background_admission(1, slot=1),
+        route,
+        'engineering',
+        limits(),
+    )
+    native = opaque('native', 1)
+    public_id = 'replacement-lineage-source'
+    ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    )
+    ledger.native_notification(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.observe_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        'not_found',
+        fingerprint(12),
+    )
+    replacement = ledger.admit(
+        background_admission(
+            2,
+            slot=1,
+            generation=2,
+            logical=2,
+            transition='replacement',
+            replacement_of=1,
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert replacement['launch_authorized'] is True
+    finish(ledger, 2, 13, 'succeeded')
+
+    resumed = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=1,
+            generation=3,
+            logical=3,
+            transition='resume',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert resumed['lifecycle_transition'] == 'illegal_transition'
+    assert resumed['launch_authorized'] is False
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT 1 FROM attempts WHERE attempt_id = ?',
+            (opaque('attempt', 3),),
+        ).fetchone() is None
+
+
+def test_clock_regression_cannot_hide_the_latest_lost_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    clock = [2_000]
+    monkeypatch.setattr(invocation_control, '_now_ms', lambda: clock[0])
+    ledger.admit(
+        lifecycle_admission(1, slot=1), route, 'engineering', limits()
+    )
+    finish(ledger, 1, 1, 'succeeded')
+
+    clock[0] = 1_000
+    resumed = ledger.admit(
+        background_admission(
+            2,
+            slot=1,
+            generation=2,
+            logical=2,
+            transition='resume',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert resumed['launch_authorized'] is True
+    native = opaque('native', 1)
+    public_id = 'clock-regression-loss'
+    ledger.bind_native(
+        opaque('attempt', 2), native, public_id, 'task_result'
+    )
+    ledger.native_notification(opaque('attempt', 2), native, public_id)
+    ledger.claim_native_read(opaque('attempt', 2), native, public_id)
+    ledger.observe_native(
+        opaque('attempt', 2),
+        native,
+        public_id,
+        'not_found',
+        fingerprint(2),
+    )
+
+    clock[0] = 1_200
+    refused = ledger.admit(
+        lifecycle_admission(
+            3,
+            slot=1,
+            generation=3,
+            logical=3,
+            transition='resume',
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    assert refused['lifecycle_transition'] == 'illegal_transition'
+    assert refused['launch_authorized'] is False
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM replacement_eligibility'
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            'SELECT 1 FROM attempts WHERE attempt_id = ?',
+            (opaque('attempt', 3),),
+        ).fetchone() is None
+
+
 def test_parent_shutdown_is_leaf_first_idempotent_and_orphans_descendants(
     tmp_path: Path,
 ) -> None:
@@ -1372,6 +2979,30 @@ def test_parent_shutdown_is_leaf_first_idempotent_and_orphans_descendants(
         assert connection.execute(
             'SELECT COUNT(*) FROM active_work_keys'
         ).fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
+    ('tree_reason', 'collapsed_finish_status'),
+    [('shutdown', 'recovered'), ('abort', 'failed')],
+)
+def test_collapsed_base_status_does_not_hide_exact_lifecycle_conflict(
+    tmp_path: Path,
+    tree_reason: str,
+    collapsed_finish_status: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    terminal = fingerprint(21)
+    ledger.terminate_tree(opaque('attempt', 1), tree_reason, terminal)
+
+    with pytest.raises(FinishConflict):
+        ledger.finish(
+            opaque('attempt', 1),
+            collapsed_finish_status,
+            terminal,
+        )
 
 
 @pytest.mark.parametrize('reason, expected', [('abort', 'aborted'), ('failure', 'failed')])
@@ -1440,6 +3071,7 @@ def test_illegal_transitions_fail_closed_and_resume_is_explicit(
 
 def test_progress_only_advances_for_new_substantive_evidence(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ledger = new_ledger(tmp_path)
     ledger.admit(
@@ -1459,22 +3091,29 @@ def test_progress_only_advances_for_new_substantive_evidence(
         assert connection.execute(
             'SELECT last_progress_at_ms FROM work_history'
         ).fetchone()[0] is None
+    progress_times = iter((2_000, 1_000))
+    monkeypatch.setattr(invocation_control, '_now_ms', lambda: next(progress_times))
     first_at, first_idempotent = ledger.record_progress(
         opaque('attempt', 1), fingerprint(30)
+    )
+    second_at, second_idempotent = ledger.record_progress(
+        opaque('attempt', 1), fingerprint(31)
     )
     repeated_at, repeated_idempotent = ledger.record_progress(
         opaque('attempt', 1), fingerprint(30)
     )
     assert first_idempotent is False
+    assert second_idempotent is False
     assert repeated_idempotent is True
-    assert repeated_at == first_at
+    assert repeated_at == second_at
+    assert second_at == first_at
     with sqlite3.connect(ledger.path) as connection:
         assert connection.execute(
             'SELECT COUNT(*) FROM progress_evidence'
-        ).fetchone()[0] == 1
+        ).fetchone()[0] == 2
         assert connection.execute(
             'SELECT last_progress_at_ms FROM work_history'
-        ).fetchone()[0] == first_at
+        ).fetchone()[0] == second_at
 
 
 def test_sync_default_explicit_sync_and_background_provenance(tmp_path: Path) -> None:
@@ -1665,7 +3304,7 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
     )
 
 
-def test_upgraded_unverified_native_binding_cannot_authenticate(
+def test_lifecycle_v1_native_binding_without_provenance_blocks_migration(
     tmp_path: Path,
 ) -> None:
     ledger = new_ledger(tmp_path)
@@ -1681,18 +3320,26 @@ def test_upgraded_unverified_native_binding_cannot_authenticate(
         connection.execute('PRAGMA foreign_keys=OFF')
         connection.execute('DROP TABLE native_binding_provenance')
         connection.execute('DROP TABLE lifecycle_dispatch')
-    assert ledger.initialize() is False
-    with pytest.raises(NativeBoundary, match='native_binding_mismatch'):
-        ledger.native_notification(
-            opaque('attempt', 1), alias, public_id
+        connection.execute(
+            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
         )
+    with pytest.raises(StateUnsupported):
+        ledger.initialize()
     with sqlite3.connect(ledger.path) as connection:
         assert connection.execute(
             'SELECT COUNT(*) FROM native_invocations'
         ).fetchone()[0] == 1
-        assert connection.execute(
-            'SELECT COUNT(*) FROM native_binding_provenance'
-        ).fetchone()[0] == 0
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '1'
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'table'"
+            )
+        }
+    assert 'native_binding_provenance' not in tables
+    assert 'lifecycle_dispatch' not in tables
 
 
 def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
@@ -1891,7 +3538,7 @@ def test_policy_parity_and_cooperative_manifest_boundaries() -> None:
         'default_mode': 'instrument',
         'approved_modes': ['instrument', 'shadow'],
         'enforcement_approved': False,
-        'ledger_schema_version': 1,
+        'ledger_schema_version': 2,
         'dispatch_profiles': {
             'default': 'sync_inline',
             'sync': 'sync_inline',

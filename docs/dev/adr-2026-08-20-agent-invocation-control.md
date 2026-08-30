@@ -1,14 +1,78 @@
 # ADR-2026-08-20-agent-invocation-control
 
-- **Status:** Proposed — instrument/shadow scope human-authorized; final implementation-bound ADR approval pending separate review
+- **Status:** Proposed baseline; bounded ledger-v2 correction human-authorized,
+  with final corrected-tree verification pending
 - **Decision date:** 2026-08-20
 - **Artifact implementation status:** repository-native Markdown; not schema-backed
 - **Owner role:** Architecture
 
+## 2026-08-30 ledger schema v2 corrective addendum
+
+Final code review disproved the 2026-08-29 assumption that adding lifecycle and
+auxiliary tables could remain the released ledger-v1 format. The released v1
+validator requires the exact original table/index set, so an expanded layout
+still stamped version 1 is reported as corrupt.
+
+Architecture therefore advances only the SQLite layout discriminator to ledger
+schema 2. JSON schema 1, policy
+`agent-invocation-control-v1`, lifecycle behavior, native-binding behavior,
+identity formats, routing, roles, autonomy, and enforcement remain unchanged.
+The stable `agent-invocation-control-v1.sqlite3` filename identifies the
+policy-v1 ledger rather than its internal layout version.
+
+For an existing ledger, explicit `init` acquires `BEGIN IMMEDIATE` before
+reading journal mode, metadata, or schema state. It recognizes only the exact
+released base-v1, #745 lifecycle-v1, or complete physical-v1 layout; applies
+the baseline target DDL and deterministic historical dispatch backfill; updates
+metadata to ledger version 2; validates; and commits atomically. Ordinary
+operations require v2 and never migrate. A freshly opened released-v1 client
+then reports `StateUnsupported`, not `StateCorrupt`.
+
+Fresh initialization builds and checkpoints a complete same-directory
+temporary WAL database, then atomically publishes it with a no-overwrite hard
+link. The final path is never an observable empty placeholder. Migration
+refuses lifecycle-v1 state containing native invocation rows because that
+format lacks the public-ID fingerprint needed to construct verified
+provenance; v2 never fabricates or strands an unverifiable binding. Full-v1 and
+v2 also validate the exact dispatch mode/provenance pair and require one
+matching provenance row per native invocation.
+
+Migration failure before commit restores transaction-owned logical state.
+Successful migration is not backward-readable. A return to v1-only code
+requires all linked-worktree clients to stop and a separately authorized reset
+of the database plus WAL/SHM companions, abandoning invocation-control state
+without cancelling native work.
+
+This addendum is bound to the exact
+[`ADR-2026-08-30 ledger-v2 corrective decision`](./adr-2026-08-30-agent-invocation-ledger-v2.md)
+and:
+
+- evidence baseline
+  `0f8358af44f5f9ba3b0fafcb540c048d7b6e8933`;
+- decision artifact SHA-256
+  `5bd8d04069ef3cca0043087cd53e12d6e72de9847cf9431394e85690b6094875`;
+- classification digest
+  `sha256:b61f63ea33961a3bcc25c29d784e6f561182d5dde55e7de1ae57290e46a9ed7b`;
+  and
+- route digest
+  `sha256:154558e84addacee607eea915bcc9eac23e899292061bbf36d675b7eddfda086`.
+
+An independent Architecture review returned PASS for the exact decision
+artifact. The independent Decision Review route was
+`human-review-required`; the authenticated maintainer approved that exact hash.
+The approval authorizes repository implementation and review only. It does not
+authorize migration of a retained ledger, destructive reset, branch-protection
+bypass, or merge with failed checks.
+
+The previous broad schema-v2 deferral is superseded only for this layout
+discriminator and explicit migration. Context epochs, generalized identities
+or rebind, external rediscovery, online/mixed-version migration, native
+authority, and all other deferred mechanisms remain deferred.
+
 ## 2026-08-29 bounded architecture addendum
 
-Architecture accepts a schema-v1 additive correction for lifecycle-aware,
-manifest-coordinated calls:
+Architecture accepted the following lifecycle-aware,
+manifest-coordinated behavior at the 2026-08-29 baseline:
 
 - serialize admission with `BEGIN IMMEDIATE` so one non-null parent attempt has
   at most one active direct child, without serializing roots or unrelated
@@ -26,11 +90,11 @@ manifest-coordinated calls:
   replacement without registry lookup, automatic loss, replacement, relaunch,
   or external rebind.
 
-The change keeps JSON schema 1 and ledger schema 1 by adding auxiliary tables
-and a transactional `init` upgrade for #745-era lifecycle ledgers. Schema v2,
-context epochs, keyed/native ID formats, generalized alias/rebind design, and
-external rediscovery are explicitly deferred as overbroad. A future exact-match
-native capability would require separate architecture and policy review.
+The 2026-08-29 claim that the expanded layout could remain ledger schema 1 is
+superseded by the corrective addendum above. The JSON schema remains 1.
+Context epochs, keyed/native ID formats, generalized alias/rebind design, and
+external rediscovery remain deferred. A future exact-match native capability
+would require separate architecture and policy review.
 
 ## Decision record
 
@@ -101,7 +165,12 @@ The decision concerns the `agent-system` object and affects only repository-owne
 
 Affected systems for the authorized scope are bounded implementation targets only: `config` policy, `analysis/agentic_invocation_control.py`, `scripts/agent_invocation_control.py`, focused tests, developer docs, cooperative agent-manifest integration, and Local/Cloud parity/limitation updates. These are implementation boundaries, not authorization for Architecture to edit them. This ADR does not authorize changes to `scripts/route_agentic_task.py` composition, Decision Review behavior, the application database, or `plugins/praxys`.
 
-Reversibility is high. Cooperative integrations can be disabled. The local ledger is disposable observational/control metadata, not product or runtime truth, and has no cross-machine authority.
+Cooperative integrations remain easy to disable. A failed explicit migration
+rolls back transactionally, but a successfully migrated ledger is not
+backward-readable by v1-only code. The local ledger is disposable
+observational/control metadata with no cross-machine authority; reset-based
+code rollback abandons that state and therefore requires separate execution-time
+human approval.
 
 ## Options considered
 
@@ -111,7 +180,7 @@ Rejected for the authorized scope. It has the lowest migration cost, but it prov
 
 ### 2. Repository-owned mediated invocation admission with pure core + thin CLI + local SQLite ledger
 
-Recommended for instrument/shadow scope. It preserves the current repository architecture and keeps the policy/identity decision core pure and I/O-free. The CLI stays thin. The ledger lives under the Git common directory so worktree discovery is safe and local concurrency is coordinated without expanding product/runtime storage. Operational cost stays local and migration cost is reversible.
+Recommended for instrument/shadow scope. It preserves the current repository architecture and keeps the policy/identity decision core pure and I/O-free. The CLI stays thin. The ledger lives under the Git common directory so worktree discovery is safe and local concurrency is coordinated without expanding product/runtime storage. Operational cost stays local. Pre-commit migration failure is reversible; completed ledger-v2 migration requires reset rather than in-place downgrade.
 
 SQLite is required to run with WAL, foreign keys enabled per connection, and `BEGIN IMMEDIATE` around admission and lifecycle state transitions. The ledger is local observational/control metadata only, not portable truth across clones or machines.
 
@@ -218,7 +287,16 @@ alias to shadow or instrument.
 
 ## Rollback and migration
 
-Rollback disables cooperative hooks and integrations. The disposable local ledger may be retained, archived, or deleted locally. Version mismatch must fail visibly. No irreversible migration is authorized here. Any incompatible ledger migration requires new review. Rollback never activates enforcement.
+Rollback first disables cooperative hooks and integrations. Version mismatch
+fails visibly. Explicit init is the only authorized ledger-v1 to ledger-v2
+migration path; it locks before inspection and commits schema, backfill,
+metadata, and validation together.
+
+After a successful migration, v1-only code cannot reuse the ledger. Returning
+to it requires stopping all clients sharing the Git common directory and a
+separately authorized deletion/archive of the database, WAL, and SHM set. That
+reset abandons active and historical invocation-control state and does not
+cancel native work. Rollback never activates enforcement.
 
 ## Recovery boundary
 
@@ -238,7 +316,8 @@ Meta/Eval compares shadow outcomes and measures mediated coverage, would-deny ca
 Trigger Architecture and independent review if any implementation proposes or demonstrates a need for:
 
 - a new service, application database use, or cross-machine authority;
-- incompatible ledger schema migration;
+- ledger schema 3, a changed v2 target, online/mixed-version migration, or a
+  new ledger path/datastore;
 - enforcement or native interception;
 - operating-model version changes;
 - policy-bound tuning;

@@ -5,9 +5,11 @@
 - **artifact_type:** `evaluation-report`
 - **artifact implementation status:** repository-native Markdown; not schema-backed
 - **owner_role:** `meta-eval`
-- **status:** Accepted 2026-08-20 baseline; bounded 2026-08-29 correction semantically authorized for implementation
+- **status:** Accepted 2026-08-20 baseline; bounded 2026-08-29 lifecycle
+  correction authorized; 2026-08-30 ledger-v2 correction digest-approved for
+  implementation
 - **report_date:** `2026-08-20`
-- **latest iteration date:** `2026-08-29`
+- **latest iteration date:** `2026-08-30`
 - **evaluated subject:** `policy-change-proposal-agent-invocation-control-v1`
 - **accepted baseline subject digest:** `sha256:d6b9a136b44ae52d993ae07dd0000d946e201f73ea1b4db5cb116f01bab9e0f6`
 
@@ -257,9 +259,10 @@ repository, user, task, output, stack trace, or local path is retained here.
 | Mediated coverage | No expanded-policy runtime exists; native and unmediated coverage remains unknown |
 
 These gaps prohibit an autonomy promotion, enforcement proposal, runtime-fix
-claim, or activation recommendation. A cooperative policy draft can still be
-justified because it is narrow, reversible, and preserves the existing
-observation and human-authority gates.
+claim, or activation recommendation. A cooperative policy draft can still be justified because it is narrow and
+preserves the existing observation and human-authority gates. The later ledger
+format migration is transactionally reversible before commit but requires a
+separately authorized state-reset procedure after successful migration.
 
 ### Candidate-policy replay and shadow comparison
 
@@ -304,10 +307,11 @@ concrete independent work immediately. Session invalidation, one-read behavior, 
 recovery, tests, documentation parity, and immediate reversibility form one
 indivisible approval subject.
 
-No separate successor digest is used as an approval mechanism for this
-correction. The later user statements provide semantic implementation
-authority only. Independent Quality verification is still required and is not
-claimed here.
+No separate successor digest was used for the 2026-08-29 lifecycle correction.
+The later ledger-format correction is separately bound to
+`sha256:5bd8d04069ef3cca0043087cd53e12d6e72de9847cf9431394e85690b6094875`.
+Independent Quality verification of the corrected tree is still required and
+is not claimed here.
 
 No distinct recurring authority class emerges from this iteration. Meta/Eval
 continues to own policy evaluation, Engineering would execute only an accepted
@@ -322,9 +326,80 @@ Explicitly deferred:
   automatic replacement, and automatic relaunch;
 - native runtime repair, launcher interception, cancellation, global
   enforcement, and claims of complete native coverage;
-- schema v2, context epochs, keyed/native ID schemes, generalized aliasing,
-  registry rediscovery, and external rebind;
+- ledger schema 3 or a changed v2 target, online/mixed-version migration,
+  context epochs, keyed/native ID schemes, generalized aliasing, registry
+  rediscovery, and external rebind;
 - autonomy promotion, starting-bound tuning, operating-model changes, and role,
   route, or reviewer-authority changes; and
 - any later enforcement decision until complete replay and shadow evidence,
   independent review, and human approval exist.
+
+## 2026-08-30 ledger-format correction iteration
+
+### Trigger and corrected premise
+
+The final independent code-review specialist found two medium-severity
+correctness defects:
+
+1. explicit init inspected optional tables before taking the SQLite write lock,
+   so concurrent first upgrades could act on stale layout observations and
+   falsely report corruption; and
+2. the expanded exact-set layout remained stamped ledger schema 1, so the
+   released v1 client reported a valid expanded ledger as corrupt.
+
+The second finding disproved the prior compatibility premise. This iteration
+does not revisit lifecycle, dispatch, native-binding, identity, autonomy, or
+policy behavior; it corrects the on-disk discriminator and migration boundary.
+
+### Revised Work Contract and authority
+
+- primary object: `agent-system`
+- impacts: `repository-change`, `production-operation`,
+  `architecture-boundary`
+- risk trigger: `irreversible-or-high-blast-radius-action`
+- primary loop: `meta-eval`
+- nested loops: `delivery`, `runtime`
+- contributors: Architecture
+- executors: Engineering and Operations
+- verifier: Quality
+- classification digest:
+  `sha256:b61f63ea33961a3bcc25c29d784e6f561182d5dde55e7de1ae57290e46a9ed7b`
+- route digest:
+  `sha256:154558e84addacee607eea915bcc9eac23e899292061bbf36d675b7eddfda086`
+
+Architecture selected the same-path ledger schema 2 correction over a sidecar
+that could split control authority. A separate Architecture reviewer returned
+PASS on the exact decision artifact. Decision Review returned
+`human-review-required`; the authenticated maintainer approved artifact
+SHA-256
+`5bd8d04069ef3cca0043087cd53e12d6e72de9847cf9431394e85690b6094875`.
+
+Meta/Eval accepts outcome observation as a review overlay on its existing
+primary-loop lead role. The deterministic route format has no separate observer
+slot for this contract, so no route digest or routing configuration is changed.
+
+### Outcome observation
+
+After implementation and any separately authorized retained-ledger operation,
+observe:
+
+- migration result by exact source layout and concurrent/single initializer;
+- false-corruption numerator and independently established valid-layout
+  denominator, with a zero guardrail;
+- lock wait, write-transaction duration, total explicit-init duration, and
+  quiescence duration;
+- failed migration, ambiguous commit, destructive reset, state-loss, or
+  untracked-native-work incidents;
+- review rounds, material corrections, active review effort, calendar latency,
+  and maintainer decision latency; and
+- any dispatch/fan-out change only when evidence links it to migration or
+  recovery. The ledger correction itself does not change fan-out policy.
+
+Operations Release Evidence owns exact-artifact and privacy-safe migration
+facts. Operations Incident Records own real failures or resets. This Evaluation
+Report aggregates outcomes without adding a ledger table, metadata key, prompt,
+source, user content, raw public agent ID, or free-form diagnostic field.
+
+No retained ledger migration, destructive reset, release, or post-merge
+observation has occurred in this iteration. One successful fixture migration
+would not establish a rate or autonomy-promotion claim.

@@ -90,7 +90,9 @@ initial launch, resume, replacement, review after a new digest, duplicate, and
 illegal transitions. Duplicate and illegal transitions are not dispatched.
 A lost non-replacement attempt may make one separately identified replacement
 eligible; an operator or orchestrator must explicitly consume it. Nothing
-auto-launches, and replacements never chain.
+auto-launches, and replacements never chain. Once a revision has replacement
+history it cannot be resumed to disguise that lineage and create another
+replacement source.
 
 Lifecycle-aware calls also serialize only at the direct-parent boundary: one
 non-null parent may have one active direct child. A sibling waits until that
@@ -127,6 +129,28 @@ for release and still requires independent Quality verification. The
 repository does not own Copilot's native registry,
 notification delivery, read API, or cancellation, and cannot govern unmediated
 calls.
+
+The stable Git-common-dir file is a policy-v1 locator whose expanded internal
+layout is ledger schema 2. Only explicit `init` may migrate the exact released
+base-v1, #745 lifecycle-v1, or complete physical-v1 layout. It takes
+`BEGIN IMMEDIATE` before inspecting migration state, preserves base-only
+attempts without fabricated lifecycle facts, and commits DDL, historical
+dispatch backfill, metadata version 2, and validation together. Ordinary
+commands require v2 and never migrate.
+
+A lifecycle-v1 source with any native invocation is unsupported because it has
+no persisted public-ID fingerprint from which verified provenance can be
+reconstructed. Do not fabricate or guess one. Full-v1 and v2 require one
+matching provenance row per native invocation and one of the two exact
+dispatch-mode/provenance pairs.
+
+Before initializing a retained v1 ledger, stop every invocation-control client
+in all linked worktrees, stop new cooperative dispatch, and capture
+privacy-safe layout/version/integrity, kill-switch, and aggregate active-state
+evidence. A released v1 client freshly opening a successful v2 migration
+returns unsupported. See
+[ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md)
+for quiescence, WAL/SHM handling, evidence, and reset-based rollback.
 
 ### Shadow mode
 
@@ -211,6 +235,10 @@ verdicts so prompt changes are not scored against decisions they do not own.
 
 - Repo admin (to enable the coding agent, create labels, set branch protection).
 - `gh` CLI authenticated (`gh auth status`).
+- Before operating explicit invocation-ledger migration, bind the action to an
+  exact reviewed artifact and satisfy the linked-worktree quiescence and
+  pre-state requirements in the ledger-v2 ODR. Repository implementation
+  approval is not migration authority.
 
 ## Steps
 
@@ -655,6 +683,14 @@ and the cost is low).
   evidence, missing desktop/mobile review, invalid design-system impact, or
   unexplained miniapp parity fails `frontend-quality` and the compatibility
   required context.
+- Invocation-ledger fixtures prove exact base-v1, lifecycle-v1, and full-v1
+  migration; concurrent initializers all succeed without false corruption;
+  ordinary commands refuse v1; a second v2 init is a no-op; and the immutable
+  released-v1 validator freshly opening v2 reports `state_unsupported`.
+- Injected pre-commit failures preserve the source logical schema, metadata,
+  and rows. Unknown objects, changed constraints, partial auxiliary layouts,
+  non-WAL sources, ambiguous historical rows, and conflicting auxiliary rows
+  are refused without opportunistic repair.
 - A manual `Change loop outcomes` run reports explicit operational tests
   separately, starts the feedback cohort from `agent-ready` issue timelines, and
   does not count `action_required` or a corroborated baseline failure as an agent
@@ -697,6 +733,12 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   source `.md` and generated `.lock.yml`; the assignment/coding flow continues.
 - **Un-assign Copilot:** `gh issue edit <n> --remove-assignee copilot-swe-agent`
   and remove the `agent-ready` label.
+- **Invocation-ledger migration failure:** keep all linked-worktree clients
+  stopped and validate the pre-migration logical v1 state before resuming.
+  After successful migration there is no in-place downgrade. A return to
+  v1-only code requires separately authorized removal/archive of the database,
+  `-wal`, and `-shm` set and abandons invocation-control state without
+  cancelling native work. Follow the ledger-v2 ODR.
 
 ## Related
 
@@ -707,6 +749,8 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   `.github/workflows/ci-failure-doctor.md`,
   `.github/workflows/praxys-invariant-review.md`.
 - Agent guidance: `.github/copilot-instructions.md`.
+- Invocation-ledger operations:
+  [ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md).
 - Secrets / flags: [config-and-secrets.md](./config-and-secrets.md)
   (`COPILOT_ASSIGN_TOKEN`, `PRAXYS_AGENT_READY_SHADOW`,
   `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION`).

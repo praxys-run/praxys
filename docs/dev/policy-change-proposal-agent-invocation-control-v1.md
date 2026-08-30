@@ -284,10 +284,13 @@ process shutdown.
 
 ### Rejected expansion concepts
 
-An interrupted pre-authorization draft considered schema v2, context epochs,
-keyed native IDs, generalized aliases, registry rediscovery, and external
-rebind. Independent review rejected those mechanisms as unnecessary for this
-correction. They are not an approval artifact or implementation input and
+An interrupted pre-authorization draft considered a broad schema-v2 redesign,
+context epochs, keyed native IDs, generalized aliases, registry rediscovery,
+and external rebind. Independent review rejected those mechanisms as
+unnecessary for the lifecycle correction. Final code review later proved that
+the expanded physical layout nevertheless requires an honest ledger-version
+discriminator. The separately approved ledger-v2 addendum authorizes only that
+discriminator and explicit transactional migration; the broader mechanisms
 remain deferred.
 
 ### Governing semantically authorized behavior
@@ -308,7 +311,9 @@ The implementation authority is bounded to the following corrected behavior:
 - explicit binding invalidation for shutdown, resume, and context replacement,
   with no registry lookup, inference, automatic loss, replacement, relaunch, or
   external rebind;
-- additive schema-v1 auxiliary tables and transactional `init` upgrade; and
+- ledger schema 2 for the expanded physical layout, with explicit
+  lock-before-inspection migration of only the exact three recognized v1
+  layouts; and
 - stable additive reason codes, focused tests, privacy, and Local/Cloud parity.
 
 The subject retains the accepted starting limits, instrument-then-shadow
@@ -320,9 +325,15 @@ bounds.
 
 ### Human approval subject
 
-No digest-bound approval statement is recorded or required for this bounded
-correction. The user's explicit semantic authorization governs the behavior
-listed immediately above. Meta/Eval does not self-approve activation, release,
+The lifecycle behavior above retains its bounded semantic authority. The later
+one-way ledger-format correction required a separate digest-bound decision:
+
+`sha256:5bd8d04069ef3cca0043087cd53e12d6e72de9847cf9431394e85690b6094875`
+
+An independent Architecture review returned PASS, the Decision Review route
+was `human-review-required`, and the authenticated maintainer approved that
+exact artifact for repository implementation only. It does not authorize
+retained-ledger migration, destructive reset, activation, release,
 enforcement, native interception, autonomy promotion, bound tuning, or any
 listed deferral.
 
@@ -335,8 +346,9 @@ The semantic authorization does not authorize any of the following:
 - parallel direct siblings, unbounded background work, polling, repeated reads,
   automatic replacement, or automatic relaunch;
 - native runtime repair, interception, cancellation, or global enforcement;
-- schema v2, context epochs, keyed/native ID schemes, generalized aliases,
-  registry rediscovery, or external rebind;
+- ledger schema 3 or a changed v2 target, online/mixed-version migration,
+  context epochs, keyed/native ID schemes, generalized aliases, registry
+  rediscovery, or external rebind;
 - changes to roles, routes, reviewer authority, the operating-model version,
   starting bounds, or autonomy; or
 - treatment of one successful run or one environment reproduction as promotion

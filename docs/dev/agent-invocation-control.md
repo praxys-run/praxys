@@ -78,12 +78,12 @@ approval remain deferred.
 
 | Area | Impact |
 |---|---|
-| Data | Compatibly extends the disposable Git-common-dir SQLite v1 ledger with additive lifecycle tables plus `lifecycle_dispatch` and `native_binding_provenance`. Existing #745-era lifecycle ledgers upgrade transactionally during explicit `init`. Public agent IDs are stored only as domain-separated SHA-256 fingerprints. The ledger remains outside the application database and stores no task, prompt, source, user, issue, artifact content, credential, output, stack trace, free-form work description, or free-form diagnostic text. |
+| Data | Extends the disposable Git-common-dir SQLite ledger to layout schema 2 with lifecycle tables plus `lifecycle_dispatch` and `native_binding_provenance`. Explicit `init` can transactionally migrate the exact released base-v1, #745 lifecycle-v1, or full-v1 layout after taking the SQLite write lock. Public agent IDs are stored only as domain-separated SHA-256 fingerprints. The ledger remains outside the application database and stores no task, prompt, source, user, issue, artifact content, credential, output, stack trace, free-form work description, or free-form diagnostic text. |
 | Analysis | Adds analysis/agentic_invocation_control.py, an I/O-free stdlib identity validator and deterministic candidate-policy evaluator. Existing static routing remains authoritative and unchanged. |
 | API | No application API or authentication change. |
 | Clients | Extends the versioned stdin/stdout CLI and cooperative Orchestrator/Delivery Loop instructions with explicit sync/background dispatch profiles, direct-sibling serialization, exact public-ID binding, one-read completion, and binding invalidation. No UI, provider, sync, or native-agent API changes. |
 | Operations | Adds no service, deployment setting, secret, alert, registry lookup, polling loop, or production runtime. Local and Cloud use the same repository protocol and the same native-interception limitation. |
-| Migration | Keeps JSON schema 1 and ledger schema 1. Explicit `init` transactionally adds the compatible lifecycle and auxiliary tables to a valid original-v1 or #745-era ledger; no schema v2, application migration, destructive rewrite, or automatic incompatible migration is introduced. Partial or unsupported state fails visibly. |
+| Migration | Keeps JSON schema 1 and policy v1 while advancing the expanded SQLite layout to ledger schema 2. Only explicit `init` may migrate one of three exact schema-v1 layouts; it acquires `BEGIN IMMEDIATE` before inspecting migration state, then applies DDL, historical dispatch backfill, metadata update, and validation in one transaction. Ordinary commands require v2. A freshly opened released-v1 client reports the migrated ledger as unsupported. Partial, changed, or unknown layouts fail visibly. |
 | Tests | Adds focused coverage for cross-process same-parent sibling races, sequential siblings and nesting, unrelated parents and roots, dispatch provenance, sync completion boundaries, task-returned public-ID validation and mismatch rejection, notification-then-one-read, invalidation, stale-ID refusal, no automatic loss/replacement, additive upgrade, privacy, original #737 behavior, manifests, and parity. Independent Quality verification remains a separate artifact and has not yet occurred for this change. |
 
 ## Implementation Change
@@ -96,8 +96,10 @@ accepted starting limits. The implementation adds:
    analysis/agentic_invocation_control.py.
 2. A thin versioned JSON CLI in scripts/agent_invocation_control.py.
 3. A WAL SQLite ledger under
-   git-common-dir/praxys/agent-invocation-control-v1.sqlite3, with foreign keys
-   enabled per connection and BEGIN IMMEDIATE for admission and lifecycle
+   git-common-dir/praxys/agent-invocation-control-v1.sqlite3. The stable
+   filename identifies the policy-v1 ledger, while metadata identifies the
+   internal layout as ledger schema 2. Foreign keys are enabled per connection,
+   and `BEGIN IMMEDIATE` protects initialization, admission, and lifecycle
    transitions.
 4. Stable opaque contract, slot, generation, logical-invocation, attempt, and
    decision identities. Slot identity is generation-independent, so a new
@@ -196,7 +198,8 @@ standard output.
 
 Commands:
 
-- init: explicitly create or validate ledger schema v1.
+- init: explicitly create/validate ledger schema 2 or transactionally migrate
+  one exact recognized ledger-v1 layout after acquiring the write lock.
 - new_identity: create contract, slot, generation, logical, attempt, or native identity.
 - admit: recompute the Work Contract, evaluate atomically, and record the
   decision and any authorized instrument/shadow launch. Lifecycle-aware calls
@@ -210,6 +213,10 @@ Commands:
 - native_observation: record the claimed read as found or authoritative
   not_found; not_found atomically records loss and cleanup.
 - progress: record a new substantive progress fingerprint.
+  Repeating any prior fingerprint is idempotent and reports the attempt's
+  current `last_progress_at_ms`, never the older evidence row's timestamp.
+  New evidence clamps its timestamp to the current latest value if wall-clock
+  time moves backward.
 - terminate_tree: leaf-first terminal cleanup for abort, shutdown, or failure.
 - invalidate_native: permanently invalidate one exact alias/public-ID binding
   for shutdown, resume, or context replacement without changing attempt state.
@@ -289,6 +296,71 @@ additive within v1.
 These values are not runtime tuning knobs. Any change requires evidence and a
 separately reviewed proposal.
 
+## Ledger schema 2 migration
+
+The JSON contract and policy remain version 1. The SQLite layout is version 2
+because the lifecycle and auxiliary tables are not readable as a valid layout
+by the released exact-set ledger-v1 validator.
+
+Only `init` may migrate. For an existing ledger it establishes only
+connection-local safety settings, acquires `BEGIN IMMEDIATE`, and then reads
+journal mode, metadata, and schema state. It accepts exactly:
+
+1. the released base-v1 tables and indexes;
+2. base-v1 plus the lifecycle tables and indexes; or
+3. the complete v2 physical layout while metadata still says ledger version 1.
+
+The existing ledger must already use WAL. Unknown objects, missing objects,
+changed columns or constraints, partial auxiliary state, unsupported metadata,
+and ambiguous historical rows are not repaired. A lifecycle-v1 ledger with an
+existing `native_invocations` row is unsupported: that format has no persisted
+public-ID fingerprint from which v2 provenance can be reconstructed, and
+migration must not fabricate one. Full-v1 and v2 require exactly one matching
+provenance row for every native invocation.
+
+For lifecycle-v1 rows, migration backfills dispatch facts from durable state:
+rejected duplicate/illegal transitions remain
+`lifecycle_transition_rejected`; valid lifecycle decisions without a matching
+base decision are `direct_sibling_active`; matched denied decisions are
+`policy_denied`; and matched admitted decisions are `admit`. Backfilled rows
+use `sync`/`sync_inline` and copy `decided_at_ms` to `recorded_at_ms`. Base-only
+attempts receive no fabricated lifecycle facts.
+
+DDL, backfill, metadata version update, and final validation commit together.
+A pre-commit failure restores the prior logical schema, metadata, and rows.
+Validation requires a bidirectional exact match between every active lifecycle
+history row and its `(contract, slot, revision)` active-work key; missing,
+stale, or mismatched keys are corrupt state rather than migration input. Every
+authorized lifecycle decision must also map through its exact base attempt to
+one history row with the same contract, slot, revision, effective transition,
+and replacement source. Attempt identities are single-use across accepted and
+rejected lifecycle decisions. At the base layer, every authorized decision and
+attempt map bidirectionally with identical contract, slot, generation, logical
+invocation, parent, and attempt identities; denied decisions have no attempt.
+Slots, generations, and logical invocations must retain their canonical
+contract/slot bindings. Parent links must form a depth-consistent acyclic tree;
+the descendant cleanup query also deduplicates recursively as defense in
+depth. At most one lifecycle-aware direct child of a parent may be active.
+Lifecycle chronology uses the durable attempt insertion order rather than
+wall-clock timestamps, so clock regression cannot hide the latest lost
+attempt. Native pre-terminal states map only to active work, native terminal
+states exactly match lifecycle terminal state, and `last_progress_at_ms`
+equals the latest durable progress-evidence timestamp. Generation and logical
+identities bind on their first decision even when policy denies that launch,
+so a later authorized decision cannot remap them. Replacement eligibility has
+an atomic unconsumed/consumed field pair and maps bidirectionally to every lost
+non-replacement source and, after consumption, exactly one replacement history
+row with the same contract, slot, and revision.
+Concurrent initializers serialize on the same write lock; a follower re-reads
+the committed v2 state instead of acting on a stale pre-lock observation.
+Fresh initializers each build and checkpoint a complete same-directory
+temporary WAL database, then atomically publish with a no-overwrite hard link.
+The final path is never visible as an empty placeholder; one initializer
+publishes and the others validate the complete ledger. Filesystem allocation
+or publication failures use the same versioned `ledger_unavailable` response
+as other state failures and do not emit an unstructured traceback.
+Ordinary commands never migrate v1 and report it as unsupported.
+
 ## Activation
 
 Use the repository virtual environment. First recompute and retain the exact
@@ -354,7 +426,9 @@ descendants as `orphaned`. It creates one replacement eligibility only for a
 non-replacement attempt. A caller may later submit one separately identified
 `replacement` admission that names the lost attempt; admission consumes the
 eligibility transactionally but never launches by itself. Loss of that
-replacement creates no new eligibility.
+replacement creates no new eligibility. A revision with replacement history
+cannot be resumed, so an intervening `resume` cannot erase replacement lineage
+and reopen eligibility.
 
 Mediated native write is unsupported. Do not invent a pre-completion multi-turn
 write subsystem. If a future native capability supports exact writes or exact
@@ -390,17 +464,25 @@ Example request shape:
 
 Stop making cooperative CLI calls from the invoking manifest and retain native
 dispatch behavior. This immediately removes instrument/shadow mediation; it
-does not activate enforcement. The ledger is disposable local metadata. After
-all CLI processes have stopped, it may be retained for evidence, archived
-locally, or removed together with its SQLite WAL and shared-memory companions
-from the Git common directory. No application rollback or database migration is
+does not activate enforcement. No application database or service rollback is
 needed.
 
 A corrupt or unsupported ledger is never overwritten automatically. Preserve
-it if evidence is needed, move it aside locally, and run explicit init to create
-a new schema-v1 ledger. Instrument/shadow reports state_missing, state_corrupt, or state_unsupported
-with launch_authorized true; only a future separately approved enforce mode
-could fail closed on unavailable state.
+it if evidence is needed and diagnose it before retrying.
+
+A completed ledger-v1 to ledger-v2 migration is not backward-readable by the
+released v1 client. Returning to v1-only code requires a separately authorized
+destructive reset: stop every client in all linked worktrees, record active
+attempt/native-binding and kill-switch consequences, optionally archive a
+SQLite-consistent evidence set, and remove the database together with its
+`-wal` and `-shm` companions before the old client runs explicit init. This
+abandons invocation-control state and begins a new control epoch; it does not
+cancel native work, which may continue untracked. Do not execute that reset
+without authenticated human approval at the time of rollback.
+
+Instrument/shadow reports `state_missing`, `state_corrupt`, or
+`state_unsupported` with `launch_authorized=true`; only a future separately
+approved enforce mode could fail closed on unavailable state.
 
 ## Local and Cloud parity and limits
 
