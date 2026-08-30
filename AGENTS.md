@@ -14,10 +14,21 @@ resulting digest-bound Work Contract.
 Read:
 
 - `docs/dev/agentic-operating-model.md`
+- `docs/dev/agent-runtime-parity.md`
 - `config/agentic-operating-model.json`
 - `config/agentic-task-routing.json`
+- `config/agent-runtime-parity.json`
 - `config/copilot-execution-parity.json`
 - `config/agent-loop-policies.json`
+
+Codex CLI and Copilot CLI are parallel local adapters to this same control
+plane. In a trusted checkout, Codex loads `.codex/config.toml`, thin role
+adapters under `.codex/agents/`, repository skill aliases under
+`.agents/skills/`, and `.codex/hooks.json`. These native files translate
+runtime formats only; they never replace the canonical role manifests,
+taxonomy, router, artifact ownership, Decision Review, or human authority.
+Run `python3 scripts/check_agent_runtime_parity.py` before claiming static
+adapter conformance. Static conformance is not measured runtime parity.
 
 Do not treat this role list as a permanent org chart. Create, merge, or retire a
 role only through the checked-in evolution criteria and a reviewed policy
