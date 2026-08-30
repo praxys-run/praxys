@@ -39,6 +39,7 @@ def goal_api(monkeypatch):
     importlib.reload(api.main)
     app = api.main.app
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
@@ -48,12 +49,16 @@ def goal_api(monkeypatch):
                 email="goal-owner@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="goal-baseline-other",
                 email="goal-other@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="goal-baseline-admin",
@@ -61,6 +66,8 @@ def goal_api(monkeypatch):
                 hashed_password="x",
                 is_active=True,
                 is_superuser=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
         ])
         db.commit()
@@ -100,6 +107,17 @@ def _token(user_id: str) -> str:
 
 def _headers(user_id: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {_token(user_id)}"}
+
+
+def _athlete_today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+SCHEDULED_TEST_DATE = _athlete_today() + timedelta(days=1)
+SCHEDULED_TEST_DATE_STR = SCHEDULED_TEST_DATE.isoformat()
+NEXT_SCHEDULED_TEST_DATE_STR = (
+    SCHEDULED_TEST_DATE + timedelta(days=1)
+).isoformat()
 
 
 def _seed_goal_user(
@@ -460,14 +478,14 @@ def test_optional_test_schedule_creates_canonical_workout_and_revision(goal_api)
         },
         json={
             "action": "schedule",
-            "scheduled_date": "2026-08-20",
+            "scheduled_date": SCHEDULED_TEST_DATE_STR,
         },
     )
     assert scheduled.status_code == 201, scheduled.text
     payload = scheduled.json()
     assert payload["baseline"]["status"] == "pending_test"
     assert payload["test"]["state"] == "scheduled"
-    assert payload["test"]["scheduled_workout"]["date"] == "2026-08-20"
+    assert payload["test"]["scheduled_workout"]["date"] == SCHEDULED_TEST_DATE_STR
 
     from db.models import PlanRevision, TrainingPlan
 
@@ -492,7 +510,7 @@ def test_optional_test_schedule_creates_canonical_workout_and_revision(goal_api)
         },
         json={
             "action": "schedule",
-            "scheduled_date": "2026-08-20",
+            "scheduled_date": SCHEDULED_TEST_DATE_STR,
         },
     )
     assert replayed.status_code == 200, replayed.text
@@ -539,7 +557,7 @@ def test_completion_requires_explicit_protocol_checks_and_never_auto_qualifies(
     _add_activity(
         db_session,
         activity_id="test-attempt",
-        observed_date=date(2026, 8, 20),
+        observed_date=SCHEDULED_TEST_DATE,
         distance_km=5.03,
         duration_sec=1_230,
     )
@@ -559,7 +577,7 @@ def test_completion_requires_explicit_protocol_checks_and_never_auto_qualifies(
             **_headers("goal-baseline-owner"),
             "Idempotency-Key": "goal-test-schedule-complete",
         },
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     )
     assert scheduled.status_code == 201, scheduled.text
 
@@ -597,7 +615,7 @@ def test_schedule_stop_cleans_up_the_scheduled_workout(goal_api) -> None:
     assert client.post(
         "/api/goal/baseline/test",
         headers={**_headers("goal-baseline-owner"), "Idempotency-Key": "goal-test-schedule-cleanup"},
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     ).status_code == 201
     stopped = client.post(
         "/api/goal/baseline/test",
@@ -630,7 +648,7 @@ def test_current_history_retires_pending_optional_test(goal_api) -> None:
     assert client.post(
         "/api/goal/baseline/test",
         headers={**_headers("goal-baseline-owner"), "Idempotency-Key": "goal-test-schedule-retire"},
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     ).status_code == 201
 
     confirmed = client.post(
@@ -684,7 +702,7 @@ def test_shared_history_retires_tests_for_every_plan_purpose(goal_api) -> None:
             **_headers(user_id),
             "Idempotency-Key": "shared-history-current-schedule",
         },
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     ).status_code == 201
     assert client.post(
         "/api/goal/baseline/test",
@@ -702,7 +720,7 @@ def test_shared_history_retires_tests_for_every_plan_purpose(goal_api) -> None:
         },
         json={
             "action": "schedule",
-            "scheduled_date": "2026-08-21",
+            "scheduled_date": NEXT_SCHEDULED_TEST_DATE_STR,
             "purpose": independent_purpose,
         },
     )
@@ -841,7 +859,7 @@ def test_goal_change_retires_pending_baseline_tests(goal_api) -> None:
     assert client.post(
         "/api/goal/baseline/test",
         headers={**_headers("goal-baseline-owner"), "Idempotency-Key": "goal-test-schedule-goal-change"},
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     ).status_code == 201
 
     updated = client.put(
@@ -956,7 +974,7 @@ def test_goal_change_preserves_independent_baseline_test_lineage(goal_api) -> No
         },
         json={
             "action": "schedule",
-            "scheduled_date": "2026-08-20",
+            "scheduled_date": SCHEDULED_TEST_DATE_STR,
             "purpose": purpose,
         },
     )
@@ -1580,14 +1598,14 @@ def test_completed_test_requires_a_candidate_from_the_scheduled_window(goal_api)
     _add_activity(
         db_session,
         activity_id="old-run",
-        observed_date=date(2026, 8, 1),
+        observed_date=SCHEDULED_TEST_DATE - timedelta(days=1),
         distance_km=5.0,
         duration_sec=1300,
     )
     _add_activity(
         db_session,
         activity_id="later-run",
-        observed_date=date(2026, 8, 21),
+        observed_date=SCHEDULED_TEST_DATE + timedelta(days=1),
         distance_km=5.0,
         duration_sec=1_290,
     )
@@ -1599,7 +1617,7 @@ def test_completed_test_requires_a_candidate_from_the_scheduled_window(goal_api)
     assert client.post(
         "/api/goal/baseline/test",
         headers={**_headers("goal-baseline-owner"), "Idempotency-Key": "goal-test-schedule-window"},
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     ).status_code == 201
 
     completed = client.post(

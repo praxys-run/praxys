@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
+import { getChinaClientHeaders } from '@/lib/client-boundary';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -24,7 +25,10 @@ export default function Verify() {
       try {
         const res = await fetch(`${API_BASE}/api/auth/verify`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            ...getChinaClientHeaders(),
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({ token }),
         });
         if (!cancelled) setStatus(res.ok ? 'success' : 'error');

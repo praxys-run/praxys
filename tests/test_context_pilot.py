@@ -173,7 +173,6 @@ def _run_opt_in(db: Session) -> dict[str, Any]:
         source="opt_in",
         purpose="plan_adjustment",
         confirmed_opt_in=True,
-        allow_ai=False,
         idempotency_key=f"pilot:{uuid4()}",
         now=NOW,
     )
@@ -520,7 +519,6 @@ def test_out_of_scope_context_is_rejected_before_use_receipt_creation(
             source="opt_in",
             purpose="plan_adjustment",
             confirmed_opt_in=True,
-            allow_ai=True,
             idempotency_key="pilot-disallowed-kind",
             now=NOW,
         )

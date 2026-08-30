@@ -171,6 +171,15 @@
       ],
       "behavior": "Use the common isolated browser for public sources, record the actual verification level, and block strong conclusions when relevant full text is unavailable.",
       "rationale": "Network availability, publisher access, and paywalls are external to the repository and portable agents do not inherit personal browser sessions."
+    },
+    {
+      "id": "cooperative-invocation-mediation",
+      "environments": [
+        "local",
+        "cloud"
+      ],
+      "behavior": "Use the repository mediator for manifest-coordinated calls in instrument or shadow mode. Only its explicit kill switch rejects a mediated launch; ordinary would-reject and unavailable-state results remain non-blocking.",
+      "rationale": "The repository can cooperatively mediate its own agent manifests but cannot intercept platform-native or otherwise unmediated agent invocations."
     }
   ]
 }

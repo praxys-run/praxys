@@ -11,3 +11,7 @@
  */
 export const WEB_VERSION: string =
   (import.meta.env.VITE_APP_VERSION as string | undefined)?.trim() || 'develop';
+
+/** Exact source commit used for release-boundary verification. */
+export const WEB_SOURCE_SHA: string =
+  (import.meta.env.VITE_SOURCE_SHA as string | undefined)?.trim() || "develop";

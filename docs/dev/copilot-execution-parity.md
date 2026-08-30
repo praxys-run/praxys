@@ -121,6 +121,22 @@ cannot request them. The Cloud MCP payload is
 provider; built-in Cloud Playwright is an optional extension and is not required
 by portable agents.
 
+## Cooperative invocation mediation
+
+Local and Cloud portable manifests use the same versioned repository protocol
+in `scripts/agent_invocation_control.py` for manifest-coordinated calls. The
+protocol is instrument/shadow only and keeps its disposable SQLite ledger under
+the checkout Git common directory, so it creates no shared cross-machine
+authority. Ordinary hypothetical denies do not block dispatch; only the
+explicit kill switch rejects a mediated launch.
+
+This is cooperative mediation, not native interception. The repository cannot
+intercept platform-native or otherwise unmediated invocations, and those calls
+remain outside coverage. Do not claim a global invocation denominator,
+protection, or enforcement. Activation, recovery, rollback, reason codes, and
+the observation plan are in
+`docs/dev/agent-invocation-control.md`.
+
 ## Checks and drift detection
 
 Run the repository-only check:
@@ -157,6 +173,7 @@ The canonical limitations are machine-readable in
 | Automatic Cloud triggers | `agent-ready` is automatic; other Cloud task types require explicit orchestrator selection. |
 | Default-branch activation | Custom agents and setup changes require a disposable Cloud smoke task after merge. |
 | External source access | Use public sources, record the actual verification level, and block strong claims when full text is unavailable. |
+| Cooperative invocation mediation | Use the same repository instrument/shadow protocol for manifest-coordinated calls; only its explicit kill switch rejects a mediated launch. Native and unmediated calls remain outside repository coverage. |
 
 An unavailable capability never authorizes a weaker substitute. The agent
 records the limitation, leaves the affected artifact unverified, and blocks or

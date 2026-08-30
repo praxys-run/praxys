@@ -91,10 +91,67 @@ def db_session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    session.add(User(id=USER_ID, email="runner@example.test", hashed_password="x"))
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    session.add(User(
+        id=USER_ID,
+        email="runner@example.test",
+        hashed_password="x",
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+    ))
     session.commit()
     yield session
     session.close()
+
+
+@pytest.fixture(autouse=True)
+def enable_background_ai(monkeypatch):
+    """Existing runner tests exercise the explicitly enabled path."""
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+    monkeypatch.setattr(
+        insights_runner,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
+
+
+def test_background_ai_kill_switch_skips_before_context_build(
+    db_session, monkeypatch
+):
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+    monkeypatch.setattr(
+        insights_runner,
+        "_run_serialized",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("background AI must stop before context loading")
+        ),
+    )
+
+    assert insights_runner.run_insights_for_user(
+        USER_ID,
+        db_session,
+        {"activities": 1},
+        _session=db_session,
+    ) == {"skipped": "ai_unavailable"}
+
+
+def test_background_ai_needs_current_terms_authorization(
+    db_session,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        insights_runner,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: False,
+    )
+
+    assert insights_runner.run_insights_for_user(
+        USER_ID,
+        db_session,
+        {"activities": 1},
+        _session=db_session,
+    ) == {"skipped": "current_terms_required"}
 
 
 @pytest.fixture
@@ -791,13 +848,56 @@ def test_runner_serializes_write_batch_before_upserts(
     stub_pillars,
     monkeypatch,
 ):
+    from contextlib import contextmanager
+
+    from api import insights_generator
+    from db import account_lifecycle
+
     fake = _FakeClient(json.dumps(_bilingual_response()))
     monkeypatch.setattr(llm, "get_client", lambda: fake)
 
     events: list[str] = []
+
+    @contextmanager
+    def _lifecycle_lease(_user_id, *, timeout_seconds):
+        assert timeout_seconds == 30.0
+        events.append("lifecycle-enter")
+        try:
+            yield
+        finally:
+            events.append("lifecycle-exit")
+
+    monkeypatch.setattr(
+        account_lifecycle,
+        "account_lifecycle_lease",
+        _lifecycle_lease,
+    )
     monkeypatch.setattr(
         "db.session.begin_serialized_write",
         lambda _db: events.append("serialized-write"),
+    )
+    original_training_review = insights_generator.generate_training_review
+    original_race_forecast = insights_generator.generate_race_forecast
+
+    def _training_review(*args, **kwargs):
+        assert not db_session.in_transaction()
+        events.append("provider:training_review")
+        return original_training_review(*args, **kwargs)
+
+    def _race_forecast(*args, **kwargs):
+        assert not db_session.in_transaction()
+        events.append("provider:race_forecast")
+        return original_race_forecast(*args, **kwargs)
+
+    monkeypatch.setattr(
+        insights_generator,
+        "generate_training_review",
+        _training_review,
+    )
+    monkeypatch.setattr(
+        insights_generator,
+        "generate_race_forecast",
+        _race_forecast,
     )
     monkeypatch.setattr(
         insights_runner,
@@ -813,7 +913,15 @@ def test_runner_serializes_write_batch_before_upserts(
     )
 
     assert set(result.values()) == {"generated"}
-    assert events == ["serialized-write", "upsert", "upsert"]
+    assert events == [
+        "lifecycle-enter",
+        "provider:training_review",
+        "provider:race_forecast",
+        "lifecycle-exit",
+        "serialized-write",
+        "upsert",
+        "upsert",
+    ]
 
 
 def test_generation_lock_is_transaction_scoped_and_released_on_early_return(

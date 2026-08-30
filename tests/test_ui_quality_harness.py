@@ -227,7 +227,7 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "frontend-quality:" in workflow
     assert "name: Pre-merge CI" in workflow
     assert "scripts/check_ui_quality.py" in workflow
-    assert "needs: [web-build, ui-quality]" in workflow
+    assert "needs: [web-build, miniapp-legal, ui-quality]" in workflow
     assert "needs: [python-tests]" in workflow
     assert "FRONTEND_RESULT" not in workflow
     assert "--pr-body-env UI_PR_BODY" in workflow

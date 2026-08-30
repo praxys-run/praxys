@@ -121,22 +121,22 @@ function buildTrainingTr() {
     weeklyValues: t('Weekly values'),
     trend: t('Trend'),
 
-    // Coach receipt fallback strings.
+    // AI receipt and separately labelled deterministic-summary strings.
     weeklyReady: t('Weekly diagnosis ready.'),
     findings: t('Findings'),
     recommendations: t('Recommendations'),
     coachMark: t('Praxys Coach'),
     coachAria: t('Praxys Coach insight'),
+    metricsMark: t('Training metrics'),
+    metricsAria: t('Deterministic training summary'),
+    aiUnavailable: t('Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.'),
   };
 }
 
-// ---- Praxys Coach receipt (training_review) ----
+// ---- Training summary display (training_review) ----
 //
-// Same shape used by deterministic Today guidance and Goal (race_forecast). On
-// the new Training page (web PR #280) the receipt is always rendered:
-// when an LLM `training_review` row exists it carries the AI content;
-// when not, the rule-based diagnosis prose populates the same shape so
-// the narrative-led layout persists with or without AI.
+// Azure AI results use Praxys Coach branding. Separately computed diagnosis
+// content uses Training metrics branding and never masquerades as AI.
 
 type CoachMarker = '[+]' | '[!]' | '[·]';
 
@@ -158,8 +158,8 @@ interface CoachRecRow {
 }
 
 interface CoachReceipt {
-  /** "2h ago" / "5分钟前" for AI rows; "6wk" for rule-based fallback
-   *  (mirrors the lookback window used by the diagnosis). Empty
+  /** "2h ago" / "5分钟前" for AI rows; "6wk" for the separately
+   *  labelled deterministic summary (its diagnosis lookback window). Empty
    *  string hides the chip. */
   stamp: string;
   headline: string;
@@ -227,9 +227,10 @@ function buildCoachFromInsight(
 
 
 /**
- * Rule-based fallback Coach Receipt — used when no LLM
- * `training_review` row exists. The API's diagnosis and suggestions
- * remain the single source of rule-based interpretation.
+ * Separately labelled deterministic Training metrics receipt, used when no
+ * LLM `training_review` row exists. It is not Coach/AI output. The API's
+ * diagnosis and suggestions remain the single deterministic interpretation
+ * source.
  *
  * The receipt always renders something: even with zero rule findings
  * and zero deviations, the headline is "Weekly diagnosis ready." so
@@ -262,12 +263,12 @@ function buildCoachFallback(
   const headline = lead?.message ?? t('Weekly diagnosis ready.');
 
   // Stamp is the lookback window (e.g. "6wk") rather than a relative
-  // age — rule-based content is always "now", so a timeAgo stamp
+  // age — deterministic content is always "now", so a timeAgo stamp
   // would say "0 minutes ago" misleadingly.
   const lookback = diagnosis?.lookback_weeks;
   const stamp = lookback ? `${lookback}wk` : '';
 
-  // Suppress the locale param: rule-based prose is single-language
+  // Suppress the locale param: deterministic prose is single-language
   // (the diagnosis route emits whichever language the user chose at
   // sync time). The `locale` param is here for symmetry with
   // `buildCoachFromInsight` — if the route is later split, we'll
@@ -372,8 +373,9 @@ interface TrainingState {
   volumeKm: number[];
   volumePoints: Array<{ id: string; week: string; distance: string }>;
 
-  // Coach Receipt — always populated (LLM if present, rule-based
-  // fallback otherwise). Web Training never nil-renders the receipt
+  // Receipt — always populated (LLM output if present; otherwise a
+  // separately labelled deterministic Training metrics summary). Web Training
+  // never nil-renders the receipt
   // on the new page; mini matches.
   coach: CoachReceipt;
   coachTr: CoachTranslations;
@@ -387,6 +389,7 @@ interface TrainingState {
   coachToggleLabel: string;
   coachDatasetHash: string;
   coachFeedbackVote: InsightFeedbackVote | '';
+  aiUnavailable: boolean;
 
   refreshing: boolean;
 }
@@ -457,6 +460,7 @@ const initialData: TrainingState = {
   coachToggleLabel: '',
   coachDatasetHash: '',
   coachFeedbackVote: '',
+  aiUnavailable: false,
 
   refreshing: false,
 };
@@ -608,6 +612,7 @@ function buildState(
   response: TrainingResponse,
   themeClass: string,
   insight: AiInsight | null,
+  aiAvailable: boolean,
   tr: ReturnType<typeof buildTrainingTr>,
   activeMetric: TrainingMetricId | '',
 ): Partial<TrainingState> {
@@ -650,9 +655,8 @@ function buildState(
     };
   });
 
-  // Coach receipt — always populated. AI takes precedence; rule-based
-  // fallback when no LLM row, generation cap hit, or transient
-  // /api/insights/training_review failure.
+  // One visual shape, two explicit sources: Azure AI uses Coach branding;
+  // deterministic diagnosis content uses Training metrics branding.
   const locale = detectLocale();
   let coach: CoachReceipt;
   let coachIsAi = false;
@@ -662,7 +666,7 @@ function buildState(
       coachIsAi = true;
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('[training] AI receipt build failed; using rule-based fallback:', e);
+      console.warn('[training] AI insight invalid; showing deterministic training metrics:', e);
       coach = buildCoachFallback(diagnosis, locale);
     }
   } else {
@@ -674,10 +678,10 @@ function buildState(
   const coachDatasetHash = feedbackState.datasetHash;
   const coachFeedbackVote = feedbackState.vote;
   const coachTr: CoachTranslations = {
-    mark: tr.coachMark,
+    mark: coachIsAi ? tr.coachMark : tr.metricsMark,
     findings: tr.findings,
     recommendations: tr.recommendations,
-    aria: tr.coachAria,
+    aria: coachIsAi ? tr.coachAria : tr.metricsAria,
   };
   // Reset detailsOpen on every refetch — the receipt content has
   // changed (different findings / recs), so showing the prior
@@ -711,6 +715,7 @@ function buildState(
     errorMessage: '',
     hasResponse: true,
     hasAnyData,
+    aiUnavailable: !aiAvailable,
 
     diagnosisEyebrow,
     cells: buildStatCells(response, tr, heat),
@@ -1057,12 +1062,12 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
       ? { errorMessage: '' }
       : { loading: true, errorMessage: '' });
     try {
-      const [response, insight] = await Promise.all([
+      const [response, insightResponse] = await Promise.all([
         apiGet<TrainingResponse>('/api/training'),
         fetchInsight('training_review').catch((e) => {
           // eslint-disable-next-line no-console
-          console.warn('[analysis] training_review fetch failed; rule-based fallback active:', e);
-          return null;
+          console.warn('[analysis] Azure AI insight fetch failed; deterministic training metrics remain available:', e);
+          return { insight: null, ai_available: false };
         }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
@@ -1071,7 +1076,8 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
         buildState(
           response,
           this.data.themeClass,
-          insight,
+          insightResponse.insight,
+          insightResponse.ai_available,
           this.data.tr,
           activeMetric,
         ) as Record<string, unknown>,

@@ -166,6 +166,9 @@ def test_goal_keeps_secondary_plan_entry() -> None:
 
     assert "PlanStartGoalEntry" in goal
     plan_start = _source("web/src/components/PlanStart.tsx")
-    assert "capabilitySupported || canChoosePurpose" in plan_start
-    assert "? '/training#plan-start'" in plan_start
+    assert "const hasSelectablePurpose = Boolean(" in plan_start
+    assert "item.purpose.allows_capability_goal" in plan_start
+    assert "item.purpose.allows_unlinked" in plan_start
+    assert "navigate('/training#plan-start', {" in plan_start
+    assert "planPurpose: routedPurpose" in plan_start
     assert "wx.switchTab({ url: '/pages/training/index' })" in mini_goal

@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
 import { WEB_VERSION } from '@/lib/version';
 import { useLocale } from '@/contexts/LocaleContext';
-import type { FeedbackKind, FeedbackResponse } from '@/types/api';
+import type { FeedbackKind, FeedbackRequest, FeedbackResponse } from '@/types/api';
+import { feedbackPublicationConsent } from '@/lib/feedback';
 import {
   Dialog,
   DialogContent,
@@ -53,8 +54,8 @@ interface FeedbackDialogProps {
  * Reusable "Send feedback" dialog. Captures the user's report plus basic,
  * non-PII diagnostics (current route, app version, browser, viewport, locale)
  * so the backend triage step has context without the user having to describe
- * their environment. The server scrubs everything before anything is filed
- * to the issue tracker.
+ * their environment. The server keeps submissions private unless the user
+ * separately authorizes publishing a scrubbed text summary.
  */
 export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug' }: FeedbackDialogProps) {
   const { t, i18n } = useLingui();
@@ -67,6 +68,7 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [publishExternally, setPublishExternally] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Object URLs for thumbnail previews, derived from the selected files and
@@ -81,6 +83,7 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
     setError(null);
     setImages([]);
     setImageError(null);
+    setPublishExternally(false);
     setSubmitting(false);
   };
 
@@ -148,16 +151,18 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
     setError(null);
     try {
       const imagePayload = images.length ? await Promise.all(images.map(fileToDataUrl)) : undefined;
+      const body: FeedbackRequest = {
+        kind,
+        message: trimmed.slice(0, MESSAGE_MAX),
+        context: captureContext(),
+        locale,
+        images: imagePayload,
+        ...feedbackPublicationConsent(publishExternally),
+      };
       const res = await fetch(`${API_BASE}/api/feedback`, {
         method: 'POST',
         headers: { ...(getAuthHeaders() as Record<string, string>), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind,
-          message: trimmed.slice(0, MESSAGE_MAX),
-          context: captureContext(),
-          locale,
-          images: imagePayload,
-        }),
+        body: JSON.stringify(body),
       });
       if (res.status === 429) {
         setError(t`You've sent several reports recently — please wait a few minutes before sending more.`);
@@ -245,10 +250,32 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
 
             <p className="text-xs text-muted-foreground">
               <Trans>
-                We attach basic diagnostics (page, app version, browser) and automatically remove personal details
-                before sharing with our issue tracker.
+                We attach basic diagnostics (page, app version, browser) for private handling and remove personal
+                details from any text you choose to publish.
               </Trans>
             </p>
+
+            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={publishExternally}
+                onChange={(event) => setPublishExternally(event.target.checked)}
+                disabled={submitting}
+                aria-describedby="feedback-publication-helper"
+                className="mt-0.5 flex-none"
+              />
+              <span className="space-y-1">
+                <span className="block text-foreground">
+                  <Trans>Publish a scrubbed text summary to Praxys’s external issue tracker</Trans>
+                </span>
+                <span id="feedback-publication-helper" className="block text-xs leading-relaxed">
+                  <Trans>
+                    Optional. Praxys removes personal details before publication. Screenshots always remain private.
+                    You can send feedback without allowing publication.
+                  </Trans>
+                </span>
+              </span>
+            </label>
 
             <div className="space-y-2">
               <input
@@ -296,8 +323,8 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
               </Button>
               <p className="text-xs text-muted-foreground">
                 <Trans>
-                  Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them to describe
-                  the issue and remove anything sensitive before filing.
+                  Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them only to
+                  help investigate your feedback.
                 </Trans>
               </p>
               {imageError && <p className="text-xs text-destructive">{imageError}</p>}

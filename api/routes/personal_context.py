@@ -41,7 +41,6 @@ from api.personal_context import (
     build_personal_context_export,
     confirm_context_correction,
     confirm_context_item,
-    decide_context_ai_consent,
     expire_context,
     inspect_context,
     inspect_contexts,
@@ -51,7 +50,6 @@ from api.personal_context import (
     withdraw_context,
 )
 from api.personal_context_auth import (
-    CONTEXT_SCOPE_AI_CONSENT,
     CONTEXT_SCOPE_DELETE,
     CONTEXT_SCOPE_NARRATIVE_READ,
     CONTEXT_SCOPE_READ,
@@ -183,20 +181,6 @@ class ContextCorrectionRequest(BaseModel):
     expires_at: datetime | None = None
     purge_after: datetime | None = None
     narrative_purge_at: datetime | None = None
-
-
-class ContextAiConsentRequest(BaseModel):
-    """Athlete-only AI processing decision for one exact version."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    expected_version: int = Field(ge=1)
-    decision: Literal["granted", "denied", "withdrawn"]
-    provider: Literal["azure_openai"] | None = None
-    disclosed_fields: list[str] = Field(default_factory=list, max_length=32)
-    narrative_disclosed: bool = False
-    consent_text_version: str = Field(min_length=1, max_length=64)
-    client: ContextClient
 
 
 class ContextExpireRequest(BaseModel):
@@ -337,16 +321,6 @@ class ContextMutationResponse(BaseModel):
 
     item: ContextItemResponse
     purpose_receipt_id: str
-    replayed: bool
-
-
-class ContextAiConsentResponse(BaseModel):
-    """Current item state plus the appended or replayed consent receipt."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    item: ContextItemResponse
-    receipt: ContextConsentReceiptResponse
     replayed: bool
 
 
@@ -550,7 +524,6 @@ class ContextPilotRunRequest(BaseModel):
         "plan_adjustment",
     ] | None = None
     confirmed_opt_in: bool = False
-    allow_ai: bool = False
 
 
 class ContextPilotSnapshotResponse(BaseModel):
@@ -1447,7 +1420,6 @@ def run_personal_context_pilot(
             scenario_id=body.scenario_id,
             purpose=body.purpose,
             confirmed_opt_in=body.confirmed_opt_in,
-            allow_ai=body.allow_ai,
             idempotency_key=idempotency_key,
         )
     except (
@@ -1694,65 +1666,6 @@ def correct_personal_context(
         if result.replayed:
             response.status_code = 200
         return _mutation_response(db, result)
-    except _CONTEXT_EXCEPTIONS as exc:
-        _translate_context_error(db, exc)
-        raise
-
-
-@router.post(
-    "/{item_id}/ai-consent",
-    response_model=ContextAiConsentResponse,
-)
-def decide_personal_context_ai_consent(
-    item_id: str,
-    body: ContextAiConsentRequest,
-    response: Response,
-    idempotency_key: IdempotencyKey,
-    actor: ContextActor = Depends(get_context_actor),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Append an athlete-only AI-processing decision for one exact version."""
-    _private(response)
-    _metadata(
-        db,
-        actor,
-        item_id,
-        CONTEXT_SCOPE_AI_CONSENT,
-        athlete_only=True,
-        mutation=True,
-    )
-    try:
-        result = decide_context_ai_consent(
-            db,
-            user_id=actor.user_id,
-            item_id=item_id,
-            expected_version=body.expected_version,
-            decision=body.decision,
-            provider=body.provider,
-            disclosed_fields=body.disclosed_fields,
-            narrative_disclosed=body.narrative_disclosed,
-            consent_text_version=body.consent_text_version,
-            client=body.client,
-            idempotency_key=idempotency_key,
-        )
-        db.commit()
-        entry = inspect_context(
-            db,
-            user_id=actor.user_id,
-            item_id=item_id,
-            include_narrative=False,
-        )
-        return {
-            "item": _item_response(
-                entry,
-                purpose_confirmed=bool(
-                    _purpose_confirmed_ids(db, actor.user_id, {item_id})
-                ),
-                latest_version=_is_latest_version(db, entry.item),
-            ),
-            "receipt": _consent_response(result.receipt),
-            "replayed": result.replayed,
-        }
     except _CONTEXT_EXCEPTIONS as exc:
         _translate_context_error(db, exc)
         raise
