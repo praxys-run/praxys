@@ -5,9 +5,14 @@ import importlib
 import os
 import tempfile
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
+
+
+def _api_today() -> date:
+    """Match the API's explicit UTC athlete-date test contract."""
+    return datetime.now(timezone.utc).date()
 
 
 def _history(today: date):
@@ -572,7 +577,7 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
         UserConfig,
     )
 
-    today = date.today()
+    today = _api_today()
     goal = {
         "goal_kind": "performance_10k",
         "distance": "10k",
@@ -582,7 +587,11 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
     current_week = today - timedelta(days=today.weekday())
     baseline_date = current_week - timedelta(days=1)
     with db_session.SessionLocal() as db:
-        db.add(UserConfig(user_id=user_id, goal=goal))
+        db.add(UserConfig(
+            user_id=user_id,
+            goal=goal,
+            source_options={"athlete_timezone": "UTC"},
+        ))
         db.add(Activity(
             user_id=user_id,
             activity_id="road-10k-current-baseline",

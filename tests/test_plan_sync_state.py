@@ -12,7 +12,7 @@ Covers the contract change in the Plan reshape:
 """
 import os
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -21,6 +21,11 @@ from analysis.config import (
     PRAXYS_PLAN_SOURCES,
     PRAXYS_PLAN_WRITE_SOURCE,
 )
+
+
+def _api_today() -> date:
+    """Match the API fallback date, which is explicitly UTC."""
+    return datetime.now(timezone.utc).date()
 
 
 @pytest.fixture
@@ -58,6 +63,11 @@ def api_client(monkeypatch):
     scratch_root = os.path.join(tmpdir.name, "ai", "stryd_push_status")
     monkeypatch.setattr(plan_mod, "_DATA_DIR", tmpdir.name)
     monkeypatch.setattr(plan_mod, "_STRYD_PUSH_STATUS_DIR", scratch_root)
+    monkeypatch.setattr(
+        plan_mod,
+        "effective_athlete_date",
+        lambda config: _api_today(),
+    )
 
     from api.main import app
     from api.auth import (
@@ -203,7 +213,7 @@ def test_plan_exposes_adjustment_history_and_exact_undo(
     from db.models import TrainingPlan
     from db.plan_ledger import plan_snapshot, record_plan_revision
 
-    today = date.today()
+    today = _api_today()
     db = db_session.SessionLocal()
     try:
         plan = TrainingPlan(
@@ -388,7 +398,7 @@ def test_get_plan_returns_window_with_source_tag(api_client):
     rows are clipped by the default [today, +14d] window.
     """
     client, user_id = api_client
-    today = date.today()
+    today = _api_today()
     ai_day = today + timedelta(days=2)
     stryd_day = today + timedelta(days=4)
     out_of_window = today + timedelta(days=30)
