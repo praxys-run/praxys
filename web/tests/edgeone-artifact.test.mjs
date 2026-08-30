@@ -84,3 +84,22 @@ test('EdgeOne artifact preparation is deterministic and self-verifying', async (
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+
+test('EdgeOne artifact rejects non-canonical source SHAs', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'praxys-edgeone-sha-'));
+  try {
+    await writeFile(
+      path.join(directory, 'index.html'),
+      '<html><head></head><body><div id="root"></div></body></html>',
+    );
+    for (const invalid of [SOURCE_SHA.toUpperCase(), SOURCE_SHA.slice(0, 12)]) {
+      await assert.rejects(
+        prepareEdgeOneArtifact(directory, invalid),
+        /Invalid source commit SHA/,
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

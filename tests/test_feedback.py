@@ -16,6 +16,14 @@ from datetime import datetime
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 
+@pytest.fixture(autouse=True)
+def enable_optional_feedback_processing(monkeypatch):
+    """Feedback tests opt into AI/publication unless a test kills a path."""
+    monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
+
+
 
 # ---------------------------------------------------------------------------
 # Pure scrub unit tests (no DB)
@@ -294,6 +302,7 @@ def db_with_users(monkeypatch):
     monkeypatch.delenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", raising=False)
     monkeypatch.delenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", raising=False)
     monkeypatch.delenv("PRAXYS_FEEDBACK_GITHUB_REPO", raising=False)
+    monkeypatch.delenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", raising=False)
     monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
 
     from db import session as db_session
@@ -310,12 +319,27 @@ def db_with_users(monkeypatch):
 
     llm.get_client.cache_clear()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     db = db_session.SessionLocal()
     admin_id, user_id = "admin-fb", "user-fb"
-    db.add(User(id=admin_id, email="admin@fb.test", hashed_password="x", is_superuser=True))
-    db.add(User(id=user_id, email="user@fb.test", hashed_password="x", is_superuser=False))
+    db.add(User(
+        id=admin_id,
+        email="admin@fb.test",
+        hashed_password="x",
+        is_superuser=True,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+    ))
+    db.add(User(
+        id=user_id,
+        email="user@fb.test",
+        hashed_password="x",
+        is_superuser=False,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+    ))
     db.commit()
     try:
         yield db, db_session, admin_id, user_id
@@ -355,6 +379,89 @@ def test_submit_stores_row_and_schedules_triage(db_with_users):
     assert row.status == "new"
     assert row.kind == "bug"
     assert row.user_id == user_id
+    assert row.publication_consent_version is None
+    assert row.publication_consented_at is None
+
+
+def test_submit_persists_explicit_publication_consent(db_with_users):
+    from api.optional_processing import FEEDBACK_PUBLICATION_CONSENT_VERSION
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    response = submit_feedback(
+        FeedbackRequest(
+            kind="bug",
+            message="Charts fail to load",
+            external_publication_consent=True,
+            external_publication_consent_version=(
+                FEEDBACK_PUBLICATION_CONSENT_VERSION
+            ),
+        ),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+
+    row = db.get(Feedback, response["id"])
+    assert (
+        row.publication_consent_version
+        == FEEDBACK_PUBLICATION_CONSENT_VERSION
+    )
+    assert row.publication_consented_at is not None
+
+
+def test_submit_rejects_stale_publication_consent_version(db_with_users):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="Charts fail to load",
+                external_publication_consent=True,
+                external_publication_consent_version="feedback-publication-old",
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "FEEDBACK_PUBLICATION_CONSENT_MISMATCH"
+    assert db.query(Feedback).count() == 0
+
+
+@pytest.mark.parametrize(
+    "consent_version",
+    ["", "feedback-publication-v1"],
+)
+def test_submit_rejects_publication_version_without_consent(
+    db_with_users,
+    consent_version,
+):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="Charts fail to load",
+                external_publication_consent=False,
+                external_publication_consent_version=consent_version,
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "FEEDBACK_PUBLICATION_CONSENT_MISMATCH"
+    assert db.query(Feedback).count() == 0
 
 
 def test_submit_rate_limited(db_with_users):
@@ -435,8 +542,9 @@ def test_triage_is_idempotent_on_published_row(db_with_users):
 def _stub_github(monkeypatch, calls):
     from api import feedback_triage as ft
 
+    monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
     monkeypatch.setattr(ft.github_issues, "is_configured", lambda: True)
-
     def _create(**kwargs):
         calls.append(kwargs)
         return {"number": 101, "url": "https://github.com/x/y/issues/101"}
@@ -458,12 +566,38 @@ def _stub_llm(monkeypatch, *, sensitive, priority=None, kind="bug", agent_eligib
         payload["priority"] = priority
     monkeypatch.setattr(ft.llm, "get_client", lambda: object())
     monkeypatch.setattr(ft.llm, "chat_json", lambda *a, **k: payload)
+    monkeypatch.setattr(
+        ft,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
 
 
-def _new_row(db, user_id, message, kind="bug"):
+def _new_row(
+    db,
+    user_id,
+    message,
+    kind="bug",
+    *,
+    publication_consent=True,
+):
+    from api.optional_processing import FEEDBACK_PUBLICATION_CONSENT_VERSION
     from db.models import Feedback
 
-    row = Feedback(user_id=user_id, kind=kind, message=message, status="new")
+    row = Feedback(
+        user_id=user_id,
+        kind=kind,
+        message=message,
+        status="new",
+        publication_consent_version=(
+            FEEDBACK_PUBLICATION_CONSENT_VERSION
+            if publication_consent
+            else None
+        ),
+        publication_consented_at=(
+            datetime.utcnow() if publication_consent else None
+        ),
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -485,18 +619,23 @@ def test_gate_holds_when_no_ai_and_public_repo(db_with_users, monkeypatch):
 
 
 def test_gate_autofiles_without_ai_when_opted_in(db_with_users, monkeypatch):
-    """Operator opts into scrub-only auto-filing → clean report is published."""
+    """A global scrub-only switch cannot authorize public publication."""
     from api.feedback_triage import triage_and_publish
 
     db, _, _, user_id = db_with_users
     monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
     calls: list = []
     _stub_github(monkeypatch, calls)
-    row = _new_row(db, user_id, "The goal page is confusing.")
+    row = _new_row(
+        db,
+        user_id,
+        "The goal page is confusing.",
+        publication_consent=False,
+    )
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
-    assert len(calls) == 1
+    assert result["status"] == "needs_review"
+    assert calls == []
 
 
 def test_gate_holds_when_secret_present_even_if_opted_in(db_with_users, monkeypatch):
@@ -529,6 +668,29 @@ def test_gate_holds_when_llm_flags_sensitive(db_with_users, monkeypatch):
     assert calls == []
 
 
+def test_background_ai_kill_switch_uses_rule_based_review(
+    db_with_users, monkeypatch
+):
+    from api import feedback_triage as ft
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "true")
+    monkeypatch.setattr(
+        ft.llm,
+        "get_client",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("background AI client must remain unused")
+        ),
+    )
+    row = _new_row(db, user_id, "Charts fail to load on the training page")
+
+    result = triage_and_publish(row.id, _session=db)
+
+    assert result["status"] == "triaged"
+    assert result["used_llm"] is False
+
+
 def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
     from api.feedback_triage import triage_and_publish
 
@@ -546,7 +708,7 @@ def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
 
 
 def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
-    from api.routes.feedback import update_feedback, FeedbackAction
+    from api.routes.feedback import FeedbackAction, list_feedback, update_feedback
     from api.feedback_triage import triage_and_publish
 
     db, _, admin_id, user_id = db_with_users
@@ -558,11 +720,123 @@ def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
     triage_and_publish(row.id, _session=db)
     db.refresh(row)
     assert row.status == "needs_review"
+    listed = next(
+        item
+        for item in list_feedback(user_id=admin_id, db=db)
+        if item["id"] == row.id
+    )
+    assert listed["external_publication_consent"] is True
 
     out = update_feedback(row.id, FeedbackAction(action="approve"), BackgroundTasks(), user_id=admin_id, db=db)
     assert out["status"] == "issue_created"
     assert out["github_issue_number"] == 101
     assert len(calls) == 1
+
+
+def test_admin_approve_cannot_substitute_for_submitter_consent(
+    db_with_users,
+    monkeypatch,
+):
+    from api.feedback_triage import triage_and_publish
+    from api.routes.feedback import FeedbackAction, list_feedback, update_feedback
+
+    db, _, admin_id, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(
+        db,
+        user_id,
+        "Private report awaiting review",
+        publication_consent=False,
+    )
+    triage_and_publish(row.id, _session=db)
+    listed = next(
+        item
+        for item in list_feedback(user_id=admin_id, db=db)
+        if item["id"] == row.id
+    )
+    assert listed["external_publication_consent"] is False
+
+    with pytest.raises(HTTPException) as exc:
+        update_feedback(
+            row.id,
+            FeedbackAction(action="approve"),
+            BackgroundTasks(),
+            user_id=admin_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 400
+    assert calls == []
+
+
+def test_admin_approve_rejects_legacy_or_stale_publication_consent(
+    db_with_users,
+    monkeypatch,
+):
+    from api.feedback_triage import triage_and_publish
+    from api.routes.feedback import FeedbackAction, update_feedback
+
+    db, _, admin_id, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(
+        db,
+        user_id,
+        "Legacy private report",
+        publication_consent=False,
+    )
+    triage_and_publish(row.id, _session=db)
+
+    for version, consented_at in (
+        (None, None),
+        ("feedback-publication-old", datetime.utcnow()),
+    ):
+        row.publication_consent_version = version
+        row.publication_consented_at = consented_at
+        row.status = "needs_review"
+        db.commit()
+        with pytest.raises(HTTPException) as exc:
+            update_feedback(
+                row.id,
+                FeedbackAction(action="approve"),
+                BackgroundTasks(),
+                user_id=admin_id,
+                db=db,
+            )
+        assert exc.value.status_code == 400
+
+    assert calls == []
+
+
+def test_admin_approve_cannot_publish_after_submitter_terms_go_stale(
+    db_with_users,
+    monkeypatch,
+):
+    from api.feedback_triage import triage_and_publish
+    from api.routes.feedback import FeedbackAction, update_feedback
+    from db.models import User
+
+    db, _, admin_id, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "Parked report awaiting review")
+    triage_and_publish(row.id, _session=db)
+    submitter = db.get(User, user_id)
+    submitter.terms_version = "old"
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        update_feedback(
+            row.id,
+            FeedbackAction(action="approve"),
+            BackgroundTasks(),
+            user_id=admin_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 400
+    assert calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -1105,7 +1379,32 @@ def test_github_app_mints_and_caches_installation_token(monkeypatch):
     assert gi._bearer_token() == "ghs_tok"
     gi._bearer_token()  # cached — must not re-mint
     assert calls["mint"] == 1
-    assert gi.create_issue(title="t", body="b", labels=["bug"]) == {"number": 9, "url": "https://x/9"}
+    assert gi.create_issue(
+        title="t",
+        body="b",
+        labels=["bug"],
+        publication_authorized=True,
+    ) == {"number": 9, "url": "https://x/9"}
+
+
+def test_feedback_publication_kill_switch_overrides_github_configuration(
+    monkeypatch,
+):
+    from api import github_issues as gi
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "456")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", "configured")
+    monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "true")
+    monkeypatch.setattr(
+        gi,
+        "_bearer_token",
+        lambda: pytest.fail("disabled publication must not mint a token"),
+    )
+
+    assert gi.is_configured() is False
+    assert gi.create_issue(title="t", body="b") is None
 
 
 def test_github_issue_label_sync_adds_and_removes(monkeypatch):
@@ -1326,6 +1625,11 @@ def test_triage_uses_deterministic_temperature(db_with_users, monkeypatch):
     captured: dict = {}
 
     monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+    monkeypatch.setattr(
+        ft,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
 
     def fake_chat_json(client, **kwargs):
         captured.update(kwargs)
@@ -1366,6 +1670,18 @@ def test_storage_roundtrip_and_key_safety(db_with_users):
     # db_with_users sets DATA_DIR to a temp dir → local filesystem backend.
     from api import feedback_storage as fs
 
+    assert fs.image_storage_key(
+        _PNG_1PX,
+        feedback_id=42,
+        index=0,
+    ) == "feedback/42/0.png"
+    with pytest.raises(ValueError):
+        fs.image_storage_key(
+            b"not an image",
+            feedback_id=42,
+            index=0,
+        )
+
     key = fs.store_image(_PNG_1PX, feedback_id=42, index=0)
     assert key == "feedback/42/0.png"
     got = fs.load_image(key)
@@ -1377,20 +1693,179 @@ def test_storage_roundtrip_and_key_safety(db_with_users):
     assert fs.store_image(b"not an image", feedback_id=42, index=1) is None
 
 
+def test_storage_delete_is_idempotent_exact_and_row_bound(db_with_users):
+    from api import feedback_storage as fs
+
+    key = fs.store_image(_PNG_1PX, feedback_id=42, index=0)
+    assert key == "feedback/42/0.png"
+
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image(key, feedback_id=43)
+    assert fs.load_image(key) is not None
+
+    fs.delete_image(key, feedback_id=42)
+    assert fs.load_image(key) is None
+    fs.delete_image(key, feedback_id=42)
+
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image("feedback/../../secret", feedback_id=42)
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image("feedback/42/0.png\n", feedback_id=42)
+
+
+def test_storage_delete_uses_exact_blob_and_removes_legacy_local_copy(
+    monkeypatch, tmp_path
+):
+    from azure.core.exceptions import ResourceNotFoundError
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL", raising=False)
+
+    class MissingBlobClient:
+        def __init__(self):
+            self.deleted: list[str] = []
+
+        def delete_blob(self, name: str) -> None:
+            self.deleted.append(name)
+            error = ResourceNotFoundError("missing")
+            error.error_code = "BlobNotFound"
+            raise error
+
+    client = MissingBlobClient()
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: client)
+    monkeypatch.setattr(fs, "_local_dir", lambda: str(tmp_path))
+    local_path = tmp_path / "feedback" / "42" / "0.png"
+    local_path.parent.mkdir(parents=True)
+    local_path.write_bytes(_PNG_1PX)
+
+    fs.delete_image("feedback/42/0.png", feedback_id=42)
+
+    assert client.deleted == ["feedback/42/0.png"]
+    assert not local_path.exists()
+
+
+def test_storage_delete_rejects_missing_container(monkeypatch, tmp_path):
+    from azure.core.exceptions import ResourceNotFoundError
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setattr(fs, "_local_dir", lambda: str(tmp_path))
+
+    class MissingContainerClient:
+        def delete_blob(self, name: str) -> None:
+            error = ResourceNotFoundError(f"missing container for {name}")
+            error.error_code = "ContainerNotFound"
+            raise error
+
+    monkeypatch.setattr(
+        fs,
+        "_blob_container_client",
+        lambda: MissingContainerClient(),
+    )
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image("feedback/42/0.png", feedback_id=42)
+
+
+def test_storage_delete_fails_closed_when_configured_blob_is_unavailable(
+    monkeypatch, tmp_path
+):
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+    monkeypatch.setattr(
+        fs,
+        "_local_dir",
+        lambda: pytest.fail("configured Azure deletion must not use local storage"),
+    )
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image("feedback/42/0.png", feedback_id=42)
+
+
+def test_storage_delete_wraps_non_not_found_blob_failure(monkeypatch):
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+
+    class FailingBlobClient:
+        def delete_blob(self, name: str) -> None:
+            raise RuntimeError(f"failed to delete {name}")
+
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: FailingBlobClient())
+    with pytest.raises(fs.FeedbackStorageDeletionError) as exc:
+        fs.delete_image("feedback/42/0.png", feedback_id=42)
+    assert isinstance(exc.value.__cause__, RuntimeError)
+
+
+def test_storage_delete_wraps_local_io_failure(monkeypatch, tmp_path):
+    from api import feedback_storage as fs
+
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", raising=False)
+    monkeypatch.delenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        raising=False,
+    )
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL", raising=False)
+    monkeypatch.setattr(fs, "_local_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        fs.os,
+        "unlink",
+        lambda _path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    with pytest.raises(fs.FeedbackStorageDeletionError) as exc:
+        fs.delete_image("feedback/42/0.png", feedback_id=42)
+    assert isinstance(exc.value.__cause__, PermissionError)
+
+
+def test_configured_blob_upload_never_falls_back_to_local(
+    monkeypatch, tmp_path
+):
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+    monkeypatch.setattr(
+        fs,
+        "_local_dir",
+        lambda: pytest.fail("configured Blob upload must not write locally"),
+    )
+
+    assert fs.store_image(_PNG_1PX, feedback_id=42, index=0) is None
+
+
 def _row_with_image(db, user_id, message="broken chart on training page"):
     """Persist a feedback row with one real stored screenshot."""
     from api import feedback_storage as fs
-    from db.models import Feedback
 
-    row = Feedback(user_id=user_id, kind="bug", message=message, status="new")
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = _new_row(db, user_id, message)
     key = fs.store_image(_PNG_1PX, feedback_id=row.id, index=0)
     row.image_keys = [key]
     db.commit()
     db.refresh(row)
     return row
+
+
+def test_feedback_image_is_available_only_to_its_owner(db_with_users):
+    from api.routes.feedback import get_own_feedback_image
+
+    db, _, admin_id, user_id = db_with_users
+    row = _row_with_image(db, user_id)
+
+    response = get_own_feedback_image(row.id, 0, user_id=user_id, db=db)
+    assert response.body == _PNG_1PX
+    assert response.media_type == "image/png"
+    assert response.headers["cache-control"] == "private, no-store"
+
+    with pytest.raises(HTTPException) as exc:
+        get_own_feedback_image(row.id, 0, user_id=admin_id, db=db)
+    assert exc.value.status_code == 404
 
 
 def _stub_vision(monkeypatch, *, description, sensitive):
@@ -1423,6 +1898,30 @@ def test_submit_stores_image_and_sets_keys(db_with_users):
     assert row.image_keys == ["feedback/%d/0.png" % row.id]
     got = fs.load_image(row.image_keys[0])
     assert got is not None and got[0] == _PNG_1PX
+
+
+def test_submit_retains_durable_locator_when_storage_is_unavailable(
+    db_with_users,
+    monkeypatch,
+):
+    from api.routes.feedback import submit_feedback, FeedbackRequest
+    from api import feedback_storage as fs
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    monkeypatch.setattr(fs, "store_image", lambda *_args, **_kwargs: None)
+    b64 = base64.b64encode(_PNG_1PX).decode()
+
+    resp = submit_feedback(
+        FeedbackRequest(kind="bug", message="broken chart", images=[b64]),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+
+    row = db.get(Feedback, resp["id"])
+    assert row is not None
+    assert row.image_keys == [f"feedback/{row.id}/0.png"]
 
 
 def test_submit_rejects_non_image_before_persisting(db_with_users):
@@ -1932,6 +2431,11 @@ def test_challenger_prompt_is_recorded_but_never_acts(
     calls: list = []
     _stub_github(monkeypatch, calls)
     monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+    monkeypatch.setattr(
+        ft,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
 
     def fake_chat_json(client, **kwargs):
         eligible = kwargs["insight_type"] == "feedback_triage_challenger"

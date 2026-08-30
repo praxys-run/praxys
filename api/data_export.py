@@ -13,7 +13,11 @@ from db.models import (
     AdaptivePlan,
     AdaptivePlanGoalSnapshot,
     Activity,
+    ActivitySample,
     ActivitySplit,
+    AiInsight,
+    AiInsightFeedback,
+    Feedback,
     FitnessData,
     GoalBaselineAssessment,
     GoalBaselineConfirmation,
@@ -26,7 +30,10 @@ from db.models import (
     Road10KTrainingPatternSnapshot,
     RecoveryData,
     PlanProposal,
+    TermsAcceptanceReceipt,
     TrainingPlan,
+    User,
+    UserConnection,
 )
 
 
@@ -41,6 +48,32 @@ _SENSITIVE_KEY_PARTS = frozenset({
     "private_key",
 })
 
+_ACCOUNT_FIELDS = (
+    "id",
+    "email",
+    "is_active",
+    "is_superuser",
+    "is_verified",
+    "created_at",
+    "last_seen_at",
+    "terms_version",
+    "terms_digest",
+    "terms_accepted_at",
+    "wechat_openid",
+    "wechat_unionid",
+    "wechat_nickname",
+    "wechat_avatar_url",
+)
+_CONNECTION_FIELDS = (
+    "platform",
+    "preferences",
+    "last_sync",
+    "status",
+    "consecutive_failures",
+    "next_retry_at",
+    "last_error",
+    "tokens_updated_at",
+)
 _ACTIVITY_FIELDS = (
     "activity_id",
     "date",
@@ -66,6 +99,28 @@ _ACTIVITY_FIELDS = (
     "load_score",
     "start_time",
     "source",
+)
+_ACTIVITY_SAMPLE_FIELDS = (
+    "activity_id",
+    "source",
+    "t_sec",
+    "power_watts",
+    "hr_bpm",
+    "speed_ms",
+    "pace_sec_km",
+    "cadence_spm",
+    "altitude_m",
+    "distance_m",
+    "lat",
+    "lng",
+    "grade_pct",
+    "temperature_c",
+    "ground_time_ms",
+    "oscillation_mm",
+    "leg_spring_kn_m",
+    "vertical_ratio",
+    "form_power_watts",
+    "respiration_rate",
 )
 _ACTIVITY_SPLIT_FIELDS = (
     "activity_id",
@@ -123,6 +178,35 @@ _TRAINING_PLAN_FIELDS = (
     "external_id",
     "start_time",
     "meta",
+)
+_AI_INSIGHT_FIELDS = (
+    "insight_type",
+    "headline",
+    "summary",
+    "findings",
+    "recommendations",
+    "meta",
+    "translations",
+    "generated_at",
+)
+_AI_INSIGHT_FEEDBACK_FIELDS = (
+    "insight_type",
+    "dataset_hash",
+    "vote",
+    "submitted_at",
+)
+_TERMS_RECEIPT_FIELDS = (
+    "id",
+    "action",
+    "terms_version",
+    "terms_digest",
+    "locale",
+    "channel",
+    "client_version",
+    "source_sha",
+    "notice_version",
+    "release_id",
+    "accepted_at",
 )
 
 _ADAPTIVE_GOAL_SNAPSHOT_FIELDS = (
@@ -402,11 +486,23 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     """Return the requested user's portable training data without credentials."""
     from api.personal_context import build_personal_context_export
 
+    user = db.query(User).filter(User.id == user_id).one()
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
+        "account": {
+            field: _without_credentials(getattr(user, field))
+            for field in _ACCOUNT_FIELDS
+        },
         "user_config": config,
+        "connections": _serialize_rows(
+            db.query(UserConnection)
+            .filter(UserConnection.user_id == user_id)
+            .order_by(UserConnection.platform, UserConnection.id)
+            .all(),
+            _CONNECTION_FIELDS,
+        ),
         "activities": _serialize_rows(
             db.query(Activity)
             .filter(Activity.user_id == user_id)
@@ -420,6 +516,17 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             .order_by(ActivitySplit.activity_id, ActivitySplit.split_num, ActivitySplit.id)
             .all(),
             _ACTIVITY_SPLIT_FIELDS,
+        ),
+        "activity_samples": _serialize_rows(
+            db.query(ActivitySample)
+            .filter(ActivitySample.user_id == user_id)
+            .order_by(
+                ActivitySample.activity_id,
+                ActivitySample.t_sec,
+                ActivitySample.id,
+            )
+            .all(),
+            _ACTIVITY_SAMPLE_FIELDS,
         ),
         "recovery": _serialize_rows(
             db.query(RecoveryData)
@@ -441,6 +548,62 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             .order_by(TrainingPlan.date, TrainingPlan.id)
             .all(),
             _TRAINING_PLAN_FIELDS,
+        ),
+        "ai_insights": _serialize_rows(
+            db.query(AiInsight)
+            .filter(AiInsight.user_id == user_id)
+            .order_by(AiInsight.insight_type, AiInsight.generated_at)
+            .all(),
+            _AI_INSIGHT_FIELDS,
+        ),
+        "ai_insight_feedback": _serialize_rows(
+            db.query(AiInsightFeedback)
+            .filter(AiInsightFeedback.user_id == user_id)
+            .order_by(AiInsightFeedback.submitted_at, AiInsightFeedback.id)
+            .all(),
+            _AI_INSIGHT_FEEDBACK_FIELDS,
+        ),
+        "feedback": [
+            {
+                "id": row.id,
+                "kind": row.kind,
+                "message": row.message,
+                "context": _without_credentials(row.context_json),
+                "locale": row.locale,
+                "status": row.status,
+                "ai_title": row.ai_title,
+                "ai_body": row.ai_body,
+                "ai_labels": _without_credentials(row.ai_labels),
+                "priority": row.priority,
+                "github_issue_number": row.github_issue_number,
+                "github_issue_url": row.github_issue_url,
+                "error": row.error,
+                "private_image_count": len(row.image_keys or []),
+                "private_image_downloads": [
+                    f"/api/me/feedback/{row.id}/image/{index}"
+                    for index, _key in enumerate(row.image_keys or [])
+                ],
+                "image_description": row.image_description,
+                "image_sensitive": row.image_sensitive,
+                "created_at": _json_value(row.created_at),
+                "updated_at": _json_value(row.updated_at),
+            }
+            for row in (
+                db.query(Feedback)
+                .filter(Feedback.user_id == user_id)
+                .order_by(Feedback.created_at, Feedback.id)
+                .all()
+            )
+        ],
+        "terms_acceptance_receipts": _serialize_rows(
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == user_id)
+            .order_by(
+                TermsAcceptanceReceipt.accepted_at,
+                TermsAcceptanceReceipt.id,
+            )
+            .all(),
+            _TERMS_RECEIPT_FIELDS,
         ),
         "adaptive_plan_proposals": {
             "schema_version": 1,

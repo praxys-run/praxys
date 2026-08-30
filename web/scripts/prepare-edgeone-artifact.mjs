@@ -37,11 +37,10 @@ export async function resolveSourceSha() {
 }
 
 function validateSourceSha(sourceSha) {
-  const normalized = sourceSha.trim().toLowerCase();
-  if (!/^[0-9a-f]{40,64}$/.test(normalized)) {
+  if (!/^[0-9a-f]{40}$/.test(sourceSha)) {
     throw new Error(`Invalid source commit SHA: ${sourceSha}`);
   }
-  return normalized;
+  return sourceSha;
 }
 
 export async function prepareEdgeOneArtifact(directory, requestedSha) {

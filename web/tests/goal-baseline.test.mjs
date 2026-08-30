@@ -104,7 +104,7 @@ test('web and miniapp share the generated baseline contract', async () => {
   }
 });
 
-test('web and miniapp expose the exact schema-v5 road 10K export contract', async () => {
+test('web and miniapp expose the exact schema-v6 road 10K export contract', async () => {
   const [webTypes, miniTypes] = await Promise.all([
     read('../src/types/api.ts'),
     read('../../miniapp/types/api.ts'),
@@ -237,7 +237,7 @@ test('web and miniapp expose the exact schema-v5 road 10K export contract', asyn
     ],
   );
   const response = interfaceBlock(webTypes, 'UserDataExportResponse');
-  assert.match(response, /schema_version: 5;/);
+  assert.match(response, /schema_version: 6;/);
   assert.match(response, /road_10k_baseline: UserDataExportRoad10KBaseline;/);
   assert.match(response, /road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;/);
   assert.doesNotMatch(

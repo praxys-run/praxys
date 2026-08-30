@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from api.version import get_api_version
+from api.version import get_api_source_sha, get_api_version
 
 
 def test_get_api_version_falls_back_to_develop(monkeypatch, tmp_path):
@@ -81,6 +81,7 @@ def version_client(monkeypatch, tmp_path):
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
     monkeypatch.setenv("PRAXYS_API_VERSION", "2026.04.30.42-test")
+    monkeypatch.setenv("PRAXYS_API_SOURCE_SHA", "a" * 40)
 
     from db import session as db_session
     db_session.engine = None
@@ -101,4 +102,23 @@ def test_version_endpoint_returns_current_version(version_client):
     version on the Login screen too if we ever want to."""
     res = version_client.get("/api/version")
     assert res.status_code == 200
-    assert res.json() == {"version": "2026.04.30.42-test"}
+    assert res.json() == {
+        "version": "2026.04.30.42-test",
+        "source_sha": "a" * 40,
+    }
+
+
+
+def test_get_api_source_sha_requires_one_exact_lowercase_commit(monkeypatch, tmp_path):
+    monkeypatch.delenv("PRAXYS_API_SOURCE_SHA", raising=False)
+    source_file = tmp_path / "_build_sha.txt"
+    monkeypatch.setattr("api.version._BUILD_SHA_FILE", source_file)
+
+    source_file.write_text(("b" * 40) + "\n", encoding="utf-8")
+    assert get_api_source_sha() == "b" * 40
+
+    source_file.write_text(("B" * 40) + "\n", encoding="utf-8")
+    assert get_api_source_sha() is None
+
+    source_file.write_text(("b" * 12) + "\n", encoding="utf-8")
+    assert get_api_source_sha() is None

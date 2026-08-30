@@ -36,6 +36,7 @@ def analysis_client(monkeypatch):
     db_session.init_db()
 
     from api.main import app
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import (
         Activity,
         ActivitySample,
@@ -67,11 +68,15 @@ def analysis_client(monkeypatch):
             id=owner_id,
             email="analysis-owner@example.com",
             hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ),
         User(
             id=other_id,
             email="analysis-other@example.com",
             hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ),
         UserConfig(
             user_id=owner_id,

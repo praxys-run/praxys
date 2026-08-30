@@ -149,7 +149,7 @@ az keyvault create \
 ```bash
 az keyvault key create \
   --vault-name kv-trainsight \
-  --name credential-encryption-key \
+  --name trainsight-master-key \
   --kty RSA \
   --size 2048
 ```
@@ -390,7 +390,10 @@ az role assignment create \
   --scope /subscriptions/<sub-id>/resourceGroups/rg-trainsight
 ```
 
-The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v2` with the three OIDC secrets.
+The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v3` with the three OIDC identifiers. The federation and
+workflow eligibility are both restricted to protected `main`; release tags and
+non-main manual dispatches do not deploy, and no client secret or publish profile
+is accepted.
 
 ## App Service Environment Variables
 
@@ -422,7 +425,12 @@ This means deploying a new version with additional model columns just works — 
 ## CI/CD Workflows
 
 - **Pre-merge backend and frontend quality** (`.github/workflows/ci-premerge.yml`) — runs on every `pull_request` to `main`. The independent required contexts are `backend-tests` for the backend suite and `frontend-quality` for the production web build plus Impeccable/evidence UI gate. They share one workflow so downstream review automation receives one completion event. No `paths:` filter on purpose: a required check skipped by a path filter stays permanently pending and blocks the PR.
-- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to `api/`, `analysis/`, `sync/`, `db/`, `data/science/`, `tests/`, `requirements.txt`. Runs tests first, then deploys via OIDC to `trainsight-app`.
+- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to
+  backend runtime paths, science data, deployment-owned observability scripts,
+  dependencies, or the workflow. Test-only changes are covered by required
+  pre-merge CI and do not recycle production. A manual protected-`main`
+  dispatch runs the full suite only when `run_tests=true`, then deploys via
+  OIDC to `trainsight-app`.
 - **Frontend** (`.github/workflows/deploy-frontend-appservice.yml`) — triggers
   on changes to `web/` or `frontend_server/`. Runs the static-server tests, then
   builds and stages the filing-free Azure package, then independently runs the

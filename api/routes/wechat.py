@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 import httpx
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi_users.password import PasswordHelper
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -38,8 +38,13 @@ from api.invitations import (
     find_valid_invitation,
     is_admin_email,
 )
-from api.legal import TERMS_VERSION
-from db.models import User
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+from api.legal_receipts import (
+    TermsAcceptanceRequest,
+    build_terms_receipt,
+    require_current_legal_bundle,
+)
+from db.models import TermsAcceptanceReceipt, User
 from db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -84,6 +89,9 @@ class WeChatRegisterRequest(BaseModel):
     wechat_login_ticket: str = Field(..., min_length=1)
     invitation_code: str = ""
     accepted_terms: bool = False
+    terms_version: str = ""
+    terms_digest: str = ""
+    terms_locale: str | None = None
     email: EmailStr | None = None
     password: str | None = None
     nickname: str | None = None
@@ -297,6 +305,7 @@ def wechat_link_with_password(
 @router.post("/register", response_model=WeChatAuthResponse)
 async def wechat_register(
     body: WeChatRegisterRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> WeChatAuthResponse:
     """Create a new account bound to the WeChat openid from the setup ticket.
@@ -320,6 +329,7 @@ async def wechat_register(
     # not assumed, before we record terms_accepted_at.
     if not body.accepted_terms:
         raise HTTPException(400, detail="REGISTER_TERMS_NOT_ACCEPTED")
+    require_current_legal_bundle(body.terms_version, body.terms_digest)
 
     # Resolve the email/password we'll actually persist. WeChat-only users
     # get a deterministic synthetic email and an unusable random password.
@@ -364,6 +374,7 @@ async def wechat_register(
                     raise HTTPException(400, detail="REGISTER_INVITATION_REQUIRED")
                 raise HTTPException(400, detail="REGISTER_INVALID_INVITATION")
 
+        accepted_at = datetime.utcnow()
         new_user = User(
             email=email_to_use,
             hashed_password=_password_helper.hash(password_to_use),
@@ -375,7 +386,8 @@ async def wechat_register(
             wechat_nickname=body.nickname,
             wechat_avatar_url=body.avatar_url,
             terms_version=TERMS_VERSION,
-            terms_accepted_at=datetime.utcnow(),
+            terms_digest=TERMS_CONTENT_DIGEST,
+            terms_accepted_at=accepted_at,
         )
         async_session.add(new_user)
         try:
@@ -391,6 +403,18 @@ async def wechat_register(
             logger.exception("wechat_register failed for openid=%s", openid)
             raise HTTPException(500, detail="WECHAT_REGISTER_FAILED")
         new_user_id = new_user.id
+        async_session.add(
+            build_terms_receipt(
+                user_id=str(new_user_id),
+                request=request,
+                payload=TermsAcceptanceRequest(
+                    terms_version=body.terms_version,
+                    terms_digest=body.terms_digest,
+                    locale=body.terms_locale,
+                ),
+                accepted_at=accepted_at,
+            )
+        )
         await async_session.commit()
 
     # Atomically claim the invitation. If we lose the race to another
@@ -404,6 +428,11 @@ async def wechat_register(
                 new_user_id,
             )
             async with AsyncSessionLocal() as cleanup_session:
+                await cleanup_session.execute(
+                    TermsAcceptanceReceipt.__table__.delete().where(
+                        TermsAcceptanceReceipt.user_id == new_user_id
+                    )
+                )
                 await cleanup_session.execute(
                     User.__table__.delete().where(User.id == new_user_id)
                 )

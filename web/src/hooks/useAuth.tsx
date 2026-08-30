@@ -1,9 +1,26 @@
 import { useState, useCallback, useEffect, createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { KEYS, getCompatItem, setCompatItem, removeCompatItem } from '../lib/storage-compat';
 import { prefetchedMe } from '../lib/auth-prefetch';
+import type { PrefetchedMe } from '../lib/auth-prefetch';
 import { setAppInsightsUser, clearAppInsightsUser } from '../lib/appinsights';
 import { recordProductEventOnce } from '@/lib/product-events';
+import { resolveRestoredSession } from '@/lib/auth-session';
+import { canStartPersonalDataRequests } from '@/lib/china-processing';
+import {
+  getChinaClientHeaders,
+  TERMS_REQUIRED_EVENT,
+} from '@/lib/client-boundary';
+import {
+  TERMS_CONTENT_DIGEST,
+  TERMS_VERSION,
+} from '@/lib/legal';
+import { extractApiError } from '@/lib/api-error';
+import type {
+  CurrentUserProfile,
+  TermsAcceptanceResponse,
+} from '@/types/api';
 
 interface AuthState {
   token: string | null;
@@ -13,6 +30,7 @@ interface AuthState {
   isDemo: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
+  restoreStatus: 'restoring' | 'retryable' | 'idle';
   termsCurrent: boolean;
 }
 
@@ -35,7 +53,8 @@ const AuthContext = createContext<AuthContextType>({
   isDemo: false,
   isAuthenticated: false,
   isLoading: true,
-  termsCurrent: true,
+  restoreStatus: 'restoring',
+  termsCurrent: false,
   login: async () => ({ ok: false }),
   register: async () => ({ ok: false }),
   logout: () => {},
@@ -43,14 +62,26 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // EULA re-acceptance gate: true until /me reports a stale terms_version.
-  const [termsCurrent, setTermsCurrent] = useState(true);
+  const [restoreStatus, setRestoreStatus] = useState<
+    'restoring' | 'retryable' | 'idle'
+  >('restoring');
+  // Fail closed until /api/auth/me confirms the current legal bundle.
+  const [termsCurrent, setTermsCurrent] = useState(false);
+
+  useEffect(() => {
+    const requireTerms = () => setTermsCurrent(false);
+    window.addEventListener(TERMS_REQUIRED_EVENT, requireTerms);
+    return () => {
+      window.removeEventListener(TERMS_REQUIRED_EVENT, requireTerms);
+    };
+  }, []);
 
   // On mount, restore token from localStorage and verify it with the server.
   useEffect(() => {
@@ -58,40 +89,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedEmail = getCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
     if (storedEmail) setEmail(storedEmail);
 
-    if (!stored) {
+    if (!canStartPersonalDataRequests()) {
+      setRestoreStatus('idle');
       setIsLoading(false);
       return;
     }
 
+    if (!stored) {
+      setRestoreStatus('idle');
+      setIsLoading(false);
+      return;
+    }
+    // The credential remains the session identity while verification is in
+    // flight. Only an authoritative 401 may clear it.
     setToken(stored);
+
+    const clearRestoredSession = () => {
+      removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
+      removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
+      removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
+      setToken(null);
+      setUserId(null);
+      setEmail(null);
+      setIsAdmin(false);
+      setIsDemo(false);
+      setTermsCurrent(false);
+      setRestoreStatus('idle');
+    };
 
     // Use the pre-parsed result from auth-prefetch (started at module
     // evaluation time, before React mounted) to avoid one extra render-
     // cycle of latency on cold load. The result is already parsed so it
     // is idempotent to consume — StrictMode double-fires are safe.
-    const mePromise = prefetchedMe ??
-      fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${stored}` } })
-        .then(async (r) => ({ status: r.status, data: r.ok ? await r.json() : null }))
-        .catch(() => ({ status: 0, data: null }));
+    const mePromise: Promise<PrefetchedMe> = prefetchedMe ??
+      fetch(`${API_BASE}/api/auth/me`, {
+        headers: {
+          ...getChinaClientHeaders(),
+          Authorization: `Bearer ${stored}`,
+        },
+      })
+        .then(async (r): Promise<PrefetchedMe> => ({
+          status: r.status,
+          data: r.ok ? await r.json() as CurrentUserProfile : null,
+        }))
+        .catch((): PrefetchedMe => ({ status: 0, data: null }));
 
     mePromise
       .then(({ status, data }) => {
-        if (status === 401) {
-          // Token expired or user deactivated — clear auth state
-          removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
-          removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
-          removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
-          setToken(null);
-          setUserId(null);
-          setEmail(null);
-          setIsAdmin(false);
-          setIsDemo(false);
-        } else if (data) {
-          setUserId(data.id);
-          setIsAdmin(data.is_superuser);
-          setIsDemo(data.is_demo ?? false);
-          setTermsCurrent(data.terms_current ?? true);
-          setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(data.is_superuser));
+        const { disposition, token: restoredToken } = resolveRestoredSession(
+          stored,
+          status,
+          data !== null,
+        );
+        if (disposition === 'invalid') {
+          clearRestoredSession();
+          return;
+        }
+        if (disposition !== 'authenticated' || !data) {
+          setToken(restoredToken);
+          setTermsCurrent(false);
+          setRestoreStatus('retryable');
+          return;
+        }
+        setUserId(data.id);
+        setIsAdmin(data.is_superuser);
+        setIsDemo(data.is_demo ?? false);
+        setTermsCurrent(data.terms_current === true);
+        setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(data.is_superuser));
+        setToken(stored);
+        setRestoreStatus('idle');
+        if (data.terms_current === true) {
           void setAppInsightsUser(data.id);
           const recordWhenVisible = () => {
             if (document.visibilityState !== 'visible') return;
@@ -102,49 +169,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           recordWhenVisible();
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setToken(stored);
+        setTermsCurrent(false);
+        setRestoreStatus('retryable');
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!canStartPersonalDataRequests()) {
+      return {
+        ok: false,
+        error: 'Read the processing notice before continuing.',
+      };
+    }
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
         body: new URLSearchParams({ username: email, password }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const detail = data?.detail;
-        if (detail === 'LOGIN_BAD_CREDENTIALS') {
+        const apiError = await extractApiError(res, `Login failed (HTTP ${res.status}).`);
+        const errorCode = apiError.code ?? apiError.message;
+        if (errorCode === 'LOGIN_BAD_CREDENTIALS') {
           return { ok: false, error: 'Invalid email or password.' };
         }
-        return { ok: false, error: detail || `Login failed (HTTP ${res.status}).` };
+        return { ok: false, error: apiError.message };
       }
 
-      const data = await res.json();
-      const accessToken = data.access_token;
-      if (accessToken) {
-        setCompatItem(KEYS.authToken.new, KEYS.authToken.legacy, accessToken);
-        setCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy, email);
-        setToken(accessToken);
-        setEmail(email);
-        // Fetch admin status
-        fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${accessToken}` } })
-          .then((r) => r.ok ? r.json() : null)
-          .then((me) => {
-            if (me) {
-              setUserId(me.id);
-              setIsAdmin(me.is_superuser);
-              setIsDemo(me.is_demo ?? false);
-              setTermsCurrent(me.terms_current ?? true);
-              setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(me.is_superuser));
-              void setAppInsightsUser(me.id);
-              recordProductEventOnce('app_opened', 'authenticated-session');
-            }
-          })
-          .catch(() => {});
+      const data: unknown = await res.json().catch(() => null);
+      const accessToken = (
+        data != null
+        && typeof data === 'object'
+        && !Array.isArray(data)
+      )
+        ? (data as Record<string, unknown>).access_token
+        : null;
+      if (typeof accessToken !== 'string' || accessToken.length === 0) {
+        return {
+          ok: false,
+          error: 'Sign-in response was incomplete. Please try again.',
+        };
+      }
+
+      const meResponse = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: {
+          ...getChinaClientHeaders(),
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!meResponse.ok) {
+        const apiError = await extractApiError(
+          meResponse,
+          `Could not finish sign-in (HTTP ${meResponse.status}).`,
+        );
+        return { ok: false, error: apiError.message };
+      }
+      const me = await meResponse.json() as CurrentUserProfile;
+
+      setCompatItem(KEYS.authToken.new, KEYS.authToken.legacy, accessToken);
+      setCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy, email);
+      setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(me.is_superuser));
+      setEmail(email);
+      setUserId(me.id);
+      setIsAdmin(me.is_superuser);
+      setIsDemo(me.is_demo ?? false);
+      setTermsCurrent(me.terms_current === true);
+      setToken(accessToken);
+      if (me.terms_current === true) {
+        void setAppInsightsUser(me.id);
+        recordProductEventOnce('app_opened', 'authenticated-session');
       }
       return { ok: true };
     } catch {
@@ -156,32 +256,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, invitation_code: invitationCode || '', accepted_terms: !!acceptedTerms, website: honeypot || '' }),
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          invitation_code: invitationCode || '',
+          accepted_terms: !!acceptedTerms,
+          terms_version: TERMS_VERSION,
+          terms_digest: TERMS_CONTENT_DIGEST,
+          terms_locale: document.documentElement.lang || navigator.language,
+          website: honeypot || '',
+        }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const detail = data?.detail;
-        if (detail === 'REGISTER_USER_ALREADY_EXISTS') {
+        const apiError = await extractApiError(res, `Registration failed (HTTP ${res.status}).`);
+        const errorCode = apiError.code ?? apiError.message;
+        if (errorCode === 'REGISTER_USER_ALREADY_EXISTS') {
           return { ok: false, error: 'An account with this email already exists.' };
         }
-        if (detail === 'REGISTER_INVITATION_REQUIRED') {
+        if (errorCode === 'REGISTER_INVITATION_REQUIRED') {
           return { ok: false, error: 'An invitation code is required to register.' };
         }
-        if (detail === 'REGISTER_INVALID_INVITATION') {
+        if (errorCode === 'REGISTER_INVALID_INVITATION') {
           return { ok: false, error: 'Invalid or already used invitation code.' };
         }
-        if (detail === 'REGISTER_TERMS_NOT_ACCEPTED') {
+        if (errorCode === 'REGISTER_TERMS_NOT_ACCEPTED') {
           return { ok: false, error: 'You must accept the Terms of Service to register.' };
         }
-        if (detail === 'REGISTER_CLOSED') {
+        if (errorCode === 'REGISTER_CLOSED') {
           return { ok: false, error: 'Registration is currently closed. Join the waitlist and we will invite you soon.' };
         }
-        if (detail === 'REGISTER_FAILED') {
+        if (errorCode === 'REGISTER_FAILED') {
           return { ok: false, error: 'Registration could not be completed. Please try again.' };
         }
-        return { ok: false, error: detail || `Registration failed (HTTP ${res.status}).` };
+        return { ok: false, error: apiError.message };
       }
 
       const data = await res.json().catch(() => null);
@@ -207,7 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmail(null);
     setIsAdmin(false);
     setIsDemo(false);
-    setTermsCurrent(true);
+    setTermsCurrent(false);
+    setRestoreStatus('idle');
     clearAppInsightsUser();
   }, []);
 
@@ -217,21 +330,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch(`${API_BASE}/api/me/accept-terms`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${tk}` },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tk}`,
+        },
+        body: JSON.stringify({
+          terms_version: TERMS_VERSION,
+          terms_digest: TERMS_CONTENT_DIGEST,
+          locale: document.documentElement.lang || navigator.language,
+        }),
       });
       if (!res.ok) return false;
+      await res.json() as TermsAcceptanceResponse;
       setTermsCurrent(true);
+      if (userId) void setAppInsightsUser(userId);
+      recordProductEventOnce('app_opened', 'authenticated-session');
+      void queryClient.invalidateQueries();
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [queryClient, userId]);
 
   const isAuthenticated = token !== null;
 
   return (
     <AuthContext.Provider
-      value={{ token, userId, email, isAdmin, isDemo, isAuthenticated, isLoading, termsCurrent, login, register, logout, acceptTerms }}
+      value={{ token, userId, email, isAdmin, isDemo, isAuthenticated, isLoading, restoreStatus, termsCurrent, login, register, logout, acceptTerms }}
     >
       {children}
     </AuthContext.Provider>

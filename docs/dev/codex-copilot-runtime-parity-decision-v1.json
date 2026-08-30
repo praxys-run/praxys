@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "praxys-codex-copilot-runtime-parity-v1",
+  "status": "proposed",
+  "decision": "Add Codex CLI as a parallel first-class local adapter to the existing Praxys agent operating model while preserving Copilot CLI and Copilot Cloud.",
+  "work_contract": {
+    "primary_object": "agent-system",
+    "impacts": [
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "classification_digest": "sha256:ee6c38eebb7b9db2aedf6b824bc23d5d966e08045fc0e2830196e4a13eb0bcdd",
+    "route_digest": "sha256:6d0f0f33ea72fc440558b883ca293408fd1508011b4f0970495a49ba13b743e2"
+  },
+  "canonical_control_plane": [
+    "AGENTS.md",
+    "config/agentic-operating-model.json",
+    "config/agentic-task-routing.json",
+    "config/agent-loop-policies.json",
+    "scripts/route_agentic_task.py",
+    ".github/agents/*.agent.md",
+    ".github/skills/*/SKILL.md"
+  ],
+  "implementation_scope": {
+    "codex_adapter": [
+      ".codex/config.toml",
+      ".codex/agents/*.toml",
+      ".codex/hooks.json",
+      ".agents/skills/*"
+    ],
+    "runtime_parity_contract": [
+      "config/agent-runtime-parity.json",
+      "analysis/agent_runtime_parity.py",
+      "scripts/check_agent_runtime_parity.py",
+      "tests/test_agent_runtime_parity.py"
+    ],
+    "documentation": [
+      "AGENTS.md",
+      "docs/dev/agent-runtime-parity.md"
+    ]
+  },
+  "required_parity": [
+    "same enumerated task classification",
+    "same classification and route digests",
+    "same role ownership and separation",
+    "same required artifacts and decision-review obligation",
+    "same portable MCP capability allowlist",
+    "same fail-closed limitation behavior"
+  ],
+  "non_goals": [
+    "identical prose, model sampling, latency, token use, or tool names",
+    "autonomy promotion",
+    "native launcher interception",
+    "production credentials or production mutations",
+    "Codex Cloud enablement",
+    "replacement or retirement of Copilot CLI"
+  ],
+  "trust_boundary": {
+    "default_local_mode": "workspace-write with on-request approval",
+    "portable_mcp_servers": [
+      "isolated fixed-version chrome-devtools",
+      "synthetic read-only praxys-local"
+    ],
+    "excluded_mcp_servers": [
+      "azure-mcp",
+      "statsig",
+      "praxys-dev-test"
+    ],
+    "credentials_in_repository": false,
+    "full_access_parent_sessions_supported": false,
+    "separate_worktree_per_concurrent_task": true
+  },
+  "activation": {
+    "requires_human_approval_of_this_exact_subject": true,
+    "requires_independent_quality_verification": true,
+    "requires_final_diff_review": true,
+    "parallel_evaluation_before_any_parity_or_autonomy_claim": true
+  },
+  "rollback": "Remove or disable the Codex adapter and retain the existing Copilot adapters and canonical deterministic control plane unchanged."
+}

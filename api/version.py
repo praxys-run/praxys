@@ -23,6 +23,8 @@ import re
 from pathlib import Path
 
 _BUILD_FILE = Path(__file__).resolve().parent / "_build_version.txt"
+_BUILD_SHA_FILE = Path(__file__).resolve().parent / "_build_sha.txt"
+_SOURCE_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _BUILD_VERSION_PATTERN = (
     r"(?:develop|[0-9]{4}\.(?:0[1-9]|1[0-2])\."
     r"(?:(?:0[1-9]|[12][0-9]|3[01])\."
@@ -59,3 +61,12 @@ def get_api_version() -> str:
         if text:
             return text
     return "develop"
+
+
+
+def get_api_source_sha() -> str | None:
+    """Return the exact deployed source SHA, or ``None`` in development."""
+    value = os.environ.get("PRAXYS_API_SOURCE_SHA", "").strip()
+    if not value and _BUILD_SHA_FILE.exists():
+        value = _BUILD_SHA_FILE.read_text(encoding="utf-8").strip()
+    return value if _SOURCE_SHA_RE.fullmatch(value) else None

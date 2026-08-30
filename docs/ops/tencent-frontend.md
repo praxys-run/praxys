@@ -7,6 +7,11 @@
 
 ## Target topology
 
+The governing
+[Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md) is
+**PROPOSED — PENDING HUMAN ACCEPTANCE**. The topology below is not current
+production authority.
+
 ```text
 praxys.cn / www.praxys.cn -> EdgeOne Makers (global area, mainland available)
 praxys.run / www.praxys.run -> Cloudflare Free -> Azure App Service praxys-frontend
@@ -25,28 +30,60 @@ deployment.
 - Required link: `https://beian.miit.gov.cn/`.
 - `praxys.run` must not display the China filing footer.
 - Keep the filed service information and Tencent access relationship current.
-  Confirm in writing that the existing filing is accepted for the selected
-  EdgeOne mainland acceleration area before public DNS cutover.
+  The approved filing covers both public `.cn` hosts; changes to the operator,
+  service, domain, or access provider require the corresponding filing update.
 - Complete the public-security filing within 30 days after the public service
   opens. Add its issued icon, exact number, and official link in a separate
   reviewed frontend change; never publish a placeholder.
 
 The `.cn` SPA calls `https://api.praxys.run`, so authenticated account and
-training data can cross the mainland border to Azure. Public production
-acceptance requires a reviewed privacy/legal basis, accurate user disclosure,
-and Trust approval for that cross-border path. Until that evidence and the
-EdgeOne filing/access confirmation exist, do not bind the public `.cn` domains
-or cut over DNS. A Git-triggered EdgeOne build does not itself create a public
-data path.
+training data can cross the mainland border to Azure East Asia in Hong Kong.
+The operator is reviewing that cross-border path under the contract-necessity
+assessment `PIPIA-CN-2026-08-25-01`; see
+[cn-personal-information-impact-assessment.md](./cn-personal-information-impact-assessment.md).
+Public production acceptance still requires the exact policy/gate build,
+provider just-in-time disclosure, production privacy switches, CORS, HTTPS,
+outside-in monitoring, and Release Evidence below. A Git-triggered EdgeOne
+build does not itself create a public data path.
 
 The stamped China artifact disables browser-side Azure Application Insights and
 Statsig initialization, including their identity payloads. Re-enabling either
 processor for `.cn` requires a separate reviewed privacy decision, disclosure,
 transfer basis, and browser egress test.
 
+The authenticated China release also requires:
+
+- the versioned processing notice to block auth prefetch/restoration and all
+  mini-program requests before acknowledgement;
+- `.cn` requests to carry the stamped source SHA, current notice version and
+  digest, and `cn-privacy-v2` API contract;
+- WeChat requests to carry Miniapp version `2026.08.2` or newer, its stamped
+  source SHA, current notice version and digest, and API contract; the API
+  accepts only entries in the server-owned exact release registry and rejects
+  missing, older, or unlisted clients before route processing;
+- current Terms/Privacy acceptance to be recorded as a digest-bound,
+  append-only server receipt, with
+  personal-data endpoints returning `428 TERMS_ACCEPTANCE_REQUIRED` until the
+  current receipt exists;
+- every provider connection dialog to show the provider transfer notice and
+  official privacy/contact link before credentials or OAuth authorization;
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary Azure AI availability while
+  the independent China boundary remains disabled; successful backend deploys
+  preserve an operator-set `true` emergency stop rather than clearing it,
+  `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`, and
+  `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true` in the backend App Service;
+- Statsig server evaluation to remain local with user logging and diagnostics
+  disabled;
+- backend monitoring retention to remain 30 days.
+
 Production acceptance also requires:
 
-- an accepted Operations Decision Record for the provider topology;
+- final operator approval of `PIPIA-CN-2026-08-25-01`;
+- human acceptance of the proposed
+  [Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md) for
+  the provider topology and staged rollback floor;
+- `CN_PRIVACY_FLOOR_SHA` set to the first privacy-capable protected-main
+  commit, with backend, frontend, and Miniapp workflow checks passing;
 - outside-in probes and action-group alerts for `.run` apex/`www` and both
   `.cn` hosts, provisioned from the canonical inventory in
   [monitoring-and-alerts.md](./monitoring-and-alerts.md#external-availability);
@@ -57,9 +94,10 @@ Cloudflare Origin CA is optional `.run` origin hardening, not a `.cn` cutover
 gate while the Azure origin keeps a publicly trusted certificate. If it is
 adopted later, record its expiry and rotation threshold before binding it.
 
-The EdgeOne Git project and first candidate deployment now exist. Preparation
-may harden Azure HTTPS and provision monitoring, but it does not bind public
-`.cn` domains, change DNS, add `.cn` CORS, or enable production traffic.
+The EdgeOne Git project, candidate deployment, filing, and draft PIPIA now
+exist. Preparation may harden Azure HTTPS and provision monitoring, but it
+does not bind public `.cn` domains, change DNS, add `.cn` CORS, or enable
+production traffic.
 
 ## Prerequisites
 
@@ -93,9 +131,14 @@ The checked-in boundary is:
    App Insights and Statsig build inputs, writes `deployed_sha.txt`/`healthz`,
    and creates a sorted `SHA256SUMS`.
 3. GitHub retains that independent `.cn` artifact and its manifest for 90 days.
-4. EdgeOne checks out the same protected `main` commit and runs the same
-   `web/edgeone.json` install/build/output configuration.
-5. Once public domains are active, GitHub compares the served `SHA256SUMS` and
+4. EdgeOne native Git runs the checked-in `web/edgeone.json` boundary. The
+   build invokes an explicit unpublished-preparation preflight. Without a
+   GitHub token it uses local protected-main ancestry and exact disabled-runtime
+   readback plus the project-level non-secret `CN_PRIVACY_FLOOR_SHA`, but it
+   cannot claim a provider release ID or registry authorization.
+5. After the provider creates a deployment, retain its exact deployment ID and
+   successful build evidence, then create the separately reviewed registry
+   entry. Only after that binding may GitHub compare the served `SHA256SUMS` and
    source SHA with its independently built evidence, verifies the health and
    prerendered public routes, and hashes served JavaScript and CSS assets
    against that manifest. Before that comparison, evidence proves the same
@@ -115,13 +158,17 @@ Create a new Git-integrated project from the outset:
 3. Set the project root to `web`. The checked-in `web/edgeone.json` pins:
    `npm ci --legacy-peer-deps`, `npm run build:edgeone`, output `./dist`, and
    Node `24.11.0`.
-4. Record the project's actual Git trigger and preview/default-URL behavior;
+4. Configure one non-secret project build variable,
+   `CN_PRIVACY_FLOOR_SHA`, only after the accepted floor reaches protected
+   `main`; its value must exactly match the GitHub Actions variable. Configure
+   no approved-release registry or build secret.
+5. Record the project's actual Git trigger and preview/default-URL behavior;
    current Makers projects may not expose Auto Deploy or Preview switches. Do
    not add build secrets or EdgeOne preview origins to API CORS.
-5. Before release, inspect the deployment-history entry for the reviewed
+6. Before release, inspect the deployment-history entry for the reviewed
    `main` SHA and record the project ID, deployment ID, source SHA, manifest,
    and known-good rollback deployment.
-6. Add `praxys.cn` and `www.praxys.cn` only after that deployment is accepted.
+7. Add `praxys.cn` and `www.praxys.cn` only after that deployment is accepted.
    Use the exact ownership/CNAME records shown by EdgeOne and wait for
    EdgeOne-managed HTTPS to become active.
 
@@ -135,14 +182,17 @@ Official references:
 ### 3. Protect the Git deployment boundary
 
 - Require pull-request review and required CI checks on `main`; disable force
-  pushes and branch deletion. A merge to protected `main` may trigger EdgeOne,
-  but it is accepted for release only when deployment history, source SHA, and
-  manifest evidence all match.
+  pushes and branch deletion. These current records do not prove pre-merge
+  timing, absence of admin bypass, or producer identity. Native EdgeOne remains
+  fail-closed until authenticated protected-check evidence is available through
+  an accepted mechanism; deployment history, source SHA, and manifests are not
+  authority.
 - Do not use the ruleset admin bypass for a regional release.
 - Keep the EdgeOne GitHub App repository grant read-only and limited to this
   repository. Revoke the grant to stop source access.
-- Configure no EdgeOne build secrets. The regional build hard-codes only the
-  public API URL and deliberately clears browser telemetry keys.
+- Configure no EdgeOne build secrets. The regional build hard-codes the public
+  API URL, deliberately clears browser telemetry keys, and accepts only the
+  non-secret `CN_PRIVACY_FLOOR_SHA` control input.
 - Treat preview/default URLs as non-production: require access control and
   `noindex`, never add them to production CORS, and never accept them as public
   release evidence.
@@ -150,11 +200,65 @@ Official references:
   `EDGEONE_CN_PUBLIC_VERIFY_ENABLED`; leave it false until both public `.cn`
   names resolve to the accepted project.
 
+### 3a. Stage the privacy floor and disabled candidate evidence
+
+The privacy-floor merge does not block ordinary filing-free `.run` backend or
+Azure frontend deployment. Those lanes remain operable and enforce fixed
+disabled privacy literals plus absent `.cn` CORS. China release authorization and robot 1 Miniapp release publication fail closed
+until exact floor, registry, disabled-runtime, CORS, readiness, and deployed-SHA
+evidence exists. EdgeOne artifact preparation is the earlier non-authorizing
+phase: it requires the floor and disabled-runtime readback but no not-yet-created
+provider ID. Robot 5 development uploads
+remain separate: they require protected-main provenance and use synthetic
+versions, but never become registry authorization.
+
+Step 1 is repository preparation under normal protected-branch authority.
+Steps 2–7 are proposed production actions and must not begin while the
+[Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md) or PIPIA
+is pending:
+
+1. Merge the complete floor through protected `main` and record its full SHA.
+   Allow ordinary `.run` deployment to complete in the fixed disabled state.
+2. After the human gate cites that exact SHA, set it as
+   `CN_PRIVACY_FLOOR_SHA` in both GitHub Actions and the EdgeOne `praxys-cn`
+   build environment, and retain exact readback from both control planes.
+3. Prepare the EdgeOne artifact while processing and `.cn` CORS remain disabled.
+   After EdgeOne creates the candidate deployment, retain its exact provider ID,
+   source/manifest evidence, and successful provider status, then populate the
+   exact approved-release registry. For the Miniapp, stage only the deterministic
+   `wechat:robot-1:<version>` locator while processing remains disabled, then
+   retain the successful upload evidence before any activation. Manually
+   dispatch `deploy-backend.yml` with
+   `china_release_validation=true` and `sync_config=true`.
+4. Require exact registry bytes/digest/count, the three fixed fail-closed
+   literals, the preserved Azure AI emergency-stop state, disabled `.cn` CORS,
+   readiness, privacy contract, API version, and deployed source SHA. No
+   current workflow can set the China processing switch false or add CORS.
+5. Dispatch the frontend workflow. Verify `.run` independently. EdgeOne
+   artifact preparation proceeds only if its public disabled-runtime readback
+   matches the same candidate; otherwise it is skipped fail closed. A prepared
+   artifact remains unauthorized until step 3's provider evidence and registry
+   binding are complete.
+6. Create the exact `miniapp-2026.08.2` Miniapp tag only after the matching
+   disabled backend is deployed and the registry binds that SHA/version to
+   `wechat:robot-1:2026.08.2`. The robot 1 upload lane repeats the floor,
+   registry, runtime, CORS, readiness, ref/version/provider-locator, and SHA
+   checks before uploading a candidate.
+7. Promotion, publication, `.cn` CORS, DNS binding, and processing activation
+   remain separate human-authorized actions with no implemented activation
+   workflow.
+
+The production Azure OIDC federated credential remains scoped to protected
+`main`, never wildcard refs or arbitrary tags. Azure workflows use OIDC only;
+do not add a client secret or publish profile as a fallback. The WeChat release
+line remains manual and cannot bypass the exact candidate checks.
+
 ### 4. Allow only the two `.cn` browser origins
 
-Azure App Service owns production API CORS. Add exact HTTPS origins only after
-Trust accepts a full authenticated `.cn` release. A public-only `.cn` site must
-keep both origins absent.
+Azure App Service owns production API CORS. The current workflows enforce the
+exact disabled inventory and cannot add `.cn` origins. The commands below are
+a future human-authorized operation only; they are not accepted or implemented
+activation. A public-only `.cn` site must keep both origins absent.
 
 ```bash
 az webapp cors add \
@@ -164,19 +268,33 @@ az webapp cors add \
     "https://praxys.cn" \
     "https://www.praxys.cn"
 
-az webapp cors show \
+expected_origins='["https://praxys.run","https://www.praxys.run","https://praxys-frontend.azurewebsites.net","https://praxys.cn","https://www.praxys.cn"]'
+actual_origins="$(az webapp cors show \
   --name trainsight-app \
   --resource-group rg-trainsight \
   --query allowedOrigins \
-  --output table
+  --output json)"
+jq -e --argjson expected "${expected_origins}" \
+  '(sort == ($expected | sort) and index("*") == null)' \
+  <<< "${actual_origins}"
 ```
+
+Disabled state has one exact inventory and must contain no `.cn` origin:
+
+```json
+["https://praxys.run", "https://www.praxys.run", "https://praxys-frontend.azurewebsites.net"]
+```
+
+Enabled state has the five-origin inventory shown above. Readback compares full
+normalized equality and Release Evidence records the complete non-secret array,
+not only a filtered China subset.
 
 Do not add HTTP, wildcard, EdgeOne preview, or arbitrary branch-preview origins.
 The public API hostname remains singular at `api.praxys.run`.
 
 ### 5. Deploy and inspect EdgeOne before DNS cutover
 
-After the human release gates are accepted, inspect:
+After the release controls above are accepted, inspect:
 
 - the `frontend-edgeone-cn-*` GitHub artifact and `SHA256SUMS`;
 - the source/config/manifest digests in `frontend-build-evidence-*`;
@@ -388,10 +506,11 @@ CORS:
 ```bash
 for origin in https://praxys.cn https://www.praxys.cn; do
   curl -isS --connect-timeout 5 --max-time 15 \
-    -X OPTIONS https://api.praxys.run/api/health \
+    -X OPTIONS https://api.praxys.run/api/today \
     -H "Origin: ${origin}" \
     -H 'Access-Control-Request-Method: GET' \
-    | grep -Fi "access-control-allow-origin: ${origin}"
+    -H 'Access-Control-Request-Headers: authorization,content-type,x-praxys-client,x-praxys-client-version,x-praxys-source-sha,x-praxys-notice-version,x-praxys-policy-digest,x-praxys-api-contract' \
+    | grep -Ei '^(access-control-allow-origin|access-control-allow-headers):'
 done
 ```
 
@@ -410,21 +529,41 @@ Release evidence must record the EdgeOne Git repository grant, project and
 deployment IDs, source SHA, GitHub and served manifest digests, Azure
 origin/public deployment receipts, public DNS answers, certificate
 issuers/expiry, Cloudflare zone state and SSL mode, API DNS-only status, CORS
-results, monitoring readiness, the accepted Operations Decision Record, and
-human approvals for filing access and cross-border processing. Preserve the
-aggregated record in the approved operations evidence store; GitHub artifacts
-alone expire after 90 days.
+results, monitoring readiness, `CN_PRIVACY_FLOOR_SHA`, Miniapp `2026.08.2`
+with its full source SHA and `wechat:robot-1:2026.08.2` provider locator, the human-accepted
+[Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md), and the
+final operator-approved
+`PIPIA-CN-2026-08-25-01`. Preserve the aggregated record in the approved
+operations evidence store; GitHub artifacts alone expire after 90 days.
 
 ## Rollback / Recovery
 
 ### EdgeOne deployment
 
-Use EdgeOne deployment-history rollback only when the prior deployment's source
-SHA and manifest evidence are known. Select that known-good deployment
-immediately, then revert the bad change through protected `main` so source and
-production converge. Verify the known-good SHA before resuming merges. Until
-public cutover, leave custom domains on their prior records. If source access
-must stop, revoke the EdgeOne GitHub App repository grant.
+Use EdgeOne deployment-history rollback only when the prior deployment is an
+exact current registry-authorized release whose full source SHA, provider ID,
+and manifest evidence are retained. Floor ancestry is still required but is
+not authorization. Select that known-good deployment immediately, then
+revert the bad change through protected `main` so source and production
+converge. Verify the known-good SHA and its current client-boundary headers
+before resuming merges. Never select a notice-incapable artifact even as a
+temporary rollback. Until public cutover, leave custom domains on their prior
+records. If source access must stop, revoke the EdgeOne GitHub App repository
+grant.
+
+### Backend or Miniapp privacy floor
+
+Backend, frontend, and Miniapp release workflows reject any candidate older
+than `CN_PRIVACY_FLOOR_SHA` or outside protected-`main` provenance. Miniapp
+rollback may select only an exact current registry-authorized provider
+release with its full source SHA and retained evidence. CalVer `2026.08.2` or
+newer is necessary metadata, not authorization. If
+no compliant revision is healthy, set `PRAXYS_DISABLE_CN_PROCESSING=true` and
+disable the affected `.cn` routing while preserving rights routes; stop the
+shared API only if the narrower control is insufficient and separately
+authorized. Restore service only with a forward fix or an exact registry-authorized
+revision. If none exists, keep China processing and the affected route disabled;
+do not reconstruct or prune registry records during an incident.
 
 ### Cloudflare proxy
 
@@ -452,10 +591,12 @@ is required.
 ## Related
 
 - [`deploy.md`](./deploy.md) · [`config-and-secrets.md`](./config-and-secrets.md)
+- [`odr-2026-08-26-cn-provider-topology.md`](./odr-2026-08-26-cn-provider-topology.md)
+- [`cn-personal-information-impact-assessment.md`](./cn-personal-information-impact-assessment.md)
 - [`search-discovery.md`](./search-discovery.md)
 - `.github/workflows/deploy-frontend-appservice.yml`
 - `web/edgeone.json`
 - `web/scripts/stamp-china-compliance.mjs`
 
 ---
-_Last reviewed: 2026-08-22 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-27 · Owner: @dddtc2005_

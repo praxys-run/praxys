@@ -165,7 +165,7 @@ export default function McpAuthorization() {
               ? (
                 <Trans>
                   Review the exact purpose and access below. The plugin cannot
-                  approve this request, read private notes, grant AI consent,
+                  approve this request, read private notes, change Azure AI processing authority,
                   or save context on its own.
                 </Trans>
               )
