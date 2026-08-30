@@ -36,6 +36,7 @@ def labs_client(monkeypatch):
     db_session.init_db()
 
     from api.auth import get_current_user_id, require_write_access
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from api.main import app
     from api.routes import labs as labs_routes
     from db.models import User
@@ -47,6 +48,8 @@ def labs_client(monkeypatch):
             id=user_id,
             email="labs-owner@example.com",
             hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ))
         db.commit()
 
@@ -183,6 +186,15 @@ def test_queued_labs_job_is_cancelled_after_access_revocation(
         assert job.failure_code == "stryd_access_revoked"
         assert outbox.status == "cancelled"
         assert enrollment.status == "unavailable"
+
+
+def _disable_labs_user_processing(db_session, user_id: str) -> None:
+    from db.models import User
+
+    with db_session.SessionLocal() as db:
+        user = db.get(User, user_id)
+        user.terms_version = "stale"
+        db.commit()
 
 
 def _aggregate_result() -> dict:
@@ -1844,6 +1856,337 @@ def test_running_job_rechecks_withdrawal_before_persist(
     assert outcome.outcome == "cancelled"
 
 
+def test_worker_cancels_when_authorization_is_lost_before_final_commit(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment, labs_worker
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentResult,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: {"private": "memory-only"},
+    )
+
+    def disable_during_analysis(_dataset):
+        _disable_labs_user_processing(db_session, user_id)
+        return _aggregate_result()
+
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        disable_during_analysis,
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+
+    class Message:
+        body = [job_id.encode()]
+
+    class Receiver:
+        action = ""
+
+        def complete_message(self, _message) -> None:
+            self.action = "completed"
+
+        def abandon_message(self, _message) -> None:
+            self.action = "abandoned"
+
+        def dead_letter_message(self, _message, **_kwargs) -> None:
+            self.action = "dead_lettered"
+
+    receiver = Receiver()
+    assert labs_worker.settle_message(receiver, Message()) == "completed"
+    assert receiver.action == "completed"
+    with db_session.SessionLocal() as db:
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter_by(
+            job_id=job_id,
+        ).one()
+        assert job.status == "cancelled"
+        assert job.failure_code == "processing_not_authorized"
+        assert outbox.status == "cancelled"
+        assert outbox.last_error_code == "processing_not_authorized"
+
+
+def test_worker_rechecks_authorization_after_claim_before_private_access(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentResult,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    original_claim = labs_environment._claim_job
+
+    def claim_then_disable(*args, **kwargs):
+        claimed = original_claim(*args, **kwargs)
+        if claimed is not None:
+            _disable_labs_user_processing(db_session, user_id)
+        return claimed
+
+    monkeypatch.setattr(labs_environment, "_claim_job", claim_then_disable)
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: pytest.fail(
+            "authorization lost after claim reached private data"
+        ),
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter_by(
+            job_id=job_id,
+        ).one()
+        assert job.status == "cancelled"
+        assert job.failure_code == "processing_not_authorized"
+        assert job.retryable_failure is False
+        assert outbox.status == "cancelled"
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+
+
+@pytest.mark.parametrize("page_total", [1, 51])
+def test_worker_stops_after_private_dataset_page_on_authorization_loss(
+    labs_client,
+    monkeypatch,
+    page_total: int,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentResult
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    page_offsets: list[int] = []
+
+    def first_page_then_disable(
+        _ctx,
+        *,
+        export_snapshot_id,
+        limit,
+        offset,
+    ):
+        del export_snapshot_id, limit
+        page_offsets.append(offset)
+        _disable_labs_user_processing(db_session, user_id)
+        return {"total": page_total}
+
+    monkeypatch.setattr(
+        labs_environment,
+        "get_activity_research_pack",
+        first_page_then_disable,
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_research_dataset_bundle",
+        lambda *_args: pytest.fail(
+            "unauthorized pages reached private bundle computation"
+        ),
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: pytest.fail(
+            "unauthorized pages reached aggregate computation"
+        ),
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+    assert page_offsets == [0]
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        assert job.status == "cancelled"
+        assert job.retryable_failure is False
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+
+
+def test_worker_rechecks_authorization_before_aggregate_computation(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from db.models import LabsAnalysisJob, LabsExperimentResult
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+        expected_revision = decision.job.source_revision
+
+    def build_then_disable(*_args):
+        _disable_labs_user_processing(db_session, user_id)
+        return {"private": "memory-only"}
+
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        build_then_disable,
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "source_revision",
+        lambda *_args: expected_revision,
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: pytest.fail(
+            "authorization loss reached aggregate computation"
+        ),
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        assert job.status == "cancelled"
+        assert job.retryable_failure is False
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+
+
+def test_worker_rechecks_authorization_immediately_before_result_commit(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment
+    from api.china_client_boundary import (
+        CN_WEB_CLIENT,
+        DISABLE_CN_PROCESSING_ENV,
+    )
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db.models import (
+        LabsAnalysisJob,
+        LabsExperimentResult,
+        TermsAcceptanceReceipt,
+    )
+
+    with db_session.SessionLocal() as db:
+        db.add(TermsAcceptanceReceipt(
+            user_id=user_id,
+            action=TERMS_ACCEPTANCE_ACTION,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+            channel=CN_WEB_CLIENT,
+            accepted_at=datetime.utcnow(),
+        ))
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: {"private": "memory-only"},
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: _aggregate_result(),
+    )
+    original_require = labs_environment._require_processing_authorized
+    require_calls = 0
+
+    def disable_at_result_commit(db, called_user_id):
+        nonlocal require_calls
+        require_calls += 1
+        if require_calls == 3:
+            monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+        original_require(db, called_user_id)
+
+    monkeypatch.setattr(
+        labs_environment,
+        "_require_processing_authorized",
+        disable_at_result_commit,
+    )
+
+    outcome = labs_environment.process_environment_response_job(job_id)
+
+    assert require_calls == 3
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        assert job.status == "cancelled"
+        assert job.retryable_failure is False
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+
+
 def test_stale_source_revision_is_explicit_unavailable_state(
     labs_client,
     monkeypatch,
@@ -2272,7 +2615,10 @@ def test_worker_fails_before_receive_when_feature_gates_are_unavailable(
 
 def test_worker_infrastructure_provisions_gate_identity() -> None:
     """Worker deployment and grants include only the gate data it needs."""
-    from api.labs_worker_permissions import COLUMN_PRIVILEGES
+    from api.labs_worker_permissions import (
+        COLUMN_PRIVILEGES,
+        TABLE_PRIVILEGES,
+    )
 
     root = Path(__file__).parents[1]
     bicep = (root / "infra" / "labs-worker.bicep").read_text(
@@ -2301,6 +2647,21 @@ def test_worker_infrastructure_provisions_gate_identity() -> None:
         "is_active",
         "is_superuser",
         "is_demo",
+        "terms_version",
+        "terms_digest",
+    )
+    assert COLUMN_PRIVILEGES["terms_acceptance_receipts"]["SELECT"] == (
+        "user_id",
+        "terms_version",
+        "terms_digest",
+        "channel",
+    )
+    assert TABLE_PRIVILEGES["labs_analysis_outbox"] == ("SELECT",)
+    assert COLUMN_PRIVILEGES["labs_analysis_outbox"]["UPDATE"] == (
+        "status",
+        "lease_expires_at",
+        "last_error_code",
+        "updated_at",
     )
 
 
@@ -2814,6 +3175,112 @@ def test_service_bus_dispatch_failure_stays_durable_without_inline_fallback(
         assert outbox.last_error_code == "ConnectionError"
         assert outbox.available_at > outbox.updated_at
         assert enrollment.status == "queued"
+
+
+@pytest.mark.parametrize("mode", ["service_bus", "inline"])
+def test_dispatch_cancels_before_transport_when_processing_is_unauthorized(
+    labs_client,
+    monkeypatch,
+    mode,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_dispatch, labs_environment
+    from db.models import (
+        LabsAnalysisJob,
+        LabsAnalysisOutbox,
+        LabsExperimentEnrollment,
+        LabsExperimentResult,
+    )
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+    _disable_labs_user_processing(db_session, user_id)
+
+    monkeypatch.setenv("PRAXYS_LABS_EXECUTION_MODE", mode)
+    monkeypatch.setattr(
+        labs_dispatch,
+        "_send_service_bus",
+        lambda *_args: pytest.fail(
+            "unauthorized job reached Service Bus"
+        ),
+    )
+    monkeypatch.setattr(
+        labs_dispatch,
+        "process_environment_response_job",
+        lambda *_args, **_kwargs: pytest.fail(
+            "unauthorized inline job reached analysis"
+        ),
+    )
+
+    assert labs_dispatch.dispatch_job(job_id) is False
+
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter_by(
+            job_id=job_id,
+        ).one()
+        enrollment = db.get(
+            LabsExperimentEnrollment,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        )
+        assert job.status == "cancelled"
+        assert job.failure_code == "processing_not_authorized"
+        assert job.retryable_failure is False
+        assert outbox.status == "cancelled"
+        assert outbox.last_error_code == "processing_not_authorized"
+        assert enrollment.status == "unavailable"
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is None
+
+
+def test_isolated_worker_cancels_before_private_dataset_access(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment, labs_worker
+    from db.models import LabsAnalysisJob, LabsAnalysisOutbox
+
+    with db_session.SessionLocal() as db:
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+    _disable_labs_user_processing(db_session, user_id)
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: pytest.fail(
+            "unauthorized worker reached private dataset"
+        ),
+    )
+
+    outcome = labs_worker.process_environment_response_job(
+        job_id,
+        reclaim_processing=True,
+    )
+
+    assert outcome.outcome == "cancelled"
+    assert outcome.failure_code == "processing_not_authorized"
+    with db_session.SessionLocal() as db:
+        job = db.get(LabsAnalysisJob, job_id)
+        outbox = db.query(LabsAnalysisOutbox).filter_by(
+            job_id=job_id,
+        ).one()
+        assert job.status == "cancelled"
+        assert job.failure_code == "processing_not_authorized"
+        assert outbox.status == "cancelled"
 
 
 def test_inline_claim_failure_requeues_the_durable_outbox(

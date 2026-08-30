@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from analysis.plan_adjustments import evaluate_conservative_plan_adjustment
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 from api.plan_adjustments import (
     PlanAdjustmentConflictError,
     PlanAdjustmentNotFoundError,
@@ -350,11 +351,15 @@ def adjustment_db(tmp_path):
             id=USER_ID,
             email="adjustment@example.test",
             hashed_password="test",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ),
         User(
             id=OTHER_USER_ID,
             email="other-adjustment@example.test",
             hashed_password="test",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
         ),
         UserConfig(
             user_id=USER_ID,
@@ -804,6 +809,99 @@ def test_west_of_utc_adjustment_delivers_the_athlete_local_day(
     assert delivery_calls == [("automatic_plan_adjustment", TODAY)]
     db.expire_all()
     assert db.get(TrainingPlan, plan.id).workout_type == "rest"
+
+
+def test_manual_plan_adjustment_requires_background_authorization(
+    adjustment_db: Session,
+    monkeypatch,
+) -> None:
+    db = adjustment_db
+    plan = _add_plan(db)
+    user = db.get(User, USER_ID)
+    user.terms_version = "stale"
+    db.commit()
+    factory = sessionmaker(bind=db.get_bind())
+    monkeypatch.setattr("db.session.init_db", lambda: None)
+    monkeypatch.setattr("db.session.SessionLocal", factory)
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.trigger_managed_plan_delivery",
+        lambda *_args, **_kwargs: pytest.fail(
+            "unauthorized adjustment reached delivery"
+        ),
+    )
+
+    result = run_plan_adjustment_for_user(
+        USER_ID,
+        trigger="manual_sync:garmin",
+        current_date=TODAY,
+        now=datetime(2026, 9, 14, 8),
+    )
+
+    assert result == {
+        "status": "skipped",
+        "reason": "processing_not_authorized",
+    }
+    db.expire_all()
+    assert db.get(TrainingPlan, plan.id).workout_type == "threshold"
+
+
+def test_manual_plan_adjustment_rolls_back_if_authorization_is_lost_at_commit(
+    adjustment_db: Session,
+    monkeypatch,
+) -> None:
+    db = adjustment_db
+    plan = _add_plan(db)
+    from api.china_client_boundary import (
+        CN_WEB_CLIENT,
+        DISABLE_CN_PROCESSING_ENV,
+    )
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from api import plan_adjustments as adjustment_service
+    from db.models import TermsAcceptanceReceipt
+
+    db.add(TermsAcceptanceReceipt(
+        user_id=USER_ID,
+        action=TERMS_ACCEPTANCE_ACTION,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+        channel=CN_WEB_CLIENT,
+        accepted_at=datetime.now(timezone.utc),
+    ))
+    db.commit()
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
+    factory = sessionmaker(bind=db.get_bind())
+    monkeypatch.setattr("db.session.init_db", lambda: None)
+    monkeypatch.setattr("db.session.SessionLocal", factory)
+    real_record = adjustment_service.record_plan_revision_idempotent
+
+    def disable_before_commit(*args, **kwargs):
+        revision = real_record(*args, **kwargs)
+        monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+        return revision
+
+    monkeypatch.setattr(
+        adjustment_service,
+        "record_plan_revision_idempotent",
+        disable_before_commit,
+    )
+
+    result = run_plan_adjustment_for_user(
+        USER_ID,
+        trigger="manual_sync:garmin",
+        current_date=TODAY,
+        now=datetime(2026, 9, 14, 8),
+    )
+
+    assert result == {
+        "status": "skipped",
+        "reason": "processing_not_authorized",
+    }
+    db.expire_all()
+    assert db.get(TrainingPlan, plan.id).workout_type == "threshold"
+    assert db.query(PlanRevision).filter_by(
+        user_id=USER_ID,
+        operation="auto_adjustment",
+    ).count() == 0
 
 
 def test_missing_athlete_timezone_fails_closed(

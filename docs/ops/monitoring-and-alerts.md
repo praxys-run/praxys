@@ -29,14 +29,17 @@ optional Coach-feedback comment, is PII/secret-scrubbed, whitespace-collapsed,
 and truncated to 120 characters before it reaches telemetry; the raw comment is
 never persisted or logged.
 
-For the China release, browser Application Insights and product-event
-telemetry are disabled in the stamped `.cn` artifact, and the mini program does
-not send product events. Essential backend request/security telemetry remains
+For the invite-only web private alpha, browser Application Insights, Statsig,
+and product-event telemetry are absent from the stamped `.cn` artifact.
+Miniapp publication is deferred. Essential backend request/security telemetry remains
 in `appi-praxys-backend` in East Asia (Hong Kong), with the backend component
 and shared workspace configured for 30-day retention. Server-side Statsig
 evaluations are local and disable both user-event logging and SDK diagnostics.
 These controls are part of
 [`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md).
+`launch-cn.yml` `status` does not inspect availability tests or alert rules.
+Their outside-in verification remains a human pre-enable PIPIA/topology
+responsibility; use this inventory and Azure/provider consoles directly.
 
 Custom signals are emitted by `api/telemetry.py`. Each lands as either:
 - a **customEvent** with that name through the required
@@ -843,11 +846,13 @@ Standard test**:
    at least one location fails, and attach only `praxys-feedback-ag`.
 4. Verify the action group and its `support@praxys.run` receiver are enabled.
    Record the web-test resource ID, alert resource ID, and a successful sample
-   in the regional Release Evidence before DNS or proxy cutover.
+   in the operator change record before DNS or proxy cutover.
 5. Creating a missing pair moves it from `planned` to
-   `provisioned-disabled`. Enable each test and alert together only after its
-   public hostname is ready for outside-in traffic; that reviewed transition is
-   `provisioned-disabled` to `live`.
+   `provisioned-disabled`. Before a human approves `launch-cn.yml` `enable`,
+   enable each `.cn` test and alert together only after its public hostname is
+   ready for outside-in traffic. That reviewed transition is
+   `provisioned-disabled` to `live`; the launch workflow only reports the state
+   and never changes monitoring resources.
 
 The CLI equivalent below creates an exact test/alert pair in the disabled
 state. It refuses to overwrite an existing or partial pair. Use it only to

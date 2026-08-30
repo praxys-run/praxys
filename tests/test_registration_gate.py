@@ -25,6 +25,8 @@ def _build(monkeypatch, data_dir: str):
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "true")
     monkeypatch.setenv("PRAXYS_SMTP_HOST", "smtp.example.com")
     monkeypatch.setenv("PRAXYS_SMTP_USER", "no-reply@praxys.run")
     monkeypatch.setenv("PRAXYS_SMTP_PASSWORD", "dummy")
@@ -84,7 +86,7 @@ def env(monkeypatch):
 
 # --- helpers ---------------------------------------------------------------
 
-def _reg(client, email, **kw):
+def _reg(client, email, *, headers=None, **kw):
     from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 
     body = {
@@ -96,7 +98,23 @@ def _reg(client, email, **kw):
         "terms_locale": "en",
     }
     body.update(kw)
-    return client.post("/api/auth/register", json=body)
+    return client.post("/api/auth/register", json=body, headers=headers)
+
+
+def _cn_headers():
+    from api.china_client_boundary import (
+        CN_PRIVACY_CONTRACT_VERSION,
+        CN_WEB_CLIENT,
+    )
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    return {
+        "Origin": "https://praxys.cn",
+        "X-Praxys-Client": CN_WEB_CLIENT,
+        "X-Praxys-Notice-Version": TERMS_VERSION,
+        "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
+        "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
+    }
 
 
 def _login(client, email, pw="pw123456"):
@@ -263,6 +281,64 @@ def test_invited_user_bypasses_cap(env):
     assert r.status_code == 200
     assert r.json()["email"] == "invited@x.com"
     assert "access_token" in _login(client, "invited@x.com").json()
+
+
+def test_cn_web_stays_invite_only_when_global_registration_is_open(env):
+    client, db_session, _ = env
+    _admin_token(client)
+    _open_gate(db_session)
+
+    assert client.get(
+        "/api/public/config",
+        headers={"Origin": "https://praxys.run"},
+    ).json() == {"registration_open": True}
+    assert client.get(
+        "/api/public/config",
+        headers={"Origin": "https://praxys.cn"},
+    ).json() == {"registration_open": False}
+
+    blocked = _reg(
+        client,
+        "cn-codeless@x.com",
+        headers=_cn_headers(),
+    )
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"] == "REGISTER_CLOSED"
+
+    invalid = _reg(
+        client,
+        "cn-invalid@x.com",
+        headers=_cn_headers(),
+        invitation_code="TS-NOPE-0001",
+    )
+    assert invalid.status_code == 400
+    assert invalid.json()["detail"] == "REGISTER_INVALID_INVITATION"
+
+
+def test_cn_web_valid_invitation_records_cn_receipt(env):
+    client, db_session, _ = env
+    _admin_token(client)
+    from db.models import Invitation, TermsAcceptanceReceipt, User
+
+    with db_session.SessionLocal() as db:
+        admin = db.query(User).filter_by(email="admin@praxys.run").one()
+        db.add(Invitation(code="TS-CNWB-0001", created_by=admin.id))
+        db.commit()
+
+    response = _reg(
+        client,
+        "cn-invited@x.com",
+        headers=_cn_headers(),
+        invitation_code="TS-CNWB-0001",
+    )
+
+    assert response.status_code == 200
+    with db_session.SessionLocal() as db:
+        user = db.query(User).filter_by(email="cn-invited@x.com").one()
+        receipt = db.query(TermsAcceptanceReceipt).filter_by(
+            user_id=user.id,
+        ).one()
+        assert receipt.channel == "cn-web"
 
 
 def test_invitation_race_cleanup_removes_terms_receipt(

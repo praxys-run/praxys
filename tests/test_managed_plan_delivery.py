@@ -2243,6 +2243,42 @@ def test_pause_is_rechecked_before_each_mutation(managed_db):
     )
 
 
+def test_cn_disable_is_rechecked_immediately_before_provider_mutation(
+    managed_db,
+    monkeypatch,
+):
+    db, adapter = managed_db
+    _add_plan(db, date(2026, 8, 3))
+    from api.china_client_boundary import CN_WEB_CLIENT
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db.models import TermsAcceptanceReceipt
+
+    db.add(TermsAcceptanceReceipt(
+        user_id=USER_ID,
+        action=TERMS_ACCEPTANCE_ACTION,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+        channel=CN_WEB_CLIENT,
+        accepted_at=datetime.utcnow(),
+    ))
+    db.commit()
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+
+    def disable_before_delivery(authenticate_attempt: int) -> None:
+        if authenticate_attempt == 2:
+            monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+
+    adapter.on_authenticate = disable_before_delivery
+    result = _run(db, adapter, now=datetime(2026, 8, 1, 9))
+
+    assert result.status == "complete"
+    assert result.items[0].status == "skipped"
+    assert result.items[0].reason == "processing_not_authorized"
+    assert adapter.create_attempts == 0
+    assert adapter.calendar == []
+
+
 def test_disconnect_blocks_delivery_before_provider_access(managed_db):
     db, adapter = managed_db
     _add_plan(db, date(2026, 8, 3))
@@ -2598,6 +2634,108 @@ def test_operator_recovery_rejects_stale_terms_before_provider_access(
 
     assert str(exc.value) == "terms_not_current"
     assert adapter.create_attempts == attempts_before
+
+
+def test_operator_recovery_rechecks_cn_switch_before_replay_mutation(
+    managed_db,
+    monkeypatch,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    from api.china_client_boundary import CN_WEB_CLIENT
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db.models import TermsAcceptanceReceipt
+
+    db.add(TermsAcceptanceReceipt(
+        user_id=USER_ID,
+        action=TERMS_ACCEPTANCE_ACTION,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+        channel=CN_WEB_CLIENT,
+        accepted_at=started_at,
+    ))
+    db.commit()
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    adapter.create_failures.append(
+        ProviderTransientError("provider unavailable")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    attempts_before = adapter.create_attempts
+
+    def disable_during_replay(authenticate_attempt: int) -> None:
+        if authenticate_attempt == 3:
+            monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+
+    adapter.on_authenticate = disable_during_replay
+    recovered = recover_managed_plan_delivery(
+        db,
+        admin_user_id="admin-user",
+        delivery_id=attention.recovery_id,
+        expected_version=attention.expected_version,
+        now=started_at + timedelta(hours=1),
+        adapter_loader=lambda session, user_id, target: adapter,
+        threshold_loader=lambda session, user_id: CP_WATTS,
+    )
+
+    assert recovered.status == "skipped"
+    assert recovered.reason == "processing_not_authorized"
+    assert adapter.create_attempts == attempts_before
+    assert adapter.calendar == []
+
+
+def test_operator_recovery_reports_initially_disabled_cn_processing(
+    managed_db,
+    monkeypatch,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    from api.china_client_boundary import CN_WEB_CLIENT
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db.models import TermsAcceptanceReceipt
+
+    db.add(TermsAcceptanceReceipt(
+        user_id=USER_ID,
+        action=TERMS_ACCEPTANCE_ACTION,
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
+        channel=CN_WEB_CLIENT,
+        accepted_at=started_at,
+    ))
+    db.commit()
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    adapter.create_failures.append(
+        ProviderTransientError("provider unavailable")
+    )
+    _run(db, adapter, now=started_at)
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=1),
+    ).items[0]
+    attempts_before = adapter.create_attempts
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+
+    with pytest.raises(ManagedPlanRecoveryUnsupported) as exc:
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="admin-user",
+            delivery_id=attention.recovery_id,
+            expected_version=attention.expected_version,
+            now=started_at + timedelta(hours=1),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+
+    assert str(exc.value) == "processing_not_authorized"
+    assert adapter.create_attempts == attempts_before
+    assert adapter.calendar == []
 
 
 def test_operator_recovery_completes_replacement_after_failed_removal(

@@ -21,10 +21,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  checks: read
-  pull-requests: read
-  statuses: read
 
 jobs:
   publish:
@@ -99,7 +95,7 @@ jobs:
             # across the entire push range (web/src/locales/ and
             # web/src/types/api.ts and web/src/lib/legal.ts feed into miniapp
             # via sync-types/sync-i18n/sync-legal at typecheck time, and
-            # api/china_client_boundary.py declares the runtime privacy floor,
+            # api/china_client_boundary.py declares the compatibility contract,
             # so changes there count).
             #
             # github.event.before is the SHA at the prior tip of main; for
@@ -189,53 +185,21 @@ jobs:
             "${robot}" "${lane}" "${version}" "${description}" \
             "${provider_locator}" >> "${GITHUB_OUTPUT}"
 
-      - if: steps.gate.outputs.publish == 'true' && steps.meta.outputs.lane == 'main'
-        name: Validate main Miniapp development candidate
-        env:
-          CN_CANDIDATE_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - if: >-
+          steps.gate.outputs.publish == 'true' &&
+          steps.meta.outputs.lane == 'release'
+        name: Require release tag commit on main
         working-directory: ${{ github.workspace }}
+        shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin \
             +refs/heads/main:refs/remotes/origin/main
-          python3 scripts/cn_release_preflight.py \
-            --lane common \
-            --output release-evidence/cn-release-preflight.json
-
-      - if: steps.gate.outputs.publish == 'true' && steps.meta.outputs.lane == 'release'
-        name: Validate frozen CN release candidate
-        env:
-          CN_CANDIDATE_SHA: ${{ github.sha }}
-          CN_CANDIDATE_CHANNEL: wechat-miniapp
-          CN_CANDIDATE_VERSION: ${{ steps.meta.outputs.version }}
-          CN_CANDIDATE_RELEASE_ID: ${{ steps.meta.outputs.provider_locator }}
-          CN_PRIVACY_FLOOR_SHA: ${{ vars.CN_PRIVACY_FLOOR_SHA }}
-          PRAXYS_CN_APPROVED_RELEASES: ${{ vars.PRAXYS_CN_APPROVED_RELEASES }}
-          PRAXYS_DISABLE_CN_PROCESSING: true
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin \
-            +refs/heads/main:refs/remotes/origin/main
-          python3 scripts/cn_release_preflight.py \
-            --lane china-client \
-            --require-disabled-runtime \
-            --require-backend-validation-evidence \
-            --output release-evidence/cn-release-preflight.json
-
-      - if: steps.gate.outputs.publish == 'true'
-        name: Upload CN release preflight evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: cn-release-preflight-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release-evidence/cn-release-preflight.json
-          if-no-files-found: error
-          retention-days: 90
-
+          if ! git merge-base --is-ancestor \
+            "${GITHUB_SHA}" refs/remotes/origin/main; then
+            echo "::error::Miniapp release tag commit is not reachable from main."
+            exit 1
+          fi
 
       - if: steps.gate.outputs.publish == 'true'
         uses: actions/setup-node@v7
@@ -256,18 +220,16 @@ jobs:
         name: Stamp build version
         env:
           VERSION: ${{ steps.meta.outputs.version }}
-          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           # Write the CalVer into utils/version.ts so the mini program can
           # display it in Settings. wx.getAccountInfoSync().miniProgram.version
           # only returns a value for release builds; this stamps it for
-          # develop and trial builds too. The reviewed source SHA is sent with
-          # API requests so the backend can reject unregistered clients.
-          # The file is committed as empty strings and never pushed back.
+          # develop and trial builds too. The file is committed with an empty
+          # value and is never pushed back.
           printf \
-            'export const MINIAPP_BUILD_VERSION = "%s";\nexport const MINIAPP_SOURCE_SHA = "%s";\n' \
-            "$VERSION" "${SOURCE_SHA}" > utils/version.ts
+            'export const MINIAPP_BUILD_VERSION = "%s";\n' \
+            "$VERSION" > utils/version.ts
 
       - if: steps.gate.outputs.publish == 'true'
         name: Initialize structured Miniapp upload evidence

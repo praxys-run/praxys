@@ -9,6 +9,7 @@ from sqlalchemy import or_
 
 from api.labs_environment import (
     ACTIVE_JOB_STATUSES,
+    _authorize_job_dispatch,
     _record_job_event,
     process_environment_response_job,
     recover_interrupted_jobs,
@@ -207,6 +208,15 @@ def _send_service_bus(job_id: str) -> None:
 
 
 def _dispatch_claim(outbox_id: str, job_id: str) -> bool:
+    from db import session as db_session
+
+    with db_session.SessionLocal() as db:
+        if not _authorize_job_dispatch(
+            db,
+            outbox_id=outbox_id,
+            job_id=job_id,
+        ):
+            return False
     mode = execution_mode()
     try:
         if mode == "service_bus":

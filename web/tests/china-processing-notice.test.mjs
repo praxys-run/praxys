@@ -230,10 +230,8 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
     clientBoundary,
     /'X-Praxys-Notice-Version': CHINA_PROCESSING_NOTICE_VERSION/,
   );
-  assert.match(
-    clientBoundary,
-    /'X-Praxys-Source-Sha': WEB_SOURCE_SHA/,
-  );
+  assert.doesNotMatch(clientBoundary, /X-Praxys-Source-Sha/);
+  assert.doesNotMatch(clientBoundary, /X-Praxys-Client-Version/);
   assert.match(
     clientBoundary,
     /'X-Praxys-Policy-Digest': TERMS_CONTENT_DIGEST/,
@@ -331,9 +329,8 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
     miniClient,
     /status === 401[\s\S]*wx\.removeStorageSync\(TOKEN_KEY\)/,
   );
-  assert.match(miniVersion, /MINIAPP_SOURCE_SHA = ''/);
-  assert.match(miniWorkflow, /MINIAPP_SOURCE_SHA/);
-  assert.match(miniWorkflow, /SOURCE_SHA: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(miniVersion, /MINIAPP_SOURCE_SHA/);
+  assert.doesNotMatch(miniWorkflow, /X-Praxys-Source-Sha/);
   assert.match(miniLogin, /stage: 'notice'/);
   assert.match(miniLogin, /stage: 'terms'/);
   assert.match(

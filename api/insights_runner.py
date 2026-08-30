@@ -121,6 +121,8 @@ def _run_serialized(db: Session, user_id: str) -> dict:
 
 
 def _run(db: Session, user_id: str) -> dict:
+    if not background_ai_authorized(db, user_id=user_id):
+        return {"skipped": "current_terms_required"}
     used_today = _count_today(user_id, db)
 
     # Imports deferred so this module is cheap to import (the post-sync hook
@@ -148,19 +150,30 @@ def _run(db: Session, user_id: str) -> dict:
 
     try:
         for _attempt in range(2):
+            if not background_ai_authorized(db, user_id=user_id):
+                return {"skipped": "processing_not_authorized"}
             run_date = date.today()
             revisions_before = get_revisions(db, user_id, SCOPES)
+            if not background_ai_authorized(db, user_id=user_id):
+                return {"skipped": "processing_not_authorized"}
             cfg = load_config_from_db(user_id, db)
             pillars = dict(getattr(cfg, "science", {}) or {})
+            if not background_ai_authorized(db, user_id=user_id):
+                return {"skipped": "processing_not_authorized"}
+            include_stryd_plan = stryd_connection_enabled(
+                db,
+                user_id=user_id,
+            )
+            if not background_ai_authorized(db, user_id=user_id):
+                return {"skipped": "processing_not_authorized"}
             context = build_training_context(
                 user_id=user_id,
                 db=db,
                 recent_training_weeks=INSIGHT_CONTEXT_LOOKBACK_WEEKS,
-                include_stryd_plan=stryd_connection_enabled(
-                    db,
-                    user_id=user_id,
-                ),
+                include_stryd_plan=include_stryd_plan,
             )
+            if not background_ai_authorized(db, user_id=user_id):
+                return {"skipped": "processing_not_authorized"}
             source_revisions = get_revisions(db, user_id, SCOPES)
             if run_date == date.today() and revisions_before == source_revisions:
                 break
@@ -172,6 +185,8 @@ def _run(db: Session, user_id: str) -> dict:
         logger.exception("Insight context build failed for user=%s", user_id)
         return {"skipped": "context_build_failed"}
 
+    if not background_ai_authorized(db, user_id=user_id):
+        return {"skipped": "processing_not_authorized"}
     statsig_user = statsig_client.get_statsig_user_for_account(
         db,
         user_id=user_id,
@@ -200,6 +215,8 @@ def _run(db: Session, user_id: str) -> dict:
                     itype,
                     science_pillars=pillars,
                 )
+                if not background_ai_authorized(db, user_id=user_id):
+                    return {"skipped": "processing_not_authorized"}
                 existing = (
                     db.query(AiInsight)
                     .filter(
@@ -260,6 +277,9 @@ def _run(db: Session, user_id: str) -> dict:
         for itype, _payload, _new_hash in pending:
             if results.get(itype) == "generated":
                 results[itype] = "superseded"
+    elif not background_ai_authorized(db, user_id=user_id):
+        db.rollback()
+        return {"skipped": "processing_not_authorized"}
     else:
         db.commit()
     for itype in GENERATORS_ORDER:

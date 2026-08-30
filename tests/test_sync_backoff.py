@@ -284,6 +284,39 @@ def test_record_failure_consecutive_failures_grow(db_setup) -> None:
         db.close()
 
 
+def test_record_failure_suppresses_telemetry_and_backoff_after_auth_loss(
+    db_setup,
+    monkeypatch,
+) -> None:
+    from db import session as db_session
+    from db.models import UserConnection
+    from db.sync_scheduler import _record_sync_failure
+
+    user_id, _ = db_setup
+    telemetry_calls: list[str] = []
+    monkeypatch.setattr(
+        "api.telemetry.record_sync",
+        lambda **_kwargs: telemetry_calls.append("failure"),
+    )
+
+    with db_session.SessionLocal() as db:
+        conn = _make_connection(db, user_id)
+        assert not _record_sync_failure(
+            conn,
+            RuntimeError("provider failed"),
+            db,
+            authorize_commit=lambda _db: False,
+        )
+        fresh = db.query(UserConnection).filter(
+            UserConnection.id == conn.id,
+        ).one()
+        assert fresh.status == "connected"
+        assert fresh.consecutive_failures == 0
+        assert fresh.next_retry_at is None
+        assert fresh.last_error is None
+    assert telemetry_calls == []
+
+
 # ---------------------------------------------------------------------------
 # reset_connection_backoff — clear state on success / reconnect
 # ---------------------------------------------------------------------------

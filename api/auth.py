@@ -239,9 +239,15 @@ def _require_current_terms(
         return
 
     from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
-    from api.legal_receipts import user_has_current_legal_bundle
+    from api.legal_receipts import (
+        user_has_current_legal_bundle_for_request,
+    )
 
-    if not user_has_current_legal_bundle(db, identity.user_id):
+    if not user_has_current_legal_bundle_for_request(
+        db,
+        identity.user_id,
+        request,
+    ):
         raise HTTPException(
             status_code=428,
             detail={

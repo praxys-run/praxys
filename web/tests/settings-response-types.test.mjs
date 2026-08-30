@@ -49,11 +49,14 @@ test('web and miniapp share strict China and legal API contracts', async () => {
 
   const readiness = declarationBlock(webTypes, 'HealthReadyResponse');
   assert.match(readiness, /china_processing: ChinaProcessingStatus;/);
+  assert.match(readiness, /miniapp_processing: MiniappProcessingStatus;/);
   assert.match(readiness, /privacy_controls: 'invalid';/);
   assert.match(readiness, /database: 'error'/);
 
   const unavailable = declarationBlock(webTypes, 'ChinaClientUnavailableErrorDetail');
-  assert.match(unavailable, /'CN_PROCESSING_DISABLED' \| 'CN_CLIENT_REGISTRY_UNAVAILABLE'/);
+  assert.match(unavailable, /'CN_PROCESSING_DISABLED'/);
+  assert.match(unavailable, /'MINIAPP_PROCESSING_DISABLED'/);
+  assert.doesNotMatch(unavailable, /REGISTRY/);
 
   const legal = declarationBlock(webTypes, 'LegalContractErrorResponse');
   assert.match(legal, /TermsAcceptanceRequiredErrorDetail/);

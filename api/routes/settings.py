@@ -1428,7 +1428,7 @@ def _encode_strava_state(
     web_origin: str,
     return_to: str,
     *,
-    release_context: dict[str, str] | None = None,
+    china_context: dict[str, str] | None = None,
 ) -> str:
     """Create a short-lived signed state token for the Strava OAuth callback."""
 
@@ -1439,8 +1439,8 @@ def _encode_strava_state(
         "return_to": return_to,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=_STRAVA_STATE_TTL_MINUTES),
     }
-    if release_context is not None:
-        payload["release_context"] = dict(release_context)
+    if china_context is not None:
+        payload["china_context"] = dict(china_context)
     return jwt.encode(payload, _jwt_secret(), algorithm="HS256")
 
 
@@ -1456,28 +1456,32 @@ def _decode_strava_state(state: str) -> dict[str, Any]:
     return payload
 
 
-def _revalidate_strava_release_context(
+def _revalidate_strava_china_context(
     payload: dict[str, Any],
     web_origin: str,
 ) -> None:
-    """Reject a China OAuth flow when its signed release tuple is stale."""
+    """Reject a China OAuth flow when its signed contract is stale."""
 
     from api.china_client_boundary import (
         is_cn_web_origin,
-        revalidate_china_release_context,
+        revalidate_china_client_context,
     )
 
-    context = payload.get("release_context")
+    context = payload.get("china_context")
+    if context is None:
+        # Accept the previous signed key during the short OAuth transition.
+        # Its source/version/release fields are ignored by revalidation.
+        context = payload.get("release_context")
     if context is None:
         if is_cn_web_origin(web_origin):
-            raise HTTPException(400, "Invalid Strava OAuth release context")
+            raise HTTPException(400, "Invalid Strava OAuth China context")
         return
     try:
-        current = revalidate_china_release_context(context)
+        current = revalidate_china_client_context(context)
     except ValueError as exc:
-        raise HTTPException(400, "Invalid Strava OAuth release context") from exc
+        raise HTTPException(400, "Invalid Strava OAuth China context") from exc
     if current["channel"] != "cn-web" or not is_cn_web_origin(web_origin):
-        raise HTTPException(400, "Invalid Strava OAuth release context")
+        raise HTTPException(400, "Invalid Strava OAuth China context")
 
 
 def _pause_garmin_delivery_for_connection_change(
@@ -1695,11 +1699,11 @@ def start_strava_oauth(
     client_id, _client_secret = _strava_client_config(user_id, db)
     web_origin = _validate_web_origin(body.web_origin or request.headers.get("origin"))
     return_to = _validate_return_to(body.return_to)
-    from api.china_client_boundary import VERIFIED_CHINA_RELEASE_SCOPE_KEY
+    from api.china_client_boundary import CHINA_CLIENT_CONTEXT_SCOPE_KEY
 
     request_state = request.scope.get("state", {})
-    release_context = (
-        request_state.get(VERIFIED_CHINA_RELEASE_SCOPE_KEY)
+    china_context = (
+        request_state.get(CHINA_CLIENT_CONTEXT_SCOPE_KEY)
         if isinstance(request_state, dict)
         else None
     )
@@ -1707,7 +1711,7 @@ def start_strava_oauth(
         user_id,
         web_origin,
         return_to,
-        release_context=release_context,
+        china_context=china_context,
     )
     authorize_url = build_authorize_url(
         client_id,
@@ -1732,7 +1736,7 @@ def strava_oauth_callback(
     payload = _decode_strava_state(state or "")
     web_origin = _validate_web_origin(payload.get("web_origin"))
     return_to = _validate_return_to(payload.get("return_to"))
-    _revalidate_strava_release_context(payload, web_origin)
+    _revalidate_strava_china_context(payload, web_origin)
 
     if error:
         return RedirectResponse(

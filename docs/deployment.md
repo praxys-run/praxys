@@ -360,7 +360,6 @@ regional build clears browser telemetry keys and uses no build secrets.
 | Variable | Value |
 |--------|-------|
 | `VITE_API_URL` | `https://api.praxys.run` |
-| `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default `false`; enable after public `.cn` DNS cutover |
 
 Application Insights routing is not stored in GitHub variables. Both deploy
 workflows load the tracked resource names from `.github/azure-observability.env`

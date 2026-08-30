@@ -43,10 +43,12 @@ def test_operations_guidance_preserves_ai_stop_and_disables_publication() -> Non
     environment = _read("docs/ops/environment.md")
     config = _read("docs/ops/config-and-secrets.md")
 
-    assert "exact pre-deploy Azure AI emergency-stop state" in environment
-    assert "External feedback publication remains fixed" in environment
-    assert "three fixed fail-closed literals" in config
-    assert "never clears an operator-set emergency stop" in config
-    assert "feedback-publication enablement `false`" in config
+    assert "observe and preserve that explicit setting" in environment
+    assert "feedback publication remains separately controlled" in environment
+    assert "It never toggles Azure AI" in config
+    assert "`PRAXYS_DISABLE_BACKGROUND_AI=false`" in config
+    assert "`PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`" in config
+    assert "`PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`" in config
+    assert "exact per-submission publication" in config
     assert "four optional-processing controls" not in config
     assert "five fixed non-secret privacy settings" not in config

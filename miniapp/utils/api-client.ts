@@ -19,7 +19,6 @@ import {
 } from './china-processing';
 import {
   MINIAPP_BUILD_VERSION,
-  MINIAPP_SOURCE_SHA,
 } from './version';
 import { TERMS_CONTENT_DIGEST } from './legal';
 
@@ -110,7 +109,6 @@ function clientBoundaryHeaders(): Record<string, string> {
   return {
     'X-Praxys-Client': 'wechat-miniapp',
     'X-Praxys-Client-Version': MINIAPP_BUILD_VERSION || 'develop',
-    'X-Praxys-Source-Sha': MINIAPP_SOURCE_SHA || 'develop',
     'X-Praxys-Notice-Version': CHINA_PROCESSING_NOTICE_VERSION,
     'X-Praxys-Policy-Digest': TERMS_CONTENT_DIGEST,
     'X-Praxys-Api-Contract': CN_PRIVACY_CONTRACT_VERSION,

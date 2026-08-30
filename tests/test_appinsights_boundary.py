@@ -52,18 +52,8 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert '--retention-time "${BACKEND_RETENTION_DAYS}"' in script
     assert "properties.WorkspaceResourceId" in script
     assert "enableLogAccessUsingOnlyResourcePermissions" in script
-    assert "actions: read" in workflow
-    assert "Wait for frontend protected-main provenance" in workflow
-    assert "deploy-frontend-appservice.yml/runs" in workflow
-    assert "git merge-base --is-ancestor" in workflow
-    assert "git log --first-parent" in workflow
-    assert "-f event=push" not in workflow
-    assert "--paginate" in workflow
-    assert "--slurp" in workflow
-    assert 'select(.status != "completed")' in workflow
-    assert "praxys-frontend.azurewebsites.net/healthz" in workflow
-    assert ".deployed_sha" in workflow
-    assert "Deployed frontend provenance is not yet current" in workflow
+    assert "Wait for frontend protected-main provenance" not in workflow
+    assert "deploy-frontend-appservice.yml/runs" not in workflow
     assert "Determine deployment mode" in workflow
     assert "sync_config:" in workflow
     assert "steps.mode.outputs.sync_config == 'true'" in workflow
@@ -77,11 +67,11 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "      - 'tests/**'" not in workflow
     assert "PRAXYS_EXPECTED_API_VERSION" in workflow
     assert "Verify deployed backend cutover" in workflow
-    assert "OneDeploy did not activate the expected build" in workflow
+    assert "deployment_ready()" in workflow
     assert "az webapp restart" in workflow
-    assert 'live_version}" == "${PRAXYS_EXPECTED_API_VERSION}' in workflow
-    assert 'ready_status}" == "ready"' in workflow
-    assert "group: deploy-backend-production" in workflow
+    assert ".version == $version and .source_sha == $sha" in workflow
+    assert '.status == "ready"' in workflow
+    assert "group: praxys-backend-deploy" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "github.ref == 'refs/heads/main' && inputs.run_tests == true" in workflow
     assert "tags:" not in workflow

@@ -285,28 +285,16 @@ def test_strava_oauth_callback_redirects_error_without_writing_connection(
     assert _load_strava_connection(user_id) is None
 
 
-def _cn_release_headers(monkeypatch) -> dict[str, str]:
+def _cn_headers(monkeypatch) -> dict[str, str]:
     from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
     from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 
-    source_sha = "1" * 40
-    release = [{
-        "channel": "cn-web",
-        "client_version": source_sha[:12],
-        "source_id": source_sha[:12],
-        "source_commit": source_sha,
-        "notice_version": TERMS_VERSION,
-        "terms_digest": TERMS_CONTENT_DIGEST,
-        "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-        "release_id": "edgeone:strava-state-test",
-    }]
     monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
-    monkeypatch.setenv("PRAXYS_CN_APPROVED_RELEASES", json.dumps(release))
     return {
         "Origin": "https://praxys.cn",
         "X-Praxys-Client": "cn-web",
-        "X-Praxys-Client-Version": source_sha[:12],
-        "X-Praxys-Source-Sha": source_sha,
+        "X-Praxys-Client-Version": "legacy-is-ignored",
+        "X-Praxys-Source-Sha": "legacy-is-ignored",
         "X-Praxys-Notice-Version": TERMS_VERSION,
         "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
         "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
@@ -316,7 +304,7 @@ def _cn_release_headers(monkeypatch) -> dict[str, str]:
 def _start_cn_strava_state(client, monkeypatch) -> str:
     monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_ID", "55555")
     monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_SECRET", "secret-value")
-    headers = _cn_release_headers(monkeypatch)
+    headers = _cn_headers(monkeypatch)
     response = client.post(
         "/api/settings/connections/strava/start",
         headers=headers,
@@ -330,7 +318,7 @@ def _start_cn_strava_state(client, monkeypatch) -> str:
     return params["state"][0]
 
 
-def test_cn_strava_state_binds_verified_release_and_legal_context(
+def test_cn_strava_state_binds_channel_and_legal_context(
     api_client,
     monkeypatch,
 ):
@@ -343,15 +331,36 @@ def test_cn_strava_state_binds_verified_release_and_legal_context(
     from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 
     payload = _decode_strava_state(state)
-    assert payload["release_context"] == {
+    assert payload["china_context"] == {
         "channel": "cn-web",
-        "client_version": "1" * 12,
-        "source_sha": "1" * 40,
         "notice_version": TERMS_VERSION,
         "terms_digest": TERMS_CONTENT_DIGEST,
         "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-        "release_id": "edgeone:strava-state-test",
     }
+
+
+def test_cn_strava_accepts_in_flight_legacy_signed_context(
+    monkeypatch,
+) -> None:
+    from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.routes.settings import _revalidate_strava_china_context
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    _revalidate_strava_china_context(
+        {
+            "release_context": {
+                "channel": "cn-web",
+                "client_version": "legacy",
+                "source_sha": "legacy",
+                "notice_version": TERMS_VERSION,
+                "terms_digest": TERMS_CONTENT_DIGEST,
+                "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
+                "release_id": "legacy",
+            },
+        },
+        "https://praxys.cn",
+    )
 
 
 def test_cn_strava_callback_rejects_tampered_signed_state(
@@ -376,26 +385,13 @@ def test_cn_strava_callback_rejects_tampered_signed_state(
     assert _load_strava_connection(user_id) is None
 
 
-def test_cn_strava_callback_rejects_stale_release_before_persistence(
+def test_cn_strava_callback_rechecks_kill_switch_before_persistence(
     api_client,
     monkeypatch,
 ):
     client, user_id = api_client
     state = _start_cn_strava_state(client, monkeypatch)
-    from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
-    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
-
-    stale_registry = [{
-        "channel": "cn-web",
-        "client_version": "2" * 12,
-        "source_id": "2" * 12,
-        "source_commit": "2" * 40,
-        "notice_version": TERMS_VERSION,
-        "terms_digest": TERMS_CONTENT_DIGEST,
-        "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-        "release_id": "edgeone:replacement",
-    }]
-    monkeypatch.setenv("PRAXYS_CN_APPROVED_RELEASES", json.dumps(stale_registry))
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
 
     with patch("sync.strava_sync.exchange_code_for_token") as exchange:
         response = client.get(

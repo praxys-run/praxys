@@ -4,6 +4,7 @@ Registration rules live in api/invitations.py and api/app_config.py and are
 shared with the WeChat registration route (api/routes/wechat.py).
 
 Paths:
+  * classified cn-web request             -> valid invitation required.
   * first user (fresh DB) or ADMIN_EMAIL  -> admin, no code, auto-verified.
   * valid invitation code                 -> auto-verified (pre-trusted).
   * open self-registration (gate ON + under the seat cap + no code) -> created
@@ -34,6 +35,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api import app_config
+from api.china_client_boundary import CN_WEB_CLIENT
 from api.email_sender import is_available as email_available
 from api.invitations import (
     claim_invitation,
@@ -44,6 +46,7 @@ from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 from api.legal_receipts import (
     TermsAcceptanceRequest,
     build_terms_receipt,
+    request_china_channel,
     require_current_legal_bundle,
 )
 from db.session import get_db
@@ -92,12 +95,15 @@ async def register(
     require_current_legal_bundle(body.terms_version, body.terms_digest)
 
     admin_email_bypass = is_admin_email(body.email)
+    cn_web_registration = request_china_channel(request) == CN_WEB_CLIENT
     if admin_email_bypass:
         logger.info("Admin email override used for registration: %s", body.email)
 
     # Pre-check invitation (fast fail). Expiry is enforced inside the query.
     invitation = None
-    if not admin_email_bypass and body.invitation_code:
+    if body.invitation_code and (
+        cn_web_registration or not admin_email_bypass
+    ):
         invitation = find_valid_invitation(db, body.invitation_code)
 
     # Read the registration gate + cap once (sync session).
@@ -124,8 +130,11 @@ async def register(
             )
         ).scalar() or 0
 
-        privileged = bool(is_first_user or admin_email_bypass)
-        is_admin = privileged
+        privileged = bool(
+            not cn_web_registration
+            and (is_first_user or admin_email_bypass)
+        )
+        is_admin = bool(is_first_user or admin_email_bypass)
         open_signup = False
 
         if privileged:
@@ -137,6 +146,8 @@ async def register(
             # — say so rather than silently open-registering a mistyped code.
             if body.invitation_code:
                 raise HTTPException(400, detail="REGISTER_INVALID_INVITATION")
+            if cn_web_registration:
+                raise HTTPException(403, detail="REGISTER_CLOSED")
             # Truly code-less: allowed only when the gate is open.
             if not reg_open:
                 logger.info("register blocked: gate closed (%s)", reg_reason)

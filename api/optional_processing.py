@@ -62,9 +62,9 @@ def background_ai_authorized(
     """Require the runtime switch and the user's current Terms receipt."""
     if not user_id or not background_ai_enabled():
         return False
-    from api.legal_receipts import user_has_current_legal_bundle
+    from api.legal_receipts import user_background_processing_authorized
 
-    return user_has_current_legal_bundle(db, user_id)
+    return user_background_processing_authorized(db, user_id)
 
 
 def feedback_publication_enabled() -> bool:
@@ -101,9 +101,9 @@ def feedback_publication_authorized(
         or not feedback_publication_enabled()
     ):
         return False
-    from api.legal_receipts import user_has_current_legal_bundle
+    from api.legal_receipts import user_background_processing_authorized
 
-    return user_has_current_legal_bundle(db, user_id)
+    return user_background_processing_authorized(db, user_id)
 
 
 def feedback_has_publication_consent(feedback: object) -> bool:

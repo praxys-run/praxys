@@ -1,31 +1,350 @@
-"""Regression tests for the regional frontend delivery boundaries."""
+"""Static regression tests for regional delivery and launch operations."""
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parent.parent
+WORKFLOWS = ROOT / ".github/workflows"
+BASE_CORS = {
+    "https://praxys.run",
+    "https://www.praxys.run",
+    "https://praxys-frontend.azurewebsites.net",
+}
+CN_CORS = {"https://praxys.cn", "https://www.praxys.cn"}
+OBSOLETE = {
+    "CN_PRIVACY_FLOOR_SHA",
+    "PRAXYS_CN_APPROVED_RELEASES",
+    "cn_release_preflight",
+    "china_release_validation",
+}
 
 
-def test_edgeone_config_keeps_spa_and_security_rules_in_source_control() -> None:
-    config = json.loads((ROOT / "web/edgeone.json").read_text(encoding="utf-8"))
+def _text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
 
-    assert set(config) == {
-        "buildCommand",
-        "headers",
-        "installCommand",
-        "nodeVersion",
-        "outputDirectory",
-        "rewrites",
+
+def _workflow(relative: str) -> dict[str, object]:
+    return yaml.load(_text(relative), Loader=yaml.BaseLoader)
+
+
+def test_workflow_yaml_is_valid() -> None:
+    for path in WORKFLOWS.glob("*.yml"):
+        parsed = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        assert isinstance(parsed, dict), path
+
+
+def test_launch_actions_and_environment_authority_are_separate() -> None:
+    parsed = _workflow(".github/workflows/launch-cn.yml")
+    workflow = _text(".github/workflows/launch-cn.yml")
+    inputs = parsed["on"]["workflow_dispatch"]["inputs"]
+    assert inputs["action"]["type"] == "choice"
+    assert inputs["action"]["options"] == ["status", "enable", "disable"]
+    assert set(inputs) == {"action"}
+
+    jobs = parsed["jobs"]
+    assert set(jobs) == {"guard", "status", "enable", "disable"}
+    assert "environment" not in jobs["guard"]
+    assert "environment" not in jobs["status"]
+    assert jobs["enable"]["environment"] == "china-production"
+    assert "environment" not in jobs["disable"]
+    assert "inputs.action == 'status'" in jobs["status"]["if"]
+    assert "inputs.action == 'enable'" in jobs["enable"]["if"]
+    assert "inputs.action == 'disable'" in jobs["disable"]["if"]
+    assert '[[ "${GITHUB_REF}" != "refs/heads/main" ]]' in workflow
+    assert "inputs.action == 'status'" in parsed["concurrency"]["group"]
+    assert parsed["concurrency"]["cancel-in-progress"] == (
+        "${{ inputs.action == 'disable' }}"
+    )
+    for name in ("status", "enable", "disable"):
+        assert jobs[name]["needs"] == "guard"
+    assert "Read-only: no setting" in workflow
+
+
+def test_launch_enable_binds_current_main_but_disable_is_emergency() -> None:
+    workflow = _text(".github/workflows/launch-cn.yml")
+    assert workflow.count(
+        'gh api "repos/${GITHUB_REPOSITORY}/branches/main"'
+    ) == 1
+    assert 'test "${GITHUB_SHA}" = "${current}"' in workflow
+    assert "expected_main_sha" not in workflow
+    assert "fetch-depth: 0" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "refs/remotes/origin/main" in workflow
+    assert workflow.count("require_main_ancestor") >= 4
+    enable = workflow[workflow.index("  enable:") : workflow.index("  disable:")]
+    assert 'api.praxys.run/api/version | jq -r .source_sha)" \\\n            = "${GITHUB_SHA}"' not in enable
+    assert '"https://${host}/deployed_sha.txt" | tr -d \'\\r\\n\')" \\\n              = "${GITHUB_SHA}"' not in enable
+    disable = workflow[workflow.index("  disable:") :]
+    assert "/api/version" not in disable
+    assert "china-production" not in disable
+
+
+def test_launch_exact_cors_preconditions_verification_and_compensation() -> None:
+    workflow = _text(".github/workflows/launch-cn.yml")
+    parsed = _workflow(".github/workflows/launch-cn.yml")
+    assert set(json.loads(parsed["env"]["BASE_CORS"])) == BASE_CORS
+    assert set(json.loads(parsed["env"]["CN_CORS"])) == CN_CORS
+    assert "sort == ($base | sort) or sort == ($enabled | sort)" in workflow
+    assert "Verify enable preconditions" in workflow
+    assert "Verify enabled boundary" in workflow
+    assert "PRAXYS_DISABLE_CN_PROCESSING=false" in workflow
+    assert "az webapp cors add" in workflow
+    assert workflow.count("Compensate failed or cancelled") == 1
+    assert workflow.count("PRAXYS_DISABLE_CN_PROCESSING=true") == 2
+    assert "steps.before.outputs.started_disabled == 'true'" in workflow
+    assert "started_disabled=${cn_disabled}" in workflow
+    assert "cors_state=${cors_state}" in workflow
+    assert 'if [[ "${CORS_STATE}" == "base" ]]' in workflow
+    assert "Enable China web processing from disabled" in workflow
+    assert "az webapp cors remove" not in workflow
+    assert "CLIENT_PRIVACY_UPDATE_REQUIRED" in workflow
+    assert 'test "${code}" = 401' in workflow
+    assert 'test "${code}" = 428' in workflow
+    assert "Access-Control-Request-Headers:" in workflow
+    assert '[[ "${code}" == "200" || "${code}" == "204" ]]' in workflow
+    assert "scripts/verify_cors_response.sh" in workflow
+    assert workflow.count(
+        'bash scripts/verify_cors_response.sh "${actual}" "${origin}"'
+    ) == 1
+    assert "${stale_headers}" in workflow
+    assert ".china_processing.disabled == true" in workflow
+    assert "https://${host}/login" in workflow
+    assert "https://${host}${asset_path}" in workflow
+    assert "content-type" in workflow
+    assert "CORS and Azure AI were unchanged" in workflow
+
+
+def test_launch_never_mutates_azure_ai_and_status_reports_required_state() -> None:
+    workflow = _text(".github/workflows/launch-cn.yml")
+    assert "PRAXYS_DISABLE_BACKGROUND_AI=" not in workflow
+    assert "--settings PRAXYS_DISABLE_BACKGROUND_AI" not in workflow
+    assert workflow.count("PRAXYS_DISABLE_BACKGROUND_AI") >= 4
+    assert "test \"$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)\" = false" in workflow
+    assert "background_ai_enabled == true" in workflow
+    assert "PRAXYS_LABS_EXECUTION_MODE" in workflow
+    assert '"${labs_mode}" == "inline"' in workflow
+    assert "required_status_checks" not in workflow
+    assert "check-runs" not in workflow
+    assert "upload-artifact" not in workflow
+    assert "launch-cn-evidence" not in workflow
+    assert "api_version" in workflow
+    assert "api_ready" in workflow
+    assert "core_valid" in workflow
+    assert "cors_coherent" in workflow
+    assert "cn_hosts_valid_when_enabled" in workflow
+    assert "DNS is not available yet" in workflow
+    assert "printf '{}'" not in workflow
+    for host in CN_CORS:
+        assert host in workflow
+
+
+def test_backend_deploy_is_state_preserving_and_serialized() -> None:
+    workflow = _text(".github/workflows/deploy-backend.yml")
+    parsed = _workflow(".github/workflows/deploy-backend.yml")
+    assert parsed["concurrency"]["group"] == "praxys-backend-deploy"
+    assert (
+        _workflow(".github/workflows/launch-cn.yml")["concurrency"]["group"]
+        != parsed["concurrency"]["group"]
+    )
+    assert "--settings PRAXYS_DISABLE_CN_PROCESSING" not in workflow
+    assert "az webapp cors add" not in workflow
+    assert "az webapp cors remove" not in workflow
+    assert "praxys-frontend-cn" not in workflow
+    assert "praxys.cn" not in workflow
+    assert "Capture coherent China state" not in workflow
+    assert "Restore compatible captured China state" not in workflow
+    assert "Leave China disabled after deployment failure" not in workflow
+    assert "--settings PRAXYS_DISABLE_BACKGROUND_AI" not in workflow
+    assert "PRAXYS_DISABLE_BACKGROUND_AI=" not in workflow
+    assert "china_processing.enabled | type" in workflow
+    assert ".miniapp_processing.disabled == true" in workflow
+    assert "Wait for frontend protected-main provenance" not in workflow
+    assert "Capture state preserved by deployment" in workflow
+    assert "EXPECTED_CN_DISABLED" in workflow
+    assert "EXPECTED_AI_DISABLED" in workflow
+    assert "EXPECTED_CORS" in workflow
+
+
+def test_backend_config_pins_miniapp_and_preserves_wechat_secrets() -> None:
+    workflow = _text(".github/workflows/deploy-backend.yml")
+    assert "PRAXYS_DISABLE_MINIAPP_PROCESSING=true" in workflow
+    assert "vars.PRAXYS_DISABLE_MINIAPP_PROCESSING" not in workflow
+    assert "Set both WeChat Miniapp secrets or neither." in workflow
+    assert 'if [[ -n "${WECHAT_MINIAPP_APPID}"' in workflow
+    assert 'app_settings+=(' in workflow
+    settings_call = workflow.split(
+        "az webapp config appsettings set", 1
+    )[1].split("az webapp config set", 1)[0]
+    assert '--settings "${app_settings[@]}"' in settings_call
+    assert 'WECHAT_MINIAPP_APPID="${WECHAT_MINIAPP_APPID}"' not in settings_call
+    assert 'WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}"' not in settings_call
+    assert '"${PRAXYS_LABS_EXECUTION_MODE}" == "inline"' in workflow
+    assert '"${PRAXYS_LABS_EXECUTION_MODE}" == "disabled"' in workflow
+    assert '"service_bus"' not in workflow
+    assert "GITHUB_STEP_SUMMARY" in workflow
+    assert "China processing enabled" in workflow
+    assert "Miniapp processing enabled" in workflow
+    assert "Azure AI emergency stop" in workflow
+    assert "      - 'alembic/**'" in workflow
+    assert "scripts/appinsights_boundary.sh backend-cutover" in workflow
+    assert "PRAXYS_DATABASE_URL" in workflow
+    assert "SCM_DO_BUILD_DURING_DEPLOYMENT" in workflow
+    assert "--always-on true" in workflow
+
+
+def test_frontend_keeps_run_first_and_edgeone_build_simple() -> None:
+    workflow = _text(".github/workflows/deploy-frontend-appservice.yml")
+    edge_build_script = _text("web/scripts/build-edgeone.mjs")
+    edge_metadata = _text("web/scripts/prepare-edgeone-artifact.mjs")
+    azure_copy = workflow.index("cp -r web/dist deploy-pkg/web/dist")
+    edge_build = workflow.index("npm --prefix web run build:edgeone")
+    assert azure_copy < edge_build
+    assert "The shared Azure build contains China-only metadata" in workflow
+    assert "frontend-edgeone-cn-${{ github.run_id }}" not in workflow
+    assert "Upload optional EdgeOne inspection artifact" not in workflow
+    assert "verify_edgeone_public:" not in workflow
+    assert "SHA256SUMS" not in workflow
+    assert "manifest" not in workflow.lower()
+    assert "preflight" not in workflow.lower()
+    assert "registry" not in workflow.lower()
+    assert "production authorization" not in workflow.lower()
+    assert "EDGEONE_API_TOKEN" not in workflow
+    assert "deploy_edgeone:" not in workflow
+    assert "npx edgeone" not in workflow
+    assert "VITE_API_URL: \"https://api.praxys.run\"" in edge_build_script
+    assert 'VITE_APPINSIGHTS_CONNECTION_STRING: ""' in edge_build_script
+    assert 'VITE_STATSIG_CLIENT_KEY: ""' in edge_build_script
+    assert "stampChinaCompliance" in edge_metadata
+    assert "deployed_sha.txt" in edge_metadata
+    assert "'healthz'" in edge_metadata
+    from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    for value in (
+        TERMS_VERSION,
+        TERMS_CONTENT_DIGEST,
+        CN_PRIVACY_CONTRACT_VERSION,
+    ):
+        assert value in edge_metadata
+    for token in OBSOLETE:
+        assert token not in edge_build_script
+        assert token not in edge_metadata
+    assert "SHA256SUMS" not in edge_build_script + edge_metadata
+
+
+def test_edgeone_public_verification_is_owned_by_launch_workflow() -> None:
+    workflow = _text(".github/workflows/deploy-frontend-appservice.yml")
+    assert "verify_edgeone_public:" not in workflow
+    launch = _text(".github/workflows/launch-cn.yml")
+    assert 'service == "praxys-frontend-cn"' in launch
+    assert 'name="praxys-deployment-region" content="cn"' in launch
+    assert "沪ICP备2025109616号-2" in launch
+
+
+def test_miniapp_is_decoupled_from_china_web_launch() -> None:
+    workflow = _text(".github/workflows/miniapp-publish.yml")
+    assert not any(token in workflow for token in OBSOLETE)
+    assert "launch-cn" not in workflow
+    assert "china-production" not in workflow
+    assert "robot=\"5\"" in workflow
+    assert "robot=\"1\"" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "refs/remotes/origin/main" in workflow
+    assert workflow.index("Require release tag commit on main") < (
+        workflow.index("Write upload key")
+    )
+    assert "Promotion and publication remain human-authorized provider actions." in workflow
+    assert "node-version: '24.11.0'" in workflow
+    package = json.loads(_text("miniapp/package.json"))
+    assert package["devDependencies"]["miniprogram-ci"] == "2.1.31"
+
+
+def test_obsolete_ceremony_is_removed_from_owned_operations_scope() -> None:
+    assert not (ROOT / "scripts/cn_release_preflight.py").exists()
+    assert not (ROOT / "tests/test_cn_release_preflight.py").exists()
+
+    owned = [
+        ".github/workflows/launch-cn.yml",
+        ".github/workflows/deploy-backend.yml",
+        ".github/workflows/deploy-frontend-appservice.yml",
+        ".github/workflows/miniapp-publish.yml",
+        "docs/ops/README.md",
+        "docs/ops/environment.md",
+        "docs/ops/deploy.md",
+        "docs/ops/config-and-secrets.md",
+        "docs/ops/tencent-frontend.md",
+        "docs/ops/monitoring-and-alerts.md",
+        "docs/ops/cn-personal-information-impact-assessment.md",
+        "docs/ops/cn-web-private-alpha.md",
+        "docs/dev/api-reference.md",
+        ".env.example",
+    ]
+    combined = "\n".join(_text(path) for path in owned)
+    for token in OBSOLETE:
+        assert token not in combined
+
+
+def test_launch_is_the_only_cn_state_writer_and_docs_keep_five_origins() -> None:
+    cn_setting_write = "--settings PRAXYS_DISABLE_CN_PROCESSING="
+    writers = {
+        path.name
+        for path in WORKFLOWS.glob("*.yml")
+        if cn_setting_write in path.read_text(encoding="utf-8")
     }
+    assert writers == {"launch-cn.yml"}
+
+    tencent = _text("docs/ops/tencent-frontend.md")
+    for origin in BASE_CORS | CN_CORS:
+        assert origin in tencent
+    assert '["https://praxys.cn", "https://www.praxys.cn"]' not in tencent
+
+
+def test_protected_main_oidc_and_job_scoped_permissions_remain() -> None:
+    backend = _workflow(".github/workflows/deploy-backend.yml")
+    frontend = _workflow(".github/workflows/deploy-frontend-appservice.yml")
+    launch = _workflow(".github/workflows/launch-cn.yml")
+    assert "permissions" not in backend
+    assert "permissions" not in frontend
+    assert "permissions" not in launch
+    assert backend["jobs"]["test"]["permissions"] == {"contents": "read"}
+    assert backend["jobs"]["deploy"]["permissions"]["id-token"] == "write"
+    assert frontend["jobs"]["test"]["permissions"] == {"contents": "read"}
+    assert frontend["jobs"]["build"]["permissions"]["id-token"] == "write"
+    assert frontend["jobs"]["deploy_azure"]["permissions"] == {
+        "id-token": "write",
+        "contents": "read",
+    }
+    assert launch["jobs"]["status"]["permissions"]["id-token"] == "write"
+    assert launch["jobs"]["guard"]["permissions"] == {
+        "contents": "read"
+    }
+    assert launch["jobs"]["enable"]["permissions"]["id-token"] == "write"
+    assert launch["jobs"]["disable"]["permissions"]["id-token"] == "write"
+
+    for relative in (
+        ".github/workflows/deploy-backend.yml",
+        ".github/workflows/deploy-frontend-appservice.yml",
+        ".github/workflows/launch-cn.yml",
+    ):
+        workflow = _text(relative)
+        assert "azure/login@v3" in workflow
+        assert "AZURE_CLIENT_SECRET" not in workflow
+        assert "publish-profile" not in workflow
+        assert "client-id:" in workflow
+
+
+def test_edgeone_config_keeps_static_security_boundary() -> None:
+    config = json.loads(_text("web/edgeone.json"))
     assert config["installCommand"] == "npm ci --legacy-peer-deps"
     assert config["buildCommand"] == "npm run build:edgeone"
     assert config["outputDirectory"] == "./dist"
     assert config["nodeVersion"] == "24.11.0"
-    assert config["rewrites"] == [
-        {"source": "/*", "destination": "/index.html"}
-    ]
+    assert config["rewrites"] == [{"source": "/*", "destination": "/index.html"}]
     headers = {
         rule["source"]: {
             header["key"]: header["value"] for header in rule["headers"]
@@ -40,453 +359,121 @@ def test_edgeone_config_keeps_spa_and_security_rules_in_source_control() -> None
     assert headers["/assets/*"]["Cache-Control"] == (
         "public, max-age=31536000, immutable"
     )
-    private_routes = {
-        "/login*",
-        "/terms*",
-        "/privacy*",
-        "/status*",
-        "/verify*",
-        "/mcp/*",
-        "/today*",
-        "/setup*",
-        "/training*",
-        "/analysis*",
-        "/goal*",
-        "/history*",
-        "/science*",
-        "/labs*",
-        "/settings*",
-        "/admin*",
-    }
-    for route in private_routes:
+    for route in ("/login*", "/today*", "/settings*", "/admin*"):
         assert headers[route]["X-Robots-Tag"] == "noindex, nofollow"
-    assert not (ROOT / "deploy/tencent/nginx-praxys.conf").exists()
 
 
-def test_edgeone_artifact_is_stamped_without_mutating_the_azure_package() -> None:
-    workflow = (
-        ROOT / ".github/workflows/deploy-frontend-appservice.yml"
-    ).read_text(encoding="utf-8")
-
-    azure_stage = workflow.index("cp -r web/dist deploy-pkg/web/dist")
-    china_build = workflow.index("npm --prefix web run build:edgeone")
-    china_copy = workflow.index("cp -a web/dist/. edgeone-site/")
-    azure_upload = workflow.index("- name: Upload Azure package")
-    edgeone_upload = workflow.index("- name: Upload EdgeOne package")
-    edgeone_preflight_upload = workflow.index(
-        "- name: Upload EdgeOne preparation evidence"
+def test_cors_response_verifier_uses_exact_values_and_tokens(tmp_path) -> None:
+    verifier = ROOT / "scripts/verify_cors_response.sh"
+    headers = tmp_path / "headers"
+    valid = (
+        "HTTP/2 204\r\n"
+        "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+        "Access-Control-Allow-Methods: OPTIONS, GET\r\n"
+        "Access-Control-Allow-Methods: POST\r\n"
+        "Access-Control-Allow-Headers: authorization, content-type\r\n"
+        "Access-Control-Allow-Headers: x-praxys-client, "
+        "x-praxys-notice-version, x-praxys-policy-digest, "
+        "x-praxys-api-contract\r\n"
     )
-    evidence_finalize = workflow.index(
-        "- name: Finalize frontend build evidence"
-    )
-    evidence_upload = workflow.index("- name: Upload frontend build evidence")
+    headers.write_text(valid, encoding="utf-8")
+    command = [
+        "bash",
+        str(verifier),
+        str(headers),
+        "https://praxys.cn",
+        "GET",
+        "authorization",
+        "content-type",
+        "x-praxys-client",
+        "x-praxys-notice-version",
+        "x-praxys-policy-digest",
+        "x-praxys-api-contract",
+    ]
+    assert subprocess.run(command, check=False).returncode == 0
+    actual_command = command[:4]
+    assert subprocess.run(actual_command, check=False).returncode == 0
 
-    assert azure_stage < china_build < china_copy
-    assert (
-        azure_upload
-        < edgeone_upload
-        < edgeone_preflight_upload
-        < evidence_finalize
-        < evidence_upload
-    )
-    assert "grep -R --binary-files=text" in workflow
-    assert "The shared Azure build contains China-only metadata" in workflow
-    assert "sha256sum --check SHA256SUMS" in workflow
-    assert "frontend-edgeone-cn-${{ github.run_id }}" in workflow
-    assert "for host in praxys.cn www.praxys.cn" in workflow
-    assert "沪ICP备2025109616号-2" in workflow
-    assert "Initialize frontend build evidence" in workflow
-    assert "Finalize frontend build evidence" in workflow
-    assert "azurePackagePresent" in workflow
-    assert "edgeonePackagePresent" in workflow
-    assert "edgeonePreflightSha256" in workflow
-    assert "edgeone-unpublished-preflight.json" in workflow
-    assert "validated-unpublished-preparation" in workflow
-    assert "Upload frontend build evidence" in workflow
-    assert "self-hosted" not in workflow
-    assert "TENCENT_LIGHTHOUSE" not in workflow
-    assert "nginx" not in workflow.lower()
+    for invalid in (
+        valid.replace(
+            "https://praxys.cn\r\n",
+            "https://praxys.cn.evil.example\r\n",
+        ),
+        valid.replace("OPTIONS, GET", "OPTIONS, TARGET"),
+        valid.replace("x-praxys-client,", "x-praxys-client-extra,"),
+        valid.replace("content-type\r\n", "content-type-extra\r\n"),
+        valid.replace(
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+        ),
+        valid.replace(
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+            "Access-Control-Allow-Origin: https://www.praxys.cn\r\n",
+        ),
+    ):
+        headers.write_text(invalid, encoding="utf-8")
+        assert subprocess.run(command, check=False).returncode != 0
 
-
-def test_edgeone_git_integration_uses_checked_in_deterministic_builds() -> None:
-    workflow = (
-        ROOT / ".github/workflows/deploy-frontend-appservice.yml"
-    ).read_text(encoding="utf-8")
-    package = json.loads(
-        (ROOT / "web/package.json").read_text(encoding="utf-8")
-    )
-    build_script = (ROOT / "web/scripts/build-edgeone.mjs").read_text(
-        encoding="utf-8"
-    )
-    prepare_script = (
-        ROOT / "web/scripts/prepare-edgeone-artifact.mjs"
-    ).read_text(
-        encoding="utf-8"
-    )
-
-    assert package["scripts"]["build:edgeone"] == (
-        "node scripts/build-edgeone.mjs"
-    )
-    assert package["scripts"]["prepare:edgeone"] == (
-        "node scripts/prepare-edgeone-artifact.mjs"
-    )
-    assert "VITE_API_URL: \"https://api.praxys.run\"" in build_script
-    assert "VITE_APPINSIGHTS_CONNECTION_STRING: \"\"" in build_script
-    assert "VITE_STATSIG_CLIENT_KEY: \"\"" in build_script
-    assert "CN_PRIVACY_FLOOR_SHA must be configured" in build_script
-    assert "CN_PREFLIGHT_OUTPUT" in build_script
-    assert "stampChinaCompliance" in prepare_script
-    assert "SHA256SUMS" in prepare_script
-    assert "deployed_sha.txt" in prepare_script
-    assert "EDGEONE_API_TOKEN" not in workflow
-    assert "EDGEONE_CN_PROJECT_ID" not in workflow
-    assert "EDGEONE_CN_DEPLOY_ENABLED" not in workflow
-    assert "deploy_edgeone:" not in workflow
-    assert "npx edgeone" not in workflow
-    assert "makers deploy" not in workflow
-    assert not (ROOT / "deploy/edgeone").exists()
-    assert "azurePackageTreeSha256" in workflow
-    assert "edgeoneConfigSha256" in workflow
-    assert "Download independently built EdgeOne evidence" in workflow
-    assert "cmp \\" in workflow
-    assert '"https://${host}/SHA256SUMS"' in workflow
-    assert '"https://${host}/healthz"' in workflow
-    assert '"https://${host}/product"' in workflow
-    assert "verify_manifest_asset" in workflow
-    assert "verify_manifest_file" in workflow
-    assert '"product/index.html"' in workflow
-    assert "verifiedManifestAssetTypes" in workflow
-    assert "vars.EDGEONE_CN_PUBLIC_VERIFY_ENABLED == 'true'" in workflow
-    assert "^x-robots-tag: noindex, nofollow" in workflow
+    for invalid_actual in (
+        valid.replace(
+            "https://praxys.cn\r\n",
+            "https://praxys.cn.evil.example\r\n",
+        ),
+        valid.replace(
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+        ),
+        valid.replace(
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+            "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+            "Access-Control-Allow-Origin: https://www.praxys.cn\r\n",
+        ),
+    ):
+        headers.write_text(invalid_actual, encoding="utf-8")
+        assert subprocess.run(actual_command, check=False).returncode != 0
 
 
-def test_china_privacy_floor_is_enforced_across_release_workflows() -> None:
-    workflow_paths = (
-        ".github/workflows/deploy-backend.yml",
-        ".github/workflows/deploy-frontend-appservice.yml",
-        ".github/workflows/miniapp-publish.yml",
-    )
-    for relative_path in workflow_paths:
-        workflow = (ROOT / relative_path).read_text(encoding="utf-8")
-        assert "scripts/cn_release_preflight.py" in workflow
-        assert "--lane" in workflow
-        assert "vars.CN_PRIVACY_FLOOR_SHA" in workflow
-        assert "github.sha" in workflow
-        assert "release-evidence/cn-release-preflight.json" in workflow
-        assert "checks: read" in workflow
-        assert "pull-requests: read" in workflow
-        assert "statuses: read" in workflow
+def test_material_non_cn_invariants_remain_covered() -> None:
+    backend = _text(".github/workflows/deploy-backend.yml")
+    assert "d5ecc8c14beafe1cf2df6e5021b0bee71094b15cf14dfc039f0652c8c9c030e4" in backend
+    assert "STRYD_CLIENT_WHEEL_B64" in backend
 
-    validator = (ROOT / "scripts/cn_release_preflight.py").read_text(
-        encoding="utf-8"
-    )
-    assert "^[0-9a-f]{40}$" in validator
-    assert "merge-base" in validator
-    assert "candidate is not reachable from protected main" in validator
-    assert "backend-tests" in validator
-    assert "frontend-quality" in validator
-    assert "selective-review-policy" in validator
-    assert "candidateExactMatchCount" in validator
-    assert "verify_disabled_runtime" in validator
-    assert "runtime processing switches do not match the inactive-CN contract" in validator
-    assert "rules/branches/main" in validator
-    assert "latest required check" in validator
-    assert "not exactly registry-authorized" in validator
-    assert "terms_digest" in validator
-    assert "api_contract_version" in validator
+    miniapp_build = _text(".github/workflows/miniapp-build.yml")
+    miniapp_publish = _text(".github/workflows/miniapp-publish.yml")
+    assert miniapp_build.count("web/src/lib/legal.ts") == 2
+    assert miniapp_build.count("web/src/types/api.ts") == 2
+    assert "web/src/lib/legal" in miniapp_publish
+    assert "pending-upload" in miniapp_publish
+    assert "upload-failed" in miniapp_publish
+    assert "providerResponse: \"redacted\"" in miniapp_publish
 
-    config = (
-        ROOT / "docs/ops/config-and-secrets.md"
-    ).read_text(encoding="utf-8")
-    runbook = (
-        ROOT / "docs/ops/tencent-frontend.md"
-    ).read_text(encoding="utf-8")
-    assert "CN_PRIVACY_FLOOR_SHA" in config
-    assert "miniapp-2026.08.2" in runbook
-    assert "CLIENT_PRIVACY_UPDATE_REQUIRED" not in runbook
-    assert "final operator-approved" in runbook
-
-
-def test_cn_privacy_contract_version_matches_both_clients() -> None:
-    runtime_boundary = (
-        ROOT / "api/china_client_boundary.py"
-    ).read_text(encoding="utf-8")
-    web_boundary = (
-        ROOT / "web/src/lib/client-boundary.ts"
-    ).read_text(encoding="utf-8")
-    miniapp_client = (
-        ROOT / "miniapp/utils/api-client.ts"
-    ).read_text(encoding="utf-8")
-
-    assert 'CN_PRIVACY_CONTRACT_VERSION = "cn-privacy-v2"' in runtime_boundary
-    for client in (web_boundary, miniapp_client):
-        assert "CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v2'" in client
-        assert "'X-Praxys-Api-Contract': CN_PRIVACY_CONTRACT_VERSION" in client
-        assert "cn-privacy-v1" not in client
-
-
-def test_cn_release_registry_example_uses_current_inactive_contract() -> None:
-    config = (
-        ROOT / "docs/ops/config-and-secrets.md"
-    ).read_text(encoding="utf-8")
-    lines = config.splitlines()
-    start = lines.index(
-        "cat > /tmp/praxys-cn-approved-releases.json <<'JSON'"
-    ) + 1
-    end = lines.index("JSON", start)
-    registry = json.loads(chr(10).join(lines[start:end]))
-
-    assert len(registry) == 2
-    for release in registry:
-        assert release["notice_version"] == "2026.08.4"
-        assert release["terms_digest"] == (
-            "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1"
-        )
-        assert release["api_contract_version"] == "cn-privacy-v2"
-        assert release["source_commit"] == "<40-char-protected-main-sha>"
-
-    normalized = " ".join(config.split())
-    assert "processing must not be enabled until" in normalized
-    assert (
-        "Activation remains a separately reviewed human-authorized operation "
-        "with no implemented repository procedure."
-    ) in normalized
-
-
-def test_china_operations_decision_stays_blocked_and_orders_release() -> None:
-    relative_path = "docs/ops/odr-2026-08-26-cn-provider-topology.md"
-    decision = (ROOT / relative_path).read_text(encoding="utf-8")
-    normalized = " ".join(decision.split())
-
-    assert (
-        "**Status:** **PROPOSED — BLOCKED PENDING INDEPENDENT AND HUMAN REVIEW**"
-        in decision
-    )
-    assert "**Production authority:** None." in decision
-    assert "**Decision date:** Not decided" in decision
-    assert (
-        "**review_route:** Pending. No retained independent Decision Review "
-        "Router artifact"
-        in normalized
-    )
-    assert "**digest:** **PENDING HUMAN ACCEPTANCE.**" in decision
-    assert "sha256:ea5b438a17c6b0931f9e03a81606a55893e193438742364b8597e3b6dee34f8f" in decision
-    assert "sha256:858b1429ea3e90b307923752d783f0ba9bc2665f978ddb2ef9381ddeae4216ab" in decision
-    assert (
-        "This section defines required evidence; **it is not Release Evidence"
-        in decision
-    )
-
-    ordered_stages = (
-        "Stage 0 — Merge the complete privacy floor",
-        "Stage 1 — Set `CN_PRIVACY_FLOOR_SHA` after merge",
-        "Stage 2 — Establish the disabled backend baseline",
-        "Stage 3 — Deploy updated `.run` and prepare the `.cn` artifact",
-        "Stage 4 — Validate the registry and prepare the Miniapp",
-        "Stage 5 — Future separately authorized activation and provider cutover",
-    )
-    positions = [decision.index(stage) for stage in ordered_stages]
-    assert positions == sorted(positions)
-
-    assert "praxys.cn`, `www.praxys.cn` | EdgeOne Makers" in decision
-    assert "praxys.run`, `www.praxys.run` | Cloudflare Free" in decision
-    assert "`api.praxys.run` | DNS-only" in decision
-    assert "request headers are release identifiers, not cryptographic" in (
-        normalized
-    )
-    assert "`CN_PRIVACY_FLOOR_SHA` is an ancestry floor" in decision
-    assert "no not-yet-created provider ID or registry authorization" in normalized
-    assert "then construct the separately reviewed exact registry entry" in normalized
-    assert "version `2026.08.2` or newer" in decision
-    assert "The repository workflow can upload but cannot unpublish" in decision
-    assert "requires separate, explicit operator authorization" in decision
-    assert "No public China rollout may proceed" in decision
-
-    linked_docs = (
+    canonical = "trainsight-master-key"
+    for relative in (
+        "docs/deployment.md",
         "docs/ops/README.md",
-        "docs/ops/tencent-frontend.md",
-        "docs/ops/deploy.md",
-        "docs/ops/config-and-secrets.md",
         "docs/ops/environment.md",
-        "docs/ops/cn-personal-information-impact-assessment.md",
-    )
-    for linked_path in linked_docs:
-        linked = (ROOT / linked_path).read_text(encoding="utf-8")
-        assert "odr-2026-08-26-cn-provider-topology.md" in linked
-
-    handbook = (ROOT / "docs/ops/README.md").read_text(encoding="utf-8")
-    assert "| Approved regional target |" not in handbook
-
-
-def test_backend_workflow_preserves_ai_stop_and_disables_other_boundaries() -> None:
-    workflow = (
-        ROOT / ".github/workflows/deploy-backend.yml"
-    ).read_text(encoding="utf-8")
-    runbook = (
-        ROOT / "docs/ops/tencent-frontend.md"
-    ).read_text(encoding="utf-8")
-
-    for literal in (
-        'PRAXYS_DISABLE_CN_PROCESSING="true"',
-        'PRAXYS_ENABLE_FEEDBACK_PUBLICATION="false"',
-        'PRAXYS_DISABLE_FEEDBACK_PUBLICATION="true"',
+        "docs/ops/config-and-secrets.md",
+        "docs/ops/disaster-recovery.md",
+        "docs/ops/secret-rotation.md",
     ):
-        assert literal in workflow
+        assert canonical in _text(relative)
     assert (
-        "PRAXYS_DISABLE_BACKGROUND_AI: "
-        "${{ steps.cn_safe_state.outputs.background_ai_restore }}"
-    ) in workflow
-    assert (
-        'PRAXYS_DISABLE_BACKGROUND_AI="${PRAXYS_DISABLE_BACKGROUND_AI}"'
-        in workflow
-    )
-    assert "previous_background_disabled" in workflow
-    assert "PRAXYS_ENABLE_BACKGROUND_AI" not in workflow
-    for variable in (
-        "vars.PRAXYS_DISABLE_CN_PROCESSING",
-        "vars.PRAXYS_DISABLE_BACKGROUND_AI",
-        "vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
-        "vars.PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
-    ):
-        assert variable not in workflow
-
-    assert "china_release_validation" in workflow
-    assert "China candidate validation requires PRAXYS_CN_APPROVED_RELEASES" in workflow
-    assert "Verify exact non-secret CN runtime settings" in workflow
-    assert "Exact readback failed for ${name}" in workflow
-    assert "Verify exact disabled China CORS boundary" in workflow
-    assert "Disabled Azure CORS inventory is not the exact filing-free set" in workflow
-    assert "https://praxys-frontend.azurewebsites.net" in workflow
-    assert "sort == ($expected | sort)" in workflow
-    assert "corsOrigins" in workflow
-    assert "registry_sha256" in workflow
-    assert "api_contract_version" in workflow
-    assert "Guarded final China processing enable" not in workflow
-    assert "PRAXYS_DISABLE_CN_PROCESSING=false" not in workflow
-    assert "az webapp cors add" not in workflow
-    assert "all six `X-Praxys-*` request" in (
-        ROOT / "docs/ops/odr-2026-08-26-cn-provider-topology.md"
-    ).read_text(encoding="utf-8")
-    assert "x-praxys-policy-digest" in runbook
-    assert "x-praxys-api-contract" in runbook
-    assert "PRAXYS_DISABLE_CN_PROCESSING=true" in runbook
-
-def test_runbook_preserves_provider_and_data_boundaries() -> None:
-    runbook = (ROOT / "docs/ops/tencent-frontend.md").read_text(encoding="utf-8")
-    normalized = " ".join(runbook.split())
-
-    assert "praxys.cn / www.praxys.cn -> EdgeOne Makers" in normalized
-    assert "praxys.run / www.praxys.run -> Cloudflare Free" in normalized
-    assert "api.praxys.run -> Azure App Service trainsight-app" in normalized
-    assert "Keep `api.praxys.run` DNS-only." in normalized
-    assert "Cloudflare Origin CA" in normalized
-    assert "App Service managed certificate" in normalized
-    assert "Full (strict)" in normalized
-    assert "does not itself create a public data path" in normalized
-    assert "may not expose Auto Deploy or Preview switches" in normalized
-    assert "deployment-history entry" in normalized
-    assert "Do not use the ruleset admin bypass" in normalized
-    assert "cross-border" in normalized
-    assert (
-        "Do not enable a geographic redirect during the initial cutover"
-        in normalized
+        f'os.environ.get("KEY_VAULT_KEY_NAME", "{canonical}")'
+        in _text("db/crypto.py")
     )
 
 
-def test_operations_docs_match_edgeone_git_and_monitoring_boundaries() -> None:
-    deployment = (ROOT / "docs/deployment.md").read_text(encoding="utf-8")
-    deploy_runbook = (ROOT / "docs/ops/deploy.md").read_text(encoding="utf-8")
-    monitoring = (
-        ROOT / "docs/ops/monitoring-and-alerts.md"
-    ).read_text(encoding="utf-8")
-    normalized_deployment = " ".join(deployment.split())
-    normalized_monitoring = " ".join(monitoring.split())
-
-    assert "protected EdgeOne environment" not in deployment
-    assert "approve the protected environment" not in deploy_runbook
-    assert "EdgeOne's repository-scoped, read-only native Git integration" in (
-        normalized_deployment
-    )
-    assert "wt-praxys-run-apex" in monitoring
-    assert "wt-praxys-cn-apex" in monitoring
-    assert "wt-praxys-cn-www" in monitoring
-    assert "praxys-feedback-ag" in monitoring
-    assert (
-        "Creating a missing pair moves it from `planned` to "
-        "`provisioned-disabled`."
-    ) in normalized_monitoring
-    assert (
-        "that reviewed transition is `provisioned-disabled` to `live`."
-    ) in normalized_monitoring
-    assert (
-        "| `wt-praxys-run-apex` | live | `appi-trainsight` | "
-        "`https://praxys.run/` |"
-    ) in monitoring
-    assert (
-        "| `wt-praxys-cn-apex` | provisioned-disabled | "
-        "`appi-trainsight` | `https://praxys.cn/` |"
-    ) in monitoring
-    assert (
-        "| `wt-praxys-cn-www` | provisioned-disabled | "
-        "`appi-trainsight` | `https://www.praxys.cn/` |"
-    ) in monitoring
-    assert "provisioned-disabled" in monitoring
-    assert "WebtestLocationAvailabilityCriteria" in monitoring
-    assert "--enabled false" in monitoring
-    assert "enabled: false" in monitoring
-    assert "enable_availability_pair wt-praxys-run-apex" in monitoring
-    assert "if ! az monitor metrics alert update" in monitoring
-    assert 'if ! az resource update --ids "$web_test_id"' in monitoring
-    assert "--set properties.Enabled=true; then" in monitoring
-    assert '--set properties.Enabled=false || rc=1' in monitoring
-    assert '-n "$name" --enabled false || rc=1' in monitoring
-    assert 'disable_availability_pair "$name" || true' in monitoring
-    assert 'if ! test_enabled="$(az resource show' in monitoring
-    assert '! alert_enabled="$(az monitor metrics alert show' in monitoring
-    assert "--query properties.Enabled -o tsv" in monitoring
-    assert "--query enabled -o tsv" in monitoring
-    assert not any(
-        line.startswith("provision_availability_pair wt-praxys-")
-        for line in monitoring.splitlines()
-    )
-    for example in (
-        "# provision_availability_pair wt-praxys-run-apex",
-        "# provision_availability_pair wt-praxys-cn-apex",
-        "# provision_availability_pair wt-praxys-cn-www",
-    ):
-        assert example in monitoring
-    assert "native provider path is therefore blocked, not released" in deploy_runbook
-    environment = (ROOT / "docs/ops/environment.md").read_text(encoding="utf-8")
-    assert "both report `httpsOnly=true`" in environment
-    assert "direct HTTP requests redirect to HTTPS" in environment
-
-
-
-def test_cn_client_claims_and_artifacts_use_the_exact_full_source_sha() -> None:
-    web_version = (ROOT / "web/src/lib/version.ts").read_text(encoding="utf-8")
-    web_boundary = (ROOT / "web/src/lib/client-boundary.ts").read_text(encoding="utf-8")
-    edgeone_build = (ROOT / "web/scripts/build-edgeone.mjs").read_text(encoding="utf-8")
-    edgeone_prepare = (ROOT / "web/scripts/prepare-edgeone-artifact.mjs").read_text(encoding="utf-8")
-    miniapp_workflow = (ROOT / ".github/workflows/miniapp-publish.yml").read_text(encoding="utf-8")
-    runtime_boundary = (ROOT / "api/china_client_boundary.py").read_text(encoding="utf-8")
-
-    assert "VITE_SOURCE_SHA" in web_version
-    assert "X-Praxys-Source-Sha" in web_boundary
-    assert "WEB_SOURCE_SHA" in web_boundary
-    assert "VITE_SOURCE_SHA: sourceSha" in edgeone_build
-    assert "^[0-9a-f]{40}$" in edgeone_prepare
-    assert "$VERSION" in miniapp_workflow
-    assert "${SOURCE_SHA}" in miniapp_workflow
-    assert "release.source_commit == source_commit" in runtime_boundary
-
-
-def test_release_metadata_is_never_interpolated_into_shell_source() -> None:
-    for relative_path in (
+def test_release_metadata_is_not_interpolated_into_literal_shell() -> None:
+    for relative in (
+        ".github/workflows/launch-cn.yml",
         ".github/workflows/deploy-backend.yml",
         ".github/workflows/deploy-frontend-appservice.yml",
         ".github/workflows/miniapp-publish.yml",
     ):
-        workflow = (ROOT / relative_path).read_text(encoding="utf-8")
+        workflow = _text(relative)
         in_literal_run = False
         run_indent = 0
         for line in workflow.splitlines():
@@ -500,261 +487,3 @@ def test_release_metadata_is_never_interpolated_into_shell_source() -> None:
                 in_literal_run = False
             if in_literal_run:
                 assert "${{" not in line
-
-
-def test_release_lane_matrix_preserves_run_and_fails_china_closed() -> None:
-    backend = (ROOT / ".github/workflows/deploy-backend.yml").read_text()
-    frontend = (ROOT / ".github/workflows/deploy-frontend-appservice.yml").read_text()
-    miniapp = (ROOT / ".github/workflows/miniapp-publish.yml").read_text()
-    edgeone_build = (ROOT / "web/scripts/build-edgeone.mjs").read_text()
-    assert "lane=common" in backend
-    assert "lane=china-client" in backend
-    assert "--lane common" in frontend
-    assert "--lane china-client" in miniapp
-    assert "cn_release_preflight.py" in edgeone_build
-    assert "--require-disabled-runtime" in edgeone_build
-    assert "--prepare-unpublished-client" in edgeone_build
-    assert "--skip-github-evidence" in edgeone_build
-    assert "--require-disabled-runtime" in miniapp
-    assert "EdgeOne privacy-floor preflight failed closed" in edgeone_build
-    assert "if (!environment.GH_TOKEN)" not in edgeone_build
-    assert "args.push(\"--skip-github-evidence\")" in edgeone_build
-    assert "...process.env" not in edgeone_build
-    assert "delete environment.GH_TOKEN" not in edgeone_build
-    allowlist = edgeone_build[
-        edgeone_build.index("for (const name of ["):
-        edgeone_build.index("]) {", edgeone_build.index("for (const name of ["))
-    ]
-    for name in ("PATH", "CN_PRIVACY_FLOOR_SHA", "CN_PREFLIGHT_OUTPUT"):
-        assert f"\"{name}\"" in allowlist
-    for forbidden in ("GH_TOKEN", "GITHUB_TOKEN", "EDGEONE_API_TOKEN"):
-        assert forbidden not in allowlist
-    preflight = edgeone_build.index("runPrivacyFloorPreflight(environment)")
-    build = edgeone_build.index("runWebBuild(environment)")
-    assert preflight < build
-    edgeone_stage = frontend[
-        frontend.index("- name: Stage EdgeOne Git-build evidence"):
-        frontend.index("- name: Upload Azure package")
-    ]
-    assert "GH_TOKEN:" not in edgeone_stage
-    assert "prepared=false" in frontend
-    assert "steps.edgeone_build.outputs.prepared == 'true'" in frontend
-
-
-def test_backend_deploy_is_disabled_and_failure_safe() -> None:
-    workflow = (ROOT / ".github/workflows/deploy-backend.yml").read_text()
-    disabled = workflow.index("Establish disabled China deployment state")
-    deploy = workflow.index("Deploy to App Service")
-    verified = workflow.index("Verify deployed backend cutover")
-    recorded_restore = workflow.index("Restore and record disabled state")
-    final_upload = workflow.index("Upload final backend CN deployment evidence")
-    assert disabled < deploy < verified < recorded_restore < final_upload
-    assert "PRAXYS_DISABLE_CN_PROCESSING=true" in workflow
-    assert "PRAXYS_DISABLE_CN_PROCESSING=false" not in workflow
-    assert "az webapp cors add" not in workflow
-    assert (
-        "(failure() || cancelled()) && "
-        "steps.azure_login.outcome == 'success'"
-    ) in workflow
-    assert "Finalize backend CN deployment evidence" in workflow
-    assert "failed-before-azure-mutation" in workflow
-    assert "failure-restore-unverified" in workflow
-    assert "exact-disabled-match" in workflow
-    assert "failureRestorationReadback" in workflow
-    assert "corsOrigins" in workflow
-    assert "chinaOrigins" not in workflow
-    assert "      - 'alembic/**'" in workflow
-
-def test_azure_oidc_deploys_are_protected_main_only_and_ids_are_validated() -> None:
-    for relative in (".github/workflows/deploy-backend.yml", ".github/workflows/deploy-frontend-appservice.yml"):
-        workflow = (ROOT / relative).read_text()
-        assert "tags:" not in workflow
-        assert "github.ref == 'refs/heads/main'" in workflow
-        assert "Validate Azure deployment identifiers" in workflow
-        assert "client-id: ${{ env.AZURE_CLIENT_ID }}" in workflow
-        assert "AZURE_CLIENT_SECRET" not in workflow
-        assert "publish-profile" not in workflow
-
-
-def test_deploy_workflow_permissions_are_job_scoped() -> None:
-    import yaml
-
-    def load_workflow(relative_path: str) -> dict[str, object]:
-        return yaml.load(
-            (ROOT / relative_path).read_text(encoding="utf-8"),
-            Loader=yaml.BaseLoader,
-        )
-
-    frontend = load_workflow(
-        ".github/workflows/deploy-frontend-appservice.yml"
-    )
-    backend = load_workflow(".github/workflows/deploy-backend.yml")
-
-    assert "permissions" not in frontend
-    assert frontend["jobs"]["test"]["permissions"] == {
-        "contents": "read",
-    }
-    assert frontend["jobs"]["build"]["permissions"] == {
-        "id-token": "write",
-        "contents": "read",
-        "checks": "read",
-        "pull-requests": "read",
-        "statuses": "read",
-    }
-    assert frontend["jobs"]["deploy_azure"]["permissions"] == {
-        "id-token": "write",
-        "contents": "read",
-    }
-    assert frontend["jobs"]["verify_edgeone_public"]["permissions"] == {
-        "contents": "read",
-    }
-
-    assert "permissions" not in backend
-    assert backend["jobs"]["test"]["permissions"] == {
-        "contents": "read",
-    }
-    assert backend["jobs"]["deploy"]["permissions"] == {
-        "id-token": "write",
-        "contents": "read",
-        "checks": "read",
-        "pull-requests": "read",
-        "statuses": "read",
-        "actions": "read",
-    }
-
-
-def test_release_evidence_does_not_overclaim_github_history() -> None:
-    validator = (ROOT / "scripts/cn_release_preflight.py").read_text()
-    deploy = (ROOT / "docs/ops/deploy.md").read_text()
-    for limitation in ("do not prove pre-merge completion timing", "do not prove absence of administrative bypass", "producer identity is not authenticated", "historical check semantics and permanent aggregation remain unresolved"):
-        assert limitation in validator
-    assert "Permanent aggregated Release Evidence storage" in deploy
-    assert "blocked and not released" in deploy
-
-
-def test_miniapp_upload_toolchain_is_lockfile_pinned() -> None:
-    workflow = (ROOT / ".github/workflows/miniapp-publish.yml").read_text()
-    package = json.loads((ROOT / "miniapp/package.json").read_text())
-
-    assert "node-version: '24.11.0'" in workflow
-    assert "npm install --no-save miniprogram-ci" not in workflow
-    assert package["devDependencies"]["miniprogram-ci"] == "2.1.31"
-
-
-def test_miniapp_package_excludes_development_only_metadata() -> None:
-    config = json.loads((ROOT / "miniapp/project.config.json").read_text())
-    workflow = (
-        ROOT / ".github/workflows/miniapp-build.yml"
-    ).read_text(encoding="utf-8")
-
-    ignored = {
-        (rule["type"], rule["value"])
-        for rule in config["packOptions"]["ignore"]
-    }
-    expected = {
-        ("file", "package-lock.json"),
-        ("file", "package.json"),
-        ("file", "tsconfig.json"),
-        ("folder", "scripts"),
-    }
-    assert expected <= ignored
-    for _, path in expected:
-        assert f"--exclude='{path}'" in workflow
-    assert "packaged-source proxy size" in workflow
-
-
-def test_legal_bundle_changes_validate_and_publish_the_miniapp() -> None:
-    miniapp_build = (
-        ROOT / ".github/workflows/miniapp-build.yml"
-    ).read_text(encoding="utf-8")
-    miniapp_publish = (
-        ROOT / ".github/workflows/miniapp-publish.yml"
-    ).read_text(encoding="utf-8")
-    premerge = (
-        ROOT / ".github/workflows/ci-premerge.yml"
-    ).read_text(encoding="utf-8")
-
-    assert miniapp_build.count("web/src/lib/legal.ts") == 2
-    assert miniapp_build.count("web/src/types/api.ts") == 2
-    assert "web/src/lib/legal" in miniapp_publish
-    assert "miniapp-legal:" in premerge
-    assert "npm run typecheck" in premerge
-    assert "types/api.ts" in premerge
-    assert "utils/i18n-catalog.ts" in premerge
-    assert "utils/legal.ts" in premerge
-    assert "needs: [web-build, miniapp-legal, ui-quality]" in premerge
-
-
-def test_backend_failure_restoration_reasserts_every_privacy_control() -> None:
-    workflow = (ROOT / ".github/workflows/deploy-backend.yml").read_text()
-    start = workflow.index("- name: Restore and record disabled state after deployment failure")
-    end = workflow.index("- name: Finalize backend CN deployment evidence", start)
-    restoration = workflow[start:end]
-
-    for literal in (
-        "PRAXYS_DISABLE_CN_PROCESSING=true",
-        "PRAXYS_DISABLE_BACKGROUND_AI=true",
-        "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false",
-        "PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true",
-    ):
-        assert literal in restoration
-    assert "read_setting" in restoration
-    assert "failureRestorationReadback" in restoration
-    assert "exact-disabled-match" in restoration
-    assert "code rollback claim" in restoration
-
-
-def test_key_vault_rsa_key_name_is_canonical_across_operations_docs() -> None:
-    canonical = "trainsight-master-key"
-    stale = "credential-encryption-key"
-    for relative in (
-        "docs/deployment.md",
-        "docs/ops/README.md",
-        "docs/ops/environment.md",
-        "docs/ops/config-and-secrets.md",
-        "docs/ops/disaster-recovery.md",
-        "docs/ops/secret-rotation.md",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert canonical in text
-        assert stale not in text
-    vault = (ROOT / "db/crypto.py").read_text(encoding="utf-8")
-    assert f'os.environ.get("KEY_VAULT_KEY_NAME", "{canonical}")' in vault
-
-
-def test_proposed_trust_artifacts_bind_current_work_contract_without_approval() -> None:
-    classification = "sha256:ea5b438a17c6b0931f9e03a81606a55893e193438742364b8597e3b6dee34f8f"
-    route = "sha256:858b1429ea3e90b307923752d783f0ba9bc2665f978ddb2ef9381ddeae4216ab"
-    for relative, pending_marker in (
-        ("docs/ops/tdr-2026-08-26-cn-privacy-control-boundary.md", "Proposed"),
-        (
-            "docs/ops/cn-personal-information-impact-assessment.md",
-            "PROPOSED — BLOCKED PENDING HUMAN LEGAL/PIPIA REVIEW",
-        ),
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert classification in text
-        assert route in text
-        assert pending_marker in text
-        assert "PENDING" in text.upper()
-
-
-def test_miniapp_upload_evidence_is_initialized_and_retained_on_failure() -> None:
-    workflow = (ROOT / ".github/workflows/miniapp-publish.yml").read_text(
-        encoding="utf-8"
-    )
-    initialized = workflow.index("Initialize structured Miniapp upload evidence")
-    uploaded = workflow.index("name: Upload to WeChat")
-    finalized = workflow.index("Finalize structured Miniapp upload evidence")
-    retained = workflow.index("name: Upload structured Miniapp evidence")
-    assert initialized < uploaded < finalized < retained
-    assert "id: upload_evidence_init" in workflow
-    assert "id: wechat_upload" in workflow
-    assert workflow.count(
-        "always() && steps.upload_evidence_init.outcome == 'success'"
-    ) == 2
-    assert "pending-upload" in workflow
-    assert "upload-failed" in workflow
-    assert "upload-not-completed" in workflow
-    assert "providerResponse: \"redacted\"" in workflow
-    assert "Promotion and publication remain human-authorized provider actions." in workflow
