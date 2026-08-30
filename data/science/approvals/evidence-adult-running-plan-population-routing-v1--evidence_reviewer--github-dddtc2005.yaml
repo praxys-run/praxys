@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-adult-running-plan-population-routing-v1
+subject_digest: sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-08-17'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/717#issuecomment-5310736355

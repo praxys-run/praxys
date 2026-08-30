@@ -10,6 +10,7 @@ import {
 } from '@statsig/react-bindings';
 
 import { useAuth } from '@/hooks/useAuth';
+import { isBrowserTelemetryAllowed } from '@/lib/runtime-region';
 
 const CLIENT_KEY = import.meta.env.VITE_STATSIG_CLIENT_KEY?.trim() ?? '';
 const ENVIRONMENT = import.meta.env.VITE_STATSIG_ENV?.trim() || 'development';
@@ -45,7 +46,8 @@ function StatsigIdentitySync({
 }
 
 /**
- * Initialize Statsig only when a public client key is configured.
+ * Initialize Statsig only when a public client key is configured and the
+ * artifact is not the privacy-gated China deployment.
  *
  * This component must stay inside AuthProvider: the SDK identity is refreshed
  * whenever the authenticated account changes. Missing config is a true no-op.
@@ -73,7 +75,12 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
     },
   }), [isAdmin, isAuthenticated, isDemo, targetingEmail, userId]);
 
-  if (!CLIENT_KEY || isLoading || !isAuthenticated || !userId) {
+  if (
+    !isBrowserTelemetryAllowed(Boolean(CLIENT_KEY))
+    || isLoading
+    || !isAuthenticated
+    || !userId
+  ) {
     return children;
   }
 

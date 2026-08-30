@@ -11,6 +11,10 @@ import { MINIAPP_BUILD_VERSION } from './version';
 const ONCE_STORAGE_KEY = 'praxys.product-events.once'; // i18n-allow
 const ONCE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 const APP_VERSION = MINIAPP_BUILD_VERSION || 'develop'; // i18n-allow
+// The mini program is a mainland-China surface. Product experimentation is
+// nonessential and remains disabled until it has an independently reviewed
+// processing basis and user control.
+const PRODUCT_EVENTS_ENABLED = false;
 
 function fingerprint(value: string): string {
   let hash = 2166136261;
@@ -60,6 +64,8 @@ export async function recordProductEvent(
   eventName: ProductEventName,
   response?: TodayFeedbackResponse,
 ): Promise<ProductEventResponse | null> {
+  if (!PRODUCT_EVENTS_ENABLED) return null;
+
   let payload: ProductEventRequest;
   if (eventName === 'today_feedback_submitted') {
     if (!response) return null;
@@ -88,6 +94,8 @@ export async function recordProductEvent(
 
 /** Claim a short server-side window while the Decision Check renders. */
 export async function claimTodayDecisionCheck(): Promise<ProductEventResponse | null> {
+  if (!PRODUCT_EVENTS_ENABLED) return null;
+
   try {
     return await apiPost<ProductEventResponse>(
       '/api/product-events/today-feedback-claim',
@@ -115,6 +123,8 @@ export function recordProductEventOnce(
   eventName: NonDecisionProductEventName,
   key: string,
 ): void {
+  if (!PRODUCT_EVENTS_ENABLED) return;
+
   const now = Date.now();
   const eventKey = `${productEventStorageScope()}:${eventName}:${key}`;
   let sent: Record<string, number> = {};

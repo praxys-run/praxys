@@ -10,6 +10,9 @@ import type {
   AiInsightFinding,
   InsightFeedbackVote,
   PlanGenerationCapabilitiesResponse,
+  PlanGenerationPurposeSelection,
+  PlanIntent,
+  PlanRoutingOption,
   SettingsUpdateResponse,
 } from '../../types/api';
 import { formatTime, formatPace } from '../../utils/format';
@@ -81,7 +84,7 @@ interface SeriesPayload {
 
 // ---- Editor snapshot ----
 interface EditorSnapshot {
-  type: 'race' | 'continuous' | 'performance_5k';
+  type: 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
   distanceIndex: number;
   raceDate: string;
   targetTimeSec: number;
@@ -120,6 +123,8 @@ function buildGoalTr() {
     continuousGoalDesc: t('Build fitness over time'),
     performanceGoal: zh ? '5 公里表现' : '5K performance',
     performanceGoalDesc: zh ? '先用历史基线，再决定是否需要可选试点测试' : 'Use history first, then decide whether the optional pilot test is needed',
+    performance10kGoal: zh ? '10 公里表现' : '10K performance',
+    performance10kGoalDesc: zh ? '先用直接 10 公里历史，再决定是否需要可选基准日期' : 'Use direct 10K history first, then decide whether to choose an optional benchmark date',
     distance: t('Distance'),
     raceDate: t('Race Date'),
     pickDate: t('Pick a date'),
@@ -135,24 +140,41 @@ function buildGoalTr() {
     keepEditing: t('Keep editing'),
     discardPrompt: t('Discard changes?'),
     planStartTitle: t('Start a training plan'),
-    planStartAvailable: t('A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one.'),
-    planStartUnavailable: t('Automatic generation is not available for this goal yet. Praxys will not reuse another policy outside its accepted scope.'),
-    planStartUnavailableDetail: t('You can keep this goal and manage workouts manually while separate road and trail policies go through science review.'),
-    planStartOtherPurpose: t('The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview.'),
-    planStartOtherPurposeDetail: t('Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it.'),
+    planIntentQuestion: t('What should this plan help you do?'),
+    planIntentDetail: t('Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence.'),
+    finishDistance: t('Finish this distance'),
+    finishDistanceDetail: t('Prepare to complete the selected distance.'),
+    improvePerformance: t('Improve performance'),
+    improvePerformanceDetail: t('Use current evidence to work toward a faster result.'),
+    rebuildConsistency: t('Rebuild consistency'),
+    rebuildConsistencyDetail: t('Return to regular training without guessing what missing records mean.'),
+    planCandidate: t('Plan candidate'),
+    planCandidateDescription: t('An active policy matches this intent and distance.'),
+    planCandidateCurrentDetail: t('This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.'),
+    planCandidateSeparateDetail: t('This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.'),
+    readinessFirst: t('Readiness first'),
+    readinessDescription: t('An active policy matches, but current evidence is not sufficient or fresh enough for a proposal.'),
+    readinessCurrentDetail: t('Review the existing history-first readiness path before asking Praxys to create a proposal.'),
+    readinessSeparateDetail: t('Open the readiness path for this separate plan purpose. Your current Goal remains unchanged.'),
+    policyUnavailable: t('Policy unavailable'),
+    policyUnavailableDescription: t('No active automatic policy matches this intent and distance yet.'),
+    policyUnavailableDetail: t('Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population.'),
+    chooseIntent: t('Choose intent'),
+    chooseIntentDescription: t('Goal distance alone does not tell Praxys which outcome matters.'),
+    chooseIntentDetail: t('Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time.'),
     planStartLoadFailed: t('Could not load the accepted plan-generation policies.'),
-    planStartLoadFailedDetail: t('Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone.'),
-    planStartUpdateRequired: t('Update required for this plan policy'),
-    planStartUpdateRequiredDetail: t('This client does not recognize the selected policy input contract and will not guess how to create a plan.'),
+    planStartLoadFailedDetail: t('Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone.'),
+    planStartUpdateRequired: t('Update required'),
+    planStartUpdateRequiredDescription: t('This plan route uses an accepted policy that this client does not recognize yet.'),
+    planStartUpdateRequiredDetail: t('Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs.'),
     policyCheckFailed: t('Policy check failed'),
-    noAcceptedPolicy: t('No accepted policy'),
-    baselineReady: t('Baseline ready'),
-    reviewBaseline: t('Review baseline'),
-    otherPlanPurpose: t('Other plan purpose available'),
     openPlanPreview: t('Open plan preview'),
-    choosePlanPurpose: t('Choose plan purpose'),
+    reviewReadiness: t('Review readiness'),
     manageWorkouts: t('Manage workouts'),
     retryPolicyCheck: t('Retry policy check'),
+    whyRoutesSeparate: t('Why these routes stay separate'),
+    hideRouteReasoning: t('Hide routing explanation'),
+    routeScienceDetail: t('First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule.'),
     goalPlanTitle: t('Your Goal changed. Should your plan change too?'),
     goalPlanDraftDescription: t('The open proposal was built for your previous Goal and can no longer be adopted. Review a fresh proposal now or decide later.'),
     goalPlanSuccessorDescription: t('Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later.'),
@@ -167,6 +189,66 @@ function buildGoalTr() {
     keepPlanFailed: t('Could not keep the current plan. Reload and try again.'),
     unexpectedPlanState: t('The plan decision returned an unexpected state. Reload and try again.'),
   };
+}
+
+interface PlanRoutePresentation {
+  state: GoalState['planCapabilityState'];
+  description: string;
+  detail: string;
+  badge: string;
+}
+
+function buildPlanRoutePresentation(
+  route: PlanRoutingOption | PlanGenerationCapabilitiesResponse['routing'] | null,
+  supportedCapabilityIds: string[],
+  tr: ReturnType<typeof buildGoalTr>,
+): PlanRoutePresentation {
+  if (
+    route?.capability_id
+    && !supportedCapabilityIds.includes(route.capability_id)
+  ) {
+    return {
+      state: 'update_required',
+      description: tr.planStartUpdateRequiredDescription,
+      detail: tr.planStartUpdateRequiredDetail,
+      badge: tr.planStartUpdateRequired,
+    };
+  }
+  switch (route?.state) {
+    case 'plan_candidate':
+      return {
+        state: 'plan_candidate',
+        description: tr.planCandidateDescription,
+        detail: route.purpose_source === 'capability'
+          ? tr.planCandidateSeparateDetail
+          : tr.planCandidateCurrentDetail,
+        badge: tr.planCandidate,
+      };
+    case 'readiness_only':
+      return {
+        state: 'readiness_only',
+        description: tr.readinessDescription,
+        detail: route.purpose_source === 'capability'
+          ? tr.readinessSeparateDetail
+          : tr.readinessCurrentDetail,
+        badge: tr.readinessFirst,
+      };
+    case 'policy_unavailable':
+      return {
+        state: 'policy_unavailable',
+        description: tr.policyUnavailableDescription,
+        detail: tr.policyUnavailableDetail,
+        badge: tr.policyUnavailable,
+      };
+    case 'clarification_required':
+    default:
+      return {
+        state: 'clarification_required',
+        description: tr.chooseIntentDescription,
+        detail: tr.chooseIntentDetail,
+        badge: tr.chooseIntent,
+      };
+  }
 }
 
 function goalPlanImpactKey(impact: GoalPlanImpact): string {
@@ -208,6 +290,8 @@ interface GoalState {
   rationaleText: string;
 
   hasCoach: boolean;
+  aiUnavailable: boolean;
+  aiUnavailableText: string;
   coach: CoachReceipt | null;
   coachTr: CoachTranslations | null;
   /** Findings + recommendations are progressively disclosed; default
@@ -239,15 +323,30 @@ interface GoalState {
   goalKind: GoalResponse['goal_kind'] | '';
   goal: GoalResponse['goal'] | null;
   baseline: GoalResponse['baseline'] | null;
-  planCapabilityState: 'loading' | 'available' | 'alternate_available' | 'unavailable' | 'error' | 'update_required';
+  planCapabilityState:
+    | 'loading'
+    | 'plan_candidate'
+    | 'readiness_only'
+    | 'clarification_required'
+    | 'policy_unavailable'
+    | 'error'
+    | 'update_required';
   planCapabilityDescription: string;
   planCapabilityDetail: string;
   planCapabilityBadge: string;
+  planIntent: PlanIntent | '';
+  planCurrentGoalId: string;
+  planCurrentGoalRevision: string;
+  planRoutingOptions: PlanRoutingOption[];
+  planSupportedCapabilityIds: string[];
+  planRoutingReasoningOpen: boolean;
+  planRoutingScrollTarget: string;
   goalPlanImpact: GoalPlanImpact | null;
   goalPlanDecisionBusy: boolean;
   goalPlanDecisionError: string;
+  performance10kEnabled: boolean;
 
-  editorType: 'race' | 'continuous' | 'performance_5k';
+  editorType: 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
   editorDistanceLabels: string[];
   editorDistanceIndex: number;
   editorRaceDate: string;
@@ -612,6 +711,7 @@ function buildStripCells(
 function buildGoalState(
   response: GoalResponse,
   insight: AiInsight | null,
+  aiAvailable: boolean,
   locale: 'en' | 'zh',
   themeClass: string,
 ): Partial<GoalState> {
@@ -694,6 +794,8 @@ function buildGoalState(
     rationaleText: rCheck.trend_note ?? '',
 
     hasCoach,
+    aiUnavailable: !aiAvailable,
+    aiUnavailableText: t('Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.'),
     coach,
     coachTr: hasCoach ? buildCoachTr() : null,
     detailsOpen,
@@ -741,6 +843,8 @@ const initialData: GoalState = {
   rationaleText: '',
 
   hasCoach: false,
+  aiUnavailable: false,
+  aiUnavailableText: '',
   coach: null,
   coachTr: null,
   detailsOpen: false,
@@ -769,9 +873,17 @@ const initialData: GoalState = {
   planCapabilityDescription: '',
   planCapabilityDetail: '',
   planCapabilityBadge: '',
+  planIntent: '',
+  planCurrentGoalId: '',
+  planCurrentGoalRevision: '',
+  planRoutingOptions: [],
+  planSupportedCapabilityIds: [],
+  planRoutingReasoningOpen: false,
+  planRoutingScrollTarget: '',
   goalPlanImpact: null,
   goalPlanDecisionBusy: false,
   goalPlanDecisionError: '',
+  performance10kEnabled: false,
 
   editorOpen: false,
   editorType: 'race',
@@ -840,6 +952,30 @@ Page({
     return buildTimelineMessage(eyebrow || fallback);
   },
   onOpenPlanManagement() {
+    const route = (this.data.planRoutingOptions as PlanRoutingOption[]).find(
+      (option) => option.intent === this.data.planIntent,
+    ) ?? null;
+    const canHandoff = Boolean(
+      route
+      && (
+        route.state === 'plan_candidate'
+        || route.state === 'readiness_only'
+      )
+      && route.capability_id
+      && route.purpose_source,
+    );
+    getApp<IAppOption>().globalData.pendingPlanStartPurpose = canHandoff
+      ? {
+        capability_id: route?.capability_id ?? '',
+        source: route?.purpose_source ?? 'capability',
+        expected_goal_id: route?.purpose_source === 'current_goal'
+          ? this.data.planCurrentGoalId || null
+          : null,
+        expected_goal_revision: route?.purpose_source === 'current_goal'
+          ? this.data.planCurrentGoalRevision || null
+          : null,
+      } satisfies PlanGenerationPurposeSelection
+      : null;
     wx.switchTab({ url: '/pages/training/index' });
   },
 
@@ -854,6 +990,13 @@ Page({
       goalPlanImpact: null,
       goalPlanDecisionError: '',
     });
+    if (impact?.can_generate_successor) {
+      getApp<IAppOption>().globalData.pendingPlanStartPurpose = null;
+      this.setData({ planRoutingScrollTarget: '' }, () => {
+        this.setData({ planRoutingScrollTarget: 'plan-routing' });
+      });
+      return;
+    }
     wx.switchTab({ url: '/pages/training/index' });
   },
 
@@ -922,6 +1065,34 @@ Page({
     void this.refetch();
   },
 
+  onSelectPlanIntent(e: WechatMiniprogram.TouchEvent) {
+    const intent = String(e.currentTarget.dataset.intent || '') as PlanIntent;
+    const route = (this.data.planRoutingOptions as PlanRoutingOption[]).find(
+      (option) => option.intent === intent,
+    ) ?? null;
+    if (!route) return;
+    const presentation = buildPlanRoutePresentation(
+      route,
+      this.data.planSupportedCapabilityIds as string[],
+      this.data.tr as ReturnType<typeof buildGoalTr>,
+    );
+    const pageState = this as unknown as Record<string, unknown>;
+    pageState._planIntentGoalRevision = this.data.planCurrentGoalRevision;
+    this.setData({
+      planIntent: intent,
+      planCapabilityState: presentation.state,
+      planCapabilityDescription: presentation.description,
+      planCapabilityDetail: presentation.detail,
+      planCapabilityBadge: presentation.badge,
+    });
+  },
+
+  onTogglePlanRoutingReasoning() {
+    this.setData({
+      planRoutingReasoningOpen: !this.data.planRoutingReasoningOpen,
+    });
+  },
+
   onScrollRefresh() {
     this.setData({ refreshing: true });
     void this.refetch().finally(() => this.setData({ refreshing: false }));
@@ -973,7 +1144,11 @@ Page({
       | null;
     const distanceKey = (goal?.distance as DistanceKey | undefined) ?? 'marathon';
     const idx = Math.max(0, DISTANCE_CHOICES.findIndex((d) => d.key === distanceKey));
-    const editorType: 'race' | 'continuous' | 'performance_5k' = goal?.goal_kind === 'performance_5k' ? 'performance_5k' : (goal?.race_date ? 'race' : 'continuous');
+    const editorType: 'race' | 'continuous' | 'performance_5k' | 'performance_10k' = goal?.goal_kind === 'performance_5k'
+      ? 'performance_5k'
+      : goal?.goal_kind === 'performance_10k' && this.data.performance10kEnabled
+        ? 'performance_10k'
+        : (goal?.race_date ? 'race' : 'continuous');
     const targetTimeSec =
       goal?.target_time_sec && goal.target_time_sec > 0 ? goal.target_time_sec : 0;
     const timeParts = secondsToTimeParts(targetTimeSec);
@@ -1005,14 +1180,22 @@ Page({
   onDiscardKeep() { this.setData({ editorConfirmDiscard: false }); },
 
   onPickEditorType(e: WechatMiniprogram.TouchEvent) {
-    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | undefined;
+    const type = e.currentTarget.dataset.type as 'race' | 'continuous' | 'performance_5k' | 'performance_10k' | undefined;
     if (!type) return;
-    this.setData({ editorType: type, ...(type === 'performance_5k' ? { editorDistanceIndex: 0 } : {}) });
+    if (type === 'performance_10k' && !this.data.performance10kEnabled) return;
+    this.setData({
+      editorType: type,
+      ...(type === 'performance_5k'
+        ? { editorDistanceIndex: 0 }
+        : type === 'performance_10k'
+          ? { editorDistanceIndex: 1 }
+          : {}),
+    });
     this.recomputeEditorDirty();
   },
 
   onPickEditorDistance(e: WechatMiniprogram.PickerChange) {
-    if (this.data.editorType === 'performance_5k') return;
+    if (this.data.editorType === 'performance_5k' || this.data.editorType === 'performance_10k') return;
     const idx = Number(e.detail.value);
     if (Number.isNaN(idx)) return;
     this.setData({ editorDistanceIndex: idx });
@@ -1044,7 +1227,7 @@ Page({
   async onSaveEditor() {
     if (!this.data.editorDirty || this.data.editorSaving) return;
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
-    const editorType = this.data.editorType as 'race' | 'continuous' | 'performance_5k';
+    const editorType = this.data.editorType as 'race' | 'continuous' | 'performance_5k' | 'performance_10k';
     const editorDistanceIndex = this.data.editorDistanceIndex as number;
     const editorRaceDate = this.data.editorRaceDate as string;
     if (editorType === 'race' && !editorRaceDate) {
@@ -1053,14 +1236,20 @@ Page({
     }
     const targetTimeSec = timePartsToSeconds(this.data.editorTimeParts as number[]);
     this.setData({ editorSaving: true, editorError: '' });
-    const distance = editorType === 'performance_5k' ? '5k' : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
+    const distance = editorType === 'performance_5k'
+      ? '5k'
+      : editorType === 'performance_10k'
+        ? '10k'
+        : (DISTANCE_CHOICES[editorDistanceIndex]?.key ?? 'marathon');
     try {
       const settingsResponse = await apiPut<SettingsUpdateResponse>(
         '/api/settings',
         {
           goal: {
             goal_kind: editorType,
-            race_date: editorType === 'race' ? editorRaceDate : '',
+            race_date: editorType === 'race' || editorType === 'performance_10k'
+              ? editorRaceDate
+              : '',
             distance,
             target_time_sec: targetTimeSec,
           },
@@ -1103,13 +1292,13 @@ Page({
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
     try {
       const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
-      const [response, insight, capabilityResult] = await Promise.all([
+      const [response, insightResponse, capabilityResult] = await Promise.all([
         apiGet<GoalResponse>('/api/goal'),
         fetchInsight('race_forecast').catch((e) => {
           const fe = e as Partial<ApiError>;
           if (fe?.code === 'UNAUTHENTICATED') throw e;
           console.warn('[goal] race_forecast fetch failed; suppressing coach receipt:', e);
-          return null;
+          return { insight: null, ai_available: false };
         }),
         apiGet<PlanGenerationCapabilitiesResponse>(
           '/api/plan/generation/capabilities',
@@ -1135,57 +1324,67 @@ Page({
       )
         ? serverGoalPlanImpact
         : null;
-      const capability = discovery?.selected_capability ?? null;
-      const supportedCapabilities = discovery?.capabilities.filter(
-        (item) => item.constraint_schema_id
-          === 'outdoor_road_5k_constraints_v1',
-      ) ?? [];
-      const alternatePurposeAvailable = supportedCapabilities.some(
-        (item) => item.purpose.allows_capability_goal
-          || item.purpose.allows_unlinked,
-      );
-      let planCapabilityState: GoalState['planCapabilityState'];
-      let planCapabilityDescription: string;
-      let planCapabilityDetail: string;
-      let planCapabilityBadge: string;
+      const supportedCapabilityIds = discovery?.capabilities.filter(
+        (item) => [
+          'outdoor_road_5k_constraints_v1',
+          'outdoor_road_10k_constraints_v1',
+        ].includes(item.constraint_schema_id),
+      ).map((item) => item.id) ?? [];
+      const routing = discovery?.routing ?? null;
+      const currentGoalId = discovery?.current_goal?.id ?? '';
+      const currentGoalRevision = discovery?.current_goal?.revision ?? '';
+      const selectedIntentGoalRevision = typeof pageState._planIntentGoalRevision === 'string'
+        ? pageState._planIntentGoalRevision
+        : '';
+      const explicitIntent = selectedIntentGoalRevision === currentGoalRevision
+        ? this.data.planIntent
+        : '';
+      if (selectedIntentGoalRevision !== currentGoalRevision) {
+        pageState._planIntentGoalRevision = '';
+      }
+      const planIntent = (
+        explicitIntent
+        || routing?.intent
+        || ''
+      ) as PlanIntent | '';
+      const selectedRoute = planIntent
+        ? routing?.options.find((option) => option.intent === planIntent) ?? null
+        : routing;
+      let presentation: PlanRoutePresentation;
       if (capabilityResult.error) {
-        planCapabilityState = 'error';
-        planCapabilityDescription = tr.planStartLoadFailed;
-        planCapabilityDetail = capabilityResult.error || tr.planStartLoadFailedDetail;
-        planCapabilityBadge = tr.policyCheckFailed;
-      } else if (
-        capability
-        && capability.constraint_schema_id
-          !== 'outdoor_road_5k_constraints_v1'
-      ) {
-        planCapabilityState = 'update_required';
-        planCapabilityDescription = tr.planStartUpdateRequired;
-        planCapabilityDetail = tr.planStartUpdateRequiredDetail;
-        planCapabilityBadge = tr.planStartUpdateRequired;
-      } else if (!capability && alternatePurposeAvailable) {
-        planCapabilityState = 'alternate_available';
-        planCapabilityDescription = tr.planStartOtherPurpose;
-        planCapabilityDetail = tr.planStartOtherPurposeDetail;
-        planCapabilityBadge = tr.otherPlanPurpose;
-      } else if (!capability) {
-        planCapabilityState = 'unavailable';
-        planCapabilityDescription = tr.planStartUnavailable;
-        planCapabilityDetail = tr.planStartUnavailableDetail;
-        planCapabilityBadge = tr.noAcceptedPolicy;
+        presentation = {
+          state: 'error',
+          description: tr.planStartLoadFailed,
+          detail: capabilityResult.error || tr.planStartLoadFailedDetail,
+          badge: tr.policyCheckFailed,
+        };
       } else {
-        planCapabilityState = 'available';
-        planCapabilityDescription = tr.planStartAvailable;
-        planCapabilityDetail = '';
-        planCapabilityBadge = response.baseline?.readiness === 'sufficient_baseline'
-          ? tr.baselineReady
-          : tr.reviewBaseline;
+        presentation = buildPlanRoutePresentation(
+          selectedRoute,
+          supportedCapabilityIds,
+          tr,
+        );
       }
       this.setData({
-        ...(buildGoalState(response, insight, locale, this.data.themeClass) as Record<string, unknown>),
-        planCapabilityState,
-        planCapabilityDescription,
-        planCapabilityDetail,
-        planCapabilityBadge,
+        ...(buildGoalState(
+          response,
+          insightResponse.insight,
+          insightResponse.ai_available,
+          locale,
+          this.data.themeClass,
+        ) as Record<string, unknown>),
+        planCapabilityState: presentation.state,
+        planCapabilityDescription: presentation.description,
+        planCapabilityDetail: presentation.detail,
+        planCapabilityBadge: presentation.badge,
+        planIntent,
+        planCurrentGoalId: currentGoalId,
+        planCurrentGoalRevision: currentGoalRevision,
+        planRoutingOptions: routing?.options ?? [],
+        planSupportedCapabilityIds: supportedCapabilityIds,
+        performance10kEnabled: supportedCapabilityIds.includes(
+          'outdoor_road_10k_performance_v1',
+        ),
         goalPlanImpact,
         _response: response,
       } as Record<string, unknown>);

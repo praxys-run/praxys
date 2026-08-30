@@ -26,6 +26,7 @@ import { Link2, Gauge, SlidersHorizontal, Target, Activity, User, Check, Clock, 
 import GoalEditor from '@/components/GoalEditor';
 import ManagedPlanSettingsCard from '@/components/ManagedPlanSettingsCard';
 import { MobileAppCard } from '@/components/MobileApp';
+import PlatformConnectionNotice from '@/components/PlatformConnectionNotice';
 import StatusIndicator from '@/components/StatusIndicator';
 import { formatTime, formatPace } from '@/lib/format';
 import { WEB_VERSION } from '@/lib/version';
@@ -1053,6 +1054,9 @@ export default function Settings() {
               {connectPlatform && PLATFORM_CRED_FIELDS[connectPlatform]?.help}
             </DialogDescription>
           </DialogHeader>
+          {connectPlatform && !garminMfaRequired && (
+            <PlatformConnectionNotice platform={connectPlatform} />
+          )}
           {connectError && (
             <Alert variant="destructive">
               <AlertDescription>{connectError}</AlertDescription>

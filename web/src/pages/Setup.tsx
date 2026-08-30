@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Check, Link2, RefreshCw, Gauge, Target, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 import GoalEditor from '@/components/GoalEditor';
+import PlatformConnectionNotice from '@/components/PlatformConnectionNotice';
 import { Trans, Plural, useLingui } from '@lingui/react/macro';
 import { GarminWordmark, StrydWordmark, StravaWordmark, OuraWordmark, CorosWordmark } from '@/components/PlatformWordmark';
 
@@ -906,6 +907,10 @@ export default function Setup({ onSkip }: SetupProps) {
                 ))}
               </div>
             </div>
+          )}
+
+          {connectPlatform && !garminMfaRequired && (
+            <PlatformConnectionNotice platform={connectPlatform} />
           )}
 
           {connectError && (

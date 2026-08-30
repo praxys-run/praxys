@@ -1,7 +1,8 @@
 /**
  * Azure Application Insights + web-vitals wiring. No-op when
- * VITE_APPINSIGHTS_CONNECTION_STRING is not set at build time, so local
- * dev and un-instrumented previews never ship telemetry.
+ * VITE_APPINSIGHTS_CONNECTION_STRING is not set at build time, or when the
+ * HTML carries the China deployment marker, so local/uninstrumented previews
+ * and the privacy-gated EdgeOne artifact never ship this telemetry.
  *
  * What gets captured when enabled:
  *   - Auto page views + SPA route changes (enableAutoRouteTracking)
@@ -25,6 +26,8 @@
 import { ApplicationInsights, type ITelemetryItem } from '@microsoft/applicationinsights-web'
 import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from 'web-vitals'
 
+import { isBrowserTelemetryAllowed } from './runtime-region'
+
 const CONNECTION_STRING = import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING ?? ''
 
 type NetworkConnection = {
@@ -37,7 +40,7 @@ type NetworkConnection = {
 let appInsights: ApplicationInsights | null = null
 
 export function initAppInsights(): ApplicationInsights | null {
-  if (!CONNECTION_STRING) return null
+  if (!isBrowserTelemetryAllowed(Boolean(CONNECTION_STRING))) return null
   if (appInsights) return appInsights
 
   appInsights = new ApplicationInsights({

@@ -57,7 +57,7 @@
           <text class="private-context__state">{{item.state}}</text>
         </view>
         <text class="private-context__item-meta">
-          {{item.kind}} · {{item.expiry}} · {{item.ai}}
+          {{item.kind}} · {{item.expiry}}
         </text>
       </view>
       <text class="private-context__chevron" aria-hidden="true">›</text>
@@ -125,7 +125,7 @@
                   <text class="private-context__state">{{item.state}}</text>
                 </view>
                 <text class="private-context__item-meta">
-                  {{item.kind}} · {{item.expiry}} · {{item.ai}}
+                  {{item.kind}} · {{item.expiry}}
                 </text>
               </view>
               <text class="private-context__chevron" aria-hidden="true">›</text>
@@ -336,7 +336,7 @@
             </view>
             <view class="private-context__review-row">
               <text class="private-context__review-label">{{tr.processing}}</text>
-              <text class="private-context__review-value">{{tr.rulesNoAi}}</text>
+              <text class="private-context__review-value">{{tr.purposeBoundProcessing}}</text>
             </view>
           </view>
 
@@ -401,12 +401,6 @@
               <text class="private-context__review-label">{{tr.activeUntil}}</text>
               <text class="private-context__review-value ts-value">{{detailExpiry}}</text>
             </view>
-            <view class="private-context__review-row">
-              <text class="private-context__review-label">{{tr.aiProcessing}}</text>
-              <text class="private-context__review-value">
-                {{selectedSafety && selectedItem.processing_mode !== 'ai_allowed' ? tr.unavailableForSafety : selectedItem.processing_mode === 'ai_allowed' ? tr.allowedForItem : tr.off}}
-              </text>
-            </view>
           </view>
 
           <view wx:if="{{detailFields.length}}" class="private-context__details">
@@ -455,14 +449,6 @@
               bindtap="onCorrect"
             >{{tr.correct}}</button>
             <button
-              wx:if="{{!selectedSafety || selectedItem.processing_mode === 'ai_allowed'}}"
-              class="private-context__small-action"
-              disabled="{{working || !detail}}"
-              bindtap="onOpenAi"
-            >
-              {{selectedItem.processing_mode === 'ai_allowed' ? tr.reviewAi : tr.aiOption}}
-            </button>
-            <button
               class="private-context__small-action"
               disabled="{{working}}"
               bindtap="onExpire"
@@ -475,71 +461,7 @@
           >{{tr.delete}}</button>
         </block>
 
-        <block wx:elif="{{screen === 'ai' && selectedItem}}">
-          <text class="private-context__sheet-description">{{tr.aiDescription}}</text>
-          <view class="private-context__reasoning">
-            <text class="private-context__reasoning-title">{{tr.provider}}</text>
-            <text>{{tr.providerDetail}}</text>
-          </view>
 
-          <view class="private-context__details">
-            <text class="private-context__details-title">{{tr.purpose}}</text>
-            <text class="private-context__hint">
-              {{selectedItem.purpose === 'plan_adjustment' ? tr.planPurpose : tr.workoutPurpose}}
-            </text>
-          </view>
-
-          <view class="private-context__details">
-            <text class="private-context__details-title">{{tr.structuredFieldsSent}}</text>
-            <text class="private-context__hint ts-value">{{aiFieldsText}}</text>
-          </view>
-
-          <view
-            wx:if="{{selectedItem.processing_mode !== 'ai_allowed'}}"
-            class="private-context__switch-row"
-          >
-            <view class="private-context__switch-copy">
-              <text>{{tr.allowAi}}</text>
-              <text class="private-context__hint">{{tr.aiDescription}}</text>
-            </view>
-            <switch
-              checked="{{aiPermissionConfirmed}}"
-              disabled="{{working}}"
-              color="#1f7a4d"
-              bindchange="onAiPermission"
-            />
-          </view>
-
-          <view
-            wx:if="{{selectedItem.processing_mode !== 'ai_allowed' && selectedNarrativeAvailable}}"
-            class="private-context__switch-row"
-          >
-            <view class="private-context__switch-copy">
-              <text>{{tr.sendNote}}</text>
-              <text class="private-context__hint">{{tr.sendNoteDetail}}</text>
-            </view>
-            <switch
-              checked="{{aiNarrative}}"
-              disabled="{{working}}"
-              color="#1f7a4d"
-              bindchange="onAiNarrative"
-            />
-          </view>
-
-          <view class="private-context__safety">
-            <text>{{tr.aiWarning}}</text>
-          </view>
-          <text class="private-context__hint">{{tr.aiWithdrawal}}</text>
-
-          <button
-            class="private-context__submit {{selectedItem.processing_mode === 'ai_allowed' ? 'private-context__submit--danger' : ''}}"
-            disabled="{{working || (selectedItem.processing_mode !== 'ai_allowed' && !aiPermissionConfirmed)}}"
-            loading="{{working}}"
-            bindtap="onDecideAi"
-          >
-            {{selectedItem.processing_mode === 'ai_allowed' ? tr.withdrawAi : tr.allowAi}}
-          </button>
-        </block>
 
         <text wx:if="{{actionError}}" class="private-context__action-error" role="alert">
           {{actionError}}

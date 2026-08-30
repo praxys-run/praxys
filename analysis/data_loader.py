@@ -19,6 +19,10 @@ from analysis.config import (
     is_praxys_managed_plan,
     normalize_plan_source,
 )
+from analysis.road_10k_contract import (
+    ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS,
+    ROAD_10K_PROPOSAL_DAYS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +66,26 @@ class PlanGenerationData:
 
     activities: tuple[PlanGenerationActivity, ...]
     reserved_dates: tuple[date, ...]
+
+
+@dataclass(frozen=True)
+class Road10KPlanGenerationActivity:
+    """One bounded completed run for the road 10K generator."""
+
+    activity_id: str
+    observed_date: date
+    duration_min: float
+    distance_km: float | None
+    source: str
+
+
+@dataclass(frozen=True)
+class Road10KPlanGenerationData:
+    """Purpose-bounded observations needed by the inactive road 10K generator."""
+
+    activities: tuple[Road10KPlanGenerationActivity, ...]
+    reserved_dates: tuple[date, ...]
+    intensity_sources: tuple[tuple[str, str], ...]
 
 
 def discover_activity_types(
@@ -1048,6 +1072,156 @@ def load_plan_generation_data(
     return PlanGenerationData(
         activities=activities,
         reserved_dates=reserved_dates,
+    )
+
+
+def load_road_10k_plan_generation_data(
+    user_id: str,
+    db: Session,
+    *,
+    athlete_today: date,
+    block_start: date,
+    activity_source: str | None,
+    purpose: Literal["road_10k_plan_generation"],
+) -> Road10KPlanGenerationData:
+    """Load the reviewed road 10K generation evidence window.
+
+    This loader keeps the road 10K generator purpose-bounded: it returns only
+    eight completed weeks of positive-duration running history, future
+    non-Praxys reservations, and a split→sample intensity provenance snapshot.
+    It never reads activity ``avg_power``.
+    """
+    if purpose != "road_10k_plan_generation":
+        raise ValueError("road-10k generation data may only be loaded for road_10k_plan_generation")
+
+    current_week_start = athlete_today - timedelta(days=athlete_today.weekday())
+    history_start = current_week_start - timedelta(
+        days=ROAD_10K_HISTORY_CUTOFF_COMPLETED_DAYS
+    )
+    history_end = current_week_start - timedelta(days=1)
+    activity_rows = pd.read_sql(
+        text(
+            "SELECT activity_id, date, duration_sec, distance_km, source "
+            "FROM activities "
+            "WHERE user_id = :uid "
+            "  AND date BETWEEN :history_start AND :history_end "
+            "  AND LOWER(activity_type) = 'running' "
+            "  AND duration_sec > 0 "
+            "ORDER BY date, activity_id, source "
+            "LIMIT 1000"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "history_start": history_start,
+            "history_end": history_end,
+        },
+        parse_dates=["date"],
+    )
+    activity_rows = select_preferred_source(activity_rows, activity_source)
+    activities = tuple(
+        Road10KPlanGenerationActivity(
+            activity_id=str(row.activity_id),
+            observed_date=pd.Timestamp(row.date).date(),
+            duration_min=float(row.duration_sec) / 60.0,
+            distance_km=(
+                None
+                if pd.isna(getattr(row, "distance_km", None))
+                else float(row.distance_km)
+            ),
+            source=str(row.source or ""),
+        )
+        for row in activity_rows.itertuples(index=False)
+        if pd.notna(row.date)
+        and pd.notna(row.duration_sec)
+        and float(row.duration_sec) > 0
+    )
+    reservation_end = block_start + timedelta(days=ROAD_10K_PROPOSAL_DAYS - 1)
+    reservations = pd.read_sql(
+        text(
+            "SELECT date, source "
+            "FROM training_plans "
+            "WHERE user_id = :uid "
+            "  AND date BETWEEN :block_start AND :reservation_end "
+            "ORDER BY date, id"
+        ),
+        db.bind,
+        params={
+            "uid": user_id,
+            "block_start": block_start,
+            "reservation_end": reservation_end,
+        },
+        parse_dates=["date"],
+    )
+    reserved_dates = tuple(
+        sorted(
+            {
+                pd.Timestamp(row.date).date()
+                for row in reservations.itertuples(index=False)
+                if pd.notna(row.date)
+                and normalize_plan_source(getattr(row, "source", None))
+                not in PRAXYS_PLAN_SOURCES
+            }
+        )
+    )
+    activity_ids = [activity.activity_id for activity in activities]
+    split_activity_ids: set[str] = set()
+    if activity_ids:
+        chunk_size = 400
+        frames: list[pd.DataFrame] = []
+        for start in range(0, len(activity_ids), chunk_size):
+            chunk = activity_ids[start:start + chunk_size]
+            placeholders = ",".join(f":a{i}" for i in range(len(chunk)))
+            params = {
+                "uid": user_id,
+                **{f"a{i}": value for i, value in enumerate(chunk)},
+            }
+            frames.append(
+                pd.read_sql(
+                    text(
+                        "SELECT activity_id "
+                        "FROM activity_splits "
+                        "WHERE user_id = :uid "
+                        f"  AND activity_id IN ({placeholders}) "
+                        "  AND avg_power IS NOT NULL "
+                        "ORDER BY activity_id, split_num"
+                    ),
+                    db.bind,
+                    params=params,
+                )
+            )
+        if frames:
+            split_activity_ids = {
+                str(activity_id)
+                for frame in frames
+                for activity_id in frame["activity_id"].dropna().tolist()
+            }
+    coverage = load_activity_sample_coverage(user_id, db, activity_ids)
+    sample_activity_ids: set[str] = set()
+    if isinstance(coverage, pd.DataFrame) and not coverage.empty:
+        grouped = coverage.groupby("activity_id", dropna=False)[
+            "power_duration_sec"
+        ].sum()
+        sample_activity_ids = {
+            str(activity_id)
+            for activity_id, duration in grouped.items()
+            if pd.notna(duration) and float(duration) > 0
+        }
+    intensity_sources = tuple(
+        (
+            activity_id,
+            "activity_splits"
+            if activity_id in split_activity_ids
+            else "activity_samples"
+            if activity_id in sample_activity_ids
+            else "none",
+        )
+        for activity_id in sorted(activity_ids)
+    )
+    return Road10KPlanGenerationData(
+        activities=activities,
+        reserved_dates=reserved_dates,
+        intensity_sources=intensity_sources,
     )
 
 

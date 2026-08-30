@@ -23,10 +23,14 @@ Tencent COS (CN audience, post-ICP) is a future third backend — the same
 key-in / bytes-out seam mirrors the ``frontend_server`` / COS decoupling noted
 in CLAUDE.md.
 
-Nothing here raises to the caller: a storage outage must not turn a feedback
-submit into a 500. :func:`store_image` returns ``None`` on failure (the text
-report is still captured); :func:`load_image` returns ``None`` when the key is
-missing or unreadable. All validation helpers are pure and unit-tested.
+Screenshot submission and reads remain best-effort: :func:`store_image`
+returns ``None`` on failure (the text report is still captured), and
+:func:`load_image` returns ``None`` when the key is missing or unreadable. The
+caller persists the deterministic key before upload so an ambiguous storage
+result can never create an image with no deletion locator.
+Deletion is intentionally fail-closed so account deletion cannot discard the
+database locator while a stored screenshot remains. A configured Blob backend
+never writes new screenshots to local fallback storage.
 """
 from __future__ import annotations
 
@@ -61,7 +65,13 @@ MAX_IMAGE_COUNT = 3
 # A storage key is server-generated as ``feedback/<id>/<index>.<ext>``. Loads
 # validate against this shape so a malformed/tampered key can never escape the
 # container/dir (path traversal) or read an arbitrary file.
-_KEY_RE = re.compile(r"^feedback/\d+/\d+\.(png|jpg|jpeg|webp)$")
+_KEY_RE = re.compile(
+    r"^feedback/(?P<feedback_id>\d+)/\d+\.(png|jpg|jpeg|webp)$"
+)
+
+
+class FeedbackStorageDeletionError(RuntimeError):
+    """Raised when an exact screenshot key cannot be safely deleted."""
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +181,8 @@ def _blob_container_client():
         from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
     except ImportError:
         logger.warning(
-            "azure-storage-blob not installed — feedback screenshots fall back "
-            "to local filesystem storage"
+            "azure-storage-blob not installed; configured Blob storage is "
+            "unavailable"
         )
         return None
     container = _blob_container()
@@ -196,7 +206,7 @@ def _blob_container_client():
             pass
         return client
     except Exception:
-        logger.warning("Azure Blob init failed — falling back to local storage", exc_info=True)
+        logger.warning("Azure Blob initialization failed", exc_info=True)
         return None
 
 
@@ -220,6 +230,15 @@ def private_container_client():
 # ---------------------------------------------------------------------------
 
 
+def image_storage_key(data: bytes, *, feedback_id: int, index: int) -> str:
+    """Return the deterministic row-bound key for one validated image."""
+    content_type = sniff(data)
+    ext = CONTENT_TYPE_TO_EXT.get(content_type or "")
+    if not ext:
+        raise ValueError("feedback image bytes are not a supported image")
+    return f"feedback/{feedback_id}/{index}.{ext}"
+
+
 def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
     """Persist one screenshot and return its storage key, or ``None`` on failure.
 
@@ -228,27 +247,39 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
     already; we re-sniff so a bad ext can never be written.
     """
     content_type = sniff(data)
-    ext = CONTENT_TYPE_TO_EXT.get(content_type or "")
-    if not ext:
+    try:
+        key = image_storage_key(
+            data,
+            feedback_id=feedback_id,
+            index=index,
+        )
+    except ValueError:
         logger.warning("store_image: refusing to store non-image bytes")
         return None
-    key = f"feedback/{feedback_id}/{index}.{ext}"
 
     if _use_blob():
         client = _blob_container_client()
-        if client is not None:
-            try:
-                client.upload_blob(
-                    name=key,
-                    data=data,
-                    overwrite=True,
-                    content_settings=_blob_content_settings(content_type),
-                )
-                return key
-            except Exception:
-                logger.warning("store_image: blob upload failed for %s", key, exc_info=True)
-                return None
-        # blob configured but client unavailable → fall through to local
+        if client is None:
+            logger.warning(
+                "store_image: configured Blob storage is unavailable for %s",
+                key,
+            )
+            return None
+        try:
+            client.upload_blob(
+                name=key,
+                data=data,
+                overwrite=True,
+                content_settings=_blob_content_settings(content_type),
+            )
+            return key
+        except Exception:
+            logger.warning(
+                "store_image: blob upload failed for %s",
+                key,
+                exc_info=True,
+            )
+            return None
 
     _warn_local_once()
     try:
@@ -268,7 +299,7 @@ def load_image(key: str) -> tuple[bytes, str] | None:
     The key is validated against the server-generated shape so a tampered value
     can never traverse outside the container/dir.
     """
-    if not key or not _KEY_RE.match(key):
+    if not key or not _KEY_RE.fullmatch(key):
         return None
     ext = key.rsplit(".", 1)[-1]
     content_type = EXT_TO_CONTENT_TYPE.get(ext, "application/octet-stream")
@@ -289,6 +320,74 @@ def load_image(key: str) -> tuple[bytes, str] | None:
             return fh.read(), content_type
     except OSError:
         return None
+
+
+def _blob_error_code(exc: Exception) -> str | None:
+    """Return the normalized Azure Storage error code, when available."""
+    code = getattr(exc, "error_code", None)
+    value = getattr(code, "value", code)
+    return str(value) if value else None
+
+
+def _delete_local_image(key: str) -> None:
+    """Delete one validated key from local storage."""
+    root = os.path.realpath(_local_dir())
+    parts = key.split("/")
+    parent = os.path.realpath(os.path.join(root, *parts[:-1]))
+    try:
+        contained = os.path.commonpath((root, parent)) == root
+    except ValueError:
+        contained = False
+    if not contained:
+        raise FeedbackStorageDeletionError(
+            "Feedback image key resolves outside local storage"
+        )
+    path = os.path.join(parent, parts[-1])
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise FeedbackStorageDeletionError(
+            "Local feedback image deletion failed"
+        ) from exc
+
+
+def delete_image(key: str, *, feedback_id: int) -> None:
+    """Delete one exact row-bound screenshot key from the selected backend.
+
+    Missing blobs/files are already deleted and therefore succeed. Other
+    backend errors are normalized so callers cannot report account deletion
+    success while a screenshot may remain. When Blob is configured, an exact
+    legacy local copy is also removed after the Blob result is known.
+    """
+    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    if match is None or int(match.group("feedback_id")) != feedback_id:
+        raise FeedbackStorageDeletionError(
+            "Feedback image key is invalid or belongs to another row"
+        )
+
+    if _use_blob():
+        client = _blob_container_client()
+        if client is None:
+            raise FeedbackStorageDeletionError(
+                "Configured feedback Blob storage is unavailable"
+            )
+        from azure.core.exceptions import ResourceNotFoundError
+
+        try:
+            client.delete_blob(key)
+        except ResourceNotFoundError as exc:
+            if _blob_error_code(exc) != "BlobNotFound":
+                raise FeedbackStorageDeletionError(
+                    "Feedback Blob container or resource is unavailable"
+                ) from exc
+        except Exception as exc:
+            raise FeedbackStorageDeletionError(
+                "Feedback Blob deletion failed"
+            ) from exc
+
+    _delete_local_image(key)
 
 
 def _blob_content_settings(content_type: str | None):

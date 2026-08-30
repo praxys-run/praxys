@@ -57,8 +57,9 @@ function formatRange(range: ZoneRange): string {
  * being the only path to the answer.
  *
  * Note: deviation alerts that used to live here have moved into the
- * Praxys Coach receipt's rule-based fallback (single canonical
- * interpretation surface). Don't re-introduce the standalone Alert.
+ * separately labelled deterministic Training metrics summary (single
+ * canonical deterministic interpretation surface), not a Coach/AI fallback.
+ * Don't re-introduce the standalone Alert.
  */
 export default function ZoneAnalysisCard({ distribution, zoneRanges, theoryName, display, theoryDescription }: Props) {
   const { i18n, t } = useLingui();

@@ -758,6 +758,11 @@ def recover_managed_plan_delivery(
             "Managed delivery not found"
         )
     target_user_id = initial.user_id
+    from api.legal_receipts import user_has_current_legal_bundle
+
+    if not user_has_current_legal_bundle(db, target_user_id):
+        db.rollback()
+        raise ManagedPlanRecoveryUnsupported("terms_not_current")
     db.rollback()
     lock_plan_writes(db, target_user_id)
     delivery = db.execute(

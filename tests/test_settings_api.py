@@ -6,6 +6,7 @@ proves the API translates a ValueError into a structured 400 response and
 that the settings GET surfaces the allowed-options contract the UI depends on.
 """
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import os
@@ -271,6 +272,46 @@ def test_goal_update_reports_when_no_successor_policy_is_accepted(
     assert impact["can_generate_successor"] is False
     assert impact["can_keep_current_plan"] is True
     assert impact["unsupported_reason"] == "no_accepted_policy"
+
+
+def test_goal_update_reports_separate_purpose_successor_route(
+    api_client,
+) -> None:
+    """A generic 5K Goal can route to the accepted performance purpose."""
+    client, user_id = api_client
+    goal = {
+        "goal_kind": "performance_5k",
+        "distance": "5k",
+        "target_time_sec": 1_500,
+        "race_date": "",
+    }
+    saved = client.put("/api/settings", json={"goal": goal})
+    assert saved.status_code == 200, saved.text
+    _adopt_linked_goal_plan(
+        client,
+        user_id=user_id,
+        goal=goal,
+        key="settings-separate-purpose-impact",
+    )
+
+    changed = client.put(
+        "/api/settings",
+        json={
+            "goal": {
+                "goal_kind": "race",
+                "distance": "5k",
+                "target_time_sec": 1_440,
+                "race_date": "2027-04-18",
+            },
+        },
+    )
+
+    assert changed.status_code == 200, changed.text
+    impact = changed.json()["goal_plan_impact"]
+    assert impact["status"] == "reassessment_required"
+    assert impact["can_generate_successor"] is True
+    assert impact["can_keep_current_plan"] is True
+    assert impact["unsupported_reason"] is None
 
 
 def test_goal_update_explicit_clear_removes_legacy_aliases(
@@ -2060,6 +2101,136 @@ def test_put_settings_discards_legacy_thresholds_body(api_client, caplog):
     assert any(
         "discarding legacy thresholds" in rec.getMessage() for rec in caplog.records
     )
+
+
+def test_inactive_road_10k_goal_cannot_be_newly_persisted(api_client):
+    client, _ = api_client
+
+    seeded = client.put("/api/settings", json={
+        "goal": {
+            "goal_kind": "race",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+    })
+    assert seeded.status_code == 200, seeded.text
+
+    blocked = client.put("/api/settings", json={
+        "goal": {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+    })
+
+    assert blocked.status_code == 409, blocked.text
+    assert blocked.json()["detail"]["code"] == "GOAL_KIND_UNAVAILABLE"
+
+    current = client.get("/api/settings").json()
+    assert current["config"]["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+
+
+def test_get_settings_hides_stored_inactive_road_10k_goal_but_preserves_db(
+    api_client,
+):
+    client, user_id = api_client
+
+    from db.models import UserConfig
+    from db.session import SessionLocal
+
+    with SessionLocal() as db:
+        row = db.query(UserConfig).filter(UserConfig.user_id == user_id).one_or_none()
+        if row is None:
+            row = UserConfig(user_id=user_id)
+            db.add(row)
+        row.goal = {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+        db.commit()
+
+    current = client.get("/api/settings")
+
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+
+    updated = client.put("/api/settings", json={"display_name": "Hidden legacy 10K"})
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["config"]["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+
+    with SessionLocal() as db:
+        row = db.query(UserConfig).filter(UserConfig.user_id == user_id).one()
+        assert row.goal == {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2520,
+        }
+
+
+def test_active_road_10k_goal_can_persist_when_registry_is_enabled(
+    api_client,
+    monkeypatch,
+):
+    import api.plan_generation_capabilities as capabilities
+
+    client, _ = api_client
+    monkeypatch.setattr(
+        capabilities,
+        "PLAN_GENERATION_CAPABILITIES",
+        (
+            capabilities.OUTDOOR_ROAD_5K_CAPABILITY,
+            replace(
+                capabilities.OUTDOOR_ROAD_10K_CAPABILITY,
+                status="available",
+            ),
+        ),
+    )
+
+    response = client.put("/api/settings", json={
+        "goal": {
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "race_date": "2026-09-20",
+            "target_time_sec": 2_520,
+        }
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json()["config"]["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
+    current = client.get("/api/settings")
+    assert current.status_code == 200, current.text
+    assert current.json()["config"]["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+        "race_date": "2026-09-20",
+        "target_time_sec": 2520,
+    }
 
 
 def test_detect_thresholds_options_deduped_and_date_sorted(api_client):

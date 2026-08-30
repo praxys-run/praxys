@@ -429,7 +429,7 @@ export default function Today() {
   const tsbDescriptor = i18n._(tsbDescriptorMsg);
   const planText = formatPlan(signal.plan) ?? i18n._(msg`No workout scheduled.`);
 
-  // Theory attribution for the deterministic Coach receipt and methodology.
+  // Theory attribution for the deterministic training summary and methodology.
   // It follows the user's active recovery and load theories instead of
   // hard-coding the default Plews/Banister pair.
   const recoveryNote = data.science_notes?.recovery;
@@ -577,7 +577,7 @@ export default function Today() {
         </div>
         <p className={`text-xl font-bold ${tone.text}`}>{verdictSubtitle}</p>
       </div>
-      {/* Praxys Coach receipt is deterministic on Today. The daily insight
+      {/* Today uses a deterministic training summary. The daily insight
           slot is intentionally disabled so generated prose can never
           contradict the canonical signal. */}
       <AiInsightsCard
