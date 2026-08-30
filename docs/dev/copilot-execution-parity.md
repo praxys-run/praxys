@@ -131,7 +131,8 @@ authority. Ordinary hypothetical denies do not block dispatch; only the
 explicit kill switch and lifecycle protocol failures reject a mediated action.
 Both environments use the same explicit sync/background provenance, direct
 parent-scoped sibling serialization, exact task-result public-ID binding,
-external-notification/no-poll wait, one-read completion, and binding
+external-notification/no-poll wait, caller-owned same-token claim retry, at
+most one physical read, token-matched one-shot observation, and binding
 invalidation semantics.
 
 This is cooperative mediation, not native interception. The repository cannot

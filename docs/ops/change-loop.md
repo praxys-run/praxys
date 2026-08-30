@@ -88,6 +88,11 @@ Manifest-coordinated Delivery Loop calls use
 allows one active contract/stable-slot/immutable-revision key and records
 initial launch, resume, replacement, review after a new digest, duplicate, and
 illegal transitions. Duplicate and illegal transitions are not dispatched.
+If persistence of any known hard admission rejection fails, including the kill
+switch or a lifecycle protocol rejection, the CLI reports
+`ledger_unavailable` with `launch_authorized=false`; storage failure does not
+convert the rejection into permission to dispatch. Replaying an already
+recorded lifecycle rejection also remains fail-closed.
 A lost non-replacement attempt may make one separately identified replacement
 eligible; an operator or orchestrator must explicitly consume it. Nothing
 auto-launches, and replacements never chain. Once a revision has replacement
@@ -105,12 +110,17 @@ inline and does not bind or read an agent. Background is allowed only with
 independent parent work. Bind a `nat_*` repository alias to the exact public
 agent ID returned by successful `task`; the ledger keeps only its
 domain-separated fingerprint. Wait for external completion notification
-without status checks, `read_agent(wait:true)`, or polling, claim one read, then
-record found or authoritative not-found using the same attempt, alias, and
-exact public ID. The first not-found record closes that binding permanently.
+without status checks, `read_agent(wait:true)`, or polling. Then generate one
+fresh `rcl_*` read-claim identity, submit `native_read`, perform at most one
+physical native read, and submit `native_observation` using the same attempt,
+alias, exact public ID, and claim ID. A lost claim response is retried only
+with the same token. A repeated acknowledgement is the same logical
+authorization and never permits a second physical read. If the caller loses
+the token or cannot determine whether the physical read already ran, it stops
+without a new token, reread, observation, loss record, or replacement. The
+first not-found record closes that binding permanently.
 If completion notifications are unavailable, record the limitation and stop
-without reading or polling.
-On parent
+without reading or polling. On parent
 abort, shutdown, or failure, invoke `terminate_tree` to make active descendants
 leaf-first `orphaned` records before the parent terminal record. This does not
 cancel or kill native activity. Only an explicit new progress fingerprint
@@ -131,26 +141,34 @@ notification delivery, read API, or cancellation, and cannot govern unmediated
 calls.
 
 The stable Git-common-dir file is a policy-v1 locator whose expanded internal
-layout is ledger schema 2. Only explicit `init` may migrate the exact released
-base-v1, #745 lifecycle-v1, or complete physical-v1 layout. It takes
-`BEGIN IMMEDIATE` before inspecting migration state, preserves base-only
-attempts without fabricated lifecycle facts, and commits DDL, historical
-dispatch backfill, metadata version 2, and validation together. Ordinary
-commands require v2 and never migrate.
+layout is ledger schema 3; the machine request/response contract is JSON schema
+2. Only explicit `init` may migrate an exact recognized v1 or v2 source. It
+takes `BEGIN IMMEDIATE` before inspecting migration state. Recognized v1
+sources apply the predecessor backfill and claim delta in one transaction;
+valid v2 sources apply only the claim column and partial unique index. Metadata
+becomes 3 only after the exact target validates. Ordinary commands require
+ledger 3 and never migrate.
 
 A lifecycle-v1 source with any native invocation is unsupported because it has
 no persisted public-ID fingerprint from which verified provenance can be
 reconstructed. Do not fabricate or guess one. Full-v1 and v2 require one
 matching provenance row per native invocation and one of the two exact
-dispatch-mode/provenance pairs.
+dispatch-mode/provenance pairs. Any source with ownerless
+`lifecycle_status=read_claimed` is unsupported; do not clear it, move it back
+to `completion_notified`, or fabricate a token or fingerprint.
 
-Before initializing a retained v1 ledger, stop every invocation-control client
+Before initializing a retained v1 or v2 ledger, stop every invocation-control client
 in all linked worktrees, stop new cooperative dispatch, and capture
 privacy-safe layout/version/integrity, kill-switch, and aggregate active-state
-evidence. A released v1 client freshly opening a successful v2 migration
+evidence. Fence and drain tokenless old-client events, take a
+SQLite-consistent restricted backup, and bind the operation to the exact
+reviewed artifact. A released v1 client freshly opening a successful v3 migration
 returns unsupported. See
-[ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md)
-for quiescence, WAL/SHM handling, evidence, and reset-based rollback.
+[ODR-2026-08-31-agent-native-read-claim-ownership](./odr-2026-08-31-agent-native-read-claim-ownership.md)
+for quiescence, WAL/SHM handling, evidence, cutover, and rollback. The
+predecessor
+[ledger-v2 ODR](./odr-2026-08-30-agent-invocation-ledger-v2.md) remains
+authoritative for the recognized v1-to-v2 backfill.
 
 ### Shadow mode
 
@@ -237,8 +255,9 @@ verdicts so prompt changes are not scored against decisions they do not own.
 - `gh` CLI authenticated (`gh auth status`).
 - Before operating explicit invocation-ledger migration, bind the action to an
   exact reviewed artifact and satisfy the linked-worktree quiescence and
-  pre-state requirements in the ledger-v2 ODR. Repository implementation
-  approval is not migration authority.
+  pre-state requirements in the claim-ownership ODR, plus the predecessor ODR
+  for any v1 backfill. Repository implementation approval is not migration
+  authority.
 
 ## Steps
 
@@ -683,10 +702,18 @@ and the cost is low).
   evidence, missing desktop/mobile review, invalid design-system impact, or
   unexplained miniapp parity fails `frontend-quality` and the compatibility
   required context.
-- Invocation-ledger fixtures prove exact base-v1, lifecycle-v1, and full-v1
-  migration; concurrent initializers all succeed without false corruption;
-  ordinary commands refuse v1; a second v2 init is a no-op; and the immutable
-  released-v1 validator freshly opening v2 reports `state_unsupported`.
+- Invocation-ledger fixtures prove exact base-v1, lifecycle-v1, full-v1, and
+  v2 migration to ledger 3; ownerless `read_claimed` sources are refused;
+  concurrent initializers all succeed without false corruption; ordinary
+  commands refuse ledgers 1 and 2; a second v3 init is a no-op; JSON-schema-1
+  requests are refused; and the immutable released-v1 validator freshly
+  opening v3 reports `state_unsupported`.
+- Native-read fixtures prove canonical `rcl_*` generation, deterministic
+  domain-separated fingerprinting, absence of raw tokens from the ledger/WAL,
+  same-token retry, different-token and cross-row refusal, commit-then-raise
+  and rollback-then-raise reconciliation, invalidation precedence, one-shot
+  observation, fail-closed ambiguous observation, and fingerprint retention
+  through invalidation and every terminal path.
 - Injected pre-commit failures preserve the source logical schema, metadata,
   and rows. Unknown objects, changed constraints, partial auxiliary layouts,
   non-WAL sources, ambiguous historical rows, and conflicting auxiliary rows
@@ -734,11 +761,13 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - **Un-assign Copilot:** `gh issue edit <n> --remove-assignee copilot-swe-agent`
   and remove the `agent-ready` label.
 - **Invocation-ledger migration failure:** keep all linked-worktree clients
-  stopped and validate the pre-migration logical v1 state before resuming.
-  After successful migration there is no in-place downgrade. A return to
-  v1-only code requires separately authorized removal/archive of the database,
-  `-wal`, and `-shm` set and abandons invocation-control state without
-  cancelling native work. Follow the ledger-v2 ODR.
+  stopped and validate the exact pre-migration v1 or v2 state before resuming.
+  If ledger 3 committed but no schema-3 operation ran, a complete verified
+  source backup may be restored only under separate authority. After any
+  schema-3 mutation, keep ledger 3, disable new claims, preserve fingerprints,
+  and correct forward. In-place downgrade, stale restore, column deletion, or
+  reset requires separate incident authority and never cancels native work.
+  Follow the claim-ownership ODR.
 
 ## Related
 
@@ -750,6 +779,9 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   `.github/workflows/praxys-invariant-review.md`.
 - Agent guidance: `.github/copilot-instructions.md`.
 - Invocation-ledger operations:
+  [ODR-2026-08-31-agent-native-read-claim-ownership](./odr-2026-08-31-agent-native-read-claim-ownership.md),
+  [TDR-2026-08-31-agent-native-read-claim-ownership](./tdr-2026-08-31-agent-native-read-claim-ownership.md),
+  and predecessor
   [ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md).
 - Secrets / flags: [config-and-secrets.md](./config-and-secrets.md)
   (`COPILOT_ASSIGN_TOKEN`, `PRAXYS_AGENT_READY_SHADOW`,
@@ -758,4 +790,4 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
 - Design: praxys-run/praxys#362 (the change loop); #361 (backend pytest gate); #377 (self-improvement).
 
 ---
-_Last reviewed: 2026-08-04 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-31 · Owner: @dddtc2005_

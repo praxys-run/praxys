@@ -85,12 +85,20 @@ parent attempt. Roots and unrelated parents remain independent.
 Sync returns inline and must not bind or call `read_agent`. For valid
 background, bind a `nat_*` repository alias to the exact public agent ID
 returned by successful `task`, using `binding_source=task_result`. Carry the
-attempt ID, alias, and exact public ID through notification, one read claim, and
-observation. Wait for external completion notification without status checks,
-`read_agent(wait:true)`, or polling. On shutdown, resume, or context
-replacement, invalidate that exact binding without registry lookup, inference,
-loss, replacement, relaunch, or external rebind. Mediated pre-completion write
-is unsupported. If completion notifications are unavailable, expose that
+attempt ID, alias, and exact public ID through notification. Wait for external
+completion notification without status checks, `read_agent(wait:true)`, or
+polling. Then create one caller-held `rcl_*` identity with
+`new_identity(kind: "read_claim")`, reuse it for every retry of `native_read`,
+perform at most one physical `read_agent` call, and use the same token for the
+one `native_observation`. A repeated claim acknowledgement never permits a
+second physical read. If the token is lost or local state cannot prove whether
+the physical read already ran, stop without rereading, replacing the token,
+observing, marking loss, or launching a replacement. Keep the raw token only
+in the current controlled operation context and out of files, logs, telemetry,
+errors, and support artifacts. On shutdown, resume, or context replacement,
+invalidate that exact binding without registry lookup, inference, loss,
+replacement, relaunch, or external rebind. Mediated pre-completion write is
+unsupported. If completion notifications are unavailable, expose that
 limitation and stop without reading or polling.
 
 Parent abort, shutdown, or failure uses idempotent `terminate_tree` so active

@@ -119,7 +119,7 @@ def admission(
     role: str = 'engineering',
 ) -> dict[str, object]:
     return {
-        'schema_version': 1,
+        'schema_version': 2,
         'command': 'admit',
         'mode': mode,
         'primary_object': 'agent-system',
@@ -190,7 +190,26 @@ def new_ledger(tmp_path: Path) -> Ledger:
     return ledger
 
 
+def downgrade_ledger_to_v2(ledger: Ledger) -> None:
+    connection = sqlite3.connect(ledger.path)
+    try:
+        connection.execute('PRAGMA foreign_keys=OFF')
+        connection.execute(
+            'DROP INDEX native_invocations_read_claim_fingerprint_uq'
+        )
+        connection.execute(
+            'ALTER TABLE native_invocations DROP COLUMN read_claim_fingerprint'
+        )
+        connection.execute(
+            "UPDATE metadata SET value = '2' WHERE key = 'schema_version'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
 def downgrade_ledger_to_v1(ledger: Ledger, layout: str) -> None:
+    downgrade_ledger_to_v2(ledger)
     drop_tables = {
         'full': (),
         'lifecycle': (
@@ -221,6 +240,17 @@ def downgrade_ledger_to_v1(ledger: Ledger, layout: str) -> None:
         connection.close()
 
 
+def set_ledger_schema_version(
+    ledger: Ledger, schema_version: int, legacy_layout: str
+) -> None:
+    if schema_version == 1:
+        downgrade_ledger_to_v1(ledger, legacy_layout)
+    elif schema_version == 2:
+        downgrade_ledger_to_v2(ledger)
+    elif schema_version != 3:
+        raise ValueError('unsupported test ledger schema')
+
+
 def finish(
     ledger: Ledger,
     attempt: int,
@@ -228,6 +258,58 @@ def finish(
     status: str = 'failed',
 ) -> tuple[str, bool]:
     return ledger.finish(opaque('attempt', attempt), status, fingerprint(terminal))
+
+
+def bind_notified_native(
+    ledger: Ledger, number: int, public_agent_id: str
+) -> str:
+    native_alias = opaque('native', number)
+    ledger.bind_native(
+        opaque('attempt', number),
+        native_alias,
+        public_agent_id,
+        'task_result',
+    )
+    ledger.native_notification(
+        opaque('attempt', number), native_alias, public_agent_id
+    )
+    return native_alias
+
+
+def race_native_claims(
+    ledger: Ledger,
+    claims: list[tuple[str, str, str, str]],
+) -> list[tuple[str, object]]:
+    barrier = threading.Barrier(len(claims) + 1)
+    results: list[tuple[str, object]] = []
+    result_lock = threading.Lock()
+
+    def claim(values: tuple[str, str, str, str]) -> None:
+        attempt_id, native_alias, public_agent_id, read_claim_id = values
+        barrier.wait(timeout=30)
+        try:
+            outcome: object = ledger.claim_native_read(
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                read_claim_id,
+            )
+        except BaseException as exc:
+            outcome = exc
+        with result_lock:
+            results.append((read_claim_id, outcome))
+
+    threads = [
+        threading.Thread(target=claim, args=(values,))
+        for values in claims
+    ]
+    for thread in threads:
+        thread.start()
+    barrier.wait(timeout=30)
+    for thread in threads:
+        thread.join(timeout=30)
+        assert not thread.is_alive()
+    return results
 
 
 def run_cli(repository: Path, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
@@ -245,7 +327,7 @@ def init_repository(tmp_path: Path) -> Path:
     repository = tmp_path / 'repository'
     repository.mkdir()
     subprocess.run(['git', 'init', '-q', str(repository)], check=True)
-    initialized = run_cli(repository, {'schema_version': 1, 'command': 'init'})
+    initialized = run_cli(repository, {'schema_version': 2, 'command': 'init'})
     assert initialized.returncode == 0
     assert json.loads(initialized.stdout)['reason_code'] == 'ledger_initialized'
     return repository
@@ -274,6 +356,22 @@ def test_pure_identity_and_policy_precedence() -> None:
     assert decision.policy_reason == 'duplicate_active'
     assert decision.would_reject is True
     assert decision.launch_authorized is True
+
+
+def test_read_claim_identity_and_fingerprint_vector() -> None:
+    read_claim_id = opaque('read_claim', 1)
+    assert is_valid_identity(read_claim_id, 'read_claim')
+    assert invocation_control._read_claim_fingerprint(read_claim_id) == (
+        'sha256:63d8396ca0725fc208a724c7e0a7a042b8e8c74a02ad223b'
+        'c1a77bbd3f3abff6'
+    )
+    for invalid in (
+        'rcl_' + ('A' * 32),
+        'rcl_' + ('1' * 31),
+        'sha256:' + ('1' * 64),
+        opaque('native', 1),
+    ):
+        assert not is_valid_identity(invalid, 'read_claim')
 
 
 def test_reason_code_schemas_and_docs_are_exact() -> None:
@@ -578,7 +676,7 @@ def test_cli_instrument_duplicate_and_kill_switch_contract(tmp_path: Path) -> No
 
     switched = run_cli(
         repository,
-        {'schema_version': 1, 'command': 'kill_switch', 'active': True},
+        {'schema_version': 2, 'command': 'kill_switch', 'active': True},
     )
     assert switched.returncode == 0
     blocked = run_cli(repository, admission(3, slot=3, mode='shadow'))
@@ -641,7 +739,7 @@ def test_missing_corrupt_and_unsupported_state_are_visible_non_enforcement(
     ) -> None:
         assert result.returncode == 4
         assert json.loads(result.stdout) == {
-            'schema_version': 1,
+            'schema_version': 2,
             'policy_version': 'agent-invocation-control-v1',
             'command': 'admit',
             'reason_code': 'ledger_unavailable',
@@ -668,7 +766,7 @@ def test_missing_corrupt_and_unsupported_state_are_visible_non_enforcement(
     )
 
     shutil.rmtree(ledger_path.parent)
-    initialized = run_cli(repository, {'schema_version': 1, 'command': 'init'})
+    initialized = run_cli(repository, {'schema_version': 2, 'command': 'init'})
     assert initialized.returncode == 0
     with sqlite3.connect(ledger_path) as connection:
         connection.execute("DELETE FROM metadata WHERE key = 'policy_version'")
@@ -677,7 +775,7 @@ def test_missing_corrupt_and_unsupported_state_are_visible_non_enforcement(
     )
 
     shutil.rmtree(ledger_path.parent)
-    initialized = run_cli(repository, {'schema_version': 1, 'command': 'init'})
+    initialized = run_cli(repository, {'schema_version': 2, 'command': 'init'})
     assert initialized.returncode == 0
     with sqlite3.connect(ledger_path) as connection:
         connection.execute('DROP TABLE attempts')
@@ -688,13 +786,13 @@ def test_missing_corrupt_and_unsupported_state_are_visible_non_enforcement(
         run_cli(repository, admission(16, mode='shadow')), 'state_corrupt'
     )
     damaged_status = run_cli(
-        repository, {'schema_version': 1, 'command': 'status'}
+        repository, {'schema_version': 2, 'command': 'status'}
     )
     assert damaged_status.returncode == 4
     assert json.loads(damaged_status.stdout)['policy_reason'] == 'state_corrupt'
 
     shutil.rmtree(ledger_path.parent)
-    initialized = run_cli(repository, {'schema_version': 1, 'command': 'init'})
+    initialized = run_cli(repository, {'schema_version': 2, 'command': 'init'})
     assert initialized.returncode == 0
     for number, (key, supported_value) in enumerate(
         (
@@ -743,7 +841,7 @@ def test_work_contract_guard_precedes_missing_ledger_and_enforce_is_unavailable(
     unavailable = run_cli(repository, enforce)
     assert unavailable.returncode == 5
     assert json.loads(unavailable.stdout) == {
-        'schema_version': 1,
+        'schema_version': 2,
         'policy_version': 'agent-invocation-control-v1',
         'command': 'admit',
         'reason_code': 'enforcement_unavailable',
@@ -810,7 +908,7 @@ def test_concurrent_process_duplicate_admissions_are_atomic(tmp_path: Path) -> N
         for result in results
     )
 
-    status = run_cli(repository, {'schema_version': 1, 'command': 'status'})
+    status = run_cli(repository, {'schema_version': 2, 'command': 'status'})
     assert status.returncode == 0
     durable = json.loads(status.stdout)
     assert durable['counts']['decisions'] == 6
@@ -1027,7 +1125,7 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
     bound = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'bind_native',
             'attempt_id': opaque('attempt', 3),
             'native_alias': opaque('native', 3),
@@ -1070,25 +1168,10 @@ def test_ledger_is_wal_foreign_keyed_and_persists_no_raw_content(tmp_path: Path)
         assert sentinel.encode() not in persisted
 
 
-def test_explicit_init_migrates_original_v1_ledger_to_v2(tmp_path: Path) -> None:
+def test_explicit_init_migrates_original_v1_ledger_to_v3(tmp_path: Path) -> None:
     ledger = new_ledger(tmp_path)
     ledger.admit(admission(1), accepted_route(), 'engineering', limits())
-    with sqlite3.connect(ledger.path) as connection:
-        connection.execute('PRAGMA foreign_keys=OFF')
-        for table in (
-            'native_binding_provenance',
-            'lifecycle_dispatch',
-            'active_work_keys',
-            'replacement_eligibility',
-            'native_invocations',
-            'progress_evidence',
-            'work_history',
-            'lifecycle_decisions',
-        ):
-            connection.execute(f'DROP TABLE {table}')
-        connection.execute(
-            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
-        )
+    downgrade_ledger_to_v1(ledger, 'base')
     assert ledger.initialize() is False
     assert ledger.status()['counts']['active_attempts'] == 1
     assert finish(ledger, 1, 1, 'succeeded') == ('succeeded', False)
@@ -1113,7 +1196,11 @@ def test_explicit_init_migrates_original_v1_ledger_to_v2(tmp_path: Path) -> None
     with sqlite3.connect(ledger.path) as connection:
         assert dict(connection.execute(
             'SELECT key, value FROM metadata'
-        ))['schema_version'] == '2'
+        ))['schema_version'] == '3'
+        assert {
+            row[1]
+            for row in connection.execute('PRAGMA table_info(native_invocations)')
+        } >= {'read_claim_fingerprint'}
 
 
 def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
@@ -1123,13 +1210,7 @@ def test_explicit_init_upgrades_745_lifecycle_ledger_transactionally(
     ledger.admit(
         lifecycle_admission(1), accepted_route(), 'engineering', limits()
     )
-    with sqlite3.connect(ledger.path) as connection:
-        connection.execute('PRAGMA foreign_keys=OFF')
-        connection.execute('DROP TABLE native_binding_provenance')
-        connection.execute('DROP TABLE lifecycle_dispatch')
-        connection.execute(
-            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
-        )
+    downgrade_ledger_to_v1(ledger, 'lifecycle')
     assert ledger.initialize() is False
     with sqlite3.connect(ledger.path) as connection:
         dispatch = connection.execute(
@@ -1179,7 +1260,7 @@ def test_explicit_init_versions_full_v1_without_rewriting_auxiliary_rows(
     with sqlite3.connect(ledger.path) as connection:
         assert dict(connection.execute(
             'SELECT key, value FROM metadata'
-        ))['schema_version'] == '2'
+        ))['schema_version'] == '3'
         assert connection.execute(
             'SELECT * FROM lifecycle_dispatch ORDER BY decision_id'
         ).fetchall() == dispatch_before
@@ -1219,7 +1300,7 @@ def test_existing_init_locks_before_inspecting_migration_state(
     assert ledger.initialize() is False
 
 
-def test_concurrent_explicit_initializers_share_one_v1_to_v2_migration(
+def test_concurrent_explicit_initializers_share_one_v1_to_v3_migration(
     tmp_path: Path,
 ) -> None:
     repository = init_repository(tmp_path)
@@ -1237,7 +1318,7 @@ def test_concurrent_explicit_initializers_share_one_v1_to_v2_migration(
         request_path = coordination / f'request-{number}.json'
         ready_path = coordination / f'ready-{number}'
         request_path.write_text(
-            json.dumps({'schema_version': 1, 'command': 'init'}),
+            json.dumps({'schema_version': 2, 'command': 'init'}),
             encoding='utf-8',
         )
         ready_paths.append(ready_path)
@@ -1275,10 +1356,10 @@ def test_concurrent_explicit_initializers_share_one_v1_to_v2_migration(
     with sqlite3.connect(ledger.path) as connection:
         assert dict(connection.execute(
             'SELECT key, value FROM metadata'
-        ))['schema_version'] == '2'
+        ))['schema_version'] == '3'
 
 
-def test_concurrent_explicit_initializers_share_one_new_v2_ledger(
+def test_concurrent_explicit_initializers_share_one_new_v3_ledger(
     tmp_path: Path,
 ) -> None:
     repository = tmp_path / 'repository'
@@ -1294,7 +1375,7 @@ def test_concurrent_explicit_initializers_share_one_new_v2_ledger(
         request_path = coordination / f'request-{number}.json'
         ready_path = coordination / f'ready-{number}'
         request_path.write_text(
-            json.dumps({'schema_version': 1, 'command': 'init'}),
+            json.dumps({'schema_version': 2, 'command': 'init'}),
             encoding='utf-8',
         )
         ready_paths.append(ready_path)
@@ -1333,7 +1414,7 @@ def test_concurrent_explicit_initializers_share_one_new_v2_ledger(
     assert reasons.count('ledger_ready') == 3
 
 
-def test_new_initializers_publish_only_a_complete_v2_ledger(
+def test_new_initializers_publish_only_a_complete_v3_ledger(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1386,7 +1467,7 @@ def test_fresh_init_allocation_failure_uses_the_json_error_protocol(
     monkeypatch.setattr(
         sys,
         'stdin',
-        io.StringIO(json.dumps({'schema_version': 1, 'command': 'init'})),
+        io.StringIO(json.dumps({'schema_version': 2, 'command': 'init'})),
     )
     with pytest.raises(SystemExit) as exit_info:
         invocation_control.main()
@@ -1395,7 +1476,7 @@ def test_fresh_init_allocation_failure_uses_the_json_error_protocol(
     assert exit_info.value.code == 4
     assert captured.err == ''
     assert json.loads(captured.out) == {
-        'schema_version': 1,
+        'schema_version': 2,
         'policy_version': 'agent-invocation-control-v1',
         'command': 'init',
         'reason_code': 'ledger_unavailable',
@@ -1637,7 +1718,7 @@ def test_full_v1_migration_requires_provenance_for_every_native_invocation(
         ))['schema_version'] == '1'
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     ['missing_attempt', 'generation_id', 'logical_id', 'parent_attempt_id'],
@@ -1658,12 +1739,11 @@ def test_validation_requires_exact_authorized_base_attempt(
         'engineering',
         limits(),
     )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'base')
+    set_ledger_schema_version(ledger, schema_version, 'base')
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('PRAGMA foreign_keys=OFF')
         if mutation == 'missing_attempt':
-            if schema_version == 2:
+            if schema_version != 1:
                 connection.execute(
                     'DELETE FROM active_work_keys WHERE attempt_id = ?',
                     (opaque('attempt', 2),),
@@ -1699,7 +1779,7 @@ def test_validation_requires_exact_authorized_base_attempt(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     ['self_cycle', 'two_node_cycle', 'root_depth', 'child_depth'],
@@ -1725,8 +1805,7 @@ def test_validation_rejects_parent_cycles_and_inconsistent_depths(
         'engineering',
         limits(),
     )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'base')
+    set_ledger_schema_version(ledger, schema_version, 'base')
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('PRAGMA foreign_keys=OFF')
         if mutation == 'self_cycle':
@@ -1765,7 +1844,7 @@ def test_validation_rejects_parent_cycles_and_inconsistent_depths(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 def test_validation_rejects_multiple_active_lifecycle_direct_siblings(
     tmp_path: Path,
     schema_version: int,
@@ -1792,8 +1871,7 @@ def test_validation_rejects_multiple_active_lifecycle_direct_siblings(
         'engineering',
         limits(),
     )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('PRAGMA foreign_keys=OFF')
         connection.execute(
@@ -1814,7 +1892,7 @@ def test_validation_rejects_multiple_active_lifecycle_direct_siblings(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     ['slot_contract', 'generation_slot', 'logical_slot'],
@@ -1828,8 +1906,7 @@ def test_validation_requires_canonical_identity_bindings(
     ledger.admit(
         lifecycle_admission(1), accepted_route(), 'engineering', limits()
     )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'base')
+    set_ledger_schema_version(ledger, schema_version, 'base')
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('PRAGMA foreign_keys=OFF')
         if mutation == 'slot_contract':
@@ -1901,7 +1978,7 @@ def test_denied_decision_identity_binding_cannot_be_reused(
     assert ledger.status()['counts']['active_attempts'] == 0
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize('identity_kind', ['generation', 'logical'])
 def test_validation_rejects_conflicting_unmaterialized_decision_bindings(
     tmp_path: Path,
@@ -1914,8 +1991,7 @@ def test_validation_rejects_conflicting_unmaterialized_decision_bindings(
     ledger.admit(admission(1, slot=1), route, 'engineering', limits())
     ledger.admit(admission(2, slot=2), route, 'engineering', limits())
     ledger.set_kill_switch(False)
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'base')
+    set_ledger_schema_version(ledger, schema_version, 'base')
     with sqlite3.connect(ledger.path) as connection:
         connection.execute(
             f'UPDATE decisions SET {identity_kind}_id = ? WHERE attempt_id = ?',
@@ -1929,7 +2005,7 @@ def test_validation_rejects_conflicting_unmaterialized_decision_bindings(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     ['missing_active_key', 'stale_active_key', 'mismatched_active_key'],
@@ -1962,8 +2038,7 @@ def test_validation_requires_exact_active_work_key_mapping(
                     SET artifact_revision = ?""",
                     (f'sha256:{9:064x}',),
                 )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -1972,7 +2047,7 @@ def test_validation_requires_exact_active_work_key_mapping(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     [
@@ -2053,8 +2128,7 @@ def test_validation_requires_exact_authorized_lifecycle_history(
                 'UPDATE work_history SET replacement_of_attempt_id = ?',
                 (opaque('attempt', 9),),
             )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -2063,7 +2137,7 @@ def test_validation_requires_exact_authorized_lifecycle_history(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     ('native_status', 'work_status'),
     [
@@ -2109,8 +2183,7 @@ def test_validation_rejects_contradictory_native_and_work_states(
                 0 if native_status == 'notifications_unavailable' else 1,
             ),
         )
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -2119,7 +2192,93 @@ def test_validation_rejects_contradictory_native_and_work_states(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('native_status', ['active', 'completion_notified'])
+def test_schema_v3_rejects_claim_fingerprint_before_read_claim(
+    tmp_path: Path,
+    native_status: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'native-preclaim-fingerprint'
+    native = opaque('native', 1)
+    ledger.bind_native(
+        opaque('attempt', 1), native, public_id, 'task_result'
+    )
+    if native_status == 'completion_notified':
+        ledger.native_notification(
+            opaque('attempt', 1), native, public_id
+        )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE native_invocations
+            SET read_claim_fingerprint = ?""",
+            (
+                invocation_control._read_claim_fingerprint(
+                    opaque('read_claim', 1)
+                ),
+            ),
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+
+
+def test_schema_v3_requires_fingerprint_for_read_claimed_state(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'native-claimed-fingerprint'
+    native = bind_notified_native(ledger, 1, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        opaque('read_claim', 1),
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            'UPDATE native_invocations SET read_claim_fingerprint = NULL'
+        )
+
+    with pytest.raises(StateCorrupt):
+        ledger.initialize()
+
+
+def test_schema_v3_allows_null_fingerprint_on_migrated_observation_history(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'native-migrated-observation'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    )
+    ledger.observe_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        read_claim_id,
+        'found',
+        None,
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            'UPDATE native_invocations SET read_claim_fingerprint = NULL'
+        )
+
+    assert ledger.initialize() is False
+
+
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize('mutation', ['stale_latest', 'missing_evidence'])
 def test_validation_requires_exact_latest_progress_timestamp(
     tmp_path: Path,
@@ -2141,8 +2300,7 @@ def test_validation_requires_exact_latest_progress_timestamp(
             )
         else:
             connection.execute('DELETE FROM progress_evidence')
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -2151,7 +2309,7 @@ def test_validation_requires_exact_latest_progress_timestamp(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 @pytest.mark.parametrize(
     'mutation',
     [
@@ -2176,11 +2334,14 @@ def test_validation_requires_exact_replacement_eligibility_history(
         opaque('attempt', 1), native, public_id, 'task_result'
     )
     ledger.native_notification(opaque('attempt', 1), native, public_id)
-    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+    )
     ledger.observe_native(
         opaque('attempt', 1),
         native,
         public_id,
+        opaque('read_claim', 1),
         'not_found',
         fingerprint(1),
     )
@@ -2222,8 +2383,7 @@ def test_validation_requires_exact_replacement_eligibility_history(
             )
         else:
             connection.execute('DELETE FROM replacement_eligibility')
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -2232,7 +2392,7 @@ def test_validation_requires_exact_replacement_eligibility_history(
     assert metadata['schema_version'] == str(schema_version)
 
 
-@pytest.mark.parametrize('schema_version', [1, 2])
+@pytest.mark.parametrize('schema_version', [1, 2, 3])
 def test_validation_requires_eligibility_for_every_lost_source(
     tmp_path: Path,
     schema_version: int,
@@ -2247,18 +2407,20 @@ def test_validation_requires_eligibility_for_every_lost_source(
         opaque('attempt', 1), native, public_id, 'task_result'
     )
     ledger.native_notification(opaque('attempt', 1), native, public_id)
-    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+    )
     ledger.observe_native(
         opaque('attempt', 1),
         native,
         public_id,
+        opaque('read_claim', 1),
         'not_found',
         fingerprint(1),
     )
     with sqlite3.connect(ledger.path) as connection:
         connection.execute('DELETE FROM replacement_eligibility')
-    if schema_version == 1:
-        downgrade_ledger_to_v1(ledger, 'full')
+    set_ledger_schema_version(ledger, schema_version, 'full')
 
     with pytest.raises(StateCorrupt):
         ledger.initialize()
@@ -2417,15 +2579,15 @@ def test_v1_migration_final_validation_failure_rolls_back(
         )
     real_validate = Ledger._validate
 
-    def reject_v2(
+    def reject_v3(
         cls: type[Ledger],
         connection: sqlite3.Connection,
         *,
         layout: str = 'full',
-        schema_version: int = 2,
+        schema_version: int = 3,
     ) -> None:
         del cls
-        if schema_version == 2:
+        if schema_version == 3:
             raise StateCorrupt
         real_validate(
             connection,
@@ -2433,7 +2595,7 @@ def test_v1_migration_final_validation_failure_rolls_back(
             schema_version=schema_version,
         )
 
-    monkeypatch.setattr(Ledger, '_validate', classmethod(reject_v2))
+    monkeypatch.setattr(Ledger, '_validate', classmethod(reject_v3))
     with pytest.raises(StateCorrupt):
         ledger.initialize()
     with sqlite3.connect(ledger.path) as connection:
@@ -2460,10 +2622,168 @@ def test_ambiguous_migration_commit_is_revalidated_under_a_fresh_lock(
     with sqlite3.connect(ledger.path) as connection:
         assert dict(connection.execute(
             'SELECT key, value FROM metadata'
+        ))['schema_version'] == '3'
+
+
+def test_explicit_init_migrates_v2_ledger_to_v3_without_rewriting_rows(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    ledger.bind_native(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'task-agent-v2-source',
+        'task_result',
+    )
+    ledger.native_notification(
+        opaque('attempt', 1), opaque('native', 1), 'task-agent-v2-source'
+    )
+    downgrade_ledger_to_v2(ledger)
+    with sqlite3.connect(ledger.path) as connection:
+        before = connection.execute(
+            'SELECT * FROM native_invocations'
+        ).fetchone()
+
+    assert ledger.initialize() is False
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == '3'
+        assert connection.execute(
+            """SELECT native_invocation_id, attempt_id,
+                      notifications_available, lifecycle_status,
+                      bound_at_ms, notified_at_ms, read_claimed_at_ms,
+                      observed_at_ms
+            FROM native_invocations"""
+        ).fetchone() == before
+        assert connection.execute(
+            'SELECT read_claim_fingerprint FROM native_invocations'
+        ).fetchone()[0] is None
+
+
+@pytest.mark.parametrize(
+    'source_state',
+    [
+        'active',
+        'notifications_unavailable',
+        'completion_notified',
+        'found',
+        'lost',
+        'succeeded',
+    ],
+)
+def test_v2_to_v3_preserves_supported_native_states(
+    tmp_path: Path,
+    source_state: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = f'task-agent-v2-state-{source_state}'
+    native = opaque('native', 1)
+    ledger.bind_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        'task_result',
+        source_state != 'notifications_unavailable',
+    )
+    read_claim_id = opaque('read_claim', 1)
+    if source_state in {'completion_notified', 'found', 'lost'}:
+        ledger.native_notification(
+            opaque('attempt', 1), native, public_id
+        )
+    if source_state in {'found', 'lost'}:
+        ledger.claim_native_read(
+            opaque('attempt', 1), native, public_id, read_claim_id
+        )
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'found' if source_state == 'found' else 'not_found',
+            None if source_state == 'found' else fingerprint(1),
+        )
+    elif source_state == 'succeeded':
+        finish(ledger, 1, 1, 'succeeded')
+    downgrade_ledger_to_v2(ledger)
+
+    assert ledger.initialize() is False
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            """SELECT lifecycle_status, read_claim_fingerprint
+            FROM native_invocations"""
+        ).fetchone() == (source_state, None)
+
+
+def test_ordinary_commands_refuse_ledger_v2_without_migrating(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    downgrade_ledger_to_v2(ledger)
+
+    with pytest.raises(StateUnsupported):
+        ledger.status()
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
         ))['schema_version'] == '2'
+        assert 'read_claim_fingerprint' not in {
+            row[1]
+            for row in connection.execute('PRAGMA table_info(native_invocations)')
+        }
 
 
-def test_released_v1_client_fresh_open_reports_v2_as_unsupported(
+@pytest.mark.parametrize('source_schema_version', [1, 2])
+def test_ownerless_read_claim_blocks_legacy_migration(
+    tmp_path: Path,
+    source_schema_version: int,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    ledger.bind_native(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'task-agent-ownerless-read',
+        'task_result',
+    )
+    ledger.native_notification(
+        opaque('attempt', 1),
+        opaque('native', 1),
+        'task-agent-ownerless-read',
+    )
+    set_ledger_schema_version(ledger, source_schema_version, 'full')
+    with sqlite3.connect(ledger.path) as connection:
+        connection.execute(
+            """UPDATE native_invocations
+            SET lifecycle_status = 'read_claimed',
+                read_claimed_at_ms = 123"""
+        )
+
+    with pytest.raises(StateUnsupported):
+        ledger.initialize()
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert dict(connection.execute(
+            'SELECT key, value FROM metadata'
+        ))['schema_version'] == str(source_schema_version)
+        assert 'read_claim_fingerprint' not in {
+            row[1]
+            for row in connection.execute('PRAGMA table_info(native_invocations)')
+        }
+
+
+def test_released_v1_client_fresh_open_reports_v3_as_unsupported(
     tmp_path: Path,
 ) -> None:
     commit = 'c99b3d45b4f15bda9ed8632ca40c78779875e089'
@@ -2481,7 +2801,18 @@ def test_released_v1_client_fresh_open_reports_v2_as_unsupported(
         text=True,
         check=False,
     )
-    if script_result.returncode != 0 or config_result.returncode != 0:
+    analysis_result = subprocess.run(
+        ['git', 'show', f'{commit}:analysis/agentic_invocation_control.py'],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if (
+        script_result.returncode != 0
+        or config_result.returncode != 0
+        or analysis_result.returncode != 0
+    ):
         pytest.skip('immutable released v1 artifact is unavailable in shallow checkout')
     assert hashlib.sha256(script_result.stdout.encode()).hexdigest() == (
         '24c397303ed592c7bc0835a75bbe421da5dda59fe20f6e92d0139dcca06162ff'
@@ -2503,6 +2834,10 @@ def test_released_v1_client_fresh_open_reports_v2_as_unsupported(
         encoding='utf-8',
     )
     shutil.copytree(ROOT / 'analysis', released_root / 'analysis')
+    (released_root / 'analysis' / 'agentic_invocation_control.py').write_text(
+        analysis_result.stdout,
+        encoding='utf-8',
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -2516,6 +2851,49 @@ def test_released_v1_client_fresh_open_reports_v2_as_unsupported(
     )
     assert result.returncode == 4
     assert json.loads(result.stdout)['policy_reason'] == 'state_unsupported'
+
+
+def test_current_cli_refuses_json_schema_v1(tmp_path: Path) -> None:
+    repository = tmp_path / 'repository'
+    repository.mkdir()
+    subprocess.run(['git', 'init', '-q', str(repository)], check=True)
+
+    result = run_cli(repository, {'schema_version': 1, 'command': 'status'})
+
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'invalid',
+        'reason_code': 'invalid_request',
+    }
+
+
+def test_new_identity_returns_one_valid_read_claim_token(tmp_path: Path) -> None:
+    repository = tmp_path / 'repository'
+    repository.mkdir()
+    subprocess.run(['git', 'init', '-q', str(repository)], check=True)
+
+    result = run_cli(
+        repository,
+        {
+            'schema_version': 2,
+            'command': 'new_identity',
+            'kind': 'read_claim',
+        },
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'new_identity',
+        'reason_code': 'identity_created',
+        'kind': 'read_claim',
+        'identity': payload['identity'],
+    }
+    assert is_valid_identity(payload['identity'], 'read_claim')
 
 
 def test_failed_745_ledger_upgrade_rolls_back_auxiliary_schema(
@@ -2693,6 +3071,207 @@ def test_lifecycle_key_deduplicates_active_work_and_allows_new_digest(
         ]
 
 
+@pytest.mark.parametrize('commit_became_durable', [False, True])
+def test_lifecycle_rejection_persistence_failure_remains_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    commit_became_durable: bool,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+
+    def fail_commit(connection: sqlite3.Connection) -> None:
+        if commit_became_durable:
+            connection.commit()
+            raise CommitOutcomeAmbiguous
+        connection.rollback()
+        raise StateCorrupt
+
+    monkeypatch.setattr(invocation_control, '_ledger_path', lambda: ledger.path)
+    monkeypatch.setattr(Ledger, '_commit', staticmethod(fail_commit))
+    monkeypatch.setattr(
+        sys,
+        'stdin',
+        io.StringIO(
+            json.dumps(
+                lifecycle_admission(
+                    2,
+                    slot=1,
+                    generation=2,
+                    logical=2,
+                    transition='resume',
+                )
+            )
+        ),
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        invocation_control.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 4
+    assert captured.err == ''
+    assert json.loads(captured.out) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'admit',
+        'reason_code': 'ledger_unavailable',
+        'policy_reason': 'state_corrupt',
+        'would_reject': True,
+        'launch_authorized': False,
+        'lifecycle_transition': 'duplicate_launch',
+    }
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT 1 FROM attempts WHERE attempt_id = ?',
+            (opaque('attempt', 2),),
+        ).fetchone() is None
+        assert connection.execute(
+            'SELECT COUNT(*) FROM lifecycle_decisions WHERE attempt_id = ?',
+            (opaque('attempt', 2),),
+        ).fetchone()[0] == int(commit_became_durable)
+
+
+def test_replayed_lifecycle_rejection_remains_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        lifecycle_admission(1), accepted_route(), 'engineering', limits()
+    )
+    request = lifecycle_admission(
+        2,
+        slot=1,
+        generation=2,
+        logical=2,
+        transition='resume',
+    )
+    rejected = ledger.admit(
+        request, accepted_route(), 'engineering', limits()
+    )
+    assert rejected['launch_authorized'] is False
+
+    monkeypatch.setattr(invocation_control, '_ledger_path', lambda: ledger.path)
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(json.dumps(request)))
+    with pytest.raises(SystemExit) as exit_info:
+        invocation_control.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 2
+    assert captured.err == ''
+    assert json.loads(captured.out) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'admit',
+        'reason_code': 'invalid_identity',
+        'would_reject': True,
+        'launch_authorized': False,
+    }
+
+
+@pytest.mark.parametrize('commit_became_durable', [False, True])
+def test_kill_switch_rejection_commit_failure_remains_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    commit_became_durable: bool,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.set_kill_switch(True)
+
+    def fail_commit(connection: sqlite3.Connection) -> None:
+        if commit_became_durable:
+            connection.commit()
+            raise CommitOutcomeAmbiguous
+        connection.rollback()
+        raise StateCorrupt
+
+    monkeypatch.setattr(invocation_control, '_ledger_path', lambda: ledger.path)
+    monkeypatch.setattr(Ledger, '_commit', staticmethod(fail_commit))
+    monkeypatch.setattr(
+        sys, 'stdin', io.StringIO(json.dumps(lifecycle_admission(1)))
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        invocation_control.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 4
+    assert captured.err == ''
+    assert json.loads(captured.out) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'admit',
+        'reason_code': 'ledger_unavailable',
+        'policy_reason': 'state_corrupt',
+        'would_reject': True,
+        'launch_authorized': False,
+        'lifecycle_transition': 'initial_launch',
+    }
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM decisions'
+        ).fetchone()[0] == int(commit_became_durable)
+
+
+def test_kill_switch_rejection_insert_failure_remains_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.set_kill_switch(True)
+    real_connect = Ledger._connect
+
+    def connect_with_denied_decision_insert(
+        self: Ledger,
+    ) -> sqlite3.Connection:
+        connection = real_connect(self)
+
+        def authorize(
+            action: int,
+            argument: str | None,
+            _database: str | None,
+            _trigger: str | None,
+            _source: str | None,
+        ) -> int:
+            if action == sqlite3.SQLITE_INSERT and argument == 'decisions':
+                return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+
+        connection.set_authorizer(authorize)
+        return connection
+
+    monkeypatch.setattr(invocation_control, '_ledger_path', lambda: ledger.path)
+    monkeypatch.setattr(Ledger, '_connect', connect_with_denied_decision_insert)
+    monkeypatch.setattr(
+        sys, 'stdin', io.StringIO(json.dumps(lifecycle_admission(1)))
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        invocation_control.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 4
+    assert captured.err == ''
+    assert json.loads(captured.out) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'admit',
+        'reason_code': 'ledger_unavailable',
+        'policy_reason': 'state_corrupt',
+        'would_reject': True,
+        'launch_authorized': False,
+        'lifecycle_transition': 'initial_launch',
+    }
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT COUNT(*) FROM decisions'
+        ).fetchone()[0] == 0
+
+
 def test_first_not_found_refuses_reread_and_allows_one_replacement(
     tmp_path: Path,
 ) -> None:
@@ -2707,17 +3286,24 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
         opaque('attempt', 1), native, public_id, 'task_result'
     ) == 'active'
     with pytest.raises(NativeBoundary, match='completion_notification_required'):
-        ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+        ledger.claim_native_read(
+            opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+        )
     assert ledger.native_notification(
         opaque('attempt', 1), native, public_id
     ) is False
-    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+    )
     state, orphaned = ledger.observe_native(
-        opaque('attempt', 1), native, public_id, 'not_found', fingerprint(10)
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1),
+        'not_found', fingerprint(10)
     )
     assert (state, orphaned) == ('lost', [])
     with pytest.raises(NativeBoundary, match='native_read_refused'):
-        ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+        ledger.claim_native_read(
+            opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+        )
 
     replacement = ledger.admit(
         background_admission(
@@ -2758,11 +3344,12 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
         opaque('attempt', 2), replacement_native, replacement_public_id
     )
     ledger.claim_native_read(
-        opaque('attempt', 2), replacement_native, replacement_public_id
+        opaque('attempt', 2), replacement_native, replacement_public_id,
+        opaque('read_claim', 2),
     )
     ledger.observe_native(
         opaque('attempt', 2), replacement_native, replacement_public_id,
-        'not_found', fingerprint(11),
+        opaque('read_claim', 2), 'not_found', fingerprint(11),
     )
     chained = ledger.admit(
         lifecycle_admission(
@@ -2795,6 +3382,460 @@ def test_first_not_found_refuses_reread_and_allows_one_replacement(
         ).fetchone()[0] == 1
 
 
+def test_native_read_claim_is_idempotent_and_raw_token_is_not_persisted(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-claim-owner'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+
+    assert ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    ) is False
+    assert ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    ) is True
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.claim_native_read(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            opaque('read_claim', 2),
+        )
+
+    claim_fingerprint = invocation_control._read_claim_fingerprint(
+        read_claim_id
+    )
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT read_claim_fingerprint FROM native_invocations'
+        ).fetchone()[0] == claim_fingerprint
+        connection.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    persisted = b''.join(
+        path.read_bytes()
+        for path in ledger.path.parent.iterdir()
+        if path.is_file()
+    )
+    assert read_claim_id.encode() not in persisted
+    assert claim_fingerprint.encode() in persisted
+
+
+def test_native_read_claim_cannot_be_reused_across_bindings(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(background_admission(1), route, 'engineering', limits())
+    ledger.admit(background_admission(2), route, 'engineering', limits())
+    first_public_id = 'task-agent-first-claim-binding'
+    second_public_id = 'task-agent-second-claim-binding'
+    first_native = bind_notified_native(ledger, 1, first_public_id)
+    second_native = bind_notified_native(ledger, 2, second_public_id)
+    read_claim_id = opaque('read_claim', 1)
+
+    ledger.claim_native_read(
+        opaque('attempt', 1),
+        first_native,
+        first_public_id,
+        read_claim_id,
+    )
+
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.claim_native_read(
+            opaque('attempt', 2),
+            second_native,
+            second_public_id,
+            read_claim_id,
+        )
+
+
+def test_concurrent_same_token_same_row_claim_is_one_logical_operation(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-same-token-race'
+    native = bind_notified_native(ledger, 1, public_id)
+    claim = (
+        opaque('attempt', 1),
+        native,
+        public_id,
+        opaque('read_claim', 1),
+    )
+
+    outcomes = race_native_claims(ledger, [claim, claim])
+
+    assert sorted(outcome for _, outcome in outcomes) == [False, True]
+
+
+def test_concurrent_different_tokens_same_row_allow_one_owner(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-different-token-race'
+    native = bind_notified_native(ledger, 1, public_id)
+    claims = [
+        (
+            opaque('attempt', 1),
+            native,
+            public_id,
+            opaque('read_claim', number),
+        )
+        for number in (1, 2)
+    ]
+
+    outcomes = race_native_claims(ledger, claims)
+
+    assert sum(outcome is False for _, outcome in outcomes) == 1
+    refusals = [
+        outcome for _, outcome in outcomes if isinstance(outcome, BaseException)
+    ]
+    assert len(refusals) == 1
+    assert isinstance(refusals[0], NativeBoundary)
+    assert str(refusals[0]) == 'native_read_refused'
+
+
+def test_concurrent_same_token_cross_row_allow_one_owner(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(background_admission(1), route, 'engineering', limits())
+    ledger.admit(background_admission(2), route, 'engineering', limits())
+    read_claim_id = opaque('read_claim', 1)
+    first_public_id = 'task-agent-cross-row-race-one'
+    second_public_id = 'task-agent-cross-row-race-two'
+    claims = [
+        (
+            opaque('attempt', 1),
+            bind_notified_native(ledger, 1, first_public_id),
+            first_public_id,
+            read_claim_id,
+        ),
+        (
+            opaque('attempt', 2),
+            bind_notified_native(ledger, 2, second_public_id),
+            second_public_id,
+            read_claim_id,
+        ),
+    ]
+
+    outcomes = race_native_claims(ledger, claims)
+
+    assert sum(outcome is False for _, outcome in outcomes) == 1
+    refusals = [
+        outcome for _, outcome in outcomes if isinstance(outcome, BaseException)
+    ]
+    assert len(refusals) == 1
+    assert isinstance(refusals[0], NativeBoundary)
+    assert str(refusals[0]) == 'native_read_refused'
+
+
+@pytest.mark.parametrize('commit_became_durable', [False, True])
+def test_native_read_claim_reconciles_ambiguous_commit_with_same_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_became_durable: bool,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-ambiguous-claim'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+
+    def ambiguous_commit(connection: sqlite3.Connection) -> None:
+        if commit_became_durable:
+            connection.commit()
+        else:
+            connection.rollback()
+        raise CommitOutcomeAmbiguous
+
+    monkeypatch.setattr(
+        Ledger, '_commit', staticmethod(ambiguous_commit)
+    )
+
+    assert ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    ) is commit_became_durable
+    assert ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    ) is True
+
+
+def test_native_read_claim_ambiguity_honors_binding_invalidation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-invalidated-claim'
+    native = bind_notified_native(ledger, 1, public_id)
+
+    def commit_invalidate_then_raise(connection: sqlite3.Connection) -> None:
+        connection.commit()
+        with sqlite3.connect(ledger.path) as invalidator:
+            invalidator.execute(
+                """UPDATE native_binding_provenance
+                SET invalidation_reason = 'context_replacement',
+                    invalidated_at_ms = 123
+                WHERE native_alias = ?""",
+                (native,),
+            )
+        raise CommitOutcomeAmbiguous
+
+    monkeypatch.setattr(
+        Ledger, '_commit', staticmethod(commit_invalidate_then_raise)
+    )
+
+    with pytest.raises(NativeBoundary, match='native_binding_invalidated'):
+        ledger.claim_native_read(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            opaque('read_claim', 1),
+        )
+
+
+def test_native_observation_requires_same_claim_and_remains_one_shot(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-observation-owner'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    )
+
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            opaque('read_claim', 2),
+            'found',
+            None,
+        )
+    assert ledger.observe_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        read_claim_id,
+        'found',
+        None,
+    ) == ('found', [])
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'found',
+            None,
+        )
+
+
+def test_ambiguous_native_observation_fails_closed_without_replay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-ambiguous-observation'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    )
+
+    def commit_then_raise(connection: sqlite3.Connection) -> None:
+        connection.commit()
+        raise CommitOutcomeAmbiguous
+
+    monkeypatch.setattr(
+        Ledger, '_commit', staticmethod(commit_then_raise)
+    )
+    with pytest.raises(StateCorrupt):
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'found',
+            None,
+        )
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT lifecycle_status FROM native_invocations'
+        ).fetchone()[0] == 'found'
+    with pytest.raises(NativeBoundary, match='native_read_refused'):
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'found',
+            None,
+        )
+
+
+@pytest.mark.parametrize(
+    ('transition', 'expected_status'),
+    [
+        ('found', 'found'),
+        ('lost', 'lost'),
+        ('succeeded', 'succeeded'),
+        ('failed', 'failed'),
+        ('recovered', 'recovered'),
+        ('abort', 'aborted'),
+        ('shutdown', 'shutdown'),
+        ('failure', 'failed'),
+    ],
+)
+def test_claim_fingerprint_survives_observation_and_terminal_paths(
+    tmp_path: Path,
+    transition: str,
+    expected_status: str,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = f'task-agent-claim-terminal-{transition}'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+    claim_fingerprint = invocation_control._read_claim_fingerprint(
+        read_claim_id
+    )
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    )
+
+    if transition == 'found':
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'found',
+            None,
+        )
+    elif transition == 'lost':
+        ledger.observe_native(
+            opaque('attempt', 1),
+            native,
+            public_id,
+            read_claim_id,
+            'not_found',
+            fingerprint(1),
+        )
+    elif transition in {'succeeded', 'failed', 'recovered'}:
+        ledger.finish(
+            opaque('attempt', 1), transition, fingerprint(1)
+        )
+    else:
+        ledger.terminate_tree(
+            opaque('attempt', 1), transition, fingerprint(1)
+        )
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            """SELECT lifecycle_status, read_claim_fingerprint
+            FROM native_invocations"""
+        ).fetchone() == (expected_status, claim_fingerprint)
+
+
+def test_claim_fingerprint_survives_invalidation(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    ledger.admit(
+        background_admission(1), accepted_route(), 'engineering', limits()
+    )
+    public_id = 'task-agent-claim-invalidation'
+    native = bind_notified_native(ledger, 1, public_id)
+    read_claim_id = opaque('read_claim', 1)
+    claim_fingerprint = invocation_control._read_claim_fingerprint(
+        read_claim_id
+    )
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, read_claim_id
+    )
+
+    ledger.invalidate_native(
+        opaque('attempt', 1),
+        native,
+        public_id,
+        'context_replacement',
+    )
+
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            'SELECT read_claim_fingerprint FROM native_invocations'
+        ).fetchone()[0] == claim_fingerprint
+    with pytest.raises(NativeBoundary, match='native_binding_invalidated'):
+        ledger.claim_native_read(
+            opaque('attempt', 1), native, public_id, read_claim_id
+        )
+
+
+def test_claim_fingerprint_survives_orphan_terminalization(
+    tmp_path: Path,
+) -> None:
+    ledger = new_ledger(tmp_path)
+    route = accepted_route()
+    ledger.admit(
+        background_admission(1), route, 'engineering', limits()
+    )
+    ledger.admit(
+        background_admission(
+            2, parent=opaque('attempt', 1), revision=2
+        ),
+        route,
+        'engineering',
+        limits(),
+    )
+    public_id = 'task-agent-claimed-orphan'
+    native = bind_notified_native(ledger, 2, public_id)
+    read_claim_id = opaque('read_claim', 2)
+    claim_fingerprint = invocation_control._read_claim_fingerprint(
+        read_claim_id
+    )
+    ledger.claim_native_read(
+        opaque('attempt', 2), native, public_id, read_claim_id
+    )
+
+    status, descendants, _ = ledger.terminate_tree(
+        opaque('attempt', 1), 'failure', fingerprint(1)
+    )
+
+    assert status == 'failed'
+    assert descendants == [opaque('attempt', 2)]
+    with sqlite3.connect(ledger.path) as connection:
+        assert connection.execute(
+            """SELECT lifecycle_status, read_claim_fingerprint
+            FROM native_invocations"""
+        ).fetchone() == ('orphaned', claim_fingerprint)
+
+
 def test_completed_replacement_cannot_resume_into_a_new_replacement_chain(
     tmp_path: Path,
 ) -> None:
@@ -2812,11 +3853,14 @@ def test_completed_replacement_cannot_resume_into_a_new_replacement_chain(
         opaque('attempt', 1), native, public_id, 'task_result'
     )
     ledger.native_notification(opaque('attempt', 1), native, public_id)
-    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+    )
     ledger.observe_native(
         opaque('attempt', 1),
         native,
         public_id,
+        opaque('read_claim', 1),
         'not_found',
         fingerprint(12),
     )
@@ -2890,11 +3934,14 @@ def test_clock_regression_cannot_hide_the_latest_lost_attempt(
         opaque('attempt', 2), native, public_id, 'task_result'
     )
     ledger.native_notification(opaque('attempt', 2), native, public_id)
-    ledger.claim_native_read(opaque('attempt', 2), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 2), native, public_id, opaque('read_claim', 2)
+    )
     ledger.observe_native(
         opaque('attempt', 2),
         native,
         public_id,
+        opaque('read_claim', 2),
         'not_found',
         fingerprint(2),
     )
@@ -3083,9 +4130,12 @@ def test_progress_only_advances_for_new_substantive_evidence(
         opaque('attempt', 1), native, public_id, 'task_result'
     )
     ledger.native_notification(opaque('attempt', 1), native, public_id)
-    ledger.claim_native_read(opaque('attempt', 1), native, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1)
+    )
     ledger.observe_native(
-        opaque('attempt', 1), native, public_id, 'found', None
+        opaque('attempt', 1), native, public_id, opaque('read_claim', 1),
+        'found', None
     )
     with sqlite3.connect(ledger.path) as connection:
         assert connection.execute(
@@ -3144,7 +4194,7 @@ def test_sync_default_explicit_sync_and_background_provenance(tmp_path: Path) ->
     rejected = run_cli(repository, invalid_background)
     assert rejected.returncode == 2
     assert json.loads(rejected.stdout) == {
-        'schema_version': 1,
+        'schema_version': 2,
         'policy_version': 'agent-invocation-control-v1',
         'command': 'admit',
         'reason_code': 'execution_provenance_invalid',
@@ -3167,7 +4217,7 @@ def test_sync_default_explicit_sync_and_background_provenance(tmp_path: Path) ->
     sync_bind = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'bind_native',
             'attempt_id': opaque('attempt', 1),
             'native_alias': native,
@@ -3183,17 +4233,82 @@ def test_sync_default_explicit_sync_and_background_provenance(tmp_path: Path) ->
     sync_read = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'native_read',
             'attempt_id': opaque('attempt', 1),
             'native_alias': native,
             'public_agent_id': 'agent-sync-must-return-inline',
+            'read_claim_id': opaque('read_claim', 1),
         },
     )
     assert sync_read.returncode == 2
     assert json.loads(sync_read.stdout)['reason_code'] == (
         'native_binding_mismatch'
     )
+
+
+def test_cli_native_read_reuses_one_claim_without_echoing_it(
+    tmp_path: Path,
+) -> None:
+    repository = init_repository(tmp_path)
+    assert run_cli(repository, background_admission(1)).returncode == 0
+    alias = opaque('native', 1)
+    public_id = 'task-agent-cli-read-claim'
+    assert run_cli(
+        repository,
+        {
+            'schema_version': 2,
+            'command': 'bind_native',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+            'binding_source': 'task_result',
+            'notifications_available': True,
+        },
+    ).returncode == 0
+    assert run_cli(
+        repository,
+        {
+            'schema_version': 2,
+            'command': 'native_notification',
+            'attempt_id': opaque('attempt', 1),
+            'native_alias': alias,
+            'public_agent_id': public_id,
+        },
+    ).returncode == 0
+    read_claim_id = opaque('read_claim', 1)
+    claim_request = {
+        'schema_version': 2,
+        'command': 'native_read',
+        'attempt_id': opaque('attempt', 1),
+        'native_alias': alias,
+        'public_agent_id': public_id,
+        'read_claim_id': read_claim_id,
+    }
+
+    malformed = dict(claim_request)
+    malformed_claim = 'sha256:' + ('1' * 64)
+    malformed['read_claim_id'] = malformed_claim
+    malformed_result = run_cli(repository, malformed)
+    assert malformed_result.returncode == 2
+    assert malformed_claim not in malformed_result.stdout
+
+    first = run_cli(repository, claim_request)
+    repeated = run_cli(repository, claim_request)
+
+    assert first.returncode == 0
+    assert repeated.returncode == 0
+    assert json.loads(first.stdout) == {
+        'schema_version': 2,
+        'policy_version': 'agent-invocation-control-v1',
+        'command': 'native_read',
+        'reason_code': 'native_read_authorized',
+        'read_authorized': True,
+        'idempotent': False,
+    }
+    assert json.loads(repeated.stdout)['idempotent'] is True
+    assert read_claim_id not in first.stdout
+    assert read_claim_id not in repeated.stdout
 
 
 def test_lifecycle_dispatch_distinguishes_policy_denial(tmp_path: Path) -> None:
@@ -3229,6 +4344,7 @@ def test_lifecycle_dispatch_distinguishes_policy_denial(tmp_path: Path) -> None:
         'x',
         opaque('native', 1),
         opaque('attempt', 1),
+        opaque('read_claim', 1),
         'x' * 513,
         '界' * 171,
     ],
@@ -3253,7 +4369,7 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
     bound = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'bind_native',
             'attempt_id': opaque('attempt', 1),
             'native_alias': alias,
@@ -3264,7 +4380,7 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
     )
     assert bound.returncode == 0
     assert json.loads(bound.stdout) == {
-        'schema_version': 1,
+        'schema_version': 2,
         'policy_version': 'agent-invocation-control-v1',
         'command': 'bind_native',
         'reason_code': 'native_bound',
@@ -3275,11 +4391,16 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
         refused = run_cli(
             repository,
             {
-                'schema_version': 1,
+                'schema_version': 2,
                 'command': command,
                 'attempt_id': opaque('attempt', 1),
                 'native_alias': alias,
                 'public_agent_id': public_id,
+                **(
+                    {'read_claim_id': opaque('read_claim', 1)}
+                    if command == 'native_read'
+                    else {}
+                ),
             },
         )
         assert refused.returncode == 5
@@ -3289,11 +4410,12 @@ def test_notifications_unavailable_stops_native_reads_and_polling(
     observed = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'native_observation',
             'attempt_id': opaque('attempt', 1),
             'native_alias': alias,
             'public_agent_id': public_id,
+            'read_claim_id': opaque('read_claim', 1),
             'observation': 'found',
             'terminal_fingerprint': None,
         },
@@ -3316,13 +4438,7 @@ def test_lifecycle_v1_native_binding_without_provenance_blocks_migration(
     ledger.bind_native(
         opaque('attempt', 1), alias, public_id, 'task_result'
     )
-    with sqlite3.connect(ledger.path) as connection:
-        connection.execute('PRAGMA foreign_keys=OFF')
-        connection.execute('DROP TABLE native_binding_provenance')
-        connection.execute('DROP TABLE lifecycle_dispatch')
-        connection.execute(
-            "UPDATE metadata SET value = '1' WHERE key = 'schema_version'"
-        )
+    downgrade_ledger_to_v1(ledger, 'lifecycle')
     with pytest.raises(StateUnsupported):
         ledger.initialize()
     with sqlite3.connect(ledger.path) as connection:
@@ -3380,11 +4496,16 @@ def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
     assert ledger.native_notification(
         opaque('attempt', 1), alias, public_id
     ) is True
-    ledger.claim_native_read(opaque('attempt', 1), alias, public_id)
+    ledger.claim_native_read(
+        opaque('attempt', 1), alias, public_id, opaque('read_claim', 1)
+    )
     with pytest.raises(NativeBoundary, match='native_read_refused'):
-        ledger.claim_native_read(opaque('attempt', 1), alias, public_id)
+        ledger.claim_native_read(
+            opaque('attempt', 1), alias, public_id, opaque('read_claim', 2)
+        )
     assert ledger.observe_native(
-        opaque('attempt', 1), alias, public_id, 'found', None
+        opaque('attempt', 1), alias, public_id, opaque('read_claim', 1),
+        'found', None
     ) == ('found', [])
 
     assert ledger.invalidate_native(
@@ -3406,10 +4527,11 @@ def test_public_agent_binding_mismatch_notification_one_read_and_invalidation(
             opaque('attempt', 1), alias, public_id
         ),
         lambda: ledger.claim_native_read(
-            opaque('attempt', 1), alias, public_id
+            opaque('attempt', 1), alias, public_id, opaque('read_claim', 1)
         ),
         lambda: ledger.observe_native(
-            opaque('attempt', 1), alias, public_id, 'found', None
+            opaque('attempt', 1), alias, public_id, opaque('read_claim', 1),
+            'found', None
         ),
     ):
         with pytest.raises(NativeBoundary, match='native_binding_invalidated'):
@@ -3454,7 +4576,7 @@ def test_cli_native_invalidation_has_stable_reason(
     bound = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'bind_native',
             'attempt_id': opaque('attempt', 1),
             'native_alias': alias,
@@ -3467,7 +4589,7 @@ def test_cli_native_invalidation_has_stable_reason(
     invalidated = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'invalidate_native',
             'attempt_id': opaque('attempt', 1),
             'native_alias': alias,
@@ -3480,7 +4602,7 @@ def test_cli_native_invalidation_has_stable_reason(
     stale = run_cli(
         repository,
         {
-            'schema_version': 1,
+            'schema_version': 2,
             'command': 'native_notification',
             'attempt_id': opaque('attempt', 1),
             'native_alias': alias,
@@ -3532,13 +4654,13 @@ def test_policy_parity_and_cooperative_manifest_boundaries() -> None:
         (ROOT / 'config' / 'agent-invocation-control.json').read_text(encoding='utf-8')
     )
     assert policy == {
-        'schema_version': 1,
+        'schema_version': 2,
         'policy_version': 'agent-invocation-control-v1',
         'status': 'instrument-shadow-only',
         'default_mode': 'instrument',
         'approved_modes': ['instrument', 'shadow'],
         'enforcement_approved': False,
-        'ledger_schema_version': 2,
+        'ledger_schema_version': 3,
         'dispatch_profiles': {
             'default': 'sync_inline',
             'sync': 'sync_inline',

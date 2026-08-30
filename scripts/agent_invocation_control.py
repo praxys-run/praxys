@@ -41,7 +41,8 @@ from analysis.agentic_task_routing import TaskClassification, TaskRoute, route_t
 
 POLICY_PATH = ROOT / 'config' / 'agent-invocation-control.json'
 LEGACY_LEDGER_SCHEMA_VERSION = 1
-LEDGER_SCHEMA_VERSION = 2
+PREVIOUS_LEDGER_SCHEMA_VERSION = 2
+LEDGER_SCHEMA_VERSION = 3
 EXIT_OK = 0
 EXIT_INVALID = 2
 EXIT_CONTRACT = 3
@@ -58,6 +59,7 @@ NATIVE_INVALIDATION_REASONS = (
 )
 NATIVE_BINDING_SOURCE = 'task_result'
 _NATIVE_FINGERPRINT_DOMAIN = b'praxys-native-public-agent-id-v1\x00'
+_READ_CLAIM_FINGERPRINT_DOMAIN = b'praxys/read-claim/v1\x00'
 
 
 class RequestFailure(ValueError):
@@ -86,6 +88,14 @@ class StateUnsupported(RuntimeError):
 
 class CommitOutcomeAmbiguous(RuntimeError):
     """A commit raised after SQLite may already have made it durable."""
+
+
+class AdmissionRejectionUnrecorded(RuntimeError):
+    """A known admission rejection could not be durably recorded."""
+
+    def __init__(self, lifecycle_transition: str | None) -> None:
+        super().__init__(lifecycle_transition)
+        self.lifecycle_transition = lifecycle_transition
 
 
 class IdentityConflict(RuntimeError):
@@ -135,7 +145,7 @@ def _emit(payload: dict[str, object], exit_code: int) -> NoReturn:
 
 def _require_exact_keys(request: dict[str, object], required: set[str]) -> None:
     if set(request) != required:
-        raise RequestFailure('request keys do not match schema v1')
+        raise RequestFailure('request keys do not match schema v2')
 
 
 def _read_request() -> dict[str, object]:
@@ -321,6 +331,13 @@ def _native_public_fingerprint(public_agent_id: str) -> str:
     return f'sha256:{digest}'
 
 
+def _read_claim_fingerprint(read_claim_id: str) -> str:
+    digest = hashlib.sha256(
+        _READ_CLAIM_FINGERPRINT_DOMAIN + read_claim_id.encode('ascii')
+    ).hexdigest()
+    return f'sha256:{digest}'
+
+
 def _machine_reason(mode: str, policy_reason: str) -> str:
     if policy_reason == 'kill_switch_active':
         return 'kill_switch_active'
@@ -446,7 +463,7 @@ CREATE INDEX attempts_slot_finished ON attempts(slot_id, finished_at_ms);
 CREATE INDEX decisions_contract_reason ON decisions(contract_id, policy_reason);
 """
 
-_LIFECYCLE_SCHEMA_COLUMNS = {
+_LIFECYCLE_SCHEMA_V2_COLUMNS = {
     'lifecycle_decisions': (
         'decision_id', 'attempt_id', 'contract_id', 'slot_id',
         'artifact_revision', 'requested_transition', 'effective_transition',
@@ -471,6 +488,13 @@ _LIFECYCLE_SCHEMA_COLUMNS = {
     ),
     'progress_evidence': ('attempt_id', 'progress_fingerprint', 'recorded_at_ms'),
 }
+_LIFECYCLE_SCHEMA_COLUMNS = {
+    **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+    'native_invocations': (
+        *_LIFECYCLE_SCHEMA_V2_COLUMNS['native_invocations'],
+        'read_claim_fingerprint',
+    ),
+}
 _AUXILIARY_SCHEMA_COLUMNS = {
     'lifecycle_dispatch': (
         'decision_id', 'attempt_id', 'dispatch_mode',
@@ -486,13 +510,17 @@ _SCHEMA_COLUMNS = {
     **_LIFECYCLE_SCHEMA_COLUMNS,
     **_AUXILIARY_SCHEMA_COLUMNS,
 }
-_LIFECYCLE_SCHEMA_INDEXES = {
+_LIFECYCLE_SCHEMA_V2_INDEXES = {
     'work_history_slot_revision',
     'work_history_replacement',
     'native_invocations_attempt',
 }
+_LIFECYCLE_SCHEMA_INDEXES = (
+    _LIFECYCLE_SCHEMA_V2_INDEXES
+    | {'native_invocations_read_claim_fingerprint_uq'}
+)
 _SCHEMA_INDEXES = _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_INDEXES
-_LIFECYCLE_SCHEMA = """
+_LIFECYCLE_SCHEMA_V2 = """
 CREATE TABLE lifecycle_decisions (
     decision_id TEXT PRIMARY KEY,
     attempt_id TEXT NOT NULL,
@@ -563,6 +591,18 @@ CREATE INDEX work_history_replacement
     ON work_history(replacement_of_attempt_id);
 CREATE INDEX native_invocations_attempt ON native_invocations(attempt_id);
 """
+_LIFECYCLE_SCHEMA = _LIFECYCLE_SCHEMA_V2.replace(
+    """    observed_at_ms INTEGER
+) STRICT;""",
+    """    observed_at_ms INTEGER,
+    read_claim_fingerprint TEXT
+) STRICT;""",
+    1,
+) + """
+CREATE UNIQUE INDEX native_invocations_read_claim_fingerprint_uq
+    ON native_invocations(read_claim_fingerprint)
+    WHERE read_claim_fingerprint IS NOT NULL;
+"""
 _AUXILIARY_SCHEMA = """
 CREATE TABLE lifecycle_dispatch (
     decision_id TEXT PRIMARY KEY REFERENCES lifecycle_decisions(decision_id),
@@ -594,25 +634,43 @@ CREATE TABLE native_binding_provenance (
 """
 _LAYOUT_BASE = 'base'
 _LAYOUT_LIFECYCLE = 'lifecycle'
+_LAYOUT_FULL_V2 = 'full_v2'
 _LAYOUT_FULL = 'full'
 _LAYOUT_SCHEMAS = {
     _LAYOUT_BASE: (_SCHEMA,),
-    _LAYOUT_LIFECYCLE: (_SCHEMA, _LIFECYCLE_SCHEMA),
+    _LAYOUT_LIFECYCLE: (_SCHEMA, _LIFECYCLE_SCHEMA_V2),
+    _LAYOUT_FULL_V2: (_SCHEMA, _LIFECYCLE_SCHEMA_V2, _AUXILIARY_SCHEMA),
     _LAYOUT_FULL: (_SCHEMA, _LIFECYCLE_SCHEMA, _AUXILIARY_SCHEMA),
 }
 _LAYOUT_COLUMNS = {
     _LAYOUT_BASE: _BASE_SCHEMA_COLUMNS,
     _LAYOUT_LIFECYCLE: {
         **_BASE_SCHEMA_COLUMNS,
-        **_LIFECYCLE_SCHEMA_COLUMNS,
+        **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+    },
+    _LAYOUT_FULL_V2: {
+        **_BASE_SCHEMA_COLUMNS,
+        **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+        **_AUXILIARY_SCHEMA_COLUMNS,
     },
     _LAYOUT_FULL: _SCHEMA_COLUMNS,
 }
 _LAYOUT_INDEXES = {
     _LAYOUT_BASE: _BASE_SCHEMA_INDEXES,
-    _LAYOUT_LIFECYCLE: _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_INDEXES,
+    _LAYOUT_LIFECYCLE: (
+        _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_V2_INDEXES
+    ),
+    _LAYOUT_FULL_V2: (
+        _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_V2_INDEXES
+    ),
     _LAYOUT_FULL: _SCHEMA_INDEXES,
 }
+_LIFECYCLE_LAYOUTS = {
+    _LAYOUT_LIFECYCLE,
+    _LAYOUT_FULL_V2,
+    _LAYOUT_FULL,
+}
+_AUXILIARY_LAYOUTS = {_LAYOUT_FULL_V2, _LAYOUT_FULL}
 
 
 class Ledger:
@@ -622,7 +680,7 @@ class Ledger:
         self.path = path
 
     def initialize(self) -> bool:
-        """Create ledger v2 or explicitly migrate one recognized v1 layout."""
+        """Create ledger v3 or explicitly migrate one recognized v1/v2 layout."""
         if self.path.exists():
             return self._initialize_existing()
         return self._initialize_new_atomically()
@@ -679,6 +737,8 @@ class Ledger:
     def _initialize_existing(self) -> bool:
         connection = self._connect_for_initialization()
         ambiguous_commit = False
+        source_layout: str | None = None
+        source_schema_version: int | None = None
         try:
             connection.execute('BEGIN IMMEDIATE')
             self._require_wal(connection)
@@ -690,51 +750,73 @@ class Ledger:
                     layout=_LAYOUT_FULL,
                     schema_version=LEDGER_SCHEMA_VERSION,
                 )
-            elif schema_version == str(LEGACY_LEDGER_SCHEMA_VERSION):
-                layout = self._classify_layout(connection)
+            elif schema_version in {
+                str(LEGACY_LEDGER_SCHEMA_VERSION),
+                str(PREVIOUS_LEDGER_SCHEMA_VERSION),
+            }:
+                source_schema_version = int(schema_version)
+                source_layout = self._classify_layout(connection)
+                if (
+                    source_schema_version == PREVIOUS_LEDGER_SCHEMA_VERSION
+                    and source_layout != _LAYOUT_FULL_V2
+                ):
+                    raise StateCorrupt
                 self._validate(
                     connection,
-                    layout=layout,
-                    schema_version=LEGACY_LEDGER_SCHEMA_VERSION,
+                    layout=source_layout,
+                    schema_version=source_schema_version,
                 )
                 if (
-                    layout == _LAYOUT_LIFECYCLE
+                    source_layout == _LAYOUT_LIFECYCLE
                     and connection.execute(
                         'SELECT 1 FROM native_invocations LIMIT 1'
                     ).fetchone() is not None
                 ):
                     raise StateUnsupported
+                if (
+                    source_layout != _LAYOUT_BASE
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations
+                        WHERE lifecycle_status = 'read_claimed' LIMIT 1"""
+                    ).fetchone() is not None
+                ):
+                    raise StateUnsupported
                 dispatch = (
                     self._expected_dispatch_records(connection)
-                    if layout == _LAYOUT_LIFECYCLE
+                    if source_layout == _LAYOUT_LIFECYCLE
                     else {}
                 )
-                if layout == _LAYOUT_BASE:
-                    self._execute_schema(connection, _LIFECYCLE_SCHEMA)
-                    self._execute_schema(connection, _AUXILIARY_SCHEMA)
-                elif layout == _LAYOUT_LIFECYCLE:
-                    self._execute_schema(connection, _AUXILIARY_SCHEMA)
-                    connection.executemany(
-                        """INSERT INTO lifecycle_dispatch VALUES
-                        (?, ?, 'sync', 'sync_inline', ?, ?)""",
-                        (
+                if source_schema_version == LEGACY_LEDGER_SCHEMA_VERSION:
+                    if source_layout == _LAYOUT_BASE:
+                        self._execute_schema(connection, _LIFECYCLE_SCHEMA_V2)
+                        self._execute_schema(connection, _AUXILIARY_SCHEMA)
+                    elif source_layout == _LAYOUT_LIFECYCLE:
+                        self._execute_schema(connection, _AUXILIARY_SCHEMA)
+                        connection.executemany(
+                            """INSERT INTO lifecycle_dispatch VALUES
+                            (?, ?, 'sync', 'sync_inline', ?, ?)""",
                             (
-                                decision_id,
-                                attempt_id,
-                                admission_reason,
-                                decided_at_ms,
-                            )
-                            for decision_id, (
-                                attempt_id,
-                                admission_reason,
-                                decided_at_ms,
-                            ) in sorted(dispatch.items())
-                        ),
-                    )
-                connection.execute(
-                    "UPDATE metadata SET value = ? WHERE key = 'schema_version'",
-                    (str(LEDGER_SCHEMA_VERSION),),
+                                (
+                                    decision_id,
+                                    attempt_id,
+                                    admission_reason,
+                                    decided_at_ms,
+                                )
+                                for decision_id, (
+                                    attempt_id,
+                                    admission_reason,
+                                    decided_at_ms,
+                                ) in sorted(dispatch.items())
+                            ),
+                        )
+                self._apply_claim_schema_delta(connection)
+                updated = connection.execute(
+                    """UPDATE metadata SET value = ?
+                    WHERE key = 'schema_version' AND value = ?""",
+                    (str(LEDGER_SCHEMA_VERSION), schema_version),
                 )
+                if updated.rowcount != 1:
+                    raise StateCorrupt
                 self._validate(
                     connection,
                     layout=_LAYOUT_FULL,
@@ -756,7 +838,10 @@ class Ledger:
         finally:
             connection.close()
         if ambiguous_commit:
-            self._validate_after_ambiguous_commit()
+            self._validate_after_ambiguous_commit(
+                source_layout=source_layout,
+                source_schema_version=source_schema_version,
+            )
         return False
 
     def _initialize_new(self) -> bool:
@@ -839,8 +924,22 @@ class Ledger:
                 connection.execute(statement)
 
     @staticmethod
+    def _apply_claim_schema_delta(connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """ALTER TABLE native_invocations
+            ADD COLUMN read_claim_fingerprint TEXT"""
+        )
+        connection.execute(
+            """CREATE UNIQUE INDEX
+            native_invocations_read_claim_fingerprint_uq
+            ON native_invocations(read_claim_fingerprint)
+            WHERE read_claim_fingerprint IS NOT NULL"""
+        )
+
+    @staticmethod
     def _normalize_schema_sql(statement: str) -> str:
-        return ' '.join(statement.split())
+        normalized = ' '.join(statement.split())
+        return normalized.replace(' ,', ',').replace(' )', ')')
 
     @classmethod
     def _schema_objects(
@@ -881,7 +980,11 @@ class Ledger:
     @classmethod
     def _classify_layout(cls, connection: sqlite3.Connection) -> str:
         objects = cls._schema_objects(connection)
-        for layout in (_LAYOUT_BASE, _LAYOUT_LIFECYCLE, _LAYOUT_FULL):
+        for layout in (
+            _LAYOUT_BASE,
+            _LAYOUT_LIFECYCLE,
+            _LAYOUT_FULL_V2,
+        ):
             if objects == cls._expected_schema_objects(layout):
                 return layout
         raise StateCorrupt
@@ -921,16 +1024,34 @@ class Ledger:
                 raise StateCorrupt from exc
             raise CommitOutcomeAmbiguous from exc
 
-    def _validate_after_ambiguous_commit(self) -> None:
+    def _validate_after_ambiguous_commit(
+        self,
+        *,
+        source_layout: str | None = None,
+        source_schema_version: int | None = None,
+    ) -> None:
         connection = self._connect_for_initialization()
         try:
             connection.execute('BEGIN IMMEDIATE')
             self._require_wal(connection)
-            self._validate(
-                connection,
-                layout=_LAYOUT_FULL,
-                schema_version=LEDGER_SCHEMA_VERSION,
-            )
+            try:
+                self._validate(
+                    connection,
+                    layout=_LAYOUT_FULL,
+                    schema_version=LEDGER_SCHEMA_VERSION,
+                )
+            except (StateCorrupt, StateUnsupported) as target_error:
+                connection.rollback()
+                if source_layout is None or source_schema_version is None:
+                    raise
+                connection.execute('BEGIN IMMEDIATE')
+                self._validate(
+                    connection,
+                    layout=source_layout,
+                    schema_version=source_schema_version,
+                )
+                connection.rollback()
+                raise StateCorrupt from target_error
             connection.commit()
         except (StateCorrupt, StateUnsupported):
             if connection.in_transaction:
@@ -1176,7 +1297,7 @@ class Ledger:
             ).fetchone()
             dispatch = (
                 cls._expected_dispatch_records(connection)
-                if layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                if layout in _LIFECYCLE_LAYOUTS
                 else {}
             )
             dispatch_rows = (
@@ -1186,7 +1307,7 @@ class Ledger:
                               recorded_at_ms
                     FROM lifecycle_dispatch"""
                 ).fetchall()
-                if layout == _LAYOUT_FULL
+                if layout in _AUXILIARY_LAYOUTS
                 else []
             )
             actual_dispatch = {
@@ -1197,7 +1318,7 @@ class Ledger:
                 DISPATCH_PROFILES.get(row[2]) != row[3]
                 for row in dispatch_rows
             )
-            if layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}:
+            if layout in _LIFECYCLE_LAYOUTS:
                 cls._validate_lifecycle_sequence(connection)
             if (
                 cls._schema_objects(connection)
@@ -1355,7 +1476,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM attempts child
                         LEFT JOIN work_history child_history
@@ -1372,7 +1493,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM attempts attempt
                         JOIN work_history USING (attempt_id)
@@ -1384,7 +1505,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM work_history history
                         JOIN attempts attempt USING (attempt_id)
@@ -1431,7 +1552,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM lifecycle_decisions lifecycle
                         LEFT JOIN attempts attempt
@@ -1462,14 +1583,14 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM lifecycle_decisions
                         GROUP BY attempt_id HAVING COUNT(*) != 1 LIMIT 1"""
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM work_history history
                         LEFT JOIN active_work_keys active
@@ -1486,7 +1607,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM active_work_keys active
                         JOIN work_history history USING (attempt_id)
@@ -1499,7 +1620,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM replacement_eligibility eligibility
                         JOIN work_history source
@@ -1546,7 +1667,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM work_history source
                         LEFT JOIN replacement_eligibility eligibility
@@ -1558,7 +1679,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM work_history replacement
                         LEFT JOIN replacement_eligibility eligibility
@@ -1576,7 +1697,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM native_invocations native
                         JOIN work_history history USING (attempt_id)
@@ -1607,7 +1728,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout in {_LAYOUT_LIFECYCLE, _LAYOUT_FULL}
+                    layout in _LIFECYCLE_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM work_history history
                         LEFT JOIN (
@@ -1620,12 +1741,12 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout == _LAYOUT_FULL
+                    layout in _AUXILIARY_LAYOUTS
                     and actual_dispatch != dispatch
                 )
                 or invalid_dispatch_profile
                 or (
-                    layout == _LAYOUT_FULL
+                    layout in _AUXILIARY_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM native_invocations native
                         LEFT JOIN native_binding_provenance provenance
@@ -1636,7 +1757,7 @@ class Ledger:
                     ).fetchone() is not None
                 )
                 or (
-                    layout == _LAYOUT_FULL
+                    layout in _AUXILIARY_LAYOUTS
                     and connection.execute(
                         """SELECT 1 FROM native_binding_provenance
                         LEFT JOIN lifecycle_dispatch USING (attempt_id)
@@ -1646,6 +1767,32 @@ class Ledger:
                            OR substr(public_agent_id_fingerprint, 1, 7) != 'sha256:'
                            OR substr(public_agent_id_fingerprint, 8)
                               GLOB '*[^0-9a-f]*'
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout == _LAYOUT_FULL
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations
+                        WHERE (
+                            read_claim_fingerprint IS NOT NULL
+                            AND (
+                                length(read_claim_fingerprint) != 71
+                                OR substr(read_claim_fingerprint, 1, 7)
+                                   != 'sha256:'
+                                OR substr(read_claim_fingerprint, 8)
+                                   GLOB '*[^0-9a-f]*'
+                            )
+                        ) OR (
+                            lifecycle_status IN (
+                                'active', 'notifications_unavailable',
+                                'completion_notified'
+                            )
+                            AND read_claim_fingerprint IS NOT NULL
+                        ) OR (
+                            lifecycle_status = 'read_claimed'
+                            AND read_claim_fingerprint IS NULL
+                        )
                         LIMIT 1"""
                     ).fetchone() is not None
                 )
@@ -1681,6 +1828,29 @@ class Ledger:
             raise IdentityConflict
         return False
 
+    @classmethod
+    def _record_lifecycle_rejection(
+        cls,
+        connection: sqlite3.Connection,
+        lifecycle_values: tuple[object, ...],
+        dispatch_values: tuple[object, ...],
+        lifecycle_transition: str,
+    ) -> None:
+        try:
+            connection.execute(
+                """INSERT INTO lifecycle_decisions VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                lifecycle_values,
+            )
+            connection.execute(
+                """INSERT INTO lifecycle_dispatch VALUES
+                (?, ?, ?, ?, ?, ?)""",
+                dispatch_values,
+            )
+            cls._commit(connection)
+        except (sqlite3.Error, StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            raise AdmissionRejectionUnrecorded(lifecycle_transition) from exc
+
     def set_kill_switch(self, active: bool) -> None:
         """Atomically set the mediated-launch kill switch."""
         connection = self._connect()
@@ -1707,6 +1877,8 @@ class Ledger:
         """Evaluate and record admission in one immediate transaction."""
         dispatch_mode, execution_provenance = _dispatch_profile(request)
         connection = self._connect()
+        known_rejection = False
+        known_rejection_transition: str | None = None
         try:
             connection.execute('BEGIN IMMEDIATE')
             now = _now_ms()
@@ -1855,23 +2027,20 @@ class Ledger:
                         lifecycle_transition = 'illegal_transition'
 
                 if lifecycle_transition in {'duplicate_launch', 'illegal_transition'}:
-                    connection.execute(
-                        """INSERT INTO lifecycle_decisions VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                    self._record_lifecycle_rejection(
+                        connection,
                         (
                             decision_id, attempt_id, contract_id, slot_id, revision,
                             requested_transition, lifecycle_transition, replacement_of, now,
                         ),
-                    )
-                    connection.execute(
-                        """INSERT INTO lifecycle_dispatch VALUES
-                        (?, ?, ?, ?, 'lifecycle_transition_rejected', ?)""",
                         (
                             decision_id, attempt_id, dispatch_mode,
-                            execution_provenance, now,
+                            execution_provenance,
+                            'lifecycle_transition_rejected',
+                            now,
                         ),
+                        lifecycle_transition,
                     )
-                    connection.commit()
                     return {
                         'decision_id': decision_id,
                         'policy_reason': None,
@@ -1919,9 +2088,8 @@ class Ledger:
                     (parent_id,),
                 ).fetchone()
                 if active_sibling is not None:
-                    connection.execute(
-                        """INSERT INTO lifecycle_decisions VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                    self._record_lifecycle_rejection(
+                        connection,
                         (
                             decision_id, attempt_id, contract_id, slot_id,
                             request['artifact_revision'],
@@ -1930,16 +2098,14 @@ class Ledger:
                             request['replacement_of_attempt_id'],
                             now,
                         ),
-                    )
-                    connection.execute(
-                        """INSERT INTO lifecycle_dispatch VALUES
-                        (?, ?, ?, ?, 'direct_sibling_active', ?)""",
                         (
                             decision_id, attempt_id, dispatch_mode,
-                            execution_provenance, now,
+                            execution_provenance,
+                            'direct_sibling_active',
+                            now,
                         ),
+                        str(lifecycle_transition),
                     )
-                    connection.commit()
                     return {
                         'decision_id': decision_id,
                         'policy_reason': None,
@@ -2021,6 +2187,9 @@ class Ledger:
                 ),
                 limits,
             )
+            known_rejection = not decision.launch_authorized
+            if known_rejection:
+                known_rejection_transition = lifecycle_transition
             if decision.launch_authorized:
                 if generation_is_new:
                     connection.execute(
@@ -2108,7 +2277,7 @@ class Ledger:
                         )
                         if updated.rowcount != 1:
                             raise StateCorrupt
-            connection.commit()
+            self._commit(connection)
             outcome = {
                 'decision_id': decision_id,
                 'policy_reason': decision.policy_reason,
@@ -2120,11 +2289,26 @@ class Ledger:
                 outcome['dispatch_mode'] = dispatch_mode
                 outcome['execution_provenance'] = execution_provenance
             return outcome
-        except (IdentityConflict, StateCorrupt):
+        except IdentityConflict:
             connection.rollback()
             raise
+        except (StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            if known_rejection:
+                raise AdmissionRejectionUnrecorded(
+                    known_rejection_transition
+                ) from exc
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
+            raise StateCorrupt from exc
         except sqlite3.Error as exc:
-            connection.rollback()
+            if known_rejection:
+                raise AdmissionRejectionUnrecorded(
+                    known_rejection_transition
+                ) from exc
+            if connection.in_transaction:
+                connection.rollback()
             raise StateCorrupt from exc
         finally:
             connection.close()
@@ -2284,7 +2468,12 @@ class Ledger:
             ):
                 raise NativeBoundary('execution_provenance_invalid')
             connection.execute(
-                "INSERT INTO native_invocations VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)",
+                """INSERT INTO native_invocations(
+                    native_invocation_id, attempt_id, notifications_available,
+                    lifecycle_status, bound_at_ms, notified_at_ms,
+                    read_claimed_at_ms, observed_at_ms,
+                    read_claim_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)""",
                 (
                     native_alias,
                     attempt_id,
@@ -2335,6 +2524,7 @@ class Ledger:
         native = connection.execute(
             """SELECT native_invocations.notifications_available,
                       native_invocations.lifecycle_status,
+                      native_invocations.read_claim_fingerprint,
                       native_binding_provenance.attempt_id,
                       native_binding_provenance.public_agent_id_fingerprint,
                       native_binding_provenance.invalidation_reason
@@ -2393,47 +2583,149 @@ class Ledger:
         finally:
             connection.close()
 
-    def claim_native_read(
-        self, attempt_id: str, native_alias: str, public_agent_id: str
-    ) -> None:
-        """Authorize exactly one read, and only after completion notification."""
+    def _claim_native_read_in_transaction(
+        self,
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        claim_fingerprint: str,
+    ) -> bool:
+        native = self._verified_native_binding(
+            connection, attempt_id, native_alias, public_agent_id
+        )
+        if not native['notifications_available']:
+            raise NativeBoundary('native_notifications_unavailable')
+        state = native['lifecycle_status']
+        stored_fingerprint = native['read_claim_fingerprint']
+        if state == 'active':
+            raise NativeBoundary('completion_notification_required')
+        if state == 'read_claimed':
+            if (
+                isinstance(stored_fingerprint, str)
+                and hmac.compare_digest(
+                    stored_fingerprint, claim_fingerprint
+                )
+            ):
+                return True
+            raise NativeBoundary('native_read_refused')
+        if state != 'completion_notified' or stored_fingerprint is not None:
+            raise NativeBoundary('native_read_refused')
+        existing = connection.execute(
+            """SELECT 1 FROM native_invocations
+            WHERE read_claim_fingerprint = ?
+              AND native_invocation_id != ?
+            LIMIT 1""",
+            (claim_fingerprint, native_alias),
+        ).fetchone()
+        if existing is not None:
+            raise NativeBoundary('native_read_refused')
+        updated = connection.execute(
+            """UPDATE native_invocations
+            SET lifecycle_status = 'read_claimed',
+                read_claimed_at_ms = ?,
+                read_claim_fingerprint = ?
+            WHERE native_invocation_id = ?
+              AND lifecycle_status = 'completion_notified'
+              AND read_claim_fingerprint IS NULL""",
+            (_now_ms(), claim_fingerprint, native_alias),
+        )
+        if updated.rowcount != 1:
+            raise StateCorrupt
+        return False
+
+    def _reconcile_native_read_claim(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        claim_fingerprint: str,
+    ) -> bool:
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
-            native = self._verified_native_binding(
-                connection, attempt_id, native_alias, public_agent_id
-            )
-            if not native['notifications_available']:
-                raise NativeBoundary('native_notifications_unavailable')
-            if native['lifecycle_status'] == 'active':
-                raise NativeBoundary('completion_notification_required')
-            if native['lifecycle_status'] != 'completion_notified':
-                raise NativeBoundary('native_read_refused')
-            connection.execute(
-                """UPDATE native_invocations
-                SET lifecycle_status = 'read_claimed', read_claimed_at_ms = ?
-                WHERE native_invocation_id = ?""",
-                (_now_ms(), native_alias),
+            idempotent = self._claim_native_read_in_transaction(
+                connection,
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
             )
             connection.commit()
+            return idempotent
         except NativeBoundary:
             connection.rollback()
             raise
-        except sqlite3.Error as exc:
-            connection.rollback()
+        except (StateCorrupt, sqlite3.Error) as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
             raise StateCorrupt from exc
         finally:
             connection.close()
+
+    def claim_native_read(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        read_claim_id: str,
+    ) -> bool:
+        """Authorize one token-bound read after completion notification."""
+        if not is_valid_identity(read_claim_id, 'read_claim'):
+            raise NativeBoundary('native_read_refused')
+        claim_fingerprint = _read_claim_fingerprint(read_claim_id)
+        connection = self._connect()
+        ambiguous_commit = False
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            idempotent = self._claim_native_read_in_transaction(
+                connection,
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
+            )
+            self._commit(connection)
+            return idempotent
+        except CommitOutcomeAmbiguous:
+            ambiguous_commit = True
+        except NativeBoundary:
+            connection.rollback()
+            raise
+        except StateCorrupt:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+        if ambiguous_commit:
+            return self._reconcile_native_read_claim(
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
+            )
+        raise StateCorrupt
 
     def observe_native(
         self,
         attempt_id: str,
         native_alias: str,
         public_agent_id: str,
+        read_claim_id: str,
         observation: str,
         terminal_fingerprint: str | None,
     ) -> tuple[str, list[str]]:
         """Record the one claimed read result; not-found is terminal loss."""
+        if not is_valid_identity(read_claim_id, 'read_claim'):
+            raise NativeBoundary('native_read_refused')
+        claim_fingerprint = _read_claim_fingerprint(read_claim_id)
         connection = self._connect()
         try:
             connection.execute('BEGIN IMMEDIATE')
@@ -2442,7 +2734,14 @@ class Ledger:
             )
             if not native['notifications_available']:
                 raise NativeBoundary('native_notifications_unavailable')
-            if native['lifecycle_status'] != 'read_claimed':
+            stored_fingerprint = native['read_claim_fingerprint']
+            if (
+                native['lifecycle_status'] != 'read_claimed'
+                or not isinstance(stored_fingerprint, str)
+                or not hmac.compare_digest(
+                    stored_fingerprint, claim_fingerprint
+                )
+            ):
                 raise NativeBoundary('native_read_refused')
             descendants: list[str] = []
             now = _now_ms()
@@ -2464,13 +2763,20 @@ class Ledger:
                 WHERE native_invocation_id = ?""",
                 (state, now, native_alias),
             )
-            connection.commit()
+            self._commit(connection)
             return state, descendants
         except (NativeBoundary, FinishConflict):
             connection.rollback()
             raise
+        except (StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
+            raise StateCorrupt from exc
         except sqlite3.Error as exc:
-            connection.rollback()
+            if connection.in_transaction:
+                connection.rollback()
             raise StateCorrupt from exc
         finally:
             connection.close()
@@ -2710,7 +3016,8 @@ def main() -> int:
             _require_exact_keys(request, {'schema_version', 'command', 'kind'})
             kind = request['kind']
             if kind not in {
-                'contract', 'slot', 'generation', 'logical', 'attempt', 'native'
+                'contract', 'slot', 'generation', 'logical', 'attempt',
+                'native', 'read_claim',
             }:
                 raise RequestFailure('invalid identity kind')
             _emit(
@@ -2750,7 +3057,7 @@ def main() -> int:
                 frozenset(lifecycle_keys | {'dispatch_mode'}),
                 frozenset(lifecycle_keys | {'execution_provenance'}),
             }:
-                raise RequestFailure('request keys do not match schema v1')
+                raise RequestFailure('request keys do not match schema v2')
             mode = request['mode']
             if mode == 'enforce' or mode not in APPROVED_MODES:
                 _emit(
@@ -2864,7 +3171,7 @@ def main() -> int:
                 request,
                 {
                     'schema_version', 'command', 'attempt_id',
-                    'native_alias', 'public_agent_id',
+                    'native_alias', 'public_agent_id', 'read_claim_id',
                 },
             )
             if not is_valid_identity(request['attempt_id'], 'attempt'):
@@ -2873,13 +3180,19 @@ def main() -> int:
                 raise RequestFailure('invalid native_alias')
             if not is_valid_public_agent_id(request['public_agent_id']):
                 raise RequestFailure('invalid public_agent_id')
-            Ledger(_ledger_path()).claim_native_read(
+            if not is_valid_identity(request['read_claim_id'], 'read_claim'):
+                raise RequestFailure('invalid read_claim_id')
+            idempotent = Ledger(_ledger_path()).claim_native_read(
                 str(request['attempt_id']),
                 str(request['native_alias']),
                 str(request['public_agent_id']),
+                str(request['read_claim_id']),
             )
             _emit(
-                _response(command, 'native_read_authorized', read_authorized=True),
+                _response(
+                    command, 'native_read_authorized',
+                    read_authorized=True, idempotent=idempotent,
+                ),
                 EXIT_OK,
             )
 
@@ -2890,7 +3203,7 @@ def main() -> int:
                 {
                     'schema_version', 'command', 'attempt_id',
                     'native_alias', 'public_agent_id', 'observation',
-                    'terminal_fingerprint',
+                    'terminal_fingerprint', 'read_claim_id',
                 },
             )
             if not is_valid_identity(request['attempt_id'], 'attempt'):
@@ -2899,6 +3212,8 @@ def main() -> int:
                 raise RequestFailure('invalid native_alias')
             if not is_valid_public_agent_id(request['public_agent_id']):
                 raise RequestFailure('invalid public_agent_id')
+            if not is_valid_identity(request['read_claim_id'], 'read_claim'):
+                raise RequestFailure('invalid read_claim_id')
             observation = request['observation']
             terminal = request['terminal_fingerprint']
             if observation not in {'found', 'not_found'}:
@@ -2912,6 +3227,7 @@ def main() -> int:
                 str(request['attempt_id']),
                 str(request['native_alias']),
                 str(request['public_agent_id']),
+                str(request['read_claim_id']),
                 str(observation),
                 str(terminal) if terminal is not None else None,
             )
@@ -3071,6 +3387,22 @@ def main() -> int:
         if command == 'admit' and mode in APPROVED_MODES:
             values.update({'would_reject': True, 'launch_authorized': True})
         _emit(_response(command, exc.reason_code, **values), EXIT_CONTRACT)
+    except AdmissionRejectionUnrecorded as exc:
+        values: dict[str, object] = {
+            'policy_reason': 'state_corrupt',
+            'would_reject': True,
+            'launch_authorized': False,
+        }
+        if exc.lifecycle_transition is not None:
+            values['lifecycle_transition'] = exc.lifecycle_transition
+        _emit(
+            _response(
+                str(locals().get('command', 'admit')),
+                'ledger_unavailable',
+                **values,
+            ),
+            EXIT_LEDGER,
+        )
     except StateMissing:
         command = str(locals().get('command', 'invalid'))
         local_request = locals().get('request')
@@ -3111,7 +3443,15 @@ def main() -> int:
         mode = local_request.get('mode') if isinstance(local_request, dict) else None
         values: dict[str, object] = {}
         if command == 'admit' and mode in APPROVED_MODES:
-            values.update({'would_reject': True, 'launch_authorized': True})
+            values.update(
+                {
+                    'would_reject': True,
+                    'launch_authorized': not (
+                        isinstance(local_request, dict)
+                        and 'artifact_revision' in local_request
+                    ),
+                }
+            )
         _emit(_response(command, 'invalid_identity', **values), EXIT_INVALID)
     except RecoveryRequired:
         _emit(_response(str(locals().get('command', 'invalid')), 'recovery_required'), EXIT_LEDGER)

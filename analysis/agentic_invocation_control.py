@@ -8,7 +8,7 @@ import unicodedata
 from typing import Mapping
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 POLICY_VERSION = "agent-invocation-control-v1"
 APPROVED_MODES = ("instrument", "shadow")
 DISPATCH_PROFILES = {
@@ -91,6 +91,7 @@ ID_PREFIXES = {
     "attempt": "att",
     "decision": "dec",
     "native": "nat",
+    "read_claim": "rcl",
 }
 _IDENTITY_RE = re.compile(r"^[a-z]{3}_[0-9a-f]{32}$")
 _FINGERPRINT_RE = re.compile(r"^fpr_[0-9a-f]{64}$")
@@ -98,7 +99,7 @@ _ARTIFACT_REVISION_RE = re.compile(
     r"^(?:sha256:[0-9a-f]{64}|git:[0-9a-f]{40}|git:[0-9a-f]{64})$"
 )
 _REPOSITORY_IDENTITY_RE = re.compile(
-    r"^(?:ctr|slt|gen|log|att|dec|nat)_[0-9a-f]{32}$"
+    r"^(?:ctr|slt|gen|log|att|dec|nat|rcl)_[0-9a-f]{32}$"
 )
 _PUBLIC_AGENT_ID_MAX_LENGTH = 512
 _PUBLIC_AGENT_ID_PLACEHOLDERS = {

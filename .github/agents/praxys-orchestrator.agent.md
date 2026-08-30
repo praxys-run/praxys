@@ -100,9 +100,18 @@ different parent. Roots and unrelated parents are not globally serialized.
 Sync returns inline: do not bind or call `read_agent`. For valid background,
 bind a new `nat_*` repository alias to the exact public agent ID returned by
 successful `task` with `binding_source=task_result`. Carry the attempt ID,
-alias, and exact public ID on completion notification, the single read claim,
-and observation. Wait for external notification without status checks,
-`read_agent(wait:true)`, or polling, then claim and perform exactly one read.
+alias, and exact public ID on completion notification. Wait for external
+notification without status checks, `read_agent(wait:true)`, or polling. Then
+create one caller-held `rcl_*` identity with
+`new_identity(kind: "read_claim")`; use that same `read_claim_id` for every
+retry of `native_read` and for the one `native_observation`. Perform
+`read_agent` exactly once only when the caller knows it has not already invoked
+the physical read. An idempotent claim acknowledgement is the same logical
+authorization, not permission for another physical read. If the token is lost
+or the caller cannot determine whether the physical read already ran, stop
+without rereading, creating another token, observing, marking loss, or
+replacing. Keep the raw token only in the current controlled operation context;
+never put it in files, logs, telemetry, errors, or support artifacts.
 If completion notifications are unavailable, record that limitation and stop
 without reading or polling.
 On shutdown, resume, or context replacement, invalidate the exact binding;

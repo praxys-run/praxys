@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "policy_version": "agent-invocation-control-v1",
   "status": "instrument-shadow-only",
   "default_mode": "instrument",
@@ -8,7 +8,7 @@
     "shadow"
   ],
   "enforcement_approved": false,
-  "ledger_schema_version": 2,
+  "ledger_schema_version": 3,
   "dispatch_profiles": {
     "default": "sync_inline",
     "sync": "sync_inline",
