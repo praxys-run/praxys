@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from tests.test_plan_proposals import proposal_client
 
@@ -544,6 +544,11 @@ def _api_request(*, purpose: dict | None = None) -> dict:
     return payload
 
 
+def _api_today() -> date:
+    """Match the API's explicit UTC athlete-date test contract."""
+    return datetime.now(timezone.utc).date()
+
+
 def _current_goal_purpose(client) -> dict:
     discovery = client.get("/api/plan/generation/capabilities")
     assert discovery.status_code == 200, discovery.text
@@ -578,7 +583,7 @@ def _seed_api_context(db_session, user_id: str) -> None:
         UserConfig,
     )
 
-    today = date.today()
+    today = _api_today()
     goal = {
         "goal_kind": "performance_5k",
         "distance": "5k",
@@ -588,7 +593,11 @@ def _seed_api_context(db_session, user_id: str) -> None:
     current_week = today - timedelta(days=today.weekday())
     db = db_session.SessionLocal()
     try:
-        db.add(UserConfig(user_id=user_id, goal=goal))
+        db.add(UserConfig(
+            user_id=user_id,
+            goal=goal,
+            source_options={"athlete_timezone": "UTC"},
+        ))
         db.add(Activity(
             user_id=user_id,
             activity_id="current-baseline",
@@ -730,7 +739,8 @@ def test_api_generation_replays_idempotently_and_fences_stale_source(
         assert generation_audit.evidence_review_ids
         assert generation_audit.evidence_claim_ids
         assert generation_audit.ai_explanation_present is False
-        current_week = date.today() - timedelta(days=date.today().weekday())
+        today = _api_today()
+        current_week = today - timedelta(days=today.weekday())
         db.add(Activity(
             user_id=current_user["value"],
             activity_id="history-changed-after-proposal",
@@ -1177,8 +1187,9 @@ def test_api_idempotency_replays_before_source_fence_after_source_changes(
         baseline = db.query(GoalBaselineSnapshot).filter(
             GoalBaselineSnapshot.user_id == current_user["value"]
         ).one()
-        baseline.observed_date = date.today() - timedelta(days=2)
-        current_week = date.today() - timedelta(days=date.today().weekday())
+        today = _api_today()
+        baseline.observed_date = today - timedelta(days=2)
+        current_week = today - timedelta(days=today.weekday())
         db.add_all([
             Activity(
                 user_id=current_user["value"],
@@ -1191,7 +1202,7 @@ def test_api_idempotency_replays_before_source_fence_after_source_changes(
             TrainingPlan(
                 user_id=current_user["value"],
                 canonical_id="replay-source-change-reservation",
-                date=date.today() + timedelta(days=1),
+                date=today + timedelta(days=1),
                 source="manual",
             ),
         ])
@@ -1457,7 +1468,8 @@ def test_source_change_between_evaluation_and_persistence_cannot_create_proposal
     def mutate_source_before_locked_persistence(*args, **kwargs):
         writer = db_session.SessionLocal()
         try:
-            current_week = date.today() - timedelta(days=date.today().weekday())
+            today = _api_today()
+            current_week = today - timedelta(days=today.weekday())
             writer.add(
                 Activity(
                     user_id=current_user["value"],
