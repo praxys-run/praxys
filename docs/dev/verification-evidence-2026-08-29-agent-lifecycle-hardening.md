@@ -13,7 +13,7 @@
 - **implementation_parent:**
   `984c8c084080f089686c51e455bb4d6db80b15f2`
 - **locally_observed_pr_base:**
-  `origin/main` at `78d80d82ee63b4e0b343b4e05b80c56f372510f6`
+  `origin/main` at `517566d2009762eee9c384d54d5b993d99ed3e87`
 - **draft_pr:** `#745`
 
 ## Independence and scope
@@ -122,6 +122,18 @@ git diff --check f93de664^ f93de664
 
 Result: no output, exit 0.
 
+After merging the latest `origin/main` without a conflict, the repository final
+preflight ran at merge-integrated commit
+`bf6ceed7804dbaf8f64d281f6a3e600ba8d6ab64`:
+
+```text
+TZ=UTC /home/feitao/src/tf-personal-pensieve/praxys/.venv/bin/python \
+  scripts/agent_preflight.py --base origin/main
+```
+
+Result: `2997 passed, 1 skipped`, `git diff --check` passed, and the worktree
+was clean.
+
 ## Prior blocker disposition
 
 The earlier fail-open admission fault was corrected: storage failure cannot
@@ -142,13 +154,13 @@ while invalidation, observation, and terminal state remain authoritative.
   global interception exists.
 - No retained-ledger migration, restore, reset, deployment, release, merge, or
   branch-protection bypass was performed or authorized.
-- Final UTC preflight and required GitHub checks remain pending.
-- The commit containing this evidence must receive an exact-head verification
-  before the ready-for-review handoff.
+- Required GitHub checks on the pushed final head remain pending.
+- Any later merge or evidence-only commit must receive exact-head Quality
+  verification and a clean UTC preflight before the ready-for-review handoff.
 
 ## Release recommendation
 
-PASS for proceeding to an exact-head verification of the evidence commit,
-repository final preflight, and required GitHub checks. This is not approval
-for retained-ledger operation, activation, enforcement, autonomy promotion,
+PASS for proceeding to exact-head verification, a clean preflight on the final
+evidence commit, and required GitHub checks. This is not approval for
+retained-ledger operation, activation, enforcement, autonomy promotion,
 release, or merge.
