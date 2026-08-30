@@ -2,148 +2,153 @@
 
 - **artifact_type:** `verification-evidence`
 - **owner_role:** `quality`
-- **verification_date:** `2026-08-29`
-- **verdict:** PASS for bounded cooperative instrument/shadow implementation
+- **verification_date:** `2026-08-31`
+- **verdict:** PASS for bounded repository implementation
 - **reviewed_repository:** `praxys-run/praxys`
 - **reviewed_branch:** `copilot/fix-agent-lifecycle-management`
-- **reviewed_commit:** `47bd3a8f8ca2fa466a87a316f2fb1ccf36ee2d81`
-- **reviewed_tree:** `d3c7d455ccc2fb630c120c26cdc65b4ad0dc06b8`
-- **baseline:** `origin/main` at `c99b3d45b4f15bda9ed8632ca40c78779875e089`
+- **reviewed_implementation_commit:**
+  `f93de664fee30091c8b2178d9fa04446a74adcaa`
+- **reviewed_implementation_tree:**
+  `4f038d748070ed92079ad7b2bcc9f34e22c6fd69`
+- **implementation_parent:**
+  `984c8c084080f089686c51e455bb4d6db80b15f2`
+- **locally_observed_pr_base:**
+  `origin/main` at `78d80d82ee63b4e0b343b4e05b80c56f372510f6`
 - **draft_pr:** `#745`
 
 ## Independence and scope
 
-Praxys Quality independently inspected and tested the exact committed tree
-above. Verification ran synchronously without child agents, background work,
-implementation edits, commits, pushes, or pull-request state changes.
-Engineering conclusions were not treated as evidence.
+Praxys Quality independently inspected and tested the exact implementation
+commit above. It made no implementation edit, commit, push, retained-ledger
+mutation, deployment, release, pull-request state change, or merge decision.
+Engineering conclusions and prior test results were not treated as sufficient
+evidence.
 
-The review covers repository-owned cooperative mediation only. Native,
-platform, user, and otherwise unmediated calls remain outside repository
-authority and observability.
+Independent general code review reported no significant issue. Independent
+Trust implementation review returned PASS for repository conformance only.
+Neither review authorized retained-ledger migration, reset, restore,
+deployment, release, merge, or autonomy expansion.
+
+This evidence covers repository-owned cooperative mediation. Native, platform,
+user, and otherwise unmediated calls remain outside repository authority and
+observability.
 
 ## Work Contract
 
-Independent route recomputation returned:
+Independent routing reproduced:
 
 - routing version `praxys-task-routing-v1`
 - operating-model version `praxys-agentic-operating-model-v1`
-- primary object `agent-system`
-- impacts `repository-change`, `agent-policy-or-autonomy`, and
-  `architecture-boundary`
-- risk triggers `irreversible-or-high-blast-radius-action` and
+- primary object `repository-behavior`
+- impacts `repository-change`, `production-operation`,
+  `architecture-boundary`, and `trust-boundary`
+- risk triggers `security-or-privacy-boundary`,
+  `irreversible-or-high-blast-radius-action`, and
   `out-of-policy-or-out-of-distribution-decision`
 - classification digest
-  `sha256:3d80f3eca01b1bff2207d6e28cefe8daa3cdfc9f3480c80b99bd3f252dde35a2`
+  `sha256:e3c17d24f3e95a7629a8a86d7454e1cd2e5dbf94b32011c6beaa596408de3ac9`
 - route digest
-  `sha256:dfe65e8c108c06411ad84d7e7d8ec32d8206429780243973a31e840fb7c11f51`
-- primary loop `meta-eval` with nested `delivery`
-- lead `meta-eval`, contributor `architecture`, executor `engineering`, and
-  verifier `quality`
-- independent decision review remains required
+  `sha256:d44577261f0413c0df43f34a13d18e4f84a9fd1c7aea6cdb9ab089724fd9b132`
+- Delivery primary loop and Runtime nested loop
+- Architecture and Trust contributors
+- Engineering and Operations executors
+- Quality verifier
+- human review required for the bounded decision
 
-The bounded correction's Decision Review route is `agent-resolved`. This
-verification does not widen that route or authorize activation, enforcement,
-release, or merge.
+The authenticated maintainer approved repository implementation only against
+the exact decision artifacts below. Quality recomputed and matched every
+digest:
+
+- Architecture:
+  `a78541c75bad209abff2bbcce99ce5599d8b142d04f4b0c50cd1dd86559d8fd9`
+- Trust:
+  `ad464cbd41f8375ce684f80bb35117c6ddf98783d2ee4d7817f23a4693844847`
+- Operations:
+  `013b94dc6de8276dea82abcb38dbb38bb89d5be9ea69a2efc3c852e3d06c512a`
+- predecessor ledger-v2 ADR:
+  `5bd8d04069ef3cca0043087cd53e12d6e72de9847cf9431394e85690b6094875`
 
 ## Acceptance matrix
 
 | Area | Result | Independent evidence |
 |---|---|---|
-| Parent-scoped concurrency | PASS | `BEGIN IMMEDIATE` protects admission. Concurrent processes admit at most one active direct child for the same non-null parent. Sequential nesting, unrelated parents, and roots remain independent. |
-| Dispatch provenance | PASS | Lifecycle dispatch defaults to `sync`/`sync_inline`; partial, unknown, or mismatched pairs fail closed. Background accepts only `background`/`background_independent_immediate_no_poll`. Sync attempts cannot bind or read a native result. |
-| Notification capability | PASS | `notifications_available=false` records `notifications_unavailable`; notification, read, and observation return `native_notifications_unavailable` with exit 5. No polling or weaker read path is supplied. |
-| Public-ID binding | PASS | Binding requires `task_result`, a separate `nat_*` repository alias, the exact public ID, and a domain-separated SHA-256 fingerprint. Raw public IDs are absent from persisted SQLite and WAL content. Cross-attempt public-ID reuse is rejected. |
-| Public-ID validation | PASS | Empty values, surrounding or internal ASCII/Unicode whitespace, controls, `call_*`, known placeholders, repository identities, and values over 512 UTF-8 bytes are rejected. Opaque non-UUID formats remain accepted. |
-| Mismatch precedence | PASS | Attempt, alias, or public-ID mismatch is reported before invalidation or notification-capability state. Invalidated exact bindings report `native_binding_invalidated`. |
-| Invalidation | PASS | Shutdown, resume, and context replacement invalidate the exact binding without lookup, rediscovery, inference, loss, replacement, external rebind, relaunch, or attempt-state mutation. |
-| Loss and replacement | PASS | Authoritative `not_found` atomically records loss and leaf-first descendant cleanup. It creates one eligibility only for a non-replacement attempt; replacement is separately admitted, consumed once, and cannot chain. |
-| Tree cleanup | PASS | Abort, shutdown, and failure use idempotent leaf-first termination, orphaning active descendants before the parent. No native cancellation is claimed. |
-| Schema and migration | PASS | JSON and ledger schema remain v1 with additive lifecycle and auxiliary tables. Existing-ledger upgrades and new initialization validate before commit. Injected failures roll back schema changes. |
-| Connection handling | PASS | Direct fault challenges confirmed explicit close for corrupt, unsupported, and SQLite prevalidation failures in both connection-opening paths. Failed auxiliary upgrade also rolled back and closed. |
-| Legacy authentication | PASS | Upgraded native rows without binding provenance cannot authenticate, even when the old row remains present. |
-| Dispatch reasons | PASS | Durable dispatch records distinguish `admit`, `policy_denied`, `direct_sibling_active`, and `lifecycle_transition_rejected`. Candidate-policy evidence remains in the decision record. |
-| Stable machine contract | PASS | The implementation guide and ADR both include unavailable required notification capability in exit 5 and carry the complete `MACHINE_REASON_CODES` sequence. Tests enforce full equality. |
-| Policy and parity | PASS | Policy, Evaluation, ADR, agent manifests, operations guidance, and Local/Cloud parity retain the same cooperative instrument/shadow protocol and limitations. |
-| Scope containment | PASS | Routing, operating-model, autonomy, reviewer authority, starting limits, dependencies, application storage/API, deployment, infrastructure, and plugin boundaries are unchanged. |
-| Durable claim hygiene | PASS | Added durable text contains no real one-off lifecycle IDs or rejected expansion JSON/digest. |
-| Upstream claims | PASS | GitHub issues are community reports on the official tracker, not maintainer-confirmed causality, root cause, runtime fix, or fix verification. WSL2 is not asserted causal, and release-note silence is not treated as proof. |
+| Versioned contract | PASS | JSON requests and responses use schema 2, policy remains `agent-invocation-control-v1`, the stable path is unchanged, and the exact SQLite target is schema 3 with one claim column and one partial unique index. JSON-schema-1 requests and old binaries are refused. |
+| Claim identity | PASS | `read_claim` identities are canonical lowercase `rcl_<32 hex>` values generated with `secrets.token_hex(16)`. Malformed, missing, uppercase, short, fingerprint-shaped, and wrong-kind values fail closed. |
+| Token privacy | PASS | The mediator stores only `sha256:<SHA-256("praxys/read-claim/v1\0" || canonical token)>`. The raw token is absent from database and WAL evidence and is not echoed by claim, observation, or error responses. The sole output exception is successful token creation. |
+| Existing authorization | PASS | Every claim and observation still requires the exact attempt, native alias, and public task-result ID. The claim token proves operation ownership only and never replaces tuple validation or caller authority. |
+| Claim atomicity and races | PASS | `BEGIN IMMEDIATE`, expected-state update predicates, constant-time fingerprint comparison, and the partial unique index allow one owner. Same-token/same-row races resolve as one logical claim; different-token/same-row and same-token/cross-row races allow one winner and fail the other closed. |
+| Commit ambiguity | PASS | Commit-then-raise and rollback-then-raise rerun the same claim algorithm once with the same token in a fresh transaction. Durable invalidation, observation, or terminalization takes precedence; no state-only ownership inference remains. |
+| Physical read boundary | PASS | Cooperative manifests require one caller-held token, prohibit replacement-token generation after uncertainty, and require the caller to know whether the physical read already ran. An idempotent claim acknowledgement never permits a second physical read. |
+| Observation | PASS | Observation requires `read_claimed`, the exact tuple, and the same claim token. It remains one-shot. Token mismatch cannot create loss, replacement eligibility, cleanup, recovery, or another terminal effect. An ambiguous observation commit fails closed without fabricated replay. |
+| Fingerprint retention | PASS | Tests preserve the same fingerprint through found, lost, succeeded, failed, recovered, abort, shutdown, failure, orphaning, and invalidation. Pre-claim states reject non-null fingerprints and `read_claimed` rejects null ownership. |
+| Migration | PASS | Explicit `init` migrates exact recognized v1 directly to v3 and exact v2 to v3. It never commits an intermediate v2, preserves supported rows with null historical fingerprints, refuses every ownerless `read_claimed` source, and leaves ordinary commands unable to migrate. |
+| Admission fault path | PASS | A known kill-switch, duplicate, illegal-transition, or direct-sibling rejection remains `launch_authorized=false` when its audit insert or commit fails or becomes ambiguous. Replaying a recorded lifecycle rejection also remains fail-closed. |
+| Scope containment | PASS | No application database, API, authentication, athlete-data, dependency, provider, sync, deployment, infrastructure, native runtime, policy bound, role authority, reviewer authority, or autonomy setting changed. |
 
-## Prior blocker disposition
+## Independent commands and results
 
-The independent review challenged and verified these corrections:
-
-- internal ASCII and Unicode whitespace is rejected;
-- existing and new ledger schema changes validate before commit and roll back
-  on validation failure;
-- every opened connection closes explicitly on corrupt, unsupported, and
-  SQLite prevalidation failures;
-- implementation and ADR exit 5 semantics include unavailable completion
-  notifications;
-- old native rows without provenance cannot authenticate;
-- a public-ID fingerprint cannot be rebound across attempts; and
-- the ADR and implementation documentation contain the complete stable
-  machine-reason namespace.
-
-## Commands and results
+Quality used the repository virtual environment and `TZ=UTC`.
 
 ```text
-/home/feitao/src/tf-personal-pensieve/praxys/.venv/bin/python -m py_compile \
-  analysis/agentic_invocation_control.py \
-  scripts/agent_invocation_control.py \
-  tests/test_agentic_invocation_control.py
+TZ=UTC /home/feitao/src/tf-personal-pensieve/praxys/.venv/bin/python \
+  -m pytest tests/test_agentic_invocation_control.py -q
 ```
 
-Result: exit 0.
+Result: `263 passed`, exit 0.
+
+Quality also ran the agent policy, preflight, operating-model, routing,
+execution-parity, and decision-agent regression modules.
+
+Result: `42 passed`, exit 0.
+
+Quality repeated all three claim-race scenarios for ten rounds.
+
+Result: all 30 race executions passed.
+
+Quality independently injected durable observation and terminalization between
+an ambiguous claim commit and reconciliation.
+
+Result: the later refusal won and no read authorization was inferred.
+
+Quality created only temporary ledgers and inspected their metadata, column
+order, and index SQL.
+
+Result: policy v1, ledger schema 3, the exact claim column, and the exact
+partial unique index matched.
 
 ```text
-/home/feitao/src/tf-personal-pensieve/praxys/.venv/bin/python -m pytest -q \
-  tests/test_agentic_invocation_control.py \
-  tests/test_agent_policy.py \
-  tests/test_agentic_task_routing.py \
-  tests/test_agentic_operating_model.py \
-  tests/test_decision_agents.py \
-  tests/test_copilot_execution_parity.py \
-  tests/test_agent_preflight.py
-```
-
-Result: `100 passed in 19.33s`, exit 0.
-
-```text
-/home/feitao/src/tf-personal-pensieve/praxys/.venv/bin/python \
-  scripts/check_copilot_environment_parity.py
-```
-
-Result: `Copilot execution parity passed (static).`, exit 0.
-
-```text
-git diff --check origin/main...HEAD
+git diff --check f93de664^ f93de664
 ```
 
 Result: no output, exit 0.
 
-Independent canonical digest recomputation matched both Work Contract digests.
-A protected-boundary diff covering routing, operating model, autonomy, Decision
-Review, dependencies, application/runtime storage, deployment, infrastructure,
-and `plugins/praxys` returned no affected boundary. Direct fault injection
-passed six explicit-close paths and confirmed failed auxiliary upgrades roll
-back and close.
+## Prior blocker disposition
+
+The earlier fail-open admission fault was corrected: storage failure cannot
+turn a known hard rejection into permission to launch.
+
+The earlier state-only native-read reconciliation was removed. Caller-owned
+claim identity now distinguishes an ambiguous caller from a concurrent winner,
+while invalidation, observation, and terminal state remain authoritative.
 
 ## Limitations and pending evidence
 
 - The ledger is local to one Git common directory and has no cross-machine
   authority.
-- No native registry lookup, cancellation, write, external rebind, or global
-  interception exists.
-- No runtime replay, five-root/seven-day observation, live shadow evaluation,
-  native-runtime verification, activation, release, or merge was performed or
-  claimed.
-- Final `scripts/agent_preflight.py` and GitHub checks remain pending after this
-  evidence is committed.
+- The shared retained ledger was not opened, initialized, migrated, reset, or
+  modified. Quality observed its existing modification time as
+  `2026-08-29 22:00:44 +08:00`, before this verification.
+- No native registry lookup, cancellation, write, external rebind, polling, or
+  global interception exists.
+- No retained-ledger migration, restore, reset, deployment, release, merge, or
+  branch-protection bypass was performed or authorized.
+- Final UTC preflight and required GitHub checks remain pending.
+- The commit containing this evidence must receive an exact-head verification
+  before the ready-for-review handoff.
 
 ## Release recommendation
 
-PASS for the bounded draft implementation and for proceeding to the
-repository's final preflight and required GitHub checks. This verdict is not
-approval for activation, enforcement, autonomy promotion, native/global
-coverage claims, release, or merge.
+PASS for proceeding to an exact-head verification of the evidence commit,
+repository final preflight, and required GitHub checks. This is not approval
+for retained-ledger operation, activation, enforcement, autonomy promotion,
+release, or merge.
