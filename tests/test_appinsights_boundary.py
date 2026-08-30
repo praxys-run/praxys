@@ -71,6 +71,10 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "az webapp restart" in workflow
     assert ".version == $version and .source_sha == $sha" in workflow
     assert '.status == "ready"' in workflow
+    assert '.china_processing.disabled == $expectedCnDisabled' in workflow
+    assert '.china_processing.enabled == ($expectedCnDisabled | not)' in workflow
+    assert "background_ai_kill_switch\n                   == $expectedAiDisabled" in workflow
+    assert "background_ai_enabled\n                   == ($expectedAiDisabled | not)" in workflow
     assert "group: praxys-backend-deploy" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "github.ref == 'refs/heads/main' && inputs.run_tests == true" in workflow

@@ -117,6 +117,17 @@ def test_launch_exact_cors_preconditions_verification_and_compensation() -> None
     assert "https://${host}${asset_path}" in workflow
     assert "content-type" in workflow
     assert "CORS and Azure AI were unchanged" in workflow
+    disable = workflow[workflow.index("  disable:") :]
+    conditional_rights = disable.index(
+        'if jq -e --argjson enabled "${enabled_cors}"'
+    )
+    rights_probe = disable.index(
+        "for origin in https://praxys.cn https://www.praxys.cn"
+    )
+    summary = disable.index("Rights-route CORS: ${rights_cors}.")
+    assert conditional_rights < rights_probe < summary
+    assert "rights_cors=not-configured" in disable
+    assert "rights_cors=verified" in disable
 
 
 def test_launch_never_mutates_azure_ai_and_status_reports_required_state() -> None:
@@ -168,6 +179,10 @@ def test_backend_deploy_is_state_preserving_and_serialized() -> None:
     assert "EXPECTED_CN_DISABLED" in workflow
     assert "EXPECTED_AI_DISABLED" in workflow
     assert "EXPECTED_CORS" in workflow
+    assert '.china_processing.disabled == $expectedCnDisabled' in workflow
+    assert '.china_processing.enabled == ($expectedCnDisabled | not)' in workflow
+    assert "background_ai_kill_switch\n                   == $expectedAiDisabled" in workflow
+    assert "background_ai_enabled\n                   == ($expectedAiDisabled | not)" in workflow
 
 
 def test_backend_config_pins_miniapp_and_preserves_wechat_secrets() -> None:

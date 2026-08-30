@@ -102,8 +102,10 @@ gh workflow run launch-cn.yml --ref main -f action=disable
 - **disable** is an emergency main-branch action without an environment or
   frontend/API SHA dependency. It sets only
   `PRAXYS_DISABLE_CN_PROCESSING=true`, then verifies that setting, Azure AI,
-  byte-for-byte CORS preservation, live readiness, and rights-route CORS. It
-  cancels an in-progress enable rather than waiting behind it.
+  byte-for-byte CORS preservation and live readiness. Once the five-origin
+  CORS set exists, it also verifies rights-route CORS; before the first launch,
+  base-only CORS is valid and the summary records that rights CORS is not yet
+  configured. It cancels an in-progress enable rather than waiting behind it.
 
 Enable compensation sets China processing disabled only when that run started
 disabled, and leaves either valid CORS set intact. A repeated or rejected
@@ -118,7 +120,8 @@ replaced by a pending deploy. It does not write the China switch, CORS, or the
 Azure AI emergency switch and does not probe EdgeOne. It captures those three
 runtime values read-only and requires exact equality after deployment.
 Readiness accepts either preserved China state, requires the exact deployed API
-version/SHA and disabled Miniapp processing, and reports the final China,
+version/SHA, requires live China/AI booleans to match the preserved switch
+values, requires disabled Miniapp processing, and reports the final China,
 Miniapp, and Azure AI state in the run summary.
 
 ## Rollback / recovery

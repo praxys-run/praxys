@@ -385,10 +385,14 @@ jobs:
               --arg sha "${PRAXYS_EXPECTED_API_SOURCE_SHA}" \
               '.version == $version and .source_sha == $sha' \
               <<< "${version_payload}" >/dev/null 2>&1 \
-              && jq -e \
+            && jq -e \
+                --argjson expectedCnDisabled "${EXPECTED_CN_DISABLED}" \
+                --argjson expectedAiDisabled "${EXPECTED_AI_DISABLED}" \
                 '.status == "ready"
                  and (.china_processing.enabled | type == "boolean")
                  and (.china_processing.disabled | type == "boolean")
+                 and .china_processing.disabled == $expectedCnDisabled
+                 and .china_processing.enabled == ($expectedCnDisabled | not)
                  and (.china_processing.enabled
                    == (.china_processing.disabled | not))
                  and .miniapp_processing.enabled == false
@@ -397,6 +401,10 @@ jobs:
                    | type == "boolean")
                  and (.optional_processing.background_ai_kill_switch
                    | type == "boolean")
+                 and .optional_processing.background_ai_kill_switch
+                   == $expectedAiDisabled
+                 and .optional_processing.background_ai_enabled
+                   == ($expectedAiDisabled | not)
                  and (.optional_processing.background_ai_enabled
                    == (.optional_processing.background_ai_kill_switch
                      | not))' \

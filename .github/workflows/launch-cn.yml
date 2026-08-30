@@ -618,18 +618,27 @@ jobs:
           done
           jq -e '.china_processing.disabled == true' \
             <<< "${ready}" >/dev/null
-          for origin in https://praxys.cn https://www.praxys.cn; do
-            headers="${RUNNER_TEMP}/${origin#https://}.rights.headers"
-            code="$(curl -sS --max-time 12 -D "${headers}" -o /dev/null \
-              -w '%{http_code}' https://api.praxys.run/api/me/export \
-              -H "Origin: ${origin}")"
-            test "${code}" = 401
-            bash scripts/verify_cors_response.sh "${headers}" "${origin}"
-          done
+          rights_cors=not-configured
+          enabled_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          if jq -e --argjson enabled "${enabled_cors}" \
+            'sort == ($enabled | sort)' <<< "${cors}" >/dev/null; then
+            rights_cors=verified
+            for origin in https://praxys.cn https://www.praxys.cn; do
+              headers="${RUNNER_TEMP}/${origin#https://}.rights.headers"
+              code="$(curl -sS --max-time 12 -D "${headers}" -o /dev/null \
+                -w '%{http_code}' https://api.praxys.run/api/me/export \
+                -H "Origin: ${origin}")"
+              test "${code}" = 401
+              bash scripts/verify_cors_response.sh "${headers}" "${origin}"
+            done
+          fi
           {
             echo "## China web private-alpha disable"
             echo
             echo "The server processing gate is disabled."
-            echo "CORS and Azure AI were unchanged; rights routing was verified."
+            echo "CORS and Azure AI were unchanged."
+            echo "Rights-route CORS: ${rights_cors}."
             echo "Static EdgeOne takedown remains a separate manual action."
           } >> "${GITHUB_STEP_SUMMARY}"
