@@ -10,6 +10,8 @@ analysis/reports/
 
 # SQLite database (and WAL-mode sidecars created at runtime)
 data/trainsight.db
+data/.account_lifecycle_locks/
+data/.runtime_state/
 *.db-journal
 *.db-wal
 *.db-shm
@@ -24,6 +26,9 @@ __pycache__/
 .env
 .private-deps/
 .garmin_tokens/
+/sync/.garmin_tokens
+/sync/.garmin_token_locks/
+/sync/.garmin_token_migration.lock
 .pytest_cache/
 
 # Build version stamp written by deploy-backend.yml — read by

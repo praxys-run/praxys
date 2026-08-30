@@ -42,7 +42,8 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent review-governance App key. The App has Contents write + Pull requests write to approve qualifying PRs, enable normal auto-merge, and commit verified science approval-ledger updates without using `GITHUB_TOKEN`. Optional for ordinary review-required PRs without science acceptance; required for autonomous review actions and science approval materialization. | `selective-review.yml`, `science-approval-ledger.yml` |
 
 ### GitHub Actions → Variables
-`… → Variables` (non-secret; build variables are inlined into the SPA and ship to browsers)
+`… → Variables` (non-secret; only `VITE_*` build variables are inlined into
+the SPA and ship to browsers)
 
 | Variable | Purpose | Consumed by |
 |---|---|---|
@@ -62,6 +63,7 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_LABS_SERVICE_BUS_CLIENT_ID` (unset by default) | Optional client ID of a user-assigned identity attached to `trainsight-app` for Labs queue sends. Empty uses the App Service system identity. The worker workflow verifies RBAC for the same effective identity. | App Service setting via `deploy-backend.yml`; RBAC verification in `deploy-labs-worker.yml` |
 | `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` (`false`) | Opt-in infrastructure reconciliation gate. Only exact `true` runs the Azure deployment job; image tests/builds still run. | `deploy-labs-worker.yml` |
 | `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility, durable execution-target selection, and the account-generation/region fence remain independently required. | App Service setting (backend) |
+| `PRAXYS_CN_APPROVED_RELEASES` (unset) | Non-secret JSON registry of exact approved `.cn` web and Miniapp releases. Each entry binds channel, client version, a 12-character display/source ID, one exact lowercase 40-character source commit, current notice version and legal digest, API contract, and provider release locator/ID. Missing or malformed data blocks China-client processing. | GitHub Actions variable -> App Service setting via `deploy-backend.yml` |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -70,7 +72,193 @@ configuration-sync deploy overwrites them.**
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies every minted privileged identity. | `selective-review.yml`, `selective-review-emergency-stop.yml`, `science-approval-ledger.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
-| `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | Set `true` only after Nginx and the workflow-restricted `praxys-production` Runner Group are healthy. Unset/false skips the China deploy without affecting Azure. | `deploy-frontend-appservice.yml` |
+| `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default-off public-host probe. Exact `true` only after both `.cn` custom domains resolve to the accepted EdgeOne project. | `deploy-frontend-appservice.yml` |
+| `CN_PRIVACY_FLOOR_SHA` | Required 40-character SHA of the first protected-`main` commit containing the reviewed China web/Miniapp build boundary, server Terms gate, and privacy switches. China-capable backend, EdgeOne, and Miniapp lanes fail closed when it is missing or the candidate does not descend from it; filing-free `.run` lanes retain protected-main provenance without requiring China-only values. | GitHub Actions variable consumed by `deploy-backend.yml`, `deploy-frontend-appservice.yml`, and `miniapp-publish.yml`; matching non-secret build variable on the EdgeOne Makers project `praxys-cn` |
+
+### Fail-closed deployment controls
+
+The ordinary backend workflow writes and exactly reads back three fixed
+fail-closed literals:
+
+- `PRAXYS_DISABLE_CN_PROCESSING=true`
+- `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false`
+- `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`
+
+`PRAXYS_DISABLE_BACKGROUND_AI` is different: the workflow first reads its
+existing App Service value, treats a missing value as fail-closed `true`,
+temporarily asserts `true` during deployment preparation, and restores the
+exact pre-deploy `true` or `false` value on both full and fast successful
+deploys. It never clears an operator-set emergency stop. A failed deploy leaves
+all processing controls, including Azure AI, in the disabled state. A cancelled
+deploy follows the same fail-closed restoration path.
+
+Runtime Azure provider failures are latched across backend workers and App
+Service instances by
+`DATA_DIR/.runtime_state/azure_ai_provider_health.json`. Each failure creates a
+new shared epoch; only a successfully parsed response from a request started
+against that same epoch can clear it, so a stale concurrent success cannot
+overwrite a newer failure. Do not edit this state manually to claim recovery;
+use the emergency switch for operator control and let a confirmed Azure
+response restore runtime availability. If the primary state lock or write
+fails, the runtime independently writes
+`DATA_DIR/.runtime_state/azure_ai_provider_fail_closed.json`; every worker
+treats that epoch as unavailable until a later confirmed request clears it.
+
+The preflight runtime evidence records `backgroundAiAvailable`,
+`backgroundAiKillSwitchActive`, and `feedbackPublicationDisabled` independently;
+it does not collapse these distinct controls into an "optional processing
+is disabled" aggregate.
+
+Repository variables with those names are ignored by `deploy-backend.yml`.
+The workflow also removes `.cn` CORS on every ordinary deployment. A manual
+`china_release_validation=true` dispatch may validate and stage the exact
+registry while retaining those literals and disabled CORS; it cannot activate
+China processing. No activation workflow is implemented.
+
+### Tencent public website filing
+
+The approved service filing for `praxys.cn` and `www.praxys.cn` is
+`沪ICP备2025109616号-2`, linked to `https://beian.miit.gov.cn/`. Its code source
+of truth is `web/scripts/stamp-china-compliance.mjs`; the frontend workflow
+applies it only to the independently built EdgeOne evidence artifact, while the
+EdgeOne Git integration runs the same checked-in regional build. This is public
+regulatory metadata, not a secret or mutable Actions variable. Update it only
+after an approved filing change, together with
+`docs/ops/tencent-frontend.md` and deployment verification.
+
+Under the gated regional target, the `.cn` hosts will be served by the
+Git-integrated EdgeOne Makers project `praxys-cn` in the global area, with
+platform-managed HTTPS. EdgeOne receives read-only access only to this repository and uses no build
+secrets. Its sole China-control build input is the non-secret
+`CN_PRIVACY_FLOOR_SHA`; the filing-free `.run` build will remain
+on Azure behind Cloudflare Free, while `api.praxys.run` stays DNS-only. Azure
+App Service CORS must then include exactly `https://praxys.cn` and
+`https://www.praxys.cn` only for an accepted authenticated `.cn` release.
+Repository access, the protected-main deployment boundary, the Cloudflare
+origin-certificate sequence, DNS migration, and rollback commands live in
+`docs/ops/tencent-frontend.md`.
+
+The China stamping step also adds a deployment-region marker. Browser-side
+Application Insights and Statsig read that marker and remain disabled for the
+EdgeOne artifact. Enabling either processor for `.cn` is a separate privacy and
+runtime-config change, not an Actions variable toggle.
+
+The proposed authenticated `.cn` release is governed by
+`PIPIA-CN-2026-08-25-01`. The same policy version drives the pre-transfer web
+and mini-program notice and the server-side digest-bound, append-only Terms
+receipt. Provider connection dialogs add the just-in-time recipient notice on
+both `.run` and `.cn`. The three fixed fail-closed literals keep China
+processing and external feedback publication disabled. The Azure AI emergency
+stop remains a separate operator control whose pre-deploy state survives
+successful code deployments. External publication still requires a separately
+accepted purpose-specific rollout.
+
+`CN_PRIVACY_FLOOR_SHA` is set only after the privacy-floor change lands on
+protected `main`. The command is not currently authorized: the
+[Operations Decision Record](./odr-2026-08-26-cn-provider-topology.md) remains
+**PROPOSED — BLOCKED PENDING INDEPENDENT AND HUMAN REVIEW**, and its post-merge
+human gate must cite the exact SHA before the variable is set:
+
+```bash
+candidate_sha="${CN_CANDIDATE_SHA:?supply the human-accepted full SHA}"
+[[ "${candidate_sha}" =~ ^[0-9a-f]{40}$ ]]
+gh variable set CN_PRIVACY_FLOOR_SHA --body "${candidate_sha}"
+readback="$(gh api repos/praxys-run/praxys/actions/variables/CN_PRIVACY_FLOOR_SHA --jq .value)"
+test "${readback}" = "${candidate_sha}"
+```
+
+Set the exact same value as the non-secret `CN_PRIVACY_FLOOR_SHA` build
+environment variable on the EdgeOne Makers project `praxys-cn`, then retain the
+project setting readback and a successful unpublished-preparation preflight.
+Do not configure the approved-release registry or any secret in EdgeOne: the
+provider build may prepare a disabled candidate before a provider deployment ID
+exists, but it cannot authorize that candidate.
+
+Record that exact privacy-floor commit in Release Evidence. China candidate
+validation, EdgeOne artifact preparation, and Miniapp publication bind each
+checked-out deployment candidate to its own exact full SHA, require it to be
+reachable from `origin/main`, and require the configured frozen privacy-floor
+SHA to be an ancestor of (or equal to) it. Each candidate must map to one
+merged-main PR whose `backend-tests`, `frontend-quality`, and
+`selective-review-policy` evidence is successful. The preflight validates any configured registry against the
+current notice, legal digest, and API contract. Ancestry above the floor alone
+is not sufficient, and no short SHA or CalVer establishes compatibility. Never point the variable at an unmerged branch,
+abbreviated SHA, or a later commit that omits the first privacy-capable
+revision.
+
+Build the release registry only from reviewed release evidence. A `cn-web`
+entry is valid only when `client_version` equals its 12-character `source_id`
+and its `release_id` names the retained EdgeOne deployment. A
+`wechat-miniapp` entry requires a valid CalVer at or above the server's minimum
+Miniapp version and the exact deterministic provider locator
+`wechat:robot-1:<client_version>`. That locator may be staged before upload
+while the kill switch remains on, but processing must not be enabled until the
+successful robot 1 upload evidence is retained. Provider locators/IDs are
+unique across the registry. Any invalid entry invalidates the whole registry
+and readiness rather than being filtered out. Keep the kill switch on while
+provisioning:
+
+```bash
+cat > /tmp/praxys-cn-approved-releases.json <<'JSON'
+[
+  {
+    "channel": "cn-web",
+    "client_version": "<12-char-source-sha>",
+    "source_id": "<12-char-source-sha>",
+    "source_commit": "<40-char-protected-main-sha>",
+    "notice_version": "2026.08.4",
+    "terms_digest": "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1",
+    "api_contract_version": "cn-privacy-v2",
+    "release_id": "edgeone:<deployment-id>"
+  },
+  {
+    "channel": "wechat-miniapp",
+    "client_version": "2026.08.2",
+    "source_id": "<12-char-source-sha>",
+    "source_commit": "<40-char-protected-main-sha>",
+    "notice_version": "2026.08.4",
+    "terms_digest": "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1",
+    "api_contract_version": "cn-privacy-v2",
+    "release_id": "wechat:robot-1:2026.08.2"
+  }
+]
+JSON
+
+jq -e 'type == "array" and length == 2' /tmp/praxys-cn-approved-releases.json
+gh variable set PRAXYS_CN_APPROVED_RELEASES \
+  --body "$(jq -c . /tmp/praxys-cn-approved-releases.json)"
+gh workflow run deploy-backend.yml --ref main \
+  -f sync_config=true \
+  -f china_release_validation=true
+```
+
+The disabled China validation lane performs byte-for-byte App Service readback
+for the registry and four fixed non-secret runtime settings without printing
+registry contents, both before and after deployment. Its final evidence records
+the exact comparisons, setting and CORS values, registry count/digest,
+readiness, and deployed SHA. EdgeOne and Miniapp candidates independently
+require the corresponding public disabled-runtime readback. No live readback
+has been performed or claimed by this repository change. To inspect effective,
+non-secret state after an authorized run:
+
+```bash
+curl -fsS https://api.praxys.run/api/health/ready \
+  | jq '{status, china_processing, optional_processing}'
+```
+
+Before launch this must show `china_processing.disabled=true`,
+`registry_configured=false`, approved-release count `0`, registry digest `null`,
+and feedback-publication enablement `false`. The ordinary launch target also
+requires `optional_processing.background_ai_enabled=true` and its kill switch
+`false`; if an operator stop is active, deployments preserve it and launch
+remains operationally blocked until the incident owner explicitly releases it.
+Disabled readiness deliberately
+does not parse a potentially stale registry; the China-capable workflow uses
+its exact repository-owned Azure setting readback for registry bytes,
+digest, and count. The current workflows cannot set `PRAXYS_DISABLE_CN_PROCESSING=false`.
+Activation remains a separately reviewed human-authorized operation with no
+implemented repository procedure. Retain the registry while disabled; do not
+reinterpret a variable edit as activation authority.
 
 Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
 numbers. Feedback sync and adjudication compare each stored GitHub URL with the
@@ -324,16 +512,16 @@ backend cutover. The frontend package contains
 `frontend_server/_deployed_sha.txt`, generated from `GITHUB_SHA` during staging,
 so the value comes from the code actually serving production rather than
 workflow-list ordering. Rerunning a pre-marker historical workflow exposes no
-SHA and therefore cannot masquerade as a compatible deployment.
+SHA and therefore cannot satisfy the deployment-order provenance check.
 Accepting a newer descendant handles GitHub's replacement of pending concurrency
 runs when a frontend-only push follows closely. The required commit is the
 latest frontend-triggering change in the backend SHA's first-parent history, so
-a later backend-only push still waits for an earlier combined change. The new
-frontend remains compatible with the Phase 1 API, so this frontend-first
-ordering prevents an older bundle from hiding newly available alert and
+a later backend-only push still waits for an earlier combined change. This ancestry relation does not establish runtime or privacy compatibility.
+China compatibility requires an exact current notice, legal digest, API contract,
+and release-registry match. The frontend-first ordering only prevents an older bundle from hiding newly available alert and
 platform aggregates during rollout.
 Each workflow also serializes every production deployment, including `main`
-pushes and release tags, without cancelling the active run. A newer run remains
+pushes and protected-`main` manual dispatches, without cancelling the active run. A newer run remains
 queued and deploys last, so an older package cannot overwrite it.
 
 Backend App Service setting, site-config, and telemetry-cutover writes recycle
@@ -348,10 +536,28 @@ stalled SCM endpoint cannot monopolize the serialized production lane.
 ### Azure App Service → Application settings (backend `trainsight-app`)
 Source of truth = `deploy-backend.yml`. Literals set inline: `DATA_DIR=/home/data`,
 `WEBSITES_PORT=8000`, `SCM_DO_BUILD_DURING_DEPLOYMENT=true`,
-`WEBSITE_HTTPLOGGING_RETENTION_DAYS=3`. `APPLICATIONINSIGHTS_CONNECTION_STRING`
-and `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID` come from
+`WEBSITE_HTTPLOGGING_RETENTION_DAYS=3`, `PRAXYS_DISABLE_BACKGROUND_AI=true`,
+and `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`.
+`APPLICATIONINSIGHTS_CONNECTION_STRING` and
+`PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID` come from
 `appi-praxys-backend` through `scripts/appinsights_boundary.sh`; everything else
 comes from the secrets/variables above.
+
+The same backend preflight is the source of truth for the telemetry privacy
+settings: it sets `appi-praxys-backend` local auth off, IP masking on
+(`DisableIpMasking=false`), and retention to 30 days, and sets
+`log-trainsight` retention to 30 days. Reconcile these values by running a
+configuration-sync backend deployment; portal edits are drift and will be
+overwritten.
+
+The two negative compliance switches are fixed production policy, not mutable
+GitHub variables. The first blocks automatic post-sync insights and feedback
+AI/vision processing that lack a purpose-specific user authorization. The
+second prevents automatic or admin-approved feedback text from being published
+to GitHub; feedback remains private in Praxys for admin handling. Removing
+either literal requires an updated
+[China PIPIA](./cn-personal-information-impact-assessment.md), user disclosure,
+and execution-path tests in the same change.
 
 ### Statsig feature gates
 
@@ -359,8 +565,16 @@ Statsig is optional runtime configuration, not an availability dependency.
 `STATSIG_SDK_KEY` is a repository Actions **secret** and is copied only to the
 backend App Service. `VITE_STATSIG_CLIENT_KEY` is a repository Actions
 **variable** because a Statsig `client-*` key is intentionally shipped in the
-browser bundle. Never reuse or copy the `secret-*` server key into a Vite
-variable. `STATSIG_ENV` is the shared non-secret environment tier.
+international browser bundle. The China artifact clears that key. Never reuse
+or copy the `secret-*` server key into a Vite variable. `STATSIG_ENV` is the
+shared non-secret environment tier.
+
+Backend gate/config rules are downloaded without user identity and evaluated
+inside Praxys. `api/statsig_client.py` fixes `disable_all_logging=true` and
+`disable_diagnostics=true`, so the local `StatsigUser` may match an email or
+UUID rule without transmitting that email, UUID, targeting attributes, or an
+exposure event to Statsig/Amplitude. Do not enable either channel without a new
+privacy decision and, for `.cn`, an updated PIPIA and disclosure.
 
 The final Statsig Console state owned by this integration is exactly:
 
@@ -787,7 +1001,9 @@ private container stores `labs-deletions/` withdrawal markers and
 PITR restore cannot resurrect Labs consent/results or deleted adaptive-plan
 context. Unset the variables and the app falls back to local filesystem
 storage under `DATA_DIR` (persistent on `/home`, but not the recommended
-long-term home).
+long-term home). When Blob is configured but unavailable, new feedback
+screenshots are omitted rather than written to an undeclared local fallback;
+the text feedback remains available.
 `api/feedback_storage.py` selects the shared private backend and authenticates
 with `DefaultAzureCredential`.
 
@@ -1023,4 +1239,4 @@ outgrown.
   (source of truth for App Service settings and telemetry routing)
 
 ---
-_Last reviewed: 2026-08-04 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-27 · Owner: @dddtc2005_

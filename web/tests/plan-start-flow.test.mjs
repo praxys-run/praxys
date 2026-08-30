@@ -101,8 +101,63 @@ test('web and miniapp default to the current Goal without binding every plan to 
   assert.match(mini, /onPurposeChange/);
   assert.match(webBaseline, /purpose/);
   assert.match(miniBaseline, /purpose/);
-  assert.match(miniGoal, /alternate_available/);
-  assert.match(miniGoal, /accepted separate 5K plan purpose/);
+  assert.match(miniGoal, /plan_candidate/);
+  assert.match(miniGoal, /policy_unavailable/);
+  assert.match(miniGoal, /onSelectPlanIntent/);
+});
+
+test('web and miniapp expose the same intent-aware plan routing states', async () => {
+  const [web, miniScript, miniMarkup, registry] = await Promise.all([
+    read('../src/components/PlanStart.tsx'),
+    read('../../miniapp/pages/goal/index.ts'),
+    read('../../miniapp/pages/goal/index.wxml'),
+    read('../../api/plan_generation_capabilities.py'),
+  ]);
+
+  for (const source of [web, registry]) {
+    assert.match(source, /first_completion/);
+    assert.match(source, /performance/);
+    assert.match(source, /return_to_consistency/);
+  }
+  for (const source of [web, miniScript, registry]) {
+    assert.match(source, /plan_candidate/);
+    assert.match(source, /readiness_only/);
+    assert.match(source, /clarification_required/);
+    assert.match(source, /policy_unavailable/);
+  }
+  assert.match(miniMarkup, /data-intent="first_completion"/);
+  assert.match(miniMarkup, /data-intent="performance"/);
+  assert.match(miniMarkup, /data-intent="return_to_consistency"/);
+  assert.match(web, /Why these routes stay separate/);
+  assert.match(miniMarkup, /onTogglePlanRoutingReasoning/);
+  assert.match(registry, /distance in capability\.distances/);
+});
+
+test('selected routes survive Goal-to-Training handoff without surviving Goal edits', async () => {
+  const [
+    web,
+    training,
+    reconciliation,
+    miniApp,
+    miniGoal,
+    miniPlanStart,
+  ] = await Promise.all([
+    read('../src/components/PlanStart.tsx'),
+    read('../src/pages/Training.tsx'),
+    read('../src/components/GoalPlanReconciliationDialog.tsx'),
+    read('../../miniapp/app.ts'),
+    read('../../miniapp/pages/goal/index.ts'),
+    read('../../miniapp/components/outdoor-5k-plan-start/index.ts'),
+  ]);
+
+  assert.match(web, /goalRevision: currentGoalRevision/);
+  assert.match(web, /state:\s*\{\s*planPurpose: routedPurpose/);
+  assert.match(training, /initialPurpose=\{navigationState\?\.planPurpose/);
+  assert.match(reconciliation, /\/goal#plan-routing/);
+  assert.match(miniApp, /pendingPlanStartPurpose/);
+  assert.match(miniGoal, /_planIntentGoalRevision/);
+  assert.match(miniGoal, /pendingPlanStartPurpose/);
+  assert.match(miniPlanStart, /pendingPlanStartPurpose/);
 });
 
 test('web and miniapp use discovered deterministic actions without local scheduling', async () => {
@@ -124,7 +179,7 @@ test('web and miniapp use discovered deterministic actions without local schedul
     assert.match(source, /terrain.*equipment/i);
     assert.doesNotMatch(source, /function\s+buildSchedule|function\s+generateWorkouts/i);
   }
-  assert.match(web, /SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_ID/);
+  assert.match(web, /SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/readiness/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/generate/);
   assert.match(registry, /\/api\/plan\/outdoor-5k\/proposals\/\{proposal_id\}\/regenerate/);

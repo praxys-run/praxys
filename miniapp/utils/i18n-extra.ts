@@ -54,6 +54,64 @@ const EN_AUTH = {
   email: 'email',
   password: 'password',
   'Email and password are required': 'Email and password are required',
+  'How Praxys processes data to provide the service':
+    'How Praxys processes data to provide the service',
+  'Required for the service': 'Required for the service',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.',
+  'Overseas processing and recipient': 'Overseas processing and recipient',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).',
+  'Purposes and information': 'Purposes and information',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.',
+  'Sensitive personal information': 'Sensitive personal information',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.',
+  'Privacy Policy and Mainland China processing notice':
+    'Privacy Policy and Mainland China processing notice',
+  'Acknowledge and continue': 'Acknowledge and continue',
+  'Not now': 'Not now',
+  'Read the processing notice before continuing.':
+    'Read the processing notice before continuing.',
+  'Updated Terms and Privacy notice': 'Updated Terms and Privacy notice',
+  'I accept the': 'I accept the',
+  'and acknowledge that I have read the':
+    'and acknowledge that I have read the',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.',
+  'Accept Terms and continue': 'Accept Terms and continue',
+  'Could not save — please try again.': 'Could not save — please try again.',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    'You can still export your data, delete your account, or sign out without accepting.',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.',
+  'You can still sign out without accepting.':
+    'You can still sign out without accepting.',
+  'Could not load connected platforms — please try again.':
+    'Could not load connected platforms — please try again.',
+  'Could not disconnect platform — please try again.':
+    'Could not disconnect platform — please try again.',
+  'Export my data': 'Export my data',
+  'Exporting data…': 'Exporting data…',
+  'Saves a JSON export and opens WeChat share options.':
+    'Saves a JSON export and opens WeChat share options.',
+  'Your data export is ready to share.': 'Your data export is ready to share.',
+  'Could not export data — please try again.':
+    'Could not export data — please try again.',
+  'Delete account': 'Delete account',
+  'Delete account permanently?': 'Delete account permanently?',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.',
+  'Could not delete account — please try again.':
+    'Could not delete account — please try again.',
+  'Sign out': 'Sign out',
   // Old "Sign up at" footer copy retained for back-compat; the login
   // page itself now uses the explicit "New here?" / "Have an
   // invitation code?" rows below.
@@ -119,6 +177,9 @@ const EN_AUTH = {
 };
 
 const EN_GOAL = {
+  'Hide routing explanation': 'Hide routing explanation',
+  'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
+    'This client does not recognize the selected policy input contract and will not guess how to create a plan.',
   'Use this': 'Use this',
   'Failed to switch theory': 'Failed to switch theory',
   'Change Goal': 'Change Goal',
@@ -128,6 +189,21 @@ const EN_GOAL = {
   'Train toward a specific race date': 'Train toward a specific race date',
   Continuous: 'Continuous',
   'Build fitness over time': 'Build fitness over time',
+  '10K performance': '10K performance',
+  'Optional benchmark': 'Optional benchmark',
+  'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
+    'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.',
+  'This proposal uses an accepted goal contract without changing or linking to the Goal page.':
+    'This proposal uses an accepted goal contract without changing or linking to the Goal page.',
+  'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.':
+    'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.',
+  'Only current direct 10K race or explicit all-out 10K history can qualify.':
+    'Only current direct 10K race or explicit all-out 10K history can qualify.',
+  'The {0}-day rule is a reviewed guardrail, not a physiological cutoff.':
+    'The {0}-day rule is a reviewed guardrail, not a physiological cutoff.',
+  'Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The {0}-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.':
+    'Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The {0}-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.',
+  'Full activity only.': 'Full activity only.',
   Distance: 'Distance',
   'Race Date': 'Race Date',
   'Pick a date': 'Pick a date',
@@ -332,6 +408,8 @@ const EN_TRAINING = {
 // stays plural at count=1 (minor grammar imperfection accepted in
 // favour of simpler i18n).
 const EN_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.',
   '{0} findings': '{0} findings',
   '{0} recommendations': '{0} recommendations',
   '{0} findings · {1} recommendations': '{0} findings · {1} recommendations',
@@ -509,6 +587,61 @@ const ZH_AUTH = {
   email: '邮箱',
   password: '密码',
   'Email and password are required': '请填写邮箱和密码',
+  'How Praxys processes data to provide the service':
+    'Praxys 如何处理数据以提供服务',
+  'Required for the service': '提供服务所必需',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    '为创建和管理账号，并提供所请求的训练功能，Praxys 必须在中国大陆境外处理下列信息。该处理是履行服务所必需，不以同意为处理基础。',
+  'Overseas processing and recipient': '境外处理与接收方',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    '核心服务信息由 Microsoft Corporation 及其 Azure 关联方和公开列明的分包处理方在中国大陆境外处理；当前主要托管区域为 Azure East Asia（中国香港特别行政区）。',
+  'Purposes and information': '处理目的与信息',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    '账号访问、平台同步、训练与恢复分析、计划、安全及所请求的账号控制会使用账号标识、训练数据、设置、加密连接凭据和必要日志。',
+  'Sensitive personal information': '敏感个人信息',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    '心率、HRV、睡眠、恢复、活动路线及相关健康或运动推断可能属于敏感个人信息。缺少这些类别时，依赖它们的功能无法运行。',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure 核心托管与 Azure AI 处理是不同功能。当前服务条款与服务器运行状态授权普通服务中列明的 AI 用途；没有单独退出选项，且输入按账号、用途和字段最小化。',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    '继续即确认已阅读本告知。如不接受当前服务条款，普通服务将不可用，但现有权利行使流程仍可使用。',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    '服务条款已经更新。隐私政策区分 Azure 核心托管与 Azure AI 处理，并说明普通服务中列明的 AI 用途、最小化措施、不可用情形和权利渠道。普通服务没有单独的 AI 退出选项。继续前，请阅读服务条款和隐私告知。',
+  'Privacy Policy and Mainland China processing notice':
+    '《隐私政策》与中国大陆处理说明',
+  'Acknowledge and continue': '确认已阅读并继续',
+  'Not now': '暂不继续',
+  'Read the processing notice before continuing.':
+    '请先阅读处理告知再继续。',
+  'Updated Terms and Privacy notice': '条款与隐私告知已更新',
+  'I accept the': '我接受',
+  'and acknowledge that I have read the': '，并确认已阅读',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    '接受服务条款，并确认已阅读隐私政策。',
+  'Accept Terms and continue': '接受条款并继续',
+  'Could not save — please try again.': '提交失败，请重试。',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、删除账号或退出登录。',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、管理已连接平台、删除账号或退出登录。',
+  'You can still sign out without accepting.':
+    '即使暂不接受，也可以退出登录。',
+  'Could not load connected platforms — please try again.':
+    '无法读取已连接平台，请重试。',
+  'Could not disconnect platform — please try again.':
+    '无法断开平台，请重试。',
+  'Export my data': '导出我的数据',
+  'Exporting data…': '正在导出数据…',
+  'Saves a JSON export and opens WeChat share options.':
+    '保存 JSON 数据导出文件，并打开微信分享选项。',
+  'Your data export is ready to share.': '数据导出文件已准备好，可选择分享。',
+  'Could not export data — please try again.': '无法导出数据，请重试。',
+  'Delete account': '删除账号',
+  'Delete account permanently?': '永久删除账号？',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    '此操作会永久删除账号、训练数据和已连接平台的凭据，且无法撤销。输入 DELETE 以确认。',
+  'Could not delete account — please try again.': '无法删除账号，请重试。',
+  'Sign out': '退出登录',
   'New here? Sign up at': '没有账号？立即注册',
   'New here?': '没有账号？',
   'Have an invitation code?': '有邀请码？',
@@ -562,6 +695,9 @@ const ZH_AUTH = {
 };
 
 const ZH_GOAL = {
+  'Hide routing explanation': '收起路径说明',
+  'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
+    '此客户端无法识别所选政策的输入约定，因此不会猜测如何创建计划。',
   'Use this': '使用此理论',
   'Failed to switch theory': '切换理论失败',
   'Change Goal': '调整目标',
@@ -571,6 +707,21 @@ const ZH_GOAL = {
   'Train toward a specific race date': '围绕某场比赛备赛',
   Continuous: '持续提升',
   'Build fitness over time': '长期提升体能',
+  '10K performance': '10 公里表现',
+  'Optional benchmark': '可选基准测试',
+  'Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it.':
+    '仅在你确实需要时才选择并填写可选基准日期。Praxys 绝不会自动安排。',
+  'This proposal uses an accepted goal contract without changing or linking to the Goal page.':
+    '这个提案使用已接受的目标合同，不会修改或绑定 Goal 页面。',
+  'Tell Praxys if a current symptom stop applies. The policy will stop this plan path and return only bounded guidance.':
+    '如果当前存在症状停止条件，请告诉 Praxys。该策略会停止这条计划路径，只返回有边界的指导。',
+  'Only current direct 10K race or explicit all-out 10K history can qualify.':
+    '只有当前有效的 10K 比赛成绩或明确的全力 10K 历史，才能合格。',
+  'The {0}-day rule is a reviewed guardrail, not a physiological cutoff.':
+    '{0} 天规则是经过审查的护栏，不是生理学截止线。',
+  'Only current direct 10K race or explicit all-out 10K history can qualify. Qualification keeps the accepted protocol, route or venue, assistance status, provider, and authoritative completion time attached to the evidence. The {0}-day freshness guardrail and the optional benchmark path are reviewed product boundaries, not published universal cutoffs.':
+    '只有当前有效的 10K 比赛成绩或明确的全力 10K 历史，才能合格。合格证据会保留已接受的协议、路线或场地、辅助情况、数据来源，以及权威完成时间。{0} 天新鲜度规则和可选基准路径都是经过审查的产品边界，不是普适发表的阈值。',
+  'Full activity only.': '仅限完整活动。',
   Distance: '距离',
   'Race Date': '比赛日期',
   'Pick a date': '选择日期',
@@ -755,6 +906,8 @@ const ZH_TRAINING = {
 };
 
 const ZH_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI 洞察暂时不可用。已同步的数据和确定性训练指标仍可使用。',
   '{0} findings': '{0} 个要点',
   '{0} recommendations': '{0} 条建议',
   '{0} findings · {1} recommendations': '{0} 个要点 · {1} 条建议',
@@ -973,21 +1126,21 @@ const ZH_LEGAL = {
 };
 
 const EN_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.',
   Manage: 'Manage',
   'I confirm this purpose and expiry': 'I confirm this purpose and expiry',
   'Manage private context': 'Manage private context',
   'Private context JSON copied': 'Private context JSON copied',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.',
 };
 
 const ZH_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    '保存即确认这一项用途和有效期，不授权分析、模型训练或其他用途。',
   Manage: '管理',
   'I confirm this purpose and expiry': '我已确认上述用途和期限',
   'Manage private context': '管理计划个性化信息',
   'Private context JSON copied': '计划个性化信息 JSON 已复制',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    '后续请求发送前可随时撤回；已经由 AI 服务处理的请求无法撤回。',
 };
 
 const EN_PLAN_START = {
@@ -1012,6 +1165,41 @@ const EN_PLAN_START = {
   'Time limit (minutes)': 'Time limit (minutes)',
   'Refresh proposal': 'Refresh proposal',
   ready: 'ready',
+  'Needs clarification': 'Needs clarification',
+  Ready: 'Ready',
+  Draft: 'Draft',
+  Superseded: 'Superseded',
+  Adopted: 'Adopted',
+  'Baseline source': 'Baseline source',
+  'History cutoff': 'History cutoff',
+  'Event state': 'Event state',
+  Templates: 'Templates',
+  'No event selected': 'No event selected',
+  'Single target': 'Single target',
+  'Event conflict': 'Event conflict',
+  'Controlled threshold quality': 'Controlled threshold quality',
+  '10K-specific interval quality': '10K-specific interval quality',
+  'usable completed weeks; latest run': 'usable completed weeks; latest run',
+  'Use the accepted outdoor 5K policy': 'Use the accepted outdoor 5K policy',
+  'Use baseline or consistency guidance': 'Use baseline or consistency guidance',
+  'Defer plan generation': 'Defer plan generation',
+  'Use non-medical safety guidance': 'Use non-medical safety guidance',
+  'Refresh the qualified 5K baseline': 'Refresh the qualified 5K baseline',
+  'Revise the target time or date': 'Revise the target time or date',
+  'Build more consistent running first': 'Build more consistent running first',
+  'Revise stated availability': 'Revise stated availability',
+  'Review the history-anchored block': 'Review the history-anchored block',
+  'Refresh policy metadata': 'Refresh policy metadata',
+  'Keep training manually': 'Keep training manually',
+  'Confirm adult scope': 'Confirm adult scope',
+  'Confirm direct 10K history': 'Confirm direct 10K history',
+  'Choose an optional 10K benchmark': 'Choose an optional 10K benchmark',
+  'Keep one target date': 'Keep one target date',
+  'Decline the optional benchmark': 'Decline the optional benchmark',
+  'Wait for post-target reassessment': 'Wait for post-target reassessment',
+  'Revise the constraints': 'Revise the constraints',
+  'Review before adopting': 'Review before adopting',
+  'Keep the current plan until adoption': 'Keep the current plan until adoption',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.',
   'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':
@@ -1041,6 +1229,41 @@ const ZH_PLAN_START = {
   'Time limit (minutes)': '时间上限（分钟）',
   'Refresh proposal': '刷新提案',
   ready: '就绪',
+  'Needs clarification': '需要补充信息',
+  Ready: '就绪',
+  Draft: '草稿',
+  Superseded: '已被新版本替代',
+  Adopted: '已采纳',
+  'Baseline source': '基线来源',
+  'History cutoff': '历史窗口',
+  'Event state': '赛事状态',
+  Templates: '训练模板',
+  'No event selected': '未选择赛事',
+  'Single target': '单一目标',
+  'Event conflict': '赛事安排冲突',
+  'Controlled threshold quality': '可控阈值质量课',
+  '10K-specific interval quality': '10 公里专项间歇质量课',
+  'usable completed weeks; latest run': '个可用完整周；最近跑步',
+  'Use the accepted outdoor 5K policy': '使用已接受的户外公路 5 公里政策',
+  'Use baseline or consistency guidance': '查看基线或持续性指引',
+  'Defer plan generation': '暂缓生成计划',
+  'Use non-medical safety guidance': '查看非医疗安全指引',
+  'Refresh the qualified 5K baseline': '更新已合格的 5 公里基线',
+  'Revise the target time or date': '调整目标时间或日期',
+  'Build more consistent running first': '先积累更稳定的跑步训练',
+  'Revise stated availability': '调整已填写的可用日期',
+  'Review the history-anchored block': '审核按历史训练锚定的训练块',
+  'Refresh policy metadata': '刷新政策信息',
+  'Keep training manually': '继续手动管理训练',
+  'Confirm adult scope': '确认成年适用范围',
+  'Confirm direct 10K history': '确认直接 10 公里历史证据',
+  'Choose an optional 10K benchmark': '选择可选的 10 公里基准测试',
+  'Keep one target date': '只保留一个目标日期',
+  'Decline the optional benchmark': '不安排可选基准测试',
+  'Wait for post-target reassessment': '等待目标结束后的重新评估',
+  'Revise the constraints': '调整限制条件',
+  'Review before adopting': '采纳前先审核',
+  'Keep the current plan until adoption': '采纳前继续执行当前计划',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
     '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',
   'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':

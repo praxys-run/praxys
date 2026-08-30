@@ -3,7 +3,9 @@
 ## Usage Modes
 
 **Deployed cloud app + local CLI plugin (recommended for all users):**
-- Web dashboard deployed on Azure (SWA + App Service)
+- Web dashboard currently deployed on Azure App Service for `praxys.run`
+- Gated target delivery adds Cloudflare for the `.run` frontend and EdgeOne
+  for the ICP-filed `.cn` frontend only after the regional release gates pass
 - Users register, connect platforms, sync, and view dashboard in the browser
 - CLI plugin (Claude Code / Copilot) connects to the deployed API via `PRAXYS_URL`
 - AI features (training plans, insights) run through the CLI plugin's MCP tools
@@ -86,7 +88,7 @@ The database (`data/trainsight.db`) is created automatically on first startup. N
 | App Service Plan | `plan-trainsight` | Linux B1, hosts both sites |
 | App Service (backend) | `trainsight-app` | FastAPI / API at `api.praxys.run` |
 | App Service (frontend) | `praxys-frontend` | Static SPA at `www.praxys.run` + apex |
-| Tencent Lighthouse (frontend) | Console-assigned | Optional mainland-China static SPA origin |
+| EdgeOne Makers project (frontend, gated target) | `praxys-cn` | Planned Git-integrated static SPA for `praxys.cn` + `www.praxys.cn` |
 | Key Vault | `kv-trainsight` | Per-user DEK wrapping master key |
 
 > **History:** prior versions of this doc referenced an `swa-trainsight` Static Web App. SWA was retired during F4 because Azure SWA Free routes to whichever region the global ASE picks (often Amsterdam), which added 200-300 ms of cold-load latency for CN users. Frontend now lives on a dedicated App Service site in East Asia next to the backend.
@@ -115,6 +117,11 @@ az webapp create \
   --resource-group rg-trainsight \
   --plan plan-trainsight \
   --runtime "PYTHON:3.12"
+
+az webapp update \
+  --name trainsight-app \
+  --resource-group rg-trainsight \
+  --https-only true
 ```
 
 ### 4. Enable Managed Identity
@@ -142,7 +149,7 @@ az keyvault create \
 ```bash
 az keyvault key create \
   --vault-name kv-trainsight \
-  --name credential-encryption-key \
+  --name trainsight-master-key \
   --kty RSA \
   --size 2048
 ```
@@ -167,7 +174,12 @@ az webapp create \
   --plan plan-trainsight \
   --runtime "PYTHON:3.12"
 
-# Startup command + Always On + HTTP/2 + Oryx build during deploy
+# HTTPS-only + startup command + Always On + HTTP/2 + Oryx build during deploy
+az webapp update \
+  --name praxys-frontend \
+  --resource-group rg-trainsight \
+  --https-only true
+
 az webapp config set \
   --name praxys-frontend --resource-group rg-trainsight \
   --startup-file "uvicorn frontend_server.main:app --host 0.0.0.0 --port 8000" \
@@ -180,21 +192,39 @@ az webapp config appsettings set \
 
 The `frontend_server/` package (`main.py` + `requirements-frontend.txt`) is shipped by `.github/workflows/deploy-frontend-appservice.yml`.
 
-### 8b. Optional Tencent Lighthouse frontend
+### 8b. Regional frontend delivery
 
-The frontend workflow can deploy the same `web/dist` artifact to a
-mainland-China Lighthouse Nginx origin while Azure remains the international
-frontend. Lighthouse provisioning, operator SSH hardening, Nginx configuration,
-the workflow-restricted self-hosted Runner, verification, and rollback are documented in
-[`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
+This is a **gated target architecture, not the current production topology**.
+The frontend workflow produces two independent builds from the same source
+commit:
 
-Leave `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` unset until that runbook's bootstrap
-and ICP prerequisites are complete. The API remains singular at
-`https://api.praxys.run`.
+- the filing-free package continues to run on Azure App Service and can later
+  be proxied by Cloudflare Free for `praxys.run` and `www.praxys.run`;
+- an independent deterministic `.cn` build is stamped with
+  `沪ICP备2025109616号-2`, receives a SHA-256 manifest, and is retained as
+  GitHub evidence. EdgeOne's native Git integration runs the same checked-in
+  `web/edgeone.json` build from protected `main`. Its deployment marker
+  disables browser-side Application Insights and Statsig until a separate
+  regional privacy decision accepts those processors.
+
+The current EdgeOne Makers project does not expose a reliable Auto Deploy or
+Preview toggle, so release safety does not depend on one. Every accepted
+deployment must trace to protected `main`, required CI, an exact source SHA and
+manifest, and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
+App receives read-only access only to this repository; GitHub Actions stores no
+EdgeOne deployment token. Cloudflare changes DNS and edge delivery only; it
+does not replace the Azure App Service deployment. Project bootstrap, Git
+access, managed TLS, full-zone DNS migration, CORS, verification, and rollback
+are documented in [`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
+The API remains singular at `https://api.praxys.run` and stays DNS-only in
+Cloudflare.
 
 ### 9. Custom domains + managed certs
 
-Three hostnames bind to the two sites — `api.*` to the backend, `www.*` and apex to the frontend. DNS lives at DnsPod. App Service verifies ownership via either a CNAME match or a TXT `asuid.<host>` record matching the subscription's `customDomainVerificationId`.
+Three `.run` hostnames bind to the two Azure sites: `api.*` to the backend,
+`www.*` and apex to the frontend. App Service verifies ownership through the
+current DNS target and/or a TXT `asuid.<host>` record matching the
+subscription's `customDomainVerificationId`.
 
 ```bash
 # 1. Fetch verification ID (per-subscription, same for all sites)
@@ -205,7 +235,7 @@ az webapp show --name trainsight-app --resource-group rg-trainsight \
 az webapp config hostname get-external-ip \
   --webapp-name praxys-frontend --resource-group rg-trainsight
 
-# 3. Add DnsPod records:
+# 3. Add the initial DNSPod records:
 #      CNAME api    -> trainsight-app.azurewebsites.net
 #      CNAME www    -> praxys-frontend.azurewebsites.net
 #      A     @      -> <inbound-ip-from-step-2>
@@ -219,40 +249,64 @@ az webapp config hostname add --webapp-name trainsight-app  --resource-group rg-
 az webapp config hostname add --webapp-name praxys-frontend --resource-group rg-trainsight --hostname www.praxys.run
 az webapp config hostname add --webapp-name praxys-frontend --resource-group rg-trainsight --hostname praxys.run
 
-# 5. Provision App Service-managed cert for each (free, auto-renewed every 6 months)
-for HOST in api.praxys.run www.praxys.run praxys.run; do
-  case "$HOST" in
-    api.*) APP=trainsight-app ;;
-    *) APP=praxys-frontend ;;
-  esac
-  az webapp config ssl create --resource-group rg-trainsight --name "$APP" --hostname "$HOST"
-done
+# 5. The DNS-only API can keep an App Service-managed certificate.
+az webapp config ssl create \
+  --resource-group rg-trainsight \
+  --name trainsight-app \
+  --hostname api.praxys.run
 
-# 6. Bind certs (SNI). Look up each cert by hostname rather than guessing
-#    the resource name — Azure's auto-generated cert name varies between
-#    "<host>" and "<host>-<app>" depending on whether a sibling cert
-#    already existed at create time. Querying by partial-name match is
-#    robust either way.
-for HOST in api.praxys.run www.praxys.run praxys.run; do
-  case "$HOST" in
-    api.*) APP=trainsight-app ;;
-    *)     APP=praxys-frontend ;;
-  esac
-  THUMB=$(az resource list --resource-group rg-trainsight \
-            --resource-type Microsoft.Web/certificates \
-            --query "[?contains(name, '$HOST')] | [0].properties.thumbprint" \
-            -o tsv)
-  az webapp config ssl bind --resource-group rg-trainsight --name "$APP" \
-    --certificate-thumbprint "$THUMB" --ssl-type SNI --hostname "$HOST"
+# 6. Bind the API certificate (SNI).
+THUMB="$(
+  az resource list \
+    --resource-group rg-trainsight \
+    --resource-type Microsoft.Web/certificates \
+    --query "[?contains(name, 'api.praxys.run')] | [0].properties.thumbprint" \
+    --output tsv
+)"
+az webapp config ssl bind \
+  --resource-group rg-trainsight \
+  --name trainsight-app \
+  --certificate-thumbprint "$THUMB" \
+  --ssl-type SNI \
+  --hostname api.praxys.run
+
+# 7. While the frontend remains direct-DNS, create and bind publicly trusted
+#    App Service-managed certificates for both frontend names. This is also the
+#    recovery path required before either name is ever gray-clouded.
+for host in praxys.run www.praxys.run; do
+  FRONTEND_THUMB="$(
+    az webapp config ssl create \
+      --resource-group rg-trainsight \
+      --name praxys-frontend \
+      --hostname "${host}" \
+      --query thumbprint \
+      --output tsv
+  )"
+  test -n "${FRONTEND_THUMB}"
+  az webapp config ssl bind \
+    --resource-group rg-trainsight \
+    --name praxys-frontend \
+    --certificate-thumbprint "${FRONTEND_THUMB}" \
+    --ssl-type SNI \
+    --hostname "${host}"
 done
 ```
+
+The frontend may use valid App Service-managed certificates for its initial
+direct-DNS setup and the first Cloudflare cutover. Do not rely on them after
+orange-clouding: Azure documents direct A/CNAME mapping as a prerequisite for
+free managed-certificate renewal. After both frontend names are proxied, bind a
+Cloudflare Origin CA certificate and keep Cloudflare in `Full (strict)`.
+Migration order, PFX upload, certificate rollback, DNSSEC, and the exact
+Cloudflare/EdgeOne records are in
+[`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md).
 
 ### 10. Configure CORS on the backend
 
 Browsers fetching the API must be on the allowlist. Missing entries surface as `No 'Access-Control-Allow-Origin' header is present on the requested resource` in the browser console with zero server-side signal.
 
 ```bash
-# Add the production frontend origins:
+# Current production origins:
 az webapp cors add \
   --name trainsight-app --resource-group rg-trainsight \
   --allowed-origins \
@@ -263,11 +317,23 @@ az webapp cors add \
 az webapp cors show --name trainsight-app --resource-group rg-trainsight
 ```
 
+Only after the EdgeOne access, cross-border privacy, and release gates in
+[`docs/ops/tencent-frontend.md`](./ops/tencent-frontend.md) are accepted, add
+the exact `.cn` browser origins:
+
+```bash
+az webapp cors add \
+  --name trainsight-app --resource-group rg-trainsight \
+  --allowed-origins \
+    "https://praxys.cn" \
+    "https://www.praxys.cn"
+```
+
 The backend detects when it is running on Azure (via `WEBSITE_SITE_NAME`) and skips its own FastAPI `CORSMiddleware`, deferring entirely to this platform-level allowlist.
 
 **When to update this list:**
 - Adding a new staging / PR-preview hostname that needs to hit prod API
-- Spinning up the Tencent COS/EdgeOne CN frontend (post-ICP) — its hostname will need the same treatment
+- Adding or replacing an accepted EdgeOne `.cn` custom hostname
 
 Changes take effect immediately; no app restart required.
 
@@ -285,13 +351,16 @@ The CI/CD workflows use OIDC (OpenID Connect) for passwordless Azure authenticat
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-### Variables (build-time, non-secret)
+### Variables (non-secret)
 
-Repository → Settings → Secrets and variables → Actions → Variables tab. These are inlined into the SPA bundle at build time, so they're not actually secret — they ship to every browser.
+Repository → Settings → Secrets and variables → Actions → Variables tab.
+`VITE_*` values are inlined into the SPA and ship to every browser. The EdgeOne
+regional build clears browser telemetry keys and uses no build secrets.
 
 | Variable | Value |
 |--------|-------|
 | `VITE_API_URL` | `https://api.praxys.run` |
+| `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default `false`; enable after public `.cn` DNS cutover |
 
 Application Insights routing is not stored in GitHub variables. Both deploy
 workflows load the tracked resource names from `.github/azure-observability.env`
@@ -321,7 +390,10 @@ az role assignment create \
   --scope /subscriptions/<sub-id>/resourceGroups/rg-trainsight
 ```
 
-The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v2` with the three OIDC secrets.
+The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v3` with the three OIDC identifiers. The federation and
+workflow eligibility are both restricted to protected `main`; release tags and
+non-main manual dispatches do not deploy, and no client secret or publish profile
+is accepted.
 
 ## App Service Environment Variables
 
@@ -353,8 +425,21 @@ This means deploying a new version with additional model columns just works — 
 ## CI/CD Workflows
 
 - **Pre-merge backend and frontend quality** (`.github/workflows/ci-premerge.yml`) — runs on every `pull_request` to `main`. The independent required contexts are `backend-tests` for the backend suite and `frontend-quality` for the production web build plus Impeccable/evidence UI gate. They share one workflow so downstream review automation receives one completion event. No `paths:` filter on purpose: a required check skipped by a path filter stays permanently pending and blocks the PR.
-- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to `api/`, `analysis/`, `sync/`, `db/`, `data/science/`, `tests/`, `requirements.txt`. Runs tests first, then deploys via OIDC to `trainsight-app`.
-- **Frontend** (`.github/workflows/deploy-frontend-appservice.yml`) — triggers on changes to `web/` or `frontend_server/`. Runs the static-server's 11-test suite first, then builds `web/dist/` (with `VITE_API_URL` baked in), packages it alongside `frontend_server/`, and deploys via OIDC to `praxys-frontend`. Oryx runs `pip install -r requirements.txt` (the frontend-only one) on the App Service side.
+- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to
+  backend runtime paths, science data, deployment-owned observability scripts,
+  dependencies, or the workflow. Test-only changes are covered by required
+  pre-merge CI and do not recycle production. A manual protected-`main`
+  dispatch runs the full suite only when `run_tests=true`, then deploys via
+  OIDC to `trainsight-app`.
+- **Frontend** (`.github/workflows/deploy-frontend-appservice.yml`) — triggers
+  on changes to `web/` or `frontend_server/`. Runs the static-server tests, then
+  builds and stages the filing-free Azure package, then independently runs the
+  checked-in `build:edgeone` path for same-SHA China evidence. Azure deploys via
+  OIDC to `praxys-frontend`; EdgeOne's repository-scoped, read-only native Git
+  integration builds the protected `main` commit with `web/edgeone.json`.
+  GitHub stores no EdgeOne deployment credential. Oryx runs
+  `pip install -r requirements.txt` (the frontend-only one) on the App Service
+  side.
 
 Background sync is handled by the backend scheduler (enabled by default; disable with `PRAXYS_SYNC_SCHEDULER=false`) — no CI job needed.
 

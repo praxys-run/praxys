@@ -1,0 +1,761 @@
+{
+  "affected_models": [
+    "road-10k-plan-generation-policy-v2",
+    "future road-10k-deterministic-generator-v1",
+    "shared adult-running plan-purpose and capability router"
+  ],
+  "contract_digest": "sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496",
+  "decision_id": "sdr-road-10k-plan-generation-policy-v2",
+  "decision_status": "accepted",
+  "decision_version": 2,
+  "evidence_claim_ids": [
+    "eligibility.recent-history-anchor-without-universal-threshold",
+    "eligibility.goal-relevant-current-capability-task-specific",
+    "eligibility.masters-age-change-not-automatic-exclusion",
+    "eligibility.current-symptoms-support-stop-not-clearance",
+    "eligibility.evidence-quality-no-personal-probability",
+    "population.sparse-history-not-detraining-proof",
+    "population.masters-context-not-age-exclusion",
+    "population.sex-effects-are-construct-specific",
+    "population.no-general-sex-or-gender-plan-family",
+    "road-10k-plan.task-specific-capability-not-single-marker",
+    "road-10k-plan.mostly-low-intensity-no-universal-winner",
+    "road-10k-plan.one-to-two-quality-sessions-indirect",
+    "road-10k-plan.volume-frequency-associated-not-prescriptive",
+    "road-10k-plan.fixed-progression-not-safety-law",
+    "road-10k-plan.taper-volume-reduction-supported",
+    "road-10k-baseline.same-distance-direct-capability",
+    "road-10k-baseline.freshness-cutoff-not-validated",
+    "road-10k-plan.individual-outcomes-require-error-aware-validation",
+    "road-10k-plan.symptom-based-test-stop-boundary"
+  ],
+  "evidence_review_ids": [
+    "evidence-plan-generation-eligibility-safety-v1",
+    "evidence-adult-running-plan-population-routing-v1",
+    "evidence-road-10k-plan-generation-policy-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-adult-running-plan-population-routing-v1": "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8",
+    "evidence-plan-generation-eligibility-safety-v1": "sha256:e884907d33783edc6cdb16fd5504f7f10b6d68f968bfe7cf87e3f024b5bda773",
+    "evidence-road-10k-plan-generation-policy-v1": "sha256:10be20a87f8301b633babc2735759fdbbb7cd32abdced0090541281106cb4008"
+  },
+  "model_version": "road-10k-plan-generation-policy-v2",
+  "parameters": {
+    "road_10k_v2_activation_and_dependencies": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "active_behavior": false,
+        "capability_registry_entry_default_enabled": false,
+        "decision_approval_artifact_required": true,
+        "implementation_approval_artifact_required_before_activation": true,
+        "linked_evidence_required_status": "accepted",
+        "predecessor_decision": {
+          "proposed_lifecycle_after_v2_acceptance": "superseded",
+          "required_status_before_v2_acceptance": "accepted",
+          "sdr_id": "sdr-road-10k-plan-generation-policy-v1"
+        },
+        "shared_dependencies": [
+          {
+            "required_status": "accepted",
+            "sdr_id": "sdr-plan-generation-eligibility-safety-v1"
+          },
+          {
+            "required_status": "accepted",
+            "sdr_id": "sdr-adult-running-plan-population-routing-v1"
+          }
+        ]
+      }
+    },
+    "road_10k_v2_capability_tuple": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.goal-relevant-current-capability-task-specific",
+        "road-10k-plan.task-specific-capability-not-single-marker"
+      ],
+      "value": {
+        "activity_types": [
+          "running"
+        ],
+        "adult_scope": "confirmed",
+        "capability_id": "outdoor_road_10k_performance_v1",
+        "capability_pattern": "currently_capable",
+        "current_symptoms": "absent",
+        "discipline": "running",
+        "distance": "10k",
+        "distance_m": 10000,
+        "goal_kinds": [
+          "performance_10k"
+        ],
+        "history_pattern": "stable",
+        "load_pattern": "within_recent",
+        "permanent_runner_identity_used": false,
+        "plan_intent": "performance",
+        "primary_outcome": "elapsed_time",
+        "race_dense_full_proposal_supported": false,
+        "supported_event_states": [
+          "confirmed_none",
+          "single_target"
+        ],
+        "supported_purpose_sources": [
+          "current_goal",
+          "capability"
+        ],
+        "surface": "outdoor_road",
+        "target_date_optional": true,
+        "target_time_optional": true,
+        "unlinked_purpose_supported": false
+      }
+    },
+    "road_10k_v2_consent_ai_and_state": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation"
+      ],
+      "value": {
+        "explicit_adoption_required": true,
+        "generator_may_not": [
+          "write_or_overwrite_adopted_plan_without_consent",
+          "deliver_or_publish_without_consent",
+          "schedule_a_missed_workout_makeup",
+          "infer_why_a_workout_was_missed",
+          "auto_schedule_a_benchmark",
+          "confirm_or_change_event_priority"
+        ],
+        "no_ai_provider_result": "deterministic_result_remains_complete",
+        "optional_ai_may": [
+          "explain_a_deterministic_result",
+          "compare_policy_valid_alternatives",
+          "improve_non_authoritative_language"
+        ],
+        "optional_ai_may_not": [
+          "widen_eligibility",
+          "invent_missing_context",
+          "select_deferred_values",
+          "change_template_steps",
+          "override_deterministic_validation",
+          "approve_adopt_deliver_or_activate"
+        ],
+        "proposal_is_noncanonical_until_adoption": true,
+        "regeneration_creates_versioned_successor": true
+      }
+    },
+    "road_10k_v2_deferred_scope": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-10k-plan.one-to-two-quality-sessions-indirect",
+        "road-10k-plan.volume-frequency-associated-not-prescriptive",
+        "road-10k-plan.fixed-progression-not-safety-law",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation"
+      ],
+      "value": {
+        "ai_schedule_or_policy_authority": "not_accepted",
+        "automatic_benchmark_scheduling": "not_accepted",
+        "demographic_dose_modifiers": "not_accepted",
+        "exact_generic_power_or_pace_targets": "not_accepted",
+        "first_10k_completion": "not_accepted",
+        "full_race_dense_schedule_optimization": "not_accepted",
+        "mandatory_or_progressive_long_run": "not_accepted",
+        "pediatric_clinical_rehabilitation_or_pregnancy_specific_planning": "not_accepted",
+        "personal_success_injury_or_adaptation_probability": "not_accepted",
+        "progression_above_recent_typical_load": "not_accepted",
+        "return_to_consistency": "not_accepted",
+        "sparse_history_generation": "not_accepted",
+        "treadmill_trail_cross_country_or_multisport": "not_accepted",
+        "two_planned_quality_sessions_per_week": "not_accepted"
+      }
+    },
+    "road_10k_v2_demographic_and_claim_limits": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.masters-age-change-not-automatic-exclusion",
+        "eligibility.evidence-quality-no-personal-probability",
+        "population.masters-context-not-age-exclusion",
+        "population.sex-effects-are-construct-specific",
+        "population.no-general-sex-or-gender-plan-family",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation"
+      ],
+      "value": {
+        "adult_confirmation_required": true,
+        "age_based_dose_modifier": false,
+        "causal_plan_benefit_claim": "disabled",
+        "exact_age_required": false,
+        "gender_based_dose_modifier": false,
+        "gender_identity_required": false,
+        "medical_diagnosis_clearance_or_treatment": "disabled",
+        "personal_adaptation_probability": "disabled",
+        "personal_goal_achievement_probability": "disabled",
+        "personal_injury_probability": "disabled",
+        "physiological_sex_required": false,
+        "reproductive_or_pregnancy_context_inferred": false,
+        "sex_based_dose_modifier": false,
+        "target_time_may": [
+          "label_the_goal",
+          "compute_a_descriptive_gap_to_qualified_baseline"
+        ],
+        "target_time_may_not": [
+          "increase_frequency",
+          "increase_weekly_minutes",
+          "lengthen_longest_session",
+          "add_quality",
+          "override_history_or_symptom_stops"
+        ],
+        "unknown_demographic_default_allowed": false
+      }
+    },
+    "road_10k_v2_event_benchmark_and_taper": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-10k-plan.taper-volume-reduction-supported",
+        "road-10k-baseline.same-distance-direct-capability",
+        "road-10k-plan.one-to-two-quality-sessions-indirect"
+      ],
+      "value": {
+        "confirmed_none": {
+          "full_rolling_proposal_allowed": true,
+          "optional_10k_benchmark": {
+            "athlete_selects_and_confirms_date": true,
+            "automatic_scheduling": false,
+            "counts_as_quality_and_load": true
+          }
+        },
+        "every_race_or_maximal_effort": {
+          "counts_as_quality_session": true,
+          "counts_as_training_load": true,
+          "requires_spacing_validation": true
+        },
+        "imported_event_must_be_athlete_confirmed": true,
+        "race_dense": {
+          "full_proposal_allowed": false,
+          "result": "readiness_only_limited_guidance_event_conflict"
+        },
+        "single_target": {
+          "target_8_to_14_days_after_start": "taper_proposal_truncated_to_event_eve",
+          "target_fewer_than_8_days_after_start": "limited_near_term_guidance",
+          "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal"
+        },
+        "taper": {
+          "direct_recreational_road_10k_validation": false,
+          "event_day_reserved_not_generated_as_training_workout": true,
+          "event_elapsed_time_included_in_planned_training_minutes": false,
+          "evidence_population": "mixed_endurance_athletes",
+          "maintain_intensity_exposure_without_adding_quality": true,
+          "maintain_recent_frequency_when_constraints_allow": true,
+          "no_makeup_or_extra_sharpening": true,
+          "personal_performance_gain_claim": false,
+          "planned_volume_reduction_fraction": 0.5,
+          "reference_schedule": "matching_non_taper_schedule_for_same_dates",
+          "supported_window_days_before_event": {
+            "maximum": 14,
+            "minimum": 8
+          }
+        }
+      }
+    },
+    "road_10k_v2_execution_window_and_reassessment": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "road-10k-plan.volume-frequency-associated-not-prescriptive",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation"
+      ],
+      "value": {
+        "advisory_reassessment_after_completed_days": 7,
+        "automatic_overwrite_of_adopted_future_days": false,
+        "automatic_successor_adoption": false,
+        "biological_optimum_claim": false,
+        "calendar_schedule_unit_days": 7,
+        "committed_proposal_days": 14,
+        "dated_goal_planning_horizon": "through_confirmed_primary_event",
+        "each_successor_requires": [
+          "fresh_eligibility_evaluation",
+          "updated_completed_history",
+          "updated_event_context",
+          "updated_training_pattern_snapshot",
+          "explicit_review_and_adoption"
+        ],
+        "fixed_goal_horizon_required": false,
+        "no_automatic_progression_between_reassessments": true,
+        "proposal_end_inclusive": true,
+        "successor_candidate_triggers": [
+          "seven_completed_days",
+          "new_or_changed_confirmed_event",
+          "material_training_pattern_change",
+          "new_qualified_10k_baseline",
+          "changed_availability_or_constraint",
+          "athlete_requested_review"
+        ],
+        "undated_goal_planning_horizon": "rolling_until_athlete_changes_or_ends_goal"
+      }
+    },
+    "road_10k_v2_implementation_and_activation": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "activation_requires_separate_rollout_decision": true,
+        "api_behavior_change_in_this_decision": false,
+        "capability_registration_in_this_decision": false,
+        "generator_implementation_in_this_decision": false,
+        "implementation_review_must_bind": [
+          "exact_reviewed_code_diff",
+          "generated_contract_digest",
+          "deterministic_validation_evidence",
+          "api_web_and_miniapp_parity_evidence"
+        ],
+        "proposal_adoption_or_delivery_change_in_this_decision": false,
+        "runtime_state_after_science_acceptance": "inactive",
+        "web_or_miniapp_availability_change_in_this_decision": false
+      }
+    },
+    "road_10k_v2_intensity_quality_and_spacing": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-10k-plan.mostly-low-intensity-no-universal-winner",
+        "road-10k-plan.one-to-two-quality-sessions-indirect"
+      ],
+      "value": {
+        "activity_average_power_allowed_for_intensity_analysis": false,
+        "consecutive_quality_running_days_allowed": false,
+        "denominator": "all_planned_running_minutes",
+        "historical_intensity_source_priority": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "low_intensity_optimum_claim": false,
+        "maximum_total_quality_exposures_per_7_day_unit": 1,
+        "minimum_intervening_easy_rest_or_non_running_days": 1,
+        "minimum_planned_low_intensity_running_minutes_fraction": 0.75,
+        "missed_quality_makeup_allowed": false,
+        "numerator": "minutes_with_intended_low_intensity",
+        "quality_exposures_include": [
+          "planned_quality_template",
+          "confirmed_race",
+          "athlete_scheduled_10k_benchmark"
+        ],
+        "quality_work_minutes_count_as_low_intensity": false,
+        "reduce_or_remove_quality_before_adding_minutes": true,
+        "warmup_recovery_and_cooldown_use_actual_intended_intensity": true
+      }
+    },
+    "road_10k_v2_privacy_and_audit": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "audit_fields": [
+          "capability_id",
+          "policy_version",
+          "science_decision_id",
+          "source_decision_digest",
+          "contract_digest",
+          "generator_version",
+          "source_goal_id_and_revision",
+          "baseline_snapshot_id_and_source",
+          "history_cutoff_and_observation_ids",
+          "training_pattern_snapshot_version",
+          "event_context_snapshot_version",
+          "active_zone_model_id_and_version_when_used",
+          "normalized_constraints",
+          "selected_template_ids",
+          "deterministic_input_hash"
+        ],
+        "deterministic_replay_required": true,
+        "narrative_text_required": false,
+        "purpose_bounded_context_only": true,
+        "sensitive_trait_inference_allowed": false,
+        "telemetry_allowed": [
+          "stable_readiness_code",
+          "stable_generation_result_code",
+          "stable_validation_reason_code",
+          "policy_and_generator_version",
+          "proposal_adoption_rejection_or_successor_event"
+        ],
+        "telemetry_prohibited": [
+          "athlete_text",
+          "workout_payload",
+          "target_values",
+          "personal_context_values",
+          "small_or_identifying_cohort_slices"
+        ]
+      }
+    },
+    "road_10k_v2_readiness_and_missingness": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.current-symptoms-support-stop-not-clearance",
+        "population.sparse-history-not-detraining-proof",
+        "road-10k-baseline.same-distance-direct-capability",
+        "road-10k-baseline.freshness-cutoff-not-validated",
+        "road-10k-plan.symptom-based-test-stop-boundary"
+      ],
+      "value": {
+        "accepted_direct_baseline_order": [
+          "organized_outdoor_road_10k_race_with_elapsed_time",
+          "explicit_all_out_standardized_outdoor_road_or_track_10k_time_trial"
+        ],
+        "adult_scope_unconfirmed_result": "clarification_required",
+        "baseline_current_through_completed_days": 56,
+        "baseline_stale_from_completed_days": 57,
+        "contradictory_constraints_result": "clarification_required",
+        "current_symptom_stop_result": "safety_stop",
+        "excluded_as_direct_baseline": [
+          "five_k_result_or_conversion",
+          "race_prediction",
+          "passive_fastest_10k_split",
+          "threshold_or_lactate_speed_alone",
+          "critical_power_or_critical_velocity_alone",
+          "activity_average_power",
+          "vendor_readiness_or_race_score"
+        ],
+        "missing_or_stale_baseline_result": "readiness_only",
+        "missing_or_stale_history_result": "readiness_only",
+        "optional_baseline_test": {
+          "automatic_scheduling": false,
+          "explicit_athlete_choice_required": true,
+          "no_test_alternative": "remain_readiness_only",
+          "shared_safety_eligibility_required": true
+        },
+        "sparse_or_missing_records_establish_detraining": false,
+        "unsupported_distance_surface_or_intent_result": "policy_unavailable"
+      }
+    },
+    "road_10k_v2_required_inputs": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "road-10k-baseline.same-distance-direct-capability",
+        "road-10k-plan.volume-frequency-associated-not-prescriptive"
+      ],
+      "value": {
+        "conditional_versioned_inputs": [
+          "active_athlete_zone_model_id_and_version"
+        ],
+        "constraint_schema_id": "outdoor_road_10k_constraints_v1",
+        "direct_baseline_required_metadata": [
+          "completed_at",
+          "elapsed_time_seconds",
+          "distance_m",
+          "surface_or_protocol",
+          "route_or_venue_identifier",
+          "intentional_all_out_or_race_flag",
+          "assistance_status",
+          "source_provider"
+        ],
+        "free_text_narrative_required": false,
+        "historical_intensity_source_priority": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "latest_run_within_completed_days": 10,
+        "minimum_runs_per_usable_week": 3,
+        "minimum_usable_completed_weeks": 4,
+        "prohibited_historical_intensity_source": [
+          "activity_avg_power"
+        ],
+        "recent_history_lookback_completed_weeks": 8,
+        "required_versioned_inputs": [
+          "policy_version",
+          "science_decision_id",
+          "contract_digest",
+          "generator_version",
+          "athlete_local_today",
+          "proposal_start_date",
+          "plan_purpose_source",
+          "source_goal_id_and_revision_when_current_goal",
+          "normalized_goal",
+          "adult_scope_confirmation",
+          "current_symptom_stop_state",
+          "direct_10k_baseline_snapshot",
+          "recent_completed_running_history",
+          "current_training_pattern_snapshot",
+          "confirmed_event_context_snapshot",
+          "available_running_weekdays",
+          "athlete_stated_weekly_time_limit",
+          "athlete_stated_single_session_time_limit",
+          "unavailable_dates",
+          "preferred_longest_easy_weekday_if_any"
+        ]
+      }
+    },
+    "road_10k_v2_runtime_evaluation": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.evidence-quality-no-personal-probability",
+        "road-10k-plan.individual-outcomes-require-error-aware-validation"
+      ],
+      "value": {
+        "dry_run": {
+          "deterministic_invariant_breach_tolerance": 0,
+          "maximum_single_guardrail_exclusion_fraction": 0.5,
+          "replay_mismatch_tolerance": 0,
+          "subgroup_exclusion_gap_trigger": {
+            "absolute_percentage_points": 20,
+            "minimum_cases_per_group": 30
+          },
+          "unsupported_or_stale_plan_tolerance": 0
+        },
+        "efficacy_claim_from_process_pilot_allowed": false,
+        "evaluate_by": [
+          "running_frequency",
+          "age_band_when_available_without_default",
+          "sex_when_available_and_purpose_permitted_without_default",
+          "provider_and_missingness_pattern",
+          "dated_vs_undated_goal",
+          "taper_vs_non_taper"
+        ],
+        "opt_in_pilot": {
+          "major_edit_definition": {
+            "absolute_planned_minutes_change_fraction_greater_than": 0.2,
+            "evaluation_window": "one_14_day_committed_proposal",
+            "or_scheduled_running_days_changed_at_least": 2
+          },
+          "maximum_major_edit_fraction": 0.3,
+          "maximum_optional_baseline_test_stop_or_noncompletion_fraction": 0.1,
+          "maximum_quality_template_rejection_or_major_edit_fraction": 0.3,
+          "maximum_symptom_stop_fraction": 0.1,
+          "maximum_taper_vs_non_taper_rejection_or_major_edit_gap": 0.15,
+          "serious_adverse_events_triggering_immediate_pause": 1
+        },
+        "pause_or_revise_when_threshold_crossed": true
+      }
+    },
+    "road_10k_v2_schedule_construction": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-10k-plan.one-to-two-quality-sessions-indirect",
+        "road-10k-plan.volume-frequency-associated-not-prescriptive",
+        "road-10k-plan.fixed-progression-not-safety-law"
+      ],
+      "value": {
+        "below_minimum_result": "readiness_only",
+        "easy_and_longest_easy_allocation": {
+          "automatic_longest_easy_increase": false,
+          "integer_remainder_priority": [
+            "preferred_longest_easy_day",
+            "chronological_day_order"
+          ],
+          "longest_easy_designation_optional": true,
+          "quality_template_minutes_are_allocated_first": true,
+          "remaining_minutes_distributed_evenly_across_non_quality_runs": true
+        },
+        "event_or_benchmark_replaces_planned_quality_in_same_unit": true,
+        "no_schedule_result": "readiness_only_no_schedule_within_envelope",
+        "non_taper_progression_above_recent_median": false,
+        "normal_two_unit_quality_order": {
+          "first_unit": "controlled_threshold_quality",
+          "second_unit": "ten_k_specific_interval_quality"
+        },
+        "quality_sessions_per_7_day_unit": 1,
+        "requested_above_maximum_result": "clarification_required",
+        "schedule_must_satisfy_all_history_constraint_intensity_and_spacing_rules": true,
+        "selected_running_days_per_7_day_unit": {
+          "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
+          "maximum": 6,
+          "minimum": 3
+        },
+        "session_distance_hard_cap": "recent_maximum_completed_session_distance",
+        "session_duration_hard_cap": "minimum_of_recent_maximum_completed_session_minutes_and_athlete_stated_session_limit",
+        "target_time_gap_may_raise_load": false,
+        "weekly_running_minutes_hard_cap": "minimum_of_recent_maximum_usable_weekly_minutes_and_athlete_stated_weekly_limit",
+        "weekly_running_minutes_target": "minimum_of_recent_median_usable_weekly_minutes_and_athlete_stated_weekly_limit"
+      }
+    },
+    "road_10k_v2_typed_outcomes": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.goal-relevant-current-capability-task-specific",
+        "eligibility.current-symptoms-support-stop-not-clearance",
+        "eligibility.evidence-quality-no-personal-probability"
+      ],
+      "value": {
+        "outcomes": {
+          "adult_scope_or_constraints_unconfirmed": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "clarification_required"
+          },
+          "contradictory_input": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "clarification_required"
+          },
+          "eligible_rolling_proposal": {
+            "adoption_required": true,
+            "plan_returned": true,
+            "route_state": "plan_candidate"
+          },
+          "eligible_taper_proposal": {
+            "adoption_required": true,
+            "plan_returned": true,
+            "route_state": "plan_candidate"
+          },
+          "insufficient_recent_history": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "limited_guidance_event_conflict": {
+            "goal_remains_recorded": true,
+            "limited_guidance_returned": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "limited_near_term_guidance": {
+            "goal_remains_recorded": true,
+            "limited_guidance_returned": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "missing_or_stale_direct_baseline": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "no_schedule_within_envelope": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "safety_stop": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          },
+          "unsupported_intent_distance_surface_or_population": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "policy_unavailable"
+          },
+          "validation_failed": {
+            "goal_remains_recorded": true,
+            "plan_returned": false,
+            "route_state": "readiness_only"
+          }
+        },
+        "success_shaped_fallback_allowed": false,
+        "unknown_policy_or_schema_version_result": "policy_unavailable",
+        "unsupported_distance_fallback": "none"
+      }
+    },
+    "road_10k_v2_workout_templates": {
+      "applies_to": "road-10k-plan-generation-policy-v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "road-10k-plan.task-specific-capability-not-single-marker",
+        "road-10k-plan.one-to-two-quality-sessions-indirect",
+        "road-10k-plan.mostly-low-intensity-no-universal-winner"
+      ],
+      "value": {
+        "easy_template": "duration_only",
+        "generic_five_k_or_ten_k_pace_conversion": false,
+        "generic_percent_of_threshold_or_critical_power": false,
+        "inherited_from_outdoor_5k": false,
+        "longest_easy_template": "duration_only",
+        "target_expression_priority": [
+          "current_athlete_specific_active_zone_model",
+          "duration_and_session_type_only"
+        ],
+        "template_must_fit_session_and_weekly_caps": true,
+        "template_optimum_claim": false,
+        "templates": [
+          {
+            "steps": [
+              {
+                "duration_minutes": 10,
+                "intended_intensity": "low",
+                "kind": "step",
+                "phase": "warmup"
+              },
+              {
+                "kind": "repeat",
+                "repetitions": 3,
+                "steps": [
+                  {
+                    "duration_minutes": 5,
+                    "intended_intensity": "controlled_threshold",
+                    "kind": "step",
+                    "phase": "work"
+                  },
+                  {
+                    "duration_minutes": 2,
+                    "intended_intensity": "low",
+                    "kind": "step",
+                    "phase": "recovery"
+                  }
+                ]
+              },
+              {
+                "duration_minutes": 10,
+                "intended_intensity": "low",
+                "kind": "step",
+                "phase": "cooldown"
+              }
+            ],
+            "template_id": "road-10k-controlled-threshold-quality-v1",
+            "total_planned_minutes": 41,
+            "workout_type": "controlled_threshold_quality"
+          },
+          {
+            "steps": [
+              {
+                "duration_minutes": 10,
+                "intended_intensity": "low",
+                "kind": "step",
+                "phase": "warmup"
+              },
+              {
+                "kind": "repeat",
+                "repetitions": 4,
+                "steps": [
+                  {
+                    "duration_minutes": 3,
+                    "intended_intensity": "ten_k_specific",
+                    "kind": "step",
+                    "phase": "work"
+                  },
+                  {
+                    "duration_minutes": 2,
+                    "intended_intensity": "low",
+                    "kind": "step",
+                    "phase": "recovery"
+                  }
+                ]
+              },
+              {
+                "duration_minutes": 10,
+                "intended_intensity": "low",
+                "kind": "step",
+                "phase": "cooldown"
+              }
+            ],
+            "template_id": "road-10k-specific-interval-quality-v1",
+            "total_planned_minutes": 40,
+            "workout_type": "ten_k_specific_interval_quality"
+          }
+        ]
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad"
+}

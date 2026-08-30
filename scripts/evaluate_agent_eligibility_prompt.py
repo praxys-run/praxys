@@ -40,7 +40,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     """Run the live model against privacy-reviewed semantic examples."""
     args = _parse_args()
-    client = llm.get_client()
+    client = llm.get_automation_client()
     if client is None:
         print("Azure OpenAI is not configured", file=sys.stderr)
         return 2

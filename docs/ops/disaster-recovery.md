@@ -42,8 +42,13 @@ This runbook is a checklist that chains the others - it doesn't duplicate them.
      at it. See [backup-and-restore.md](./backup-and-restore.md).
    - **SQLite (legacy):** put the latest `trainsight.db` snapshot in place
      ([backup-and-restore.md](./backup-and-restore.md)).
-6. **Re-point DNS.** `api.praxys.run` / `www.praxys.run` to the new sites; re-issue
-   managed certs (`docs/deployment.md` -> custom domains).
+6. **Restore delivery layers.** Point the current `api.praxys.run` and
+   `www.praxys.run` records to the replacement sites and restore valid
+   certificates. If the regional topology has accepted Release Evidence and
+   been cut over, keep the API DNS-only, restore Cloudflare's `.run` origin
+   records with `Full (strict)`, and restore/deploy `praxys-cn` independently.
+   Follow [tencent-frontend.md](./tencent-frontend.md); never copy the ICP
+   footer into `.run`.
 
 ## Verify
 
@@ -57,4 +62,4 @@ see their historical data; a sync succeeds.
   · [secret-rotation.md](./secret-rotation.md)
 
 ---
-_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-20 · Owner: @dddtc2005_

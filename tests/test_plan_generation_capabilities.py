@@ -1,6 +1,8 @@
 """Plan-generation capability discovery contract tests."""
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import datetime, timezone
 from typing import Any, cast
 
 import pytest
@@ -28,6 +30,35 @@ def _save_goal(db_session, *, user_id: str, goal: dict) -> None:
         db.commit()
     finally:
         db.close()
+
+
+def _add_recent_5k_activity(
+    db_session,
+    *,
+    user_id: str,
+    activity_id: str,
+) -> None:
+    from db.models import Activity, ActivitySplit
+
+    with db_session.SessionLocal() as db:
+        db.add(Activity(
+            user_id=user_id,
+            activity_id=activity_id,
+            date=datetime.now(timezone.utc).date(),
+            distance_km=5.0,
+            duration_sec=1_500,
+            activity_type="running",
+            source="garmin",
+        ))
+        for split_num in range(1, 6):
+            db.add(ActivitySplit(
+                user_id=user_id,
+                activity_id=activity_id,
+                split_num=split_num,
+                duration_sec=300,
+                distance_km=1.0,
+            ))
+        db.commit()
 
 
 def _link_payload_to_goal(
@@ -333,6 +364,211 @@ def test_capability_discovery_selects_the_accepted_outdoor_5k_policy(
     )
 
 
+def test_capability_routing_requires_explicit_intent_for_general_goal(
+    proposal_client,
+) -> None:
+    """A distance alone must not silently choose completion or performance."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "race",
+            "distance": "5k",
+            "race_date": "2027-04-18",
+        },
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    routing = response.json()["routing"]
+    assert routing["state"] == "clarification_required"
+    assert routing["intent"] is None
+    assert routing["intent_source"] == "unconfirmed"
+    assert routing["reason_code"] == "intent_confirmation_required"
+    assert [option["intent"] for option in routing["options"]] == [
+        "first_completion",
+        "performance",
+        "return_to_consistency",
+    ]
+
+
+def test_capability_routing_keeps_distinct_intents_off_performance_policy(
+    proposal_client,
+) -> None:
+    """Completion and consistency cannot borrow the accepted 5K policy."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1_500,
+        },
+    )
+
+    completion = client.get(
+        "/api/plan/generation/capabilities?intent=first_completion",
+    )
+    consistency = client.get(
+        "/api/plan/generation/capabilities?intent=return_to_consistency",
+    )
+
+    assert completion.status_code == 200, completion.text
+    assert consistency.status_code == 200, consistency.text
+    for response in (completion, consistency):
+        routing = response.json()["routing"]
+        assert routing["state"] == "policy_unavailable"
+        assert routing["reason_code"] == "no_accepted_policy_for_intent"
+        assert routing["capability_id"] is None
+        assert routing["purpose_source"] is None
+
+
+def test_capability_routing_returns_readiness_only_for_unqualified_5k_history(
+    proposal_client,
+) -> None:
+    """An applicable policy stays readiness-only until baseline evidence exists."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "race",
+            "distance": "5k",
+            "race_date": "2027-04-18",
+        },
+    )
+
+    response = client.get(
+        "/api/plan/generation/capabilities?intent=performance",
+    )
+
+    assert response.status_code == 200, response.text
+    routing = response.json()["routing"]
+    assert routing["state"] == "readiness_only"
+    assert routing["intent"] == "performance"
+    assert routing["intent_source"] == "explicit"
+    assert routing["reason_code"] == "accepted_policy_requires_readiness"
+    assert routing["capability_id"] == "outdoor_road_5k_v1"
+    assert routing["purpose_source"] == "capability"
+    assert routing["baseline_readiness"] == "insufficient_evidence"
+
+
+def test_capability_routing_supports_unlinked_only_purpose(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """A capability may route through its accepted unlinked purpose."""
+    import api.plan_generation_capabilities as capabilities
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "race",
+            "distance": "5k",
+            "race_date": "2027-04-18",
+        },
+    )
+    unlinked_capability = replace(
+        capabilities.OUTDOOR_ROAD_5K_CAPABILITY,
+        allows_capability_goal=False,
+        allows_unlinked=True,
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "PLAN_GENERATION_CAPABILITIES",
+        (unlinked_capability,),
+    )
+
+    response = client.get(
+        "/api/plan/generation/capabilities?intent=performance",
+    )
+
+    assert response.status_code == 200, response.text
+    routing = response.json()["routing"]
+    assert routing["state"] == "readiness_only"
+    assert routing["capability_id"] == "outdoor_road_5k_v1"
+    assert routing["purpose_source"] == "unlinked"
+    assert routing["baseline_readiness"] == "insufficient_evidence"
+
+
+def test_capability_routing_returns_plan_candidate_for_qualified_5k_history(
+    proposal_client,
+) -> None:
+    """Current qualified evidence promotes the route to a plan candidate."""
+    client, db_session, current_user = proposal_client
+    user_id = current_user["value"]
+    _save_goal(
+        db_session,
+        user_id=user_id,
+        goal={
+            "goal_kind": "performance_5k",
+            "distance": "5k",
+            "target_time_sec": 1_500,
+        },
+    )
+    _add_recent_5k_activity(
+        db_session,
+        user_id=user_id,
+        activity_id="routing-qualified-5k",
+    )
+    confirmed = client.post(
+        "/api/goal/baseline/history/confirm",
+        headers={"Idempotency-Key": "routing-qualified-5k"},
+        json={
+            "activity_id": "routing-qualified-5k",
+            "response": "intentional_all_out",
+            "measured_5k": True,
+            "elapsed_timing_confirmed": True,
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    routing = response.json()["routing"]
+    assert routing["state"] == "plan_candidate"
+    assert routing["intent"] == "performance"
+    assert routing["intent_source"] == "current_goal"
+    assert routing["reason_code"] == (
+        "accepted_policy_with_sufficient_baseline"
+    )
+    assert routing["capability_id"] == "outdoor_road_5k_v1"
+    assert routing["purpose_source"] == "current_goal"
+    assert routing["baseline_readiness"] == "sufficient_baseline"
+
+
+def test_capability_routing_does_not_repurpose_performance_across_distance(
+    proposal_client,
+) -> None:
+    """A selected performance intent still requires a same-distance policy."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "race",
+            "distance": "10k",
+            "race_date": "2027-04-18",
+        },
+    )
+
+    response = client.get(
+        "/api/plan/generation/capabilities?intent=performance",
+    )
+
+    assert response.status_code == 200, response.text
+    routing = response.json()["routing"]
+    assert routing["state"] == "policy_unavailable"
+    assert routing["capability_id"] is None
+    assert routing["reason_code"] == "no_accepted_policy_for_intent"
+
+
 def test_capability_discovery_canonicalizes_legacy_goal_values(
     proposal_client,
 ) -> None:
@@ -421,6 +657,189 @@ def test_capability_discovery_is_owner_scoped_and_fails_closed(
     assert other.json()["capabilities"][0]["purpose"][
         "allows_capability_goal"
     ] is True
+
+
+def test_inactive_road_10k_capability_stays_out_of_active_discovery(
+    proposal_client,
+) -> None:
+    """The reviewed 10K capability metadata must not appear until activation."""
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+    }
+    assert body["selected_capability"] is None
+    assert all(
+        capability["id"] != "outdoor_road_10k_performance_v1"
+        for capability in body["capabilities"]
+    )
+    assert body["routing"]["intent"] == "performance"
+    assert body["routing"]["intent_source"] == "current_goal"
+    assert body["routing"]["state"] == "policy_unavailable"
+    assert body["routing"]["reason_code"] == "no_accepted_policy_for_intent"
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert body["unsupported_reason"] == "no_accepted_policy"
+
+
+def test_inactive_road_10k_endpoints_are_not_mounted(
+    proposal_client,
+) -> None:
+    """Inactive 10K endpoints must stay unreachable through the main app."""
+    client, _, _ = proposal_client
+
+    response = client.post(
+        "/api/plan/road-10k/readiness",
+        json={
+            "adult_confirmed": True,
+            "current_symptom_stop": False,
+            "available_weekdays": [0, 2, 5],
+            "weekly_time_limit_min": 180,
+            "maximum_session_duration_min": 70,
+            "unavailable_dates": [],
+            "preferred_longest_easy_weekday": 5,
+            "benchmark_date": None,
+        },
+    )
+
+    assert response.status_code == 404, response.text
+
+
+def test_road_10k_router_fails_closed_if_mounted_while_inactive() -> None:
+    """The route layer still 404s if someone mounts the inactive router directly."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.auth import get_data_user_id, require_write_access
+    from api.routes import road_10k_plan_generation as route
+    from db.session import get_db
+
+    app = FastAPI()
+    app.include_router(route.router, prefix="/api")
+    app.dependency_overrides[get_data_user_id] = lambda: "proposal-owner"
+    app.dependency_overrides[require_write_access] = lambda: "proposal-owner"
+
+    def _override_db():
+        yield None
+
+    app.dependency_overrides[get_db] = _override_db
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/plan/road-10k/readiness",
+            json={
+                "adult_confirmed": True,
+                "current_symptom_stop": False,
+                "available_weekdays": [0, 2, 5],
+                "weekly_time_limit_min": 180,
+                "maximum_session_duration_min": 70,
+                "unavailable_dates": [],
+                "preferred_longest_easy_weekday": 5,
+                "benchmark_date": None,
+            },
+        )
+
+    assert response.status_code == 404, response.text
+
+
+def test_inactive_road_10k_goal_page_falls_back_without_baseline_route(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """Inactive 10K goals stay readable without invoking the hidden baseline flow."""
+    from api.routes import goal as goal_route
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+
+    monkeypatch.setattr(
+        goal_route,
+        "build_road_10k_baseline_view",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("inactive goals must not call the 10K baseline flow")
+        ),
+    )
+
+    response = client.get("/api/goal")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal_kind"] == "race"
+    assert body["goal"] == {
+        "goal_kind": "race",
+        "distance": "10k",
+        "target_time_sec": 2520,
+        "race_date": "2026-09-20",
+        "eligible": False,
+    }
+    assert body["baseline"]["status"] == "not_required"
+
+
+def test_active_road_10k_discovery_exposes_the_reviewed_goal_when_enabled(
+    proposal_client,
+    monkeypatch,
+) -> None:
+    """Future activation should restore direct 10K discovery without rewrites."""
+    import api.plan_generation_capabilities as capabilities
+
+    client, db_session, current_user = proposal_client
+    _save_goal(
+        db_session,
+        user_id=current_user["value"],
+        goal={
+            "goal_kind": "performance_10k",
+            "distance": "10k",
+            "target_time_sec": 2_520,
+            "race_date": "2026-09-20",
+        },
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "PLAN_GENERATION_CAPABILITIES",
+        (
+            capabilities.OUTDOOR_ROAD_5K_CAPABILITY,
+            replace(
+                capabilities.OUTDOOR_ROAD_10K_CAPABILITY,
+                status="available",
+            ),
+        ),
+    )
+
+    response = client.get("/api/plan/generation/capabilities")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["goal"] == {
+        "goal_kind": "performance_10k",
+        "distance": "10k",
+    }
+    assert body["current_goal"]["goal"] == body["goal"]
+    assert body["selected_capability"]["id"] == "outdoor_road_10k_performance_v1"
+    assert body["routing"]["intent"] == "performance"
+    assert body["routing"]["state"] == "readiness_only"
 
 
 def test_capability_discovery_uses_fresh_active_proposal_goal(

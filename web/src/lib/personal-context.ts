@@ -7,8 +7,6 @@ import type {
 
 export const PERSONAL_CONTEXT_PURPOSE_CONSENT_VERSION =
   'personal-context-purpose-v1';
-export const PERSONAL_CONTEXT_AI_CONSENT_VERSION =
-  'personal-context-ai-v1';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXECUTION_RETENTION_DAYS = 180;

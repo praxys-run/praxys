@@ -77,9 +77,103 @@ Return the authenticated user's profile.
   "id": "uuid-string",
   "email": "user@example.com",
   "is_superuser": true,
-  "created_at": "2026-04-01T12:00:00"
+  "created_at": "2026-04-01T12:00:00",
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "terms_current": true
 }
 ```
+
+### POST /api/me/accept-terms
+
+Record acceptance of the exact current Terms/Privacy bundle for the
+authenticated account.
+
+**Request:**
+
+```json
+{
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "locale": "zh-CN"
+}
+```
+
+`locale` is optional. The version and digest are required and must match the
+server's current canonical bundle. A missing field fails request validation;
+a stale or mismatched bundle returns HTTP `409`:
+
+```json
+{
+  "detail": {
+    "code": "TERMS_BUNDLE_MISMATCH",
+    "terms_version": "2026.08.3",
+    "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e"
+  }
+}
+```
+
+Each successful acceptance appends an immutable receipt containing the legal
+version and digest, acceptance time, locale, delivery channel, and bounded
+client-release context. The fields on the user row are only the current
+projection used by the runtime gate; they do not replace receipt history.
+
+**Response:**
+
+```json
+{
+  "terms_version": "2026.08.3",
+  "terms_digest": "sha256:251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e",
+  "terms_current": true,
+  "terms_accepted_at": "2026-08-26T12:00:00Z"
+}
+```
+
+`GET /api/auth/me` and this endpoint remain available when the stored receipt
+is stale. Other personal-data endpoints return:
+
+```json
+{
+  "detail": {
+    "code": "TERMS_ACCEPTANCE_REQUIRED",
+    "terms_version": "2026.08.3"
+  }
+}
+```
+
+with HTTP `428` until acceptance succeeds. Account deletion remains available;
+`GET /api/me/export` is also exempt so a user-rights request is not conditioned
+on accepting new terms.
+
+China clients have an earlier runtime precondition. `.cn` web requests carry
+client, version, source SHA, notice version, policy digest, and API-contract
+headers. WeChat requests carry the same exact release identity. The server
+matches those fields against `PRAXYS_CN_APPROVED_RELEASES`; missing, stale, or
+unlisted builds receive HTTP `428` with
+`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing.
+
+### GET /api/me/export
+
+Download the authenticated user's portable JSON export. Schema version `6`
+includes account and configuration data; non-secret connection metadata;
+activities, splits, samples, recovery, fitness, and plans; AI insight and
+feedback records; private feedback metadata and owned image-download paths;
+append-only Terms receipts; and the existing plan/context export groups.
+Credential material, tokens, passwords, secrets, encryption-shaped fields,
+and other users' records are excluded.
+
+The response uses `Content-Disposition: attachment` and
+`Cache-Control: private, no-store`. This rights route remains available when
+Terms are stale or China-channel processing is disabled.
+
+### GET /api/me/feedback/{feedback_id}/image/{index}
+
+Return one private feedback screenshot to the authenticated user who submitted
+that feedback. `index` is zero-based. A missing row, an image outside the
+available range, or feedback owned by another user returns `404`; ownership is
+not disclosed. The response preserves the stored media type and sets
+`Cache-Control: private, no-store`. Raw screenshots are never published to a
+GitHub issue.
 
 ### POST /api/auth/request-verify-token
 
@@ -160,8 +254,11 @@ bundles during backend-first rolling deployments.
 ### GET /api/admin/feedback
 
 List feedback rows, optionally filtered by `status`. Each row includes the
-admin-only raw message, scrubbed publication fields, linked GitHub issue, and a
-privacy-safe `agent_readiness` object:
+admin-only raw message, scrubbed publication fields, linked GitHub issue,
+`external_publication_consent`, and a privacy-safe `agent_readiness` object.
+Admin clients must not offer external filing when
+`external_publication_consent` is false; the write endpoint rechecks the grant
+and the current legal bundle before publishing:
 
 ```json
 {
@@ -1358,8 +1455,13 @@ web, miniapp, plugin, MCP, and agent clients. It returns:
 - every currently accepted generation capability in deterministic order;
 - the one `selected_capability` matching that goal, or `null` with
   `unsupported_reason: "no_accepted_policy"`;
-- each capability's accepted purpose contract, including whether it may be
-  selected independently from the Goal page;
+- each capability's plan intent (`first_completion`, `performance`, or
+  `return_to_consistency`) and accepted purpose contract, including whether it
+  may be selected independently from the Goal page;
+- a versioned `routing` result with one of `plan_candidate`,
+  `readiness_only`, `clarification_required`, or `policy_unavailable`, plus
+  the intent-specific correction options, matched capability and purpose
+  source, reason code, and capability-owned baseline readiness when applicable;
 - the active adaptive plan's purpose provenance and link state (`current`,
   `independent`, `reassessment_required`, or `legacy_unknown`), when present;
 - any outstanding `goal_plan_impact`, including the exact immutable plan-goal
@@ -1373,6 +1475,24 @@ The registry does not expose draft or roadmap policies. A client that does not
 recognize the returned `constraint_schema_id` must fail closed rather than
 guessing the required inputs. The accepted outdoor-road 5K capability is
 currently the only entry; its existing endpoints remain backward compatible.
+Clients may pass `?intent=first_completion`, `?intent=performance`, or
+`?intent=return_to_consistency` to resolve an explicit route. Without that
+query, the legacy `performance_5k` Goal kind counts as an explicit performance
+intent; other Goal kinds return `clarification_required`. The response always
+includes all three resolved intent options, so interactive clients can offer a
+correction without persisting a speculative preference.
+
+Routing selects only an active capability with the same intent and distance.
+It never maps first-completion or return-to-consistency intent onto the
+performance policy, never maps an unsupported distance onto 5K, and returns
+`clarification_required` instead of guessing if multiple future capabilities
+or allowed separate-purpose sources need additional context. An accepted
+capability may route through `current_goal`, `capability`, or `unlinked` only
+when its registered purpose metadata allows that source. `readiness_only` is
+derived from the capability's already accepted readiness evaluator; this
+contract adds no schedule, threshold, restart dose, demographic cutoff, or
+profile inference.
+
 The current Goal is the default purpose only when it matches that accepted
 capability. A client may instead select a capability-owned purpose when
 `purpose.allows_capability_goal` is true; doing so does not change or link the
@@ -2167,9 +2287,12 @@ the successful response includes `goal_plan_impact`. It is
 `null` when no linked active plan or draft needs a decision. Otherwise it
 reports `reassessment_required`, the affected adaptive-plan ID and lifecycle,
 the exact linked plan-goal snapshot and new Goal ID/revision, whether an
-accepted successor policy exists, whether an adopted current plan can be
-retained independently, whether a stale proposal is open, and
-`unsupported_reason`. Goal metadata-only updates return
+unambiguous accepted successor route exists for any intent and allowed purpose
+source, whether an adopted current plan can be retained independently, whether
+a stale proposal is open, and `unsupported_reason`. A generic Goal may
+therefore report successor availability while still requiring the athlete to
+choose an intent in the Goal router; the reconciliation flow does not infer
+that choice. Goal metadata-only updates return
 `goal_plan_impact: null`. `GET /api/settings` and capability discovery also
 return the currently outstanding impact, so a lost update response, reload, or
 later return to the Goal surface does not remove the decision.
@@ -2514,7 +2637,6 @@ MCP preview containing an unknown or out-of-range field fails closed.
 | `GET` | `/api/personal-context/{item_id}` | Inspect one retained version and, for the athlete, its private receipts; set `include_narrative=true` to request retained narrative |
 | `POST` | `/api/personal-context/selection` | Select active context while non-destructively excluding item IDs; body field `include_narrative` requests retained narrative |
 | `POST` | `/api/personal-context/{item_id}/correct` | Append an immutable corrected successor |
-| `POST` | `/api/personal-context/{item_id}/ai-consent` | Grant, deny, or withdraw field-level AI processing consent |
 | `POST` | `/api/personal-context/{item_id}/expire` | Stop one current version from influencing decisions |
 | `DELETE` | `/api/personal-context/{item_id}?expected_version=N` | Delete the complete lineage and dependent private traces |
 | `GET` | `/api/personal-context/export` | Export all retained versions, receipts, and linked revision IDs |
@@ -2564,20 +2686,22 @@ Supported purposes are `plan_generation`, `execution_interpretation`,
 `plan_adjustment`, `goal_review`, and `outcome_review`. Structured values are
 bounded scalars or scalar arrays; unknown payload keys are rejected.
 
-AI processing remains off until the athlete grants consent for an exact
-version. `provider` is currently `azure_openai`; `disclosed_fields` uses
-`category`, `fields`, `fields.<name>`, or `narrative`. Granting narrative
-disclosure requires the item to contain a retained narrative.
+For the ordinary Azure AI purposes enumerated by the current Terms, the
+server verifies the current Terms receipt and centralized emergency switch;
+callers cannot grant or withdraw AI authority. Exact item identity, version,
+purpose, and minimized `category`, `fields.<name>`, and retained `narrative`
+disclosures remain enforced and recorded.
 
 ### Suggestion-first context pilot
 
 Pilot run and proposal-response commands require an `Idempotency-Key`. An
 athlete-context run accepts only `execution_interpretation` or
 `plan_adjustment` and requires `"source": "opt_in"` plus
-`"confirmed_opt_in": true`. Opted-in runs may set `"allow_ai": true`; the
-normal item-level Azure OpenAI consent and field-minimization checks still
-apply. Synthetic runs select a scenario returned by the catalog, do not accept
-`allow_ai`, and cannot be accepted.
+`"confirmed_opt_in": true`. This confirmation selects participation in the
+suggestion-first pilot; it is not AI-processing authority. Current Terms,
+server runtime state, and purpose/field minimization govern provider use.
+Synthetic runs select a scenario returned by the catalog and cannot be
+accepted.
 
 Every run preserves the stable five-outcome contract: `clarification`,
 `no_change`, `insufficient_evidence`, `safety`, or `suggestion`. The only
@@ -2595,10 +2719,11 @@ identifiers, and context-category cohorts. See
 [`adaptive-plan-context-pilot.md`](./adaptive-plan-context-pilot.md) for the
 fixed scope, scenarios, falsification conditions, and expansion review gate.
 
-`GET /api/me/export` now uses schema version 2 and embeds the same complete
-context export under `personal_context`. Neither export includes idempotency
-keys, internal prompts, credentials, deletion-job operator metadata, or
-payload-free command tombstones, or another athlete's data.
+`GET /api/me/export` now uses schema version 6 and embeds the same complete
+context export under `personal_context`, alongside the other account-owned
+records documented above. Neither export includes idempotency keys, internal
+prompts, credentials, deletion-job operator metadata, payload-free command
+tombstones, or another athlete's data.
 
 ## Sync
 
@@ -2640,7 +2765,13 @@ Trigger sync for all configured sources.
 Returns durable model-generated insights for `training_review` and
 `race_forecast`. The list endpoint always omits legacy `daily_brief` rows, and
 `GET /api/insights/daily_brief` always returns `{"insight": null}`. Today clients
-must render `/api/today.signal` instead.
+must render `/api/today.signal` instead. Both endpoints return
+`ai_available`; it is `false` while the emergency stop is active, the Azure
+client cannot be initialized, or an authentication, rate-limit, transport, or
+provider failure remains unconfirmed as recovered. Only a successfully parsed
+model response clears the shared provider-failure state. In that state durable
+AI rows are withheld while separately sourced deterministic metrics remain
+available.
 
 ### POST /api/insights
 

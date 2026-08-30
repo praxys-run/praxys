@@ -365,7 +365,8 @@ def _run_managed_delivery_tick() -> None:
 def _check_and_sync():
     """Check all user connections and sync stale ones."""
     from db.session import init_db, SessionLocal
-    from db.models import UserConnection, UserConfig
+    from db.models import User, UserConnection, UserConfig
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 
     init_db()
     db = SessionLocal()
@@ -375,9 +376,17 @@ def _check_and_sync():
         # credentials after clearing whatever account-level gate Garmin
         # or Stryd flagged) and silently retrying just escalates the
         # gate further.
-        connections = db.query(UserConnection).filter(
-            UserConnection.status.in_(SCHEDULABLE_STATUSES),
-        ).all()
+        connections = (
+            db.query(UserConnection)
+            .join(User, User.id == UserConnection.user_id)
+            .filter(
+                UserConnection.status.in_(SCHEDULABLE_STATUSES),
+                User.is_active == True,  # noqa: E712
+                User.terms_version == TERMS_VERSION,
+                User.terms_digest == TERMS_CONTENT_DIGEST,
+            )
+            .all()
+        )
 
         now = datetime.utcnow()
         sync_intervals_by_user: dict[str, int] = {}
@@ -491,6 +500,15 @@ def _sync_connection(
 
     Uses the sync route's fetch + DB write functions (no CSV intermediate).
     """
+    from api.legal_receipts import user_has_current_legal_bundle
+
+    if not user_has_current_legal_bundle(db, user_id):
+        logger.info(
+            "Skipping scheduled sync without current legal bundle: user=%s",
+            user_id,
+        )
+        return
+
     from db.connection_credentials import (
         ConnectionGenerationChanged,
         connection_credentials_generation,
@@ -698,9 +716,13 @@ def _sync_connection(
     try:
         from api.plan_adjustments import run_plan_adjustment_for_user
 
-        adjustment_result = run_plan_adjustment_for_user(
-            user_id,
-            trigger=f"scheduled_sync:{platform}",
+        adjustment_result = (
+            run_plan_adjustment_for_user(
+                user_id,
+                trigger=f"scheduled_sync:{platform}",
+            )
+            if user_has_current_legal_bundle(db, user_id)
+            else {"status": "skipped", "reason": "terms_not_current"}
         )
         logger.info(
             "Plan adjustment for user=%s platform=%s: %s",
@@ -718,7 +740,11 @@ def _sync_connection(
     # Post-sync LLM insight generation. Best-effort; never raises.
     try:
         from api.insights_runner import run_insights_for_user
-        insight_results = run_insights_for_user(user_id, db, counts)
+        insight_results = (
+            run_insights_for_user(user_id, db, counts)
+            if user_has_current_legal_bundle(db, user_id)
+            else {"skipped": "terms_not_current"}
+        )
         logger.info("Insight generation for user=%s: %s", user_id, insight_results)
     except Exception:
         # No rollback: the runner uses its own session, and the caller's

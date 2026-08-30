@@ -3,12 +3,9 @@ name: Miniapp publish
 # Uploads miniapp/ to WeChat using miniprogram-ci, replacing the manual
 # "上传" button in 微信开发者工具.
 #
-# Versioning: CalVer, per-component tags. `miniapp-YYYY.MM.MICRO` (e.g.
-# `miniapp-2026.04.1`) goes to robot 1 (release line). Plain `main` pushes
-# go to robot 5 (dev line) with a synthetic version `YYYY.MM.DD.<run>-<sha>`
-# so they never overwrite the release candidate. The dash (not `+`) keeps
-# the version string safely within the conservative subset of characters
-# that miniprogram-ci is known to accept.
+# Versioning: `miniapp-YYYY.MM.MICRO` tags upload that CalVer to robot 1.
+# Main pushes use robot 5 with a synthetic `YYYY.MM.DD.<run>-<sha>` version,
+# so development uploads never overwrite or impersonate a release candidate.
 #
 # Robots 1..30 are independent slots in 版本管理 — each robot keeps its own
 # latest 开发版. Promoting to 体验版 / 提交审核 / 发布 stays manual in
@@ -24,6 +21,10 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+  statuses: read
 
 jobs:
   publish:
@@ -39,6 +40,45 @@ jobs:
           # (HEAD^..HEAD would silently miss a miniapp change buried under
           # a later unrelated commit in the same push).
           fetch-depth: 0
+
+      - name: Validate release metadata
+        working-directory: ${{ github.workspace }}
+        env:
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_SHA: ${{ github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Release SHA must be one lowercase full commit SHA."
+            exit 1
+          fi
+          case "${RELEASE_EVENT}" in
+            workflow_dispatch)
+              [[ "${RELEASE_REF}" == "refs/heads/main" ]] || {
+                echo "::error::Manual Miniapp upload is restricted to main."
+                exit 1
+              }
+              ;;
+            push)
+              if [[ "${RELEASE_REF}" != "refs/heads/main" &&
+                    ! "${RELEASE_REF}" =~ ^refs/tags/miniapp-[0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]{1,4}$ ]]; then
+                echo "::error::Miniapp push ref is not an exact main or release ref."
+                exit 1
+              fi
+              if [[ "${RELEASE_REF}" == "refs/heads/main" &&
+                    ! "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "::error::Main push before SHA must be one lowercase full commit SHA."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unsupported Miniapp release event."
+              exit 1
+              ;;
+          esac
 
       - name: Decide whether to publish
         id: gate
@@ -57,8 +97,10 @@ jobs:
           else
             # main push: only publish when miniapp-relevant paths changed
             # across the entire push range (web/src/locales/ and
-            # web/src/types/api.ts feed into miniapp via sync-types/
-            # sync-i18n at typecheck time, so they count).
+            # web/src/types/api.ts and web/src/lib/legal.ts feed into miniapp
+            # via sync-types/sync-i18n/sync-legal at typecheck time, and
+            # api/china_client_boundary.py declares the runtime privacy floor,
+            # so changes there count).
             #
             # github.event.before is the SHA at the prior tip of main; for
             # a brand-new branch (impossible on main but defensive) it's
@@ -71,7 +113,7 @@ jobs:
               echo "::notice::No prior SHA available; publishing unconditionally."
             else
               changed=$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" || true)
-              if echo "$changed" | grep -qE '^(miniapp/|web/src/locales/|web/src/types/api\.ts$|\.github/workflows/miniapp-publish\.yml$)'; then
+              if echo "$changed" | grep -qE '^(miniapp/|web/src/locales/|web/src/types/api\.ts$|web/src/lib/legal\.ts$|api/china_client_boundary\.py$|\.github/workflows/miniapp-publish\.yml$)'; then
                 echo "publish=true" >> "$GITHUB_OUTPUT"
                 echo "reason=main-push" >> "$GITHUB_OUTPUT"
               else
@@ -81,10 +123,124 @@ jobs:
             fi
           fi
 
+
+      - if: steps.gate.outputs.publish == 'true'
+        name: Decide robot + version
+        id: meta
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::GITHUB_SHA must be one lowercase full commit SHA."
+            exit 1
+          fi
+          if [[ ! "${GITHUB_RUN_NUMBER}" =~ ^[1-9][0-9]{0,9}$ ]]; then
+            echo "::error::GITHUB_RUN_NUMBER must be a positive integer of at most 10 digits."
+            exit 1
+          fi
+
+          short_sha="${GITHUB_SHA::7}"
+          case "${GITHUB_REF}" in
+            refs/tags/*)
+              if [[ ! "${GITHUB_REF}" =~ ^refs/tags/miniapp-([0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]{1,4})$ ]]; then
+                echo "::error::Miniapp release tag is not an exact supported CalVer tag."
+                exit 1
+              fi
+              robot="1"
+              lane="release"
+              version="${BASH_REMATCH[1]}"
+              description="release ${version} (${short_sha})"
+              ;;
+            refs/heads/main)
+              robot="5"
+              lane="main"
+              utc_date="${MINIAPP_UTC_DATE:-$(date -u +%Y.%m.%d)}"
+              if [[ ! "${utc_date}" =~ ^[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])$ ]]; then
+                echo "::error::Miniapp UTC build date is invalid."
+                exit 1
+              fi
+              version="${utc_date}.${GITHUB_RUN_NUMBER}-${short_sha}"
+              description="main ${short_sha}"
+              ;;
+            *)
+              echo "::error::Miniapp upload ref is not an approved release lane."
+              exit 1
+              ;;
+          esac
+
+          provider_locator="wechat:robot-${robot}:${version}"
+          if [[ "${lane}" == "release" &&
+                ! "${description}" =~ ^release\ [0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]{1,4}\ \([0-9a-f]{7}\)$ ]]; then
+            echo "::error::Miniapp release description is invalid."
+            exit 1
+          fi
+          if [[ "${lane}" == "main" &&
+                ! "${version}" =~ ^[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])\.[1-9][0-9]{0,9}-[0-9a-f]{7}$ ]]; then
+            echo "::error::Miniapp development version is invalid."
+            exit 1
+          fi
+          if [[ ! "${provider_locator}" =~ ^wechat:robot-(1|5):[0-9A-Za-z.-]+$ ]]; then
+            echo "::error::Miniapp provider locator is invalid."
+            exit 1
+          fi
+
+          printf 'robot=%s\nlane=%s\nversion=%s\ndesc=%s\nprovider_locator=%s\n' \
+            "${robot}" "${lane}" "${version}" "${description}" \
+            "${provider_locator}" >> "${GITHUB_OUTPUT}"
+
+      - if: steps.gate.outputs.publish == 'true' && steps.meta.outputs.lane == 'main'
+        name: Validate main Miniapp development candidate
+        env:
+          CN_CANDIDATE_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main
+          python3 scripts/cn_release_preflight.py \
+            --lane common \
+            --output release-evidence/cn-release-preflight.json
+
+      - if: steps.gate.outputs.publish == 'true' && steps.meta.outputs.lane == 'release'
+        name: Validate frozen CN release candidate
+        env:
+          CN_CANDIDATE_SHA: ${{ github.sha }}
+          CN_CANDIDATE_CHANNEL: wechat-miniapp
+          CN_CANDIDATE_VERSION: ${{ steps.meta.outputs.version }}
+          CN_CANDIDATE_RELEASE_ID: ${{ steps.meta.outputs.provider_locator }}
+          CN_PRIVACY_FLOOR_SHA: ${{ vars.CN_PRIVACY_FLOOR_SHA }}
+          PRAXYS_CN_APPROVED_RELEASES: ${{ vars.PRAXYS_CN_APPROVED_RELEASES }}
+          PRAXYS_DISABLE_CN_PROCESSING: true
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main
+          python3 scripts/cn_release_preflight.py \
+            --lane china-client \
+            --require-disabled-runtime \
+            --require-backend-validation-evidence \
+            --output release-evidence/cn-release-preflight.json
+
+      - if: steps.gate.outputs.publish == 'true'
+        name: Upload CN release preflight evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: cn-release-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-evidence/cn-release-preflight.json
+          if-no-files-found: error
+          retention-days: 90
+
+
       - if: steps.gate.outputs.publish == 'true'
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '24.11.0'
           cache: 'npm'
           cache-dependency-path: miniapp/package-lock.json
 
@@ -97,46 +253,50 @@ jobs:
         run: npm run typecheck
 
       - if: steps.gate.outputs.publish == 'true'
-        name: Install miniprogram-ci
-        run: npm install --no-save miniprogram-ci
-
-      - if: steps.gate.outputs.publish == 'true'
-        name: Decide robot + version
-        id: meta
-        shell: bash
-        run: |
-          set -euo pipefail
-          short_sha="${GITHUB_SHA::7}"
-          if [[ "$GITHUB_REF" == refs/tags/miniapp-* ]]; then
-            tag_version="${GITHUB_REF#refs/tags/miniapp-}"
-            echo "robot=1" >> "$GITHUB_OUTPUT"
-            echo "version=$tag_version" >> "$GITHUB_OUTPUT"
-            # Include short_sha so 版本管理 stays self-describing even when
-            # the same tag is force-pushed to a different commit.
-            echo "desc=release $tag_version ($short_sha)" >> "$GITHUB_OUTPUT"
-          else
-            ymd=$(date -u +%Y.%m.%d)
-            echo "robot=5" >> "$GITHUB_OUTPUT"
-            # Use `-` (not `+`) as the run/sha separator. miniprogram-ci
-            # is documented with semver-like strings; `-` is unambiguously
-            # accepted whereas `+` (semver build-metadata) is not
-            # confirmed to round-trip cleanly.
-            echo "version=${ymd}.${GITHUB_RUN_NUMBER}-${short_sha}" >> "$GITHUB_OUTPUT"
-            echo "desc=main ${short_sha}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - if: steps.gate.outputs.publish == 'true'
         name: Stamp build version
         env:
           VERSION: ${{ steps.meta.outputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           # Write the CalVer into utils/version.ts so the mini program can
           # display it in Settings. wx.getAccountInfoSync().miniProgram.version
           # only returns a value for release builds; this stamps it for
-          # develop and trial builds too. The file is committed as '' and
-          # overwritten here — the change is never pushed back to git.
-          printf 'export const MINIAPP_BUILD_VERSION = "%s";\n' "$VERSION" > utils/version.ts
+          # develop and trial builds too. The reviewed source SHA is sent with
+          # API requests so the backend can reject unregistered clients.
+          # The file is committed as empty strings and never pushed back.
+          printf \
+            'export const MINIAPP_BUILD_VERSION = "%s";\nexport const MINIAPP_SOURCE_SHA = "%s";\n' \
+            "$VERSION" "${SOURCE_SHA}" > utils/version.ts
+
+      - if: steps.gate.outputs.publish == 'true'
+        name: Initialize structured Miniapp upload evidence
+        id: upload_evidence_init
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          REASON: ${{ steps.gate.outputs.reason }}
+          ROBOT: ${{ steps.meta.outputs.robot }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DESCRIPTION: ${{ steps.meta.outputs.desc }}
+          PROVIDER_LOCATOR: ${{ steps.meta.outputs.provider_locator }}
+          RELEASE_REF: ${{ github.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          jq -n \
+            --arg status "pending-upload" \
+            --arg sourceSha "${CANDIDATE_SHA}" \
+            --arg sourceId "${CANDIDATE_SHA:0:12}" \
+            --arg trigger "${REASON}" \
+            --arg robot "${ROBOT}" \
+            --arg version "${VERSION}" \
+            --arg description "${DESCRIPTION}" \
+            --arg providerLocator "${PROVIDER_LOCATOR}" \
+            --arg ref "${RELEASE_REF}" \
+            --arg initializedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{schemaVersion: 1, status: $status, sourceSha: $sourceSha, sourceId: $sourceId, trigger: $trigger, robot: $robot, version: $version, description: $description, providerLocator: $providerLocator, providerLocatorKind: "wechat-robot-version", providerResponse: "redacted", ref: $ref, initializedAt: $initializedAt}' \
+            > release-evidence/miniapp-upload.json
 
       - if: steps.gate.outputs.publish == 'true'
         name: Write upload key
@@ -154,6 +314,7 @@ jobs:
 
       - if: steps.gate.outputs.publish == 'true'
         name: Upload to WeChat
+        id: wechat_upload
         env:
           APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           KEY_PATH: ${{ runner.temp }}/wechat.key
@@ -161,6 +322,14 @@ jobs:
           DESC: ${{ steps.meta.outputs.desc }}
           ROBOT: ${{ steps.meta.outputs.robot }}
         run: |
+          if [[ ! "${APPID}" =~ ^wx[0-9a-f]{16}$ ]]; then
+            echo "::error::WECHAT_MINIAPP_APPID has an invalid provider ID format."
+            exit 1
+          fi
+          if [[ ! "${ROBOT}" =~ ^(1|5)$ ]]; then
+            echo "::error::Miniapp robot must be an approved workflow slot."
+            exit 1
+          fi
           node -e "
             const ci = require('miniprogram-ci');
             const project = new ci.Project({
@@ -195,30 +364,80 @@ jobs:
               },
               robot: Number(process.env.ROBOT),
               threads: 4,
-            }).then((r) => {
-              console.log('upload result:');
-              console.log(JSON.stringify(r, null, 2));
+            }).then(() => {
+              console.log('Miniapp upload succeeded; raw provider response redacted.');
             }).catch((e) => {
-              console.error('upload failed:', e && e.stack || e);
+              const failureType = e && e.name ? String(e.name) : 'Error';
+              console.error('Miniapp upload failed (details redacted):', failureType);
               process.exit(1);
             });
           "
 
+      - if: always() && steps.upload_evidence_init.outcome == 'success'
+        name: Finalize structured Miniapp upload evidence
+        env:
+          UPLOAD_OUTCOME: ${{ steps.wechat_upload.outcome }}
+          WORKFLOW_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence=release-evidence/miniapp-upload.json
+          jq \
+            --arg uploadOutcome "${UPLOAD_OUTCOME}" \
+            --arg workflowStatus "${WORKFLOW_STATUS}" \
+            --arg completedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '. + {
+              status: (
+                if $uploadOutcome == "success" then "uploaded"
+                elif $uploadOutcome == "failure" then "upload-failed"
+                else "upload-not-completed"
+                end
+              ),
+              uploadOutcome: $uploadOutcome,
+              workflowStatus: $workflowStatus,
+              completedAt: $completedAt
+            }' \
+            "${evidence}" > "${evidence}.tmp"
+          mv "${evidence}.tmp" "${evidence}"
+
+      - if: always() && steps.upload_evidence_init.outcome == 'success'
+        name: Upload structured Miniapp evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: miniapp-upload-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: miniapp/release-evidence/miniapp-upload.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - if: always() && steps.gate.outputs.publish == 'true'
+        name: Remove temporary upload key
+        shell: bash
+        run: rm -f "${RUNNER_TEMP}/wechat.key"
+
       - if: always() && steps.gate.outputs.publish == 'true'
         name: Job summary
+        env:
+          REASON: ${{ steps.gate.outputs.reason }}
+          ROBOT: ${{ steps.meta.outputs.robot }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DESCRIPTION: ${{ steps.meta.outputs.desc }}
+          PROVIDER_LOCATOR: ${{ steps.meta.outputs.provider_locator }}
+          RELEASE_REF: ${{ github.ref }}
+          CANDIDATE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           {
-            echo '## Miniapp publish'
-            echo ''
-            echo '| field | value |'
-            echo '|---|---|'
-            echo '| trigger | `${{ steps.gate.outputs.reason }}` |'
-            echo '| robot | `${{ steps.meta.outputs.robot }}` |'
-            echo '| version | `${{ steps.meta.outputs.version }}` |'
-            echo '| desc | `${{ steps.meta.outputs.desc }}` |'
-            echo '| ref | `${{ github.ref }}` |'
-            echo '| sha | `${{ github.sha }}` |'
-            echo ''
-            echo 'To ship: open mp.weixin.qq.com → 版本管理 → robot ${{ steps.meta.outputs.robot }} → 选为体验版 → 提交审核 → 发布.'
+            echo "## Miniapp publish"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            printf "| trigger | %s |\n" "${REASON}"
+            printf "| robot | %s |\n" "${ROBOT}"
+            printf "| version | %s |\n" "${VERSION}"
+            printf "| desc | %s |\n" "${DESCRIPTION}"
+            printf "| provider locator | %s |\n" "${PROVIDER_LOCATOR}"
+            printf "| ref | %s |\n" "${RELEASE_REF}"
+            printf "| sha | %s |\n" "${CANDIDATE_SHA}"
+            echo
+            echo "Promotion and publication remain human-authorized provider actions."
           } >> "$GITHUB_STEP_SUMMARY"

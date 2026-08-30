@@ -8,7 +8,63 @@ export type SciencePillar = 'load' | 'recovery' | 'prediction' | 'zones' | 'heat
  * so consumers don't need to handle a missing field. */
 export interface VersionResponse {
   version: string;
+  source_sha: string | null;
 }
+
+export interface ChinaProcessingStatus {
+  enabled: boolean;
+  disabled: boolean;
+  registry_configured: boolean;
+  approved_release_count: number;
+  registry_sha256: string | null;
+  notice_version: string;
+  legal_digest: string;
+  api_contract_version: string;
+}
+
+export type HealthReadyResponse =
+  | {
+      status: 'ready';
+      database: 'ok';
+      optional_processing: {
+        background_ai_enabled: boolean;
+        background_ai_kill_switch: boolean;
+        feedback_publication_enabled: boolean;
+        feedback_publication_positive_enable: boolean;
+        feedback_publication_kill_switch: boolean;
+      };
+      china_processing: ChinaProcessingStatus;
+    }
+  | { status: 'unavailable'; database: 'error' }
+  | {
+      status: 'unavailable';
+      database: 'ok';
+      privacy_controls: 'invalid';
+    };
+
+export type ClientPrivacyUpdateRequiredDetail =
+  | {
+      code: 'CLIENT_PRIVACY_UPDATE_REQUIRED';
+      client: 'cn-web';
+      message: string;
+      notice_version: string;
+    }
+  | {
+      code: 'CLIENT_PRIVACY_UPDATE_REQUIRED';
+      client: 'wechat-miniapp';
+      message: string;
+      notice_version: string;
+      minimum_version: string;
+    };
+
+export interface ChinaClientUnavailableErrorDetail {
+  code: 'CN_PROCESSING_DISABLED' | 'CN_CLIENT_REGISTRY_UNAVAILABLE';
+  message: string;
+}
+
+export type ChinaClientBoundaryErrorResponse =
+  | { detail: ClientPrivacyUpdateRequiredDetail }
+  | { detail: ChinaClientUnavailableErrorDetail };
 
 export interface TsbZoneConfig {
   min: number | null;
@@ -172,6 +228,8 @@ export interface SettingsResponse {
   display: DisplayConfig;
   detected_thresholds: Record<string, DetectedThreshold>;
   effective_thresholds: Record<string, ThresholdValue>;
+  sync_interval_options_hours: number[];
+  default_sync_interval_hours: number;
   goal_plan_impact: GoalPlanImpact | null;
 }
 
@@ -215,7 +273,7 @@ export type PlatformConnectionStatus =
   | 'disconnected';
 
 export interface PlatformConnection {
-  status: PlatformConnectionStatus;
+  status: PlatformConnectionStatus | null;
   last_sync: string | null;
   has_credentials: boolean;
   // Scheduler retry-state surfaced for UI: when status is "error", the
@@ -230,8 +288,42 @@ export interface PlatformConnection {
 }
 
 export interface ConnectionsResponse {
-  connections: Partial<Record<PlatformName, PlatformConnection>>;
+  connections: Record<string, PlatformConnection>;
 }
+
+export interface CurrentUserProfile {
+  id: string;
+  email: string;
+  is_superuser: boolean;
+  is_demo: boolean;
+  created_at: string | null;
+  terms_version: string | null;
+  terms_digest: string | null;
+  terms_current: boolean;
+}
+
+export interface TermsAcceptanceResponse {
+  terms_version: string;
+  terms_digest: string;
+  terms_current: true;
+  terms_accepted_at: string;
+}
+
+export interface TermsAcceptanceRequiredErrorDetail {
+  code: 'TERMS_ACCEPTANCE_REQUIRED';
+  terms_version: string;
+  terms_digest: string;
+}
+
+export interface TermsBundleMismatchErrorDetail {
+  code: 'TERMS_BUNDLE_MISMATCH';
+  terms_version: string;
+  terms_digest: string;
+}
+
+export type LegalContractErrorResponse =
+  | { detail: TermsAcceptanceRequiredErrorDetail }
+  | { detail: TermsBundleMismatchErrorDetail };
 
 export interface StravaOAuthStartRequest {
   web_origin: string;
@@ -936,6 +1028,43 @@ export interface PlanGenerationResolvedPurpose extends PlanGenerationPurposeSele
   };
 }
 
+export type PlanIntent =
+  | 'first_completion'
+  | 'performance'
+  | 'return_to_consistency';
+
+export type PlanRoutingState =
+  | 'plan_candidate'
+  | 'readiness_only'
+  | 'clarification_required'
+  | 'policy_unavailable';
+
+export interface PlanRoutingOption {
+  intent: PlanIntent;
+  state: PlanRoutingState;
+  reason_code:
+    | 'accepted_policy_with_sufficient_baseline'
+    | 'accepted_policy_requires_readiness'
+    | 'capability_context_confirmation_required'
+    | 'no_accepted_policy_for_intent';
+  capability_id: string | null;
+  purpose_source: PlanGenerationPurposeSource | null;
+  baseline_readiness: string | null;
+}
+
+export interface PlanRoutingResult
+  extends Omit<PlanRoutingOption, 'intent' | 'reason_code'> {
+  schema_version: 1;
+  policy_version: string;
+  science_boundary_id: string;
+  intent: PlanIntent | null;
+  intent_source: 'current_goal' | 'explicit' | 'unconfirmed';
+  reason_code:
+    | PlanRoutingOption['reason_code']
+    | 'intent_confirmation_required';
+  options: PlanRoutingOption[];
+}
+
 export interface PlanGenerationCapability {
   id: string;
   status: 'available';
@@ -947,6 +1076,7 @@ export interface PlanGenerationCapability {
     distances: string[];
     surfaces: string[];
   };
+  intent: PlanIntent;
   constraint_schema_id: string;
   purpose: {
     schema_version: 1;
@@ -994,6 +1124,7 @@ export interface PlanGenerationCapabilitiesResponse {
       | 'legacy_unknown';
   } | null;
   goal_plan_impact: GoalPlanImpact | null;
+  routing: PlanRoutingResult;
   unsupported_reason: 'no_accepted_policy' | null;
 }
 
@@ -1095,6 +1226,167 @@ export type Outdoor5KGenerateResponse =
   | Outdoor5KReadinessResponse;
 
 export type Outdoor5KRegenerateResponse = Outdoor5KGenerateResponse;
+
+export type Road10KWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type Road10KConstraintSchemaId = 'outdoor_road_10k_constraints_v1';
+export type Road10KSurfaceOrProtocol =
+  | 'organized_outdoor_road_10k_race'
+  | 'standardized_outdoor_road_10k_time_trial'
+  | 'standardized_track_10k_time_trial';
+export type Road10KAssistanceStatus =
+  | 'unassisted'
+  | 'assisted'
+  | 'unknown_or_unreported';
+
+export type Road10KResultCode =
+  | 'eligible_rolling_proposal'
+  | 'eligible_taper_proposal'
+  | 'missing_or_stale_direct_baseline'
+  | 'insufficient_recent_history'
+  | 'limited_guidance_event_conflict'
+  | 'limited_near_term_guidance'
+  | 'safety_stop'
+  | 'adult_scope_or_constraints_unconfirmed'
+  | 'contradictory_input'
+  | 'unsupported_intent_distance_surface_or_population'
+  | 'no_schedule_within_envelope'
+  | 'validation_failed';
+
+export interface Road10KConstraintsRequest {
+  purpose?: PlanGenerationPurposeSelection;
+  adult_confirmed: boolean;
+  current_symptom_stop?: boolean;
+  available_weekdays: Road10KWeekday[];
+  weekly_time_limit_min: number;
+  maximum_session_duration_min: number;
+  unavailable_dates?: string[];
+  preferred_longest_easy_weekday?: Road10KWeekday | null;
+  benchmark_date?: string | null;
+}
+
+export interface Road10KReadinessRequest extends Road10KConstraintsRequest {}
+
+export interface Road10KGenerateRequest extends Road10KConstraintsRequest {
+  expected_source_revision: string;
+  idempotency_key: string;
+}
+
+export interface Road10KRegenerateRequest extends Road10KGenerateRequest {
+  expected_proposal_version: number;
+}
+
+export interface Road10KHistoryConfirmationRequest {
+  activity_id: string;
+  response: 'race' | 'intentional_all_out' | 'not_all_out' | 'deleted';
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  surface_or_protocol?: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier?: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  supersedes_confirmation_id?: string | null;
+  purpose?: PlanGenerationPurposeSelection;
+}
+
+export interface Road10KHistoryStatistics {
+  usable_completed_weeks: number;
+  recent_modal_running_frequency: number;
+  recent_median_usable_weekly_minutes: number;
+  recent_maximum_usable_weekly_minutes: number;
+  recent_maximum_session_minutes: number;
+  recent_maximum_session_distance_km: number | null;
+  latest_run_date: string | null;
+}
+
+export interface Road10KEventContext {
+  snapshot_version: string;
+  state: 'confirmed_none' | 'single_target' | 'race_dense';
+  goal_target_date: string | null;
+  benchmark_date: string | null;
+  target_date: string | null;
+  target_source: 'goal' | 'benchmark' | null;
+}
+
+export interface Road10KOutcomeResponse {
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  contract_digest: string;
+  source_decision_digest: string;
+  code: Road10KResultCode;
+  route_state:
+    | 'plan_candidate'
+    | 'readiness_only'
+    | 'clarification_required'
+    | 'policy_unavailable';
+  plan_returned: boolean;
+  adoption_required?: boolean;
+  goal_remains_recorded?: boolean;
+  limited_guidance_returned?: boolean;
+  deterministic_input_hash: string;
+  event_context: Road10KEventContext;
+  history_statistics: Road10KHistoryStatistics;
+  failed_rule_id: string | null;
+  observed_or_stated_reason: string | null;
+  uncertainty_or_missing_field: string | null;
+  alternatives: string[];
+}
+
+export interface Road10KGuardrailProjection {
+  committed_proposal_days: number;
+  advisory_reassessment_after_completed_days: number;
+  minimum_planned_low_intensity_running_minutes_fraction: number;
+  baseline_current_through_completed_days: number;
+}
+
+export interface Road10KReadinessResponse {
+  schema_version: 1;
+  capability_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  contract_digest: string;
+  source_decision_digest: string;
+  source_revision: string;
+  guardrails: Road10KGuardrailProjection;
+  purpose: PlanGenerationResolvedPurpose;
+  baseline: Road10KBaselineResponse;
+  athlete_today: string;
+  block_start: string;
+  event_context: Road10KEventContext;
+  history_cutoff_completed_days: number;
+  template_ids: string[];
+  result: Road10KOutcomeResponse;
+}
+
+export interface Road10KAlternativesResponse extends Road10KReadinessResponse {
+  alternatives: string[];
+}
+
+export interface Road10KProposalResponse {
+  schema_version: 1;
+  capability_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  contract_digest: string;
+  source_decision_digest: string;
+  source_revision: string;
+  guardrails: Road10KGuardrailProjection;
+  purpose: PlanGenerationResolvedPurpose;
+  event_context: Road10KEventContext;
+  history_cutoff_completed_days: number;
+  template_ids: string[];
+  result: Road10KOutcomeResponse;
+  proposal: AdaptivePlanProposal | null;
+  replayed: boolean;
+  reassessment_dates: string[];
+}
+
+export type Road10KGenerateResponse =
+  | Road10KProposalResponse
+  | Road10KReadinessResponse;
+
+export type Road10KRegenerateResponse = Road10KGenerateResponse;
 
 export type StrydPushResult =
   | {
@@ -1337,27 +1629,6 @@ export interface PersonalContextCorrectionRequest {
   client: PersonalContextClient;
 }
 
-interface PersonalContextAiConsentRequestBase {
-  expected_version: number;
-  disclosed_fields?: string[];
-  narrative_disclosed?: boolean;
-  consent_text_version: string;
-  client: PersonalContextClient;
-}
-
-export type PersonalContextAiConsentRequest =
-  PersonalContextAiConsentRequestBase
-  & (
-    | {
-      decision: 'granted';
-      provider: 'azure_openai';
-    }
-    | {
-      decision: 'denied' | 'withdrawn';
-      provider?: 'azure_openai' | null;
-    }
-  );
-
 export interface PersonalContextExpireRequest {
   expected_version: number;
 }
@@ -1472,12 +1743,6 @@ export interface PersonalContextMutationResponse {
   replayed: boolean;
 }
 
-export interface PersonalContextAiConsentResponse {
-  item: PersonalContextItem;
-  receipt: PersonalContextConsentReceipt;
-  replayed: boolean;
-}
-
 export interface PersonalContextSelectionItem {
   id: string;
   lineage_id: string;
@@ -1554,14 +1819,12 @@ export type ContextPilotRunRequest =
     scenario_id: string;
     purpose?: never;
     confirmed_opt_in?: never;
-    allow_ai?: never;
   }
   | {
     source: 'opt_in';
     scenario_id?: never;
     purpose: 'execution_interpretation' | 'plan_adjustment';
     confirmed_opt_in: true;
-    allow_ai?: boolean;
   };
 
 export interface ContextPilotSnapshot {
@@ -1956,18 +2219,244 @@ export interface UserDataExportOutdoor5KPlanGeneration {
   records: UserDataExportOutdoor5KGeneration[];
 }
 
-export interface UserDataExportResponse {
-  schema_version: 4;
+export interface UserDataExportRoad10KBaselineConfirmation {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  activity_id: string;
+  response: string;
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  completed_at: string;
+  elapsed_time_sec: number;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KBaselineSnapshot {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  goal_signature: string;
+  goal_snapshot: Record<string, unknown>;
+  source_kind: string;
+  source_id: string | null;
+  provenance: string;
+  observed_date: string | null;
+  completed_at: string;
+  distance_km: number | null;
+  elapsed_time_sec: number | null;
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
+  qualification_status: string;
+  change_comparability: string;
+  invalidators: string[];
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KBaseline {
+  schema_version: 1;
   exported_at: string;
+  confirmations: UserDataExportRoad10KBaselineConfirmation[];
+  snapshots: UserDataExportRoad10KBaselineSnapshot[];
+}
+
+export interface UserDataExportRoad10KTrainingPatternSnapshot {
+  version: string;
+  schema_version: string;
+  policy_version: string;
+  usable_completed_weeks: number;
+  recent_modal_running_frequency: number;
+  recent_median_usable_weekly_minutes: number;
+  recent_maximum_usable_weekly_minutes: number;
+  recent_maximum_session_minutes: number;
+  recent_maximum_session_distance_km: number;
+  latest_run_date: string;
+  history_observation_count: number;
+  history_provenance_fingerprint: string;
+  intensity_observation_count: number;
+  intensity_provenance_fingerprint: string;
+  reserved_date_count: number;
+  reservation_fingerprint: string;
+  canonical_fingerprint: string;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KGeneration {
+  id: string;
+  proposal_id: string;
+  capability_id: string;
+  policy_version: string;
+  generator_version: string;
+  science_decision_id: string;
+  source_decision_digest: string;
+  contract_digest: string;
+  baseline_snapshot_id: string | null;
+  baseline_source: string | null;
+  source_goal_id: string | null;
+  source_goal_revision: string | null;
+  history_cutoff_completed_days: number;
+  training_pattern_snapshot_version: string;
+  event_context_snapshot_version: string;
+  active_zone_model_id: string | null;
+  active_zone_model_version: string | null;
+  normalized_constraints: Record<string, unknown>;
+  selected_template_ids: string[];
+  source_revision: string;
+  deterministic_input_hash: string;
+  request_kind: string;
+  request_fingerprint: string;
+  predecessor_proposal_id: string | null;
+  predecessor_version: number | null;
+  result_code: string;
+  validation_reason_code: string | null;
+  created_at: string;
+}
+
+export interface UserDataExportRoad10KPlanGeneration {
+  schema_version: 1;
+  exported_at: string;
+  training_pattern_snapshots: UserDataExportRoad10KTrainingPatternSnapshot[];
+  records: UserDataExportRoad10KGeneration[];
+}
+
+export interface UserDataExportAccount {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_verified: boolean;
+  created_at: string | null;
+  last_seen_at: string | null;
+  terms_version: string | null;
+  terms_digest: string | null;
+  terms_accepted_at: string | null;
+  wechat_openid: string | null;
+  wechat_unionid: string | null;
+  wechat_nickname: string | null;
+  wechat_avatar_url: string | null;
+}
+
+export interface UserDataExportConnection {
+  platform: string;
+  preferences: Record<string, unknown> | null;
+  last_sync: string | null;
+  status: PlatformConnectionStatus | null;
+  consecutive_failures: number;
+  next_retry_at: string | null;
+  last_error: string | null;
+  tokens_updated_at: string | null;
+}
+
+export interface UserDataExportActivitySample {
+  activity_id: string;
+  source: string | null;
+  t_sec: number;
+  power_watts: number | null;
+  hr_bpm: number | null;
+  speed_ms: number | null;
+  pace_sec_km: number | null;
+  cadence_spm: number | null;
+  altitude_m: number | null;
+  distance_m: number | null;
+  lat: number | null;
+  lng: number | null;
+  grade_pct: number | null;
+  temperature_c: number | null;
+  ground_time_ms: number | null;
+  oscillation_mm: number | null;
+  leg_spring_kn_m: number | null;
+  vertical_ratio: number | null;
+  form_power_watts: number | null;
+  respiration_rate: number | null;
+}
+
+export interface UserDataExportAiInsight {
+  insight_type: string;
+  headline: string | null;
+  summary: string | null;
+  findings: unknown[] | null;
+  recommendations: unknown[] | null;
+  meta: Record<string, unknown> | null;
+  translations: Record<string, unknown> | null;
+  generated_at: string | null;
+}
+
+export interface UserDataExportAiInsightFeedback {
+  insight_type: string;
+  dataset_hash: string;
+  vote: "up" | "down";
+  submitted_at: string;
+}
+
+export interface UserDataExportFeedback {
+  id: number;
+  kind: string;
+  message: string;
+  context: Record<string, unknown> | null;
+  locale: string | null;
+  status: string;
+  ai_title: string | null;
+  ai_body: string | null;
+  ai_labels: string[] | null;
+  priority: string | null;
+  github_issue_number: number | null;
+  github_issue_url: string | null;
+  error: string | null;
+  private_image_count: number;
+  private_image_downloads: string[];
+  image_description: string | null;
+  image_sensitive: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserDataExportTermsAcceptanceReceipt {
+  id: string;
+  action: string;
+  terms_version: string;
+  terms_digest: string;
+  locale: string | null;
+  channel: string;
+  client_version: string | null;
+  source_sha: string | null;
+  notice_version: string | null;
+  release_id: string | null;
+  accepted_at: string;
+}
+
+export interface UserDataExportResponse {
+  schema_version: 6;
+  exported_at: string;
+  account: UserDataExportAccount;
   user_config: UserDataExportConfig;
+  connections: UserDataExportConnection[];
   activities: UserDataExportActivity[];
   activity_splits: UserDataExportActivitySplit[];
+  activity_samples: UserDataExportActivitySample[];
   recovery: UserDataExportRecovery[];
   fitness: UserDataExportFitness[];
   training_plans: UserDataExportTrainingPlan[];
+  ai_insights: UserDataExportAiInsight[];
+  ai_insight_feedback: UserDataExportAiInsightFeedback[];
+  feedback: UserDataExportFeedback[];
+  terms_acceptance_receipts: UserDataExportTermsAcceptanceReceipt[];
   adaptive_plan_proposals: UserDataExportAdaptivePlanProposals;
   goal_baseline: UserDataExportGoalBaseline;
   outdoor_5k_plan_generation: UserDataExportOutdoor5KPlanGeneration;
+  road_10k_baseline: UserDataExportRoad10KBaseline;
+  road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;
   personal_context: PersonalContextExportResponse;
 }
 
@@ -2440,7 +2929,11 @@ export interface CpTrendData {
   months_flat?: number;
 }
 
-export type GoalKind = 'race' | 'continuous' | 'performance_5k';
+export type GoalKind =
+  | 'race'
+  | 'continuous'
+  | 'performance_5k'
+  | 'performance_10k';
 export type GoalBaselineStatus =
   | 'current'
   | 'stale'
@@ -2574,6 +3067,108 @@ export interface GoalBaselineEvaluationResponse {
   review_gate: Record<string, string>;
 }
 
+export type Road10KBaselineStatus =
+  | 'current'
+  | 'stale'
+  | 'incomparable'
+  | 'missing'
+  | 'not_required';
+export type Road10KBaselineReadiness =
+  | 'sufficient_baseline'
+  | 'insufficient_evidence';
+export interface Road10KBaselineEvidence {
+  provenance: 'race' | 'intentional_all_out';
+  observed_date: string;
+  age_days: number;
+  completed_at: string | null;
+  distance_km: number | null;
+  elapsed_time_sec: number | null;
+  activity_id: string | null;
+  measured_10k_confirmed: boolean;
+  elapsed_timing_confirmed: boolean;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus | null;
+  source_provider: string | null;
+  change_comparability:
+    | 'not_assessed'
+    | 'supporting'
+    | 'incomparable'
+    | 'directly_comparable';
+}
+export interface Road10KBaselineCandidate {
+  activity_id: string;
+  observed_date: string;
+  distance_km: number | null;
+  duration_sec: number | null;
+  source: string | null;
+  completed_at: string | null;
+  review_state:
+    | 'needs_confirmation'
+    | 'qualified'
+    | 'excluded'
+    | 'distance_unverified'
+    | 'timing_unresolved';
+  confirmation_response: 'race' | 'intentional_all_out' | 'not_all_out' | null;
+  measured_10k_confirmed: boolean | null;
+  elapsed_timing_confirmed: boolean | null;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus | null;
+  source_provider: string | null;
+  full_activity_only: true;
+  split_count: number;
+  sample_observed_duration_sec: number | null;
+  timing_gap_count: number;
+}
+export interface Road10KBaselineResponse {
+  policy_version: string;
+  science_decision_id: string;
+  contract_digest: string;
+  baseline_snapshot_version: string;
+  guardrails: Road10KGuardrailProjection;
+  status: Road10KBaselineStatus;
+  readiness: Road10KBaselineReadiness;
+  history_search_complete: true;
+  full_activity_only: true;
+  history_cutoff_completed_days: number;
+  alternatives: string[];
+  evidence: Road10KBaselineEvidence | null;
+  candidates: Road10KBaselineCandidate[];
+  benchmark: {
+    available: boolean;
+    automatic_scheduling: false;
+    explicit_choice_required: true;
+  };
+  science_note: ScienceNoteInfo;
+}
+export interface Road10KBaselineConfirmationRecord {
+  id: string;
+  lineage_id: string;
+  version: number;
+  supersedes_id: string | null;
+  activity_id: string;
+  response: 'race' | 'intentional_all_out' | 'not_all_out' | 'deleted';
+  measured_10k: boolean;
+  elapsed_timing_confirmed: boolean;
+  completed_at: string;
+  elapsed_time_sec: number | null;
+  surface_or_protocol: Road10KSurfaceOrProtocol | null;
+  route_or_venue_identifier: string | null;
+  assistance_status: Road10KAssistanceStatus;
+  source_provider: string;
+  created_at: string;
+}
+export interface Road10KBaselineMutationResponse {
+  replayed: boolean;
+  guardrails: Road10KGuardrailProjection;
+  baseline: Road10KBaselineResponse;
+  confirmation?: Road10KBaselineConfirmationRecord | null;
+}
+export type PerformanceGoalBaselineResponse =
+  | GoalBaselineResponse
+  | Road10KBaselineResponse;
+
 
 export interface GoalResponse {
   goal_kind?: GoalKind;
@@ -2584,7 +3179,7 @@ export interface GoalResponse {
     race_date?: string | null;
     eligible?: boolean;
   };
-  baseline?: GoalBaselineResponse;
+  baseline?: PerformanceGoalBaselineResponse;
   race_countdown: RaceCountdown;
   cp_trend: CpTrendChart;
   cp_trend_data: CpTrendData;
@@ -3162,10 +3757,12 @@ export interface AiInsight {
 
 export interface AiInsightResponse {
   insight: AiInsight | null;
+  ai_available: boolean;
 }
 
 export type AiInsightsResponse = {
   insights: Partial<Record<string, AiInsight>>;
+  ai_available: boolean;
 };
 
 export interface HistoryResponse {
@@ -3256,6 +3853,9 @@ export interface ServiceStatus {
 
 // --- Feedback (bug report / feature request / general) ---
 
+export const FEEDBACK_PUBLICATION_CONSENT_VERSION =
+  'feedback-publication-v1' as const;
+
 export type FeedbackKind = 'bug' | 'feature' | 'other';
 
 export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'resolved' | 'failed' | 'rejected';
@@ -3267,7 +3867,7 @@ export type FeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
 /** Client → POST /api/feedback. `context` is auto-captured diagnostics
  * (page, app version, user agent, viewport, locale); the server scrubs it to
  * an allowlist before anything is published externally. */
-export interface FeedbackRequest {
+export type FeedbackRequest = {
   kind: FeedbackKind;
   message: string;
   context?: Record<string, string | number | boolean>;
@@ -3277,7 +3877,16 @@ export interface FeedbackRequest {
    * scrubbed description and sensitivity verdict — the raw image never reaches a
    * public issue. */
   images?: string[];
-}
+} & (
+  | {
+      external_publication_consent: true;
+      external_publication_consent_version: typeof FEEDBACK_PUBLICATION_CONSENT_VERSION;
+    }
+  | {
+      external_publication_consent?: false;
+      external_publication_consent_version?: never;
+    }
+);
 
 export interface FeedbackResponse {
   ok: boolean;
@@ -3368,6 +3977,8 @@ export interface AdminFeedbackItem {
   github_issue_number: number | null;
   github_issue_url: string | null;
   error: string | null;
+  /** Whether this exact submission carries the current external-publication consent. */
+  external_publication_consent: boolean;
   /** Number of attached screenshots. Each is fetched (admin-only) from
    * `GET /api/admin/feedback/{id}/image/{index}` for index in `0..image_count-1`. */
   image_count: number;

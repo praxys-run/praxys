@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-adult-running-plan-population-routing-v1
+subject_digest: sha256:e0db9989e767f5f2bbc6ab858830427f60bd045e72a7cd46ed9e38a16b349bfb
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-08-18'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/717#issuecomment-5322944695

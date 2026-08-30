@@ -214,7 +214,7 @@ function localizedSignalAlternatives(signal: TrainingSignal): string[] {
   }).filter(Boolean);
 }
 
-/** Build the deterministic Coach receipt from the canonical Today signal. */
+/** Build the deterministic training summary from the canonical Today signal. */
 function buildCoachReceipt(
   response: TodayResponse,
   recoveryName: string | undefined,
@@ -599,7 +599,7 @@ function buildRenderState(
     : '';
 
   // Today has one same-day narrative source: the deterministic signal.
-  // Render it in the established Coach receipt without fetching or accepting
+  // Render it in the established receipt without fetching or accepting
   // a persisted daily insight row.
   const recoveryNoteName = response.science_notes?.recovery?.name;
   const loadNoteName = response.science_notes?.load?.name;
@@ -607,10 +607,10 @@ function buildRenderState(
   const hasCoach = Boolean(coach.headline);
   const coachTr: CoachTranslations | null = hasCoach
     ? {
-        mark: t('Praxys Coach'),
+        mark: t('Training metrics'),
         findings: t('Findings'),
         recommendations: t('Recommendations'),
-        aria: t('Praxys Coach guidance'),
+        aria: t('Deterministic training summary'),
       }
     : null;
   // Reset detailsOpen on every refetch. The deterministic receipt content may

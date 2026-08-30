@@ -97,18 +97,15 @@
           </view>
         </view>
 
-        <!-- Praxys Coach receipt — always rendered. AI content when a
-             training_review row exists; rule-based prose (diagnosis
-             findings + zone deviations + worst-deviation rec) as
-             deterministic fallback. The receipt is the single
-             narrative-interpretation surface across pages, so it
-             persists with or without LLM. -->
+        <!-- Azure AI uses Coach branding; deterministic diagnosis content
+             uses Training metrics branding. The outage state remains explicit. -->
         <view wx:if="{{hasAnyData}}" class="coach-receipt train-coach" aria-label="{{coachTr.aria}}">
           <view class="coach-banner">
             <text class="coach-mark">{{coachTr.mark}}</text>
             <text wx:if="{{coach.stamp}}" class="coach-stamp ts-value">{{coach.stamp}}</text>
           </view>
           <view class="coach-body">
+            <text wx:if="{{aiUnavailable}}" class="coach-summary" role="status">{{tr.aiUnavailable}}</text>
             <text class="coach-headline">{{coach.headline}}</text>
 
             <!-- Progressive-disclosure toggle. Default-collapsed; the

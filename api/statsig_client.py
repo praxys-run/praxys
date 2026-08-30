@@ -1,8 +1,10 @@
-"""Fail-closed Statsig server SDK wrapper.
+"""Fail-closed, local-evaluation Statsig server SDK wrapper.
 
 The application remains fully functional without ``STATSIG_SDK_KEY``. In that
 state gates evaluate to ``False`` and dynamic configs return their caller-owned
-fallbacks, so feature rollout never becomes an availability dependency.
+fallbacks, so feature rollout never becomes an availability dependency. When
+configured, the SDK downloads rules but user evaluation and targeting remain
+inside Praxys because exposure logging and SDK diagnostics are disabled.
 """
 from __future__ import annotations
 
@@ -34,6 +36,8 @@ async def init_statsig() -> None:
         options = StatsigOptions(
             tier=os.environ.get("STATSIG_ENV", "development").strip()
             or "development",
+            disable_all_logging=True,
+            disable_diagnostics=True,
         )
         await asyncio.to_thread(statsig.initialize, sdk_key, options)
         _initialized = bool(statsig.is_initialized())
@@ -75,15 +79,10 @@ def get_statsig_user(
     training_base: str | None,
     language: str | None,
 ) -> StatsigUser:
-    """Build the per-user targeting identity shared by all backend gates."""
-    targeting_email = (
-        None
-        if email and email.casefold().startswith("wechat:")
-        else email
-    )
+    """Build an in-process targeting identity for local backend evaluation."""
     return StatsigUser(
         user_id=str(user_id),
-        email=targeting_email,
+        email=email,
         locale=language,
         custom={
             "is_admin": bool(is_admin),

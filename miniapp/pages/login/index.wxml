@@ -48,7 +48,59 @@
     </view>
   </view>
 
-  <block wx:if="{{stage === 'idle'}}">
+  <block wx:if="{{stage === 'notice'}}">
+    <view class="login-stack login-notice-stack">
+      <image class="login-notice-mark" src="/assets/brand/mark.png" mode="aspectFit" />
+      <view class="login-wordmark login-notice-wordmark">
+        <text class="login-wordmark__text">Pra<text class="login-wordmark__accent">x</text>ys</text>
+      </view>
+
+      <text class="login-hero login-notice-title">{{tr.noticeTitle}}</text>
+      <text class="login-notice-status">{{tr.noticeRequired}}</text>
+      <text class="login-description login-notice-intro">{{tr.noticeIntro}}</text>
+      <text class="login-notice-version">v{{noticeVersion}} · {{tr.effective}} {{noticeEffectiveDate}}</text>
+
+      <view class="login-notice-facts">
+        <view class="login-notice-fact">
+          <text class="login-notice-fact-label">{{tr.noticeLocationLabel}}</text>
+          <text class="login-notice-fact-value">{{tr.noticeLocation}}</text>
+        </view>
+        <view class="login-notice-fact">
+          <text class="login-notice-fact-label">{{tr.noticePurposeLabel}}</text>
+          <text class="login-notice-fact-value">{{tr.noticePurpose}}</text>
+        </view>
+        <view class="login-notice-fact">
+          <text class="login-notice-fact-label">{{tr.noticeSensitiveLabel}}</text>
+          <text class="login-notice-fact-value">{{tr.noticeSensitive}}</text>
+        </view>
+      </view>
+
+      <view class="login-notice-optional">
+        <text class="login-notice-optional-text">{{tr.noticeOptional}}</text>
+      </view>
+
+      <text class="login-notice-ack">{{tr.noticeAcknowledge}}</text>
+      <view
+        class="login-consent-link login-notice-link"
+        data-kind="privacy"
+        bindtap="onOpenLegal"
+        aria-role="link"
+        aria-label="{{tr.processingNoticeName}}"
+      >
+        <text>{{tr.processingNoticeName}}</text>
+      </view>
+
+      <button class="ts-button login-cta" bindtap="onNoticeContinue">
+        {{tr.acknowledgeContinue}}
+      </button>
+      <button
+        class="ts-button ts-button--ghost login-notice-exit"
+        bindtap="onNoticeExit"
+      >{{tr.notNow}}</button>
+    </view>
+  </block>
+
+  <block wx:elif="{{stage === 'idle'}}">
     <view class="login-stack">
       <!-- PRIVATE ALPHA · INVITATION ONLY eyebrow — surfaces the alpha
            state on first touch. Cobalt = reasoning surface; the eyebrow
@@ -167,6 +219,107 @@
     </view>
   </block>
 
+  <block wx:elif="{{stage === 'terms'}}">
+    <view class="login-stack login-terms-stack">
+      <image class="login-mark" src="/assets/brand/mark.png" mode="aspectFit" />
+      <view class="login-wordmark">
+        <text class="login-wordmark__text">Pra<text class="login-wordmark__accent">x</text>ys</text>
+      </view>
+      <text class="login-hero">{{tr.updatedTermsTitle}}</text>
+      <text class="login-notice-version login-terms-version">
+        v{{noticeVersion}} · {{tr.effective}} {{noticeEffectiveDate}}
+      </text>
+      <text class="login-description">{{tr.updatedTermsDetail}}</text>
+      <view
+        class="login-agree"
+        bindtap="onToggleAgree"
+        aria-role="checkbox"
+        aria-checked="{{agreedTerms}}"
+        aria-label="{{tr.updatedTermsAgreementAria}}"
+      >
+        <view class="login-agree-box {{agreedTerms ? 'login-agree-box--on' : ''}}">
+          <text wx:if="{{agreedTerms}}" class="login-agree-tick">✓</text>
+        </view>
+        <view class="login-agree-text">
+          <text class="login-agree-lead">{{tr.acceptTermsLead}}</text>
+          <text
+            class="login-consent-link {{locale === 'en' ? 'login-inline-link-gap' : ''}}"
+            data-kind="terms"
+            catchtap="onOpenLegal"
+          >{{tr.termsName}}</text>
+          <text class="login-agree-lead {{locale === 'en' ? 'login-inline-clause-gap' : ''}}">{{tr.privacyReadLead}}</text>
+          <text
+            class="login-consent-link {{locale === 'en' ? 'login-inline-link-gap' : ''}}"
+            data-kind="privacy"
+            catchtap="onOpenLegal"
+          >{{tr.privacyName}}</text>
+          <text>{{tr.agreementSuffix}}</text>
+        </view>
+      </view>
+      <text wx:if="{{termsError}}" class="login-error ts-destructive">{{termsError}}</text>
+      <button
+        class="ts-button login-cta"
+        loading="{{termsSubmitting}}"
+        disabled="{{!agreedTerms || termsSubmitting || termsRightsAction || termsDisconnectingPlatform}}"
+        bindtap="onTermsSubmit"
+      >{{tr.acceptTermsContinue}}</button>
+      <view class="login-terms-rights">
+        <text class="login-terms-rights-intro">{{isDemo ? tr.demoTermsRightsIntro : tr.termsRightsIntro}}</text>
+        <view wx:if="{{!isDemo}}" class="login-terms-rights-actions">
+          <button
+            class="ts-button ts-button--ghost login-terms-rights-button"
+            loading="{{termsRightsAction === 'export'}}"
+            disabled="{{termsSubmitting || termsRightsAction || termsDisconnectingPlatform}}"
+            bindtap="onTermsExport"
+          >{{termsRightsAction === 'export' ? tr.exportingData : tr.exportMyData}}</button>
+          <button
+            class="ts-button ts-button--ghost login-terms-rights-button login-terms-delete"
+            loading="{{termsRightsAction === 'delete'}}"
+            disabled="{{termsSubmitting || termsRightsAction || termsDisconnectingPlatform}}"
+            bindtap="onTermsDelete"
+          >{{tr.deleteAccount}}</button>
+        </view>
+        <view
+          wx:if="{{!isDemo && (termsConnectionsLoading || termsConnections.length)}}"
+          class="login-terms-connections"
+        >
+          <text class="login-terms-connections-title">{{tr.connectedPlatforms}}</text>
+          <text
+            wx:if="{{termsConnectionsLoading}}"
+            class="login-terms-rights-message"
+            aria-live="polite"
+          >{{tr.loadingConnections}}</text>
+          <view wx:else>
+            <view
+              wx:for="{{termsConnections}}"
+              wx:key="platform"
+              class="login-terms-connection-row"
+            >
+              <text class="login-terms-connection-name">{{item.label}}</text>
+              <button
+                class="login-terms-disconnect"
+                data-platform="{{item.platform}}"
+                loading="{{termsDisconnectingPlatform === item.platform}}"
+                disabled="{{termsSubmitting || termsRightsAction || termsDisconnectingPlatform}}"
+                bindtap="onTermsDisconnect"
+              >{{tr.disconnect}}</button>
+            </view>
+          </view>
+        </view>
+        <text
+          wx:if="{{termsRightsMessage}}"
+          class="login-terms-rights-message"
+          aria-live="polite"
+        >{{termsRightsMessage}}</text>
+      </view>
+      <button
+        class="ts-button ts-button--ghost login-terms-exit"
+        disabled="{{termsSubmitting || termsRightsAction || termsDisconnectingPlatform}}"
+        bindtap="onTermsDecline"
+      >{{tr.signOut}}</button>
+    </view>
+  </block>
+
   <!-- Link form: WeChat is unbound on the backend. Same brand stack at
        top, then email + password inputs, then "Link to Praxys" CTA.
        The waitlist row stays accessible so a brand-new WeChat user
@@ -209,7 +362,13 @@
           bindinput="onLinkPasswordInput"
         />
       </view>
-      <view class="login-agree" bindtap="onToggleAgree">
+      <view
+        class="login-agree"
+        bindtap="onToggleAgree"
+        aria-role="checkbox"
+        aria-checked="{{agreedTerms}}"
+        aria-label="{{tr.agreeRequired}}"
+      >
         <view class="login-agree-box {{agreedTerms ? 'login-agree-box--on' : ''}}">
           <text wx:if="{{agreedTerms}}" class="login-agree-tick">✓</text>
         </view>
@@ -281,7 +440,13 @@
           bindinput="onWaitlistNoteInput"
         />
       </view>
-      <view class="login-agree" bindtap="onToggleAgree">
+      <view
+        class="login-agree"
+        bindtap="onToggleAgree"
+        aria-role="checkbox"
+        aria-checked="{{agreedTerms}}"
+        aria-label="{{tr.agreeRequired}}"
+      >
         <view class="login-agree-box {{agreedTerms ? 'login-agree-box--on' : ''}}">
           <text wx:if="{{agreedTerms}}" class="login-agree-tick">✓</text>
         </view>

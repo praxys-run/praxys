@@ -1,12 +1,17 @@
-import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/hooks/useAuth';
+import ChinaProcessingNoticeGate from '@/components/ChinaProcessingNoticeGate';
 import { PraxysFlag } from '@/components/PraxysFlag';
 import StatusIndicator from '@/components/StatusIndicator';
 import type { SupportedLocale } from '@/i18n/init';
 import { usePublicSeo } from '@/hooks/usePublicSeo';
+import {
+  acknowledgeChinaProcessingNotice,
+  canStartPersonalDataRequests,
+} from '@/lib/china-processing';
 import { publicContent } from '@/lib/public-content';
 import './Landing.css';
 
@@ -69,6 +74,7 @@ type Copy = {
 
 type FeatureCopy = { idx: string; title: string; body: string };
 type PlanDayCopy = { day: string; session: string };
+type DemoTrigger = 'hero' | 'close';
 
 const COPY: Record<SupportedLocale, Copy> = {
   en: {
@@ -210,6 +216,11 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
   const { login, logout, isDemo } = useAuth();
   const navigate = useNavigate();
   const [demoState, setDemoState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [showChinaNotice, setShowChinaNotice] = useState(false);
+  const [restoreDemoFocus, setRestoreDemoFocus] = useState(false);
+  const heroDemoButtonRef = useRef<HTMLButtonElement>(null);
+  const closeDemoButtonRef = useRef<HTMLButtonElement>(null);
+  const noticeTriggerRef = useRef<DemoTrigger>('hero');
   const activeLocale = publicLocale ?? locale;
   const t = COPY[activeLocale];
   const publicNav = publicContent.locales[activeLocale];
@@ -224,7 +235,16 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
     if (publicLocale && publicLocale !== locale) void setLocale(publicLocale);
   }, [locale, publicLocale, setLocale]);
 
-  const handleDemo = async () => {
+  useEffect(() => {
+    if (showChinaNotice || !restoreDemoFocus) return;
+    const button = noticeTriggerRef.current === 'hero'
+      ? heroDemoButtonRef.current
+      : closeDemoButtonRef.current;
+    button?.focus();
+    setRestoreDemoFocus(false);
+  }, [restoreDemoFocus, showChinaNotice]);
+
+  const startDemo = async () => {
     // If a demo session already exists (user tried demo earlier and came
     // back to `/`), skip the login round-trip and jump straight in.
     if (isDemo) {
@@ -249,10 +269,35 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
     }
   };
 
+  const handleDemo = async (trigger: DemoTrigger) => {
+    if (!canStartPersonalDataRequests()) {
+      noticeTriggerRef.current = trigger;
+      setShowChinaNotice(true);
+      return;
+    }
+    await startDemo();
+  };
+
   const ctaPrimaryLabel = isDemo ? t.ctaContinueDemo : t.ctaPrimary;
   const closeCtaPrimaryLabel = isDemo ? t.ctaContinueDemo : t.closeCtaPrimary;
 
   const Vizzes = [VizDecision, VizPlan, VizGoal] as const;
+
+  if (showChinaNotice) {
+    return (
+      <ChinaProcessingNoticeGate
+        onContinue={() => {
+          acknowledgeChinaProcessingNotice();
+          setShowChinaNotice(false);
+          void startDemo();
+        }}
+        onCancel={() => {
+          setRestoreDemoFocus(true);
+          setShowChinaNotice(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="landing-root">
@@ -292,9 +337,10 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
           <p className="landing-hero-sub landing-rise landing-rise-3">{homePage.lead}</p>
           <div className="landing-hero-actions landing-rise landing-rise-4">
             <button
+              ref={heroDemoButtonRef}
               type="button"
               className="landing-btn-primary"
-              onClick={handleDemo}
+              onClick={() => void handleDemo('hero')}
               disabled={demoState === 'loading'}
             >
               {demoState === 'loading' ? t.demoLoading : ctaPrimaryLabel}
@@ -367,9 +413,10 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
           <h2>{t.closeTitle}</h2>
           <div className="landing-close-actions">
             <button
+              ref={closeDemoButtonRef}
               type="button"
               className="landing-btn-primary"
-              onClick={handleDemo}
+              onClick={() => void handleDemo('close')}
               disabled={demoState === 'loading'}
             >
               {demoState === 'loading' ? t.demoLoading : closeCtaPrimaryLabel}

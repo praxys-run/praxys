@@ -3,7 +3,7 @@
 **Status:** Accepted architecture contract; pilot and structured MCP scopes implemented
 **Parent:** #582  
 **Depends on:** #584, #603, and #607  
-**Version:** 1
+**Version:** 2
 
 ## Purpose
 
@@ -19,11 +19,11 @@ learning. This contract defines how Praxys may collect, use, explain, expire,
 export, and delete it across web, miniapp, plugin, MCP, and future
 user-delegated agents.
 
-This document remains the production decision gate. Issues #610 through #612
-implement the encrypted persistence, authenticated backend contract, and
-bounded internal processing boundary, but no first-party capture UI or
-production AI processing is enabled yet. The Privacy Policy and bilingual
-product disclosure must be updated before either is enabled.
+Issues #610 through #612 implement the encrypted persistence, authenticated
+backend contract, bounded processing boundary, and first-party capture UI. The
+current bilingual Terms and Privacy Policy enumerate the ordinary Azure AI
+purposes. China production activation remains separately registry-gated and
+human-review-required.
 
 `api/personal_context_processing.py` is the only adaptive-plan path allowed to
 prepare personal context for model use. It is intentionally separate from the
@@ -37,18 +37,19 @@ broad training-context assembler in `api/ai.py`. The module:
 - returns stable `clarification`, `no_change`, `insufficient_evidence`,
   `safety`, or `suggestion` codes without model-authored prose;
 - bypasses AI for illness, pain/injury, and red-flag categories;
-- requires current, exact Azure OpenAI consent before decrypting an
-  AI-disclosed narrative or constructing a request;
+- requires the current Terms receipt, the server-owned emergency switch, and
+  exact item purpose/version authority before decrypting a retained narrative
+  or constructing an Azure AI request;
 - sends no owner ID, database context ID, generic training context, tool
-  definition, or unconsented field;
+  definition, or unprovided or out-of-purpose field;
 - records separate payload-free deterministic and provider-use receipts; and
 - logs only stable provider failure codes, never prompts, context values,
   identifiers, or model output.
 
-The optional classifier returns only a strict code tuple and cannot mutate a
-plan. It has no route, scheduler, or plan-mutation hook and defaults AI
-processing off. Concrete suggestion generation, proposal persistence, and
-production wiring remain outside the processor. The fixed
+The bounded classifier returns only a strict code tuple and cannot mutate a
+plan. During an Azure AI outage or emergency stop, the separately identified
+deterministic policy remains available; no deterministic result is presented
+as AI. The fixed
 `suggestion-context-pilot-v1` orchestration is documented separately in
 [`adaptive-plan-context-pilot.md`](./adaptive-plan-context-pilot.md). It can
 create one non-canonical availability proposal, but only an authenticated
@@ -67,8 +68,10 @@ including when SDK debug logging is enabled.
    purpose.
 2. Structured, bounded input is the default. Short narrative is optional and
    is retained for less time than structured context.
-3. Deterministic processing is the default. AI processing requires separate,
-   versioned, purpose-specific consent after naming the provider boundary.
+3. Current Terms acceptance and server runtime state authorize the enumerated
+   ordinary Azure AI purposes; callers cannot grant or withdraw that authority.
+   Exact item purpose, version, provided fields, and retention still minimize
+   every request.
 4. Context access is narrower than plan access. Narrative access is narrower
    than structured-context access.
 5. Context is never copied into generic agent traces, telemetry, logs, public
@@ -252,49 +255,28 @@ Narrative is capped at 280 characters in the first pilot. Clients state:
 other private details." This guidance reduces collection but does not replace
 encryption, authorization, minimization, or deletion.
 
-## Consent and processing modes
+## Purpose confirmation and processing modes
 
 ### Deterministic processing
 
-`deterministic_only` is the default and needs no AI-provider disclosure.
-An allowlisted policy may convert a structured constraint into:
+The loader verifies the exact item version's purpose-confirmation receipt
+before decrypting it. Deterministic rules may produce clarification, no-change,
+insufficient-evidence, conservative suggestion, or safety outcomes. These
+outputs remain explicitly deterministic and are never presented as Azure AI.
 
-- one clarification question;
-- a no-change decision;
-- an insufficient-evidence result;
-- a conservative suggestion within an approved scope; or
-- a safety escalation.
+### Azure AI processing
 
-The loader must also verify the exact item version's purpose-confirmation
-receipt before decrypting it for deterministic processing.
+For the ordinary AI purposes enumerated in the current Terms, the server checks
+the current Terms receipt and centralized emergency switch before provider use.
+There is no mutable per-item AI preference. The item version and confirmed
+purpose still bound selection; only the category, user-provided allowlisted
+fields, and an unexpired user-provided optional narrative may be sent. Safety
+categories remain excluded. Payload-free use receipts record the exact fields,
+version, purpose, policy, and prompt.
 
-The optional narrative is not available to deterministic rules unless a
-future parser and its purpose are separately reviewed.
-
-### AI processing
-
-AI processing is off for each item until the athlete explicitly enables it.
-The consent surface must show:
-
-- the exact purpose;
-- that the configured Azure OpenAI service receives a minimized copy;
-- which structured fields and whether narrative will be sent;
-- that AI output may be wrong and cannot diagnose;
-- the retention statement available from the configured provider contract;
-- how to withdraw consent and delete the context; and
-- the consent text version.
-
-The consent receipt stores owner, item version, purpose, disclosed provider,
-disclosed fields, consent-text version, decision, timestamp, and client. It
-does not store the context payload.
-
-Consent to general Terms, connecting a fitness provider, using AI insights,
-or authorizing a plugin does not imply personal-context AI consent.
-
-Withdrawing AI consent immediately blocks new provider calls. It does not
-pretend to recall a request already processed by the provider; the disclosure
-must state that limitation. Local provider-use receipts and generated private
-reasoning are then deleted according to the withdrawal workflow.
+If Azure AI is stopped or unavailable, the AI-specific pilot reports
+unavailable. Sync and deterministic metrics remain available, and deterministic
+results are not relabeled as AI.
 
 ### Provider request minimization
 
@@ -302,12 +284,12 @@ A dedicated context assembler, separate from the broad
 `build_training_context()`, must:
 
 1. load only active owner-matched item versions for the requested purpose;
-2. verify the current consent receipt;
+2. verify the current purpose receipt and current Terms;
 3. decrypt only those items;
 4. project allowlisted fields;
-5. exclude narrative unless separately disclosed and allowed;
+5. include narrative only when the athlete provided it and it remains within its short retention window;
 6. label athlete statements as untrusted quoted data;
-7. attach policy, prompt, and consent versions;
+7. attach policy, prompt, and Terms versions;
 8. send the minimized request to the configured provider; and
 9. append a private provider-use receipt without the payload.
 
@@ -315,10 +297,11 @@ Raw provider requests and responses must not be logged. A model cannot invoke
 tools, retrieve URLs, write plans, or expand its context scope because of text
 inside an athlete narrative.
 
-If the provider is unavailable, consent is missing, or minimization fails,
-Praxys uses the deterministic structured path when valid. Otherwise it returns
-clarification, no-change, or insufficient evidence. It must not silently use a
-different provider or send a broader payload.
+If the provider is unavailable or the emergency stop is active, Praxys uses
+the separately identified deterministic structured path when valid. Otherwise
+it returns clarification, no-change, or insufficient evidence. It must not
+silently use a different provider, send a broader payload, or label
+deterministic output as AI.
 
 ## Authorization and actor matrix
 
@@ -327,24 +310,23 @@ Implemented scopes refine the architecture contract:
 - `plan:context:read` - active structured context for an allowed purpose
 - `plan:context:write` - validate one request-scoped structured draft
 - `plan:context:delete` - withdraw/delete an owned item
-- `plan:context:ai-consent` - athlete-only AI-processing decision
 
 Only the first two scopes are issuable to plugin/MCP clients. Narrative,
-delete, confirmation, correction, expiry, export, and AI-consent authority
-remain first-party. A successful delegated write consumes its grant and creates
+delete, confirmation, correction, expiry, and export authority remain
+first-party. A successful delegated write consumes its grant and creates
 no durable context; the athlete uses the ordinary first-party preview and
 confirmation flow.
 
-| Actor | Structured read | Narrative read | Create/correct | Delete | AI consent |
-| --- | --- | --- | --- | --- | --- |
-| Athlete in first-party UI | Own items | Own items | Yes | Yes | Yes |
-| First-party deterministic policy | Purpose-projected active fields | No | No | No | No |
-| First-party planning AI | Purpose-projected with valid consent | Only if separately disclosed and consented | No | No | No |
-| Plugin/MCP client | Opaque token-, audience-, purpose-, kind-, owner-, and expiry-scoped | No | One structured preview; athlete starts any durable write | No | No |
-| Future user-delegated agent | Short-lived, purpose-scoped, if granted | Separate short-lived grant only | Explicit preview and athlete command only | No by default | No |
-| Provider adapter | One minimized request | Only disclosed fields | No | No | No |
-| Operator/admin | Lifecycle metadata by default | No | No | Recovery workflow only | No |
-| Telemetry/evaluation | No | No | No | No | No |
+| Actor | Structured read | Narrative read | Create/correct | Delete |
+| --- | --- | --- | --- | --- |
+| Athlete in first-party UI | Own items | Own items | Yes | Yes |
+| First-party deterministic policy | Purpose-projected active fields | No | No | No |
+| First-party planning AI | Purpose-projected under current Terms and runtime authority | Only when provided, retained, and purpose-confirmed | No | No |
+| Plugin/MCP client | Opaque token-, audience-, purpose-, kind-, owner-, and expiry-scoped | No | One structured preview; athlete starts any durable write | No |
+| Future user-delegated agent | Short-lived, purpose-scoped, if granted | Separate short-lived grant only | Explicit preview and athlete command only | No by default |
+| Provider adapter | One minimized request | Only disclosed fields | No | No |
+| Operator/admin | Lifecycle metadata by default | No | No | Recovery workflow only |
+| Telemetry/evaluation | No | No | No | No |
 
 Authentication or `plan:read` does not grant context access. MCP login uses an
 opaque, revocable session obtained through one-time browser handoff state; no
@@ -362,7 +344,7 @@ personal-context controls.
 Context proposed through a delegated actor remains request-scoped and
 non-durable. The preview returns fixed web and miniapp plan-context deep links;
 the athlete independently confirms the exact structured fields, optional
-narrative, purpose, expiry, and processing mode in a trusted Praxys surface.
+narrative, purpose, and expiry in a trusted Praxys surface.
 Prompt text such as "remember this forever" has no authorization effect.
 
 ## Lifecycle
@@ -468,7 +450,7 @@ Every athlete-facing suggestion states:
 - the proposal rationale and uncertainty;
 - what remains unknown;
 - the no-change alternative; and
-- controls to exclude the item, correct it, withdraw AI consent, or delete it.
+- controls to exclude the item from the confirmed purpose, correct it, or delete it.
 
 Accepted plan revisions preserve the operational before/after diff and actor.
 Their human-readable rationale references the context only while that context
@@ -541,7 +523,7 @@ Narrative is not parsed to infer a diagnosis or severity.
 | Invalid/overlong input | Reject with a field error; do not truncate and store silently |
 | Expired context | Exclude from new snapshots and show expired state |
 | Decryption failure | Do not use or expose ciphertext; mark unavailable and alert operators without payload |
-| Missing AI consent | Use valid deterministic path or return consent-required; never send |
+| Missing/stale Terms or active AI stop | Report AI unavailable; never send; keep deterministic metrics separate |
 | Provider unavailable | Deterministic path, clarification, no-change, or insufficient evidence |
 | Unauthorized actor | Deny without revealing whether the item exists |
 | Stale item version | Return conflict and current metadata; never overwrite |
@@ -560,7 +542,7 @@ The first implementation is intentionally smaller than this complete contract.
 - The allowlisted categories above
 - Optional 280-character narrative
 - `deterministic_only` by default
-- Separate per-item AI opt-in with provider and field disclosure
+- Current-Terms and centralized runtime authorization with per-item purpose/version/field isolation
 - Clarification, no-change, insufficient-evidence, safety, and
   suggestion-only outputs
 - Athlete inspect, correct, exclude, expire, withdraw, delete, and export

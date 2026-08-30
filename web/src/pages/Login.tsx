@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useTheme } from '@/hooks/useTheme';
+import { getChinaClientHeaders } from '@/lib/client-boundary';
 import './Login.css';
 
 const SUPPORT_EMAIL = 'support@praxys.run';
@@ -62,7 +63,9 @@ export default function Login() {
   // Fetch the public registration gate + honor a ?invite= deep link on mount.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/public/config`)
+    fetch(`${API_BASE}/api/public/config`, {
+      headers: getChinaClientHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((cfg) => {
         if (cancelled || !cfg) return;
@@ -86,7 +89,10 @@ export default function Login() {
       // avoid account enumeration — so we always show "sent".
       await fetch(`${API_BASE}/api/auth/request-verify-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email: email.trim() }),
       });
     } catch {
@@ -153,7 +159,10 @@ export default function Login() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/waitlist`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           email: email.trim(),
           note: waitlistNote.trim().slice(0, 500),

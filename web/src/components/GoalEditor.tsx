@@ -24,6 +24,7 @@ interface GoalEditorProps {
   initialRaceDate: string;
   initialDistance: string;
   initialTargetTime: number | null;
+  enablePerformance10k?: boolean;
   onSave: (goal: { goal_kind: GoalKind; race_date: string; distance: string; target_time_sec: number }) => Promise<void>;
 }
 
@@ -34,6 +35,7 @@ export default function GoalEditor({
   initialRaceDate,
   initialDistance,
   initialTargetTime,
+  enablePerformance10k = false,
   onSave,
 }: GoalEditorProps) {
   const { t } = useLingui();
@@ -47,6 +49,8 @@ export default function GoalEditor({
     continuousDesc: t`Track trend over time`,
     performance: t`5K performance`,
     performanceDesc: t`Use history first, then decide whether the optional pilot test is needed`,
+    performance10k: t`10K performance`,
+    performance10kDesc: t`Use direct 10K history first, then decide whether to choose an optional benchmark date`,
     distance: t`Distance`,
     raceDate: t`Race date`,
     targetTime: t`Target time`,
@@ -61,6 +65,7 @@ export default function GoalEditor({
     raceTargetHint: t`Leave blank to track predicted time only`,
     continuousHint: t`Leave blank to track trend only`,
     performanceHint: t`This pilot currently supports only outdoor road 5K elapsed-time goals.`,
+    performance10kHint: t`This capability uses direct 10K evidence first. An optional target date or benchmark stays descriptive and never raises training dose on its own.`,
   };
   const [goalType, setGoalType] = useState<GoalKind>(initialType);
   const [raceDate, setRaceDate] = useState(initialRaceDate);
@@ -80,7 +85,11 @@ export default function GoalEditor({
     { value: '100mi', label: t`100 Mi`, placeholder: '24:00:00' },
   ];
 
-  const effectiveDistance = goalType === 'performance_5k' ? '5k' : distance;
+  const effectiveDistance = goalType === 'performance_5k'
+    ? '5k'
+    : goalType === 'performance_10k'
+      ? '10k'
+      : distance;
   const selected = distances.find((item) => item.value === effectiveDistance);
 
   const handleSave = async () => {
@@ -98,7 +107,9 @@ export default function GoalEditor({
     try {
       await onSave({
         goal_kind: goalType,
-        race_date: goalType === 'race' ? raceDate : '',
+        race_date: goalType === 'race' || goalType === 'performance_10k'
+          ? raceDate
+          : '',
         distance: effectiveDistance,
         target_time_sec: targetTimeSec || 0,
       });
@@ -124,7 +135,7 @@ export default function GoalEditor({
             <ToggleGroup
               value={[goalType]}
               onValueChange={(values) => { if (values.length > 0) setGoalType(values[values.length - 1] as GoalKind); }}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              className={`grid grid-cols-1 gap-2 ${enablePerformance10k ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
             >
               <ToggleGroupItem value="race" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
                 <span className="font-semibold text-sm">{copy.race}</span>
@@ -138,6 +149,12 @@ export default function GoalEditor({
                 <span className="font-semibold text-sm">{copy.performance}</span>
                 <span className="text-xs text-muted-foreground text-left">{copy.performanceDesc}</span>
               </ToggleGroupItem>
+              {enablePerformance10k && (
+                <ToggleGroupItem value="performance_10k" className="flex-col items-start gap-1 h-auto py-3 px-4 data-[pressed]:border-primary data-[pressed]:bg-primary/10">
+                  <span className="font-semibold text-sm">{copy.performance10k}</span>
+                  <span className="text-xs text-muted-foreground text-left">{copy.performance10kDesc}</span>
+                </ToggleGroupItem>
+              )}
             </ToggleGroup>
           </div>
 
@@ -147,7 +164,7 @@ export default function GoalEditor({
               value={[effectiveDistance]}
               onValueChange={(values) => { if (values.length > 0) setDistance(values[values.length - 1]); }}
               className="grid grid-cols-4 gap-1.5"
-              disabled={goalType === 'performance_5k'}
+              disabled={goalType === 'performance_5k' || goalType === 'performance_10k'}
             >
               {distances.map((item) => (
                 <ToggleGroupItem key={item.value} value={item.value} className="text-xs data-[pressed]:border-primary data-[pressed]:bg-primary/10 data-[pressed]:text-primary">
@@ -157,7 +174,7 @@ export default function GoalEditor({
             </ToggleGroup>
           </div>
 
-          {goalType === 'race' && (
+          {(goalType === 'race' || goalType === 'performance_10k') && (
             <div className="space-y-2">
               <Label htmlFor="goal-race-date">{copy.raceDate}</Label>
               <Input id="goal-race-date" type="date" value={raceDate} onChange={(event) => setRaceDate(event.target.value)} placeholder={copy.pickDate} />
@@ -168,7 +185,13 @@ export default function GoalEditor({
             <Label htmlFor="goal-target-time">{copy.targetTime} <span className="text-muted-foreground">({copy.optional})</span></Label>
             <Input id="goal-target-time" type="text" value={targetTimeInput} onChange={(event) => setTargetTimeInput(event.target.value)} placeholder={selected?.placeholder ?? 'H:MM:SS'} className="font-data" />
             <p className="text-[11px] text-muted-foreground">
-              {goalType === 'race' ? copy.raceTargetHint : goalType === 'performance_5k' ? copy.performanceHint : copy.continuousHint}
+              {goalType === 'race'
+                ? copy.raceTargetHint
+                : goalType === 'performance_5k'
+                  ? copy.performanceHint
+                  : goalType === 'performance_10k'
+                    ? copy.performance10kHint
+                    : copy.continuousHint}
             </p>
           </div>
 

@@ -5,10 +5,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Link } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
 import {
-  Brain,
   CalendarClock,
   Check,
   ChevronRight,
@@ -42,20 +40,16 @@ import {
 } from '@/hooks/useApi';
 import { isRestWorkoutType } from '@/lib/plan';
 import {
-  PERSONAL_CONTEXT_AI_CONSENT_VERSION,
   PERSONAL_CONTEXT_PURPOSE_CONSENT_VERSION,
   SAFETY_CONTEXT_CATEGORIES,
   buildPersonalContextDraftRequest,
   createPersonalContextDraft,
   draftFromContextItem,
-  personalContextDisclosedFields,
   personalContextIdempotencyKey,
-  personalContextNarrativeAvailable,
   type PersonalContextDraftForm,
   type PersonalContextDraftMode,
 } from '@/lib/personal-context';
 import type {
-  PersonalContextAiConsentResponse,
   PersonalContextCategory,
   PersonalContextDetailResponse,
   PersonalContextDraftRequest,
@@ -218,10 +212,6 @@ export default function PersonalContextPanel() {
   const detailRequestRef = useRef(0);
   const [actionWorking, setActionWorking] = useState('');
   const [actionConfirm, setActionConfirm] = useState<'expire' | 'delete' | ''>('');
-  const [aiItem, setAiItem] = useState<PersonalContextItem | null>(null);
-  const [aiNarrative, setAiNarrative] = useState(false);
-  const [aiWorking, setAiWorking] = useState(false);
-  const [aiError, setAiError] = useState('');
   const [exporting, setExporting] = useState(false);
 
   const categoryOptions: CategoryOption[] = [
@@ -300,12 +290,6 @@ export default function PersonalContextPanel() {
         : String(entry)
     )).join(locale === 'zh' ? '、' : ', ');
   };
-
-  const disclosedFieldLabel = (field: string) => (
-    field === 'category'
-      ? t`Category`
-      : contextFieldLabel(field.replace(/^fields\./, ''))
-  );
 
   const categoryLabel = (value: PersonalContextCategory) => (
     categoryOptions.find((option) => option.value === value)?.label ?? value
@@ -485,7 +469,7 @@ export default function PersonalContextPanel() {
       setNotice(
         result.item.payload.category === 'prefer_not_to_say'
           ? t`Saved without guessing a reason. The cause remains unknown.`
-          : t`Private context saved. AI processing remains off.`,
+          : t`Private context saved for the confirmed purpose.`,
       );
       await refetch();
     } catch (requestError) {
@@ -587,68 +571,6 @@ export default function PersonalContextPanel() {
     }
   };
 
-  const openAi = (item: PersonalContextItem) => {
-    if (
-      SAFETY_CONTEXT_CATEGORIES.has(item.payload.category)
-      && item.processing_mode !== 'ai_allowed'
-    ) return;
-    setSelectedItem(null);
-    setDetail(null);
-    setAiNarrative(false);
-    setAiError('');
-    setAiItem(item);
-  };
-
-  const decideAi = async (
-    item: PersonalContextItem,
-    decision: 'granted' | 'withdrawn',
-  ) => {
-    setAiWorking(true);
-    setAiError('');
-    try {
-      const result = await requestJson<PersonalContextAiConsentResponse>(
-        `/api/personal-context/${encodeURIComponent(item.id)}/ai-consent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': personalContextIdempotencyKey(),
-          },
-          body: JSON.stringify({
-            expected_version: item.version,
-            decision,
-            provider: decision === 'granted' ? 'azure_openai' : null,
-            disclosed_fields:
-              decision === 'granted'
-                ? personalContextDisclosedFields(item)
-                : [],
-            narrative_disclosed:
-              decision === 'granted' && aiNarrative,
-            consent_text_version: PERSONAL_CONTEXT_AI_CONSENT_VERSION,
-            client: 'web',
-          }),
-        },
-        decision === 'granted'
-          ? t`Could not enable AI processing.`
-          : t`Could not withdraw AI processing.`,
-      );
-      setAiItem(null);
-      setNotice(
-        result.item.processing_mode === 'ai_allowed'
-          ? t`AI processing enabled for this item only.`
-          : t`AI processing withdrawn. No new provider requests are allowed.`,
-      );
-      await refetch();
-    } catch (requestError) {
-      setAiError(requestErrorMessage(
-        requestError,
-        t`Could not update AI processing.`,
-      ));
-    } finally {
-      setAiWorking(false);
-    }
-  };
-
   const exportContext = async () => {
     setExporting(true);
     setNotice('');
@@ -683,9 +605,6 @@ export default function PersonalContextPanel() {
   };
 
   const currentDetailItem = detail?.item ?? selectedItem;
-  const currentDetailIsSafety = currentDetailItem
-    ? SAFETY_CONTEXT_CATEGORIES.has(currentDetailItem.payload.category)
-    : false;
   const safetySelected = form.category
     ? SAFETY_CONTEXT_CATEGORIES.has(form.category)
     : false;
@@ -710,8 +629,8 @@ export default function PersonalContextPanel() {
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             <Trans>
               Share only what could change your plan. Praxys keeps it private,
-              never guesses why training changed, and leaves AI off unless you
-              separately allow it.
+              never guesses why training changed, and uses it only for the
+              purpose and active period you confirm.
             </Trans>
           </p>
         </div>
@@ -813,10 +732,6 @@ export default function PersonalContextPanel() {
                   {item.expires_at
                     ? <Trans>until {formatDate(item.expires_at)}</Trans>
                     : <Trans>no expiry</Trans>}
-                  {' · '}
-                  {item.processing_mode === 'ai_allowed'
-                    ? <Trans>AI allowed</Trans>
-                    : <Trans>rules only</Trans>}
                 </span>
               </span>
               <ChevronRight
@@ -1188,7 +1103,7 @@ export default function PersonalContextPanel() {
                 <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-4 py-3">
                   <span className="text-muted-foreground"><Trans>Processing method</Trans></span>
                   <span className="font-medium text-foreground">
-                    <Trans>Rules only · nothing sent to AI</Trans>
+                    <Trans>Used only for the confirmed purpose and active period</Trans>
                   </span>
                 </div>
               </div>
@@ -1352,17 +1267,6 @@ export default function PersonalContextPanel() {
                     {formatDate(currentDetailItem.expires_at)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <span className="text-muted-foreground"><Trans>AI processing</Trans></span>
-                  <span className="font-medium text-foreground">
-                    {currentDetailIsSafety
-                      && currentDetailItem.processing_mode !== 'ai_allowed'
-                      ? <Trans>Unavailable for safety context</Trans>
-                      : currentDetailItem.processing_mode === 'ai_allowed'
-                      ? <Trans>Allowed for this item</Trans>
-                      : <Trans>Off</Trans>}
-                  </span>
-                </div>
               </div>
 
               {Object.keys(currentDetailItem.payload.fields).length > 0 && (
@@ -1511,20 +1415,6 @@ export default function PersonalContextPanel() {
                     <FilePenLine aria-hidden="true" />
                     <Trans>Correct</Trans>
                   </Button>
-                  {(!currentDetailIsSafety
-                    || currentDetailItem.processing_mode === 'ai_allowed') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={detail == null}
-                      onClick={() => openAi(currentDetailItem)}
-                    >
-                      <Brain aria-hidden="true" />
-                      {currentDetailItem.processing_mode === 'ai_allowed'
-                        ? <Trans>Review AI access</Trans>
-                        : <Trans>AI option</Trans>}
-                    </Button>
-                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -1563,147 +1453,7 @@ export default function PersonalContextPanel() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={aiItem != null}
-        onOpenChange={(open) => {
-          if (!open && !aiWorking) {
-            setAiItem(null);
-            setAiError('');
-            setAiNarrative(false);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle><Trans>AI processing for one item</Trans></DialogTitle>
-            <DialogDescription>
-              <Trans>This decision is separate from saving context and applies only to this exact version.</Trans>
-            </DialogDescription>
-          </DialogHeader>
 
-          {aiItem && (
-            <div className="space-y-4">
-              <div className="rounded-lg bg-accent-cobalt/6 p-3 text-xs leading-relaxed text-foreground">
-                <p className="font-semibold"><Trans>AI service: Microsoft Azure</Trans></p>
-                <p className="mt-1">
-                  <Trans>
-                    Only the fields below are sent to Microsoft Azure AI.
-                    Microsoft states that inputs and outputs are not available
-                    to OpenAI or used to train foundation models without
-                    permission; Praxys does not grant that permission. Flagged
-                    content may be reviewed for abuse monitoring under Azure
-                    terms. Praxys does not log raw requests or responses.
-                  </Trans>
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  <Trans>Purpose</Trans>
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {aiItem.purpose === 'plan_adjustment'
-                    ? <Trans>Suggest a bounded adjustment to the current plan.</Trans>
-                    : <Trans>Interpret one missed or modified workout without diagnosing a cause.</Trans>}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  <Trans>Structured fields sent</Trans>
-                </p>
-                <p className="mt-1 font-data text-xs leading-relaxed text-muted-foreground">
-                  {personalContextDisclosedFields(aiItem)
-                    .map(disclosedFieldLabel)
-                    .join(locale === 'zh' ? '、' : ', ')}
-                </p>
-              </div>
-
-              {personalContextNarrativeAvailable(aiItem) && (
-                <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={aiNarrative}
-                    disabled={aiWorking || aiItem.processing_mode === 'ai_allowed'}
-                    onChange={(event) => setAiNarrative(event.target.checked)}
-                    className="mt-0.5 size-4 accent-primary"
-                  />
-                  <span>
-                    <span className="block font-medium text-foreground">
-                      <Trans>Also send my optional note</Trans>
-                    </span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      <Trans>Off by default. The note may contain more private detail than the structured fields.</Trans>
-                    </span>
-                  </span>
-                </label>
-              )}
-
-              <Alert className="border-accent-amber/30 bg-accent-amber/8">
-                <ShieldAlert className="text-accent-amber" aria-hidden="true" />
-                <AlertDescription className="text-xs leading-relaxed text-foreground">
-                  <Trans>
-                    AI output can be wrong. It cannot diagnose, provide
-                    treatment, clear you to train, or override Praxys safety,
-                    science, and approval boundaries.
-                  </Trans>
-                </AlertDescription>
-              </Alert>
-
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                <Trans>
-                  You can withdraw before any later request. Withdrawal cannot
-                  recall a request the provider already processed. Deleting the
-                  item removes local provider-use receipts and dependent private
-                  explanations.
-                </Trans>{' '}
-                <Link
-                  to="/privacy"
-                  target="_blank"
-                  className="font-medium text-accent-cobalt underline-offset-4 hover:underline"
-                >
-                  <Trans>Privacy Policy</Trans>
-                </Link>
-              </p>
-
-              {aiError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{aiError}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
-
-          {aiItem && (
-            <DialogFooter>
-              {aiItem.processing_mode === 'ai_allowed' ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={aiWorking}
-                  onClick={() => void decideAi(aiItem, 'withdrawn')}
-                >
-                  {aiWorking && (
-                    <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                  )}
-                  <Trans>Withdraw AI permission</Trans>
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  disabled={aiWorking}
-                  onClick={() => void decideAi(aiItem, 'granted')}
-                >
-                  {aiWorking && (
-                    <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                  )}
-                  <Trans>Allow for this item</Trans>
-                </Button>
-              )}
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }

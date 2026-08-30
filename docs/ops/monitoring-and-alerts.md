@@ -29,6 +29,15 @@ optional Coach-feedback comment, is PII/secret-scrubbed, whitespace-collapsed,
 and truncated to 120 characters before it reaches telemetry; the raw comment is
 never persisted or logged.
 
+For the China release, browser Application Insights and product-event
+telemetry are disabled in the stamped `.cn` artifact, and the mini program does
+not send product events. Essential backend request/security telemetry remains
+in `appi-praxys-backend` in East Asia (Hong Kong), with the backend component
+and shared workspace configured for 30-day retention. Server-side Statsig
+evaluations are local and disable both user-event logging and SDK diagnostics.
+These controls are part of
+[`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md).
+
 Custom signals are emitted by `api/telemetry.py`. Each lands as either:
 - a **customEvent** with that name through the required
   `azure-monitor-events-extension` runtime dependency, **or**
@@ -448,15 +457,26 @@ Interpretation:
 
 ## Alert inventory (source of truth)
 
-Every rule below lives in `rg-trainsight` (region **eastasia**) and routes to the
-`praxys-feedback-ag` action group (→ `support@praxys.run`). Costs are the eastasia
-retail rate per the [cost model](#alert-cost-model) below.
+Every unmarked rule below is live in `rg-trainsight` (region **eastasia**) and
+routes to the `praxys-feedback-ag` action group
+(→ `support@praxys.run`). Rows marked **provisioned-disabled** exist with both
+the web test and alert disabled. Rows marked **planned** do not exist. Costs are
+the eastasia retail rate per the [cost model](#alert-cost-model) below.
+
+Regional availability states are exact:
+
+- **planned** — neither the web test nor its alert exists;
+- **provisioned-disabled** — both resources exist and both are disabled;
+- **live** — both resources exist and both are enabled.
 
 | Rule | Type | Scope | Watches | Eval | Sev | ~USD/mo |
 |---|---|---|---|---|---|---|
 | `praxys-db-health-unhealthy` | log | `appi-praxys-backend` | `praxys.db_health` failure (corrupt/unreachable DB) | 5 min | 1 | **1.50** |
 | `praxys-pg-connections-high` | metric | `praxys-pg` | `active_connections` avg > 40 | 5 min | 2 | ~0.10 |
 | `wt-praxys-homepage` | metric (web test) | `appi-trainsight` + homepage test | `https://www.praxys.run/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-run-apex` | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.run/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-cn-apex` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
+| `wt-praxys-cn-www` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
 | `wt-praxys-api-health` | metric (web test) | `appi-praxys-backend` + API test | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `appi-praxys-backend` | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
@@ -467,8 +487,9 @@ retail rate per the [cost model](#alert-cost-model) below.
 | `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
 | `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Total ≈ 4.5–5.0 USD/mo** (the five metric alerts may fall inside the small free
-allotment, making the effective figure closer to the 4.50 log-alert subtotal).
+**Current total ≈ 4.6–5.1 USD/mo.** The live `.run` apex pair adds at most
+~0.10 USD/mo before the metric-alert free allotment. Enabling both disabled
+`.cn` pairs later adds at most another ~0.20 USD/mo.
 
 ### Labs analysis worker alerts (deployment-owned)
 
@@ -785,25 +806,239 @@ AG=$(az monitor action-group show -g rg-trainsight -n praxys-feedback-ag --query
 az monitor scheduled-query create -g rg-trainsight -n praxys-today-latency-regression --scopes "$AI" --condition "count 'q' > 0" --condition-query "q=<KQL>" --evaluation-frequency 1h --window-size 24h --severity 3 --action-groups "$AG"
 ```
 
-### External availability — `wt-praxys-homepage`, `wt-praxys-api-health`
+### External availability
 
-Two **Standard availability tests** ping outside-in every 15 min (30 s timeout)
-from **US-West (San Jose, `us-ca-sjc-azr`)** and **APAC (Hong Kong,
-`apac-hk-hkn-azr`)** — the vantages that match the audience (US + CN/APAC). Each
-has an auto-created **metric alert** (Sev 1, `praxys-feedback-ag`) that fires when
-**≥1 location** reports failure. This is black-box coverage that complements the
+The live **Standard availability tests** ping outside-in every 15 min (30 s
+timeout) from **US-West (San Jose, `us-ca-sjc-azr`)** and **APAC (Hong Kong,
+`apac-hk-hkn-azr`)** — the vantages that match the audience (US + CN/APAC).
+Each has a same-named **metric alert** (Sev 1,
+`praxys-feedback-ag`) that evaluates every minute and fires when **≥1
+location** reports failure. This is black-box coverage that complements the
 inside-the-process db-health / readiness probes.
 
-| Web test | Component | Target |
-|---|---|---|
-| `wt-praxys-homepage` | `appi-trainsight` | `https://www.praxys.run/` |
-| `wt-praxys-api-health` | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
+| Web test | State | Component | Target |
+|---|---|---|---|
+| `wt-praxys-homepage` | live | `appi-trainsight` | `https://www.praxys.run/` |
+| `wt-praxys-run-apex` | live | `appi-trainsight` | `https://praxys.run/` |
+| `wt-praxys-cn-apex` | provisioned-disabled | `appi-trainsight` | `https://praxys.cn/` |
+| `wt-praxys-cn-www` | provisioned-disabled | `appi-trainsight` | `https://www.praxys.cn/` |
+| `wt-praxys-api-health` | live | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
 
-Standard web-test execution is **0.00** in eastasia (free grant); the two alerts
-are cheap metric alerts. **Keep each web test and its alert in the same enabled
+Standard web-test execution is **0.00** in eastasia (free grant); three
+frontend/API availability alerts are live and both `.cn` pairs are
+provisioned-disabled. **Keep each web test and its alert in the same enabled
 state** — a probe that runs while its alert is disabled pays to watch nothing
 (found and fixed 2026-07-05). Re-point locations via the availability test's
 *Locations* in the portal or `az resource update`.
+
+The three regional pairs were provisioned on 2026-08-22. To recreate a missing
+pair, use **Application Insights → `appi-trainsight` → Availability → Add
+Standard test**:
+
+1. Use the exact name and HTTPS target in the table. Set frequency to 15 min,
+   timeout to 30 s, and locations to San Jose plus Hong Kong.
+2. Require a successful HTTP response and valid TLS certificate. Do not follow
+   a hostname to an unapproved preview or origin URL.
+3. Create the same-named Sev 1 metric alert, evaluate every minute, fire when
+   at least one location fails, and attach only `praxys-feedback-ag`.
+4. Verify the action group and its `support@praxys.run` receiver are enabled.
+   Record the web-test resource ID, alert resource ID, and a successful sample
+   in the regional Release Evidence before DNS or proxy cutover.
+5. Creating a missing pair moves it from `planned` to
+   `provisioned-disabled`. Enable each test and alert together only after its
+   public hostname is ready for outside-in traffic; that reviewed transition is
+   `provisioned-disabled` to `live`.
+
+The CLI equivalent below creates an exact test/alert pair in the disabled
+state. It refuses to overwrite an existing or partial pair. Use it only to
+recreate a missing pair, then enable only a hostname that is already public and
+accepted:
+
+```bash
+set -euo pipefail
+
+RG=rg-trainsight
+SUB="$(az account show --query id -o tsv)"
+AI_ID="$(az resource show -g "$RG" -n appi-trainsight \
+  --resource-type Microsoft.Insights/components --query id -o tsv)"
+AG_ID="$(az monitor action-group show -g "$RG" \
+  -n praxys-feedback-ag --query id -o tsv)"
+
+provision_availability_pair() {
+  name="$1"
+  url="$2"
+  alert_id="/subscriptions/${SUB}/resourceGroups/${RG}/providers/Microsoft.Insights/metricAlerts/${name}"
+
+  if az resource show -g "$RG" -n "$name" \
+      --resource-type Microsoft.Insights/webtests \
+      --api-version 2022-06-15 --output none 2>/dev/null ||
+    az monitor metrics alert show -g "$RG" -n "$name" \
+      --output none 2>/dev/null; then
+    echo "Refusing to overwrite an existing partial or complete pair: ${name}" >&2
+    return 1
+  fi
+
+  az monitor app-insights web-test create \
+    --resource-group "$RG" \
+    --name "$name" \
+    --location eastasia \
+    --web-test-kind standard \
+    --defined-web-test-name "$name" \
+    --synthetic-monitor-id "$name" \
+    --description "Praxys outside-in availability: ${url}" \
+    --enabled false \
+    --frequency 900 \
+    --timeout 30 \
+    --retry-enabled true \
+    --locations Id=us-ca-sjc-azr \
+    --locations Id=apac-hk-hkn-azr \
+    --request-url "$url" \
+    --http-verb GET \
+    --parse-requests false \
+    --follow-redirects false \
+    --expected-status-code 200 \
+    --ignore-status-code false \
+    --ssl-check true \
+    --tags "hidden-link:${AI_ID}=Resource" \
+    --output none
+
+  web_test_id="$(az resource show -g "$RG" -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  body="$(jq -n \
+    --arg name "$name" \
+    --arg ai "$AI_ID" \
+    --arg web "$web_test_id" \
+    --arg ag "$AG_ID" \
+    --arg ai_tag "hidden-link:${AI_ID}" \
+    --arg web_tag "hidden-link:${web_test_id}" '
+    {
+      location: "global",
+      tags: {
+        ($ai_tag): "Resource",
+        ($web_tag): "Resource"
+      },
+      properties: {
+        description: ("Availability alert for " + $name),
+        severity: 1,
+        enabled: false,
+        scopes: [$web, $ai],
+        evaluationFrequency: "PT1M",
+        windowSize: "PT5M",
+        criteria: {
+          "odata.type":
+            "Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria",
+          webTestId: $web,
+          componentId: $ai,
+          failedLocationCount: 1
+        },
+        actions: [{actionGroupId: $ag}]
+      }
+    }')"
+
+  if ! az rest --method put \
+      --url "https://management.azure.com${alert_id}?api-version=2018-03-01" \
+      --body "$body" \
+      --output none; then
+    az resource delete --ids "$web_test_id" || true
+    return 1
+  fi
+
+  test "$(az resource show --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --query properties.Enabled -o tsv)" = "false"
+  test "$(az monitor metrics alert show -g "$RG" -n "$name" \
+    --query enabled -o tsv)" = "false"
+}
+
+# Invoke the function for only the pair proven missing. Examples:
+# provision_availability_pair wt-praxys-run-apex https://praxys.run/
+# provision_availability_pair wt-praxys-cn-apex https://praxys.cn/
+# provision_availability_pair wt-praxys-cn-www https://www.praxys.cn/
+```
+
+Enable or disable a pair transactionally. A failed enable compensates back to
+both resources disabled, and every transition is read back:
+
+```bash
+disable_availability_pair() {
+  name="$1"
+  rc=0
+  web_test_id="$(az resource show -g rg-trainsight -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  az resource update --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --set properties.Enabled=false || rc=1
+  az monitor metrics alert update -g rg-trainsight \
+    -n "$name" --enabled false || rc=1
+
+  test "$(az resource show --ids "$web_test_id" \
+    --api-version 2022-06-15 \
+    --query properties.Enabled -o tsv)" = "false" || rc=1
+  test "$(az monitor metrics alert show -g rg-trainsight -n "$name" \
+    --query enabled -o tsv)" = "false" || rc=1
+
+  return "$rc"
+}
+
+enable_availability_pair() {
+  name="$1"
+  web_test_id="$(az resource show -g rg-trainsight -n "$name" \
+    --resource-type Microsoft.Insights/webtests \
+    --api-version 2022-06-15 --query id -o tsv)"
+
+  if ! az monitor metrics alert update -g rg-trainsight \
+      -n "$name" --enabled true; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if ! az resource update --ids "$web_test_id" \
+      --api-version 2022-06-15 \
+      --set properties.Enabled=true; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if ! test_enabled="$(az resource show --ids "$web_test_id" \
+      --api-version 2022-06-15 \
+      --query properties.Enabled -o tsv)" ||
+    ! alert_enabled="$(az monitor metrics alert show -g rg-trainsight \
+      -n "$name" --query enabled -o tsv)"; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+
+  if test "$test_enabled" != "true" ||
+    test "$alert_enabled" != "true"; then
+    disable_availability_pair "$name" || true
+    return 1
+  fi
+}
+
+enable_availability_pair wt-praxys-run-apex
+```
+
+The 2026-08-22 preparation receipt records:
+
+| Web test | Recorded state |
+|---|---|
+| `wt-praxys-run-apex` | `live` |
+| `wt-praxys-cn-apex` | `provisioned-disabled` |
+| `wt-praxys-cn-www` | `provisioned-disabled` |
+
+The first `.run` apex samples succeeded from both
+`apac-hk-hkn-azr` and `us-ca-sjc-azr` at `2026-08-22T03:25:02Z`.
+
+For an aborted cutover, disable the same-named metric alert and web test in the
+same maintenance window, then verify neither continues evaluating. Delete both
+only if the hostname is permanently retired; otherwise keep them disabled for
+the next window. A provider rollback normally keeps the tests enabled because
+they watch the public contract rather than a specific CDN. Re-pointing a test
+to an origin hostname is not a rollback and would hide the user-visible outage.
 
 ## Rollback / Recovery
 
@@ -857,4 +1092,4 @@ quiescence, so a stale workflow variable snapshot is not the final authority.
 - In-app: Admin → User Feedback (badge + Approve/Retry/Reject).
 
 ---
-_Last reviewed: 2026-07-29 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._

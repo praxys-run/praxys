@@ -138,6 +138,8 @@ def _write_fixture_records(
         "artifact_policy": DecisionArtifactPolicy(
             runtime_state=ArtifactRuntimeState.INACTIVE,
         ),
+        "supersedes": [],
+        "superseded_by": None,
     })
     _write_yaml(
         science_dir / "evidence" / "shared" / f"{shared.id}.yaml",

@@ -15,14 +15,12 @@ CONTEXT_SCOPE_READ = "plan:context:read"
 CONTEXT_SCOPE_NARRATIVE_READ = "plan:context:narrative:read"
 CONTEXT_SCOPE_WRITE = "plan:context:write"
 CONTEXT_SCOPE_DELETE = "plan:context:delete"
-CONTEXT_SCOPE_AI_CONSENT = "plan:context:ai-consent"
 
 CONTEXT_SCOPES = frozenset({
     CONTEXT_SCOPE_READ,
     CONTEXT_SCOPE_NARRATIVE_READ,
     CONTEXT_SCOPE_WRITE,
     CONTEXT_SCOPE_DELETE,
-    CONTEXT_SCOPE_AI_CONSENT,
 })
 _DELEGATED_ACTORS = frozenset({"plugin", "mcp", "delegated_agent"})
 _DELEGATED_SCOPES = frozenset({
@@ -127,7 +125,7 @@ def get_context_actor(
         purposes = frozenset()
         kinds = frozenset()
     elif actor_type in _DELEGATED_ACTORS:
-        # Narrative, deletion, and AI-consent authority never crosses the
+        # Narrative and deletion authority never crosses the
         # plugin/MCP boundary, even if a malformed trusted claim asks for it.
         scopes &= _DELEGATED_SCOPES
     raw_grant_id = claims.get("praxys_context_grant_id")

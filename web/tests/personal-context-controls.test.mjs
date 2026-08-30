@@ -152,7 +152,6 @@ test('web and miniapp expose the same private lifecycle controls', async () => {
     '/api/personal-context/confirm',
     '/api/personal-context/export',
     '/correct',
-    '/ai-consent',
     '/expire',
   ];
 
@@ -163,7 +162,9 @@ test('web and miniapp expose the same private lifecycle controls', async () => {
   assert.match(web, /include_history=false&include_narrative=false/);
   assert.match(mini, /include_history=false&include_narrative=false/);
   assert.match(template, /checked="\{\{purposeConfirmed\}\}"/);
-  assert.match(template, /checked="\{\{aiPermissionConfirmed\}\}"/);
+  assert.doesNotMatch(template, /aiPermissionConfirmed|ai-consent/);
+  assert.doesNotMatch(web, /ai-consent|allow_ai/);
+  assert.doesNotMatch(mini, /ai-consent|allow_ai/);
   assert.match(trainingTemplate, /<personal-context\b/);
 });
 
@@ -196,7 +197,7 @@ test('miniapp context sheets hide the custom tab bar', async () => {
   assert.match(contextSource, /sheetOpen\(sheetOpen: boolean\)/);
 });
 
-test('AI consent disclosure stays explicit and bilingual', async () => {
+test('mandatory Azure AI disclosure is legal-only and bilingual', async () => {
   const [web, mini, legal, miniLegal] = await Promise.all([
     read('../src/components/PersonalContextPanel.tsx'),
     read('../../miniapp/components/personal-context/index.ts'),
@@ -205,23 +206,18 @@ test('AI consent disclosure stays explicit and bilingual', async () => {
   ]);
 
   for (const source of [web, mini]) {
-    const normalized = source.replace(/\s+/g, ' ');
-    assert.match(
-      normalized,
-      /inputs and outputs are not available to OpenAI or used to train foundation models/,
-    );
-    assert.match(normalized, /Praxys does not grant that permission/);
-    assert.match(normalized, /abuse monitoring under Azure terms/);
+    assert.doesNotMatch(source, /ai-consent|Allow for this item|Withdraw AI permission/);
   }
-
+  for (const source of [legal, miniLegal]) {
+    assert.match(source, /there is no separate AI opt-out/);
+    assert.match(source, /接受当前协议即授权这些已列明用途/);
+    assert.match(source, /计划个性化信息/);
+    assert.doesNotMatch(source, /私密计划背景信息/);
+  }
   assert.match(
     legal,
     /learn\.microsoft\.com\/en-us\/azure\/foundry\/responsible-ai\/openai\/data-privacy/,
   );
-  for (const source of [legal, miniLegal]) {
-    assert.match(source, /计划个性化信息/);
-    assert.doesNotMatch(source, /私密计划背景信息/);
-  }
 });
 
 test('personal-context Chinese uses natural product language', async () => {
@@ -253,7 +249,7 @@ test('personal-context Chinese uses natural product language', async () => {
   );
   assert.match(miniExtra, /'Manage private context': '管理计划个性化信息'/);
   assert.match(miniSource, /affected_dates: \(\) => t\('Affected dates'\)/);
-  assert.match(miniSource, /\.map\(disclosedFieldLabel\)/);
+  assert.doesNotMatch(miniSource, /disclosedFieldLabel|ai-consent|allow_ai/);
 });
 
 test('MCP approval uses opaque state and explicit first-party controls', async () => {
