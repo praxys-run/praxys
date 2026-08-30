@@ -770,9 +770,16 @@ def test_nullable_workout_type_serializes_as_empty_string(api_client):
 
 
 
-def test_sync_target_reflects_connection_and_invalidates_etag(api_client):
+def test_sync_target_reflects_connection_and_invalidates_etag(
+    api_client,
+    monkeypatch,
+):
     """A real connection mutation updates both Plan content and its ETag."""
     client, _ = api_client
+    monkeypatch.setattr(
+        "sync.stryd_sync.stryd_client_available",
+        lambda: True,
+    )
 
     cold = client.get("/api/plan")
     assert cold.status_code == 200
