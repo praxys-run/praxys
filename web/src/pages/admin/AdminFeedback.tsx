@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bot, Check, ExternalLink, MessageSquarePlus, RefreshCw, RotateCcw } from 'lucide-react';
+import { Bot, Check, ExternalLink, LockKeyhole, MessageSquarePlus, RefreshCw, RotateCcw } from 'lucide-react';
 import AdminFeedbackImages from '@/components/AdminFeedbackImages';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -557,18 +557,25 @@ export default function AdminFeedback() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         {item.status === 'needs_review' ? (
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant="outline"
-                            disabled={feedbackBusy === item.id}
-                            onClick={() => void handleFeedbackAction(item.id, 'approve')}
-                          >
-                            <Check className="h-3 w-3" />
-                            <Trans>Approve & file</Trans>
-                          </Button>
+                          item.external_publication_consent ? (
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              disabled={feedbackBusy === item.id}
+                              onClick={() => void handleFeedbackAction(item.id, 'approve')}
+                            >
+                              <Check className="h-3 w-3" />
+                              <Trans>Approve & file</Trans>
+                            </Button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs leading-tight text-muted-foreground">
+                              <LockKeyhole aria-hidden="true" className="h-3 w-3 shrink-0" />
+                              <Trans>Private submission</Trans>
+                            </span>
+                          )
                         ) : null}
                         {item.status !== 'issue_created' && item.status !== 'needs_review' && item.status !== 'resolved' ? (
                           <Button

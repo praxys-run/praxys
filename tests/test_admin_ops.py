@@ -129,12 +129,17 @@ def env(monkeypatch):
 
 
 def _register(client, email: str, invitation_code: str = ""):
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
     return client.post(
         "/api/auth/register",
         json={
             "email": email,
             "password": "pw123456",
             "accepted_terms": True,
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "terms_locale": "en",
             "invitation_code": invitation_code,
         },
     )

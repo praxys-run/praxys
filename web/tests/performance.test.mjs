@@ -19,6 +19,9 @@ test('prefetches the authenticated cold-load dashboard route', () => {
   assert.equal((end - start) / 86_400_000, 27);
   assert.equal(initialDashboardUrl('/', true), '/api/today');
   assert.equal(initialDashboardUrl('/today', false), null);
+  assert.equal(initialDashboardUrl('/today', true, false), null);
+  assert.equal(initialDashboardUrl('/training', true, false), null);
+  assert.equal(initialDashboardUrl('/analysis', true, false), null);
   assert.equal(initialDashboardUrl('/settings', true), null);
 });
 

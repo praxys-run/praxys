@@ -39,6 +39,7 @@ def goal_api(monkeypatch):
     importlib.reload(api.main)
     app = api.main.app
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
@@ -48,12 +49,16 @@ def goal_api(monkeypatch):
                 email="goal-owner@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="goal-baseline-other",
                 email="goal-other@example.test",
                 hashed_password="x",
                 is_active=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="goal-baseline-admin",
@@ -61,6 +66,8 @@ def goal_api(monkeypatch):
                 hashed_password="x",
                 is_active=True,
                 is_superuser=True,
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
         ])
         db.commit()

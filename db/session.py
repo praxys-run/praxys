@@ -390,6 +390,9 @@ def init_db(force: bool = False):
 
 
 _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    "users": (
+        ("terms_digest", "VARCHAR(71)"),
+    ),
     "activities": (
         ("temperature_c", "FLOAT"),
         ("relative_humidity_pct", "FLOAT"),
@@ -601,6 +604,20 @@ def _ensure_sqlite_context_idempotency_indexes(engine_obj) -> None:
         )
 
 
+def _ensure_sqlite_terms_receipt_immutability(engine_obj) -> None:
+    """Prevent local/test code from updating append-only legal receipts."""
+    with engine_obj.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS "
+            "trg_terms_acceptance_receipts_immutable "
+            "BEFORE UPDATE ON terms_acceptance_receipts "
+            "BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'terms acceptance receipts are immutable'); "
+            "END"
+        )
+
+
 def _ensure_sqlite_training_plan_identity(engine_obj) -> None:
     """Replace the legacy date/type uniqueness rule with canonical identity."""
     constraints = inspect(engine_obj).get_unique_constraints("training_plans")
@@ -710,6 +727,7 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         _ensure_sqlite_road_10k_snapshot_schema(engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
         _ensure_sqlite_context_idempotency_indexes(engine_obj)
+        _ensure_sqlite_terms_receipt_immutability(engine_obj)
         _ensure_sqlite_training_plan_identity(engine_obj)
         _normalize_praxys_plan_sources(engine_obj)
         return

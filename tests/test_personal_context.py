@@ -31,6 +31,7 @@ def context_db(monkeypatch):
         "PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL",
         raising=False,
     )
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
 
     from db import crypto, session as db_session
 
@@ -41,11 +42,18 @@ def context_db(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
         db.add_all([
-            User(id="context-owner", email="owner@example.test", hashed_password="x"),
+            User(
+                id="context-owner",
+                email="owner@example.test",
+                hashed_password="x",
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
+            ),
             User(id="context-other", email="other@example.test", hashed_password="x"),
         ])
         db.commit()
@@ -99,7 +107,7 @@ def _create_context(
 def test_payload_is_encrypted_and_reads_are_owner_isolated(context_db) -> None:
     from api.personal_context import (
         PersonalContextUnavailable,
-        append_consent_receipt,
+        append_purpose_receipt,
         load_active_contexts,
         record_context_use,
     )
@@ -145,30 +153,26 @@ def test_payload_is_encrypted_and_reads_are_owner_isolated(context_db) -> None:
         assert other == []
 
         with pytest.raises(PersonalContextUnavailable):
-            append_consent_receipt(
+            append_purpose_receipt(
                 db,
                 user_id="context-other",
                 item_id=item_id,
                 expected_version=1,
-                decision="granted",
-                provider="azure_openai",
-                disclosed_fields=["category"],
-                consent_text_version="context-ai-v1",
+                consent_text_version="personal-context-purpose-v1",
                 client="web",
+                idempotency_key="other-user-purpose-confirmation",
                 now=now,
             )
         db.rollback()
 
-        consent = append_consent_receipt(
+        consent = append_purpose_receipt(
             db,
             user_id="context-owner",
             item_id=item_id,
             expected_version=1,
-            decision="granted",
-            provider="azure_openai",
-            disclosed_fields=["category", "fields.maximum_available_minutes"],
-            consent_text_version="context-ai-v1",
+            consent_text_version="personal-context-purpose-v1",
             client="web",
+            idempotency_key="owner-purpose-confirmation",
             now=now,
         )
         use = record_context_use(
@@ -184,7 +188,11 @@ def test_payload_is_encrypted_and_reads_are_owner_isolated(context_db) -> None:
         )
         db.commit()
         assert use.consent_receipt_id == consent.id
-        assert consent.consent_scope == "ai_processing"
+        assert use.context_item_id == item_id
+        assert use.context_version == 1
+        assert use.purpose == "plan_adjustment"
+        assert use.disclosed_fields == ["category"]
+        assert consent.consent_scope == "purpose_confirmation"
 
 
 def test_ephemeral_encryption_key_refuses_durable_context(
@@ -452,7 +460,7 @@ def test_withdrawal_deletes_private_derivatives_but_keeps_workout_facts(
     context_db,
 ) -> None:
     from api.personal_context import (
-        append_consent_receipt,
+        append_purpose_receipt,
         record_context_use,
         withdraw_context,
     )
@@ -469,16 +477,14 @@ def test_withdrawal_deletes_private_derivatives_but_keeps_workout_facts(
     after = [{"date": "2026-08-02", "workout_type": "easy"}]
     with context_db.SessionLocal() as db:
         item = _create_context(db, now=now)
-        consent = append_consent_receipt(
+        consent = append_purpose_receipt(
             db,
             user_id="context-owner",
             item_id=item.id,
             expected_version=1,
-            decision="granted",
-            provider="azure_openai",
-            disclosed_fields=["category"],
-            consent_text_version="context-ai-v1",
+            consent_text_version="personal-context-purpose-v1",
             client="web",
+            idempotency_key="withdrawal-purpose-confirmation",
             now=now,
         )
         use = record_context_use(

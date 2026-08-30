@@ -33,7 +33,7 @@ Known minor gaps:
 | Page | Surface | Status | Notes |
 |------|---------|--------|-------|
 | Today | `WeeklyLoadMini` 7-day load-vs-target bar | partial | Data is in state (`hasWeekLoad`, `weekLoadActual`, `weekLoadPlannedSuffix`) but the bar viz is a text-only card on miniapp. Acceptable since the page is already dense. |
-| Analysis | `AiInsightsCard` (training-review insights) | matched | Both clients read `/api/insights/training_review` and retain the deterministic rule-based fallback. |
+| Analysis | `AiInsightsCard` (training-review insights) | matched | Both clients read `/api/insights/training_review` and show the same explicit AI-unavailable state and keep deterministic metrics separately labeled. |
 | Analysis | `SleepPerfChart` (sleep score vs avg power) | matched | Closed by issue #76. |
 | Training | `UpcomingPlanCard` / managed schedule | matched | Web and miniapp both expose the upcoming Praxys-managed schedule from the Training workspace. |
 

@@ -205,7 +205,7 @@ image contains no deployment secret.
 After cutover, `deploy-backend.yml` waits up to 15 minutes for the Container
 Apps Job to report the exact `ghcr.io/praxys-run/praxys-labs-worker:<commit>`
 image before deploying that backend commit. The worker workflow mirrors every
-backend trigger, including science-only changes and API release tags. A failed
+backend protected-`main` trigger, including science-only changes. A failed
 or delayed worker deployment therefore blocks the newer backend instead of
 letting an older worker cancel a future-model job.
 

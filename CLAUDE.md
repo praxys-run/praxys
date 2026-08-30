@@ -128,7 +128,7 @@ Goal configuration stored in DB, managed via the Goal page:
 
 The `metric-addition-reviewer` agent enforces this 7-step checklist.
 
-When a metric ships **rule-based prose** (`reason`, `assessment`, `suggestions`) and you later add an **LLM-generated counterpart** (via `api/insights_generator.py`), keep the rule-based path live as the deterministic fallback for users without `AZURE_AI_ENDPOINT` set. Frontend prefers `insight.translations[locale]` and falls back to top-level English fields, then to the rule-based component when no `AiInsight` row exists.
+When a metric ships **deterministic prose** (`reason`, `assessment`, `suggestions`) and you add an **LLM-generated counterpart** (via `api/insights_generator.py`), keep the deterministic path as separately labelled functionality, never as Coach/AI output. Azure AI is an ordinary authenticated-service capability: if its endpoint, SDK, or runtime is unavailable, AI-only surfaces explicitly report unavailable while the deterministic component may continue under its own label. Frontend prefers `insight.translations[locale]` and uses the top-level English fields only as that AI insight’s locale fallback.
 
 ## How to Add a New Data Source
 
@@ -306,4 +306,4 @@ Runtime, Incident, and Meta/Eval loop details live in
 
 The MCP server (`plugins/praxys/mcp-server/server.py`) runs in dual mode — local (direct DB) or remote (HTTP + JWT via `PRAXYS_URL`).
 
-AI features are always optional; the app works fully without `AZURE_AI_ENDPOINT` (the post-sync LLM insight runner falls back to rule-based prose, and the training-context builder still feeds skill-side AI plan generation). When set, Azure OpenAI powers the bilingual insight generator (`api/insights_generator.py`), plan validator, and the `AiPlanProvider` that loads `data/ai/training_plan.csv`.
+Azure AI is a mandatory ordinary-production capability rather than an optional enhancement. `AZURE_AI_ENDPOINT` must be configured for ordinary AI service; the bilingual insight generator (`api/insights_generator.py`), plan validator, and the `AiPlanProvider` that loads `data/ai/training_plan.csv` use it. If Azure AI is unavailable or its emergency stop is active, AI-only features explicitly report unavailable while sync and separately labelled deterministic metrics continue. Never present deterministic output as Coach/AI output.

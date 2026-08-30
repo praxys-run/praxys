@@ -580,16 +580,17 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
     }
     signature = build_road_10k_goal(goal).goal_signature
     current_week = today - timedelta(days=today.weekday())
+    baseline_date = current_week - timedelta(days=1)
     with db_session.SessionLocal() as db:
         db.add(UserConfig(user_id=user_id, goal=goal))
         db.add(Activity(
             user_id=user_id,
             activity_id="road-10k-current-baseline",
-            date=today - timedelta(days=6),
+            date=baseline_date,
             activity_type="running",
             distance_km=10.0,
             duration_sec=2_520,
-            start_time=f"{(today - timedelta(days=6)).isoformat()}T07:00:00Z",
+            start_time=f"{baseline_date.isoformat()}T07:00:00Z",
             source="garmin",
         ))
         for split_num in range(1, 11):
@@ -644,7 +645,7 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
             measured_10k=True,
             elapsed_timing_confirmed=True,
             completed_at=datetime.fromisoformat(
-                f"{(today - timedelta(days=6)).isoformat()}T07:42:00"
+                f"{baseline_date.isoformat()}T07:42:00"
             ),
             elapsed_time_sec=2_520,
             surface_or_protocol="organized_outdoor_road_10k_race",
@@ -663,9 +664,9 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
             source_kind="history_confirmation",
             source_id="road-10k-current-baseline",
             provenance="race",
-            observed_date=today - timedelta(days=6),
+            observed_date=baseline_date,
             completed_at=datetime.fromisoformat(
-                f"{(today - timedelta(days=6)).isoformat()}T07:42:00"
+                f"{baseline_date.isoformat()}T07:42:00"
             ),
             distance_km=10.0,
             elapsed_time_sec=2_520,
@@ -1279,6 +1280,9 @@ def test_protocol_qualified_off_device_distance_can_still_be_confirmed(
 def test_history_confirmation_requires_contract_metadata_and_replays_idempotently(
     road_10k_client,
 ) -> None:
+    today = date.today()
+    current_week = today - timedelta(days=today.weekday())
+    baseline_date = current_week - timedelta(days=1)
     client, db_session = road_10k_client
     _seed_road_10k_api_context(db_session, "road-10k-owner")
 
@@ -1354,7 +1358,7 @@ def test_history_confirmation_requires_contract_metadata_and_replays_idempotentl
     assert created_body["confirmation"]["source_provider"] == "garmin"
     assert created_body["confirmation"]["elapsed_time_sec"] == 2_520
     assert created_body["confirmation"]["completed_at"].startswith(
-        str(date.today() - timedelta(days=6))
+        str(baseline_date)
     )
     assert created_body["baseline"]["evidence"]["surface_or_protocol"] == (
         "organized_outdoor_road_10k_race"

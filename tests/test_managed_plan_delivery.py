@@ -39,6 +39,7 @@ from api.plan_resolution import restore_praxys_version
 from api.managed_plan_ops import (
     ManagedPlanRecoveryBusy,
     ManagedPlanRecoveryStale,
+    ManagedPlanRecoveryUnsupported,
     list_managed_plan_attention,
     recover_managed_plan_delivery,
 )
@@ -229,10 +230,14 @@ def managed_db(tmp_path, monkeypatch):
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
     db = session_factory()
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
     db.add(User(
         id=USER_ID,
         email="managed-delivery@example.test",
         hashed_password="test",
+        terms_version=TERMS_VERSION,
+        terms_digest=TERMS_CONTENT_DIGEST,
     ))
     db.add(UserConfig(
         user_id=USER_ID,
@@ -2553,6 +2558,46 @@ def test_operator_recovery_reconciles_and_replays_one_exhausted_failure(
     assert revisions[0].actor_type == "admin"
     assert revisions[0].actor_id == "admin-user"
     assert revisions[1].details["response"]["final_state"] == "synced"
+
+
+def test_operator_recovery_rejects_stale_terms_before_provider_access(
+    managed_db,
+):
+    db, adapter = managed_db
+    started_at = datetime.utcnow()
+    _add_plan(db, started_at.date() + timedelta(days=2))
+    adapter.create_failures.extend(
+        ProviderTransientError("provider rate limit")
+        for _ in range(5)
+    )
+    for attempt_number in range(5):
+        _run(
+            db,
+            adapter,
+            now=started_at + timedelta(hours=7 * attempt_number),
+        )
+    attention = list_managed_plan_attention(
+        db,
+        now=started_at + timedelta(hours=36),
+    ).items[0]
+    user = db.get(User, USER_ID)
+    user.terms_version = "old"
+    db.commit()
+    attempts_before = adapter.create_attempts
+
+    with pytest.raises(ManagedPlanRecoveryUnsupported) as exc:
+        recover_managed_plan_delivery(
+            db,
+            admin_user_id="admin-user",
+            delivery_id=attention.recovery_id,
+            expected_version=attention.expected_version,
+            now=started_at + timedelta(hours=36),
+            adapter_loader=lambda session, user_id, target: adapter,
+            threshold_loader=lambda session, user_id: CP_WATTS,
+        )
+
+    assert str(exc.value) == "terms_not_current"
+    assert adapter.create_attempts == attempts_before
 
 
 def test_operator_recovery_completes_replacement_after_failed_removal(

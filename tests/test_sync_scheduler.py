@@ -1,5 +1,7 @@
 """Tests for sync scheduler frequency guardrails."""
 
+import tempfile
+
 import pytest
 
 from db.sync_scheduler import (
@@ -92,3 +94,68 @@ def test_scheduler_tick_isolates_context_retention_failure(
     )
 
     _run_personal_context_retention_tick()
+
+
+def test_scheduled_managed_delivery_excludes_stale_terms(monkeypatch) -> None:
+    tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+    monkeypatch.setenv("DATA_DIR", tmpdir.name)
+    monkeypatch.setenv(
+        "PRAXYS_LOCAL_ENCRYPTION_KEY",
+        "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
+    )
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.plan_delivery import rolling
+    from db import session as db_session
+    from db.models import User, UserConfig
+
+    db_session.engine = None
+    db_session.SessionLocal = None
+    db_session.async_engine = None
+    db_session.AsyncSessionLocal = None
+    db_session.init_db()
+    with db_session.SessionLocal() as db:
+        db.add_all([
+            User(
+                id="delivery-current",
+                email="delivery-current@example.test",
+                hashed_password="x",
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
+            ),
+            User(
+                id="delivery-stale",
+                email="delivery-stale@example.test",
+                hashed_password="x",
+                terms_version="old",
+                terms_digest=TERMS_CONTENT_DIGEST,
+            ),
+            UserConfig(
+                user_id="delivery-current",
+                plan_management={
+                    "mode": "praxys",
+                    "delivery_enabled": True,
+                },
+            ),
+            UserConfig(
+                user_id="delivery-stale",
+                plan_management={
+                    "mode": "praxys",
+                    "delivery_enabled": True,
+                },
+            ),
+        ])
+        db.commit()
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        rolling,
+        "trigger_managed_plan_delivery",
+        lambda user_id, **_kwargs: calls.append(user_id),
+    )
+    try:
+        rolling.run_scheduled_managed_deliveries()
+        assert calls == ["delivery-current"]
+    finally:
+        if db_session.engine is not None:
+            db_session.engine.dispose()
+        tmpdir.cleanup()

@@ -158,6 +158,221 @@
   margin-top: 28rpx;
 }
 
+// Pre-transfer processing notice. This is a reading surface, not a consent
+// modal: facts are flat, scannable rows and the primary action records only
+// that the current notice was read.
+.login-notice-stack {
+  align-items: stretch;
+  max-width: 620rpx;
+  text-align: left;
+  padding-top: 240rpx;
+}
+
+.login-notice-mark {
+  width: 80rpx;
+  height: 80rpx;
+  align-self: flex-start;
+}
+
+.login-notice-wordmark {
+  align-self: flex-start;
+}
+
+.login-notice-wordmark .login-wordmark__text {
+  font-size: 52rpx;
+}
+
+.login-notice-title {
+  margin-top: 28rpx;
+  text-align: left;
+}
+
+.login-notice-status {
+  align-self: flex-start;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background-color: var(--surface-subtle);
+  color: var(--text);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.login-notice-intro {
+  max-width: none;
+  text-align: left;
+}
+
+.login-notice-version {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 21rpx;
+  color: var(--text-muted);
+}
+
+.login-notice-facts {
+  width: 100%;
+  margin-top: 16rpx;
+  border-top: 1rpx solid var(--border);
+  border-bottom: 1rpx solid var(--border);
+}
+
+.login-notice-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.login-notice-fact:last-child {
+  border-bottom: 0;
+}
+
+.login-notice-fact-label {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.login-notice-fact-value {
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.login-notice-optional {
+  padding: 22rpx;
+  border: 1rpx solid var(--accent-cobalt);
+  border-radius: 16rpx;
+  background-color: var(--surface-subtle);
+}
+
+.login-notice-optional-text {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.login-notice-ack {
+  font-size: 23rpx;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.login-notice-link {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 12rpx 0;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.login-notice-exit {
+  width: 100%;
+  margin-top: 0;
+}
+
+.login-terms-stack {
+  padding-top: 220rpx;
+  padding-bottom: 64rpx;
+}
+
+.login-terms-version {
+  text-align: center;
+}
+
+.login-terms-rights {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 16rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.login-terms-rights-intro,
+.login-terms-rights-message {
+  font-size: 23rpx;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.login-terms-rights-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.login-terms-rights-button {
+  width: 100%;
+  min-height: 88rpx;
+  margin: 0;
+  padding: 12rpx 16rpx;
+  font-size: 24rpx;
+}
+
+.login-terms-delete {
+  color: var(--destructive);
+}
+
+.login-terms-connections {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--border-subtle);
+}
+
+.login-terms-connections-title {
+  display: block;
+  font-size: 21rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.login-terms-connection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  min-height: 80rpx;
+  border-bottom: 1rpx solid var(--border-subtle);
+}
+
+.login-terms-connection-name {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.login-terms-disconnect {
+  min-width: 112rpx;
+  min-height: 72rpx;
+  margin: 0;
+  padding: 8rpx 0 8rpx 20rpx;
+  font-size: 23rpx;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+}
+
+.login-terms-disconnect::after {
+  border: 0;
+}
+
+.login-terms-rights-message {
+  margin-top: 12rpx;
+}
+
+.login-terms-exit {
+  width: 100%;
+  margin-top: 0;
+}
+
 // Three pillars — "Today's signal · go, modify, or rest" etc. Each
 // row: cobalt mono numeral + sentence text with a strong half + a
 // muted half. The numeral acts as a visual gutter so the eye can
@@ -543,13 +758,15 @@
   color: var(--text-muted);
 }
 
-// Explicit consent checkbox — gates onWaitlistSubmit / onLinkSubmit.
+// Explicit agreement control used by the Terms and email-collection stages.
 .login-agree {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   width: 100%;
+  min-height: 88rpx;
   margin-top: 24rpx;
+  padding: 16rpx 0;
   gap: 14rpx;
 }
 
@@ -587,4 +804,9 @@
 
 .login-agree-lead {
   color: var(--text-muted);
+}
+
+.login-inline-link-gap,
+.login-inline-clause-gap {
+  margin-left: 6rpx;
 }

@@ -2322,6 +2322,14 @@ def trigger_managed_plan_delivery(
     init_db()
     db = SessionLocal()
     try:
+        from api.legal_receipts import user_has_current_legal_bundle
+
+        if not user_has_current_legal_bundle(db, user_id):
+            logger.info(
+                "Managed delivery skipped without current legal bundle: user=%s",
+                user_id,
+            )
+            return None
         return run_rolling_delivery_for_user(
             db,
             user_id=user_id,
@@ -2347,11 +2355,18 @@ def run_scheduled_managed_deliveries() -> None:
     init_db()
     db = SessionLocal()
     try:
+        from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+        from db.models import User
+
         rows = db.execute(
             select(
                 UserConfig.user_id,
                 UserConfig.plan_management,
                 UserConfig.plan_execution_target,
+            ).join(User, User.id == UserConfig.user_id).where(
+                User.is_active == True,  # noqa: E712
+                User.terms_version == TERMS_VERSION,
+                User.terms_digest == TERMS_CONTENT_DIGEST,
             )
         ).all()
         user_ids = []

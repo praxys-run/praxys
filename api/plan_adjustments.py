@@ -550,6 +550,14 @@ def run_plan_adjustment_for_user(
     init_db()
     db = SessionLocal()
     try:
+        if trigger.startswith("scheduled_sync:"):
+            from api.legal_receipts import user_has_current_legal_bundle
+
+            if not user_has_current_legal_bundle(db, user_id):
+                return {
+                    "status": "skipped",
+                    "reason": "terms_not_current",
+                }
         active_pending: list[tuple[PlanRevision, Mapping[str, Any]]] = []
         for pending_revision, pending_snapshot in (
             _pending_adjustment_deliveries(db, user_id=user_id)

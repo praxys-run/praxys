@@ -107,7 +107,7 @@
       </view>
 
       <!--
-        Deterministic Praxys Coach receipt. It uses the same canonical
+        Deterministic training summary. It uses the same canonical
         signal as the verdict, with progressive disclosure for alternatives.
       -->
       <view wx:if="{{hasCoach}}" class="coach-receipt {{dataStale && !staleDismissed ? 'is-sync-stale' : ''}}" aria-label="{{coachTr.aria}}">
