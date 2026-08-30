@@ -186,7 +186,7 @@ class ContextMutationResult:
 
 @dataclass(frozen=True)
 class ContextConsentMutationResult:
-    """AI consent receipt plus its command replay state."""
+    """Legacy AI-consent receipt retained for append-only history and export."""
 
     receipt: PersonalContextConsentReceipt
     replayed: bool
@@ -1111,7 +1111,7 @@ def append_consent_receipt(
     idempotency_key: str | None = None,
     now: datetime | None = None,
 ) -> PersonalContextConsentReceipt:
-    """Append a payload-free AI consent decision for one exact item version."""
+    """Append a legacy receipt; it no longer grants ordinary AI authority."""
     if decision not in {"granted", "denied", "withdrawn"}:
         raise PersonalContextValidationError("Context consent decision is invalid")
     if decision == "granted" and provider != "azure_openai":
@@ -1223,7 +1223,7 @@ def decide_context_ai_consent(
     idempotency_key: str,
     now: datetime | None = None,
 ) -> ContextConsentMutationResult:
-    """Apply one serialized AI consent command and report exact retries."""
+    """Retain legacy command replay semantics for historical records only."""
     key = _validate_idempotency_key(idempotency_key)
     lock_plan_writes(db, user_id)
     command = _context_command(
@@ -1318,30 +1318,27 @@ def record_context_use(
 
     consent: PersonalContextConsentReceipt | None = None
     if consumer_type in {"planning_ai", "provider_adapter"}:
-        if item.processing_mode != "ai_allowed" or not item.consent_receipt_id:
-            raise PersonalContextUnavailable("Context AI consent is unavailable")
+        from api.optional_processing import background_ai_authorized
+
+        if not background_ai_authorized(db, user_id=user_id):
+            raise PersonalContextUnavailable("Azure AI processing is unavailable")
         consent = (
             db.query(PersonalContextConsentReceipt)
             .filter(
-                PersonalContextConsentReceipt.id
-                == item.consent_receipt_id,
                 PersonalContextConsentReceipt.user_id == user_id,
                 PersonalContextConsentReceipt.context_item_id == item.id,
                 PersonalContextConsentReceipt.context_version == item.version,
                 PersonalContextConsentReceipt.purpose == purpose,
-                PersonalContextConsentReceipt.consent_scope == "ai_processing",
-                PersonalContextConsentReceipt.provider == "azure_openai",
+                PersonalContextConsentReceipt.consent_scope
+                == "purpose_confirmation",
                 PersonalContextConsentReceipt.decision == "granted",
             )
-            .one_or_none()
+            .order_by(PersonalContextConsentReceipt.decided_at.desc())
+            .first()
         )
-        if consent is None or not set(fields).issubset(
-            set(consent.disclosed_fields or [])
-        ):
-            raise PersonalContextUnavailable("Context AI consent is unavailable")
-        if narrative_disclosed and not consent.narrative_disclosed:
+        if consent is None:
             raise PersonalContextUnavailable(
-                "Context narrative consent is unavailable"
+                "Context purpose authority is unavailable"
             )
     elif narrative_disclosed:
         raise PersonalContextValidationError(

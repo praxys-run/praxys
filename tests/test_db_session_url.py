@@ -292,3 +292,67 @@ def test_existing_sqlite_goal_snapshots_get_purpose_provenance(
         } <= baseline_test_columns
     finally:
         engine.dispose()
+
+
+def test_postgres_alembic_migration_lock_serializes_and_releases(
+    dbs,
+    monkeypatch,
+):
+    from alembic import command
+
+    calls: list[tuple[str, str]] = []
+
+    class Connection:
+        def exec_driver_sql(self, statement: str) -> None:
+            calls.append(("sql", statement))
+
+        def close(self) -> None:
+            calls.append(("close", ""))
+
+    class Engine:
+        def connect(self) -> Connection:
+            calls.append(("connect", ""))
+            return Connection()
+
+    def upgrade(_config, target: str) -> None:
+        calls.append(("upgrade", target))
+
+    monkeypatch.setattr(command, "upgrade", upgrade)
+    dbs._run_alembic_upgrade(Engine())
+
+    assert calls[0] == ("connect", "")
+    assert calls[1][1].startswith("SELECT pg_advisory_lock(")
+    assert calls[2] == ("upgrade", "head")
+    assert calls[3][1].startswith("SELECT pg_advisory_unlock(")
+    assert calls[4] == ("close", "")
+
+
+def test_postgres_alembic_migration_lock_releases_on_upgrade_failure(
+    dbs,
+    monkeypatch,
+):
+    from alembic import command
+
+    calls: list[str] = []
+
+    class Connection:
+        def exec_driver_sql(self, statement: str) -> None:
+            calls.append(statement)
+
+        def close(self) -> None:
+            calls.append("close")
+
+    class Engine:
+        def connect(self) -> Connection:
+            return Connection()
+
+    def upgrade(_config, _target: str) -> None:
+        raise RuntimeError("migration failed")
+
+    monkeypatch.setattr(command, "upgrade", upgrade)
+    with pytest.raises(RuntimeError, match="migration failed"):
+        dbs._run_alembic_upgrade(Engine())
+
+    assert calls[0].startswith("SELECT pg_advisory_lock(")
+    assert calls[1].startswith("SELECT pg_advisory_unlock(")
+    assert calls[2] == "close"

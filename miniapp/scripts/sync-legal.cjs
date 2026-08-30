@@ -17,6 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
+const crypto = require('crypto');
 
 let ts;
 try {
@@ -61,6 +62,7 @@ function serialize(legal) {
     'export interface LegalText { en: string; zh: string; }\n' +
     'export interface LegalSection { id: string; title: LegalText; body: LegalText[]; }\n\n' +
     `export const TERMS_VERSION = ${jstr(legal.TERMS_VERSION)};\n` +
+    `export const TERMS_CONTENT_DIGEST = ${jstr(legal.TERMS_CONTENT_DIGEST)};\n` +
     `export const EFFECTIVE_DATE = ${jstr(legal.EFFECTIVE_DATE)};\n` +
     `export const SUPPORT_EMAIL = ${jstr(legal.SUPPORT_EMAIL)};\n` +
     `export const OPERATOR_NAME = ${jstr(legal.OPERATOR_NAME)};\n` +
@@ -68,6 +70,23 @@ function serialize(legal) {
     `export const TERMS_SECTIONS: LegalSection[] = ${arr(legal.TERMS_SECTIONS)};\n\n` +
     `export const PRIVACY_SECTIONS: LegalSection[] = ${arr(legal.PRIVACY_SECTIONS)};\n`
   );
+}
+
+function legalBundleDigest(legal) {
+  const manifest = {
+    schema_version: 'praxys-legal-bundle-v1',
+    terms_version: legal.TERMS_VERSION,
+    effective_date: legal.EFFECTIVE_DATE,
+    operator_name: legal.OPERATOR_NAME,
+    jurisdiction: legal.JURISDICTION,
+    support_email: legal.SUPPORT_EMAIL,
+    terms_sections: legal.TERMS_SECTIONS,
+    privacy_sections: legal.PRIVACY_SECTIONS,
+  };
+  return `sha256:${crypto
+    .createHash('sha256')
+    .update(JSON.stringify(manifest), 'utf8')
+    .digest('hex')}`;
 }
 
 function main() {
@@ -78,6 +97,7 @@ function main() {
   const legal = loadLegalModule(SRC);
   const required = [
     'TERMS_VERSION',
+    'TERMS_CONTENT_DIGEST',
     'EFFECTIVE_DATE',
     'SUPPORT_EMAIL',
     'TERMS_SECTIONS',
@@ -88,6 +108,14 @@ function main() {
       console.error(`[sync-legal] web/src/lib/legal.ts is missing export: ${key}`);
       process.exit(1);
     }
+  }
+  const computedDigest = legalBundleDigest(legal);
+  if (legal.TERMS_CONTENT_DIGEST !== computedDigest) {
+    console.error(
+      '[sync-legal] TERMS_CONTENT_DIGEST is stale. ' +
+      `Expected ${computedDigest}, received ${legal.TERMS_CONTENT_DIGEST}.`,
+    );
+    process.exit(1);
   }
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, serialize(legal), 'utf8');

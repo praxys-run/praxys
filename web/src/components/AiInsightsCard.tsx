@@ -13,12 +13,8 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { linkifyScienceTerms } from '@/lib/science-links';
 
 /**
- * Deterministic "Praxys Coach" content rendered when no LLM insight
- * row exists for this slot. Lets the receipt remain the single
- * narrative-interpretation surface across pages — the user always sees
- * Praxys Coach, with AI content when it's there and rule-based content
- * otherwise. Without it, AiInsightsCard returns null when the LLM is
- * silent (legacy behavior).
+ * Deterministic content rendered separately when no Azure AI insight exists.
+ * It must never be presented as AI-generated output.
  */
 export interface CoachFallback {
   /** Lead sentence shown in the receipt body. Accepts ReactNode so
@@ -34,17 +30,17 @@ export interface CoachFallback {
 }
 
 interface Props {
-  /** Durable insight slot, or the disabled Today slot used with fallback content. */
+  /** Durable insight slot, or the disabled Today slot used with deterministic content. */
   insightType: string;
   /** Optional theory attribution rendered in the muted receipt footer. */
   attribution?: string;
-  /** Deterministic content shown when the LLM insight slot is empty. */
+  /** Separately labelled deterministic companion shown when the AI slot is empty. */
   fallback?: CoachFallback;
   /** Called the first time the user expands the receipt's reasoning details. */
   onDetailsOpen?: () => void;
   /** Refresh the page dataset when the displayed insight version is stale. */
   onFeedbackStale?: () => void | Promise<void>;
-  /** Disable the insight request while retaining the deterministic fallback. */
+  /** Disable the insight request while retaining separately labelled deterministic content. */
   fetchInsight?: boolean;
 }
 
@@ -61,7 +57,7 @@ function timeAgo(isoDate: string, locale: string): string {
   return rtf.format(-days, 'day');
 }
 
-/** Render the canonical Praxys Coach receipt with AI-only feedback controls. */
+/** Render a source-aware insight receipt with AI-only feedback controls. */
 export default function AiInsightsCard({
   insightType,
   attribution,
@@ -87,6 +83,7 @@ export default function AiInsightsCard({
   const [feedbackError, setFeedbackError] = useState('');
 
   const insight = fetchInsight ? data?.insight : null;
+  const aiUnavailable = fetchInsight && data?.ai_available === false;
   const rawDatasetHash = insight?.meta.dataset_hash;
   const datasetHash = insight?.feedback_allowed !== false
     && typeof rawDatasetHash === 'string'
@@ -114,8 +111,9 @@ export default function AiInsightsCard({
   // the top-level English fields (Issue #103 contract).
   const localized = insight && ((locale === 'zh' && insight.translations?.zh) || insight);
 
-  // Resolve the actual content to render. AI takes precedence; fallback
-  // fills in when AI is silent. If neither exists the surface stays hidden.
+  // Resolve the actual content to render. AI and deterministic content retain
+  // distinct branding; deterministic content is never presented as AI output.
+  // If neither exists the surface stays hidden.
   const content = localized
     ? {
         headline: localized.headline as ReactNode,
@@ -214,27 +212,46 @@ export default function AiInsightsCard({
     }
   };
 
-  if (!content) return null;
+  if (!content && !aiUnavailable) return null;
+
+  const displayedContent = content ?? {
+    headline: i18n._(msg`Azure AI insights are temporarily unavailable.`),
+    summary: i18n._(msg`Your synced data and deterministic training metrics remain available.`),
+    findings: [],
+    recommendations: [],
+    stamp: undefined,
+    isAi: false,
+  };
 
   const skillName = insightType.replace(/_/g, '-');
-  const hasDetails = content.findings.length > 0 || content.recommendations.length > 0;
+  const hasDetails = displayedContent.findings.length > 0 || displayedContent.recommendations.length > 0;
   const toggleDetails = () => {
     if (!detailsOpen) onDetailsOpen?.();
     setDetailsOpen((value) => !value);
   };
 
   return (
-    <aside className="coach-receipt" aria-label={i18n._(msg`Praxys Coach insight`)}>
+    <aside className="coach-receipt" aria-label={displayedContent.isAi
+      ? i18n._(msg`Praxys Coach insight`)
+      : i18n._(msg`Deterministic training summary`)}>
       <div className="coach-banner">
-        <span className="coach-mark"><Trans>Praxys Coach</Trans></span>
-        {content.stamp && (
-          <span className="coach-stamp font-data">{content.stamp}</span>
+        <span className="coach-mark">
+          {displayedContent.isAi ? <Trans>Praxys Coach</Trans> : <Trans>Training metrics</Trans>}
+        </span>
+        {displayedContent.stamp && (
+          <span className="coach-stamp font-data">{displayedContent.stamp}</span>
         )}
       </div>
       <div className="coach-body">
-        <p className="coach-headline">{content.headline}</p>
-        {content.summary && (
-          <p className="coach-summary">{linkifyScienceTerms(content.summary)}</p>
+        {aiUnavailable && content && (
+          <p className="coach-summary" role="status">
+            <Trans>Azure AI insights are temporarily unavailable.</Trans>{' '}
+            <Trans>Your synced data and deterministic training metrics remain available.</Trans>
+          </p>
+        )}
+        <p className="coach-headline">{displayedContent.headline}</p>
+        {displayedContent.summary && (
+          <p className="coach-summary">{linkifyScienceTerms(displayedContent.summary)}</p>
         )}
         {hasDetails && (
           <button
@@ -248,22 +265,22 @@ export default function AiInsightsCard({
               <Trans>Hide details</Trans>
             ) : (
               <span>
-                {content.findings.length > 0 && (
-                  <Plural value={content.findings.length} one="# finding" other="# findings" />
+                {displayedContent.findings.length > 0 && (
+                  <Plural value={displayedContent.findings.length} one="# finding" other="# findings" />
                 )}
-                {content.findings.length > 0 && content.recommendations.length > 0 && <Trans> · </Trans>}
-                {content.recommendations.length > 0 && (
-                  <Plural value={content.recommendations.length} one="# recommendation" other="# recommendations" />
+                {displayedContent.findings.length > 0 && displayedContent.recommendations.length > 0 && <Trans> · </Trans>}
+                {displayedContent.recommendations.length > 0 && (
+                  <Plural value={displayedContent.recommendations.length} one="# recommendation" other="# recommendations" />
                 )}
               </span>
             )}
           </button>
         )}
-        {detailsOpen && content.findings.length > 0 && (
+        {detailsOpen && displayedContent.findings.length > 0 && (
           <>
             <p className="coach-label"><Trans>Findings</Trans></p>
             <ul className="coach-list">
-              {content.findings.map((finding, index) => (
+              {displayedContent.findings.map((finding, index) => (
                 <li key={index} className={`coach-row coach-row-${finding.type}`}>
                   <span className="coach-tag" aria-hidden="true">[{finding.type === 'positive' ? '+' : finding.type === 'warning' ? '!' : '·'}]</span>
                   <span className="coach-text">{linkifyScienceTerms(finding.text)}</span>
@@ -272,12 +289,12 @@ export default function AiInsightsCard({
             </ul>
           </>
         )}
-        {detailsOpen && content.recommendations.length > 0 && (
+        {detailsOpen && displayedContent.recommendations.length > 0 && (
           <>
-            {content.findings.length > 0 && <hr className="coach-rule" />}
+            {displayedContent.findings.length > 0 && <hr className="coach-rule" />}
             <p className="coach-label"><Trans>Recommendations</Trans></p>
             <ol className="coach-list">
-              {content.recommendations.map((recommendation, index) => (
+              {displayedContent.recommendations.map((recommendation, index) => (
                 <li key={index} className="coach-row">
                   <span className="coach-tag coach-tag-rec" aria-hidden="true">→</span>
                   <span className="coach-text">{linkifyScienceTerms(recommendation)}</span>
@@ -286,7 +303,7 @@ export default function AiInsightsCard({
             </ol>
           </>
         )}
-        <p className="coach-skill-hint">
+        {displayedContent.isAi && <p className="coach-skill-hint">
           <Trans>
             Run{' '}
             <a
@@ -299,7 +316,7 @@ export default function AiInsightsCard({
             </a>{' '}
             in Claude Code for deeper analysis
           </Trans>
-        </p>
+        </p>}
       </div>
       {canCollectFeedback && (
         <div className={`coach-feedback-panel ${feedbackOpen ? 'is-open' : ''}`.trim()}>

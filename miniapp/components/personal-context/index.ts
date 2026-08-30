@@ -7,22 +7,18 @@ import type { ApiError } from '../../utils/api-client';
 import { detectLocale, t, tFmt } from '../../utils/i18n';
 import { formatWorkoutType } from '../../utils/managed-plan';
 import {
-  AI_CONSENT_VERSION,
   EXECUTION_CATEGORIES,
   PURPOSE_CONSENT_VERSION,
   TEMPORARY_CATEGORIES,
-  aiFieldNames,
   addLocalDays,
   buildContextDraftRequest,
   contextIdempotencyKey,
   defaultContextDraft,
   hydrateContextDraft,
   localIsoDate,
-  narrativeAvailable,
   type MiniContextDraft,
 } from '../../utils/personal-context';
 import type {
-  PersonalContextAiConsentResponse,
   PersonalContextCategory,
   PersonalContextDetailResponse,
   PersonalContextDraftRequest,
@@ -42,7 +38,6 @@ interface ContextItemView {
   kind: string;
   state: string;
   expiry: string;
-  ai: string;
 }
 
 interface ContextFieldView {
@@ -153,7 +148,7 @@ function translations() {
   return {
     title: t('Plan context'),
     description: t(
-      'Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and leaves AI off unless you separately allow it.',
+      'Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm.',
     ),
     addAvailability: t('Add availability'),
     explainWorkout: t('Explain a workout'),
@@ -174,8 +169,6 @@ function translations() {
     deleting: t('Deleting'),
     workoutExplanation: t('Workout explanation'),
     temporaryAvailability: t('Temporary availability'),
-    rulesOnly: t('rules only'),
-    aiAllowed: t('AI allowed'),
     noExpiry: t('no expiry'),
     close: t('Close'),
     back: t('Back'),
@@ -215,15 +208,15 @@ function translations() {
     storedUntil: t('Stored until'),
     noteDeleted: t('Note deleted'),
     processing: t('Processing method'),
-    rulesNoAi: t('Rules only · nothing sent to AI'),
+    purposeBoundProcessing: t('Used only for the confirmed purpose and active period'),
     purposeConfirmation: t(
-      'Saving confirms this one purpose. It does not authorize a new purpose, AI processing, analytics, or model training.',
+      'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.',
     ),
     confirmPurpose: t('I confirm this purpose and expiry'),
     save: t('Save private context'),
     saveCorrection: t('Save correction'),
     correctTitle: t('Correct private context'),
-    contextSaved: t('Private context saved. AI processing remains off.'),
+    contextSaved: t('Private context saved for the confirmed purpose.'),
     unknownSaved: t(
       'Saved without guessing a reason. The cause remains unknown.',
     ),
@@ -235,18 +228,12 @@ function translations() {
       'Inspect what is stored, where it was used, and who may process it.',
     ),
     status: t('Status'),
-    aiProcessing: t('AI processing'),
-    allowedForItem: t('Allowed for this item'),
-    unavailableForSafety: t('Unavailable for safety context'),
-    off: t('Off'),
     structuredDetails: t('Structured details'),
     contextUse: t('Context use'),
     unused: t('No assessment or plan change has used this context yet.'),
     rules: t('Rules'),
     azureOpenAi: t('Microsoft Azure AI'),
     correct: t('Correct'),
-    aiOption: t('AI option'),
-    reviewAi: t('Review AI access'),
     stopUsing: t('Stop using'),
     delete: t('Delete'),
     stopTitle: t('Stop using this context?'),
@@ -260,31 +247,6 @@ function translations() {
     cancel: t('Cancel'),
     stopped: t('Context excluded from future assessments.'),
     deleted: t('Context and dependent private traces deleted.'),
-    aiTitle: t('AI processing for one item'),
-    aiDescription: t(
-      'This decision is separate from saving context and applies only to this exact version.',
-    ),
-    provider: t('AI service: Microsoft Azure'),
-    providerDetail: t(
-      'Only the fields below are sent to Microsoft Azure AI. Microsoft states that inputs and outputs are not available to OpenAI or used to train foundation models without permission; Praxys does not grant that permission. Flagged content may be reviewed for abuse monitoring under Azure terms. Praxys does not log raw requests or responses.',
-    ),
-    structuredFieldsSent: t('Structured fields sent'),
-    sendNote: t('Also send my optional note'),
-    sendNoteDetail: t(
-      'Off by default. The note may contain more private detail than the structured fields.',
-    ),
-    aiWarning: t(
-      'AI output can be wrong. It cannot diagnose, provide treatment, clear you to train, or override Praxys safety, science, and approval boundaries.',
-    ),
-    aiWithdrawal: t(
-      'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.',
-    ),
-    allowAi: t('Allow for this item'),
-    withdrawAi: t('Withdraw AI permission'),
-    aiEnabled: t('AI processing enabled for this item only.'),
-    aiWithdrawn: t(
-      'AI processing withdrawn. No new provider requests are allowed.',
-    ),
     requiredCategory: t('Choose one category to continue.'),
     requiredWorkout: t('Choose the workout that changed.'),
     requiredStatus: t('Choose whether it was missed or modified.'),
@@ -301,7 +263,6 @@ function translations() {
     stopFailed: t('Could not stop using this context.'),
     deleteFailed: t('Could not delete this private context.'),
     exportFailed: t('Could not export private context.'),
-    aiFailed: t('Could not update AI processing.'),
   };
 }
 
@@ -329,11 +290,6 @@ function formatFieldValue(value: PersonalContextFieldValue): string {
       ? FIELD_VALUE_LABELS[entry]?.() ?? entry
       : String(entry)
   )).join(separator);
-}
-
-function disclosedFieldLabel(field: string): string {
-  if (field === 'category') return t('Category');
-  return contextFieldLabel(field.replace(/^fields\./, ''));
 }
 
 function contextFields(item: PersonalContextItem): ContextFieldView[] {
@@ -365,9 +321,6 @@ function itemViews(items: PersonalContextItem[]): ContextItemView[] {
             ? t('Withdrawn')
             : t('Deleting'),
       expiry: item.expires_at ? formatDate(item.expires_at) : t('no expiry'),
-      ai: item.processing_mode === 'ai_allowed'
-        ? t('AI allowed')
-        : t('rules only'),
     }));
 }
 
@@ -435,7 +388,7 @@ Component({
     workoutLabels: [] as string[],
     workoutIndex: 0,
     sheetOpen: false,
-    screen: 'home' as 'home' | 'compose' | 'preview' | 'detail' | 'ai',
+    screen: 'home' as 'home' | 'compose' | 'preview' | 'detail',
     sheetTitle: '',
     working: false,
     actionError: '',
@@ -464,12 +417,6 @@ Component({
     hasUseReceipts: false,
     hasContextUse: false,
     linkedRevisionText: '',
-    selectedSafety: false,
-    selectedNarrativeAvailable: false,
-    aiFields: [] as string[],
-    aiFieldsText: '',
-    aiPermissionConfirmed: false,
-    aiNarrative: false,
     safetySelected: false,
     showEquipment: false,
     showTerrain: false,
@@ -906,8 +853,6 @@ Component({
         hasUseReceipts: false,
         hasContextUse: false,
         linkedRevisionText: '',
-        selectedSafety: SAFETY_CATEGORIES.has(item.payload.category),
-        selectedNarrativeAvailable: narrativeAvailable(item),
         working: true,
         actionError: '',
       });
@@ -941,9 +886,6 @@ Component({
               detail.linked_revision_ids.length,
             )
             : '',
-          selectedSafety:
-            SAFETY_CATEGORIES.has(detail.item.payload.category),
-          selectedNarrativeAvailable: narrativeAvailable(detail.item),
         });
       } catch (error) {
         if (this.data.detailRequestId !== detailRequestId) return;
@@ -1020,85 +962,6 @@ Component({
         this.setData({
           working: false,
           actionError: apiErrorMessage(error, this.data.tr.deleteFailed),
-        });
-      }
-    },
-
-    onOpenAi() {
-      const item = this.data.selectedItem as PersonalContextItem | null;
-      if (!item || !this.data.detail) return;
-      if (
-        SAFETY_CATEGORIES.has(item.payload.category)
-        && item.processing_mode !== 'ai_allowed'
-      ) return;
-      this.setData({
-        screen: 'ai',
-        sheetTitle: this.data.tr.aiTitle,
-        aiFields: aiFieldNames(item),
-        aiFieldsText: aiFieldNames(item)
-          .map(disclosedFieldLabel)
-          .join(detectLocale() === 'zh' ? '、' : ', '),
-        aiPermissionConfirmed: false,
-        aiNarrative: false,
-        actionError: '',
-      });
-    },
-
-    onAiPermission(
-      event: WechatMiniprogram.SwitchChange,
-    ) {
-      this.setData({ aiPermissionConfirmed: event.detail.value });
-    },
-
-    onAiNarrative(
-      event: WechatMiniprogram.SwitchChange,
-    ) {
-      if (!this.data.selectedNarrativeAvailable) return;
-      this.setData({ aiNarrative: event.detail.value });
-    },
-
-    async onDecideAi() {
-      const item = this.data.selectedItem as PersonalContextItem | null;
-      if (!item) return;
-      const granting = item.processing_mode !== 'ai_allowed';
-      if (granting && SAFETY_CATEGORIES.has(item.payload.category)) return;
-      if (granting && !this.data.aiPermissionConfirmed) return;
-      this.setData({ working: true, actionError: '' });
-      try {
-        const result = await apiPost<PersonalContextAiConsentResponse>(
-          `/api/personal-context/${encodeURIComponent(item.id)}/ai-consent`,
-          {
-            expected_version: item.version,
-            decision: granting ? 'granted' : 'withdrawn',
-            provider: granting ? 'azure_openai' : null,
-            disclosed_fields: granting ? aiFieldNames(item) : [],
-            narrative_disclosed: granting && this.data.aiNarrative,
-            consent_text_version: AI_CONSENT_VERSION,
-            client: 'miniapp',
-          },
-          {
-            headers: {
-              'Idempotency-Key': contextIdempotencyKey(
-                granting ? 'ai-grant' : 'ai-withdraw',
-              ),
-            },
-          },
-        );
-        this.setData({
-          working: false,
-          screen: 'home',
-          sheetTitle: this.data.tr.manageTitle,
-          selectedItem: null,
-          detail: null,
-          notice: result.item.processing_mode === 'ai_allowed'
-            ? this.data.tr.aiEnabled
-            : this.data.tr.aiWithdrawn,
-        });
-        await this.refresh();
-      } catch (error) {
-        this.setData({
-          working: false,
-          actionError: apiErrorMessage(error, this.data.tr.aiFailed),
         });
       }
     },

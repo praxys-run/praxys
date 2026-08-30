@@ -679,6 +679,18 @@ def _settings_update_requests_stryd(body: SettingsUpdate) -> bool:
     return contains_stryd(body.preferences)
 
 
+def _client_visible_settings_config(
+    config: UserConfig,
+    *,
+    stryd_enabled: bool,
+) -> dict[str, Any]:
+    payload = asdict(config) if stryd_enabled else _without_stryd_config(config)
+    from api.plan_generation_capabilities import client_visible_goal
+
+    payload["goal"] = client_visible_goal(payload.get("goal"))
+    return payload
+
+
 @router.get("/settings")
 def get_settings(
     viewer_user_id: str = Depends(get_current_user_id),
@@ -733,10 +745,9 @@ def get_settings(
     )
 
     return {
-        "config": (
-            asdict(config)
-            if stryd_enabled
-            else _without_stryd_config(config)
+        "config": _client_visible_settings_config(
+            config,
+            stryd_enabled=stryd_enabled,
         ),
         "connection_statuses": _connection_statuses(
             db,
@@ -945,6 +956,26 @@ def _update_settings(
                 "target_event_date"
             )
             config.goal.pop("target_event_date", None)
+        candidate_goal = {**config.goal, **goal_update}
+        if (
+            str(candidate_goal.get("goal_kind") or "").strip().casefold()
+            == "performance_10k"
+        ):
+            from api.plan_generation_capabilities import (
+                road_10k_capability_available,
+            )
+
+            if not road_10k_capability_available():
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "GOAL_KIND_UNAVAILABLE",
+                        "message": (
+                            "The reviewed 10K performance goal is not active yet. "
+                            "Keep a race or continuous goal until this capability is activated."
+                        ),
+                    },
+                )
         config.goal.update(goal_update)
     if body.source_options is not None:
         source_options_update = dict(body.source_options)
@@ -1228,10 +1259,9 @@ def _update_settings(
             )
     return {
         "status": "ok",
-        "config": (
-            asdict(config)
-            if stryd_enabled
-            else _without_stryd_config(config)
+        "config": _client_visible_settings_config(
+            config,
+            stryd_enabled=stryd_enabled,
         ),
         "display": get_display_config(config.training_base),
         "connection_statuses": _connection_statuses(
@@ -1393,16 +1423,24 @@ def _strava_redirect_uri(request: Request) -> str:
     return str(request.url_for("strava_oauth_callback"))
 
 
-def _encode_strava_state(user_id: str, web_origin: str, return_to: str) -> str:
+def _encode_strava_state(
+    user_id: str,
+    web_origin: str,
+    return_to: str,
+    *,
+    release_context: dict[str, str] | None = None,
+) -> str:
     """Create a short-lived signed state token for the Strava OAuth callback."""
 
-    payload = {
+    payload: dict[str, Any] = {
         "sub": user_id,
         "purpose": "strava_connect",
         "web_origin": web_origin,
         "return_to": return_to,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=_STRAVA_STATE_TTL_MINUTES),
     }
+    if release_context is not None:
+        payload["release_context"] = dict(release_context)
     return jwt.encode(payload, _jwt_secret(), algorithm="HS256")
 
 
@@ -1416,6 +1454,30 @@ def _decode_strava_state(state: str) -> dict[str, Any]:
     if payload.get("purpose") != "strava_connect":
         raise HTTPException(400, "Invalid Strava OAuth state")
     return payload
+
+
+def _revalidate_strava_release_context(
+    payload: dict[str, Any],
+    web_origin: str,
+) -> None:
+    """Reject a China OAuth flow when its signed release tuple is stale."""
+
+    from api.china_client_boundary import (
+        is_cn_web_origin,
+        revalidate_china_release_context,
+    )
+
+    context = payload.get("release_context")
+    if context is None:
+        if is_cn_web_origin(web_origin):
+            raise HTTPException(400, "Invalid Strava OAuth release context")
+        return
+    try:
+        current = revalidate_china_release_context(context)
+    except ValueError as exc:
+        raise HTTPException(400, "Invalid Strava OAuth release context") from exc
+    if current["channel"] != "cn-web" or not is_cn_web_origin(web_origin):
+        raise HTTPException(400, "Invalid Strava OAuth release context")
 
 
 def _pause_garmin_delivery_for_connection_change(
@@ -1633,7 +1695,20 @@ def start_strava_oauth(
     client_id, _client_secret = _strava_client_config(user_id, db)
     web_origin = _validate_web_origin(body.web_origin or request.headers.get("origin"))
     return_to = _validate_return_to(body.return_to)
-    state = _encode_strava_state(user_id, web_origin, return_to)
+    from api.china_client_boundary import VERIFIED_CHINA_RELEASE_SCOPE_KEY
+
+    request_state = request.scope.get("state", {})
+    release_context = (
+        request_state.get(VERIFIED_CHINA_RELEASE_SCOPE_KEY)
+        if isinstance(request_state, dict)
+        else None
+    )
+    state = _encode_strava_state(
+        user_id,
+        web_origin,
+        return_to,
+        release_context=release_context,
+    )
     authorize_url = build_authorize_url(
         client_id,
         _strava_redirect_uri(request),
@@ -1657,6 +1732,7 @@ def strava_oauth_callback(
     payload = _decode_strava_state(state or "")
     web_origin = _validate_web_origin(payload.get("web_origin"))
     return_to = _validate_return_to(payload.get("return_to"))
+    _revalidate_strava_release_context(payload, web_origin)
 
     if error:
         return RedirectResponse(

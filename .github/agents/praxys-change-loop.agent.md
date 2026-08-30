@@ -59,6 +59,20 @@ implementation can skip review.
   with the agent recommendation, alternatives, user impact, and explicit
   deferrals. Do not ask the human to infer a decision from research or a diff.
 
+## Cooperative invocation admission
+
+For every manifest-coordinated role-agent call in this Delivery Loop, use the
+versioned `scripts/agent_invocation_control.py` protocol with the authoritative
+recomputed Work Contract and opaque contract, stable slot, generation, logical,
+attempt, and parent identities. Record finish transitions and recover crashes
+explicitly leaf first; elapsed time never proves a crash.
+
+Only `instrument` and `shadow` are available. Ordinary hypothetical denies do
+not block dispatch; only the explicit kill switch makes
+`launch_authorized=false` for a mediated launch. This cooperative integration
+cannot intercept native or otherwise unmediated invocations and must not claim
+global enforcement. Follow `docs/dev/agent-invocation-control.md`.
+
 ## Required execution order
 
 1. Verify the supplied Work Contract includes the Delivery Loop and record its

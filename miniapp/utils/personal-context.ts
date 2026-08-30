@@ -7,7 +7,6 @@ import type {
 } from '../types/api';
 
 export const PURPOSE_CONSENT_VERSION = 'personal-context-purpose-v1';
-export const AI_CONSENT_VERSION = 'personal-context-ai-v1';
 const ALL_CONTEXT_CATEGORIES: PersonalContextCategory[] = [
   'less_time',
   'unavailable_day',
@@ -212,27 +211,6 @@ export function hydrateContextDraft(item: PersonalContextItem): MiniContextDraft
         : '',
     narrative: item.payload.narrative ?? '',
   };
-}
-
-export function aiFieldNames(item: PersonalContextItem): string[] {
-  return [
-    'category',
-    ...Object.keys(item.payload.fields)
-      .sort()
-      .map((field) => `fields.${field}`),
-  ];
-}
-
-export function narrativeAvailable(
-  item: PersonalContextItem,
-  now = new Date(),
-): boolean {
-  return (
-    item.has_narrative
-    && item.narrative_purged_at == null
-    && item.narrative_purge_at != null
-    && new Date(item.narrative_purge_at).getTime() > now.getTime()
-  );
 }
 
 export function personalContextEvidenceIds(

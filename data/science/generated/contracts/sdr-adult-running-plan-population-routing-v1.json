@@ -1,0 +1,172 @@
+{
+  "affected_models": [
+    "Science evidence applicability and claim-limit contract",
+    "Science-only human decision sheet"
+  ],
+  "contract_digest": "sha256:f11d9483a3c43129e06c99d01282c5a34135518edf86beed93854eca094af761",
+  "decision_id": "sdr-adult-running-plan-population-routing-v1",
+  "decision_status": "accepted",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "eligibility.novice-recreational-different-evidence-family",
+    "eligibility.recent-history-anchor-without-universal-threshold",
+    "eligibility.masters-age-change-not-automatic-exclusion",
+    "population.beginner-evidence-family-not-permanent-identity",
+    "population.no-universal-beginner-schedule",
+    "population.sparse-history-not-detraining-proof",
+    "population.no-universal-returning-dose",
+    "population.masters-context-not-age-exclusion",
+    "population.masters-recovery-not-fixed-delay",
+    "population.strength-and-cross-training-bounded-support",
+    "population.sex-effects-are-construct-specific",
+    "population.no-general-sex-or-gender-plan-family"
+  ],
+  "evidence_review_ids": [
+    "evidence-plan-generation-eligibility-safety-v1",
+    "evidence-adult-running-plan-population-routing-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-adult-running-plan-population-routing-v1": "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8",
+    "evidence-plan-generation-eligibility-safety-v1": "sha256:e884907d33783edc6cdb16fd5504f7f10b6d68f968bfe7cf87e3f024b5bda773"
+  },
+  "model_version": "adult-running-plan-population-routing-v1",
+  "parameters": {
+    "adult_nonclinical_scope": {
+      "applies_to": "safety scope and historical intensity evidence",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "activity_average_power_valid_for_intensity": false,
+        "adult_nonclinical_scope_only": true,
+        "medical_or_rehabilitation_prescription_within_scope": false,
+        "pediatric_planning_within_scope": false,
+        "pregnancy_specific_prescription_within_scope": false,
+        "valid_intensity_evidence_sources": [
+          "activity_splits",
+          "activity_samples"
+        ]
+      }
+    },
+    "construct_specific_profile_evidence": {
+      "applies_to": "scientific claims involving sex, reproductive, menopause, transgender/nonbinary, or gender constructs",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "population.sex-effects-are-construct-specific",
+        "population.no-general-sex-or-gender-plan-family"
+      ],
+      "value": {
+        "constructs": [
+          "physiological_sex",
+          "reproductive_context",
+          "menopause",
+          "transgender_and_nonbinary",
+          "gender_identity"
+        ],
+        "evidence_is_construct_specific": true,
+        "general_plan_family_validated": false,
+        "universal_dose_rule_validated": false
+      }
+    },
+    "exact_values": {
+      "applies_to": "all exact values within this scientific topic",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "population.no-universal-beginner-schedule",
+        "population.no-universal-returning-dose",
+        "population.masters-recovery-not-fixed-delay",
+        "population.strength-and-cross-training-bounded-support",
+        "population.no-general-sex-or-gender-plan-family"
+      ],
+      "value": {
+        "age_based_recovery_delay": "not_accepted",
+        "age_cutoff": "not_accepted",
+        "cycling_substitution_ratio": "not_accepted",
+        "first_completion_schedule": "not_accepted",
+        "history_sufficiency_thresholds": "not_accepted",
+        "restart_dose": "not_accepted",
+        "sex_reproductive_menopause_or_gender_dose_rule": "not_accepted",
+        "strength_dose": "not_accepted"
+      }
+    },
+    "first_completion_applicability": {
+      "applies_to": "scientific applicability for novice and first-completion evidence",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.novice-recreational-different-evidence-family",
+        "population.beginner-evidence-family-not-permanent-identity",
+        "population.no-universal-beginner-schedule"
+      ],
+      "value": {
+        "novice_and_first_completion_distinct_from_history_rich_performance": true,
+        "permanent_identity_established": false,
+        "universal_schedule_established": false
+      }
+    },
+    "history_and_detraining_inference": {
+      "applies_to": "scientific inference from sparse or missing training records",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "population.sparse-history-not-detraining-proof",
+        "population.no-universal-returning-dose"
+      ],
+      "value": {
+        "detraining_evidence_establishes_universal_restart_dose": false,
+        "sparse_or_missing_records_establish_cessation": false,
+        "sparse_or_missing_records_establish_detraining": false
+      }
+    },
+    "masters_applicability": {
+      "applies_to": "scientific applicability for masters and older adults",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.masters-age-change-not-automatic-exclusion",
+        "population.masters-context-not-age-exclusion",
+        "population.masters-recovery-not-fixed-delay"
+      ],
+      "value": {
+        "age_is_relevant_context": true,
+        "fixed_age_based_recovery_delay_established": false,
+        "universal_age_cutoff_established": false,
+        "universal_age_exclusion_established": false
+      }
+    },
+    "non_science_authority_boundary": {
+      "applies_to": "authority and structured handoffs for later human-reviewed decisions",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "required_future_handoffs": {
+          "architecture": "Shared feedback-system and cross-domain contract choices.",
+          "delivery": "API, web, miniapp, plugin, MCP, rollout, activation, and all other implementation behavior.",
+          "design": "Clarification, confirmation, and other interaction behavior.",
+          "product": "Product promises, goal availability, intent policy, route semantics, outcome metrics, and pilot choices.",
+          "trust": "Profile collection, provenance, correction, deletion, retention, and privacy behavior."
+        },
+        "science_authority": [
+          "evidence_applicability",
+          "uncertainty",
+          "claim_limits",
+          "safety_scope"
+        ]
+      }
+    },
+    "strength_and_cross_training_evidence": {
+      "applies_to": "scientific claims about strength and cycling cross-training",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "population.strength-and-cross-training-bounded-support"
+      ],
+      "value": {
+        "cycling_evidence_is_bounded": true,
+        "injury_prevention_established": false,
+        "running_equivalence_established": false,
+        "strength_evidence_is_bounded": true,
+        "universal_dose_established": false
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:e0db9989e767f5f2bbc6ab858830427f60bd045e72a7cd46ed9e38a16b349bfb"
+}

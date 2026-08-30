@@ -359,11 +359,10 @@ def write_po(path: Path, entries: list[dict], tail: list[str] | None = None) -> 
 # Translation via Azure OpenAI
 # ---------------------------------------------------------------------------
 
-def _client():
-    # Delegate to the shared factory in api.llm so both translation and
-    # insight generation use the same auth scaffolding. The CLI exits hard
-    # when the client is unavailable; the insight generator returns None
-    # and the app falls back to rule-based prose.
+def _client() -> Any:
+    # Delegate to the shared factory in api.llm so translation and product AI
+    # use the same auth scaffolding. Repository translation contains no user
+    # data, so the production user-data emergency stop does not apply.
     #
     # When this script is invoked as ``python scripts/translate_missing.py``
     # (CI workflow), sys.path[0] is ``scripts/`` and ``api`` isn't
@@ -375,7 +374,7 @@ def _client():
 
     from api import llm as _llm
 
-    client = _llm.get_client()
+    client = _llm.get_automation_client()
     if client is None:
         if AzureOpenAI is None:
             print(

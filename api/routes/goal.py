@@ -22,9 +22,11 @@ from api.goal_baseline import (
     confirm_history_candidate,
     mutate_optional_test,
 )
+from api.road_10k_baseline import build_road_10k_baseline_view
 from api.packs import RequestContext, get_race_pack
 from api.plan_generation_capabilities import (
     PlanPurposeError,
+    road_10k_capability_available,
 )
 from api.views import require_admin
 from db.session import get_db
@@ -89,7 +91,20 @@ def _build_goal_payload(user_id: str, db: Session) -> dict:
     """Compute the /api/goal response from packs and baseline state."""
     ctx = RequestContext(user_id=user_id, db=db)
     race = get_race_pack(ctx)
-    baseline = build_goal_baseline_view(db, user_id=user_id)
+    raw_goal = dict(ctx.config.goal or {})
+    road_10k_goal = str(raw_goal.get("goal_kind") or "").strip() == "performance_10k"
+    if road_10k_goal and road_10k_capability_available():
+        baseline = build_road_10k_baseline_view(db, user_id=user_id)
+    else:
+        baseline = build_goal_baseline_view(
+            db,
+            user_id=user_id,
+            goal_override=(
+                _inactive_goal_fallback(raw_goal)
+                if road_10k_goal
+                else None
+            ),
+        )
     return {
         "race_countdown": race["race_countdown"],
         "cp_trend": race["cp_trend"],
@@ -101,6 +116,18 @@ def _build_goal_payload(user_id: str, db: Session) -> dict:
         "science_notes": ctx.science_notes,
         **baseline,
     }
+
+
+def _inactive_goal_fallback(raw_goal: dict[str, object]) -> dict[str, object]:
+    fallback = dict(raw_goal)
+    fallback["goal_kind"] = (
+        "race"
+        if str(
+            raw_goal.get("race_date") or raw_goal.get("target_event_date") or ""
+        ).strip()
+        else "continuous"
+    )
+    return fallback
 
 
 @router.get("/goal")

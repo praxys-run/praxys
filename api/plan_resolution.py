@@ -1398,6 +1398,18 @@ def restore_praxys_version(
         raise PlanResolutionConflict(
             "Canonical workout changed after reconciliation"
         )
+    policy_block = PlanDeliveryService(
+        db=db,
+        user_id=user_id,
+        target=target,
+        adapter_loader=adapter_loader,
+    ).preflight_delivery(plan_snapshot(canonical))
+    if policy_block is not None:
+        raise DeliveryMutationBlockedError(
+            policy_block.error_category
+            or policy_block.error
+            or "Plan delivery policy blocked restore"
+        )
     current_delivery = db.execute(
         select(PlanDelivery)
         .where(

@@ -37,6 +37,8 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
+from api.optional_processing import feedback_publication_disabled
+
 logger = logging.getLogger(__name__)
 
 _API_ROOT = "https://api.github.com"
@@ -164,8 +166,10 @@ def _bearer_token() -> str | None:
 
 
 def is_configured() -> bool:
-    """True iff a target repo and the GitHub App credentials are set."""
-    return bool(_repo() and _app_configured())
+    """Return whether external feedback publication is configured and allowed."""
+    return not feedback_publication_disabled() and bool(
+        _repo() and _app_configured()
+    )
 
 
 def _csv_env(name: str) -> list[str]:
@@ -190,6 +194,7 @@ def create_issue(
     body: str,
     labels: list[str] | None = None,
     assignees_override: list[str] | None = None,
+    publication_authorized: bool = False,
 ) -> dict | None:
     """Create a GitHub issue and return ``{"number", "url"}`` or ``None``.
 
@@ -197,6 +202,12 @@ def create_issue(
     the API call fails for any reason. Callers must treat ``None`` as
     "not published" and persist a retryable state.
     """
+    if feedback_publication_disabled() or not publication_authorized:
+        logger.info(
+            "GitHub issue creation skipped — publication disabled or unauthorized"
+        )
+        return None
+
     token, repo = _bearer_token(), _repo()
     if not token or not repo:
         logger.info("GitHub issue creation skipped — GitHub App not configured "

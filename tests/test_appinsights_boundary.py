@@ -46,10 +46,14 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert "backend-preflight" in workflow
     assert "backend-cutover" in workflow
     assert "properties.DisableLocalAuth=true" in script
+    assert "properties.DisableIpMasking=false" in script
+    assert 'readonly BACKEND_RETENTION_DAYS=30' in script
+    assert 'properties.RetentionInDays="${BACKEND_RETENTION_DAYS}"' in script
+    assert '--retention-time "${BACKEND_RETENTION_DAYS}"' in script
     assert "properties.WorkspaceResourceId" in script
     assert "enableLogAccessUsingOnlyResourcePermissions" in script
     assert "actions: read" in workflow
-    assert "Wait for compatible frontend deployment" in workflow
+    assert "Wait for frontend protected-main provenance" in workflow
     assert "deploy-frontend-appservice.yml/runs" in workflow
     assert "git merge-base --is-ancestor" in workflow
     assert "git log --first-parent" in workflow
@@ -59,7 +63,7 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert 'select(.status != "completed")' in workflow
     assert "praxys-frontend.azurewebsites.net/healthz" in workflow
     assert ".deployed_sha" in workflow
-    assert "Deployed frontend commit is not yet compatible" in workflow
+    assert "Deployed frontend provenance is not yet current" in workflow
     assert "Determine deployment mode" in workflow
     assert "sync_config:" in workflow
     assert "steps.mode.outputs.sync_config == 'true'" in workflow
@@ -79,7 +83,8 @@ def test_backend_workflow_enforces_server_only_ingestion() -> None:
     assert 'ready_status}" == "ready"' in workflow
     assert "group: deploy-backend-production" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert "github.ref_type == 'tag' || inputs.run_tests == true" in workflow
+    assert "github.ref == 'refs/heads/main' && inputs.run_tests == true" in workflow
+    assert "tags:" not in workflow
     assert (
         "needs.test.result == 'success' || "
         "needs.test.result == 'skipped'"

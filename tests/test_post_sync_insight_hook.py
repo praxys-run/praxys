@@ -34,12 +34,19 @@ def sync_setup(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     user_id = "post-sync-hook-user"
     db = db_session.SessionLocal()
     try:
-        db.add(User(id=user_id, email="hook@example.com", hashed_password="x"))
+        db.add(User(
+            id=user_id,
+            email="hook@example.com",
+            hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+        ))
         db.commit()
     finally:
         db.close()
