@@ -22,6 +22,9 @@ def account_client(monkeypatch):
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", raising=False)
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", raising=False)
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL", raising=False)
 
     from db import session as db_session
 
@@ -121,6 +124,10 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         McpAccessHandoff,
         McpAccessToken,
         Outdoor5KPlanGeneration,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
+        Road10KPlanGeneration,
+        Road10KTrainingPatternSnapshot,
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanProposal,
@@ -132,6 +139,7 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         PersonalContextItem,
         PersonalContextUseReceipt,
         RecoveryData,
+        TermsAcceptanceReceipt,
         TrainingPlan,
         User,
         UserConfig,
@@ -150,6 +158,15 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
         )
         demo = User(id="demo-user", email="demo@example.test", hashed_password="x", is_demo=True, demo_of=user_id)
         db.add_all([admin, user, demo])
+        db.add(
+            TermsAcceptanceReceipt(
+                user_id=user_id,
+                terms_version="2026.08.3",
+                terms_digest="sha256:" + ("1" * 64),
+                locale="en",
+                channel="web",
+            )
+        )
         db.add(UserConfig(user_id=user_id, display_name="Delete Me"))
         db.add(UserConnection(user_id=user_id, platform="garmin", encrypted_credentials=b"secret"))
         db.add(Activity(user_id=user_id, activity_id="a1", date=date(2026, 6, 1)))
@@ -235,6 +252,97 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
             constraint_snapshot={"available_weekdays": [0, 2, 5]},
             derived_history_statistics={"usable_completed_weeks": 3},
             validation_results={"code": "ready"},
+        ))
+        db.add(Road10KBaselineConfirmation(
+            id="road-10k-baseline-confirmation",
+            lineage_id="road-10k-baseline-confirmation-lineage",
+            user_id=user_id,
+            goal_signature="road-10k-goal-signature",
+            goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+            version=1,
+            activity_id="a1",
+            response="race",
+            measured_10k=True,
+            elapsed_timing_confirmed=True,
+            completed_at=datetime(2026, 6, 1, 8, 42),
+            elapsed_time_sec=2_520,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="delete-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
+            request_fingerprint="5" * 64,
+        ))
+        db.add(Road10KBaselineSnapshot(
+            id="road-10k-baseline-snapshot",
+            lineage_id="road-10k-baseline-snapshot-lineage",
+            user_id=user_id,
+            goal_signature="road-10k-goal-signature",
+            goal_snapshot={"goal_kind": "performance_10k", "distance": "10k"},
+            version=1,
+            source_kind="history_confirmation",
+            source_id="a1",
+            provenance="race",
+            observed_date=date(2026, 6, 1),
+            completed_at=datetime(2026, 6, 1, 8, 42),
+            distance_km=10.0,
+            elapsed_time_sec=2_520,
+            measured_10k=True,
+            elapsed_timing_confirmed=True,
+            surface_or_protocol="organized_outdoor_road_10k_race",
+            route_or_venue_identifier="delete-road-10k-race",
+            assistance_status="unassisted",
+            source_provider="garmin",
+            qualification_status="direct_current",
+            change_comparability="not_assessed",
+            invalidators=[],
+        ))
+        db.add(Road10KTrainingPatternSnapshot(
+            user_id=user_id,
+            version=f"v1:{'a' * 64}",
+            schema_version="road-10k-training-pattern-v1",
+            policy_version="road-10k-plan-generation-policy-v2",
+            usable_completed_weeks=8,
+            recent_modal_running_frequency=3,
+            recent_median_usable_weekly_minutes=180,
+            recent_maximum_usable_weekly_minutes=190,
+            recent_maximum_session_minutes=70,
+            recent_maximum_session_distance_km=12.0,
+            latest_run_date=date(2026, 6, 1),
+            history_observation_count=24,
+            history_provenance_fingerprint="b" * 64,
+            intensity_observation_count=24,
+            intensity_provenance_fingerprint="c" * 64,
+            reserved_date_count=0,
+            reservation_fingerprint="d" * 64,
+            canonical_fingerprint="a" * 64,
+        ))
+        db.add(Road10KPlanGeneration(
+            id="road-10k-delete-generation",
+            user_id=user_id,
+            proposal_id="delete-proposal",
+            capability_id="outdoor_road_10k_performance_v1",
+            policy_version="road-10k-plan-generation-policy-v2",
+            generator_version="road-10k-deterministic-generator-v1",
+            science_decision_id="sdr-road-10k-plan-generation-policy-v2",
+            source_decision_digest="5" * 71,
+            contract_digest="6" * 71,
+            baseline_snapshot_id="road-10k-baseline-snapshot",
+            baseline_source="race",
+            source_goal_id=None,
+            source_goal_revision=None,
+            history_cutoff_completed_days=56,
+            training_pattern_snapshot_version=f"v1:{'a' * 64}",
+            event_context_snapshot_version="road-10k-event-context-v1",
+            active_zone_model_id=None,
+            active_zone_model_version=None,
+            normalized_constraints={"available_weekdays": [0, 2, 5]},
+            selected_template_ids=["road-10k-controlled-threshold-quality-v1"],
+            source_revision="7" * 64,
+            deterministic_input_hash="8" * 64,
+            request_kind="generate",
+            request_fingerprint="9" * 64,
+            result_code="eligible_rolling_proposal",
+            validation_reason_code=None,
         ))
         db.add(GoalBaselineConfirmation(
             id="baseline-confirmation",
@@ -591,6 +699,10 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         McpAccessHandoff,
         McpAccessToken,
         Outdoor5KPlanGeneration,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
+        Road10KPlanGeneration,
+        Road10KTrainingPatternSnapshot,
         PlanDelivery,
         PlanDeliveryAttempt,
         PlanProposal,
@@ -602,6 +714,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         PersonalContextItem,
         PersonalContextUseReceipt,
         RecoveryData,
+        TermsAcceptanceReceipt,
         TrainingPlan,
         User,
         UserConfig,
@@ -623,6 +736,10 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             Feedback,
             FitnessData,
             Outdoor5KPlanGeneration,
+            Road10KBaselineConfirmation,
+            Road10KBaselineSnapshot,
+            Road10KPlanGeneration,
+            Road10KTrainingPatternSnapshot,
             PlanProposal,
             AdaptivePlan,
             AdaptivePlanGoalSnapshot,
@@ -641,6 +758,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
             PersonalContextItem,
             PersonalContextUseReceipt,
             RecoveryData,
+            TermsAcceptanceReceipt,
             TrainingPlan,
             UserConfig,
             UserConnection,
@@ -700,6 +818,232 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         ("delete-me", "delete_owner_context", "completed"),
         ("demo-user", "delete_owner_context", "completed"),
     }
+
+
+def test_account_deletion_deletes_only_scoped_feedback_images(
+    account_client, monkeypatch
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import feedback_storage
+    from db.models import Feedback, User
+
+    with db_session.SessionLocal() as db:
+        owner_feedback = db.query(Feedback).filter(
+            Feedback.user_id == "delete-me"
+        ).one()
+        demo_feedback = Feedback(
+            user_id="demo-user",
+            kind="bug",
+            message="demo screenshot",
+            status="new",
+        )
+        outsider = User(
+            id="other-user",
+            email="other@example.test",
+            hashed_password="x",
+        )
+        outsider_feedback = Feedback(
+            user_id=outsider.id,
+            kind="bug",
+            message="unrelated screenshot",
+            status="new",
+        )
+        db.add_all([demo_feedback, outsider, outsider_feedback])
+        db.flush()
+        owner_feedback.image_keys = [
+            f"feedback/{owner_feedback.id}/0.png"
+        ]
+        demo_feedback.image_keys = [f"feedback/{demo_feedback.id}/0.png"]
+        outsider_feedback.image_keys = [
+            f"feedback/{outsider_feedback.id}/0.png"
+        ]
+        scoped = {
+            (owner_feedback.image_keys[0], owner_feedback.id),
+            (demo_feedback.image_keys[0], demo_feedback.id),
+        }
+        outsider_feedback_id = outsider_feedback.id
+        db.commit()
+
+    deleted: list[tuple[str, int]] = []
+
+    def _delete_image(key: str, *, feedback_id: int) -> None:
+        deleted.append((key, feedback_id))
+
+    monkeypatch.setattr(feedback_storage, "delete_image", _delete_image)
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    assert set(deleted) == scoped
+    with db_session.SessionLocal() as db:
+        remaining = db.get(Feedback, outsider_feedback_id)
+        assert remaining is not None
+        assert remaining.user_id == "other-user"
+        assert remaining.image_keys == [
+            f"feedback/{outsider_feedback_id}/0.png"
+        ]
+
+
+def test_account_deletion_storage_failure_is_visible_and_preserves_locators(
+    account_client, monkeypatch
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import feedback_storage
+    from db.models import Feedback, User
+
+    with db_session.SessionLocal() as db:
+        row = db.query(Feedback).filter(Feedback.user_id == "delete-me").one()
+        row.image_keys = [f"feedback/{row.id}/0.png"]
+        feedback_id = row.id
+        image_keys = list(row.image_keys)
+        db.commit()
+
+    monkeypatch.setattr(
+        feedback_storage,
+        "delete_image",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            feedback_storage.FeedbackStorageDeletionError("unavailable")
+        ),
+    )
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "ACCOUNT_DELETE_STORAGE_UNAVAILABLE"
+    with db_session.SessionLocal() as db:
+        users = db.query(User).filter(
+            User.id.in_(["delete-me", "demo-user"])
+        ).all()
+        assert {user.id for user in users} == {"delete-me", "demo-user"}
+        assert all(user.is_active is False for user in users)
+        row = db.get(Feedback, feedback_id)
+        assert row is not None
+        assert row.image_keys == image_keys
+
+
+def test_feedback_submission_serializes_with_account_deletion(
+    account_client, monkeypatch
+):
+    _client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    import threading
+
+    from fastapi import BackgroundTasks
+
+    from api import account_deletion, feedback_storage
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback, User
+
+    store_started = threading.Event()
+    release_store = threading.Event()
+    deletion_started = threading.Event()
+    deletion_finished = threading.Event()
+    deleted: list[tuple[str, int]] = []
+    results: dict[str, object] = {}
+    errors: list[Exception] = []
+
+    def _store_image(
+        _data: bytes,
+        *,
+        feedback_id: int,
+        index: int,
+    ) -> str:
+        with db_session.SessionLocal() as observer:
+            persisted = observer.get(Feedback, feedback_id)
+            assert persisted is not None
+            assert persisted.image_keys == [
+                f"feedback/{feedback_id}/{index}.png"
+            ]
+        store_started.set()
+        assert release_store.wait(3)
+        return f"feedback/{feedback_id}/{index}.png"
+
+    def _delete_image(key: str, *, feedback_id: int) -> None:
+        deleted.append((key, feedback_id))
+
+    original_guard = account_deletion.begin_active_admin_guard
+
+    def _observed_guard(db) -> None:
+        deletion_started.set()
+        original_guard(db)
+
+    monkeypatch.setattr(feedback_storage, "store_image", _store_image)
+    monkeypatch.setattr(feedback_storage, "delete_image", _delete_image)
+    monkeypatch.setattr(
+        account_deletion,
+        "begin_active_admin_guard",
+        _observed_guard,
+    )
+    monkeypatch.setattr(
+        account_deletion,
+        "_clear_tokenstore",
+        lambda _user_id: None,
+    )
+    monkeypatch.setattr(
+        account_deletion,
+        "_clear_legacy_plan_status",
+        lambda _db, _user_id: None,
+    )
+
+    def _submit() -> None:
+        try:
+            with db_session.SessionLocal() as db:
+                results["submit"] = submit_feedback(
+                    FeedbackRequest(
+                        kind="bug",
+                        message="concurrent screenshot",
+                        images=[
+                            "data:image/png;base64,"
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+                            "CAQAAAC1HAwCAAAAC0lEQVR42mNk+A8A"
+                            "AtsB9Wl2nGQAAAAASUVORK5CYII="
+                        ],
+                    ),
+                    background_tasks=BackgroundTasks(),
+                    user_id="delete-me",
+                    db=db,
+                )
+        except Exception as exc:
+            errors.append(exc)
+
+    def _delete() -> None:
+        try:
+            with db_session.SessionLocal() as db:
+                results["delete"] = account_deletion.delete_user_account(
+                    db,
+                    "delete-me",
+                )
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            deletion_finished.set()
+
+    submit_thread = threading.Thread(target=_submit)
+    delete_thread = threading.Thread(target=_delete)
+    submit_thread.start()
+    assert store_started.wait(3)
+    delete_thread.start()
+    assert deletion_started.wait(3)
+    assert not deletion_finished.wait(0.2)
+
+    release_store.set()
+    submit_thread.join(5)
+    delete_thread.join(5)
+
+    assert not submit_thread.is_alive()
+    assert not delete_thread.is_alive()
+    assert errors == []
+    submitted = results["submit"]
+    feedback_id = submitted["id"]
+    assert deleted == [(f"feedback/{feedback_id}/0.png", feedback_id)]
+    with db_session.SessionLocal() as db:
+        assert db.get(User, "delete-me") is None
+        assert db.get(Feedback, feedback_id) is None
 
 
 def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):

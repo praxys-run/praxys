@@ -6,11 +6,11 @@ site costs $0 incremental — App Service Plans support up to 10 sites.
 
 Why a separate site instead of mounting StaticFiles inside ``api/main.py``:
 
-- The frontend artifact (`web/dist/`) becomes cloud-portable. The same
-  build can later sit on Tencent COS (CN audience, post-ICP) without any
-  Azure-specific glue. Backend stays singular at ``api.praxys.run``;
-  CN frontend → Tencent CDN, OS frontend → Azure App Service. DNS
-  GeoDNS at DnsPod handles the split.
+- The frontend artifact (`web/dist/`) stays cloud-portable. CI keeps the
+  filing-free build on this Azure origin (the gated Cloudflare target for
+  ``praxys.run``), while EdgeOne's gated Git integration runs the checked-in
+  regional build for ``praxys.cn``. The backend remains singular at
+  ``api.praxys.run``.
 - API and frontend deploys decouple. Frontend deploys are now a few
   hundred kilobytes of static files (and a 30-line FastAPI shim), seconds
   to ship. Backend deploys keep their full Python deps + tests.

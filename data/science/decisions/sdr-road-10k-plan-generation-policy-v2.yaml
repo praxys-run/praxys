@@ -1,0 +1,1044 @@
+schema_version: 1
+id: sdr-road-10k-plan-generation-policy-v2
+version: 2
+title: "Generator-ready adult outdoor road 10 km performance policy"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-08-18
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: road-10k-plan-generation-policy-v2
+evidence_review_ids:
+  - evidence-plan-generation-eligibility-safety-v1
+  - evidence-adult-running-plan-population-routing-v1
+  - evidence-road-10k-plan-generation-policy-v1
+evidence_claim_ids:
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.masters-age-change-not-automatic-exclusion
+  - eligibility.current-symptoms-support-stop-not-clearance
+  - eligibility.evidence-quality-no-personal-probability
+  - population.sparse-history-not-detraining-proof
+  - population.masters-context-not-age-exclusion
+  - population.sex-effects-are-construct-specific
+  - population.no-general-sex-or-gender-plan-family
+  - road-10k-plan.task-specific-capability-not-single-marker
+  - road-10k-plan.mostly-low-intensity-no-universal-winner
+  - road-10k-plan.one-to-two-quality-sessions-indirect
+  - road-10k-plan.volume-frequency-associated-not-prescriptive
+  - road-10k-plan.fixed-progression-not-safety-law
+  - road-10k-plan.taper-volume-reduction-supported
+  - road-10k-baseline.same-distance-direct-capability
+  - road-10k-baseline.freshness-cutoff-not-validated
+  - road-10k-plan.individual-outcomes-require-error-aware-validation
+  - road-10k-plan.symptom-based-test-stop-boundary
+accepted_interpretation: >
+  If accepted by a digest-bound human decision approver, this SDR would
+  supersede the accepted but generator-incomplete V1 boundary with one
+  inactive, generator-ready policy for adult outdoor-road 10 km performance
+  intent. The supported pattern remains currently capable, history-rich,
+  within-recent load, and free of current symptom-stop inputs. A deterministic
+  proposal would commit fourteen athlete-local calendar days, present an
+  advisory reassessment after seven completed days, and require explicit
+  adoption before any successor replaces future adopted days. The initial
+  schedule would use one quality session in each seven-day unit, never exceed
+  recent typical load or athlete-stated constraints, preserve at least
+  seventy-five percent low-intensity running minutes, and use only the two
+  versioned 10 km quality templates defined here. Confirmed-none and
+  single-target event states could receive a full proposal; race-dense,
+  unsupported, stale, missing, contradictory, or symptom-stop states would
+  fail closed to typed readiness, clarification, limited-guidance, or
+  unavailable outcomes. The fourteen-day window, seven-day advisory cadence,
+  one-quality choice, exact template steps, allocation rules, and pilot
+  thresholds are transparent Praxys product guardrails, not published optima.
+  This decision would not implement or activate a generator, adopt or deliver
+  a plan, schedule a benchmark automatically, create a personal probability,
+  or authorize first-completion, return-to-consistency, sparse-history,
+  clinical, trail, marathon, or ultra planning.
+decision_review:
+  reviewer_task: >
+    Review the six proposed inactive policy decisions and the two explicit
+    deferrals below. Approve the decision sheet as a unit or request changes
+    by item ID. The exact contract is included in the audit appendix. This
+    review does not approve implementation or runtime activation.
+  approval_statement: >
+    I approve this inactive road 10 km performance policy as one bounded
+    generator contract: the history-rich adult outdoor-road scope and typed
+    readiness inputs; a fourteen-day committed proposal with a seven-day
+    advisory reassessment and explicit successor adoption; one quality session
+    per seven-day unit using the exact versioned 10 km templates; confirmed-none
+    and single-target event handling with a bounded taper and race-dense
+    limited guidance; the stated claim, demographic, consent, AI, privacy, and
+    audit limits; and the predeclared runtime evaluation gates. I agree that
+    broader dose, race-density, population, targeting, automation, and
+    activation choices remain deferred. I understand that every exact schedule
+    and template value is a Praxys guardrail rather than a published optimum,
+    and that this approval does not implement or activate behavior.
+  items:
+    - id: supported-capability
+      title: Accept the exact supported capability and readiness contract
+      disposition: approve
+      question: >
+        Should V2 remain limited to the stated adult, currently capable,
+        history-rich outdoor-road 10 km performance tuple and require the
+        listed direct baseline, recent history, event, symptom, and constraint
+        inputs?
+      proposed_decision: >
+        Accept that exact tuple and its fail-closed input contract. Preserve
+        every valid Goal when the policy does not match, and never manufacture
+        eligibility from predictions, sparse records, another distance, a
+        permanent runner label, or missing demographic context.
+      approval_effect:
+        - The exact 10 km performance capability tuple becomes an accepted inactive decision input.
+        - Missing, stale, contradictory, unsupported, and symptom-stop states remain typed non-success outcomes.
+        - The predecessor and shared policy dependencies remain explicit.
+      does_not_authorize:
+        - Any generator implementation, registry activation, plan adoption, or provider delivery.
+        - First-completion, return-to-consistency, sparse-history, other-surface, or clinical planning.
+      parameter_names:
+        - road_10k_v2_activation_and_dependencies
+        - road_10k_v2_capability_tuple
+        - road_10k_v2_required_inputs
+        - road_10k_v2_readiness_and_missingness
+      evidence_claim_ids:
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - eligibility.goal-relevant-current-capability-task-specific
+        - eligibility.current-symptoms-support-stop-not-clearance
+        - population.sparse-history-not-detraining-proof
+        - road-10k-baseline.same-distance-direct-capability
+        - road-10k-baseline.freshness-cutoff-not-validated
+    - id: rolling-execution
+      title: Accept the fourteen-day rolling execution contract
+      disposition: approve
+      question: >
+        Should the first generator commit fourteen days, show an advisory
+        reassessment after seven completed days, and require explicit adoption
+        before a successor changes future adopted days?
+      proposed_decision: >
+        Accept fourteen days as the minimum valuable reversible product window
+        and seven days as an advisory review cadence. Treat both as
+        operational guardrails rather than physiological claims.
+      approval_effect:
+        - Dated and undated goals may receive a bounded rolling proposal.
+        - Material changes can produce a successor candidate without silently overwriting adopted days.
+      does_not_authorize:
+        - Automatic progression, automatic successor adoption, or a claim that fourteen or seven days is biologically optimal.
+      parameter_names:
+        - road_10k_v2_execution_window_and_reassessment
+      evidence_claim_ids:
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - road-10k-plan.volume-frequency-associated-not-prescriptive
+        - road-10k-plan.individual-outcomes-require-error-aware-validation
+    - id: deterministic-schedule
+      title: Accept the initial deterministic schedule and templates
+      disposition: approve
+      question: >
+        Should V2 use one quality session in each seven-day unit, history-capped
+        easy running, at least seventy-five percent low-intensity minutes, and
+        the exact two versioned 10 km quality templates?
+      proposed_decision: >
+        Accept the simplest useful schedule: one quality session per week,
+        alternating threshold and 10 km interval templates across a normal
+        fourteen-day proposal, with all duration and load bounded by recent
+        completed history and athlete-stated constraints.
+      approval_effect:
+        - A future deterministic generator has complete schedule, allocation, intensity, spacing, and template inputs.
+        - Exact template IDs and steps become reviewable guardrails with deterministic replay.
+      does_not_authorize:
+        - Describing the templates as evidence-backed optima.
+        - Copying 5 km templates, adding a second planned quality session, or exceeding history and constraint caps.
+      parameter_names:
+        - road_10k_v2_schedule_construction
+        - road_10k_v2_workout_templates
+        - road_10k_v2_intensity_quality_and_spacing
+      evidence_claim_ids:
+        - road-10k-plan.task-specific-capability-not-single-marker
+        - road-10k-plan.mostly-low-intensity-no-universal-winner
+        - road-10k-plan.one-to-two-quality-sessions-indirect
+        - road-10k-plan.volume-frequency-associated-not-prescriptive
+        - road-10k-plan.fixed-progression-not-safety-law
+    - id: event-and-taper
+      title: Accept bounded event, benchmark, and taper routing
+      disposition: approve
+      question: >
+        Should full proposals remain limited to confirmed-none and
+        single-target event states, use the accepted indirect taper range for a
+        confirmed primary event eight to fourteen days away, and return
+        limited guidance for race-dense or shorter-horizon cases?
+      proposed_decision: >
+        Accept that boundary. Never auto-schedule a benchmark, treat every race
+        or maximal effort as quality and load, and stop the generated schedule
+        before the event.
+      approval_effect:
+        - Undated goals can roll without a forced benchmark.
+        - A confirmed primary event may receive one deterministic taper path.
+        - Race-dense and very short horizons remain fail-closed.
+      does_not_authorize:
+        - Automatic event confirmation or priority, race-dense optimization, or a promised taper benefit.
+      parameter_names:
+        - road_10k_v2_event_benchmark_and_taper
+      evidence_claim_ids:
+        - road-10k-plan.taper-volume-reduction-supported
+        - road-10k-baseline.same-distance-direct-capability
+        - road-10k-plan.one-to-two-quality-sessions-indirect
+    - id: hard-boundaries
+      title: Accept honest outcomes and hard control boundaries
+      disposition: approve
+      question: >
+        Should the generator preserve typed non-success outcomes, avoid
+        demographic modifiers and personal probabilities, require explicit
+        adoption, constrain AI to explanation, and record only minimized
+        replay and audit data?
+      proposed_decision: >
+        Accept those boundaries. Unknown age beyond adult confirmation, sex,
+        gender, reproductive context, symptoms, events, and constraints may
+        not be defaulted or inferred into eligibility or dose.
+      approval_effect:
+        - Runtime outcomes remain honest and deterministic.
+        - Consent, privacy, missingness, and AI authority remain bounded.
+      does_not_authorize:
+        - Medical inference, sensitive-trait inference, personal success or injury probability, auto-adoption, or content logging.
+      parameter_names:
+        - road_10k_v2_typed_outcomes
+        - road_10k_v2_demographic_and_claim_limits
+        - road_10k_v2_consent_ai_and_state
+        - road_10k_v2_privacy_and_audit
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - eligibility.masters-age-change-not-automatic-exclusion
+        - population.masters-context-not-age-exclusion
+        - population.sex-effects-are-construct-specific
+        - population.no-general-sex-or-gender-plan-family
+        - road-10k-plan.individual-outcomes-require-error-aware-validation
+        - road-10k-plan.symptom-based-test-stop-boundary
+    - id: evaluation-gates
+      title: Accept the predeclared runtime evaluation gates
+      disposition: approve
+      question: >
+        Should dry-run and opt-in rollout pause or revisit the policy when the
+        stated deterministic, exclusion, edit, taper, subgroup, symptom,
+        benchmark, or serious-event thresholds are crossed?
+      proposed_decision: >
+        Accept the thresholds as reversible pilot decision rules. They do not
+        establish efficacy or medical safety.
+      approval_effect:
+        - Runtime learning has explicit pause and revision triggers before activation.
+        - Cross-capability learning can be compared without success-shaped interpretation.
+      does_not_authorize:
+        - A claim that the policy improves performance, prevents injury, or is safe for an individual.
+      parameter_names:
+        - road_10k_v2_runtime_evaluation
+      evidence_claim_ids:
+        - eligibility.evidence-quality-no-personal-probability
+        - road-10k-plan.individual-outcomes-require-error-aware-validation
+    - id: broader-capabilities
+      title: Defer broader dose, population, and automation choices
+      disposition: defer
+      question: >
+        Should two-quality weeks, progression, mandatory long runs, race-dense
+        optimization, other populations, exact power or pace targets,
+        automatic benchmarks, personal probabilities, and AI planning authority
+        remain unaccepted?
+      proposed_decision: >
+        Yes. Keep every listed capability explicitly not accepted until its own
+        evidence, Product rationale, science decision, and review are complete.
+      approval_effect:
+        - The contract exposes rather than hides every deferred capability.
+        - Implementation cannot infer a deferred value from V1, 5 km behavior, prose, or AI output.
+      does_not_authorize:
+        - Any deferred capability or fallback policy.
+      parameter_names:
+        - road_10k_v2_deferred_scope
+      evidence_claim_ids:
+        - road-10k-plan.one-to-two-quality-sessions-indirect
+        - road-10k-plan.volume-frequency-associated-not-prescriptive
+        - road-10k-plan.fixed-progression-not-safety-law
+        - road-10k-plan.individual-outcomes-require-error-aware-validation
+    - id: implementation-and-activation
+      title: Defer implementation and runtime activation
+      disposition: defer
+      question: >
+        Should generator code, API and client behavior, capability
+        registration, rollout, adoption, and delivery remain outside this
+        science approval?
+      proposed_decision: >
+        Yes. Keep the generated contract inactive. Require separate
+        implementation review bound to the exact code diff and validation
+        evidence before any activation.
+      approval_effect:
+        - Science acceptance remains separate from implementation and activation.
+      does_not_authorize:
+        - Code changes, runtime availability, plan adoption, provider delivery, or publication.
+      parameter_names:
+        - road_10k_v2_implementation_and_activation
+      evidence_claim_ids: []
+rejected_alternatives:
+  - alternative: "Implement directly from the accepted V1 boundary"
+    rationale: >
+      V1 deliberately leaves the execution window and exact workout templates
+      unresolved. Delivery may not fill those values from convention or code.
+  - alternative: "Commit only seven days"
+    rationale: >
+      Seven days is highly reversible but does not provide the smallest
+      complete two-unit 10 km experience and would create unnecessary review
+      and adoption churn. No source establishes it as biologically superior.
+  - alternative: "Copy the 5 km twenty-eight-day block and templates"
+    rationale: >
+      The 5 km horizon, history, session, and exact template guardrails are
+      distance-specific and cannot authorize a 10 km policy.
+  - alternative: "Use up to two planned quality sessions whenever history permits"
+    rationale: >
+      Two is an indirect ceiling, not a requirement. The first capability
+      chooses one planned quality session per week to reduce complexity and
+      event-conflict risk while runtime evidence is absent.
+  - alternative: "Generate a full plan for race-dense calendars"
+    rationale: >
+      No accepted event-priority, taper, and recovery algorithm resolves
+      multiple material events without guessing athlete intent.
+  - alternative: "Use target-time gap, age, sex, or permanent runner level to select dose"
+    rationale: >
+      The evidence does not validate personal dose escalation or a general
+      demographic or identity-based plan family.
+  - alternative: "Let AI choose missing schedules or templates"
+    rationale: >
+      AI cannot create evidence, confirm context, choose deferred product
+      values, weaken deterministic validation, approve, adopt, or activate a
+      plan.
+model_parameters:
+  - name: road_10k_v2_activation_and_dependencies
+    classification: guardrail
+    value:
+      active_behavior: false
+      predecessor_decision:
+        sdr_id: sdr-road-10k-plan-generation-policy-v1
+        required_status_before_v2_acceptance: accepted
+        proposed_lifecycle_after_v2_acceptance: superseded
+      shared_dependencies:
+        - sdr_id: sdr-plan-generation-eligibility-safety-v1
+          required_status: accepted
+        - sdr_id: sdr-adult-running-plan-population-routing-v1
+          required_status: accepted
+      linked_evidence_required_status: accepted
+      decision_approval_artifact_required: true
+      implementation_approval_artifact_required_before_activation: true
+      capability_registry_entry_default_enabled: false
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      V2 is a proposed successor contract, not runtime authority. Acceptance,
+      implementation review, capability registration, and rollout are separate
+      gates.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_capability_tuple
+    classification: guardrail
+    value:
+      capability_id: outdoor_road_10k_performance_v1
+      discipline: running
+      activity_types:
+        - running
+      goal_kinds:
+        - performance_10k
+      plan_intent: performance
+      distance: 10k
+      distance_m: 10000
+      surface: outdoor_road
+      primary_outcome: elapsed_time
+      target_time_optional: true
+      target_date_optional: true
+      supported_purpose_sources:
+        - current_goal
+        - capability
+      unlinked_purpose_supported: false
+      adult_scope: confirmed
+      capability_pattern: currently_capable
+      history_pattern: stable
+      load_pattern: within_recent
+      current_symptoms: absent
+      supported_event_states:
+        - confirmed_none
+        - single_target
+      race_dense_full_proposal_supported: false
+      permanent_runner_identity_used: false
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - road-10k-plan.task-specific-capability-not-single-marker
+    rationale: >
+      The tuple matches one evidence and Product slice rather than distance
+      alone. A valid Goal remains recorded when the tuple does not match.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_required_inputs
+    classification: guardrail
+    value:
+      constraint_schema_id: outdoor_road_10k_constraints_v1
+      required_versioned_inputs:
+        - policy_version
+        - science_decision_id
+        - contract_digest
+        - generator_version
+        - athlete_local_today
+        - proposal_start_date
+        - plan_purpose_source
+        - source_goal_id_and_revision_when_current_goal
+        - normalized_goal
+        - adult_scope_confirmation
+        - current_symptom_stop_state
+        - direct_10k_baseline_snapshot
+        - recent_completed_running_history
+        - current_training_pattern_snapshot
+        - confirmed_event_context_snapshot
+        - available_running_weekdays
+        - athlete_stated_weekly_time_limit
+        - athlete_stated_single_session_time_limit
+        - unavailable_dates
+        - preferred_longest_easy_weekday_if_any
+      conditional_versioned_inputs:
+        - active_athlete_zone_model_id_and_version
+      direct_baseline_required_metadata:
+        - completed_at
+        - elapsed_time_seconds
+        - distance_m
+        - surface_or_protocol
+        - route_or_venue_identifier
+        - intentional_all_out_or_race_flag
+        - assistance_status
+        - source_provider
+      recent_history_lookback_completed_weeks: 8
+      minimum_usable_completed_weeks: 4
+      minimum_runs_per_usable_week: 3
+      latest_run_within_completed_days: 10
+      historical_intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      prohibited_historical_intensity_source:
+        - activity_avg_power
+      free_text_narrative_required: false
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - road-10k-baseline.same-distance-direct-capability
+      - road-10k-plan.volume-frequency-associated-not-prescriptive
+    rationale: >
+      These fields make the accepted history-rich pattern replayable while
+      minimizing private context. Exact history counts remain product
+      guardrails rather than published eligibility thresholds.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_readiness_and_missingness
+    classification: guardrail
+    value:
+      accepted_direct_baseline_order:
+        - organized_outdoor_road_10k_race_with_elapsed_time
+        - explicit_all_out_standardized_outdoor_road_or_track_10k_time_trial
+      excluded_as_direct_baseline:
+        - five_k_result_or_conversion
+        - race_prediction
+        - passive_fastest_10k_split
+        - threshold_or_lactate_speed_alone
+        - critical_power_or_critical_velocity_alone
+        - activity_average_power
+        - vendor_readiness_or_race_score
+      baseline_current_through_completed_days: 56
+      baseline_stale_from_completed_days: 57
+      missing_or_stale_baseline_result: readiness_only
+      optional_baseline_test:
+        automatic_scheduling: false
+        explicit_athlete_choice_required: true
+        shared_safety_eligibility_required: true
+        no_test_alternative: remain_readiness_only
+      sparse_or_missing_records_establish_detraining: false
+      missing_or_stale_history_result: readiness_only
+      adult_scope_unconfirmed_result: clarification_required
+      current_symptom_stop_result: safety_stop
+      unsupported_distance_surface_or_intent_result: policy_unavailable
+      contradictory_constraints_result: clarification_required
+    evidence_claim_ids:
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - population.sparse-history-not-detraining-proof
+      - road-10k-baseline.same-distance-direct-capability
+      - road-10k-baseline.freshness-cutoff-not-validated
+      - road-10k-plan.symptom-based-test-stop-boundary
+    rationale: >
+      Same-distance evidence is most direct, but the freshness boundary and
+      optional test workflow are explicit reversible guardrails. Missingness
+      cannot be reinterpreted as detraining or eligibility.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_execution_window_and_reassessment
+    classification: guardrail
+    value:
+      calendar_schedule_unit_days: 7
+      committed_proposal_days: 14
+      advisory_reassessment_after_completed_days: 7
+      proposal_end_inclusive: true
+      fixed_goal_horizon_required: false
+      dated_goal_planning_horizon: through_confirmed_primary_event
+      undated_goal_planning_horizon: rolling_until_athlete_changes_or_ends_goal
+      successor_candidate_triggers:
+        - seven_completed_days
+        - new_or_changed_confirmed_event
+        - material_training_pattern_change
+        - new_qualified_10k_baseline
+        - changed_availability_or_constraint
+        - athlete_requested_review
+      each_successor_requires:
+        - fresh_eligibility_evaluation
+        - updated_completed_history
+        - updated_event_context
+        - updated_training_pattern_snapshot
+        - explicit_review_and_adoption
+      automatic_successor_adoption: false
+      automatic_overwrite_of_adopted_future_days: false
+      no_automatic_progression_between_reassessments: true
+      biological_optimum_claim: false
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - road-10k-plan.volume-frequency-associated-not-prescriptive
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      No reviewed source validates an exact execution window. Fourteen days is
+      the Product-selected minimum complete two-unit experience; seven days is
+      an advisory review point. Both remain falsifiable workflow guardrails.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_schedule_construction
+    classification: guardrail
+    value:
+      selected_running_days_per_7_day_unit:
+        minimum: 3
+        maximum: 6
+        deterministic_value: minimum_of_available_days_recent_modal_days_and_policy_maximum
+      below_minimum_result: readiness_only
+      requested_above_maximum_result: clarification_required
+      weekly_running_minutes_target: minimum_of_recent_median_usable_weekly_minutes_and_athlete_stated_weekly_limit
+      weekly_running_minutes_hard_cap: minimum_of_recent_maximum_usable_weekly_minutes_and_athlete_stated_weekly_limit
+      non_taper_progression_above_recent_median: false
+      target_time_gap_may_raise_load: false
+      session_duration_hard_cap: minimum_of_recent_maximum_completed_session_minutes_and_athlete_stated_session_limit
+      session_distance_hard_cap: recent_maximum_completed_session_distance
+      quality_sessions_per_7_day_unit: 1
+      normal_two_unit_quality_order:
+        first_unit: controlled_threshold_quality
+        second_unit: ten_k_specific_interval_quality
+      event_or_benchmark_replaces_planned_quality_in_same_unit: true
+      easy_and_longest_easy_allocation:
+        quality_template_minutes_are_allocated_first: true
+        remaining_minutes_distributed_evenly_across_non_quality_runs: true
+        integer_remainder_priority:
+          - preferred_longest_easy_day
+          - chronological_day_order
+        longest_easy_designation_optional: true
+        automatic_longest_easy_increase: false
+      schedule_must_satisfy_all_history_constraint_intensity_and_spacing_rules: true
+      no_schedule_result: readiness_only_no_schedule_within_envelope
+    evidence_claim_ids:
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+      - road-10k-plan.volume-frequency-associated-not-prescriptive
+      - road-10k-plan.fixed-progression-not-safety-law
+    rationale: >
+      One quality session per week is a conservative Product choice within the
+      indirect one-to-two ceiling. Median, maximum, and constraint caps prevent
+      the first generator from prescribing progression above observed dose.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_workout_templates
+    classification: guardrail
+    value:
+      inherited_from_outdoor_5k: false
+      templates:
+        - template_id: road-10k-controlled-threshold-quality-v1
+          workout_type: controlled_threshold_quality
+          total_planned_minutes: 41
+          steps:
+            - kind: step
+              phase: warmup
+              intended_intensity: low
+              duration_minutes: 10
+            - kind: repeat
+              repetitions: 3
+              steps:
+                - kind: step
+                  phase: work
+                  intended_intensity: controlled_threshold
+                  duration_minutes: 5
+                - kind: step
+                  phase: recovery
+                  intended_intensity: low
+                  duration_minutes: 2
+            - kind: step
+              phase: cooldown
+              intended_intensity: low
+              duration_minutes: 10
+        - template_id: road-10k-specific-interval-quality-v1
+          workout_type: ten_k_specific_interval_quality
+          total_planned_minutes: 40
+          steps:
+            - kind: step
+              phase: warmup
+              intended_intensity: low
+              duration_minutes: 10
+            - kind: repeat
+              repetitions: 4
+              steps:
+                - kind: step
+                  phase: work
+                  intended_intensity: ten_k_specific
+                  duration_minutes: 3
+                - kind: step
+                  phase: recovery
+                  intended_intensity: low
+                  duration_minutes: 2
+            - kind: step
+              phase: cooldown
+              intended_intensity: low
+              duration_minutes: 10
+      easy_template: duration_only
+      longest_easy_template: duration_only
+      target_expression_priority:
+        - current_athlete_specific_active_zone_model
+        - duration_and_session_type_only
+      generic_percent_of_threshold_or_critical_power: false
+      generic_five_k_or_ten_k_pace_conversion: false
+      template_must_fit_session_and_weekly_caps: true
+      template_optimum_claim: false
+    evidence_claim_ids:
+      - road-10k-plan.task-specific-capability-not-single-marker
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+      - road-10k-plan.mostly-low-intensity-no-universal-winner
+    rationale: >
+      The reviewed literature supports broad quality-session families but does
+      not validate these exact repeats or recoveries. The templates are
+      transparent, versioned Product guardrails chosen for deterministic
+      implementation and prospective evaluation.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_intensity_quality_and_spacing
+    classification: guardrail
+    value:
+      minimum_planned_low_intensity_running_minutes_fraction: 0.75
+      denominator: all_planned_running_minutes
+      numerator: minutes_with_intended_low_intensity
+      quality_work_minutes_count_as_low_intensity: false
+      warmup_recovery_and_cooldown_use_actual_intended_intensity: true
+      maximum_total_quality_exposures_per_7_day_unit: 1
+      quality_exposures_include:
+        - planned_quality_template
+        - confirmed_race
+        - athlete_scheduled_10k_benchmark
+      consecutive_quality_running_days_allowed: false
+      minimum_intervening_easy_rest_or_non_running_days: 1
+      missed_quality_makeup_allowed: false
+      reduce_or_remove_quality_before_adding_minutes: true
+      historical_intensity_source_priority:
+        - activity_splits
+        - activity_samples
+      activity_average_power_allowed_for_intensity_analysis: false
+      low_intensity_optimum_claim: false
+    evidence_claim_ids:
+      - road-10k-plan.mostly-low-intensity-no-universal-winner
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+    rationale: >
+      Mostly low-intensity training and one-to-two quality sessions have
+      bounded support. Seventy-five percent, one initial quality exposure, and
+      the spacing rules are conservative guardrails rather than universal
+      thresholds.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_event_benchmark_and_taper
+    classification: guardrail
+    value:
+      imported_event_must_be_athlete_confirmed: true
+      confirmed_none:
+        full_rolling_proposal_allowed: true
+        optional_10k_benchmark:
+          athlete_selects_and_confirms_date: true
+          automatic_scheduling: false
+          counts_as_quality_and_load: true
+      single_target:
+        target_more_than_14_days_after_start: normal_14_day_rolling_proposal
+        target_8_to_14_days_after_start: taper_proposal_truncated_to_event_eve
+        target_fewer_than_8_days_after_start: limited_near_term_guidance
+      race_dense:
+        full_proposal_allowed: false
+        result: readiness_only_limited_guidance_event_conflict
+      every_race_or_maximal_effort:
+        counts_as_quality_session: true
+        counts_as_training_load: true
+        requires_spacing_validation: true
+      taper:
+        evidence_population: mixed_endurance_athletes
+        direct_recreational_road_10k_validation: false
+        planned_volume_reduction_fraction: 0.50
+        supported_window_days_before_event:
+          minimum: 8
+          maximum: 14
+        reference_schedule: matching_non_taper_schedule_for_same_dates
+        maintain_recent_frequency_when_constraints_allow: true
+        maintain_intensity_exposure_without_adding_quality: true
+        event_day_reserved_not_generated_as_training_workout: true
+        event_elapsed_time_included_in_planned_training_minutes: false
+        no_makeup_or_extra_sharpening: true
+        personal_performance_gain_claim: false
+    evidence_claim_ids:
+      - road-10k-plan.taper-volume-reduction-supported
+      - road-10k-baseline.same-distance-direct-capability
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+    rationale: >
+      The taper range is indirect mixed-endurance evidence. The exact
+      fifty-percent path, event cutoff, and race-dense fallback are
+      deterministic Product guardrails.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_typed_outcomes
+    classification: guardrail
+    value:
+      outcomes:
+        eligible_rolling_proposal:
+          route_state: plan_candidate
+          plan_returned: true
+          adoption_required: true
+        eligible_taper_proposal:
+          route_state: plan_candidate
+          plan_returned: true
+          adoption_required: true
+        missing_or_stale_direct_baseline:
+          route_state: readiness_only
+          plan_returned: false
+          goal_remains_recorded: true
+        insufficient_recent_history:
+          route_state: readiness_only
+          plan_returned: false
+          goal_remains_recorded: true
+        no_schedule_within_envelope:
+          route_state: readiness_only
+          plan_returned: false
+          goal_remains_recorded: true
+        limited_guidance_event_conflict:
+          route_state: readiness_only
+          plan_returned: false
+          limited_guidance_returned: true
+          goal_remains_recorded: true
+        limited_near_term_guidance:
+          route_state: readiness_only
+          plan_returned: false
+          limited_guidance_returned: true
+          goal_remains_recorded: true
+        safety_stop:
+          route_state: readiness_only
+          plan_returned: false
+          goal_remains_recorded: true
+        adult_scope_or_constraints_unconfirmed:
+          route_state: clarification_required
+          plan_returned: false
+          goal_remains_recorded: true
+        contradictory_input:
+          route_state: clarification_required
+          plan_returned: false
+          goal_remains_recorded: true
+        unsupported_intent_distance_surface_or_population:
+          route_state: policy_unavailable
+          plan_returned: false
+          goal_remains_recorded: true
+        validation_failed:
+          route_state: readiness_only
+          plan_returned: false
+          goal_remains_recorded: true
+      unsupported_distance_fallback: none
+      success_shaped_fallback_allowed: false
+      unknown_policy_or_schema_version_result: policy_unavailable
+    evidence_claim_ids:
+      - eligibility.goal-relevant-current-capability-task-specific
+      - eligibility.current-symptoms-support-stop-not-clearance
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      Every non-success state remains explicit, preserves the Goal, and avoids
+      borrowing another policy or returning a success-shaped default.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_demographic_and_claim_limits
+    classification: guardrail
+    value:
+      adult_confirmation_required: true
+      exact_age_required: false
+      age_based_dose_modifier: false
+      physiological_sex_required: false
+      sex_based_dose_modifier: false
+      gender_identity_required: false
+      gender_based_dose_modifier: false
+      reproductive_or_pregnancy_context_inferred: false
+      unknown_demographic_default_allowed: false
+      target_time_may:
+        - label_the_goal
+        - compute_a_descriptive_gap_to_qualified_baseline
+      target_time_may_not:
+        - increase_frequency
+        - increase_weekly_minutes
+        - lengthen_longest_session
+        - add_quality
+        - override_history_or_symptom_stops
+      personal_goal_achievement_probability: disabled
+      personal_injury_probability: disabled
+      personal_adaptation_probability: disabled
+      causal_plan_benefit_claim: disabled
+      medical_diagnosis_clearance_or_treatment: disabled
+    evidence_claim_ids:
+      - eligibility.masters-age-change-not-automatic-exclusion
+      - eligibility.evidence-quality-no-personal-probability
+      - population.masters-context-not-age-exclusion
+      - population.sex-effects-are-construct-specific
+      - population.no-general-sex-or-gender-plan-family
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      The reviewed evidence does not validate general age, sex, gender, or
+      target-gap dose rules. Adult scope is confirmed without creating hidden
+      demographic defaults or personal probabilities.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_consent_ai_and_state
+    classification: guardrail
+    value:
+      proposal_is_noncanonical_until_adoption: true
+      explicit_adoption_required: true
+      regeneration_creates_versioned_successor: true
+      generator_may_not:
+        - write_or_overwrite_adopted_plan_without_consent
+        - deliver_or_publish_without_consent
+        - schedule_a_missed_workout_makeup
+        - infer_why_a_workout_was_missed
+        - auto_schedule_a_benchmark
+        - confirm_or_change_event_priority
+      optional_ai_may:
+        - explain_a_deterministic_result
+        - compare_policy_valid_alternatives
+        - improve_non_authoritative_language
+      optional_ai_may_not:
+        - widen_eligibility
+        - invent_missing_context
+        - select_deferred_values
+        - change_template_steps
+        - override_deterministic_validation
+        - approve_adopt_deliver_or_activate
+      no_ai_provider_result: deterministic_result_remains_complete
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      Athlete control and deterministic authority are required regardless of
+      whether optional AI explanation is available.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_privacy_and_audit
+    classification: guardrail
+    value:
+      purpose_bounded_context_only: true
+      narrative_text_required: false
+      sensitive_trait_inference_allowed: false
+      deterministic_replay_required: true
+      audit_fields:
+        - capability_id
+        - policy_version
+        - science_decision_id
+        - source_decision_digest
+        - contract_digest
+        - generator_version
+        - source_goal_id_and_revision
+        - baseline_snapshot_id_and_source
+        - history_cutoff_and_observation_ids
+        - training_pattern_snapshot_version
+        - event_context_snapshot_version
+        - active_zone_model_id_and_version_when_used
+        - normalized_constraints
+        - selected_template_ids
+        - deterministic_input_hash
+      telemetry_allowed:
+        - stable_readiness_code
+        - stable_generation_result_code
+        - stable_validation_reason_code
+        - policy_and_generator_version
+        - proposal_adoption_rejection_or_successor_event
+      telemetry_prohibited:
+        - athlete_text
+        - workout_payload
+        - target_values
+        - personal_context_values
+        - small_or_identifying_cohort_slices
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+    rationale: >
+      The generator needs replay provenance, not broad personal context or
+      content telemetry. Stable codes support evaluation without exposing the
+      proposal or athlete values.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_runtime_evaluation
+    classification: guardrail
+    value:
+      dry_run:
+        deterministic_invariant_breach_tolerance: 0
+        replay_mismatch_tolerance: 0
+        unsupported_or_stale_plan_tolerance: 0
+        maximum_single_guardrail_exclusion_fraction: 0.50
+        subgroup_exclusion_gap_trigger:
+          absolute_percentage_points: 20
+          minimum_cases_per_group: 30
+      opt_in_pilot:
+        maximum_major_edit_fraction: 0.30
+        major_edit_definition:
+          absolute_planned_minutes_change_fraction_greater_than: 0.20
+          or_scheduled_running_days_changed_at_least: 2
+          evaluation_window: one_14_day_committed_proposal
+        maximum_taper_vs_non_taper_rejection_or_major_edit_gap: 0.15
+        maximum_quality_template_rejection_or_major_edit_fraction: 0.30
+        maximum_symptom_stop_fraction: 0.10
+        maximum_optional_baseline_test_stop_or_noncompletion_fraction: 0.10
+        serious_adverse_events_triggering_immediate_pause: 1
+      efficacy_claim_from_process_pilot_allowed: false
+      pause_or_revise_when_threshold_crossed: true
+      evaluate_by:
+        - running_frequency
+        - age_band_when_available_without_default
+        - sex_when_available_and_purpose_permitted_without_default
+        - provider_and_missingness_pattern
+        - dated_vs_undated_goal
+        - taper_vs_non_taper
+    evidence_claim_ids:
+      - eligibility.evidence-quality-no-personal-probability
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      These are predeclared reversible rollout rules, not evidence of efficacy
+      or personal safety. Zero-tolerance deterministic failures pause the path.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_deferred_scope
+    classification: guardrail
+    value:
+      two_planned_quality_sessions_per_week: not_accepted
+      progression_above_recent_typical_load: not_accepted
+      mandatory_or_progressive_long_run: not_accepted
+      full_race_dense_schedule_optimization: not_accepted
+      first_10k_completion: not_accepted
+      return_to_consistency: not_accepted
+      sparse_history_generation: not_accepted
+      treadmill_trail_cross_country_or_multisport: not_accepted
+      pediatric_clinical_rehabilitation_or_pregnancy_specific_planning: not_accepted
+      exact_generic_power_or_pace_targets: not_accepted
+      automatic_benchmark_scheduling: not_accepted
+      demographic_dose_modifiers: not_accepted
+      personal_success_injury_or_adaptation_probability: not_accepted
+      ai_schedule_or_policy_authority: not_accepted
+    evidence_claim_ids:
+      - road-10k-plan.one-to-two-quality-sessions-indirect
+      - road-10k-plan.volume-frequency-associated-not-prescriptive
+      - road-10k-plan.fixed-progression-not-safety-law
+      - road-10k-plan.individual-outcomes-require-error-aware-validation
+    rationale: >
+      Each item needs separate evidence and Product review. V2 cannot fill any
+      deferred choice from another distance, a runner identity, prose, or AI.
+    applies_to: road-10k-plan-generation-policy-v2
+  - name: road_10k_v2_implementation_and_activation
+    classification: guardrail
+    value:
+      generator_implementation_in_this_decision: false
+      api_behavior_change_in_this_decision: false
+      web_or_miniapp_availability_change_in_this_decision: false
+      capability_registration_in_this_decision: false
+      proposal_adoption_or_delivery_change_in_this_decision: false
+      runtime_state_after_science_acceptance: inactive
+      implementation_review_must_bind:
+        - exact_reviewed_code_diff
+        - generated_contract_digest
+        - deterministic_validation_evidence
+        - api_web_and_miniapp_parity_evidence
+      activation_requires_separate_rollout_decision: true
+    evidence_claim_ids: []
+    rationale: >
+      Science acceptance supplies an inactive contract only. Engineering,
+      implementation review, product release, and operations remain separate
+      authorities.
+    applies_to: road-10k-plan-generation-policy-v2
+applicability:
+  - Adults aged 18 years or older with confirmed nonclinical plan scope
+  - Self-coached runners with current direct outdoor-road 10 km capability
+  - Stable recent running history satisfying the versioned V2 history guardrails
+  - Current load within recent observed history and athlete-stated constraints
+  - Explicit outdoor-road 10 km performance intent
+  - Confirmed-none or single-target event context
+  - Dated or undated goals, with undated goals using rolling proposals
+  - Split- or sample-level intensity evidence when historical intensity is used
+  - Suggestion-only, deterministic, explicitly adopted noncanonical proposals
+user_facing_claim_limits:
+  - Describe fourteen days, seven days, one quality session, exact templates, history counts, freshness, frequency, intensity share, taper, and evaluation thresholds as Praxys guardrails.
+  - Do not describe the exact templates, window, cadence, or allocation algorithm as published or optimal.
+  - Do not promise goal achievement, performance improvement, injury prevention, medical safety, or an individualized probability.
+  - Do not describe missing records as detraining or interruption.
+  - Do not describe age, sex, gender, or runner level as a permanent identity or general dose rule.
+  - Explain that races and benchmarks consume quality and load and that race-dense routing remains unavailable.
+  - Explain direct baseline evidence, indirect taper evidence, missingness, assumptions, alternatives, and the explicit adoption boundary.
+safety_implications:
+  - Current injury, illness, or concerning symptom inputs stop generation without diagnosis, treatment, or clearance.
+  - Never use activity average power for intensity analysis; use splits or samples.
+  - Do not exceed recent median or maximum weekly minutes, recent longest completed session, recent completed distance, or athlete-stated time limits.
+  - Preserve at least seventy-five percent planned low-intensity minutes and at most one total quality exposure per seven-day unit.
+  - Treat every confirmed race or athlete-scheduled maximal benchmark as quality and load.
+  - Do not compress, stack, or make up missed quality work.
+  - Do not automatically schedule a maximal 10 km test or benchmark.
+  - Pause after a serious plausibly related event or any deterministic invariant breach.
+privacy_implications:
+  - Collect only fields required for plan-generation eligibility, scheduling, replay, and consent.
+  - Keep provider-imported events and profile fields unconfirmed until the athlete confirms their use.
+  - Do not infer sex, gender, reproductive context, health state, event priority, or reasons for missed training.
+  - Keep athlete text, workout payloads, target values, and personal context out of generic logs and telemetry.
+  - Preserve source provenance, purpose, correction, revocation, and deletion behavior for every consumed field.
+validation_plan:
+  - Validate the generated V2 contract and packet digests before human review.
+  - Unit-test the exact capability tuple, purpose sources, direct-baseline hierarchy, 56-day freshness guardrail, eight-week history, and typed missingness outcomes.
+  - Unit-test fourteen-day scheduling, the seven-day advisory reassessment, explicit successor adoption, and no overwrite of adopted future days.
+  - Unit-test every template step, total duration, template ID, one-quality-per-unit rule, low-intensity fraction, quality spacing, and no 5 km template import.
+  - Unit-test history and athlete caps, deterministic allocation and tie-breaking, event replacement of quality, and no progression above recent median load.
+  - Unit-test dated, undated, single-target, eight-to-fourteen-day taper, shorter-horizon, benchmark, and race-dense paths.
+  - Unit-test age and sex missingness without defaults, no target-gap dose escalation, no personal probability, and split-level intensity enforcement.
+  - Replay identical normalized inputs and versions to require identical hashes, workouts, findings, and reason codes.
+  - Dry-run against privacy-safe historical fixtures before capability registration and compare exclusions, subgroup gaps, edits, and invariant failures.
+  - Require API-contract, science, privacy, web/miniapp parity, rendered UI, and deterministic preflight review during implementation.
+falsification_conditions:
+  - Reject the implementation if any unsupported distance, intent, surface, population, stale input, symptom stop, or race-dense conflict returns a plan.
+  - Reject the implementation if identical normalized inputs and versions produce different hashes, template selections, schedules, or outcomes.
+  - Reject the implementation if any generated week exceeds history or athlete caps, drops below seventy-five percent low-intensity minutes, schedules more than one quality exposure, stacks quality, or uses activity average power.
+  - Reject the implementation if it borrows a 5 km template, changes an exact template without a new version, auto-schedules a benchmark, or overwrites adopted future days.
+  - Revisit the fourteen-day window, seven-day cadence, one-quality choice, or exact templates when the predeclared exclusion, subgroup, rejection, or major-edit thresholds are crossed.
+  - Pause the optional baseline-test path when stop or noncompletion exceeds ten percent or after one plausibly related serious event.
+  - Pause the taper path when its rejection or major-edit rate exceeds the non-taper rate by more than fifteen percentage points.
+  - Reject user-facing claims that imply an optimal schedule, personal probability, medical safety, injury prevention, or guaranteed improvement.
+affected_surfaces:
+  models:
+    - road-10k-plan-generation-policy-v2
+    - future road-10k-deterministic-generator-v1
+    - shared adult-running plan-purpose and capability router
+  apis:
+    - future authenticated 10 km readiness, alternatives, generate, and regenerate endpoints
+    - shared capability discovery and purpose selection
+    - future proposal persistence and adoption validation
+  clients:
+    - generated human SDR review packet and inactive machine contract
+    - future web 10 km readiness, proposal, taper, limited-guidance, adoption, and successor states
+    - future miniapp feature, type, state, write, i18n, and consent parity
+    - future plugin and MCP capability discovery and proposal parity
+  science_notes:
+    - Explain direct versus indirect evidence and every exact Product guardrail.
+    - Show baseline source, history cutoff, event state, template version, assumptions, unknowns, risks, alternatives, and adoption boundary.
+artifact_policy:
+  runtime_state: inactive
+supersedes:
+  - sdr-road-10k-plan-generation-policy-v1
+superseded_by:
+decision_notes:
+  - "This artifact-mode successor proposal addresses issue #731 and remains draft and inactive."
+  - >
+    Existing accepted Evidence Reviews remain authoritative; focused
+    verification on 2026-08-18 found no source validating an exact execution
+    window, reassessment cadence, or deterministic template for this
+    population. No evidence claims or citation metadata were changed.
+  - >
+    Independent Product review recommended the fourteen-day window, seven-day
+    advisory reassessment, one quality session per week, exact 10 km templates,
+    and race-dense limited guidance as the minimum valuable reversible slice.
+    Those values remain Product guardrails and require human Product judgment;
+    this Science record only evaluates their compatibility with the evidence
+    and claim boundaries.
+  - >
+    The proposed lifecycle transition is not active in this draft. After exact
+    digest-bound human approval, V1 and V2 must be transitioned atomically with
+    reciprocal supersession links, generated artifacts, and the registry
+    update.
+  - >
+    Human review should use the generated packet rather than raw YAML. The
+    packet contains the decision sheet, exact inactive contract, and copyable
+    approval marker.
+  - "Impact map: accepted Evidence Reviews -> proposed V2 SDR -> generated decision packet and inactive contract -> human Product and Science decisions -> coordinated V1 supersession -> future pure generator -> shared API router -> web and miniapp parity -> ScienceNote and localization -> dry-run -> opt-in rollout and Runtime/Meta-Eval."

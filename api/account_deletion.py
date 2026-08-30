@@ -31,6 +31,10 @@ from db.models import (
     GoalBaselineSnapshot,
     GoalBaselineTestRecord,
     Outdoor5KPlanGeneration,
+    Road10KBaselineConfirmation,
+    Road10KBaselineSnapshot,
+    Road10KPlanGeneration,
+    Road10KTrainingPatternSnapshot,
     Invitation,
     LabsAnalysisJob,
     LabsAnalysisOutbox,
@@ -51,10 +55,16 @@ from db.models import (
     PersonalContextUseReceipt,
     RecoveryData,
     TrainingPlan,
+    TermsAcceptanceReceipt,
     User,
     UserConfig,
     UserConnection,
     WaitlistSignup,
+)
+from api import feedback_storage
+from db.account_lifecycle import (
+    AccountLifecycleBusy,
+    account_lifecycle_lease,
 )
 from db.cache_revision import lock_revision_writes
 from db.plan_ledger import legacy_stryd_status_lock, lock_plan_writes
@@ -185,6 +195,7 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         PersonalContextConsentReceipt,
         PersonalContextItem,
         PersonalContextDeletionJob,
+        TermsAcceptanceReceipt,
     ):
         db.query(model).filter(
             model.user_id == user_id
@@ -194,6 +205,8 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         ActivitySample,
         ActivitySplit,
         Outdoor5KPlanGeneration,
+        Road10KPlanGeneration,
+        Road10KTrainingPatternSnapshot,
         Activity,
         RecoveryData,
         FitnessData,
@@ -213,6 +226,8 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         GoalBaselineConfirmation,
         GoalBaselineSnapshot,
         GoalBaselineTestRecord,
+        Road10KBaselineConfirmation,
+        Road10KBaselineSnapshot,
         CacheRevision,
         DashboardCache,
         LabsExperimentResult,
@@ -270,6 +285,19 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     )
 
 
+def _delete_feedback_images(db: Session, user_id: str) -> None:
+    """Delete exact screenshot keys owned by one server-selected account."""
+    rows = (
+        db.query(Feedback.id, Feedback.image_keys)
+        .filter(Feedback.user_id == user_id)
+        .with_for_update()
+        .all()
+    )
+    for feedback_id, image_keys in rows:
+        for key in image_keys or []:
+            feedback_storage.delete_image(key, feedback_id=feedback_id)
+
+
 def _clear_tokenstore(user_id: str) -> None:
     """Best-effort legacy cleanup and plaintext-token blocking after deletion."""
     from api.routes.sync import clear_garmin_tokens
@@ -322,6 +350,26 @@ def delete_user_account(
     enforced for self-service deletion and kept enabled for admin deletion as a
     defense-in-depth check.
     """
+    try:
+        with account_lifecycle_lease(user_id, timeout_seconds=60.0):
+            return _delete_user_account_locked(
+                db,
+                user_id,
+                enforce_last_admin_guard=enforce_last_admin_guard,
+            )
+    except AccountLifecycleBusy as exc:
+        db.rollback()
+        logger.warning("Account deletion lease busy for user %s", user_id)
+        raise HTTPException(503, "ACCOUNT_DELETE_BUSY") from exc
+
+
+def _delete_user_account_locked(
+    db: Session,
+    user_id: str,
+    *,
+    enforce_last_admin_guard: bool,
+) -> AccountDeletionResult:
+    """Delete an account while its lifecycle lease is held."""
     begin_active_admin_guard(db)
     lock_revision_writes(db, user_id)
     user = (
@@ -414,6 +462,17 @@ def delete_user_account(
         .filter(User.demo_of == user_id)
         .all()
     )
+    try:
+        for scoped_user_id in [user_id, *(demo.id for demo in demo_users)]:
+            _delete_feedback_images(db, scoped_user_id)
+    except feedback_storage.FeedbackStorageDeletionError:
+        db.rollback()
+        logger.exception(
+            "Feedback screenshot deletion failed for user %s",
+            user_id,
+        )
+        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
+
     for demo_user in demo_users:
         _delete_user_owned_rows(db, demo_user.id)
         db.delete(demo_user)

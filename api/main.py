@@ -58,7 +58,7 @@ if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     ):
         logging.getLogger(_noisy).setLevel(logging.WARNING)
 
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -69,13 +69,21 @@ from api.auth import (
     require_account_deletion_access,
     require_write_access,
 )
+from api.china_client_boundary import (
+    ChinaClientBoundaryMiddleware,
+    china_processing_status,
+)
 from api.env_compat import getenv_compat
-from api.legal import TERMS_VERSION
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+from api.legal_receipts import (
+    TermsAcceptanceRequest,
+    build_terms_receipt,
+)
 from api.personal_context_http import (
     PersonalContextPrivacyMiddleware,
     private_context_validation_error,
 )
-from api.version import get_api_version
+from api.version import get_api_source_sha, get_api_version
 from api.views import utc_isoformat
 from db.session import get_db
 
@@ -85,6 +93,9 @@ from db.session import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
+    from api.optional_processing import validate_optional_processing_config
+
+    validate_optional_processing_config()
     init_db()
     from api.personal_context import (
         replay_deletion_manifests,
@@ -176,6 +187,7 @@ app.add_exception_handler(
 # runs last on the response path (middleware order = reverse LIFO).
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
+app.add_middleware(ChinaClientBoundaryMiddleware)
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -258,10 +270,38 @@ app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 
 # Data routes
 from api.routes import analysis as activity_analysis_routes
-from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
+from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
 
-for router_module in [today, training, goal, history, activity_analysis_routes, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, plan_generation_capabilities, settings, sync, science, ai_routes, insights, product_events, status]:
+from api.plan_generation_capabilities import PLAN_GENERATION_CAPABILITIES
+
+router_modules = [
+    today,
+    training,
+    goal,
+    history,
+    activity_analysis_routes,
+    labs,
+    personal_context,
+    plan,
+    adaptive_plan,
+    outdoor_5k_plan_generation,
+    plan_generation_capabilities,
+    settings,
+    sync,
+    science,
+    ai_routes,
+    insights,
+    product_events,
+    status,
+]
+if any(
+    capability.capability_id == "outdoor_road_10k_performance_v1"
+    for capability in PLAN_GENERATION_CAPABILITIES
+):
+    router_modules.append(road_10k_plan_generation)
+
+for router_module in router_modules:
     app.include_router(router_module.router, prefix="/api")
 
 
@@ -281,6 +321,7 @@ def health_ready(response: Response):
     as a deploy / warmup gate.
     """
     from sqlalchemy import text as _text
+    from api.optional_processing import optional_processing_status
     from db.session import SessionLocal, init_db, is_postgres
 
     if SessionLocal is None:
@@ -304,7 +345,26 @@ def health_ready(response: Response):
             pass
         response.status_code = 503
         return {"status": "unavailable", "database": "error"}
-    return {"status": "ready", "database": "ok"}
+    try:
+        processing = optional_processing_status()
+        china_processing = china_processing_status()
+    except ValueError as exc:
+        logging.getLogger(__name__).error(
+            "readiness privacy-control config failed: %s",
+            exc,
+        )
+        response.status_code = 503
+        return {
+            "status": "unavailable",
+            "database": "ok",
+            "privacy_controls": "invalid",
+        }
+    return {
+        "status": "ready",
+        "database": "ok",
+        "optional_processing": processing,
+        "china_processing": china_processing,
+    }
 
 
 @app.get("/api/version")
@@ -312,7 +372,10 @@ def version() -> dict:
     """Public — frontend Settings page reads this to surface the live
     API build alongside the bundled web version, mirroring the mini
     program's ``Praxys <version>`` line."""
-    return {"version": get_api_version()}
+    return {
+        "version": get_api_version(),
+        "source_sha": get_api_source_sha(),
+    }
 
 
 @app.get("/api/public/config")
@@ -350,7 +413,11 @@ def get_me(
         # to show the re-consent modal. terms_current is computed server-side
         # so the live TERMS_VERSION stays the single source of truth.
         "terms_version": user.terms_version,
-        "terms_current": user.terms_version == TERMS_VERSION,
+        "terms_digest": user.terms_digest,
+        "terms_current": (
+            user.terms_version == TERMS_VERSION
+            and user.terms_digest == TERMS_CONTENT_DIGEST
+        ),
     }
 
 
@@ -385,6 +452,8 @@ def export_my_data(
 
 @app.post("/api/me/accept-terms")
 def accept_terms(
+    body: TermsAcceptanceRequest,
+    request: Request,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -409,8 +478,16 @@ def accept_terms(
     if not user:
         raise HTTPException(404, "User not found")
     accepted_at = datetime.now(timezone.utc)
-    user.terms_version = TERMS_VERSION
+    receipt = build_terms_receipt(
+        user_id=user_id,
+        request=request,
+        payload=body,
+        accepted_at=accepted_at,
+    )
+    user.terms_version = body.terms_version
+    user.terms_digest = body.terms_digest
     user.terms_accepted_at = accepted_at
+    db.add(receipt)
     try:
         db.commit()
     except Exception:
@@ -421,6 +498,7 @@ def accept_terms(
         raise HTTPException(500, "ACCEPT_TERMS_FAILED")
     return {
         "terms_version": TERMS_VERSION,
+        "terms_digest": TERMS_CONTENT_DIGEST,
         "terms_current": True,
         "terms_accepted_at": utc_isoformat(accepted_at),
     }

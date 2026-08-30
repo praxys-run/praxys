@@ -152,6 +152,8 @@ def _write_fixture_records(
         "artifact_policy": DecisionArtifactPolicy(
             runtime_state=runtime_state,
         ),
+        "supersedes": [],
+        "superseded_by": None,
     })
     _write_yaml(
         science_dir / "evidence" / "shared" / f"{shared.id}.yaml",
@@ -646,6 +648,252 @@ def test_adaptive_plan_packet_contains_exact_accepted_inactive_contract() -> Non
             in evidence_packet
         )
         assert evidence_review_digest(review) in evidence_packet
+
+
+def test_population_routing_packet_contains_exact_accepted_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    evidence_id = "evidence-adult-running-plan-population-routing-v1"
+    decision_id = "sdr-adult-running-plan-population-routing-v1"
+    evidence_packet_path = (
+        Path("generated") / "review-packets" / f"{evidence_id}.md"
+    )
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    evidence_packet = expected[evidence_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.ACCEPTED
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.linked_evidence_digests[evidence_id] == (
+        "sha256:2b64d44749b4318cade113134a599f3646cb25805abed0f56728d9959c2ef0c8"
+    )
+    assert contract.parameter_values[
+        "first_completion_applicability"
+    ]["permanent_identity_established"] is False
+    assert contract.parameter_values[
+        "history_and_detraining_inference"
+    ]["sparse_or_missing_records_establish_detraining"] is False
+    assert contract.parameter_values[
+        "masters_applicability"
+    ]["universal_age_exclusion_established"] is False
+    assert contract.parameter_values[
+        "construct_specific_profile_evidence"
+    ]["general_plan_family_validated"] is False
+    assert contract.parameter_values[
+        "strength_and_cross_training_evidence"
+    ]["running_equivalence_established"] is False
+    assert contract.parameter_values[
+        "adult_nonclinical_scope"
+    ]["activity_average_power_valid_for_intensity"] is False
+    assert set(
+        contract.parameter_values["exact_values"].values()
+    ) == {"not_accepted"}
+
+    def mapping_keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | {
+                key
+                for nested in value.values()
+                for key in mapping_keys(nested)
+            }
+        if isinstance(value, list):
+            return {
+                key
+                for nested in value
+                for key in mapping_keys(nested)
+            }
+        return set()
+
+    forbidden_product_fields = {
+        "goal_capture_independent_from_plan_availability",
+        "prior_goal_distance_completion_required",
+        "route_state",
+        "goal_intent",
+        "automatic_intent_coercion",
+        "no_matching_policy_result",
+        "history_states",
+        "returning_state_requires_athlete_confirmation",
+        "returning_to_consistency_intent_user_selectable",
+        "provider_profile_requires_source_label_and_user_confirmation",
+        "future_field_requirements",
+        "shared_policy",
+        "population_policy_may_define_second_feedback_engine",
+        "accepted_distance_policy_alignment",
+        "capability_registry_mapping",
+        "policy_router_logic",
+        "persistence_schema",
+        "api_contracts",
+        "web_and_miniapp_clients",
+        "plugin_and_mcp_contracts",
+        "profile_collection_and_privacy_operations",
+        "primary_and_guardrail_metrics",
+        "implementation_approval",
+        "runtime_activation",
+    }
+    assert forbidden_product_fields.isdisjoint(
+        mapping_keys(contract.parameter_values)
+    )
+    serialized_contract = render_policy_contract_json(contract)
+    for route_result_or_dependency in (
+        "completion_policy_unavailable",
+        "readiness_only",
+        "insufficient_recent_history_anchor",
+        "clarification_required",
+        "sdr-adaptive-plan-feasibility-and-adjustment-v1",
+    ):
+        assert route_result_or_dependency not in serialized_contract
+
+    decision = registry.decisions[decision_id]
+    assert decision.decision_review is not None
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.APPROVE
+    ] == [
+        "first-completion-applicability",
+        "history-detraining-inference",
+        "masters-applicability",
+        "construct-specific-profile-evidence",
+        "strength-cross-training-evidence",
+        "adult-nonclinical-scope",
+    ]
+    assert [
+        item.id
+        for item in decision.decision_review.items
+        if item.disposition == DecisionReviewDisposition.DEFER
+    ] == [
+        "all-exact-values",
+        "all-non-science-decisions",
+    ]
+
+    assert exact_contract_block in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-18`"
+        in packet
+    )
+    assert "**Implementation approval:** _Pending_" in packet
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    assert "Approve the decision sheet as a unit" in packet
+    assert "distinct evidence and applicability family" in packet
+    assert "do not prove cessation or detraining" in packet
+    assert "no universal age exclusion" in packet
+    assert "construct-specific" in packet
+    assert "does not establish injury prevention" in packet
+    assert "outside Science authority" in packet
+    assert "Review this packet, not the raw YAML" in evidence_packet
+    assert (
+        "- **Approval:** `github:dddtc2005` on `2026-08-17`"
+        in evidence_packet
+    )
+    assert evidence_review_digest(
+        registry.evidence_reviews[evidence_id]
+    ) in evidence_packet
+
+
+def test_road_10k_v2_packet_contains_generator_ready_inactive_contract() -> None:
+    registry = load_science_registry()
+    expected = expected_science_artifacts(registry)
+    decision_id = "sdr-road-10k-plan-generation-policy-v2"
+    decision_packet_path = (
+        Path("generated") / "review-packets" / f"{decision_id}.md"
+    )
+    contract_path = (
+        Path("generated") / "contracts" / f"{decision_id}.json"
+    )
+
+    contract = SciencePolicyContract.model_validate_json(
+        expected[contract_path]
+    )
+    packet = expected[decision_packet_path]
+    exact_contract_block = (
+        "```json\n"
+        + render_policy_contract_json(contract).rstrip()
+        + "\n```"
+    )
+
+    assert contract.decision_status == RecordStatus.ACCEPTED
+    assert contract.runtime_state == ArtifactRuntimeState.INACTIVE
+    assert contract.parameter_values[
+        "road_10k_v2_execution_window_and_reassessment"
+    ]["committed_proposal_days"] == 14
+    assert contract.parameter_values[
+        "road_10k_v2_execution_window_and_reassessment"
+    ]["advisory_reassessment_after_completed_days"] == 7
+    assert contract.parameter_values[
+        "road_10k_v2_schedule_construction"
+    ]["quality_sessions_per_7_day_unit"] == 1
+    assert [
+        item["template_id"]
+        for item in contract.parameter_values[
+            "road_10k_v2_workout_templates"
+        ]["templates"]
+    ] == [
+        "road-10k-controlled-threshold-quality-v1",
+        "road-10k-specific-interval-quality-v1",
+    ]
+    assert contract.parameter_values[
+        "road_10k_v2_event_benchmark_and_taper"
+    ]["race_dense"]["full_proposal_allowed"] is False
+    assert contract.parameter_values[
+        "road_10k_v2_event_benchmark_and_taper"
+    ]["single_target"]["target_fewer_than_8_days_after_start"] == (
+        "limited_near_term_guidance"
+    )
+    assert contract.parameter_values[
+        "road_10k_v2_typed_outcomes"
+    ]["outcomes"]["safety_stop"]["route_state"] == "readiness_only"
+    assert contract.parameter_values[
+        "road_10k_v2_intensity_quality_and_spacing"
+    ]["activity_average_power_allowed_for_intensity_analysis"] is False
+    assert set(
+        contract.parameter_values["road_10k_v2_deferred_scope"].values()
+    ) == {"not_accepted"}
+
+    assert exact_contract_block in packet
+    assert contract.source_decision_digest in packet
+    assert contract.contract_digest in packet
+    assert (
+        "**Decision approval:** `github:dddtc2005` on `2026-08-18`"
+        in packet
+    )
+    assert "**Implementation approval:** _Pending_" in packet
+    assert packet.count("_Pending_") == 1
+    assert packet.index("## Your task") < packet.index("## Decision sheet")
+    assert packet.index("## Decision sheet") < packet.index(
+        "## Audit appendix"
+    )
+    for item_id in (
+        "supported-capability",
+        "rolling-execution",
+        "deterministic-schedule",
+        "event-and-taper",
+        "hard-boundaries",
+        "evaluation-gates",
+        "broader-capabilities",
+        "implementation-and-activation",
+    ):
+        assert packet.count(f"#### `{item_id}`") == 1
+    assert "Praxys science approval" in packet
+    assert "road-10k-controlled-threshold-quality-v1" in packet
+    assert "road-10k-specific-interval-quality-v1" in packet
+    assert "activity_avg_power" in packet
 
 
 def test_half_marathon_packet_contains_exact_inactive_contract() -> None:

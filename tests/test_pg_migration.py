@@ -84,6 +84,20 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                     wrapped_dek=dek, preferences={"activities": True},
                     status="connected", last_sync=datetime.utcnow(),
                 ),
+                m.TermsAcceptanceReceipt(
+                    id="44444444-4444-4444-4444-444444444444",
+                    user_id=uid,
+                    action="accept_terms_and_acknowledge_privacy",
+                    terms_version="2026.08.3",
+                    terms_digest="sha256:" + ("a" * 64),
+                    locale="zh",
+                    channel="wechat-miniapp",
+                    client_version="2026.08.1",
+                    source_sha="c" * 40,
+                    notice_version="2026.08.3",
+                    release_id="wechat:robot-1:2026.08.1",
+                    accepted_at=datetime(2026, 8, 26, 12, 0, 0),
+                ),
                 m.Activity(
                     user_id=uid, activity_id="act-1", date=date(2026, 6, 1),
                     distance_km=10.0, duration_sec=3000.0, avg_power=250.0,
@@ -209,6 +223,20 @@ def test_sqlite_to_postgres_roundtrip(tmp_path, monkeypatch):
                 assert c.execute(
                     select(func.count()).select_from(m.PlanDeliveryAttempt)
                 ).scalar() == 1
+                receipt = c.execute(
+                    select(
+                        m.TermsAcceptanceReceipt.terms_digest,
+                        m.TermsAcceptanceReceipt.channel,
+                        m.TermsAcceptanceReceipt.source_sha,
+                        m.TermsAcceptanceReceipt.release_id,
+                    ).where(m.TermsAcceptanceReceipt.user_id == uid)
+                ).one()
+                assert tuple(receipt) == (
+                    "sha256:" + ("a" * 64),
+                    "wechat-miniapp",
+                    "c" * 40,
+                    "wechat:robot-1:2026.08.1",
+                )
                 act_date = c.execute(
                     select(m.Activity.date).where(m.Activity.user_id == uid)
                 ).scalar()

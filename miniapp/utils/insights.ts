@@ -65,17 +65,12 @@ export function localizedInsight(
 }
 
 /**
- * Fetch a specific insight from the backend. Returns ``null`` when the
- * row doesn't exist (matches the route's "no row → ``insight: null``"
- * shape).
+ * Fetch a specific insight and the server-owned Azure AI availability state.
  */
 export async function fetchInsight(
   insightType: 'training_review' | 'race_forecast',
-): Promise<AiInsight | null> {
-  const resp = await request<AiInsightResponse>(
-    `/api/insights/${insightType}`,
-  );
-  return resp.insight ?? null;
+): Promise<AiInsightResponse> {
+  return request<AiInsightResponse>(`/api/insights/${insightType}`);
 }
 
 /** Submit one vote for the exact generated insight version shown to the user. */

@@ -1,4 +1,4 @@
-"""Bounded personal-context projection and optional AI classification.
+"""Bounded personal-context projection and Azure AI classification.
 
 This module deliberately has no route, scheduler, or plan-mutation hook.
 Callers get a structured review outcome; later plan-adjustment work remains
@@ -16,7 +16,7 @@ from typing import Any, Iterator, Literal, Mapping, Sequence
 
 from azure.core.exceptions import AzureError
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from api import llm
 from api.personal_context import (
@@ -28,7 +28,6 @@ from api.personal_context import (
     load_active_contexts,
     record_context_use,
 )
-from db.models import PersonalContextConsentReceipt, PersonalContextItem
 from db.plan_ledger import lock_plan_writes
 
 logger = logging.getLogger(__name__)
@@ -317,7 +316,7 @@ def assemble_ai_context_request(
     allowed_proposal_scope: ProposalScope,
     now: datetime | None = None,
 ) -> AiContextRequest:
-    """Build an Azure-only request from exact, currently consented fields."""
+    """Build a minimized Azure request from exact purpose-confirmed fields."""
     if (
         purpose not in _SCOPE_BY_PURPOSE
         or not isinstance(allowed_proposal_scope, str)
@@ -331,132 +330,71 @@ def assemble_ai_context_request(
     if not selected_ids or len(selected_ids) > MAX_CONTEXT_ITEMS:
         raise ContextAiUnavailable("Context AI selection is unavailable")
 
+    from api.optional_processing import background_ai_authorized
+
+    if not background_ai_authorized(db, user_id=user_id):
+        raise ContextAiUnavailable("Context AI is unavailable")
+
     current_time = _utc_naive(now or datetime.utcnow())
     lock_plan_writes(db, user_id)
-    ai_receipt = aliased(PersonalContextConsentReceipt)
-    purpose_receipt = aliased(PersonalContextConsentReceipt)
-    newer_item = aliased(PersonalContextItem)
-    purpose_confirmed = (
-        db.query(purpose_receipt.id)
-        .filter(
-            purpose_receipt.user_id == PersonalContextItem.user_id,
-            purpose_receipt.context_item_id == PersonalContextItem.id,
-            purpose_receipt.context_version == PersonalContextItem.version,
-            purpose_receipt.purpose == PersonalContextItem.purpose,
-            purpose_receipt.consent_scope == "purpose_confirmation",
-            purpose_receipt.decision == "granted",
-        )
-        .exists()
+    loaded = load_active_contexts(
+        db,
+        user_id=user_id,
+        purpose=purpose,
+        include_narrative=False,
+        require_purpose_confirmation=True,
+        now=current_time,
     )
-    newer_version_exists = (
-        db.query(newer_item.id)
-        .filter(
-            newer_item.user_id == PersonalContextItem.user_id,
-            newer_item.lineage_id == PersonalContextItem.lineage_id,
-            newer_item.version > PersonalContextItem.version,
-        )
-        .exists()
-    )
-    rows = (
-        db.query(PersonalContextItem, ai_receipt)
-        .join(
-            ai_receipt,
-            (PersonalContextItem.consent_receipt_id == ai_receipt.id)
-            & (PersonalContextItem.user_id == ai_receipt.user_id),
-        )
-        .filter(
-            PersonalContextItem.id.in_(selected_ids),
-            PersonalContextItem.user_id == user_id,
-            PersonalContextItem.purpose == purpose,
-            PersonalContextItem.state == "active",
-            PersonalContextItem.starts_at <= current_time,
-            or_(
-                PersonalContextItem.expires_at.is_(None),
-                PersonalContextItem.expires_at > current_time,
-            ),
-            PersonalContextItem.processing_mode == "ai_allowed",
-            ai_receipt.context_item_id == PersonalContextItem.id,
-            ai_receipt.context_version == PersonalContextItem.version,
-            ai_receipt.purpose == PersonalContextItem.purpose,
-            ai_receipt.consent_scope == "ai_processing",
-            ai_receipt.provider == AI_PROVIDER,
-            ai_receipt.decision == "granted",
-            purpose_confirmed,
-            ~newer_version_exists,
-        )
-        .all()
-    )
-    by_id = {item.id: (item, receipt) for item, receipt in rows}
-    if set(by_id) != set(selected_ids):
-        raise ContextAiUnavailable("Context AI consent is unavailable")
+    by_id = {item.item_id: item for item in loaded}
+    if set(by_id).intersection(selected_ids) != set(selected_ids):
+        raise ContextAiUnavailable("Context purpose authority is unavailable")
+
+    from api.legal import TERMS_VERSION
 
     statements: list[dict[str, Any]] = []
     disclosures: list[AiDisclosure] = []
     for index, item_id in enumerate(selected_ids, start=1):
-        item, consent = by_id[item_id]
+        item = by_id[item_id]
         inspected = inspect_context(
             db,
             user_id=user_id,
             item_id=item_id,
-            include_narrative=bool(consent.narrative_disclosed),
+            include_narrative=True,
             now=current_time,
         )
-        if inspected.category in SAFETY_CATEGORIES:
+        if inspected.item.version != item.version:
+            raise ContextAiUnavailable("Context item version is unavailable")
+        if item.category in SAFETY_CATEGORIES:
             raise ContextAiUnavailable("Safety context cannot be sent to AI")
 
-        statement: dict[str, Any] = {}
         fields_payload: dict[str, Any] = {}
-        sent_fields: list[str] = []
-        disclosed_fields = tuple(consent.disclosed_fields or [])
-        if not disclosed_fields and not consent.narrative_disclosed:
-            raise ContextAiUnavailable("Context AI disclosure is empty")
-        for disclosed_field in disclosed_fields:
-            if disclosed_field == "category":
-                statement["category"] = inspected.category
-                sent_fields.append(disclosed_field)
-                continue
-            if not disclosed_field.startswith("fields."):
-                raise ContextAiUnavailable(
-                    "Context AI field minimization failed"
-                )
-            field_name = disclosed_field.removeprefix("fields.")
+        sent_fields = ["category"]
+        for field_name, raw_value in sorted(item.fields.items()):
             if field_name not in ALLOWED_CONTEXT_FIELDS:
-                raise ContextAiUnavailable(
-                    "Context AI field minimization failed"
-                )
-            if field_name not in inspected.fields:
-                continue
-            projected_value = _project_field(
-                field_name,
-                inspected.fields[field_name],
-            )
+                raise ContextAiUnavailable("Context AI field minimization failed")
+            projected_value = _project_field(field_name, raw_value)
             if projected_value is _UNUSABLE:
-                raise ContextAiUnavailable(
-                    "Context AI field minimization failed"
-                )
+                raise ContextAiUnavailable("Context AI field minimization failed")
             fields_payload[field_name] = projected_value
-            sent_fields.append(disclosed_field)
+            sent_fields.append(f"fields.{field_name}")
+
+        statement: dict[str, Any] = {"category": item.category}
         if fields_payload:
             statement["fields"] = fields_payload
-        if consent.narrative_disclosed:
-            if inspected.narrative is None:
-                raise ContextAiUnavailable(
-                    "Context AI narrative is unavailable"
-                )
+        narrative_disclosed = inspected.narrative is not None
+        if narrative_disclosed:
             statement["quoted_narrative"] = inspected.narrative
-        if not statement:
-            raise ContextAiUnavailable("Context AI disclosure is empty")
 
         statements.append({
             "item_ref": f"context_{index}",
             "evidence_class": "athlete_stated",
-            "consent_text_version": consent.consent_text_version,
+            "terms_version": TERMS_VERSION,
             "statement": statement,
         })
         disclosures.append(AiDisclosure(
-            item_id=item.id,
+            item_id=item.item_id,
             disclosed_fields=tuple(sent_fields),
-            narrative_disclosed=bool(consent.narrative_disclosed),
+            narrative_disclosed=narrative_disclosed,
         ))
 
     user_payload = {
@@ -480,22 +418,20 @@ def assemble_ai_context_request(
         disclosures=tuple(disclosures),
     )
 
-
 def process_personal_context(
     db: Session,
     *,
     user_id: str,
     purpose: str,
     kinds: Sequence[str] | None = None,
-    allow_ai: bool = False,
     azure_client: Any | None = None,
     now: datetime | None = None,
 ) -> ContextDecision:
     """Return a bounded decision and persist only payload-free use receipts.
 
-    AI remains opt-in at the caller boundary. When it is disabled,
-    unavailable, unconsented, minimized to nothing, or structurally invalid,
-    the validated deterministic result is returned.
+    Current Terms and the centralized runtime switch authorize Azure AI.
+    Deterministic outcomes remain separately identified when AI is unavailable
+    and are never relabeled as AI output.
     """
     current_time = _utc_naive(now or datetime.utcnow())
     lock_plan_writes(db, user_id)
@@ -516,19 +452,16 @@ def process_personal_context(
         now=current_time,
     )
 
-    if (
-        not allow_ai
-        or deterministic.outcome in {"no_change", "safety"}
-        or not used_items
-    ):
+    if deterministic.outcome in {"no_change", "safety"} or not used_items:
         db.commit()
         return deterministic
 
-    client = (
-        azure_client
-        if azure_client is not None
-        else _get_azure_context_client()
-    )
+    from api.optional_processing import background_ai_authorized
+
+    if not background_ai_authorized(db, user_id=user_id):
+        db.commit()
+        return deterministic
+    client = azure_client if azure_client is not None else _get_azure_context_client()
     if client is None:
         db.commit()
         return deterministic
@@ -544,7 +477,7 @@ def process_personal_context(
         )
     except ContextAiUnavailable:
         db.commit()
-        return deterministic
+        raise
 
     for disclosure in request.disclosures:
         record_context_use(
@@ -715,6 +648,7 @@ def _call_azure_context_model(
     client: Any,
     request: AiContextRequest,
 ) -> Mapping[str, Any] | None:
+    provider_attempt = llm.begin_runtime_provider_attempt()
     try:
         from openai import APIError  # type: ignore[import-not-found]
     except ImportError:  # pragma: no cover - production client is unavailable
@@ -747,17 +681,20 @@ def _call_azure_context_model(
         ConnectionError,
         OSError,
     ):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=provider_unavailable"
         )
         return None
     except (AttributeError, IndexError, TypeError):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_response"
         )
         return None
 
     if not isinstance(content, str):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_response"
         )
@@ -765,11 +702,19 @@ def _call_azure_context_model(
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=invalid_json"
         )
         return None
-    return parsed if isinstance(parsed, Mapping) else None
+    if not isinstance(parsed, Mapping):
+        llm.record_runtime_provider_failure()
+        logger.warning(
+            "Personal-context AI request failed: code=invalid_response"
+        )
+        return None
+    llm.record_runtime_provider_success(provider_attempt)
+    return parsed
 
 
 @contextmanager
@@ -785,6 +730,7 @@ def _get_azure_context_client() -> Any | None:
     try:
         return llm.get_client()
     except (AzureError, OSError, ValueError):
+        llm.record_runtime_provider_failure()
         logger.warning(
             "Personal-context AI request failed: code=client_unavailable"
         )

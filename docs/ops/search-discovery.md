@@ -44,16 +44,18 @@ Record indexed public URLs, impressions, clicks, demo starts, and account
 creation attributed to organic/referral traffic. Raw page views are diagnostic,
 not a success metric.
 
-4. Keep `www.praxys.run` canonical until `praxys.cn` has an approved ICP filing,
-   valid HTTPS, a production-ready Tencent origin, and search-verifiable public
+4. Keep `www.praxys.run` canonical until the ICP-approved `praxys.cn` service
+   has valid managed HTTPS, a verified EdgeOne Makers deployment, accepted
+   filing/access and cross-border release evidence, and search-verifiable public
    pages. Do not publish `hreflang` or canonical links to an unavailable domain.
 
 5. At the mainland launch, serve the same generated public HTML on
    `praxys.cn`. Use self-referencing canonicals for genuinely regional pages and
    reciprocal `hreflang` links between the international English URL and the
-   mainland Simplified-Chinese URL. Prefer an explicit regional redirect based
-   on user choice or stable edge routing; do not permanently redirect search
-   crawlers solely from an unreviewed IP-geolocation result.
+   mainland Simplified-Chinese URL. Do not enable Cloudflare's optional
+   geographic `302` during the initial cutover. If later accepted, preserve
+   path/query and never permanently redirect search crawlers solely from an
+   IP-geolocation result.
 
 6. Re-submit both sitemaps after the regional canonical/hreflang change and
    monitor duplicate-canonical and alternate-page reports for at least four
@@ -87,4 +89,4 @@ redirect, restore the last verified canonical/hreflang set, and keep
 - `frontend_server/main.py`
 
 ---
-_Last reviewed: 2026-08-11 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-20 · Owner: @dddtc2005_
