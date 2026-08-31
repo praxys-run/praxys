@@ -2760,3 +2760,202 @@ def test_ambiguous_upload_is_compensated_when_database_publication_fails(
     assert exc.value.status_code == 500
     assert deleted == uploaded
     assert db.query(Feedback).count() == 0
+
+
+def test_configured_blob_missing_client_never_reads_legacy_local_twin(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+
+    key = "feedback/42/0.png"
+    path = Path(fs._local_dir()) / key
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_PNG_1PX)
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+
+    assert fs.load_image(key) is None
+
+
+def test_configured_blob_provider_error_never_reads_legacy_local_twin(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+
+    key = "feedback/42/0.png"
+    path = Path(fs._local_dir()) / key
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_PNG_1PX)
+
+    class BrokenClient:
+        def download_blob(self, _key: str):
+            raise OSError("provider unavailable")
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: BrokenClient())
+
+    assert fs.load_image(key) is None
+
+
+def test_admin_image_read_fails_closed_during_configured_blob_error(
+    db_with_users,
+    monkeypatch,
+):
+    from api import feedback_storage as fs
+    from api.routes.feedback import get_feedback_image
+    from db.models import Feedback
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="private image",
+        image_keys=["feedback/42/0.png"],
+        status="new",
+    )
+    db.add(row)
+    db.commit()
+    path = Path(fs._local_dir()) / "feedback/42/0.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_PNG_1PX)
+
+    class BrokenClient:
+        def download_blob(self, _key: str):
+            raise OSError("provider unavailable")
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: BrokenClient())
+
+    with pytest.raises(HTTPException) as exc:
+        get_feedback_image(row.id, 0, user_id=admin_id, db=db)
+    assert exc.value.status_code == 404
+
+
+def test_failed_image_publication_and_compensation_leave_owner_bound_replay(
+    db_with_users,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    from api import account_deletion
+    from api import feedback_storage as fs
+    from api import road_10k_control
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback, Road10KDeletionObligation, User
+
+    db, _, _, user_id = db_with_users
+
+    class Download:
+        def __init__(self, payload: bytes):
+            self.payload = payload
+
+        def readall(self) -> bytes:
+            return self.payload
+
+    class Blob:
+        def __init__(self, client, key: str):
+            self.client = client
+            self.key = key
+
+        def download_blob(self):
+            return Download(self.client.items[self.key])
+
+        def delete_blob(self, **_kwargs):
+            self.client.items.pop(self.key, None)
+
+    class MarkerClient:
+        def __init__(self):
+            self.items: dict[str, bytes] = {}
+
+        def upload_blob(self, *, name: str, data: bytes, **_kwargs):
+            self.items[name] = data
+
+        def list_blobs(self, *, name_starts_with: str, **_kwargs):
+            return [
+                SimpleNamespace(name=key)
+                for key in sorted(self.items)
+                if key.startswith(name_starts_with)
+            ]
+
+        def get_blob_client(self, key: str, **_kwargs):
+            return Blob(self, key)
+
+    marker_client = MarkerClient()
+    uploaded: list[str] = []
+    delete_fails = {"value": True}
+
+    def store(_data: bytes, *, feedback_id: int, index: int) -> str:
+        key = f"feedback/{feedback_id}/{index}.png"
+        uploaded.append(key)
+        return key
+
+    def delete(key: str) -> None:
+        if delete_fails["value"]:
+            raise OSError("private delete unavailable")
+        uploaded.remove(key)
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: marker_client)
+    monkeypatch.setattr(fs, "store_image", store)
+    monkeypatch.setattr(fs, "delete_private_object", delete)
+
+    real_commit = db.commit
+    failed_publication = {"value": False}
+
+    def fail_key_publication_once() -> None:
+        has_published_key = any(
+            isinstance(value, Feedback) and bool(value.image_keys)
+            for value in db.identity_map.values()
+        )
+        if has_published_key and not failed_publication["value"]:
+            failed_publication["value"] = True
+            raise OSError("db publication failed")
+        real_commit()
+
+    monkeypatch.setattr(db, "commit", fail_key_publication_once)
+
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(
+                kind="bug",
+                message="publication interleaving",
+                images=[base64.b64encode(_PNG_1PX).decode()],
+            ),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+    assert exc.value.status_code == 500
+    assert failed_publication["value"] is True
+    assert uploaded
+
+    db.expire_all()
+    row = db.query(Feedback).filter(
+        Feedback.user_id == user_id,
+        Feedback.message == "publication interleaving",
+    ).one()
+    assert not row.image_keys
+    obligation = db.query(Road10KDeletionObligation).one()
+    assert obligation.status == "committed"
+    assert obligation.reason == "feedback_publication"
+    marker = next(
+        json.loads(payload)
+        for key, payload in marker_client.items.items()
+        if key.startswith("road-10k/deletion-manifests/")
+    )
+    assert marker["owner_id"] == user_id
+    assert marker["screenshot_keys"] == uploaded
+
+    monkeypatch.setattr(account_deletion, "_clear_tokenstore", lambda _uid: None)
+    monkeypatch.setattr(account_deletion, "_clear_legacy_plan_status", lambda *_args: None)
+    result = account_deletion.delete_user_account(db, user_id)
+    assert result.cleanup_pending is True
+    assert db.query(User).filter(User.id == user_id).count() == 0
+    assert db.query(Road10KDeletionObligation).one().status == "committed"
+
+    delete_fails["value"] = False
+    assert road_10k_control.replay_road_10k_deletion_manifests(db) == 1
+    assert uploaded == []
+    assert db.query(Road10KDeletionObligation).one().status == "completed"

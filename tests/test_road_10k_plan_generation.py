@@ -538,8 +538,8 @@ def test_taper_window_and_public_guardrails_match_the_accepted_contract() -> Non
     ] == [expected for _days, expected in cases]
 
 
-def test_event_on_last_day_of_second_taper_unit_replaces_one_session() -> None:
-    """A day-13 event counts inside the accepted unit frequency."""
+def test_reserved_event_is_not_appended_to_the_taper_comparator() -> None:
+    """The event date is not an ordinary workout in the reference schedule."""
     from analysis.road_10k_plan_generation import generate_road_10k_plan
 
     block_start = _input().block_start
@@ -549,19 +549,34 @@ def test_event_on_last_day_of_second_taper_unit_replaces_one_session() -> None:
         _input(target_event_date=target_date)
     )
 
-    assert result.code == "eligible_taper_proposal"
-    assert result.plan is not None
-    event_week = result.plan.weeks[-1]
-    assert event_week.external_quality_date == target_date
-    assert [workout.scheduled_date for workout in event_week.workouts] == [
-        block_start + timedelta(days=7),
-        block_start + timedelta(days=10),
-    ]
-    assert all(
-        workout.intensity_bucket == "low"
-        for workout in event_week.workouts
+    assert result.code == "no_schedule_within_envelope"
+    assert result.plan is None
+
+
+def test_odd_reference_minutes_return_no_inexact_taper() -> None:
+    """Integer minutes must realize the accepted 0.50 reduction exactly."""
+    from analysis.road_10k_plan_generation import generate_road_10k_plan
+
+    generation_input = _input()
+    target_date = generation_input.block_start + timedelta(days=14)
+    constraints = replace(
+        generation_input.constraints,
+        weekly_time_limit_min=169,
+        event_context_confirmed_none=False,
     )
-    assert len(event_week.workouts) + 1 == 3
+    result = generate_road_10k_plan(
+        replace(
+            generation_input,
+            goal=replace(
+                generation_input.goal,
+                target_event_date=target_date,
+            ),
+            constraints=constraints,
+        )
+    )
+
+    assert result.code == "no_schedule_within_envelope"
+    assert result.plan is None
 
 
 def test_distance_cap_is_required_and_preserved_per_workout() -> None:
