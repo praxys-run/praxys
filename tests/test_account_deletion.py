@@ -694,6 +694,7 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
     assert res.json() == {"status": "deleted", "email": "athlete@example.test"}
 
     from db.models import (
+        AccountDeletionCleanupObligation,
         AdaptivePlan,
         AdaptivePlanGoalSnapshot,
         Activity,
@@ -793,6 +794,16 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
         assert db.query(Invitation).filter(
             (Invitation.used_by == "delete-me") | (Invitation.created_by == "delete-me")
         ).count() == 0
+        cleanup_rows = db.query(AccountDeletionCleanupObligation).all()
+        assert {
+            (row.user_id, row.cleanup_kind, row.status)
+            for row in cleanup_rows
+        } == {
+            ("delete-me", "garmin_tokens", "completed"),
+            ("delete-me", "legacy_plan_status", "completed"),
+            ("demo-user", "garmin_tokens", "completed"),
+            ("demo-user", "legacy_plan_status", "completed"),
+        }
 
         # The admin-issued invitation the deleted user *used* is preserved as an
         # audit record, but detached (used_by NULL) and deactivated so the freed
@@ -1105,7 +1116,7 @@ def test_delete_me_reports_pending_when_garmin_token_cleanup_fails(
     _seed_account_rows(db_session)
 
     from api import account_deletion
-    from db.models import User
+    from db.models import AccountDeletionCleanupObligation, User
 
     attempted: list[str] = []
 
@@ -1127,11 +1138,17 @@ def test_delete_me_reports_pending_when_garmin_token_cleanup_fails(
         "status": "deleted_cleanup_pending",
         "email": "athlete@example.test",
     }
-    assert attempted == ["demo-user", "delete-me"]
+    assert attempted == ["delete-me", "demo-user"]
     with db_session.SessionLocal() as db:
         assert db.query(User).filter(
             User.id.in_(["delete-me", "demo-user"])
         ).count() == 0
+        pending = db.query(AccountDeletionCleanupObligation).filter(
+            AccountDeletionCleanupObligation.status == "pending"
+        ).all()
+        assert [(row.user_id, row.cleanup_kind) for row in pending] == [
+            ("delete-me", "garmin_tokens"),
+        ]
 
 
 def test_delete_me_attempts_remaining_cleanup_after_one_failure(
@@ -1171,8 +1188,8 @@ def test_delete_me_attempts_remaining_cleanup_after_one_failure(
 
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "deleted_cleanup_pending"
-    assert token_attempts == ["demo-user", "delete-me"]
-    assert plan_attempts == ["demo-user", "delete-me"]
+    assert token_attempts == ["delete-me", "demo-user"]
+    assert plan_attempts == ["delete-me", "demo-user"]
 
 
 def test_deletion_first_phase_cancels_labs_work_before_cleanup(
@@ -1184,6 +1201,7 @@ def test_deletion_first_phase_cancels_labs_work_before_cleanup(
 
     from api import account_deletion
     from db.models import (
+        AccountDeletionCleanupObligation,
         LabsAnalysisJob,
         LabsAnalysisOutbox,
         User,
@@ -1251,6 +1269,7 @@ def test_deletion_first_phase_cancels_labs_work_before_cleanup(
                 )
             )
         }
+        assert db.query(AccountDeletionCleanupObligation).count() == 0
 
     assert users == {"delete-me": False, "demo-user": False}
     assert jobs == {

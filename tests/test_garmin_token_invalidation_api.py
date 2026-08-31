@@ -1121,3 +1121,60 @@ def test_admin_delete_user_survives_token_cleanup_failure(api_client, monkeypatc
     )
     res = api_client["client"].delete(f"/api/admin/users/{api_client['user_id']}")
     assert res.status_code == 200
+    assert res.json()["status"] == "deleted_cleanup_pending"
+
+
+def test_admin_delete_cleanup_replays_after_process_restart(
+    api_client,
+    monkeypatch,
+):
+    from api.auth import get_current_user_id
+    from api.account_deletion_cleanup import (
+        pending_cleanup_exists,
+        replay_cleanup_obligations,
+    )
+    from api.routes import sync as sync_routes
+    from db.models import User
+    from db.session import SessionLocal
+
+    user_id = api_client["user_id"]
+    _seed_token_dir(user_id)
+    original_clear = sync_routes.clear_garmin_tokens
+    fail = {"value": True}
+
+    def interrupted_clear(target_user_id, *args, **kwargs):
+        if fail["value"] and target_user_id == user_id:
+            raise OSError("simulated process interruption")
+        return original_clear(target_user_id, *args, **kwargs)
+
+    monkeypatch.setattr(sync_routes, "clear_garmin_tokens", interrupted_clear)
+    api_client["client"].app.dependency_overrides[get_current_user_id] = (
+        api_client["override_admin"]
+    )
+    response = api_client["client"].delete(
+        f"/api/admin/users/{user_id}"
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "deleted_cleanup_pending"
+
+    # A fresh session stands in for the next process. The account is already
+    # gone, but the opaque cleanup locator remains authoritative.
+    fail["value"] = False
+    with SessionLocal() as restarted_db:
+        assert restarted_db.get(User, user_id) is None
+        assert pending_cleanup_exists(
+            restarted_db, user_ids=[user_id]
+        ) is True
+        assert replay_cleanup_obligations(
+            restarted_db, user_ids=[user_id]
+        ) >= 1
+        assert pending_cleanup_exists(
+            restarted_db, user_ids=[user_id]
+        ) is False
+    assert not os.path.lexists(sync_routes._garmin_token_dir(user_id))
+    assert not os.path.lexists(
+        os.path.join(
+            sync_routes._garmin_token_root() + ".migration",
+            user_id,
+        )
+    )

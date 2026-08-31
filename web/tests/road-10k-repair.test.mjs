@@ -160,9 +160,10 @@ test("Road-specific web targets declare at least 44 CSS pixels", async () => {
 });
 
 test("account deletion clients model committed cleanup pending", async () => {
-  const [settings, login, webTypes, miniSettings, miniTypes] = await Promise.all([
+  const [settings, login, adminUsers, webTypes, miniSettings, miniTypes] = await Promise.all([
     read("../src/pages/Settings.tsx"),
     read("../src/pages/Login.tsx"),
+    read("../src/pages/admin/AdminUsers.tsx"),
     read("../src/types/api.ts"),
     read("../../miniapp/pages/settings/index.ts"),
     read("../../miniapp/types/api.ts"),
@@ -175,6 +176,9 @@ test("account deletion clients model committed cleanup pending", async () => {
   assert.match(settings, /accountDeletionStatus: result\.status/);
   assert.match(login, /deleted_cleanup_pending/);
   assert.match(login, /role="status"/);
+  assert.match(adminUsers, /deleted_cleanup_pending/);
+  assert.match(adminUsers, /Your account was deleted/);
+  assert.match(adminUsers, /still being retried in the background/);
   assert.match(miniSettings, /apiDelete<AccountDeletionResponse>/);
   assert.match(miniSettings, /clearToken\(\)/);
   assert.match(miniSettings, /accountDeletionStatus=\$\{result\.status\}/);

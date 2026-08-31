@@ -67,6 +67,14 @@ recorded request. Account-deletion markers remove all restored context for the
 owner, including context created during the live deletion window. Startup fails
 closed if configured private Blob storage cannot be read or an overdue privacy
 deletion cannot complete.
+Database-backed external cleanup obligations are also replayed before traffic:
+for every account deletion they re-delete any legacy Garmin tokenstore from
+both the active and migration-quarantine roots and remove legacy plan-status
+files. A pending or failed replay keeps startup
+closed; inspect logs for the cleanup kind only (account identifiers and paths
+must not be logged), repair the storage/permission fault, and restart. This is
+limited to external local artifacts; complete pre-deletion PostgreSQL PITR
+reconciliation remains tracked by #755.
 Before cutover, verify that withdrawn Labs experiments and deleted personal
 context remain absent.
 

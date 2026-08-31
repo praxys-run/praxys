@@ -2432,6 +2432,94 @@ event.listen(
 )
 
 
+class AccountDeletionCleanupObligation(Base):
+    """Durable authority to finish external account-data cleanup."""
+
+    __tablename__ = "account_deletion_cleanup_obligations"
+
+    # This is the opaque account UUID needed to address legacy per-user token
+    # storage.  The row deliberately contains no email, path, token, provider
+    # payload, error text, or foreign key to the deleted account.
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), nullable=False)
+    cleanup_kind = Column(String(32), nullable=False)
+    status = Column(String(16), nullable=False, default="pending")
+    requested_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(user_id) BETWEEN 1 AND 36 "
+            "AND user_id NOT LIKE '%/%' AND user_id NOT IN ('.','..')",
+            name="ck_account_deletion_cleanup_obligation_user_id",
+        ),
+        CheckConstraint(
+            "cleanup_kind IN ('garmin_tokens','legacy_plan_status')",
+            name="ck_account_deletion_cleanup_obligation_kind",
+        ),
+        CheckConstraint(
+            "status IN ('pending','completed')",
+            name="ck_account_deletion_cleanup_obligation_status",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND completed_at IS NULL) OR "
+            "(status = 'completed' AND completed_at IS NOT NULL)",
+            name="ck_account_deletion_cleanup_obligation_completion",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= requested_at",
+            name="ck_account_deletion_cleanup_obligation_order",
+        ),
+        Index(
+            "ix_account_deletion_cleanup_obligation_status",
+            "status",
+        ),
+        Index(
+            "ix_account_deletion_cleanup_obligation_user_status",
+            "user_id",
+            "status",
+        ),
+    )
+
+
+event.listen(
+    AccountDeletionCleanupObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_account_deletion_cleanup_obligations_no_delete "
+        "BEFORE DELETE ON account_deletion_cleanup_obligations "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'account deletion cleanup obligations cannot be deleted'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    AccountDeletionCleanupObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_account_deletion_cleanup_obligations_immutable "
+        "BEFORE UPDATE ON account_deletion_cleanup_obligations "
+        "WHEN NOT ((OLD.status = 'pending' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id "
+        "AND NEW.user_id = OLD.user_id "
+        "AND NEW.cleanup_kind = OLD.cleanup_kind "
+        "AND NEW.requested_at = OLD.requested_at "
+        "AND NEW.completed_at IS NOT NULL "
+        "AND NEW.completed_at >= OLD.requested_at) "
+        "OR (OLD.status = 'completed' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id "
+        "AND NEW.user_id = OLD.user_id "
+        "AND NEW.cleanup_kind = OLD.cleanup_kind "
+        "AND NEW.requested_at = OLD.requested_at "
+        "AND NEW.completed_at = OLD.completed_at)) "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'account deletion cleanup obligation immutable'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
 class Road10KEvaluation(Base):
     """Owner-scoped, deletable evaluation payload and result record."""
 

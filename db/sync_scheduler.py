@@ -376,6 +376,7 @@ def _scheduler_loop():
         except Exception:
             logger.exception("Scheduler tick failed")
         _run_personal_context_retention_tick()
+        _run_account_deletion_cleanup_tick()
         _run_managed_delivery_tick()
         _stop_event.wait(CHECK_INTERVAL_SEC)
 
@@ -388,6 +389,16 @@ def _run_personal_context_retention_tick() -> None:
         run_scheduled_retention()
     except Exception:
         logger.exception("Personal-context retention scheduler tick failed")
+
+
+def _run_account_deletion_cleanup_tick() -> None:
+    """Retry durable external account cleanup without disrupting sync."""
+    try:
+        from api.account_deletion_cleanup import run_scheduled_cleanup
+
+        run_scheduled_cleanup()
+    except Exception:
+        logger.exception("Account deletion cleanup scheduler tick failed")
 
 
 def _run_managed_delivery_tick() -> None:

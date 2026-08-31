@@ -122,9 +122,13 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)
-    from api.routes.sync import migrate_legacy_garmin_tokenstores
+    # A deleted account cannot authenticate to retry provider-credential or
+    # compatibility-file cleanup.  Replay the DB-durable obligation before
+    # serving traffic; unresolved external data fails startup closed and will
+    # be retried by the next process start.
+    from api.account_deletion_cleanup import run_startup_cleanup
 
-    migrate_legacy_garmin_tokenstores()
+    run_startup_cleanup()
 
     # Resolve the JWT secret eagerly so a misconfigured deployment (no
     # PRAXYS_JWT_SECRET and no dev opt-in) dies at boot rather than on the

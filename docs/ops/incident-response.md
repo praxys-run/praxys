@@ -108,6 +108,7 @@ curl -s --connect-timeout 5 --max-time 15 -o /dev/null -w "%{http_code}\n" https
 | Symptom | Likely area | Go to |
 |---|---|---|
 | `/api/health` fails / 5xx | backend down or crashing | **Backend** below |
+| Startup reports account deletion cleanup pending | External credential/status storage unavailable | Restore storage access; do not bypass startup replay or delete obligation rows; restart and verify no pending rows |
 | `/healthz` fails, API ok | frontend host | **Frontend** below |
 | Both ok, data stale for some users | sync stuck | [sync-troubleshooting.md](./sync-troubleshooting.md) |
 | Started right after a deploy | bad release | [deploy.md](./deploy.md) → Rollback |

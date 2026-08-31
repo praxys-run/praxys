@@ -667,6 +667,18 @@ fail Garmin authentication until the encrypted-token release is restored.
 A cross-worker migration lock elects one startup worker, which acquires all
 known per-user token leases before the cutover. The blocker is written and
 fsynced under a temporary name, then atomically installed.
+A committed account deletion also writes one payload-free
+`account_deletion_cleanup_obligations` row for Garmin tokens and one for
+legacy plan-status files before deleting the account. The rows contain only
+the opaque account UUID, fixed cleanup kind, lifecycle state, and timestamps;
+they never contain an email, filesystem path, credential, token, error text,
+or training payload. The request immediately replays them, every sync-scheduler
+tick retries pending rows, and startup replays every pending row before
+serving traffic. Cleanup covers both `.garmin_tokens/<uuid>` and
+`.garmin_tokens.migration/<uuid>` under the existing migration and per-user
+leases. Any unconfirmed residual file keeps the obligation pending and the
+API reports `deleted_cleanup_pending`; startup fails closed until all replayed
+cleanup succeeds. Admin deletion propagates the same status.
 A running Garmin sync is generation fenced and
 rolls back if the connection changes, so old OAuth sessions cannot
 authorize or degrade the replacement connection. Do not provision, copy, or

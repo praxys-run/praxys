@@ -306,7 +306,10 @@ def _clear_tokenstore(user_id: str) -> None:
     # The caller must surface a failure as cleanup-pending.  Swallowing this
     # exception can claim complete deletion while a bearer credential remains
     # on disk.
-    clear_garmin_tokens(user_id)
+    clear_garmin_tokens(
+        user_id,
+        include_migration_quarantine=True,
+    )
 
 
 def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
@@ -328,10 +331,8 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
                     continue
                 except OSError as exc:
                     cleanup_error = cleanup_error or exc
-                    logger.exception(
-                        "User %s deleted but legacy plan-status cleanup failed for %s.",
-                        user_id,
-                        candidate,
+                    logger.error(
+                        "Legacy plan-status cleanup failed during account deletion."
                     )
         if cleanup_error is not None:
             raise OSError(
@@ -476,8 +477,19 @@ def _delete_user_account_locked(
         .filter(User.demo_of == user_id)
         .all()
     )
+    from api.account_deletion_cleanup import (
+        pending_cleanup_exists,
+        record_cleanup_obligations,
+        replay_cleanup_obligations,
+    )
+
+    scoped_user_ids = [user_id, *(demo.id for demo in demo_users)]
     try:
-        for scoped_user_id in [user_id, *(demo.id for demo in demo_users)]:
+        # Persist filesystem-cleanup authority before removing the accounts.
+        # These payload-free rows commit atomically with the database deletion
+        # and remain replayable after this request or process exits.
+        record_cleanup_obligations(db, scoped_user_ids)
+        for scoped_user_id in scoped_user_ids:
             road_manifests.extend(
                 prepare_road_account_deletion(
                     db,
@@ -534,23 +546,16 @@ def _delete_user_account_locked(
             "Account private-object cleanup remains pending for user %s",
             user_id,
         )
-    for deleted_user_id in deleted_user_ids:
-        try:
-            _clear_tokenstore(deleted_user_id)
-        except Exception:
-            cleanup_pending = True
-            logger.exception(
-                "Account Garmin token cleanup remains pending for user %s",
-                deleted_user_id,
-            )
-        try:
-            _clear_legacy_plan_status(db, deleted_user_id)
-        except Exception:
-            cleanup_pending = True
-            logger.exception(
-                "Account legacy plan-status cleanup remains pending for user %s",
-                deleted_user_id,
-            )
+    try:
+        replay_cleanup_obligations(db, user_ids=deleted_user_ids)
+    except Exception:
+        cleanup_pending = True
+        db.rollback()
+        logger.exception(
+            "Account external cleanup replay failed after deletion commit"
+        )
+    if pending_cleanup_exists(db, user_ids=deleted_user_ids):
+        cleanup_pending = True
 
     return AccountDeletionResult(
         email=email,

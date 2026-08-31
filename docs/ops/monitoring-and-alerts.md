@@ -1119,6 +1119,29 @@ old process-local not_run, ready, and blocked values remain diagnostic only and
 must not drive health. Defining a future alert remains deferred until Operations
 accepts live resources and action-group behavior.
 
+## Account deletion cleanup obligations
+
+`account_deletion_cleanup_obligations` is the database-authoritative recovery
+queue for external Garmin token and legacy plan-status files. It emits no
+per-user telemetry and has no Azure alert resource in this PR. Inspect only
+aggregate pending counts from an authorized App Service shell or database
+session; never select or log `user_id` or `id`:
+
+```sql
+SELECT cleanup_kind, count(*) AS pending
+FROM account_deletion_cleanup_obligations
+WHERE status = 'pending'
+GROUP BY cleanup_kind;
+```
+
+Healthy is no rows. Any pending row after the next ten-minute scheduler tick,
+or any startup failure naming an account-deletion cleanup kind, is operator
+actionable: keep traffic closed when startup failed, restore filesystem access,
+restart, and rerun the aggregate query. Never delete or mutate an obligation by
+hand, and never add its locator to logs, metrics, dashboards, or alert
+dimensions. A live alert remains deferred until Operations accepts an action
+group and inventory/cost change in the same PR.
+
 ## Related
 
 - `api/telemetry.py` (signal emitters) · [cost-and-scaling.md](./cost-and-scaling.md) (budget + LLM spend) · [admin-tasks.md](./admin-tasks.md) (feedback triage)

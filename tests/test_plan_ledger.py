@@ -270,7 +270,8 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["d2e3f4a5b6c7"]
+    assert script.get_heads() == ["e3f4a5b6c7d8"]
+    assert script.get_revision("e3f4a5b6c7d8").down_revision == "d2e3f4a5b6c7"
     assert script.get_revision("d2e3f4a5b6c7").down_revision == "e1f2a3b4c5d6"
     assert script.get_revision("e1f2a3b4c5d6").down_revision == "d0e1f2a3b4c5"
     assert script.get_revision("d0e1f2a3b4c5").down_revision == "c9d0e1f2a3b4"
@@ -286,6 +287,46 @@ def test_alembic_head_includes_adaptive_plan_proposals():
     assert script.get_revision("8c9d0e1f2a3b").down_revision == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
+
+
+def test_account_cleanup_migration_refuses_downgrade_with_obligation(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    database_url = f"sqlite:///{tmp_path / 'cleanup-downgrade.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO account_deletion_cleanup_obligations (
+                    id, user_id, cleanup_kind, status, requested_at
+                ) VALUES (
+                    '00000000-0000-4000-8000-000000000001',
+                    'deleted-owner', 'garmin_tokens', 'pending',
+                    CURRENT_TIMESTAMP
+                )
+                """
+            )
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade account deletion cleanup obligations",
+        ):
+            command.downgrade(config, "d2e3f4a5b6c7")
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "e3f4a5b6c7d8"
+    finally:
+        engine.dispose()
 
 
 def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
@@ -764,7 +805,7 @@ def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
             }
             assert conn.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == "d2e3f4a5b6c7"
+            ).scalar_one() == "e3f4a5b6c7d8"
         assert "history_observation_ids" not in columns
         with open(database_path, "rb") as database_file:
             assert marker.encode() not in database_file.read()
