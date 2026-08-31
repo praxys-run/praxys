@@ -426,11 +426,11 @@ def test_miniapp_switch_is_independent_and_fail_closed(
     ).status_code == 200
 
 
-def test_miniapp_classification_precedes_conflicting_cn_origin(
+def test_exact_cn_origin_precedes_conflicting_miniapp_claim(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
-    monkeypatch.setenv(DISABLE_MINIAPP_PROCESSING_ENV, "true")
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+    monkeypatch.setenv(DISABLE_MINIAPP_PROCESSING_ENV, "false")
     headers = _miniapp_headers()
     headers["Origin"] = "https://praxys.cn"
 
@@ -440,7 +440,7 @@ def test_miniapp_classification_precedes_conflicting_cn_origin(
     )
     assert blocked.status_code == 503
     assert blocked.json()["detail"]["code"] == (
-        "MINIAPP_PROCESSING_DISABLED"
+        "CN_PROCESSING_DISABLED"
     )
 
     rights = _client().post(
@@ -448,7 +448,7 @@ def test_miniapp_classification_precedes_conflicting_cn_origin(
         headers=headers,
     )
     assert rights.status_code == 200
-    assert rights.json()["china_context"]["channel"] == MINIAPP_CLIENT
+    assert rights.json()["china_context"]["channel"] == CN_WEB_CLIENT
 
 
 def test_kill_switch_preserves_exact_rights_and_public_routes(
@@ -463,7 +463,7 @@ def test_kill_switch_preserves_exact_rights_and_public_routes(
     for method, path, expected_channel in (
         ("get", "/api/me/export", CN_WEB_CLIENT),
         ("post", "/api/auth/logout", CN_WEB_CLIENT),
-        ("post", "/api/auth/wechat/unlink", MINIAPP_CLIENT),
+        ("post", "/api/auth/wechat/unlink", CN_WEB_CLIENT),
         ("delete", "/api/settings/connections/garmin", CN_WEB_CLIENT),
         ("delete", "/api/me", CN_WEB_CLIENT),
     ):
@@ -489,13 +489,13 @@ def test_kill_switch_preserves_exact_rights_and_public_routes(
     )
 
 
-def test_actual_app_miniapp_wins_conflicting_origin_and_receipt_channel(
+def test_actual_app_cn_origin_wins_conflicting_claim_and_receipt_channel(
     actual_app_client,
     monkeypatch,
 ) -> None:
     client, db_session, user_id = actual_app_client
-    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
-    monkeypatch.setenv(DISABLE_MINIAPP_PROCESSING_ENV, "true")
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+    monkeypatch.setenv(DISABLE_MINIAPP_PROCESSING_ENV, "false")
     headers = _miniapp_headers()
     headers["Origin"] = "https://praxys.cn"
 
@@ -506,7 +506,7 @@ def test_actual_app_miniapp_wins_conflicting_origin_and_receipt_channel(
     )
     assert blocked.status_code == 503
     assert blocked.json()["detail"]["code"] == (
-        "MINIAPP_PROCESSING_DISABLED"
+        "CN_PROCESSING_DISABLED"
     )
 
     accepted = client.post(
@@ -526,7 +526,7 @@ def test_actual_app_miniapp_wins_conflicting_origin_and_receipt_channel(
             .filter_by(user_id=user_id)
             .all()
         }
-    assert channels == {MINIAPP_CLIENT}
+    assert channels == {CN_WEB_CLIENT}
 
 
 @pytest.mark.parametrize("channel", (CN_WEB_CLIENT, MINIAPP_CLIENT))

@@ -335,13 +335,15 @@ class ChinaClientBoundaryMiddleware:
             return
 
         headers = Headers(scope=scope)
+        origin = headers.get("origin", "").rstrip("/")
         channel = ""
-        if _is_miniapp_request(path, headers):
+        # A browser's exact allowed Origin is the stronger signal. Miniapp
+        # headers and User-Agent are caller-controlled and must not let a .cn
+        # request select the independently enabled Miniapp processing switch.
+        if origin in CN_WEB_ORIGINS:
+            channel = CN_WEB_CLIENT
+        elif _is_miniapp_request(path, headers):
             channel = MINIAPP_CLIENT
-        else:
-            origin = headers.get("origin", "").rstrip("/")
-            if origin in CN_WEB_ORIGINS:
-                channel = CN_WEB_CLIENT
         if not channel:
             await self.app(scope, receive, send)
             return
