@@ -20,7 +20,7 @@ fastapi>=0.141.1
 uvicorn[standard]>=0.52.3
 pyyaml>=6.0.3
 portalocker>=4.1.0
-pydantic>=2.13.4
+pydantic>=2.13.5
 sqlalchemy>=2.0.52
 aiosqlite>=0.22.1
 # PostgreSQL driver (psycopg3). Backs BOTH the sync and async SQLAlchemy
