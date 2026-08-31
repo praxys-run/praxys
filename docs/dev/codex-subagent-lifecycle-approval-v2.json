@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "approval-praxys-codex-subagent-lifecycle-v2",
+  "artifact_type": "human-approval",
+  "status": "approved",
+  "recorded_at": "2026-08-31T15:49:37+08:00",
+  "decision_review_route": "human-review-required",
+  "subject": {
+    "id": "praxys-codex-subagent-lifecycle-v2",
+    "path": "docs/dev/codex-subagent-lifecycle-decision-v2.json",
+    "digest": "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43"
+  },
+  "proposal": {
+    "id": "policy-change-proposal-codex-subagent-lifecycle-v2",
+    "path": "docs/dev/policy-change-proposal-codex-subagent-lifecycle-v2.md",
+    "digest": "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3"
+  },
+  "implementation": {
+    "pull_request": 756,
+    "head_commit": "d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a",
+    "review_state": "no-material-findings",
+    "required_checks_state": "passed"
+  },
+  "authorization": {
+    "kind": "explicit-user-merge-request",
+    "source": "active-user-message",
+    "message": "没有问题的话就合并吧",
+    "interpretation": "Approve the exact lifecycle subject and reviewed implementation for merge through PR #756 and activation from the default branch, provided no material finding remains and required checks pass.",
+    "authorized_scope": "merge-and-default-branch-activation-only",
+    "conditions": [
+      "no material code-review or security finding remains",
+      "all required checks pass for the final pull-request head",
+      "the post-approval delta is limited to recording and validating this approval and its evidence"
+    ],
+    "exclusions": [
+      "autonomy promotion or measured-parity certification",
+      "modification or activation of the Copilot invocation-control ledger",
+      "credential forwarding, broader MCP tools, or production mutation",
+      "application deployment or release beyond repository default-branch activation"
+    ]
+  }
+}
