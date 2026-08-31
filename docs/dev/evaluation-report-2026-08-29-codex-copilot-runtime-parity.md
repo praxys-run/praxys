@@ -65,6 +65,28 @@ No completed paired-task batch exists yet. One successful setup or task cannot
 establish parity. The adapter may claim only static contract conformance until
 the observation plan is complete.
 
+### 2026-08-31 PR #745 follow-up
+
+The Copilot lifecycle incidents evaluated by #745 are relevant as cross-runtime
+risk signals, not proof that Codex shares the same native defect. Codex provides
+targeted thread identity, completion results, follow-up routing, wait, interrupt,
+and tree/status inspection. Therefore the repository should adopt the portable
+goals—logical-work deduplication, bounded replacement, descendant cleanup, safe
+write serialization, and fresh independent review—without adopting Copilot's
+native-ID ledger and one-read claim workaround.
+
+The bounded Codex profile permits parallelism only for independent read-only
+siblings. This is preferable to globally copying #745's direct-sibling lock:
+it retains context isolation and useful read concurrency while preventing
+multiple agents from writing the same worktree or racing an artifact dependency.
+The conclusion remains a static implementation hypothesis until paired runtime
+observations establish duplicate, orphan, correction, latency, and cost outcomes.
+The selected behavior is the exact subject in
+`docs/dev/codex-subagent-lifecycle-decision-v2.json`; the user-approved plan and
+explicit implementation request authorize candidate preparation and verification.
+Static validation binds that subject and the complete lifecycle proposal while
+retaining its pending `human-review-required` disposition.
+
 ## Outcome and guardrail plan
 
 Run at least five paired, representative tasks over at least seven calendar
@@ -79,7 +101,11 @@ Record only privacy-safe aggregates:
 - missed or unnecessary role dispatches;
 - verification gaps and human corrections;
 - revert, incident, policy escape, and adverse-outcome counts;
-- elapsed time and human review effort.
+- elapsed time and human review effort;
+- duplicate logical launches, matching-target follow-ups, descendant interrupts,
+  unconfirmed terminations, and replacements by runtime;
+- concurrent read-only fan-out versus queued write/dependency work; and
+- token cost by runtime.
 
 Guardrails are zero route drift, zero role-authority drift, zero review bypass,
 zero policy escape, zero adverse outcome, and zero unhandled credential or

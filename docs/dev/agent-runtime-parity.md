@@ -14,6 +14,15 @@ The parity contract also binds the complete approved proposal at
 `sha256:47a829962a21e17833feac0c3473ecb749c7b7e0ce4bff3aa2611ee1a92de8cd`,
 so retaining only its ID and subject digest cannot impersonate approval. The
 approved decision JSON and proposal remain byte-for-byte unchanged.
+The lifecycle schema-2 addendum is separately bound to
+`policy-change-proposal-codex-subagent-lifecycle-v2`, complete proposal digest
+`sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3`,
+and decision subject digest
+`sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`.
+It records the user's 2026-08-31 plan approval and implementation request as
+authority to prepare and verify this candidate. The exact subject remains
+`human-review-required` and pending; no digest-bound human approval, activation,
+release, or merge decision is claimed.
 
 The authoritative deterministic route is:
 
@@ -67,6 +76,51 @@ Role adapters preserve separation:
 Use Codex's native subagent selection after the root Praxys Orchestrator has
 recomputed the Work Contract. Native thread controls are mechanics, not a new
 authority or routing source.
+
+## Runtime-specific lifecycle profiles
+
+PR #745 hardened Copilot CLI calls against reported native completion and
+registry failures through a repository-owned ledger. That containment remains
+the Copilot lifecycle profile: calls default to synchronous execution, direct
+siblings under one active parent are serialized, and exceptional background
+work uses exact task-result binding, external notification, and one claimed
+native read. Codex does not emulate this protocol.
+
+Current Codex releases expose targetable agent threads, completion-result
+delivery, follow-up routing, waiting, interrupt, and tree/status inspection.
+The Codex profile uses those native controls and keys each logical unit of work
+by the stable opaque contract ID, stable role-slot ID, and immutable artifact
+digest or Git head revision key:
+The capability baseline is the current
+[official OpenAI Subagents documentation](https://developers.openai.com/codex/agent-configuration/subagents/);
+unsupported or unavailable native controls fail the affected orchestration
+step rather than falling back to the Copilot claimed-read protocol.
+
+- if that key is already active, send the additional instruction to that
+  target instead of spawning duplicate work; if the target cannot be addressed,
+  queue it as incomplete without relaunching;
+- run direct siblings concurrently only when each is independent and
+  read-only; serialize implementation writes and artifact dependency chains;
+- cap a session at four spawned-agent threads and queue when no slot is
+  available; capacity exhaustion never authorizes a replacement;
+- when a parent aborts, shuts down, fails, or is replaced, inspect its tree and interrupt
+  active descendants leaf first; an unconfirmed termination is incomplete
+  work, not evidence that relaunch is safe;
+- permit at most one explicit, non-chaining replacement after termination or
+  loss is confirmed; and
+- launch Quality or Trust verification as a fresh read-only thread without the
+  executor's conversation history.
+
+The Orchestrator and Change Loop Codex adapters translate only the canonical
+manifests' Copilot-specific `Cooperative invocation admission` section. All
+role, route, artifact, authority, safety, and Decision Review requirements in
+those manifests remain authoritative. A Codex call must never invoke
+`bind_native`, `native_read`, `read_claim`, or `read_agent`; those are Copilot
+containment mechanics, not portable governance.
+Only these two coordinator adapters may spawn, follow up, wait, or interrupt a
+Codex child. Other routed roles return required handoffs to their parent
+coordinator, even when their canonical Copilot manifest exposes the generic
+`agent` tool. This keeps every native child call behind one scheduling boundary.
 
 ## Portable capabilities and Trust limits
 
@@ -167,11 +221,28 @@ not be claimed.
 
 ## Implementation Change
 
-`config/agent-runtime-parity.json` is the runtime-neutral projection contract.
+`config/agent-runtime-parity.json` schema 2 is the runtime-neutral projection
+contract. Schema 1 readers fail closed rather than ignoring the new lifecycle
+profile; the digest-bound v1 approval subject and proposal remain unchanged.
 `analysis/agent_runtime_parity.py` strictly loads it and checks the actual
-repository. `scripts/check_agent_runtime_parity.py` is the stable local/CI
-entry point. `tests/test_agent_runtime_parity.py` covers the accepted route and
-negative drift paths. The Codex-native files remain deliberately thin and
+repository. It also exposes a pure Codex dispatch evaluator for the three
+checked-in classes (`read_parallel`, `write_serial`, and
+`dependency_serial`); it makes no native call and persists no thread state.
+Every observation is caller-supplied, so the evaluator defaults unknown
+capacity, prerequisites, sibling absence, target addressability, and reviewer
+identity fail closed. It is conformance logic for the native coordinator, not
+global interception or atomic cross-process enforcement.
+Dispatch observations include the validated opaque contract/slot identities,
+immutable revision key, logical-work lookup state, exact native target when
+active, target role, reviewer-history provenance, and one-use replacement
+facts. `read_parallel` derives read-only eligibility from the selected adapter's
+checked-in `write_scope`; a caller cannot relabel Engineering or an artifact
+writer as read-only. Cleanup evaluation accepts a complete native tree snapshot
+and returns leaf-first interrupt order, or records incomplete when the snapshot
+is absent, cyclic, duplicated, or otherwise inconsistent.
+`scripts/check_agent_runtime_parity.py` is the stable local/CI entry point.
+`tests/test_agent_runtime_parity.py` covers the accepted route, dispatch matrix,
+and negative drift paths. The Codex-native files remain deliberately thin and
 contain no provider, model, authentication, notification, telemetry, or
 personal preference state.
 
@@ -187,9 +258,13 @@ human diff review rather than claiming that invocation as execution evidence.
 
 Static validation can establish contract conformance only. It cannot establish
 equivalent prose, sampling, latency, token use, native tool behavior, coverage,
-or outcomes. Measured parity still requires at least five paired representative
-tasks over at least seven calendar days under the accepted Evaluation Report.
-One setup pass or successful task cannot promote parity or autonomy.
+or outcomes. In particular, native thread control does not prove that a thread
+survives context or process loss. Measured parity still requires at least five
+paired representative tasks over at least seven calendar days under the
+accepted Evaluation Report. Record duplicate launches, orphaned threads,
+follow-up reuse, interruptions, replacements, human corrections, latency, and
+token cost separately by runtime. One setup pass or successful task cannot
+promote parity or autonomy.
 
 For the current candidate, independent Quality must record the exact reviewed
 diff, test commands and results, native Codex parsing evidence, negative paths,

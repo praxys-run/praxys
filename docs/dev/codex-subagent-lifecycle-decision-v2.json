@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "praxys-codex-subagent-lifecycle-v2",
+  "status": "implementation-candidate-human-review-required",
+  "decision": "Adopt the portable lifecycle goals from PR #745 through Codex-native thread controls, safe read-only parallelism, serialized writes and dependencies, bounded replacement, descendant cleanup, and fresh independent review without adopting Copilot native-read claims.",
+  "work_contract": {
+    "primary_object": "agent-system",
+    "impacts": [
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "classification_digest": "sha256:ee6c38eebb7b9db2aedf6b824bc23d5d966e08045fc0e2830196e4a13eb0bcdd",
+    "route_digest": "sha256:6d0f0f33ea72fc440558b883ca293408fd1508011b4f0970495a49ba13b743e2"
+  },
+  "authorization": {
+    "kind": "explicit-user-implementation-request",
+    "source": "approved decision-complete plan, selected safe parallelism, and explicit Implement the plan request on 2026-08-31",
+    "authorized_scope": "candidate-implementation-and-verification-only",
+    "decision_review_route": "human-review-required",
+    "exact_subject_human_approval_status": "pending",
+    "digest_bound_human_approval_claimed": false
+  },
+  "lifecycle_profile": {
+    "schema_version": 1,
+    "logical_work_key_fields": [
+      "contract_id",
+      "slot_id",
+      "revision_key"
+    ],
+    "coordinator_agent_ids": [
+      "praxys-orchestrator",
+      "praxys-change-loop"
+    ],
+    "copilot": {
+      "profile_id": "copilot-repository-mediated-v1",
+      "mechanism": "repository-mediated-ledger",
+      "contract_path": "config/agent-invocation-control.json",
+      "direct_sibling_policy": "serialize-per-parent-attempt",
+      "default_dispatch": "sync-inline",
+      "background_completion": "external-notification-single-claimed-read"
+    },
+    "codex": {
+      "profile_id": "codex-native-thread-control-v1",
+      "mechanism": "native-agent-thread-control",
+      "native_capabilities": [
+        "targeted_agent_identity",
+        "completion_result_delivery",
+        "follow_up_routing",
+        "interrupt",
+        "tree_status_inspection",
+        "thread_wait"
+      ],
+      "dispatch_classes": [
+        "read_parallel",
+        "write_serial",
+        "dependency_serial"
+      ],
+      "max_concurrent_threads_per_session": 4,
+      "active_logical_work_behavior": "follow-up-existing-target",
+      "capacity_behavior": "queue-without-replacement",
+      "parent_terminal_behavior": "leaf-first-interrupt-on-abort-shutdown-failure-or-replacement",
+      "unconfirmed_termination_behavior": "record-incomplete-without-relaunch",
+      "replacement_behavior": "one-explicit-non-chaining-after-confirmed-terminal-or-loss",
+      "reviewer_behavior": "fresh-read-only-thread-without-executor-history",
+      "non_coordinator_dispatch_behavior": "forbidden-return-handoff-to-parent-coordinator",
+      "copilot_native_protocol": "forbidden"
+    }
+  },
+  "implementation_scope": [
+    ".codex/config.toml",
+    ".codex/agents/praxys-orchestrator.toml",
+    ".codex/agents/praxys-change-loop.toml",
+    "AGENTS.md",
+    "analysis/agent_runtime_parity.py",
+    "config/agent-runtime-parity.json",
+    "tests/test_agent_runtime_parity.py",
+    "docs/dev/agent-runtime-parity.md",
+    "docs/dev/adr-2026-08-29-codex-copilot-runtime-parity.md",
+    "docs/dev/evaluation-report-2026-08-29-codex-copilot-runtime-parity.md",
+    "docs/dev/trust-decision-record-2026-08-29-codex-copilot-runtime-parity.md",
+    "docs/dev/verification-evidence-2026-08-30-codex-copilot-runtime-parity.md",
+    "docs/dev/codex-subagent-lifecycle-decision-v2.json",
+    "docs/dev/policy-change-proposal-codex-subagent-lifecycle-v2.md"
+  ],
+  "non_goals": [
+    "native launcher interception or a repository-owned Codex thread registry",
+    "cross-session liveness or exact runtime enforcement claims",
+    "parallel repository writes or dependency-chain execution",
+    "role, routing, review-authority, or autonomy changes",
+    "modification of the Copilot invocation-control contract or ledger",
+    "activation, release, merge, or measured parity certification"
+  ]
+}

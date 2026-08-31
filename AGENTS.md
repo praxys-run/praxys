@@ -30,6 +30,20 @@ taxonomy, router, artifact ownership, Decision Review, or human authority.
 Run `python3 scripts/check_agent_runtime_parity.py` before claiming static
 adapter conformance. Static conformance is not measured runtime parity.
 
+Lifecycle mechanics are runtime-specific projections of the same bounded
+governance. Copilot manifest calls retain the repository-mediated protocol in
+`config/agent-invocation-control.json`. Codex calls use the native-thread
+profile in `config/agent-runtime-parity.json`: matching active logical work is
+steered through follow-up, or queued incomplete when its target is unavailable;
+only independent read-only siblings may run in
+parallel; writes and dependency chains are serialized; parent cleanup uses
+leaf-first interrupt; and independent verification starts in a fresh read-only
+thread without executor history. The Codex projection must not invoke
+Copilot's native-binding or claimed-read mechanics.
+Only Praxys Orchestrator and Praxys Change Loop may dispatch Codex child agents.
+When another role identifies required delegation or independent review, it must
+return the handoff to its parent coordinator instead of invoking a child itself.
+
 Do not treat this role list as a permanent org chart. Create, merge, or retire a
 role only through the checked-in evolution criteria and a reviewed policy
 change.

@@ -52,6 +52,13 @@ _APPROVED_EXTENSION_PROPOSAL_DIGEST = (
 _APPROVED_EXTENSION_SUBJECT_DIGEST = (
     "sha256:0dfb8bcf46df787aa75575e03ff02f19ae40c1df2f8cddde37095c34fa6e987d"
 )
+_LIFECYCLE_PROPOSAL_ID = "policy-change-proposal-codex-subagent-lifecycle-v2"
+_LIFECYCLE_PROPOSAL_DIGEST = (
+    "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3"
+)
+_LIFECYCLE_SUBJECT_DIGEST = (
+    "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43"
+)
 _READ_ONLY_ADAPTERS = frozenset(
     {
         "praxys-orchestrator",
@@ -73,6 +80,43 @@ _ARTIFACT_WRITER_ADAPTERS = frozenset(
     }
 )
 _IMPLEMENTATION_ADAPTERS = frozenset({"engineering"})
+_ALL_ADAPTERS = (
+    _READ_ONLY_ADAPTERS
+    | _ARTIFACT_WRITER_ADAPTERS
+    | _IMPLEMENTATION_ADAPTERS
+)
+_CODEX_COORDINATOR_ADAPTERS = (
+    "praxys-orchestrator",
+    "praxys-change-loop",
+)
+_LOGICAL_WORK_KEY_FIELDS = (
+    "contract_id",
+    "slot_id",
+    "revision_key",
+)
+_CODEX_NATIVE_CAPABILITIES = (
+    "targeted_agent_identity",
+    "completion_result_delivery",
+    "follow_up_routing",
+    "interrupt",
+    "tree_status_inspection",
+    "thread_wait",
+)
+_CODEX_DISPATCH_CLASSES = (
+    "read_parallel",
+    "write_serial",
+    "dependency_serial",
+)
+_COPILOT_NATIVE_PROTOCOL_MARKERS = (
+    "bind_native",
+    "native_read",
+    "read_claim",
+    "read_agent",
+)
+_REPOSITORY_ID_RE = re.compile(r"^(?:ctr|slt)_[0-9a-f]{32}$")
+_REVISION_KEY_RE = re.compile(
+    r"^(?:sha256:[0-9a-f]{64}|git:[0-9a-f]{40}|git:[0-9a-f]{64})$"
+)
 
 
 def _require_unique(values: list[str], label: str) -> None:
@@ -173,6 +217,379 @@ class CodexAdapter(ParityRecord):
         return self
 
 
+class CopilotLifecycleProfile(ParityRecord):
+    """Repository-mediated lifecycle mechanics retained for Copilot."""
+
+    profile_id: Literal["copilot-repository-mediated-v1"]
+    mechanism: Literal["repository-mediated-ledger"]
+    contract_path: Literal["config/agent-invocation-control.json"]
+    direct_sibling_policy: Literal["serialize-per-parent-attempt"]
+    default_dispatch: Literal["sync-inline"]
+    background_completion: Literal[
+        "external-notification-single-claimed-read"
+    ]
+
+    @model_validator(mode="after")
+    def validate_contract_path(self) -> "CopilotLifecycleProfile":
+        _require_repository_path(self.contract_path, "contract_path")
+        return self
+
+
+class CodexLifecycleProfile(ParityRecord):
+    """Native Codex thread controls and bounded scheduling semantics."""
+
+    profile_id: Literal["codex-native-thread-control-v1"]
+    mechanism: Literal["native-agent-thread-control"]
+    native_capabilities: list[str] = Field(min_length=1)
+    dispatch_classes: list[str] = Field(min_length=1)
+    max_concurrent_threads_per_session: Literal[4]
+    active_logical_work_behavior: Literal["follow-up-existing-target"]
+    capacity_behavior: Literal["queue-without-replacement"]
+    parent_terminal_behavior: Literal[
+        "leaf-first-interrupt-on-abort-shutdown-failure-or-replacement"
+    ]
+    unconfirmed_termination_behavior: Literal[
+        "record-incomplete-without-relaunch"
+    ]
+    replacement_behavior: Literal[
+        "one-explicit-non-chaining-after-confirmed-terminal-or-loss"
+    ]
+    reviewer_behavior: Literal[
+        "fresh-read-only-thread-without-executor-history"
+    ]
+    non_coordinator_dispatch_behavior: Literal[
+        "forbidden-return-handoff-to-parent-coordinator"
+    ]
+    copilot_native_protocol: Literal["forbidden"]
+
+    @model_validator(mode="after")
+    def validate_capabilities(self) -> "CodexLifecycleProfile":
+        _require_unique(self.native_capabilities, "native_capabilities")
+        _require_unique(self.dispatch_classes, "dispatch_classes")
+        if tuple(self.native_capabilities) != _CODEX_NATIVE_CAPABILITIES:
+            raise ValueError("Codex native capability set differs from v1")
+        if tuple(self.dispatch_classes) != _CODEX_DISPATCH_CLASSES:
+            raise ValueError("Codex dispatch classes differ from v1")
+        return self
+
+
+class LifecycleProfiles(ParityRecord):
+    """Versioned runtime-specific projection of shared lifecycle goals."""
+
+    schema_version: Literal[1]
+    logical_work_key_fields: list[str] = Field(min_length=1)
+    coordinator_agent_ids: list[str] = Field(min_length=1)
+    copilot: CopilotLifecycleProfile
+    codex: CodexLifecycleProfile
+
+    @model_validator(mode="after")
+    def validate_profile(self) -> "LifecycleProfiles":
+        _require_unique(self.logical_work_key_fields, "logical_work_key_fields")
+        _require_unique(self.coordinator_agent_ids, "coordinator_agent_ids")
+        if tuple(self.logical_work_key_fields) != _LOGICAL_WORK_KEY_FIELDS:
+            raise ValueError("logical work key differs from lifecycle v1")
+        if tuple(self.coordinator_agent_ids) != _CODEX_COORDINATOR_ADAPTERS:
+            raise ValueError("Codex lifecycle coordinators differ from v1")
+        return self
+
+
+class CodexDispatchFacts(ParityRecord):
+    """Observable facts for the non-launching Codex dispatch evaluator."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    dispatch_class: Literal[
+        "read_parallel",
+        "write_serial",
+        "dependency_serial",
+    ]
+    coordinator_role: Literal[
+        "praxys-orchestrator",
+        "praxys-change-loop",
+    ]
+    contract_id: str
+    slot_id: str
+    revision_key: str
+    logical_work_state: Literal["active", "inactive", "unknown"]
+    target_role: Literal[
+        "praxys-orchestrator",
+        "work-router",
+        "decision-review-router",
+        "praxys-change-loop",
+        "product",
+        "design",
+        "engineering",
+        "architecture",
+        "quality",
+        "science",
+        "trust",
+        "operations",
+        "meta-eval",
+    ]
+    capacity_available: bool = False
+    independent: bool = False
+    prerequisites_complete: bool = False
+    serial_peer_absence_confirmed: bool = False
+    reviewer_is_distinct_from_executor: bool = False
+    reviewer_history: Literal["fresh", "inherits-executor", "unknown"] = (
+        "unknown"
+    )
+    existing_target_available: bool = False
+    native_target_id: str | None = None
+    replacement_source_terminal: bool = False
+    replacement_source_lost: bool = False
+    replacement_source_was_replacement: bool = False
+    replacement_already_consumed: bool = False
+    replacement_requested: bool = False
+
+    @model_validator(mode="after")
+    def validate_observations(self) -> "CodexDispatchFacts":
+        if (
+            _REPOSITORY_ID_RE.fullmatch(self.contract_id) is None
+            or not self.contract_id.startswith("ctr_")
+        ):
+            raise ValueError("contract_id must be a canonical opaque identity")
+        if (
+            _REPOSITORY_ID_RE.fullmatch(self.slot_id) is None
+            or not self.slot_id.startswith("slt_")
+        ):
+            raise ValueError("slot_id must be a canonical opaque identity")
+        if _REVISION_KEY_RE.fullmatch(self.revision_key) is None:
+            raise ValueError("revision_key must be an immutable digest or Git head")
+        if self.logical_work_state == "active":
+            if self.existing_target_available != (self.native_target_id is not None):
+                raise ValueError("active target availability must match native_target_id")
+            if (
+                self.native_target_id is not None
+                and (
+                    not self.native_target_id.strip()
+                    or any(character.isspace() for character in self.native_target_id)
+                )
+            ):
+                raise ValueError("native_target_id must be nonempty and whitespace-free")
+        elif self.existing_target_available or self.native_target_id is not None:
+            raise ValueError("inactive or unknown work cannot carry an active target")
+        return self
+
+
+class CodexDispatchDecision(ParityRecord):
+    """Deterministic Codex scheduling result; never launches an agent."""
+
+    action: Literal["spawn", "follow_up", "queue", "reject"]
+    reason_code: Literal[
+        "read_parallel_authorized",
+        "serial_dispatch_authorized",
+        "logical_work_already_active",
+        "capacity_unavailable",
+        "read_parallel_requires_independent_read_only_work",
+        "prerequisite_or_serial_peer_active",
+        "reviewer_thread_must_be_fresh",
+        "active_work_target_unavailable",
+        "logical_work_state_unknown",
+        "replacement_not_authorized",
+        "target_adapter_unavailable",
+    ]
+
+
+def evaluate_codex_dispatch(
+    facts: CodexDispatchFacts,
+    config: AgentRuntimeParity,
+) -> CodexDispatchDecision:
+    """Evaluate scheduling against the validated target adapter."""
+    target_adapters = [
+        adapter
+        for adapter in config.agent_adapters
+        if adapter.id == facts.target_role
+    ]
+    if len(target_adapters) != 1:
+        return CodexDispatchDecision(
+            action="reject",
+            reason_code="target_adapter_unavailable",
+        )
+    target_is_read_only = target_adapters[0].write_scope == "none"
+    target_may_dispatch_children = (
+        facts.target_role in config.lifecycle_profiles.coordinator_agent_ids
+    )
+    if facts.dispatch_class == "read_parallel" and (
+        not facts.independent
+        or not target_is_read_only
+        or target_may_dispatch_children
+    ):
+        return CodexDispatchDecision(
+            action="reject",
+            reason_code="read_parallel_requires_independent_read_only_work",
+        )
+    if facts.target_role in {"quality", "trust"} and (
+        not facts.reviewer_is_distinct_from_executor
+        or facts.reviewer_history != "fresh"
+        or not target_is_read_only
+    ):
+        return CodexDispatchDecision(
+            action="reject",
+            reason_code="reviewer_thread_must_be_fresh",
+        )
+    if facts.logical_work_state == "unknown":
+        return CodexDispatchDecision(
+            action="queue",
+            reason_code="logical_work_state_unknown",
+        )
+    if facts.logical_work_state == "active":
+        if not facts.existing_target_available:
+            return CodexDispatchDecision(
+                action="queue",
+                reason_code="active_work_target_unavailable",
+            )
+        return CodexDispatchDecision(
+            action="follow_up",
+            reason_code="logical_work_already_active",
+        )
+    if facts.replacement_requested and (
+        facts.replacement_already_consumed
+        or facts.replacement_source_was_replacement
+        or not (
+            facts.replacement_source_terminal
+            or facts.replacement_source_lost
+        )
+    ):
+        return CodexDispatchDecision(
+            action="reject",
+            reason_code="replacement_not_authorized",
+        )
+    if not facts.capacity_available:
+        return CodexDispatchDecision(
+            action="queue",
+            reason_code="capacity_unavailable",
+        )
+    if facts.dispatch_class == "read_parallel":
+        return CodexDispatchDecision(
+            action="spawn",
+            reason_code="read_parallel_authorized",
+        )
+    if (
+        not facts.prerequisites_complete
+        or not facts.serial_peer_absence_confirmed
+    ):
+        return CodexDispatchDecision(
+            action="queue",
+            reason_code="prerequisite_or_serial_peer_active",
+        )
+    return CodexDispatchDecision(
+        action="spawn",
+        reason_code="serial_dispatch_authorized",
+    )
+
+
+class CodexTreeNode(ParityRecord):
+    """One native thread node returned by Codex tree inspection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    native_target_id: str = Field(min_length=1)
+    parent_target_id: str | None = None
+    active: bool
+
+    @model_validator(mode="after")
+    def validate_target_ids(self) -> "CodexTreeNode":
+        for target_id in (self.native_target_id, self.parent_target_id):
+            if target_id is not None and (
+                not target_id.strip()
+                or any(character.isspace() for character in target_id)
+            ):
+                raise ValueError("native tree target IDs must be whitespace-free")
+        return self
+
+
+class CodexCleanupDecision(ParityRecord):
+    """Leaf-first native interrupt order or an explicit incomplete result."""
+
+    action: Literal["interrupt", "record_incomplete"]
+    native_target_ids: list[str]
+    reason_code: Literal[
+        "leaf_first_interrupt_required",
+        "tree_state_unavailable",
+        "tree_state_invalid",
+    ]
+
+
+def evaluate_codex_cleanup(
+    parent_target_id: str,
+    tree: list[CodexTreeNode] | None,
+) -> CodexCleanupDecision:
+    """Compute leaf-first cleanup from one complete native tree snapshot."""
+    if not parent_target_id or tree is None:
+        return CodexCleanupDecision(
+            action="record_incomplete",
+            native_target_ids=[],
+            reason_code="tree_state_unavailable",
+        )
+    by_id = {node.native_target_id: node for node in tree}
+    if len(by_id) != len(tree) or parent_target_id not in by_id:
+        return CodexCleanupDecision(
+            action="record_incomplete",
+            native_target_ids=[],
+            reason_code="tree_state_invalid",
+        )
+    children: dict[str, list[str]] = {}
+    for node in tree:
+        if node.parent_target_id is None:
+            continue
+        if node.parent_target_id not in by_id or node.parent_target_id == node.native_target_id:
+            return CodexCleanupDecision(
+                action="record_incomplete",
+                native_target_ids=[],
+                reason_code="tree_state_invalid",
+            )
+        children.setdefault(node.parent_target_id, []).append(node.native_target_id)
+    roots = sorted(
+        node.native_target_id
+        for node in tree
+        if node.parent_target_id is None
+    )
+    if len(roots) != 1:
+        return CodexCleanupDecision(
+            action="record_incomplete",
+            native_target_ids=[],
+            reason_code="tree_state_invalid",
+        )
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def validate_tree(target_id: str) -> bool:
+        if target_id in visiting:
+            return False
+        if target_id in visited:
+            return True
+        visiting.add(target_id)
+        for child_id in sorted(children.get(target_id, [])):
+            if not validate_tree(child_id):
+                return False
+        visiting.remove(target_id)
+        visited.add(target_id)
+        return True
+
+    if not validate_tree(roots[0]) or visited != set(by_id):
+        return CodexCleanupDecision(
+            action="record_incomplete",
+            native_target_ids=[],
+            reason_code="tree_state_invalid",
+        )
+
+    order: list[str] = []
+
+    def collect_active_descendants(target_id: str) -> None:
+        for child_id in sorted(children.get(target_id, [])):
+            collect_active_descendants(child_id)
+        if target_id != parent_target_id and by_id[target_id].active:
+            order.append(target_id)
+
+    collect_active_descendants(parent_target_id)
+    return CodexCleanupDecision(
+        action="interrupt",
+        native_target_ids=order,
+        reason_code="leaf_first_interrupt_required",
+    )
+
+
 class AgentAdapter(ParityRecord):
     """One thin native agent projection."""
 
@@ -195,6 +612,29 @@ class AgentAdapter(ParityRecord):
         if self.write_scope != "none" and self.sandbox_mode != "workspace-write":
             raise ValueError("writing adapters must use workspace-write sandbox mode")
         return self
+
+
+class LifecycleApprovalBinding(ParityRecord):
+    """Semantic authority bound to the complete lifecycle v2 packet."""
+
+    proposal_id: Literal["policy-change-proposal-codex-subagent-lifecycle-v2"]
+    proposal_path: Literal[
+        "docs/dev/policy-change-proposal-codex-subagent-lifecycle-v2.md"
+    ]
+    proposal_digest: Literal[
+        "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3"
+    ]
+    subject_path: Literal[
+        "docs/dev/codex-subagent-lifecycle-decision-v2.json"
+    ]
+    subject_digest: Literal[
+        "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43"
+    ]
+    authorization_kind: Literal["explicit-user-implementation-request"]
+    authorized_scope: Literal["candidate-implementation-and-verification-only"]
+    decision_review_route: Literal["human-review-required"]
+    exact_subject_human_approval_status: Literal["pending"]
+    digest_bound_human_approval_claimed: Literal[False]
 
 
 class SkillAdapter(ParityRecord):
@@ -407,12 +847,14 @@ class ApprovedWorkContract(ParityRecord):
 class AgentRuntimeParity(ParityRecord):
     """Runtime-neutral contract for Copilot and Codex adapters."""
 
-    schema_version: Literal[1]
-    parity_version: str = Field(min_length=1)
+    schema_version: Literal[2]
+    parity_version: Literal["praxys-agent-runtime-parity-v2"]
     status: Literal["implementation-candidate"]
     approval: ApprovalBinding
+    lifecycle_approval: LifecycleApprovalBinding
     canonical_control_plane: CanonicalControlPlane
     codex_adapter: CodexAdapter
+    lifecycle_profiles: LifecycleProfiles
     agent_adapters: list[AgentAdapter] = Field(min_length=1)
     skill_adapters: list[SkillAdapter] = Field(min_length=1)
     portable_mcp_servers: dict[str, PortableMcpServer] = Field(min_length=1)
@@ -431,6 +873,12 @@ class AgentRuntimeParity(ParityRecord):
             raise ValueError("proposal digest differs from the approved v1 subject")
         if self.approval.subject_digest != _APPROVED_SUBJECT_DIGEST:
             raise ValueError("subject digest differs from the approved v1 subject")
+        if self.lifecycle_approval.proposal_id != _LIFECYCLE_PROPOSAL_ID:
+            raise ValueError("lifecycle proposal id differs from v2 packet")
+        if self.lifecycle_approval.proposal_digest != _LIFECYCLE_PROPOSAL_DIGEST:
+            raise ValueError("lifecycle proposal digest differs from v2 packet")
+        if self.lifecycle_approval.subject_digest != _LIFECYCLE_SUBJECT_DIGEST:
+            raise ValueError("lifecycle subject digest differs from v2 packet")
         for label, values in (
             ("agent ids", [item.id for item in self.agent_adapters]),
             ("agent paths", [item.codex_path for item in self.agent_adapters]),
@@ -459,12 +907,7 @@ class AgentRuntimeParity(ParityRecord):
         if implementers != ["engineering"]:
             raise ValueError("Engineering must be the only implementation adapter")
         scopes = {adapter.id: adapter.write_scope for adapter in self.agent_adapters}
-        expected_ids = (
-            _READ_ONLY_ADAPTERS
-            | _ARTIFACT_WRITER_ADAPTERS
-            | _IMPLEMENTATION_ADAPTERS
-        )
-        if set(scopes) != expected_ids:
+        if set(scopes) != _ALL_ADAPTERS:
             raise ValueError("Codex adapter IDs must match the v1 role inventory")
         for adapter_id in _READ_ONLY_ADAPTERS:
             if scopes[adapter_id] != "none":
@@ -544,6 +987,30 @@ def _expected_agent_instructions(adapter: AgentAdapter) -> str:
         )
     else:
         instructions += " Remain read-only and return evidence or decisions to the parent."
+    if adapter.id in _CODEX_COORDINATOR_ADAPTERS:
+        instructions += (
+            " The canonical manifest's Cooperative invocation admission "
+            "section describes Copilot mechanics; for Codex-native child calls, "
+            "translate only that section by applying the lifecycle profile in "
+            "`config/agent-runtime-parity.json`: key work by stable opaque "
+            "contract ID, stable role-slot ID, and immutable revision key; send "
+            "follow-up to an active matching target instead of spawning a "
+            "duplicate; if the target cannot be addressed, queue and report "
+            "incomplete work; run only "
+            "independent read-only siblings in parallel; serialize writes and "
+            "dependency chains; queue when capacity is unavailable; interrupt "
+            "descendants leaf first when their parent aborts, shuts down, fails, "
+            "or is replaced; never relaunch after unconfirmed termination; and allow "
+            "only one explicit non-chaining replacement after confirmed "
+            "termination or loss. Start independent Quality or Trust verification "
+            "in a distinct fresh read-only thread without executor conversation "
+            "history. "
+            "Use native completion delivery, wait, follow-up, interrupt, and tree "
+            "inspection. Never use the Copilot `bind_native`, `native_read`, "
+            "`read_claim`, or `read_agent` protocol in Codex. Every other "
+            "canonical role, route, artifact, authority, and safety requirement "
+            "remains authoritative."
+        )
     return instructions
 
 
@@ -599,7 +1066,12 @@ def _expected_codex_config(
         "approval_policy": config.codex_adapter.approval_policy,
         "sandbox_mode": config.codex_adapter.default_sandbox_mode,
         "features": {"hooks": True, "multi_agent": True},
-        "agents": {"enabled": True},
+        "agents": {
+            "enabled": True,
+            "max_concurrent_threads_per_session": (
+                config.lifecycle_profiles.codex.max_concurrent_threads_per_session
+            ),
+        },
         "shell_environment_policy": {
             "inherit": "core",
             "ignore_default_excludes": False,
@@ -790,6 +1262,189 @@ def _validate_decision_review_policy(
     return errors
 
 
+def _validate_lifecycle_projection(
+    config: AgentRuntimeParity,
+    root: Path,
+) -> list[str]:
+    """Keep runtime mechanics separate without weakening shared governance."""
+    errors: list[str] = []
+    profile = config.lifecycle_profiles
+    copilot_contract_path = root / profile.copilot.contract_path
+    if not copilot_contract_path.is_file():
+        errors.append("missing Copilot lifecycle contract")
+    else:
+        try:
+            copilot_lifecycle = _load_json(copilot_contract_path)
+        except (OSError, json.JSONDecodeError, ValueError):
+            return ["Copilot lifecycle profile is invalid"]
+        expected_copilot_facts = {
+            "schema_version": 2,
+            "policy_version": "agent-invocation-control-v1",
+            "status": "instrument-shadow-only",
+            "default_mode": "instrument",
+            "approved_modes": ["instrument", "shadow"],
+            "enforcement_approved": False,
+            "ledger_schema_version": 3,
+            "dispatch_profiles": {
+                "default": "sync_inline",
+                "sync": "sync_inline",
+                "background": (
+                    "background_independent_immediate_no_poll"
+                ),
+            },
+            "native_binding": {
+                "binding_source": "task_result",
+                "public_id_storage": (
+                    "domain-separated-sha256-fingerprint"
+                ),
+                "invalidation_reasons": [
+                    "shutdown",
+                    "resume",
+                    "context_replacement",
+                ],
+            },
+            "limits": {
+                "maximum_ancestry_depth": 6,
+                "maximum_active_per_contract": 8,
+                "maximum_logical_per_contract": 32,
+                "maximum_attempts_per_logical": 3,
+                "maximum_retries_per_failure_fingerprint": 1,
+                "no_progress_identical_terminals": 2,
+            },
+        }
+        if copilot_lifecycle != expected_copilot_facts:
+            errors.append("Copilot lifecycle profile drifts from #745 contract")
+    entry_text = (
+        root / config.canonical_control_plane.entry_instruction_path
+    ).read_text(encoding="utf-8")
+    if (
+        "Only Praxys Orchestrator and Praxys Change Loop may dispatch Codex "
+        "child agents"
+        not in entry_text
+        or "return the handoff to its parent coordinator" not in entry_text
+    ):
+        errors.append("Codex non-coordinator dispatch boundary is missing")
+    for adapter_id in profile.coordinator_agent_ids:
+        adapter = next(
+            (item for item in config.agent_adapters if item.id == adapter_id),
+            None,
+        )
+        if adapter is None:
+            errors.append(f"missing Codex lifecycle coordinator: {adapter_id}")
+            continue
+        adapter_text = (root / adapter.codex_path).read_text(encoding="utf-8")
+        required_markers = (
+            "active matching target instead of spawning a duplicate",
+            "target cannot be addressed, queue and report incomplete work",
+            "independent read-only siblings in parallel",
+            "serialize writes and dependency chains",
+            "queue when capacity is unavailable",
+            "interrupt descendants leaf first",
+            "never relaunch after unconfirmed termination",
+            "one explicit non-chaining replacement",
+            "distinct fresh read-only thread without executor conversation",
+        )
+        if any(marker not in adapter_text for marker in required_markers):
+            errors.append(
+                f"Codex lifecycle guidance drifts from contract: {adapter_id}"
+            )
+        if any(
+            marker not in adapter_text
+            for marker in _COPILOT_NATIVE_PROTOCOL_MARKERS
+        ):
+            errors.append(
+                f"Codex Copilot-protocol prohibition is incomplete: {adapter_id}"
+            )
+    return errors
+
+
+def _validate_lifecycle_approval(
+    config: AgentRuntimeParity,
+    root: Path,
+) -> list[str]:
+    """Bind schema-2 lifecycle mechanics to their complete decision packet."""
+    errors: list[str] = []
+    binding = config.lifecycle_approval
+    subject_path = root / binding.subject_path
+    proposal_path = root / binding.proposal_path
+    if not subject_path.is_file() or not proposal_path.is_file():
+        return ["missing lifecycle v2 decision packet"]
+    subject_bytes = subject_path.read_bytes()
+    proposal_bytes = proposal_path.read_bytes()
+    if f"sha256:{hashlib.sha256(subject_bytes).hexdigest()}" != binding.subject_digest:
+        errors.append("lifecycle decision subject digest differs from contract")
+        return errors
+    if f"sha256:{hashlib.sha256(proposal_bytes).hexdigest()}" != binding.proposal_digest:
+        errors.append("lifecycle policy proposal digest differs from contract")
+    try:
+        subject = json.loads(subject_bytes)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        errors.append("lifecycle decision subject is not valid JSON")
+        return errors
+    if not isinstance(subject, dict):
+        return [*errors, "lifecycle decision subject is not an object"]
+    if subject.get("lifecycle_profile") != config.lifecycle_profiles.model_dump():
+        errors.append("lifecycle profile differs from decision subject")
+    approved = config.approved_work_contract
+    expected_work_contract = {
+        "primary_object": approved.primary_object,
+        "impacts": approved.impacts,
+        "risk_triggers": approved.risk_triggers,
+        "classification_digest": approved.classification_digest,
+        "route_digest": approved.route_digest,
+    }
+    if subject.get("work_contract") != expected_work_contract:
+        errors.append("lifecycle Work Contract differs from approved route")
+    expected_scope = {
+        config.codex_adapter.project_config_path,
+        f"{config.codex_adapter.agent_directory}/praxys-orchestrator.toml",
+        f"{config.codex_adapter.agent_directory}/praxys-change-loop.toml",
+        config.canonical_control_plane.entry_instruction_path,
+        "analysis/agent_runtime_parity.py",
+        "config/agent-runtime-parity.json",
+        "tests/test_agent_runtime_parity.py",
+        "docs/dev/agent-runtime-parity.md",
+        "docs/dev/adr-2026-08-29-codex-copilot-runtime-parity.md",
+        "docs/dev/evaluation-report-2026-08-29-codex-copilot-runtime-parity.md",
+        "docs/dev/trust-decision-record-2026-08-29-codex-copilot-runtime-parity.md",
+        "docs/dev/verification-evidence-2026-08-30-codex-copilot-runtime-parity.md",
+        binding.subject_path,
+        binding.proposal_path,
+    }
+    declared_scope = subject.get("implementation_scope")
+    if (
+        not isinstance(declared_scope, list)
+        or set(item for item in declared_scope if isinstance(item, str))
+        != expected_scope
+        or len(declared_scope) != len(expected_scope)
+    ):
+        errors.append("lifecycle implementation scope differs from decision subject")
+    for relative_path in expected_scope:
+        if not (root / relative_path).is_file():
+            errors.append(f"missing lifecycle implementation path: {relative_path}")
+    authorization = subject.get("authorization")
+    if not isinstance(authorization, dict) or authorization != {
+        "kind": binding.authorization_kind,
+        "source": (
+            "approved decision-complete plan, selected safe parallelism, and "
+            "explicit Implement the plan request on 2026-08-31"
+        ),
+        "authorized_scope": binding.authorized_scope,
+        "decision_review_route": binding.decision_review_route,
+        "exact_subject_human_approval_status": (
+            binding.exact_subject_human_approval_status
+        ),
+        "digest_bound_human_approval_claimed": (
+            binding.digest_bound_human_approval_claimed
+        ),
+    }:
+        errors.append("lifecycle authority differs from decision subject")
+    proposal = proposal_bytes.decode("utf-8", errors="replace")
+    if binding.proposal_id not in proposal or binding.subject_digest not in proposal:
+        errors.append("lifecycle proposal does not bind its exact decision subject")
+    return errors
+
+
 def validate_static_runtime_parity(
     config: AgentRuntimeParity,
     *,
@@ -810,6 +1465,8 @@ def validate_static_runtime_parity(
     required_files = [
         config.approval.proposal_path,
         config.approval.subject_path,
+        config.lifecycle_approval.proposal_path,
+        config.lifecycle_approval.subject_path,
         *config.canonical_control_plane.model_dump().values(),
         config.codex_adapter.project_config_path,
         config.codex_adapter.hook_path,
@@ -907,6 +1564,8 @@ def validate_static_runtime_parity(
     errors.extend(
         _validate_decision_review_policy(decision_review_policy, config)
     )
+    errors.extend(_validate_lifecycle_approval(config, root))
+    errors.extend(_validate_lifecycle_projection(config, root))
     adapter_by_id = {item.id: item for item in config.agent_adapters}
     expected_role_paths = {
         role_id: role.agent_path

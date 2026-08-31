@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "parity_version": "praxys-agent-runtime-parity-v1",
+  "schema_version": 2,
+  "parity_version": "praxys-agent-runtime-parity-v2",
   "status": "implementation-candidate",
   "approval": {
     "proposal_id": "policy-change-proposal-codex-copilot-runtime-parity-v1",
@@ -9,6 +9,18 @@
     "subject_path": "docs/dev/codex-copilot-runtime-parity-decision-v1.json",
     "subject_digest": "sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc",
     "authorized_scope": "implementation-and-verification-only"
+  },
+  "lifecycle_approval": {
+    "proposal_id": "policy-change-proposal-codex-subagent-lifecycle-v2",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-subagent-lifecycle-v2.md",
+    "proposal_digest": "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3",
+    "subject_path": "docs/dev/codex-subagent-lifecycle-decision-v2.json",
+    "subject_digest": "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43",
+    "authorization_kind": "explicit-user-implementation-request",
+    "authorized_scope": "candidate-implementation-and-verification-only",
+    "decision_review_route": "human-review-required",
+    "exact_subject_human_approval_status": "pending",
+    "digest_bound_human_approval_claimed": false
   },
   "canonical_control_plane": {
     "entry_instruction_path": "AGENTS.md",
@@ -32,6 +44,52 @@
     "credentials_in_repository": false,
     "separate_worktree_per_concurrent_task": true,
     "trusted_checkout_required": true
+  },
+  "lifecycle_profiles": {
+    "schema_version": 1,
+    "logical_work_key_fields": [
+      "contract_id",
+      "slot_id",
+      "revision_key"
+    ],
+    "coordinator_agent_ids": [
+      "praxys-orchestrator",
+      "praxys-change-loop"
+    ],
+    "copilot": {
+      "profile_id": "copilot-repository-mediated-v1",
+      "mechanism": "repository-mediated-ledger",
+      "contract_path": "config/agent-invocation-control.json",
+      "direct_sibling_policy": "serialize-per-parent-attempt",
+      "default_dispatch": "sync-inline",
+      "background_completion": "external-notification-single-claimed-read"
+    },
+    "codex": {
+      "profile_id": "codex-native-thread-control-v1",
+      "mechanism": "native-agent-thread-control",
+      "native_capabilities": [
+        "targeted_agent_identity",
+        "completion_result_delivery",
+        "follow_up_routing",
+        "interrupt",
+        "tree_status_inspection",
+        "thread_wait"
+      ],
+      "dispatch_classes": [
+        "read_parallel",
+        "write_serial",
+        "dependency_serial"
+      ],
+      "max_concurrent_threads_per_session": 4,
+      "active_logical_work_behavior": "follow-up-existing-target",
+      "capacity_behavior": "queue-without-replacement",
+      "parent_terminal_behavior": "leaf-first-interrupt-on-abort-shutdown-failure-or-replacement",
+      "unconfirmed_termination_behavior": "record-incomplete-without-relaunch",
+      "replacement_behavior": "one-explicit-non-chaining-after-confirmed-terminal-or-loss",
+      "reviewer_behavior": "fresh-read-only-thread-without-executor-history",
+      "non_coordinator_dispatch_behavior": "forbidden-return-handoff-to-parent-coordinator",
+      "copilot_native_protocol": "forbidden"
+    }
   },
   "agent_adapters": [
     {
