@@ -1,7 +1,7 @@
 """Custom registration endpoint with invitation code + open-gate handling.
 
-Registration rules live in api/invitations.py and api/app_config.py and are
-shared with the WeChat registration route (api/routes/wechat.py).
+Web registration rules live in api/invitations.py and api/app_config.py. The
+Miniapp sends new users to this web flow, then links the resulting account.
 
 Paths:
   * first user (fresh DB) or ADMIN_EMAIL  -> admin, no code, auto-verified.

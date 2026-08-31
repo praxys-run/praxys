@@ -2,8 +2,6 @@
 
 Mirrors the fresh-DB TestClient setup used by tests/test_version.py.
 """
-import json
-
 import pytest
 
 from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
@@ -22,8 +20,8 @@ def ready_env(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
     for name in (
-        "PRAXYS_CN_APPROVED_RELEASES",
         "PRAXYS_DISABLE_CN_PROCESSING",
+        "PRAXYS_DISABLE_MINIAPP_PROCESSING",
         "PRAXYS_DISABLE_BACKGROUND_AI",
         "PRAXYS_ENABLE_FEEDBACK_PUBLICATION",
         "PRAXYS_DISABLE_FEEDBACK_PUBLICATION",
@@ -41,7 +39,8 @@ def ready_env(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
     from api.main import app
 
-    return TestClient(app), db_session
+    with TestClient(app) as client:
+        yield client, db_session
 
 
 def test_health_ready_ok(ready_env):
@@ -61,12 +60,13 @@ def test_health_ready_ok(ready_env):
         "china_processing": {
             "enabled": False,
             "disabled": True,
-            "registry_configured": False,
-            "approved_release_count": 0,
-            "registry_sha256": None,
             "notice_version": TERMS_VERSION,
             "legal_digest": TERMS_CONTENT_DIGEST,
             "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
+        },
+        "miniapp_processing": {
+            "enabled": False,
+            "disabled": True,
         },
     }
 
@@ -85,88 +85,39 @@ def test_ai_emergency_stop_does_not_fail_core_readiness(
     assert response.json()["optional_processing"]["background_ai_kill_switch"] is True
 
 
-def test_health_ready_ignores_cn_registry_while_disabled(
-    ready_env,
-    monkeypatch,
-):
-    from api.china_client_boundary import (
-        APPROVED_RELEASES_ENV,
-        approved_release_registry_digest,
-        CN_PRIVACY_CONTRACT_VERSION,
-        DISABLE_CN_PROCESSING_ENV,
-    )
-    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
-
-    client, _ = ready_env
-    source_commit = "a" * 40
-    monkeypatch.setenv(
-        APPROVED_RELEASES_ENV,
-        json.dumps([
-            {
-                "channel": "cn-web",
-                "client_version": source_commit[:12],
-                "source_id": source_commit[:12],
-                "source_commit": source_commit,
-                "notice_version": TERMS_VERSION,
-                "terms_digest": TERMS_CONTENT_DIGEST,
-                "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-                "release_id": "edgeone:test",
-            }
-        ]),
-    )
-    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
-
-    r = client.get("/api/health/ready")
-
-    assert r.status_code == 200
-    assert r.json()["china_processing"] == {
-        "enabled": False,
-        "disabled": True,
-        "registry_configured": False,
-        "approved_release_count": 0,
-        "registry_sha256": None,
-        "notice_version": TERMS_VERSION,
-        "legal_digest": TERMS_CONTENT_DIGEST,
-        "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-    }
-    assert approved_release_registry_digest().startswith("sha256:")
-    assert source_commit not in r.text
-    assert "edgeone:test" not in r.text
-
-
-def test_health_ready_ignores_malformed_cn_registry_while_disabled(
+def test_health_ready_reports_malformed_cn_switch_fail_closed(
     ready_env,
     monkeypatch,
 ):
     client, _ = ready_env
-    monkeypatch.setenv("PRAXYS_CN_APPROVED_RELEASES", "stale-malformed-json")
-    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "malformed")
 
     r = client.get("/api/health/ready")
 
     assert r.status_code == 200
+    assert r.json()["status"] == "ready"
     assert r.json()["china_processing"]["enabled"] is False
-    assert r.json()["china_processing"]["registry_configured"] is False
-    assert r.json()["china_processing"]["approved_release_count"] == 0
-    assert r.json()["china_processing"]["registry_sha256"] is None
+    assert r.json()["china_processing"]["disabled"] is True
 
 
-def test_health_ready_rejects_enabled_cn_processing_without_registry(
+def test_health_ready_allows_cn_processing_without_registry(
     ready_env,
     monkeypatch,
 ):
     client, _ = ready_env
-    monkeypatch.delenv("PRAXYS_CN_APPROVED_RELEASES", raising=False)
     monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
+
+    with ready_env[1].SessionLocal() as db:
+        reconcile_channel_processing_authority(db)
 
     r = client.get("/api/health/ready")
 
-    assert r.status_code == 503
-    assert r.json() == {
-        "status": "unavailable",
-        "database": "ok",
-        "privacy_controls": "invalid",
-    }
+    assert r.status_code == 200
+    assert r.json()["china_processing"]["enabled"] is True
+    assert r.json()["china_processing"]["disabled"] is False
 
 
 def test_health_live_does_not_touch_db(ready_env):

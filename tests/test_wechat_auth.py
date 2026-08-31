@@ -8,14 +8,11 @@ from __future__ import annotations
 
 import tempfile
 from datetime import datetime, timedelta
-import json
-
 import jwt as pyjwt
 import pytest
 from fastapi.testclient import TestClient
 
 from api.china_client_boundary import (
-    APPROVED_RELEASES_ENV,
     CN_PRIVACY_CONTRACT_VERSION,
 )
 from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
@@ -76,21 +73,7 @@ def wechat_client(monkeypatch):
     # tests/test_auth_rate_limit.py and re-enable it explicitly.
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
-    monkeypatch.setenv(
-        APPROVED_RELEASES_ENV,
-        json.dumps([
-            {
-                "channel": "wechat-miniapp",
-                "client_version": "2026.08.2",
-                "source_id": "abcdef123456",
-                "source_commit": "abcdef123456" + ("0" * 28),
-                "notice_version": TERMS_VERSION,
-                "terms_digest": TERMS_CONTENT_DIGEST,
-                "api_contract_version": CN_PRIVACY_CONTRACT_VERSION,
-                "release_id": "wechat:robot-1:2026.08.2",
-            }
-        ]),
-    )
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "false")
 
     from db import session as db_session
     db_session.engine = None
@@ -140,7 +123,6 @@ def wechat_client(monkeypatch):
         headers={
             "X-Praxys-Client": "wechat-miniapp",
             "X-Praxys-Client-Version": "2026.08.2",
-            "X-Praxys-Source-Sha": "abcdef123456" + ("0" * 28),
             "X-Praxys-Notice-Version": TERMS_VERSION,
             "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
             "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
@@ -833,9 +815,12 @@ def test_accept_terms_clears_stale_version(wechat_client):
         assert {
             receipt.action for receipt in receipts
         } == {"accept_terms_and_acknowledge_privacy"}
-        assert {
-            receipt.release_id for receipt in receipts
-        } == {"wechat:robot-1:2026.08.2"}
+        assert {receipt.release_id for receipt in receipts} == {None}
+        assert {receipt.client_version for receipt in receipts} == {None}
+        assert {receipt.source_sha for receipt in receipts} == {None}
+        assert {receipt.notice_version for receipt in receipts} == {
+            TERMS_VERSION
+        }
         user.is_demo = True
         user.terms_version = "0000.00.0"
         user.terms_digest = "sha256:" + ("0" * 64)
@@ -853,6 +838,109 @@ def test_accept_terms_clears_stale_version(wechat_client):
         demo_blocked.json()["detail"]["code"]
         == "TERMS_ACCEPTANCE_REQUIRED"
     )
+
+
+def test_existing_web_user_must_acknowledge_cn_before_processing(
+    wechat_client,
+    monkeypatch,
+):
+    """A current .run receipt does not silently classify a .cn user."""
+
+    client = TestClient(wechat_client.app)
+    email, password = "existing-run-to-cn@example.com", "pw-123456"
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "terms_locale": "en",
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(client, email, password)
+    cn_headers = {
+        **_auth_headers(token),
+        "Origin": "https://praxys.cn",
+        "X-Praxys-Client": "cn-web",
+        "X-Praxys-Notice-Version": TERMS_VERSION,
+        "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
+        "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
+    }
+
+    me = client.get("/api/auth/me", headers=cn_headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["terms_current"] is False
+    blocked = client.get("/api/today", headers=cn_headers)
+    assert blocked.status_code == 428
+    assert blocked.json()["detail"]["code"] == "TERMS_ACCEPTANCE_REQUIRED"
+
+    from db.models import TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user_id = user.id
+        assert (
+            db.query(TermsAcceptanceReceipt)
+            .filter(
+                TermsAcceptanceReceipt.user_id == user_id,
+                TermsAcceptanceReceipt.channel == "cn-web",
+            )
+            .count()
+            == 0
+        )
+    finally:
+        db.close()
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+    accepted = client.post(
+        "/api/me/accept-terms",
+        headers=cn_headers,
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "locale": "en",
+        },
+    )
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["terms_current"] is True
+    assert client.get("/api/auth/me", headers=cn_headers).json()[
+        "terms_current"
+    ] is True
+
+    db = SessionLocal()
+    try:
+        receipt = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(
+                TermsAcceptanceReceipt.user_id == user_id,
+                TermsAcceptanceReceipt.channel == "cn-web",
+                TermsAcceptanceReceipt.terms_version == TERMS_VERSION,
+                TermsAcceptanceReceipt.terms_digest
+                == TERMS_CONTENT_DIGEST,
+            )
+            .one()
+        )
+        assert receipt.notice_version == TERMS_VERSION
+
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
+
+        assert not user_background_processing_authorized(db, user_id)
+    finally:
+        db.close()
+
+    rights = client.get("/api/auth/me", headers=cn_headers)
+    assert rights.status_code == 200
+    assert rights.json()["terms_current"] is True
+    stopped = client.get("/api/today", headers=cn_headers)
+    assert stopped.status_code == 503
+    assert stopped.json()["detail"]["code"] == "CN_PROCESSING_DISABLED"
 
 
 def test_stale_terms_user_can_delete_account(wechat_client):
@@ -1158,6 +1246,45 @@ def test_accept_terms_rejects_mismatched_digest_without_new_receipt(
         ) == 1
     finally:
         db.close()
+
+
+def test_accept_terms_serializes_channel_receipt_with_background_commits(
+    wechat_client,
+    monkeypatch,
+):
+    email, password = "receipt-lock@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from db import cache_revision
+
+    locked_users: list[str] = []
+    monkeypatch.setattr(
+        cache_revision,
+        "lock_revision_writes",
+        lambda _db, user_id: locked_users.append(user_id),
+    )
+
+    accepted = wechat_client.post(
+        "/api/me/accept-terms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "locale": "en",
+        },
+    )
+
+    assert accepted.status_code == 200, accepted.text
+    assert len(locked_users) == 1
 
 
 def test_terms_acceptance_receipts_reject_updates(wechat_client):

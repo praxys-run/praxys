@@ -21,7 +21,9 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
 | [tencent-frontend.md](./tencent-frontend.md) | Operating EdgeOne for `.cn`, Cloudflare for `.run`, or their DNS/certificate cutovers. |
-| [cn-personal-information-impact-assessment.md](./cn-personal-information-impact-assessment.md) | Reviewing the proposed China personal-information, sensitive-data, recipient, or overseas-processing boundary; it remains pending operator decision. |
+| [cn-public-security-filing.md](./cn-public-security-filing.md) | Preparing and submitting the post-launch public-security website filing, then publishing the exact issued footer. |
+| [cn-web-private-alpha.md](./cn-web-private-alpha.md) | Checking, enabling, disabling, or recovering the dormant public China web launch. |
+| [cn-personal-information-impact-assessment.md](./cn-personal-information-impact-assessment.md) | Reviewing the accepted public web/Miniapp processing scope, residual risk, and separate live controls required before enable. |
 | [search-discovery.md](./search-discovery.md) | You're submitting public pages to search engines, measuring SEO/GEO, or preparing the `praxys.cn` cutover. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
@@ -40,21 +42,11 @@ diagnose X". It complements — and links out to — the setup-oriented
 
 ## Operations decision records
 
-- [ODR-2026-08-30-agent-invocation-ledger-v2](./odr-2026-08-30-agent-invocation-ledger-v2.md)
-  — **ACCEPTED FOR REPOSITORY IMPLEMENTATION — NO MIGRATION OR RESET
-  AUTHORITY**. Defines quiesced explicit migration, evidence, pre-commit
-  recovery, and separately authorized reset-based rollback for the local
-  invocation-control ledger.
-- [ODR-2026-08-26-cn-provider-topology](./odr-2026-08-26-cn-provider-topology.md)
-  — **PROPOSED — BLOCKED PENDING INDEPENDENT AND HUMAN REVIEW**. It grants no production
-  authority and defines the proposed China topology, rollout order, rollback
-  floor, emergency disable path, and Release Evidence contract.
-- [TDR-2026-08-26-cn-privacy-control-boundary](./tdr-2026-08-26-cn-privacy-control-boundary.md)
-  — **PROPOSED — BLOCKED** Trust boundary for rights availability, optional
-  processing, release identity, and provider disclosure.
-- [ADR-2026-08-26-cn-client-provenance-and-receipt-semantics](../dev/adr-2026-08-26-cn-client-provenance-and-receipt-semantics.md)
-  — **PROPOSED** Architecture contract for release provenance and append-only
-  legal receipts.
+- [China public web launch](./cn-web-private-alpha.md) — operator-recorded
+  product scope, accepted PIPIA `1.2-public-parity`, launch checklist,
+  compensation, rollback, and
+  run-summary evidence contract. Live verification and production enablement
+  remain human-only.
 
 ## Environment at a glance
 
@@ -64,7 +56,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | Resource group | `rg-trainsight` |
 | Backend (API) | App Service `trainsight-app` → `api.praxys.run` |
 | Current frontend (SPA) | App Service `praxys-frontend` → `www.praxys.run` |
-| Proposed regional target | Cloudflare Free → Azure for `.run`; EdgeOne Makers `praxys-cn` for `.cn` (pending human acceptance and cutover) |
+| Dormant regional target | `.run` preserved; EdgeOne Makers `praxys-cn` serves the public-registration `.cn` static SPA after human gates |
 | Secrets at rest | Key Vault `kv-trainsight` (RSA key `trainsight-master-key`) |
 | Observability | Application Insights (signals prefixed `praxys.`) |
 

@@ -72,6 +72,7 @@ from api.auth import (
 from api.china_client_boundary import (
     ChinaClientBoundaryMiddleware,
     china_processing_status,
+    miniapp_processing_status,
 )
 from api.env_compat import getenv_compat
 from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
@@ -105,8 +106,13 @@ async def lifespan(app: FastAPI):
         recover_interrupted_jobs,
         replay_deletion_tombstones,
     )
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
     from db.session import SessionLocal
 
+    with SessionLocal() as authority_db:
+        reconcile_channel_processing_authority(authority_db)
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
@@ -330,6 +336,17 @@ def health_ready(response: Response):
         db = SessionLocal()
         try:
             db.execute(_text("SELECT 1"))
+            from api.channel_processing_authority import (
+                expected_channel_processing_status,
+                shared_channel_processing_snapshot,
+            )
+
+            expected_authority = expected_channel_processing_status()
+            shared_authority = shared_channel_processing_snapshot(db)
+            if shared_authority != expected_authority:
+                raise RuntimeError(
+                    "shared China processing authority did not converge"
+                )
         finally:
             db.close()
     except Exception as exc:
@@ -347,7 +364,6 @@ def health_ready(response: Response):
         return {"status": "unavailable", "database": "error"}
     try:
         processing = optional_processing_status()
-        china_processing = china_processing_status()
     except ValueError as exc:
         logging.getLogger(__name__).error(
             "readiness privacy-control config failed: %s",
@@ -359,11 +375,13 @@ def health_ready(response: Response):
             "database": "ok",
             "privacy_controls": "invalid",
         }
+    china_processing = china_processing_status()
     return {
         "status": "ready",
         "database": "ok",
         "optional_processing": processing,
         "china_processing": china_processing,
+        "miniapp_processing": miniapp_processing_status(),
     }
 
 
@@ -379,7 +397,9 @@ def version() -> dict:
 
 
 @app.get("/api/public/config")
-def public_config(db: Session = Depends(get_db)) -> dict:
+def public_config(
+    db: Session = Depends(get_db),
+) -> dict:
     """Public — the SPA reads this before rendering the login page to decide
     whether to offer a direct "Create account" path (open self-registration)
     or only the waitlist / invitation-code paths.
@@ -395,6 +415,7 @@ def public_config(db: Session = Depends(get_db)) -> dict:
 
 @app.get("/api/auth/me")
 def get_me(
+    request: Request,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -403,6 +424,10 @@ def get_me(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
+    from api.legal_receipts import (
+        user_has_current_legal_bundle_for_request,
+    )
+
     return {
         "id": user.id,
         "email": user.email,
@@ -414,9 +439,10 @@ def get_me(
         # so the live TERMS_VERSION stays the single source of truth.
         "terms_version": user.terms_version,
         "terms_digest": user.terms_digest,
-        "terms_current": (
-            user.terms_version == TERMS_VERSION
-            and user.terms_digest == TERMS_CONTENT_DIGEST
+        "terms_current": user_has_current_legal_bundle_for_request(
+            db,
+            user_id,
+            request,
         ),
     }
 
@@ -473,7 +499,16 @@ def accept_terms(
     import logging
     from datetime import datetime, timezone
 
+    from db.cache_revision import lock_revision_writes
     from db.models import User
+    from db.session import begin_serialized_write
+
+    # Serialize a newly added China-channel receipt with any in-flight
+    # background result commit. Otherwise a worker could authorize against the
+    # previous receipt set and commit just after this request makes a disabled
+    # channel applicable to the user.
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")

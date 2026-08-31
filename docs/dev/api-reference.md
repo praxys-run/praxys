@@ -71,6 +71,10 @@ username=user@example.com&password=securepassword
 
 Return the authenticated user's profile.
 
+On a server-classified `.cn` or Miniapp request, `terms_current` is also
+channel-specific: an existing current `.run` acceptance remains false until
+the user explicitly acknowledges the current bundle on that China channel.
+
 **Response:**
 ```json
 {
@@ -114,8 +118,8 @@ a stale or mismatched bundle returns HTTP `409`:
 ```
 
 Each successful acceptance appends an immutable receipt containing the legal
-version and digest, acceptance time, locale, delivery channel, and bounded
-client-release context. The fields on the user row are only the current
+version and digest, acceptance time, locale, and server-classified delivery
+channel. The fields on the user row are only the current
 projection used by the runtime gate; they do not replace receipt history.
 
 **Response:**
@@ -146,11 +150,13 @@ with HTTP `428` until acceptance succeeds. Account deletion remains available;
 on accepting new terms.
 
 China clients have an earlier runtime precondition. `.cn` web requests carry
-client, version, source SHA, notice version, policy digest, and API-contract
-headers. WeChat requests carry the same exact release identity. The server
-matches those fields against `PRAXYS_CN_APPROVED_RELEASES`; missing, stale, or
-unlisted builds receive HTTP `428` with
-`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing.
+the server-classified client channel plus notice version, policy digest, and
+API-contract headers. Legacy source/version/release headers are accepted and
+ignored. Missing or stale compatibility claims receive HTTP `428` with
+`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing. The existing
+Miniapp remains enabled against `api.praxys.run`; its CI development upload
+and manual WeChat publication lifecycle remain independent from the China web
+launch workflow.
 
 ### GET /api/me/export
 

@@ -7,7 +7,14 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from api.china_client_boundary import VERIFIED_CHINA_RELEASE_SCOPE_KEY
+from api.china_client_boundary import (
+    CHINA_CLIENT_CHANNELS,
+    CHINA_CLIENT_CONTEXT_SCOPE_KEY,
+    CN_WEB_CLIENT,
+    MINIAPP_CLIENT,
+    china_processing_enabled,
+    miniapp_processing_enabled,
+)
 from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 from db.models import TermsAcceptanceReceipt
 
@@ -59,6 +66,93 @@ def user_has_current_legal_bundle(db: Session, user_id: str) -> bool:
     )
 
 
+def request_china_channel(request: Request) -> str | None:
+    """Return the validated server-classified China request channel."""
+
+    state = request.scope.get("state")
+    context = (
+        state.get(CHINA_CLIENT_CONTEXT_SCOPE_KEY)
+        if isinstance(state, dict)
+        else None
+    )
+    channel = context.get("channel") if isinstance(context, dict) else None
+    return channel if channel in CHINA_CLIENT_CHANNELS else None
+
+
+def user_has_current_channel_receipt(
+    db: Session,
+    user_id: str,
+    channel: str,
+) -> bool:
+    """Return whether the user explicitly acknowledged this China channel."""
+
+    if channel not in CHINA_CLIENT_CHANNELS:
+        return False
+    return (
+        db.query(TermsAcceptanceReceipt.id)
+        .filter(
+            TermsAcceptanceReceipt.user_id == user_id,
+            TermsAcceptanceReceipt.terms_version == TERMS_VERSION,
+            TermsAcceptanceReceipt.terms_digest == TERMS_CONTENT_DIGEST,
+            TermsAcceptanceReceipt.channel == channel,
+        )
+        .first()
+        is not None
+    )
+
+
+def user_has_current_legal_bundle_for_request(
+    db: Session,
+    user_id: str,
+    request: Request,
+) -> bool:
+    """Require an explicit current receipt for a classified China channel."""
+
+    if not user_has_current_legal_bundle(db, user_id):
+        return False
+    channel = request_china_channel(request)
+    return (
+        channel is None
+        or user_has_current_channel_receipt(db, user_id, channel)
+    )
+
+
+def user_background_processing_authorized(
+    db: Session,
+    user_id: str,
+) -> bool:
+    """Require current Terms and an open switch for a China-channel user.
+
+    Background work has no live browser request to classify. Any
+    server-classified China receipt for the current bundle keeps that work
+    behind the China switch, so a later direct-client receipt cannot bypass
+    the stop. Existing users without a receipt retain the ``users`` projection
+    compatibility path and ordinary-web-only receipts remain independent.
+    """
+
+    if not user_has_current_legal_bundle(db, user_id):
+        return False
+    current_channels = {
+        str(channel)
+        for channel, in db.query(TermsAcceptanceReceipt.channel)
+        .filter(
+            TermsAcceptanceReceipt.user_id == user_id,
+            TermsAcceptanceReceipt.terms_version == TERMS_VERSION,
+            TermsAcceptanceReceipt.terms_digest == TERMS_CONTENT_DIGEST,
+            TermsAcceptanceReceipt.channel.in_(CHINA_CLIENT_CHANNELS),
+        )
+        .distinct()
+        .all()
+    }
+    return not (
+        (CN_WEB_CLIENT in current_channels and not china_processing_enabled())
+        or (
+            MINIAPP_CLIENT in current_channels
+            and not miniapp_processing_enabled()
+        )
+    )
+
+
 def build_terms_receipt(
     *,
     user_id: str,
@@ -71,29 +165,17 @@ def build_terms_receipt(
         payload.terms_version,
         payload.terms_digest,
     )
-    state = request.scope.get("state")
-    release_context = (
-        state.get(VERIFIED_CHINA_RELEASE_SCOPE_KEY)
-        if isinstance(state, dict)
-        else None
-    )
-    if release_context is None:
+    channel = request_china_channel(request)
+    if channel is None:
         if request.url.path.startswith("/api/auth/wechat/"):
             raise HTTPException(
                 status_code=503,
-                detail="CLIENT_PROVENANCE_UNAVAILABLE",
+                detail="CLIENT_CONTEXT_UNAVAILABLE",
             )
         channel = "web"
-        client_version = None
-        source_sha = None
         notice_version = None
-        release_id = None
     else:
-        channel = str(release_context["channel"])
-        client_version = str(release_context["client_version"])
-        source_sha = str(release_context["source_sha"])
-        notice_version = str(release_context["notice_version"])
-        release_id = str(release_context["release_id"])
+        notice_version = TERMS_VERSION
     return TermsAcceptanceReceipt(
         user_id=user_id,
         action=TERMS_ACCEPTANCE_ACTION,
@@ -101,9 +183,9 @@ def build_terms_receipt(
         terms_digest=payload.terms_digest,
         locale=(payload.locale or "").strip() or None,
         channel=channel[:30],
-        client_version=client_version,
-        source_sha=source_sha,
+        client_version=None,
+        source_sha=None,
         notice_version=notice_version,
-        release_id=release_id,
+        release_id=None,
         accepted_at=accepted_at,
     )

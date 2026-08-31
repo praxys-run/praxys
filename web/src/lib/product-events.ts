@@ -8,7 +8,6 @@ import type {
 } from '@/types/api';
 import { WEB_VERSION } from '@/lib/version';
 import { KEYS, getCompatItem } from '@/lib/storage-compat';
-import { isChinaFrontendDeployment } from '@/lib/runtime-region';
 
 const sentThisSession = new Set<string>();
 const decisionCheckClaims = new Map<
@@ -57,8 +56,6 @@ export async function recordProductEvent(
   eventName: ProductEventName,
   response?: TodayFeedbackResponse,
 ): Promise<ProductEventResponse | null> {
-  if (isChinaFrontendDeployment()) return null;
-
   let payload: ProductEventRequest;
   if (eventName === 'today_feedback_submitted') {
     if (!response) return null;
@@ -96,8 +93,6 @@ export async function recordProductEvent(
 
 /** Claim the account-wide Decision Check cadence before rendering the prompt. */
 export function claimTodayDecisionCheck(): Promise<ProductEventResponse | null> {
-  if (isChinaFrontendDeployment()) return Promise.resolve(null);
-
   const scope = productEventStorageScope();
   const existing = decisionCheckClaims.get(scope);
   if (existing) return existing;
@@ -141,8 +136,6 @@ export function recordProductEventOnce(
   eventName: NonDecisionProductEventName,
   key: string,
 ): void {
-  if (isChinaFrontendDeployment()) return;
-
   const storageKey = `praxys:product-event:${productEventStorageScope()}:${eventName}:${key}`;
   if (sentThisSession.has(storageKey)) return;
 

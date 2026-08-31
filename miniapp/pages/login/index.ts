@@ -35,7 +35,7 @@ import type {
   PlatformName,
 } from '../../types/api';
 
-const SIGNUP_URL = 'https://www.praxys.run';
+const SIGNUP_URL = 'https://www.praxys.cn/login?register=1';
 const PLATFORM_LABELS: Record<PlatformName, string> = {
   garmin: 'Garmin',
   strava: 'Strava',
@@ -73,7 +73,7 @@ async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
 /**
  * Build the page's translation table once per mount. Most strings come
  * from web's lingui catalog (auto-synced via `sync-i18n.cjs`), with a
- * handful of mini-program-only keys (waitlist copy, theme-toggle aria
+ * handful of mini-program-only keys (web-registration copy, theme-toggle aria
  * labels, tap-to-copy hints) living in `i18n-extra.ts`.
  *
  * The CTA text changes between idle and link stages on purpose:
@@ -99,8 +99,6 @@ function buildLoginTr(locale: Locale) {
     taglinePrefix,
     taglineAccent,
     taglineSuffix,
-    alphaEyebrow: t('Private alpha · Invitation only'),
-
     pillar1Strong: t("Today's signal."),
     pillar1Rest: t(' Go, modify, or rest.'),
     pillar2Strong: t('Diagnosis & forecast'),
@@ -115,36 +113,16 @@ function buildLoginTr(locale: Locale) {
     linkTitle: t('Sign in to Praxys'),
     linkDetail:
       locale === 'zh'
-        ? '请输入您在 praxys.run 注册时使用的邮箱和密码。'
-        : 'Use the email and password you registered with on praxys.run.',
+        ? '请输入在 Praxys 网页端注册时使用的邮箱和密码。'
+        : 'Use the email and password you registered with on the Praxys web app.',
     emailPlaceholder: t('email'),
     passwordPlaceholder: t('password'),
     linkAction: t('Link to Praxys'),
 
-    newHere: t('New here?'),
-    haveInviteCode: t('Have an invitation code?'),
-    registerOnPraxys: t('Register on praxys.run'),
-    thenSignInWithWeChat: t('Then come back and sign in with WeChat above.'),
-    joinTheWaitlist: t('Join the waitlist'),
-    backToSignIn: t('Back to sign in'),
-
-    waitlistIntro: t(
-      "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens.",
-    ),
-    waitlistNotePlaceholder: t('Sub-3 marathon · 100K · stay healthy…'),
-    waitlistSuccessTitle: t("You're on the list."),
-    waitlistSuccessDetail: t(
-      "We'll reach out from support@praxys.run when a slot opens.",
-    ),
-    saving: t('Saving…'),
-
-    waitlistEmailRequired: t('Email is required.'),
-    waitlistRateLimited: t(
-      'Too many attempts from this network. Please email us instead.',
-    ),
-    waitlistInvalidEmail: t('Please check your email format and try again.'),
-    waitlistGenericFail: t(
-      'Could not save your email. Please email us instead.',
+    newHere: t('New to Praxys?'),
+    registerOnPraxys: t('Create account on praxys.cn'),
+    thenSignInWithWeChat: t(
+      'Complete registration and account setup in your browser, then return here to link WeChat.',
     ),
 
     themeLight: t('Light theme'),
@@ -241,20 +219,14 @@ function buildLoginTr(locale: Locale) {
  *     - status 'ok' + access_token: save JWT, require the current Terms
  *       receipt, then reLaunch to /pages/today.
  *     - status 'needs_setup' + ticket: show the link-to-existing-account
- *       form (CTA "Link to Praxys"). Account creation lives on
- *       praxys.run.
+ *       form (CTA "Link to Praxys"). Account creation and initial
+ *       setup live on the public Praxys web app.
  *     - failure: show error + retry button.
- *
- *   User taps "Join the waitlist" → 'waitlist' stage with email +
- *     optional note inputs. Submitting calls POST /api/auth/waitlist
- *     (per CLAUDE.md, this is the one registration-adjacent write the
- *     miniapp owns — email-only intent capture, no platform OAuth).
- *     Success → 'waitlist-success' stage with back-to-sign-in CTA.
  *
  * Why no register stage in the mini program: the full onboarding flow
  * (platform connections, training base, threshold setup) lives on web.
- * Sending users with an invitation code to praxys.run keeps the mini
- * program focused on view + manage for already-registered users.
+ * The public registration link opens praxys.cn in the user's browser;
+ * after setup they return here and bind the account to WeChat.
  */
 
 type Stage =
@@ -264,9 +236,7 @@ type Stage =
   | 'choose'
   | 'link'
   | 'terms'
-  | 'error'
-  | 'waitlist'
-  | 'waitlist-success';
+  | 'error';
 
 interface PageData {
   stage: Stage;
@@ -295,11 +265,6 @@ interface PageData {
   termsDisconnectingPlatform: string;
   isDemo: boolean;
 
-  waitlistEmail: string;
-  waitlistNote: string;
-  waitlistSubmitting: boolean;
-  waitlistError: string;
-
   agreedTerms: boolean;
   noticeVersion: string;
   noticeEffectiveDate: string;
@@ -327,11 +292,6 @@ interface PageMethods extends WechatMiniprogram.IAnyObject {
   onCopySignupUrl(): void;
   onSwitchLang(e: WechatMiniprogram.TouchEvent): void;
   onSwitchTheme(e: WechatMiniprogram.TouchEvent): void;
-  onWaitlistTap(): void;
-  onWaitlistEmailInput(e: WechatMiniprogram.Input): void;
-  onWaitlistNoteInput(e: WechatMiniprogram.Input): void;
-  onWaitlistSubmit(): Promise<void>;
-  onWaitlistBack(): void;
   onToggleAgree(): void;
   onOpenLegal(e: WechatMiniprogram.TouchEvent): void;
 }
@@ -357,10 +317,6 @@ const initialData: PageData = {
   termsConnectionsLoading: false,
   termsDisconnectingPlatform: '',
   isDemo: false,
-  waitlistEmail: '',
-  waitlistNote: '',
-  waitlistSubmitting: false,
-  waitlistError: '',
   agreedTerms: false,
   noticeVersion: CHINA_PROCESSING_NOTICE_VERSION,
   noticeEffectiveDate: EFFECTIVE_DATE,
@@ -670,86 +626,9 @@ Page<PageData, PageMethods>({
   },
 
   /**
-   * Tap on the "Join the waitlist" footer row. Drops into the
-   * waitlist stage with empty form state — every entry to the
-   * waitlist starts fresh (no carry-over from a prior abandoned
-   * attempt).
-   */
-  onWaitlistTap() {
-    this.setData({
-      stage: 'waitlist',
-      agreedTerms: false,
-      waitlistEmail: '',
-      waitlistNote: '',
-      waitlistError: '',
-      waitlistSubmitting: false,
-    });
-  },
-
-  onWaitlistEmailInput(e) {
-    this.setData({ waitlistEmail: e.detail.value });
-  },
-  onWaitlistNoteInput(e) {
-    this.setData({ waitlistNote: e.detail.value });
-  },
-
-  /**
-   * Submit to /api/auth/waitlist. Mirrors web's handleWaitlistSubmit
-   * (rate-limit, validation, generic-fail handling) — surfaces the
-   * same in-page success state on the next render.
-   */
-  async onWaitlistSubmit() {
-    const { waitlistEmail, waitlistNote, locale, tr } = this.data;
-    const email = waitlistEmail.trim();
-    if (!email) {
-      this.setData({ waitlistError: tr.waitlistEmailRequired });
-      return;
-    }
-    if (!this.data.agreedTerms) {
-      this.setData({ waitlistError: tr.agreeRequired });
-      return;
-    }
-    this.setData({ waitlistSubmitting: true, waitlistError: '' });
-    try {
-      await apiPost(
-        '/api/auth/waitlist',
-        {
-          email,
-          note: waitlistNote.trim().slice(0, 500),
-          locale,
-        },
-        { skipAuthRedirect: true },
-      );
-      this.setData({
-        stage: 'waitlist-success',
-        waitlistSubmitting: false,
-        waitlistEmail: '',
-        waitlistNote: '',
-      });
-    } catch (e) {
-      const err = e as Partial<ApiError>;
-      let msg = tr.waitlistGenericFail;
-      if (err.status === 429) msg = tr.waitlistRateLimited;
-      else if (err.status === 422) msg = tr.waitlistInvalidEmail;
-      else if (typeof err.detail === 'string' && err.detail) msg = err.detail;
-      this.setData({ waitlistSubmitting: false, waitlistError: msg });
-    }
-  },
-
-  onWaitlistBack() {
-    this.setData({
-      stage: 'idle',
-      waitlistEmail: '',
-      waitlistNote: '',
-      waitlistError: '',
-      waitlistSubmitting: false,
-    });
-  },
-
-  /**
    * Agreement checkbox toggle, shown on the Terms stage and the
-   * email-collection stages (waitlist + link). Submission is blocked until
-   * the applicable acknowledgement is explicit.
+   * account-link stage. Submission is blocked until the applicable
+   * acknowledgement is explicit.
    */
   onToggleAgree() {
     this.setData({ agreedTerms: !this.data.agreedTerms });
@@ -766,10 +645,9 @@ Page<PageData, PageMethods>({
   },
 
   /**
-   * "New here?" / "Have an invitation code?" rows tap to copy the
-   * praxys.run URL to clipboard. WeChat doesn't let mini programs
-   * open external URLs in the system browser, so the UX is "copy the
-   * URL → user opens it in their browser of choice".
+   * Copy the public Web registration deep link. WeChat does not let mini
+   * programs open an arbitrary external browser URL, so the user pastes it
+   * into their browser, completes setup, then returns to bind WeChat.
    */
   onCopySignupUrl() {
     wx.setClipboardData({

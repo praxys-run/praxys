@@ -5,9 +5,9 @@
 export interface LegalText { en: string; zh: string; }
 export interface LegalSection { id: string; title: LegalText; body: LegalText[]; }
 
-export const TERMS_VERSION = "2026.08.4";
-export const TERMS_CONTENT_DIGEST = "sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1";
-export const EFFECTIVE_DATE = "2026-08-28";
+export const TERMS_VERSION = "2026.08.5";
+export const TERMS_CONTENT_DIGEST = "sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e";
+export const EFFECTIVE_DATE = "2026-08-31";
 export const SUPPORT_EMAIL = "support@praxys.run";
 export const OPERATOR_NAME = "Fei Tao";
 export const JURISDICTION = "the People’s Republic of China";
@@ -187,8 +187,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         "zh": "用于创建和保护账号、验证身份、从您启用的平台获取数据、计算并展示训练分析、信号、计划和预测、提供所请求的账号控制、诊断故障及履行法定义务。在您提供计划个性化信息时，我们用其避免猜测，并生成限定用途的计划解读或建议。"
       },
       {
-        "en": "We do not sell personal information, use it for advertising, or place private context in browser analytics, public trackers, evaluation corpora, or cross-user model training. Browser analytics and product-event telemetry are disabled on the praxys.cn deployment.",
-        "zh": "我们不出售个人信息，不将其用于广告，也不会把计划个性化信息放入浏览器分析、公开问题追踪、评估语料或跨用户模型训练。praxys.cn 部署已关闭浏览器分析和产品事件遥测。"
+        "en": "We do not sell personal information, use it for advertising, or place private context in browser analytics, public trackers, evaluation corpora, or cross-user model training. The praxys.cn deployment uses minimized Application Insights performance and request telemetry plus allowlisted product events. It strips URL queries and fragments, suppresses browser exception capture, and does not intentionally send email, raw account identifiers, training content, private context, or feedback text. Browser Statsig remains disabled.",
+        "zh": "我们不出售个人信息，不将其用于广告，也不会把计划个性化信息放入浏览器分析、公开问题追踪、评估语料或跨用户模型训练。praxys.cn 使用经最小化的 Application Insights 性能与请求遥测及白名单产品事件；URL 查询参数和片段会被移除，浏览器异常采集会被关闭，且不会有意发送邮箱、原始账号标识、训练内容、计划个性化信息或反馈原文。浏览器 Statsig 仍保持关闭。"
       },
       {
         "en": "Azure AI may privately classify support feedback text and screenshots under this Agreement. Publishing feedback to an external issue tracker is separate and occurs only when you give the exact per-submission publication permission shown with the feedback form. Accepting these Terms does not grant publication permission, and screenshots remain private.",
@@ -279,8 +279,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     },
     "body": [
       {
-        "en": "Core account and training data is kept while the account is active and deleted when you delete the account, subject to short operational backups, deletion records, security logs, and legal retention duties. Optional private-context notes follow the shorter periods shown in the product. Logs and processor records are retained only for bounded security, reliability, audit, or legal periods. Praxys keeps the personal-information protection impact assessment and processing record for at least three years.",
-        "zh": "核心账号和训练数据在账号有效期间保存，并在您删除账号时清除，但短期运营备份、删除记录、安全日志和法定保存义务除外。可选计划个性化备注遵循产品中显示的更短期限。日志和受托处理记录仅在有界的安全、可靠性、审计或法定期限内保存。Praxys 对个人信息保护影响评估和处理情况记录至少保存三年。"
+        "en": "Core account and training data is kept while the account is active and deleted from active systems when you delete the account. Encrypted PostgreSQL point-in-time recovery backups may retain a recoverable copy for up to 14 days; a restore may require operator reconciliation before traffic reopens. Deletion records, security logs, and legally required records may remain for their bounded purpose. Optional private-context notes follow the shorter periods shown in the product. Browser and backend Application Insights data is retained for 30 days. Praxys keeps the personal-information protection impact assessment and processing record for at least three years.",
+        "zh": "核心账号和训练数据在账号有效期间保存，并在您删除账号时从活动系统中清除。加密的 PostgreSQL 时间点恢复备份可能在最长 14 天内保留可恢复副本；发生恢复时，运营者可能需要在重新开放流量前执行删除对账。删除记录、安全日志及依法必须保存的记录可在限定用途和期限内保留。可选计划个性化备注遵循产品中显示的更短期限。浏览器与后端 Application Insights 数据保留 30 天。Praxys 对个人信息保护影响评估和处理情况记录至少保存三年。"
       }
     ]
   },

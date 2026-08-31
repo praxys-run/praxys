@@ -5,9 +5,14 @@ import importlib
 import os
 import tempfile
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
+
+
+def _api_today() -> date:
+    """Match the API's explicit UTC athlete-date test contract."""
+    return datetime.now(timezone.utc).date()
 
 
 def _history(today: date):
@@ -572,7 +577,7 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
         UserConfig,
     )
 
-    today = date.today()
+    today = _api_today()
     goal = {
         "goal_kind": "performance_10k",
         "distance": "10k",
@@ -582,7 +587,11 @@ def _seed_road_10k_api_context(db_session, user_id: str) -> None:
     current_week = today - timedelta(days=today.weekday())
     baseline_date = current_week - timedelta(days=1)
     with db_session.SessionLocal() as db:
-        db.add(UserConfig(user_id=user_id, goal=goal))
+        db.add(UserConfig(
+            user_id=user_id,
+            goal=goal,
+            source_options={"athlete_timezone": "UTC"},
+        ))
         db.add(Activity(
             user_id=user_id,
             activity_id="road-10k-current-baseline",
@@ -1280,7 +1289,7 @@ def test_protocol_qualified_off_device_distance_can_still_be_confirmed(
 def test_history_confirmation_requires_contract_metadata_and_replays_idempotently(
     road_10k_client,
 ) -> None:
-    today = date.today()
+    today = _api_today()
     current_week = today - timedelta(days=today.weekday())
     baseline_date = current_week - timedelta(days=1)
     client, db_session = road_10k_client
@@ -1376,7 +1385,9 @@ def test_history_confirmation_requires_contract_metadata_and_replays_idempotentl
             Activity.user_id == "road-10k-owner",
             Activity.activity_id == "road-10k-current-baseline",
         ).one()
-        activity.start_time = f"{(date.today() - timedelta(days=5)).isoformat()}T09:15:00Z"
+        activity.start_time = (
+            f"{(today - timedelta(days=5)).isoformat()}T09:15:00Z"
+        )
         activity.duration_sec = 2_700
         activity.source = "strava"
         db.commit()

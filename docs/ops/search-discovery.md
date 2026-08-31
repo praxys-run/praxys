@@ -52,10 +52,10 @@ not a success metric.
 5. At the mainland launch, serve the same generated public HTML on
    `praxys.cn`. Use self-referencing canonicals for genuinely regional pages and
    reciprocal `hreflang` links between the international English URL and the
-   mainland Simplified-Chinese URL. Do not enable Cloudflare's optional
-   geographic `302` during the initial cutover. If later accepted, preserve
-   path/query and never permanently redirect search crawlers solely from an
-   IP-geolocation result.
+   mainland Simplified-Chinese URL. Geographic `302` is approved only after
+   both `.cn` hosts are stable: preserve the path, drop query/fragment values, exclude authenticated
+   application paths, verify no redirect loop, and never permanently redirect
+   search crawlers solely from an IP-geolocation result.
 
 6. Re-submit both sitemaps after the regional canonical/hreflang change and
    monitor duplicate-canonical and alternate-page reports for at least four
@@ -89,4 +89,4 @@ redirect, restore the last verified canonical/hreflang set, and keep
 - `frontend_server/main.py`
 
 ---
-_Last reviewed: 2026-08-20 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-31 · Owner: @dddtc2005_

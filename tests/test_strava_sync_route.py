@@ -1,4 +1,6 @@
 import json
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -19,9 +21,10 @@ def reset_vault():
 
 
 def _store_connection(user_id: str, creds: dict) -> None:
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db import session as db_session
     from db.crypto import get_vault
-    from db.models import UserConnection
+    from db.models import User, UserConnection
 
     db = db_session.SessionLocal()
     try:
@@ -31,6 +34,9 @@ def _store_connection(user_id: str, creds: dict) -> None:
             if value
         }
         encrypted_credentials, wrapped_dek = get_vault().encrypt(json.dumps(creds))
+        user = db.get(User, user_id)
+        user.terms_version = TERMS_VERSION
+        user.terms_digest = TERMS_CONTENT_DIGEST
         db.add(
             UserConnection(
                 user_id=user_id,
@@ -238,3 +244,222 @@ def test_run_sync_strava_persists_rotated_tokens_even_when_fetch_fails(
         assert conn.status == "error"
     finally:
         db.close()
+
+
+def test_run_sync_strava_withholds_rotated_tokens_after_cn_disable(
+    api_client,
+    monkeypatch,
+) -> None:
+    _client, user_id = api_client
+    from api.china_client_boundary import (
+        CN_WEB_CLIENT,
+        DISABLE_CN_PROCESSING_ENV,
+    )
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from api.routes import sync as sync_routes
+    from db import session as db_session
+    from db.crypto import get_vault
+    from db.models import TermsAcceptanceReceipt, UserConnection
+
+    original_creds = {
+        "access_token": "old-token",
+        "refresh_token": "refresh-1",
+        "expires_at": 1,
+    }
+    refreshed_creds = {
+        "access_token": "new-token",
+        "refresh_token": "refresh-2",
+        "expires_at": 1776000000,
+    }
+    _store_connection(user_id, original_creds)
+    monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_ID", "55555")
+    monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_SECRET", "secret-value")
+    with db_session.SessionLocal() as db:
+        db.add(TermsAcceptanceReceipt(
+            user_id=user_id,
+            action=TERMS_ACCEPTANCE_ACTION,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+            channel=CN_WEB_CLIENT,
+            accepted_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
+
+    def disable_after_refresh(*_args, **_kwargs):
+        monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+        return refreshed_creds, True
+
+    with (
+        patch(
+            "sync.strava_sync.refresh_access_token_if_needed",
+            side_effect=disable_after_refresh,
+        ),
+        patch(
+            "sync.strava_sync.fetch_activities_api",
+            side_effect=AssertionError(
+                "disabled sync reached provider activity access"
+            ),
+        ),
+    ):
+        sync_routes._run_sync(
+            user_id,
+            "strava",
+            original_creds,
+            "2026-04-01",
+        )
+
+    with db_session.SessionLocal() as db:
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="strava",
+        ).one()
+        stored_creds = json.loads(get_vault().decrypt(
+            connection.encrypted_credentials,
+            connection.wrapped_dek,
+        ))
+        assert stored_creds == original_creds
+        assert connection.status == "connected"
+        assert connection.last_sync is None
+    assert sync_routes._get_user_status(user_id)["strava"] == {
+        "status": "idle",
+        "last_sync": None,
+        "error": None,
+    }
+
+
+def test_run_sync_rechecks_processing_after_garmin_lease(
+    api_client,
+    monkeypatch,
+) -> None:
+    _client, user_id = api_client
+    from api import legal_receipts
+    from api.routes import sync as sync_routes
+
+    authorized = True
+
+    @contextmanager
+    def disable_while_waiting(_user_id: str):
+        nonlocal authorized
+        authorized = False
+        yield
+
+    monkeypatch.setattr(
+        legal_receipts,
+        "user_background_processing_authorized",
+        lambda _db, _user_id: authorized,
+    )
+    monkeypatch.setattr(
+        sync_routes,
+        "_garmin_tokenstore_lease",
+        disable_while_waiting,
+    )
+    monkeypatch.setattr(
+        sync_routes,
+        "_sync_garmin",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("disabled sync reached Garmin provider I/O")
+        ),
+    )
+
+    sync_routes._run_sync(user_id, "garmin", {}, None)
+
+    assert sync_routes._get_user_status(user_id)["garmin"] == {
+        "status": "idle",
+        "last_sync": None,
+        "error": None,
+    }
+
+
+def test_scheduled_sync_withholds_rotated_tokens_after_cn_disable(
+    api_client,
+    monkeypatch,
+) -> None:
+    _client, user_id = api_client
+    from api.china_client_boundary import (
+        CN_WEB_CLIENT,
+        DISABLE_CN_PROCESSING_ENV,
+    )
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db import session as db_session
+    from db import sync_scheduler
+    from db.crypto import get_vault
+    from db.models import TermsAcceptanceReceipt, UserConnection
+
+    original_creds = {
+        "access_token": "old-token",
+        "refresh_token": "refresh-1",
+        "expires_at": 1,
+    }
+    refreshed_creds = {
+        "access_token": "new-token",
+        "refresh_token": "refresh-2",
+        "expires_at": 1776000000,
+    }
+    _store_connection(user_id, original_creds)
+    monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_ID", "55555")
+    monkeypatch.setenv("PRAXYS_STRAVA_CLIENT_SECRET", "secret-value")
+    with db_session.SessionLocal() as db:
+        db.add(TermsAcceptanceReceipt(
+            user_id=user_id,
+            action=TERMS_ACCEPTANCE_ACTION,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+            channel=CN_WEB_CLIENT,
+            accepted_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+
+    monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "false")
+
+    def disable_after_refresh(*_args, **_kwargs):
+        monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
+        return refreshed_creds, True
+
+    post_sync_calls: list[str] = []
+    monkeypatch.setattr(
+        "api.telemetry.record_sync",
+        lambda **_kwargs: post_sync_calls.append("telemetry"),
+    )
+    monkeypatch.setattr(
+        "api.plan_adjustments.run_plan_adjustment_for_user",
+        lambda *_args, **_kwargs: post_sync_calls.append("adjustment"),
+    )
+    monkeypatch.setattr(
+        "api.insights_runner.run_insights_for_user",
+        lambda *_args, **_kwargs: post_sync_calls.append("insights"),
+    )
+    with (
+        patch(
+            "sync.strava_sync.refresh_access_token_if_needed",
+            side_effect=disable_after_refresh,
+        ),
+        patch(
+            "sync.strava_sync.fetch_activities_api",
+            side_effect=AssertionError(
+                "disabled scheduled sync reached provider activity access"
+            ),
+        ),
+    ):
+        with db_session.SessionLocal() as db:
+            sync_scheduler._sync_connection(user_id, "strava", db)
+
+    with db_session.SessionLocal() as db:
+        connection = db.query(UserConnection).filter_by(
+            user_id=user_id,
+            platform="strava",
+        ).one()
+        stored_creds = json.loads(get_vault().decrypt(
+            connection.encrypted_credentials,
+            connection.wrapped_dek,
+        ))
+        assert stored_creds == original_creds
+        assert connection.status == "connected"
+        assert connection.last_sync is None
+        assert connection.consecutive_failures == 0
+        assert connection.next_retry_at is None
+        assert connection.last_error is None
+    assert post_sync_calls == []

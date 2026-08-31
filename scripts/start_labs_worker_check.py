@@ -6,6 +6,7 @@ import copy
 import json
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -77,8 +78,8 @@ def start_startup_check(
     job_name: str,
     *,
     container_name: str,
-) -> None:
-    """Start the worker with a one-execution command override."""
+) -> str:
+    """Start the check, wait for a terminal success, and return its ID."""
     template = build_startup_check_template(
         _read_live_template(resource_group, job_name),
         container_name=container_name,
@@ -93,7 +94,7 @@ def start_startup_check(
         ) as handle:
             json.dump(template, handle)
             temp_path = Path(handle.name)
-        subprocess.run(
+        started = subprocess.run(
             [
                 "az",
                 "containerapp",
@@ -105,9 +106,48 @@ def start_startup_check(
                 job_name,
                 "--yaml",
                 str(temp_path),
+                "--output",
+                "json",
                 "--only-show-errors",
             ],
             check=True,
+            capture_output=True,
+            text=True,
+        )
+        payload = json.loads(started.stdout)
+        execution_name = (
+            payload.get("name")
+            if isinstance(payload, dict)
+            else None
+        )
+        if not isinstance(execution_name, str) or not execution_name:
+            raise RuntimeError(
+                "Container Apps did not return a startup-check execution ID"
+            )
+        for _ in range(60):
+            observed = subprocess.run(
+                [
+                    "az", "containerapp", "job", "execution", "show",
+                    "--resource-group", resource_group,
+                    "--name", job_name,
+                    "--job-execution-name", execution_name,
+                    "--query", "properties.status",
+                    "--output", "tsv",
+                    "--only-show-errors",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip().lower()
+            if observed == "succeeded":
+                return execution_name
+            if observed in {"failed", "cancelled", "stopped"}:
+                raise RuntimeError(
+                    f"Labs worker startup check ended as {observed}"
+                )
+            time.sleep(5)
+        raise TimeoutError(
+            "Timed out waiting for the Labs worker startup check"
         )
     finally:
         if temp_path is not None:
@@ -121,11 +161,12 @@ def main() -> int:
     parser.add_argument("--job-name", required=True)
     parser.add_argument("--container-name", default="labs-worker")
     args = parser.parse_args()
-    start_startup_check(
+    execution_name = start_startup_check(
         args.resource_group,
         args.job_name,
         container_name=args.container_name,
     )
+    print(f"Labs worker startup check succeeded: {execution_name}")
     return 0
 
 

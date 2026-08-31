@@ -1467,12 +1467,20 @@ def test_run_sync_rolls_back_if_user_deactivated_before_commit(account_client, m
 
     from datetime import date
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from api.routes import sync as sync_routes
     from db.models import Activity, User, UserConnection
 
     db = db_session.SessionLocal()
     try:
-        db.add(User(id="sync-user", email="sync@example.test", hashed_password="x", is_active=True))
+        db.add(User(
+            id="sync-user",
+            email="sync@example.test",
+            hashed_password="x",
+            is_active=True,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+        ))
         db.add(UserConnection(user_id="sync-user", platform="garmin", status="connected", consecutive_failures=0))
         db.commit()
     finally:

@@ -6,8 +6,9 @@ Three endpoints support the three scenarios a mini program user can be in:
   (returning user) or a short-lived setup ticket (first time on this device).
 - POST /auth/wechat/link-with-password — binds the WeChat openid from a
   setup ticket to an existing Praxys account after password verification.
-- POST /auth/wechat/register — creates a new account bound to the WeChat
-  openid, enforcing the same invitation-code rules as web registration.
+- POST /auth/wechat/register — legacy invite-only account creation retained
+  for existing clients. Current Miniapp onboarding registers on the web and
+  links the resulting account.
 
 The setup ticket is a short-lived HS256 JWT (audience
 "trainsight:wechat-setup") that carries the verified openid. It exists
@@ -314,9 +315,8 @@ async def wechat_register(
     (synthetic email, random unusable password) — they can still log in on
     the web later by going through an account-recovery flow.
 
-    Invitation rules match the web register endpoint: first user becomes
-    admin, configured admin email bypasses the check, everyone else needs
-    a valid invitation code.
+    This legacy direct-registration endpoint remains invite-only. Current
+    public registration happens on the web, followed by account linking.
     """
     openid, unionid = _verify_setup_ticket(body.wechat_login_ticket)
 

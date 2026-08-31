@@ -10,7 +10,7 @@ import {
 } from '@statsig/react-bindings';
 
 import { useAuth } from '@/hooks/useAuth';
-import { isBrowserTelemetryAllowed } from '@/lib/runtime-region';
+import { isStatsigBrowserAllowed } from '@/lib/runtime-region';
 
 const CLIENT_KEY = import.meta.env.VITE_STATSIG_CLIENT_KEY?.trim() ?? '';
 const ENVIRONMENT = import.meta.env.VITE_STATSIG_ENV?.trim() || 'development';
@@ -76,7 +76,7 @@ export function StatsigProvider({ children }: { children: ReactNode }) {
   }), [isAdmin, isAuthenticated, isDemo, targetingEmail, userId]);
 
   if (
-    !isBrowserTelemetryAllowed(Boolean(CLIENT_KEY))
+    !isStatsigBrowserAllowed(Boolean(CLIENT_KEY))
     || isLoading
     || !isAuthenticated
     || !userId

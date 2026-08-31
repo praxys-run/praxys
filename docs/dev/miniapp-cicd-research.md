@@ -74,7 +74,9 @@ that compatibility floor.
 `YYYY.MM.DD.<run_number>-<sha7>` (for example,
 `2026.08.26.42-abc1234`). This goes to robot 5, separate from the tagged
 release line on robot 1, so development iteration never overwrites or
-impersonates the release candidate.
+impersonates the release candidate. The API compatibility parser accepts both
+forms, compares their first three numeric components to the current minimum,
+and rejects the local `develop` sentinel in production.
 
 **`miniapp/package.json` `version` field** stays as a project marker (currently
 `0.2.0`); the publish workflow does not read it. Release tags are the source of
@@ -130,11 +132,14 @@ The actual implementation lives at **`.github/workflows/miniapp-publish.yml`** i
 - **Triggers:** push to `main` (path-gated by inline `git diff` since GitHub's `paths:` filter doesn't compose cleanly with tag triggers), tag pushes matching `miniapp-*`, and `workflow_dispatch` for manual reruns.
 - **Gate step decides** whether to run: tag push → always; manual → always; main push → only if any of `miniapp/**`, `web/src/locales/**`, `web/src/types/api.ts`,
   `api/china_client_boundary.py`, or the workflow file itself changed across the **entire push range** (`github.event.before..github.sha`, with `fetch-depth: 0` so the prior tip is in the local clone). Using the full range — not just `HEAD^..HEAD` — covers multi-commit pushes where a miniapp change might be buried under a later unrelated commit.
-- **Protected-main provenance preflight runs before every upload.** Robot 1
-  release tags additionally require the exact registry, privacy floor,
-  disabled-runtime readback, and deterministic provider locator
-  `wechat:robot-1:<version>`. Robot 5 development builds are not production
-  releases and do not require registry authorization.
+- **Uploads stay separate from the China web launch.** Robot 1 tags and robot
+  5 development uploads build from their selected protected repository ref,
+  but neither authorizes China web processing nor itself publishes a
+  production Miniapp. Ordinary production keeps Miniapp processing enabled;
+  trial selection, review, and publication remain manual in WeChat.
+- **Release ancestry is checked before the upload key is exposed.** A
+  `miniapp-*` tag commit must be reachable from `origin/main`; no release
+  floor, registry, provider-ID approval, or GitHub check traversal is used.
 - **Typecheck runs before upload** (`npm run typecheck` includes `sync-types` + `sync-i18n` + `tsc`). A typecheck failure aborts the upload — we never publish a broken build.
 - **Robot + version** chosen by the meta step:
   - `refs/tags/miniapp-2026.08.1` → robot 1, version `2026.08.1`
@@ -146,7 +151,7 @@ The actual implementation lives at **`.github/workflows/miniapp-publish.yml`** i
 ```bash
 git tag miniapp-2026.08.1
 git push origin miniapp-2026.08.1
-# → workflow validates the exact protected-main candidate and registry binding
+# → workflow uploads the tagged build to robot 1's development slot
 # → robot 1's 开发版 in 版本管理 becomes 2026.08.1
 # → in mp.weixin.qq.com 版本管理: click "选为体验版" on robot 1's row
 # → scan QR with WeChat, verify

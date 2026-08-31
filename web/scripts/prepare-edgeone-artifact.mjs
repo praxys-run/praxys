@@ -1,9 +1,5 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
-  readFile,
-  readdir,
-  rm,
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,17 +11,10 @@ import { stampChinaCompliance } from './stamp-china-compliance.mjs';
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = path.resolve(SCRIPT_DIRECTORY, '..', '..');
-
-async function findArtifactFiles(directory, root = directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(entries.map(async (entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return findArtifactFiles(entryPath, root);
-    if (!entry.isFile() || entry.name === 'SHA256SUMS') return [];
-    return [path.relative(root, entryPath).split(path.sep).join('/')];
-  }));
-  return nested.flat().sort();
-}
+const CN_NOTICE_VERSION = '2026.08.5';
+const CN_LEGAL_DIGEST =
+  'sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e';
+const CN_API_CONTRACT_VERSION = 'cn-privacy-v2';
 
 export async function resolveSourceSha() {
   const { stdout } = await execFileAsync(
@@ -61,22 +50,14 @@ export async function prepareEdgeOneArtifact(directory, requestedSha) {
       ok: true,
       service: 'praxys-frontend-cn',
       deployed_sha: sourceSha,
+      notice_version: CN_NOTICE_VERSION,
+      legal_digest: CN_LEGAL_DIGEST,
+      api_contract_version: CN_API_CONTRACT_VERSION,
     })}\n`,
     'utf8',
   );
 
-  const manifestPath = path.join(target, 'SHA256SUMS');
-  await rm(manifestPath, { force: true });
-  const files = await findArtifactFiles(target);
-  const manifestLines = await Promise.all(files.map(async (relativePath) => {
-    const contents = await readFile(path.join(target, relativePath));
-    const digest = createHash('sha256').update(contents).digest('hex');
-    return `${digest}  ./${relativePath}`;
-  }));
-  await writeFile(manifestPath, `${manifestLines.join('\n')}\n`, 'utf8');
-
   return {
-    fileCount: files.length,
     htmlCount: stampedFiles.length,
     sourceSha,
   };
@@ -99,6 +80,6 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   const result = await prepareEdgeOneArtifact(target, requestedSha);
   console.log(
     `Prepared EdgeOne artifact for ${result.sourceSha}: `
-    + `${result.htmlCount} HTML files, ${result.fileCount} manifest entries.`,
+    + `${result.htmlCount} HTML files.`,
   );
 }

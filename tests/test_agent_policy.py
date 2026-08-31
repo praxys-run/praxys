@@ -152,5 +152,5 @@ def test_deploy_owns_agent_ready_runtime_controls() -> None:
         "PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION",
     ):
         assert f"{name}: ${{{{ vars.{name} }}}}" in workflow
-        assert f'{name}="${{{name}}}"' in workflow
+        assert f'"{name}=${{{name}}}"' in workflow
         assert name in env_example

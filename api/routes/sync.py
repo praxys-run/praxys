@@ -13,6 +13,7 @@ import secrets
 import threading
 import time
 from collections.abc import Iterable, Iterator
+from contextvars import ContextVar, Token
 from datetime import date, datetime, timedelta, timezone
 
 import portalocker
@@ -58,6 +59,52 @@ _sync_status: dict[str, dict[str, dict]] = {}
 _sync_lock = threading.Lock()
 
 _DEFAULT_SOURCES = ["garmin", "strava", "stryd", "oura", "coros"]
+_background_sync_context: ContextVar[tuple[str, Session] | None] = ContextVar(
+    "praxys_background_sync_context",
+    default=None,
+)
+
+
+class BackgroundProcessingAuthorizationLost(RuntimeError):
+    """Raised when an in-flight background sync loses processing authority."""
+
+
+def _begin_background_sync_execution(
+    user_id: str,
+    db: Session,
+) -> Token[tuple[str, Session] | None]:
+    """Enter the shared commit-fencing context for one background sync."""
+    return _background_sync_context.set((user_id, db))
+
+
+def _end_background_sync_execution(
+    token: Token[tuple[str, Session] | None],
+) -> None:
+    """Leave the shared background-sync commit-fencing context."""
+    _background_sync_context.reset(token)
+
+
+def _require_background_processing_authorized(
+    user_id: str,
+    db: Session,
+) -> None:
+    """Fence background work on current Terms and China-channel switches."""
+    from api.legal_receipts import user_background_processing_authorized
+
+    if not user_background_processing_authorized(db, user_id):
+        raise BackgroundProcessingAuthorizationLost(
+            "SYNC_BACKGROUND_PROCESSING_NOT_AUTHORIZED"
+        )
+
+
+def _require_background_sync_commit_authorized(
+    user_id: str,
+    db: Session,
+) -> None:
+    """Fence provider commits made inside manual or scheduled sync work."""
+    context = _background_sync_context.get()
+    if context is not None and context[0] == user_id and context[1] is db:
+        _require_background_processing_authorized(user_id, db)
 
 
 def _ensure_user_active_for_sync(user_id: str, db: Session) -> None:
@@ -79,6 +126,26 @@ def _ensure_user_active_for_sync(user_id: str, db: Session) -> None:
     ).first()
     if not user_exists:
         raise RuntimeError("SYNC_USER_DELETED")
+
+
+def _commit_background_sync_provider_changes(
+    user_id: str,
+    db: Session,
+) -> None:
+    """Preserve deletion fencing and authorize provider-internal commits."""
+    _ensure_user_active_for_sync(user_id, db)
+    _require_background_sync_commit_authorized(user_id, db)
+    db.commit()
+
+
+def _commit_authorized_background_sync_changes(
+    user_id: str,
+    db: Session,
+) -> None:
+    """Commit sync data only while background work remains allowed."""
+    _ensure_user_active_for_sync(user_id, db)
+    _require_background_processing_authorized(user_id, db)
+    db.commit()
 
 
 def _get_user_status(user_id: str) -> dict[str, dict]:
@@ -508,7 +575,7 @@ def publish_garmin_tokens(
                 allowed_statuses=allowed_statuses,
             )
             if current_tokens == serialized_tokens:
-                db.commit()
+                _commit_background_sync_provider_changes(user_id, db)
                 return True
             if current_tokens != expected_serialized_tokens:
                 db.rollback()
@@ -523,7 +590,7 @@ def publish_garmin_tokens(
         except ConnectionGenerationChanged:
             db.rollback()
             return False
-        db.commit()
+        _commit_background_sync_provider_changes(user_id, db)
     return True
 
 
@@ -1136,8 +1203,10 @@ def _run_sync(
     init_db()
     db = SessionLocal()
     garmin_token_state: dict[str, object] = {}
+    context_token = _begin_background_sync_execution(user_id, db)
 
     try:
+        _require_background_processing_authorized(user_id, db)
         if source == "stryd":
             from api.stryd_access import stryd_connection_enabled
 
@@ -1149,6 +1218,7 @@ def _run_sync(
             else contextlib.nullcontext()
         )
         with token_lease:
+            _require_background_processing_authorized(user_id, db)
             if expected_connection_generation is not None:
                 require_connection_generation(
                     db,
@@ -1203,8 +1273,7 @@ def _run_sync(
                     allowed_statuses=SCHEDULABLE_STATUSES,
                     lock=True,
                 )
-            _ensure_user_active_for_sync(user_id, db)
-            db.commit()
+            _commit_authorized_background_sync_changes(user_id, db)
         # Refresh activity-derived CP on any sync that can change activity
         # power observations (Garmin, Strava, Stryd — not Oura). The fit
         # itself is cheap and idempotent; skipping Oura just avoids the
@@ -1225,13 +1294,14 @@ def _run_sync(
                             allowed_statuses=SCHEDULABLE_STATUSES,
                             lock=True,
                         )
-                    _ensure_user_active_for_sync(user_id, db)
-                    db.commit()
+                    _commit_authorized_background_sync_changes(user_id, db)
                     logger.info(
                         "Activity-derived CP for user %s: %.1fW (r²=%.2f, %d points)",
                         user_id, fit["cp_watts"], fit["r_squared"], fit["point_count"],
                     )
             except ConnectionGenerationChanged:
+                raise
+            except BackgroundProcessingAuthorizationLost:
                 raise
             except Exception:
                 # CP refresh is best-effort; never let it break the sync.
@@ -1262,12 +1332,12 @@ def _run_sync(
             conn.last_sync = datetime.now(timezone.utc).replace(tzinfo=None)
             conn.status = "connected"
             reset_connection_backoff(conn)
-            _ensure_user_active_for_sync(user_id, db)
-            db.commit()
+            _commit_authorized_background_sync_changes(user_id, db)
 
         logger.info("Sync %s for user %s: %s", source, user_id, counts)
 
         # Manual-path success telemetry (scheduled path emits from _sync_connection).
+        _require_background_processing_authorized(user_id, db)
         try:
             from api import telemetry
             telemetry.record_sync(
@@ -1277,6 +1347,7 @@ def _run_sync(
         except Exception:
             pass
 
+        _require_background_processing_authorized(user_id, db)
         _run_post_sync_plan_adjustment(user_id, source=source)
 
         # Post-sync LLM insight generation. Best-effort: failures here must
@@ -1284,14 +1355,18 @@ def _run_sync(
         # the dataset hash is unchanged) and self-throttling (per-user daily
         # cap), so calling it on every sync is safe.
         try:
+            _require_background_processing_authorized(user_id, db)
             from api.insights_runner import run_insights_for_user
             insight_results = run_insights_for_user(user_id, db, counts)
             logger.info("Insight generation for user %s: %s", user_id, insight_results)
+        except BackgroundProcessingAuthorizationLost:
+            raise
         except Exception:
             # No rollback: the runner uses its own session, and the caller's
             # session has nothing pending past the prior db.commit().
             logger.exception("Insight generation failed for user %s", user_id)
 
+        _require_background_processing_authorized(user_id, db)
         with _sync_lock:
             status[source] = {
                 "status": "done",
@@ -1299,10 +1374,14 @@ def _run_sync(
                 "error": None,
             }
 
-    except ConnectionGenerationChanged:
+    except (
+        BackgroundProcessingAuthorizationLost,
+        ConnectionGenerationChanged,
+    ):
         db.rollback()
         logger.info(
-            "Cancelled stale sync for %s (user %s)",
+            "Cancelled sync outside its current authorization or generation "
+            "for %s (user %s)",
             source,
             user_id,
         )
@@ -1314,6 +1393,26 @@ def _run_sync(
             }
     except Exception as e:
         db.rollback()
+        try:
+            _require_background_processing_authorized(user_id, db)
+        except BackgroundProcessingAuthorizationLost:
+            logger.info(
+                "Cancelled failed sync after processing authorization was "
+                "withdrawn for %s (user %s)",
+                source,
+                user_id,
+            )
+            with _sync_lock:
+                status[source] = {
+                    "status": "idle",
+                    "last_sync": None,
+                    "error": None,
+                }
+            return
+        except Exception:
+            # Preserve the original provider failure when the authorization
+            # read itself is temporarily unavailable.
+            db.rollback()
         if (
             source == "garmin"
             and expected_connection_generation is not None
@@ -1332,6 +1431,20 @@ def _run_sync(
                         "failure for user %s",
                         user_id,
                     )
+            except BackgroundProcessingAuthorizationLost:
+                db.rollback()
+                logger.info(
+                    "Cancelled Garmin token publication after processing "
+                    "authorization was withdrawn for user %s",
+                    user_id,
+                )
+                with _sync_lock:
+                    status[source] = {
+                        "status": "idle",
+                        "last_sync": None,
+                        "error": None,
+                    }
+                return
             except Exception:
                 db.rollback()
                 logger.exception(
@@ -1351,6 +1464,9 @@ def _run_sync(
         # ``_record_sync_failure`` handles its own rollback and commit.
         failure_recorded = False
         try:
+            from api.legal_receipts import (
+                user_background_processing_authorized,
+            )
             from db.sync_scheduler import _record_sync_failure
             conn = db.query(UserConnection).filter(
                 UserConnection.user_id == user_id,
@@ -1365,9 +1481,28 @@ def _run_sync(
                     expected_credential_generation=(
                         expected_connection_generation
                     ),
+                    authorize_commit=lambda check_db: (
+                        user_background_processing_authorized(
+                            check_db,
+                            user_id,
+                        )
+                    ),
                 )
         except Exception:
             pass
+        if not failure_recorded:
+            try:
+                _require_background_processing_authorized(user_id, db)
+            except BackgroundProcessingAuthorizationLost:
+                with _sync_lock:
+                    status[source] = {
+                        "status": "idle",
+                        "last_sync": None,
+                        "error": None,
+                    }
+                return
+            except Exception:
+                db.rollback()
         if (
             expected_connection_generation is not None
             and not failure_recorded
@@ -1388,6 +1523,7 @@ def _run_sync(
                         "error": None,
                     }
     finally:
+        _end_background_sync_execution(context_token)
         db.close()
 
 
@@ -1537,6 +1673,7 @@ def _sync_garmin(
                         "persistence for user %s",
                         user_id,
                     )
+            _require_background_sync_commit_authorized(user_id, db)
             client = token_state.get("client")
             if (
                 credential_generation is not None
@@ -1553,6 +1690,8 @@ def _sync_garmin(
                         token_state=token_state,
                         allowed_statuses=SCHEDULABLE_STATUSES,
                     )
+                except BackgroundProcessingAuthorizationLost:
+                    raise
                 except Exception:
                     db.rollback()
                     logger.exception(
@@ -1638,7 +1777,7 @@ def _sync_garmin_locked(
                 expected_generation=credential_generation,
                 allowed_statuses=SCHEDULABLE_STATUSES,
             )
-            db.commit()
+            _commit_background_sync_provider_changes(user_id, db)
         if _token_state is not None:
             _token_state["committed_tokens"] = authenticated_tokens
 
@@ -2301,8 +2440,7 @@ def _sync_strava(user_id: str, creds: dict, from_date: str | None, db) -> dict:
         _persist_credentials(user_id, "strava", creds, db)
         # Strava rotates refresh tokens. Commit the rotated credentials before
         # any downstream activity/lap fetch can trigger a rollback.
-        _ensure_user_active_for_sync(user_id, db)
-        db.commit()
+        _commit_background_sync_provider_changes(user_id, db)
 
     access_token = creds.get("access_token")
     if not access_token:
@@ -2428,8 +2566,7 @@ def _sync_coros(user_id: str, creds: dict, from_date: str | None,
         updated["coros_user_id"] = token_creds["user_id"]
         updated["timestamp"] = token_creds["timestamp"]
         _persist_credentials(user_id, "coros", updated, db)
-        _ensure_user_active_for_sync(user_id, db)
-        db.commit()
+        _commit_background_sync_provider_changes(user_id, db)
 
     access_token = token_creds["access_token"]
     end = date.today().isoformat()
@@ -2451,8 +2588,7 @@ def _sync_coros(user_id: str, creds: dict, from_date: str | None,
         updated["coros_user_id"] = token_creds["user_id"]
         updated["timestamp"] = token_creds["timestamp"]
         _persist_credentials(user_id, "coros", updated, db)
-        _ensure_user_active_for_sync(user_id, db)
-        db.commit()
+        _commit_background_sync_provider_changes(user_id, db)
         raw_activities = fetch_activities(access_token, region, start, end)
     activity_rows = parse_activities(raw_activities)
     for row in activity_rows:
@@ -2591,8 +2727,7 @@ def _sync_coros(user_id: str, creds: dict, from_date: str | None,
             updated["mobile_access_token"] = mobile_token
             updated["mobile_timestamp"] = mobile_creds["mobile_timestamp"]
             _persist_credentials(user_id, "coros", updated, db)
-            _ensure_user_active_for_sync(user_id, db)
-            db.commit()
+            _commit_background_sync_provider_changes(user_id, db)
 
         raw_sleep = fetch_sleep(mobile_token, region, dm_start, end)
         sleep_rows = parse_sleep(raw_sleep)
@@ -2620,6 +2755,8 @@ def _sync_coros(user_id: str, creds: dict, from_date: str | None,
                 garmin_recovery=sleep_recovery,
                 recovery_source="coros",
             )
+    except BackgroundProcessingAuthorizationLost:
+        raise
     except Exception as e:
         logger.warning("COROS sleep fetch failed for user %s: %s", user_id, e)
 

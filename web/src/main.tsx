@@ -8,6 +8,9 @@ import { i18n, activateLocale, DEFAULT_LOCALE, isSupportedLocale, type Supported
 import { detectLocaleFromTag } from './lib/locale-detect'
 import { KEYS, getCompatItem } from './lib/storage-compat'
 import { initAppInsights } from './lib/appinsights'
+import {
+  CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
+} from './lib/china-processing'
 import { registerSW } from 'virtual:pwa-register'
 import {
   PRELOAD_RELOAD_KEY,
@@ -21,6 +24,10 @@ import {
 // from the initial paint. No-op when VITE_APPINSIGHTS_CONNECTION_STRING
 // is unset at build time.
 initAppInsights()
+window.addEventListener(
+  CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
+  initAppInsights,
+)
 
 // Register the service worker that vite-plugin-pwa generated. `immediate:
 // true` activates the new SW as soon as it's installed, so a freshly-

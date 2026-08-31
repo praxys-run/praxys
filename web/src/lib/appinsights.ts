@@ -1,8 +1,8 @@
 /**
  * Azure Application Insights + web-vitals wiring. No-op when
- * VITE_APPINSIGHTS_CONNECTION_STRING is not set at build time, or when the
- * HTML carries the China deployment marker, so local/uninstrumented previews
- * and the privacy-gated EdgeOne artifact never ship this telemetry.
+ * VITE_APPINSIGHTS_CONNECTION_STRING is not set at build time, so local and
+ * uninstrumented previews remain no-ops. Regional builds may use the same
+ * minimized first-party telemetry boundary as the international frontend.
  *
  * What gets captured when enabled:
  *   - Auto page views + SPA route changes (enableAutoRouteTracking)
@@ -26,9 +26,11 @@
 import { ApplicationInsights, type ITelemetryItem } from '@microsoft/applicationinsights-web'
 import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from 'web-vitals'
 
-import { isBrowserTelemetryAllowed } from './runtime-region'
+import { isAppInsightsAllowed, isChinaFrontendDeployment } from './runtime-region'
+import { hasAcknowledgedChinaProcessingNotice } from './china-processing'
 
 const CONNECTION_STRING = import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING ?? ''
+const REGIONAL_URL_FIELD = /(?:url|uri|referrer|target)/i
 
 type NetworkConnection = {
   effectiveType?: string
@@ -40,8 +42,13 @@ type NetworkConnection = {
 let appInsights: ApplicationInsights | null = null
 
 export function initAppInsights(): ApplicationInsights | null {
-  if (!isBrowserTelemetryAllowed(Boolean(CONNECTION_STRING))) return null
+  if (!isAppInsightsAllowed(Boolean(CONNECTION_STRING))) return null
+  if (
+    isChinaFrontendDeployment()
+    && !hasAcknowledgedChinaProcessingNotice()
+  ) return null
   if (appInsights) return appInsights
+  const chinaDeployment = isChinaFrontendDeployment()
 
   appInsights = new ApplicationInsights({
     config: {
@@ -50,15 +57,51 @@ export function initAppInsights(): ApplicationInsights | null {
       enableCorsCorrelation: true,
       disableFetchTracking: false,
       disableAjaxTracking: false,
+      // Exception messages and stacks can contain application values. Keep
+      // the China browser stream to page, dependency, and performance data.
+      disableExceptionTracking: chinaDeployment,
       autoTrackPageVisitTime: true,
     },
   })
   appInsights.loadAppInsights()
+  appInsights.addTelemetryInitializer(sanitizeRegionalTelemetry)
   appInsights.addTelemetryInitializer(attachNetworkContext)
   appInsights.trackPageView()
   reportWebVitals()
 
   return appInsights
+}
+
+function stripQueryAndFragment(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  return value.replace(/[?#].*$/, '')
+}
+
+/** Remove URL parameters before a regional browser envelope leaves Praxys. */
+function sanitizeRegionalTelemetry(envelope: ITelemetryItem): void {
+  if (!isChinaFrontendDeployment()) return
+  const baseData = envelope.baseData as Record<string, unknown> | undefined
+  if (!baseData) return
+  // Dependency telemetry stores its method-prefixed URL in `name` as well as
+  // its raw URL in `data`/`target`, so all three must cross the same boundary.
+  for (const key of [
+    'name',
+    'uri',
+    'url',
+    'data',
+    'target',
+    'refUri',
+    'referrerUri',
+  ]) {
+    if (key in baseData) baseData[key] = stripQueryAndFragment(baseData[key])
+  }
+  const properties = baseData.properties
+  if (!properties || typeof properties !== 'object') return
+  for (const [key, value] of Object.entries(properties)) {
+    if (REGIONAL_URL_FIELD.test(key)) {
+      (properties as Record<string, unknown>)[key] = stripQueryAndFragment(value)
+    }
+  }
 }
 
 export function getAppInsights(): ApplicationInsights | null {

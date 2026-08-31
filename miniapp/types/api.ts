@@ -17,12 +17,14 @@ export interface VersionResponse {
 export interface ChinaProcessingStatus {
   enabled: boolean;
   disabled: boolean;
-  registry_configured: boolean;
-  approved_release_count: number;
-  registry_sha256: string | null;
   notice_version: string;
   legal_digest: string;
   api_contract_version: string;
+}
+
+export interface MiniappProcessingStatus {
+  enabled: boolean;
+  disabled: boolean;
 }
 
 export type HealthReadyResponse =
@@ -37,6 +39,7 @@ export type HealthReadyResponse =
         feedback_publication_kill_switch: boolean;
       };
       china_processing: ChinaProcessingStatus;
+      miniapp_processing: MiniappProcessingStatus;
     }
   | { status: 'unavailable'; database: 'error' }
   | {
@@ -61,7 +64,7 @@ export type ClientPrivacyUpdateRequiredDetail =
     };
 
 export interface ChinaClientUnavailableErrorDetail {
-  code: 'CN_PROCESSING_DISABLED' | 'CN_CLIENT_REGISTRY_UNAVAILABLE';
+  code: 'CN_PROCESSING_DISABLED' | 'MINIAPP_PROCESSING_DISABLED';
   message: string;
 }
 

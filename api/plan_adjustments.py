@@ -239,6 +239,7 @@ def apply_conservative_plan_adjustment(
     trigger: str,
     current_date: date | None = None,
     now: datetime | None = None,
+    require_background_authorization: bool = False,
 ) -> dict[str, Any]:
     """Evaluate and atomically apply one opted-in automatic adjustment."""
     raw_timestamp = now or datetime.utcnow()
@@ -369,6 +370,17 @@ def apply_conservative_plan_adjustment(
             "decision": decision,
         }
     bump_revisions(db, user_id, ["plans"])
+    if require_background_authorization:
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
+
+        if not user_background_processing_authorized(db, user_id):
+            db.rollback()
+            return {
+                "status": "skipped",
+                "reason": "processing_not_authorized",
+            }
     db.commit()
     return {
         "status": "adjusted",
@@ -550,14 +562,15 @@ def run_plan_adjustment_for_user(
     init_db()
     db = SessionLocal()
     try:
-        if trigger.startswith("scheduled_sync:"):
-            from api.legal_receipts import user_has_current_legal_bundle
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
 
-            if not user_has_current_legal_bundle(db, user_id):
-                return {
-                    "status": "skipped",
-                    "reason": "terms_not_current",
-                }
+        if not user_background_processing_authorized(db, user_id):
+            return {
+                "status": "skipped",
+                "reason": "processing_not_authorized",
+            }
         active_pending: list[tuple[PlanRevision, Mapping[str, Any]]] = []
         for pending_revision, pending_snapshot in (
             _pending_adjustment_deliveries(db, user_id=user_id)
@@ -621,6 +634,7 @@ def run_plan_adjustment_for_user(
             trigger=trigger,
             current_date=current_date,
             now=now,
+            require_background_authorization=True,
         )
         if result["status"] not in {"adjusted", "already_evaluated"}:
             return result
