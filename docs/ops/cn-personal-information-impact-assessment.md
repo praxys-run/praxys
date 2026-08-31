@@ -1,9 +1,9 @@
 # Mainland China personal-information protection impact assessment
 
-> **Status:** **DRAFT UPDATED TO RECORDED SCOPE — EXACT FINAL HUMAN ACCEPTANCE REQUIRED BEFORE ENABLE**
+> **Status:** **ACCEPTED BY THE HUMAN OPERATOR ON 2026-08-31 — LIVE RELEASE VERIFICATION STILL REQUIRED BEFORE ENABLE**
 > **Summary:** Assessment record for the public Praxys China web and WeChat
 > surfaces, including overseas Azure processing, telemetry, recipients,
-> sensitive information, rights, and proposed residual risks.
+> sensitive information, rights, and accepted residual risks.
 > **Use when:** Releasing or materially changing a China surface, recipient,
 > data category, destination, telemetry path, legal basis, retention period,
 > or rights control.
@@ -15,18 +15,19 @@
 | Record ID | `PIPIA-CN-2026-08-25-01` |
 | Version | `1.2-public-parity` |
 | Assessment date | 2026-08-31 |
+| Acceptance date | 2026-08-31 |
 | Operator / personal-information handler | Fei Tao |
 | Rights contact | `support@praxys.run` |
 | Service | Public registration on the Praxys web service at `praxys.cn` and `www.praxys.cn`; existing WeChat Miniapp |
-| Decision | **Scope choices recorded from the operator's 2026-08-31 comments; exact acceptance of this final revised assessment and its overall residual risk is still required before enable.** |
-| Residual risk | **Proposed Medium; final human acceptance pending**; principally the contract-necessity interpretation for sensitive fitness/recovery data and overseas processing |
+| Decision | **The human operator accepted this exact `1.2-public-parity` assessment on 2026-08-31. Live control verification and production enablement remain separate human gates.** |
+| Residual risk | **Medium; accepted by the human operator for this launch on 2026-08-31**; principally the contract-necessity interpretation for sensitive fitness/recovery data and overseas processing |
 | Deferred, non-blocking risks | Browser Statsig remains disabled on `.cn` pending [#754](https://github.com/praxys-run/praxys/issues/754); restore-safe account deletion is tracked in [#755](https://github.com/praxys-run/praxys/issues/755) |
 | Review trigger | Before any material change listed under [Immediate review or stop triggers](#immediate-review-or-stop-triggers) |
 | Minimum record retention | Through 2029-08-31, and longer while the assessed processing continues or a dispute/investigation requires it |
 
 This is the repository record of the operator's stated product and telemetry
-decisions. It is not external legal advice and does not infer acceptance of
-the rewritten assessment as a whole. It does not assert
+decisions and acceptance of this exact assessment and its overall **Medium**
+residual risk. It is not external legal advice. It does not assert
 that EdgeOne, DNS, TLS, CORS, OIDC, runtime settings, monitoring, alerts, or a
 particular deployed artifact have passed their separate live checks.
 
@@ -65,7 +66,7 @@ to work, but are not a condition of `.cn` registration.
 
 ## Processing basis
 
-The draft proposes that core account, authentication, sync, storage,
+The accepted assessment records that core account, authentication, sync, storage,
 deterministic analysis, plans, export, deletion, security, reliability, and the
 enumerated ordinary Azure AI purposes are necessary to enter into and perform
 the training service requested by the individual. The selected basis is PIPL
@@ -161,11 +162,11 @@ personal information.
 - Provider dialogs identify recipient, categories, purpose, and official
   privacy link before credentials or OAuth authorization leave Praxys.
 
-## Proposed residual risks
+## Accepted residual risks
 
-| Risk | Proposed residual / disposition |
+| Risk | Accepted residual / disposition |
 |---|---|
-| Contract-necessity interpretation for sensitive training data | **Medium; final human acceptance pending** |
+| Contract-necessity interpretation for sensitive training data | **Medium; accepted for this launch** |
 | Overseas legal access or processor compromise | Medium |
 | Credential or precise-route exposure | Medium-low after safeguards |
 | Personal processing before current notice | Low after runtime/client gates |
@@ -245,8 +246,8 @@ On 2026-08-31, the operator stated and approved these bounded choices:
    #754; continue the other minimized system/product telemetry described here.
 6. Proceed with temporary geographic redirect after `.cn` stability and
    provider-side verification.
-7. Review and explicitly accept or reject the remaining Medium residual risk
-   after this revised assessment and the final PR head are stable.
+7. Accept this exact `1.2-public-parity` assessment and its overall **Medium**
+   residual risk for this launch.
 
 These decisions do not constitute live provider readback, a successful
 deployment, or public-security filing completion.
@@ -270,4 +271,4 @@ runbook and require readback before recovery is claimed.
 - `web/src/components/ChinaProcessingNoticeGate.tsx`
 
 ---
-_Scope updated: 2026-08-31 · Owner: human operator / Trust · Exact final acceptance and live release verification: pending_
+_Scope updated and exact assessment accepted: 2026-08-31 · Owner: human operator / Trust · Live release verification: pending_

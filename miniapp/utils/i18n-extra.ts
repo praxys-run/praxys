@@ -112,16 +112,9 @@ const EN_AUTH = {
   'Could not delete account — please try again.':
     'Could not delete account — please try again.',
   'Sign out': 'Sign out',
-  // Old "Sign up at" footer copy retained for back-compat; the login
-  // page itself now uses the explicit "New here?" / "Have an
-  // invitation code?" rows below.
-  'New here? Sign up at': 'New here? Sign up at',
-  'New here?': 'New here?',
-  'Have an invitation code?': 'Have an invitation code?',
-  'Register on praxys.run': 'Register on praxys.run',
-  'Then come back and sign in with WeChat above.':
-    'Then come back and sign in with WeChat above.',
-  'Back to sign in': 'Back to sign in',
+  'Create account on praxys.cn': 'Create account on praxys.cn',
+  'Complete registration and account setup in your browser, then return here to link WeChat.':
+    'Complete registration and account setup in your browser, then return here to link WeChat.',
   'tap to copy URL': 'tap to copy URL',
   'URL copied': 'URL copied',
   'Long press to save & share': 'Long press to save & share',
@@ -142,7 +135,7 @@ const EN_AUTH = {
   "Couldn't delete your account. Please try again or contact support if it keeps failing.":
     "Couldn't delete your account. Please try again or contact support if it keeps failing.",
   'Unlinking…': 'Unlinking…',
-  // Login-page-only copy (waitlist + theme toggle aria + pillar copy).
+  // Login-page-only copy (theme toggle aria + pillar copy).
   // These have no web equivalent — web's Login uses <Trans> on richer
   // JSX structures, while the miniapp builds plain-string segments
   // because Skyline can't render mid-string colour spans inside a
@@ -153,14 +146,6 @@ const EN_AUTH = {
   ' you can verify.': ' you can verify.',
   'Cited science.': 'Cited science.',
   ' No hype.': ' No hype.',
-  'Sub-3 marathon · 100K · stay healthy…': 'Sub-3 marathon · 100K · stay healthy…',
-  // Waitlist success state — web's <Trans> bundles these into one
-  // string with `<strong>` + mailto markup; the miniapp surfaces them
-  // as a check + headline + detail trio so they need to live as
-  // separate translatable keys.
-  "You're on the list.": "You're on the list.",
-  "We'll reach out from support@praxys.run when a slot opens.":
-    "We'll reach out from support@praxys.run when a slot opens.",
   'Light theme': 'Light theme',
   'Dark theme': 'Dark theme',
   'System theme': 'System theme',
@@ -642,13 +627,9 @@ const ZH_AUTH = {
     '此操作会永久删除账号、训练数据和已连接平台的凭据，且无法撤销。输入 DELETE 以确认。',
   'Could not delete account — please try again.': '无法删除账号，请重试。',
   'Sign out': '退出登录',
-  'New here? Sign up at': '没有账号？立即注册',
-  'New here?': '没有账号？',
-  'Have an invitation code?': '有邀请码？',
-  'Register on praxys.run': '前往 praxys.run 注册',
-  'Then come back and sign in with WeChat above.':
-    '注册完成后，回到这里用微信登录。',
-  'Back to sign in': '返回登录',
+  'Create account on praxys.cn': '前往 praxys.cn 创建账号',
+  'Complete registration and account setup in your browser, then return here to link WeChat.':
+    '请在浏览器完成注册和账号设置，再回到这里绑定微信。',
   'tap to copy URL': '点击复制链接',
   'URL copied': '链接已复制',
   'Long press to save & share': '长按保存并分享',
@@ -677,10 +658,6 @@ const ZH_AUTH = {
   ' you can verify.': '经得起验证。',
   'Cited science.': '科学有据。',
   ' No hype.': '不靠噱头。',
-  'Sub-3 marathon · 100K · stay healthy…': '全马破三 · 100K · 保持健康…',
-  "You're on the list.": '你已进入候补名单。',
-  "We'll reach out from support@praxys.run when a slot opens.":
-    '有名额时，我们会通过 support@praxys.run 联系你。',
   'Light theme': '浅色主题',
   'Dark theme': '深色主题',
   'System theme': '跟随系统',

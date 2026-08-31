@@ -26,11 +26,17 @@ export default function Login() {
   // A ?invite=CODE deep link lands the user straight on the code path with the
   // code prefilled (computed once, before state init, so the effect below never
   // has to setState synchronously).
-  const initialInvite = new URLSearchParams(window.location.search).get('invite');
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialInvite = initialParams.get('invite');
+  const registrationRequested = initialParams.get('register') === '1';
 
   // Form state
-  const [mode, setMode] = useState<Mode>(initialInvite ? 'invite' : 'login');
-  const [inviteMode, setInviteMode] = useState<InviteMode>(initialInvite ? 'code' : 'waitlist');
+  const [mode, setMode] = useState<Mode>(
+    initialInvite || registrationRequested ? 'invite' : 'login',
+  );
+  const [inviteMode, setInviteMode] = useState<InviteMode>(
+    initialInvite || registrationRequested ? 'code' : 'waitlist',
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [invitationCode, setInvitationCode] = useState(initialInvite ? initialInvite.toUpperCase() : '');

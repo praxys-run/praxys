@@ -149,8 +149,9 @@ Application Insights uses it to apply regional URL and exception minimization.
 Browser Statsig reads it and remains disabled for the EdgeOne artifact pending
 [#754](https://github.com/praxys-run/praxys/issues/754).
 
-The public China launch is governed by `PIPIA-CN-2026-08-25-01`. The operator
-accepted its exact scope and residual risks on 2026-08-31. No repository
+The public China launch is governed by `PIPIA-CN-2026-08-25-01`, version
+`1.2-public-parity`. The operator accepted it and its overall **Medium**
+residual risk on 2026-08-31. No repository
 variable represents that acceptance; a human still verifies the deployed
 controls before `enable`. Miniapp CI upload and manual production publication
 remain uncoupled from the web launch workflow.

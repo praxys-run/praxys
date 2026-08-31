@@ -5,9 +5,9 @@
 > **Use when:** Checking, enabling, disabling, or recovering the China web
 > launch.
 
-**Status:** Product scope recorded on 2026-08-31. Production enablement remains
-human-only and blocked until the exact revised PIPIA is accepted and the
-implementation and live controls below are verified.
+**Status:** The operator accepted PIPIA `1.2-public-parity` and its overall
+**Medium** residual risk on 2026-08-31. Production enablement remains human-only
+and blocked until the implementation and live controls below are verified.
 
 ## Boundary
 
@@ -72,9 +72,10 @@ Azure AI is independent. `launch-cn.yml` observes but never changes
 
 Before `enable`, a human must:
 
-1. Accept the exact revised
+1. Confirm that the accepted exact
    [`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md)
-   and confirm that its listed live verification obligations are complete.
+   remains applicable and that its listed live verification obligations are
+   complete.
 2. Approve the `china-production` environment for the exact run.
 3. Ensure Azure trusts the exact environment OIDC subject.
 4. Verify the one-time EdgeOne Git project/domain/DNS/TLS setup and outside-in

@@ -29,9 +29,10 @@ the DNS-only `https://api.praxys.run`.
 
 ## Prerequisites
 
-- Human acceptance of the final exact
-  [PIPIA](./cn-personal-information-impact-assessment.md) and verification that
-  its implementation and live controls match before enable.
+- Confirm the accepted exact
+  [PIPIA `1.2-public-parity`](./cn-personal-information-impact-assessment.md)
+  remains applicable, and verify that its implementation and live controls
+  match before enable.
 - Tencent/EdgeOne and registrar/DNS access.
 - Current protected-main SHA and successful required checks.
 - Filed service metadata `沪ICP备2025109616号-2`.

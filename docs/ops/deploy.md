@@ -76,10 +76,10 @@ Status validates core API/`.run`, filtered settings, and exact CORS and reports
 `.cn` host warnings before DNS exists. It does not verify GitHub environment
 protection, web tests, monitoring, alerts, or the human PIPIA/topology gates.
 
-The operator recorded the intended scope on 2026-08-31; exact acceptance of
-the final revised PIPIA and residual risk remains required before enable.
-Before enable, a human still verifies that the exact implementation and live
-controls match it. Public registration follows the global `.run` switch and
+The operator accepted PIPIA `1.2-public-parity` and its overall **Medium**
+residual risk on 2026-08-31. Before enable, a human still verifies that the
+exact implementation and live controls match it. Public registration follows
+the global `.run` switch and
 seat cap. The existing Miniapp remains enabled on `api.praxys.run`. Regional
 Application Insights and product events use the minimized boundary, while
 browser Statsig stays absent from `.cn` pending #754. There is no proxy,

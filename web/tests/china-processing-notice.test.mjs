@@ -104,6 +104,7 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
     miniEvents,
     apiTypes,
     zhCatalog,
+    webLogin,
   ] = await Promise.all([
     readFile(new URL("../src/App.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Landing.tsx", import.meta.url), "utf8"),
@@ -166,6 +167,7 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
     ),
     readFile(new URL("../src/types/api.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/locales/zh/messages.po", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Login.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -333,6 +335,19 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
   assert.doesNotMatch(miniWorkflow, /X-Praxys-Source-Sha/);
   assert.match(miniLogin, /stage: 'notice'/);
   assert.match(miniLogin, /stage: 'terms'/);
+  assert.ok(miniLogin.includes("https://www.praxys.cn/login?register=1"));
+  assert.doesNotMatch(miniLogin, /Private alpha · Invitation only/);
+  assert.ok(!miniLogin.includes("/api/auth/waitlist"));
+  assert.doesNotMatch(miniLoginTemplate, /onWaitlist|stage === 'waitlist'/);
+  assert.ok(
+    webLogin.includes("registrationRequested = initialParams.get('register') === '1"),
+  );
+  assert.ok(
+    webLogin.includes("initialInvite || registrationRequested ? 'invite' : 'login'"),
+  );
+  assert.ok(
+    webLogin.includes("initialInvite || registrationRequested ? 'code' : 'waitlist'"),
+  );
   assert.match(
     miniLogin,
     /async onTermsSubmit\(\)[\s\S]*apiPost\('\/api\/me\/accept-terms', \{[\s\S]*terms_version: TERMS_VERSION,[\s\S]*terms_digest: TERMS_CONTENT_DIGEST,[\s\S]*locale:/,

@@ -39,9 +39,10 @@
 
 The design is dormant. One-time EdgeOne Git project, domain, DNS, and TLS setup
 is manual. The repository does not claim that any public hostname or provider
-setting is currently ready. The operator recorded the intended scope on
-2026-08-31; exact acceptance of the revised PIPIA, live control verification,
-and approval of the `china-production` environment remain human prerequisites.
+setting is currently ready. The operator accepted PIPIA `1.2-public-parity` and
+its overall **Medium** residual risk on 2026-08-31. Live control verification
+and approval of the `china-production` environment remain separate human
+prerequisites.
 
 ## Hostnames
 

@@ -1,9 +1,8 @@
 // Refined-minimal centered landing.
 //
 // Brand-led re-design (issue #276) bringing the miniapp login in line
-// with PR #274 on web. Same hierarchy: PRIVATE ALPHA eyebrow → mark +
-// wordmark → green-accented tagline → primary CTA → three pillars →
-// footer with waitlist + invitation-code-on-web rows. The two-column
+// with PR #274 on web. Same hierarchy: mark + wordmark → green-accented
+// tagline → primary CTA → three pillars → Web registration handoff. The two-column
 // hero from web is intentionally absent — miniapp is mobile-native
 // Skyline, and web's hero collapses to a stacked mobile layout
 // already, so the miniapp uses its own native vertical stack.
@@ -26,7 +25,7 @@
 // stack and footer to a fixed, comfortable distance.
 .login-root {
   // min-height (not height) so the page can scroll when needed — the
-  // link + waitlist stages open the keyboard, and WeChat's
+  // account-link stage opens the keyboard, and WeChat's
   // adjust-position needs a scrollable page to push the focused input
   // into view. Idle stage composition fits in 100vh with no scroll
   // happening naturally on most phones.
@@ -41,7 +40,7 @@
   position: relative;
 }
 
-// Brand stack — eyebrow, mark, wordmark, tagline, CTA, pillars.
+// Brand stack — mark, wordmark, tagline, CTA, pillars.
 // Natural height, just centered horizontally and stacked with
 // consistent gap.
 .login-stack {
@@ -49,42 +48,10 @@
   flex-direction: column;
   align-items: center;
   // 20rpx gap holds for most adjacent elements; specific elements
-  // tweak via margin-top for visual rhythm where needed (eyebrow
-  // directly above the mark wants tighter spacing).
+  // tweak via margin-top for visual rhythm where needed.
   gap: 20rpx;
   width: 100%;
   max-width: 560rpx;
-}
-
-// PRIVATE ALPHA · INVITATION ONLY eyebrow. Cobalt = reasoning surface
-// (Reasoning Color Rule); the eyebrow tells the user "this is a
-// scoped, deliberate product" before they even read the headline.
-// Letterspacing follows the brand-data convention (uppercase mono).
-.login-eyebrow {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12rpx;
-  // Pull the eyebrow tight against the mark below; the .login-stack
-  // gap of 20rpx is too loose for the visual reading group "eyebrow +
-  // mark + wordmark".
-  margin-bottom: -8rpx;
-}
-
-.login-eyebrow-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 999rpx;
-  background-color: var(--accent-cobalt);
-}
-
-.login-eyebrow-text {
-  font-size: 22rpx;
-  font-weight: 700;
-  letter-spacing: 4rpx;
-  text-transform: uppercase;
-  color: var(--accent-cobalt);
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
 }
 
 .login-mark {
@@ -440,8 +407,7 @@
 //      `.login-root` has) and renders the value in the wrong place.
 //      Reset it explicitly on the input.
 //
-// Visual treatment: filled-pill row with a leading icon (envelope for
-// email, lock for password, note for the waitlist optional field).
+// Visual treatment: filled-pill row with a leading email or password icon.
 // 88rpx tall to clear iOS HIG min tap targets. No border by default;
 // primary-green hairline ring + soft glow on focus replaces the iOS
 // native focus indicator with a brand-aligned one.
@@ -485,12 +451,6 @@
   -webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
           mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
 }
-// Notebook icon for the waitlist "training goal" optional field.
-.login-field__icon--note {
-  -webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3Cline x1='9' y1='13' x2='15' y2='13'/%3E%3Cline x1='9' y1='17' x2='15' y2='17'/%3E%3C/svg%3E");
-          mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3Cline x1='9' y1='13' x2='15' y2='13'/%3E%3Cline x1='9' y1='17' x2='15' y2='17'/%3E%3C/svg%3E");
-}
-
 .login-field__input {
   flex: 1;
   height: 100%;
@@ -525,37 +485,7 @@
   text-align: center;
 }
 
-// Waitlist success state — green check + headline + detail.
-.login-success {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 16rpx;
-  margin-top: 24rpx;
-}
-.login-success-mark {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: var(--primary);
-}
-.login-success-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--text);
-}
-
-// Back-to-signin row. Sits below the waitlist CTA — quieter
-// affordance, no border / chip, just a tappable line.
-.login-back-row {
-  margin-top: 24rpx;
-  padding: 8rpx 0;
-}
-.login-back-link {
-  font-size: 26rpx;
-  text-decoration: underline;
-}
-
-// Footer rows — waitlist link + invitation-code-on-web hint. Sits
+// Footer row — public Web registration handoff. Sits
 // below the stack with a fixed margin so the visual gap is
 // consistent. Tappable rows: muted prefix + primary-coloured action
 // text.
@@ -574,9 +504,10 @@
 .login-footer-row {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  justify-content: center;
+  align-items: center;
   gap: 8rpx;
-  padding: 8rpx 0;
+  padding: 3rpx 0;
 }
 
 .login-footer-label {
@@ -589,12 +520,8 @@
   color: var(--primary);
 }
 
-.login-footer-link--mono {
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-}
-
-// "Have an invitation code?" path is a two-step flow: register on web
-// first, then return here and sign in with WeChat. The block groups
+// Registration is a two-step flow: register and complete setup on Web,
+// then return here and bind WeChat. The block groups
 // the action row + helper line so the user reads them as one
 // instruction, not two unrelated rows.
 .login-footer-block {
@@ -722,7 +649,7 @@
 }
 
 // Consent surfaces. Passive notice under the WeChat sign-in CTA, plus the
-// explicit agree checkbox on the email-collecting stages (waitlist / link).
+// explicit agree checkbox on the account-link stage.
 // The doc links open the Terms / Privacy pages (pages/legal). Green = action /
 // link per the semantic palette; cobalt stays reserved for reasoning surfaces.
 .login-consent {
