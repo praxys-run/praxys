@@ -9,6 +9,7 @@
 /web/src/locales/zh/        @dddtc2005
 /data/science/zh/           @dddtc2005
 /scripts/translate_missing.py  @dddtc2005
+/scripts/i18n_semantics.py     @dddtc2005
 /scripts/i18n_glossary.yaml    @dddtc2005
 /.github/workflows/i18n.yml    @dddtc2005
 
