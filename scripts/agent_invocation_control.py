@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+from functools import lru_cache
 import json
 import os
 from pathlib import Path
@@ -9,6 +12,7 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 from typing import NoReturn
 
@@ -19,6 +23,7 @@ if str(ROOT) not in sys.path:
 from analysis.agentic_invocation_control import (  # noqa: E402
     APPROVED_MODES,
     DECISION_REASONS,
+    DISPATCH_PROFILES,
     MACHINE_REASON_CODES,
     POLICY_REASONS,
     POLICY_VERSION,
@@ -27,18 +32,34 @@ from analysis.agentic_invocation_control import (  # noqa: E402
     InvocationLimits,
     evaluate_admission,
     format_identity,
+    is_valid_artifact_revision,
     is_valid_fingerprint,
     is_valid_identity,
+    is_valid_public_agent_id,
 )
 from analysis.agentic_task_routing import TaskClassification, TaskRoute, route_task  # noqa: E402
 
 POLICY_PATH = ROOT / 'config' / 'agent-invocation-control.json'
-LEDGER_SCHEMA_VERSION = 1
+LEGACY_LEDGER_SCHEMA_VERSION = 1
+PREVIOUS_LEDGER_SCHEMA_VERSION = 2
+LEDGER_SCHEMA_VERSION = 3
 EXIT_OK = 0
 EXIT_INVALID = 2
 EXIT_CONTRACT = 3
 EXIT_LEDGER = 4
 EXIT_MODE = 5
+LIFECYCLE_TRANSITIONS = (
+    'initial_launch', 'resume', 'replacement', 'review_after_new_digest'
+)
+TERMINATION_STATUSES = {
+    'abort': 'aborted', 'shutdown': 'shutdown', 'failure': 'failed'
+}
+NATIVE_INVALIDATION_REASONS = (
+    'shutdown', 'resume', 'context_replacement'
+)
+NATIVE_BINDING_SOURCE = 'task_result'
+_NATIVE_FINGERPRINT_DOMAIN = b'praxys-native-public-agent-id-v1\x00'
+_READ_CLAIM_FINGERPRINT_DOMAIN = b'praxys/read-claim/v1\x00'
 
 
 class RequestFailure(ValueError):
@@ -65,6 +86,18 @@ class StateUnsupported(RuntimeError):
     """The readable ledger has an unsupported schema or policy version."""
 
 
+class CommitOutcomeAmbiguous(RuntimeError):
+    """A commit raised after SQLite may already have made it durable."""
+
+
+class AdmissionRejectionUnrecorded(RuntimeError):
+    """A known admission rejection could not be durably recorded."""
+
+    def __init__(self, lifecycle_transition: str | None) -> None:
+        super().__init__(lifecycle_transition)
+        self.lifecycle_transition = lifecycle_transition
+
+
 class IdentityConflict(RuntimeError):
     """An opaque identity conflicts with its durable binding."""
 
@@ -75,6 +108,14 @@ class RecoveryRequired(RuntimeError):
 
 class FinishConflict(RuntimeError):
     """A terminal transition conflicts with an existing terminal state."""
+
+
+class NativeBoundary(RuntimeError):
+    """A cooperative native-notification/read boundary refused an action."""
+
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
 
 
 def _now_ms() -> int:
@@ -104,7 +145,7 @@ def _emit(payload: dict[str, object], exit_code: int) -> NoReturn:
 
 def _require_exact_keys(request: dict[str, object], required: set[str]) -> None:
     if set(request) != required:
-        raise RequestFailure('request keys do not match schema v1')
+        raise RequestFailure('request keys do not match schema v2')
 
 
 def _read_request() -> dict[str, object]:
@@ -118,7 +159,9 @@ def _read_request() -> dict[str, object]:
         raise RequestFailure('unsupported request schema')
     if payload.get('command') not in {
         'init', 'new_identity', 'admit', 'finish', 'recover',
-        'kill_switch', 'status',
+        'kill_switch', 'status', 'bind_native', 'native_notification',
+        'native_read', 'native_observation', 'invalidate_native',
+        'progress', 'terminate_tree',
     }:
         raise RequestFailure('unsupported command')
     return payload
@@ -132,7 +175,7 @@ def _load_policy() -> InvocationLimits:
     expected_keys = {
         'schema_version', 'policy_version', 'status', 'default_mode',
         'approved_modes', 'enforcement_approved', 'ledger_schema_version',
-        'limits',
+        'dispatch_profiles', 'native_binding', 'limits',
     }
     if not isinstance(payload, dict) or set(payload) != expected_keys:
         raise ContractFailure('policy_unavailable')
@@ -144,6 +187,15 @@ def _load_policy() -> InvocationLimits:
         or payload['approved_modes'] != list(APPROVED_MODES)
         or payload['enforcement_approved'] is not False
         or payload['ledger_schema_version'] != LEDGER_SCHEMA_VERSION
+        or payload['dispatch_profiles'] != {
+            'default': DISPATCH_PROFILES['sync'],
+            **DISPATCH_PROFILES,
+        }
+        or payload['native_binding'] != {
+            'binding_source': NATIVE_BINDING_SOURCE,
+            'public_id_storage': 'domain-separated-sha256-fingerprint',
+            'invalidation_reasons': list(NATIVE_INVALIDATION_REASONS),
+        }
         or not isinstance(payload['limits'], dict)
     ):
         raise ContractFailure('policy_unavailable')
@@ -237,6 +289,55 @@ def _validate_identity_fields(request: dict[str, object]) -> None:
         raise RequestFailure('invalid retry_fingerprint')
 
 
+def _validate_lifecycle_fields(request: dict[str, object]) -> None:
+    revision = request['artifact_revision']
+    transition = request['lifecycle_transition']
+    replacement = request['replacement_of_attempt_id']
+    if not is_valid_artifact_revision(revision):
+        raise RequestFailure('invalid artifact_revision')
+    if transition not in LIFECYCLE_TRANSITIONS:
+        raise RequestFailure('invalid lifecycle_transition')
+    if replacement is not None and not is_valid_identity(replacement, 'attempt'):
+        raise RequestFailure('invalid replacement_of_attempt_id')
+    if transition == 'replacement' and replacement is None:
+        raise RequestFailure('replacement requires replacement_of_attempt_id')
+    if transition != 'replacement' and replacement is not None:
+        raise RequestFailure('replacement_of_attempt_id is only valid for replacement')
+
+
+def _dispatch_profile(request: dict[str, object]) -> tuple[str, str]:
+    """Return the closed lifecycle dispatch pair, defaulting legacy calls to sync."""
+    has_mode = 'dispatch_mode' in request
+    has_provenance = 'execution_provenance' in request
+    if not has_mode and not has_provenance:
+        return 'sync', DISPATCH_PROFILES['sync']
+    if not has_mode or not has_provenance:
+        raise NativeBoundary('execution_provenance_invalid')
+    mode = request['dispatch_mode']
+    provenance = request['execution_provenance']
+    if (
+        not isinstance(mode, str)
+        or not isinstance(provenance, str)
+        or DISPATCH_PROFILES.get(mode) != provenance
+    ):
+        raise NativeBoundary('execution_provenance_invalid')
+    return mode, provenance
+
+
+def _native_public_fingerprint(public_agent_id: str) -> str:
+    digest = hashlib.sha256(
+        _NATIVE_FINGERPRINT_DOMAIN + public_agent_id.encode('utf-8')
+    ).hexdigest()
+    return f'sha256:{digest}'
+
+
+def _read_claim_fingerprint(read_claim_id: str) -> str:
+    digest = hashlib.sha256(
+        _READ_CLAIM_FINGERPRINT_DOMAIN + read_claim_id.encode('ascii')
+    ).hexdigest()
+    return f'sha256:{digest}'
+
+
 def _machine_reason(mode: str, policy_reason: str) -> str:
     if policy_reason == 'kill_switch_active':
         return 'kill_switch_active'
@@ -250,7 +351,7 @@ def _machine_reason(mode: str, policy_reason: str) -> str:
 
 
 _SQL_POLICY_REASONS = ', '.join(f"'{reason}'" for reason in POLICY_REASONS)
-_SCHEMA_COLUMNS = {
+_BASE_SCHEMA_COLUMNS = {
     'metadata': ('key', 'value'),
     'control': ('singleton', 'kill_switch', 'updated_at_ms'),
     'contracts': (
@@ -276,7 +377,7 @@ _SCHEMA_COLUMNS = {
         'finished_at_ms',
     ),
 }
-_SCHEMA_INDEXES = {
+_BASE_SCHEMA_INDEXES = {
     'attempts_active_contract',
     'attempts_active_match',
     'attempts_parent_status',
@@ -362,6 +463,215 @@ CREATE INDEX attempts_slot_finished ON attempts(slot_id, finished_at_ms);
 CREATE INDEX decisions_contract_reason ON decisions(contract_id, policy_reason);
 """
 
+_LIFECYCLE_SCHEMA_V2_COLUMNS = {
+    'lifecycle_decisions': (
+        'decision_id', 'attempt_id', 'contract_id', 'slot_id',
+        'artifact_revision', 'requested_transition', 'effective_transition',
+        'replacement_of_attempt_id', 'launch_authorized', 'decided_at_ms',
+    ),
+    'work_history': (
+        'attempt_id', 'contract_id', 'slot_id', 'artifact_revision',
+        'lifecycle_transition', 'replacement_of_attempt_id',
+        'lifecycle_status', 'terminal_fingerprint', 'last_progress_at_ms',
+    ),
+    'active_work_keys': (
+        'contract_id', 'slot_id', 'artifact_revision', 'attempt_id',
+    ),
+    'replacement_eligibility': (
+        'source_attempt_id', 'replacement_attempt_id', 'eligible_at_ms',
+        'consumed_at_ms',
+    ),
+    'native_invocations': (
+        'native_invocation_id', 'attempt_id', 'notifications_available',
+        'lifecycle_status', 'bound_at_ms', 'notified_at_ms',
+        'read_claimed_at_ms', 'observed_at_ms',
+    ),
+    'progress_evidence': ('attempt_id', 'progress_fingerprint', 'recorded_at_ms'),
+}
+_LIFECYCLE_SCHEMA_COLUMNS = {
+    **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+    'native_invocations': (
+        *_LIFECYCLE_SCHEMA_V2_COLUMNS['native_invocations'],
+        'read_claim_fingerprint',
+    ),
+}
+_AUXILIARY_SCHEMA_COLUMNS = {
+    'lifecycle_dispatch': (
+        'decision_id', 'attempt_id', 'dispatch_mode',
+        'execution_provenance', 'admission_reason', 'recorded_at_ms',
+    ),
+    'native_binding_provenance': (
+        'native_alias', 'attempt_id', 'public_agent_id_fingerprint',
+        'binding_source', 'invalidation_reason', 'invalidated_at_ms',
+    ),
+}
+_SCHEMA_COLUMNS = {
+    **_BASE_SCHEMA_COLUMNS,
+    **_LIFECYCLE_SCHEMA_COLUMNS,
+    **_AUXILIARY_SCHEMA_COLUMNS,
+}
+_LIFECYCLE_SCHEMA_V2_INDEXES = {
+    'work_history_slot_revision',
+    'work_history_replacement',
+    'native_invocations_attempt',
+}
+_LIFECYCLE_SCHEMA_INDEXES = (
+    _LIFECYCLE_SCHEMA_V2_INDEXES
+    | {'native_invocations_read_claim_fingerprint_uq'}
+)
+_SCHEMA_INDEXES = _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_INDEXES
+_LIFECYCLE_SCHEMA_V2 = """
+CREATE TABLE lifecycle_decisions (
+    decision_id TEXT PRIMARY KEY,
+    attempt_id TEXT NOT NULL,
+    contract_id TEXT NOT NULL REFERENCES contracts(contract_id),
+    slot_id TEXT NOT NULL REFERENCES slots(slot_id),
+    artifact_revision TEXT NOT NULL,
+    requested_transition TEXT NOT NULL,
+    effective_transition TEXT NOT NULL CHECK (effective_transition IN (
+        'initial_launch', 'resume', 'replacement',
+        'review_after_new_digest', 'duplicate_launch', 'illegal_transition'
+    )),
+    replacement_of_attempt_id TEXT,
+    launch_authorized INTEGER NOT NULL CHECK (launch_authorized IN (0, 1)),
+    decided_at_ms INTEGER NOT NULL
+) STRICT;
+CREATE TABLE work_history (
+    attempt_id TEXT PRIMARY KEY REFERENCES attempts(attempt_id),
+    contract_id TEXT NOT NULL REFERENCES contracts(contract_id),
+    slot_id TEXT NOT NULL REFERENCES slots(slot_id),
+    artifact_revision TEXT NOT NULL,
+    lifecycle_transition TEXT NOT NULL CHECK (lifecycle_transition IN (
+        'initial_launch', 'resume', 'replacement', 'review_after_new_digest'
+    )),
+    replacement_of_attempt_id TEXT,
+    lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN (
+        'active', 'succeeded', 'failed', 'recovered', 'lost', 'orphaned',
+        'aborted', 'shutdown'
+    )),
+    terminal_fingerprint TEXT,
+    last_progress_at_ms INTEGER
+) STRICT;
+CREATE TABLE active_work_keys (
+    contract_id TEXT NOT NULL REFERENCES contracts(contract_id),
+    slot_id TEXT NOT NULL REFERENCES slots(slot_id),
+    artifact_revision TEXT NOT NULL,
+    attempt_id TEXT NOT NULL UNIQUE REFERENCES work_history(attempt_id),
+    PRIMARY KEY (contract_id, slot_id, artifact_revision)
+) STRICT;
+CREATE TABLE replacement_eligibility (
+    source_attempt_id TEXT PRIMARY KEY REFERENCES work_history(attempt_id),
+    replacement_attempt_id TEXT UNIQUE REFERENCES work_history(attempt_id),
+    eligible_at_ms INTEGER NOT NULL,
+    consumed_at_ms INTEGER
+) STRICT;
+CREATE TABLE native_invocations (
+    native_invocation_id TEXT PRIMARY KEY,
+    attempt_id TEXT NOT NULL UNIQUE REFERENCES work_history(attempt_id),
+    notifications_available INTEGER NOT NULL CHECK (notifications_available IN (0, 1)),
+    lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN (
+        'active', 'notifications_unavailable', 'completion_notified',
+        'read_claimed', 'found', 'lost', 'orphaned', 'aborted',
+        'shutdown', 'failed', 'recovered', 'succeeded'
+    )),
+    bound_at_ms INTEGER NOT NULL,
+    notified_at_ms INTEGER,
+    read_claimed_at_ms INTEGER,
+    observed_at_ms INTEGER
+) STRICT;
+CREATE TABLE progress_evidence (
+    attempt_id TEXT NOT NULL REFERENCES work_history(attempt_id),
+    progress_fingerprint TEXT NOT NULL,
+    recorded_at_ms INTEGER NOT NULL,
+    PRIMARY KEY (attempt_id, progress_fingerprint)
+) STRICT;
+CREATE INDEX work_history_slot_revision
+    ON work_history(contract_id, slot_id, artifact_revision);
+CREATE INDEX work_history_replacement
+    ON work_history(replacement_of_attempt_id);
+CREATE INDEX native_invocations_attempt ON native_invocations(attempt_id);
+"""
+_LIFECYCLE_SCHEMA = _LIFECYCLE_SCHEMA_V2.replace(
+    """    observed_at_ms INTEGER
+) STRICT;""",
+    """    observed_at_ms INTEGER,
+    read_claim_fingerprint TEXT
+) STRICT;""",
+    1,
+) + """
+CREATE UNIQUE INDEX native_invocations_read_claim_fingerprint_uq
+    ON native_invocations(read_claim_fingerprint)
+    WHERE read_claim_fingerprint IS NOT NULL;
+"""
+_AUXILIARY_SCHEMA = """
+CREATE TABLE lifecycle_dispatch (
+    decision_id TEXT PRIMARY KEY REFERENCES lifecycle_decisions(decision_id),
+    attempt_id TEXT NOT NULL UNIQUE,
+    dispatch_mode TEXT NOT NULL CHECK (dispatch_mode IN ('sync', 'background')),
+    execution_provenance TEXT NOT NULL CHECK (execution_provenance IN (
+        'sync_inline', 'background_independent_immediate_no_poll'
+    )),
+    admission_reason TEXT NOT NULL CHECK (admission_reason IN (
+        'admit', 'policy_denied', 'direct_sibling_active',
+        'lifecycle_transition_rejected'
+    )),
+    recorded_at_ms INTEGER NOT NULL
+) STRICT;
+CREATE TABLE native_binding_provenance (
+    native_alias TEXT PRIMARY KEY REFERENCES native_invocations(native_invocation_id),
+    attempt_id TEXT NOT NULL UNIQUE REFERENCES work_history(attempt_id),
+    public_agent_id_fingerprint TEXT NOT NULL UNIQUE,
+    binding_source TEXT NOT NULL CHECK (binding_source = 'task_result'),
+    invalidation_reason TEXT CHECK (invalidation_reason IN (
+        'shutdown', 'resume', 'context_replacement'
+    )),
+    invalidated_at_ms INTEGER,
+    CHECK (
+        (invalidation_reason IS NULL AND invalidated_at_ms IS NULL)
+        OR (invalidation_reason IS NOT NULL AND invalidated_at_ms IS NOT NULL)
+    )
+) STRICT;
+"""
+_LAYOUT_BASE = 'base'
+_LAYOUT_LIFECYCLE = 'lifecycle'
+_LAYOUT_FULL_V2 = 'full_v2'
+_LAYOUT_FULL = 'full'
+_LAYOUT_SCHEMAS = {
+    _LAYOUT_BASE: (_SCHEMA,),
+    _LAYOUT_LIFECYCLE: (_SCHEMA, _LIFECYCLE_SCHEMA_V2),
+    _LAYOUT_FULL_V2: (_SCHEMA, _LIFECYCLE_SCHEMA_V2, _AUXILIARY_SCHEMA),
+    _LAYOUT_FULL: (_SCHEMA, _LIFECYCLE_SCHEMA, _AUXILIARY_SCHEMA),
+}
+_LAYOUT_COLUMNS = {
+    _LAYOUT_BASE: _BASE_SCHEMA_COLUMNS,
+    _LAYOUT_LIFECYCLE: {
+        **_BASE_SCHEMA_COLUMNS,
+        **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+    },
+    _LAYOUT_FULL_V2: {
+        **_BASE_SCHEMA_COLUMNS,
+        **_LIFECYCLE_SCHEMA_V2_COLUMNS,
+        **_AUXILIARY_SCHEMA_COLUMNS,
+    },
+    _LAYOUT_FULL: _SCHEMA_COLUMNS,
+}
+_LAYOUT_INDEXES = {
+    _LAYOUT_BASE: _BASE_SCHEMA_INDEXES,
+    _LAYOUT_LIFECYCLE: (
+        _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_V2_INDEXES
+    ),
+    _LAYOUT_FULL_V2: (
+        _BASE_SCHEMA_INDEXES | _LIFECYCLE_SCHEMA_V2_INDEXES
+    ),
+    _LAYOUT_FULL: _SCHEMA_INDEXES,
+}
+_LIFECYCLE_LAYOUTS = {
+    _LAYOUT_LIFECYCLE,
+    _LAYOUT_FULL_V2,
+    _LAYOUT_FULL,
+}
+_AUXILIARY_LAYOUTS = {_LAYOUT_FULL_V2, _LAYOUT_FULL}
+
 
 class Ledger:
     """Concurrency-safe local SQLite lifecycle ledger."""
@@ -370,18 +680,174 @@ class Ledger:
         self.path = path
 
     def initialize(self) -> bool:
-        """Create the v1 ledger once, or validate an existing ledger."""
+        """Create ledger v3 or explicitly migrate one recognized v1/v2 layout."""
         if self.path.exists():
-            connection = self._connect()
-            connection.close()
-            return False
-        self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        self.path.parent.chmod(0o700)
+            return self._initialize_existing()
+        return self._initialize_new_atomically()
+
+    def _initialize_new_atomically(self) -> bool:
+        descriptor: int | None = None
+        temporary_path: Path | None = None
         try:
-            descriptor = os.open(
-                self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600
+            self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self.path.parent.chmod(0o700)
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=f'.{self.path.name}.init-',
+                dir=self.path.parent,
             )
+            temporary_path = Path(temporary_name)
             os.close(descriptor)
+            descriptor = None
+            temporary_ledger = Ledger(temporary_path)
+            temporary_ledger._initialize_new()
+            try:
+                os.link(temporary_path, self.path)
+            except FileExistsError:
+                return self._initialize_existing()
+            self.path.chmod(0o600)
+            return True
+        except (StateCorrupt, StateUnsupported):
+            raise
+        except (OSError, UnicodeError) as exc:
+            raise StateCorrupt from exc
+        finally:
+            operation_failed = sys.exc_info()[0] is not None
+            cleanup_error: OSError | None = None
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError as exc:
+                    cleanup_error = exc
+            if temporary_path is not None:
+                for candidate in (
+                    temporary_path,
+                    Path(f'{temporary_path}-wal'),
+                    Path(f'{temporary_path}-shm'),
+                ):
+                    try:
+                        candidate.unlink()
+                    except FileNotFoundError:
+                        pass
+                    except OSError as exc:
+                        if cleanup_error is None:
+                            cleanup_error = exc
+            if cleanup_error is not None and not operation_failed:
+                raise StateCorrupt from cleanup_error
+
+    def _initialize_existing(self) -> bool:
+        connection = self._connect_for_initialization()
+        ambiguous_commit = False
+        source_layout: str | None = None
+        source_schema_version: int | None = None
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            self._require_wal(connection)
+            metadata = self._read_metadata(connection)
+            schema_version = metadata['schema_version']
+            if schema_version == str(LEDGER_SCHEMA_VERSION):
+                self._validate(
+                    connection,
+                    layout=_LAYOUT_FULL,
+                    schema_version=LEDGER_SCHEMA_VERSION,
+                )
+            elif schema_version in {
+                str(LEGACY_LEDGER_SCHEMA_VERSION),
+                str(PREVIOUS_LEDGER_SCHEMA_VERSION),
+            }:
+                source_schema_version = int(schema_version)
+                source_layout = self._classify_layout(connection)
+                if (
+                    source_schema_version == PREVIOUS_LEDGER_SCHEMA_VERSION
+                    and source_layout != _LAYOUT_FULL_V2
+                ):
+                    raise StateCorrupt
+                self._validate(
+                    connection,
+                    layout=source_layout,
+                    schema_version=source_schema_version,
+                )
+                if (
+                    source_layout == _LAYOUT_LIFECYCLE
+                    and connection.execute(
+                        'SELECT 1 FROM native_invocations LIMIT 1'
+                    ).fetchone() is not None
+                ):
+                    raise StateUnsupported
+                if (
+                    source_layout != _LAYOUT_BASE
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations
+                        WHERE lifecycle_status = 'read_claimed' LIMIT 1"""
+                    ).fetchone() is not None
+                ):
+                    raise StateUnsupported
+                dispatch = (
+                    self._expected_dispatch_records(connection)
+                    if source_layout == _LAYOUT_LIFECYCLE
+                    else {}
+                )
+                if source_schema_version == LEGACY_LEDGER_SCHEMA_VERSION:
+                    if source_layout == _LAYOUT_BASE:
+                        self._execute_schema(connection, _LIFECYCLE_SCHEMA_V2)
+                        self._execute_schema(connection, _AUXILIARY_SCHEMA)
+                    elif source_layout == _LAYOUT_LIFECYCLE:
+                        self._execute_schema(connection, _AUXILIARY_SCHEMA)
+                        connection.executemany(
+                            """INSERT INTO lifecycle_dispatch VALUES
+                            (?, ?, 'sync', 'sync_inline', ?, ?)""",
+                            (
+                                (
+                                    decision_id,
+                                    attempt_id,
+                                    admission_reason,
+                                    decided_at_ms,
+                                )
+                                for decision_id, (
+                                    attempt_id,
+                                    admission_reason,
+                                    decided_at_ms,
+                                ) in sorted(dispatch.items())
+                            ),
+                        )
+                self._apply_claim_schema_delta(connection)
+                updated = connection.execute(
+                    """UPDATE metadata SET value = ?
+                    WHERE key = 'schema_version' AND value = ?""",
+                    (str(LEDGER_SCHEMA_VERSION), schema_version),
+                )
+                if updated.rowcount != 1:
+                    raise StateCorrupt
+                self._validate(
+                    connection,
+                    layout=_LAYOUT_FULL,
+                    schema_version=LEDGER_SCHEMA_VERSION,
+                )
+            else:
+                raise StateUnsupported
+            self._commit(connection)
+        except CommitOutcomeAmbiguous:
+            ambiguous_commit = True
+        except (StateCorrupt, StateUnsupported):
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+        if ambiguous_commit:
+            self._validate_after_ambiguous_commit(
+                source_layout=source_layout,
+                source_schema_version=source_schema_version,
+            )
+        return False
+
+    def _initialize_new(self) -> bool:
+        connection: sqlite3.Connection | None = None
+        ambiguous_commit = False
+        try:
             connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
             connection.execute('PRAGMA busy_timeout=30000')
             mode = connection.execute('PRAGMA journal_mode=WAL').fetchone()
@@ -389,9 +855,9 @@ class Ledger:
                 raise StateCorrupt
             connection.execute('PRAGMA foreign_keys=ON')
             connection.execute('BEGIN IMMEDIATE')
-            for statement in _SCHEMA.split(';'):
-                if statement.strip():
-                    connection.execute(statement)
+            self._execute_schema(connection, _SCHEMA)
+            self._execute_schema(connection, _LIFECYCLE_SCHEMA)
+            self._execute_schema(connection, _AUXILIARY_SCHEMA)
             connection.executemany(
                 'INSERT INTO metadata(key, value) VALUES (?, ?)',
                 (
@@ -403,51 +869,404 @@ class Ledger:
                 'INSERT INTO control(singleton, kill_switch, updated_at_ms) VALUES (1, 0, ?)',
                 (_now_ms(),),
             )
-            connection.commit()
+            self._validate(
+                connection,
+                layout=_LAYOUT_FULL,
+                schema_version=LEDGER_SCHEMA_VERSION,
+            )
+            self._commit(connection)
             self.path.chmod(0o600)
-            self._validate(connection)
-            connection.close()
-            return True
+        except CommitOutcomeAmbiguous:
+            ambiguous_commit = True
+        except (StateCorrupt, StateUnsupported):
+            if connection is not None and connection.in_transaction:
+                connection.rollback()
+            raise
         except (sqlite3.Error, OSError) as exc:
+            if connection is not None and connection.in_transaction:
+                connection.rollback()
             raise StateCorrupt from exc
+        finally:
+            if connection is not None:
+                connection.close()
+        if ambiguous_commit:
+            self._validate_after_ambiguous_commit()
+        self._checkpoint_wal()
+        return True
 
-    def _connect(self) -> sqlite3.Connection:
+    def _checkpoint_wal(self) -> None:
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+            connection.execute('PRAGMA busy_timeout=30000')
+            self._require_wal(connection)
+            checkpoint = connection.execute(
+                'PRAGMA wal_checkpoint(TRUNCATE)'
+            ).fetchone()
+            if (
+                checkpoint is None
+                or checkpoint[0] != 0
+                or checkpoint[1] != checkpoint[2]
+            ):
+                raise StateCorrupt
+        except StateCorrupt:
+            raise
+        except (sqlite3.Error, OSError, UnicodeError) as exc:
+            raise StateCorrupt from exc
+        finally:
+            if connection is not None:
+                connection.close()
+
+    @staticmethod
+    def _execute_schema(connection: sqlite3.Connection, schema: str) -> None:
+        for statement in schema.split(';'):
+            if statement.strip():
+                connection.execute(statement)
+
+    @staticmethod
+    def _apply_claim_schema_delta(connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """ALTER TABLE native_invocations
+            ADD COLUMN read_claim_fingerprint TEXT"""
+        )
+        connection.execute(
+            """CREATE UNIQUE INDEX
+            native_invocations_read_claim_fingerprint_uq
+            ON native_invocations(read_claim_fingerprint)
+            WHERE read_claim_fingerprint IS NOT NULL"""
+        )
+
+    @staticmethod
+    def _normalize_schema_sql(statement: str) -> str:
+        normalized = ' '.join(statement.split())
+        return normalized.replace(' ,', ',').replace(' )', ')')
+
+    @classmethod
+    def _schema_objects(
+        cls, connection: sqlite3.Connection
+    ) -> tuple[tuple[str, str, str, str], ...]:
+        return tuple(
+            sorted(
+                (
+                    row[0],
+                    row[1],
+                    row[2],
+                    cls._normalize_schema_sql(row[3]),
+                )
+                for row in connection.execute(
+                    """SELECT type, name, tbl_name, sql FROM sqlite_schema
+                    WHERE type IN ('table', 'index', 'view', 'trigger')
+                      AND name NOT LIKE 'sqlite_%'
+                      AND sql IS NOT NULL"""
+                )
+            )
+        )
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def _expected_schema_objects(
+        cls, layout: str
+    ) -> tuple[tuple[str, str, str, str], ...]:
+        if layout not in _LAYOUT_SCHEMAS:
+            raise ValueError('unknown ledger layout')
+        connection = sqlite3.connect(':memory:')
+        try:
+            for schema in _LAYOUT_SCHEMAS[layout]:
+                cls._execute_schema(connection, schema)
+            return cls._schema_objects(connection)
+        finally:
+            connection.close()
+
+    @classmethod
+    def _classify_layout(cls, connection: sqlite3.Connection) -> str:
+        objects = cls._schema_objects(connection)
+        for layout in (
+            _LAYOUT_BASE,
+            _LAYOUT_LIFECYCLE,
+            _LAYOUT_FULL_V2,
+        ):
+            if objects == cls._expected_schema_objects(layout):
+                return layout
+        raise StateCorrupt
+
+    @staticmethod
+    def _require_wal(connection: sqlite3.Connection) -> None:
+        mode = connection.execute('PRAGMA journal_mode').fetchone()
+        if mode is None or mode[0].lower() != 'wal':
+            raise StateCorrupt
+
+    @staticmethod
+    def _read_metadata(connection: sqlite3.Connection) -> dict[str, str]:
+        integrity = connection.execute('PRAGMA quick_check').fetchone()
+        metadata_columns = tuple(
+            row[1] for row in connection.execute('PRAGMA table_info(metadata)')
+        )
+        if (
+            integrity is None
+            or integrity[0] != 'ok'
+            or metadata_columns != _SCHEMA_COLUMNS['metadata']
+        ):
+            raise StateCorrupt
+        metadata = dict(connection.execute('SELECT key, value FROM metadata'))
+        if set(metadata) != {'schema_version', 'policy_version'}:
+            raise StateCorrupt
+        if metadata['policy_version'] != POLICY_VERSION:
+            raise StateUnsupported
+        return metadata
+
+    @staticmethod
+    def _commit(connection: sqlite3.Connection) -> None:
+        try:
+            connection.commit()
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+                raise StateCorrupt from exc
+            raise CommitOutcomeAmbiguous from exc
+
+    def _validate_after_ambiguous_commit(
+        self,
+        *,
+        source_layout: str | None = None,
+        source_schema_version: int | None = None,
+    ) -> None:
+        connection = self._connect_for_initialization()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            self._require_wal(connection)
+            try:
+                self._validate(
+                    connection,
+                    layout=_LAYOUT_FULL,
+                    schema_version=LEDGER_SCHEMA_VERSION,
+                )
+            except (StateCorrupt, StateUnsupported) as target_error:
+                connection.rollback()
+                if source_layout is None or source_schema_version is None:
+                    raise
+                connection.execute('BEGIN IMMEDIATE')
+                self._validate(
+                    connection,
+                    layout=source_layout,
+                    schema_version=source_schema_version,
+                )
+                connection.rollback()
+                raise StateCorrupt from target_error
+            connection.commit()
+        except (StateCorrupt, StateUnsupported):
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _expected_dispatch_records(
+        connection: sqlite3.Connection,
+    ) -> dict[str, tuple[str, str, int]]:
+        records: dict[str, tuple[str, str, int]] = {}
+        rows = connection.execute(
+            """SELECT lifecycle.decision_id, lifecycle.attempt_id,
+                      lifecycle.contract_id, lifecycle.slot_id,
+                      lifecycle.requested_transition,
+                      lifecycle.effective_transition,
+                      lifecycle.replacement_of_attempt_id,
+                      lifecycle.launch_authorized,
+                      lifecycle.decided_at_ms,
+                      base.decision_id AS base_decision_id,
+                      base.attempt_id AS base_attempt_id,
+                      base.contract_id AS base_contract_id,
+                      base.slot_id AS base_slot_id,
+                      base.launch_authorized AS base_launch_authorized,
+                      base.decided_at_ms AS base_decided_at_ms,
+                      attempt_base.decision_id AS attempt_base_decision_id
+            FROM lifecycle_decisions lifecycle
+            LEFT JOIN decisions base USING (decision_id)
+            LEFT JOIN decisions attempt_base
+              ON attempt_base.attempt_id = lifecycle.attempt_id"""
+        ).fetchall()
+        valid_transitions = set(LIFECYCLE_TRANSITIONS)
+        rejected_transitions = {'duplicate_launch', 'illegal_transition'}
+        for row in rows:
+            requested = row['requested_transition']
+            effective = row['effective_transition']
+            replacement = row['replacement_of_attempt_id']
+            if (
+                requested not in valid_transitions
+                or (requested == 'replacement') != (replacement is not None)
+            ):
+                raise StateCorrupt
+            has_base = row['base_decision_id'] is not None
+            if not has_base and row['attempt_base_decision_id'] is not None:
+                raise StateCorrupt
+            if effective in rejected_transitions:
+                if has_base or row['launch_authorized'] != 0:
+                    raise StateCorrupt
+                admission_reason = 'lifecycle_transition_rejected'
+            elif effective in valid_transitions and effective == requested:
+                if not has_base:
+                    if row['launch_authorized'] != 0:
+                        raise StateCorrupt
+                    admission_reason = 'direct_sibling_active'
+                else:
+                    if (
+                        (
+                            row['base_attempt_id'],
+                            row['base_contract_id'],
+                            row['base_slot_id'],
+                            row['base_launch_authorized'],
+                            row['base_decided_at_ms'],
+                        )
+                        != (
+                            row['attempt_id'],
+                            row['contract_id'],
+                            row['slot_id'],
+                            row['launch_authorized'],
+                            row['decided_at_ms'],
+                        )
+                    ):
+                        raise StateCorrupt
+                    admission_reason = (
+                        'admit'
+                        if row['launch_authorized'] == 1
+                        else 'policy_denied'
+                    )
+            else:
+                raise StateCorrupt
+            records[row['decision_id']] = (
+                row['attempt_id'],
+                admission_reason,
+                row['decided_at_ms'],
+            )
+        return records
+
+    def _connect_for_initialization(self) -> sqlite3.Connection:
         if not self.path.is_file():
             raise StateMissing
+        connection: sqlite3.Connection | None = None
         try:
             connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
             connection.row_factory = sqlite3.Row
             connection.execute('PRAGMA busy_timeout=30000')
             connection.execute('PRAGMA foreign_keys=ON')
-            mode = connection.execute('PRAGMA journal_mode=WAL').fetchone()
-            if mode is None or mode[0].lower() != 'wal':
-                raise StateCorrupt
-            self._validate(connection)
             return connection
         except (sqlite3.Error, OSError, UnicodeError) as exc:
+            if connection is not None:
+                connection.close()
+            raise StateCorrupt from exc
+
+    def _connect(self) -> sqlite3.Connection:
+        if not self.path.is_file():
+            raise StateMissing
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+            connection.row_factory = sqlite3.Row
+            connection.execute('PRAGMA busy_timeout=30000')
+            connection.execute('PRAGMA foreign_keys=ON')
+            connection.execute('BEGIN')
+            self._require_wal(connection)
+            self._validate(
+                connection,
+                layout=_LAYOUT_FULL,
+                schema_version=LEDGER_SCHEMA_VERSION,
+            )
+            connection.commit()
+            return connection
+        except (StateCorrupt, StateUnsupported):
+            if connection is not None:
+                if connection.in_transaction:
+                    connection.rollback()
+                connection.close()
+            raise
+        except (sqlite3.Error, OSError, UnicodeError) as exc:
+            if connection is not None:
+                if connection.in_transaction:
+                    connection.rollback()
+                connection.close()
             raise StateCorrupt from exc
 
     @staticmethod
-    def _validate(connection: sqlite3.Connection) -> None:
-        try:
-            integrity = connection.execute('PRAGMA quick_check').fetchone()
-            metadata_columns = tuple(
-                row[1] for row in connection.execute('PRAGMA table_info(metadata)')
-            )
-            if (
-                integrity is None or integrity[0] != 'ok'
-                or metadata_columns != _SCHEMA_COLUMNS['metadata']
-            ):
+    def _validate_lifecycle_sequence(connection: sqlite3.Connection) -> None:
+        slot_history: set[tuple[str, str]] = set()
+        revision_history: dict[
+            tuple[str, str, str], list[tuple[str, str, str]]
+        ] = {}
+        attempts: dict[str, tuple[tuple[str, str, str], str, str]] = {}
+        rows = connection.execute(
+            """SELECT history.attempt_id, history.contract_id, history.slot_id,
+                      history.artifact_revision, history.lifecycle_transition,
+                      history.replacement_of_attempt_id,
+                      history.lifecycle_status
+            FROM work_history history
+            JOIN attempts attempt USING (attempt_id)
+            ORDER BY attempt.rowid"""
+        )
+        for row in rows:
+            (
+                attempt_id,
+                contract_id,
+                slot_id,
+                revision,
+                transition,
+                replacement_of,
+                status,
+            ) = row
+            slot_key = (contract_id, slot_id)
+            revision_key = (contract_id, slot_id, revision)
+            prior = revision_history.setdefault(revision_key, [])
+            if transition == 'initial_launch':
+                if slot_key in slot_history:
+                    raise StateCorrupt
+            elif transition == 'resume':
+                if (
+                    not prior
+                    or prior[-1][2] in {'active', 'lost'}
+                    or any(item[1] == 'replacement' for item in prior)
+                ):
+                    raise StateCorrupt
+            elif transition == 'review_after_new_digest':
+                if slot_key not in slot_history or prior:
+                    raise StateCorrupt
+            elif transition == 'replacement':
+                source = attempts.get(replacement_of)
+                if (
+                    source is None
+                    or source[0] != revision_key
+                    or source[1] == 'replacement'
+                    or source[2] != 'lost'
+                    or not prior
+                    or prior[-1][0] != replacement_of
+                    or any(item[1] == 'replacement' for item in prior)
+                ):
+                    raise StateCorrupt
+            else:
                 raise StateCorrupt
-            metadata = dict(connection.execute('SELECT key, value FROM metadata'))
-            if set(metadata) != {'schema_version', 'policy_version'}:
-                raise StateCorrupt
-            if metadata != {
-                'schema_version': str(LEDGER_SCHEMA_VERSION),
-                'policy_version': POLICY_VERSION,
-            }:
-                raise StateUnsupported
+            prior.append((attempt_id, transition, status))
+            attempts[attempt_id] = (revision_key, transition, status)
+            slot_history.add(slot_key)
 
+    @classmethod
+    def _validate(
+        cls,
+        connection: sqlite3.Connection,
+        *,
+        layout: str = _LAYOUT_FULL,
+        schema_version: int = LEDGER_SCHEMA_VERSION,
+    ) -> None:
+        try:
+            cls._require_wal(connection)
+            metadata = cls._read_metadata(connection)
+            if metadata['schema_version'] != str(schema_version):
+                raise StateUnsupported
+            if layout not in _LAYOUT_COLUMNS:
+                raise StateCorrupt
+
+            expected_columns = _LAYOUT_COLUMNS[layout]
             tables = {
                 row[0]
                 for row in connection.execute(
@@ -467,18 +1286,516 @@ class Ledger:
                     row[1]
                     for row in connection.execute(f'PRAGMA table_info({table})')
                 )
-                for table in _SCHEMA_COLUMNS
+                for table in expected_columns
             }
             foreign_keys = connection.execute('PRAGMA foreign_keys').fetchone()
+            foreign_key_error = connection.execute(
+                'PRAGMA foreign_key_check'
+            ).fetchone()
             control = connection.execute(
                 'SELECT kill_switch FROM control WHERE singleton = 1'
             ).fetchone()
+            dispatch = (
+                cls._expected_dispatch_records(connection)
+                if layout in _LIFECYCLE_LAYOUTS
+                else {}
+            )
+            dispatch_rows = (
+                connection.execute(
+                    """SELECT decision_id, attempt_id, dispatch_mode,
+                              execution_provenance, admission_reason,
+                              recorded_at_ms
+                    FROM lifecycle_dispatch"""
+                ).fetchall()
+                if layout in _AUXILIARY_LAYOUTS
+                else []
+            )
+            actual_dispatch = {
+                row[0]: (row[1], row[4], row[5])
+                for row in dispatch_rows
+            }
+            invalid_dispatch_profile = any(
+                DISPATCH_PROFILES.get(row[2]) != row[3]
+                for row in dispatch_rows
+            )
+            if layout in _LIFECYCLE_LAYOUTS:
+                cls._validate_lifecycle_sequence(connection)
             if (
-                tables != set(_SCHEMA_COLUMNS)
-                or indexes != _SCHEMA_INDEXES
-                or columns != _SCHEMA_COLUMNS
+                cls._schema_objects(connection)
+                != cls._expected_schema_objects(layout)
+                or tables != set(expected_columns)
+                or indexes != _LAYOUT_INDEXES[layout]
+                or columns != expected_columns
                 or foreign_keys is None or foreign_keys[0] != 1
+                or foreign_key_error is not None
                 or control is None or control[0] not in (0, 1)
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM generations generation
+                        JOIN slots slot USING (slot_id)
+                        WHERE generation.contract_id IS NOT slot.contract_id
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM logical_invocations logical_invocation
+                        JOIN slots slot USING (slot_id)
+                        WHERE logical_invocation.contract_id IS NOT slot.contract_id
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM decisions decision
+                        JOIN slots slot ON slot.slot_id = decision.slot_id
+                        LEFT JOIN generations generation
+                          ON generation.generation_id = decision.generation_id
+                        LEFT JOIN logical_invocations logical_invocation
+                          ON logical_invocation.logical_id = decision.logical_id
+                        WHERE slot.contract_id IS NOT decision.contract_id
+                           OR (
+                               generation.generation_id IS NOT NULL
+                               AND (
+                                   generation.contract_id
+                                      IS NOT decision.contract_id
+                                   OR generation.slot_id IS NOT decision.slot_id
+                               )
+                           )
+                           OR (
+                               logical_invocation.logical_id IS NOT NULL
+                               AND (
+                                   logical_invocation.contract_id
+                                      IS NOT decision.contract_id
+                                   OR logical_invocation.slot_id
+                                      IS NOT decision.slot_id
+                               )
+                           )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM decisions
+                        GROUP BY generation_id
+                        HAVING COUNT(DISTINCT contract_id) != 1
+                            OR COUNT(DISTINCT slot_id) != 1
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM decisions
+                        GROUP BY logical_id
+                        HAVING COUNT(DISTINCT contract_id) != 1
+                            OR COUNT(DISTINCT slot_id) != 1
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM attempts attempt
+                        JOIN slots slot ON slot.slot_id = attempt.slot_id
+                        JOIN generations generation
+                          ON generation.generation_id = attempt.generation_id
+                        JOIN logical_invocations logical_invocation
+                          ON logical_invocation.logical_id = attempt.logical_id
+                        WHERE slot.contract_id IS NOT attempt.contract_id
+                           OR generation.contract_id IS NOT attempt.contract_id
+                           OR generation.slot_id IS NOT attempt.slot_id
+                           OR logical_invocation.contract_id
+                              IS NOT attempt.contract_id
+                           OR logical_invocation.slot_id IS NOT attempt.slot_id
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM attempts attempt
+                        LEFT JOIN decisions decision
+                          ON decision.decision_id = attempt.decision_id
+                        WHERE decision.decision_id IS NULL
+                           OR decision.launch_authorized != 1
+                           OR decision.attempt_id IS NOT attempt.attempt_id
+                           OR decision.contract_id IS NOT attempt.contract_id
+                           OR decision.slot_id IS NOT attempt.slot_id
+                           OR decision.generation_id IS NOT attempt.generation_id
+                           OR decision.logical_id IS NOT attempt.logical_id
+                           OR decision.parent_attempt_id
+                              IS NOT attempt.parent_attempt_id
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM decisions decision
+                        LEFT JOIN attempts attempt
+                          ON attempt.decision_id = decision.decision_id
+                        WHERE (
+                            decision.launch_authorized = 1
+                            AND (
+                                attempt.attempt_id IS NULL
+                                OR decision.attempt_id IS NOT attempt.attempt_id
+                                OR decision.contract_id
+                                   IS NOT attempt.contract_id
+                                OR decision.slot_id IS NOT attempt.slot_id
+                                OR decision.generation_id
+                                   IS NOT attempt.generation_id
+                                OR decision.logical_id IS NOT attempt.logical_id
+                                OR decision.parent_attempt_id
+                                   IS NOT attempt.parent_attempt_id
+                            )
+                        ) OR (
+                            decision.launch_authorized = 0
+                            AND attempt.attempt_id IS NOT NULL
+                        )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    connection.execute(
+                        """SELECT 1 FROM attempts child
+                        LEFT JOIN attempts parent
+                          ON child.parent_attempt_id = parent.attempt_id
+                        WHERE (
+                            child.parent_attempt_id IS NULL
+                            AND child.depth != 1
+                        ) OR (
+                            child.parent_attempt_id IS NOT NULL
+                            AND (
+                                parent.attempt_id IS NULL
+                                OR child.contract_id IS NOT parent.contract_id
+                                OR child.depth != parent.depth + 1
+                                OR (
+                                    child.lifecycle_status = 'active'
+                                    AND parent.lifecycle_status != 'active'
+                                )
+                            )
+                        )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM attempts child
+                        LEFT JOIN work_history child_history
+                          ON child_history.attempt_id = child.attempt_id
+                        LEFT JOIN work_history parent_history
+                          ON parent_history.attempt_id =
+                             child.parent_attempt_id
+                        WHERE child.parent_attempt_id IS NOT NULL
+                          AND (
+                              (child_history.attempt_id IS NULL)
+                              != (parent_history.attempt_id IS NULL)
+                          )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM attempts attempt
+                        JOIN work_history USING (attempt_id)
+                        WHERE attempt.lifecycle_status = 'active'
+                          AND attempt.parent_attempt_id IS NOT NULL
+                        GROUP BY attempt.parent_attempt_id
+                        HAVING COUNT(*) > 1
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM work_history history
+                        JOIN attempts attempt USING (attempt_id)
+                        LEFT JOIN lifecycle_decisions lifecycle
+                          ON lifecycle.decision_id = attempt.decision_id
+                         AND lifecycle.attempt_id = attempt.attempt_id
+                        WHERE lifecycle.decision_id IS NULL
+                           OR lifecycle.launch_authorized != 1
+                           OR lifecycle.contract_id IS NOT history.contract_id
+                           OR lifecycle.slot_id IS NOT history.slot_id
+                           OR lifecycle.artifact_revision
+                              IS NOT history.artifact_revision
+                           OR lifecycle.effective_transition
+                              IS NOT history.lifecycle_transition
+                           OR lifecycle.replacement_of_attempt_id
+                              IS NOT history.replacement_of_attempt_id
+                           OR attempt.contract_id IS NOT history.contract_id
+                           OR attempt.slot_id IS NOT history.slot_id
+                           OR attempt.lifecycle_status !=
+                              CASE history.lifecycle_status
+                                WHEN 'active' THEN 'active'
+                                WHEN 'succeeded' THEN 'succeeded'
+                                WHEN 'failed' THEN 'failed'
+                                WHEN 'aborted' THEN 'failed'
+                                ELSE 'recovered'
+                              END
+                           OR attempt.terminal_fingerprint
+                              IS NOT history.terminal_fingerprint
+                           OR (
+                               history.lifecycle_status = 'active'
+                               AND (
+                                   history.terminal_fingerprint IS NOT NULL
+                                   OR attempt.finished_at_ms IS NOT NULL
+                               )
+                           )
+                           OR (
+                               history.lifecycle_status != 'active'
+                               AND (
+                                   history.terminal_fingerprint IS NULL
+                                   OR attempt.finished_at_ms IS NULL
+                               )
+                           )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM lifecycle_decisions lifecycle
+                        LEFT JOIN attempts attempt
+                          ON attempt.decision_id = lifecycle.decision_id
+                         AND attempt.attempt_id = lifecycle.attempt_id
+                        LEFT JOIN work_history history
+                          ON history.attempt_id = lifecycle.attempt_id
+                        WHERE (
+                            lifecycle.launch_authorized = 1
+                            AND (
+                                attempt.attempt_id IS NULL
+                                OR history.attempt_id IS NULL
+                                OR lifecycle.contract_id
+                                   IS NOT history.contract_id
+                                OR lifecycle.slot_id IS NOT history.slot_id
+                                OR lifecycle.artifact_revision
+                                   IS NOT history.artifact_revision
+                                OR lifecycle.effective_transition
+                                   IS NOT history.lifecycle_transition
+                                OR lifecycle.replacement_of_attempt_id
+                                   IS NOT history.replacement_of_attempt_id
+                            )
+                        ) OR (
+                            lifecycle.launch_authorized = 0
+                            AND history.attempt_id IS NOT NULL
+                        )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM lifecycle_decisions
+                        GROUP BY attempt_id HAVING COUNT(*) != 1 LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM work_history history
+                        LEFT JOIN active_work_keys active
+                          ON active.attempt_id = history.attempt_id
+                        WHERE history.lifecycle_status = 'active'
+                          AND (
+                              active.attempt_id IS NULL
+                              OR active.contract_id IS NOT history.contract_id
+                              OR active.slot_id IS NOT history.slot_id
+                              OR active.artifact_revision
+                                 IS NOT history.artifact_revision
+                          )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM active_work_keys active
+                        JOIN work_history history USING (attempt_id)
+                        WHERE history.lifecycle_status != 'active'
+                           OR active.contract_id IS NOT history.contract_id
+                           OR active.slot_id IS NOT history.slot_id
+                           OR active.artifact_revision
+                              IS NOT history.artifact_revision
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM replacement_eligibility eligibility
+                        JOIN work_history source
+                          ON source.attempt_id = eligibility.source_attempt_id
+                        LEFT JOIN work_history replacement
+                          ON replacement.attempt_id =
+                             eligibility.replacement_attempt_id
+                        WHERE source.lifecycle_status != 'lost'
+                           OR source.lifecycle_transition = 'replacement'
+                           OR (
+                               eligibility.replacement_attempt_id IS NULL
+                               AND eligibility.consumed_at_ms IS NOT NULL
+                           )
+                           OR (
+                               eligibility.replacement_attempt_id IS NOT NULL
+                               AND eligibility.consumed_at_ms IS NULL
+                           )
+                           OR (
+                               eligibility.replacement_attempt_id IS NULL
+                               AND EXISTS (
+                                   SELECT 1 FROM work_history candidate
+                                   WHERE candidate.lifecycle_transition =
+                                         'replacement'
+                                     AND candidate.replacement_of_attempt_id =
+                                         eligibility.source_attempt_id
+                               )
+                           )
+                           OR (
+                               eligibility.replacement_attempt_id IS NOT NULL
+                               AND (
+                                   replacement.attempt_id IS NULL
+                                   OR replacement.lifecycle_transition !=
+                                      'replacement'
+                                   OR replacement.replacement_of_attempt_id
+                                      IS NOT eligibility.source_attempt_id
+                                   OR replacement.contract_id
+                                      IS NOT source.contract_id
+                                   OR replacement.slot_id IS NOT source.slot_id
+                                   OR replacement.artifact_revision
+                                      IS NOT source.artifact_revision
+                               )
+                           )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM work_history source
+                        LEFT JOIN replacement_eligibility eligibility
+                          ON eligibility.source_attempt_id = source.attempt_id
+                        WHERE source.lifecycle_status = 'lost'
+                          AND source.lifecycle_transition != 'replacement'
+                          AND eligibility.source_attempt_id IS NULL
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM work_history replacement
+                        LEFT JOIN replacement_eligibility eligibility
+                          ON eligibility.source_attempt_id =
+                             replacement.replacement_of_attempt_id
+                         AND eligibility.replacement_attempt_id =
+                             replacement.attempt_id
+                        WHERE replacement.lifecycle_transition = 'replacement'
+                          AND (
+                              replacement.replacement_of_attempt_id IS NULL
+                              OR eligibility.source_attempt_id IS NULL
+                              OR eligibility.consumed_at_ms IS NULL
+                          )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations native
+                        JOIN work_history history USING (attempt_id)
+                        WHERE (
+                            native.lifecycle_status IN (
+                                'active', 'notifications_unavailable',
+                                'completion_notified', 'read_claimed', 'found'
+                            )
+                            AND history.lifecycle_status != 'active'
+                        ) OR (
+                            native.lifecycle_status NOT IN (
+                                'active', 'notifications_unavailable',
+                                'completion_notified', 'read_claimed', 'found'
+                            )
+                            AND native.lifecycle_status
+                                IS NOT history.lifecycle_status
+                        ) OR (
+                            native.lifecycle_status = 'notifications_unavailable'
+                            AND native.notifications_available != 0
+                        ) OR (
+                            native.lifecycle_status IN (
+                                'active', 'completion_notified',
+                                'read_claimed', 'found'
+                            )
+                            AND native.notifications_available != 1
+                        )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _LIFECYCLE_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM work_history history
+                        LEFT JOIN (
+                            SELECT attempt_id, MAX(recorded_at_ms) AS latest_at_ms
+                            FROM progress_evidence GROUP BY attempt_id
+                        ) progress USING (attempt_id)
+                        WHERE history.last_progress_at_ms
+                              IS NOT progress.latest_at_ms
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _AUXILIARY_LAYOUTS
+                    and actual_dispatch != dispatch
+                )
+                or invalid_dispatch_profile
+                or (
+                    layout in _AUXILIARY_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations native
+                        LEFT JOIN native_binding_provenance provenance
+                          ON provenance.native_alias =
+                             native.native_invocation_id
+                         AND provenance.attempt_id = native.attempt_id
+                        WHERE provenance.native_alias IS NULL LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout in _AUXILIARY_LAYOUTS
+                    and connection.execute(
+                        """SELECT 1 FROM native_binding_provenance
+                        LEFT JOIN lifecycle_dispatch USING (attempt_id)
+                        WHERE lifecycle_dispatch.attempt_id IS NULL
+                           OR lifecycle_dispatch.dispatch_mode != 'background'
+                           OR length(public_agent_id_fingerprint) != 71
+                           OR substr(public_agent_id_fingerprint, 1, 7) != 'sha256:'
+                           OR substr(public_agent_id_fingerprint, 8)
+                              GLOB '*[^0-9a-f]*'
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
+                or (
+                    layout == _LAYOUT_FULL
+                    and connection.execute(
+                        """SELECT 1 FROM native_invocations
+                        WHERE (
+                            read_claim_fingerprint IS NOT NULL
+                            AND (
+                                length(read_claim_fingerprint) != 71
+                                OR substr(read_claim_fingerprint, 1, 7)
+                                   != 'sha256:'
+                                OR substr(read_claim_fingerprint, 8)
+                                   GLOB '*[^0-9a-f]*'
+                            )
+                        ) OR (
+                            lifecycle_status IN (
+                                'active', 'notifications_unavailable',
+                                'completion_notified'
+                            )
+                            AND read_claim_fingerprint IS NOT NULL
+                        ) OR (
+                            lifecycle_status = 'read_claimed'
+                            AND read_claim_fingerprint IS NULL
+                        )
+                        LIMIT 1"""
+                    ).fetchone() is not None
+                )
             ):
                 raise StateCorrupt
         except sqlite3.Error as exc:
@@ -511,6 +1828,29 @@ class Ledger:
             raise IdentityConflict
         return False
 
+    @classmethod
+    def _record_lifecycle_rejection(
+        cls,
+        connection: sqlite3.Connection,
+        lifecycle_values: tuple[object, ...],
+        dispatch_values: tuple[object, ...],
+        lifecycle_transition: str,
+    ) -> None:
+        try:
+            connection.execute(
+                """INSERT INTO lifecycle_decisions VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                lifecycle_values,
+            )
+            connection.execute(
+                """INSERT INTO lifecycle_dispatch VALUES
+                (?, ?, ?, ?, ?, ?)""",
+                dispatch_values,
+            )
+            cls._commit(connection)
+        except (sqlite3.Error, StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            raise AdmissionRejectionUnrecorded(lifecycle_transition) from exc
+
     def set_kill_switch(self, active: bool) -> None:
         """Atomically set the mediated-launch kill switch."""
         connection = self._connect()
@@ -535,7 +1875,10 @@ class Ledger:
         limits: InvocationLimits,
     ) -> dict[str, object]:
         """Evaluate and record admission in one immediate transaction."""
+        dispatch_mode, execution_provenance = _dispatch_profile(request)
         connection = self._connect()
+        known_rejection = False
+        known_rejection_transition: str | None = None
         try:
             connection.execute('BEGIN IMMEDIATE')
             now = _now_ms()
@@ -571,20 +1914,142 @@ class Ledger:
                 'SELECT contract_id, slot_id FROM generations WHERE generation_id = ?',
                 (generation_id,),
             ).fetchone()
+            generation_decision = connection.execute(
+                """SELECT contract_id, slot_id FROM decisions
+                WHERE generation_id = ? LIMIT 1""",
+                (generation_id,),
+            ).fetchone()
             logical = connection.execute(
                 'SELECT contract_id, slot_id FROM logical_invocations WHERE logical_id = ?',
                 (logical_id,),
             ).fetchone()
+            logical_decision = connection.execute(
+                """SELECT contract_id, slot_id FROM decisions
+                WHERE logical_id = ? LIMIT 1""",
+                (logical_id,),
+            ).fetchone()
             generation_is_new = generation is None
             logical_is_new = logical is None
-            if generation is not None and tuple(generation) != (contract_id, slot_id):
+            for binding in (generation, generation_decision):
+                if binding is not None and tuple(binding) != (contract_id, slot_id):
+                    raise IdentityConflict
+            for binding in (logical, logical_decision):
+                if binding is not None and tuple(binding) != (contract_id, slot_id):
+                    raise IdentityConflict
+            if (
+                connection.execute(
+                    'SELECT 1 FROM decisions WHERE attempt_id = ?', (attempt_id,)
+                ).fetchone() is not None
+                or connection.execute(
+                    'SELECT 1 FROM lifecycle_decisions WHERE attempt_id = ?',
+                    (attempt_id,),
+                ).fetchone() is not None
+            ):
                 raise IdentityConflict
-            if logical is not None and tuple(logical) != (contract_id, slot_id):
-                raise IdentityConflict
-            if connection.execute(
-                'SELECT 1 FROM decisions WHERE attempt_id = ?', (attempt_id,)
-            ).fetchone() is not None:
-                raise IdentityConflict
+
+            decision_id = format_identity('decision', secrets.token_hex(16))
+            lifecycle_transition: str | None = None
+            if 'artifact_revision' in request:
+                revision = str(request['artifact_revision'])
+                requested_transition = str(request['lifecycle_transition'])
+                replacement_of = request['replacement_of_attempt_id']
+                active_work = connection.execute(
+                    """SELECT attempt_id FROM active_work_keys
+                    WHERE contract_id = ? AND slot_id = ? AND artifact_revision = ?""",
+                    (contract_id, slot_id, revision),
+                ).fetchone()
+                same_revision = connection.execute(
+                    """SELECT work_history.attempt_id,
+                              work_history.lifecycle_transition,
+                              work_history.lifecycle_status
+                    FROM work_history JOIN attempts USING (attempt_id)
+                    WHERE work_history.contract_id = ?
+                      AND work_history.slot_id = ?
+                      AND work_history.artifact_revision = ?
+                    ORDER BY attempts.rowid DESC""",
+                    (contract_id, slot_id, revision),
+                ).fetchall()
+                has_slot_history = connection.execute(
+                    'SELECT 1 FROM work_history WHERE contract_id = ? AND slot_id = ? LIMIT 1',
+                    (contract_id, slot_id),
+                ).fetchone() is not None
+                lifecycle_transition = requested_transition
+                if active_work is not None:
+                    lifecycle_transition = 'duplicate_launch'
+                elif requested_transition == 'initial_launch':
+                    if has_slot_history:
+                        lifecycle_transition = 'illegal_transition'
+                elif requested_transition == 'resume':
+                    if (
+                        not same_revision
+                        or same_revision[0]['lifecycle_status'] == 'lost'
+                        or any(
+                            row['lifecycle_transition'] == 'replacement'
+                            for row in same_revision
+                        )
+                    ):
+                        lifecycle_transition = 'illegal_transition'
+                elif requested_transition == 'review_after_new_digest':
+                    if not has_slot_history or same_revision:
+                        lifecycle_transition = 'illegal_transition'
+                elif requested_transition == 'replacement':
+                    source = connection.execute(
+                        """SELECT work_history.contract_id, work_history.slot_id,
+                                  work_history.artifact_revision,
+                                  work_history.lifecycle_transition,
+                                  work_history.lifecycle_status,
+                                  replacement_eligibility.source_attempt_id AS eligible_source,
+                                  replacement_eligibility.replacement_attempt_id,
+                                  replacement_eligibility.consumed_at_ms,
+                                  EXISTS (
+                                      SELECT 1 FROM work_history replacement
+                                      WHERE replacement.lifecycle_transition =
+                                            'replacement'
+                                        AND replacement.replacement_of_attempt_id =
+                                            work_history.attempt_id
+                                  ) AS has_replacement
+                        FROM work_history
+                        LEFT JOIN replacement_eligibility
+                          ON replacement_eligibility.source_attempt_id = work_history.attempt_id
+                        WHERE work_history.attempt_id = ?""",
+                        (replacement_of,),
+                    ).fetchone()
+                    if (
+                        source is None
+                        or tuple(source[:3]) != (contract_id, slot_id, revision)
+                        or source['lifecycle_transition'] == 'replacement'
+                        or source['lifecycle_status'] != 'lost'
+                        or source['eligible_source'] is None
+                        or source['replacement_attempt_id'] is not None
+                        or source['consumed_at_ms'] is not None
+                        or source['has_replacement']
+                    ):
+                        lifecycle_transition = 'illegal_transition'
+
+                if lifecycle_transition in {'duplicate_launch', 'illegal_transition'}:
+                    self._record_lifecycle_rejection(
+                        connection,
+                        (
+                            decision_id, attempt_id, contract_id, slot_id, revision,
+                            requested_transition, lifecycle_transition, replacement_of, now,
+                        ),
+                        (
+                            decision_id, attempt_id, dispatch_mode,
+                            execution_provenance,
+                            'lifecycle_transition_rejected',
+                            now,
+                        ),
+                        lifecycle_transition,
+                    )
+                    return {
+                        'decision_id': decision_id,
+                        'policy_reason': None,
+                        'would_reject': True,
+                        'launch_authorized': False,
+                        'lifecycle_transition': lifecycle_transition,
+                        'dispatch_mode': dispatch_mode,
+                        'execution_provenance': execution_provenance,
+                    }
 
             ancestor_slots: list[str] = []
             proposed_depth = 1
@@ -605,9 +2070,52 @@ class Ledger:
                     or parent['lifecycle_status'] != 'active'
                 ):
                     raise IdentityConflict
+                parent_is_lifecycle = connection.execute(
+                    'SELECT 1 FROM work_history WHERE attempt_id = ?',
+                    (current_parent,),
+                ).fetchone() is not None
+                if parent_is_lifecycle != ('artifact_revision' in request):
+                    raise IdentityConflict
                 ancestor_slots.append(parent['slot_id'])
                 proposed_depth += 1
                 current_parent = parent['parent_attempt_id']
+
+            if 'artifact_revision' in request and parent_id is not None:
+                active_sibling = connection.execute(
+                    """SELECT 1 FROM attempts
+                    WHERE parent_attempt_id = ? AND lifecycle_status = 'active'
+                    LIMIT 1""",
+                    (parent_id,),
+                ).fetchone()
+                if active_sibling is not None:
+                    self._record_lifecycle_rejection(
+                        connection,
+                        (
+                            decision_id, attempt_id, contract_id, slot_id,
+                            request['artifact_revision'],
+                            request['lifecycle_transition'],
+                            lifecycle_transition,
+                            request['replacement_of_attempt_id'],
+                            now,
+                        ),
+                        (
+                            decision_id, attempt_id, dispatch_mode,
+                            execution_provenance,
+                            'direct_sibling_active',
+                            now,
+                        ),
+                        str(lifecycle_transition),
+                    )
+                    return {
+                        'decision_id': decision_id,
+                        'policy_reason': None,
+                        'would_reject': True,
+                        'launch_authorized': False,
+                        'lifecycle_transition': lifecycle_transition,
+                        'protocol_reason': 'direct_sibling_active',
+                        'dispatch_mode': dispatch_mode,
+                        'execution_provenance': execution_provenance,
+                    }
 
             duplicate = connection.execute(
                 """SELECT 1 FROM attempts
@@ -679,7 +2187,9 @@ class Ledger:
                 ),
                 limits,
             )
-            decision_id = format_identity('decision', secrets.token_hex(16))
+            known_rejection = not decision.launch_authorized
+            if known_rejection:
+                known_rejection_transition = lifecycle_transition
             if decision.launch_authorized:
                 if generation_is_new:
                     connection.execute(
@@ -703,6 +2213,31 @@ class Ledger:
                     int(decision.would_reject), int(decision.launch_authorized), now,
                 ),
             )
+            if 'artifact_revision' in request:
+                connection.execute(
+                    """INSERT INTO lifecycle_decisions VALUES
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        decision_id, attempt_id, contract_id, slot_id,
+                        request['artifact_revision'], request['lifecycle_transition'],
+                        lifecycle_transition, request['replacement_of_attempt_id'],
+                        int(decision.launch_authorized), now,
+                    ),
+                )
+                connection.execute(
+                    """INSERT INTO lifecycle_dispatch VALUES
+                    (?, ?, ?, ?, ?, ?)""",
+                    (
+                        decision_id, attempt_id, dispatch_mode,
+                        execution_provenance,
+                        (
+                            'admit'
+                            if decision.launch_authorized
+                            else 'policy_denied'
+                        ),
+                        now,
+                    ),
+                )
             if decision.launch_authorized:
                 connection.execute(
                     """INSERT INTO attempts(
@@ -717,13 +2252,619 @@ class Ledger:
                         proposed_depth, now,
                     ),
                 )
-            connection.commit()
-            return {
+                if 'artifact_revision' in request:
+                    connection.execute(
+                        """INSERT INTO work_history VALUES
+                        (?, ?, ?, ?, ?, ?, 'active', NULL, NULL)""",
+                        (
+                            attempt_id, contract_id, slot_id,
+                            request['artifact_revision'], lifecycle_transition,
+                            request['replacement_of_attempt_id'],
+                        ),
+                    )
+                    connection.execute(
+                        'INSERT INTO active_work_keys VALUES (?, ?, ?, ?)',
+                        (contract_id, slot_id, request['artifact_revision'], attempt_id),
+                    )
+                    if lifecycle_transition == 'replacement':
+                        updated = connection.execute(
+                            """UPDATE replacement_eligibility
+                            SET replacement_attempt_id = ?, consumed_at_ms = ?
+                            WHERE source_attempt_id = ?
+                              AND replacement_attempt_id IS NULL
+                              AND consumed_at_ms IS NULL""",
+                            (attempt_id, now, request['replacement_of_attempt_id']),
+                        )
+                        if updated.rowcount != 1:
+                            raise StateCorrupt
+            self._commit(connection)
+            outcome = {
                 'decision_id': decision_id,
                 'policy_reason': decision.policy_reason,
                 'would_reject': decision.would_reject,
                 'launch_authorized': decision.launch_authorized,
             }
+            if lifecycle_transition is not None:
+                outcome['lifecycle_transition'] = lifecycle_transition
+                outcome['dispatch_mode'] = dispatch_mode
+                outcome['execution_provenance'] = execution_provenance
+            return outcome
+        except IdentityConflict:
+            connection.rollback()
+            raise
+        except (StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            if known_rejection:
+                raise AdmissionRejectionUnrecorded(
+                    known_rejection_transition
+                ) from exc
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
+            raise StateCorrupt from exc
+        except sqlite3.Error as exc:
+            if known_rejection:
+                raise AdmissionRejectionUnrecorded(
+                    known_rejection_transition
+                ) from exc
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _terminalize(
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        status: str,
+        terminal_fingerprint: str,
+        now: int,
+    ) -> None:
+        base_status = {
+            'lost': 'recovered',
+            'orphaned': 'recovered',
+            'shutdown': 'recovered',
+            'aborted': 'failed',
+        }.get(status, status)
+        updated = connection.execute(
+            """UPDATE attempts
+            SET lifecycle_status = ?, terminal_fingerprint = ?, finished_at_ms = ?
+            WHERE attempt_id = ? AND lifecycle_status = 'active'""",
+            (base_status, terminal_fingerprint, now, attempt_id),
+        )
+        if updated.rowcount != 1:
+            raise FinishConflict
+        work_updated = connection.execute(
+            """UPDATE work_history
+            SET lifecycle_status = ?, terminal_fingerprint = ?
+            WHERE attempt_id = ?""",
+            (status, terminal_fingerprint, attempt_id),
+        )
+        if work_updated.rowcount != 1:
+            raise StateCorrupt
+        connection.execute(
+            'DELETE FROM active_work_keys WHERE attempt_id = ?', (attempt_id,)
+        )
+        connection.execute(
+            """UPDATE native_invocations
+            SET lifecycle_status = ?, observed_at_ms = ?
+            WHERE attempt_id = ?""",
+            (status, now, attempt_id),
+        )
+        if status == 'lost':
+            transition = connection.execute(
+                'SELECT lifecycle_transition FROM work_history WHERE attempt_id = ?',
+                (attempt_id,),
+            ).fetchone()
+            if transition is not None and transition[0] != 'replacement':
+                connection.execute(
+                    """INSERT OR IGNORE INTO replacement_eligibility
+                    VALUES (?, NULL, ?, NULL)""",
+                    (attempt_id, now),
+                )
+
+    @classmethod
+    def _terminate_tree_in_transaction(
+        cls,
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        status: str,
+        terminal_fingerprint: str,
+    ) -> tuple[list[str], bool]:
+        target = connection.execute(
+            """SELECT attempts.lifecycle_status, work_history.lifecycle_status,
+                      work_history.terminal_fingerprint
+            FROM attempts JOIN work_history USING (attempt_id)
+            WHERE attempts.attempt_id = ?""",
+            (attempt_id,),
+        ).fetchone()
+        if target is None:
+            raise IdentityConflict
+        if target[0] != 'active':
+            if target[1] == status and target[2] == terminal_fingerprint:
+                return [], True
+            raise FinishConflict
+        descendants = [
+            row[0]
+            for row in connection.execute(
+                """WITH RECURSIVE descendants(attempt_id, depth) AS (
+                    SELECT attempt_id, depth FROM attempts
+                    WHERE parent_attempt_id = ? AND lifecycle_status = 'active'
+                    UNION
+                    SELECT child.attempt_id, child.depth
+                    FROM attempts child JOIN descendants parent
+                      ON child.parent_attempt_id = parent.attempt_id
+                    WHERE child.lifecycle_status = 'active'
+                )
+                SELECT attempt_id FROM descendants ORDER BY depth DESC""",
+                (attempt_id,),
+            )
+        ]
+        now = _now_ms()
+        for descendant_id in descendants:
+            cls._terminalize(
+                connection, descendant_id, 'orphaned', terminal_fingerprint, now
+            )
+        cls._terminalize(
+            connection, attempt_id, status, terminal_fingerprint, now
+        )
+        return descendants, False
+
+    def terminate_tree(
+        self, attempt_id: str, reason: str, terminal_fingerprint: str
+    ) -> tuple[str, list[str], bool]:
+        """Terminalize active descendants leaf first, then their parent."""
+        status = TERMINATION_STATUSES[reason]
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            descendants, idempotent = self._terminate_tree_in_transaction(
+                connection, attempt_id, status, terminal_fingerprint
+            )
+            connection.commit()
+            return status, descendants, idempotent
+        except (IdentityConflict, FinishConflict):
+            connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def bind_native(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        binding_source: str,
+        notifications_available: bool = True,
+    ) -> str:
+        """Bind a task-returned public ID fingerprint to one background attempt."""
+        if (
+            not is_valid_public_agent_id(public_agent_id)
+            or binding_source != NATIVE_BINDING_SOURCE
+            or not isinstance(notifications_available, bool)
+        ):
+            raise NativeBoundary('native_binding_mismatch')
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            active = connection.execute(
+                """SELECT lifecycle_dispatch.dispatch_mode,
+                          lifecycle_dispatch.execution_provenance
+                FROM attempts
+                JOIN work_history USING (attempt_id)
+                JOIN lifecycle_dispatch USING (attempt_id)
+                WHERE attempt_id = ? AND attempts.lifecycle_status = 'active'""",
+                (attempt_id,),
+            ).fetchone()
+            if active is None:
+                raise IdentityConflict
+            if tuple(active) != (
+                'background',
+                DISPATCH_PROFILES['background'],
+            ):
+                raise NativeBoundary('execution_provenance_invalid')
+            connection.execute(
+                """INSERT INTO native_invocations(
+                    native_invocation_id, attempt_id, notifications_available,
+                    lifecycle_status, bound_at_ms, notified_at_ms,
+                    read_claimed_at_ms, observed_at_ms,
+                    read_claim_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)""",
+                (
+                    native_alias,
+                    attempt_id,
+                    int(notifications_available),
+                    (
+                        'active'
+                        if notifications_available
+                        else 'notifications_unavailable'
+                    ),
+                    _now_ms(),
+                ),
+            )
+            connection.execute(
+                """INSERT INTO native_binding_provenance
+                VALUES (?, ?, ?, ?, NULL, NULL)""",
+                (
+                    native_alias,
+                    attempt_id,
+                    _native_public_fingerprint(public_agent_id),
+                    binding_source,
+                ),
+            )
+            connection.commit()
+            return (
+                'active'
+                if notifications_available
+                else 'notifications_unavailable'
+            )
+        except (IdentityConflict, NativeBoundary):
+            connection.rollback()
+            raise
+        except sqlite3.IntegrityError as exc:
+            connection.rollback()
+            raise NativeBoundary('native_binding_mismatch') from exc
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _verified_native_binding(
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+    ) -> sqlite3.Row:
+        native = connection.execute(
+            """SELECT native_invocations.notifications_available,
+                      native_invocations.lifecycle_status,
+                      native_invocations.read_claim_fingerprint,
+                      native_binding_provenance.attempt_id,
+                      native_binding_provenance.public_agent_id_fingerprint,
+                      native_binding_provenance.invalidation_reason
+            FROM native_invocations
+            JOIN native_binding_provenance
+              ON native_binding_provenance.native_alias =
+                 native_invocations.native_invocation_id
+            WHERE native_invocations.native_invocation_id = ?""",
+            (native_alias,),
+        ).fetchone()
+        if native is None:
+            raise NativeBoundary('native_binding_mismatch')
+        expected = _native_public_fingerprint(public_agent_id)
+        if (
+            native['attempt_id'] != attempt_id
+            or not hmac.compare_digest(
+                native['public_agent_id_fingerprint'], expected
+            )
+        ):
+            raise NativeBoundary('native_binding_mismatch')
+        if native['invalidation_reason'] is not None:
+            raise NativeBoundary('native_binding_invalidated')
+        return native
+
+    def native_notification(
+        self, attempt_id: str, native_alias: str, public_agent_id: str
+    ) -> bool:
+        """Record a platform completion notification without inferring progress."""
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            native = self._verified_native_binding(
+                connection, attempt_id, native_alias, public_agent_id
+            )
+            if not native['notifications_available']:
+                raise NativeBoundary('native_notifications_unavailable')
+            if native['lifecycle_status'] == 'completion_notified':
+                connection.commit()
+                return True
+            if native['lifecycle_status'] != 'active':
+                raise NativeBoundary('native_read_refused')
+            connection.execute(
+                """UPDATE native_invocations
+                SET lifecycle_status = 'completion_notified', notified_at_ms = ?
+                WHERE native_invocation_id = ?""",
+                (_now_ms(), native_alias),
+            )
+            connection.commit()
+            return False
+        except NativeBoundary:
+            connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def _claim_native_read_in_transaction(
+        self,
+        connection: sqlite3.Connection,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        claim_fingerprint: str,
+    ) -> bool:
+        native = self._verified_native_binding(
+            connection, attempt_id, native_alias, public_agent_id
+        )
+        if not native['notifications_available']:
+            raise NativeBoundary('native_notifications_unavailable')
+        state = native['lifecycle_status']
+        stored_fingerprint = native['read_claim_fingerprint']
+        if state == 'active':
+            raise NativeBoundary('completion_notification_required')
+        if state == 'read_claimed':
+            if (
+                isinstance(stored_fingerprint, str)
+                and hmac.compare_digest(
+                    stored_fingerprint, claim_fingerprint
+                )
+            ):
+                return True
+            raise NativeBoundary('native_read_refused')
+        if state != 'completion_notified' or stored_fingerprint is not None:
+            raise NativeBoundary('native_read_refused')
+        existing = connection.execute(
+            """SELECT 1 FROM native_invocations
+            WHERE read_claim_fingerprint = ?
+              AND native_invocation_id != ?
+            LIMIT 1""",
+            (claim_fingerprint, native_alias),
+        ).fetchone()
+        if existing is not None:
+            raise NativeBoundary('native_read_refused')
+        updated = connection.execute(
+            """UPDATE native_invocations
+            SET lifecycle_status = 'read_claimed',
+                read_claimed_at_ms = ?,
+                read_claim_fingerprint = ?
+            WHERE native_invocation_id = ?
+              AND lifecycle_status = 'completion_notified'
+              AND read_claim_fingerprint IS NULL""",
+            (_now_ms(), claim_fingerprint, native_alias),
+        )
+        if updated.rowcount != 1:
+            raise StateCorrupt
+        return False
+
+    def _reconcile_native_read_claim(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        claim_fingerprint: str,
+    ) -> bool:
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            idempotent = self._claim_native_read_in_transaction(
+                connection,
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
+            )
+            connection.commit()
+            return idempotent
+        except NativeBoundary:
+            connection.rollback()
+            raise
+        except (StateCorrupt, sqlite3.Error) as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def claim_native_read(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        read_claim_id: str,
+    ) -> bool:
+        """Authorize one token-bound read after completion notification."""
+        if not is_valid_identity(read_claim_id, 'read_claim'):
+            raise NativeBoundary('native_read_refused')
+        claim_fingerprint = _read_claim_fingerprint(read_claim_id)
+        connection = self._connect()
+        ambiguous_commit = False
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            idempotent = self._claim_native_read_in_transaction(
+                connection,
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
+            )
+            self._commit(connection)
+            return idempotent
+        except CommitOutcomeAmbiguous:
+            ambiguous_commit = True
+        except NativeBoundary:
+            connection.rollback()
+            raise
+        except StateCorrupt:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+        if ambiguous_commit:
+            return self._reconcile_native_read_claim(
+                attempt_id,
+                native_alias,
+                public_agent_id,
+                claim_fingerprint,
+            )
+        raise StateCorrupt
+
+    def observe_native(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        read_claim_id: str,
+        observation: str,
+        terminal_fingerprint: str | None,
+    ) -> tuple[str, list[str]]:
+        """Record the one claimed read result; not-found is terminal loss."""
+        if not is_valid_identity(read_claim_id, 'read_claim'):
+            raise NativeBoundary('native_read_refused')
+        claim_fingerprint = _read_claim_fingerprint(read_claim_id)
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            native = self._verified_native_binding(
+                connection, attempt_id, native_alias, public_agent_id
+            )
+            if not native['notifications_available']:
+                raise NativeBoundary('native_notifications_unavailable')
+            stored_fingerprint = native['read_claim_fingerprint']
+            if (
+                native['lifecycle_status'] != 'read_claimed'
+                or not isinstance(stored_fingerprint, str)
+                or not hmac.compare_digest(
+                    stored_fingerprint, claim_fingerprint
+                )
+            ):
+                raise NativeBoundary('native_read_refused')
+            descendants: list[str] = []
+            now = _now_ms()
+            if observation == 'not_found':
+                if terminal_fingerprint is None:
+                    raise FinishConflict
+                descendants, _ = self._terminate_tree_in_transaction(
+                    connection,
+                    attempt_id,
+                    'lost',
+                    terminal_fingerprint,
+                )
+                state = 'lost'
+            else:
+                state = 'found'
+            connection.execute(
+                """UPDATE native_invocations
+                SET lifecycle_status = ?, observed_at_ms = ?
+                WHERE native_invocation_id = ?""",
+                (state, now, native_alias),
+            )
+            self._commit(connection)
+            return state, descendants
+        except (NativeBoundary, FinishConflict):
+            connection.rollback()
+            raise
+        except (StateCorrupt, CommitOutcomeAmbiguous) as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            if isinstance(exc, StateCorrupt):
+                raise
+            raise StateCorrupt from exc
+        except sqlite3.Error as exc:
+            if connection.in_transaction:
+                connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def invalidate_native(
+        self,
+        attempt_id: str,
+        native_alias: str,
+        public_agent_id: str,
+        invalidation_reason: str,
+    ) -> bool:
+        """Permanently invalidate one exact native binding without registry access."""
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            native = connection.execute(
+                """SELECT attempt_id, public_agent_id_fingerprint,
+                          invalidation_reason
+                FROM native_binding_provenance WHERE native_alias = ?""",
+                (native_alias,),
+            ).fetchone()
+            expected = _native_public_fingerprint(public_agent_id)
+            if (
+                native is None
+                or native['attempt_id'] != attempt_id
+                or not hmac.compare_digest(
+                    native['public_agent_id_fingerprint'], expected
+                )
+            ):
+                raise NativeBoundary('native_binding_mismatch')
+            if native['invalidation_reason'] is not None:
+                if native['invalidation_reason'] != invalidation_reason:
+                    raise NativeBoundary('native_binding_invalidated')
+                connection.commit()
+                return True
+            connection.execute(
+                """UPDATE native_binding_provenance
+                SET invalidation_reason = ?, invalidated_at_ms = ?
+                WHERE native_alias = ?""",
+                (invalidation_reason, _now_ms(), native_alias),
+            )
+            connection.commit()
+            return False
+        except NativeBoundary:
+            connection.rollback()
+            raise
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise StateCorrupt from exc
+        finally:
+            connection.close()
+
+    def record_progress(
+        self, attempt_id: str, progress_fingerprint: str
+    ) -> tuple[int, bool]:
+        """Advance last progress only for a new explicit evidence fingerprint."""
+        connection = self._connect()
+        try:
+            connection.execute('BEGIN IMMEDIATE')
+            active = connection.execute(
+                """SELECT work_history.last_progress_at_ms
+                FROM attempts JOIN work_history USING (attempt_id)
+                WHERE attempt_id = ? AND attempts.lifecycle_status = 'active'""",
+                (attempt_id,),
+            ).fetchone()
+            if active is None:
+                raise IdentityConflict
+            prior = connection.execute(
+                """SELECT recorded_at_ms FROM progress_evidence
+                WHERE attempt_id = ? AND progress_fingerprint = ?""",
+                (attempt_id, progress_fingerprint),
+            ).fetchone()
+            if prior is not None:
+                if active[0] is None:
+                    raise StateCorrupt
+                connection.commit()
+                return active[0], True
+            now = max(_now_ms(), int(active[0]) if active[0] is not None else 0)
+            connection.execute(
+                'INSERT INTO progress_evidence VALUES (?, ?, ?)',
+                (attempt_id, progress_fingerprint, now),
+            )
+            connection.execute(
+                'UPDATE work_history SET last_progress_at_ms = ? WHERE attempt_id = ?',
+                (now, attempt_id),
+            )
+            connection.commit()
+            return now, False
         except (IdentityConflict, StateCorrupt):
             connection.rollback()
             raise
@@ -741,15 +2882,31 @@ class Ledger:
         try:
             connection.execute('BEGIN IMMEDIATE')
             attempt = connection.execute(
-                'SELECT lifecycle_status, terminal_fingerprint FROM attempts WHERE attempt_id = ?',
+                """SELECT attempts.lifecycle_status,
+                          attempts.terminal_fingerprint,
+                          work_history.lifecycle_status AS exact_status,
+                          work_history.terminal_fingerprint AS exact_fingerprint
+                FROM attempts
+                LEFT JOIN work_history USING (attempt_id)
+                WHERE attempts.attempt_id = ?""",
                 (attempt_id,),
             ).fetchone()
             if attempt is None:
                 raise IdentityConflict
             if attempt['lifecycle_status'] != 'active':
+                recorded_status = (
+                    attempt['exact_status']
+                    if attempt['exact_status'] is not None
+                    else attempt['lifecycle_status']
+                )
+                recorded_fingerprint = (
+                    attempt['exact_fingerprint']
+                    if attempt['exact_status'] is not None
+                    else attempt['terminal_fingerprint']
+                )
                 if (
-                    attempt['lifecycle_status'] == status
-                    and attempt['terminal_fingerprint'] == terminal_fingerprint
+                    recorded_status == status
+                    and recorded_fingerprint == terminal_fingerprint
                 ):
                     connection.commit()
                     return status, True
@@ -765,6 +2922,21 @@ class Ledger:
                 SET lifecycle_status = ?, terminal_fingerprint = ?, finished_at_ms = ?
                 WHERE attempt_id = ?""",
                 (status, terminal_fingerprint, _now_ms(), attempt_id),
+            )
+            connection.execute(
+                """UPDATE work_history
+                SET lifecycle_status = ?, terminal_fingerprint = ?
+                WHERE attempt_id = ?""",
+                (status, terminal_fingerprint, attempt_id),
+            )
+            connection.execute(
+                'DELETE FROM active_work_keys WHERE attempt_id = ?', (attempt_id,)
+            )
+            connection.execute(
+                """UPDATE native_invocations
+                SET lifecycle_status = ?, observed_at_ms = ?
+                WHERE attempt_id = ?""",
+                (status, _now_ms(), attempt_id),
             )
             connection.commit()
             return status, False
@@ -843,7 +3015,10 @@ def main() -> int:
         if command == 'new_identity':
             _require_exact_keys(request, {'schema_version', 'command', 'kind'})
             kind = request['kind']
-            if kind not in {'contract', 'slot', 'generation', 'logical', 'attempt'}:
+            if kind not in {
+                'contract', 'slot', 'generation', 'logical', 'attempt',
+                'native', 'read_claim',
+            }:
                 raise RequestFailure('invalid identity kind')
             _emit(
                 _response(
@@ -863,16 +3038,26 @@ def main() -> int:
             )
 
         if command == 'admit':
-            _require_exact_keys(
-                request,
-                {
-                    'schema_version', 'command', 'mode', 'primary_object',
-                    'impacts', 'risk_triggers', 'classification_digest',
-                    'route_digest', 'contract_id', 'slot_id', 'slot_role',
-                    'generation_id', 'logical_id', 'attempt_id',
-                    'parent_attempt_id', 'retry_fingerprint',
-                },
-            )
+            legacy_keys = {
+                'schema_version', 'command', 'mode', 'primary_object',
+                'impacts', 'risk_triggers', 'classification_digest',
+                'route_digest', 'contract_id', 'slot_id', 'slot_role',
+                'generation_id', 'logical_id', 'attempt_id',
+                'parent_attempt_id', 'retry_fingerprint',
+            }
+            lifecycle_keys = legacy_keys | {
+                'artifact_revision', 'lifecycle_transition',
+                'replacement_of_attempt_id',
+            }
+            dispatch_keys = {'dispatch_mode', 'execution_provenance'}
+            if frozenset(request) not in {
+                frozenset(legacy_keys),
+                frozenset(lifecycle_keys),
+                frozenset(lifecycle_keys | dispatch_keys),
+                frozenset(lifecycle_keys | {'dispatch_mode'}),
+                frozenset(lifecycle_keys | {'execution_provenance'}),
+            }:
+                raise RequestFailure('request keys do not match schema v2')
             mode = request['mode']
             if mode == 'enforce' or mode not in APPROVED_MODES:
                 _emit(
@@ -883,15 +3068,261 @@ def main() -> int:
                     EXIT_MODE,
                 )
             _validate_identity_fields(request)
+            if 'artifact_revision' in request:
+                _validate_lifecycle_fields(request)
+                _dispatch_profile(request)
             route, slot_role = _validate_contract(request)
             limits = _load_policy()
             ledger = Ledger(_ledger_path())
             outcome = ledger.admit(request, route, slot_role, limits)
+            if outcome.get('protocol_reason') == 'direct_sibling_active':
+                outcome.pop('protocol_reason')
+                _emit(
+                    _response(command, 'direct_sibling_active', **outcome),
+                    EXIT_INVALID,
+                )
+            if outcome.get('lifecycle_transition') in {
+                'duplicate_launch', 'illegal_transition'
+            }:
+                _emit(
+                    _response(
+                        command, 'lifecycle_transition_rejected', **outcome
+                    ),
+                    EXIT_INVALID,
+                )
             _emit(
                 _response(
                     command,
                     _machine_reason(str(mode), str(outcome['policy_reason'])),
                     **outcome,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'bind_native':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id', 'binding_source',
+                    'notifications_available',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if request['binding_source'] != NATIVE_BINDING_SOURCE:
+                raise RequestFailure('invalid binding_source')
+            if not isinstance(request['notifications_available'], bool):
+                raise RequestFailure('notifications_available must be boolean')
+            state = Ledger(_ledger_path()).bind_native(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['binding_source']),
+                request['notifications_available'],
+            )
+            _emit(
+                _response(
+                    command, 'native_bound', native_status=state,
+                    wait_strategy=(
+                        'external_completion_notification_no_poll'
+                        if request['notifications_available']
+                        else 'notifications_unavailable_no_polling'
+                    ),
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'native_notification':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            idempotent = Ledger(_ledger_path()).native_notification(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+            )
+            _emit(
+                _response(
+                    command, 'native_notification_recorded', idempotent=idempotent
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'native_read':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id', 'read_claim_id',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if not is_valid_identity(request['read_claim_id'], 'read_claim'):
+                raise RequestFailure('invalid read_claim_id')
+            idempotent = Ledger(_ledger_path()).claim_native_read(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['read_claim_id']),
+            )
+            _emit(
+                _response(
+                    command, 'native_read_authorized',
+                    read_authorized=True, idempotent=idempotent,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'native_observation':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id', 'observation',
+                    'terminal_fingerprint', 'read_claim_id',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if not is_valid_identity(request['read_claim_id'], 'read_claim'):
+                raise RequestFailure('invalid read_claim_id')
+            observation = request['observation']
+            terminal = request['terminal_fingerprint']
+            if observation not in {'found', 'not_found'}:
+                raise RequestFailure('invalid native observation')
+            if (
+                observation == 'not_found'
+                and not is_valid_fingerprint(terminal)
+            ) or (observation == 'found' and terminal is not None):
+                raise RequestFailure('invalid native observation fingerprint')
+            state, orphaned = Ledger(_ledger_path()).observe_native(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['read_claim_id']),
+                str(observation),
+                str(terminal) if terminal is not None else None,
+            )
+            _emit(
+                _response(
+                    command, 'native_observation_recorded', native_status=state,
+                    orphaned_attempt_ids=orphaned,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'invalidate_native':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'native_alias', 'public_agent_id',
+                    'invalidation_reason',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_identity(request['native_alias'], 'native'):
+                raise RequestFailure('invalid native_alias')
+            if not is_valid_public_agent_id(request['public_agent_id']):
+                raise RequestFailure('invalid public_agent_id')
+            if request['invalidation_reason'] not in NATIVE_INVALIDATION_REASONS:
+                raise RequestFailure('invalid invalidation_reason')
+            idempotent = Ledger(_ledger_path()).invalidate_native(
+                str(request['attempt_id']),
+                str(request['native_alias']),
+                str(request['public_agent_id']),
+                str(request['invalidation_reason']),
+            )
+            _emit(
+                _response(
+                    command, 'native_invalidated',
+                    invalidation_reason=request['invalidation_reason'],
+                    idempotent=idempotent,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'progress':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'progress_fingerprint',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if not is_valid_fingerprint(request['progress_fingerprint']):
+                raise RequestFailure('invalid progress_fingerprint')
+            progressed_at_ms, idempotent = Ledger(_ledger_path()).record_progress(
+                str(request['attempt_id']), str(request['progress_fingerprint'])
+            )
+            _emit(
+                _response(
+                    command,
+                    'progress_idempotent' if idempotent else 'progress_recorded',
+                    last_progress_at_ms=progressed_at_ms, idempotent=idempotent,
+                ),
+                EXIT_OK,
+            )
+
+        if command == 'terminate_tree':
+            _load_policy()
+            _require_exact_keys(
+                request,
+                {
+                    'schema_version', 'command', 'attempt_id',
+                    'termination_reason', 'terminal_fingerprint',
+                },
+            )
+            if not is_valid_identity(request['attempt_id'], 'attempt'):
+                raise RequestFailure('invalid attempt_id')
+            if request['termination_reason'] not in TERMINATION_STATUSES:
+                raise RequestFailure('invalid termination_reason')
+            if not is_valid_fingerprint(request['terminal_fingerprint']):
+                raise RequestFailure('invalid terminal_fingerprint')
+            status, orphaned, idempotent = Ledger(_ledger_path()).terminate_tree(
+                str(request['attempt_id']), str(request['termination_reason']),
+                str(request['terminal_fingerprint']),
+            )
+            _emit(
+                _response(
+                    command,
+                    'tree_termination_idempotent'
+                    if idempotent else 'tree_termination_recorded',
+                    lifecycle_status=status, orphaned_attempt_ids=orphaned,
+                    idempotent=idempotent,
                 ),
                 EXIT_OK,
             )
@@ -956,6 +3387,22 @@ def main() -> int:
         if command == 'admit' and mode in APPROVED_MODES:
             values.update({'would_reject': True, 'launch_authorized': True})
         _emit(_response(command, exc.reason_code, **values), EXIT_CONTRACT)
+    except AdmissionRejectionUnrecorded as exc:
+        values: dict[str, object] = {
+            'policy_reason': 'state_corrupt',
+            'would_reject': True,
+            'launch_authorized': False,
+        }
+        if exc.lifecycle_transition is not None:
+            values['lifecycle_transition'] = exc.lifecycle_transition
+        _emit(
+            _response(
+                str(locals().get('command', 'admit')),
+                'ledger_unavailable',
+                **values,
+            ),
+            EXIT_LEDGER,
+        )
     except StateMissing:
         command = str(locals().get('command', 'invalid'))
         local_request = locals().get('request')
@@ -971,13 +3418,40 @@ def main() -> int:
         local_request = locals().get('request')
         mode = local_request.get('mode') if isinstance(local_request, dict) else None
         _state_error(command, mode, 'state_unsupported')
+    except NativeBoundary as exc:
+        command = str(locals().get('command', 'invalid'))
+        values: dict[str, object] = {}
+        if command == 'native_read':
+            values['read_authorized'] = False
+        if command == 'admit':
+            values.update(
+                {
+                    'policy_reason': None,
+                    'would_reject': True,
+                    'launch_authorized': False,
+                }
+            )
+        _emit(
+            _response(command, exc.reason_code, **values),
+            EXIT_MODE
+            if exc.reason_code == 'native_notifications_unavailable'
+            else EXIT_INVALID,
+        )
     except IdentityConflict:
         command = str(locals().get('command', 'invalid'))
         local_request = locals().get('request')
         mode = local_request.get('mode') if isinstance(local_request, dict) else None
         values: dict[str, object] = {}
         if command == 'admit' and mode in APPROVED_MODES:
-            values.update({'would_reject': True, 'launch_authorized': True})
+            values.update(
+                {
+                    'would_reject': True,
+                    'launch_authorized': not (
+                        isinstance(local_request, dict)
+                        and 'artifact_revision' in local_request
+                    ),
+                }
+            )
         _emit(_response(command, 'invalid_identity', **values), EXIT_INVALID)
     except RecoveryRequired:
         _emit(_response(str(locals().get('command', 'invalid')), 'recovery_required'), EXIT_LEDGER)
