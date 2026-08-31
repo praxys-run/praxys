@@ -29,6 +29,9 @@ from analysis.copilot_execution_parity import (
 
 _ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_CONFIG_PATH = _ROOT / "config" / "agent-runtime-parity.json"
+_DEFAULT_EXTENSION_CONFIG_PATH = (
+    _ROOT / "config" / "codex-local-mcp-extensions.json"
+)
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 _APPROVED_PROPOSAL_ID = (
@@ -39,6 +42,15 @@ _APPROVED_PROPOSAL_DIGEST = (
 )
 _APPROVED_SUBJECT_DIGEST = (
     "sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc"
+)
+_APPROVED_EXTENSION_PROPOSAL_ID = (
+    "policy-change-proposal-codex-microsoft-mcp-extension-v1"
+)
+_APPROVED_EXTENSION_PROPOSAL_DIGEST = (
+    "sha256:b320b5e1aa205d442ff18de4837d43149593667d84225c9ce4b0e0cfddc2faa3"
+)
+_APPROVED_EXTENSION_SUBJECT_DIGEST = (
+    "sha256:0dfb8bcf46df787aa75575e03ff02f19ae40c1df2f8cddde37095c34fa6e987d"
 )
 _READ_ONLY_ADAPTERS = frozenset(
     {
@@ -216,6 +228,127 @@ class PortableMcpServer(ParityRecord):
         _require_unique(self.enabled_tools, "enabled_tools")
         if "*" in self.enabled_tools:
             raise ValueError("wildcard MCP tools are forbidden")
+        return self
+
+
+class LocalExtensionApproval(ParityRecord):
+    """Digest-bound authority for Codex-local, non-portable MCPs."""
+
+    proposal_id: str = Field(min_length=1)
+    proposal_path: str
+    proposal_digest: str
+    subject_path: str
+    subject_digest: str
+    human_approved_at: str = Field(min_length=1)
+    authorized_scope: Literal["implementation-and-verification-only"]
+
+    @model_validator(mode="after")
+    def validate_binding(self) -> "LocalExtensionApproval":
+        for label, value in (
+            ("proposal_path", self.proposal_path),
+            ("subject_path", self.subject_path),
+        ):
+            _require_repository_path(value, label)
+        for label, digest in (
+            ("proposal_digest", self.proposal_digest),
+            ("subject_digest", self.subject_digest),
+        ):
+            if _DIGEST_RE.fullmatch(digest) is None:
+                raise ValueError(f"{label} must be a sha256 digest")
+        return self
+
+
+class HttpMcpExtension(ParityRecord):
+    """One public streamable-HTTP MCP extension."""
+
+    transport: Literal["streamable-http"]
+    url: str = Field(min_length=1)
+    authentication: Literal["none"]
+    root_enabled: Literal[False]
+    required: Literal[False]
+    role_enablement: list[str] = Field(min_length=1)
+    enabled_tools: list[str] = Field(min_length=1)
+    default_tools_approval_mode: Literal["auto"]
+
+    @model_validator(mode="after")
+    def validate_server(self) -> "HttpMcpExtension":
+        _require_unique(self.role_enablement, "extension roles")
+        _require_unique(self.enabled_tools, "extension tools")
+        if "*" in self.enabled_tools:
+            raise ValueError("wildcard MCP tools are forbidden")
+        if not self.url.startswith("https://"):
+            raise ValueError("remote MCP extensions must use HTTPS")
+        return self
+
+
+class StdioMcpExtension(ParityRecord):
+    """One pinned, environment-isolated stdio MCP extension."""
+
+    transport: Literal["stdio"]
+    command: str = Field(min_length=1)
+    args: list[str] = Field(min_length=1)
+    package_integrity: str = Field(min_length=1)
+    source_tag: str = Field(min_length=1)
+    source_commit: str = Field(pattern=r"^[0-9a-f]{40}$")
+    root_enabled: Literal[False]
+    required: Literal[False]
+    role_enablement: list[str] = Field(min_length=1)
+    enabled_tools: list[str] = Field(min_length=1)
+    environment_forwarding: list[str]
+    default_tools_approval_mode: Literal["prompt"]
+    authentication: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_server(self) -> "StdioMcpExtension":
+        _require_unique(self.role_enablement, "extension roles")
+        _require_unique(self.enabled_tools, "extension tools")
+        _require_unique(self.environment_forwarding, "extension environment")
+        if "*" in self.enabled_tools:
+            raise ValueError("wildcard MCP tools are forbidden")
+        if self.environment_forwarding:
+            raise ValueError("Codex-local Azure MCP must forward no environment")
+        return self
+
+
+class CodexLocalMcpExtensions(ParityRecord):
+    """Separately approved MCPs that never enter portable parity."""
+
+    schema_version: Literal[1]
+    extension_version: Literal["praxys-codex-local-mcp-extensions-v1"]
+    status: Literal["implementation-candidate"]
+    approval: LocalExtensionApproval
+    mcp_extensions: dict[str, HttpMcpExtension | StdioMcpExtension]
+    limitations: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_extensions(self) -> "CodexLocalMcpExtensions":
+        if self.approval.proposal_id != _APPROVED_EXTENSION_PROPOSAL_ID:
+            raise ValueError("extension proposal id differs from approval")
+        if (
+            self.approval.proposal_digest
+            != _APPROVED_EXTENSION_PROPOSAL_DIGEST
+        ):
+            raise ValueError("extension proposal digest differs from approval")
+        if self.approval.subject_digest != _APPROVED_EXTENSION_SUBJECT_DIGEST:
+            raise ValueError("extension subject digest differs from approval")
+        if set(self.mcp_extensions) != {"microsoft-learn", "azure-mcp"}:
+            raise ValueError("Codex-local extension inventory must remain exact")
+        role_ids = (
+            _READ_ONLY_ADAPTERS
+            | _ARTIFACT_WRITER_ADAPTERS
+            | _IMPLEMENTATION_ADAPTERS
+        )
+        for server in self.mcp_extensions.values():
+            unknown_roles = set(server.role_enablement) - role_ids
+            if unknown_roles:
+                raise ValueError(
+                    f"unknown extension roles: {sorted(unknown_roles)}"
+                )
+        if self.mcp_extensions["azure-mcp"].role_enablement != [
+            "operations"
+        ]:
+            raise ValueError("Azure MCP must remain Operations-only")
+        _require_unique(self.limitations, "extension limitations")
         return self
 
 
@@ -414,7 +547,42 @@ def _expected_agent_instructions(adapter: AgentAdapter) -> str:
     return instructions
 
 
-def _expected_codex_config(config: AgentRuntimeParity) -> dict[str, object]:
+def _root_extension_payload(
+    server: HttpMcpExtension | StdioMcpExtension,
+) -> dict[str, object]:
+    if isinstance(server, HttpMcpExtension):
+        return {
+            "url": server.url,
+            "enabled": False,
+            "required": server.required,
+            "enabled_tools": server.enabled_tools,
+            "default_tools_approval_mode": (
+                server.default_tools_approval_mode
+            ),
+        }
+    return {
+        "command": server.command,
+        "args": server.args,
+        "enabled": False,
+        "required": server.required,
+        "enabled_tools": server.enabled_tools,
+        "env_vars": server.environment_forwarding,
+        "default_tools_approval_mode": server.default_tools_approval_mode,
+    }
+
+
+def _role_extension_payload(
+    server: HttpMcpExtension | StdioMcpExtension,
+) -> dict[str, object]:
+    payload = _root_extension_payload(server)
+    payload["enabled"] = True
+    return payload
+
+
+def _expected_codex_config(
+    config: AgentRuntimeParity,
+    extensions: CodexLocalMcpExtensions,
+) -> dict[str, object]:
     servers: dict[str, object] = {}
     for server_id, server in config.portable_mcp_servers.items():
         servers[server_id] = {
@@ -425,6 +593,8 @@ def _expected_codex_config(config: AgentRuntimeParity) -> dict[str, object]:
             "enabled_tools": server.enabled_tools,
             "env_vars": [],
         }
+    for server_id, server in extensions.mcp_extensions.items():
+        servers[server_id] = _root_extension_payload(server)
     return {
         "approval_policy": config.codex_adapter.approval_policy,
         "sandbox_mode": config.codex_adapter.default_sandbox_mode,
@@ -624,10 +794,18 @@ def validate_static_runtime_parity(
     config: AgentRuntimeParity,
     *,
     root: Path = _ROOT,
+    extensions: CodexLocalMcpExtensions | None = None,
 ) -> list[str]:
     """Return deterministic adapter violations without starting any MCP process."""
     errors: list[str] = []
     resolved_root = root.resolve()
+    if extensions is None:
+        try:
+            extensions = load_local_mcp_extensions(
+                root / "config" / "codex-local-mcp-extensions.json"
+            )
+        except (OSError, ValueError) as exc:
+            return [f"invalid Codex-local MCP extension contract: {exc}"]
 
     required_files = [
         config.approval.proposal_path,
@@ -639,6 +817,8 @@ def validate_static_runtime_parity(
         config.hook.script_path,
         *(item.canonical_path for item in config.agent_adapters),
         *(item.codex_path for item in config.agent_adapters),
+        extensions.approval.proposal_path,
+        extensions.approval.subject_path,
     ]
     for relative_path in required_files:
         path = root / str(relative_path)
@@ -646,6 +826,40 @@ def validate_static_runtime_parity(
             errors.append(f"missing runtime parity path: {relative_path}")
     if errors:
         return errors
+
+    extension_subject_bytes = (
+        root / extensions.approval.subject_path
+    ).read_bytes()
+    extension_subject_digest = (
+        f"sha256:{hashlib.sha256(extension_subject_bytes).hexdigest()}"
+    )
+    if extension_subject_digest != extensions.approval.subject_digest:
+        errors.append(
+            "approved MCP extension subject digest differs from contract"
+        )
+    extension_proposal_bytes = (
+        root / extensions.approval.proposal_path
+    ).read_bytes()
+    extension_proposal_digest = (
+        f"sha256:{hashlib.sha256(extension_proposal_bytes).hexdigest()}"
+    )
+    if extension_proposal_digest != extensions.approval.proposal_digest:
+        errors.append(
+            "approved MCP extension proposal digest differs from contract"
+        )
+    try:
+        extension_subject = json.loads(extension_subject_bytes)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        errors.append("approved MCP extension subject is not valid JSON")
+    else:
+        if not isinstance(extension_subject, dict) or (
+            extension_subject.get("mcp_extensions")
+            != {
+                key: value.model_dump()
+                for key, value in extensions.mcp_extensions.items()
+            }
+        ):
+            errors.append("MCP extension contract differs from approved subject")
 
     subject_bytes = (root / config.approval.subject_path).read_bytes()
     subject_digest = f"sha256:{hashlib.sha256(subject_bytes).hexdigest()}"
@@ -678,7 +892,7 @@ def validate_static_runtime_parity(
     except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
         errors.append(f"invalid Codex project config: {exc}")
     else:
-        if codex_payload != _expected_codex_config(config):
+        if codex_payload != _expected_codex_config(config, extensions):
             errors.append("Codex project config differs from the runtime contract")
 
     operating_model = load_agentic_operating_model(
@@ -753,6 +967,17 @@ def validate_static_runtime_parity(
                     "enabled_tools": server.enabled_tools,
                     "env_vars": [],
                 }
+        role_extensions = {
+            server_id: server
+            for server_id, server in extensions.mcp_extensions.items()
+            if adapter.id in server.role_enablement
+        }
+        if role_extensions:
+            expected.setdefault("mcp_servers", {})
+            for server_id, server in role_extensions.items():
+                expected["mcp_servers"][server_id] = (
+                    _role_extension_payload(server)
+                )
         if payload != expected:
             errors.append(f"Codex agent adapter differs from contract: {adapter.id}")
         canonical_text = (root / adapter.canonical_path).read_text(encoding="utf-8")
@@ -890,8 +1115,26 @@ def load_runtime_parity_config(
     )
 
 
+def load_local_mcp_extensions(
+    path: str | Path | None = None,
+) -> CodexLocalMcpExtensions:
+    """Load the separately approved Codex-local MCP extension contract."""
+    if path is None:
+        return _load_default_local_mcp_extensions()
+    return CodexLocalMcpExtensions.model_validate_json(
+        Path(path).read_text(encoding="utf-8")
+    )
+
+
 @lru_cache(maxsize=1)
 def _load_default_runtime_parity_config() -> AgentRuntimeParity:
     return AgentRuntimeParity.model_validate_json(
         _DEFAULT_CONFIG_PATH.read_text(encoding="utf-8")
+    )
+
+
+@lru_cache(maxsize=1)
+def _load_default_local_mcp_extensions() -> CodexLocalMcpExtensions:
+    return CodexLocalMcpExtensions.model_validate_json(
+        _DEFAULT_EXTENSION_CONFIG_PATH.read_text(encoding="utf-8")
     )
