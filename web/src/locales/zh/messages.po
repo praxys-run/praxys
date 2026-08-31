@@ -2751,7 +2751,7 @@ msgstr "交付预览"
 
 #: src/components/PlanStart.tsx:2318
 msgid "Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
-msgstr ""
+msgstr "投递仍处于禁用状态。请查看托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。"
 
 #: src/components/WorkoutStructureEditor.tsx:1976
 msgid "Delivery to {providerName} is blocked"
