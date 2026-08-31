@@ -13,6 +13,7 @@ import pytest
 from azure.core.exceptions import AzureError
 
 from api import llm
+from api.legal import TERMS_VERSION
 from api.personal_context_processing import (
     POLICY_VERSION,
     PROMPT_VERSION,
@@ -33,6 +34,7 @@ def processing_db(monkeypatch):
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
     monkeypatch.delenv("AZURE_AI_ENDPOINT", raising=False)
+    monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
     monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", raising=False)
     monkeypatch.delenv(
         "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
@@ -52,6 +54,7 @@ def processing_db(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     with db_session.SessionLocal() as db:
@@ -60,11 +63,15 @@ def processing_db(monkeypatch):
                 id="processing-owner",
                 email="processing-owner@example.test",
                 hashed_password="x",
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
             User(
                 id="processing-other",
                 email="processing-other@example.test",
                 hashed_password="x",
+                terms_version=TERMS_VERSION,
+                terms_digest=TERMS_CONTENT_DIGEST,
             ),
         ])
         db.commit()
@@ -412,7 +419,6 @@ def test_ai_request_is_minimized_untrusted_and_receipt_backed(
                 db,
                 user_id="processing-owner",
                 purpose="plan_adjustment",
-                allow_ai=True,
                 azure_client=fake,
                 now=now,
             )
@@ -440,16 +446,18 @@ def test_ai_request_is_minimized_untrusted_and_receipt_backed(
         assert payload["prompt_version"] == PROMPT_VERSION
         statement = payload["athlete_context"][0]
         assert statement["item_ref"] == "context_1"
-        assert statement["consent_text_version"] == "context-ai-v1"
+        assert statement["terms_version"] == TERMS_VERSION
         assert statement["statement"] == {
             "category": "caregiving",
-            "fields": {"maximum_available_minutes": 30},
+            "fields": {
+                "affected_days": ["monday", "wednesday"],
+                "maximum_available_minutes": 30,
+            },
             "quoted_narrative": injection,
         }
         serialized = call["messages"][1]["content"]
         assert item.id not in serialized
         assert "processing-owner" not in serialized
-        assert "affected_days" not in serialized
 
         receipts = (
             db.query(PersonalContextUseReceipt)
@@ -469,6 +477,7 @@ def test_ai_request_is_minimized_untrusted_and_receipt_backed(
         assert receipts[0].consent_receipt_id is None
         assert receipts[1].disclosed_fields == [
             "category",
+            "fields.affected_days",
             "fields.maximum_available_minutes",
         ]
         assert receipts[1].narrative_disclosed is True
@@ -508,7 +517,6 @@ def test_safety_context_bypasses_ai_and_uses_no_medical_free_text(
             db,
             user_id="processing-owner",
             purpose="plan_adjustment",
-            allow_ai=True,
             azure_client=fake,
             now=now,
         )
@@ -523,10 +531,13 @@ def test_safety_context_bypasses_ai_and_uses_no_medical_free_text(
         assert receipts[0].narrative_disclosed is False
 
 
-def test_missing_or_unallowlisted_consent_falls_back_without_provider(
+def test_current_terms_authorize_context_ai_without_separate_consent(
     processing_db,
 ) -> None:
-    from api.personal_context_processing import process_personal_context
+    from api.personal_context_processing import (
+        ContextAiUnavailable,
+        process_personal_context,
+    )
 
     now = datetime(2026, 9, 4, 9, 0)
     fake = _FakeClient(_valid_suggestion())
@@ -542,13 +553,12 @@ def test_missing_or_unallowlisted_consent_falls_back_without_provider(
             db,
             user_id="processing-owner",
             purpose="plan_adjustment",
-            allow_ai=True,
             azure_client=fake,
             now=now,
         )
 
-        assert missing.processing_mode == "deterministic_policy"
-        assert fake.completions.call_count == 0
+        assert missing.processing_mode == "planning_ai"
+        assert fake.completions.call_count == 1
 
     later = now + timedelta(hours=1)
     with processing_db.SessionLocal() as db:
@@ -565,18 +575,16 @@ def test_missing_or_unallowlisted_consent_falls_back_without_provider(
         )
         db.commit()
 
-        minimized = process_personal_context(
-            db,
-            user_id="processing-owner",
-            purpose="plan_adjustment",
-            allow_ai=True,
-            azure_client=fake,
-            now=later,
-        )
+        with pytest.raises(ContextAiUnavailable):
+            process_personal_context(
+                db,
+                user_id="processing-owner",
+                purpose="plan_adjustment",
+                azure_client=fake,
+                now=later,
+            )
 
-        assert minimized.outcome == "insufficient_evidence"
-        assert minimized.processing_mode == "deterministic_policy"
-        assert fake.completions.call_count == 0
+        assert fake.completions.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -595,14 +603,22 @@ def test_missing_or_unallowlisted_consent_falls_back_without_provider(
 def test_provider_failure_is_private_and_has_no_fallback_provider(
     processing_db,
     caplog,
+    monkeypatch,
     provider_failure: Exception,
 ) -> None:
+    from api import llm
     from api.personal_context_processing import process_personal_context
     from db.models import PersonalContextUseReceipt
 
     now = datetime(2026, 9, 5, 9, 0)
     private_marker = "PRIVATE-CONTEXT-612"
     fake = _FakeClient(failure=provider_failure)
+    provider_failures: list[bool] = []
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_failure",
+        lambda: provider_failures.append(True),
+    )
     with processing_db.SessionLocal() as db:
         item = _confirm_context(
             db,
@@ -627,7 +643,6 @@ def test_provider_failure_is_private_and_has_no_fallback_provider(
                 db,
                 user_id="processing-owner",
                 purpose="plan_adjustment",
-                allow_ai=True,
                 azure_client=fake,
                 now=now,
             )
@@ -639,6 +654,7 @@ def test_provider_failure_is_private_and_has_no_fallback_provider(
         assert item.id not in caplog.text
         assert "caregiving" not in caplog.text
         assert "provider_unavailable" in caplog.text
+        assert provider_failures == [True]
         receipts = db.query(PersonalContextUseReceipt).all()
         assert {receipt.consumer_type for receipt in receipts} == {
             "deterministic_policy",
@@ -652,6 +668,38 @@ def test_provider_failure_is_private_and_has_no_fallback_provider(
             }
             for receipt in receipts
         )
+
+
+def test_invalid_provider_json_does_not_confirm_recovery(monkeypatch) -> None:
+    """Malformed model output must leave the shared outage state latched."""
+    from api import llm
+    from api.personal_context_processing import (
+        AiContextRequest,
+        _call_azure_context_model,
+    )
+
+    request = AiContextRequest(
+        purpose="plan_adjustment",
+        allowed_proposal_scope="week",
+        system_prompt="system",
+        user_prompt="user",
+        disclosures=(),
+    )
+    fake = _FakeClient("not-json")
+    events: list[str] = []
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_failure",
+        lambda: events.append("failure"),
+    )
+    monkeypatch.setattr(
+        llm,
+        "record_runtime_provider_success",
+        lambda _attempt: events.append("success"),
+    )
+
+    assert _call_azure_context_model(fake, request) is None
+    assert events == ["failure"]
 
 
 def test_model_free_text_or_scope_expansion_is_rejected_without_logging(
@@ -691,7 +739,6 @@ def test_model_free_text_or_scope_expansion_is_rejected_without_logging(
                 db,
                 user_id="processing-owner",
                 purpose="plan_adjustment",
-                allow_ai=True,
                 azure_client=fake,
                 now=now,
             )
@@ -710,7 +757,6 @@ def test_model_free_text_or_scope_expansion_is_rejected_without_logging(
             db,
             user_id="processing-owner",
             purpose="plan_adjustment",
-            allow_ai=True,
             azure_client=malformed,
             now=now,
         )
@@ -755,7 +801,6 @@ def test_provider_unavailable_does_not_decrypt_narrative_for_ai(
                 db,
                 user_id="processing-owner",
                 purpose="plan_adjustment",
-                allow_ai=True,
                 now=now,
             )
 
@@ -790,7 +835,6 @@ def test_decryption_failure_stops_before_receipt_or_provider(
                 db,
                 user_id="processing-owner",
                 purpose="plan_adjustment",
-                allow_ai=True,
                 azure_client=fake,
                 now=now,
             )

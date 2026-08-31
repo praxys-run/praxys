@@ -30,21 +30,18 @@ on:
       - 'scripts/provision_labs_worker_db.py'
       - '.github/azure-observability.env'
       - '.github/workflows/deploy-backend.yml'
-    tags:
-      - 'api-*'
-
-permissions:
-  id-token: write
-  contents: read
-  actions: read
 
 concurrency:
-  group: deploy-backend-production
+  # Backend deploys are state-preserving; emergency China disable must never
+  # wait behind or be replaced by this deployment queue.
+  group: praxys-backend-deploy
   cancel-in-progress: false
 
 jobs:
   test:
-    if: github.ref_type == 'tag' || inputs.run_tests == true
+    if: github.ref == 'refs/heads/main' && inputs.run_tests == true
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -76,8 +73,19 @@ jobs:
 
   deploy:
     needs: test
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_BACKEND_APP_NAME: trainsight-app
+      AZURE_RESOURCE_GROUP: rg-trainsight
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,7 +100,6 @@ jobs:
         run: |
           set -euo pipefail
           sync_config=false
-
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             sync_config="${SYNC_CONFIG_INPUT:-false}"
           elif [[ "${GITHUB_REF_TYPE}" == "branch" ]]; then
@@ -108,7 +115,6 @@ jobs:
               fi
             fi
           fi
-
           echo "sync_config=${sync_config}" >> "$GITHUB_OUTPUT"
           echo "Reconcile Azure configuration: ${sync_config}"
 
@@ -117,21 +123,24 @@ jobs:
         run: cat .github/azure-observability.env >> "$GITHUB_ENV"
 
       - name: Stamp build version
-        # Write ``api/_build_version.txt`` so ``api.version.get_api_version()``
-        # returns the deploy build instead of ``"develop"``. Mirrors the web
-        # bundle's ``VITE_APP_VERSION`` injection — both surfaces show a
-        # CalVer-ish synthetic version on auto-deploys, the stripped tag on
-        # tagged releases (``api-YYYY.MM.MICRO`` → ``YYYY.MM.MICRO``).
         shell: bash
         run: |
-          if [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME}" == api-* ]]; then
-            VERSION="${GITHUB_REF_NAME#api-}"
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^api-([0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]{1,4})$ ]]; then
+              echo "::error::API release tag is not an exact supported CalVer tag."
+              exit 1
+            fi
+            VERSION="${BASH_REMATCH[1]}"
           else
+            [[ "${GITHUB_RUN_NUMBER}" =~ ^[0-9]+$ ]]
             VERSION="$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
           fi
+          [[ "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]
           echo "${VERSION}" > api/_build_version.txt
+          echo "${GITHUB_SHA}" > api/_build_sha.txt
           echo "PRAXYS_EXPECTED_API_VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "Build version: ${VERSION}"
+          echo "PRAXYS_EXPECTED_API_SOURCE_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
 
       - name: Materialize private Stryd client for Oryx
         env:
@@ -148,124 +157,89 @@ jobs:
             | sha256sum --check
           printf '\n%s\n' "$wheel" >> requirements.txt
 
-      - name: Wait for compatible frontend deployment
-        if: github.event_name == 'push' && github.ref_type == 'branch'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          required_frontend_sha="$(
-            git log --first-parent -1 --format=%H "${GITHUB_SHA}" -- \
-            web/ \
-            frontend_server/ \
-            scripts/appinsights_boundary.sh \
-            .github/azure-observability.env \
-            .github/workflows/deploy-frontend-appservice.yml
-          )"
-          if [[ -z "${required_frontend_sha}" ]]; then
-            echo "No frontend-triggering commit exists in this branch history."
-            exit 0
-          fi
-          echo "Required frontend commit: ${required_frontend_sha}"
-
-          for attempt in {1..60}; do
-            git fetch --no-tags origin "${GITHUB_REF_NAME}" >/dev/null
-            runs_file="${RUNNER_TEMP}/frontend-runs.json"
-            if ! gh api --method GET \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-frontend-appservice.yml/runs" \
-              -f per_page=100 \
-              --paginate \
-              --slurp > "${runs_file}"; then
-              echo "Unable to read frontend workflow state (${attempt}/60)."
-              sleep 10
-              continue
-            fi
-
-            # Any active production run can still change the deployed bundle.
-            # Wait for the frontend lane to settle before evaluating its
-            # live deployed-SHA metadata.
-            active_url="$(
-              jq -r \
-                'first(.[].workflow_runs[] | select(.status != "completed") | .html_url) // empty' \
-                "${runs_file}"
-            )"
-            if [[ -n "${active_url}" ]]; then
-              echo "A frontend production deployment is still running: ${active_url}"
-              sleep 10
-              continue
-            fi
-
-            health_payload="$(
-              curl --fail --silent --show-error --max-time 10 \
-                --header "Cache-Control: no-cache" \
-                "https://praxys-frontend.azurewebsites.net/healthz" \
-                2>/dev/null || true
-            )"
-            deployed_sha="$(
-              jq -r '.deployed_sha // empty' <<< "${health_payload}" \
-                2>/dev/null || true
-            )"
-            deployed_sha="${deployed_sha//$'\r'/}"
-            if [[ ! "${deployed_sha}" =~ ^[0-9a-fA-F]{40}$ ]]; then
-              echo "Live frontend deployment metadata is unavailable (${attempt}/60)."
-              sleep 10
-              continue
-            fi
-
-            if ! git cat-file -e "${deployed_sha}^{commit}" 2>/dev/null; then
-              git fetch --no-tags origin "${deployed_sha}" >/dev/null
-            fi
-            if git merge-base --is-ancestor "${required_frontend_sha}" "${deployed_sha}"; then
-              echo "Deployed frontend commit is compatible: ${deployed_sha}"
-              exit 0
-            fi
-
-            echo "Deployed frontend commit is not yet compatible: ${deployed_sha} (${attempt}/60)."
-            sleep 10
-          done
-
-          echo "Timed out waiting for a matching or newer frontend deployment." >&2
-          exit 1
-
       - name: Azure Login (OIDC)
+        id: azure_login
         uses: azure/login@v3
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Wait for compatible Labs worker
-        env:
-          PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+      - name: Capture state preserved by deployment
+        id: preserved
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
-            expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${GITHUB_SHA}"
-            for attempt in {1..90}; do
-              deployed_worker_image="$(
-                az containerapp job show \
-                  --name praxys-labs-environment-worker \
-                  --resource-group rg-trainsight \
-                  --query "properties.template.containers[0].image" \
-                  -o tsv 2>/dev/null || true
-              )"
-              if [[ "${deployed_worker_image}" == "${expected_worker_image}" ]]; then
-                exit 0
-              fi
-              echo "Waiting for compatible Labs worker ${expected_worker_image} (${attempt}/90)."
-              sleep 10
-            done
-            echo "ERROR: service_bus mode requires the Labs worker from the same commit before backend deployment." >&2
-            exit 1
-          fi
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          cn_disabled="$(read_setting PRAXYS_DISABLE_CN_PROCESSING)"
+          miniapp_values="$(jq -c '[.[] | select(
+            .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING") | .value]' \
+            <<< "${settings}")"
+          case "$(jq length <<< "${miniapp_values}")" in
+            0)
+              miniapp_disabled=false
+              miniapp_configured=false
+              ;;
+            1)
+              miniapp_disabled="$(jq -er '.[0]' <<< "${miniapp_values}")"
+              miniapp_configured=true
+              ;;
+            *)
+              echo "::error::PRAXYS_DISABLE_MINIAPP_PROCESSING is duplicated."
+              exit 1
+              ;;
+          esac
+          ai_disabled="$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)"
+          [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
+          [[ "${miniapp_disabled}" == "true" \
+            || "${miniapp_disabled}" == "false" ]]
+          [[ "${ai_disabled}" == "true" || "${ai_disabled}" == "false" ]]
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          jq -e 'type == "array"' <<< "${cors}" >/dev/null
+          {
+            echo "cn_disabled=${cn_disabled}"
+            echo "miniapp_disabled=${miniapp_disabled}"
+            echo "miniapp_configured=${miniapp_configured}"
+            echo "ai_disabled=${ai_disabled}"
+            echo "cors=$(jq -c sort <<< "${cors}")"
+          } >> "${GITHUB_OUTPUT}"
 
-          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" &&
-                "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
-            echo "ERROR: invalid PRAXYS_LABS_EXECUTION_MODE" >&2
+      - name: Validate production deployment settings
+        if: steps.mode.outputs.sync_config == 'true'
+        env:
+          PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+          PRAXYS_LABS_WORKER_DEPLOY_ENABLED: ${{ vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED || 'false' }}
+          WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
+          WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${WECHAT_MINIAPP_APPID}" \
+                && -z "${WECHAT_MINIAPP_SECRET}" ]] \
+            || [[ -z "${WECHAT_MINIAPP_APPID}" \
+                  && -n "${WECHAT_MINIAPP_SECRET}" ]]; then
+            echo "::error::Set both WeChat Miniapp secrets or neither."
             exit 1
           fi
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" \
+                && "${PRAXYS_LABS_WORKER_DEPLOY_ENABLED}" != "true" ]]; then
+            echo "::error::service_bus mode requires the Labs worker deployment gate."
+            exit 1
+          fi
+          [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "inline" ||
+             "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ||
+             "${PRAXYS_LABS_EXECUTION_MODE}" == "disabled" ]]
 
       - name: Enforce backend telemetry trust boundary
         if: steps.mode.outputs.sync_config == 'true'
@@ -279,34 +253,15 @@ jobs:
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
           KEY_VAULT_KEY_NAME: ${{ vars.KEY_VAULT_KEY_NAME }}
           PRAXYS_JWT_SECRET: ${{ secrets.PRAXYS_JWT_SECRET }}
-          # Optional Statsig server key. Unset keeps all feature gates off and
-          # dynamic config on its application-owned fallback.
           STATSIG_SDK_KEY: ${{ secrets.STATSIG_SDK_KEY }}
           STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
-          # Database (#360). When PRAXYS_DATABASE_URL is set the backend uses
-          # PostgreSQL; empty/unset keeps the legacy SQLite file on /home/data,
-          # so this can be deployed before the cutover. PRAXYS_DB_AUTH=entra makes
-          # the app authenticate with an AAD token from its managed identity (no
-          # DB password in app settings). See docs/ops/config-and-secrets.md.
           PRAXYS_DATABASE_URL: ${{ secrets.PRAXYS_DATABASE_URL }}
           PRAXYS_DB_AUTH: ${{ vars.PRAXYS_DB_AUTH }}
-          # Explicit rollout switch for isolated Labs compute. Keep `inline`
-          # until the Service Bus queue, worker identity/DB principal, and
-          # Container Apps Job have been verified; `service_bus` never falls
-          # back to in-process compute.
           PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
-          # Optional dedicated user-assigned identity for Service Bus sends.
-          # Empty means the App Service system-assigned identity.
           PRAXYS_LABS_SERVICE_BUS_CLIENT_ID: ${{ vars.PRAXYS_LABS_SERVICE_BUS_CLIENT_ID }}
-          # Default-off hard prerequisite for unsupported Garmin consumer-API
-          # writes. Enable only for an approved validation deployment or after
-          # both regional live matrices pass.
           PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED: ${{ vars.PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED || 'false' }}
           WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
-          # Optional: in-app feedback → GitHub issue auto-filing. Safe to leave
-          # unset — the feature stays dormant (feedback is still captured for
-          # admin review). NOT added to the required-settings check below.
           PRAXYS_GITHUB_APP_ID: ${{ vars.PRAXYS_GITHUB_APP_ID }}
           PRAXYS_GITHUB_APP_INSTALLATION_ID: ${{ vars.PRAXYS_GITHUB_APP_INSTALLATION_ID }}
           PRAXYS_GITHUB_APP_PRIVATE_KEY: ${{ secrets.PRAXYS_GITHUB_APP_PRIVATE_KEY }}
@@ -316,106 +271,122 @@ jobs:
           PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI: ${{ vars.PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI }}
           PRAXYS_AGENT_READY_SHADOW: ${{ vars.PRAXYS_AGENT_READY_SHADOW }}
           PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION: ${{ vars.PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION }}
-          # Feedback screenshot storage (issue #337): keyless Azure Blob via the
-          # app's managed identity (granted Storage Blob Data Contributor on the
-          # container). Unset → local filesystem fallback under DATA_DIR.
           PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL: ${{ vars.PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL }}
           PRAXYS_FEEDBACK_BLOB_CONTAINER: ${{ vars.PRAXYS_FEEDBACK_BLOB_CONTAINER }}
-          # Optional: transactional email (WeCom/Exmail SMTP) for open-registration
-          # email verification + emailing waitlist invitation codes. Unset → the
-          # feature degrades gracefully (admin copies codes by hand; open sign-ups
-          # are created verified because no ownership check is possible). NOT required.
           PRAXYS_SMTP_HOST: ${{ vars.PRAXYS_SMTP_HOST }}
           PRAXYS_SMTP_PORT: ${{ vars.PRAXYS_SMTP_PORT }}
           PRAXYS_SMTP_USER: ${{ vars.PRAXYS_SMTP_USER }}
           PRAXYS_SMTP_PASSWORD: ${{ secrets.PRAXYS_SMTP_PASSWORD }}
           PRAXYS_SMTP_FROM: ${{ vars.PRAXYS_SMTP_FROM }}
           PRAXYS_SMTP_STARTTLS: ${{ vars.PRAXYS_SMTP_STARTTLS }}
-          # Public origin used to build verify/invite links in those emails
-          # (default https://praxys.run when unset).
           PRAXYS_APP_BASE_URL: ${{ vars.PRAXYS_APP_BASE_URL }}
+          PRESERVED_MINIAPP_DISABLED: ${{ steps.preserved.outputs.miniapp_disabled }}
+          PRESERVED_MINIAPP_CONFIGURED: ${{ steps.preserved.outputs.miniapp_configured }}
+        shell: bash
         run: |
+          set -euo pipefail
           for var in AZURE_AI_ENDPOINT KEY_VAULT_URL KEY_VAULT_KEY_NAME \
                      APPLICATIONINSIGHTS_CONNECTION_STRING BACKEND_APPINSIGHTS_RESOURCE_ID \
-                     PRAXYS_JWT_SECRET \
-                     WECHAT_MINIAPP_APPID WECHAT_MINIAPP_SECRET; do
-            if [[ -z "${!var}" ]]; then
-              echo "ERROR: required setting '${var}' is empty or undefined" >&2
-              exit 1
-            fi
+                     PRAXYS_JWT_SECRET; do
+            [[ -n "${!var}" ]] || exit 1
           done
           LABS_SERVICE_BUS_FQDN=""
           LABS_SERVICE_BUS_QUEUE="labs-environment-response"
           if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
             LABS_SERVICE_BUS_NAMESPACE="$(
               az servicebus namespace list \
-                --resource-group rg-trainsight \
+                --resource-group "${AZURE_RESOURCE_GROUP}" \
                 --query "[?tags.praxysComponent=='labs-analysis'].name | [0]" \
                 -o tsv
             )"
             if [[ -z "${LABS_SERVICE_BUS_NAMESPACE}" ]]; then
-              echo "ERROR: service_bus mode selected but the Labs namespace is missing" >&2
+              echo "::error::service_bus mode requires the deployed Labs namespace."
               exit 1
             fi
             LABS_SERVICE_BUS_FQDN="${LABS_SERVICE_BUS_NAMESPACE}.servicebus.windows.net"
-          elif [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" &&
-                  "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
-            echo "ERROR: invalid PRAXYS_LABS_EXECUTION_MODE" >&2
+          elif [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" \
+                  && "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
+            echo "::error::Invalid PRAXYS_LABS_EXECUTION_MODE."
             exit 1
           fi
+          app_settings=(
+            "AZURE_AI_ENDPOINT=${AZURE_AI_ENDPOINT}"
+            "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false"
+            "PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true"
+            "KEY_VAULT_URL=${KEY_VAULT_URL}"
+            "KEY_VAULT_KEY_NAME=${KEY_VAULT_KEY_NAME}"
+            "PRAXYS_JWT_SECRET=${PRAXYS_JWT_SECRET}"
+            "STATSIG_SDK_KEY=${STATSIG_SDK_KEY}"
+            "STATSIG_ENV=${STATSIG_ENV}"
+            "PRAXYS_DATABASE_URL=${PRAXYS_DATABASE_URL}"
+            "PRAXYS_DB_AUTH=${PRAXYS_DB_AUTH}"
+            "PRAXYS_LABS_EXECUTION_MODE=${PRAXYS_LABS_EXECUTION_MODE}"
+            "PRAXYS_LABS_SERVICE_BUS_FQDN=${LABS_SERVICE_BUS_FQDN}"
+            "PRAXYS_LABS_SERVICE_BUS_QUEUE=${LABS_SERVICE_BUS_QUEUE}"
+            "PRAXYS_LABS_SERVICE_BUS_CLIENT_ID=${PRAXYS_LABS_SERVICE_BUS_CLIENT_ID}"
+            "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}"
+            "PRAXYS_GITHUB_APP_ID=${PRAXYS_GITHUB_APP_ID}"
+            "PRAXYS_GITHUB_APP_INSTALLATION_ID=${PRAXYS_GITHUB_APP_INSTALLATION_ID}"
+            "PRAXYS_GITHUB_APP_PRIVATE_KEY=${PRAXYS_GITHUB_APP_PRIVATE_KEY}"
+            "PRAXYS_FEEDBACK_GITHUB_REPO=${PRAXYS_FEEDBACK_GITHUB_REPO}"
+            "PRAXYS_FEEDBACK_GITHUB_LABELS=${PRAXYS_FEEDBACK_GITHUB_LABELS}"
+            "PRAXYS_FEEDBACK_GITHUB_ASSIGNEES=${PRAXYS_FEEDBACK_GITHUB_ASSIGNEES}"
+            "PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=${PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI}"
+            "PRAXYS_AGENT_READY_SHADOW=${PRAXYS_AGENT_READY_SHADOW}"
+            "PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION=${PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION}"
+            "PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL=${PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL}"
+            "PRAXYS_FEEDBACK_BLOB_CONTAINER=${PRAXYS_FEEDBACK_BLOB_CONTAINER}"
+            "PRAXYS_SMTP_HOST=${PRAXYS_SMTP_HOST}"
+            "PRAXYS_SMTP_PORT=${PRAXYS_SMTP_PORT}"
+            "PRAXYS_SMTP_USER=${PRAXYS_SMTP_USER}"
+            "PRAXYS_SMTP_PASSWORD=${PRAXYS_SMTP_PASSWORD}"
+            "PRAXYS_SMTP_FROM=${PRAXYS_SMTP_FROM}"
+            "PRAXYS_SMTP_STARTTLS=${PRAXYS_SMTP_STARTTLS}"
+            "PRAXYS_APP_BASE_URL=${PRAXYS_APP_BASE_URL}"
+            "WEBSITES_PORT=8000"
+            "DATA_DIR=/home/data"
+            "SCM_DO_BUILD_DURING_DEPLOYMENT=true"
+            "WEBSITE_HTTPLOGGING_RETENTION_DAYS=3"
+          )
+          if [[ "${PRESERVED_MINIAPP_CONFIGURED}" == "false" ]]; then
+            app_settings+=("PRAXYS_DISABLE_MINIAPP_PROCESSING=false")
+          fi
+          if [[ -n "${WECHAT_MINIAPP_APPID}" ]]; then
+            app_settings+=(
+              "WECHAT_MINIAPP_APPID=${WECHAT_MINIAPP_APPID}"
+              "WECHAT_MINIAPP_SECRET=${WECHAT_MINIAPP_SECRET}"
+            )
+          fi
           az webapp config appsettings set \
-            --name trainsight-app \
-            --resource-group rg-trainsight \
-            --settings \
-              AZURE_AI_ENDPOINT="${AZURE_AI_ENDPOINT}" \
-              KEY_VAULT_URL="${KEY_VAULT_URL}" \
-              KEY_VAULT_KEY_NAME="${KEY_VAULT_KEY_NAME}" \
-              PRAXYS_JWT_SECRET="${PRAXYS_JWT_SECRET}" \
-              STATSIG_SDK_KEY="${STATSIG_SDK_KEY}" \
-              STATSIG_ENV="${STATSIG_ENV}" \
-              PRAXYS_DATABASE_URL="${PRAXYS_DATABASE_URL}" \
-              PRAXYS_DB_AUTH="${PRAXYS_DB_AUTH}" \
-              PRAXYS_LABS_EXECUTION_MODE="${PRAXYS_LABS_EXECUTION_MODE}" \
-              PRAXYS_LABS_SERVICE_BUS_FQDN="${LABS_SERVICE_BUS_FQDN}" \
-              PRAXYS_LABS_SERVICE_BUS_QUEUE="${LABS_SERVICE_BUS_QUEUE}" \
-              PRAXYS_LABS_SERVICE_BUS_CLIENT_ID="${PRAXYS_LABS_SERVICE_BUS_CLIENT_ID}" \
-              PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED="${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}" \
-              WECHAT_MINIAPP_APPID="${WECHAT_MINIAPP_APPID}" \
-              WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}" \
-              PRAXYS_GITHUB_APP_ID="${PRAXYS_GITHUB_APP_ID}" \
-              PRAXYS_GITHUB_APP_INSTALLATION_ID="${PRAXYS_GITHUB_APP_INSTALLATION_ID}" \
-              PRAXYS_GITHUB_APP_PRIVATE_KEY="${PRAXYS_GITHUB_APP_PRIVATE_KEY}" \
-              PRAXYS_FEEDBACK_GITHUB_REPO="${PRAXYS_FEEDBACK_GITHUB_REPO}" \
-              PRAXYS_FEEDBACK_GITHUB_LABELS="${PRAXYS_FEEDBACK_GITHUB_LABELS}" \
-              PRAXYS_FEEDBACK_GITHUB_ASSIGNEES="${PRAXYS_FEEDBACK_GITHUB_ASSIGNEES}" \
-              PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI="${PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI}" \
-              PRAXYS_AGENT_READY_SHADOW="${PRAXYS_AGENT_READY_SHADOW}" \
-              PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION="${PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION}" \
-              PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL="${PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL}" \
-              PRAXYS_FEEDBACK_BLOB_CONTAINER="${PRAXYS_FEEDBACK_BLOB_CONTAINER}" \
-              PRAXYS_SMTP_HOST="${PRAXYS_SMTP_HOST}" \
-              PRAXYS_SMTP_PORT="${PRAXYS_SMTP_PORT}" \
-              PRAXYS_SMTP_USER="${PRAXYS_SMTP_USER}" \
-              PRAXYS_SMTP_PASSWORD="${PRAXYS_SMTP_PASSWORD}" \
-              PRAXYS_SMTP_FROM="${PRAXYS_SMTP_FROM}" \
-              PRAXYS_SMTP_STARTTLS="${PRAXYS_SMTP_STARTTLS}" \
-              PRAXYS_APP_BASE_URL="${PRAXYS_APP_BASE_URL}" \
-              WEBSITES_PORT="8000" \
-              DATA_DIR="/home/data" \
-              SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
-              WEBSITE_HTTPLOGGING_RETENTION_DAYS="3" \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings "${app_settings[@]}" \
             --output none
-
-          # Always On keeps ONE warm container instead of stop/starting on idle.
-          # Each recycle abandons the backend's DB connection pool as idle
-          # "zombie" Postgres backends (they linger until TCP-keepalive reap);
-          # that churn helped exhaust the Burstable server in the 2026-07-05
-          # outage. Site config, NOT an app setting -> a separate command. See
-          # docs/ops/config-and-secrets.md.
           az webapp config set \
-            --name trainsight-app \
-            --resource-group rg-trainsight \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --always-on true
+
+      - name: Verify production runtime controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
+          [[ "${labs_mode}" == "inline" \
+            || "${labs_mode}" == "service_bus" \
+            || "${labs_mode}" == "disabled" ]]
+          [[ "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
+            == "true" || "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
+            == "false" ]]
 
       - name: Cut over backend telemetry and alerts
         if: steps.mode.outputs.sync_config == 'true'
@@ -423,102 +394,151 @@ jobs:
         run: bash scripts/appinsights_boundary.sh backend-cutover
 
       - name: Wait for App Service deployment endpoint to settle
-        if: steps.mode.outputs.sync_config == 'true'
         timeout-minutes: 8
         shell: bash
         run: |
           set -euo pipefail
-          # App-setting and site-config writes recycle the SCM container.
-          # Starting ZipDeploy during that recycle aborts the deployment.
           sleep 90
           stable_probes=0
-          for attempt in {1..12}; do
-            deployment_id=""
-            if deployment_id="$(timeout 20s az webapp log deployment list \
-              --name trainsight-app \
-              --resource-group rg-trainsight \
-              --query "[0].id" \
-              -o tsv 2>/dev/null)" &&
-              [[ -n "${deployment_id}" ]]; then
+          for _ in {1..12}; do
+            if timeout 20s az webapp log deployment list \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query "[0].id" -o tsv 2>/dev/null | grep -q .; then
               stable_probes=$((stable_probes + 1))
-              if (( stable_probes >= 3 )); then
-                echo "App Service deployment endpoint is stable."
-                exit 0
-              fi
+              (( stable_probes >= 3 )) && exit 0
             else
               stable_probes=0
             fi
-            echo "Waiting for App Service deployment endpoint (${attempt}/12)."
             sleep 10
           done
-          echo "App Service deployment endpoint did not stabilize." >&2
           exit 1
-
-      # NB: no pre-deploy on-demand DB snapshot. praxys-pg is a Burstable-tier
-      # Flexible Server, which does not support customer on-demand backups; the
-      # server's continuous PITR (14-day) provides the pre-deploy restore point
-      # (restore to the instant before the deploy). See docs/ops/backup-and-restore.md.
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v3
         with:
-          app-name: trainsight-app
-          resource-group-name: rg-trainsight
+          app-name: ${{ env.AZURE_BACKEND_APP_NAME }}
+          resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
 
       - name: Verify deployed backend cutover
+        id: live
         timeout-minutes: 10
+        env:
+          EXPECTED_CN_DISABLED: ${{ steps.preserved.outputs.cn_disabled }}
+          EXPECTED_AI_DISABLED: ${{ steps.preserved.outputs.ai_disabled }}
+          EXPECTED_MINIAPP_DISABLED: ${{ steps.preserved.outputs.miniapp_disabled }}
+          EXPECTED_CORS: ${{ steps.preserved.outputs.cors }}
         shell: bash
         run: |
           set -euo pipefail
-          version_url="https://api.praxys.run/api/version"
-          ready_url="https://api.praxys.run/api/health/ready"
-
           deployment_ready() {
-            local version_payload ready_payload live_version ready_status
-            version_payload="$(
-              curl --fail --silent --show-error --max-time 8 \
-                --header "Cache-Control: no-cache" \
-                "${version_url}" 2>/dev/null || true
-            )"
-            ready_payload="$(
-              curl --fail --silent --show-error --max-time 8 \
-                --header "Cache-Control: no-cache" \
-                "${ready_url}" 2>/dev/null || true
-            )"
-            live_version="$(
-              jq -r '.version // empty' <<< "${version_payload}" \
-                2>/dev/null || true
-            )"
-            ready_status="$(
-              jq -r '.status // empty' <<< "${ready_payload}" \
-                2>/dev/null || true
-            )"
-            echo "Live version=${live_version:-unavailable} readiness=${ready_status:-unavailable}"
-            [[ "${live_version}" == "${PRAXYS_EXPECTED_API_VERSION}" &&
-               "${ready_status}" == "ready" ]]
+            version_payload="$(curl -fsS --max-time 8 -H 'Cache-Control: no-cache' https://api.praxys.run/api/version 2>/dev/null || true)"
+            ready_payload="$(curl -fsS --max-time 8 -H 'Cache-Control: no-cache' https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            jq -e \
+              --arg version "${PRAXYS_EXPECTED_API_VERSION}" \
+              --arg sha "${PRAXYS_EXPECTED_API_SOURCE_SHA}" \
+              '.version == $version and .source_sha == $sha' \
+              <<< "${version_payload}" >/dev/null 2>&1 \
+            && jq -e \
+                --argjson expectedCnDisabled "${EXPECTED_CN_DISABLED}" \
+                --argjson expectedMiniappDisabled "${EXPECTED_MINIAPP_DISABLED}" \
+                --argjson expectedAiDisabled "${EXPECTED_AI_DISABLED}" \
+                '.status == "ready"
+                 and (.china_processing.enabled | type == "boolean")
+                 and (.china_processing.disabled | type == "boolean")
+                 and .china_processing.disabled == $expectedCnDisabled
+                 and .china_processing.enabled == ($expectedCnDisabled | not)
+                 and (.china_processing.enabled
+                   == (.china_processing.disabled | not))
+                 and .miniapp_processing.disabled == $expectedMiniappDisabled
+                 and .miniapp_processing.enabled == ($expectedMiniappDisabled | not)
+                 and (.optional_processing.background_ai_enabled
+                   | type == "boolean")
+                 and (.optional_processing.background_ai_kill_switch
+                   | type == "boolean")
+                 and .optional_processing.background_ai_kill_switch
+                   == $expectedAiDisabled
+                 and .optional_processing.background_ai_enabled
+                   == ($expectedAiDisabled | not)
+                 and (.optional_processing.background_ai_enabled
+                   == (.optional_processing.background_ai_kill_switch
+                     | not))' \
+                <<< "${ready_payload}" >/dev/null 2>&1
           }
-
-          for attempt in {1..6}; do
+          ready=false
+          for _ in {1..6}; do
             if deployment_ready; then
-              exit 0
+              ready=true
+              break
             fi
-            echo "Waiting for deployed backend cutover (${attempt}/6)."
             sleep 10
           done
+          if [[ "${ready}" != "true" ]]; then
+            az webapp restart \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --only-show-errors
+            for _ in {1..30}; do
+              if deployment_ready; then
+                ready=true
+                break
+              fi
+              sleep 5
+            done
+          fi
+          test "${ready}" = true
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          test "$(read_setting PRAXYS_DISABLE_CN_PROCESSING)" \
+            = "${EXPECTED_CN_DISABLED}"
+          test "$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)" \
+            = "${EXPECTED_AI_DISABLED}"
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          test "$(jq -c sort <<< "${cors}")" = "${EXPECTED_CORS}"
+          {
+            echo "readiness=ready"
+            echo "cn_enabled=$(jq -r .china_processing.enabled \
+              <<< "${ready_payload}")"
+            echo "miniapp_enabled=$(jq -r .miniapp_processing.enabled \
+              <<< "${ready_payload}")"
+            echo "ai_enabled=$(jq -r \
+              .optional_processing.background_ai_enabled \
+              <<< "${ready_payload}")"
+            echo "ai_kill_switch=$(jq -r \
+              .optional_processing.background_ai_kill_switch \
+              <<< "${ready_payload}")"
+          } >> "${GITHUB_OUTPUT}"
 
-          echo "OneDeploy did not activate the expected build; restarting App Service once."
-          az webapp restart \
-            --name trainsight-app \
-            --resource-group rg-trainsight \
-            --only-show-errors
-
-          for attempt in {1..30}; do
-            if deployment_ready; then
-              exit 0
-            fi
-            echo "Waiting for backend after restart (${attempt}/30)."
-            sleep 5
-          done
-
-          echo "Expected backend build did not become ready after restart." >&2
-          exit 1
+      - name: Summarize backend deployment
+        if: always()
+        env:
+          LIVE_RESULT: ${{ steps.live.outcome }}
+          LIVE_READINESS: ${{ steps.live.outputs.readiness }}
+          LIVE_CN_ENABLED: ${{ steps.live.outputs.cn_enabled }}
+          LIVE_MINIAPP_ENABLED: ${{ steps.live.outputs.miniapp_enabled }}
+          LIVE_AI_ENABLED: ${{ steps.live.outputs.ai_enabled }}
+          LIVE_AI_KILL_SWITCH: ${{ steps.live.outputs.ai_kill_switch }}
+        shell: bash
+        run: |
+          {
+            echo "## Backend deployment"
+            echo
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- SHA: \`${GITHUB_SHA}\`"
+            echo "- API version: \`${PRAXYS_EXPECTED_API_VERSION:-unavailable}\`"
+            echo "- Live verification: ${LIVE_RESULT:-not-run} / ${LIVE_READINESS:-unavailable}"
+            echo "- China processing enabled: ${LIVE_CN_ENABLED:-unavailable}"
+            echo "- Miniapp processing enabled: ${LIVE_MINIAPP_ENABLED:-unavailable}"
+            echo "- Azure AI enabled: ${LIVE_AI_ENABLED:-unavailable}"
+            echo "- Azure AI emergency stop: ${LIVE_AI_KILL_SWITCH:-unavailable}"
+          } >> "${GITHUB_STEP_SUMMARY}"

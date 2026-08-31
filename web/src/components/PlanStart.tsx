@@ -44,8 +44,10 @@ import { apiFetch, useApi } from '@/hooks/useApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import { extractApiError } from '@/lib/api-error';
 import { formatProposalDetail } from '@/lib/proposal-display';
+import { matchingPlanStartCapability } from '@/lib/plan-start-routing';
 import {
   road10kCopy,
+  road10kTaperGuardrailForProposal,
   road10kTaperScienceCopy,
   type Road10KCopyKey,
 } from '@/lib/road-10k-control';
@@ -319,33 +321,34 @@ export function PlanStartGoalEntry() {
       (option) => option.intent === selectedIntent,
     ) ?? null;
   }, [routing, selectedIntent]);
-  const routedCapability = discovery?.capabilities.find(
-    (item) => item.id === selectedRoute?.capability_id,
-  ) ?? null;
+  const routedCapability = matchingPlanStartCapability(
+    discovery?.capabilities ?? [],
+    selectedRoute,
+    SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS,
+  );
   const routedPurpose = useMemo<PlanGenerationPurposeSelection | null>(() => {
-    if (!selectedRoute?.capability_id || !selectedRoute.purpose_source) {
+    if (!routedCapability || !selectedRoute?.purpose_source) {
       return null;
     }
     if (selectedRoute.purpose_source === 'current_goal') {
       if (!discovery?.current_goal) return null;
       return {
-        capability_id: selectedRoute.capability_id,
+        capability_id: routedCapability.id,
         source: 'current_goal',
         expected_goal_id: discovery.current_goal.id,
         expected_goal_revision: discovery.current_goal.revision,
       };
     }
     return {
-      capability_id: selectedRoute.capability_id,
+      capability_id: routedCapability.id,
       source: selectedRoute.purpose_source,
       expected_goal_id: null,
       expected_goal_revision: null,
     };
-  }, [discovery?.current_goal, selectedRoute]);
-  const capabilityUpdateRequired = routedCapability != null
-    && !SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
-      routedCapability.constraint_schema_id,
-    );
+  }, [discovery?.current_goal, routedCapability, selectedRoute]);
+  const capabilityUpdateRequired = Boolean(
+    selectedRoute?.capability_id && !routedCapability,
+  );
   const intentOptions: Array<{
     intent: PlanIntent;
     label: string;
@@ -1519,15 +1522,12 @@ export default function PlanStart({
       || result.code === 'eligible_taper_proposal'
     ),
   );
-  const isRoad10KTaperProposal = Boolean(
-    road10KGuardrails
-    && result
-    && 'plan_returned' in result
-    && result.code === 'eligible_taper_proposal'
+  const road10KTaperProjection = road10kTaperGuardrailForProposal(
+    displayedProposal,
   );
-  const road10KTaperScience = isRoad10KTaperProposal && road10KGuardrails
+  const road10KTaperScience = road10KTaperProjection
     ? road10kTaperScienceCopy(
-      road10KGuardrails.taper,
+      road10KTaperProjection,
       locale === 'zh' ? 'zh-CN' : 'en',
     )
     : null;
@@ -1696,6 +1696,7 @@ export default function PlanStart({
                     size="sm"
                     variant="outline"
                     onClick={() => selectPurpose(policyProposalPurposeKey)}
+                    className="min-h-11"
                   >
                     <Trans>Review existing draft</Trans>
                   </Button>
@@ -1741,6 +1742,7 @@ export default function PlanStart({
                   </p>
                 </div>
                 <Button
+                  id="road-10k-symptom-stop"
                   type="button"
                   variant={safetyStop ? 'destructive' : 'outline'}
                   aria-pressed={safetyStop}
@@ -1748,6 +1750,7 @@ export default function PlanStart({
                     setSafetyStop((value) => !value);
                     setReadiness(null);
                   }}
+                  className="min-h-11"
                 >
                   {safetyStop ? <Trans>Symptom stop applies</Trans> : <Trans>No symptom stop</Trans>}
                 </Button>
@@ -1792,7 +1795,7 @@ export default function PlanStart({
                       setWeeklyTimeLimit(event.target.value);
                       setReadiness(null);
                     }}
-                    className="font-data"
+                    className="min-h-11 font-data"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1807,7 +1810,7 @@ export default function PlanStart({
                       setSingleSessionLimit(event.target.value);
                       setReadiness(null);
                     }}
-                    className="font-data"
+                    className="min-h-11 font-data"
                   />
                 </div>
               </div>
@@ -1819,7 +1822,7 @@ export default function PlanStart({
                     value={preferredLongestDay === '' ? 'none' : preferredLongestDay}
                     onValueChange={(value) => setPreferredLongestDay(value === 'none' || value == null ? '' : value)}
                   >
-                    <SelectTrigger id="road-10k-long-day">
+                    <SelectTrigger id="road-10k-long-day" className="min-h-11">
                       <SelectValue placeholder={t`No preference`}>
                         {preferredLongestDayLabel}
                       </SelectValue>
@@ -1844,7 +1847,7 @@ export default function PlanStart({
                       setBenchmarkDate(event.target.value);
                       setReadiness(null);
                     }}
-                    className="font-data"
+                    className="min-h-11 font-data"
                   />
                   <p className="text-sm text-muted-foreground">
                     <Trans>Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own.</Trans>
@@ -2309,7 +2312,7 @@ export default function PlanStart({
                 <AlertDescription>
                   {road10kMode
                     ? roadCopy('plan.active_body')
-                    : <Trans>Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.</Trans>}
+                    : <Trans>Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.</Trans>}
                 </AlertDescription>
               </Alert>
             )}

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "extension_version": "praxys-codex-local-mcp-extensions-v1",
+  "status": "implementation-candidate",
+  "approval": {
+    "proposal_id": "policy-change-proposal-codex-microsoft-mcp-extension-v1",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-microsoft-mcp-extension-v1.md",
+    "proposal_digest": "sha256:b320b5e1aa205d442ff18de4837d43149593667d84225c9ce4b0e0cfddc2faa3",
+    "subject_path": "docs/dev/codex-microsoft-mcp-extension-decision-v1.json",
+    "subject_digest": "sha256:0dfb8bcf46df787aa75575e03ff02f19ae40c1df2f8cddde37095c34fa6e987d",
+    "human_approved_at": "2026-08-30T23:51:39+08:00",
+    "authorized_scope": "implementation-and-verification-only"
+  },
+  "mcp_extensions": {
+    "microsoft-learn": {
+      "transport": "streamable-http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "authentication": "none",
+      "root_enabled": false,
+      "required": false,
+      "role_enablement": [
+        "architecture",
+        "engineering",
+        "operations",
+        "trust"
+      ],
+      "enabled_tools": [
+        "microsoft_docs_search",
+        "microsoft_docs_fetch",
+        "microsoft_code_sample_search"
+      ],
+      "default_tools_approval_mode": "auto"
+    },
+    "azure-mcp": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@2.0.5",
+        "server",
+        "start",
+        "--mode",
+        "all",
+        "--read-only",
+        "--tool",
+        "azmcp_subscription_list",
+        "--tool",
+        "azmcp_group_list"
+      ],
+      "package_integrity": "sha512-o451hyeCa9u1jr1zYNi3OpF560IRH7LkHQHr7uOjWgaXNgF8m8aNbuxLdqs1PJcJEfrib4W8vVl0GY5X1fXtsw==",
+      "source_tag": "Azure.Mcp.Server-2.0.5",
+      "source_commit": "f43b47a21545e5f3f87b3bceee35986442217bb4",
+      "root_enabled": false,
+      "required": false,
+      "role_enablement": [
+        "operations"
+      ],
+      "enabled_tools": [
+        "azmcp_subscription_list",
+        "azmcp_group_list"
+      ],
+      "environment_forwarding": [],
+      "default_tools_approval_mode": "prompt",
+      "authentication": "explicit local Azure CLI session; no credential is stored or forwarded by repository configuration"
+    }
+  },
+  "limitations": [
+    "These extensions are Codex-local and are not part of the Copilot Local/Cloud portable MCP baseline.",
+    "Azure MCP may be used only by the Operations role in an explicitly routed Operations task.",
+    "Repository deployment workflows remain authoritative for every production change.",
+    "Any additional Azure tool, role, version, credential path, data-plane read, or mutation requires a new reviewed decision subject."
+  ]
+}

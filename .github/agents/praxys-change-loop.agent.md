@@ -67,11 +67,53 @@ recomputed Work Contract and opaque contract, stable slot, generation, logical,
 attempt, and parent identities. Record finish transitions and recover crashes
 explicitly leaf first; elapsed time never proves a crash.
 
-Only `instrument` and `shadow` are available. Ordinary hypothetical denies do
-not block dispatch; only the explicit kill switch makes
-`launch_authorized=false` for a mediated launch. This cooperative integration
-cannot intercept native or otherwise unmediated invocations and must not claim
-global enforcement. Follow `docs/dev/agent-invocation-control.md`.
+Use a logical work key comprising contract, stable bounded-role slot, and
+immutable artifact digest or Git head. Explicitly record `initial_launch`,
+`resume`, `replacement`, or `review_after_new_digest`; do not dispatch a
+`duplicate_launch` or `illegal_transition`. Replacement is a separately
+identified, manually admitted, one-use transition from a lost non-replacement
+attempt and cannot chain.
+
+Send `dispatch_mode=sync` and `execution_provenance=sync_inline` by default.
+Background is valid only as `dispatch_mode=background` with
+`execution_provenance=background_independent_immediate_no_poll`, when concrete
+independent parent work begins immediately. One non-null parent attempt may
+have only one active direct child; admit the next sibling only after the first
+terminalizes. Sequential nesting remains allowed under the child's distinct
+parent attempt. Roots and unrelated parents remain independent.
+
+Sync returns inline and must not bind or call `read_agent`. For valid
+background, bind a `nat_*` repository alias to the exact public agent ID
+returned by successful `task`, using `binding_source=task_result`. Carry the
+attempt ID, alias, and exact public ID through notification. Wait for external
+completion notification without status checks, `read_agent(wait:true)`, or
+polling. Then create one caller-held `rcl_*` identity with
+`new_identity(kind: "read_claim")`, reuse it for every retry of `native_read`,
+perform at most one physical `read_agent` call, and use the same token for the
+one `native_observation`. A repeated claim acknowledgement never permits a
+second physical read. If the token is lost or local state cannot prove whether
+the physical read already ran, stop without rereading, replacing the token,
+observing, marking loss, or launching a replacement. Keep the raw token only
+in the current controlled operation context and out of files, logs, telemetry,
+errors, and support artifacts. On shutdown, resume, or context replacement,
+invalidate that exact binding without registry lookup, inference, loss,
+replacement, relaunch, or external rebind. Mediated pre-completion write is
+unsupported. If completion notifications are unavailable, expose that
+limitation and stop without reading or polling.
+
+Parent abort, shutdown, or failure uses idempotent `terminate_tree` so active
+descendants become leaf-first `orphaned` records before the parent terminalizes.
+Only explicit new progress evidence updates last progress; do not infer
+staleness from reads or elapsed time.
+
+Only `instrument` and `shadow` are available. Ordinary candidate-policy denies
+do not block dispatch; lifecycle duplicates/illegal transitions, one-read
+violations, direct-sibling conflicts, invalid dispatch provenance, native
+binding mismatch/invalidation, and the explicit kill switch fail closed for
+cooperative calls.
+This integration cannot intercept, poll, kill, cancel, or otherwise govern
+native/unmediated invocations and must not claim global enforcement. Follow
+`docs/dev/agent-invocation-control.md`.
 
 ## Required execution order
 

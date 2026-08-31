@@ -3,8 +3,13 @@ import copy
 from datetime import date
 from datetime import datetime
 import logging
+from pathlib import Path
+import re
 
 import pytest
+
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
@@ -20,6 +25,25 @@ def preserve_logger_disabled_state():
         logger = logging.root.manager.loggerDict.get(name)
         if isinstance(logger, logging.Logger):
             logger.disabled = disabled
+
+
+def test_backend_legal_contract_matches_the_canonical_web_bundle():
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    source = (ROOT / "web/src/lib/legal.ts").read_text(encoding="utf-8")
+    version = re.search(
+        r'export const TERMS_VERSION\s*=\s*"([^"]+)";',
+        source,
+    )
+    digest = re.search(
+        r'export const TERMS_CONTENT_DIGEST\s*=\s*"([^"]+)";',
+        source,
+    )
+
+    assert version is not None
+    assert digest is not None
+    assert version.group(1) == TERMS_VERSION
+    assert digest.group(1) == TERMS_CONTENT_DIGEST
 
 
 def test_workout_version_is_content_stable_and_meta_independent():
@@ -247,7 +271,10 @@ def test_alembic_head_includes_adaptive_plan_proposals():
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
     assert script.get_heads() == ["d2e3f4a5b6c7"]
-    assert script.get_revision("d2e3f4a5b6c7").down_revision == "b8d4e6f7a9c1"
+    assert script.get_revision("d2e3f4a5b6c7").down_revision == "e1f2a3b4c5d6"
+    assert script.get_revision("e1f2a3b4c5d6").down_revision == "d0e1f2a3b4c5"
+    assert script.get_revision("d0e1f2a3b4c5").down_revision == "c9d0e1f2a3b4"
+    assert script.get_revision("c9d0e1f2a3b4").down_revision == "b8d4e6f7a9c1"
     assert "c1d2e3f4a5b6" not in {
         revision.revision for revision in script.walk_revisions()
     }
@@ -572,6 +599,46 @@ def test_road_10k_downgrade_guards_screenshot_references() -> None:
     ).read_text(encoding="utf-8")
     downgrade = source.split("def downgrade() -> None:", 1)[1]
     assert "EXISTS (SELECT 1 FROM road_10k_screenshot_references)" in downgrade
+
+
+def test_terms_receipt_migration_refuses_destructive_downgrade(
+    monkeypatch,
+):
+    import importlib.util
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from sqlalchemy import create_engine
+
+    migration_path = (
+        Path(__file__).resolve().parent.parent
+        / "alembic"
+        / "versions"
+        / "c9d0e1f2a3b4_add_terms_acceptance_receipts.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "terms_receipt_migration",
+        migration_path,
+    )
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    engine = create_engine("sqlite://")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE terms_acceptance_receipts (id TEXT PRIMARY KEY)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO terms_acceptance_receipts (id) VALUES ('receipt-1')"
+        )
+        monkeypatch.setattr(
+            migration,
+            "op",
+            SimpleNamespace(get_bind=lambda: connection),
+        )
+        with pytest.raises(RuntimeError, match="preserve the ledger"):
+            migration.downgrade()
 
 
 def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(

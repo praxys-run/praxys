@@ -24,25 +24,25 @@
 | Key Vault | `kv-trainsight` (`https://kv-trainsight.vault.azure.net`) | live `KEY_VAULT_URL` |
 | — RSA key | `trainsight-master-key` | live `KEY_VAULT_KEY_NAME` |
 | Frontend Application Insights | `appi-trainsight` (Application ID `d10e388f-3a26-4c3d-b57d-d83fc4637a9b`; browser/RUM, local auth enabled) | `.github/azure-observability.env` |
-| Backend Application Insights | `appi-praxys-backend` (Application ID `066f94a3-a340-498d-9ee1-6f093a7b8911`; managed-identity ingestion, local auth disabled) | `.github/azure-observability.env`, `scripts/appinsights_boundary.sh` |
-| Log Analytics workspace | `log-trainsight` (shared storage; queries must retain component scope / `_ResourceId`) | `.github/azure-observability.env` |
+| Backend Application Insights | `appi-praxys-backend` (Application ID `066f94a3-a340-498d-9ee1-6f093a7b8911`; managed-identity ingestion, local auth disabled, 30-day retention) | `.github/azure-observability.env`, `scripts/appinsights_boundary.sh`; live config verified 2026-08-22 |
+| Log Analytics workspace | `log-trainsight` (shared storage, 30-day retention; queries must retain component scope / `_ResourceId`) | `.github/azure-observability.env`; live config verified 2026-08-22 |
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
 | CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
 
-## Regional delivery target (gated; not current production)
+## Dormant regional delivery target
 
 | Thing | Value | Source |
 |---|---|---|
-| Planned mainland frontend | EdgeOne Makers Git-integrated project `praxys-cn`; protected `main`, global area with mainland availability, managed HTTPS | [tencent-frontend.md](./tencent-frontend.md) |
-| Planned international frontend edge | Cloudflare Free authoritative zone for `praxys.run`, proxying only apex and `www` to Azure with `Full (strict)` | [tencent-frontend.md](./tencent-frontend.md) |
-| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net` | [tencent-frontend.md](./tencent-frontend.md) |
+| Mainland web frontend | EdgeOne Makers Git-integrated project `praxys-cn`; static SPA only, protected `main`, managed HTTPS | [China launch decision](./cn-web-private-alpha.md), [tencent-frontend.md](./tencent-frontend.md) |
+| Preserved international frontend | Existing `.run` Azure/Cloudflare path; no China launch workflow mutation | [China launch decision](./cn-web-private-alpha.md) |
+| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net`; no mainland API or proxy | [China launch decision](./cn-web-private-alpha.md) |
 
-The EdgeOne Git project and its first candidate deployment exist, but neither
-public `.cn` hostname is bound or resolving. The project UI does not expose a
-reliable Auto Deploy/Preview toggle, so the deployment boundary is protected
-`main`, required CI, exact source/manifest evidence, and a recorded deployment
-history entry. None of the public target-state rows becomes current until the
-runbook's Release Evidence exists.
+The design is dormant. One-time EdgeOne Git project, domain, DNS, and TLS setup
+is manual. The repository does not claim that any public hostname or provider
+setting is currently ready. The operator accepted PIPIA `1.2-public-parity` and
+its overall **Medium** residual risk on 2026-08-31. Live control verification
+and approval of the `china-production` environment remain separate human
+prerequisites.
 
 ## Hostnames
 
@@ -50,7 +50,32 @@ runbook's Release Evidence exists.
 |---|---|
 | API | `https://api.praxys.run` |
 | Web app | `https://www.praxys.run` |
-| Planned mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (not cut over) |
+| Dormant mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (public registration follows the global gate; human enable required) |
+
+## China processing boundary
+
+- Core authenticated processing remains in Azure East Asia (Hong Kong SAR)
+  under the operator-recorded scope in
+  [PIPIA-CN-2026-08-25-01](./cn-personal-information-impact-assessment.md).
+- `.cn` requests are classified by exact origin and carry the current notice,
+  legal digest, and API contract. Legacy client source/version/release headers
+  are ignored; source SHA remains diagnostic in deployed health metadata.
+  Missing or stale compatibility claims fail before personal route processing.
+- Existing Miniapp ordinary/auth processing remains enabled against
+  `api.praxys.run`; robot 5 development upload stays automatic while trial,
+  review, and production publication stay manual. `launch-cn.yml` never
+  uploads or publishes the Miniapp.
+- `.cn` browser Application Insights and web/Miniapp allowlisted product
+  events use the recorded minimized boundary. Browser Statsig remains disabled
+  on `.cn` pending issue #754.
+- Backend Statsig downloads rules and evaluates them locally with user logging
+  and diagnostics disabled.
+- Ordinary production Azure AI is available under current Terms while
+  `PRAXYS_DISABLE_BACKGROUND_AI=false`. China launch and backend deployment
+  observe and preserve that explicit setting; they never toggle it. External
+  feedback publication remains separately controlled.
+- Backend request/security telemetry remains in Hong Kong with a 30-day
+  component/workspace retention limit.
 
 ## Identity & auth model
 
@@ -73,7 +98,12 @@ runbook's Release Evidence exists.
   `gpt-5.4` inference: PR validation completes first, then `workflow_run` starts
   the agent from the default branch. Moving repos to the `praxys-run` org
   changes these subjects — see [org-migration.md](./org-migration.md). See
-  [config-and-secrets.md](./config-and-secrets.md).
+  [config-and-secrets.md](./config-and-secrets.md). The dormant China `enable`
+  job uses environment `china-production` and therefore requires the additional
+  exact subject `repo:praxys-run/praxys:environment:china-production` before
+  human enable. Emergency disable uses the protected-main subject and is not
+  delayed by the environment. This repository change does not assert that
+  federation exists or create it.
 - **Labs API -> queue -> worker:** the backend system identity is Service Bus
   Data Sender on the dedicated queue. `id-praxys-labs-worker` is Service Bus
   Data Receiver, Monitoring Metrics Publisher on `appi-praxys-backend`, and a
@@ -101,7 +131,8 @@ runbook's Release Evidence exists.
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md) · [deploy.md](./deploy.md)
+- [China public web launch](./cn-web-private-alpha.md)
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---
-_Last reviewed: 2026-08-22 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-29 · Owner: Operations_

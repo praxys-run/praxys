@@ -1,6 +1,5 @@
 import type {
   ContextPilotRunRequest,
-  PersonalContextAiConsentRequest,
   PersonalContextDraftRequest,
   PlanGenerationPurposeSelection,
   PlanWorkoutUpdateRequest,
@@ -112,6 +111,20 @@ const currentGoalSnapshot: Road10KProposalGoalSnapshot = {
     target_event_date: null,
     benchmark_date: null,
     event_state: 'confirmed_none',
+    guardrail_projection: {
+      contract_digest: 'sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496',
+      source_decision_digest: 'sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad',
+      taper: {
+        planned_volume_reduction_fraction: 0.5,
+        maintain_intensity_exposure_without_adding_quality: true,
+        evidence_population: 'mixed_endurance_athletes',
+        direct_recreational_road_10k_validation: false,
+        single_target_taper_result: 'taper_proposal_truncated_to_event_eve',
+        personal_performance_gain_claim: false,
+        causal_plan_benefit_claim: 'disabled',
+        personal_injury_probability: 'disabled',
+      },
+    },
   },
   horizon_start: '2026-08-22',
   horizon_end: '2026-09-04',
@@ -196,47 +209,12 @@ const optedInPilot: ContextPilotRunRequest = {
   source: 'opt_in',
   purpose: 'plan_adjustment',
   confirmed_opt_in: true,
-  allow_ai: false,
-};
-// @ts-expect-error Synthetic runs cannot accept opted-in context fields.
-const invalidSyntheticPilot: ContextPilotRunRequest = {
-  source: 'synthetic',
-  scenario_id: 'availability-suggestion',
-  allow_ai: true,
 };
 const unconfirmedPilot: ContextPilotRunRequest = {
   source: 'opt_in',
   purpose: 'plan_adjustment',
   // @ts-expect-error Opted-in runs require an explicit true confirmation.
   confirmed_opt_in: false,
-};
-
-const grantedAiConsent: PersonalContextAiConsentRequest = {
-  expected_version: 1,
-  decision: 'granted',
-  provider: 'azure_openai',
-  consent_text_version: 'ai-v1',
-  client: 'web',
-};
-const deniedAiConsent: PersonalContextAiConsentRequest = {
-  expected_version: 1,
-  decision: 'denied',
-  consent_text_version: 'ai-v1',
-  client: 'web',
-};
-const withdrawnAiConsent: PersonalContextAiConsentRequest = {
-  expected_version: 1,
-  decision: 'withdrawn',
-  provider: null,
-  consent_text_version: 'ai-v1',
-  client: 'miniapp',
-};
-// @ts-expect-error Granted consent requires the Azure OpenAI provider.
-const invalidGrantedAiConsent: PersonalContextAiConsentRequest = {
-  expected_version: 1,
-  decision: 'granted',
-  consent_text_version: 'ai-v1',
-  client: 'web',
 };
 
 const absolutePowerTarget: WorkoutIntensityTarget = {
@@ -334,12 +312,7 @@ void [
   scopedNarrativeDraft,
   syntheticPilot,
   optedInPilot,
-  invalidSyntheticPilot,
   unconfirmedPilot,
-  grantedAiConsent,
-  deniedAiConsent,
-  withdrawnAiConsent,
-  invalidGrantedAiConsent,
   absolutePowerTarget,
   thresholdPaceTarget,
   mismatchedIntensityTuple,

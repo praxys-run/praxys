@@ -5,6 +5,7 @@ scans user_connections for stale entries and triggers sync for each.
 Syncs are staggered (one at a time, small delay between) to avoid rate limits.
 """
 from contextlib import nullcontext
+from collections.abc import Callable
 import logging
 import os
 import threading
@@ -124,6 +125,7 @@ def _record_sync_failure(
     db,
     trigger: str = "unknown",
     expected_credential_generation: str | None = None,
+    authorize_commit: Callable[[Session], bool] | None = None,
 ) -> bool:
     """Update a connection row after a sync failure with classification + backoff.
 
@@ -173,20 +175,22 @@ def _record_sync_failure(
             )
             return False
 
-    # Fleet-level telemetry: emit before the DB bookkeeping so a spike in a
-    # systemic failure_class across many distinct users stays visible even if
-    # the metadata write below fails. Best-effort, never raises.
-    try:
-        from api import telemetry
-        telemetry.record_sync(
-            platform=getattr(conn, "platform", "unknown"),
-            outcome="failure",
-            failure_class=telemetry.classify_platform_error(exc),
-            trigger=trigger,
-            user_id=getattr(conn, "user_id", "") or "",
-        )
-    except Exception:
-        pass
+    # Without a live processing-authorization callback this is the legacy
+    # scheduler path: preserve fleet-level failure visibility even when the
+    # metadata transaction below cannot be opened. Callers that do supply an
+    # authorization callback emit only after the fenced commit succeeds.
+    if authorize_commit is None:
+        try:
+            from api import telemetry
+            telemetry.record_sync(
+                platform=getattr(conn, "platform", "unknown"),
+                outcome="failure",
+                failure_class=telemetry.classify_platform_error(exc),
+                trigger=trigger,
+                user_id=getattr(conn, "user_id", "") or "",
+            )
+        except Exception:
+            pass
 
     try:
         # Re-fetch in case rollback detached state from the prior session.
@@ -223,6 +227,15 @@ def _record_sync_failure(
         else:
             delay = backoff_seconds(new_failures)
             fresh.next_retry_at = datetime.utcnow() + timedelta(seconds=delay)
+        if authorize_commit is not None and not authorize_commit(db):
+            db.rollback()
+            logger.info(
+                "Skipped sync failure metadata after authorization loss: "
+                "user=%s platform=%s",
+                fresh.user_id,
+                fresh.platform,
+            )
+            return False
         db.commit()
         logger.info(
             "Sync failure recorded: user=%s platform=%s status=%s "
@@ -230,6 +243,31 @@ def _record_sync_failure(
             fresh.user_id, fresh.platform, status, new_failures,
             fresh.next_retry_at,
         )
+        telemetry_authorized = False
+        if authorize_commit is not None:
+            try:
+                telemetry_authorized = authorize_commit(db)
+            except Exception:
+                telemetry_authorized = False
+        if telemetry_authorized:
+            try:
+                from api import telemetry
+                telemetry.record_sync(
+                    platform=getattr(conn, "platform", "unknown"),
+                    outcome="failure",
+                    failure_class=telemetry.classify_platform_error(exc),
+                    trigger=trigger,
+                    user_id=getattr(conn, "user_id", "") or "",
+                )
+            except Exception:
+                pass
+        else:
+            logger.info(
+                "Skipped sync failure telemetry after authorization loss: "
+                "user=%s platform=%s",
+                getattr(conn, "user_id", "?"),
+                getattr(conn, "platform", "?"),
+            )
         return True
     except Exception:
         logger.exception(
@@ -365,7 +403,8 @@ def _run_managed_delivery_tick() -> None:
 def _check_and_sync():
     """Check all user connections and sync stale ones."""
     from db.session import init_db, SessionLocal
-    from db.models import UserConnection, UserConfig
+    from db.models import User, UserConnection, UserConfig
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
 
     init_db()
     db = SessionLocal()
@@ -375,9 +414,17 @@ def _check_and_sync():
         # credentials after clearing whatever account-level gate Garmin
         # or Stryd flagged) and silently retrying just escalates the
         # gate further.
-        connections = db.query(UserConnection).filter(
-            UserConnection.status.in_(SCHEDULABLE_STATUSES),
-        ).all()
+        connections = (
+            db.query(UserConnection)
+            .join(User, User.id == UserConnection.user_id)
+            .filter(
+                UserConnection.status.in_(SCHEDULABLE_STATUSES),
+                User.is_active == True,  # noqa: E712
+                User.terms_version == TERMS_VERSION,
+                User.terms_digest == TERMS_CONTENT_DIGEST,
+            )
+            .all()
+        )
 
         now = datetime.utcnow()
         sync_intervals_by_user: dict[str, int] = {}
@@ -454,6 +501,9 @@ def _check_and_sync():
                 from db.connection_credentials import (
                     ConnectionGenerationChanged,
                 )
+                from api.legal_receipts import (
+                    user_background_processing_authorized,
+                )
 
                 if isinstance(exc, ConnectionGenerationChanged):
                     db.rollback()
@@ -475,6 +525,12 @@ def _check_and_sync():
                     expected_credential_generation=(
                         expected_connection_generation
                     ),
+                    authorize_commit=lambda check_db: (
+                        user_background_processing_authorized(
+                            check_db,
+                            conn.user_id,
+                        )
+                    ),
                 )
     finally:
         db.close()
@@ -487,10 +543,72 @@ def _sync_connection(
     *,
     expected_connection_generation: str | None = None,
 ) -> None:
+    """Run one scheduled sync inside the shared background-sync fence."""
+    from api.routes.sync import (
+        BackgroundProcessingAuthorizationLost,
+        _begin_background_sync_execution,
+        _end_background_sync_execution,
+        _require_background_processing_authorized,
+    )
+
+    context_token = _begin_background_sync_execution(user_id, db)
+    try:
+        try:
+            _sync_connection_authorized(
+                user_id,
+                platform,
+                db,
+                expected_connection_generation=(
+                    expected_connection_generation
+                ),
+            )
+        except BackgroundProcessingAuthorizationLost:
+            db.rollback()
+            logger.info(
+                "Cancelled scheduled sync after processing authorization "
+                "was withdrawn: user=%s platform=%s",
+                user_id,
+                platform,
+            )
+        except Exception:
+            db.rollback()
+            try:
+                _require_background_processing_authorized(user_id, db)
+            except BackgroundProcessingAuthorizationLost:
+                db.rollback()
+                logger.info(
+                    "Cancelled failed scheduled sync after processing "
+                    "authorization was withdrawn: user=%s platform=%s",
+                    user_id,
+                    platform,
+                )
+                return
+            raise
+    finally:
+        _end_background_sync_execution(context_token)
+
+
+def _sync_connection_authorized(
+    user_id: str,
+    platform: str,
+    db: Session,
+    *,
+    expected_connection_generation: str | None = None,
+) -> None:
     """Sync a single user-platform connection using encrypted credentials.
 
     Uses the sync route's fetch + DB write functions (no CSV intermediate).
     """
+    from api.legal_receipts import user_background_processing_authorized
+
+    if not user_background_processing_authorized(db, user_id):
+        logger.info(
+            "Skipping scheduled sync outside the current processing "
+            "boundary: user=%s",
+            user_id,
+        )
+        return
+
     from db.connection_credentials import (
         ConnectionGenerationChanged,
         connection_credentials_generation,
@@ -516,6 +634,13 @@ def _sync_connection(
         token_lease = _garmin_tokenstore_lease(user_id)
 
     with token_lease:
+        if not user_background_processing_authorized(db, user_id):
+            logger.info(
+                "Skipping scheduled sync after lease acquisition outside "
+                "the current processing boundary: user=%s",
+                user_id,
+            )
+            return
         conn = db.query(UserConnection).filter(
             UserConnection.user_id == user_id,
             UserConnection.platform == platform,
@@ -556,8 +681,10 @@ def _sync_connection(
 
         # Use the sync route's direct DB write functions.
         from api.routes.sync import (
-            _ensure_user_active_for_sync,
+            BackgroundProcessingAuthorizationLost,
+            _commit_authorized_background_sync_changes,
             _persist_garmin_token_state_after_rollback,
+            _require_background_processing_authorized,
             _sync_coros,
             _sync_garmin,
             _sync_oura,
@@ -566,6 +693,14 @@ def _sync_connection(
         )
         garmin_token_state: dict[str, object] = {}
 
+        if not user_background_processing_authorized(db, user_id):
+            logger.info(
+                "Skipping scheduled provider call outside the current "
+                "processing boundary: user=%s platform=%s",
+                user_id,
+                platform,
+            )
+            return
         if platform == "garmin":
             counts = _sync_garmin(
                 user_id,
@@ -597,9 +732,11 @@ def _sync_connection(
                     allowed_statuses=SCHEDULABLE_STATUSES,
                     lock=True,
                 )
-            _ensure_user_active_for_sync(user_id, db)
-            db.commit()
+            _commit_authorized_background_sync_changes(user_id, db)
         except ConnectionGenerationChanged:
+            db.rollback()
+            raise
+        except BackgroundProcessingAuthorizationLost:
             db.rollback()
             raise
         except Exception:
@@ -650,13 +787,15 @@ def _sync_connection(
                         allowed_statuses=SCHEDULABLE_STATUSES,
                         lock=True,
                     )
-                _ensure_user_active_for_sync(user_id, db)
-                db.commit()
+                _commit_authorized_background_sync_changes(user_id, db)
                 logger.info(
                     "Activity-derived CP for user=%s: %.1fW (r²=%.2f, %d points)",
                     user_id, fit["cp_watts"], fit["r_squared"], fit["point_count"],
                 )
         except ConnectionGenerationChanged:
+            raise
+        except BackgroundProcessingAuthorizationLost:
+            db.rollback()
             raise
         except Exception:
             logger.exception("Activity-derived CP refresh failed: user=%s", user_id)
@@ -679,11 +818,11 @@ def _sync_connection(
     current_connection.last_sync = datetime.utcnow()
     current_connection.status = "connected"
     reset_connection_backoff(current_connection)
-    _ensure_user_active_for_sync(user_id, db)
-    db.commit()
+    _commit_authorized_background_sync_changes(user_id, db)
     logger.info("Sync complete: user=%s platform=%s counts=%s", user_id, platform, counts)
 
     # Scheduled-path success telemetry (the manual path emits from _run_sync).
+    _require_background_processing_authorized(user_id, db)
     try:
         from api import telemetry
         telemetry.record_sync(
@@ -698,6 +837,7 @@ def _sync_connection(
     try:
         from api.plan_adjustments import run_plan_adjustment_for_user
 
+        _require_background_processing_authorized(user_id, db)
         adjustment_result = run_plan_adjustment_for_user(
             user_id,
             trigger=f"scheduled_sync:{platform}",
@@ -708,6 +848,8 @@ def _sync_connection(
             platform,
             adjustment_result.get("status"),
         )
+    except BackgroundProcessingAuthorizationLost:
+        raise
     except Exception:
         logger.exception(
             "Post-sync plan adjustment failed for user=%s platform=%s",
@@ -717,9 +859,12 @@ def _sync_connection(
 
     # Post-sync LLM insight generation. Best-effort; never raises.
     try:
+        _require_background_processing_authorized(user_id, db)
         from api.insights_runner import run_insights_for_user
         insight_results = run_insights_for_user(user_id, db, counts)
         logger.info("Insight generation for user=%s: %s", user_id, insight_results)
+    except BackgroundProcessingAuthorizationLost:
+        raise
     except Exception:
         # No rollback: the runner uses its own session, and the caller's
         # session has nothing pending past the prior db.commit().

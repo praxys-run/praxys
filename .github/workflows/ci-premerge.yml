@@ -102,6 +102,31 @@ jobs:
         working-directory: web
         run: npm run build
 
+  miniapp-legal:
+    name: miniapp-legal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: miniapp/package-lock.json
+
+      - name: Install Miniapp synchronization dependencies
+        working-directory: miniapp
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify canonical Miniapp contract and generated sources
+        working-directory: miniapp
+        run: |
+          npm run typecheck
+          git diff --exit-code -- \
+            types/api.ts \
+            utils/i18n-catalog.ts \
+            utils/legal.ts
+
   ui-quality:
     name: ui-quality
     runs-on: ubuntu-latest
@@ -137,16 +162,18 @@ jobs:
   frontend-quality:
     name: frontend-quality
     if: always()
-    needs: [web-build, ui-quality]
+    needs: [web-build, miniapp-legal, ui-quality]
     runs-on: ubuntu-latest
     steps:
-      - name: Require web build and UI quality
+      - name: Require web build, legal sync, and UI quality
         env:
           WEB_RESULT: ${{ needs.web-build.result }}
+          LEGAL_RESULT: ${{ needs.miniapp-legal.result }}
           UI_RESULT: ${{ needs.ui-quality.result }}
         run: |
           set -euo pipefail
           test "$WEB_RESULT" = "success"
+          test "$LEGAL_RESULT" = "success"
           test "$UI_RESULT" = "success"
 
   backend-tests:

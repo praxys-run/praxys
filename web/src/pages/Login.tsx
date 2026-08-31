@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useTheme } from '@/hooks/useTheme';
+import { getChinaClientHeaders } from '@/lib/client-boundary';
 import './Login.css';
 
 const SUPPORT_EMAIL = 'support@praxys.run';
@@ -18,6 +19,9 @@ export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const accountDeletionStatus = (
+    location.state as { accountDeletionStatus?: string } | null
+  )?.accountDeletionStatus;
   const { t } = useLingui();
   const { locale, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
@@ -25,11 +29,17 @@ export default function Login() {
   // A ?invite=CODE deep link lands the user straight on the code path with the
   // code prefilled (computed once, before state init, so the effect below never
   // has to setState synchronously).
-  const initialInvite = new URLSearchParams(window.location.search).get('invite');
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialInvite = initialParams.get('invite');
+  const registrationRequested = initialParams.get('register') === '1';
 
   // Form state
-  const [mode, setMode] = useState<Mode>(initialInvite ? 'invite' : 'login');
-  const [inviteMode, setInviteMode] = useState<InviteMode>(initialInvite ? 'code' : 'waitlist');
+  const [mode, setMode] = useState<Mode>(
+    initialInvite || registrationRequested ? 'invite' : 'login',
+  );
+  const [inviteMode, setInviteMode] = useState<InviteMode>(
+    initialInvite || registrationRequested ? 'code' : 'waitlist',
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [invitationCode, setInvitationCode] = useState(initialInvite ? initialInvite.toUpperCase() : '');
@@ -62,7 +72,9 @@ export default function Login() {
   // Fetch the public registration gate + honor a ?invite= deep link on mount.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/public/config`)
+    fetch(`${API_BASE}/api/public/config`, {
+      headers: getChinaClientHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((cfg) => {
         if (cancelled || !cfg) return;
@@ -86,7 +98,10 @@ export default function Login() {
       // avoid account enumeration — so we always show "sent".
       await fetch(`${API_BASE}/api/auth/request-verify-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email: email.trim() }),
       });
     } catch {
@@ -153,7 +168,10 @@ export default function Login() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/waitlist`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...getChinaClientHeaders(),
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           email: email.trim(),
           note: waitlistNote.trim().slice(0, 500),
@@ -340,6 +358,11 @@ export default function Login() {
           </div>
 
           {/* ───────────── Sign-in form ───────────── */}
+          {accountDeletionStatus === 'deleted_cleanup_pending' && (
+            <div className="login-aside" role="status" aria-live="polite">
+              <Trans>Your account was deleted. Private storage cleanup is still being retried in the background.</Trans>
+            </div>
+          )}
           {mode === 'login' && (
             <form className="login-form" onSubmit={handleAuthSubmit} noValidate>
               {error && (

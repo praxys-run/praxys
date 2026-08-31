@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import unicodedata
 from typing import Mapping
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 POLICY_VERSION = "agent-invocation-control-v1"
 APPROVED_MODES = ("instrument", "shadow")
+DISPATCH_PROFILES = {
+    "sync": "sync_inline",
+    "background": "background_independent_immediate_no_poll",
+}
 POLICY_REASONS = (
     "admit",
     "kill_switch_active",
@@ -60,6 +65,23 @@ MACHINE_REASON_CODES = (
     "recovery_recorded",
     "kill_switch_updated",
     "status_reported",
+    "lifecycle_transition_rejected",
+    "native_bound",
+    "native_notification_recorded",
+    "completion_notification_required",
+    "native_notifications_unavailable",
+    "native_read_authorized",
+    "native_read_refused",
+    "native_observation_recorded",
+    "progress_recorded",
+    "progress_idempotent",
+    "tree_termination_recorded",
+    "tree_termination_idempotent",
+    "direct_sibling_active",
+    "execution_provenance_invalid",
+    "native_binding_mismatch",
+    "native_binding_invalidated",
+    "native_invalidated",
 )
 ID_PREFIXES = {
     "contract": "ctr",
@@ -68,9 +90,38 @@ ID_PREFIXES = {
     "logical": "log",
     "attempt": "att",
     "decision": "dec",
+    "native": "nat",
+    "read_claim": "rcl",
 }
 _IDENTITY_RE = re.compile(r"^[a-z]{3}_[0-9a-f]{32}$")
 _FINGERPRINT_RE = re.compile(r"^fpr_[0-9a-f]{64}$")
+_ARTIFACT_REVISION_RE = re.compile(
+    r"^(?:sha256:[0-9a-f]{64}|git:[0-9a-f]{40}|git:[0-9a-f]{64})$"
+)
+_REPOSITORY_IDENTITY_RE = re.compile(
+    r"^(?:ctr|slt|gen|log|att|dec|nat|rcl)_[0-9a-f]{32}$"
+)
+_PUBLIC_AGENT_ID_MAX_LENGTH = 512
+_PUBLIC_AGENT_ID_PLACEHOLDERS = {
+    "agent",
+    "agent-id",
+    "agent_id",
+    "changeme",
+    "dummy",
+    "example",
+    "nonexistent",
+    "none",
+    "null",
+    "pending",
+    "placeholder",
+    "public-agent-id",
+    "public_agent_id",
+    "task-result",
+    "task_result",
+    "todo",
+    "unknown",
+    "x",
+}
 
 
 @dataclass(frozen=True)
@@ -159,6 +210,38 @@ def is_valid_identity(value: object, kind: str) -> bool:
 def is_valid_fingerprint(value: object) -> bool:
     """Return whether value is a versioned opaque fingerprint."""
     return isinstance(value, str) and _FINGERPRINT_RE.fullmatch(value) is not None
+
+
+def is_valid_artifact_revision(value: object) -> bool:
+    """Return whether value is an immutable artifact digest or Git head."""
+    return (
+        isinstance(value, str)
+        and _ARTIFACT_REVISION_RE.fullmatch(value) is not None
+    )
+
+
+def is_valid_public_agent_id(value: object) -> bool:
+    """Validate a task-returned public agent ID without assuming its format."""
+    if not isinstance(value, str):
+        return False
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    if (
+        not encoded
+        or len(encoded) > _PUBLIC_AGENT_ID_MAX_LENGTH
+        or value != value.strip()
+        or value.casefold() in _PUBLIC_AGENT_ID_PLACEHOLDERS
+        or value.casefold().startswith("call_")
+        or _REPOSITORY_IDENTITY_RE.fullmatch(value) is not None
+    ):
+        return False
+    return not any(
+        character.isspace()
+        or unicodedata.category(character).startswith("C")
+        for character in value
+    )
 
 
 def evaluate_admission(

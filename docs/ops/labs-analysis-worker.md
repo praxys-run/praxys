@@ -15,8 +15,15 @@ API -> PostgreSQL job/outbox -> Service Bus -> Container Apps Job -> PostgreSQL
 
 The queue carries one opaque job UUID, never athlete data. The worker runs at
 most one 1-vCPU/2-GiB execution globally, processes one message, and exits.
-Source revision, consent, correlation, and deletion-tombstone fences are
-rechecked before a result is written.
+Current-Terms/channel authorization, source revision, consent, correlation,
+and deletion-tombstone fences are rechecked before private computation and
+before a result is written.
+The API publishes its effective CN/Miniapp switches as one atomic
+`app_config` snapshot at process startup. Readiness only compares it and never
+rewrites it. The isolated worker reads that shared snapshot at every
+private-data fence and holds a shared transaction advisory lock through result
+commit; missing, malformed,
+or stale authority fails closed.
 
 `PRAXYS_LABS_EXECUTION_MODE=service_bus` never falls back to API-process
 compute. Dispatch failures remain in the transactional outbox for retry.
@@ -205,7 +212,7 @@ image contains no deployment secret.
 After cutover, `deploy-backend.yml` waits up to 15 minutes for the Container
 Apps Job to report the exact `ghcr.io/praxys-run/praxys-labs-worker:<commit>`
 image before deploying that backend commit. The worker workflow mirrors every
-backend trigger, including science-only changes and API release tags. A failed
+backend protected-`main` trigger, including science-only changes. A failed
 or delayed worker deployment therefore blocks the newer backend instead of
 letting an older worker cancel a future-model job.
 
@@ -303,10 +310,15 @@ columns. In particular:
 - `labs_experiment_enrollments` can update only processing state and timestamps,
   never consent, attestation, source revision, or correlation fields;
 - `labs_analysis_jobs` can update only attempt/processing state and timestamps;
+- `labs_analysis_outbox` is readable only as payload-free dispatch metadata
+  and can update only cancellation state, lease, error code, and timestamp;
 - `user_connections` is restricted to provider status/preferences, never
   encrypted credentials or token bundles; and
 - `users` is restricted to ID, email, active/admin/demo flags needed for
-  Statsig targeting, never password hashes or other account metadata; and
+  Statsig targeting plus the current Terms version/digest authorization
+  fence, never password hashes or other account metadata;
+- `terms_acceptance_receipts` is restricted to user, Terms version/digest, and
+  channel fields needed to enforce the China/Miniapp processing switches; and
 - `training_plans` is not granted because the research worker constructs its
   request context with plan loading disabled.
 
@@ -353,17 +365,20 @@ instead of misclassifying eligible users as revoked.
 
 ### 5. Cut over the backend
 
+The public China scope preserves `service_bus`. Set it only after the worker
+image for the exact backend commit, tagged namespace/queue, sender/receiver
+RBAC, database principal, shared live China/Miniapp processing authority, and
+alerts have passed this runbook. `deploy-backend.yml` rejects the cutover when
+the worker deployment gate is not enabled or its deployed image does not match
+the backend commit.
+
 ```bash
 gh variable set PRAXYS_LABS_EXECUTION_MODE --body "service_bus"
-gh workflow run deploy-backend.yml --ref main
-RUN_ID=$(gh run list --workflow=deploy-backend.yml --limit 1 \
-  --json databaseId --jq '.[0].databaseId')
-gh run watch "$RUN_ID" --exit-status
+gh workflow run deploy-backend.yml --ref main -f sync_config=true
 ```
 
-The backend workflow discovers the namespace by its
-`praxysComponent=labs-analysis` tag and writes the FQDN and queue name to App
-Service. It fails before changing settings if the namespace is absent.
+If any prerequisite is unverified, keep `inline`. Use `disabled` only for a
+bounded maintenance/drain transition; it is not an ordinary production mode.
 
 ## Verify
 
@@ -420,8 +435,26 @@ gh workflow run deploy-backend.yml --ref main
 ```
 
 Wait for that backend deploy to finish, then confirm the Service Bus queue has
-no active messages and the Container Apps Job has no running execution. After
-the isolated lane is drained, return compute to the API:
+no active messages and the Container Apps Job has no running execution.
+
+Worker database grants are an exact, versioned runtime contract. For any
+release that changes `api/labs_worker_permissions.py`, keep dispatch disabled
+and the lane drained, then:
+
+1. deploy the matching backend artifact, identified by commit SHA;
+2. run that artifact's `python -m scripts.provision_labs_worker_db ...`;
+3. deploy the worker image with the same commit SHA;
+4. run the worker startup check and record its successful exact-grant result;
+5. verify no active/dead-letter queue regression, then re-enable dispatch.
+
+For rollback, repeat the disable-and-drain step, deploy the reverted backend,
+rerun the reverted artifact's grant script, deploy the same reverted worker
+image, and pass its startup check before re-enabling. Do not deploy a worker
+whose exact-grant contract does not match the provisioned database role.
+Release evidence must retain the commit/image SHA, grant verification,
+startup-check logs, and queue-health readback.
+
+After the isolated lane is drained, return compute to the API:
 
 ```bash
 gh variable set PRAXYS_LABS_EXECUTION_MODE --body "inline"

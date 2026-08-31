@@ -61,7 +61,7 @@ def test_statsig_user_contains_targeting_attributes() -> None:
     }
 
 
-def test_statsig_user_omits_synthetic_wechat_email() -> None:
+def test_statsig_user_keeps_email_for_local_targeting_rules() -> None:
     from api.statsig_client import get_statsig_user
 
     user = get_statsig_user(
@@ -73,7 +73,29 @@ def test_statsig_user_omits_synthetic_wechat_email() -> None:
         language="zh",
     )
 
-    assert user.email is None
+    assert user.email == "wechat:persistent-openid"
+
+
+def test_statsig_initializes_for_local_evaluation_without_user_logging(
+    monkeypatch,
+) -> None:
+    from api import statsig_client
+
+    captured: dict[str, object] = {}
+
+    def fake_initialize(_sdk_key: str, options: object) -> None:
+        captured["options"] = options
+
+    monkeypatch.setenv("STATSIG_SDK_KEY", "secret-test")
+    monkeypatch.setattr(statsig_client, "_initialized", False)
+    monkeypatch.setattr(statsig_client.statsig, "initialize", fake_initialize)
+    monkeypatch.setattr(statsig_client.statsig, "is_initialized", lambda: True)
+
+    asyncio.run(statsig_client.init_statsig())
+
+    options = captured["options"]
+    assert options.disable_all_logging is True
+    assert options.disable_diagnostics is True
 
 
 def test_gate_and_config_errors_fail_closed(monkeypatch) -> None:

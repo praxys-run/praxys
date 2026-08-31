@@ -36,6 +36,8 @@ import type { Locale } from './i18n-catalog';
 // ---------------------------------------------------------------------------
 
 const EN_AUTH = {
+  'Your account was deleted. Private storage cleanup is still being retried in the background.':
+    'Your account was deleted. Private storage cleanup is still being retried in the background.',
   // Legacy tagline retained for the share card / timeline copy and any
   // surface that still reads it. The login page itself uses the
   // canonical brand-guide tagline ("Sports science that meets you
@@ -54,16 +56,67 @@ const EN_AUTH = {
   email: 'email',
   password: 'password',
   'Email and password are required': 'Email and password are required',
-  // Old "Sign up at" footer copy retained for back-compat; the login
-  // page itself now uses the explicit "New here?" / "Have an
-  // invitation code?" rows below.
-  'New here? Sign up at': 'New here? Sign up at',
-  'New here?': 'New here?',
-  'Have an invitation code?': 'Have an invitation code?',
-  'Register on praxys.run': 'Register on praxys.run',
-  'Then come back and sign in with WeChat above.':
-    'Then come back and sign in with WeChat above.',
-  'Back to sign in': 'Back to sign in',
+  'How Praxys processes data to provide the service':
+    'How Praxys processes data to provide the service',
+  'Required for the service': 'Required for the service',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.',
+  'Overseas processing and recipient': 'Overseas processing and recipient',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).',
+  'Purposes and information': 'Purposes and information',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.',
+  'Sensitive personal information': 'Sensitive personal information',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.',
+  'Privacy Policy and Mainland China processing notice':
+    'Privacy Policy and Mainland China processing notice',
+  'Acknowledge and continue': 'Acknowledge and continue',
+  'Not now': 'Not now',
+  'Read the processing notice before continuing.':
+    'Read the processing notice before continuing.',
+  'Updated Terms and Privacy notice': 'Updated Terms and Privacy notice',
+  'I accept the': 'I accept the',
+  'and acknowledge that I have read the':
+    'and acknowledge that I have read the',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.',
+  'Accept Terms and continue': 'Accept Terms and continue',
+  'Could not save — please try again.': 'Could not save — please try again.',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    'You can still export your data, delete your account, or sign out without accepting.',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.',
+  'You can still sign out without accepting.':
+    'You can still sign out without accepting.',
+  'Could not load connected platforms — please try again.':
+    'Could not load connected platforms — please try again.',
+  'Could not disconnect platform — please try again.':
+    'Could not disconnect platform — please try again.',
+  'Export my data': 'Export my data',
+  'Exporting data…': 'Exporting data…',
+  'Saves a JSON export and opens WeChat share options.':
+    'Saves a JSON export and opens WeChat share options.',
+  'Your data export is ready to share.': 'Your data export is ready to share.',
+  'Could not export data — please try again.':
+    'Could not export data — please try again.',
+  'Delete account': 'Delete account',
+  'Delete account permanently?': 'Delete account permanently?',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.',
+  'Could not delete account — please try again.':
+    'Could not delete account — please try again.',
+  'Sign out': 'Sign out',
+  'Create account on praxys.cn': 'Create account on praxys.cn',
+  'Complete registration and account setup in your browser, then return here to link WeChat.':
+    'Complete registration and account setup in your browser, then return here to link WeChat.',
   'tap to copy URL': 'tap to copy URL',
   'URL copied': 'URL copied',
   'Long press to save & share': 'Long press to save & share',
@@ -84,7 +137,7 @@ const EN_AUTH = {
   "Couldn't delete your account. Please try again or contact support if it keeps failing.":
     "Couldn't delete your account. Please try again or contact support if it keeps failing.",
   'Unlinking…': 'Unlinking…',
-  // Login-page-only copy (waitlist + theme toggle aria + pillar copy).
+  // Login-page-only copy (theme toggle aria + pillar copy).
   // These have no web equivalent — web's Login uses <Trans> on richer
   // JSX structures, while the miniapp builds plain-string segments
   // because Skyline can't render mid-string colour spans inside a
@@ -95,14 +148,6 @@ const EN_AUTH = {
   ' you can verify.': ' you can verify.',
   'Cited science.': 'Cited science.',
   ' No hype.': ' No hype.',
-  'Sub-3 marathon · 100K · stay healthy…': 'Sub-3 marathon · 100K · stay healthy…',
-  // Waitlist success state — web's <Trans> bundles these into one
-  // string with `<strong>` + mailto markup; the miniapp surfaces them
-  // as a check + headline + detail trio so they need to live as
-  // separate translatable keys.
-  "You're on the list.": "You're on the list.",
-  "We'll reach out from support@praxys.run when a slot opens.":
-    "We'll reach out from support@praxys.run when a slot opens.",
   'Light theme': 'Light theme',
   'Dark theme': 'Dark theme',
   'System theme': 'System theme',
@@ -223,7 +268,8 @@ const EN_GOAL = {
 
 const EN_ROAD_10K = {
   'Review invitation': 'Review invitation',
-  'Not now': 'Not now',
+  'Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
+    'Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.',
   'Leave rollout': 'Leave rollout',
   'Continue to sign in': 'Continue to sign in',
   'Rollout status: On hold': 'Rollout status: On hold',
@@ -239,8 +285,8 @@ const EN_ROAD_10K = {
     'Your proposal, if any, is now a read-only receipt and cannot be adopted or regenerated. An adopted plan is unchanged and remains manageable in Training.',
   'Join rollout': 'Join rollout',
   'Join the Road 10K rollout?': 'Join the Road 10K rollout?',
-  'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
-    'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.',
+  'This is a limited, default-off process pilot for one deterministic bounded outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
+    'This is a limited, default-off process pilot for one deterministic bounded outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.',
   'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.':
     'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.',
   'This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.':
@@ -254,8 +300,8 @@ const EN_ROAD_10K = {
   'I understand and want to join this Road 10K rollout.':
     'I understand and want to join this Road 10K rollout.',
   'Try a Road 10K plan proposal': 'Try a Road 10K plan proposal',
-  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
-    'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.',
+  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic bounded outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
+    'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic bounded outdoor road 10K proposal for you. Joining does not create or adopt a plan.',
   'Rollout status: Enrolled': 'Rollout status: Enrolled',
   'Plan status: No Road 10K plan': 'Plan status: No Road 10K plan',
   'No Road 10K proposal has been created. Check the current status to continue.':
@@ -396,6 +442,8 @@ const EN_TRAINING = {
 // stays plural at count=1 (minor grammar imperfection accepted in
 // favour of simpler i18n).
 const EN_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.',
   '{0} findings': '{0} findings',
   '{0} recommendations': '{0} recommendations',
   '{0} findings · {1} recommendations': '{0} findings · {1} recommendations',
@@ -556,6 +604,8 @@ const EN_HEAT = {
 // ---------------------------------------------------------------------------
 
 const ZH_AUTH = {
+  'Your account was deleted. Private storage cleanup is still being retried in the background.':
+    '你的账号已删除，私密存储清理仍在后台重试。',
   // Legacy share-card tagline (still consumed by share / timeline
   // copy). Login page proper uses the canonical brand-guide tagline
   // ("运动科学，知行合一。") split into prefix/accent/suffix in
@@ -573,13 +623,64 @@ const ZH_AUTH = {
   email: '邮箱',
   password: '密码',
   'Email and password are required': '请填写邮箱和密码',
-  'New here? Sign up at': '没有账号？立即注册',
-  'New here?': '没有账号？',
-  'Have an invitation code?': '有邀请码？',
-  'Register on praxys.run': '前往 praxys.run 注册',
-  'Then come back and sign in with WeChat above.':
-    '注册完成后，回到这里用微信登录。',
-  'Back to sign in': '返回登录',
+  'How Praxys processes data to provide the service':
+    'Praxys 如何处理数据以提供服务',
+  'Required for the service': '提供服务所必需',
+  'To create and manage an account and provide the requested training features, Praxys must process the information below outside mainland China. This processing is necessary to perform the service and is not based on consent.':
+    '为创建和管理账号，并提供所请求的训练功能，Praxys 必须在中国大陆境外处理下列信息。该处理是履行服务所必需，不以同意为处理基础。',
+  'Overseas processing and recipient': '境外处理与接收方',
+  'Microsoft Corporation, its Azure affiliates, and published subprocessors process core service information outside mainland China. The current primary hosting region is Azure East Asia (Hong Kong SAR).':
+    '核心服务信息由 Microsoft Corporation 及其 Azure 关联方和公开列明的分包处理方在中国大陆境外处理；当前主要托管区域为 Azure East Asia（中国香港特别行政区）。',
+  'Purposes and information': '处理目的与信息',
+  'Account access, provider sync, training and recovery analysis, plans, security, and requested account controls use account identifiers, training data, settings, encrypted connection credentials, and necessary logs.':
+    '账号访问、平台同步、训练与恢复分析、计划、安全及所请求的账号控制会使用账号标识、训练数据、设置、加密连接凭据和必要日志。',
+  'Sensitive personal information': '敏感个人信息',
+  'Heart rate, HRV, sleep, recovery, activity routes, and related health or fitness inferences may be sensitive. Features that depend on them cannot operate without those categories.':
+    '心率、HRV、睡眠、恢复、活动路线及相关健康或运动推断可能属于敏感个人信息。缺少这些类别时，依赖它们的功能无法运行。',
+  'Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field.':
+    'Azure 核心托管与 Azure AI 处理是不同功能。当前服务条款与服务器运行状态授权普通服务中列明的 AI 用途；没有单独退出选项，且输入按账号、用途和字段最小化。',
+  'Continuing acknowledges that this notice has been read. If you do not accept the current Terms, ordinary service is unavailable, while the existing rights flow remains available.':
+    '继续即确认已阅读本告知。如不接受当前服务条款，普通服务将不可用，但现有权利行使流程仍可使用。',
+  'The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing.':
+    '服务条款已经更新。隐私政策区分 Azure 核心托管与 Azure AI 处理，并说明普通服务中列明的 AI 用途、最小化措施、不可用情形和权利渠道。普通服务没有单独的 AI 退出选项。继续前，请阅读服务条款和隐私告知。',
+  'Privacy Policy and Mainland China processing notice':
+    '《隐私政策》与中国大陆处理说明',
+  'Acknowledge and continue': '确认已阅读并继续',
+  'Not now': '暂不继续',
+  'Read the processing notice before continuing.':
+    '请先阅读处理告知再继续。',
+  'Updated Terms and Privacy notice': '条款与隐私告知已更新',
+  'I accept the': '我接受',
+  'and acknowledge that I have read the': '，并确认已阅读',
+  'Accept the Terms of Service and acknowledge that the Privacy Policy has been read.':
+    '接受服务条款，并确认已阅读隐私政策。',
+  'Accept Terms and continue': '接受条款并继续',
+  'Could not save — please try again.': '提交失败，请重试。',
+  'You can still export your data, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、删除账号或退出登录。',
+  'You can still export your data, manage connected platforms, delete your account, or sign out without accepting.':
+    '即使暂不接受，也可以导出数据、管理已连接平台、删除账号或退出登录。',
+  'You can still sign out without accepting.':
+    '即使暂不接受，也可以退出登录。',
+  'Could not load connected platforms — please try again.':
+    '无法读取已连接平台，请重试。',
+  'Could not disconnect platform — please try again.':
+    '无法断开平台，请重试。',
+  'Export my data': '导出我的数据',
+  'Exporting data…': '正在导出数据…',
+  'Saves a JSON export and opens WeChat share options.':
+    '保存 JSON 数据导出文件，并打开微信分享选项。',
+  'Your data export is ready to share.': '数据导出文件已准备好，可选择分享。',
+  'Could not export data — please try again.': '无法导出数据，请重试。',
+  'Delete account': '删除账号',
+  'Delete account permanently?': '永久删除账号？',
+  'This permanently deletes your account, training data, and connected-platform credentials. This cannot be undone. Type DELETE to confirm.':
+    '此操作会永久删除账号、训练数据和已连接平台的凭据，且无法撤销。输入 DELETE 以确认。',
+  'Could not delete account — please try again.': '无法删除账号，请重试。',
+  'Sign out': '退出登录',
+  'Create account on praxys.cn': '前往 praxys.cn 创建账号',
+  'Complete registration and account setup in your browser, then return here to link WeChat.':
+    '请在浏览器完成注册和账号设置，再回到这里绑定微信。',
   'tap to copy URL': '点击复制链接',
   'URL copied': '链接已复制',
   'Long press to save & share': '长按保存并分享',
@@ -608,10 +709,6 @@ const ZH_AUTH = {
   ' you can verify.': '经得起验证。',
   'Cited science.': '科学有据。',
   ' No hype.': '不靠噱头。',
-  'Sub-3 marathon · 100K · stay healthy…': '全马破三 · 100K · 保持健康…',
-  "You're on the list.": '你已进入候补名单。',
-  "We'll reach out from support@praxys.run when a slot opens.":
-    '有名额时，我们会通过 support@praxys.run 联系你。',
   'Light theme': '浅色主题',
   'Dark theme': '深色主题',
   'System theme': '跟随系统',
@@ -727,7 +824,8 @@ const ZH_GOAL = {
 
 const ZH_ROAD_10K = {
   'Review invitation': '查看邀请',
-  'Not now': '暂不',
+  'Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
+    '下发仍处于关闭状态。仅当你希望 Praxys 下发此规范计划时，才审核托管下发预览并明确同意。',
   'Leave rollout': '退出试点',
   'Continue to sign in': '继续登录',
   'Rollout status: On hold': '试点状态：审核中',
@@ -743,8 +841,8 @@ const ZH_ROAD_10K = {
     '如有提案，它现在仅作为只读记录，无法采纳或重新生成。已采纳的计划保持不变，仍可在训练中管理。',
   'Join rollout': '加入试点',
   'Join the Road 10K rollout?': '加入公路 10K 试点？',
-  'This is a limited, default-off process pilot for one deterministic 14-day outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
-    '这是一项默认关闭的有限流程试点，用于生成一个确定性的 14 天户外公路 10K 提案。加入试点不会创建或采纳计划。',
+  'This is a limited, default-off process pilot for one deterministic bounded outdoor road 10K proposal. Joining the rollout does not create or adopt a plan.':
+    '这是一项默认关闭的有限流程试点，用于生成一个确定性的有界户外公路 10K 提案。加入试点不会创建或采纳计划。',
   'Praxys checks your existing Goal, direct 10K baseline, recent running history, and confirmed scheduling constraints under the accepted Road 10K rules.':
     'Praxys 会按已接受的公路 10K 规则，检查你现有的目标、直接 10K 基准、近期跑步历史和已确认的日程限制。',
   'This does not promise faster performance, injury prevention, medical safety, diagnosis, treatment, clearance, or a personal result.':
@@ -758,8 +856,8 @@ const ZH_ROAD_10K = {
   'I understand and want to join this Road 10K rollout.':
     '我已了解，并希望加入此公路 10K 试点。',
   'Try a Road 10K plan proposal': '试用公路 10K 计划提案',
-  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic 14-day outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
-    '你受邀参加一项有限流程试点。加入后，Praxys 可检查是否能为你创建一个确定性的 14 天户外公路 10K 提案。加入不会创建或采纳计划。',
+  'You’re invited to a limited process pilot. Joining lets Praxys check whether it can create one deterministic bounded outdoor road 10K proposal for you. Joining does not create or adopt a plan.':
+    '你受邀参加一项有限流程试点。加入后，Praxys 可检查是否能为你创建一个确定性的有界户外公路 10K 提案。加入不会创建或采纳计划。',
   'Rollout status: Enrolled': '试点状态：已加入',
   'Plan status: No Road 10K plan': '计划状态：没有公路 10K 计划',
   'No Road 10K proposal has been created. Check the current status to continue.':
@@ -883,6 +981,8 @@ const ZH_TRAINING = {
 };
 
 const ZH_COACH = {
+  'Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.':
+    'Azure AI 洞察暂时不可用。已同步的数据和确定性训练指标仍可使用。',
   '{0} findings': '{0} 个要点',
   '{0} recommendations': '{0} 条建议',
   '{0} findings · {1} recommendations': '{0} 个要点 · {1} 条建议',
@@ -1101,21 +1201,21 @@ const ZH_LEGAL = {
 };
 
 const EN_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.',
   Manage: 'Manage',
   'I confirm this purpose and expiry': 'I confirm this purpose and expiry',
   'Manage private context': 'Manage private context',
   'Private context JSON copied': 'Private context JSON copied',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.',
 };
 
 const ZH_PRIVATE_CONTEXT = {
+  'Saving confirms this one purpose and active period. It does not authorize analytics, model training, or a different purpose.':
+    '保存即确认这一项用途和有效期，不授权分析、模型训练或其他用途。',
   Manage: '管理',
   'I confirm this purpose and expiry': '我已确认上述用途和期限',
   'Manage private context': '管理计划个性化信息',
   'Private context JSON copied': '计划个性化信息 JSON 已复制',
-  'You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed.':
-    '后续请求发送前可随时撤回；已经由 AI 服务处理的请求无法撤回。',
 };
 
 const EN_PLAN_START = {

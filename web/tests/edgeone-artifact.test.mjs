@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import {
   mkdtemp,
   mkdir,
@@ -15,7 +14,7 @@ import { prepareEdgeOneArtifact } from '../scripts/prepare-edgeone-artifact.mjs'
 
 const SOURCE_SHA = '0123456789abcdef0123456789abcdef01234567';
 
-test('EdgeOne artifact preparation is deterministic and self-verifying', async () => {
+test('EdgeOne artifact preparation stamps health and ICP metadata', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'praxys-edgeone-'));
   try {
     await mkdir(path.join(directory, 'today'));
@@ -29,24 +28,12 @@ test('EdgeOne artifact preparation is deterministic and self-verifying', async (
     );
     await writeFile(path.join(directory, 'asset.txt'), 'regional artifact\n');
 
-    const first = await prepareEdgeOneArtifact(directory, SOURCE_SHA);
-    const firstManifest = await readFile(
-      path.join(directory, 'SHA256SUMS'),
-      'utf8',
-    );
-    const second = await prepareEdgeOneArtifact(directory, SOURCE_SHA);
-    const secondManifest = await readFile(
-      path.join(directory, 'SHA256SUMS'),
-      'utf8',
-    );
+    const result = await prepareEdgeOneArtifact(directory, SOURCE_SHA);
 
-    assert.deepEqual(first, {
-      fileCount: 5,
+    assert.deepEqual(result, {
       htmlCount: 2,
       sourceSha: SOURCE_SHA,
     });
-    assert.deepEqual(second, first);
-    assert.equal(secondManifest, firstManifest);
     assert.equal(
       await readFile(path.join(directory, 'deployed_sha.txt'), 'utf8'),
       `${SOURCE_SHA}\n`,
@@ -57,17 +44,12 @@ test('EdgeOne artifact preparation is deterministic and self-verifying', async (
         ok: true,
         service: 'praxys-frontend-cn',
         deployed_sha: SOURCE_SHA,
+        notice_version: '2026.08.5',
+        legal_digest:
+          'sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e',
+        api_contract_version: 'cn-privacy-v2',
       },
     );
-
-    const lines = firstManifest.trim().split('\n');
-    assert.deepEqual(lines, [...lines].sort((left, right) => (
-      left.slice(66).localeCompare(right.slice(66))
-    )));
-    const assetDigest = createHash('sha256')
-      .update('regional artifact\n')
-      .digest('hex');
-    assert.ok(lines.includes(`${assetDigest}  ./asset.txt`));
 
     for (const relativePath of ['index.html', 'today/index.html']) {
       const html = await readFile(path.join(directory, relativePath), 'utf8');
@@ -78,6 +60,25 @@ test('EdgeOne artifact preparation is deterministic and self-verifying', async (
       assert.equal(
         html.match(/name="praxys-deployment-region" content="cn"/g)?.length,
         1,
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+
+test('EdgeOne artifact rejects non-canonical source SHAs', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'praxys-edgeone-sha-'));
+  try {
+    await writeFile(
+      path.join(directory, 'index.html'),
+      '<html><head></head><body><div id="root"></div></body></html>',
+    );
+    for (const invalid of [SOURCE_SHA.toUpperCase(), SOURCE_SHA.slice(0, 12)]) {
+      await assert.rejects(
+        prepareEdgeOneArtifact(directory, invalid),
+        /Invalid source commit SHA/,
       );
     }
   } finally {

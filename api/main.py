@@ -58,7 +58,7 @@ if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     ):
         logging.getLogger(_noisy).setLevel(logging.WARNING)
 
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -69,13 +69,22 @@ from api.auth import (
     require_account_deletion_access,
     require_write_access,
 )
+from api.china_client_boundary import (
+    ChinaClientBoundaryMiddleware,
+    china_processing_status,
+    miniapp_processing_status,
+)
 from api.env_compat import getenv_compat
-from api.legal import TERMS_VERSION
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+from api.legal_receipts import (
+    TermsAcceptanceRequest,
+    build_terms_receipt,
+)
 from api.personal_context_http import (
     PersonalContextPrivacyMiddleware,
     private_context_validation_error,
 )
-from api.version import get_api_version
+from api.version import get_api_source_sha, get_api_version
 from api.views import utc_isoformat
 from db.session import get_db
 
@@ -85,6 +94,9 @@ from db.session import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
+    from api.optional_processing import validate_optional_processing_config
+
+    validate_optional_processing_config()
     init_db()
     from api.personal_context import (
         replay_deletion_manifests,
@@ -94,8 +106,13 @@ async def lifespan(app: FastAPI):
         recover_interrupted_jobs,
         replay_deletion_tombstones,
     )
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
     from db.session import SessionLocal
 
+    with SessionLocal() as authority_db:
+        reconcile_channel_processing_authority(authority_db)
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
@@ -166,25 +183,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Praxys API", version=get_api_version(), lifespan=lifespan)
-
-
-@app.middleware("http")
-async def _road_10k_private_no_store(request, call_next):
-    """Keep Road 10K success and auth/error responses out of shared caches."""
-    response = await call_next(request)
-    if (
-        request.url.path.startswith("/api/road-10k")
-        or request.url.path.startswith("/api/plan/road-10k")
-        or request.url.path.startswith("/api/plan/proposals")
-        or request.url.path == "/api/plan/generation/capabilities"
-        or request.url.path == "/api/me/export"
-    ):
-        response.headers["Cache-Control"] = "private, no-store"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Vary"] = "Authorization"
-    return response
-
-
 app.add_exception_handler(
     RequestValidationError,
     private_context_validation_error,
@@ -198,6 +196,25 @@ app.add_exception_handler(
 # runs last on the response path (middleware order = reverse LIFO).
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
+app.add_middleware(ChinaClientBoundaryMiddleware)
+
+
+@app.middleware("http")
+async def _private_plan_no_store(request: Request, call_next):
+    """Keep owner plan, rollout, and export responses out of shared caches."""
+    response = await call_next(request)
+    path = request.url.path
+    if (
+        path.startswith("/api/road-10k")
+        or path.startswith("/api/plan/road-10k")
+        or path.startswith("/api/plan/proposals")
+        or path == "/api/plan/generation/capabilities"
+        or path == "/api/me/export"
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Vary"] = "Authorization"
+    return response
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -226,23 +243,6 @@ if is_rate_limit_disabled():
     )
 else:
     app.add_middleware(AuthRateLimitMiddleware)
-
-
-@app.middleware("http")
-async def _finalize_private_no_store_headers(request, call_next):
-    """Keep the private contract exact after compression middleware runs."""
-    response = await call_next(request)
-    if (
-        request.url.path.startswith("/api/road-10k")
-        or request.url.path.startswith("/api/plan/road-10k")
-        or request.url.path == "/api/plan/generation/capabilities"
-        or request.url.path == "/api/me/export"
-    ):
-        response.headers["Cache-Control"] = "private, no-store"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Vary"] = "Authorization"
-    return response
-
 
 # Auth routes
 from api.users import fastapi_users, auth_backend
@@ -294,6 +294,9 @@ app.include_router(announcements_router, prefix="/api", tags=["announcements"])
 # list/retry are guarded by require_admin inside the route.
 from api.routes.feedback import router as feedback_router
 app.include_router(feedback_router, prefix="/api", tags=["feedback"])
+
+# Road generation remains hard-off, but owner withdrawal and export rights
+# stay reachable even while the capability is hidden.
 from api.routes.road_10k import router as road_10k_control_router
 app.include_router(road_10k_control_router, prefix="/api")
 
@@ -323,8 +326,12 @@ router_modules = [
     insights,
     product_events,
     status,
-    road_10k_plan_generation,
 ]
+if any(
+    capability.capability_id == "outdoor_road_10k_performance_v1"
+    for capability in PLAN_GENERATION_CAPABILITIES
+):
+    router_modules.append(road_10k_plan_generation)
 
 for router_module in router_modules:
     app.include_router(router_module.router, prefix="/api")
@@ -346,6 +353,7 @@ def health_ready(response: Response):
     as a deploy / warmup gate.
     """
     from sqlalchemy import text as _text
+    from api.optional_processing import optional_processing_status
     from db.session import SessionLocal, init_db, is_postgres
 
     if SessionLocal is None:
@@ -354,12 +362,22 @@ def health_ready(response: Response):
         db = SessionLocal()
         try:
             db.execute(_text("SELECT 1"))
+            from api.channel_processing_authority import (
+                expected_channel_processing_status,
+                shared_channel_processing_snapshot,
+            )
+
+            expected_authority = expected_channel_processing_status()
+            shared_authority = shared_channel_processing_snapshot(db)
+            if shared_authority != expected_authority:
+                raise RuntimeError(
+                    "shared China processing authority did not converge"
+                )
             from api.road_10k_control import (
                 require_road_10k_replay_ready,
                 validate_road_10k_runtime_obligations,
             )
-            has_road_obligation = validate_road_10k_runtime_obligations(db)
-            if has_road_obligation:
+            if validate_road_10k_runtime_obligations(db):
                 require_road_10k_replay_ready(db)
         finally:
             db.close()
@@ -376,7 +394,27 @@ def health_ready(response: Response):
             pass
         response.status_code = 503
         return {"status": "unavailable", "database": "error"}
-    return {"status": "ready", "database": "ok"}
+    try:
+        processing = optional_processing_status()
+    except ValueError as exc:
+        logging.getLogger(__name__).error(
+            "readiness privacy-control config failed: %s",
+            exc,
+        )
+        response.status_code = 503
+        return {
+            "status": "unavailable",
+            "database": "ok",
+            "privacy_controls": "invalid",
+        }
+    china_processing = china_processing_status()
+    return {
+        "status": "ready",
+        "database": "ok",
+        "optional_processing": processing,
+        "china_processing": china_processing,
+        "miniapp_processing": miniapp_processing_status(),
+    }
 
 
 @app.get("/api/version")
@@ -384,11 +422,16 @@ def version() -> dict:
     """Public — frontend Settings page reads this to surface the live
     API build alongside the bundled web version, mirroring the mini
     program's ``Praxys <version>`` line."""
-    return {"version": get_api_version()}
+    return {
+        "version": get_api_version(),
+        "source_sha": get_api_source_sha(),
+    }
 
 
 @app.get("/api/public/config")
-def public_config(db: Session = Depends(get_db)) -> dict:
+def public_config(
+    db: Session = Depends(get_db),
+) -> dict:
     """Public — the SPA reads this before rendering the login page to decide
     whether to offer a direct "Create account" path (open self-registration)
     or only the waitlist / invitation-code paths.
@@ -404,6 +447,7 @@ def public_config(db: Session = Depends(get_db)) -> dict:
 
 @app.get("/api/auth/me")
 def get_me(
+    request: Request,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -412,6 +456,10 @@ def get_me(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
+    from api.legal_receipts import (
+        user_has_current_legal_bundle_for_request,
+    )
+
     return {
         "id": user.id,
         "email": user.email,
@@ -422,7 +470,12 @@ def get_me(
         # to show the re-consent modal. terms_current is computed server-side
         # so the live TERMS_VERSION stays the single source of truth.
         "terms_version": user.terms_version,
-        "terms_current": user.terms_version == TERMS_VERSION,
+        "terms_digest": user.terms_digest,
+        "terms_current": user_has_current_legal_bundle_for_request(
+            db,
+            user_id,
+            request,
+        ),
     }
 
 
@@ -435,7 +488,14 @@ def delete_me(
     from api.account_deletion import delete_user_account
 
     result = delete_user_account(db, user_id)
-    return {"status": "deleted", "email": result.email}
+    return {
+        "status": (
+            "deleted_cleanup_pending"
+            if result.cleanup_pending
+            else "deleted"
+        ),
+        "email": result.email,
+    }
 
 
 @app.get("/api/me/export")
@@ -452,13 +512,13 @@ def export_my_data(
         f'attachment; filename="praxys-data-export-{filename_date}.json"'
     )
     response.headers["Cache-Control"] = "private, no-store"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Vary"] = "Authorization"
     return build_user_data_export(user_id, db)
 
 
 @app.post("/api/me/accept-terms")
 def accept_terms(
+    body: TermsAcceptanceRequest,
+    request: Request,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -478,13 +538,30 @@ def accept_terms(
     import logging
     from datetime import datetime, timezone
 
+    from db.cache_revision import lock_revision_writes
     from db.models import User
+    from db.session import begin_serialized_write
+
+    # Serialize a newly added China-channel receipt with any in-flight
+    # background result commit. Otherwise a worker could authorize against the
+    # previous receipt set and commit just after this request makes a disabled
+    # channel applicable to the user.
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
     accepted_at = datetime.now(timezone.utc)
-    user.terms_version = TERMS_VERSION
+    receipt = build_terms_receipt(
+        user_id=user_id,
+        request=request,
+        payload=body,
+        accepted_at=accepted_at,
+    )
+    user.terms_version = body.terms_version
+    user.terms_digest = body.terms_digest
     user.terms_accepted_at = accepted_at
+    db.add(receipt)
     try:
         db.commit()
     except Exception:
@@ -495,6 +572,7 @@ def accept_terms(
         raise HTTPException(500, "ACCEPT_TERMS_FAILED")
     return {
         "terms_version": TERMS_VERSION,
+        "terms_digest": TERMS_CONTENT_DIGEST,
         "terms_current": True,
         "terms_accepted_at": utc_isoformat(accepted_at),
     }

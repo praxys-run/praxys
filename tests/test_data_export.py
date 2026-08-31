@@ -28,7 +28,11 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         AdaptivePlan,
         AdaptivePlanGoalSnapshot,
         Activity,
+        ActivitySample,
         ActivitySplit,
+        AiInsight,
+        AiInsightFeedback,
+        Feedback,
         FitnessData,
         GoalBaselineAssessment,
         GoalBaselineConfirmation,
@@ -44,6 +48,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         Road10KTrainingPatternSnapshot,
         RecoveryData,
         PlanProposal,
+        TermsAcceptanceReceipt,
         TrainingPlan,
         User,
         UserConfig,
@@ -351,6 +356,15 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 duration_sec=600,
                 avg_power=250,
             ),
+            ActivitySample(
+                user_id=owner_id,
+                activity_id="owner-activity",
+                source="garmin",
+                t_sec=1,
+                power_watts=251,
+                lat=22.3,
+                lng=114.2,
+            ),
             ActivitySplit(
                 user_id=other_id,
                 activity_id="other-activity",
@@ -493,11 +507,50 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 encrypted_credentials=b"owner-raw-credential",
                 wrapped_dek=b"owner-wrapped-key",
                 encrypted_garmin_tokens=b"owner-encrypted-token",
+                preferences={"activities": True},
+                status="connected",
             ),
             UserConnection(
                 user_id=other_id,
                 platform="oura",
                 encrypted_credentials=b"other-raw-credential",
+            ),
+            AiInsight(
+                user_id=owner_id,
+                insight_type="daily_brief",
+                headline="Owner insight",
+                summary="Owner summary",
+                meta={"dataset_hash": "owner-dataset"},
+            ),
+            AiInsightFeedback(
+                user_id=owner_id,
+                insight_type="daily_brief",
+                dataset_hash="owner-dataset",
+                vote="up",
+            ),
+            Feedback(
+                user_id=owner_id,
+                kind="bug",
+                message="Owner private feedback",
+                context_json={"route": "/training"},
+                image_keys=["feedback/user/2026/08/example.png"],
+            ),
+            TermsAcceptanceReceipt(
+                id="owner-terms-receipt",
+                user_id=owner_id,
+                action="accept_terms_and_acknowledge_privacy",
+                terms_version="2026.08.3",
+                terms_digest=(
+                    "sha256:"
+                    "251adfcaad36cd80f591e3eb37e48a32a89ea2618d105dea5b0e1c1ace519a5e"
+                ),
+                locale="en",
+                channel="cn-web",
+                client_version="123456789abc",
+                source_sha="123456789abc" + ("0" * 28),
+                notice_version="2026.08.3",
+                release_id="edgeone:owner-release",
+                accepted_at=datetime(2026, 8, 25, 12, 0),
             ),
         ])
         db.commit()
@@ -575,12 +628,65 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
     )
     payload = response.json()
     assert payload["schema_version"] == 6
+    assert payload["account"]["email"] == "settings-api@test.local"
+    assert payload["connections"] == [
+        {
+            "platform": "garmin",
+            "preferences": {"activities": True},
+            "last_sync": None,
+            "status": "connected",
+            "consecutive_failures": 0,
+            "next_retry_at": None,
+            "last_error": None,
+            "tokens_updated_at": None,
+        }
+    ]
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]
+    assert payload["activity_samples"] == [
+        {
+            "activity_id": "owner-activity",
+            "source": "garmin",
+            "t_sec": 1,
+            "power_watts": 251.0,
+            "hr_bpm": None,
+            "speed_ms": None,
+            "pace_sec_km": None,
+            "cadence_spm": None,
+            "altitude_m": None,
+            "distance_m": None,
+            "lat": 22.3,
+            "lng": 114.2,
+            "grade_pct": None,
+            "temperature_c": None,
+            "ground_time_ms": None,
+            "oscillation_mm": None,
+            "leg_spring_kn_m": None,
+            "vertical_ratio": None,
+            "form_power_watts": None,
+            "respiration_rate": None,
+        }
+    ]
     assert [row["readiness_score"] for row in payload["recovery"]] == [88.0]
     assert [row["value"] for row in payload["fitness"]] == [290.0]
     assert [row["canonical_id"] for row in payload["training_plans"]] == ["owner-plan"]
+    assert payload["ai_insights"][0]["headline"] == "Owner insight"
+    assert payload["ai_insight_feedback"][0]["vote"] == "up"
+    assert payload["feedback"][0]["message"] == "Owner private feedback"
+    assert payload["feedback"][0]["private_image_count"] == 1
+    assert payload["feedback"][0]["private_image_downloads"] == [
+        "/api/me/feedback/1/image/0"
+    ]
+    assert payload["terms_acceptance_receipts"][0]["id"] == (
+        "owner-terms-receipt"
+    )
+    assert payload["terms_acceptance_receipts"][0]["action"] == (
+        "accept_terms_and_acknowledge_privacy"
+    )
+    assert payload["terms_acceptance_receipts"][0]["release_id"] == (
+        "edgeone:owner-release"
+    )
     assert payload["training_plans"][0]["activity_type"] == "running"
     assert payload["training_plans"][0]["workout_structure_version"] == "v1"
     assert payload["training_plans"][0]["workout_structure"]["steps"][0][

@@ -36,19 +36,47 @@ function runWebBuild(environment) {
 }
 
 const sourceSha = await resolveSourceSha();
-await runWebBuild({
-  ...process.env,
-  VITE_API_URL: 'https://api.praxys.run',
+const regionalAppInsights =
+  process.env.VITE_APPINSIGHTS_CONNECTION_STRING?.trim() ?? "";
+if (!regionalAppInsights) {
+  throw new Error(
+    "EdgeOne requires VITE_APPINSIGHTS_CONNECTION_STRING for regional "
+    + "availability and performance telemetry.",
+  );
+}
+const environment = {};
+for (const name of [
+  "PATH",
+  "HOME",
+  "USERPROFILE",
+  "SYSTEMROOT",
+  "COMSPEC",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+  "CI",
+]) {
+  if (process.env[name] !== undefined) {
+    environment[name] = process.env[name];
+  }
+}
+Object.assign(environment, {
+  VITE_API_URL: "https://api.praxys.run",
   VITE_APP_VERSION: sourceSha.slice(0, 12),
-  VITE_APPINSIGHTS_CONNECTION_STRING: '',
-  VITE_STATSIG_CLIENT_KEY: '',
-  VITE_STATSIG_ENV: 'production',
+  VITE_SOURCE_SHA: sourceSha,
+  VITE_APPINSIGHTS_CONNECTION_STRING: regionalAppInsights,
+  VITE_STATSIG_CLIENT_KEY: "",
+  VITE_STATSIG_ENV: "production",
 });
+// Only these fixed public build inputs cross into the EdgeOne subprocess.
+// Provider credentials and unrelated host variables are never inherited.
+await runWebBuild(environment);
 const result = await prepareEdgeOneArtifact(
   path.join(WEB_ROOT, 'dist'),
   sourceSha,
 );
 console.log(
   `Built EdgeOne artifact for ${result.sourceSha}: `
-  + `${result.htmlCount} HTML files, ${result.fileCount} manifest entries.`,
+  + `${result.htmlCount} HTML files.`,
 );

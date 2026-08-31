@@ -812,6 +812,11 @@ def _proposal_input(
                     else None
                 ),
                 "event_state": result.event_context.state,
+                "guardrail_projection": {
+                    "contract_digest": result.contract_digest,
+                    "source_decision_digest": result.source_decision_digest,
+                    "taper": ROAD_10K_GUARDRAILS.public_payload()["taper"],
+                },
             },
             "horizon_start": result.plan.horizon_start.isoformat(),
             "horizon_end": result.plan.horizon_end.isoformat(),

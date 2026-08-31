@@ -14,6 +14,10 @@ export function isChinaFrontendDeployment(): boolean {
   return isChinaDeploymentRegion(marker?.content);
 }
 
-export function isBrowserTelemetryAllowed(configured: boolean): boolean {
+export function isAppInsightsAllowed(configured: boolean): boolean {
+  return configured;
+}
+
+export function isStatsigBrowserAllowed(configured: boolean): boolean {
   return configured && !isChinaFrontendDeployment();
 }

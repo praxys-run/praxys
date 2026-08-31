@@ -205,7 +205,7 @@ class GeneratedWeek:
 
 @dataclass(frozen=True)
 class GeneratedRoad10KPlan:
-    """A reviewed immutable 14-day non-canonical proposal payload."""
+    """A reviewed immutable bounded non-canonical proposal payload."""
 
     policy_version: str
     generator_version: str
@@ -561,7 +561,7 @@ def build_event_context(
 def generate_road_10k_plan(
     generation_input: Road10KGenerationInput,
 ) -> Road10KGenerationResult:
-    """Generate a reviewed 14-day proposal or a typed no-plan outcome."""
+    """Generate a reviewed bounded proposal or a typed no-plan outcome."""
     training_pattern = build_road_10k_training_pattern_snapshot(
         generation_input.history,
         athlete_today=generation_input.athlete_today,
@@ -700,7 +700,7 @@ def generate_road_10k_plan(
             statistics=statistics,
             event_context=event_context,
             rule="race_dense_event_context",
-            reason="A confirmed target date and a separate benchmark date cannot both drive one reviewed 14-day proposal.",
+            reason="A confirmed target date and a separate benchmark date cannot both drive one reviewed bounded proposal.",
             missing=None,
             alternatives=("keep_one_target_date", "decline_optional_benchmark"),
         )
@@ -1229,13 +1229,8 @@ def _build_schedule(
         if selected_dates is None:
             return None
         if is_taper:
-            reference_dates = (
-                tuple(sorted((*selected_dates, external_quality_date)))
-                if external_quality_date is not None
-                else selected_dates
-            )
             reference = _normal_week_workouts(
-                dates=reference_dates,
+                dates=selected_dates,
                 total_target=weekly_target,
                 session_cap=session_cap,
                 maximum_distance_ceiling_km=session_distance_cap,
@@ -1250,12 +1245,14 @@ def _build_schedule(
             reference_total = sum(
                 item.planned_duration_min for item in reference.workouts
             )
-            target_total = max(
-                1,
-                int(round(
-                    reference_total * (1.0 - _TAPER_VOLUME_REDUCTION)
-                )),
+            target_total_exact = (
+                reference_total * (1.0 - _TAPER_VOLUME_REDUCTION)
             )
+            if not target_total_exact.is_integer():
+                return None
+            target_total = int(target_total_exact)
+            if target_total <= 0:
+                return None
             week = _normal_week_workouts(
                 dates=selected_dates,
                 total_target=target_total,

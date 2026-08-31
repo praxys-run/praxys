@@ -10,7 +10,7 @@ explicit modes + per-day operations) so a future refactor can't quietly
 revert to "wipe everything on every push" semantics.
 """
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -19,6 +19,11 @@ from analysis.config import (
     PRAXYS_PLAN_SOURCES,
     PRAXYS_PLAN_WRITE_SOURCE,
 )
+
+
+def _api_today() -> date:
+    """Match the API fallback date, which is explicitly UTC."""
+    return datetime.now(timezone.utc).date()
 
 
 @pytest.fixture
@@ -52,6 +57,14 @@ def api_client(monkeypatch):
     monkeypatch.setattr(
         "api.statsig_client.check_gate",
         lambda gate_name, _user: gate_name == "stryd_connection_enabled",
+    )
+    monkeypatch.setattr(
+        "api.routes.ai.effective_athlete_date",
+        lambda config: _api_today(),
+    )
+    monkeypatch.setattr(
+        "api.routes.plan.effective_athlete_date",
+        lambda config: _api_today(),
     )
 
     from db.models import User
@@ -476,7 +489,7 @@ class TestUpsertPlanDay:
 
     def test_put_rejects_completed_history(self, api_client):
         client, user_id = api_client
-        target = (date.today() - timedelta(days=1)).isoformat()
+        target = (_api_today() - timedelta(days=1)).isoformat()
         _seed_plan(user_id, [(target, "easy", "completed")])
 
         response = client.put(f"/api/plan/{target}", json={
@@ -486,7 +499,7 @@ class TestUpsertPlanDay:
         assert response.status_code == 409
         detail = response.json()["detail"]
         assert detail["code"] == "PLAN_HISTORY_IMMUTABLE"
-        assert detail["minimum_date"] == date.today().isoformat()
+        assert detail["minimum_date"] == _api_today().isoformat()
         assert _list_plan_rows(user_id)[0]["workout_description"] == "completed"
 
 
@@ -528,7 +541,7 @@ class TestDeletePlanDay:
 
     def test_delete_rejects_completed_history(self, api_client):
         client, user_id = api_client
-        target = (date.today() - timedelta(days=1)).isoformat()
+        target = (_api_today() - timedelta(days=1)).isoformat()
         _seed_plan(user_id, [(target, "easy", "completed")])
 
         response = client.delete(f"/api/plan/{target}")
@@ -536,7 +549,7 @@ class TestDeletePlanDay:
         assert response.status_code == 409
         detail = response.json()["detail"]
         assert detail["code"] == "PLAN_HISTORY_IMMUTABLE"
-        assert detail["minimum_date"] == date.today().isoformat()
+        assert detail["minimum_date"] == _api_today().isoformat()
         assert len(_list_plan_rows(user_id)) == 1
 
 
@@ -625,7 +638,7 @@ class TestCanonicalWorkoutManagement:
         body = response.json()
         assert body["management"]["mutation_api_version"] == 1
         assert body["management"]["can_write"] is True
-        assert body["management"]["minimum_date"] == date.today().isoformat()
+        assert body["management"]["minimum_date"] == _api_today().isoformat()
         assert body["management"]["external_overlap_dates"] == []
         praxys = next(
             workout
@@ -735,7 +748,7 @@ class TestCanonicalWorkoutManagement:
 
         assert first.status_code == 200
         assert second.status_code == 200
-        assert f"today={date.today().isoformat()}" in salts[0]
+        assert f"today={_api_today().isoformat()}" in salts[0]
         assert "writable=1" in salts[0]
         assert "writable=0" in salts[1]
         assert first.headers["etag"] != second.headers["etag"]
@@ -1759,7 +1772,7 @@ class TestCanonicalWorkoutManagement:
 
     def test_completed_workout_is_listed_but_immutable(self, api_client):
         client, user_id = api_client
-        target = (date.today() - timedelta(days=1)).isoformat()
+        target = (_api_today() - timedelta(days=1)).isoformat()
         _seed_plan(user_id, [(target, "easy", "Completed")])
         row = _list_plan_rows(user_id)[0]
 

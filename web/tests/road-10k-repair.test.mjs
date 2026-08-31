@@ -162,5 +162,6 @@ test("account deletion clients model committed cleanup pending", async () => {
   assert.match(login, /deleted_cleanup_pending/);
   assert.match(login, /role="status"/);
   assert.match(miniSettings, /apiDelete<AccountDeletionResponse>/);
-  assert.match(miniSettings, /clearToken\(\)[\s\S]*deleted_cleanup_pending/);
+  assert.match(miniSettings, /clearToken\(\)/);
+  assert.match(miniSettings, /accountDeletionStatus=\$\{result\.status\}/);
 });

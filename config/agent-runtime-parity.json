@@ -1,0 +1,403 @@
+{
+  "schema_version": 2,
+  "parity_version": "praxys-agent-runtime-parity-v2",
+  "status": "implementation-candidate",
+  "approval": {
+    "proposal_id": "policy-change-proposal-codex-copilot-runtime-parity-v1",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-copilot-runtime-parity-v1.md",
+    "proposal_digest": "sha256:47a829962a21e17833feac0c3473ecb749c7b7e0ce4bff3aa2611ee1a92de8cd",
+    "subject_path": "docs/dev/codex-copilot-runtime-parity-decision-v1.json",
+    "subject_digest": "sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc",
+    "authorized_scope": "implementation-and-verification-only"
+  },
+  "lifecycle_approval": {
+    "proposal_id": "policy-change-proposal-codex-subagent-lifecycle-v2",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-subagent-lifecycle-v2.md",
+    "proposal_digest": "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3",
+    "subject_path": "docs/dev/codex-subagent-lifecycle-decision-v2.json",
+    "subject_digest": "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43",
+    "approval_path": "docs/dev/codex-subagent-lifecycle-approval-v2.json",
+    "approval_digest": "sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398",
+    "authorization_kind": "explicit-user-merge-request",
+    "authorized_scope": "merge-and-default-branch-activation-only",
+    "decision_review_route": "human-review-required",
+    "exact_subject_human_approval_status": "approved",
+    "digest_bound_human_approval_claimed": true,
+    "human_approved_at": "2026-08-31T15:49:37+08:00",
+    "approved_pull_request": 756,
+    "approved_implementation_head": "d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a"
+  },
+  "canonical_control_plane": {
+    "entry_instruction_path": "AGENTS.md",
+    "operating_model_path": "config/agentic-operating-model.json",
+    "routing_config_path": "config/agentic-task-routing.json",
+    "loop_policy_path": "config/agent-loop-policies.json",
+    "router_path": "scripts/route_agentic_task.py",
+    "copilot_contract_path": "config/copilot-execution-parity.json"
+  },
+  "codex_adapter": {
+    "project_config_path": ".codex/config.toml",
+    "agent_directory": ".codex/agents",
+    "hook_path": ".codex/hooks.json",
+    "skill_directory": ".agents/skills",
+    "approval_policy": "on-request",
+    "default_sandbox_mode": "workspace-write",
+    "supported_parent_modes": [
+      "workspace-write"
+    ],
+    "full_access_supported": false,
+    "credentials_in_repository": false,
+    "separate_worktree_per_concurrent_task": true,
+    "trusted_checkout_required": true
+  },
+  "lifecycle_profiles": {
+    "schema_version": 1,
+    "logical_work_key_fields": [
+      "contract_id",
+      "slot_id",
+      "revision_key"
+    ],
+    "coordinator_agent_ids": [
+      "praxys-orchestrator",
+      "praxys-change-loop"
+    ],
+    "copilot": {
+      "profile_id": "copilot-repository-mediated-v1",
+      "mechanism": "repository-mediated-ledger",
+      "contract_path": "config/agent-invocation-control.json",
+      "direct_sibling_policy": "serialize-per-parent-attempt",
+      "default_dispatch": "sync-inline",
+      "background_completion": "external-notification-single-claimed-read"
+    },
+    "codex": {
+      "profile_id": "codex-native-thread-control-v1",
+      "mechanism": "native-agent-thread-control",
+      "native_capabilities": [
+        "targeted_agent_identity",
+        "completion_result_delivery",
+        "follow_up_routing",
+        "interrupt",
+        "tree_status_inspection",
+        "thread_wait"
+      ],
+      "dispatch_classes": [
+        "read_parallel",
+        "write_serial",
+        "dependency_serial"
+      ],
+      "max_concurrent_threads_per_session": 4,
+      "active_logical_work_behavior": "follow-up-existing-target",
+      "capacity_behavior": "queue-without-replacement",
+      "parent_terminal_behavior": "leaf-first-interrupt-on-abort-shutdown-failure-or-replacement",
+      "unconfirmed_termination_behavior": "record-incomplete-without-relaunch",
+      "replacement_behavior": "one-explicit-non-chaining-after-confirmed-terminal-or-loss",
+      "reviewer_behavior": "fresh-read-only-thread-without-executor-history",
+      "non_coordinator_dispatch_behavior": "forbidden-return-handoff-to-parent-coordinator",
+      "copilot_native_protocol": "forbidden"
+    }
+  },
+  "agent_adapters": [
+    {
+      "id": "praxys-orchestrator",
+      "canonical_path": ".github/agents/praxys-orchestrator.agent.md",
+      "codex_path": ".codex/agents/praxys-orchestrator.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": []
+    },
+    {
+      "id": "work-router",
+      "canonical_path": ".github/agents/work-router.agent.md",
+      "codex_path": ".codex/agents/work-router.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": []
+    },
+    {
+      "id": "decision-review-router",
+      "canonical_path": ".github/agents/decision-review-router.agent.md",
+      "codex_path": ".codex/agents/decision-review-router.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": []
+    },
+    {
+      "id": "praxys-change-loop",
+      "canonical_path": ".github/agents/praxys-change-loop.agent.md",
+      "codex_path": ".codex/agents/praxys-change-loop.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": [
+        "chrome-devtools",
+        "praxys-local"
+      ]
+    },
+    {
+      "id": "product",
+      "canonical_path": ".github/agents/product.agent.md",
+      "codex_path": ".codex/agents/product.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": [
+        "praxys-local"
+      ]
+    },
+    {
+      "id": "design",
+      "canonical_path": ".github/agents/design.agent.md",
+      "codex_path": ".codex/agents/design.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": [
+        "chrome-devtools",
+        "praxys-local"
+      ]
+    },
+    {
+      "id": "engineering",
+      "canonical_path": ".github/agents/engineering.agent.md",
+      "codex_path": ".codex/agents/engineering.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "implementation",
+      "mcp_servers": [
+        "chrome-devtools",
+        "praxys-local"
+      ]
+    },
+    {
+      "id": "architecture",
+      "canonical_path": ".github/agents/architecture.agent.md",
+      "codex_path": ".codex/agents/architecture.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": []
+    },
+    {
+      "id": "quality",
+      "canonical_path": ".github/agents/quality.agent.md",
+      "codex_path": ".codex/agents/quality.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": [
+        "chrome-devtools"
+      ]
+    },
+    {
+      "id": "science",
+      "canonical_path": ".github/agents/science.agent.md",
+      "codex_path": ".codex/agents/science.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": [
+        "chrome-devtools"
+      ]
+    },
+    {
+      "id": "trust",
+      "canonical_path": ".github/agents/trust.agent.md",
+      "codex_path": ".codex/agents/trust.toml",
+      "sandbox_mode": "read-only",
+      "write_scope": "none",
+      "mcp_servers": []
+    },
+    {
+      "id": "operations",
+      "canonical_path": ".github/agents/operations.agent.md",
+      "codex_path": ".codex/agents/operations.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": []
+    },
+    {
+      "id": "meta-eval",
+      "canonical_path": ".github/agents/meta-eval.agent.md",
+      "codex_path": ".codex/agents/meta-eval.toml",
+      "sandbox_mode": "workspace-write",
+      "write_scope": "accepted-artifacts",
+      "mcp_servers": []
+    }
+  ],
+  "skill_adapters": [
+    {
+      "id": "impeccable",
+      "canonical_path": ".github/skills/impeccable",
+      "codex_path": ".agents/skills/impeccable",
+      "relative_target": "../../.github/skills/impeccable"
+    },
+    {
+      "id": "science-research",
+      "canonical_path": ".github/skills/science-research",
+      "codex_path": ".agents/skills/science-research",
+      "relative_target": "../../.github/skills/science-research"
+    },
+    {
+      "id": "ui-quality",
+      "canonical_path": ".github/skills/ui-quality",
+      "codex_path": ".agents/skills/ui-quality",
+      "relative_target": "../../.github/skills/ui-quality"
+    },
+    {
+      "id": "wechat-devtools",
+      "canonical_path": ".github/skills/wechat-devtools",
+      "codex_path": ".agents/skills/wechat-devtools",
+      "relative_target": "../../.github/skills/wechat-devtools"
+    }
+  ],
+  "portable_mcp_servers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--headless",
+        "--isolated",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--redact-network-headers",
+        "--screenshot-format=webp",
+        "--screenshot-max-width=1600",
+        "--screenshot-max-height=1200"
+      ],
+      "enabled_tools": [
+        "click",
+        "drag",
+        "fill",
+        "fill_form",
+        "handle_dialog",
+        "hover",
+        "press_key",
+        "type_text",
+        "close_page",
+        "list_pages",
+        "navigate_page",
+        "new_page",
+        "select_page",
+        "wait_for",
+        "emulate",
+        "resize_page",
+        "get_network_request",
+        "list_network_requests",
+        "evaluate_script",
+        "get_console_message",
+        "lighthouse_audit",
+        "list_console_messages",
+        "take_screenshot",
+        "take_snapshot"
+      ]
+    },
+    "praxys-local": {
+      "command": "node",
+      "args": [
+        "scripts/run_praxys_mcp.cjs",
+        "local"
+      ],
+      "enabled_tools": [
+        "get_daily_brief",
+        "get_training_review",
+        "get_race_forecast",
+        "get_training_context",
+        "get_settings",
+        "get_sync_settings",
+        "get_connections",
+        "get_managed_plan_status",
+        "get_sync_status",
+        "whoami"
+      ]
+    }
+  },
+  "excluded_mcp_servers": [
+    "azure-mcp",
+    "statsig",
+    "praxys-dev-test"
+  ],
+  "credential_environment_excludes": [
+    "AWS_*",
+    "AZURE_*",
+    "ARM_*",
+    "GOOGLE_*",
+    "GCP_*",
+    "GCLOUD_*",
+    "OPENAI_*",
+    "ANTHROPIC_*",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "COPILOT_*",
+    "*_PASSWORD*",
+    "*_CREDENTIAL*",
+    "DATABASE_URL",
+    "POSTGRES_*",
+    "GARMIN_*",
+    "STRAVA_*",
+    "OURA_*",
+    "STRYD_*",
+    "WECHAT_*",
+    "STATSIG_*",
+    "SMTP_*",
+    "RESEND_*"
+  ],
+  "hook": {
+    "event": "PostToolUse",
+    "matcher": "apply_patch|Edit|Write",
+    "command": "node \"$(git rev-parse --show-toplevel)/.github/skills/impeccable/scripts/hook.mjs\"",
+    "timeout_seconds": 5,
+    "canonical_hook_path": ".github/hooks/impeccable.json",
+    "script_path": ".github/skills/impeccable/scripts/hook.mjs"
+  },
+  "approved_work_contract": {
+    "primary_object": "agent-system",
+    "impacts": [
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "classification_digest": "sha256:ee6c38eebb7b9db2aedf6b824bc23d5d966e08045fc0e2830196e4a13eb0bcdd",
+    "route_digest": "sha256:6d0f0f33ea72fc440558b883ca293408fd1508011b4f0970495a49ba13b743e2",
+    "primary_loop": "meta-eval",
+    "nested_loops": [
+      "delivery"
+    ],
+    "lead_role": "meta-eval",
+    "contributor_roles": [
+      "architecture",
+      "trust"
+    ],
+    "executor_roles": [
+      "engineering"
+    ],
+    "verifier_roles": [
+      "quality"
+    ],
+    "required_artifacts": [
+      "evaluation-report",
+      "implementation-impact-map",
+      "implementation-change",
+      "verification-evidence",
+      "policy-change-proposal",
+      "architecture-decision-record",
+      "trust-decision-record"
+    ],
+    "decision_review_required": true
+  },
+  "required_parity": [
+    "same enumerated task classification",
+    "same classification and route digests",
+    "same role ownership and separation",
+    "same required artifacts and decision-review obligation",
+    "same portable MCP capability allowlist",
+    "same fail-closed limitation behavior"
+  ],
+  "limitations": [
+    "Static conformance does not prove equivalent prose, sampling, latency, token use, or runtime outcomes.",
+    "An untrusted checkout skips the project Codex adapter and must be reported as unavailable.",
+    "Full Access and --yolo parent sessions are outside the supported portable path.",
+    "Native agent dispatch cannot be globally intercepted by repository invocation control.",
+    "Missing portable MCP capabilities block only the affected loop; production or personal tools are never substitutes.",
+    "Measured parity requires the separately defined paired-task observation period."
+  ]
+}

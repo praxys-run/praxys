@@ -11,6 +11,10 @@ import { MINIAPP_BUILD_VERSION } from './version';
 const ONCE_STORAGE_KEY = 'praxys.product-events.once'; // i18n-allow
 const ONCE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 const APP_VERSION = MINIAPP_BUILD_VERSION || 'develop'; // i18n-allow
+// Product events contain only allowlisted event names, build metadata, and
+// bounded response enums. The authenticated API replaces the account with a
+// one-way telemetry pseudonym before exporting the event.
+const PRODUCT_EVENTS_ENABLED = true;
 
 function fingerprint(value: string): string {
   let hash = 2166136261;
@@ -60,6 +64,8 @@ export async function recordProductEvent(
   eventName: ProductEventName,
   response?: TodayFeedbackResponse,
 ): Promise<ProductEventResponse | null> {
+  if (!PRODUCT_EVENTS_ENABLED) return null;
+
   let payload: ProductEventRequest;
   if (eventName === 'today_feedback_submitted') {
     if (!response) return null;
@@ -88,6 +94,8 @@ export async function recordProductEvent(
 
 /** Claim a short server-side window while the Decision Check renders. */
 export async function claimTodayDecisionCheck(): Promise<ProductEventResponse | null> {
+  if (!PRODUCT_EVENTS_ENABLED) return null;
+
   try {
     return await apiPost<ProductEventResponse>(
       '/api/product-events/today-feedback-claim',
@@ -115,6 +123,8 @@ export function recordProductEventOnce(
   eventName: NonDecisionProductEventName,
   key: string,
 ): void {
+  if (!PRODUCT_EVENTS_ENABLED) return;
+
   const now = Date.now();
   const eventKey = `${productEventStorageScope()}:${eventName}:${key}`;
   let sent: Record<string, number> = {};

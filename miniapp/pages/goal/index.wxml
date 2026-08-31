@@ -148,8 +148,11 @@
           />
         </view>
 
-        <!-- Praxys Coach receipt — conditional on race_forecast insight.
-             Nil-renders when LLM is disabled or no insight exists. -->
+        <view wx:if="{{aiUnavailable}}" class="ts-card" role="status">
+          <text class="ts-section-label">{{aiUnavailableText}}</text>
+        </view>
+
+        <!-- Praxys Coach receipt — shown only for an Azure AI result. -->
         <view wx:if="{{hasCoach}}" class="coach-receipt">
           <view class="coach-banner">
             <text class="coach-mark">{{coachTr.mark}}</text>

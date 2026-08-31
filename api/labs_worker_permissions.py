@@ -12,12 +12,19 @@ TABLE_PRIVILEGES: dict[str, tuple[str, ...]] = {
     "recovery_data": ("SELECT",),
     "fitness_data": ("SELECT",),
     "labs_analysis_jobs": ("SELECT",),
+    "labs_analysis_outbox": ("SELECT",),
     "labs_experiment_enrollments": ("SELECT",),
     "labs_experiment_results": ("SELECT", "INSERT", "UPDATE"),
     "labs_deletion_tombstones": ("SELECT",),
 }
 
 COLUMN_PRIVILEGES: dict[str, dict[str, tuple[str, ...]]] = {
+    "app_config": {
+        "SELECT": (
+            "key",
+            "value",
+        ),
+    },
     "users": {
         "SELECT": (
             "id",
@@ -25,6 +32,16 @@ COLUMN_PRIVILEGES: dict[str, dict[str, tuple[str, ...]]] = {
             "is_active",
             "is_superuser",
             "is_demo",
+            "terms_version",
+            "terms_digest",
+        ),
+    },
+    "terms_acceptance_receipts": {
+        "SELECT": (
+            "user_id",
+            "terms_version",
+            "terms_digest",
+            "channel",
         ),
     },
     "activity_samples": {
@@ -47,6 +64,14 @@ COLUMN_PRIVILEGES: dict[str, dict[str, tuple[str, ...]]] = {
             "started_at",
             "lease_expires_at",
             "completed_at",
+            "updated_at",
+        ),
+    },
+    "labs_analysis_outbox": {
+        "UPDATE": (
+            "status",
+            "lease_expires_at",
+            "last_error_code",
             "updated_at",
         ),
     },

@@ -361,6 +361,69 @@ export interface Road10KTaperScienceCopy {
   source_path: string;
 }
 
+const ROAD_10K_POLICY_VERSION = 'road-10k-plan-generation-policy-v2';
+const ROAD_10K_SCIENCE_VERSION = 'sdr-road-10k-plan-generation-policy-v2';
+const ROAD_10K_CONTRACT_DIGEST =
+  'sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496';
+const ROAD_10K_SOURCE_DECISION_DIGEST =
+  'sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad';
+
+interface PersistedRoad10KProposal {
+  policy_version?: unknown;
+  science_version?: unknown;
+  goal?: {
+    goal_kind?: unknown;
+    horizon_end?: unknown;
+    target?: {
+      event_state?: unknown;
+      target_event_date?: unknown;
+      guardrail_projection?: {
+        contract_digest?: unknown;
+        source_decision_digest?: unknown;
+        taper?: unknown;
+      };
+    };
+  } | null;
+}
+
+/** Read taper copy only from the immutable, digest-bound proposal snapshot. */
+export function road10kTaperGuardrailForProposal(
+  proposal: PersistedRoad10KProposal | null | undefined,
+): Road10KTaperGuardrailProjection | null {
+  const goal = proposal?.goal;
+  const target = goal?.target;
+  const projection = target?.guardrail_projection;
+  if (
+    proposal?.policy_version !== ROAD_10K_POLICY_VERSION
+    || proposal?.science_version !== ROAD_10K_SCIENCE_VERSION
+    || goal?.goal_kind !== 'performance_10k'
+    || target?.event_state !== 'single_target'
+    || projection?.contract_digest !== ROAD_10K_CONTRACT_DIGEST
+    || projection?.source_decision_digest !== ROAD_10K_SOURCE_DECISION_DIGEST
+    || typeof goal.horizon_end !== 'string'
+    || typeof target.target_event_date !== 'string'
+  ) return null;
+  const horizonEnd = new Date(`${goal.horizon_end}T00:00:00Z`);
+  const eventDate = new Date(`${target.target_event_date}T00:00:00Z`);
+  if (
+    Number.isNaN(horizonEnd.getTime())
+    || Number.isNaN(eventDate.getTime())
+    || eventDate.getTime() - horizonEnd.getTime() !== 86_400_000
+  ) return null;
+  const taper = projection.taper as Partial<Road10KTaperGuardrailProjection> | undefined;
+  if (
+    taper?.planned_volume_reduction_fraction !== 0.5
+    || taper.maintain_intensity_exposure_without_adding_quality !== true
+    || taper.evidence_population !== 'mixed_endurance_athletes'
+    || taper.direct_recreational_road_10k_validation !== false
+    || taper.single_target_taper_result !== 'taper_proposal_truncated_to_event_eve'
+    || taper.personal_performance_gain_claim !== false
+    || taper.causal_plan_benefit_claim !== 'disabled'
+    || taper.personal_injury_probability !== 'disabled'
+  ) return null;
+  return taper as Road10KTaperGuardrailProjection;
+}
+
 export function road10kTaperScienceCopy(
   taper: Road10KTaperGuardrailProjection,
   locale: 'en' | 'zh-CN' = 'en',

@@ -1,170 +1,139 @@
 # Deploy & rollback
 
-> **Summary:** How each surface (backend, frontend, mini program) deploys, how to
-> trigger/re-run, and how to roll back.
-> **Use when:** Shipping a change to prod, or reverting a bad deploy.
+> **Summary:** How each Praxys surface deploys and how to recover.
+> **Use when:** Shipping a change, rerunning a deployment, or rolling back.
 
-## How deploys trigger
+## Deployment inventory
 
-| Surface | Workflow | Triggers | Target |
-|---|---|---|---|
-| Backend (API) | `deploy-backend.yml` | push to `main` touching backend runtime code, observability config/scripts, dependencies, or the workflow; or `api-*` tag | App Service `trainsight-app` |
-| Labs analysis worker | `deploy-labs-worker.yml` | push to `main` touching worker/backend analysis code, its Dockerfile/requirements, Bicep, tests, or the workflow; manual dispatch | Service Bus + Container Apps Job; Azure deploy is gated by `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true` |
-| Frontend (SPA) | `deploy-frontend-appservice.yml`; EdgeOne native Git integration | push to protected `main` touching the SPA/static server, observability config/scripts, or the workflow; `web-*` tag; manual `main` dispatch | App Service `praxys-frontend`; gated EdgeOne Git build for `.cn` |
-| Mini program | `miniapp-publish.yml` | `miniapp-YYYY.MM.MICRO` release tag (robot 1); `main` pushes auto-publish a dev build (robot 5) | WeChat (`miniprogram-ci`) |
+| Surface | Workflow | Trigger / target |
+|---|---|---|
+| Backend API | `deploy-backend.yml` | protected `main` backend paths or manual protected-main dispatch → App Service `trainsight-app` |
+| Frontend SPA | `deploy-frontend-appservice.yml` | protected `main` web paths or manual protected-main dispatch → App Service `praxys-frontend`; regional build validation only |
+| China web gate | `launch-cn.yml` | manual current protected `main`; only `enable` requires `china-production` |
+| Labs worker | `deploy-labs-worker.yml` | its documented main/tag/manual triggers; Azure reconciliation remains gated |
+| Miniapp candidate upload | `miniapp-publish.yml` | protected-main robot 5 development upload or `miniapp-*` robot 1 candidate upload; provider review/promotion/publication remain manual |
 
-Targets authenticate through Azure OIDC or the WeChat upload key. EdgeOne uses
-a least-privilege read-only GitHub App repository grant and no GitHub Actions
-deployment token. There is no production self-hosted frontend Runner and
-GitHub Actions does not SSH into a Tencent host.
+Azure targets use OIDC. There is no Azure client secret, publish profile,
+self-hosted production runner, or EdgeOne deployment credential in GitHub
+Actions. EdgeOne uses a repository-scoped read-only native Git integration.
 
-**Pre-merge gate.** Before any deploy, `ci-premerge.yml` runs independent
-backend and frontend validation on every PR to `main`. A red required context
-blocks merge, so regressions never reach deployment (see
-[environment.md](./environment.md) -> Repo governance). Normal backend deploys
-rely on that required check instead of repeating the same five-minute suite
-after merge. `api-*` tags always run the suite again; manual dispatches can opt
-in with `run_tests=true`.
+## Backend
 
-GitHub-hosted Python jobs use `actions/setup-python@v7` to provision the workflow-pinned Python 3.11/3.12 runtimes and require no separate runner configuration.
+The workflow:
 
-## Backend deploy
+1. Optionally relies on the required pre-merge suite or runs it again.
+2. Stamps the API version and full source SHA.
+3. Logs in with protected-main OIDC.
+5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS, and
+   `PRAXYS_DISABLE_BACKGROUND_AI` untouched.
+6. Preserves telemetry, database, Labs, secrets, Always On, and other ordinary
+   configuration behavior when `sync_config=true`.
+7. Preserves the Miniapp emergency switch and existing WeChat App Service
+   credentials when both GitHub secrets are absent; on the first rollout, an
+   absent Miniapp switch is initialized enabled. Supplying exactly one
+   WeChat secret fails before any configuration mutation.
+8. Deploys and verifies exact API version/source SHA, readiness, either
+   preserved China/Miniapp state and the reported Azure
+   AI emergency state.
+9. Writes a concise run summary. It performs no EdgeOne probe or restoration.
 
-Automatic on merge to `main` (for the paths above). The workflow:
-1. Stamps `api/_build_version.txt`.
-2. Waits for a compatible live frontend `deployed_sha` and, in isolated Labs
-   mode, the exact same commit of the Labs worker.
-3. Uses Azure OIDC and runs `azure/webapps-deploy`.
-4. When deployment configuration changed, first reconciles the telemetry
-   boundary, App Service settings, and alerts (see
-   [config-and-secrets.md](./config-and-secrets.md)), then waits for the SCM
-   endpoint to settle after the resulting configuration recycle.
-5. Verifies that `/api/version` reports the stamped build and database
-   readiness is green. If OneDeploy has not activated the new process after
-   the initial activation probes, the workflow performs one App Service
-   restart and verifies again before reporting success.
-
-The configuration path runs automatically when the workflow, observability
-resource map, or telemetry boundary script changes. Manual dispatch defaults
-`sync_config=true`, which is required after changing a GitHub Actions secret or
-variable. Ordinary runtime-only merges skip those idempotent management writes
-and their two-minute recycle wait.
-
-When configuration is reconciled, the settle gate remains load-bearing: App
-Service management writes recycle the SCM container, and starting ZipDeploy
-during that recycle aborts the deployment with
-`Deployment has been stopped due to SCM container restart`.
-
-Test-only changes do not deploy the backend. Pull requests already run the
-backend suite in the required pre-merge workflow; recycling production when no
-runtime artifact changed adds outage risk without changing the service.
-
-Force a deploy without a code change:
+An ordinary healthy production state has
+`PRAXYS_DISABLE_BACKGROUND_AI=false`. An explicit `true` emergency stop is
+preserved, not silently cleared. The workflow never writes China release
+metadata.
 
 ```bash
-# Fast code redeploy; preserves the current App Service configuration.
 gh workflow run deploy-backend.yml --ref main -f sync_config=false
-
-# Reconcile GitHub-owned settings/telemetry before deploying (the default).
 gh workflow run deploy-backend.yml --ref main -f sync_config=true
 ```
 
-An `api-YYYY.MM.MICRO` tag performs a versioned release and always runs backend
-tests first.
+The configuration path still waits for App Service management-write recycle
+before ZipDeploy. The B1 plan has no slots. PostgreSQL uses its configured PITR;
+there is no unsupported on-demand Burstable-tier snapshot.
 
-## Labs analysis worker deploy
+## Frontend
 
-`deploy-labs-worker.yml` always runs the targeted backend tests, builds the
-1-vCPU/2-GiB worker image, publishes its commit-SHA tag to GHCR, verifies that
-the package is anonymously pullable, and validates the Bicep template. It
-reconciles Azure only when
-`PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true`.
+The workflow builds the filing-free `.run` bundle first and copies it into the
+Azure package before running `npm run build:edgeone` as validation. It then:
 
-Infrastructure deployment does not itself cut over the API. The separate
-`PRAXYS_LABS_EXECUTION_MODE=service_bus` backend variable is enabled only after
-the user-assigned identity has its least-privilege PostgreSQL principal and the
-idle worker/alerts have been verified. Follow
-[labs-analysis-worker.md](./labs-analysis-worker.md); do not reverse those two
-steps. Once isolated mode is active, backend deployment waits for the worker
-job to run the exact same commit-SHA image before updating App Service. The
-worker workflow mirrors every backend trigger, including `data/science/**`, so
-an older worker cannot consume jobs created by a newer model deployment.
+- deploys and verifies `praxys-frontend` plus `www.praxys.run`;
+- performs no EdgeOne deployment, DNS, TLS, domain, or production-authorization
+  action;
+- uploads no EdgeOne artifact and performs no public `.cn` verification.
 
-## Frontend deploy
+The EdgeOne native Git project separately runs `web/edgeone.json`. Its static
+build contains `healthz`, `deployed_sha.txt`, ICP markup, and security
+configuration without a checksum manifest or release-preflight ceremony.
 
-Automatic on merge touching `web/`. GitHub first builds the filing-free Azure
-artifact, then independently runs the checked-in deterministic EdgeOne build
-for evidence:
+## China public web launch
 
-- Azure `praxys-frontend`, packaged with `frontend_server/`. This copy never
-  receives the China filing footer and is the Cloudflare origin for `.run`.
-- The independent `.cn` artifact is stamped, telemetry-disabled, bound to the
-  source SHA, and given a SHA-256 manifest. It is retained as evidence, not
-  uploaded by GitHub.
+Follow [cn-web-private-alpha.md](./cn-web-private-alpha.md). `status` is
+read-only and unprotected by an environment; only `enable` uses
+`china-production`. `disable` is an emergency main-branch action with no
+frontend/API SHA dependency.
 
-EdgeOne separately checks out protected `main` and runs the same
-`web/edgeone.json` install/build/output configuration. The release boundary
-does not depend on an Auto Deploy switch: protected `main`, required CI, exact
-source/manifest evidence, and the EdgeOne deployment-history entry authorize
-the selected deployment. After public cutover,
-`EDGEONE_CN_PUBLIC_VERIFY_ENABLED` makes GitHub compare both hosts' source SHA
-and served manifest with its independent build evidence. Cloudflare requires no
-application deployment; it proxies the Azure response and honors its cache
-headers.
+Status validates core API/`.run`, filtered settings, and exact CORS and reports
+`.cn` host warnings before DNS exists. It does not verify GitHub environment
+protection, web tests, monitoring, alerts, or the human PIPIA/topology gates.
 
-## Mini program
+The operator accepted PIPIA `1.2-public-parity` and its overall **Medium**
+residual risk on 2026-08-31. Before enable, a human still verifies that the
+exact implementation and live controls match it. Public registration follows
+the global `.run` switch and
+seat cap. The existing Miniapp remains enabled on `api.praxys.run`. Regional
+Application Insights and product events use the minimized boundary, while
+browser Statsig stays absent from `.cn` pending #754. There is no proxy,
+mainland API, or mainland datastore. Geographic `302` is separately enabled
+only after `.cn` stabilizes.
 
-Tag-driven CalVer — see the **"How to release the mini program"** runbook in
-[`CLAUDE.md`](../../CLAUDE.md). Promoting 体验版 → 提交审核 → 发布 stays manual in
-mp.weixin.qq.com (no first-party API).
+## Labs worker
+
+`deploy-labs-worker.yml` continues to build/test the 1-vCPU/2-GiB image and
+reconciles Azure only when `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true`. Backend
+deployment accepts `inline`, `service_bus`, or maintenance-only `disabled`.
+Before `service_bus` is selected, the worker identity, queue, database
+principal, image, shared processing-authority checks, and alerts must pass
+[labs-analysis-worker.md](./labs-analysis-worker.md).
+
+## Miniapp
+
+Robot 5 remains a protected-main development lane. Robot 1 remains only a
+candidate upload lane; promotion to trial, review submission, and publication
+stay manual in WeChat. The China web launch workflow never calls or waits for
+Miniapp publication. Backend config sync preserves
+`PRAXYS_DISABLE_MINIAPP_PROCESSING`; an initially absent setting defaults to
+`false`. Release tags must point to a commit
+reachable from protected `main` before the upload key is made available.
 
 ## Verify
 
 ```bash
-curl -s https://api.praxys.run/api/health      # {"status":"ok"}
-curl -s https://api.praxys.run/api/version     # {"version":"YYYY.MM.DD..."}
-curl -s -o /dev/null -w "%{http_code}\n" https://www.praxys.run/healthz   # 200
+curl -fsS https://api.praxys.run/api/health
+curl -fsS https://api.praxys.run/api/version
+curl -fsS https://api.praxys.run/api/health/ready \
+  | jq '{status, china_processing, miniapp_processing, optional_processing}'
+curl -fsS https://www.praxys.run/healthz
 ```
 
-Watch a run to completion:
-```bash
-gh run watch "$(gh run list --workflow=deploy-backend.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
-```
+Use `launch-cn.yml` `status` for its filtered settings, exact CORS, core
+API/`.run`, and `.cn` host snapshot. Verify monitoring, alerts, environment
+protection, PIPIA acceptance, and provider topology separately.
 
 ## Rollback / Recovery
 
-There are **no deployment slots** on the B1 plan, so Azure rollback = re-deploy
-a known-good revision:
-
-1. **Revert the commit** on `main` (`git revert <sha> && git push`) — the deploy
-   workflow re-runs and ships the reverted state. Safest for app bugs.
-2. **Re-tag a prior good commit** (`api-*` / `web-*`) to redeploy that exact build.
-3. **Schema note:** migrations are additive / non-destructive — `init_db()` runs
-   `alembic upgrade head`, which adds tables/columns and may tweak constraints
-   (e.g. adding `ON DELETE SET NULL` to a foreign key, #366) but does not drop
-   tables/columns or data. A code rollback won't undo an applied migration, and
-   that's safe: old code ignores added columns, and a data-preserving constraint
-   change is transparent to it. A genuinely *destructive* schema change would
-   need a forward-fix, not a rollback.
-
-   A rollback commit must still retain every Alembic revision already stamped
-   in the database. Reverting application code while deleting a newly applied
-   migration file makes Alembic fail with `Can't locate revision identified
-   by ...` before the old app can start. When reverting a migration-bearing
-   change, restore the prior application behavior but keep the migration file
-   as an immutable compatibility artifact; do not redeploy an artifact whose
-   migration graph predates the current database revision.
-
-> Config-only revert (a bad App Service setting): fix the GitHub secret/variable
-> and re-deploy — don't hand-edit the portal (it's overwritten next deploy).
-
-EdgeOne rollback is independent: select the recorded known-good deployment
-whose source SHA and manifest evidence are retained, then revert the bad change
-through protected `main` so source and production converge. Confirm the
-known-good public SHA, routes, and manifest before resuming merges. Cloudflare
-proxy rollback must restore a publicly trusted Azure certificate before
-gray-clouding a hostname that uses Cloudflare Origin CA. See
-[tencent-frontend.md](./tencent-frontend.md).
+- **Backend/frontend code:** revert through protected `main`; keep every
+  already-applied Alembic revision in the graph. A destructive schema change
+  requires a forward fix.
+- **Failed backend deploy:** the workflow does not change China, CORS, or Azure
+  AI state. Verify those controls and shared API/`.run` health before claiming
+  mitigation.
+- **China-only incident:** run `launch-cn.yml` `disable`. Static EdgeOne
+  takedown is manual because the repository holds no provider credential.
+  Do not stop the shared API or mutate `.run` for a China-only event.
+- **Azure AI incident:** use its independent emergency process. China and
+  backend deployment workflows never toggle that control.
+- **Configuration:** correct the repository-owned secret/variable and rerun
+  with `sync_config=true`; do not rely on a portal edit that the workflow owns.
 
 ## Road 10K deployment boundary
 
@@ -189,9 +158,10 @@ succeed.
 
 ## Related
 
-- [config-and-secrets.md](./config-and-secrets.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
+- [config-and-secrets.md](./config-and-secrets.md)
+- [cn-web-private-alpha.md](./cn-web-private-alpha.md)
+- [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 - [labs-analysis-worker.md](./labs-analysis-worker.md)
-- `docs/deployment.md` (one-time Azure setup) · `.github/workflows/`
 
 ---
-_Last reviewed: 2026-08-22 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-29 · Owner: Operations_

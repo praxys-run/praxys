@@ -55,10 +55,16 @@ from db.models import (
     PersonalContextUseReceipt,
     RecoveryData,
     TrainingPlan,
+    TermsAcceptanceReceipt,
     User,
     UserConfig,
     UserConnection,
     WaitlistSignup,
+)
+from api import feedback_storage
+from db.account_lifecycle import (
+    AccountLifecycleBusy,
+    account_lifecycle_lease,
 )
 from db.cache_revision import lock_revision_writes
 from db.plan_ledger import legacy_stryd_status_lock, lock_plan_writes
@@ -85,6 +91,7 @@ class AccountDeletionResult:
 
     email: str
     deleted_user_ids: list[str]
+    cleanup_pending: bool = False
 
 
 def _cancel_active_labs_work(
@@ -189,6 +196,7 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
         PersonalContextConsentReceipt,
         PersonalContextItem,
         PersonalContextDeletionJob,
+        TermsAcceptanceReceipt,
     ):
         db.query(model).filter(
             model.user_id == user_id
@@ -278,6 +286,19 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     )
 
 
+def _delete_feedback_images(db: Session, user_id: str) -> None:
+    """Delete exact screenshot keys owned by one server-selected account."""
+    rows = (
+        db.query(Feedback.id, Feedback.image_keys)
+        .filter(Feedback.user_id == user_id)
+        .with_for_update()
+        .all()
+    )
+    for feedback_id, image_keys in rows:
+        for key in image_keys or []:
+            feedback_storage.delete_image(key, feedback_id=feedback_id)
+
+
 def _clear_tokenstore(user_id: str) -> None:
     """Best-effort legacy cleanup and plaintext-token blocking after deletion."""
     from api.routes.sync import clear_garmin_tokens
@@ -330,6 +351,26 @@ def delete_user_account(
     enforced for self-service deletion and kept enabled for admin deletion as a
     defense-in-depth check.
     """
+    try:
+        with account_lifecycle_lease(user_id, timeout_seconds=60.0):
+            return _delete_user_account_locked(
+                db,
+                user_id,
+                enforce_last_admin_guard=enforce_last_admin_guard,
+            )
+    except AccountLifecycleBusy as exc:
+        db.rollback()
+        logger.warning("Account deletion lease busy for user %s", user_id)
+        raise HTTPException(503, "ACCOUNT_DELETE_BUSY") from exc
+
+
+def _delete_user_account_locked(
+    db: Session,
+    user_id: str,
+    *,
+    enforce_last_admin_guard: bool,
+) -> AccountDeletionResult:
+    """Delete an account while its lifecycle lease is held."""
     begin_active_admin_guard(db)
     lock_revision_writes(db, user_id)
     user = (
@@ -389,20 +430,15 @@ def delete_user_account(
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
-    # Road 10K evaluation and screenshot references have a separate
-    # out-of-database marker because the primary DB backup can be restored
-    # independently of private object storage.  Markers are prepared only in
-    # the final deletion transaction so their DB-durable replay obligations
-    # cannot be visible before the associated rows are gone.
     from api.road_10k_control import (
         Road10KDeletionFailed,
-        commit_deletion_manifests,
-        complete_deletion_manifests,
-        prepare_account_deletion,
-        record_deletion_obligations,
+        commit_deletion_manifests as commit_road_deletion_manifests,
+        complete_deletion_manifests as complete_road_deletion_manifests,
+        prepare_account_deletion as prepare_road_account_deletion,
+        record_deletion_obligations as record_road_deletion_obligations,
     )
 
-    road_manifests = []
+    road_manifests: list[dict[str, object]] = []
 
     user.is_active = False
     _cancel_active_labs_work(db, user_id)
@@ -438,13 +474,19 @@ def delete_user_account(
         .all()
     )
     try:
-        for deleting_user_id in [user_id, *demo_user_ids]:
+        for scoped_user_id in [user_id, *(demo.id for demo in demo_users)]:
             road_manifests.extend(
-                prepare_account_deletion(db, user_id=deleting_user_id)
+                prepare_road_account_deletion(
+                    db,
+                    user_id=scoped_user_id,
+                )
             )
     except Road10KDeletionFailed:
         db.rollback()
-        logger.exception("Road 10K deletion manifest failed")
+        logger.exception(
+            "Private deletion manifest failed for user %s",
+            user_id,
+        )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
     for demo_user in demo_users:
@@ -457,7 +499,7 @@ def delete_user_account(
     deleted_user_ids.append(user_id)
 
     try:
-        record_deletion_obligations(db, road_manifests)
+        record_road_deletion_obligations(db, road_manifests)
         db.commit()
     except Exception:
         db.rollback()
@@ -466,21 +508,35 @@ def delete_user_account(
 
     from api.personal_context import complete_account_deletion_manifests
 
-    complete_account_deletion_manifests(context_manifests)
+    cleanup_pending = False
     try:
-        committed_road_manifests = commit_deletion_manifests(road_manifests)
-        complete_deletion_manifests(committed_road_manifests, db=db)
+        complete_account_deletion_manifests(context_manifests)
     except Exception:
-        # Prepared/committed markers remain authoritative and will replay on
-        # the next startup once runtime prerequisites are met. Do not expose a
-        # false "completed" marker or report a successful deletion while
-        # private objects remain pending.
+        cleanup_pending = True
         logger.exception(
-            "Road 10K deletion completed but marker completion failed",
+            "Account personal-context cleanup remains pending for user %s",
+            user_id,
         )
-        raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
+    try:
+        committed_road_manifests = commit_road_deletion_manifests(
+            road_manifests
+        )
+        complete_road_deletion_manifests(
+            committed_road_manifests,
+            db=db,
+        )
+    except Exception:
+        cleanup_pending = True
+        logger.exception(
+            "Account private-object cleanup remains pending for user %s",
+            user_id,
+        )
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
         _clear_legacy_plan_status(db, deleted_user_id)
 
-    return AccountDeletionResult(email=email, deleted_user_ids=deleted_user_ids)
+    return AccountDeletionResult(
+        email=email,
+        deleted_user_ids=deleted_user_ids,
+        cleanup_pending=cleanup_pending,
+    )

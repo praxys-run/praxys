@@ -587,6 +587,17 @@ class Road10KProposalTargetResponse(BaseModel):
     target_event_date: str | None
     benchmark_date: str | None
     event_state: Literal["confirmed_none", "single_target", "race_dense"]
+    guardrail_projection: "Road10KProposalGuardrailProjectionResponse"
+
+
+class Road10KProposalGuardrailProjectionResponse(BaseModel):
+    """Immutable science projection persisted with the proposal target."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contract_digest: str
+    source_decision_digest: str
+    taper: Road10KTaperGuardrailProjectionResponse
 
 
 class Road10KProposalGoalResponse(BaseModel):

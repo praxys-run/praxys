@@ -58,6 +58,16 @@ _MCP_PLAN_REGENERATION_PATH = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
     r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/regenerate$"
 )
+_OWN_FEEDBACK_IMAGE_PATH = re.compile(
+    r"^/api/me/feedback/\d+/image/\d+$"
+)
+_TERMS_RECEIPT_EXEMPT_ROUTES = frozenset({
+    ("GET", "/api/auth/me"),
+    ("POST", "/api/auth/wechat/unlink"),
+    ("GET", "/api/me/export"),
+    ("GET", "/api/settings/connections"),
+    ("POST", "/api/me/accept-terms"),
+})
 
 
 @dataclass(frozen=True)
@@ -208,6 +218,46 @@ def _require_data_access(
     raise HTTPException(403, "First-party authentication required")
 
 
+def _require_current_terms(
+    identity: AuthenticatedIdentity,
+    request: Request,
+    db: Session,
+) -> None:
+    """Block personal-data routes until the current agreement is recorded."""
+    route = (request.method.upper(), request.url.path)
+    if route in _TERMS_RECEIPT_EXEMPT_ROUTES:
+        return
+    if (
+        request.method.upper() == "DELETE"
+        and _MCP_CONNECTION_PATH.fullmatch(request.url.path) is not None
+    ):
+        return
+    if (
+        request.method.upper() == "GET"
+        and _OWN_FEEDBACK_IMAGE_PATH.fullmatch(request.url.path) is not None
+    ):
+        return
+
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import (
+        user_has_current_legal_bundle_for_request,
+    )
+
+    if not user_has_current_legal_bundle_for_request(
+        db,
+        identity.user_id,
+        request,
+    ):
+        raise HTTPException(
+            status_code=428,
+            detail={
+                "code": "TERMS_ACCEPTANCE_REQUIRED",
+                "terms_version": TERMS_VERSION,
+                "terms_digest": TERMS_CONTENT_DIGEST,
+            },
+        )
+
+
 def get_active_identity(
     request: Request,
     db: Session,
@@ -216,6 +266,7 @@ def get_active_identity(
     identity = get_authenticated_identity(request, db)
     if not identity.user.is_active:
         raise HTTPException(401, "User account is deactivated")
+    _require_current_terms(identity, request, db)
     _touch_last_seen(db, identity.user)
     # Context mutations acquire SQLite's BEGIN IMMEDIATE themselves. End the
     # authentication read transaction so that lock is not silently skipped.

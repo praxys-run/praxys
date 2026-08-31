@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "miniprogram-api-typings": "^5.2.2",
+    "miniprogram-api-typings": "^5.2.3",
+    "miniprogram-ci": "2.1.31",
     "typescript": "^5.6.3",
     "yaml": "^2.9.0"
   }

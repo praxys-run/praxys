@@ -1,6 +1,6 @@
 # WeChat Mini Program CI/CD & Versioning — Research
 
-**Status:** Research / proposal. No code wired yet.
+**Status:** Implemented repository workflow; provider promotion and publication remain manual and separately authorized.
 **Question:** Can we replace the manual "上传" click in 微信开发者工具 with a CI/CD or API-driven publish, and version the mini program properly?
 
 ## TL;DR
@@ -64,13 +64,23 @@ The three components (backend, web, miniapp) ship at different cadences, so each
 | Web frontend | `web-YYYY.MM.MICRO` | `web-2026.04.1` |
 | Backend API | `api-YYYY.MM.MICRO` | `api-2026.04.1` |
 
-`MICRO` increments within a calendar month; reset to `1` at the start of the next month. Multiple ships per month → `2026.04.1`, `2026.04.2`, `2026.04.3`. First ship in May → `2026.05.1`.
+`MICRO` increments within a calendar month; reset to `1` at the start of the
+next month. Multiple ships per month become `2026.08.1`, `2026.08.2`, and so
+on. `MINIMUM_MINIAPP_VERSION` independently declares the oldest supported
+privacy-floor release; choosing a newer release tag does not implicitly raise
+that compatibility floor.
 
-**Why CalVer over semver here:** Praxys components are deployed apps, not libraries — there's no external consumer reading a version to decide compatibility, so semver's "MAJOR vs MINOR vs PATCH" judgment calls add overhead without value. CalVer encodes "when did this ship," which is what we actually want to know when debugging "what's running in 体验版?"
+**Dev / non-tag pushes** to `main` get a synthetic version:
+`YYYY.MM.DD.<run_number>-<sha7>` (for example,
+`2026.08.26.42-abc1234`). This goes to robot 5, separate from the tagged
+release line on robot 1, so development iteration never overwrites or
+impersonates the release candidate. The API compatibility parser accepts both
+forms, compares their first three numeric components to the current minimum,
+and rejects the local `develop` sentinel in production.
 
-**Dev / non-tag pushes** to `main` get a synthetic version: `YYYY.MM.DD.<run_number>-<sha7>` (e.g., `2026.04.29.42-abc1234`). This goes to robot 5, separate from the tag release line on robot 1, so dev iteration never overwrites the release candidate. The dash separator (rather than semver's `+` build-metadata) is the conservative pick — `+` is not confirmed to round-trip cleanly through `miniprogram-ci`'s server-side validation.
-
-**`miniapp/package.json` `version` field** stays as a project-marker (currently `0.2.0`); the publish workflow does **not** read it. Tags are the source of truth. This removes the "did I remember to bump package.json?" failure mode.
+**`miniapp/package.json` `version` field** stays as a project marker (currently
+`0.2.0`); the publish workflow does not read it. Release tags are the source of
+truth.
 
 This scheme extends naturally to `web/` and `api/` whenever we wire up automated deploys for those — same prefix-based tag pattern, separate workflows, independent cadences.
 
@@ -86,7 +96,7 @@ Practical consequence:
 
 | Robot | Purpose | Trigger |
 |---|---|---|
-| 1 | Release candidate (will become 体验版 → 正式版) | Tag `miniapp-v*` |
+| 1 | Release candidate (will become 体验版 → 正式版) | Tag `miniapp-YYYY.MM.MICRO` |
 | 5 | Main branch dev | Push to `main` |
 | 10 | Per-PR preview | PR opened/updated (use `ci.preview()` not upload, generates QR) |
 
@@ -120,19 +130,29 @@ These steps happen **once**, by the mini program admin (Feitao):
 The actual implementation lives at **`.github/workflows/miniapp-publish.yml`** in this branch — see that file for the canonical YAML. High-level shape:
 
 - **Triggers:** push to `main` (path-gated by inline `git diff` since GitHub's `paths:` filter doesn't compose cleanly with tag triggers), tag pushes matching `miniapp-*`, and `workflow_dispatch` for manual reruns.
-- **Gate step decides** whether to run: tag push → always; manual → always; main push → only if any of `miniapp/**`, `web/src/locales/**`, `web/src/types/api.ts`, or the workflow file itself changed across the **entire push range** (`github.event.before..github.sha`, with `fetch-depth: 0` so the prior tip is in the local clone). Using the full range — not just `HEAD^..HEAD` — covers multi-commit pushes where a miniapp change might be buried under a later unrelated commit.
-- **Always run typecheck first** (`npm run typecheck` includes `sync-types` + `sync-i18n` + `tsc`). A typecheck failure aborts the upload — we never publish a broken build.
+- **Gate step decides** whether to run: tag push → always; manual → always; main push → only if any of `miniapp/**`, `web/src/locales/**`, `web/src/types/api.ts`,
+  `api/china_client_boundary.py`, or the workflow file itself changed across the **entire push range** (`github.event.before..github.sha`, with `fetch-depth: 0` so the prior tip is in the local clone). Using the full range — not just `HEAD^..HEAD` — covers multi-commit pushes where a miniapp change might be buried under a later unrelated commit.
+- **Uploads stay separate from the China web launch.** Robot 1 tags and robot
+  5 development uploads build from their selected protected repository ref,
+  but neither authorizes China web processing nor itself publishes a
+  production Miniapp. Ordinary production keeps Miniapp processing enabled;
+  trial selection, review, and publication remain manual in WeChat.
+- **Release ancestry is checked before the upload key is exposed.** A
+  `miniapp-*` tag commit must be reachable from `origin/main`; no release
+  floor, registry, provider-ID approval, or GitHub check traversal is used.
+- **Typecheck runs before upload** (`npm run typecheck` includes `sync-types` + `sync-i18n` + `tsc`). A typecheck failure aborts the upload — we never publish a broken build.
 - **Robot + version** chosen by the meta step:
-  - `refs/tags/miniapp-2026.04.1` → robot 1, version `2026.04.1`, desc `release 2026.04.1`
-  - main push → robot 5, version `YYYY.MM.DD.<run_number>-<sha7>`, desc `main <sha7>`
-- **Upload step** uses `miniprogram-ci` with `setting.uploadWithSourceMap: true` so server-side stack traces remain useful. Result JSON (compiled package sizes, etc.) is logged.
+  - `refs/tags/miniapp-2026.08.1` → robot 1, version `2026.08.1`
+  - main push → robot 5, version `YYYY.MM.DD.<run_number>-<sha7>`
+- **Upload step** uses `miniprogram-ci` with `setting.uploadWithSourceMap: true` so server-side stack traces remain useful. Raw provider responses are redacted; the workflow retains bounded structured upload evidence instead.
 - **Job summary** writes a markdown table to GitHub Actions UI showing trigger / robot / version / desc / ref / sha for at-a-glance audit.
 
-**To release miniapp 2026.04.1:**
+**To release Miniapp `2026.08.1`:**
 ```bash
-git tag miniapp-2026.04.1
-git push origin miniapp-2026.04.1
-# → workflow runs, robot 1's 开发版 in 版本管理 becomes 2026.04.1
+git tag miniapp-2026.08.1
+git push origin miniapp-2026.08.1
+# → workflow uploads the tagged build to robot 1's development slot
+# → robot 1's 开发版 in 版本管理 becomes 2026.08.1
 # → in mp.weixin.qq.com 版本管理: click "选为体验版" on robot 1's row
 # → scan QR with WeChat, verify
 # → click "提交审核" → wait for review → click "发布"
@@ -158,7 +178,7 @@ In practice the manual surface shrinks from "every dev iteration requires openin
 2. **`miniprogram-ci` does its own compile.** It will re-compile TS/Sass internally — *not* using the WeChat DevTools `useCompilerPlugins` setting. Confirm before first run that there's no behavior gap with what DevTools produces. The existing `miniapp-build.yml` doesn't actually compile the project (only typechecks), so the first CI upload is the first time we'll see what `miniprogram-ci`'s output looks like in 体验版.
 3. **Source-map upload setting**: `project.config.json` has `"uploadWithSourceMap": true`. `miniprogram-ci` honors this only if we set `setting: { uploadWithSourceMap: true }` explicitly (it doesn't read `project.config.json` for everything). Add to the `setting` block above if we want sourcemaps in the WeChat error logs.
 4. **`packNpm`**: WeChat needs `npm run miniprogram-ci` style npm-build for any miniapp `npm` deps. Praxys mini program has no runtime npm deps (devDeps only — `miniprogram-api-typings`, `typescript`), so we can skip `ci.packNpm()`. If we ever add a runtime dep like `weui-miniprogram`, add a `ci.packNpm()` call before `ci.upload()`.
-5. **2 MB main package limit** still applies — `miniapp-build.yml` already guards on raw source size. After first CI upload, watch the actual compiled size in `ci.upload()`'s response (it returns `subPackageInfo[]` with byte counts).
+5. **2 MB main package limit** still applies — `miniapp-build.yml` guards on a packaged-source proxy. The shared `project.config.json` `packOptions.ignore` excludes the lockfile, package manifest, TypeScript config, and repository synchronization scripts because they are CI/development inputs rather than Miniapp runtime files; the CI size calculation mirrors those exclusions. After each CI upload, retain and review the actual compiled size from `ci.upload()`'s `subPackageInfo[]` response.
 6. **Robot collision with manual uploads**: If Feitao continues to "上传" via DevTools while CI runs, both sides may be writing to the same robot slot (DevTools defaults to a per-developer robot, but there's only one 体验版). Either: (a) reserve robots 1 & 5 exclusively for CI and document "humans use robot 30 in DevTools", or (b) stop using manual upload for the project entirely once CI works.
 
 ---
@@ -168,8 +188,8 @@ In practice the manual surface shrinks from "every dev iteration requires openin
 | Dimension | Current (manual DevTools) | Proposed (miniprogram-ci) |
 |---|---|---|
 | Trigger | Open DevTools, click 上传, fill version + desc | `git push` |
-| Reproducibility | Depends on local DevTools version, OS, plugins | CI sets exact Node + CLI version |
-| Version discipline | Whatever the human types | Derived from `package.json` + tags |
+| Reproducibility | Depends on local DevTools version, OS, plugins | CI pins Node 24.11.0 and `miniprogram-ci` 2.1.31 in the lockfile |
+| Version discipline | Whatever the human types | Exact reviewed API boundary declaration; matching tag required |
 | Audit trail | DevTools logs (local) | GitHub Actions run + `desc` carries SHA |
 | Multi-developer | Each developer = separate 开发版, easy to lose track | One robot per environment, deterministic slots |
 | Speed of dev → 体验版 | Manual (5 min context switch) | Automatic on push to main |
@@ -187,8 +207,11 @@ Done:
 
 To do:
 1. Review the workflow file diff, merge the branch.
-2. **Dry-run on `main`**: push any miniapp-touching commit to `main`; watch Actions. Should upload to robot 5 with version `2026.04.29.X+<sha>`. Verify a 开发版 appears in 版本管理 row "robot 5."
-3. **Dry-run a tag**: `git tag miniapp-2026.04.1 && git push origin miniapp-2026.04.1`. Robot 1 should get 开发版 `2026.04.1`. Promote to 体验版; scan QR; smoke-test.
+2. **Dry-run on `main`**: push any Miniapp-touching commit to `main`; watch
+   Actions. It must upload the synthetic
+   `YYYY.MM.DD.<run_number>-<sha7>` version to robot 5. Robot 5 never uses or
+   authorizes the production CalVer.
+3. **Dry-run the matching tag**: `git tag miniapp-2026.08.1 && git push origin miniapp-2026.08.1`. Robot 1 should get 开发版 `2026.08.1`; a different CalVer must fail before upload. Promote to 体验版 only after the separately authorized checks; scan QR and smoke-test.
 4. After successful first 体验版 from CI, update `miniapp-build.yml`'s comment ("we can't run `miniprogram-ci` without the platform secret") — it's now outdated. Replace with a link to the publish workflow.
 5. Add a one-liner to `trail-running/CLAUDE.md` mini program section pointing to this doc + the workflow.
 6. (Later) Add a `pull_request` job for PR previews on robot 10 (`ci.preview()` + QR artifact + PR comment).

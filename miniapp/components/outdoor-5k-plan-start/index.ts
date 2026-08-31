@@ -4,6 +4,7 @@ import type { IAppOption } from '../../app';
 import { detectLocale, t } from '../../utils/i18n';
 import {
   road10kCopy,
+  road10kTaperGuardrailForProposal,
   road10kTaperScienceCopy,
   type Road10KCopyKey,
 } from '../../utils/road-10k-control';
@@ -198,7 +199,7 @@ function copy() {
     roadRejecting: roadCopy('progress.rejecting'),
     roadReviewLater: roadCopy('action.review_later'),
     roadPlanActive: roadCopy('plan.active_body'),
-    deliveryDisabled: t('Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
+    deliveryDisabled: t('Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
     refresh: t('Refresh proposal'),
     retry: t('Retry'),
     failed: t('Plan-start action did not complete'),
@@ -424,15 +425,12 @@ function hasProposalHorizon(
 }
 
 function roadTaperScience(
-  response: ReadinessResponse,
+  proposal: AdaptivePlanProposal | null,
 ): ReturnType<typeof road10kTaperScienceCopy> | null {
-  if (
-    !('guardrails' in response)
-    || !('plan_returned' in response.result)
-    || response.result.code !== 'eligible_taper_proposal'
-  ) return null;
+  const taper = road10kTaperGuardrailForProposal(proposal);
+  if (!taper) return null;
   return road10kTaperScienceCopy(
-    response.guardrails.taper,
+    taper,
     detectLocale() === 'zh' ? 'zh-CN' : 'en',
   );
 }
@@ -1007,7 +1005,7 @@ Component({
         const context = road10kReadinessContext(readiness, this.data.tr);
         this.setData({
           readiness,
-          roadTaperScience: roadTaperScience(readiness),
+          roadTaperScience: null,
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
           readinessBadge: readinessBadge(readiness.result, this.data.tr),
           readinessContextRows: context.rows,
@@ -1064,7 +1062,7 @@ Component({
           this.setData({
             proposal: response.proposal,
             proposalHasHorizon: hasProposalHorizon(response.proposal),
-            roadTaperScience: roadTaperScience(response),
+            roadTaperScience: roadTaperScience(response.proposal),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -1083,7 +1081,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
-            roadTaperScience: roadTaperScience(response),
+            roadTaperScience: null,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,
@@ -1156,7 +1154,7 @@ Component({
           this.setData({
             proposal: response.proposal,
             proposalHasHorizon: hasProposalHorizon(response.proposal),
-            roadTaperScience: roadTaperScience(response),
+            roadTaperScience: roadTaperScience(response.proposal),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -1178,7 +1176,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
-            roadTaperScience: roadTaperScience(response),
+            roadTaperScience: null,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,

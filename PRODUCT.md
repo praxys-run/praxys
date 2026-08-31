@@ -12,7 +12,7 @@ The job to be done: **interpret my training data into a clear next action**. Use
 
 Physical context matters and shapes design choices: the app is opened outdoors, on a phone, often pre- or post-run. Bright sunlight, dawn light, sweaty hands, distracted attention. Design for that, not for the comfortable office desk.
 
-The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view + manage companion to the web app, not a thin port. Its five primary destinations are Today, managed Training, Analysis, Goal, and Me. Activities live inside Analysis; settings, data controls, science, Labs, and legal surfaces live under Me. Registration + platform connection still happens once on praxys.run.
+The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view + manage companion to the web app, not a thin port. Its five primary destinations are Today, managed Training, Analysis, Goal, and Me. Activities live inside Analysis; settings, data controls, science, Labs, and legal surfaces live under Me. Registration + platform connection still happens once on the web (`praxys.run` or `praxys.cn`).
 
 ## Product Purpose
 

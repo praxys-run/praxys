@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "id": "praxys-codex-local-mcp-extension-v1",
+  "status": "proposed",
+  "decision": "Register Microsoft Learn and a bounded read-only Azure MCP capability in the trusted project Codex adapter while preserving role routing, production authority, and the existing portable baseline.",
+  "work_contract": {
+    "primary_object": "agent-system",
+    "impacts": [
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "classification_digest": "sha256:ee6c38eebb7b9db2aedf6b824bc23d5d966e08045fc0e2830196e4a13eb0bcdd",
+    "route_digest": "sha256:6d0f0f33ea72fc440558b883ca293408fd1508011b4f0970495a49ba13b743e2",
+    "primary_loop": "meta-eval",
+    "nested_loops": [
+      "delivery"
+    ],
+    "lead_role": "meta-eval",
+    "contributor_roles": [
+      "architecture",
+      "trust"
+    ],
+    "executor_roles": [
+      "engineering"
+    ],
+    "verifier_roles": [
+      "quality"
+    ],
+    "required_artifacts": [
+      "evaluation-report",
+      "implementation-impact-map",
+      "implementation-change",
+      "verification-evidence",
+      "policy-change-proposal",
+      "architecture-decision-record",
+      "trust-decision-record"
+    ],
+    "decision_review_required": true
+  },
+  "baseline": {
+    "decision_subject_path": "docs/dev/codex-copilot-runtime-parity-decision-v1.json",
+    "decision_subject_digest": "sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc",
+    "policy_proposal_path": "docs/dev/policy-change-proposal-codex-copilot-runtime-parity-v1.md",
+    "policy_proposal_digest": "sha256:47a829962a21e17833feac0c3473ecb749c7b7e0ce4bff3aa2611ee1a92de8cd"
+  },
+  "implementation_scope": {
+    "project_config": [
+      ".codex/config.toml"
+    ],
+    "role_adapters": [
+      ".codex/agents/architecture.toml",
+      ".codex/agents/engineering.toml",
+      ".codex/agents/operations.toml",
+      ".codex/agents/trust.toml"
+    ],
+    "extension_contract": [
+      "config/codex-local-mcp-extensions.json",
+      "analysis/agent_runtime_parity.py",
+      "tests/test_agent_runtime_parity.py"
+    ],
+    "documentation": [
+      "docs/dev/agent-runtime-parity.md",
+      "docs/ops/config-and-secrets.md"
+    ]
+  },
+  "mcp_extensions": {
+    "microsoft-learn": {
+      "transport": "streamable-http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "authentication": "none",
+      "root_enabled": false,
+      "required": false,
+      "role_enablement": [
+        "architecture",
+        "engineering",
+        "operations",
+        "trust"
+      ],
+      "enabled_tools": [
+        "microsoft_docs_search",
+        "microsoft_docs_fetch",
+        "microsoft_code_sample_search"
+      ],
+      "default_tools_approval_mode": "auto"
+    },
+    "azure-mcp": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@2.0.5",
+        "server",
+        "start",
+        "--mode",
+        "all",
+        "--read-only",
+        "--tool",
+        "azmcp_subscription_list",
+        "--tool",
+        "azmcp_group_list"
+      ],
+      "package_integrity": "sha512-o451hyeCa9u1jr1zYNi3OpF560IRH7LkHQHr7uOjWgaXNgF8m8aNbuxLdqs1PJcJEfrib4W8vVl0GY5X1fXtsw==",
+      "source_tag": "Azure.Mcp.Server-2.0.5",
+      "source_commit": "f43b47a21545e5f3f87b3bceee35986442217bb4",
+      "root_enabled": false,
+      "required": false,
+      "role_enablement": [
+        "operations"
+      ],
+      "enabled_tools": [
+        "azmcp_subscription_list",
+        "azmcp_group_list"
+      ],
+      "environment_forwarding": [],
+      "default_tools_approval_mode": "prompt",
+      "authentication": "explicit local Azure CLI session; no credential is stored or forwarded by repository configuration"
+    }
+  },
+  "trust_boundary": {
+    "microsoft_learn_content_is_untrusted_evidence": true,
+    "azure_results_are_production_metadata_and_untrusted_evidence": true,
+    "azure_write_tools_enabled": false,
+    "azure_data_plane_tools_enabled": false,
+    "azure_secret_tools_enabled": false,
+    "credentials_in_repository": false,
+    "ambient_environment_forwarding": false,
+    "operations_work_contract_required": true,
+    "repository_deploy_workflows_remain_authoritative": true,
+    "full_access_parent_sessions_supported": false
+  },
+  "non_goals": [
+    "Add either extension to the Local/Cloud portable MCP baseline",
+    "Grant Azure access to Engineering, routers, or general root sessions",
+    "Query Azure logs, metrics, databases, blobs, secrets, or user data",
+    "Create, update, delete, deploy, restart, or reconfigure an Azure resource",
+    "Bypass repository-owned deployment workflows, Operations authority, or Release Evidence",
+    "Store or forward Azure credentials from repository configuration"
+  ],
+  "activation": {
+    "requires_human_approval_of_this_exact_subject": true,
+    "requires_architecture_and_trust_review": true,
+    "requires_independent_quality_verification": true,
+    "requires_final_diff_review": true,
+    "pilot_only_until_outcome_review": true
+  },
+  "rollback": "Remove the extension contract and the two project registrations and role projections; retain the approved v1 Codex/Copilot adapter, Chrome DevTools, praxys-local, and every existing production workflow unchanged."
+}

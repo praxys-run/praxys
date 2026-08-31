@@ -8,10 +8,37 @@ from __future__ import annotations
 
 import tempfile
 from datetime import datetime, timedelta
-
 import jwt as pyjwt
 import pytest
 from fastapi.testclient import TestClient
+
+from api.china_client_boundary import (
+    CN_PRIVACY_CONTRACT_VERSION,
+)
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+
+class WeChatTestClient(TestClient):
+    """Supply the exact legal bundle for cooperative current-client calls."""
+
+    def post(self, url, *args, **kwargs):
+        body = kwargs.get("json")
+        if isinstance(body, dict) and url in {
+            "/api/auth/register",
+            "/api/auth/wechat/register",
+        }:
+            body = dict(body)
+            body.setdefault("terms_version", TERMS_VERSION)
+            body.setdefault("terms_digest", TERMS_CONTENT_DIGEST)
+            body.setdefault("terms_locale", "en")
+            kwargs["json"] = body
+        elif url == "/api/me/accept-terms" and "json" not in kwargs:
+            kwargs["json"] = {
+                "terms_version": TERMS_VERSION,
+                "terms_digest": TERMS_CONTENT_DIGEST,
+                "locale": "en",
+            }
+        return super().post(url, *args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +72,8 @@ def wechat_client(monkeypatch):
     # bleed into 429s. Tests for the limiter itself live in
     # tests/test_auth_rate_limit.py and re-enable it explicitly.
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "false")
 
     from db import session as db_session
     db_session.engine = None
@@ -89,7 +118,16 @@ def wechat_client(monkeypatch):
     mock = WeChatMock()
     monkeypatch.setattr(api.routes.wechat, "_jscode2session", mock.fake)
 
-    client = TestClient(app)
+    client = WeChatTestClient(
+        app,
+        headers={
+            "X-Praxys-Client": "wechat-miniapp",
+            "X-Praxys-Client-Version": "2026.08.2",
+            "X-Praxys-Notice-Version": TERMS_VERSION,
+            "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
+            "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
+        },
+    )
     client.wechat_mock = mock  # type: ignore[attr-defined]
     try:
         yield client
@@ -555,16 +593,98 @@ def test_register_records_terms_version(wechat_client):
         json={"email": "yesterm@example.com", "password": "pw-123456", "accepted_terms": True},
     )
     assert r.status_code == 200, r.text
-    from api.legal import TERMS_VERSION
-    from db.models import User
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from db.models import TermsAcceptanceReceipt, User
     from db.session import SessionLocal
     db = SessionLocal()
     try:
         u = db.query(User).filter(User.email == "yesterm@example.com").first()
         assert u is not None and u.terms_version == TERMS_VERSION
+        assert u.terms_digest == TERMS_CONTENT_DIGEST
         assert u.terms_accepted_at is not None
+        receipts = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == u.id)
+            .all()
+        )
+        assert len(receipts) == 1
+        assert receipts[0].terms_digest == TERMS_CONTENT_DIGEST
     finally:
         db.close()
+
+
+def test_wechat_invitation_race_cleanup_removes_terms_receipt(
+    wechat_client,
+    monkeypatch,
+):
+    admin_ticket = _get_ticket(wechat_client, "openid-race-admin")
+    admin_response = wechat_client.post(
+        "/api/auth/wechat/register",
+        json={
+            "wechat_login_ticket": admin_ticket,
+            "accepted_terms": True,
+            "invitation_code": "",
+        },
+    )
+    assert admin_response.status_code == 200, admin_response.text
+
+    import api.routes.wechat as wechat_routes
+    from db.models import Invitation, TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    admin = db.query(User).filter(
+        User.wechat_openid == "openid-race-admin"
+    ).one()
+    db.add(Invitation(code="TS-WRACE-001", created_by=admin.id))
+    db.commit()
+    receipt_count = db.query(TermsAcceptanceReceipt).count()
+    db.close()
+
+    monkeypatch.setattr(
+        wechat_routes,
+        "claim_invitation",
+        lambda *_args, **_kwargs: False,
+    )
+    user_ticket = _get_ticket(wechat_client, "openid-race-loser")
+    response = wechat_client.post(
+        "/api/auth/wechat/register",
+        json={
+            "wechat_login_ticket": user_ticket,
+            "accepted_terms": True,
+            "invitation_code": "TS-WRACE-001",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "REGISTER_INVALID_INVITATION"
+    db = SessionLocal()
+    try:
+        assert (
+            db.query(User)
+            .filter(User.wechat_openid == "openid-race-loser")
+            .count()
+            == 0
+        )
+        assert db.query(TermsAcceptanceReceipt).count() == receipt_count
+    finally:
+        db.close()
+
+
+def test_register_rejects_missing_legal_bundle(wechat_client):
+    response = TestClient.post(
+        wechat_client,
+        "/api/auth/register",
+        json={
+            "email": "old-client@example.com",
+            "password": "pw-123456",
+            "accepted_terms": True,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "TERMS_BUNDLE_MISMATCH"
+
 
 def test_wechat_register_requires_terms_acceptance(wechat_client):
     ticket = _get_ticket(wechat_client, "openid-noterm")
@@ -591,6 +711,10 @@ def _login_token(client, email: str, password: str) -> str:
     return r.json()["access_token"]
 
 
+def _auth_headers(token: str) -> dict[str, str]:
+    return {"Authorization": "Bear" + "er " + token}
+
+
 def test_accept_terms_clears_stale_version(wechat_client):
     email, pw = "stale@example.com", "pw-123456"
     reg = wechat_client.post(
@@ -602,12 +726,20 @@ def test_accept_terms_clears_stale_version(wechat_client):
     hdr = {"Authorization": f"Bearer {token}"}
 
     # Force a stale terms_version to simulate a post-bump returning user.
-    from db.models import User
+    from db.models import User, UserConnection
     from db.session import SessionLocal
     db = SessionLocal()
     try:
         u = db.query(User).filter(User.email == email).first()
         u.terms_version = "0000.00.0"
+        db.add(
+            UserConnection(
+                user_id=u.id,
+                platform="oura",
+                encrypted_credentials=b"opaque-test-credentials",
+                status="connected",
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -615,14 +747,584 @@ def test_accept_terms_clears_stale_version(wechat_client):
     me = wechat_client.get("/api/auth/me", headers=hdr).json()
     assert me["terms_current"] is False  # stale -> 1 prompt
 
-    from api.legal import TERMS_VERSION
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    blocked = wechat_client.get("/api/today", headers=hdr)
+    assert blocked.status_code == 428
+    assert blocked.json()["detail"] == {
+        "code": "TERMS_ACCEPTANCE_REQUIRED",
+        "terms_version": TERMS_VERSION,
+        "terms_digest": TERMS_CONTENT_DIGEST,
+    }
+
+    export = wechat_client.get("/api/me/export", headers=hdr)
+    assert export.status_code == 200, export.text
+
+    connections = wechat_client.get(
+        "/api/settings/connections",
+        headers=hdr,
+    )
+    assert connections.status_code == 200, connections.text
+    assert connections.json()["connections"]["oura"] == {
+        "status": "connected",
+        "last_sync": None,
+        "has_credentials": True,
+        "next_retry_at": None,
+        "consecutive_failures": 0,
+        "last_error": None,
+    }
+
+    disconnected = wechat_client.delete(
+        "/api/settings/connections/oura",
+        headers=hdr,
+    )
+    assert disconnected.status_code == 200, disconnected.text
+    assert disconnected.json() == {
+        "status": "disconnected",
+        "platform": "oura",
+    }
+    connections_after = wechat_client.get(
+        "/api/settings/connections",
+        headers=hdr,
+    )
+    assert "oura" not in connections_after.json()["connections"]
+
     acc = wechat_client.post("/api/me/accept-terms", headers=hdr)
     assert acc.status_code == 200, acc.text
     assert acc.json()["terms_version"] == TERMS_VERSION
     assert acc.json()["terms_current"] is True
+    assert acc.json()["terms_digest"] == TERMS_CONTENT_DIGEST
 
     me2 = wechat_client.get("/api/auth/me", headers=hdr).json()
     assert me2["terms_current"] is True  # cleared after accept
+    assert wechat_client.get("/api/today", headers=hdr).status_code == 200
+
+    from db.models import TermsAcceptanceReceipt, User
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        receipts = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == user.id)
+            .order_by(TermsAcceptanceReceipt.accepted_at)
+            .all()
+        )
+        assert len(receipts) == 2
+        assert {receipt.channel for receipt in receipts} == {
+            "wechat-miniapp"
+        }
+        assert {
+            receipt.action for receipt in receipts
+        } == {"accept_terms_and_acknowledge_privacy"}
+        assert {receipt.release_id for receipt in receipts} == {None}
+        assert {receipt.client_version for receipt in receipts} == {None}
+        assert {receipt.source_sha for receipt in receipts} == {None}
+        assert {receipt.notice_version for receipt in receipts} == {
+            TERMS_VERSION
+        }
+        user.is_demo = True
+        user.terms_version = "0000.00.0"
+        user.terms_digest = "sha256:" + ("0" * 64)
+        db.commit()
+    finally:
+        db.close()
+
+    demo_me = wechat_client.get("/api/auth/me", headers=hdr)
+    assert demo_me.status_code == 200, demo_me.text
+    assert demo_me.json()["is_demo"] is True
+    assert demo_me.json()["terms_current"] is False
+    demo_blocked = wechat_client.get("/api/today", headers=hdr)
+    assert demo_blocked.status_code == 428
+    assert (
+        demo_blocked.json()["detail"]["code"]
+        == "TERMS_ACCEPTANCE_REQUIRED"
+    )
+
+
+def test_existing_web_user_must_acknowledge_cn_before_processing(
+    wechat_client,
+    monkeypatch,
+):
+    """A current .run receipt does not silently classify a .cn user."""
+
+    client = TestClient(wechat_client.app)
+    email, password = "existing-run-to-cn@example.com", "pw-123456"
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "terms_locale": "en",
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(client, email, password)
+    cn_headers = {
+        **_auth_headers(token),
+        "Origin": "https://praxys.cn",
+        "X-Praxys-Client": "cn-web",
+        "X-Praxys-Notice-Version": TERMS_VERSION,
+        "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
+        "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
+    }
+
+    me = client.get("/api/auth/me", headers=cn_headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["terms_current"] is False
+    blocked = client.get("/api/today", headers=cn_headers)
+    assert blocked.status_code == 428
+    assert blocked.json()["detail"]["code"] == "TERMS_ACCEPTANCE_REQUIRED"
+
+    from db.models import TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user_id = user.id
+        assert (
+            db.query(TermsAcceptanceReceipt)
+            .filter(
+                TermsAcceptanceReceipt.user_id == user_id,
+                TermsAcceptanceReceipt.channel == "cn-web",
+            )
+            .count()
+            == 0
+        )
+    finally:
+        db.close()
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+    accepted = client.post(
+        "/api/me/accept-terms",
+        headers=cn_headers,
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "locale": "en",
+        },
+    )
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["terms_current"] is True
+    assert client.get("/api/auth/me", headers=cn_headers).json()[
+        "terms_current"
+    ] is True
+
+    db = SessionLocal()
+    try:
+        receipt = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(
+                TermsAcceptanceReceipt.user_id == user_id,
+                TermsAcceptanceReceipt.channel == "cn-web",
+                TermsAcceptanceReceipt.terms_version == TERMS_VERSION,
+                TermsAcceptanceReceipt.terms_digest
+                == TERMS_CONTENT_DIGEST,
+            )
+            .one()
+        )
+        assert receipt.notice_version == TERMS_VERSION
+
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
+
+        assert not user_background_processing_authorized(db, user_id)
+    finally:
+        db.close()
+
+    rights = client.get("/api/auth/me", headers=cn_headers)
+    assert rights.status_code == 200
+    assert rights.json()["terms_current"] is True
+    stopped = client.get("/api/today", headers=cn_headers)
+    assert stopped.status_code == 503
+    assert stopped.json()["detail"]["code"] == "CN_PROCESSING_DISABLED"
+
+
+def test_stale_terms_user_can_delete_account(wechat_client):
+    email, password = "stale-delete@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from fastapi_users.password import PasswordHelper
+    from db.models import User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user.terms_version = "0000.00.0"
+        user.terms_digest = "sha256:" + ("0" * 64)
+        db.add(
+            User(
+                id="backup-admin",
+                email="backup-admin@example.com",
+                hashed_password=PasswordHelper().hash("unused-password"),
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+        )
+        db.commit()
+        user_id = user.id
+    finally:
+        db.close()
+
+    deleted = wechat_client.delete(
+        "/api/me",
+        headers=_auth_headers(token),
+    )
+    assert deleted.status_code == 200, deleted.text
+
+    db = SessionLocal()
+    try:
+        assert db.query(User).filter(User.id == user_id).count() == 0
+        assert (
+            db.query(User)
+            .filter(User.id == "backup-admin", User.is_superuser.is_(True))
+            .count()
+            == 1
+        )
+    finally:
+        db.close()
+
+
+def test_stale_terms_user_can_unlink_wechat_identity(wechat_client):
+    email, password = "stale-unlink@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from db.models import User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user.wechat_openid = "openid-stale-unlink"
+        user.wechat_unionid = "unionid-stale-unlink"
+        user.wechat_nickname = "stale nickname"
+        user.wechat_avatar_url = "https://example.test/stale.png"
+        user.terms_version = "0000.00.0"
+        user.terms_digest = "sha256:" + ("0" * 64)
+        db.commit()
+        user_id = user.id
+    finally:
+        db.close()
+
+    response = wechat_client.post(
+        "/api/auth/wechat/unlink",
+        headers=_auth_headers(token),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"status": "ok", "was_bound": True}
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).one()
+        assert user.wechat_openid is None
+        assert user.wechat_unionid is None
+        assert user.wechat_nickname is None
+        assert user.wechat_avatar_url is None
+    finally:
+        db.close()
+
+
+def test_stale_terms_user_can_read_only_owned_feedback_image(
+    wechat_client,
+    monkeypatch,
+):
+    email, password = "stale-image@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from api import feedback_storage
+    from db.models import Feedback, User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user.terms_version = "0000.00.0"
+        user.terms_digest = "sha256:" + ("0" * 64)
+        owned = Feedback(
+            user_id=user.id,
+            kind="other",
+            message="owned image",
+            image_keys=["feedback/owned/0.png"],
+        )
+        outsider = Feedback(
+            user_id="another-user",
+            kind="other",
+            message="not owned",
+            image_keys=["feedback/outsider/0.png"],
+        )
+        db.add(
+            User(
+                id="another-user",
+                email="another-user@example.com",
+                hashed_password="unused",
+                is_active=True,
+                is_superuser=False,
+                is_verified=True,
+            )
+        )
+        db.add_all([owned, outsider])
+        db.commit()
+        owned_id = owned.id
+        outsider_id = outsider.id
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        feedback_storage,
+        "load_image",
+        lambda key: (
+            (b"owned-image", "image/png")
+            if key == "feedback/owned/0.png"
+            else None
+        ),
+    )
+    headers = _auth_headers(token)
+
+    response = wechat_client.get(
+        f"/api/me/feedback/{owned_id}/image/0",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    assert response.content == b"owned-image"
+    assert response.headers["cache-control"] == "private, no-store"
+    assert (
+        wechat_client.get(
+            f"/api/me/feedback/{outsider_id}/image/0",
+            headers=headers,
+        ).status_code
+        == 404
+    )
+
+
+def test_authenticated_demo_must_accept_current_terms_before_access(
+    wechat_client,
+):
+    email, password = "demo-terms@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    from db.models import TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+
+    stale_version = "0000.00.0"
+    stale_digest = "sha256:" + ("0" * 64)
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user.is_demo = True
+        user.terms_version = stale_version
+        user.terms_digest = stale_digest
+        db.commit()
+        user_id = user.id
+        receipt_count = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == user_id)
+            .count()
+        )
+    finally:
+        db.close()
+
+    blocked = wechat_client.get("/api/today", headers=headers)
+    assert blocked.status_code == 428
+    assert blocked.json()["detail"]["code"] == (
+        "TERMS_ACCEPTANCE_REQUIRED"
+    )
+
+    accepted = wechat_client.post("/api/me/accept-terms", headers=headers)
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["terms_current"] is True
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).one()
+        observed = {
+            "terms_version": user.terms_version,
+            "terms_digest": user.terms_digest,
+            "receipt_count": (
+                db.query(TermsAcceptanceReceipt)
+                .filter(TermsAcceptanceReceipt.user_id == user_id)
+                .count()
+            ),
+        }
+    finally:
+        db.close()
+
+    assert observed["terms_version"] == TERMS_VERSION
+    assert observed["terms_digest"] == TERMS_CONTENT_DIGEST
+    assert observed["receipt_count"] == receipt_count + 1
+    assert wechat_client.get("/api/today", headers=headers).status_code == 200
+
+
+def test_accept_terms_rejects_mismatched_digest_without_new_receipt(
+    wechat_client,
+):
+    email, password = "mismatch@example.com", "pw-123456"
+    reg = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert reg.status_code == 200, reg.text
+    token = _login_token(wechat_client, email, password)
+
+    from db.models import TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).one()
+        user.terms_version = "0000.00.0"
+        db.commit()
+        user_id = user.id
+    finally:
+        db.close()
+
+    response = TestClient.post(
+        wechat_client,
+        "/api/me/accept-terms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": "sha256:" + ("0" * 64),
+            "locale": "en",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "TERMS_BUNDLE_MISMATCH"
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).one()
+        assert user.terms_version == "0000.00.0"
+        assert (
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == user_id)
+            .count()
+        ) == 1
+    finally:
+        db.close()
+
+
+def test_accept_terms_serializes_channel_receipt_with_background_commits(
+    wechat_client,
+    monkeypatch,
+):
+    email, password = "receipt-lock@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from db import cache_revision
+
+    locked_users: list[str] = []
+    monkeypatch.setattr(
+        cache_revision,
+        "lock_revision_writes",
+        lambda _db, user_id: locked_users.append(user_id),
+    )
+
+    accepted = wechat_client.post(
+        "/api/me/accept-terms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "locale": "en",
+        },
+    )
+
+    assert accepted.status_code == 200, accepted.text
+    assert len(locked_users) == 1
+
+
+def test_terms_acceptance_receipts_reject_updates(wechat_client):
+    reg = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": "immutable@example.com",
+            "password": "pw-123456",
+            "accepted_terms": True,
+        },
+    )
+    assert reg.status_code == 200, reg.text
+
+    from sqlalchemy import text
+    from sqlalchemy.exc import DatabaseError
+    from db.models import TermsAcceptanceReceipt, User
+    from db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "immutable@example.com").one()
+        receipt = (
+            db.query(TermsAcceptanceReceipt)
+            .filter(TermsAcceptanceReceipt.user_id == user.id)
+            .one()
+        )
+        with pytest.raises(DatabaseError, match="immutable"):
+            db.execute(
+                text(
+                    "UPDATE terms_acceptance_receipts "
+                    "SET locale = 'zh' WHERE id = :receipt_id"
+                ),
+                {"receipt_id": receipt.id},
+            )
+            db.commit()
+        db.rollback()
+        db.refresh(receipt)
+        assert receipt.locale == "en"
+    finally:
+        db.close()
 
 
 def test_accept_terms_requires_auth(wechat_client):

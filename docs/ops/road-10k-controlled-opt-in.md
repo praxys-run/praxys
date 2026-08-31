@@ -63,10 +63,15 @@ A withdrawal with no evaluation or object target creates no empty marker and
 does not depend on private storage. The in-process replay flag is diagnostic
 only; database obligations are the cross-worker source of truth.
 
-The 14-day marker cleanup horizon matches the current database restore horizon.
+Completed markers older than the current 14-day database restore horizon are
+eligible for deletion only when marker storage is enumerated. The
+enumeration-based cleanup is not scheduled in this change, so repository code
+establishes neither a cleanup service level nor private-store cleanup proof.
+prepared markers are not age-retired, and unresolved committed markers remain
+replayable until completion.
 A restore from a snapshot older than a deletion may also be older than its
 database obligation. Live database/private-store restore reconciliation has not
-been demonstrated and remains a separately authorized release obligation; do
+been demonstrated and remains separately authorized release-only evidence; do
 not claim restore safety or resume traffic from repository tests alone.
 
 ## Verification boundaries

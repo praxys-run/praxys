@@ -4,7 +4,8 @@ import test from 'node:test';
 
 import {
   CHINA_DEPLOYMENT_META_NAME,
-  isBrowserTelemetryAllowed,
+  isAppInsightsAllowed,
+  isStatsigBrowserAllowed,
   isChinaFrontendDeployment,
   isChinaDeploymentRegion,
 } from '../src/lib/runtime-region.ts';
@@ -17,7 +18,7 @@ test('China deployment marker is explicit and fail-closed', () => {
   assert.equal(isChinaDeploymentRegion(undefined), false);
 });
 
-test('browser telemetry gate executes against the stamped HTML marker', () => {
+test('regional browser-provider gates keep App Insights and block Statsig', () => {
   const originalDocument = Object.getOwnPropertyDescriptor(
     globalThis,
     'document',
@@ -40,12 +41,14 @@ test('browser telemetry gate executes against the stamped HTML marker', () => {
   try {
     setMarker('cn');
     assert.equal(isChinaFrontendDeployment(), true);
-    assert.equal(isBrowserTelemetryAllowed(true), false);
+    assert.equal(isAppInsightsAllowed(true), true);
+    assert.equal(isStatsigBrowserAllowed(true), false);
 
     setMarker(undefined);
     assert.equal(isChinaFrontendDeployment(), false);
-    assert.equal(isBrowserTelemetryAllowed(true), true);
-    assert.equal(isBrowserTelemetryAllowed(false), false);
+    assert.equal(isAppInsightsAllowed(false), false);
+    assert.equal(isStatsigBrowserAllowed(true), true);
+    assert.equal(isStatsigBrowserAllowed(false), false);
   } finally {
     if (originalDocument) {
       Object.defineProperty(globalThis, 'document', originalDocument);
@@ -55,7 +58,7 @@ test('browser telemetry gate executes against the stamped HTML marker', () => {
   }
 });
 
-test('browser telemetry providers honor the stamped China deployment marker', async () => {
+test('browser telemetry providers apply their distinct regional boundaries', async () => {
   const appInsights = await readFile(
     new URL('../src/lib/appinsights.ts', import.meta.url),
     'utf8',
@@ -67,7 +70,39 @@ test('browser telemetry providers honor the stamped China deployment marker', as
 
   assert.match(
     appInsights,
-    /isBrowserTelemetryAllowed\(Boolean\(CONNECTION_STRING\)\)/,
+    /isAppInsightsAllowed\(Boolean\(CONNECTION_STRING\)\)/,
   );
-  assert.match(statsig, /isBrowserTelemetryAllowed\(Boolean\(CLIENT_KEY\)\)/);
+  const edgeOneBuild = await readFile(
+    new URL('../scripts/build-edgeone.mjs', import.meta.url),
+    'utf8',
+  );
+  const productEvents = await readFile(
+    new URL('../src/lib/product-events.ts', import.meta.url),
+    'utf8',
+  );
+  const main = await readFile(
+    new URL('../src/main.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(statsig, /isStatsigBrowserAllowed\(Boolean\(CLIENT_KEY\)\)/);
+  assert.match(
+    edgeOneBuild,
+    /VITE_APPINSIGHTS_CONNECTION_STRING: regionalAppInsights/,
+  );
+  assert.match(edgeOneBuild, /EdgeOne requires VITE_APPINSIGHTS_CONNECTION_STRING/);
+  assert.match(edgeOneBuild, /VITE_STATSIG_CLIENT_KEY: ""/);
+  assert.doesNotMatch(productEvents, /isChinaFrontendDeployment/);
+  assert.match(appInsights, /hasAcknowledgedChinaProcessingNotice\(\)/);
+  assert.match(main, /CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT/);
+});
+
+test('regional App Insights sanitizes URLs and suppresses exception capture', async () => {
+  const appInsights = await readFile(
+    new URL('../src/lib/appinsights.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(appInsights, /disableExceptionTracking: chinaDeployment/);
+  assert.match(appInsights, /sanitizeRegionalTelemetry/);
+  assert.match(appInsights, /'name',[\s\S]*'data',[\s\S]*'target'/);
+  assert.ok(appInsights.includes('replace(/[?#].*$/'));
 });

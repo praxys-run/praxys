@@ -25,6 +25,8 @@ def _build(monkeypatch, data_dir: str):
         "JKkx_5SVHKQDr0HSMrwl0KQHcA0pl5pxsYSLEAQDB4o=",
     )
     monkeypatch.setenv("PRAXYS_AUTH_RATE_LIMIT_DISABLED", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "true")
     monkeypatch.setenv("PRAXYS_SMTP_HOST", "smtp.example.com")
     monkeypatch.setenv("PRAXYS_SMTP_USER", "no-reply@praxys.run")
     monkeypatch.setenv("PRAXYS_SMTP_PASSWORD", "dummy")
@@ -84,10 +86,31 @@ def env(monkeypatch):
 
 # --- helpers ---------------------------------------------------------------
 
-def _reg(client, email, **kw):
-    body = {"email": email, "password": "pw123456", "accepted_terms": True}
+def _reg(client, email, *, headers=None, **kw):
+    from api.china_client_boundary import CN_PRIVACY_CONTRACT_VERSION
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+
+    body = {
+        "email": email,
+        "password": "pw123456",
+        "accepted_terms": True,
+        "terms_version": TERMS_VERSION,
+        "terms_digest": TERMS_CONTENT_DIGEST,
+        "terms_locale": "en",
+    }
     body.update(kw)
-    return client.post("/api/auth/register", json=body)
+    if headers and headers.get("Origin") in {
+        "https://praxys.cn",
+        "https://www.praxys.cn",
+    }:
+        headers = {
+            **headers,
+            "X-Praxys-Client": "cn-web",
+            "X-Praxys-Notice-Version": TERMS_VERSION,
+            "X-Praxys-Policy-Digest": TERMS_CONTENT_DIGEST,
+            "X-Praxys-Api-Contract": CN_PRIVACY_CONTRACT_VERSION,
+        }
+    return client.post("/api/auth/register", json=body, headers=headers)
 
 
 def _login(client, email, pw="pw123456"):
@@ -144,6 +167,46 @@ def test_first_user_is_admin_and_can_login(env):
     assert r.status_code == 200
     assert r.json()["is_superuser"] is True
     assert "access_token" in _login(client, "admin@praxys.run").json()
+
+
+def test_receipt_commit_failure_removes_new_user_and_allows_retry(
+    env,
+    monkeypatch,
+):
+    client, db_session, _ = env
+    from fastapi import HTTPException
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from db.models import TermsAcceptanceReceipt, User
+
+    original_commit = AsyncSession.commit
+    commits = 0
+
+    async def fail_legal_commit_once(session):
+        nonlocal commits
+        commits += 1
+        # FastAPI Users commits the new user first. Fail the following commit
+        # that persists the legal projection and append-only receipt.
+        if commits == 2:
+            raise HTTPException(503, detail="RECEIPT_STORE_FAILED")
+        await original_commit(session)
+
+    monkeypatch.setattr(AsyncSession, "commit", fail_legal_commit_once)
+
+    failed = _reg(client, "receipt-retry@x.com")
+    assert failed.status_code == 503
+    assert failed.json()["detail"] == "RECEIPT_STORE_FAILED"
+    with db_session.SessionLocal() as db:
+        assert db.query(User).filter_by(email="receipt-retry@x.com").count() == 0
+        assert db.query(TermsAcceptanceReceipt).count() == 0
+
+    retried = _reg(client, "receipt-retry@x.com")
+    assert retried.status_code == 200
+    with db_session.SessionLocal() as db:
+        user = db.query(User).filter_by(email="receipt-retry@x.com").one()
+        assert (
+            db.query(TermsAcceptanceReceipt).filter_by(user_id=user.id).count()
+            == 1
+        )
 
 
 def test_honeypot_rejected(env):
@@ -214,6 +277,94 @@ def test_invited_user_bypasses_cap(env):
     assert r.status_code == 200
     assert r.json()["email"] == "invited@x.com"
     assert "access_token" in _login(client, "invited@x.com").json()
+
+
+def test_cn_web_uses_global_open_registration(env):
+    client, db_session, _ = env
+    _admin_token(client)
+    _open_gate(db_session)
+
+    assert client.get(
+        "/api/public/config",
+        headers={"Origin": "https://praxys.run"},
+    ).json() == {"registration_open": True}
+    assert client.get(
+        "/api/public/config",
+        headers={"Origin": "https://praxys.cn"},
+    ).json() == {"registration_open": True}
+
+    created = _reg(
+        client,
+        "cn-codeless@x.com",
+        headers={"Origin": "https://praxys.cn"},
+    )
+    assert created.status_code == 200
+
+
+def test_cn_web_valid_invitation_records_cn_receipt(env):
+    client, db_session, _ = env
+    _admin_token(client)
+    from db.models import Invitation, TermsAcceptanceReceipt, User
+
+    with db_session.SessionLocal() as db:
+        admin = db.query(User).filter_by(email="admin@praxys.run").one()
+        db.add(Invitation(code="TS-CNWB-0001", created_by=admin.id))
+        db.commit()
+
+    response = _reg(
+        client,
+        "cn-invited@x.com",
+        headers={"Origin": "https://praxys.cn"},
+        invitation_code="TS-CNWB-0001",
+    )
+
+    assert response.status_code == 200
+    with db_session.SessionLocal() as db:
+        user = db.query(User).filter_by(email="cn-invited@x.com").one()
+        receipt = db.query(TermsAcceptanceReceipt).filter_by(
+            user_id=user.id,
+        ).one()
+        assert receipt.channel == "cn-web"
+
+
+def test_invitation_race_cleanup_removes_terms_receipt(
+    env,
+    monkeypatch,
+):
+    client, db_session, _ = env
+    _admin_token(client)
+    from api.routes import register as register_routes
+    from db.models import Invitation, TermsAcceptanceReceipt, User
+
+    db = db_session.SessionLocal()
+    admin = db.query(User).filter(User.email == "admin@praxys.run").one()
+    db.add(Invitation(code="TS-RACE-0001", created_by=admin.id))
+    db.commit()
+    receipt_count = db.query(TermsAcceptanceReceipt).count()
+    db.close()
+
+    monkeypatch.setattr(
+        register_routes,
+        "claim_invitation",
+        lambda *_args, **_kwargs: False,
+    )
+    response = _reg(
+        client,
+        "race-loser@x.com",
+        invitation_code="TS-RACE-0001",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "REGISTER_INVALID_INVITATION"
+    db = db_session.SessionLocal()
+    try:
+        assert (
+            db.query(User).filter(User.email == "race-loser@x.com").count()
+            == 0
+        )
+        assert db.query(TermsAcceptanceReceipt).count() == receipt_count
+    finally:
+        db.close()
 
 
 def test_expired_invitation_rejected(env):

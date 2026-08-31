@@ -1050,7 +1050,7 @@ def test_hard_off_stage_routes_deny_before_auth_or_request_side_effects(
     response = request(path) if method == "get" else request(path, json={})
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Not found"}
+    assert response.json().get("detail", "").casefold() == "not found"
     assert response.headers["cache-control"] == "private, no-store"
     assert response.headers["pragma"] == "no-cache"
     assert response.headers["vary"] == "Authorization"
@@ -1079,11 +1079,19 @@ def test_hard_off_road_routes_are_absent_from_openapi(hard_off_road_client):
 
 
 def test_hard_off_road_discovery_stays_hidden(hard_off_road_client):
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     client, db_session = hard_off_road_client
     with db_session.SessionLocal() as db:
-        db.add(User(id="discovery-owner", email="discovery@example.test", hashed_password="x"))
+        db.add(User(
+            id="discovery-owner",
+            email="discovery@example.test",
+            hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+            terms_accepted_at=datetime.now(timezone.utc),
+        ))
         db.commit()
     response = client.get(
         "/api/plan/generation/capabilities",

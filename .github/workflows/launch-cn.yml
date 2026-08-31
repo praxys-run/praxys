@@ -1,0 +1,673 @@
+name: China web launch
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Read status or change the China web processing gate
+        required: true
+        default: status
+        type: choice
+        options: [status, enable, disable]
+concurrency:
+  group: >-
+    ${{ inputs.action == 'status'
+      && format('praxys-cn-status-{0}', github.run_id)
+      || 'praxys-cn-launch' }}
+  cancel-in-progress: ${{ inputs.action == 'disable' }}
+env:
+  AZURE_BACKEND_APP_NAME: trainsight-app
+  AZURE_RESOURCE_GROUP: rg-trainsight
+  BASE_CORS: '["https://praxys.run","https://www.praxys.run","https://praxys-frontend.azurewebsites.net"]'
+  CN_CORS: '["https://praxys.cn","https://www.praxys.cn"]'
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require a main dispatch
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::Dispatch this workflow from main."
+            exit 1
+          fi
+
+  status:
+    needs: guard
+    if: inputs.action == 'status'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Report current state
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          cn_disabled="$(read_setting PRAXYS_DISABLE_CN_PROCESSING)"
+          miniapp_disabled="$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)"
+          ai_disabled="$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)"
+          labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
+          [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
+          test "${miniapp_disabled}" = false
+          [[ "${ai_disabled}" == "true" || "${ai_disabled}" == "false" ]]
+          [[ "${labs_mode}" == "inline" \
+            || "${labs_mode}" == "service_bus" \
+            || "${labs_mode}" == "disabled" ]]
+          filtered="$(jq -c '[.[] | select(
+            .name == "PRAXYS_DISABLE_CN_PROCESSING"
+            or .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING"
+            or .name == "PRAXYS_DISABLE_BACKGROUND_AI"
+            or .name == "PRAXYS_LABS_EXECUTION_MODE"
+          ) | {name, value}]' <<< "${settings}")"
+
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          expected_enabled="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          cors_state=invalid
+          jq -e --argjson expected "${BASE_CORS}" \
+            'sort == ($expected | sort)' <<< "${cors}" >/dev/null \
+            && cors_state=base
+          jq -e --argjson expected "${expected_enabled}" \
+            'sort == ($expected | sort)' <<< "${cors}" >/dev/null \
+            && cors_state=base-plus-cn
+          cors_coherent=true
+          if [[ "${cn_disabled}" == "false" \
+                && "${cors_state}" != "base-plus-cn" ]]; then
+            cors_coherent=false
+          fi
+
+          probe_json() {
+            local url="$1" payload
+            if payload="$(curl -fsS --max-time 12 "${url}" 2>/dev/null)" \
+              && jq -e . <<< "${payload}" >/dev/null 2>&1; then
+              printf '%s' "${payload}"
+              return 0
+            fi
+            jq -cn --arg url "${url}" \
+              '{available: false, warning: "probe unavailable or invalid", url: $url}'
+            return 1
+          }
+
+          core_ok=true
+          if ! api_health="$(probe_json https://api.praxys.run/api/health)"; then
+            core_ok=false
+          elif ! jq -e '.status == "ok"' <<< "${api_health}" >/dev/null; then
+            core_ok=false
+          fi
+          if ! api_version="$(probe_json https://api.praxys.run/api/version)"; then
+            core_ok=false
+          elif ! jq -e '
+            (.version | type == "string" and length > 0)
+            and (.source_sha | type == "string"
+              and test("^[0-9a-f]{40}$"))' \
+            <<< "${api_version}" >/dev/null; then
+            core_ok=false
+          fi
+          if ! api_ready="$(probe_json https://api.praxys.run/api/health/ready)"; then
+            core_ok=false
+          elif ! jq -e \
+            --argjson cnDisabled "${cn_disabled}" \
+            --argjson miniappDisabled "${miniapp_disabled}" \
+            --argjson aiDisabled "${ai_disabled}" \
+            '.status == "ready"
+             and .china_processing.disabled == $cnDisabled
+             and .china_processing.enabled == ($cnDisabled | not)
+             and .miniapp_processing.disabled == $miniappDisabled
+             and .miniapp_processing.enabled == ($miniappDisabled | not)
+             and .optional_processing.background_ai_kill_switch == $aiDisabled
+             and .optional_processing.background_ai_enabled == ($aiDisabled | not)' \
+            <<< "${api_ready}" >/dev/null; then
+            core_ok=false
+          fi
+          if ! run_health="$(probe_json https://www.praxys.run/healthz)"; then
+            core_ok=false
+          elif ! jq -e '
+            .ok == true
+            and .service == "praxys-frontend"
+            and (.deployed_sha | type == "string"
+              and test("^[0-9a-f]{40}$"))' \
+            <<< "${run_health}" >/dev/null; then
+            core_ok=false
+          fi
+
+          hosts='[]'
+          for host in praxys.cn www.praxys.cn; do
+            if ! getent ahostsv4 "${host}" >/dev/null 2>&1; then
+              host_item="$(jq -cn --arg host "${host}" \
+                '{host: $host, available: false,
+                  warning: "DNS is not available yet"}')"
+            elif ! host_health="$(curl -fsS --max-time 12 \
+              "https://${host}/healthz" 2>/dev/null)" \
+              || ! host_sha="$(curl -fsS --max-time 12 \
+                "https://${host}/deployed_sha.txt" 2>/dev/null \
+                | tr -d '\r\n')"; then
+              host_item="$(jq -cn --arg host "${host}" \
+                '{host: $host, available: false,
+                  warning: "host probe failed"}')"
+            elif ! jq -e --arg sha "${host_sha}" '
+              .ok == true
+              and .service == "praxys-frontend-cn"
+              and .deployed_sha == $sha
+              and ($sha | test("^[0-9a-f]{40}$"))' \
+              <<< "${host_health}" >/dev/null 2>&1; then
+              host_item="$(jq -cn --arg host "${host}" \
+                '{host: $host, available: false,
+                  warning: "host response is invalid"}')"
+            else
+              host_item="$(jq -cn \
+                --arg host "${host}" --arg sha "${host_sha}" \
+                --argjson health "${host_health}" \
+                '{host: $host, available: true,
+                  deployed_sha: $sha, health: $health}')"
+            fi
+            hosts="$(jq -cn \
+              --argjson current "${hosts}" --argjson item "${host_item}" \
+              '$current + [$item]')"
+          done
+          cn_hosts_ok=true
+          if [[ "${cn_disabled}" == "false" ]] \
+            && ! jq -e 'all(.[]; .available == true)' \
+              <<< "${hosts}" >/dev/null; then
+            cn_hosts_ok=false
+          fi
+
+          snapshot="$(jq -n --arg sha "${GITHUB_SHA}" \
+            --arg corsState "${cors_state}" --argjson coreOk "${core_ok}" \
+            --argjson corsCoherent "${cors_coherent}" \
+            --argjson cnHostsOk "${cn_hosts_ok}" \
+            --argjson settings "${filtered}" --argjson cors "${cors}" \
+            --argjson apiHealth "${api_health}" \
+            --argjson apiVersion "${api_version}" \
+            --argjson apiReadiness "${api_ready}" \
+            --argjson runHealth "${run_health}" --argjson cnHosts "${hosts}" \
+            '{dispatch_sha: $sha, core_valid: $coreOk,
+              cors_state: $corsState, cors_coherent: $corsCoherent,
+              cn_hosts_valid_when_enabled: $cnHostsOk,
+              settings: $settings, cors: $cors,
+              api: {health: $apiHealth, version: $apiVersion,
+                readiness: $apiReadiness},
+              run_health: $runHealth, cn_hosts: $cnHosts}')"
+          {
+            echo "## China web launch status"
+            echo
+            echo "**Read-only: no setting, CORS, frontend, or Miniapp mutation was performed.**"
+            echo '```json'
+            jq . <<< "${snapshot}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+          if [[ "${cors_state}" == "invalid" \
+                || "${cors_coherent}" != "true" \
+                || "${cn_hosts_ok}" != "true" \
+                || "${core_ok}" != "true" ]]; then
+            echo "::error::Core health, enabled .cn hosts, or CORS is invalid."
+            exit 1
+          fi
+
+  enable:
+    needs: guard
+    if: inputs.action == 'enable'
+    environment: china-production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Confirm current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" \
+            --jq '.commit.sha')"
+          test "${GITHUB_SHA}" = "${current}"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+      - name: Azure Login (OIDC)
+        id: azure_login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify enable preconditions
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          require_main_ancestor() {
+            local component="$1" sha="$2"
+            if [[ ! "${sha}" =~ ^[0-9a-f]{40}$ ]] \
+              || ! git cat-file -e "${sha}^{commit}" \
+              || ! git merge-base --is-ancestor \
+                "${sha}" refs/remotes/origin/main; then
+              echo "::error::${component} SHA is not an ancestor of origin/main."
+              exit 1
+            fi
+          }
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          cn_disabled="$(read_setting PRAXYS_DISABLE_CN_PROCESSING)"
+          [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
+          test "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" = false
+          test "$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)" = false
+          labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
+          test "${labs_mode}" = service_bus
+
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          enabled_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          cors_state=invalid
+          jq -e --argjson base "${BASE_CORS}" \
+            'sort == ($base | sort)' <<< "${cors}" >/dev/null \
+            && cors_state=base
+          jq -e --argjson enabled "${enabled_cors}" \
+            'sort == ($enabled | sort)' <<< "${cors}" >/dev/null \
+            && cors_state=base-plus-cn
+          if [[ "${cn_disabled}" == "true" ]]; then
+            [[ "${cors_state}" == "base" \
+              || "${cors_state}" == "base-plus-cn" ]]
+          else
+            test "${cors_state}" = base-plus-cn
+          fi
+
+          test "$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/health | jq -r .status)" = ok
+          public_config="$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/public/config)"
+          jq -e '.registration_open == true' \
+            <<< "${public_config}" >/dev/null
+          api_version="$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/version)"
+          api_sha="$(jq -er .source_sha <<< "${api_version}")"
+          jq -e '(.version | type == "string" and length > 0)' \
+            <<< "${api_version}" >/dev/null
+          require_main_ancestor API "${api_sha}"
+          expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${api_sha}"
+          deployed_worker_image="$(az containerapp job show \
+            --name praxys-labs-environment-worker \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "properties.template.containers[0].image" -o tsv)"
+          test "${deployed_worker_image}" = "${expected_worker_image}"
+
+          ready="$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/health/ready)"
+          jq -e --argjson cnDisabled "${cn_disabled}" '
+            .status == "ready"
+            and .china_processing.disabled == $cnDisabled
+            and .china_processing.enabled == ($cnDisabled | not)
+            and .miniapp_processing.enabled == true
+            and .optional_processing.background_ai_enabled == true' \
+            <<< "${ready}" >/dev/null
+
+          run_health="$(curl -fsS --max-time 12 \
+            https://www.praxys.run/healthz)"
+          run_sha="$(jq -er '
+            select(.ok == true and .service == "praxys-frontend")
+            | .deployed_sha' <<< "${run_health}")"
+          require_main_ancestor .run "${run_sha}"
+
+          for host in praxys.cn www.praxys.cn; do
+            getent ahostsv4 "${host}" >/dev/null
+            headers="${RUNNER_TEMP}/${host}.headers"
+            html="${RUNNER_TEMP}/${host}.html"
+            curl -fsSI --max-time 12 "https://${host}/" > "${headers}"
+            curl -fsS --max-time 12 "https://${host}/" > "${html}"
+            grep -qi '^x-content-type-options: *nosniff' "${headers}"
+            grep -qi '^x-frame-options: *DENY' "${headers}"
+            grep -qi '^referrer-policy: *strict-origin-when-cross-origin' \
+              "${headers}"
+            grep -F 'name="praxys-deployment-region" content="cn"' "${html}"
+            grep -F '沪ICP备2025109616号-2' "${html}"
+            deep_html="${RUNNER_TEMP}/${host}.login.html"
+            curl -fsS --max-time 12 "https://${host}/login" \
+              > "${deep_html}"
+            grep -F '<div id="root"></div>' "${deep_html}"
+            asset_path="$(grep -oE \
+              '/assets/[A-Za-z0-9._-]+\.js' "${html}" | head -n 1)"
+            test -n "${asset_path}"
+            curl -fsS --max-time 12 \
+              "https://${host}${asset_path}" -o /dev/null
+            host_sha="$(curl -fsS --max-time 12 \
+              "https://${host}/deployed_sha.txt" | tr -d '\r\n')"
+            health="$(curl -fsS --max-time 12 "https://${host}/healthz")"
+            jq -e --arg sha "${host_sha}" --argjson ready "${ready}" \
+              '.ok == true
+               and .service == "praxys-frontend-cn"
+               and .deployed_sha == $sha
+               and .notice_version == $ready.china_processing.notice_version
+               and .legal_digest == $ready.china_processing.legal_digest
+               and .api_contract_version
+                 == $ready.china_processing.api_contract_version' \
+              <<< "${health}" >/dev/null
+            require_main_ancestor "EdgeOne ${host}" "${host_sha}"
+          done
+          echo "started_disabled=${cn_disabled}" >> "${GITHUB_OUTPUT}"
+          echo "cors_state=${cors_state}" >> "${GITHUB_OUTPUT}"
+      - name: Enable China web processing from disabled
+        if: steps.before.outputs.started_disabled == 'true'
+        env:
+          CORS_STATE: ${{ steps.before.outputs.cors_state }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${CORS_STATE}" == "base" ]]; then
+            az webapp cors add \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --allowed-origins https://praxys.cn https://www.praxys.cn \
+              --output none
+          else
+            test "${CORS_STATE}" = base-plus-cn
+          fi
+          az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings PRAXYS_DISABLE_CN_PROCESSING=false \
+            --output none
+      - name: Verify enabled boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          require_main_ancestor() {
+            local component="$1" sha="$2"
+            if [[ ! "${sha}" =~ ^[0-9a-f]{40}$ ]] \
+              || ! git cat-file -e "${sha}^{commit}" \
+              || ! git merge-base --is-ancestor \
+                "${sha}" refs/remotes/origin/main; then
+              echo "::error::${component} SHA is not an ancestor of origin/main."
+              exit 1
+            fi
+          }
+          for _ in {1..30}; do
+            ready="$(curl -fsS --max-time 8 \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            jq -e '.status == "ready"
+              and .china_processing.enabled == true
+              and .miniapp_processing.enabled == true
+              and .optional_processing.background_ai_enabled == true' \
+              <<< "${ready}" >/dev/null 2>&1 && break
+            sleep 10
+          done
+          jq -e '.status == "ready" and .china_processing.enabled == true' \
+            <<< "${ready}" >/dev/null
+          expected_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          jq -e --argjson expected "${expected_cors}" \
+            'sort == ($expected | sort)' <<< "${cors}" >/dev/null
+          notice="$(jq -r .china_processing.notice_version <<< "${ready}")"
+          digest="$(jq -r .china_processing.legal_digest <<< "${ready}")"
+          contract="$(jq -r \
+            .china_processing.api_contract_version <<< "${ready}")"
+
+          api_version="$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/version)"
+          api_sha="$(jq -er .source_sha <<< "${api_version}")"
+          require_main_ancestor API "${api_sha}"
+          run_health="$(curl -fsS --max-time 12 \
+            https://www.praxys.run/healthz)"
+          run_sha="$(jq -er '
+            select(.ok == true and .service == "praxys-frontend")
+            | .deployed_sha' <<< "${run_health}")"
+          require_main_ancestor .run "${run_sha}"
+          cn_shas=()
+          for host in praxys.cn www.praxys.cn; do
+            host_sha="$(curl -fsS --max-time 12 \
+              "https://${host}/deployed_sha.txt" | tr -d '\r\n')"
+            health="$(curl -fsS --max-time 12 "https://${host}/healthz")"
+            jq -e --arg sha "${host_sha}" --argjson ready "${ready}" \
+              '.ok == true
+               and .service == "praxys-frontend-cn"
+               and .deployed_sha == $sha
+               and .notice_version == $ready.china_processing.notice_version
+               and .legal_digest == $ready.china_processing.legal_digest
+               and .api_contract_version
+                 == $ready.china_processing.api_contract_version' \
+              <<< "${health}" >/dev/null
+            require_main_ancestor "EdgeOne ${host}" "${host_sha}"
+            cn_shas+=("${host}=${host_sha}")
+          done
+
+          for origin in https://praxys.cn https://www.praxys.cn; do
+            origin_key="${origin#https://}"
+            preflight="${RUNNER_TEMP}/${origin_key}.preflight.headers"
+            code="$(curl -sS --max-time 12 -D "${preflight}" -o /dev/null \
+              -w '%{http_code}' -X OPTIONS \
+              https://api.praxys.run/api/today \
+              -H "Origin: ${origin}" \
+              -H 'Access-Control-Request-Method: GET' \
+              -H 'Access-Control-Request-Headers: authorization,content-type,x-praxys-client,x-praxys-notice-version,x-praxys-policy-digest,x-praxys-api-contract')"
+            [[ "${code}" == "200" || "${code}" == "204" ]]
+            bash scripts/verify_cors_response.sh "${preflight}" "${origin}" \
+              GET authorization content-type x-praxys-client \
+              x-praxys-notice-version x-praxys-policy-digest \
+              x-praxys-api-contract
+            common=(-H "Origin: ${origin}" -H 'X-Praxys-Client: cn-web'
+              -H "X-Praxys-Notice-Version: ${notice}"
+              -H "X-Praxys-Api-Contract: ${contract}")
+            actual="${RUNNER_TEMP}/${origin_key}.actual.headers"
+            code="$(curl -sS --max-time 12 -D "${actual}" -o /dev/null \
+              -w '%{http_code}' \
+              https://api.praxys.run/api/today "${common[@]}" \
+              -H "X-Praxys-Policy-Digest: ${digest}")"
+            test "${code}" = 401
+            bash scripts/verify_cors_response.sh "${actual}" "${origin}"
+            stale_headers="${RUNNER_TEMP}/${origin_key}.stale.headers"
+            stale_body="${RUNNER_TEMP}/${origin_key}.stale.json"
+            code="$(curl -sS --max-time 12 -D "${stale_headers}" \
+              -o "${stale_body}" -w '%{http_code}' \
+              https://api.praxys.run/api/today \
+              "${common[@]}" -H "X-Praxys-Policy-Digest: sha256:$(printf '0%.0s' {1..64})")"
+            test "${code}" = 428
+            bash scripts/verify_cors_response.sh \
+              "${stale_headers}" "${origin}"
+            test "$(jq -r .detail.code "${stale_body}")" \
+              = CLIENT_PRIVACY_UPDATE_REQUIRED
+          done
+          {
+            echo "## China web launch enable"
+            echo
+            echo "- Dispatch: \`${GITHUB_SHA}\`"
+            echo "- API: \`${api_sha}\`"
+            echo "- .run frontend: \`${run_sha}\`"
+            for item in "${cn_shas[@]}"; do
+              echo "- ${item%%=*}: \`${item#*=}\`"
+            done
+            echo "- Miniapp processing remained enabled."
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Compensate failed or cancelled enable
+        if: >-
+          always() && (failure() || cancelled()) &&
+          steps.azure_login.outcome == 'success' &&
+          steps.before.outputs.started_disabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings PRAXYS_DISABLE_CN_PROCESSING=true \
+            --output none
+          test "$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_DISABLE_CN_PROCESSING'].value | [0]" \
+            -o tsv)" = true
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          enabled_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          jq -e --argjson base "${BASE_CORS}" \
+            --argjson enabled "${enabled_cors}" \
+            'sort == ($base | sort) or sort == ($enabled | sort)' \
+            <<< "${cors}" >/dev/null
+          for _ in {1..30}; do
+            ready="$(curl -fsS --max-time 8 \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            jq -e '.status == "ready"
+              and .china_processing.disabled == true
+              and .miniapp_processing.enabled == true' \
+              <<< "${ready}" >/dev/null 2>&1 && break
+            sleep 10
+          done
+          jq -e '.status == "ready"
+            and .china_processing.disabled == true
+            and .miniapp_processing.enabled == true' \
+            <<< "${ready}" >/dev/null
+
+  disable:
+    needs: guard
+    if: inputs.action == 'disable'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Capture valid CORS and Azure AI state
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          ai="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_DISABLE_BACKGROUND_AI'].value | [0]" \
+            -o tsv)"
+          [[ "${ai}" == "true" || "${ai}" == "false" ]]
+          miniapp="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_DISABLE_MINIAPP_PROCESSING'].value | [0]" \
+            -o tsv)"
+          [[ "${miniapp}" == "true" || "${miniapp}" == "false" ]]
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          enabled_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          jq -e --argjson base "${BASE_CORS}" \
+            --argjson enabled "${enabled_cors}" \
+            'sort == ($base | sort) or sort == ($enabled | sort)' \
+            <<< "${cors}" >/dev/null
+          {
+            echo "ai=${ai}"
+            echo "miniapp=${miniapp}"
+            echo "cors=$(jq -c sort <<< "${cors}")"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Disable and verify China web processing
+        env:
+          EXPECTED_AI: ${{ steps.before.outputs.ai }}
+          EXPECTED_MINIAPP: ${{ steps.before.outputs.miniapp }}
+          EXPECTED_CORS: ${{ steps.before.outputs.cors }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings PRAXYS_DISABLE_CN_PROCESSING=true \
+            --output none
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          test "$(jq -r '.[] | select(
+            .name == "PRAXYS_DISABLE_CN_PROCESSING").value' \
+            <<< "${settings}")" = true
+          test "$(jq -r '.[] | select(
+            .name == "PRAXYS_DISABLE_BACKGROUND_AI").value' \
+            <<< "${settings}")" = "${EXPECTED_AI}"
+          test "$(jq -r '.[] | select(
+            .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING").value' \
+            <<< "${settings}")" = "${EXPECTED_MINIAPP}"
+          cors="$(az webapp cors show \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query allowedOrigins -o json)"
+          test "$(jq -c sort <<< "${cors}")" = "${EXPECTED_CORS}"
+          for _ in {1..30}; do
+            ready="$(curl -fsS --max-time 8 \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            jq -e '.china_processing.disabled == true' \
+              <<< "${ready}" >/dev/null 2>&1 && break
+            sleep 10
+          done
+          jq -e --argjson miniappDisabled "${EXPECTED_MINIAPP}" \
+            '.china_processing.disabled == true
+             and .miniapp_processing.disabled == $miniappDisabled
+             and .miniapp_processing.enabled == ($miniappDisabled | not)' \
+            <<< "${ready}" >/dev/null
+          rights_cors=not-configured
+          enabled_cors="$(jq -cn \
+            --argjson base "${BASE_CORS}" --argjson cn "${CN_CORS}" \
+            '$base + $cn')"
+          if jq -e --argjson enabled "${enabled_cors}" \
+            'sort == ($enabled | sort)' <<< "${cors}" >/dev/null; then
+            rights_cors=verified
+            for origin in https://praxys.cn https://www.praxys.cn; do
+              headers="${RUNNER_TEMP}/${origin#https://}.rights.headers"
+              code="$(curl -sS --max-time 12 -D "${headers}" -o /dev/null \
+                -w '%{http_code}' https://api.praxys.run/api/me/export \
+                -H "Origin: ${origin}")"
+              test "${code}" = 401
+              bash scripts/verify_cors_response.sh "${headers}" "${origin}"
+            done
+          fi
+          {
+            echo "## China web launch disable"
+            echo
+            echo "The server processing gate is disabled."
+            echo "CORS and Azure AI were unchanged."
+            echo "Rights-route CORS: ${rights_cors}."
+            echo "Static EdgeOne takedown remains a separate manual action."
+          } >> "${GITHUB_STEP_SUMMARY}"

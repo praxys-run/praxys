@@ -365,7 +365,7 @@ The following table maps key findings from this review to their implementation i
 | **Ultra-distance power fractions** (less research, flagged as estimates) | Power fractions for 50K-100mi distances are marked as estimates in code comments, following the review's caution about limited ultra research. | `analysis/metrics.py` (DISTANCE_CONFIGS) |
 | **Block periodization and training diagnosis** | Split-level power analysis in `diagnose_training()` uses `activity_splits.csv` to detect actual interval power vs. diluted averages, enabling accurate training load characterization. | `analysis/metrics.py` |
 
-**Key principle reflected throughout:** AI and algorithmic recommendations are always optional. The app functions fully without them, and every prediction or insight includes expandable methodology notes via the `ScienceNote` component, consistent with this review's emphasis on transparency and the limits of proprietary algorithms.
+**Historical study context and current product contract:** This review predates the current product contract; its recommendation to treat AI and algorithmic recommendations as optional remains historical study context, not a statement of current Praxys behavior. Azure AI is now a mandatory ordinary-production service capability. During emergency degradation, AI-only features report explicitly unavailable while deterministic metrics continue separately and are never presented as an AI-branded or rule-based fallback. Expandable methodology notes via the `ScienceNote` component preserve this review’s emphasis on transparency and the limits of proprietary algorithms.
 
 ---
 

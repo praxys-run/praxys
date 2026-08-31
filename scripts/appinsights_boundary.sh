@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 readonly BACKEND_APP_SERVICE="trainsight-app"
+readonly BACKEND_RETENTION_DAYS=30
 readonly API_WEBTEST_NAME="wt-praxys-api-health"
 readonly SCHEDULED_QUERY_API_VERSION="2026-03-01"
 readonly MANAGED_PLAN_PROVIDER_ALERT="praxys-managed-plan-provider-failures"
@@ -527,20 +528,45 @@ backend_preflight() {
   load_boundary_resources
   verify_resource_context_access
 
+  az monitor log-analytics workspace update \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
+    --retention-time "${BACKEND_RETENTION_DAYS}" \
+    --output none
+
   az resource update \
     --ids "${BACKEND_AI_ID}" \
     --set \
       properties.DisableLocalAuth=true \
+      properties.DisableIpMasking=false \
+      properties.RetentionInDays="${BACKEND_RETENTION_DAYS}" \
       tags.trustBoundary=backend \
       tags.managedBy=deploy-backend \
     --output none
 
-  local disable_local_auth
+  local disable_local_auth disable_ip_masking backend_retention
+  local workspace_retention
   disable_local_auth="$(az resource show \
     --ids "${BACKEND_AI_ID}" \
     --query properties.DisableLocalAuth -o tsv)"
   [[ "${disable_local_auth,,}" == "true" ]] ||
     fail "backend Application Insights local authentication is not disabled"
+  disable_ip_masking="$(az resource show \
+    --ids "${BACKEND_AI_ID}" \
+    --query properties.DisableIpMasking -o tsv)"
+  [[ "${disable_ip_masking,,}" == "false" ]] ||
+    fail "backend Application Insights IP masking is disabled"
+  backend_retention="$(az resource show \
+    --ids "${BACKEND_AI_ID}" \
+    --query properties.RetentionInDays -o tsv)"
+  [[ "${backend_retention}" == "${BACKEND_RETENTION_DAYS}" ]] ||
+    fail "backend Application Insights retention is not ${BACKEND_RETENTION_DAYS} days"
+  workspace_retention="$(az monitor log-analytics workspace show \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
+    --query retentionInDays -o tsv)"
+  [[ "${workspace_retention}" == "${BACKEND_RETENTION_DAYS}" ]] ||
+    fail "${LOG_ANALYTICS_WORKSPACE} retention is not ${BACKEND_RETENTION_DAYS} days"
 
   local identity_json runtime_mi_client_id backend_mi_principal
   local publisher_role_count reader_role_count
@@ -631,12 +657,38 @@ frontend_resolve() {
   [[ "${backend_local_auth,,}" == "true" ]] ||
     fail "backend Application Insights must reject instrumentation-key ingestion"
 
+  az monitor log-analytics workspace update \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
+    --retention-time "${BACKEND_RETENTION_DAYS}" \
+    --output none
+
   az resource update \
     --ids "${FRONTEND_AI_ID}" \
     --set \
+      properties.DisableIpMasking=false \
+      properties.RetentionInDays="${BACKEND_RETENTION_DAYS}" \
       tags.trustBoundary=frontend \
       tags.managedBy=deploy-frontend-appservice \
     --output none
+
+  local disable_ip_masking frontend_retention workspace_retention
+  disable_ip_masking="$(az resource show \
+    --ids "${FRONTEND_AI_ID}" \
+    --query properties.DisableIpMasking -o tsv)"
+  [[ "${disable_ip_masking,,}" == "false" ]] ||
+    fail "frontend Application Insights IP masking is disabled"
+  frontend_retention="$(az resource show \
+    --ids "${FRONTEND_AI_ID}" \
+    --query properties.RetentionInDays -o tsv)"
+  [[ "${frontend_retention}" == "${BACKEND_RETENTION_DAYS}" ]] ||
+    fail "frontend Application Insights retention is not ${BACKEND_RETENTION_DAYS} days"
+  workspace_retention="$(az monitor log-analytics workspace show \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
+    --query retentionInDays -o tsv)"
+  [[ "${workspace_retention}" == "${BACKEND_RETENTION_DAYS}" ]] ||
+    fail "${LOG_ANALYTICS_WORKSPACE} retention is not ${BACKEND_RETENTION_DAYS} days"
 
   local connection_string
   connection_string="$(az resource show \

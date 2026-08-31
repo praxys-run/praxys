@@ -21,6 +21,9 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
 | [tencent-frontend.md](./tencent-frontend.md) | Operating EdgeOne for `.cn`, Cloudflare for `.run`, or their DNS/certificate cutovers. |
+| [cn-public-security-filing.md](./cn-public-security-filing.md) | Preparing and submitting the post-launch public-security website filing, then publishing the exact issued footer. |
+| [cn-web-private-alpha.md](./cn-web-private-alpha.md) | Checking, enabling, disabling, or recovering the dormant public China web launch. |
+| [cn-personal-information-impact-assessment.md](./cn-personal-information-impact-assessment.md) | Reviewing the accepted public web/Miniapp processing scope, residual risk, and separate live controls required before enable. |
 | [search-discovery.md](./search-discovery.md) | You're submitting public pages to search engines, measuring SEO/GEO, or preparing the `praxys.cn` cutover. |
 | [org-migration.md](./org-migration.md) | Migrating the repos from `dddtc2005` into the `praxys-run` org (OIDC pre-stage, App reinstall, tokens). |
 | [monitoring-and-alerts.md](./monitoring-and-alerts.md) | You want to query a telemetry signal or wire an email/Teams alert. |
@@ -38,6 +41,14 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [disaster-recovery.md](./disaster-recovery.md) | Rebuilding the whole deployment from scratch + restoring data. |
 | [road-10k-controlled-opt-in.md](./road-10k-controlled-opt-in.md) | Road 10K authority, ledger, deletion, restore, and rollback boundaries (default-off). |
 
+## Operations decision records
+
+- [China public web launch](./cn-web-private-alpha.md) — operator-recorded
+  product scope, accepted PIPIA `1.2-public-parity`, launch checklist,
+  compensation, rollback, and
+  run-summary evidence contract. Live verification and production enablement
+  remain human-only.
+
 ## Environment at a glance
 
 | | |
@@ -46,8 +57,8 @@ diagnose X". It complements — and links out to — the setup-oriented
 | Resource group | `rg-trainsight` |
 | Backend (API) | App Service `trainsight-app` → `api.praxys.run` |
 | Current frontend (SPA) | App Service `praxys-frontend` → `www.praxys.run` |
-| Gated regional target | Cloudflare Free → Azure for `.run`; EdgeOne Makers `praxys-cn` for `.cn` (not cut over) |
-| Secrets at rest | Key Vault `kv-trainsight` (RSA key `credential-encryption-key`) |
+| Dormant regional target | `.run` preserved; EdgeOne Makers `praxys-cn` serves the public-registration `.cn` static SPA after human gates |
+| Secrets at rest | Key Vault `kv-trainsight` (RSA key `trainsight-master-key`) |
 | Observability | Application Insights (signals prefixed `praxys.`) |
 
 Full detail: [environment.md](./environment.md).

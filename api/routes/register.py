@@ -1,7 +1,7 @@
 """Custom registration endpoint with invitation code + open-gate handling.
 
-Registration rules live in api/invitations.py and api/app_config.py and are
-shared with the WeChat registration route (api/routes/wechat.py).
+Web registration rules live in api/invitations.py and api/app_config.py. The
+Miniapp sends new users to this web flow, then links the resulting account.
 
 Paths:
   * first user (fresh DB) or ADMIN_EMAIL  -> admin, no code, auto-verified.
@@ -40,7 +40,12 @@ from api.invitations import (
     find_valid_invitation,
     is_admin_email,
 )
-from api.legal import TERMS_VERSION
+from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+from api.legal_receipts import (
+    TermsAcceptanceRequest,
+    build_terms_receipt,
+    require_current_legal_bundle,
+)
 from db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -53,6 +58,9 @@ class RegisterRequest(BaseModel):
     password: str
     invitation_code: str = ""
     accepted_terms: bool = False
+    terms_version: str = ""
+    terms_digest: str = ""
+    terms_locale: str | None = None
     # Honeypot: a hidden field real users never see or fill. A non-empty value
     # is a strong bot signal — we reject without creating anything. Named to
     # look like a real field so naive autofill bots take the bait.
@@ -66,7 +74,7 @@ async def register(
     db: Session = Depends(get_db),
 ) -> dict:
     """Register a new user (see module docstring for the path matrix)."""
-    from db.models import User
+    from db.models import TermsAcceptanceReceipt, User
 
     # Honeypot — reject bots before doing any work.
     if body.website.strip():
@@ -81,6 +89,7 @@ async def register(
     # EULA gate: every account must accept the Terms/EULA at registration.
     if not body.accepted_terms:
         raise HTTPException(400, detail="REGISTER_TERMS_NOT_ACCEPTED")
+    require_current_legal_bundle(body.terms_version, body.terms_digest)
 
     admin_email_bypass = is_admin_email(body.email)
     if admin_email_bypass:
@@ -199,11 +208,54 @@ async def register(
             logger.exception("register failed for %s", body.email)
             raise HTTPException(500, detail="REGISTER_CREATE_FAILED")
 
-        # Record EULA acceptance on the persisted user.
-        user.terms_version = TERMS_VERSION
-        user.terms_accepted_at = datetime.now(timezone.utc)
-        async_session.add(user)
-        await async_session.commit()
+        new_user_id = str(user.id)
+        new_user_email = str(user.email)
+        # FastAPI Users commits inside create(), so these writes cannot share
+        # its transaction. Compensate narrowly if the mandatory legal write
+        # fails: remove only this request's new user and receipt rows, then
+        # re-raise the original failure.
+        try:
+            accepted_at = datetime.now(timezone.utc)
+            receipt = build_terms_receipt(
+                user_id=str(user.id),
+                request=request,
+                payload=TermsAcceptanceRequest(
+                    terms_version=body.terms_version,
+                    terms_digest=body.terms_digest,
+                    locale=body.terms_locale,
+                ),
+                accepted_at=accepted_at,
+            )
+            user.terms_version = TERMS_VERSION
+            user.terms_digest = TERMS_CONTENT_DIGEST
+            user.terms_accepted_at = accepted_at
+            async_session.add(user)
+            async_session.add(receipt)
+            await async_session.commit()
+        except Exception:
+            await async_session.rollback()
+            try:
+                await async_session.execute(
+                    TermsAcceptanceReceipt.__table__.delete().where(
+                        TermsAcceptanceReceipt.user_id == new_user_id
+                    )
+                )
+                await async_session.execute(
+                    UserModel.__table__.delete().where(
+                        UserModel.id == new_user_id,
+                        UserModel.email == new_user_email,
+                    )
+                )
+                await async_session.commit()
+            except Exception:
+                await async_session.rollback()
+                logger.critical(
+                    "register: failed to compensate legal receipt failure for "
+                    "new user %s",
+                    new_user_id,
+                    exc_info=True,
+                )
+            raise
 
         # Open path: send the verification email. request_verify() generates a
         # token and calls on_after_request_verify (api/users.py) to send it.
@@ -226,6 +278,11 @@ async def register(
                 user.id,
             )
             async with AsyncSessionLocal() as cleanup_session:
+                await cleanup_session.execute(
+                    TermsAcceptanceReceipt.__table__.delete().where(
+                        TermsAcceptanceReceipt.user_id == user.id
+                    )
+                )
                 await cleanup_session.execute(
                     UserModel.__table__.delete().where(UserModel.id == user.id)
                 )

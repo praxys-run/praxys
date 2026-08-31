@@ -149,7 +149,7 @@ az keyvault create \
 ```bash
 az keyvault key create \
   --vault-name kv-trainsight \
-  --name credential-encryption-key \
+  --name trainsight-master-key \
   --kty RSA \
   --size 2048
 ```
@@ -201,16 +201,16 @@ commit:
 - the filing-free package continues to run on Azure App Service and can later
   be proxied by Cloudflare Free for `praxys.run` and `www.praxys.run`;
 - an independent deterministic `.cn` build is stamped with
-  `沪ICP备2025109616号-2`, receives a SHA-256 manifest, and is retained as
-  GitHub evidence. EdgeOne's native Git integration runs the same checked-in
-  `web/edgeone.json` build from protected `main`. Its deployment marker
-  disables browser-side Application Insights and Statsig until a separate
-  regional privacy decision accepts those processors.
+  `沪ICP备2025109616号-2` and validated in GitHub. EdgeOne's native Git
+  integration runs the same checked-in
+  `web/edgeone.json` build from protected `main`. Its deployment marker applies
+  the recorded regional Application Insights minimization and keeps browser
+  Statsig disabled pending issue #754.
 
 The current EdgeOne Makers project does not expose a reliable Auto Deploy or
 Preview toggle, so release safety does not depend on one. Every accepted
-deployment must trace to protected `main`, required CI, an exact source SHA and
-manifest, and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
+deployment must trace to protected `main`, required CI, an exact source SHA,
+and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
 App receives read-only access only to this repository; GitHub Actions stores no
 EdgeOne deployment token. Cloudflare changes DNS and edge delivery only; it
 does not replace the Azure App Service deployment. Project bootstrap, Git
@@ -360,7 +360,6 @@ regional build clears browser telemetry keys and uses no build secrets.
 | Variable | Value |
 |--------|-------|
 | `VITE_API_URL` | `https://api.praxys.run` |
-| `EDGEONE_CN_PUBLIC_VERIFY_ENABLED` | Default `false`; enable after public `.cn` DNS cutover |
 
 Application Insights routing is not stored in GitHub variables. Both deploy
 workflows load the tracked resource names from `.github/azure-observability.env`
@@ -390,7 +389,10 @@ az role assignment create \
   --scope /subscriptions/<sub-id>/resourceGroups/rg-trainsight
 ```
 
-The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v2` with the three OIDC secrets.
+The backend workflow (`.github/workflows/deploy-backend.yml`) requests `id-token: write` permission for OIDC and uses `azure/login@v3` with the three OIDC identifiers. The federation and
+workflow eligibility are both restricted to protected `main`; release tags and
+non-main manual dispatches do not deploy, and no client secret or publish profile
+is accepted.
 
 ## App Service Environment Variables
 
@@ -434,7 +436,12 @@ traffic.
 ## CI/CD Workflows
 
 - **Pre-merge backend and frontend quality** (`.github/workflows/ci-premerge.yml`) — runs on every `pull_request` to `main`. The independent required contexts are `backend-tests` for the backend suite and `frontend-quality` for the production web build plus Impeccable/evidence UI gate. They share one workflow so downstream review automation receives one completion event. No `paths:` filter on purpose: a required check skipped by a path filter stays permanently pending and blocks the PR.
-- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to `api/`, `analysis/`, `sync/`, `db/`, `data/science/`, `tests/`, `requirements.txt`. Runs tests first, then deploys via OIDC to `trainsight-app`.
+- **Backend** (`.github/workflows/deploy-backend.yml`) — triggers on changes to
+  backend runtime paths, science data, deployment-owned observability scripts,
+  dependencies, or the workflow. Test-only changes are covered by required
+  pre-merge CI and do not recycle production. A manual protected-`main`
+  dispatch runs the full suite only when `run_tests=true`, then deploys via
+  OIDC to `trainsight-app`.
 - **Frontend** (`.github/workflows/deploy-frontend-appservice.yml`) — triggers
   on changes to `web/` or `frontend_server/`. Runs the static-server tests, then
   builds and stages the filing-free Azure package, then independently runs the

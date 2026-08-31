@@ -290,6 +290,8 @@ interface GoalState {
   rationaleText: string;
 
   hasCoach: boolean;
+  aiUnavailable: boolean;
+  aiUnavailableText: string;
   coach: CoachReceipt | null;
   coachTr: CoachTranslations | null;
   /** Findings + recommendations are progressively disclosed; default
@@ -709,6 +711,7 @@ function buildStripCells(
 function buildGoalState(
   response: GoalResponse,
   insight: AiInsight | null,
+  aiAvailable: boolean,
   locale: 'en' | 'zh',
   themeClass: string,
 ): Partial<GoalState> {
@@ -791,6 +794,8 @@ function buildGoalState(
     rationaleText: rCheck.trend_note ?? '',
 
     hasCoach,
+    aiUnavailable: !aiAvailable,
+    aiUnavailableText: t('Azure AI insights are temporarily unavailable. Synced data and deterministic training metrics remain available.'),
     coach,
     coachTr: hasCoach ? buildCoachTr() : null,
     detailsOpen,
@@ -838,6 +843,8 @@ const initialData: GoalState = {
   rationaleText: '',
 
   hasCoach: false,
+  aiUnavailable: false,
+  aiUnavailableText: '',
   coach: null,
   coachTr: null,
   detailsOpen: false,
@@ -1296,13 +1303,13 @@ Page({
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
     try {
       const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
-      const [response, insight, capabilityResult] = await Promise.all([
+      const [response, insightResponse, capabilityResult] = await Promise.all([
         apiGet<GoalResponse>('/api/goal'),
         fetchInsight('race_forecast').catch((e) => {
           const fe = e as Partial<ApiError>;
           if (fe?.code === 'UNAUTHENTICATED') throw e;
           console.warn('[goal] race_forecast fetch failed; suppressing coach receipt:', e);
-          return null;
+          return { insight: null, ai_available: false };
         }),
         apiGet<PlanGenerationCapabilitiesResponse>(
           '/api/plan/generation/capabilities',
@@ -1369,7 +1376,13 @@ Page({
         );
       }
       this.setData({
-        ...(buildGoalState(response, insight, locale, this.data.themeClass) as Record<string, unknown>),
+        ...(buildGoalState(
+          response,
+          insightResponse.insight,
+          insightResponse.ai_available,
+          locale,
+          this.data.themeClass,
+        ) as Record<string, unknown>),
         planCapabilityState: presentation.state,
         planCapabilityDescription: presentation.description,
         planCapabilityDetail: presentation.detail,

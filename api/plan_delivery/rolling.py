@@ -495,6 +495,10 @@ def _mutation_guard(
     connection_generation: str,
 ) -> None:
     lock_plan_writes(db, user_id)
+    from api.legal_receipts import user_background_processing_authorized
+
+    if not user_background_processing_authorized(db, user_id):
+        raise DeliveryMutationBlockedError("processing_not_authorized")
     gate = _delivery_gate(db, user_id, refresh=True)
     if not gate.enabled or gate.target != target:
         raise DeliveryMutationBlockedError(
@@ -1485,6 +1489,18 @@ def _run_rolling_delivery_for_user(
 
     timestamp = now or datetime.utcnow()
     window_start, window_end = _window(window_start or timestamp.date())
+    from api.legal_receipts import user_background_processing_authorized
+
+    if not user_background_processing_authorized(db, user_id):
+        return finish(ManagedDeliveryRunResult(
+            user_id=user_id,
+            trigger=trigger,
+            status="skipped",
+            target=None,
+            window_start=window_start.isoformat(),
+            window_end=window_end.isoformat(),
+            reason="processing_not_authorized",
+        ))
     gate = _delivery_gate(db, user_id)
     if not gate.enabled:
         return finish(ManagedDeliveryRunResult(
@@ -2329,6 +2345,17 @@ def trigger_managed_plan_delivery(
     init_db()
     db = SessionLocal()
     try:
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
+
+        if not user_background_processing_authorized(db, user_id):
+            logger.info(
+                "Managed delivery skipped outside current processing "
+                "boundary: user=%s",
+                user_id,
+            )
+            return None
         return run_rolling_delivery_for_user(
             db,
             user_id=user_id,
@@ -2354,11 +2381,21 @@ def run_scheduled_managed_deliveries() -> None:
     init_db()
     db = SessionLocal()
     try:
+        from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+        from api.legal_receipts import (
+            user_background_processing_authorized,
+        )
+        from db.models import User
+
         rows = db.execute(
             select(
                 UserConfig.user_id,
                 UserConfig.plan_management,
                 UserConfig.plan_execution_target,
+            ).join(User, User.id == UserConfig.user_id).where(
+                User.is_active == True,  # noqa: E712
+                User.terms_version == TERMS_VERSION,
+                User.terms_digest == TERMS_CONTENT_DIGEST,
             )
         ).all()
         user_ids = []
@@ -2370,6 +2407,7 @@ def run_scheduled_managed_deliveries() -> None:
             if (
                 plan_management["mode"] == "praxys"
                 and plan_management["delivery_enabled"]
+                and user_background_processing_authorized(db, user_id)
             ):
                 user_ids.append(user_id)
     finally:

@@ -25,14 +25,19 @@ from sqlalchemy.orm import Session
 from api import feedback_storage, telemetry
 from api.auth import get_current_user_id
 from api.feedback_triage import triage_and_publish
+from api.optional_processing import (
+    FEEDBACK_PUBLICATION_CONSENT_VERSION,
+    feedback_has_publication_consent,
+    feedback_publication_authorized,
+)
 from api.views import require_admin, utc_isoformat
+from db.cache_revision import lock_revision_writes
 from db.agent_loop import (
     latest_decision,
     latest_decisions_for_subjects,
     latest_outcomes_for_decisions,
     record_outcome,
 )
-from db.cache_revision import lock_revision_writes
 from db.session import begin_serialized_write, get_db
 
 if TYPE_CHECKING:
@@ -57,6 +62,40 @@ _AGENT_READY_NEGATIVE_REASONS = {
     "sensitivity_or_privacy",
     "other",
 }
+
+
+@router.get("/me/feedback/{feedback_id}/image/{index}")
+def get_own_feedback_image(
+    feedback_id: int,
+    index: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Serve one private feedback image to its authenticated owner."""
+    from db.models import Feedback
+
+    row = (
+        db.query(Feedback)
+        .filter(
+            Feedback.id == feedback_id,
+            Feedback.user_id == user_id,
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(404, "Feedback not found")
+    keys = list(row.image_keys or [])
+    if index < 0 or index >= len(keys):
+        raise HTTPException(404, "Image not found")
+    got = feedback_storage.load_image(keys[index])
+    if got is None:
+        raise HTTPException(404, "Image not found")
+    data, content_type = got
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 def _record_feedback_outcome(
@@ -114,6 +153,13 @@ class FeedbackRequest(BaseModel):
     # viewport, locale). Scrubbed to an allowlist before anything is published.
     context: dict[str, Any] | None = None
     locale: str = Field(default="", max_length=10)
+    # Explicit grant for publishing this submission's scrubbed text to the
+    # configured external issue tracker. False/missing remains private.
+    external_publication_consent: bool = False
+    external_publication_consent_version: str = Field(
+        default="",
+        max_length=64,
+    )
     # Optional screenshots (issue #337): base64 payloads (data-URL or raw). They
     # are validated, described + sensitivity-flagged by a vision model, and
     # stored privately — only a reference (blob key) is kept and the raw image
@@ -147,22 +193,6 @@ def _decode_and_validate_images(images: Optional[list[str]]) -> list[bytes]:
     return out
 
 
-def _delete_unpublished_images(
-    keys: list[str],
-    *,
-    feedback_id: int | None,
-) -> None:
-    """Compensate private uploads that never gained a durable DB key."""
-    for key in keys:
-        try:
-            feedback_storage.delete_private_object(key)
-        except Exception:
-            logger.exception(
-                "feedback unpublished-image cleanup failed for id=%s",
-                feedback_id,
-            )
-
-
 @router.post("/feedback")
 def submit_feedback(
     body: FeedbackRequest,
@@ -173,89 +203,162 @@ def submit_feedback(
     """Record a feedback submission and schedule background triage."""
     from db.models import Feedback, User
 
-    # Authentication ends its read transaction before entering the route. Start
-    # one owner-fenced write so account deletion cannot enumerate screenshot
-    # keys between object upload and key publication. SQLite's immediate write
-    # and PostgreSQL's per-owner advisory lock mirror account deletion.
-    db.rollback()
-    stored_keys: list[str] = []
+    # Validate + decode screenshots up-front so a bad image is rejected before
+    # we persist anything (issue #337).
+    decoded_images = _decode_and_validate_images(body.images)
+    if (
+        body.external_publication_consent
+        and body.external_publication_consent_version
+        != FEEDBACK_PUBLICATION_CONSENT_VERSION
+    ):
+        raise HTTPException(
+            409,
+            detail="FEEDBACK_PUBLICATION_CONSENT_MISMATCH",
+        )
+    if (
+        not body.external_publication_consent
+        and "external_publication_consent_version" in body.model_fields_set
+    ):
+        raise HTTPException(
+            409,
+            detail="FEEDBACK_PUBLICATION_CONSENT_MISMATCH",
+        )
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
+    user = (
+        db.query(User)
+        .populate_existing()
+        .with_for_update()
+        .filter(User.id == user_id)
+        .first()
+    )
+    if user is None or not user.is_active:
+        db.rollback()
+        raise HTTPException(409, detail="FEEDBACK_ACCOUNT_UNAVAILABLE")
+
+    cutoff = datetime.utcnow() - _WINDOW
+    recent = (
+        db.query(Feedback)
+        .filter(Feedback.user_id == user_id, Feedback.created_at >= cutoff)
+        .count()
+    )
+    if recent >= _MAX_PER_WINDOW:
+        db.rollback()
+        raise HTTPException(429, detail="FEEDBACK_RATE_LIMITED")
+
     feedback_id: int | None = None
-    published = False
+    keys: list[str] = []
     try:
-        begin_serialized_write(db)
-        lock_revision_writes(db, user_id)
-        owner_is_active = (
-            db.query(User.id)
-            .filter(User.id == user_id, User.is_active == True)  # noqa: E712
-            .first()
-            is not None
-        )
-        if not owner_is_active:
-            raise HTTPException(401, "User account is deactivated")
-
-        cutoff = datetime.utcnow() - _WINDOW
-        recent = (
-            db.query(Feedback)
-            .filter(Feedback.user_id == user_id, Feedback.created_at >= cutoff)
-            .count()
-        )
-        if recent >= _MAX_PER_WINDOW:
-            raise HTTPException(429, detail="FEEDBACK_RATE_LIMITED")
-
-        # Bad image input is rejected before either the feedback row or object
-        # is persisted. The transaction stays fenced across the private upload.
-        decoded_images = _decode_and_validate_images(body.images)
         row = Feedback(
             user_id=user_id,
             kind=body.kind,
             message=body.message,
             context_json=body.context or None,
             locale=body.locale or None,
+            publication_consent_version=(
+                FEEDBACK_PUBLICATION_CONSENT_VERSION
+                if body.external_publication_consent
+                else None
+            ),
+            publication_consented_at=(
+                datetime.utcnow()
+                if body.external_publication_consent
+                else None
+            ),
             status="new",
         )
         db.add(row)
         db.flush()
-        feedback_id = row.id
-
-        for index, data in enumerate(decoded_images):
-            try:
-                key = feedback_storage.store_image(
-                    data,
-                    feedback_id=row.id,
-                    index=index,
-                )
-            except feedback_storage.FeedbackStorageWriteUncertain as exc:
-                # Provider exceptions after an attempted write cannot prove
-                # absence. Publish the deterministic key in this owner-fenced
-                # transaction so deletion and replay can always discover it.
-                key = exc.object_key
-            if key:
-                stored_keys.append(key)
-        if stored_keys:
-            row.image_keys = stored_keys
-
-        # Storage unavailability produces no keys but still commits the primary
-        # text report. Row and any successful keys become visible together.
-        db.commit()
-        published = True
-        db.refresh(row)
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception:
-        if not published:
-            _delete_unpublished_images(
-                stored_keys,
+        feedback_id = int(row.id)
+        # Commit deterministic deletion locators before external storage I/O.
+        keys = [
+            feedback_storage.image_storage_key(
+                data,
                 feedback_id=feedback_id,
+                index=i,
             )
+            for i, data in enumerate(decoded_images)
+        ]
+        row.image_keys = keys or None
+        db.commit()
+    except Exception:
         db.rollback()
         logger.exception("feedback save failed for user %s", user_id)
         raise HTTPException(500, detail="FEEDBACK_SAVE_FAILED")
 
+    if keys:
+        # Reacquire the user write lock so deletion either wins before upload
+        # or waits until every persisted locator has been attempted.
+        begin_serialized_write(db)
+        lock_revision_writes(db, user_id)
+        user = (
+            db.query(User)
+            .populate_existing()
+            .with_for_update()
+            .filter(User.id == user_id)
+            .first()
+        )
+        row = (
+            db.query(Feedback)
+            .populate_existing()
+            .with_for_update()
+            .filter(
+                Feedback.id == feedback_id,
+                Feedback.user_id == user_id,
+            )
+            .first()
+        )
+        if user is None or not user.is_active or row is None:
+            db.rollback()
+            raise HTTPException(409, detail="FEEDBACK_ACCOUNT_UNAVAILABLE")
+
+        retained_keys: list[str] = []
+        for i, (data, expected_key) in enumerate(zip(decoded_images, keys)):
+            try:
+                stored_key = feedback_storage.store_image(
+                    data,
+                    feedback_id=feedback_id,
+                    index=i,
+                )
+            except feedback_storage.FeedbackStorageWriteUncertain as exc:
+                # The locator was committed before upload. Preserve it for
+                # account-deletion/replay when provider acknowledgement is
+                # lost after a possible write.
+                stored_key = exc.object_key
+            if (
+                stored_key == expected_key
+                or (
+                    stored_key is None
+                    and not feedback_storage.private_blob_enabled()
+                )
+            ):
+                retained_keys.append(expected_key)
+            else:
+                logger.error(
+                    "feedback image upload unverified for durable key %s",
+                    expected_key,
+                )
+        # Known pre-write unavailability proves no object exists, so do not
+        # expose a phantom attachment. Successful or uncertain writes retain
+        # their deterministic deletion locator.
+        row.image_keys = retained_keys or None
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "feedback image upload finalization failed for %s",
+                feedback_id,
+            )
+            raise HTTPException(
+                503,
+                detail="FEEDBACK_IMAGE_FINALIZE_FAILED",
+            )
+
     telemetry.record_feedback(kind=body.kind, status="new")
-    background_tasks.add_task(triage_and_publish, row.id)
-    logger.info("feedback submitted: id=%s kind=%s", row.id, body.kind)
-    return {"ok": True, "id": row.id, "status": "received"}
+    background_tasks.add_task(triage_and_publish, feedback_id)
+    logger.info("feedback submitted: id=%s kind=%s", feedback_id, body.kind)
+    return {"ok": True, "id": feedback_id, "status": "received"}
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +440,7 @@ def _serialize_admin(
         "github_issue_number": row.github_issue_number,
         "github_issue_url": row.github_issue_url,
         "error": row.error,
+        "external_publication_consent": feedback_has_publication_consent(row),
         # Screenshot attachment (issue #337): count + scrubbed vision outputs.
         # The raw image is served only via the admin image endpoint below.
         "image_count": len(row.image_keys or []),
@@ -794,13 +898,26 @@ def update_feedback(
         if not row.ai_title or not row.ai_body:
             raise HTTPException(409, "Nothing to publish yet — run triage first")
         from api import github_issues
-
-        if not github_issues.is_configured():
-            raise HTTPException(400, "GitHub is not configured")
+        if (
+            not github_issues.is_configured()
+            or not feedback_publication_authorized(
+                db,
+                user_id=row.user_id,
+                submission_authorized=(
+                    row.status == "needs_review"
+                    and feedback_has_publication_consent(row)
+                ),
+            )
+        ):
+            raise HTTPException(
+                400,
+                "Feedback publication is unavailable or unauthorized",
+            )
         issue = github_issues.create_issue(
             title=row.ai_title,
             body=row.ai_body,
             labels=list(row.ai_labels or []),
+            publication_authorized=True,
         )
         if not issue or not issue.get("number"):
             row.status = "failed"

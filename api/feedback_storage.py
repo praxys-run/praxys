@@ -23,12 +23,14 @@ Tencent COS (CN audience, post-ICP) is a future third backend — the same
 key-in / bytes-out seam mirrors the ``frontend_server`` / COS decoupling noted
 in CLAUDE.md.
 
-Known pre-write storage unavailability does not turn a feedback submit into a
-500: :func:`store_image` returns ``None`` so the text report is still captured.
-Once a configured Blob upload is attempted, an exception cannot prove that no
-write occurred, so the deterministic key is raised as normalized uncertainty
-for durable publication or compensation by the caller. :func:`load_image`
-returns ``None`` when the key is missing or unreadable.
+Screenshot submission and reads remain best-effort: :func:`store_image`
+returns ``None`` on failure (the text report is still captured), and
+:func:`load_image` returns ``None`` when the key is missing or unreadable. The
+caller persists the deterministic key before upload so an ambiguous storage
+result can never create an image with no deletion locator.
+Deletion is intentionally fail-closed so account deletion cannot discard the
+database locator while a stored screenshot remains. A configured Blob backend
+never writes new screenshots to local fallback storage.
 """
 from __future__ import annotations
 
@@ -63,10 +65,13 @@ MAX_IMAGE_COUNT = 3
 # A storage key is server-generated as ``feedback/<id>/<index>.<ext>``. Loads
 # validate against this shape so a malformed/tampered key can never escape the
 # container/dir (path traversal) or read an arbitrary file.
-_KEY_RE = re.compile(r"^feedback/\d+/\d+\.(png|jpg|jpeg|webp)$")
-_ROAD_10K_KEY_RE = re.compile(
-    r"^road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)$"
+_KEY_RE = re.compile(
+    r"^feedback/(?P<feedback_id>\d+)/\d+\.(png|jpg|jpeg|webp)$"
 )
+
+
+class FeedbackStorageDeletionError(RuntimeError):
+    """Raised when an exact screenshot key cannot be safely deleted."""
 
 
 class FeedbackStorageWriteUncertain(OSError):
@@ -186,8 +191,8 @@ def _blob_container_client():
         from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
     except ImportError:
         logger.warning(
-            "azure-storage-blob not installed — configured feedback Blob "
-            "storage is unavailable"
+            "azure-storage-blob not installed; configured Blob storage is "
+            "unavailable"
         )
         return None
     container = _blob_container()
@@ -211,10 +216,7 @@ def _blob_container_client():
             pass
         return client
     except Exception:
-        logger.warning(
-            "Azure Blob init failed — configured feedback storage is unavailable",
-            exc_info=True,
-        )
+        logger.warning("Azure Blob initialization failed", exc_info=True)
         return None
 
 
@@ -238,44 +240,56 @@ def private_container_client():
 # ---------------------------------------------------------------------------
 
 
-def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
-    """Persist one screenshot and return its deterministic storage key.
-
-    Known pre-write unavailability returns ``None``. A configured Blob call
-    that raises has an uncertain write outcome and raises
-    :class:`FeedbackStorageWriteUncertain` with the key. The caller is expected
-    to have validated ``data`` already; this function re-sniffs it.
-    """
+def image_storage_key(data: bytes, *, feedback_id: int, index: int) -> str:
+    """Return the deterministic row-bound key for one validated image."""
     content_type = sniff(data)
     ext = CONTENT_TYPE_TO_EXT.get(content_type or "")
     if not ext:
+        raise ValueError("feedback image bytes are not a supported image")
+    return f"feedback/{feedback_id}/{index}.{ext}"
+
+
+def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
+    """Persist one screenshot and return its storage key, or ``None`` on failure.
+
+    The key is ``feedback/<feedback_id>/<index>.<ext>`` where ext derives from
+    the sniffed content-type. The caller is expected to have validated ``data``
+    already; we re-sniff so a bad ext can never be written.
+    """
+    content_type = sniff(data)
+    try:
+        key = image_storage_key(
+            data,
+            feedback_id=feedback_id,
+            index=index,
+        )
+    except ValueError:
         logger.warning("store_image: refusing to store non-image bytes")
         return None
-    key = f"feedback/{feedback_id}/{index}.{ext}"
 
     if _use_blob():
         client = _blob_container_client()
-        if client is not None:
-            try:
-                client.upload_blob(
-                    name=key,
-                    data=data,
-                    overwrite=True,
-                    content_settings=_blob_content_settings(content_type),
-                )
-                return key
-            except Exception as exc:
-                logger.warning(
-                    "store_image: blob upload outcome is uncertain for %s",
-                    key,
-                    exc_info=True,
-                )
-                raise FeedbackStorageWriteUncertain(key) from exc
-        logger.warning(
-            "store_image: configured blob storage is unavailable for %s",
-            key,
-        )
-        return None
+        if client is None:
+            logger.warning(
+                "store_image: configured Blob storage is unavailable for %s",
+                key,
+            )
+            return None
+        try:
+            client.upload_blob(
+                name=key,
+                data=data,
+                overwrite=True,
+                content_settings=_blob_content_settings(content_type),
+            )
+            return key
+        except Exception as exc:
+            logger.warning(
+                "store_image: blob upload outcome is uncertain for %s",
+                key,
+                exc_info=True,
+            )
+            raise FeedbackStorageWriteUncertain(key) from exc
 
     _warn_local_once()
     try:
@@ -295,20 +309,21 @@ def load_image(key: str) -> tuple[bytes, str] | None:
     The key is validated against the server-generated shape so a tampered value
     can never traverse outside the container/dir.
     """
-    if not key or not _KEY_RE.match(key):
+    if not key or not _KEY_RE.fullmatch(key):
         return None
     ext = key.rsplit(".", 1)[-1]
     content_type = EXT_TO_CONTENT_TYPE.get(ext, "application/octet-stream")
 
     if _use_blob():
         client = _blob_container_client()
-        if client is not None:
-            try:
-                data = client.download_blob(key).readall()
-                return data, content_type
-            except Exception:
-                logger.info("load_image: blob %s not found or unreadable", key)
-                # fall through to local in case it predates blob config
+        if client is None:
+            return None
+        try:
+            data = client.download_blob(key).readall()
+            return data, content_type
+        except Exception:
+            logger.info("load_image: blob %s not found or unreadable", key)
+            return None
 
     try:
         path = os.path.join(_local_dir(), *key.split("/"))
@@ -318,87 +333,149 @@ def load_image(key: str) -> tuple[bytes, str] | None:
         return None
 
 
-def delete_private_object(key: str) -> None:
-    """Delete one private feedback or Road 10K object, including variants.
+def _blob_error_code(exc: Exception) -> str | None:
+    """Return the normalized Azure Storage error code, when available."""
+    code = getattr(exc, "error_code", None)
+    value = getattr(code, "value", code)
+    return str(value) if value else None
 
-    The caller supplies only a server-created reference.  A configured blob
-    backend is fail-closed: an unavailable client never falls through to a
-    local path that could make a deletion look successful.  Local files remain
-    available for the existing development feedback backend and explicit
-    repository tests.
+
+def _delete_local_image(key: str) -> None:
+    """Delete one validated key from local storage."""
+    root = os.path.realpath(_local_dir())
+    parts = key.split("/")
+    parent = os.path.realpath(os.path.join(root, *parts[:-1]))
+    try:
+        contained = os.path.commonpath((root, parent)) == root
+    except ValueError:
+        contained = False
+    if not contained:
+        raise FeedbackStorageDeletionError(
+            "Feedback image key resolves outside local storage"
+        )
+    path = os.path.join(parent, parts[-1])
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise FeedbackStorageDeletionError(
+            "Local feedback image deletion failed"
+        ) from exc
+
+
+def delete_image(key: str, *, feedback_id: int) -> None:
+    """Delete one exact row-bound screenshot key from the selected backend.
+
+    Missing blobs/files are already deleted and therefore succeed. Other
+    backend errors are normalized so callers cannot report account deletion
+    success while a screenshot may remain. When Blob is configured, an exact
+    legacy local copy is also removed after the Blob result is known.
     """
-    if not (_KEY_RE.fullmatch(key) or _ROAD_10K_KEY_RE.fullmatch(key)):
-        raise ValueError("invalid private screenshot object key")
+    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    if match is None or int(match.group("feedback_id")) != feedback_id:
+        raise FeedbackStorageDeletionError(
+            "Feedback image key is invalid or belongs to another row"
+        )
 
+    if _use_blob():
+        client = _blob_container_client()
+        if client is None:
+            raise FeedbackStorageDeletionError(
+                "Configured feedback Blob storage is unavailable"
+            )
+        from azure.core.exceptions import ResourceNotFoundError
+
+        try:
+            client.delete_blob(key)
+        except ResourceNotFoundError as exc:
+            if _blob_error_code(exc) != "BlobNotFound":
+                raise FeedbackStorageDeletionError(
+                    "Feedback Blob container or resource is unavailable"
+                ) from exc
+        except Exception as exc:
+            raise FeedbackStorageDeletionError(
+                "Feedback Blob deletion failed"
+            ) from exc
+
+    _delete_local_image(key)
+
+
+def delete_private_object(key: str) -> None:
+    """Delete a server-created feedback or Road object for replay."""
+    feedback_match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    road_match = (
+        re.fullmatch(
+            r"road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)",
+            key,
+        )
+        if isinstance(key, str)
+        else None
+    )
+    if feedback_match is None and road_match is None:
+        raise ValueError("invalid private screenshot object key")
     if _use_blob():
         client = _blob_container_client()
         if client is None:
             raise OSError("private blob storage unavailable")
         _delete_blob_variants(client, key)
-
-    # A previous configured-Blob outage could have written this key through
-    # the legacy local fallback. Delete those bytes only after Blob deletion
-    # succeeds so an unavailable configured backend never looks complete.
-    _delete_local_object(key)
-
-
-def _delete_local_object(key: str) -> None:
-    """Delete a legacy/local private object without masking I/O errors."""
-    path = os.path.join(_local_dir(), *key.split("/"))
     try:
-        os.unlink(path)
-    except FileNotFoundError:
-        pass
+        _delete_local_image(key)
+    except FeedbackStorageDeletionError as exc:
+        raise OSError("local private object deletion failed") from exc
 
 
 def _delete_blob_variants(client, key: str) -> None:
-    """Delete the base object and any provider-reported snapshots/versions."""
-    blob = client.get_blob_client(key)
+    """Delete a blob and any discoverable snapshots or versions."""
+    try:
+        blob = client.get_blob_client(key)
+    except AttributeError:
+        try:
+            client.delete_blob(key)
+        except Exception as exc:
+            if _blob_error_code(exc) != "BlobNotFound":
+                raise OSError("private Blob deletion failed") from exc
+        return
     try:
         blob.delete_blob(delete_snapshots="include")
     except Exception as exc:
-        if not _is_not_found(exc):
-            raise
-
-    # Azure versioning exposes immutable versions through list_blobs.  Fakes
-    # and other private-store adapters may expose list_blob_versions instead;
-    # support either without requiring credentials in local tests.
-    listed = []
+        if _blob_error_code(exc) != "BlobNotFound" and "not found" not in str(exc).lower():
+            raise OSError("private Blob deletion failed") from exc
     list_versions = getattr(client, "list_blob_versions", None)
     if callable(list_versions):
-        listed = list(list_versions(name=key))
+        variants = list(list_versions(name=key))
     else:
         list_blobs = getattr(client, "list_blobs", None)
-        if callable(list_blobs):
+        if not callable(list_blobs):
+            variants = []
+        else:
             try:
-                listed = list(list_blobs(name_starts_with=key, include=["versions", "snapshots"]))
+                variants = list(
+                    list_blobs(
+                        name_starts_with=key,
+                        include=["versions", "snapshots"],
+                    )
+                )
             except TypeError:
-                listed = list(list_blobs(name_starts_with=key))
-
-    for item in listed:
-        version_id = getattr(item, "version_id", None)
-        snapshot = getattr(item, "snapshot", None)
-        if version_id is None and isinstance(item, dict):
-            version_id = item.get("version_id")
-            snapshot = item.get("snapshot")
+                variants = list(list_blobs(name_starts_with=key))
+    for variant in variants:
+        version_id = getattr(variant, "version_id", None)
+        snapshot = getattr(variant, "snapshot", None)
+        if isinstance(variant, dict):
+            version_id = version_id or variant.get("version_id")
+            snapshot = snapshot or variant.get("snapshot")
         if version_id is None and snapshot is None:
             continue
-        kwargs = {}
-        if version_id is not None:
-            kwargs["version_id"] = version_id
-        else:
-            kwargs["snapshot"] = snapshot
-        variant = client.get_blob_client(key, **kwargs)
+        kwargs = (
+            {"version_id": version_id}
+            if version_id is not None
+            else {"snapshot": snapshot}
+        )
         try:
-            variant.delete_blob()
+            client.get_blob_client(key, **kwargs).delete_blob()
         except Exception as exc:
-            if not _is_not_found(exc):
-                raise
-
-
-def _is_not_found(exc: Exception) -> bool:
-    text = str(exc).casefold()
-    return "not found" in text or "resourcenotfound" in text or "404" in text
+            if _blob_error_code(exc) != "BlobNotFound" and "not found" not in str(exc).lower():
+                raise OSError("private Blob variant deletion failed") from exc
 
 
 def _blob_content_settings(content_type: str | None):

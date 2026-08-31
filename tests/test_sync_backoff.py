@@ -45,12 +45,19 @@ def db_setup(monkeypatch):
     db_session.AsyncSessionLocal = None
     db_session.init_db()
 
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
     from db.models import User
 
     user_id = "backoff-test-user"
     db = db_session.SessionLocal()
     try:
-        db.add(User(id=user_id, email="backoff@example.com", hashed_password="x"))
+        db.add(User(
+            id=user_id,
+            email="backoff@example.com",
+            hashed_password="x",
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+        ))
         db.commit()
     finally:
         db.close()
@@ -275,6 +282,39 @@ def test_record_failure_consecutive_failures_grow(db_setup) -> None:
             )
     finally:
         db.close()
+
+
+def test_record_failure_suppresses_telemetry_and_backoff_after_auth_loss(
+    db_setup,
+    monkeypatch,
+) -> None:
+    from db import session as db_session
+    from db.models import UserConnection
+    from db.sync_scheduler import _record_sync_failure
+
+    user_id, _ = db_setup
+    telemetry_calls: list[str] = []
+    monkeypatch.setattr(
+        "api.telemetry.record_sync",
+        lambda **_kwargs: telemetry_calls.append("failure"),
+    )
+
+    with db_session.SessionLocal() as db:
+        conn = _make_connection(db, user_id)
+        assert not _record_sync_failure(
+            conn,
+            RuntimeError("provider failed"),
+            db,
+            authorize_commit=lambda _db: False,
+        )
+        fresh = db.query(UserConnection).filter(
+            UserConnection.id == conn.id,
+        ).one()
+        assert fresh.status == "connected"
+        assert fresh.consecutive_failures == 0
+        assert fresh.next_retry_at is None
+        assert fresh.last_error is None
+    assert telemetry_calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -530,3 +570,66 @@ def test_check_and_sync_runs_once_window_has_passed(db_setup, monkeypatch) -> No
     assert sync_calls == [f"{user_id}:garmin"], (
         f"Connection past its retry window must be synced; got {sync_calls!r}"
     )
+
+
+def test_scheduler_skips_stale_terms_without_blocking_current_user(
+    db_setup,
+    monkeypatch,
+) -> None:
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from db import session as db_session
+    from db import sync_scheduler
+    from db.models import User, UserConfig
+
+    current_user_id, _ = db_setup
+    stale_user_id = "stale-terms-user"
+    with db_session.SessionLocal() as db:
+        db.add(User(
+            id=stale_user_id,
+            email="stale@example.com",
+            hashed_password="x",
+            terms_version="old",
+            terms_digest=TERMS_CONTENT_DIGEST,
+        ))
+        db.add(UserConfig(user_id=current_user_id))
+        db.add(UserConfig(user_id=stale_user_id))
+        current = _make_connection(db, current_user_id)
+        current.last_sync = datetime.utcnow() - timedelta(days=1)
+        stale = _make_connection(db, stale_user_id)
+        stale.last_sync = datetime.utcnow() - timedelta(days=1)
+        db.commit()
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        sync_scheduler,
+        "_sync_connection",
+        lambda uid, platform, db, **kwargs: calls.append(uid),
+    )
+
+    sync_scheduler._check_and_sync()
+
+    assert calls == [current_user_id]
+
+
+def test_direct_scheduled_sync_checks_terms_before_credentials(
+    db_setup,
+    monkeypatch,
+) -> None:
+    from db import session as db_session
+    from db import sync_scheduler
+    from db.models import User
+
+    user_id, _ = db_setup
+    with db_session.SessionLocal() as db:
+        user = db.get(User, user_id)
+        user.terms_version = "old"
+        db.commit()
+
+    monkeypatch.setattr(
+        "db.connection_credentials.load_connection_credentials",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("stale-Terms credentials must not be loaded")
+        ),
+    )
+    with db_session.SessionLocal() as db:
+        sync_scheduler._sync_connection(user_id, "garmin", db)
