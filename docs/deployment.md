@@ -201,16 +201,16 @@ commit:
 - the filing-free package continues to run on Azure App Service and can later
   be proxied by Cloudflare Free for `praxys.run` and `www.praxys.run`;
 - an independent deterministic `.cn` build is stamped with
-  `沪ICP备2025109616号-2`, receives a SHA-256 manifest, and is retained as
-  GitHub evidence. EdgeOne's native Git integration runs the same checked-in
-  `web/edgeone.json` build from protected `main`. Its deployment marker
-  disables browser-side Application Insights and Statsig until a separate
-  regional privacy decision accepts those processors.
+  `沪ICP备2025109616号-2` and validated in GitHub. EdgeOne's native Git
+  integration runs the same checked-in
+  `web/edgeone.json` build from protected `main`. Its deployment marker applies
+  the recorded regional Application Insights minimization and keeps browser
+  Statsig disabled pending issue #754.
 
 The current EdgeOne Makers project does not expose a reliable Auto Deploy or
 Preview toggle, so release safety does not depend on one. Every accepted
-deployment must trace to protected `main`, required CI, an exact source SHA and
-manifest, and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
+deployment must trace to protected `main`, required CI, an exact source SHA,
+and a recorded EdgeOne deployment-history entry. The EdgeOne GitHub
 App receives read-only access only to this repository; GitHub Actions stores no
 EdgeOne deployment token. Cloudflare changes DNS and edge delivery only; it
 does not replace the Azure App Service deployment. Project bootstrap, Git

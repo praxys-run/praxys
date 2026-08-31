@@ -76,11 +76,32 @@ class ProcessingNotAuthorized(RuntimeError):
     """Raised when a Labs worker crosses the background-processing fence."""
 
 
-def _require_processing_authorized(db: Session, user_id: str) -> None:
+def _require_processing_authorized(
+    db: Session,
+    user_id: str,
+    *,
+    shared_channel_authority: bool = False,
+    lock_channel_authority: bool = False,
+) -> None:
     """Stop private Labs work as soon as current authority is withdrawn."""
-    from api.legal_receipts import user_background_processing_authorized
+    if shared_channel_authority:
+        from api.legal_receipts import user_has_current_legal_bundle
+        from api.channel_processing_authority import (
+            user_channels_processing_authorized,
+        )
 
-    if not user_background_processing_authorized(db, user_id):
+        authorized = user_has_current_legal_bundle(
+            db, user_id
+        ) and user_channels_processing_authorized(
+            db,
+            user_id,
+            lock_for_commit=lock_channel_authority,
+        )
+    else:
+        from api.legal_receipts import user_background_processing_authorized
+
+        authorized = user_background_processing_authorized(db, user_id)
+    if not authorized:
         raise ProcessingNotAuthorized(PROCESSING_NOT_AUTHORIZED_CODE)
 
 
@@ -1269,6 +1290,7 @@ def _claim_job(
     job_id: str,
     *,
     reclaim_processing: bool,
+    shared_channel_authority: bool = False,
 ) -> tuple[LabsAnalysisJob, LabsExperimentEnrollment] | None:
     identity = _job_identity(db, job_id)
     if identity is None:
@@ -1356,9 +1378,13 @@ def _claim_job(
         job.updated_at = job.completed_at
         db.commit()
         return None
-    from api.legal_receipts import user_background_processing_authorized
-
-    if not user_background_processing_authorized(db, job.user_id):
+    try:
+        _require_processing_authorized(
+            db,
+            job.user_id,
+            shared_channel_authority=shared_channel_authority,
+        )
+    except ProcessingNotAuthorized:
         _cancel_processing_not_authorized(db, row, job)
         return None
     if (job.attempt_count or 0) >= MAX_JOB_ATTEMPTS:
@@ -1405,6 +1431,8 @@ def _persist_job_failure(
     db: Session,
     job_id: str,
     exc: Exception,
+    *,
+    shared_channel_authority: bool = False,
 ) -> JobExecutionResult:
     db.rollback()
     db.expire_all()
@@ -1427,9 +1455,14 @@ def _persist_job_failure(
         result = _execution_result_for_job(job)
         db.rollback()
         return result
-    from api.legal_receipts import user_background_processing_authorized
-
-    if not user_background_processing_authorized(db, job.user_id):
+    try:
+        _require_processing_authorized(
+            db,
+            job.user_id,
+            shared_channel_authority=shared_channel_authority,
+            lock_channel_authority=shared_channel_authority,
+        )
+    except ProcessingNotAuthorized:
         return _cancel_processing_not_authorized(db, row, job)
     if not _has_current_consent(row):
         now = datetime.utcnow()
@@ -1512,6 +1545,7 @@ def process_environment_response_job(
     job_id: str,
     *,
     reclaim_processing: bool = False,
+    shared_channel_authority: bool = False,
 ) -> JobExecutionResult:
     """Run one durable Labs job and return its queue settlement outcome."""
     from db import session as db_session
@@ -1523,17 +1557,22 @@ def process_environment_response_job(
             db,
             job_id,
             reclaim_processing=reclaim_processing,
+            shared_channel_authority=shared_channel_authority,
         )
         if claimed is None:
             return _existing_job_execution_result(db, job_id)
         job, _row = claimed
-        _require_processing_authorized(db, job.user_id)
+        _require_processing_authorized(
+            db, job.user_id,
+            shared_channel_authority=shared_channel_authority,
+        )
         _record_job_event(job, event="started", outcome="processing")
         try:
             bundle = _build_private_dataset_bundle(
                 db,
                 job.user_id,
                 job.source_revision,
+                shared_channel_authority,
             )
         except StaleSourceRevision:
             return _persist_unavailable(
@@ -1541,6 +1580,7 @@ def process_environment_response_job(
                 job.id,
                 "stale_source_revision",
                 "stale",
+                shared_channel_authority=shared_channel_authority,
             )
         if source_revision(db, job.user_id) != job.source_revision:
             return _persist_unavailable(
@@ -1548,8 +1588,12 @@ def process_environment_response_job(
                 job.id,
                 "stale_source_revision",
                 "stale",
+                shared_channel_authority=shared_channel_authority,
             )
-        _require_processing_authorized(db, job.user_id)
+        _require_processing_authorized(
+            db, job.user_id,
+            shared_channel_authority=shared_channel_authority,
+        )
         aggregate = build_environment_response_result(bundle)
         if aggregate.get("model_version") != LABS_ENVIRONMENT_MODEL_VERSION:
             return _persist_unavailable(
@@ -1557,6 +1601,7 @@ def process_environment_response_job(
                 job.id,
                 "stale_model_version",
                 "stale",
+                shared_channel_authority=shared_channel_authority,
             )
         if source_revision(db, job.user_id) != job.source_revision:
             return _persist_unavailable(
@@ -1564,6 +1609,7 @@ def process_environment_response_job(
                 job.id,
                 "stale_source_revision",
                 "stale",
+                shared_channel_authority=shared_channel_authority,
             )
 
         db.rollback()
@@ -1623,10 +1669,14 @@ def process_environment_response_job(
                 "cancelled",
                 attempt_count=job.attempt_count,
             )
-        from api.legal_receipts import user_background_processing_authorized
-
-        if not user_background_processing_authorized(db, job.user_id):
-            return _cancel_processing_not_authorized(db, row, job)
+        _require_processing_authorized(
+            db,
+            job.user_id,
+            shared_channel_authority=shared_channel_authority,
+            lock_channel_authority=(
+                shared_channel_authority
+            ),
+        )
         if source_revision(db, job.user_id) != job.source_revision:
             db.rollback()
             return _persist_unavailable(
@@ -1634,6 +1684,7 @@ def process_environment_response_job(
                 job.id,
                 "stale_source_revision",
                 "stale",
+                shared_channel_authority=shared_channel_authority,
             )
         result = db.get(
             LabsExperimentResult,
@@ -1675,7 +1726,14 @@ def process_environment_response_job(
         job.completed_at = completed_at
         job.lease_expires_at = None
         job.updated_at = completed_at
-        _require_processing_authorized(db, job.user_id)
+        _require_processing_authorized(
+            db,
+            job.user_id,
+            shared_channel_authority=shared_channel_authority,
+            lock_channel_authority=(
+                shared_channel_authority
+            ),
+        )
         db.commit()
         duration_ms = (
             int((completed_at - job.started_at).total_seconds() * 1000)
@@ -1710,7 +1768,12 @@ def process_environment_response_job(
         if claimed is None:
             raise
         try:
-            return _persist_job_failure(db, job_id, exc)
+            return _persist_job_failure(
+                db,
+                job_id,
+                exc,
+                shared_channel_authority=shared_channel_authority,
+            )
         except Exception as persistence_exc:
             db.rollback()
             logger.error(
@@ -1728,13 +1791,18 @@ def _build_private_dataset_bundle(
     db: Session,
     user_id: str,
     expected_source_revision: str,
+    shared_channel_authority: bool = False,
 ) -> dict[str, Any]:
     pages: list[dict[str, Any]] = []
     offset = 0
     limit = 50
     ctx = RequestContext(user_id=user_id, db=db, include_plan=False)
     while True:
-        _require_processing_authorized(db, user_id)
+        _require_processing_authorized(
+            db,
+            user_id,
+            shared_channel_authority=shared_channel_authority,
+        )
         if source_revision(db, user_id) != expected_source_revision:
             raise StaleSourceRevision
         page = get_activity_research_pack(
@@ -1743,12 +1811,20 @@ def _build_private_dataset_bundle(
             limit=limit,
             offset=offset,
         )
-        _require_processing_authorized(db, user_id)
+        _require_processing_authorized(
+            db,
+            user_id,
+            shared_channel_authority=shared_channel_authority,
+        )
         pages.append(page)
         offset += limit
         if offset >= page["total"]:
             break
-    _require_processing_authorized(db, user_id)
+    _require_processing_authorized(
+        db,
+        user_id,
+        shared_channel_authority=shared_channel_authority,
+    )
     return build_research_dataset_bundle(pages)
 
 
@@ -1757,6 +1833,8 @@ def _persist_unavailable(
     job_id: str,
     code: str,
     status: str,
+    *,
+    shared_channel_authority: bool = False,
 ) -> JobExecutionResult:
     db.rollback()
     db.expire_all()
@@ -1802,9 +1880,14 @@ def _persist_unavailable(
             attempt_count=job.attempt_count,
             failure_code=job.failure_code,
         )
-    from api.legal_receipts import user_background_processing_authorized
-
-    if not user_background_processing_authorized(db, job.user_id):
+    try:
+        _require_processing_authorized(
+            db,
+            job.user_id,
+            shared_channel_authority=shared_channel_authority,
+            lock_channel_authority=shared_channel_authority,
+        )
+    except ProcessingNotAuthorized:
         return _cancel_processing_not_authorized(db, row, job)
     completed_at = datetime.utcnow()
     row.status = status

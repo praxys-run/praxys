@@ -23,17 +23,17 @@ The workflow:
 
 1. Optionally relies on the required pre-merge suite or runs it again.
 2. Stamps the API version and full source SHA.
-3. Waits for the same Labs worker image when isolated Labs mode is selected.
-4. Logs in with protected-main OIDC.
+3. Logs in with protected-main OIDC.
 5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS, and
    `PRAXYS_DISABLE_BACKGROUND_AI` untouched.
 6. Preserves telemetry, database, Labs, secrets, Always On, and other ordinary
    configuration behavior when `sync_config=true`.
-7. Pins Miniapp processing disabled and preserves existing WeChat App Service
-   credentials when both GitHub secrets are absent. Supplying exactly one
+7. Preserves the Miniapp emergency switch and existing WeChat App Service
+   credentials when both GitHub secrets are absent; on the first rollout, an
+   absent Miniapp switch is initialized enabled. Supplying exactly one
    WeChat secret fails before any configuration mutation.
 8. Deploys and verifies exact API version/source SHA, readiness, either
-   preserved China state, disabled Miniapp processing, and the reported Azure
+   preserved China/Miniapp state and the reported Azure
    AI emergency state.
 9. Writes a concise run summary. It performs no EdgeOne probe or restoration.
 
@@ -65,7 +65,7 @@ The EdgeOne native Git project separately runs `web/edgeone.json`. Its static
 build contains `healthz`, `deployed_sha.txt`, ICP markup, and security
 configuration without a checksum manifest or release-preflight ceremony.
 
-## China web private alpha
+## China public web launch
 
 Follow [cn-web-private-alpha.md](./cn-web-private-alpha.md). `status` is
 read-only and unprotected by an environment; only `enable` uses
@@ -76,18 +76,23 @@ Status validates core API/`.run`, filtered settings, and exact CORS and reports
 `.cn` host warnings before DNS exists. It does not verify GitHub environment
 protection, web tests, monitoring, alerts, or the human PIPIA/topology gates.
 
-The exact PIPIA must be human-accepted before enable. The alpha is invite-only
-and web-only, preserves `.run`, adds no signup, telemetry, proxy, geographic
-redirect, mainland API, or mainland datastore, and does not involve Miniapp
-publication.
+The operator recorded the intended scope on 2026-08-31; exact acceptance of
+the final revised PIPIA and residual risk remains required before enable.
+Before enable, a human still verifies that the exact implementation and live
+controls match it. Public registration follows the global `.run` switch and
+seat cap. The existing Miniapp remains enabled on `api.praxys.run`. Regional
+Application Insights and product events use the minimized boundary, while
+browser Statsig stays absent from `.cn` pending #754. There is no proxy,
+mainland API, or mainland datastore. Geographic `302` is separately enabled
+only after `.cn` stabilizes.
 
 ## Labs worker
 
 `deploy-labs-worker.yml` continues to build/test the 1-vCPU/2-GiB image and
-reconciles Azure only when `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true`. During the
-web private alpha, backend deployment accepts only `inline` or `disabled`;
-`service_bus` requires a separate reviewed lifecycle after the worker identity,
-queue, database principal, image, and alerts pass
+reconciles Azure only when `PRAXYS_LABS_WORKER_DEPLOY_ENABLED=true`. Backend
+deployment accepts `inline`, `service_bus`, or maintenance-only `disabled`.
+Before `service_bus` is selected, the worker identity, queue, database
+principal, image, shared processing-authority checks, and alerts must pass
 [labs-analysis-worker.md](./labs-analysis-worker.md).
 
 ## Miniapp
@@ -95,9 +100,9 @@ queue, database principal, image, and alerts pass
 Robot 5 remains a protected-main development lane. Robot 1 remains only a
 candidate upload lane; promotion to trial, review submission, and publication
 stay manual in WeChat. The China web launch workflow never calls or waits for
-Miniapp publication. The first private alpha is web-only and Miniapp is
-deferred. Backend config sync pins
-`PRAXYS_DISABLE_MINIAPP_PROCESSING=true`; release tags must point to a commit
+Miniapp publication. Backend config sync preserves
+`PRAXYS_DISABLE_MINIAPP_PROCESSING`; an initially absent setting defaults to
+`false`. Release tags must point to a commit
 reachable from protected `main` before the upload key is made available.
 
 ## Verify

@@ -11,9 +11,9 @@ import { stampChinaCompliance } from './stamp-china-compliance.mjs';
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = path.resolve(SCRIPT_DIRECTORY, '..', '..');
-const CN_NOTICE_VERSION = '2026.08.4';
+const CN_NOTICE_VERSION = '2026.08.5';
 const CN_LEGAL_DIGEST =
-  'sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1';
+  'sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e';
 const CN_API_CONTRACT_VERSION = 'cn-privacy-v2';
 
 export async function resolveSourceSha() {

@@ -374,5 +374,6 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
   assert.match(miniDataRights, /wx\.shareFileMessage\(/);
   assert.match(miniDataRights, /wx\.getFileSystemManager\(\)\.unlink\(/);
   assert.match(miniDataRights, /removeStoredExports\(\)/);
-  assert.match(miniEvents, /const PRODUCT_EVENTS_ENABLED = false/);
+  assert.match(miniEvents, /const PRODUCT_EVENTS_ENABLED = true/);
+  assert.match(miniEvents, /surface: 'miniapp'/);
 });

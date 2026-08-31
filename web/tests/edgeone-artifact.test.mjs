@@ -44,9 +44,9 @@ test('EdgeOne artifact preparation stamps health and ICP metadata', async () => 
         ok: true,
         service: 'praxys-frontend-cn',
         deployed_sha: SOURCE_SHA,
-        notice_version: '2026.08.4',
+        notice_version: '2026.08.5',
         legal_digest:
-          'sha256:ce863ba3531157c50775509c8a8061654d24868cafe0b7f22ede02ca60c65aa1',
+          'sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e',
         api_contract_version: 'cn-privacy-v2',
       },
     );

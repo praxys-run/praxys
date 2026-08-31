@@ -78,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           visibility=""
-          for attempt in {1..6}; do
+          for _ in {1..6}; do
             if visibility="$(
               gh api \
                 /orgs/praxys-run/packages/container/praxys-labs-worker \
@@ -112,6 +112,25 @@ jobs:
       STATSIG_ENV: ${{ vars.STATSIG_ENV || 'production' }}
     steps:
       - uses: actions/checkout@v7
+      - name: Require matching backend migration and authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in {1..90}; do
+            version="$(curl -fsS --max-time 10 \
+              https://api.praxys.run/api/version 2>/dev/null || true)"
+            ready="$(curl -fsS --max-time 10 \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            if jq -e --arg sha "${GITHUB_SHA}" \
+              '.source_sha == $sha' <<< "${version}" >/dev/null 2>&1 \
+              && jq -e '.status == "ready"' \
+                <<< "${ready}" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Labs worker requires the matching healthy API first."
+          exit 1
       - name: Load Azure resource names
         run: cat .github/azure-observability.env >> "$GITHUB_ENV"
       - name: Azure Login (OIDC)
@@ -316,3 +335,14 @@ jobs:
               and .maxDeliveryCount == 10
               and .deadLettering == true' \
             <<< "${queue_config}" >/dev/null
+
+      - name: Verify worker database grants and shared authority
+        run: |
+          set -euo pipefail
+          job_name="$(
+            jq -r '.properties.outputs.workerJobName.value' \
+              "${RUNNER_TEMP}/labs-worker-deployment.json"
+          )"
+          python scripts/start_labs_worker_check.py \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --job-name "${job_name}"

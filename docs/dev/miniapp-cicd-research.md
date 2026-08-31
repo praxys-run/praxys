@@ -134,9 +134,9 @@ The actual implementation lives at **`.github/workflows/miniapp-publish.yml`** i
   `api/china_client_boundary.py`, or the workflow file itself changed across the **entire push range** (`github.event.before..github.sha`, with `fetch-depth: 0` so the prior tip is in the local clone). Using the full range — not just `HEAD^..HEAD` — covers multi-commit pushes where a miniapp change might be buried under a later unrelated commit.
 - **Uploads stay separate from the China web launch.** Robot 1 tags and robot
   5 development uploads build from their selected protected repository ref,
-  but neither authorizes China web processing or publishes a production
-  Miniapp. `PRAXYS_DISABLE_MINIAPP_PROCESSING` remains independently
-  default-closed. Review and publication remain manual and deferred.
+  but neither authorizes China web processing nor itself publishes a
+  production Miniapp. Ordinary production keeps Miniapp processing enabled;
+  trial selection, review, and publication remain manual in WeChat.
 - **Release ancestry is checked before the upload key is exposed.** A
   `miniapp-*` tag commit must be reachable from `origin/main`; no release
   floor, registry, provider-ID approval, or GitHub check traversal is used.

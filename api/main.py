@@ -72,7 +72,6 @@ from api.auth import (
 from api.china_client_boundary import (
     ChinaClientBoundaryMiddleware,
     china_processing_status,
-    is_cn_web_origin,
     miniapp_processing_status,
 )
 from api.env_compat import getenv_compat
@@ -107,8 +106,13 @@ async def lifespan(app: FastAPI):
         recover_interrupted_jobs,
         replay_deletion_tombstones,
     )
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
     from db.session import SessionLocal
 
+    with SessionLocal() as authority_db:
+        reconcile_channel_processing_authority(authority_db)
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
@@ -332,6 +336,17 @@ def health_ready(response: Response):
         db = SessionLocal()
         try:
             db.execute(_text("SELECT 1"))
+            from api.channel_processing_authority import (
+                expected_channel_processing_status,
+                shared_channel_processing_snapshot,
+            )
+
+            expected_authority = expected_channel_processing_status()
+            shared_authority = shared_channel_processing_snapshot(db)
+            if shared_authority != expected_authority:
+                raise RuntimeError(
+                    "shared China processing authority did not converge"
+                )
         finally:
             db.close()
     except Exception as exc:
@@ -383,7 +398,6 @@ def version() -> dict:
 
 @app.get("/api/public/config")
 def public_config(
-    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
     """Public — the SPA reads this before rendering the login page to decide
@@ -396,8 +410,6 @@ def public_config(
     """
     from api import app_config
     open_effective, _reason = app_config.is_registration_open(db)
-    if is_cn_web_origin(request.headers.get("origin", "")):
-        open_effective = False
     return {"registration_open": open_effective}
 
 

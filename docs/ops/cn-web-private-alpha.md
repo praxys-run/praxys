@@ -1,25 +1,35 @@
-# China web private alpha
+# China public web launch
 
-> **Summary:** Operations decision and launch checklist for the dormant,
-> invite-only `praxys.cn` web private alpha.
+> **Summary:** Operations decision and launch checklist for the dormant public
+> `praxys.cn` web surface and its shared Praxys backend.
 > **Use when:** Checking, enabling, disabling, or recovering the China web
-> private alpha.
+> launch.
 
-**Status:** Accepted for dormant implementation. Production enablement remains
-human-only and is blocked until the exact PIPIA is accepted.
+**Status:** Product scope recorded on 2026-08-31. Production enablement remains
+human-only and blocked until the exact revised PIPIA is accepted and the
+implementation and live controls below are verified.
 
 ## Boundary
 
 - `praxys.cn` and `www.praxys.cn` are a static EdgeOne Makers SPA built from
   protected `main`. The API, identity, datastore, sync, and Azure AI remain at
   `api.praxys.run` in the documented Azure regions.
-- `.run` remains unchanged. There is no public signup, redirect, proxy, SSR,
-  EdgeOne function, mainland API/datastore, new telemetry, or new personal-data
-  recipient.
-- The Miniapp is not part of this alpha. Its independent
-  `PRAXYS_DISABLE_MINIAPP_PROCESSING` gate is pinned to `true` by ordinary
-  backend config sync; `launch-cn.yml` may report but never changes it and
-  never publishes the Miniapp.
+- Public self-registration matches `.run`: both surfaces use the same global
+  registration switch and seat cap. Invitations remain supported but are not
+  required while registration is open.
+- `.run` remains available and unchanged by `launch-cn.yml`. There is no API
+  proxy, SSR, EdgeOne function, mainland API, or mainland datastore.
+- The existing Miniapp continues to use `https://api.praxys.run`. Its robot 5
+  protected-main development upload stays automatic; trial selection, review,
+  and production publication remain manual in WeChat. `launch-cn.yml` neither
+  uploads nor publishes it. New-account registration and platform setup remain
+  on the open Web flow, then users bind that account in WeChat.
+- Browser Application Insights and allowlisted product events follow the
+  recorded minimized boundary. Browser Statsig remains absent from the `.cn`
+  artifact pending [#754](https://github.com/praxys-run/praxys/issues/754).
+- Geographic HTTP `302` is a post-stability provider operation. It preserves
+  the path, drops query/fragment values, applies only to public pages, and never replaces DNS or redirects
+  authenticated application routes.
 - The static filing footer is `沪ICP备2025109616号-2`.
 
 `PRAXYS_DISABLE_CN_PROCESSING` is the web processing authority. CORS is only
@@ -62,14 +72,16 @@ Azure AI is independent. `launch-cn.yml` observes but never changes
 
 Before `enable`, a human must:
 
-1. Accept the exact
-   [`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md).
+1. Accept the exact revised
+   [`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md)
+   and confirm that its listed live verification obligations are complete.
 2. Approve the `china-production` environment for the exact run.
 3. Ensure Azure trusts the exact environment OIDC subject.
 4. Verify the one-time EdgeOne Git project/domain/DNS/TLS setup and outside-in
    monitoring.
 
-No workflow result, SHA, summary, or artifact substitutes for PIPIA acceptance.
+No workflow result, SHA, summary, or artifact substitutes for the recorded
+operator decision or for live verification of its controls.
 
 ## Workflow
 
@@ -91,8 +103,9 @@ gh workflow run launch-cn.yml --ref main -f action=disable
 - **enable** alone uses `china-production`. It requires the dispatch SHA to be
   current `main`; each API, `.run`, and EdgeOne component SHA may differ but
   must be a full SHA reachable from `origin/main`. It also requires healthy
-  API/`.run`, enabled Azure AI, disabled Miniapp processing, `inline` or
-  `disabled` Labs execution, valid CORS, and both `.cn` hosts serving
+  API/`.run`, an open effective global registration gate, enabled Azure AI,
+  enabled Miniapp processing, production
+  `service_bus` with a same-SHA verified Worker, valid CORS, and both `.cn` hosts serving
   `praxys-frontend-cn` with a compatible legal/API tuple, deployment-region
   marker, ICP footer, and security headers. From disabled it adds the two
   origins idempotently and enables the China switch. When already enabled it
@@ -121,8 +134,8 @@ Azure AI emergency switch and does not probe EdgeOne. It captures those three
 runtime values read-only and requires exact equality after deployment.
 Readiness accepts either preserved China state, requires the exact deployed API
 version/SHA, requires live China/AI booleans to match the preserved switch
-values, requires disabled Miniapp processing, and reports the final China,
-Miniapp, and Azure AI state in the run summary.
+values, preserves the current Miniapp processing state, and reports the final
+China, Miniapp, and Azure AI state in the run summary.
 
 ## Rollback / recovery
 
@@ -150,4 +163,4 @@ query URL, or icon until the platform issues the exact artifacts.
 - [cn-public-security-filing.md](./cn-public-security-filing.md)
 
 ---
-_Last reviewed: 2026-08-29 · Owner: Operations_
+_Last reviewed: 2026-08-31 · Owner: Operations_

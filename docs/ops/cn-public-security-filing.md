@@ -64,7 +64,7 @@ Platform](https://beian.mps.gov.cn/).
 - If an already-issued footer change is wrong, remove only that incorrect
   public-security markup through protected `main`; do not replace it with a
   guessed number or unofficial icon.
-- For a site takedown, follow [China web private alpha](./cn-web-private-alpha.md)
+- For a site takedown, follow [China public web launch](./cn-web-private-alpha.md)
   and notify the filing authority when required.
 
 ## Related
@@ -75,7 +75,7 @@ Platform](https://beian.mps.gov.cn/).
   Platform](https://beian.mps.gov.cn/)
 - [Tencent public-security filing guide](https://cloud.tencent.com/document/product/243/19142)
 - [Regional frontend delivery](./tencent-frontend.md)
-- [China web private alpha](./cn-web-private-alpha.md)
+- [China public web launch](./cn-web-private-alpha.md)
 
 ---
 _Last reviewed: 2026-08-30 · Owner: Operations / human filing subject_

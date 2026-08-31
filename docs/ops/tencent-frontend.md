@@ -1,6 +1,6 @@
 # Regional frontend delivery: EdgeOne and `.run`
 
-> **Summary:** Operate the static China web private-alpha frontend without
+> **Summary:** Operate the static public China web frontend without
 > changing the existing `.run` service.
 > **Use when:** Creating, checking, or taking down the EdgeOne custom domains.
 
@@ -12,21 +12,26 @@ praxys.run / www.praxys.run -> existing Cloudflare/Azure frontend
 api.praxys.run -> Azure App Service trainsight-app (DNS-only)
 ```
 
-The invite-only private alpha is web-only. There is no public signup,
-geographic redirect, new telemetry, API proxy, SSR, function, mainland API, or
-mainland datastore. Miniapp publication is deferred. `.run` remains available
-and is not changed by `launch-cn.yml`.
+The `.cn` service uses the same global registration gate and seat cap as
+`.run`. The existing Miniapp continues to call `api.praxys.run`, with CI
+development upload and manual WeChat production publication. Regional browser
+Application Insights and product events use the minimized PIPIA boundary;
+browser Statsig stays absent pending issue #754. There is no API proxy, SSR,
+function, mainland API, or mainland datastore. `.run` remains available and
+is not changed by `launch-cn.yml`.
 
 EdgeOne receives static HTML, JavaScript, CSS, `healthz`,
 `deployed_sha.txt`, ICP markup, and checked-in security configuration. It
-receives no secret, telemetry credential, personal data, server-side rendering,
-function, or API proxy. Authenticated requests go directly from the browser to
+receives no secret or personal data at build time, server-side rendering,
+function, or API proxy; the regional bundle contains only the public frontend
+Application Insights routing string. Authenticated requests go directly to
 the DNS-only `https://api.praxys.run`.
 
 ## Prerequisites
 
-- Human acceptance of the exact
-  [PIPIA](./cn-personal-information-impact-assessment.md) before enable.
+- Human acceptance of the final exact
+  [PIPIA](./cn-personal-information-impact-assessment.md) and verification that
+  its implementation and live controls match before enable.
 - Tencent/EdgeOne and registrar/DNS access.
 - Current protected-main SHA and successful required checks.
 - Filed service metadata `沪ICP备2025109616号-2`.
@@ -51,8 +56,11 @@ These are human provider actions. No repository workflow performs them.
 4. Use the checked-in `web/edgeone.json` build:
    `npm ci --legacy-peer-deps`, `npm run build:edgeone`, `./dist`, Node
    `24.11.0`.
-5. Configure no environment secret, browser telemetry key, API token, server
-   function, or API proxy.
+5. Configure no environment secret, Statsig key, API token, server function,
+   or API proxy. Set `VITE_APPINSIGHTS_CONNECTION_STRING` in the EdgeOne build
+   environment to the exact public browser-ingestion connection string from
+   `appi-trainsight`; it is the only provider build value beyond the checked-in
+   config. Compare it with a fresh Azure read before launch.
 6. Bind `praxys.cn` and `www.praxys.cn` using only the exact ownership/CNAME
    records EdgeOne provides.
 7. Wait for managed TLS and verify the selected production deployment reports
@@ -128,6 +136,25 @@ The workflow never changes `PRAXYS_DISABLE_BACKGROUND_AI`. Enable requires its
 healthy value `false`; emergency disable accepts and preserves either explicit
 boolean state.
 
+## Post-stability geographic redirect
+
+DNS records select an endpoint; they cannot issue an HTTP redirect. After both
+`.cn` hosts are stable, configure the approved temporary `302` as a Cloudflare
+Single Redirect on the `.run` frontend, not as a Tencent DNS or other DNS-only
+change:
+
+- match mainland geolocation only;
+- redirect public pages to the corresponding `.cn` path while dropping query
+  and fragment values;
+- exclude authenticated application and rights routes, API hosts, assets,
+  health endpoints, crawlers where required, and already-`.cn` requests;
+- use neither `301` nor `308`; and
+- retain an immediate disable path and test both directions for loops.
+
+The redirect is not a precondition for initial `.cn` enable. Record the exact
+provider rule and before-state outside the repository, then verify representative
+public paths from mainland and non-mainland probes.
+
 ## Verify
 
 Run `launch-cn.yml` `status`, then independently verify:
@@ -176,4 +203,4 @@ mitigation, verification, recurrence, and durable follow-ups.
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 
 ---
-_Last reviewed: 2026-08-29 · Owner: Operations_
+_Last reviewed: 2026-08-31 · Owner: Operations_

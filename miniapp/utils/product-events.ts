@@ -11,10 +11,10 @@ import { MINIAPP_BUILD_VERSION } from './version';
 const ONCE_STORAGE_KEY = 'praxys.product-events.once'; // i18n-allow
 const ONCE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 const APP_VERSION = MINIAPP_BUILD_VERSION || 'develop'; // i18n-allow
-// The mini program is a mainland-China surface. Product experimentation is
-// nonessential and remains disabled until it has an independently reviewed
-// processing basis and user control.
-const PRODUCT_EVENTS_ENABLED = false;
+// Product events contain only allowlisted event names, build metadata, and
+// bounded response enums. The authenticated API replaces the account with a
+// one-way telemetry pseudonym before exporting the event.
+const PRODUCT_EVENTS_ENABLED = true;
 
 function fingerprint(value: string): string {
   let hash = 2166136261;

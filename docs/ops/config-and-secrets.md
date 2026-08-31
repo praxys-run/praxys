@@ -60,11 +60,11 @@ the SPA and ship to browsers)
 | `PRAXYS_SMTP_HOST` / `PRAXYS_SMTP_PORT` / `PRAXYS_SMTP_USER` / `PRAXYS_SMTP_FROM` / `PRAXYS_SMTP_STARTTLS` | SMTP transport for verification + invitation emails (non-secret; the password is the secret above). **Optional.** | App Service setting (backend) |
 | `PRAXYS_APP_BASE_URL` (`https://praxys.run`) | Public origin for verify/invite links in those emails | App Service setting (backend) |
 | `PRAXYS_DB_AUTH` (`entra` or unset) | Postgres auth mode: `entra` = AAD token via managed identity, no password. **Optional.** | App Service setting (backend) |
-| `PRAXYS_LABS_EXECUTION_MODE` (`inline` by default) | Labs execution route. The web private-alpha deployment accepts only `inline` or maintenance-only `disabled`; `service_bus` requires a separate reviewed lifecycle after worker prerequisites. | App Service setting via `deploy-backend.yml` |
+| `PRAXYS_LABS_EXECUTION_MODE` (`inline` by default) | Labs execution route: `inline`, `service_bus`, or maintenance-only `disabled`. Selecting `service_bus` requires the worker, queue, RBAC, and shared-authority prerequisites. | App Service setting via `deploy-backend.yml` |
 | `PRAXYS_LABS_SERVICE_BUS_CLIENT_ID` (unset by default) | Optional client ID of a user-assigned identity attached to `trainsight-app` for Labs queue sends. Empty uses the App Service system identity. The worker workflow verifies RBAC for the same effective identity. | App Service setting via `deploy-backend.yml`; RBAC verification in `deploy-labs-worker.yml` |
 | `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` (`false`) | Opt-in infrastructure reconciliation gate. Only exact `true` runs the Azure deployment job; image tests/builds still run. | `deploy-labs-worker.yml` |
 | `PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED` (`false`) | Default-off hard deployment prerequisite for unsupported Garmin consumer-API workout writes. Set `true` only on an approved validation deployment, or in production after both regional lifecycle matrices pass. Statsig eligibility, durable execution-target selection, and the account-generation/region fence remain independently required. | App Service setting (backend) |
-| `PRAXYS_DISABLE_MINIAPP_PROCESSING` (`true`) | Independent fail-closed Miniapp ordinary/auth processing gate, pinned `true` for the web-only China private alpha. | Literal App Service setting via `deploy-backend.yml`; never changed by `launch-cn.yml` |
+| `PRAXYS_DISABLE_MINIAPP_PROCESSING` (`false`) | Independent fail-closed Miniapp ordinary/auth processing gate. Ordinary production keeps the existing Miniapp enabled. | Literal App Service setting via `deploy-backend.yml`; never changed by `launch-cn.yml` |
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
@@ -91,13 +91,14 @@ Azure configuration.
 `PRAXYS_DISABLE_CN_PROCESSING` and
 `PRAXYS_DISABLE_BACKGROUND_AI` are explicit non-secret App Service settings.
 They are not GitHub Actions variables and are not owned by a bulk settings
-sync. `PRAXYS_DISABLE_MINIAPP_PROCESSING` is separate and is pinned to `true`
-as a workflow literal during the web-only alpha.
+sync. `PRAXYS_DISABLE_MINIAPP_PROCESSING` is separate. Ordinary deployments
+preserve its explicit current value; only the first rollout initializes a
+missing value to `false`.
 
 Ordinary backend deployment does not capture or write the China switch or
 CORS, and performs no EdgeOne restoration. It never toggles Azure AI. Its
-readiness verification accepts either preserved China state, requires Miniapp
-disabled, and reports the effective China/Miniapp/AI state.
+readiness verification accepts preserved China/Miniapp states and reports the
+effective China/Miniapp/AI state.
 
 `launch-cn.yml` is the only repository workflow that changes the China runtime
 gate. Only `enable` uses
@@ -138,18 +139,21 @@ after an approved filing change, together with
 
 The dormant `.cn` hosts use the Git-integrated EdgeOne Makers project
 `praxys-cn` with platform-managed HTTPS. EdgeOne gets read-only access only to
-this repository and no build secrets, telemetry credentials, personal data,
-SSR, functions, or API proxy. The filing-free `.run` service is preserved and
-`api.praxys.run` stays DNS-only.
+this repository and no build secrets, Statsig key, personal data, SSR,
+functions, or API proxy. The regional build may receive the public frontend
+Application Insights connection string through the repository workflow. The
+filing-free `.run` service is preserved and `api.praxys.run` stays DNS-only.
 
-The China stamping step also adds a deployment-region marker. Browser-side
-Application Insights and Statsig read that marker and remain disabled for the
-EdgeOne artifact. Enabling either processor for `.cn` is a separate privacy and
-runtime-config change, not an Actions variable toggle.
+The China stamping step also adds a deployment-region marker. Browser
+Application Insights uses it to apply regional URL and exception minimization.
+Browser Statsig reads it and remains disabled for the EdgeOne artifact pending
+[#754](https://github.com/praxys-run/praxys/issues/754).
 
-The authenticated web alpha is governed by `PIPIA-CN-2026-08-25-01`. Exact
-human PIPIA acceptance is required before `enable`; no repository variable
-represents that acceptance. Miniapp publication is deferred and uncoupled.
+The public China launch is governed by `PIPIA-CN-2026-08-25-01`. The operator
+accepted its exact scope and residual risks on 2026-08-31. No repository
+variable represents that acceptance; a human still verifies the deployed
+controls before `enable`. Miniapp CI upload and manual production publication
+remain uncoupled from the web launch workflow.
 
 Inspect non-secret state with:
 
@@ -158,7 +162,8 @@ curl -fsS https://api.praxys.run/api/health/ready \
   | jq '{status, china_processing, miniapp_processing, optional_processing}'
 ```
 
-Before launch this must show China disabled and background AI enabled. Use
+Before launch this must show China disabled, Miniapp enabled, and background
+AI enabled. Use
 `launch-cn.yml` `status` for filtered settings, exact CORS, core API/`.run`,
 and both `.cn` hosts. It does not check environment protection, web tests,
 monitoring, alerts, PIPIA acceptance, or provider topology. Production
@@ -463,8 +468,8 @@ Source of truth = `deploy-backend.yml`. Literals set inline: `DATA_DIR=/home/dat
 reported but never written by ordinary backend deploys; healthy ordinary
 service expects the AI switch to be `false`, while an intentional emergency
 stop does not make code deployment mutate it.
-`PRAXYS_DISABLE_MINIAPP_PROCESSING=true` is a workflow literal for this alpha
-and remains independent of the China web launch. WeChat credentials are added
+`PRAXYS_DISABLE_MINIAPP_PROCESSING` is preserved by the ordinary production
+workflow and remains independent of the China web launch. WeChat credentials are added
 to the settings array only when both GitHub secrets are present; when both are
 absent, existing App Service values are preserved.
 `APPLICATIONINSIGHTS_CONNECTION_STRING` and
@@ -827,6 +832,9 @@ create `APPLICATIONINSIGHTS_CONNECTION_STRING` or
    actually exist.
 3. `frontend-resolve` refuses to build unless only the frontend component allows
    local auth, then injects that frontend connection string into Vite.
+   EdgeOne's native Git build cannot inherit GitHub's transient value; configure
+   the same public `appi-trainsight` connection string in its provider build
+   environment and compare it with Azure during the pre-enable check.
 
 #### Verify production
 
@@ -1043,8 +1051,8 @@ without routing production work to it:
 | `STATSIG_SDK_KEY` | Existing GitHub Actions secret | Injected into the Container Apps Job as secret `statsig-sdk-key`. The worker refuses to receive a message until Statsig initializes so a targeting outage cannot cancel eligible queued work. |
 | `STATSIG_ENV` | Existing GitHub Actions variable | Injected as the worker's Statsig tier; defaults to `production` in `deploy-labs-worker.yml`. |
 | `PRAXYS_LABS_WORKER_DEPLOY_ENABLED` | GitHub Actions variable | Default off. Exact `true` lets `deploy-labs-worker.yml` reconcile Bicep resources, but only after the one-time GHCR package visibility check in the worker runbook. |
-| `PRAXYS_LABS_EXECUTION_MODE` | GitHub Actions variable | Defaults to `inline`; the web private-alpha deploy rejects `service_bus`. |
-| `PRAXYS_LABS_SERVICE_BUS_FQDN` | Literal owned by `deploy-backend.yml` | Empty while the web private alpha permits only `inline` or `disabled`; do not hand-set it in the portal. |
+| `PRAXYS_LABS_EXECUTION_MODE` | GitHub Actions variable | Defaults to `inline`; production accepts `inline`, `service_bus`, or maintenance-only `disabled`. |
+| `PRAXYS_LABS_SERVICE_BUS_FQDN` | Literal owned by `deploy-backend.yml` | Empty for `inline`/`disabled`; derived from the tagged Labs namespace for `service_bus`; do not hand-set it in the portal. |
 | `PRAXYS_LABS_SERVICE_BUS_QUEUE` | Literal owned by `deploy-backend.yml` | `labs-environment-response`. |
 | `PRAXYS_LABS_SERVICE_BUS_CLIENT_ID` | Optional GitHub Actions variable | Empty selects the backend system identity. When set, it must name a user-assigned identity attached to `trainsight-app`; both runtime and the worker deployment RBAC check resolve it. |
 | `PRAXYS_HIDE_SQL_PARAMETERS` | Literal owned by `infra/labs-worker.bicep` and enforced again by `api/labs_worker.py` | `true` in the isolated worker so SQLAlchemy exceptions cannot export bind values to Application Insights. |
@@ -1069,8 +1077,8 @@ gh secret set PRAXYS_LABS_DATABASE_URL \
 gh variable set PRAXYS_LABS_WORKER_DEPLOY_ENABLED --body "false"
 # Publish once, make the GHCR package public per the runbook, then:
 gh variable set PRAXYS_LABS_WORKER_DEPLOY_ENABLED --body "true"
-# `service_bus` cutover is deferred to a separate reviewed lifecycle after
-# the web private alpha.
+# Switch to `service_bus` only after every worker, queue, RBAC, shared-authority,
+# database-principal, image, and alert prerequisite in the runbook passes.
 ```
 
 Rollback through `disabled`: deploy it first, drain Service Bus and any running

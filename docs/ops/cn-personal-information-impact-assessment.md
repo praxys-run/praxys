@@ -1,168 +1,273 @@
 # Mainland China personal-information protection impact assessment
 
-> **Status:** **DRAFT — EXACT HUMAN PIPIA ACCEPTANCE REQUIRED BEFORE ENABLE**
-> **Summary:** Assessment record for the invite-only, web-only China private
-> alpha and its overseas Azure processing.
-> **Use when:** Deciding whether to enable or materially change the China web
-> alpha, a recipient, data category, destination, or rights control.
+> **Status:** **DRAFT UPDATED TO RECORDED SCOPE — EXACT FINAL HUMAN ACCEPTANCE REQUIRED BEFORE ENABLE**
+> **Summary:** Assessment record for the public Praxys China web and WeChat
+> surfaces, including overseas Azure processing, telemetry, recipients,
+> sensitive information, rights, and proposed residual risks.
+> **Use when:** Releasing or materially changing a China surface, recipient,
+> data category, destination, telemetry path, legal basis, retention period,
+> or rights control.
 
 ## Assessment record
 
 | Field | Value |
 |---|---|
 | Record ID | `PIPIA-CN-2026-08-25-01` |
-| Version | `1.1-web-private-alpha` |
-| Assessment date | 2026-08-29 |
+| Version | `1.2-public-parity` |
+| Assessment date | 2026-08-31 |
 | Operator / personal-information handler | Fei Tao |
 | Rights contact | `support@praxys.run` |
-| Service | Invite-only web private alpha at `praxys.cn` and `www.praxys.cn` |
-| Decision | **Not accepted. Exact human acceptance and residual-risk decision are required before `launch-cn enable`.** |
-| Residual risk | **Proposed Medium; human acceptance pending** |
-| Review trigger | Before enable and on any scope, recipient, telemetry, destination, legal-basis, rights, or retention change |
+| Service | Public registration on the Praxys web service at `praxys.cn` and `www.praxys.cn`; existing WeChat Miniapp |
+| Decision | **Scope choices recorded from the operator's 2026-08-31 comments; exact acceptance of this final revised assessment and its overall residual risk is still required before enable.** |
+| Residual risk | **Proposed Medium; final human acceptance pending**; principally the contract-necessity interpretation for sensitive fitness/recovery data and overseas processing |
+| Deferred, non-blocking risks | Browser Statsig remains disabled on `.cn` pending [#754](https://github.com/praxys-run/praxys/issues/754); restore-safe account deletion is tracked in [#755](https://github.com/praxys-run/praxys/issues/755) |
+| Review trigger | Before any material change listed under [Immediate review or stop triggers](#immediate-review-or-stop-triggers) |
+| Minimum record retention | Through 2029-08-31, and longer while the assessed processing continues or a dispute/investigation requires it |
 
-This repository records the proposed boundary; it does not provide legal
-advice or represent operator acceptance. A workflow result, protected
-environment approval, source SHA, or artifact cannot substitute for an exact
-human PIPIA decision.
+This is the repository record of the operator's stated product and telemetry
+decisions. It is not external legal advice and does not infer acceptance of
+the rewritten assessment as a whole. It does not assert
+that EdgeOne, DNS, TLS, CORS, OIDC, runtime settings, monitoring, alerts, or a
+particular deployed artifact have passed their separate live checks.
 
-## Exact assessed scope
+## Recorded scope
 
-The first release is:
+The first public release follows the existing `praxys.run` service unless a
+narrow exception is stated here:
 
-- invite-only and web-only;
-- no public signup;
-- no Miniapp publication;
-- no geographic redirect;
-- no new browser/product telemetry;
-- no proxy, SSR, EdgeOne function, mainland API, or mainland datastore;
-- no change to `praxys.run` or `www.praxys.run`.
+- public self-registration uses the same global registration switch and seat
+  cap as `.run`; `.cn` is not invite-only;
+- `praxys.cn` and `www.praxys.cn` serve a static EdgeOne SPA, while identity,
+  API, datastore, sync, analysis, Azure AI, and telemetry processing continue
+  through the existing Azure service at `https://api.praxys.run`;
+- no `api.praxys.cn`, mainland API/datastore, API proxy, SSR, or EdgeOne
+  function is introduced;
+- the existing WeChat Miniapp remains supported against
+  `https://api.praxys.run`; protected-main CI continues robot 5 development
+  uploads, while trial selection, review submission, and production
+  publication remain manual in WeChat; new-account registration and platform
+  setup remain on the open web flow at `.run` or `.cn`, after which the user
+  binds the account in WeChat;
+- the `.cn` web artifact may send minimized browser Application Insights
+  performance/request telemetry and the web and Miniapp may send the same
+  allowlisted product events as `.run`; browser Statsig is the narrow exception
+  and remains absent from `.cn` until #754 is completed and this assessment is
+  updated;
+- backend security, request, error, latency, queue, availability, and product
+  telemetry remain enabled and minimized; and
+- after both `.cn` hosts are stable, a separately verified geolocation rule may
+  issue temporary HTTP `302` redirects from mainland visits to public `.run`
+  pages, preserving the path and dropping the query/fragment. It must not be a DNS-only claim, a
+  permanent redirect, or a redirect of authenticated application routes.
 
-EdgeOne serves only static HTML, JavaScript, CSS, ICP markup, `healthz`, and
-`deployed_sha.txt`. It receives no Praxys credentials, authenticated training
-dataset, telemetry credential, or API request through Praxys configuration.
-The browser calls the DNS-only `https://api.praxys.run` directly.
+The China launch does not remove or degrade `.run`. Invitations may continue
+to work, but are not a condition of `.cn` registration.
 
-Account, authentication, provider credentials, sync, training/recovery data,
-plans, PostgreSQL storage, essential backend monitoring, and Azure AI remain in Azure East Asia (Hong Kong SAR), except Azure AI model
-processing, which is in **West US 3**. No mainland copy is introduced.
+## Processing basis
 
-## Proposed processing basis
+The draft proposes that core account, authentication, sync, storage,
+deterministic analysis, plans, export, deletion, security, reliability, and the
+enumerated ordinary Azure AI purposes are necessary to enter into and perform
+the training service requested by the individual. The selected basis is PIPL
+Article 13(1)(2) together with the applicable contract-necessity cross-border
+provision, rather than consent for an indivisible core service.
 
-The draft proposes that core account, sync, storage, deterministic analysis,
-plan, export, deletion, security, and reliability processing is necessary to
-perform the training service requested by the invited individual. It proposes
-reliance on PIPL Article 13(1)(2) and the applicable contract-necessity
-cross-border provision rather than consent for that indivisible core service.
-
-The human reviewer must independently accept or reject that interpretation,
-especially for sensitive fitness, recovery, route, and credential data. The
-service must give complete pre-processing notice and explain sensitive
-categories, necessity, impact, overseas processing, recipients, retention,
-and rights before personal processing.
+The service must still provide complete notice before personal processing and
+prominently explain sensitive categories, necessity, impact, overseas
+processing, recipients, retention, and rights. Supplying private plan context
+and connecting any third-party provider remain optional user choices. Current
+Terms acceptance and server runtime state govern ordinary Azure AI; during an
+AI outage or emergency stop, AI-only features report unavailable while
+separately labelled deterministic functions continue.
 
 Official sources:
 
-- <https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm>
-- <https://www.cac.gov.cn/2024-03/22/c_1712776611775634.htm>
-- <https://www.cac.gov.cn/2024-03/22/c_1712776611649184.htm>
+- [Personal Information Protection Law](https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm)
+- [2024 cross-border data-flow provisions](https://www.cac.gov.cn/2024-03/22/c_1712776611775634.htm)
+- [CAC questions and answers on the 2024 provisions](https://www.cac.gov.cn/2024-03/22/c_1712776611649184.htm)
 
-## Recipient and destination map
+## Processor and recipient map
 
-| Processor / recipient | Location | Assessed purpose and data |
+| Processor / recipient | Location | Information and purpose | Proposed boundary |
+|---|---|---|---|
+| Tencent Cloud EdgeOne | Mainland China | Public static HTML, JavaScript, CSS, filing markup, and ordinary provider delivery logs | No authenticated training dataset, Praxys credential, SSR, function, or API proxy |
+| Microsoft Azure and subprocessors | East Asia, Hong Kong SAR | Account/authentication records, encrypted provider credentials, training/recovery data, goals/plans/settings, database/API execution, support content, and minimized backend/browser/product telemetry | Core overseas processing; component-scoped controls and 30-day Application Insights/workspace retention |
+| Microsoft Azure AI | West US 3, United States | Minimized fields for the ordinary AI purposes enumerated in the current Terms and purpose-bound optional private context | Current Terms, per-account/purpose/field isolation, and independent emergency stop |
+| Tencent WeChat | Mainland China | Login codes, WeChat identifier, Miniapp delivery/runtime metadata | Only for Miniapp authentication and operation; authenticated product data continues directly to `api.praxys.run` |
+| Configured mail service | Configured region | Destination address and requested verification or service-email content | Only for the requested email function |
+| Garmin, Strava, Stryd, Oura, or COROS selected by the user | Provider-selected region | Authentication material and supported user-initiated data transfer | Optional connection after just-in-time recipient/category notice |
+| Statsig service operated by Amplitude | Rules are downloaded from the service; backend evaluation occurs inside Praxys | Backend SDK downloads gate/config rules without user identity | User-event logging and SDK diagnostics stay disabled; browser Statsig remains absent from `.cn` pending #754 |
+| GitHub issue service | Outside mainland China | Scrubbed support text only if an individual submission receives exact publication permission and global switches allow it | External publication remains independently fail-closed; screenshots remain private |
+
+Provider legal entity and processing location may depend on the user's account
+region. The connection dialog must identify the provider and current official
+privacy/contact notice immediately before transfer.
+
+## Data categories, necessity, and retention
+
+| Category | Necessity / impact | Safeguards and retention |
 |---|---|---|
-| Tencent Cloud EdgeOne | Mainland China | Static public site delivery and ordinary provider delivery logs; no authenticated Praxys dataset, secrets, telemetry SDK, SSR, function, or API proxy |
-| Microsoft Azure and subprocessors | East Asia, Hong Kong SAR | Account/authentication records, encrypted provider credentials, training/recovery data, goals/plans/settings, database/API execution, and minimized backend security/reliability telemetry |
-| Microsoft Azure AI | West US 3 | Only minimized fields for current-Terms AI purposes and any purpose-bound optional private context; independently stopped by the Azure AI emergency switch |
-| User-selected Garmin, Strava, Stryd, Oura, or COROS service | Provider-selected region | Only the connection and supported data transfer initiated by the user after just-in-time recipient notice |
-| Configured mail service | Configured region | Invitation, verification, or requested service email |
-
-WeChat/Miniapp is not part of this release. GitHub public issue publication,
-browser App Insights, browser Statsig, and product-event telemetry are not
-enabled for `.cn`.
-
-## Data categories and necessity
-
-| Category | Necessity / impact | Safeguards |
-|---|---|---|
-| Email and authentication records | Required for invited account access; compromise could enable account access | Password hashing, rate limiting, per-user authorization |
-| Provider credentials | Required only for a connection the user activates; compromise could expose provider data | Envelope encryption, Key Vault wrapping, generation fencing, disconnect/delete |
-| Activity, pace, power, route, heart rate, HRV, sleep, recovery | Required only by selected training/recovery functions; can reveal health, routine, or location | Sensitive-data treatment, encryption, account scope, no advertising or cross-user training |
-| Goals, plans, settings, language | Required to configure requested service | Editable, exportable, account-scoped, deleted with account |
+| Email, WeChat identifier, and authentication records | Required for the selected account/login method; compromise could enable access | Password hashing, rate limiting, per-user authorization, account-lifetime active storage |
+| Provider credentials | Required only for a connection the user activates | Envelope encryption, Key Vault wrapping, generation fencing, disconnect and account deletion |
+| Activity, pace, power, route, heart rate, HRV, sleep, and recovery | Required only by selected training/recovery functions; may reveal health, routine, or location | Sensitive-data treatment, encryption, account scope, no advertising or cross-user training |
+| Goals, plans, settings, and language | Required to configure requested service | Editable, exportable, account-scoped, deleted with the active account |
 | Optional private plan context | Optional input to reduce guessing | Purpose/version/field minimization, expiry/deletion controls, current Terms |
-| Support text/screenshots | Only when the user asks for support | Private storage; no automatic public China publication |
-| Minimized request/security telemetry | Needed for abuse, outage, and deletion/reliability investigation | No intentional payload/credential/email; Hong Kong backend retention remains 30 days |
+| Support text and screenshots | Only when the user requests support | Private storage; no automatic public publication; exact per-submission grant for text publication |
+| Backend security/reliability and product telemetry | Detect abuse/failures and measure service behavior | Allowlisted fields, pseudonymous account hash where needed, no intentional raw training payload, credential, token, or email; 30-day Azure component/workspace retention |
+| Browser Application Insights | Diagnose `.cn` page, dependency, and performance behavior | Page/dependency/performance scope; query/fragment stripping and no automatic exception capture on the regional artifact; no raw training content, feedback text, email, or raw account ID |
+| Product events | Measure a bounded set of app/Today interactions | Allowlisted event names, surface, version, and bounded enums; backend derives a pseudonymous account hash and rejects extra fields |
 
-Active account data remains for the account lifetime. Account deletion removes
-active rows and credentials. PostgreSQL PITR may retain encrypted deleted data
-for up to 14 days. Any longer receipt/legal retention requires a separately
-accepted schedule.
+Primary account and training rows remain while the account is active. Account
+deletion immediately removes the active account, owned rows, credentials, and
+covered private files. Azure PostgreSQL point-in-time recovery retains encrypted
+snapshots for up to 14 days. A restore to a pre-deletion point can recreate the
+deleted rows unless reconciliation runs before traffic resumes. The operator
+accepts this **Medium-low residual risk for this launch**;
+[#755](https://github.com/praxys-run/praxys/issues/755) owns the restore-safe
+deletion fix and is explicitly non-blocking for the initial `.cn` launch.
+Until it is complete, any restore must remain closed to traffic while the
+operator reconciles deletions.
 
-## Required safeguards before enable
+## Sensitive-personal-information assessment
 
-- The exact human PIPIA decision and residual-risk acceptance are recorded
-  outside the repository and referenced by the change record.
-- `.cn` blocks personal processing until the current notice is acknowledged;
-  current Terms acceptance remains digest-bound and append-only.
-- Stale or missing client policy claims fail before ordinary personal routes;
-  export, deletion, disconnect, and other bounded rights routes remain
-  available.
-- Provider connection dialogs identify the recipient, categories, purpose, and
-  official privacy link before transfer.
-- Browser App Insights, Statsig, and product events remain absent.
-- `PRAXYS_DISABLE_BACKGROUND_AI=false` is explicitly verified for ordinary
-  service; China workflows never change it.
-- Backend telemetry stays minimized with 30-day component/workspace retention.
-- CORS is exact base before launch or exact base plus the two `.cn` origins
-  after launch. Disable preserves the latter for rights-route preflight; CORS
-  is not processing authority.
-- Both `.cn` hosts pass DNS, TLS, `healthz`, security headers, and serve a full
-  SHA reachable from protected `main`.
-- Outside-in availability tests and alerts exist and are enabled for launch.
-- Invitations and shared Azure capacity remain bounded for the private alpha.
+Heart rate, HRV, sleep, recovery, precise routes, health/fitness inferences,
+and provider authentication material are treated conservatively as sensitive
+personal information.
 
-## Risk summary
+- **Specific purpose:** provide the signal, analysis, forecast, plan,
+  connection, or security function requested by the individual.
+- **Necessity:** a category is not required for a feature that does not use it;
+  users choose which providers to connect and whether to add private context.
+- **Impact:** unauthorized disclosure could reveal health, routine, location,
+  account access, or behavior and could cause material harm.
+- **Controls:** encrypted transport/storage, per-user authorization, credential
+  envelope encryption, purpose/field minimization, bounded telemetry, private
+  screenshot storage, transfer/deletion fencing, export, disconnect, account
+  deletion, and runtime emergency stops.
 
-| Risk | Proposed residual |
+## Notice and receipt controls
+
+- The `.cn` web boundary blocks ordinary personal requests until the current
+  notice is acknowledged.
+- Current Terms acceptance is append-only, version-and-digest bound, and
+  channel-aware; an existing `.run` acceptance does not fabricate a `.cn`
+  receipt.
+- The Miniapp starts with the same current legal bundle and carries its
+  server-classified channel plus the current compatibility tuple. Releases
+  older than `2026.08.2` are rejected with
+  `CLIENT_PRIVACY_UPDATE_REQUIRED`.
+- Public legal/status/support routes and bounded rights routes remain available
+  when ordinary processing is disabled or Terms are stale.
+- Provider dialogs identify recipient, categories, purpose, and official
+  privacy link before credentials or OAuth authorization leave Praxys.
+
+## Proposed residual risks
+
+| Risk | Proposed residual / disposition |
 |---|---|
-| Contract-necessity interpretation for sensitive training data | Medium; human decision required |
+| Contract-necessity interpretation for sensitive training data | **Medium; final human acceptance pending** |
 | Overseas legal access or processor compromise | Medium |
-| Credential or route-data exposure | Medium-low after safeguards |
-| Personal processing before current notice | Low after runtime and client gates |
-| New recipient/telemetry scope creep | Low only while exact web-only boundary is enforced |
-| Incomplete deletion because of encrypted backups/processors | Medium-low |
-| Shared Azure capacity affects `.run` | Low for bounded alpha; monitor and pause invitations |
+| Credential or precise-route exposure | Medium-low after safeguards |
+| Personal processing before current notice | Low after runtime/client gates |
+| App Insights or product telemetry contains unexpected personal content | Low-medium; regional minimization and field allowlists require verification |
+| Browser Statsig transmits raw identity or unnecessary attributes | Deferred; absent from `.cn`, tracked by #754, not a launch blocker |
+| Account deletion is reversed by a PITR restore | **Medium-low; accepted for launch**, closed-traffic reconciliation, tracked by #755 |
+| Shared Azure capacity affects `.run` or `.cn` | Low; monitor and disable affected China processing if needed |
+| Geographic redirect loops, loses context, or disrupts sessions | Low while temporary, public-page-only, path-preserving, query-dropping, and verified |
 
-## Human acceptance checklist
+## Mandatory controls and release evidence
 
-The reviewer must record an explicit answer for each item:
+Before `launch-cn enable`, Release Evidence must show the following. These are
+verification obligations, not new product approvals:
 
-1. Is the exact web-only scope above accurate?
-2. Is the proposed legal basis accepted for each necessary category?
-3. Are overseas destinations, Azure AI, and all recipients complete?
-4. Are sensitive-data necessity, impact, and safeguards accepted?
-5. Are notice, rights, retention, incident, and processor-contact arrangements
-   sufficient?
-6. Is proposed Medium residual risk accepted?
-7. Are the exact protected-main artifact, EdgeOne domains/TLS, CORS, runtime
-   settings, availability tests, and alerts verified?
+- exact protected-main API, `.run`, and EdgeOne artifact provenance;
+- current web/API legal version, digest, and China API contract;
+- `.cn` pre-transfer notice blocking, current Terms receipts, rights-route
+  availability, and provider just-in-time disclosure;
+- public registration matching the effective global switch and seat cap;
+- Miniapp processing enabled with complete WeChat credentials and a compatible
+  `2026.08.2+` production release, or a narrowly documented launch ordering in
+  which web enable does not falsely claim the Miniapp is already published;
+  robot 5 development upload is not production evidence;
+- `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary service and the
+  independent emergency-stop behavior tested;
+- `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`;
+- browser Statsig absent from `.cn` and backend Statsig user logging and
+  diagnostics disabled;
+- regional App Insights URL minimization/exception suppression, allowlisted
+  product events, exact telemetry component scope, and 30-day retention;
+- exact `.cn` CORS origins, EdgeOne HTTPS, filing footer, security headers,
+  health metadata, and both outside-in availability alerts;
+- Labs API and worker authorization compatible with the selected execution
+  mode and emergency-disable semantics; and
+- tested export, disconnect, active account deletion, rollback, and the
+  closed-traffic PITR deletion-reconciliation procedure linked to #755.
 
-Absent any answer, do not enable.
+Geographic redirect is a post-stability operation. Enable it only after both
+`.cn` hosts and the no-loop rollback path are verified.
+
+## Immediate review or stop triggers
+
+Stop the affected new processing and update this assessment before resuming if:
+
+- a recipient, subprocessor, country/region, purpose, or personal-data category
+  materially changes;
+- the Azure AI region/purpose changes, current-Terms enforcement is bypassed,
+  or its emergency stop fails;
+- `.cn` browser Statsig is proposed for enablement, or backend Statsig begins
+  transmitting identities, exposure events, or diagnostics;
+- regional App Insights begins collecting exception payloads, unsanitized URL
+  parameters, email, raw account IDs, training content, or feedback text;
+- product events accept fields beyond the reviewed allowlist;
+- feedback publication is enabled without exact per-submission authority;
+- a provider privacy notice, legal entity, or access method materially changes;
+- a security incident, unauthorized disclosure, failed deletion, or regulator
+  inquiry occurs;
+- processing scale, legal guidance, or service design materially changes the
+  selected contract-necessity analysis; or
+- a child-directed service, medical purpose, advertising, data sale, or
+  cross-user model training is introduced.
+
+## Recorded operator decisions
+
+On 2026-08-31, the operator stated and approved these bounded choices:
+
+1. Open `.cn` registration and otherwise preserve `.run` behavior unless an
+   identified risk requires a narrow difference.
+2. Keep the existing Miniapp publication process: CI creates robot 5
+   development builds, while production review/publication remain manual;
+   continue using `api.praxys.run`.
+3. Preserve ordinary Labs `service_bus` capability, with shared live
+   processing authority enforced by the API and worker implementation.
+4. Track restore-safe account deletion separately in #755 and accept the
+   documented residual risk for this launch.
+5. Keep browser Statsig out of `.cn` and track its minimization separately in
+   #754; continue the other minimized system/product telemetry described here.
+6. Proceed with temporary geographic redirect after `.cn` stability and
+   provider-side verification.
+7. Review and explicitly accept or reject the remaining Medium residual risk
+   after this revised assessment and the final PR head are stable.
+
+These decisions do not constitute live provider readback, a successful
+deployment, or public-security filing completion.
 
 ## Rollback / incident
 
-Use `launch-cn.yml` `disable`, verify China disabled and one of the two exact
-valid CORS sets, and preserve `.run` and the DNS-only API. Static EdgeOne takedown is manual. A
-suspected personal-data or security incident is owned by Trust and follows the
-incident runbook; mitigation/recovery claims require readback and public-host
-verification.
+Use `launch-cn.yml` `disable`, verify China processing disabled and valid
+CORS, and preserve `.run` plus the DNS-only API. Static EdgeOne takedown is
+manual. Disable a faulty geolocation rule separately and verify both public
+domains no longer loop. Personal-data/security incidents follow the incident
+runbook and require readback before recovery is claimed.
 
 ## Related
 
 - [cn-web-private-alpha.md](./cn-web-private-alpha.md)
 - [tencent-frontend.md](./tencent-frontend.md)
+- [monitoring-and-alerts.md](./monitoring-and-alerts.md)
+- [cn-public-security-filing.md](./cn-public-security-filing.md)
 - [incident-response.md](./incident-response.md)
 - `api/china_client_boundary.py`
 - `web/src/components/ChinaProcessingNoticeGate.tsx`
 
 ---
-_Last reviewed: 2026-08-29 · Owner: human operator / Trust_
+_Scope updated: 2026-08-31 · Owner: human operator / Trust · Exact final acceptance and live release verification: pending_

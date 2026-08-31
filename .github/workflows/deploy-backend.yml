@@ -178,8 +178,27 @@ jobs:
               <<< "${settings}"
           }
           cn_disabled="$(read_setting PRAXYS_DISABLE_CN_PROCESSING)"
+          miniapp_values="$(jq -c '[.[] | select(
+            .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING") | .value]' \
+            <<< "${settings}")"
+          case "$(jq length <<< "${miniapp_values}")" in
+            0)
+              miniapp_disabled=false
+              miniapp_configured=false
+              ;;
+            1)
+              miniapp_disabled="$(jq -er '.[0]' <<< "${miniapp_values}")"
+              miniapp_configured=true
+              ;;
+            *)
+              echo "::error::PRAXYS_DISABLE_MINIAPP_PROCESSING is duplicated."
+              exit 1
+              ;;
+          esac
           ai_disabled="$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)"
           [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
+          [[ "${miniapp_disabled}" == "true" \
+            || "${miniapp_disabled}" == "false" ]]
           [[ "${ai_disabled}" == "true" || "${ai_disabled}" == "false" ]]
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
@@ -188,14 +207,17 @@ jobs:
           jq -e 'type == "array"' <<< "${cors}" >/dev/null
           {
             echo "cn_disabled=${cn_disabled}"
+            echo "miniapp_disabled=${miniapp_disabled}"
+            echo "miniapp_configured=${miniapp_configured}"
             echo "ai_disabled=${ai_disabled}"
             echo "cors=$(jq -c sort <<< "${cors}")"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Validate Web alpha deployment settings
+      - name: Validate production deployment settings
         if: steps.mode.outputs.sync_config == 'true'
         env:
           PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
+          PRAXYS_LABS_WORKER_DEPLOY_ENABLED: ${{ vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED || 'false' }}
           WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
         shell: bash
@@ -208,7 +230,13 @@ jobs:
             echo "::error::Set both WeChat Miniapp secrets or neither."
             exit 1
           fi
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" \
+                && "${PRAXYS_LABS_WORKER_DEPLOY_ENABLED}" != "true" ]]; then
+            echo "::error::service_bus mode requires the Labs worker deployment gate."
+            exit 1
+          fi
           [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "inline" ||
+             "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ||
              "${PRAXYS_LABS_EXECUTION_MODE}" == "disabled" ]]
 
       - name: Enforce backend telemetry trust boundary
@@ -250,6 +278,8 @@ jobs:
           PRAXYS_SMTP_FROM: ${{ vars.PRAXYS_SMTP_FROM }}
           PRAXYS_SMTP_STARTTLS: ${{ vars.PRAXYS_SMTP_STARTTLS }}
           PRAXYS_APP_BASE_URL: ${{ vars.PRAXYS_APP_BASE_URL }}
+          PRESERVED_MINIAPP_DISABLED: ${{ steps.preserved.outputs.miniapp_disabled }}
+          PRESERVED_MINIAPP_CONFIGURED: ${{ steps.preserved.outputs.miniapp_configured }}
         shell: bash
         run: |
           set -euo pipefail
@@ -258,10 +288,25 @@ jobs:
                      PRAXYS_JWT_SECRET; do
             [[ -n "${!var}" ]] || exit 1
           done
-          [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "inline" ||
-             "${PRAXYS_LABS_EXECUTION_MODE}" == "disabled" ]]
           LABS_SERVICE_BUS_FQDN=""
           LABS_SERVICE_BUS_QUEUE="labs-environment-response"
+          if [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ]]; then
+            LABS_SERVICE_BUS_NAMESPACE="$(
+              az servicebus namespace list \
+                --resource-group "${AZURE_RESOURCE_GROUP}" \
+                --query "[?tags.praxysComponent=='labs-analysis'].name | [0]" \
+                -o tsv
+            )"
+            if [[ -z "${LABS_SERVICE_BUS_NAMESPACE}" ]]; then
+              echo "::error::service_bus mode requires the deployed Labs namespace."
+              exit 1
+            fi
+            LABS_SERVICE_BUS_FQDN="${LABS_SERVICE_BUS_NAMESPACE}.servicebus.windows.net"
+          elif [[ "${PRAXYS_LABS_EXECUTION_MODE}" != "inline" \
+                  && "${PRAXYS_LABS_EXECUTION_MODE}" != "disabled" ]]; then
+            echo "::error::Invalid PRAXYS_LABS_EXECUTION_MODE."
+            exit 1
+          fi
           app_settings=(
             "AZURE_AI_ENDPOINT=${AZURE_AI_ENDPOINT}"
             "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false"
@@ -278,7 +323,6 @@ jobs:
             "PRAXYS_LABS_SERVICE_BUS_QUEUE=${LABS_SERVICE_BUS_QUEUE}"
             "PRAXYS_LABS_SERVICE_BUS_CLIENT_ID=${PRAXYS_LABS_SERVICE_BUS_CLIENT_ID}"
             "PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED=${PRAXYS_GARMIN_PLAN_DELIVERY_ENABLED}"
-            "PRAXYS_DISABLE_MINIAPP_PROCESSING=true"
             "PRAXYS_GITHUB_APP_ID=${PRAXYS_GITHUB_APP_ID}"
             "PRAXYS_GITHUB_APP_INSTALLATION_ID=${PRAXYS_GITHUB_APP_INSTALLATION_ID}"
             "PRAXYS_GITHUB_APP_PRIVATE_KEY=${PRAXYS_GITHUB_APP_PRIVATE_KEY}"
@@ -302,6 +346,9 @@ jobs:
             "SCM_DO_BUILD_DURING_DEPLOYMENT=true"
             "WEBSITE_HTTPLOGGING_RETENTION_DAYS=3"
           )
+          if [[ "${PRESERVED_MINIAPP_CONFIGURED}" == "false" ]]; then
+            app_settings+=("PRAXYS_DISABLE_MINIAPP_PROCESSING=false")
+          fi
           if [[ -n "${WECHAT_MINIAPP_APPID}" ]]; then
             app_settings+=(
               "WECHAT_MINIAPP_APPID=${WECHAT_MINIAPP_APPID}"
@@ -318,7 +365,7 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --always-on true
 
-      - name: Verify Web alpha runtime controls
+      - name: Verify production runtime controls
         shell: bash
         run: |
           set -euo pipefail
@@ -332,8 +379,12 @@ jobs:
               <<< "${settings}"
           }
           labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
-          [[ "${labs_mode}" == "inline" || "${labs_mode}" == "disabled" ]]
-          test "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" = true
+          [[ "${labs_mode}" == "inline" \
+            || "${labs_mode}" == "service_bus" \
+            || "${labs_mode}" == "disabled" ]]
+          [[ "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
+            == "true" || "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
+            == "false" ]]
 
       - name: Cut over backend telemetry and alerts
         if: steps.mode.outputs.sync_config == 'true'
@@ -373,6 +424,7 @@ jobs:
         env:
           EXPECTED_CN_DISABLED: ${{ steps.preserved.outputs.cn_disabled }}
           EXPECTED_AI_DISABLED: ${{ steps.preserved.outputs.ai_disabled }}
+          EXPECTED_MINIAPP_DISABLED: ${{ steps.preserved.outputs.miniapp_disabled }}
           EXPECTED_CORS: ${{ steps.preserved.outputs.cors }}
         shell: bash
         run: |
@@ -387,6 +439,7 @@ jobs:
               <<< "${version_payload}" >/dev/null 2>&1 \
             && jq -e \
                 --argjson expectedCnDisabled "${EXPECTED_CN_DISABLED}" \
+                --argjson expectedMiniappDisabled "${EXPECTED_MINIAPP_DISABLED}" \
                 --argjson expectedAiDisabled "${EXPECTED_AI_DISABLED}" \
                 '.status == "ready"
                  and (.china_processing.enabled | type == "boolean")
@@ -395,8 +448,8 @@ jobs:
                  and .china_processing.enabled == ($expectedCnDisabled | not)
                  and (.china_processing.enabled
                    == (.china_processing.disabled | not))
-                 and .miniapp_processing.enabled == false
-                 and .miniapp_processing.disabled == true
+                 and .miniapp_processing.disabled == $expectedMiniappDisabled
+                 and .miniapp_processing.enabled == ($expectedMiniappDisabled | not)
                  and (.optional_processing.background_ai_enabled
                    | type == "boolean")
                  and (.optional_processing.background_ai_kill_switch

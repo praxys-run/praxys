@@ -33,14 +33,15 @@
 
 | Thing | Value | Source |
 |---|---|---|
-| Mainland web frontend | EdgeOne Makers Git-integrated project `praxys-cn`; static SPA only, protected `main`, managed HTTPS | [private-alpha decision](./cn-web-private-alpha.md), [tencent-frontend.md](./tencent-frontend.md) |
-| Preserved international frontend | Existing `.run` Azure/Cloudflare path; no China launch workflow mutation | [private-alpha decision](./cn-web-private-alpha.md) |
-| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net`; no mainland API or proxy | [private-alpha decision](./cn-web-private-alpha.md) |
+| Mainland web frontend | EdgeOne Makers Git-integrated project `praxys-cn`; static SPA only, protected `main`, managed HTTPS | [China launch decision](./cn-web-private-alpha.md), [tencent-frontend.md](./tencent-frontend.md) |
+| Preserved international frontend | Existing `.run` Azure/Cloudflare path; no China launch workflow mutation | [China launch decision](./cn-web-private-alpha.md) |
+| Preserved API boundary | `api.praxys.run` remains DNS-only and resolves to `trainsight-app.azurewebsites.net`; no mainland API or proxy | [China launch decision](./cn-web-private-alpha.md) |
 
 The design is dormant. One-time EdgeOne Git project, domain, DNS, and TLS setup
 is manual. The repository does not claim that any public hostname or provider
-setting is currently ready. Exact PIPIA acceptance and approval of the
-`china-production` environment remain human prerequisites to enable.
+setting is currently ready. The operator recorded the intended scope on
+2026-08-31; exact acceptance of the revised PIPIA, live control verification,
+and approval of the `china-production` environment remain human prerequisites.
 
 ## Hostnames
 
@@ -48,22 +49,24 @@ setting is currently ready. Exact PIPIA acceptance and approval of the
 |---|---|
 | API | `https://api.praxys.run` |
 | Web app | `https://www.praxys.run` |
-| Dormant mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (invite-only web alpha; human enable required) |
+| Dormant mainland web app | `https://praxys.cn` / `https://www.praxys.cn` (public registration follows the global gate; human enable required) |
 
 ## China processing boundary
 
 - Core authenticated processing remains in Azure East Asia (Hong Kong SAR)
-  under the pending exact human decision in
+  under the operator-recorded scope in
   [PIPIA-CN-2026-08-25-01](./cn-personal-information-impact-assessment.md).
 - `.cn` requests are classified by exact origin and carry the current notice,
   legal digest, and API contract. Legacy client source/version/release headers
   are ignored; source SHA remains diagnostic in deployed health metadata.
   Missing or stale compatibility claims fail before personal route processing.
-- The launch is web-only. Miniapp ordinary/auth processing is independently
-  fail-closed by `PRAXYS_DISABLE_MINIAPP_PROCESSING=true`; publication is
-  deferred and `launch-cn.yml` never changes that gate.
-- `.cn` browser App Insights, browser Statsig, and product-event telemetry are
-  disabled. The mini program also disables product events.
+- Existing Miniapp ordinary/auth processing remains enabled against
+  `api.praxys.run`; robot 5 development upload stays automatic while trial,
+  review, and production publication stay manual. `launch-cn.yml` never
+  uploads or publishes the Miniapp.
+- `.cn` browser Application Insights and web/Miniapp allowlisted product
+  events use the recorded minimized boundary. Browser Statsig remains disabled
+  on `.cn` pending issue #754.
 - Backend Statsig downloads rules and evaluates them locally with user logging
   and diagnostics disabled.
 - Ordinary production Azure AI is available under current Terms while
@@ -127,7 +130,7 @@ setting is currently ready. Exact PIPIA acceptance and approval of the
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md) · [deploy.md](./deploy.md)
-- [China web private alpha](./cn-web-private-alpha.md)
+- [China public web launch](./cn-web-private-alpha.md)
 - `docs/deployment.md` (one-time Azure setup) · `docs/perf-baselines/azure-provisioning.md`
 
 ---

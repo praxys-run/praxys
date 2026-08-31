@@ -130,15 +130,21 @@ def test_launch_exact_cors_preconditions_verification_and_compensation() -> None
     assert "rights_cors=verified" in disable
 
 
-def test_launch_never_mutates_azure_ai_and_status_reports_required_state() -> None:
+def test_launch_preserves_run_parity_and_reports_required_state() -> None:
     workflow = _text(".github/workflows/launch-cn.yml")
     assert "PRAXYS_DISABLE_BACKGROUND_AI=" not in workflow
     assert "--settings PRAXYS_DISABLE_BACKGROUND_AI" not in workflow
     assert workflow.count("PRAXYS_DISABLE_BACKGROUND_AI") >= 4
     assert "test \"$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)\" = false" in workflow
     assert "background_ai_enabled == true" in workflow
+    assert ".registration_open == true" in workflow
     assert "PRAXYS_LABS_EXECUTION_MODE" in workflow
     assert '"${labs_mode}" == "inline"' in workflow
+    assert '"${labs_mode}" == "service_bus"' in workflow
+    assert (
+        'test "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" = false'
+        in workflow
+    )
     assert "required_status_checks" not in workflow
     assert "check-runs" not in workflow
     assert "upload-artifact" not in workflow
@@ -173,7 +179,7 @@ def test_backend_deploy_is_state_preserving_and_serialized() -> None:
     assert "--settings PRAXYS_DISABLE_BACKGROUND_AI" not in workflow
     assert "PRAXYS_DISABLE_BACKGROUND_AI=" not in workflow
     assert "china_processing.enabled | type" in workflow
-    assert ".miniapp_processing.disabled == true" in workflow
+    assert ".miniapp_processing.disabled == $expectedMiniappDisabled" in workflow
     assert "Wait for frontend protected-main provenance" not in workflow
     assert "Capture state preserved by deployment" in workflow
     assert "EXPECTED_CN_DISABLED" in workflow
@@ -185,9 +191,11 @@ def test_backend_deploy_is_state_preserving_and_serialized() -> None:
     assert "background_ai_enabled\n                   == ($expectedAiDisabled | not)" in workflow
 
 
-def test_backend_config_pins_miniapp_and_preserves_wechat_secrets() -> None:
+def test_backend_config_preserves_miniapp_and_wechat_secrets() -> None:
     workflow = _text(".github/workflows/deploy-backend.yml")
-    assert "PRAXYS_DISABLE_MINIAPP_PROCESSING=true" in workflow
+    assert 'PRESERVED_MINIAPP_CONFIGURED' in workflow
+    assert 'app_settings+=("PRAXYS_DISABLE_MINIAPP_PROCESSING=false")' in workflow
+    assert "PRAXYS_DISABLE_MINIAPP_PROCESSING=${PRESERVED_MINIAPP_DISABLED}" not in workflow
     assert "vars.PRAXYS_DISABLE_MINIAPP_PROCESSING" not in workflow
     assert "Set both WeChat Miniapp secrets or neither." in workflow
     assert 'if [[ -n "${WECHAT_MINIAPP_APPID}"' in workflow
@@ -200,7 +208,9 @@ def test_backend_config_pins_miniapp_and_preserves_wechat_secrets() -> None:
     assert 'WECHAT_MINIAPP_SECRET="${WECHAT_MINIAPP_SECRET}"' not in settings_call
     assert '"${PRAXYS_LABS_EXECUTION_MODE}" == "inline"' in workflow
     assert '"${PRAXYS_LABS_EXECUTION_MODE}" == "disabled"' in workflow
-    assert '"service_bus"' not in workflow
+    assert '"${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus"' in workflow
+    assert "az servicebus namespace list" in workflow
+    assert "PRAXYS_LABS_SERVICE_BUS_FQDN=${LABS_SERVICE_BUS_FQDN}" in workflow
     assert "GITHUB_STEP_SUMMARY" in workflow
     assert "China processing enabled" in workflow
     assert "Miniapp processing enabled" in workflow
@@ -232,7 +242,8 @@ def test_frontend_keeps_run_first_and_edgeone_build_simple() -> None:
     assert "deploy_edgeone:" not in workflow
     assert "npx edgeone" not in workflow
     assert "VITE_API_URL: \"https://api.praxys.run\"" in edge_build_script
-    assert 'VITE_APPINSIGHTS_CONNECTION_STRING: ""' in edge_build_script
+    assert "EdgeOne requires VITE_APPINSIGHTS_CONNECTION_STRING" in edge_build_script
+    assert "VITE_APPINSIGHTS_CONNECTION_STRING: regionalAppInsights" in edge_build_script
     assert 'VITE_STATSIG_CLIENT_KEY: ""' in edge_build_script
     assert "stampChinaCompliance" in edge_metadata
     assert "deployed_sha.txt" in edge_metadata
@@ -305,11 +316,12 @@ def test_obsolete_ceremony_is_removed_from_owned_operations_scope() -> None:
 
 
 def test_launch_is_the_only_cn_state_writer_and_docs_keep_five_origins() -> None:
-    cn_setting_write = "--settings PRAXYS_DISABLE_CN_PROCESSING="
+    cn_setting_write = "PRAXYS_DISABLE_CN_PROCESSING="
     writers = {
         path.name
         for path in WORKFLOWS.glob("*.yml")
         if cn_setting_write in path.read_text(encoding="utf-8")
+        and "--settings" in path.read_text(encoding="utf-8")
     }
     assert writers == {"launch-cn.yml"}
 

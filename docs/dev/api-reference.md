@@ -153,8 +153,9 @@ China clients have an earlier runtime precondition. `.cn` web requests carry
 the server-classified client channel plus notice version, policy digest, and
 API-contract headers. Legacy source/version/release headers are accepted and
 ignored. Missing or stale compatibility claims receive HTTP `428` with
-`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing. The initial China
-private alpha is web-only; Miniapp publication is deferred and not part of the
+`CLIENT_PRIVACY_UPDATE_REQUIRED` before route processing. The existing
+Miniapp remains enabled against `api.praxys.run`; its CI development upload
+and manual WeChat publication lifecycle remain independent from the China web
 launch workflow.
 
 ### GET /api/me/export

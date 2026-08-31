@@ -18,6 +18,11 @@ most one 1-vCPU/2-GiB execution globally, processes one message, and exits.
 Current-Terms/channel authorization, source revision, consent, correlation,
 and deletion-tombstone fences are rechecked before private computation and
 before a result is written.
+The API publishes its effective CN/Miniapp switches as one atomic
+`app_config` snapshot at process startup. Readiness only compares it and never
+rewrites it. The isolated worker reads that shared snapshot at every
+private-data fence and share-locks it through result commit; missing, malformed,
+or stale authority fails closed.
 
 `PRAXYS_LABS_EXECUTION_MODE=service_bus` never falls back to API-process
 compute. Dispatch failures remain in the transactional outbox for retry.
@@ -359,11 +364,20 @@ instead of misclassifying eligible users as revoked.
 
 ### 5. Cut over the backend
 
-Deferred during the web private alpha. `deploy-backend.yml` accepts only
-`inline` or `disabled` so the process-local China switch cannot drift in an
-isolated worker. A future Miniapp/Labs lifecycle must separately review and
-restore the `service_bus` cutover procedure. Do not set the variable to
-`service_bus` now.
+The public China scope preserves `service_bus`. Set it only after the worker
+image for the exact backend commit, tagged namespace/queue, sender/receiver
+RBAC, database principal, shared live China/Miniapp processing authority, and
+alerts have passed this runbook. `deploy-backend.yml` rejects the cutover when
+the worker deployment gate is not enabled or its deployed image does not match
+the backend commit.
+
+```bash
+gh variable set PRAXYS_LABS_EXECUTION_MODE --body "service_bus"
+gh workflow run deploy-backend.yml --ref main -f sync_config=true
+```
+
+If any prerequisite is unverified, keep `inline`. Use `disabled` only for a
+bounded maintenance/drain transition; it is not an ordinary production mode.
 
 ## Verify
 

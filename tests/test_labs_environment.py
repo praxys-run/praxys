@@ -2159,12 +2159,23 @@ def test_worker_rechecks_authorization_immediately_before_result_commit(
     original_require = labs_environment._require_processing_authorized
     require_calls = 0
 
-    def disable_at_result_commit(db, called_user_id):
+    def disable_at_result_commit(
+        db,
+        called_user_id,
+        *,
+        shared_channel_authority=False,
+        lock_channel_authority=False,
+    ):
         nonlocal require_calls
         require_calls += 1
         if require_calls == 3:
             monkeypatch.setenv(DISABLE_CN_PROCESSING_ENV, "true")
-        original_require(db, called_user_id)
+        original_require(
+            db,
+            called_user_id,
+            shared_channel_authority=shared_channel_authority,
+            lock_channel_authority=lock_channel_authority,
+        )
 
     monkeypatch.setattr(
         labs_environment,
@@ -2583,6 +2594,95 @@ def test_worker_startup_check_initializes_database_without_receiving(
     ]
 
 
+def test_shared_channel_authority_reconciles_atomically(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, _ = labs_client
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+        shared_channel_processing_snapshot,
+    )
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "false")
+    with db_session.SessionLocal() as db:
+        assert reconcile_channel_processing_authority(db) == {
+            "cn-web": True,
+            "wechat-miniapp": True,
+        }
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "true")
+    with db_session.SessionLocal() as db:
+        assert reconcile_channel_processing_authority(db) == {
+            "cn-web": False,
+            "wechat-miniapp": True,
+        }
+        assert shared_channel_processing_snapshot(db) == {
+            "cn-web": False,
+            "wechat-miniapp": True,
+        }
+
+
+def test_isolated_worker_uses_shared_authority_without_app_service_env(
+    labs_client,
+    monkeypatch,
+) -> None:
+    _, db_session, user_id = labs_client
+    from api import labs_environment, labs_worker
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
+    from api.china_client_boundary import CN_WEB_CLIENT
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    from db.models import LabsExperimentResult, TermsAcceptanceReceipt
+
+    monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    monkeypatch.setenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", "false")
+    with db_session.SessionLocal() as db:
+        reconcile_channel_processing_authority(db)
+        db.add(TermsAcceptanceReceipt(
+            user_id=user_id,
+            action=TERMS_ACCEPTANCE_ACTION,
+            terms_version=TERMS_VERSION,
+            terms_digest=TERMS_CONTENT_DIGEST,
+            channel=CN_WEB_CLIENT,
+            accepted_at=datetime.utcnow(),
+        ))
+        decision = labs_environment.enroll(
+            db,
+            user_id,
+            adult_attested=True,
+            consent_version=labs_environment.CONSENT_VERSION,
+        )
+        job_id = decision.job.id
+
+    monkeypatch.delenv("PRAXYS_DISABLE_CN_PROCESSING", raising=False)
+    monkeypatch.delenv("PRAXYS_DISABLE_MINIAPP_PROCESSING", raising=False)
+    monkeypatch.setattr(
+        labs_environment,
+        "_build_private_dataset_bundle",
+        lambda *_args: {"private": "memory-only"},
+    )
+    monkeypatch.setattr(
+        labs_environment,
+        "build_environment_response_result",
+        lambda *_args: _aggregate_result(),
+    )
+
+    outcome = labs_worker.process_environment_response_job(
+        job_id, reclaim_processing=True,
+    )
+
+    assert outcome.outcome == "completed"
+    with db_session.SessionLocal() as db:
+        assert db.get(
+            LabsExperimentResult,
+            (user_id, labs_environment.EXPERIMENT_ID),
+        ) is not None
+
+
 def test_worker_fails_before_receive_when_feature_gates_are_unavailable(
     monkeypatch,
 ) -> None:
@@ -2624,6 +2724,14 @@ def test_worker_infrastructure_provisions_gate_identity() -> None:
     bicep = (root / "infra" / "labs-worker.bicep").read_text(
         encoding="utf-8",
     )
+    migration = (
+        root
+        / "alembic/versions/e1f2a3b4c5d6_grant_worker_channel_authority.py"
+    ).read_text(encoding="utf-8")
+    assert "GRANT SELECT (key, value) ON TABLE app_config" in migration
+    assert "terms_acceptance_receipts" in migration
+    assert "GRANT SELECT ON TABLE labs_analysis_outbox" in migration
+    assert "GRANT UPDATE (status, lease_expires_at" in migration
     workflow = (
         root / ".github" / "workflows" / "deploy-labs-worker.yml"
     ).read_text(encoding="utf-8")
@@ -2681,6 +2789,7 @@ def test_worker_database_verification_checks_exact_grants(
             return None
 
     database = Database()
+    shared_checked: list[object] = []
     monkeypatch.setattr(
         db_session,
         "SessionLocal",
@@ -2691,10 +2800,18 @@ def test_worker_database_verification_checks_exact_grants(
         "verify_labs_worker_grants",
         lambda db: checked.append(db),
     )
+    monkeypatch.setattr(
+        "api.channel_processing_authority.shared_channel_processing_snapshot",
+        lambda db: (shared_checked.append(db) or {
+            "cn-web": False,
+            "wechat-miniapp": True,
+        }),
+    )
 
     labs_worker._verify_database_connection()
 
     assert checked == [database]
+    assert shared_checked == [database]
 
 
 def test_backend_deploy_supports_manual_cutover() -> None:
@@ -2760,6 +2877,46 @@ def test_startup_check_override_preserves_live_job_configuration() -> None:
     )
     assert startup_template["volumes"] == template["volumes"]
     assert "command" not in template["containers"][0]
+
+
+def test_startup_check_waits_for_success(monkeypatch, tmp_path) -> None:
+    from scripts import start_labs_worker_check as check
+
+    monkeypatch.setattr(
+        check,
+        "_read_live_template",
+        lambda *_args: {
+            "containers": [{"name": "labs-worker"}],
+        },
+    )
+    observed: list[list[str]] = []
+
+    class Result:
+        def __init__(self, stdout: str):
+            self.stdout = stdout
+
+    responses = iter([
+        Result('{"name":"worker-check-1"}'),
+        Result("Running\n"),
+        Result("Succeeded\n"),
+    ])
+
+    def run(args, **_kwargs):
+        observed.append(list(args))
+        return next(responses)
+
+    monkeypatch.setattr(check.subprocess, "run", run)
+    monkeypatch.setattr(check.time, "sleep", lambda _seconds: None)
+
+    execution = check.start_startup_check(
+        "rg", "worker", container_name="labs-worker",
+    )
+
+    assert execution == "worker-check-1"
+    assert sum(
+        "execution" in args and "show" in args
+        for args in observed
+    ) == 2
 
 
 def test_worker_sqlalchemy_engine_hides_parameters(monkeypatch) -> None:

@@ -75,6 +75,14 @@ def _verify_database_connection() -> None:
         raise RuntimeError("Labs worker database session was not initialized")
     with db_session.SessionLocal() as db:
         verify_labs_worker_grants(db)
+        from api.channel_processing_authority import (
+            shared_channel_processing_snapshot,
+        )
+
+        if shared_channel_processing_snapshot(db) is None:
+            raise RuntimeError(
+                "Labs worker shared channel authority is unavailable"
+            )
 
 
 def startup_check() -> None:
@@ -97,6 +105,7 @@ def process_environment_response_job(
     return process_job(
         job_id,
         reclaim_processing=reclaim_processing,
+        shared_channel_authority=True,
     )
 
 

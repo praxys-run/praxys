@@ -127,8 +127,8 @@ export default function ChinaProcessingNoticeGate({
         <div className="mt-6 rounded-lg border border-accent-cobalt/30 bg-accent-cobalt/5 p-4">
           <p className="text-sm leading-6 text-foreground">
             {zh
-              ? "Azure 核心托管与 Azure AI 处理是不同功能。普通服务的已列明 AI 用途由当前条款和服务端运行状态授权，不另设退出选项；输入按账号、用途和字段最小化。中国版网页的浏览器分析与产品遥测已关闭。"
-              : "Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field. Browser analytics and product telemetry are disabled on the China web deployment."}
+              ? "Azure 核心托管与 Azure AI 处理是不同功能。普通服务的已列明 AI 用途由当前条款和服务端运行状态授权，不另设退出选项；输入按账号、用途和字段最小化。中国版网页仅发送经最小化的性能、请求和白名单产品事件；浏览器 Statsig 保持关闭。"
+              : "Azure core hosting and Azure AI processing are distinct functions. Current Terms and server runtime state authorize the enumerated AI purposes for ordinary service; there is no separate opt-out, and inputs are minimized by account, purpose, and field. The China web deployment sends only minimized performance, request, and allowlisted product events; browser Statsig remains disabled."}
           </p>
         </div>
 

@@ -39,7 +39,8 @@ def ready_env(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
     from api.main import app
 
-    return TestClient(app), db_session
+    with TestClient(app) as client:
+        yield client, db_session
 
 
 def test_health_ready_ok(ready_env):
@@ -105,6 +106,12 @@ def test_health_ready_allows_cn_processing_without_registry(
 ):
     client, _ = ready_env
     monkeypatch.setenv("PRAXYS_DISABLE_CN_PROCESSING", "false")
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+    )
+
+    with ready_env[1].SessionLocal() as db:
+        reconcile_channel_processing_authority(db)
 
     r = client.get("/api/health/ready")
 

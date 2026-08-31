@@ -36,6 +36,14 @@ function runWebBuild(environment) {
 }
 
 const sourceSha = await resolveSourceSha();
+const regionalAppInsights =
+  process.env.VITE_APPINSIGHTS_CONNECTION_STRING?.trim() ?? "";
+if (!regionalAppInsights) {
+  throw new Error(
+    "EdgeOne requires VITE_APPINSIGHTS_CONNECTION_STRING for regional "
+    + "availability and performance telemetry.",
+  );
+}
 const environment = {};
 for (const name of [
   "PATH",
@@ -57,7 +65,7 @@ Object.assign(environment, {
   VITE_API_URL: "https://api.praxys.run",
   VITE_APP_VERSION: sourceSha.slice(0, 12),
   VITE_SOURCE_SHA: sourceSha,
-  VITE_APPINSIGHTS_CONNECTION_STRING: "",
+  VITE_APPINSIGHTS_CONNECTION_STRING: regionalAppInsights,
   VITE_STATSIG_CLIENT_KEY: "",
   VITE_STATSIG_ENV: "production",
 });

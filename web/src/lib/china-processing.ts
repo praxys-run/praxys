@@ -4,6 +4,8 @@ import { isChinaFrontendDeployment } from "./runtime-region.ts";
 export const CHINA_PROCESSING_NOTICE_VERSION = TERMS_VERSION;
 export const CHINA_PROCESSING_NOTICE_STORAGE_KEY =
   "praxys.cn-processing-notice";
+export const CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT =
+  "praxys:china-processing-notice-acknowledged";
 
 const PUBLIC_PATHS = new Set([
   "/",
@@ -71,6 +73,11 @@ export function acknowledgeChinaProcessingNotice(
   } catch {
     // The in-memory receipt still permits this page session. A future visit
     // will show the notice again when persistent storage is unavailable.
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new Event(CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT),
+    );
   }
 }
 

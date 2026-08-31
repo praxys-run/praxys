@@ -29,12 +29,17 @@ optional Coach-feedback comment, is PII/secret-scrubbed, whitespace-collapsed,
 and truncated to 120 characters before it reaches telemetry; the raw comment is
 never persisted or logged.
 
-For the invite-only web private alpha, browser Application Insights, Statsig,
-and product-event telemetry are absent from the stamped `.cn` artifact.
-Miniapp publication is deferred. Essential backend request/security telemetry remains
-in `appi-praxys-backend` in East Asia (Hong Kong), with the backend component
-and shared workspace configured for 30-day retention. Server-side Statsig
-evaluations are local and disable both user-event logging and SDK diagnostics.
+For the public China launch, regional browser Application Insights is limited
+to sanitized page/dependency/performance data: URL query/fragment values are
+removed and automatic exception capture is disabled. Web and Miniapp product
+events contain allowlisted event names, surface/build metadata, and bounded
+response enums; the backend derives the pseudonymous account hash and rejects
+extra fields. Browser Statsig is absent from the stamped `.cn` artifact
+pending [#754](https://github.com/praxys-run/praxys/issues/754). Essential
+backend request/security telemetry remains in `appi-praxys-backend` in East
+Asia (Hong Kong). Frontend/backend Application Insights and the shared
+workspace use 30-day retention. Server-side Statsig evaluations are local and
+disable both user-event logging and SDK diagnostics.
 These controls are part of
 [`PIPIA-CN-2026-08-25-01`](./cn-personal-information-impact-assessment.md).
 `launch-cn.yml` `status` does not inspect availability tests or alert rules.

@@ -19,6 +19,12 @@ TABLE_PRIVILEGES: dict[str, tuple[str, ...]] = {
 }
 
 COLUMN_PRIVILEGES: dict[str, dict[str, tuple[str, ...]]] = {
+    "app_config": {
+        "SELECT": (
+            "key",
+            "value",
+        ),
+    },
     "users": {
         "SELECT": (
             "id",

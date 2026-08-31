@@ -1,4 +1,4 @@
-name: China web private alpha
+name: China web launch
 on:
   workflow_dispatch:
     inputs:
@@ -65,9 +65,11 @@ jobs:
           ai_disabled="$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)"
           labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
           [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
-          test "${miniapp_disabled}" = true
+          test "${miniapp_disabled}" = false
           [[ "${ai_disabled}" == "true" || "${ai_disabled}" == "false" ]]
-          [[ "${labs_mode}" == "inline" || "${labs_mode}" == "disabled" ]]
+          [[ "${labs_mode}" == "inline" \
+            || "${labs_mode}" == "service_bus" \
+            || "${labs_mode}" == "disabled" ]]
           filtered="$(jq -c '[.[] | select(
             .name == "PRAXYS_DISABLE_CN_PROCESSING"
             or .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING"
@@ -126,12 +128,13 @@ jobs:
             core_ok=false
           elif ! jq -e \
             --argjson cnDisabled "${cn_disabled}" \
+            --argjson miniappDisabled "${miniapp_disabled}" \
             --argjson aiDisabled "${ai_disabled}" \
             '.status == "ready"
              and .china_processing.disabled == $cnDisabled
              and .china_processing.enabled == ($cnDisabled | not)
-             and .miniapp_processing.disabled == true
-             and .miniapp_processing.enabled == false
+             and .miniapp_processing.disabled == $miniappDisabled
+             and .miniapp_processing.enabled == ($miniappDisabled | not)
              and .optional_processing.background_ai_kill_switch == $aiDisabled
              and .optional_processing.background_ai_enabled == ($aiDisabled | not)' \
             <<< "${api_ready}" >/dev/null; then
@@ -206,7 +209,7 @@ jobs:
                 readiness: $apiReadiness},
               run_health: $runHealth, cn_hosts: $cnHosts}')"
           {
-            echo "## China web private-alpha status"
+            echo "## China web launch status"
             echo
             echo "**Read-only: no setting, CORS, frontend, or Miniapp mutation was performed.**"
             echo '```json'
@@ -276,10 +279,10 @@ jobs:
           }
           cn_disabled="$(read_setting PRAXYS_DISABLE_CN_PROCESSING)"
           [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
-          test "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" = true
+          test "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" = false
           test "$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)" = false
           labs_mode="$(read_setting PRAXYS_LABS_EXECUTION_MODE)"
-          [[ "${labs_mode}" == "inline" || "${labs_mode}" == "disabled" ]]
+          test "${labs_mode}" = service_bus
 
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
@@ -304,12 +307,22 @@ jobs:
 
           test "$(curl -fsS --max-time 12 \
             https://api.praxys.run/api/health | jq -r .status)" = ok
+          public_config="$(curl -fsS --max-time 12 \
+            https://api.praxys.run/api/public/config)"
+          jq -e '.registration_open == true' \
+            <<< "${public_config}" >/dev/null
           api_version="$(curl -fsS --max-time 12 \
             https://api.praxys.run/api/version)"
           api_sha="$(jq -er .source_sha <<< "${api_version}")"
           jq -e '(.version | type == "string" and length > 0)' \
             <<< "${api_version}" >/dev/null
           require_main_ancestor API "${api_sha}"
+          expected_worker_image="ghcr.io/praxys-run/praxys-labs-worker:${api_sha}"
+          deployed_worker_image="$(az containerapp job show \
+            --name praxys-labs-environment-worker \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "properties.template.containers[0].image" -o tsv)"
+          test "${deployed_worker_image}" = "${expected_worker_image}"
 
           ready="$(curl -fsS --max-time 12 \
             https://api.praxys.run/api/health/ready)"
@@ -317,7 +330,7 @@ jobs:
             .status == "ready"
             and .china_processing.disabled == $cnDisabled
             and .china_processing.enabled == ($cnDisabled | not)
-            and .miniapp_processing.disabled == true
+            and .miniapp_processing.enabled == true
             and .optional_processing.background_ai_enabled == true' \
             <<< "${ready}" >/dev/null
 
@@ -405,7 +418,7 @@ jobs:
               https://api.praxys.run/api/health/ready 2>/dev/null || true)"
             jq -e '.status == "ready"
               and .china_processing.enabled == true
-              and .miniapp_processing.disabled == true
+              and .miniapp_processing.enabled == true
               and .optional_processing.background_ai_enabled == true' \
               <<< "${ready}" >/dev/null 2>&1 && break
             sleep 10
@@ -491,7 +504,7 @@ jobs:
               = CLIENT_PRIVACY_UPDATE_REQUIRED
           done
           {
-            echo "## China web private-alpha enable"
+            echo "## China web launch enable"
             echo
             echo "- Dispatch: \`${GITHUB_SHA}\`"
             echo "- API: \`${api_sha}\`"
@@ -499,7 +512,7 @@ jobs:
             for item in "${cn_shas[@]}"; do
               echo "- ${item%%=*}: \`${item#*=}\`"
             done
-            echo "- Miniapp processing remained disabled."
+            echo "- Miniapp processing remained enabled."
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Compensate failed or cancelled enable
         if: >-
@@ -535,13 +548,13 @@ jobs:
               https://api.praxys.run/api/health/ready 2>/dev/null || true)"
             jq -e '.status == "ready"
               and .china_processing.disabled == true
-              and .miniapp_processing.disabled == true' \
+              and .miniapp_processing.enabled == true' \
               <<< "${ready}" >/dev/null 2>&1 && break
             sleep 10
           done
           jq -e '.status == "ready"
             and .china_processing.disabled == true
-            and .miniapp_processing.disabled == true' \
+            and .miniapp_processing.enabled == true' \
             <<< "${ready}" >/dev/null
 
   disable:
@@ -570,6 +583,12 @@ jobs:
             --query "[?name=='PRAXYS_DISABLE_BACKGROUND_AI'].value | [0]" \
             -o tsv)"
           [[ "${ai}" == "true" || "${ai}" == "false" ]]
+          miniapp="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_DISABLE_MINIAPP_PROCESSING'].value | [0]" \
+            -o tsv)"
+          [[ "${miniapp}" == "true" || "${miniapp}" == "false" ]]
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -581,11 +600,15 @@ jobs:
             --argjson enabled "${enabled_cors}" \
             'sort == ($base | sort) or sort == ($enabled | sort)' \
             <<< "${cors}" >/dev/null
-          echo "ai=${ai}" >> "${GITHUB_OUTPUT}"
-          echo "cors=$(jq -c sort <<< "${cors}")" >> "${GITHUB_OUTPUT}"
+          {
+            echo "ai=${ai}"
+            echo "miniapp=${miniapp}"
+            echo "cors=$(jq -c sort <<< "${cors}")"
+          } >> "${GITHUB_OUTPUT}"
       - name: Disable and verify China web processing
         env:
           EXPECTED_AI: ${{ steps.before.outputs.ai }}
+          EXPECTED_MINIAPP: ${{ steps.before.outputs.miniapp }}
           EXPECTED_CORS: ${{ steps.before.outputs.cors }}
         shell: bash
         run: |
@@ -604,6 +627,9 @@ jobs:
           test "$(jq -r '.[] | select(
             .name == "PRAXYS_DISABLE_BACKGROUND_AI").value' \
             <<< "${settings}")" = "${EXPECTED_AI}"
+          test "$(jq -r '.[] | select(
+            .name == "PRAXYS_DISABLE_MINIAPP_PROCESSING").value' \
+            <<< "${settings}")" = "${EXPECTED_MINIAPP}"
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -616,7 +642,10 @@ jobs:
               <<< "${ready}" >/dev/null 2>&1 && break
             sleep 10
           done
-          jq -e '.china_processing.disabled == true' \
+          jq -e --argjson miniappDisabled "${EXPECTED_MINIAPP}" \
+            '.china_processing.disabled == true
+             and .miniapp_processing.disabled == $miniappDisabled
+             and .miniapp_processing.enabled == ($miniappDisabled | not)' \
             <<< "${ready}" >/dev/null
           rights_cors=not-configured
           enabled_cors="$(jq -cn \
@@ -635,7 +664,7 @@ jobs:
             done
           fi
           {
-            echo "## China web private-alpha disable"
+            echo "## China web launch disable"
             echo
             echo "The server processing gate is disabled."
             echo "CORS and Azure AI were unchanged."
