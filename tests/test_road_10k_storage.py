@@ -351,22 +351,21 @@ def test_prepared_account_deletion_marker_replays_after_db_commit_without_commit
     monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
     engine = create_engine(f"sqlite:///{tmp_path / "prepared-replay.db"}")
     Base.metadata.create_all(engine)
-    key = "feedback/7/0.png"
-    object_path = Path(tmp_path) / "feedback_images" / key
-    object_path.parent.mkdir(parents=True, exist_ok=True)
-    object_path.write_bytes(b"restored-screenshot")
-
     with Session(engine) as db:
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(
-            Feedback(
-                user_id="owner",
-                kind="other",
-                message="private",
-                image_keys=[key],
-            )
+        feedback = Feedback(
+            user_id="owner",
+            kind="other",
+            message="private",
         )
+        db.add(feedback)
+        db.flush()
+        key = f"feedback/{feedback.id}/0.png"
+        feedback.image_keys = [key]
         db.commit()
+        object_path = Path(tmp_path) / "feedback_images" / key
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(b"restored-screenshot")
         manifests = prepare_account_deletion(db, user_id="owner")
         record_deletion_obligations(db, manifests)
         # Simulate a crash after the account transaction commits but before the
@@ -403,15 +402,21 @@ def test_committed_obligation_rejects_tampered_or_missing_marker(
     monkeypatch.setattr("db.session.get_data_dir", lambda: str(tmp_path))
     engine = create_engine(f"sqlite:///{tmp_path / 'tampered-marker.db'}")
     Base.metadata.create_all(engine)
-    key = "feedback/7/0.png"
-    object_path = Path(tmp_path) / "feedback_images" / key
-    object_path.parent.mkdir(parents=True, exist_ok=True)
-    object_path.write_bytes(b"private")
-
     with Session(engine) as db:
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(Feedback(user_id="owner", kind="other", message="private", image_keys=[key]))
+        feedback = Feedback(
+            user_id="owner",
+            kind="other",
+            message="private",
+        )
+        db.add(feedback)
+        db.flush()
+        key = f"feedback/{feedback.id}/0.png"
+        feedback.image_keys = [key]
         db.commit()
+        object_path = Path(tmp_path) / "feedback_images" / key
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(b"private")
         manifests = prepare_account_deletion(db, user_id="owner")
         record_deletion_obligations(db, manifests)
         db.commit()
@@ -469,12 +474,66 @@ def test_account_deletion_stages_feedback_image_keys_before_row_removal(
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(Feedback(user_id="owner", kind="other", message="private", image_keys=["feedback/7/0.png"]))
+        feedback = Feedback(
+            user_id="owner",
+            kind="other",
+            message="private",
+        )
+        db.add(feedback)
+        db.flush()
+        key = f"feedback/{feedback.id}/0.png"
+        feedback.image_keys = [key]
         db.commit()
 
         manifests = prepare_account_deletion(db, user_id="owner")
-        assert [manifest["screenshot_keys"] for manifest in manifests] == [["feedback/7/0.png"]]
-        assert db.query(Feedback).filter(Feedback.user_id == "owner").one().image_keys == ["feedback/7/0.png"]
+        assert [manifest["screenshot_keys"] for manifest in manifests] == [[key]]
+        assert db.query(Feedback).filter(Feedback.user_id == "owner").one().image_keys == [key]
+
+
+@pytest.mark.parametrize(
+    "object_key",
+    [
+        "feedback/8/0.png",
+        "feedback/7/../../other.png",
+        "road-10k/screenshots/11111111-1111-4111-8111-111111111111.png",
+    ],
+)
+def test_account_deletion_rejects_unbound_feedback_locator(
+    tmp_path,
+    monkeypatch,
+    object_key,
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from api.road_10k_control import (
+        Road10KDeletionFailed,
+        prepare_account_deletion,
+    )
+    from db.models import Base, Feedback, User
+
+    monkeypatch.setattr(storage, "_test_store", _MemoryManifestStore())
+    engine = create_engine(f"sqlite:///{tmp_path / 'unbound-feedback.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
+        row = Feedback(
+            user_id="owner",
+            kind="other",
+            message="private",
+        )
+        db.add(row)
+        db.flush()
+        assert row.id == 1
+        row.image_keys = [object_key]
+        db.commit()
+
+        with pytest.raises(
+            Road10KDeletionFailed,
+            match="invalid_feedback_locator",
+        ):
+            prepare_account_deletion(db, user_id="owner")
+        assert storage._test_store.items == {}
 
 
 def test_evaluation_retention_is_creation_based_until_explicit_purge(
@@ -659,14 +718,14 @@ def test_feedback_manifest_storage_error_is_normalized(
     monkeypatch.setattr(road_10k_control, "stage_manifest", fail_stage)
     with Session(engine) as db:
         db.add(User(id="owner", email="owner@example.test", hashed_password="x"))
-        db.add(
-            Feedback(
-                user_id="owner",
-                kind="other",
-                message="private",
-                image_keys=["feedback/7/0.png"],
-            )
+        feedback = Feedback(
+            user_id="owner",
+            kind="other",
+            message="private",
         )
+        db.add(feedback)
+        db.flush()
+        feedback.image_keys = [f"feedback/{feedback.id}/0.png"]
         db.commit()
 
         with pytest.raises(

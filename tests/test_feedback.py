@@ -1772,6 +1772,29 @@ def test_storage_delete_rejects_missing_container(monkeypatch, tmp_path):
         fs.delete_image("feedback/42/0.png", feedback_id=42)
 
 
+def test_private_replay_rejects_missing_container_as_provider_failure(
+    monkeypatch,
+):
+    from azure.core.exceptions import ResourceNotFoundError
+    from api import feedback_storage as fs
+
+    class Blob:
+        def delete_blob(self, **_kwargs):
+            error = ResourceNotFoundError("container not found")
+            error.error_code = "ContainerNotFound"
+            raise error
+
+    class Client:
+        def get_blob_client(self, _key, **_kwargs):
+            return Blob()
+
+    monkeypatch.setattr(fs, "_use_blob", lambda: True)
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: Client())
+
+    with pytest.raises(OSError, match="private Blob deletion failed"):
+        fs.delete_private_object("feedback/42/0.png")
+
+
 def test_storage_delete_fails_closed_when_configured_blob_is_unavailable(
     monkeypatch, tmp_path
 ):

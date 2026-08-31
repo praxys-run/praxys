@@ -68,6 +68,9 @@ MAX_IMAGE_COUNT = 3
 _KEY_RE = re.compile(
     r"^feedback/(?P<feedback_id>\d+)/\d+\.(png|jpg|jpeg|webp)$"
 )
+_ROAD_10K_KEY_RE = re.compile(
+    r"^road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)$"
+)
 
 
 class FeedbackStorageDeletionError(RuntimeError):
@@ -249,6 +252,12 @@ def image_storage_key(data: bytes, *, feedback_id: int, index: int) -> str:
     return f"feedback/{feedback_id}/{index}.{ext}"
 
 
+def feedback_key_belongs_to(key: str, *, feedback_id: int) -> bool:
+    """Return whether a server-shaped key belongs to one feedback row."""
+    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    return match is not None and int(match.group("feedback_id")) == feedback_id
+
+
 def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
     """Persist one screenshot and return its storage key, or ``None`` on failure.
 
@@ -372,8 +381,7 @@ def delete_image(key: str, *, feedback_id: int) -> None:
     success while a screenshot may remain. When Blob is configured, an exact
     legacy local copy is also removed after the Blob result is known.
     """
-    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
-    if match is None or int(match.group("feedback_id")) != feedback_id:
+    if not feedback_key_belongs_to(key, feedback_id=feedback_id):
         raise FeedbackStorageDeletionError(
             "Feedback image key is invalid or belongs to another row"
         )
@@ -405,12 +413,7 @@ def delete_private_object(key: str) -> None:
     """Delete a server-created feedback or Road object for replay."""
     feedback_match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
     road_match = (
-        re.fullmatch(
-            r"road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)",
-            key,
-        )
-        if isinstance(key, str)
-        else None
+        _ROAD_10K_KEY_RE.fullmatch(key) if isinstance(key, str) else None
     )
     if feedback_match is None and road_match is None:
         raise ValueError("invalid private screenshot object key")
@@ -439,7 +442,7 @@ def _delete_blob_variants(client, key: str) -> None:
     try:
         blob.delete_blob(delete_snapshots="include")
     except Exception as exc:
-        if _blob_error_code(exc) != "BlobNotFound" and "not found" not in str(exc).lower():
+        if _blob_error_code(exc) != "BlobNotFound":
             raise OSError("private Blob deletion failed") from exc
     list_versions = getattr(client, "list_blob_versions", None)
     if callable(list_versions):
@@ -474,7 +477,7 @@ def _delete_blob_variants(client, key: str) -> None:
         try:
             client.get_blob_client(key, **kwargs).delete_blob()
         except Exception as exc:
-            if _blob_error_code(exc) != "BlobNotFound" and "not found" not in str(exc).lower():
+            if _blob_error_code(exc) != "BlobNotFound":
                 raise OSError("private Blob variant deletion failed") from exc
 
 

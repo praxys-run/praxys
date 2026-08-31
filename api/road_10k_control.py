@@ -21,6 +21,7 @@ from sqlalchemy.exc import (
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
+from api import feedback_storage
 from api.road_10k_deletion_storage import (
     Road10KDeletionStorageError,
     confirm_replay_ready,
@@ -1175,14 +1176,20 @@ def prepare_account_deletion(
     manifests: list[dict[str, object]] = []
     # Feedback image keys share the existing private deletion-manifest seam.
     # Stage them before Feedback rows are removed by account deletion.
-    feedback_keys = [
-        str(key)
-        for (keys,) in db.query(Feedback.image_keys)
+    feedback_keys: list[str] = []
+    feedback_rows = (
+        db.query(Feedback.id, Feedback.image_keys)
         .filter(Feedback.user_id == user_id)
         .all()
-        for key in (keys or [])
-        if isinstance(key, str) and key.startswith("feedback/")
-    ]
+    )
+    for feedback_id, keys in feedback_rows:
+        for key in keys or []:
+            if not feedback_storage.feedback_key_belongs_to(
+                key,
+                feedback_id=feedback_id,
+            ):
+                raise Road10KDeletionFailed("invalid_feedback_locator")
+            feedback_keys.append(key)
     if feedback_keys:
         try:
             manifests.append(
