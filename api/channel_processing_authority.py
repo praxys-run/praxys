@@ -3,7 +3,8 @@
 HTTP requests use App Service environment switches. The isolated Labs worker
 cannot see them, so each API process publishes one atomic snapshot at startup.
 Readiness only compares the snapshot; it never lets an old process rewrite it.
-Worker result commits share-lock the row, serializing with a later disable.
+Worker result commits take a shared transaction advisory lock, serializing
+with a later exclusive reconciliation without broadening table grants.
 """
 from __future__ import annotations
 
@@ -86,7 +87,22 @@ def shared_channel_processing_snapshot(
         AppConfig.key == CHANNEL_AUTHORITY_KEY
     )
     if lock_for_commit:
-        query = query.with_for_update(read=True)
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            db.execute(
+                text("SELECT pg_advisory_xact_lock_shared(:lock_key)"),
+                {"lock_key": _POSTGRES_ADVISORY_LOCK},
+            )
+        elif dialect == "sqlite":
+            # The result path already owns SQLite's serialized write
+            # transaction. Starting a nested BEGIN IMMEDIATE would fail.
+            if not db.in_transaction():
+                begin_serialized_write(db)
+        else:
+            raise RuntimeError(
+                "Unsupported processing-authority database dialect: "
+                f"{dialect}"
+            )
     row = query.one_or_none()
     decoded = _decode(None if row is None else row[1])
     if row is not None and decoded is None:

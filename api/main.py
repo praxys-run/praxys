@@ -499,7 +499,16 @@ def accept_terms(
     import logging
     from datetime import datetime, timezone
 
+    from db.cache_revision import lock_revision_writes
     from db.models import User
+    from db.session import begin_serialized_write
+
+    # Serialize a newly added China-channel receipt with any in-flight
+    # background result commit. Otherwise a worker could authorize against the
+    # previous receipt set and commit just after this request makes a disabled
+    # channel applicable to the user.
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")

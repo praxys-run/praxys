@@ -2624,6 +2624,70 @@ def test_shared_channel_authority_reconciles_atomically(
         }
 
 
+def test_postgres_worker_authority_uses_shared_advisory_lock() -> None:
+    from api.channel_processing_authority import (
+        shared_channel_processing_snapshot,
+    )
+
+    class _Dialect:
+        name = "postgresql"
+
+    class _Bind:
+        dialect = _Dialect()
+
+    class _Query:
+        def filter(self, *_args):
+            return self
+
+        def one_or_none(self):
+            return ("processing_authority.channels", (
+                '{"cn-web":true,"schema_version":1,'
+                '"wechat-miniapp":true}'
+            ))
+
+    class _Database:
+        statements: list[tuple[str, dict[str, int]]] = []
+
+        def get_bind(self):
+            return _Bind()
+
+        def execute(self, statement, parameters):
+            self.statements.append((str(statement), parameters))
+
+        def query(self, *_args):
+            return _Query()
+
+    db = _Database()
+
+    assert shared_channel_processing_snapshot(
+        db,
+        lock_for_commit=True,
+    ) == {"cn-web": True, "wechat-miniapp": True}
+    assert len(db.statements) == 1
+    assert "pg_advisory_xact_lock_shared" in db.statements[0][0]
+    assert "FOR UPDATE" not in db.statements[0][0]
+
+
+def test_sqlite_worker_authority_reuses_serialized_transaction(
+    labs_client,
+) -> None:
+    _, db_session, _ = labs_client
+    from api.channel_processing_authority import (
+        reconcile_channel_processing_authority,
+        shared_channel_processing_snapshot,
+    )
+    from db.session import begin_serialized_write
+
+    with db_session.SessionLocal() as db:
+        reconcile_channel_processing_authority(db)
+        begin_serialized_write(db)
+        assert shared_channel_processing_snapshot(
+            db,
+            lock_for_commit=True,
+        ) is not None
+        db.rollback()
+
+
 def test_isolated_worker_uses_shared_authority_without_app_service_env(
     labs_client,
     monkeypatch,
@@ -2788,8 +2852,11 @@ def test_worker_database_verification_checks_exact_grants(
         def __exit__(self, *_args: object) -> None:
             return None
 
+        def rollback(self) -> None:
+            return None
+
     database = Database()
-    shared_checked: list[object] = []
+    shared_checked: list[tuple[object, bool]] = []
     monkeypatch.setattr(
         db_session,
         "SessionLocal",
@@ -2802,7 +2869,8 @@ def test_worker_database_verification_checks_exact_grants(
     )
     monkeypatch.setattr(
         "api.channel_processing_authority.shared_channel_processing_snapshot",
-        lambda db: (shared_checked.append(db) or {
+        lambda db, *, lock_for_commit=False: (
+            shared_checked.append((db, lock_for_commit)) or {
             "cn-web": False,
             "wechat-miniapp": True,
         }),
@@ -2811,7 +2879,7 @@ def test_worker_database_verification_checks_exact_grants(
     labs_worker._verify_database_connection()
 
     assert checked == [database]
-    assert shared_checked == [database]
+    assert shared_checked == [(database, True)]
 
 
 def test_backend_deploy_supports_manual_cutover() -> None:

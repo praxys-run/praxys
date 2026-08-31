@@ -79,10 +79,14 @@ def _verify_database_connection() -> None:
             shared_channel_processing_snapshot,
         )
 
-        if shared_channel_processing_snapshot(db) is None:
+        if shared_channel_processing_snapshot(
+            db,
+            lock_for_commit=True,
+        ) is None:
             raise RuntimeError(
                 "Labs worker shared channel authority is unavailable"
             )
+        db.rollback()
 
 
 def startup_check() -> None:

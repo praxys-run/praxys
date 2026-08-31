@@ -21,7 +21,8 @@ before a result is written.
 The API publishes its effective CN/Miniapp switches as one atomic
 `app_config` snapshot at process startup. Readiness only compares it and never
 rewrites it. The isolated worker reads that shared snapshot at every
-private-data fence and share-locks it through result commit; missing, malformed,
+private-data fence and holds a shared transaction advisory lock through result
+commit; missing, malformed,
 or stale authority fails closed.
 
 `PRAXYS_LABS_EXECUTION_MODE=service_bus` never falls back to API-process

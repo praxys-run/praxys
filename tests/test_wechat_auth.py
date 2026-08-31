@@ -1248,6 +1248,45 @@ def test_accept_terms_rejects_mismatched_digest_without_new_receipt(
         db.close()
 
 
+def test_accept_terms_serializes_channel_receipt_with_background_commits(
+    wechat_client,
+    monkeypatch,
+):
+    email, password = "receipt-lock@example.com", "pw-123456"
+    registered = wechat_client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "accepted_terms": True,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    token = _login_token(wechat_client, email, password)
+
+    from db import cache_revision
+
+    locked_users: list[str] = []
+    monkeypatch.setattr(
+        cache_revision,
+        "lock_revision_writes",
+        lambda _db, user_id: locked_users.append(user_id),
+    )
+
+    accepted = wechat_client.post(
+        "/api/me/accept-terms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "terms_version": TERMS_VERSION,
+            "terms_digest": TERMS_CONTENT_DIGEST,
+            "locale": "en",
+        },
+    )
+
+    assert accepted.status_code == 200, accepted.text
+    assert len(locked_users) == 1
+
+
 def test_terms_acceptance_receipts_reject_updates(wechat_client):
     reg = wechat_client.post(
         "/api/auth/register",
