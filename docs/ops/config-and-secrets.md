@@ -359,6 +359,34 @@ workflow. Restore the reviewed repository MCP payload to roll back accidental
 drift. If the contract itself changes, update the config, agents, setup
 workflow, parity tests, and this runbook in the same PR.
 
+### Codex-local Microsoft MCP pilot
+
+Codex project configuration additionally registers two disabled-by-default,
+local-only extensions governed by
+`config/codex-local-mcp-extensions.json`. They are not copied into Copilot
+Cloud repository settings and do not change portable parity.
+
+- `microsoft-learn` reads public Microsoft documentation without a credential.
+  Architecture, Engineering, Operations, and Trust may use its three exact
+  documentation tools.
+- `azure-mcp` runs only for Operations, pinned to `@azure/mcp@2.0.5`, with
+  server-side `--read-only` and only subscription and resource-group listing.
+  Codex prompts for each tool call.
+
+The Azure MCP entry contains no credential or forwarded environment variable.
+Before an explicitly routed Operations diagnosis, authenticate interactively in
+the local developer environment using the intended tenant and subscription.
+Verify the active identity with ordinary Azure CLI commands; never paste tokens
+into chat or repository files. Azure MCP may supply diagnostic context, but
+deployments and configuration changes still run through checked-in GitHub
+Actions workflows.
+
+If Azure MCP reports no authentication, an unexpected subscription, a missing
+tool, or any tool beyond the allowlist, stop the Azure-assisted portion of the
+task. Do not add environment forwarding or widen tools as an ad hoc fix.
+Rollback removes the Azure role projection and both root extension
+registrations; no Azure resource is changed by that rollback.
+
 ### GitHub Actions → Workflow permissions
 
 The i18n workflow uses its built-in `GITHUB_TOKEN` to update

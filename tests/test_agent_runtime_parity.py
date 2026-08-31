@@ -13,7 +13,9 @@ from pydantic import ValidationError
 
 from analysis.agent_runtime_parity import (
     AgentRuntimeParity,
+    CodexLocalMcpExtensions,
     filtered_command_environment,
+    load_local_mcp_extensions,
     load_runtime_parity_config,
     validate_static_runtime_parity,
 )
@@ -123,6 +125,47 @@ def test_codex_adapter_has_bounded_roles_tools_and_environment() -> None:
     } <= set(config.credential_environment_excludes)
 
 
+def test_codex_local_mcp_extensions_are_exact_and_non_portable() -> None:
+    config = load_runtime_parity_config()
+    extensions = load_local_mcp_extensions()
+    adapters = {adapter.id: adapter for adapter in config.agent_adapters}
+
+    assert extensions.approval.subject_digest == (
+        "sha256:0dfb8bcf46df787aa75575e03ff02f19ae40c1df2f8cddde37095c34fa6e987d"
+    )
+    assert set(extensions.mcp_extensions) == {
+        "microsoft-learn",
+        "azure-mcp",
+    }
+    microsoft = extensions.mcp_extensions["microsoft-learn"]
+    azure = extensions.mcp_extensions["azure-mcp"]
+    assert microsoft.root_enabled is False
+    assert set(microsoft.role_enablement) == {
+        "architecture",
+        "engineering",
+        "operations",
+        "trust",
+    }
+    assert microsoft.enabled_tools == [
+        "microsoft_docs_search",
+        "microsoft_docs_fetch",
+        "microsoft_code_sample_search",
+    ]
+    assert azure.root_enabled is False
+    assert azure.role_enablement == ["operations"]
+    assert azure.environment_forwarding == []
+    assert azure.enabled_tools == [
+        "azmcp_subscription_list",
+        "azmcp_group_list",
+    ]
+    assert "@azure/mcp@2.0.5" in azure.args
+    assert "--read-only" in azure.args
+    assert "--tool" in azure.args
+    assert "azure-mcp" not in adapters["engineering"].mcp_servers
+    assert "azure-mcp" not in config.portable_mcp_servers
+    assert "azure-mcp" in config.excluded_mcp_servers
+
+
 def _isolated_codex_environment(tmp_path: Path) -> dict[str, str]:
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
@@ -156,8 +199,14 @@ def test_codex_native_cli_loads_project_mcp_projection(tmp_path: Path) -> None:
         for server in json.loads(completed.stdout)
     }
 
-    for server_id in ("chrome-devtools", "praxys-local"):
+    for server_id in (
+        "chrome-devtools",
+        "praxys-local",
+        "microsoft-learn",
+        "azure-mcp",
+    ):
         assert servers[server_id]["enabled"] is False
+    for server_id in ("chrome-devtools", "praxys-local", "azure-mcp"):
         assert servers[server_id]["transport"]["env_vars"] == []
     assert servers["chrome-devtools"]["transport"]["args"][1] == (
         "chrome-devtools-mcp@1.6.0"
@@ -165,6 +214,22 @@ def test_codex_native_cli_loads_project_mcp_projection(tmp_path: Path) -> None:
     assert servers["praxys-local"]["transport"]["args"] == [
         "scripts/run_praxys_mcp.cjs",
         "local",
+    ]
+    assert servers["microsoft-learn"]["transport"]["url"] == (
+        "https://learn.microsoft.com/api/mcp"
+    )
+    assert servers["azure-mcp"]["transport"]["args"] == [
+        "-y",
+        "@azure/mcp@2.0.5",
+        "server",
+        "start",
+        "--mode",
+        "all",
+        "--read-only",
+        "--tool",
+        "azmcp_subscription_list",
+        "--tool",
+        "azmcp_group_list",
     ]
 
 
@@ -184,7 +249,7 @@ def test_codex_native_cli_loads_agents_hooks_and_skills(tmp_path: Path) -> None:
     details = report["checks"]["config.load"]["details"]
 
     assert details["config.toml parse"] == "ok"
-    assert details["mcp servers"] == "2"
+    assert details["mcp servers"] == "4"
     assert details.get("startup warnings", "0") == "0"
     assert details.get("startup warning hooks", "0") == "0"
     assert details.get("startup warning skills", "0") == "0"
@@ -314,8 +379,10 @@ def test_codex_mcp_or_environment_widening_fails_closed(tmp_path: Path) -> None:
         project_config.read_text(encoding="utf-8").replace(
             '"AZURE_*" = "exclude"',
             '"AZURE_*" = "include"',
-        )
-        + '\n[mcp_servers.azure-mcp]\ncommand = "npx"\n',
+        ).replace(
+            'enabled_tools = ["azmcp_subscription_list", "azmcp_group_list"]',
+            'enabled_tools = ["*"]',
+        ),
         encoding="utf-8",
     )
 
@@ -324,6 +391,142 @@ def test_codex_mcp_or_environment_widening_fails_closed(tmp_path: Path) -> None:
     )
 
     assert "Codex project config differs from the runtime contract" in errors
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda payload: payload["mcp_extensions"]["azure-mcp"].update(
+                {"role_enablement": ["operations", "engineering"]}
+            ),
+            "Azure MCP must remain Operations-only",
+        ),
+        (
+            lambda payload: payload["mcp_extensions"]["azure-mcp"].update(
+                {"environment_forwarding": ["AZURE_CLIENT_ID"]}
+            ),
+            "must forward no environment",
+        ),
+        (
+            lambda payload: payload["mcp_extensions"]["azure-mcp"].update(
+                {"root_enabled": True}
+            ),
+            "Input should be False",
+        ),
+    ],
+)
+def test_codex_local_extension_contract_rejects_scope_widening(
+    mutation, message: str
+) -> None:
+    payload = json.loads(
+        (ROOT / "config/codex-local-mcp-extensions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    mutation(payload)
+
+    with pytest.raises(ValidationError, match=message):
+        CodexLocalMcpExtensions.model_validate(payload)
+
+
+def test_extension_subject_digest_drift_fails_closed(tmp_path: Path) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    subject = (
+        repository
+        / "docs/dev/codex-microsoft-mcp-extension-decision-v1.json"
+    )
+    subject.write_text(subject.read_text(encoding="utf-8") + "\n")
+
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+
+    assert "approved MCP extension subject digest differs from contract" in errors
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("@azure/mcp@2.0.5", "@azure/mcp@3.0.0-beta.39"),
+        ('        "--read-only",\n', ""),
+        (
+            '"azmcp_group_list"\n      ],',
+            '"azmcp_group_list", "azmcp_monitor_workspace_log_query"\n      ],',
+        ),
+        (
+            '"environment_forwarding": [],',
+            '"environment_forwarding": ["AZURE_CLIENT_ID"],',
+        ),
+    ],
+)
+def test_azure_extension_version_tool_flag_or_env_drift_fails_closed(
+    tmp_path: Path, old: str, new: str
+) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    contract = repository / "config/codex-local-mcp-extensions.json"
+    original = contract.read_text(encoding="utf-8")
+    mutated = original.replace(old, new, 1)
+    assert mutated != original
+    contract.write_text(mutated, encoding="utf-8")
+
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+
+    assert errors
+    assert any(
+        "extension" in error.lower() or "environment" in error.lower()
+        for error in errors
+    )
+
+
+def test_extra_codex_local_extension_is_rejected() -> None:
+    payload = json.loads(
+        (ROOT / "config/codex-local-mcp-extensions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    payload["mcp_extensions"]["unexpected"] = dict(
+        payload["mcp_extensions"]["microsoft-learn"]
+    )
+
+    with pytest.raises(
+        ValidationError, match="extension inventory must remain exact"
+    ):
+        CodexLocalMcpExtensions.model_validate(payload)
+
+
+def test_extension_wildcard_tool_is_rejected() -> None:
+    payload = json.loads(
+        (ROOT / "config/codex-local-mcp-extensions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    payload["mcp_extensions"]["microsoft-learn"]["enabled_tools"] = ["*"]
+
+    with pytest.raises(ValidationError, match="wildcard MCP tools"):
+        CodexLocalMcpExtensions.model_validate(payload)
+
+
+def test_operations_is_the_only_adapter_with_azure_mcp(tmp_path: Path) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    engineering = repository / ".codex/agents/engineering.toml"
+    azure = (repository / ".codex/agents/operations.toml").read_text(
+        encoding="utf-8"
+    ).split("[mcp_servers.azure-mcp]", 1)[1]
+    engineering.write_text(
+        engineering.read_text(encoding="utf-8")
+        + "\n[mcp_servers.azure-mcp]"
+        + azure,
+        encoding="utf-8",
+    )
+
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+
+    assert "Codex agent adapter differs from contract: engineering" in errors
 
 
 def test_agent_reference_or_sandbox_drift_fails_closed(tmp_path: Path) -> None:

@@ -36,9 +36,9 @@ tool names but may not change those semantics.
 Codex loads the project layer only after the user trusts the checkout. The
 project adapter contains:
 
-- `.codex/config.toml`: `workspace-write` plus `on-request` defaults, the two
-  portable MCP registrations, environment filtering, hooks, and multi-agent
-  enablement;
+- `.codex/config.toml`: `workspace-write` plus `on-request` defaults, two
+  portable MCP registrations, two separately approved Codex-local extension
+  registrations, environment filtering, hooks, and multi-agent enablement;
 - `.codex/agents/*.toml`: thin adapters that direct the child to read one
   canonical `.github/agents/*.agent.md` manifest before acting;
 - `.agents/skills/*`: relative symlinks to canonical repository skill
@@ -46,7 +46,10 @@ project adapter contains:
 - `.codex/hooks.json`: the Codex-native PostToolUse projection of the existing
   repository-owned Impeccable hook.
 
-The root project layer registers Chrome DevTools and `praxys-local` as disabled.
+The root project layer registers every MCP server as disabled. Chrome DevTools
+and `praxys-local` remain the only portable servers. Microsoft Learn and Azure
+MCP are separately bound by `config/codex-local-mcp-extensions.json`; they do
+not change the Copilot Local/Cloud portable contract.
 The selected role adapter repeats the complete native MCP transport and enables
 only the servers that role's canonical manifest permits. A required role MCP
 server uses `required = true`, so startup fails instead of silently dropping an
@@ -75,13 +78,35 @@ The portable MCP set is exact:
 2. `praxys-local`: the repository `local` synthetic profile, with only ten
    read-only product-data tools enabled.
 
-`azure-mcp`, `statsig`, `praxys-dev-test`, wildcard tools, personal browser
-sessions, production credentials, and production mutations are excluded.
+`azure-mcp` remains excluded from the portable baseline, along with `statsig`,
+`praxys-dev-test`, wildcard tools, personal browser sessions, production
+credentials, and production mutations. A separately approved Codex-local
+Azure registration does not alter that exclusion.
 Codex command children inherit a core environment with the default
 `KEY`/`SECRET`/`TOKEN` filtering active, plus explicit exclusion of common
 cloud, database, provider, athlete-connection, email, feature-flag, and
 Copilot credential namespaces. The MCP registrations forward no inherited
 environment variables.
+
+## Codex-local Microsoft MCP pilot
+
+The human-approved decision subject at
+`docs/dev/codex-microsoft-mcp-extension-decision-v1.json` adds two local-only
+extensions without claiming portable parity:
+
+1. `microsoft-learn` uses `https://learn.microsoft.com/api/mcp`, no
+   authentication, and exactly the documentation search, fetch, and code-sample
+   tools. It is optional for Architecture, Engineering, Operations, and Trust.
+2. `azure-mcp` uses stable `@azure/mcp@2.0.5`, `--read-only`, and exactly
+   `azmcp_subscription_list` and `azmcp_group_list`. It is optional and enabled
+   only in the Operations adapter. Every tool call prompts.
+
+The root registrations stay disabled. The Azure entry forwards no environment
+variables and stores no credential; the operator authenticates locally outside
+repository configuration. Azure output is production metadata and untrusted
+evidence. It cannot authorize deployment or mutation. Logs, metrics, App
+Service, Resource Health, Key Vault, storage, databases, data-plane reads, and
+all write tools remain outside this pilot.
 
 A native Codex sandbox probe used only a synthetic `AZURE_CLIENT_ID` and exit
 codes: the credential-shaped name was absent in the child while core `PATH`
@@ -107,10 +132,11 @@ Run:
 python3 scripts/check_agent_runtime_parity.py
 ```
 
-The deterministic check fails for a changed approval digest, malformed or
-drifting native config, copied/drifting agent projection, extra or escaping
-skill link, hook drift, MCP command/tool/env widening, role-authority drift,
-Work Contract drift, or a failing legacy Copilot parity check.
+The deterministic check fails for a changed baseline or extension approval
+digest, malformed or drifting native config, copied/drifting agent projection,
+extra or escaping skill link, hook drift, MCP command/tool/env widening, Azure
+projection outside Operations, role-authority drift, Work Contract drift, or a
+failing legacy Copilot parity check.
 
 An untrusted checkout skips the entire project `.codex` layer; report the
 adapter unavailable. A missing role-required portable MCP server blocks that
@@ -137,6 +163,7 @@ not be claimed.
 | Operations | No deploy, infrastructure, secret, alert, or production configuration change. |
 | Migration and rollback | Additive only; rollback removes the Codex adapter and runtime parity registration while retaining the canonical control plane and Copilot adapters. |
 | Tests | Adds positive and mutation-based negative static tests plus native Codex config discovery evidence when Codex is installed. |
+| Codex-local pilot | Adds public Microsoft documentation lookup and an Operations-only, read-only Azure inventory. It adds no application or production mutation. |
 
 ## Implementation Change
 
@@ -147,6 +174,14 @@ entry point. `tests/test_agent_runtime_parity.py` covers the accepted route and
 negative drift paths. The Codex-native files remain deliberately thin and
 contain no provider, model, authentication, notification, telemetry, or
 personal preference state.
+
+`config/codex-local-mcp-extensions.json` independently binds the Microsoft MCP
+pilot to its approved subject. Keeping it outside
+`config/agent-runtime-parity.json` prevents a local production-context tool
+from being mistaken for a Local/Cloud portable capability. The native
+Engineering role transport did not return a payload during this change, so the
+mechanical implementation remains subject to independent Quality and final
+human diff review rather than claiming that invocation as execution evidence.
 
 ## Verification and evidence limits
 
@@ -163,7 +198,10 @@ Verification Evidence.
 
 ## Rollback
 
-Remove or disable `.codex/`, remove the `.agents/skills/` aliases, and remove
-the runtime parity contract/check/test/docs. Leave `AGENTS.md`, the canonical
+For the Microsoft MCP pilot alone, remove its four role projections, two root
+registrations, extension contract, tests, and decision documents. Leave the v1
+adapter and portable servers unchanged. Full adapter rollback may remove or
+disable `.codex/`, remove the `.agents/skills/` aliases, and remove the runtime
+parity contract/check/test/docs. Leave `AGENTS.md`, the canonical
 operating/routing/policy JSON, `.github/agents/`, `.github/skills/`, Copilot
 MCP configuration, Copilot workflows, and invocation-control ledger unchanged.
