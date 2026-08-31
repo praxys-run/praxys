@@ -27,7 +27,7 @@ aiosqlite>=0.22.1
 # engines when PRAXYS_DATABASE_URL / DATABASE_URL points at Postgres (#360);
 # SQLite (aiosqlite above) stays the default for local dev + tests.
 psycopg[binary]>=3.3.4
-alembic>=1.18.5
+alembic>=1.19.1
 fastapi-users[sqlalchemy]>=15.0.5
 cryptography>=50.0.0
 azure-identity>=1.25.3
