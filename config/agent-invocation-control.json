@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "policy_version": "agent-invocation-control-v1",
   "status": "instrument-shadow-only",
   "default_mode": "instrument",
@@ -8,7 +8,21 @@
     "shadow"
   ],
   "enforcement_approved": false,
-  "ledger_schema_version": 1,
+  "ledger_schema_version": 3,
+  "dispatch_profiles": {
+    "default": "sync_inline",
+    "sync": "sync_inline",
+    "background": "background_independent_immediate_no_poll"
+  },
+  "native_binding": {
+    "binding_source": "task_result",
+    "public_id_storage": "domain-separated-sha256-fingerprint",
+    "invalidation_reasons": [
+      "shutdown",
+      "resume",
+      "context_replacement"
+    ]
+  },
   "limits": {
     "maximum_ancestry_depth": 6,
     "maximum_active_per_contract": 8,
