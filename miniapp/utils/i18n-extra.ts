@@ -825,7 +825,7 @@ const ZH_GOAL = {
 const ZH_ROAD_10K = {
   'Review invitation': '查看邀请',
   'Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
-    '下发仍处于关闭状态。仅当你希望 Praxys 下发此规范计划时，才审核托管下发预览并明确同意。',
+    '投递仍处于禁用状态。请查看托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。',
   'Leave rollout': '退出试点',
   'Continue to sign in': '继续登录',
   'Rollout status: On hold': '试点状态：审核中',

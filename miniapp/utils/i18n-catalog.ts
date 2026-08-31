@@ -2667,6 +2667,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "Delivery never started": "下发尚未开始",
     "Delivery outcomes": "下发结果",
     "Delivery preview": "交付预览",
+    "Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.": "投递仍处于禁用状态。请查看托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。",
     "Delivery to {providerName} is blocked": "无法交付到 {providerName}",
     "Demo": "演示",
     "Demo accounts": "演示账号",
