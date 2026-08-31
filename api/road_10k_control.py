@@ -612,13 +612,61 @@ def _complete_deletion_obligation(
     *,
     completed_at: datetime,
 ) -> None:
-    obligation = db.get(Road10KDeletionObligation, str(manifest["job_id"]))
+    """Complete one matching obligation atomically and idempotently.
+
+    A replay worker may finish the same marker while a withdrawal or account
+    deletion session still has the earlier ``committed`` row in its identity
+    map.  A read-then-write transition would then try to replace the first
+    completion timestamp and violate the ledger's immutability trigger.
+    Compare-and-set in the database instead, and on a lost race accept only an
+    authoritative completed row bound to the exact same marker intent.
+    """
+    job_id = str(manifest["job_id"])
+    stage_id = str(manifest["stage_id"])
+    reason = str(manifest["reason"])
+    digest = manifest_intent_digest(manifest)
+    updated = (
+        db.query(Road10KDeletionObligation)
+        .filter(
+            Road10KDeletionObligation.id == job_id,
+            Road10KDeletionObligation.status == "committed",
+            Road10KDeletionObligation.stage_id == stage_id,
+            Road10KDeletionObligation.reason == reason,
+            Road10KDeletionObligation.manifest_digest == digest,
+        )
+        .update(
+            {
+                Road10KDeletionObligation.status: "completed",
+                Road10KDeletionObligation.completed_at: completed_at,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated == 1:
+        # A caller can have loaded the old row before the conditional update.
+        # Do not leave that stale lifecycle state available inside the session.
+        db.expire_all()
+        return
+    if updated != 0:
+        raise Road10KDeletionFailed("deletion_obligation_completion_conflict")
+
+    obligation = (
+        db.query(Road10KDeletionObligation)
+        .populate_existing()
+        .filter(Road10KDeletionObligation.id == job_id)
+        .one_or_none()
+    )
     if obligation is None:
         raise Road10KDeletionFailed("deletion_obligation_missing")
-    if obligation.status == "completed":
+    if (
+        obligation.stage_id != stage_id
+        or obligation.reason != reason
+        or obligation.manifest_digest != digest
+    ):
+        raise Road10KDeletionFailed("deletion_obligation_conflict")
+    if obligation.status == "completed" and obligation.completed_at is not None:
         return
-    obligation.status = "completed"
-    obligation.completed_at = completed_at
+    raise Road10KDeletionFailed("deletion_obligation_completion_conflict")
 
 
 def issue_invitation(
@@ -1406,20 +1454,17 @@ def replay_road_10k_deletion_manifests(db: Session) -> int:
         should_replay=lambda manifest: _manifest_is_replayable(db, manifest),
     )
     completed = {
-        str(manifest["job_id"])
+        str(manifest["job_id"]): manifest
         for manifest in iter_active()
         if manifest["status"] == "completed"
     }
-    for obligation in (
-        db.query(Road10KDeletionObligation)
-        .filter(
-            Road10KDeletionObligation.id.in_(pending & completed),
-            Road10KDeletionObligation.status == "committed",
+    completed_at = _now()
+    for job_id in pending & set(completed):
+        _complete_deletion_obligation(
+            db,
+            completed[job_id],
+            completed_at=completed_at,
         )
-        .all()
-    ):
-        obligation.status = "completed"
-        obligation.completed_at = _now()
     db.commit()
     return count
 

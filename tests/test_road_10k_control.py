@@ -15,6 +15,7 @@ from sqlalchemy.orm import sessionmaker
 from api import road_10k_control, road_10k_deletion_storage
 from api.road_10k_control import (
     Road10KControlDenied,
+    Road10KDeletionFailed,
     Road10KControlUnavailable,
     enroll_owner,
     issue_invitation,
@@ -556,6 +557,211 @@ def test_repeat_withdrawal_fails_while_deletion_replay_is_pending(
         match="deletion_replay_pending",
     ):
         withdraw_owner(db, user_id="owner-pending-withdrawal")
+
+
+def test_two_deletion_obligation_completers_preserve_first_completion(
+    tmp_path,
+    monkeypatch,
+):
+    """A stale worker must accept an exact concurrent completion."""
+    database_path = tmp_path / "deletion-completers.db"
+    engine = create_engine(
+        f"sqlite:///{database_path}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    marker_store = _MemoryManifestStore()
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        marker_store,
+    )
+    requested_at = datetime.now(timezone.utc)
+    prepared = road_10k_deletion_storage.stage_manifest(
+        owner_id="concurrent-completion-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        reason="withdrawal",
+        evaluation_ids=[],
+        screenshot_keys=[],
+        requested_at=requested_at,
+    )
+    with SessionLocal() as db:
+        road_10k_control.record_deletion_obligations(
+            db,
+            [prepared],
+            now=requested_at,
+        )
+        db.commit()
+    committed = road_10k_control.commit_deletion_manifests(
+        [prepared],
+        now=requested_at,
+    )[0]
+
+    ready = Barrier(2)
+    completion_times = [
+        requested_at + timedelta(seconds=1),
+        requested_at + timedelta(seconds=2),
+    ]
+
+    def complete(index: int) -> datetime:
+        with SessionLocal() as db:
+            # Reproduce the stale identity-map state held by withdrawal after
+            # its first transaction commits.
+            cached = db.get(
+                Road10KDeletionObligation,
+                str(committed["job_id"]),
+            )
+            assert cached is not None and cached.status == "committed"
+            ready.wait(timeout=10)
+            road_10k_control._complete_deletion_obligation(
+                db,
+                committed,
+                completed_at=completion_times[index].replace(tzinfo=None),
+            )
+            db.commit()
+            completed = db.get(
+                Road10KDeletionObligation,
+                str(committed["job_id"]),
+            )
+            assert completed is not None
+            return completed.completed_at
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        observed = list(executor.map(complete, range(2)))
+
+    assert observed[0] == observed[1]
+    assert observed[0] in {value.replace(tzinfo=None) for value in completion_times}
+    with SessionLocal() as db:
+        obligation = db.get(
+            Road10KDeletionObligation,
+            str(committed["job_id"]),
+        )
+        assert obligation is not None
+        assert obligation.status == "completed"
+        assert obligation.completed_at == observed[0]
+
+
+def test_deletion_completion_rejects_a_different_manifest_binding(
+    tmp_path,
+    monkeypatch,
+):
+    db = _db(tmp_path)
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        _MemoryManifestStore(),
+    )
+    requested_at = datetime.now(timezone.utc)
+    manifest = road_10k_deletion_storage.stage_manifest(
+        owner_id="binding-owner",
+        stage_id=road_10k_control.ROAD_10K_STAGE_ID,
+        reason="withdrawal",
+        evaluation_ids=[],
+        screenshot_keys=[],
+        requested_at=requested_at,
+    )
+    road_10k_control.record_deletion_obligations(
+        db,
+        [manifest],
+        now=requested_at,
+    )
+    db.commit()
+
+    mismatched = dict(manifest)
+    mismatched["owner_id"] = "different-owner"
+    with pytest.raises(Road10KDeletionFailed, match="obligation_conflict"):
+        road_10k_control._complete_deletion_obligation(
+            db,
+            mismatched,
+            completed_at=requested_at.replace(tzinfo=None),
+        )
+    db.rollback()
+    obligation = db.get(
+        Road10KDeletionObligation,
+        str(manifest["job_id"]),
+    )
+    assert obligation is not None and obligation.status == "committed"
+
+
+def test_withdrawal_accepts_concurrent_startup_replay_completion(
+    tmp_path,
+    monkeypatch,
+):
+    """Startup replay may win after withdrawal commits its obligation."""
+    database_path = tmp_path / "withdrawal-replay-race.db"
+    engine = create_engine(
+        f"sqlite:///{database_path}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    marker_store = _MemoryManifestStore()
+    monkeypatch.setattr(
+        road_10k_deletion_storage,
+        "_test_store",
+        marker_store,
+    )
+    monkeypatch.setattr(road_10k_control, "load_stage_authority", _authority)
+    authority = _authority()
+    with SessionLocal() as db:
+        _owner(db, "withdrawal-replay-owner")
+        issue_invitation(
+            db,
+            user_id="withdrawal-replay-owner",
+            idempotency_key=_invitation_key("withdrawal-replay-invitation"),
+            notice_digest=authority.notice_digest,
+            cohort_rule_digest=authority.cohort_rule_digest,
+        )
+        enroll_owner(
+            db,
+            user_id="withdrawal-replay-owner",
+            notice_digest=authority.notice_digest,
+        )
+        record_result(
+            db,
+            user_id="withdrawal-replay-owner",
+            result_code="validation_failed",
+            payload={"scope": "withdrawal-replay-race"},
+        )
+
+    withdrawal_ready = Event()
+    replay_completed = Event()
+    original_complete = road_10k_control.complete_deletion_manifests
+
+    def complete_after_replay(manifests, *, db=None, now=None):
+        withdrawal_ready.set()
+        assert replay_completed.wait(timeout=10)
+        return original_complete(manifests, db=db, now=now)
+
+    monkeypatch.setattr(
+        road_10k_control,
+        "complete_deletion_manifests",
+        complete_after_replay,
+    )
+
+    def withdraw() -> str:
+        with SessionLocal() as db:
+            return withdraw_owner(
+                db,
+                user_id="withdrawal-replay-owner",
+            ).state
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        withdrawal_future = executor.submit(withdraw)
+        assert withdrawal_ready.wait(timeout=10)
+        with SessionLocal() as replay_db:
+            assert road_10k_control.replay_road_10k_deletion_manifests(
+                replay_db
+            ) == 1
+        replay_completed.set()
+        assert withdrawal_future.result(timeout=10) == "withdrawn"
+
+    with SessionLocal() as db:
+        obligation = db.query(Road10KDeletionObligation).one()
+        assert obligation.status == "completed"
+        assert obligation.completed_at is not None
+        assert db.query(Road10KEvaluation).count() == 0
 
 
 def test_withdrawn_owner_cannot_reopt_or_reuse_a_slot(
