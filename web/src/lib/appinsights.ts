@@ -82,7 +82,17 @@ function sanitizeRegionalTelemetry(envelope: ITelemetryItem): void {
   if (!isChinaFrontendDeployment()) return
   const baseData = envelope.baseData as Record<string, unknown> | undefined
   if (!baseData) return
-  for (const key of ['uri', 'url', 'data', 'target', 'refUri', 'referrerUri']) {
+  // Dependency telemetry stores its method-prefixed URL in `name` as well as
+  // its raw URL in `data`/`target`, so all three must cross the same boundary.
+  for (const key of [
+    'name',
+    'uri',
+    'url',
+    'data',
+    'target',
+    'refUri',
+    'referrerUri',
+  ]) {
     if (key in baseData) baseData[key] = stripQueryAndFragment(baseData[key])
   }
   const properties = baseData.properties

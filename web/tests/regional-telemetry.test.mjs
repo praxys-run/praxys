@@ -103,5 +103,6 @@ test('regional App Insights sanitizes URLs and suppresses exception capture', as
   );
   assert.match(appInsights, /disableExceptionTracking: chinaDeployment/);
   assert.match(appInsights, /sanitizeRegionalTelemetry/);
+  assert.match(appInsights, /'name',[\s\S]*'data',[\s\S]*'target'/);
   assert.ok(appInsights.includes('replace(/[?#].*$/'));
 });
