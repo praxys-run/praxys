@@ -300,38 +300,63 @@ registrations; no Azure resource is changed by that rollback.
 
 ### GitHub Actions → Workflow permissions
 
-The i18n workflow uses its built-in `GITHUB_TOKEN` to update
-`i18n/refresh-zh` and open the review PR. GitHub suppresses normal
+The i18n workflow uses its built-in `GITHUB_TOKEN` to create an immutable
+`i18n/refresh-zh-<source-sha>-<run-id>-<attempt>` branch and open one draft
+review PR.
+It never force-pushes a long-lived translation branch. GitHub suppresses normal
 `pull_request` workflow events for PRs opened by that token, so `i18n.yml`
-explicitly uses the permitted `workflow_dispatch` exception: it dispatches
-Pre-merge CI and Miniapp build on the bot branch, then waits for Pre-merge CI. Do
-not remove that chain; otherwise automated translation PRs lose their required
-validation. Their semantic review already happened inside `i18n.yml` through
-the independent editor/critic pair; the invariant workflow remains the
-additional guard for ordinary human/Copilot PRs that change copy.
+explicitly uses the permitted `workflow_dispatch` exception: it dispatches and
+waits for Pre-merge CI and Miniapp build on the exact generated head SHA. It then
+publishes `translation-validation` and dispatches the selective-review gate.
+That required policy status independently reads the same PR head and fails
+closed unless the exact head already has `translation-validation=success`. Do
+not remove that chain; otherwise
+automated translation PRs lose their required validation. Their semantic model
+review already happened inside `i18n.yml` through separate editor/critic passes
+on the same configured deployment. This is defense in depth, not independent
+human review; the invariant workflow remains the additional guard for ordinary
+human/Copilot PRs that change copy.
 
 The same workflow runs a deterministic Chinese catalog gate on every relevant
 PR. After extraction it immediately reviews up to 200 newly introduced or
 resurrected strings, including translations recovered from obsolete catalog
 history; overflow still enters the weekly rotation. On Monday at 02:17 UTC it
-also reviews one stable eighth of the active catalog (capped at 200 entries)
-with `TRANSLATE_REVIEW_MODEL`, then applies a revision only when a separate
-critic pass agrees at high confidence. At the current catalog size every string
-therefore receives a page-context-aware native-language pass within eight weeks
-without accepting subjective synonym churn. The shard uses an epoch-based week
+also reviews one stable eighth of the active catalog. Selection, budget windows,
+and model calls use stable source-proximity semantic clusters as the indivisible
+unit; the 200-entry budget is soft so a cluster is never split. Each prompt also
+receives a bounded read-only sample of established copy from the same screen.
+The workflow uses `TRANSLATE_REVIEW_MODEL`, then applies a revision only when a
+separate critic pass agrees at high confidence. The scheduled review provides
+bounded page-context-aware coverage without accepting subjective synonym churn.
+The shard uses an epoch-based week
 number so year boundaries cannot skip it; if a future shard exceeds the cap,
-its window rotates on the next cycle instead of starving the tail. The
-scheduled run updates the same `i18n/refresh-zh` branch and still requires human
-review. A manual dispatch with
-`full_review=true` reviews the entire catalog and has materially higher model
-cost because both editor and critic run; use it for a terminology or voice
-reset, not routine maintenance.
+its window rotates on the next cycle instead of starving the tail. Each
+scheduled run opens its own draft and still requires human review. A manual
+dispatch with `full_review=true` reviews the entire catalog and has materially higher model
+cost because both editor and critic run; it is the explicit complete-catalog
+coverage path and should be used for a terminology or voice reset.
 
 `TRANSLATE_MAX` is atomic: if missing copy exceeds the configured limit, the
 job stops before any billable model call. If an individual output still fails
 the deterministic gate (for example, a malformed placeholder), the workflow
-opens the translation PR so successful work is not lost, then marks the run
-failed; the PR's required checks remain red until a human repairs the entry.
+still opens a Draft PR so successful work is recoverable, but records
+`translation-validation` as failed and fails the job. A failed catalog gate can
+never acquire a green exact-head status. Repair the Draft or fix the source and
+rerun. Lingui `fuzzy` entries count as missing work even when an old `msgstr`
+remains; the flag is
+cleared only after structural, deterministic terminology, and model-semantic
+checks all pass.
+
+Every generated PR remains draft. The workflow writes a changed-entry manifest
+for science, safety, privacy, and plan-authority copy into both the PR body and
+run summary. A maintainer reviews the complete diff and explicitly marks the PR
+ready; a clean manifest is not approval. Outcome evidence may be recorded only
+after completion. At least five clean, seven-day observations are required by
+the checked-in policy before a separate reviewed policy PR can propose any
+autonomy change; the translation workflow never edits `promoted_classes`.
+Science YAML is not generated by this workflow. It remains under the
+Science-owned contribution and review path until a separate stale-detection,
+semantic-validation, and human-review contract is accepted.
 
 Mini-program-only copy remains in `miniapp/utils/i18n-extra.ts`. Its existing
 `npm run check-i18n` gate reads the same glossary and rejects missing/renamed
@@ -346,8 +371,8 @@ Provision and verify:
 1. Keep repository **Default workflow permissions** at `read`, but enable
    **Allow GitHub Actions to create and approve pull requests** for
    `praxys-run/praxys`. The workflow grants only its translation job the
-   explicit `actions: write`, `contents: write`, and `pull-requests: write`
-   permissions it needs.
+   explicit `actions: write`, `contents: write`, `pull-requests: write`,
+   `statuses: write`, and OIDC permissions it needs.
 2. Verify the repository gate:
 
    ```bash
@@ -357,8 +382,9 @@ Provision and verify:
    `can_approve_pull_request_reviews` must be `true`. If the organization blocks
    repository opt-in, an organization owner must enable the corresponding gate
    first.
-3. Dispatch `i18n.yml`. Confirm the generated PR receives manual-dispatch runs
-   for Pre-merge CI and Miniapp build on `i18n/refresh-zh`.
+3. Dispatch `i18n.yml`. Confirm the generated draft PR receives manual-dispatch
+   runs for Pre-merge CI, Miniapp build, and Selective review gate, and that
+   `translation-validation` targets its exact head SHA.
 
 #### Dependabot patch auto-merge
 

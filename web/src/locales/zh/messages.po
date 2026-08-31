@@ -1228,7 +1228,7 @@ msgstr "平均功率"
 
 #: src/components/DiagnosisCard.tsx:54
 msgid "Avg Work {intensityLabel}"
-msgstr "平均工作 {intensityLabel}"
+msgstr "工作段平均{intensityLabel}"
 
 #: src/components/PersonalContextPanel.tsx:1056
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
@@ -2751,7 +2751,7 @@ msgstr "交付预览"
 
 #: src/components/PlanStart.tsx:2318
 msgid "Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan."
-msgstr "投递仍处于禁用状态。请查看托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。"
+msgstr "下发仍处于禁用状态。请查看托管下发预览；只有在希望 Praxys 下发此主计划时，才明确同意。"
 
 #: src/components/WorkoutStructureEditor.tsx:1976
 msgid "Delivery to {providerName} is blocked"
@@ -7200,11 +7200,11 @@ msgstr "提示词语义样本："
 
 #: src/components/PlanStart.tsx:1145
 msgid "Proposal created. It has not changed your canonical plan."
-msgstr "提案已创建。它尚未更改你的规范计划。"
+msgstr "提案已创建，尚未更改主计划。"
 
 #: src/components/PlanStart.tsx:1232
 msgid "Proposal rejected. Your canonical plan was not changed."
-msgstr "提案已拒绝。你的规范计划未被更改。"
+msgstr "提案已拒绝，主计划未更改。"
 
 #: src/components/PlanStart.tsx:2300
 msgid "Proposal state needs a fresh preview"
@@ -10340,7 +10340,7 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
 #: src/components/PlanStart.tsx:2302
 msgid "This proposal is {0}. It cannot mutate the canonical plan; review readiness and create a new proposal when you are ready."
-msgstr "此提案为 {0}。它无法更改规范计划；准备好后请复核准备情况并创建新提案。"
+msgstr "此提案为 {0}，无法更改主计划。准备好后，请检查准备度并创建新提案。"
 
 #: src/components/PlanStart.tsx:2167
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
@@ -10896,7 +10896,7 @@ msgstr "此计划政策需要更新客户端"
 
 #: src/components/WorkoutPlanEditor.tsx:651
 msgid "Update the canonical plan here. Connector delivery changes only when managed delivery is active."
-msgstr "在这里更新主计划。只有启用托管交付后，变更才会同步到执行平台。"
+msgstr "在这里更新主计划。只有启用托管下发后，变更才会同步到执行平台。"
 
 #: src/components/PlanStart.tsx:386
 msgid "Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs."
@@ -11515,7 +11515,7 @@ msgstr "可离开此页面，稍后再回来。分析运行期间无需任何操
 
 #: src/components/WorkoutStructureEditor.tsx:1983
 msgid "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
-msgstr "仍可将此训练保存到 Praxys；但在修改标记的细节前，托管交付无法完整保留这些内容。"
+msgstr "仍可将此训练保存到 Praxys；但在修改标记的细节前，托管下发无法完整保留这些内容。"
 
 #: src/components/PersonalContextPanel.tsx:1654
 #~ msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."

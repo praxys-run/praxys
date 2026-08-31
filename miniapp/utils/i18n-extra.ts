@@ -825,7 +825,7 @@ const ZH_GOAL = {
 const ZH_ROAD_10K = {
   'Review invitation': '查看邀请',
   'Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
-    '投递仍处于禁用状态。请查看托管投递预览，并且只有在希望 Praxys 投递此规范计划时才明确同意。',
+    '下发仍处于禁用状态。请查看托管下发预览；只有在希望 Praxys 下发此主计划时，才明确同意。',
   'Leave rollout': '退出试点',
   'Continue to sign in': '继续登录',
   'Rollout status: On hold': '试点状态：审核中',
@@ -1340,7 +1340,7 @@ const ZH_PLAN_START = {
   'Review before adopting': '采纳前先审核',
   'Keep the current plan until adoption': '采纳前继续执行当前计划',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
-    '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',
+    '此提案无法更改主计划。准备好后，请检查准备度并创建新提案。',
   'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':
     '预览会核查当前证据和限制条件。它只是提案，尚未成为你的计划。',
   Science: '科学',

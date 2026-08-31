@@ -15,6 +15,7 @@ Run from the repository root:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -23,6 +24,12 @@ from typing import Any
 
 import yaml
 
+from i18n_semantics import (
+    check_semantic_rules,
+    human_review_reasons,
+    is_fuzzy,
+    validate_semantic_rules,
+)
 from translate_missing import _placeholders_match, parse_po
 
 
@@ -45,6 +52,7 @@ def load_quality_config(path: Path) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
         raise ValueError(f"{path} must contain a YAML mapping")
+    validate_semantic_rules(data)
     return data
 
 
@@ -109,9 +117,21 @@ def check_catalog(
             and item.get("zh") == item.get("en")
         )
     }
+    # Validate even when callers construct a config directly instead of using
+    # load_quality_config(); malformed checked-in policy must fail closed.
+    validate_semantic_rules(config)
 
     for msgid in sorted(source.keys() & target.keys()):
-        translation = target[msgid]["msgstr"]
+        target_entry = target[msgid]
+        translation = target_entry["msgstr"]
+        if is_fuzzy(target_entry):
+            findings.append(
+                Finding(
+                    "fuzzy",
+                    msgid,
+                    "Lingui marked this retained translation fuzzy; retranslate and review it",
+                )
+            )
         if not translation:
             findings.append(Finding("empty", msgid, "zh translation is empty"))
             continue
@@ -185,6 +205,15 @@ def check_catalog(
                     )
                 )
 
+        for semantic in check_semantic_rules(target_entry, config):
+            findings.append(
+                Finding(
+                    "semantic-term",
+                    msgid,
+                    f"{semantic.rule_id}: {semantic.message}",
+                )
+            )
+
     return findings
 
 
@@ -194,6 +223,24 @@ def main() -> int:
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--target", required=True, type=Path)
     parser.add_argument("--glossary", required=True, type=Path)
+    parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=None,
+        help="Root used to validate that Lingui source refs stay inside the checkout.",
+    )
+    parser.add_argument(
+        "--human-review-baseline",
+        type=Path,
+        default=None,
+        help="Limit human-review routing to entries added or changed since this catalog.",
+    )
+    parser.add_argument(
+        "--human-review-report",
+        type=Path,
+        default=None,
+        help="Write a Markdown manifest of entries that still require human review.",
+    )
     args = parser.parse_args()
 
     source_entries, _ = parse_po(args.source)
@@ -201,10 +248,74 @@ def main() -> int:
     config = load_quality_config(args.glossary)
     findings = check_catalog(source_entries, target_entries, config)
 
+    all_target_entries = [
+        entry for entry in target_entries if entry.get("msgid")
+    ]
+    if args.source_root is not None:
+        from i18n_semantics import source_paths
+
+        root = args.source_root.resolve()
+        for entry in all_target_entries:
+            for source_path in source_paths(entry):
+                candidate = (root / source_path).resolve()
+                try:
+                    candidate.relative_to(root)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"source ref escapes source root: {source_path}"
+                    ) from exc
+
+    review_requested = (
+        args.human_review_baseline is not None
+        or args.human_review_report is not None
+    )
+    review_entries = (
+        all_target_entries
+        if review_requested
+        else []
+    )
+    if args.human_review_baseline is not None:
+        baseline_entries, _ = parse_po(args.human_review_baseline)
+        baseline = _entry_map(baseline_entries)
+        review_entries = [
+            entry
+            for entry in review_entries
+            if entry["msgid"] not in baseline
+            or baseline[entry["msgid"]]["msgstr"] != entry["msgstr"]
+        ]
+    review_items = [
+        (entry["msgid"], reason)
+        for entry in review_entries
+        for reason in human_review_reasons(entry, config)
+    ]
+    for msgid, reason in review_items:
+        print(f"[human-review] {msgid!r}: {reason}", file=sys.stderr)
+    if args.human_review_report is not None:
+        args.human_review_report.parent.mkdir(parents=True, exist_ok=True)
+        report = [
+            "## Required human i18n review",
+            "",
+            "Deterministic checks and AI review do not approve sensitive copy.",
+            "A maintainer must review every entry listed below before marking the PR ready.",
+            "",
+        ]
+        if review_items:
+            report.extend(
+                f"- `{reason}` — {json.dumps(msgid, ensure_ascii=False)}"
+                for msgid, reason in review_items
+            )
+        else:
+            report.append(
+                "- No sensitive changed entries were detected; human review "
+                "of the full diff is still required."
+            )
+        args.human_review_report.write_text("\n".join(report) + "\n", encoding="utf-8")
+
     if not findings:
         print(
-            f"Chinese catalog quality check passed "
-            f"({len(_entry_map(target_entries))} active entries)."
+            f"Chinese catalog deterministic checks passed "
+            f"({len(_entry_map(target_entries))} active entries; "
+            f"{len(review_items)} human-review routes)."
         )
         return 0
 

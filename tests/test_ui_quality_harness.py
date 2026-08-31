@@ -327,7 +327,7 @@ def test_i18n_pr_body_contains_valid_catalog_only_ui_evidence():
     )
     section_start = workflow.index("            ## UI quality")
     section_end = workflow.index(
-        "\n\n      - name: Dispatch required validation",
+        "\n\n      - name: Bind generated translation head",
         section_start,
     )
     body = "\n".join(
@@ -338,8 +338,11 @@ def test_i18n_pr_body_contains_valid_catalog_only_ui_evidence():
     assert validate_ui_evidence(
         body,
         has_web=True,
-        has_miniapp=False,
-        changed_paths=["web/src/locales/zh/messages.po"],
+        has_miniapp=True,
+        changed_paths=[
+            "web/src/locales/zh/messages.po",
+            "miniapp/utils/i18n-catalog.ts",
+        ],
     ) == []
 
 

@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - 'web/src/**'
-      - 'data/science/**'
       - 'scripts/check_i18n_quality.py'
+      - 'scripts/i18n_semantics.py'
       - 'scripts/translate_missing.py'
       - 'scripts/i18n_glossary.yaml'
       - '.github/workflows/i18n.yml'
@@ -16,12 +16,13 @@ on:
       - 'web/src/**'
       - 'web/src/locales/**'
       - 'scripts/check_i18n_quality.py'
+      - 'scripts/i18n_semantics.py'
       - 'scripts/i18n_glossary.yaml'
       - 'scripts/translate_missing.py'
       - '.github/workflows/i18n.yml'
   schedule:
-    # One stable eighth of the catalog per week; every active string gets a
-    # native-language review at least once every eight weeks.
+    # Select one stable catalog shard per week. Oversized shard windows rotate
+    # across later cycles; workflow_dispatch full_review covers the whole catalog.
     - cron: '17 2 * * 1'
   workflow_dispatch:
     inputs:
@@ -84,7 +85,8 @@ jobs:
           python scripts/check_i18n_quality.py \
             --source web/src/locales/en/messages.po \
             --target web/src/locales/zh/messages.po \
-            --glossary scripts/i18n_glossary.yaml
+            --glossary scripts/i18n_glossary.yaml \
+            --source-root web
 
   # Runs on push to main: extracts, translates missing zh entries through an
   # Azure AI Foundry deployment (with glossary + placeholder validation + cost
@@ -105,8 +107,10 @@ jobs:
   # not at subscription level.
   # PRs created with GITHUB_TOKEN do not emit pull_request workflow events.
   # After opening the PR, this workflow explicitly dispatches required
-  # validation on the bot branch and waits for Pre-merge CI. Semantic review has
-  # already run as the independent editor/critic pair above.
+  # validation on the bot branch and waits for both downstream workflows. New translations
+  # first pass an explicit semantic-faithfulness gate; later copy revisions use
+  # separate editor/critic passes on the same deployment. These passes are
+  # defense in depth, not independent human review.
   translate:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -117,6 +121,7 @@ jobs:
       actions: write
       contents: write
       pull-requests: write
+      statuses: write
       id-token: write  # required for OIDC token exchange with Azure AD
     steps:
       - uses: actions/checkout@v7
@@ -145,8 +150,12 @@ jobs:
         working-directory: web
         run: npm install --no-audit --no-fund
 
-      - name: Install translator deps
-        run: pip install openai azure-identity pyyaml
+      - name: Install and verify translator deps
+        run: |
+          # translate_missing imports the shared api.llm factory, whose
+          # top-level imports must also be available in this lean workflow.
+          pip install openai azure-identity pyyaml portalocker
+          python -c "from api.llm import get_automation_client"
 
       - name: Snapshot zh catalog before extraction
         env:
@@ -166,7 +175,7 @@ jobs:
         working-directory: web
         run: npm run i18n:extract:ci
 
-      - name: Fill missing zh entries (catalog)
+      - name: Translate and semantically verify missing zh entries
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
           # Atomic cost cap — oversized batches fail before any model call.
@@ -220,15 +229,6 @@ jobs:
             --max-reviews "$MAX_REVIEWS" \
             --review-cycle "$CYCLE"
 
-      - name: Fill missing zh science YAML
-        env:
-          AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
-        run: |
-          python scripts/translate_missing.py yaml \
-            --source-dir data/science \
-            --target-dir data/science/zh \
-            --language "Simplified Chinese"
-
       - name: Enforce Chinese terminology, structure, and typography
         id: quality
         continue-on-error: true
@@ -236,7 +236,10 @@ jobs:
           python scripts/check_i18n_quality.py \
             --source web/src/locales/en/messages.po \
             --target web/src/locales/zh/messages.po \
-            --glossary scripts/i18n_glossary.yaml
+            --glossary scripts/i18n_glossary.yaml \
+            --source-root web \
+            --human-review-baseline /tmp/zh-before-extract.po \
+            --human-review-report /tmp/i18n-human-review.md
 
       - name: Regenerate miniapp catalog
         run: node miniapp/scripts/sync-i18n.cjs
@@ -253,23 +256,30 @@ jobs:
         with:
           commit-message: 'i18n: improve native Chinese copy'
           title: 'i18n: improve native Chinese copy'
-          branch: i18n/refresh-zh
+          branch: i18n/refresh-zh-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           delete-branch: true
+          draft: true
           body: |
             ## Summary
 
             Automated Simplified Chinese translation and native-copy review.
 
             Review the diff in `web/src/locales/zh/messages.po` and
-            `data/science/zh/` before merging. The translator:
+            `miniapp/utils/i18n-catalog.ts` before merging. Science YAML stays
+            outside this automation and remains Science-owned. The translator:
             - Groups strings by screen and includes nearby source code so the
               model sees real page context rather than an opaque line number.
+            - Writes a new translation only when a separate stronger-model pass
+              confirms semantic faithfulness at high confidence;
+              missing, rejecting, or uncertain decisions leave the entry empty
+              so the deterministic quality gate blocks merging.
             - Immediately reviews up to 200 newly introduced or resurrected
               strings after extraction, including translations recovered from
               history; overflow enters the weekly rotation.
-            - Reviews one stable catalog shard each week, covering every active
-              string within eight weeks. Manual runs can request a full review.
-            - Applies a revision only when an independent critic agrees at high
+            - Reviews one stable catalog shard each week. Oversized semantic
+              cluster windows rotate across later cycles; manual full review
+              explicitly covers the complete active catalog.
+            - Applies a revision only when a separate critic pass agrees at high
               confidence, preventing subjective synonym churn.
             - Uses `scripts/i18n_glossary.yaml` for canonical terminology
               and Chinese voice rules. Update the glossary when the product
@@ -283,10 +293,18 @@ jobs:
               bulk re-translation fails before it can burn the API budget.
             - Regenerates the checked-in miniapp catalog in the same PR.
 
+            This PR is intentionally a draft. Deterministic checks and AI
+            review are not approval. A maintainer must review the full diff,
+            with particular attention to science, safety, privacy, and plan
+            authority copy, then explicitly mark the PR ready. Five or more
+            clean completed samples may inform a separate reviewed policy PR;
+            they never lower review requirements automatically.
+
             If the diff looks off:
             - Wrong term: edit the glossary row and re-run the workflow.
-            - Missing placeholder: fix the empty entry in this PR. If rejection
-              is chronic, the source string likely needs a friendlier shape.
+            - Missing placeholder: the pre-PR quality gate stops the run. Fix
+              the source or translation and rerun. If rejection is chronic, the
+              source string likely needs a friendlier shape.
             - Rewording of an edit: port the old zh from git history
               (`git log -p -- web/src/locales/zh/messages.po`) since Lingui
               extraction drops the old msgid when the English source is
@@ -297,56 +315,176 @@ jobs:
             - Lingui extraction and catalog compilation
             - Deterministic terminology, placeholder, coverage, and typography checks
             - Miniapp catalog regeneration
-            - Pre-merge CI and miniapp build dispatched for the generated branch
+            - Pre-merge CI and miniapp build dispatched and bound to this exact head SHA
 
             ## UI quality
 
             - Impeccable: `audit web/src/locales/zh/messages.po` via the automated context-aware native-copy critic
-            - Visual review: desktop and mobile rendered review not applicable - generated locale catalog only; no component or layout files changed
+            - Visual review: catalog-only static review; desktop/mobile Web and native WeChat rendering remain an explicit maintainer-review exception
             - Primary journey: generated Chinese catalog -> synchronized miniapp catalog -> maintainer copy review
-            - Reviewer handoff: none - catalog-only automation has no distinct visual journey; the diff and localized builds are the review surfaces
-            - States checked: active catalog coverage, placeholders, protected tokens, terminology, typography, and long Chinese copy
+            - Reviewer handoff: CI artifact - i18n human-review manifest; exact-head Web and miniapp build runs are linked by translation-validation
+            - States checked: catalog coverage, placeholders, protected tokens, terminology, typography, fuzzy entries, and long-content diff review
             - Accessibility: no interaction, focus, contrast, motion, or touch-target behavior changed
             - Design system impact: none - the existing localization and typography systems cover catalog-only changes
             - Miniapp parity: updated by `miniapp/scripts/sync-i18n.cjs`
             - Exceptions: rendered desktop/mobile review omitted for the generated catalog-only diff; maintainers review the Chinese copy before merge
 
-      - name: Dispatch required validation on translation branch
+      - name: Bind generated translation head and mark pending
+        if: steps.create-pr.outputs.pull-request-number != ''
+        id: generated-head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          ACTION_HEAD_SHA: ${{ steps.create-pr.outputs.pull-request-head-sha }}
+        run: |
+          set -euo pipefail
+          current_head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)"
+          if [ -z "$ACTION_HEAD_SHA" ] || [ "$current_head" != "$ACTION_HEAD_SHA" ]; then
+            echo "::error::Generated PR head does not match the create-pull-request output."
+            exit 1
+          fi
+          echo "head_sha=$current_head" >> "$GITHUB_OUTPUT"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${current_head}" \
+            -f state=pending \
+            -f context=translation-validation \
+            -f description="Exact-head translation validation is running." \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
+
+      - name: Attach human-review manifest to draft PR
+        id: review-manifest
+        if: steps.create-pr.outputs.pull-request-number != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+        run: |
+          set -euo pipefail
+          body_file="$RUNNER_TEMP/i18n-pr-body.md"
+          gh pr view "$PR_NUMBER" --json body --jq .body > "$body_file"
+          printf '\n' >> "$body_file"
+          cat /tmp/i18n-human-review.md >> "$body_file"
+          gh pr edit "$PR_NUMBER" --body-file "$body_file"
+
+      - name: Store human-review manifest as reviewer evidence
+        id: review-evidence
+        continue-on-error: true
+        if: steps.create-pr.outputs.pull-request-number != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: i18n-human-review-${{ steps.create-pr.outputs.pull-request-number }}-${{ steps.generated-head.outputs.head_sha }}
+          path: /tmp/i18n-human-review.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Dispatch required validation on translation head
         id: validation
         if: steps.create-pr.outputs.pull-request-number != ''
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ steps.create-pr.outputs.pull-request-head-sha }}
-          PR_BRANCH: i18n/refresh-zh
+          HEAD_SHA: ${{ steps.generated-head.outputs.head_sha }}
+          PR_BRANCH: i18n/refresh-zh-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
+          set -euo pipefail
           gh workflow run ci-premerge.yml --ref "$PR_BRANCH"
           gh workflow run miniapp-build.yml --ref "$PR_BRANCH"
 
-          run_id=""
-          for _attempt in $(seq 1 30); do
-            run_id=$(gh run list \
-              --workflow ci-premerge.yml \
-              --branch "$PR_BRANCH" \
-              --event workflow_dispatch \
-              --limit 20 \
-              --json databaseId,headSha \
-              --jq ".[] | select(.headSha == \"$HEAD_SHA\") | .databaseId" \
-              | head -1)
-            if [ -n "$run_id" ]; then
-              break
+          for workflow in ci-premerge.yml miniapp-build.yml; do
+            dispatched_run_id=""
+            for _attempt in $(seq 1 30); do
+              dispatched_run_id="$(
+                gh run list \
+                  --workflow "$workflow" \
+                  --branch "$PR_BRANCH" \
+                  --event workflow_dispatch \
+                  --limit 20 \
+                  --json databaseId,headSha,createdAt \
+                  --jq "[.[] | select(.headSha == \"$HEAD_SHA\")] | sort_by(.createdAt) | last | .databaseId // empty"
+              )"
+              if [ -n "$dispatched_run_id" ]; then
+                break
+              fi
+              sleep 2
+            done
+            if [ -z "$dispatched_run_id" ]; then
+              echo "::error::$workflow dispatch did not appear for $HEAD_SHA."
+              exit 1
+            fi
+            gh run watch "$dispatched_run_id" --exit-status
+          done
+
+      - name: Publish generated translation validation status
+        if: always() && steps.create-pr.outputs.pull-request-number != '' && steps.generated-head.outputs.head_sha != ''
+        id: publish-status
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.generated-head.outputs.head_sha }}
+          QUALITY_OUTCOME: ${{ steps.quality.outcome }}
+          MANIFEST_OUTCOME: ${{ steps.review-manifest.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.review-evidence.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          state=failure
+          description="Translation validation failed; human repair is required."
+          if [ "$QUALITY_OUTCOME" = "success" ] && [ "$MANIFEST_OUTCOME" = "success" ] && [ "$EVIDENCE_OUTCOME" = "success" ] && [ "$VALIDATION_OUTCOME" = "success" ]; then
+            state=success
+            description="Exact-head checks passed; human copy review is still required."
+          fi
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state="$state" \
+            -f context=translation-validation \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
+          {
+            if [ -f /tmp/i18n-human-review.md ]; then
+              cat /tmp/i18n-human-review.md
+            else
+              echo "## Required human i18n review"
+              echo
+              echo "The review manifest was unavailable; review the complete draft PR diff."
+            fi
+            echo
+            echo "Exact head: \`$HEAD_SHA\`"
+            echo "Deterministic quality: $QUALITY_OUTCOME"
+            echo "Human-review manifest: $MANIFEST_OUTCOME"
+            echo "Reviewer evidence artifact: $EVIDENCE_OUTCOME"
+            echo "Dispatched validation: $VALIDATION_OUTCOME"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch and wait for selective-review policy
+        id: policy-validation
+        if: steps.publish-status.outputs.state == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.generated-head.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+        run: |
+          set -euo pipefail
+          gh workflow run selective-review.yml -f pr_number="$PR_NUMBER"
+          for _attempt in $(seq 1 60); do
+            policy_state="$(
+              gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/status" \
+                --jq '[.statuses[] | select(.context == "selective-review-policy")] | sort_by(.updated_at) | last | .state // empty'
+            )"
+            if [ "$policy_state" = success ]; then
+              exit 0
+            fi
+            if [ "$policy_state" = failure ] || [ "$policy_state" = error ]; then
+              echo "::error::Selective-review policy failed for $HEAD_SHA."
+              exit 1
             fi
             sleep 2
           done
-          if [ -z "$run_id" ]; then
-            echo "::error::Pre-merge CI dispatch did not appear for $HEAD_SHA."
-            exit 1
-          fi
-          gh run watch "$run_id" --exit-status
+          echo "::error::Selective-review policy did not finish for $HEAD_SHA."
+          exit 1
 
       - name: Fail when generated PR needs human repair
-        if: steps.quality.outcome == 'failure' || steps.validation.outcome == 'failure'
+        if: always() && (steps.quality.outcome == 'failure' || (steps.create-pr.outputs.pull-request-number != '' && (steps.generated-head.outcome == 'failure' || steps.review-manifest.outcome == 'failure' || steps.review-evidence.outcome == 'failure' || steps.validation.outcome == 'failure' || steps.publish-status.outcome == 'failure' || steps.publish-status.outputs.state != 'success' || steps.policy-validation.outcome == 'failure')))
         run: |
           echo "::error::The translation PR was created, but quality or required validation failed."
-          echo "::error::Repair the flagged entries in that PR before merging."
           exit 1
