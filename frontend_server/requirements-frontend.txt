@@ -2,4 +2,4 @@
 # backend's requirements.txt so the praxys-frontend App Service deploy
 # zip stays small (~30 MB instead of ~300 MB) and starts in seconds.
 fastapi>=0.141.1,<1.0
-uvicorn[standard]>=0.52.3,<1.0
+uvicorn[standard]>=0.52.4,<1.0
