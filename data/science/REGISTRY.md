@@ -47,11 +47,17 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [evidence-non-ultra-trail-plan-generation-policy-v1](evidence/non-ultra-trail-plan-generation-policy/evidence-non-ultra-trail-plan-generation-policy-v1.yaml) — History-rich adult non-ultra trail-running plan generation | 1 | non-ultra-trail-plan-generation-policy | 2026-09-01 |
+| [evidence-trail-running-goal-ontology-v1](evidence/trail-running-goal-ontology/evidence-trail-running-goal-ontology-v1.yaml) — Trail-running course-demand ontology and generation boundary | 1 | trail-running-goal-ontology | 2026-09-01 |
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-non-ultra-trail-plan-generation-policy-v1](decisions/sdr-non-ultra-trail-plan-generation-policy-v1.yaml) — Use a history-anchored 14-day non-ultra trail performance block | 1 | non-ultra-trail-plan-generation-policy-v1 | 2026-09-01 |
+| [sdr-trail-running-goal-ontology-v1](decisions/sdr-trail-running-goal-ontology-v1.yaml) — Represent trail goals with an explicit course-demand vector | 1 | trail-course-demand-v1 | 2026-09-01 |
 
 ## Superseded
 

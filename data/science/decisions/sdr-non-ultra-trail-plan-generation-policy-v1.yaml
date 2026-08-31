@@ -1,0 +1,665 @@
+schema_version: 1
+id: sdr-non-ultra-trail-plan-generation-policy-v1
+version: 1
+title: "Use a history-anchored 14-day non-ultra trail performance block"
+status: draft
+approval_mode: artifact
+decision_date: 2026-09-01
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: non-ultra-trail-plan-generation-policy-v1
+evidence_review_ids:
+  - evidence-trail-running-goal-ontology-v1
+  - evidence-non-ultra-trail-plan-generation-policy-v1
+  - evidence-plan-generation-eligibility-safety-v1
+evidence_claim_ids:
+  - trail-ontology.course-demand-is-multidimensional
+  - trail-ontology.uphill-downhill-demands-differ
+  - trail-ontology.technicality-and-downhill-vary-performance
+  - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+  - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+  - non-ultra-trail.course-specific-policy-required
+  - non-ultra-trail.uphill-downhill-require-distinct-handling
+  - non-ultra-trail.hr-and-road-pace-not-sole-targets
+  - non-ultra-trail.training-specificity-promising-not-prescriptive
+  - non-ultra-trail.injury-fatigue-no-safe-dose
+  - non-ultra-trail.observed-load-does-not-prove-prescription
+  - non-ultra-trail.taper-direction-indirect
+  - non-ultra-trail.fueling-duration-and-practice-context
+  - eligibility.recent-history-anchor-without-universal-threshold
+  - eligibility.fixed-progression-and-acwr-not-safety-laws
+  - eligibility.goal-relevant-current-capability-task-specific
+  - eligibility.current-symptoms-support-stop-not-clearance
+accepted_interpretation: >
+  If its ontology dependency and this evidence and decision are separately
+  accepted, Praxys may prepare a deterministic, suggestion-only policy for
+  nonclinical adults with stable recent history, comparable trail exposure,
+  performance intent, an athlete-confirmed trail_course_demand_v1, and explicit
+  schedule constraints. Matching is course-specific. Uphill, downhill,
+  technical terrain, expected duration, environment, support, terrain access,
+  and fueling practice remain distinct inputs. Missing material inputs yield a
+  typed no-plan or bounded alternative, never a road fallback. Trail-specific,
+  strength, hiking, taper, and fueling modules remain conditional and
+  uncertainty-labelled. The proposed first block commits fourteen calendar
+  days, reviews after seven completed days, uses eight completed history weeks,
+  requires four usable weeks and recent direct hilly or trail exposure, never
+  plans above recent median weekly duration or corresponding ascent/descent
+  exposure, and allows at most one nonconsecutive controlled quality exposure
+  per seven-day unit. These values are reversible Praxys guardrails rather than
+  published optima or safety laws. Taper, progression above history, fixed
+  fueling, hiking or strength dose, back-to-back sessions, and universal HR,
+  pace, power, or RPE targets remain unaccepted. No personal finish probability
+  or safety guarantee is accepted. Science acceptance would authorize only a
+  separately reviewed inactive implementation inside these bounds; owner-only
+  rollout, provider delivery, and runtime activation remain separate decisions.
+decision_review:
+  reviewer_task: >
+    Decide whether the narrow population, course-specific modular policy,
+    reversible fourteen-day generator guardrails, and hard scientific
+    boundaries should be accepted while taper and the listed unsupported scope
+    remain deferred.
+  approval_statement: >
+    I approve the narrow history-rich adult non-ultra trail performance scope,
+    exact trail_course_demand_v1 matching, conditional terrain/downhill/
+    strength/fueling modules, suggestion-only athlete control, and typed
+    fail-closed outcomes. I approve keeping uphill and downhill distinct and
+    prohibiting road fallback, universal vertical conversion, fixed safe dose,
+    activity-average-power intensity use, and personal finish or safety
+    guarantees. I also approve the fourteen-day block, seven-day review,
+    history qualification, no-initial-load-progression schedule, one controlled
+    quality exposure, seventy-five-percent low-intensity floor, and course-
+    exposure caps as labelled reversible Praxys guardrails. This authorizes
+    only a separately reviewed inactive implementation. It does not approve
+    taper, progression above history, fixed fueling or strength dose, an
+    owner-only pilot, provider delivery, rollout, deployment, or activation.
+  items:
+    - id: narrow-course-matched-scope
+      title: Accept the narrow history-rich course-matched scope
+      disposition: approve
+      question: >
+        Should the policy apply only to nonclinical adults with stable recent
+        history, comparable exposure, performance intent, confirmed constraints,
+        and a complete accepted trail course-demand tuple?
+      proposed_decision: >
+        Accept that narrow scope and return typed unavailable results for
+        first-completion, sparse-history, ultra, multi-day, clinical, or
+        materially unknown contexts.
+      approval_effect:
+        - A future generator may be designed only inside this tuple.
+        - Goal capture remains independent from generator availability.
+      does_not_authorize:
+        - A schedule, threshold, implementation, pilot, or activation.
+      parameter_names:
+        - trail_policy_scope_and_dependencies
+        - trail_policy_required_inputs
+        - trail_policy_typed_outcomes
+      evidence_claim_ids:
+        - non-ultra-trail.course-specific-policy-required
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - eligibility.goal-relevant-current-capability-task-specific
+    - id: modular-specificity
+      title: Accept a conditional modular trail policy
+      disposition: approve
+      question: >
+        Should terrain specificity, ascent, descent, hiking, strength, taper,
+        fueling, and environment remain separate modules enabled only by
+        matching evidence and access?
+      proposed_decision: >
+        Accept the modular structure without selecting an exact dose or claiming
+        one module is universally required or superior.
+      approval_effect:
+        - Missing module-specific context may limit that module without inventing equivalence.
+        - Ascent and descent exposure remain separately reviewable.
+      does_not_authorize:
+        - A fixed weekly mix, vertical target, downhill dose, hiking threshold, or strength prescription.
+      parameter_names:
+        - trail_policy_modular_structure
+        - trail_policy_evidence_use
+      evidence_claim_ids:
+        - non-ultra-trail.uphill-downhill-require-distinct-handling
+        - non-ultra-trail.training-specificity-promising-not-prescriptive
+        - non-ultra-trail.taper-direction-indirect
+        - non-ultra-trail.fueling-duration-and-practice-context
+    - id: hard-science-boundaries
+      title: Accept hard safety, intensity, and athlete-control boundaries
+      disposition: approve
+      question: >
+        Should the policy prohibit road fallback, target-gap dose escalation,
+        catch-up, universal equivalence, activity-average-power intensity,
+        diagnosis, and personal finish or injury guarantees?
+      proposed_decision: >
+        Accept those prohibitions and require athlete review and exact-version
+        adoption before any canonical plan or provider delivery.
+      approval_effect:
+        - Deterministic validation remains authoritative.
+        - Splits or samples, not activity-average power, supply historical intensity evidence.
+      does_not_authorize:
+        - Medical clearance, an individual probability, or automatic mutation or delivery.
+      parameter_names:
+        - trail_policy_hard_boundaries
+      evidence_claim_ids:
+        - non-ultra-trail.hr-and-road-pace-not-sole-targets
+        - non-ultra-trail.injury-fatigue-no-safe-dose
+        - non-ultra-trail.observed-load-does-not-prove-prescription
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+        - eligibility.current-symptoms-support-stop-not-clearance
+    - id: initial-generator-guardrails
+      title: Accept the reversible early-block generator values
+      disposition: approve
+      question: >
+        Are the fourteen-day execution window, seven-day review, bounded
+        history qualification, no-initial-load-progression construction,
+        targetless controlled-uphill template, intensity spacing, and
+        course-exposure caps compatible with the evidence when labelled as
+        Praxys guardrails rather than published prescriptions?
+      proposed_decision: >
+        Accept those values for an early, history-anchored block only. Require
+        deterministic replay and prospectively evaluate exclusions, edits,
+        withdrawals, and invariant failures before any wider scope.
+      approval_effect:
+        - Engineering may prepare an inactive deterministic generator inside the exact reviewed envelope.
+        - The first owner can receive early rolling blocks while event-near taper remains unavailable.
+      does_not_authorize:
+        - Biological optimality, progression above history, taper, a fixed fueling or strength dose, implementation acceptance, rollout, or activation.
+      parameter_names:
+        - trail_policy_execution_and_reassessment
+        - trail_policy_history_guardrails
+        - trail_policy_schedule_construction
+        - trail_policy_workout_templates
+        - trail_policy_intensity_and_spacing
+        - trail_policy_course_exposure_caps
+        - trail_policy_runtime_evaluation
+      evidence_claim_ids:
+        - non-ultra-trail.course-specific-policy-required
+        - non-ultra-trail.uphill-downhill-require-distinct-handling
+        - non-ultra-trail.training-specificity-promising-not-prescriptive
+        - non-ultra-trail.taper-direction-indirect
+        - eligibility.recent-history-anchor-without-universal-threshold
+        - eligibility.fixed-progression-and-acwr-not-safety-laws
+    - id: exact-generation-values-deferred
+      title: Defer taper, progression, fixed dose, and broader scope
+      disposition: defer
+      question: >
+        Should progression above recent exposure, taper, back-to-back sessions,
+        fixed fueling, hiking or strength doses, and universal target zones
+        remain unaccepted?
+      proposed_decision: >
+        Keep every remaining value literal not_accepted until a successor
+        decision compares reversible options and validation evidence.
+      approval_effect:
+        - The early-block implementation cannot silently expand into event-near or higher-load planning.
+      does_not_authorize:
+        - Inferring values from road policies, study protocols, common practice, or AI output.
+      parameter_names:
+        - trail_policy_event_and_taper
+        - trail_policy_deferred_scope
+      evidence_claim_ids:
+        - non-ultra-trail.training-specificity-promising-not-prescriptive
+        - non-ultra-trail.injury-fatigue-no-safe-dose
+        - non-ultra-trail.taper-direction-indirect
+        - non-ultra-trail.fueling-duration-and-practice-context
+    - id: implementation-rollout-deferred
+      title: Defer implementation, owner pilot, Garmin, and activation
+      disposition: defer
+      question: >
+        Should storage, APIs, clients, an owner-only pilot, Garmin mapping,
+        rollout, monitoring, and runtime activation remain outside this SDR?
+      proposed_decision: >
+        Keep runtime inactive and require accepted Product, Design,
+        implementation, verification, and Operations authority.
+      approval_effect:
+        - Science approval alone cannot expose or execute a trail plan.
+      does_not_authorize:
+        - User visibility, data collection, plan generation, adoption, provider dispatch, deployment, or activation.
+      parameter_names:
+        - trail_policy_non_science_authority
+      evidence_claim_ids: []
+rejected_alternatives:
+  - alternative: "Copy a road 10K, half-marathon, or marathon schedule and add elevation"
+    rationale: >
+      Road policies do not preserve descent, grade, technicality, terrain access,
+      hiking, or trail-specific mechanical exposure.
+  - alternative: "Use distance plus ascent to select a complete trail plan"
+    rationale: >
+      Material course, environment, support, expected-duration, access, and
+      history dimensions would remain unknown.
+  - alternative: "Use one universal weekly elevation or downhill progression"
+    rationale: >
+      Current intervention and injury evidence does not validate such a safe or
+      optimal individual dose.
+  - alternative: "Use heart rate, road pace, ACWR, or activity-average power as the sole controller"
+    rationale: >
+      Slope-specific metabolic and mechanical demands and evidence limitations
+      make those unsupported sole representations.
+  - alternative: "Let an LLM choose the schedule and validate it afterward"
+    rationale: >
+      Post-hoc validation cannot make unsupported assumptions or values accepted
+      and cannot broaden the deterministic capability envelope.
+model_parameters:
+  - name: trail_policy_scope_and_dependencies
+    value:
+      minimum_age_years: 18
+      intent: performance
+      event_format: single_day
+      distance_family: non_ultra
+      clinical_or_return_to_sport: false
+      requires_accepted_ontology: sdr-trail-running-goal-ontology-v1
+      requires_course_demand_schema: trail_course_demand_v1
+      suggestion_only: true
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.course-specific-policy-required
+      - eligibility.goal-relevant-current-capability-task-specific
+    rationale: >
+      The narrow tuple avoids transferring sparse trail evidence into ultra,
+      first-completion, medical, or materially different contexts.
+    applies_to: non-ultra-trail-plan-generation-policy-v1
+  - name: trail_policy_required_inputs
+    value:
+      required:
+        - athlete_confirmed_trail_course_demand_v1
+        - stable_recent_running_history
+        - comparable_recent_ascent_exposure
+        - comparable_recent_descent_exposure
+        - available_training_days_and_limits
+        - accessible_training_terrain
+        - current_symptom_stop
+      conditional:
+        - technical_terrain_history
+        - altitude_and_environment_history
+        - hiking_exposure
+        - strength_exposure
+        - fueling_practice_experience
+      material_unknown_behavior: typed_no_plan_or_limited_module
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.course-specific-policy-required
+      - non-ultra-trail.uphill-downhill-require-distinct-handling
+      - eligibility.recent-history-anchor-without-universal-threshold
+    rationale: >
+      History anchors exposure without manufacturing a universal threshold;
+      course and access inputs determine whether specificity is feasible.
+    applies_to: capability matching and readiness
+  - name: trail_policy_execution_and_reassessment
+    value:
+      calendar_schedule_unit_days: 7
+      committed_proposal_days: 14
+      advisory_reassessment_after_completed_days: 7
+      proposal_end_inclusive: true
+      continued_goal_horizon_requires_successor: true
+      each_successor_requires_fresh_history_course_and_constraints: true
+      automatic_successor_adoption: false
+      automatic_overwrite_of_adopted_future_days: false
+      biological_optimum_claim: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - non-ultra-trail.course-specific-policy-required
+    rationale: >
+      Fourteen days is the Product-selected minimum complete two-unit
+      experience and seven days is an advisory review point. Neither value is
+      a biological optimum; both are reversible workflow guardrails.
+    applies_to: early non-ultra trail rolling proposals
+  - name: trail_policy_history_guardrails
+    value:
+      recent_history_lookback_completed_weeks: 8
+      minimum_usable_completed_weeks: 4
+      minimum_running_sessions_per_usable_week: 3
+      latest_run_within_completed_days: 10
+      comparable_hilly_or_trail_sessions_within_completed_days:
+        count: 2
+        window: 42
+      latest_comparable_hilly_or_trail_session_within_completed_days: 21
+      qualifying_activity_requires:
+        - outdoor_running_or_trail_running
+        - positive_duration_and_distance
+        - usable_elevation_gain_and_loss_or_explicit_unknown
+        - source_timestamp
+      unknown_descent_or_terrain_cannot_satisfy_comparable_exposure: true
+      sparse_or_stale_result: insufficient_comparable_trail_history
+      thresholds_are_published_biological_laws: false
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.recent-history-anchor-without-universal-threshold
+      - non-ultra-trail.course-specific-policy-required
+      - non-ultra-trail.uphill-downhill-require-distinct-handling
+    rationale: >
+      The counts prevent a history-rich policy from extrapolating from sparse
+      or non-comparable records. They are conservative pilot qualifications,
+      not safety, adaptation, or readiness thresholds.
+    applies_to: owner-scoped readiness history
+  - name: trail_policy_schedule_construction
+    value:
+      selected_running_days_per_7_day_unit:
+        minimum: 3
+        maximum: 6
+        deterministic_value: minimum_of_available_days_recent_modal_days_and_policy_maximum
+      below_minimum_result: no_schedule_within_envelope
+      requested_above_maximum_result: clarification_required
+      weekly_running_minutes_target: minimum_of_recent_median_usable_weekly_minutes_and_athlete_limit
+      weekly_running_minutes_hard_cap: minimum_of_recent_maximum_usable_weekly_minutes_and_athlete_limit
+      non_taper_progression_above_recent_median: false
+      target_time_gap_may_raise_load: false
+      session_duration_hard_cap: minimum_of_recent_maximum_completed_session_and_athlete_limit
+      quality_sessions_per_7_day_unit: 1
+      easy_and_longest_easy_allocation:
+        quality_minutes_allocated_first: true
+        remaining_minutes_distributed_across_non_quality_days: true
+        preferred_longest_easy_day_used_when_available: true
+        automatic_longest_easy_increase: false
+      no_schedule_result: no_schedule_within_envelope
+    classification: guardrail
+    evidence_claim_ids:
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+    rationale: >
+      Median, maximum, and athlete caps organize existing exposure without
+      automatic progression. One quality session is a conservative Product
+      choice for the first block, not a universal optimum.
+    applies_to: deterministic early-block schedule
+  - name: trail_policy_workout_templates
+    value:
+      easy: duration_only_with_optional_accessible_terrain_category
+      longest_easy: duration_only_with_observed_duration_and_course_exposure_caps
+      controlled_quality:
+        template_id: trail-controlled-uphill-quality-v1
+        total_planned_minutes: 38
+        steps:
+          - {kind: step, phase: warmup, duration_minutes: 10, intended_intensity: low}
+          - kind: repeat
+            repetitions: 4
+            steps:
+              - {kind: step, phase: work, duration_minutes: 3, intended_intensity: controlled_uphill_effort}
+              - {kind: step, phase: recovery, duration_minutes: 2, intended_intensity: low}
+          - {kind: step, phase: cooldown, duration_minutes: 8, intended_intensity: low}
+      work_step_requires_accessible_non_technical_uphill: true
+      downhill_recovery_may_be_prescribed: false
+      target_expression: duration_phase_and_effort_label_only
+      exact_hr_pace_power_or_rpe_target: false
+      template_must_fit_history_constraint_and_exposure_caps: true
+      template_optimum_claim: false
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+      - non-ultra-trail.hr-and-road-pace-not-sole-targets
+      - non-ultra-trail.uphill-downhill-require-distinct-handling
+    rationale: >
+      This transparent, targetless controlled-uphill template provides one
+      deterministic trail-specific stimulus without claiming universal target
+      zones or prescribing downhill speed. Its exact durations are reversible
+      Product guardrails.
+    applies_to: eligible early-block quality session
+  - name: trail_policy_intensity_and_spacing
+    value:
+      minimum_planned_low_intensity_running_minutes_fraction: 0.75
+      maximum_quality_exposures_per_7_day_unit: 1
+      quality_exposures_include:
+        - controlled_quality_template
+        - confirmed_race_or_maximal_effort
+      consecutive_quality_running_days_allowed: false
+      minimum_intervening_easy_rest_or_non_running_days: 1
+      missed_quality_makeup_allowed: false
+      reduce_or_remove_quality_before_adding_minutes: true
+      historical_intensity_source_priority: [activity_splits, activity_samples]
+      activity_average_power_allowed: false
+      low_intensity_fraction_is_optimum_claim: false
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.hr-and-road-pace-not-sole-targets
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+    rationale: >
+      The low-intensity floor, one-quality ceiling, and spacing rule are
+      conservative pilot choices for a no-progression block, not published
+      universal thresholds.
+    applies_to: all planned running minutes
+  - name: trail_policy_course_exposure_caps
+    value:
+      weekly_ascent_target: no_more_than_recent_median_usable_weekly_ascent
+      weekly_descent_target: no_more_than_recent_median_usable_weekly_descent
+      weekly_ascent_hard_cap: recent_maximum_usable_weekly_ascent
+      weekly_descent_hard_cap: recent_maximum_usable_weekly_descent
+      session_ascent_hard_cap: recent_maximum_completed_session_ascent
+      session_descent_hard_cap: recent_maximum_completed_session_descent
+      technicality: no_more_difficult_than_recently_observed_and_currently_accessible_category
+      unknown_descent_or_technicality_result: clarification_or_limited_module
+      high_speed_or_maximal_downhill_repeats: false
+      road_or_flat_substitution_claimed_equivalent: false
+      automatic_vertical_progression: false
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.uphill-downhill-require-distinct-handling
+      - non-ultra-trail.injury-fatigue-no-safe-dose
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+    rationale: >
+      Separate observed ascent, descent, and terrain caps avoid inventing a
+      conversion or progression while enabling course-relevant organization.
+    applies_to: early-block terrain and vertical exposure
+  - name: trail_policy_event_and_taper
+    value:
+      imported_event_must_be_athlete_confirmed: true
+      target_more_than_14_days_after_start: normal_14_day_rolling_proposal
+      target_within_14_days_of_start: event_inside_unapproved_taper_window
+      taper_implementation: not_accepted
+      event_or_race_counts_as_quality_and_load: true
+      event_day_generated_as_training_workout: false
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.taper-direction-indirect
+    rationale: >
+      General endurance evidence is insufficient to select a trail-specific
+      taper here. Early blocks remain usable while the event-near path fails
+      closed pending a successor decision.
+    applies_to: dated trail goals
+  - name: trail_policy_typed_outcomes
+    value:
+      candidate_success: eligible_proposal
+      no_plan:
+        - ontology_not_accepted
+        - policy_inactive
+        - course_clarification_required
+        - material_course_demand_unknown
+        - insufficient_comparable_history
+        - insufficient_terrain_access
+        - adult_scope_or_constraints_unconfirmed
+        - current_symptom_stop
+        - unsupported_ultra_or_multiday
+        - validation_failed
+      limited_modules:
+        - environment_module_limited
+        - fueling_module_limited
+        - technicality_module_limited
+      road_fallback: false
+      goal_remains_recorded: true
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+    rationale: >
+      Typed failures remain useful and honest without returning a success-shaped
+      road schedule or erasing the athlete's goal.
+    applies_to: readiness and generation responses
+  - name: trail_policy_modular_structure
+    value:
+      modules:
+        - readiness_and_history
+        - easy_and_aerobic
+        - ascent_specificity
+        - descent_and_neuromuscular_exposure
+        - technical_terrain
+        - hiking
+        - strength
+        - longest_session_and_fueling_practice
+        - taper
+        - environment_and_altitude
+        - reassessment_and_outcome
+      module_requires_matching_input: true
+      unavailable_module_may_be_silently_replaced: false
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.uphill-downhill-require-distinct-handling
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+      - non-ultra-trail.taper-direction-indirect
+      - non-ultra-trail.fueling-duration-and-practice-context
+    rationale: >
+      Modular handling preserves distinct demands and uncertainty without
+      claiming one universal trail schedule.
+    applies_to: future deterministic generator envelope
+  - name: trail_policy_evidence_use
+    value:
+      trail_specificity: conditional_candidate_module
+      strength_and_multimodal: conditional_candidate_module
+      hiking: conditional_candidate_module
+      taper: indirect_direction_only
+      fueling: expected_duration_and_practice_context_only
+      observed_load_associations: descriptive_only
+      injury_and_fatigue_findings: safety_context_only
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+      - non-ultra-trail.injury-fatigue-no-safe-dose
+      - non-ultra-trail.observed-load-does-not-prove-prescription
+      - non-ultra-trail.taper-direction-indirect
+      - non-ultra-trail.fueling-duration-and-practice-context
+    rationale: >
+      This distinguishes evidence-supported directions from exact prescriptions
+      the sources do not establish.
+    applies_to: module selection and ScienceNote claims
+  - name: trail_policy_hard_boundaries
+    value:
+      road_policy_fallback: false
+      universal_distance_vertical_conversion: false
+      universal_ascent_descent_equivalence: false
+      target_gap_may_raise_dose: false
+      missed_work_may_create_catch_up: false
+      activity_average_power_valid_for_intensity: false
+      valid_intensity_sources: [activity_splits, activity_samples]
+      heart_rate_or_level_pace_may_be_sole_hilly_controller: false
+      diagnosis_or_clearance: false
+      personal_finish_probability: false
+      performance_injury_or_safety_guarantee: false
+      canonical_adoption_requires_explicit_athlete_action: true
+      provider_delivery_requires_separate_explicit_consent: true
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.hr-and-road-pace-not-sole-targets
+      - non-ultra-trail.injury-fatigue-no-safe-dose
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+      - eligibility.current-symptoms-support-stop-not-clearance
+    rationale: >
+      These boundaries prevent unsupported inference, hidden load escalation,
+      medical claims, and authority expansion.
+    applies_to: all future policy and implementation surfaces
+  - name: trail_policy_deferred_scope
+    value:
+      progression_above_recent_typical_load: not_accepted
+      vertical_or_downhill_progression_above_recent_history: not_accepted
+      technical_terrain_dose: not_accepted
+      hiking_threshold_or_dose: not_accepted
+      strength_frequency_or_dose: not_accepted
+      back_to_back_sessions: not_accepted
+      hr_pace_power_or_rpe_targets: not_accepted
+      taper_duration_and_reduction: not_accepted
+      fueling_amount_or_frequency: not_accepted
+      recovery_interval: not_accepted
+      outcome_window_or_meaningful_change: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.training-specificity-promising-not-prescriptive
+      - non-ultra-trail.injury-fatigue-no-safe-dose
+      - non-ultra-trail.taper-direction-indirect
+      - non-ultra-trail.fueling-duration-and-practice-context
+    rationale: >
+      The accepted early-block values remain deliberately narrow; these
+      higher-load, event-near, fixed-dose, and target-specific behaviors need a
+      successor decision.
+    applies_to: scope outside the early rolling block
+  - name: trail_policy_runtime_evaluation
+    value:
+      dry_run:
+        deterministic_invariant_breach_tolerance: 0
+        replay_mismatch_tolerance: 0
+        unsupported_or_material_unknown_plan_tolerance: 0
+      owner_only_pilot:
+        maximum_major_edit_fraction: 0.30
+        major_edit_definition: session_duration_or_vertical_change_over_twenty_percent_or_two_scheduled_days_changed
+        serious_plausibly_related_report_pause_threshold: 1
+      efficacy_or_safety_claim_from_process_pilot: false
+      pause_or_revise_when_threshold_crossed: true
+    classification: guardrail
+    evidence_claim_ids:
+      - non-ultra-trail.injury-fatigue-no-safe-dose
+      - eligibility.fixed-progression-and-acwr-not-safety-laws
+    rationale: >
+      Zero-tolerance deterministic failures and a conservative edit threshold
+      make the reversible owner pilot observable without turning one athlete's
+      process data into efficacy or safety evidence.
+    applies_to: inactive dry run and separately authorized owner pilot
+  - name: trail_policy_non_science_authority
+    value:
+      implementation_review: required
+      owner_only_pilot: not_accepted
+      garmin_mapping: not_accepted
+      product_visibility: not_accepted
+      runtime_activation: not_accepted
+      deployment: not_accepted
+    classification: guardrail
+    rationale: >
+      Product, Design, Engineering, Quality, Operations, and provider decisions
+      require their own linked artifacts and authority.
+    applies_to: work outside Science authority
+applicability:
+  - Adults with stable recent, comparable running and trail exposure
+  - Single-day non-ultra trail performance intent
+  - Complete accepted trail_course_demand_v1 and explicit training constraints
+  - Suggestion-only plan proposals and scientific claim limits
+user_facing_claim_limits:
+  - Do not present the policy as a road plan adjusted for elevation.
+  - Do not claim one universal vertical, descent, technicality, hiking, strength, long-run, taper, or fueling dose.
+  - Do not use heart rate, road pace, ACWR, or activity-average power as a sole or safety-validating controller.
+  - Do not show a personal finish probability, target guarantee, injury-prevention guarantee, diagnosis, or clearance.
+safety_implications:
+  - Current symptoms stop performance optimization and route outside this nonclinical policy.
+  - Missing material course demand, history, or terrain access fails closed or limits only a separately supported module.
+  - No catch-up, target-gap load escalation, fixed progression law, or road fallback is allowed.
+  - Downhill and technical exposure must stay within separately approved history-anchored bounds.
+privacy_implications:
+  - Persist only normalized course-demand, constraint, and aggregate history snapshots needed for deterministic replay.
+  - Do not copy raw activities, samples, route files, free text, provider payloads, or target values into generic telemetry.
+  - Owner-scoped goal, proposal, adoption, export, deletion, and account-deletion paths remain mandatory.
+validation_plan:
+  - Validate the exact fourteen-day generator parameters and generated contract digest before human review.
+  - Replay capability matching across missingness, terrain-access, course, history, environment, and support boundaries.
+  - Unit-test history qualification, schedule allocation, targetless quality-template steps, low-intensity fraction, quality spacing, and separate ascent/descent/technicality caps.
+  - Compare every generated exposure only with owner-scoped immutable history snapshots using splits or samples for intensity.
+  - Verify proposals cannot mutate canonical workouts or provider calendars before exact athlete adoption and separate delivery consent.
+  - Dry-run before owner access, then prospectively observe typed outcomes, edits, adoption, withdrawal, validation failures, and adverse signals only after separate owner-pilot authority.
+falsification_conditions:
+  - A trail proposal is generated from distance/ascent alone, from an inactive contract, or through a road fallback.
+  - An exact value outside the accepted early-block guardrails is inferred despite literal not_accepted status.
+  - Uphill and downhill are collapsed, terrain access is ignored, or an unsupported module is silently substituted.
+  - A generated block exceeds recent median weekly duration, corresponding recent ascent/descent exposure, session caps, one quality exposure, or the seventy-five-percent low-intensity floor.
+  - Activity-average power, ACWR, road pace, or heart rate is treated as a safe sole prescription controller.
+  - A proposal implies personal finish probability, safety, injury prevention, diagnosis, or medical clearance.
+  - Runtime behavior is exposed before accepted Product/Design decisions, implementation review, and activation authority.
+affected_surfaces:
+  models:
+    - inactive non-ultra trail deterministic early-block policy and generator
+    - trail course-demand and history snapshot matching
+  apis:
+    - future trail readiness, alternatives, generate, regenerate, and adoption routes
+    - plan-generation capability discovery
+  clients:
+    - future web, miniapp, plugin, and MCP trail plan-start flows
+  science_notes:
+    - Why trail plans match course demand rather than distance alone
+    - Why uphill, downhill, terrain access, and fueling practice are separate
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This artifact-mode decision addresses issue #692 and remains draft and inactive."
+  - "It depends on separate acceptance of sdr-trail-running-goal-ontology-v1."
+  - "Work Contract classification digest: sha256:55c4da66e7f504dd0d40c681c2a006fdbe7079c0cd06de43cb95802e679f78f5."
+  - "Work Contract route digest: sha256:2f237b07f7a41582707e1a647e69aa634749c487c258b555c559f80f98cfc160."
+  - "The fourteen-day window, seven-day review, history counts, session template, schedule limits, course-exposure caps, and evaluation thresholds are reversible Product guardrails proposed in docs/dev/trail-running-plan-product-proposal.md; they are not published biological optima or safety laws."

@@ -1,0 +1,240 @@
+{
+  "affected_models": [
+    "trail_course_demand_v1 ontology",
+    "trail capability matching contract"
+  ],
+  "contract_digest": "sha256:6a6024f339a8b92814e4a9dd16f8fa85416235a68fa2a279a05979938c2bb151",
+  "decision_id": "sdr-trail-running-goal-ontology-v1",
+  "decision_status": "draft",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "trail-ontology.course-demand-is-multidimensional",
+    "trail-ontology.uphill-downhill-demands-differ",
+    "trail-ontology.technicality-and-downhill-vary-performance",
+    "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone",
+    "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+  ],
+  "evidence_review_ids": [
+    "evidence-trail-running-goal-ontology-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-trail-running-goal-ontology-v1": "sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a"
+  },
+  "model_version": "trail-course-demand-v1",
+  "parameters": {
+    "trail_course_demand_schema": {
+      "applies_to": "trail_course_demand_v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional",
+        "trail-ontology.uphill-downhill-demands-differ"
+      ],
+      "value": {
+        "fields": {
+          "aid_and_support": {
+            "material": true,
+            "type": "object",
+            "unit": "event_support_model"
+          },
+          "distance_meters": {
+            "material": true,
+            "minimum": 1,
+            "type": "integer",
+            "unit": "meters"
+          },
+          "elevation_gain_meters": {
+            "material": true,
+            "minimum": 0,
+            "type": "integer",
+            "unit": "meters"
+          },
+          "elevation_loss_meters": {
+            "material": true,
+            "minimum": 0,
+            "type": "integer",
+            "unit": "meters"
+          },
+          "environmental_demand": {
+            "material": "conditional",
+            "type": "object",
+            "unit": "observed_or_expected_conditions"
+          },
+          "expected_duration_seconds": {
+            "material": true,
+            "minimum": 1,
+            "type": "integer",
+            "unit": "seconds"
+          },
+          "fueling_practice_experience": {
+            "material": "conditional",
+            "type": "categorical_object",
+            "unit": "versioned_rubric"
+          },
+          "grade_distribution": {
+            "material": true,
+            "type": "object",
+            "unit": "percent_of_course"
+          },
+          "maximum_altitude_meters": {
+            "material": "conditional",
+            "type": "integer",
+            "unit": "meters_above_sea_level"
+          },
+          "recent_downhill_exposure": {
+            "material": true,
+            "type": "object",
+            "unit": "observed_exposure_summary"
+          },
+          "technicality": {
+            "material": true,
+            "type": "categorical_object",
+            "unit": "versioned_rubric"
+          },
+          "training_terrain_access": {
+            "material": true,
+            "type": "object",
+            "unit": "accessible_demand_classes"
+          }
+        },
+        "schema_id": "trail_course_demand_v1"
+      }
+    },
+    "trail_distinct_demand_invariants": {
+      "applies_to": "trail ontology and future policy matching",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.uphill-downhill-demands-differ",
+        "trail-ontology.technicality-and-downhill-vary-performance",
+        "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone"
+      ],
+      "value": {
+        "ascent_and_descent_separate": true,
+        "downhill_history_required_when_descent_material": true,
+        "grade_distribution_required_when_material": true,
+        "heart_rate_alone_sufficient_for_hilly_intensity": false,
+        "level_pace_alone_sufficient_for_hilly_intensity": false,
+        "technicality_required_when_material": true,
+        "universal_distance_vertical_equivalence": false
+      }
+    },
+    "trail_exact_values": {
+      "applies_to": "unresolved ontology and future generation values",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.uphill-downhill-demands-differ",
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "distance_vertical_conversion": "not_accepted",
+        "downhill_progression": "not_accepted",
+        "grade_bins": "not_accepted",
+        "history_freshness": "not_accepted",
+        "materiality_thresholds": "not_accepted",
+        "road_trail_equivalence": "not_accepted",
+        "technical_terrain_dose": "not_accepted",
+        "technicality_rubric": "not_accepted",
+        "vertical_progression": "not_accepted"
+      }
+    },
+    "trail_field_provenance": {
+      "applies_to": "every trail_course_demand_v1 field",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "allowed": [
+          "course_verified",
+          "athlete_stated",
+          "history_observed",
+          "model_inferred",
+          "explicit_assumption",
+          "unknown"
+        ],
+        "assumed_requires_athlete_confirmation": true,
+        "inferred_requires_model_version": true,
+        "source_timestamp_required_when_applicable": true,
+        "unknown_is_preserved": true
+      }
+    },
+    "trail_non_science_authority_boundary": {
+      "applies_to": "all non-science work",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "deferred_to_design": [
+          "clarification_journey",
+          "review_experience",
+          "accessibility",
+          "copy"
+        ],
+        "deferred_to_engineering": [
+          "storage",
+          "api",
+          "generator",
+          "clients",
+          "provider_delivery"
+        ],
+        "deferred_to_operations": [
+          "owner_gate",
+          "rollout",
+          "activation",
+          "monitoring"
+        ],
+        "deferred_to_product": [
+          "visibility",
+          "catalog",
+          "opt_in",
+          "outcome_metrics"
+        ],
+        "science_authority": [
+          "evidence",
+          "applicability",
+          "uncertainty",
+          "claim_limits",
+          "safety_scope"
+        ]
+      }
+    },
+    "trail_science_and_safety_boundary": {
+      "applies_to": "future trail capability decisions",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "activity_average_power_valid_for_intensity": false,
+        "diagnosis_or_clearance": false,
+        "minimum_age_years": 18,
+        "nonclinical_only": true,
+        "performance_or_injury_guarantee": false,
+        "personal_finish_probability": false,
+        "symptom_stop_required": true,
+        "valid_intensity_sources": [
+          "activity_splits",
+          "activity_samples"
+        ]
+      }
+    },
+    "trail_unknown_and_materiality_policy": {
+      "applies_to": "trail capability matching",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional",
+        "trail-ontology.technicality-and-downhill-vary-performance"
+      ],
+      "value": {
+        "exact_materiality_thresholds": "not_accepted",
+        "material_unknown_result": [
+          "clarification_required",
+          "policy_unavailable",
+          "bounded_alternative_only_when_separately_reviewed"
+        ],
+        "module_specific_unknown_may_limit_only_dependent_module": true,
+        "unknown_defaults_to_road": false,
+        "unknown_defaults_to_zero": false
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:cb53936289927d0f5f73268b5b6468e17a5b771532e2eaeee5c5c8781e541774"
+}

@@ -68,6 +68,8 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-road-marathon-plan-generation-policy-v1",
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
+        "evidence-trail-running-goal-ontology-v1",
+        "evidence-non-ultra-trail-plan-generation-policy-v1",
     }
     assert set(registry.decisions) == {
         "sdr-adult-running-plan-population-routing-v1",
@@ -84,7 +86,44 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-road-10k-plan-generation-policy-v2",
         "sdr-road-half-marathon-plan-generation-policy-v1",
         "sdr-road-marathon-plan-generation-policy-v1",
+        "sdr-trail-running-goal-ontology-v1",
+        "sdr-non-ultra-trail-plan-generation-policy-v1",
     }
+
+    trail_ontology_review = registry.evidence_reviews[
+        "evidence-trail-running-goal-ontology-v1"
+    ]
+    trail_ontology_decision = registry.decisions[
+        "sdr-trail-running-goal-ontology-v1"
+    ]
+    trail_policy_review = registry.evidence_reviews[
+        "evidence-non-ultra-trail-plan-generation-policy-v1"
+    ]
+    trail_policy_decision = registry.decisions[
+        "sdr-non-ultra-trail-plan-generation-policy-v1"
+    ]
+    for review in (trail_ontology_review, trail_policy_review):
+        assert review.status == RecordStatus.DRAFT
+        assert review.approval_mode == ApprovalMode.ARTIFACT
+        assert review.human_reviewers == []
+        assert review.reviewed_on is None
+        _assert_exact_verification_notes(review)
+    for decision in (trail_ontology_decision, trail_policy_decision):
+        assert decision.status == RecordStatus.DRAFT
+        assert decision.approval_mode == ApprovalMode.ARTIFACT
+        assert decision.artifact_policy is not None
+        assert (
+            decision.artifact_policy.runtime_state
+            == ArtifactRuntimeState.INACTIVE
+        )
+        assert decision.human_reviewers == []
+    assert trail_policy_decision.evidence_review_ids[:2] == [
+        trail_ontology_review.id,
+        trail_policy_review.id,
+    ]
+    assert trail_ontology_decision.model_parameters[0].value[
+        "schema_id"
+    ] == "trail_course_demand_v1"
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ].status == "accepted"
