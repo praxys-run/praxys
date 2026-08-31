@@ -4,7 +4,7 @@
 - **schema_version:** `1`
 - **artifact_type:** `architecture-decision-record`
 - **owner_role:** Architecture
-- **status:** Proposed — bounded implementation authorized; final implementation review pending
+- **status:** Accepted for PR #756 merge and default-branch activation; outcome observation pending
 - **decision subject digest:** `sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc`
 
 ## Question
@@ -64,8 +64,15 @@ The exact addendum is bound to
 `sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`
 and its complete policy proposal at
 `sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3`.
-The packet records an explicit request to prepare this candidate while keeping
-the exact-subject `human-review-required` disposition pending.
+The frozen packet records the pre-approval `human-review-required` state. After
+independent review and passing required checks, the authenticated user requested
+merge of PR #756. The separate approval artifact
+`docs/dev/codex-subagent-lifecycle-approval-v2.json` at
+`sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398`
+binds that approval to the exact subject, proposal, and reviewed implementation
+commit `d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a`. Its authority is limited to
+merge and default-branch activation; all measured-parity, autonomy, ledger, MCP,
+deployment, and release exclusions remain in force.
 
 Copilot retains its repository ledger, one-active-direct-sibling rule, and
 notification/claimed-read boundary. Codex uses targetable native threads,

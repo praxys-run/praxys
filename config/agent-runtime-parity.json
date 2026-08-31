@@ -16,11 +16,16 @@
     "proposal_digest": "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3",
     "subject_path": "docs/dev/codex-subagent-lifecycle-decision-v2.json",
     "subject_digest": "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43",
-    "authorization_kind": "explicit-user-implementation-request",
-    "authorized_scope": "candidate-implementation-and-verification-only",
+    "approval_path": "docs/dev/codex-subagent-lifecycle-approval-v2.json",
+    "approval_digest": "sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398",
+    "authorization_kind": "explicit-user-merge-request",
+    "authorized_scope": "merge-and-default-branch-activation-only",
     "decision_review_route": "human-review-required",
-    "exact_subject_human_approval_status": "pending",
-    "digest_bound_human_approval_claimed": false
+    "exact_subject_human_approval_status": "approved",
+    "digest_bound_human_approval_claimed": true,
+    "human_approved_at": "2026-08-31T15:49:37+08:00",
+    "approved_pull_request": 756,
+    "approved_implementation_head": "d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a"
   },
   "canonical_control_plane": {
     "entry_instruction_path": "AGENTS.md",

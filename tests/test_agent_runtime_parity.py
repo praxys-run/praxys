@@ -536,9 +536,16 @@ def test_static_runtime_parity_matches_canonical_control_plane() -> None:
     assert config.lifecycle_approval.proposal_digest == (
         "sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3"
     )
-    assert config.lifecycle_approval.digest_bound_human_approval_claimed is False
+    assert config.lifecycle_approval.approval_digest == (
+        "sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398"
+    )
+    assert config.lifecycle_approval.digest_bound_human_approval_claimed is True
     assert config.lifecycle_approval.decision_review_route == "human-review-required"
-    assert config.lifecycle_approval.exact_subject_human_approval_status == "pending"
+    assert config.lifecycle_approval.exact_subject_human_approval_status == "approved"
+    assert config.lifecycle_approval.approved_pull_request == 756
+    assert config.lifecycle_approval.approved_implementation_head == (
+        "d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a"
+    )
     assert config.approved_work_contract.classification_digest == (
         "sha256:ee6c38eebb7b9db2aedf6b824bc23d5d966e08045fc0e2830196e4a13eb0bcdd"
     )
@@ -805,6 +812,21 @@ def test_lifecycle_subject_or_proposal_drift_fails_closed(tmp_path: Path) -> Non
         _load_fixture_config(repository), root=repository
     )
     assert "lifecycle policy proposal digest differs from contract" in errors
+
+
+def test_lifecycle_human_approval_drift_fails_closed(tmp_path: Path) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    approval = repository / "docs/dev/codex-subagent-lifecycle-approval-v2.json"
+    approval.write_text(
+        approval.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+
+    assert "lifecycle human approval digest differs from contract" in errors
 
 
 @pytest.mark.parametrize(

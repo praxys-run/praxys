@@ -6,7 +6,7 @@
 - **owner_role:** Quality
 - **verification_date:** `2026-08-30`
 - **status:** Pass for the approved static implementation-and-verification scope
-- **implementation_state:** uncommitted worktree candidate
+- **implementation_state:** reviewed PR #756; merge/default-branch activation approved
 - **proposal:** `policy-change-proposal-codex-copilot-runtime-parity-v1`
 - **proposal digest:** `sha256:47a829962a21e17833feac0c3473ecb749c7b7e0ce4bff3aa2611ee1a92de8cd`
 - **decision subject digest:** `sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc`
@@ -300,3 +300,32 @@ The earlier frozen hashes and counts remain historical evidence for the
 pre-review candidate only. A fresh independent review of the corrected staged
 diff, followed by exact-commit preflight, is required before PR handoff. Human
 exact-subject approval, activation, and merge remain pending.
+
+### PR handoff and recorded human approval
+
+The final implementation commit
+`d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a` passed exact-commit preflight with
+2,978 tests passed and 53 skipped, a clean diff check, and a clean worktree. PR
+#756 then passed static parity, Python tests, backend aggregation, web build, UI
+quality, miniapp legal sync, and selective-review policy checks. Conditional
+live Cloud parity was skipped as designed. The PR had no review comments, was
+mergeable, and reported a clean merge state. A sealed Codex Security diff scan
+of staged snapshot
+`sha256:22ec6529c7e0ed500ca660fbeb5b11ec8bcdf6f4a37f66475f58cfc71cf558f7`
+completed with zero reportable findings.
+
+At `2026-08-31T15:49:37+08:00`, after those results were reported, the active
+user instructed: `没有问题的话就合并吧`. The repository records that as human
+approval of exact lifecycle subject
+`sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`,
+its frozen proposal
+`sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3`,
+and the reviewed implementation commit above, conditional on the approval-only
+delta also passing required checks. The approval artifact is
+`docs/dev/codex-subagent-lifecycle-approval-v2.json` at
+`sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398`.
+It authorizes merge through PR #756 and default-branch activation only. Measured
+parity certification, autonomy promotion, Copilot ledger activation or change,
+broader MCP or credential access, and application deployment remain excluded.
+The original subject/proposal remain byte-for-byte pre-approval snapshots; the
+independent approval artifact is the current authority record.

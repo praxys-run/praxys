@@ -59,6 +59,9 @@ _LIFECYCLE_PROPOSAL_DIGEST = (
 _LIFECYCLE_SUBJECT_DIGEST = (
     "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43"
 )
+_LIFECYCLE_APPROVAL_DIGEST = (
+    "sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398"
+)
 _READ_ONLY_ADAPTERS = frozenset(
     {
         "praxys-orchestrator",
@@ -630,11 +633,22 @@ class LifecycleApprovalBinding(ParityRecord):
     subject_digest: Literal[
         "sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43"
     ]
-    authorization_kind: Literal["explicit-user-implementation-request"]
-    authorized_scope: Literal["candidate-implementation-and-verification-only"]
+    approval_path: Literal[
+        "docs/dev/codex-subagent-lifecycle-approval-v2.json"
+    ]
+    approval_digest: Literal[
+        "sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398"
+    ]
+    authorization_kind: Literal["explicit-user-merge-request"]
+    authorized_scope: Literal["merge-and-default-branch-activation-only"]
     decision_review_route: Literal["human-review-required"]
-    exact_subject_human_approval_status: Literal["pending"]
-    digest_bound_human_approval_claimed: Literal[False]
+    exact_subject_human_approval_status: Literal["approved"]
+    digest_bound_human_approval_claimed: Literal[True]
+    human_approved_at: Literal["2026-08-31T15:49:37+08:00"]
+    approved_pull_request: Literal[756]
+    approved_implementation_head: Literal[
+        "d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a"
+    ]
 
 
 class SkillAdapter(ParityRecord):
@@ -879,6 +893,8 @@ class AgentRuntimeParity(ParityRecord):
             raise ValueError("lifecycle proposal digest differs from v2 packet")
         if self.lifecycle_approval.subject_digest != _LIFECYCLE_SUBJECT_DIGEST:
             raise ValueError("lifecycle subject digest differs from v2 packet")
+        if self.lifecycle_approval.approval_digest != _LIFECYCLE_APPROVAL_DIGEST:
+            raise ValueError("lifecycle approval digest differs from v2 packet")
         for label, values in (
             ("agent ids", [item.id for item in self.agent_adapters]),
             ("agent paths", [item.codex_path for item in self.agent_adapters]),
@@ -1367,15 +1383,23 @@ def _validate_lifecycle_approval(
     binding = config.lifecycle_approval
     subject_path = root / binding.subject_path
     proposal_path = root / binding.proposal_path
-    if not subject_path.is_file() or not proposal_path.is_file():
+    approval_path = root / binding.approval_path
+    if (
+        not subject_path.is_file()
+        or not proposal_path.is_file()
+        or not approval_path.is_file()
+    ):
         return ["missing lifecycle v2 decision packet"]
     subject_bytes = subject_path.read_bytes()
     proposal_bytes = proposal_path.read_bytes()
+    approval_bytes = approval_path.read_bytes()
     if f"sha256:{hashlib.sha256(subject_bytes).hexdigest()}" != binding.subject_digest:
         errors.append("lifecycle decision subject digest differs from contract")
         return errors
     if f"sha256:{hashlib.sha256(proposal_bytes).hexdigest()}" != binding.proposal_digest:
         errors.append("lifecycle policy proposal digest differs from contract")
+    if f"sha256:{hashlib.sha256(approval_bytes).hexdigest()}" != binding.approval_digest:
+        errors.append("lifecycle human approval digest differs from contract")
     try:
         subject = json.loads(subject_bytes)
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1424,24 +1448,86 @@ def _validate_lifecycle_approval(
             errors.append(f"missing lifecycle implementation path: {relative_path}")
     authorization = subject.get("authorization")
     if not isinstance(authorization, dict) or authorization != {
-        "kind": binding.authorization_kind,
+        "kind": "explicit-user-implementation-request",
         "source": (
             "approved decision-complete plan, selected safe parallelism, and "
             "explicit Implement the plan request on 2026-08-31"
         ),
-        "authorized_scope": binding.authorized_scope,
-        "decision_review_route": binding.decision_review_route,
-        "exact_subject_human_approval_status": (
-            binding.exact_subject_human_approval_status
-        ),
-        "digest_bound_human_approval_claimed": (
-            binding.digest_bound_human_approval_claimed
-        ),
+        "authorized_scope": "candidate-implementation-and-verification-only",
+        "decision_review_route": "human-review-required",
+        "exact_subject_human_approval_status": "pending",
+        "digest_bound_human_approval_claimed": False,
     }:
         errors.append("lifecycle authority differs from decision subject")
     proposal = proposal_bytes.decode("utf-8", errors="replace")
     if binding.proposal_id not in proposal or binding.subject_digest not in proposal:
         errors.append("lifecycle proposal does not bind its exact decision subject")
+    try:
+        approval = json.loads(approval_bytes)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        errors.append("lifecycle human approval is not valid JSON")
+        return errors
+    expected_approval = {
+        "schema_version": 1,
+        "id": "approval-praxys-codex-subagent-lifecycle-v2",
+        "artifact_type": "human-approval",
+        "status": binding.exact_subject_human_approval_status,
+        "recorded_at": binding.human_approved_at,
+        "decision_review_route": binding.decision_review_route,
+        "subject": {
+            "id": "praxys-codex-subagent-lifecycle-v2",
+            "path": binding.subject_path,
+            "digest": binding.subject_digest,
+        },
+        "proposal": {
+            "id": binding.proposal_id,
+            "path": binding.proposal_path,
+            "digest": binding.proposal_digest,
+        },
+        "implementation": {
+            "pull_request": binding.approved_pull_request,
+            "head_commit": binding.approved_implementation_head,
+            "review_state": "no-material-findings",
+            "required_checks_state": "passed",
+        },
+        "authorization": {
+            "kind": binding.authorization_kind,
+            "source": "active-user-message",
+            "message": "没有问题的话就合并吧",
+            "interpretation": (
+                "Approve the exact lifecycle subject and reviewed "
+                "implementation for merge through PR #756 and activation "
+                "from the default branch, provided no material finding "
+                "remains and required checks pass."
+            ),
+            "authorized_scope": binding.authorized_scope,
+            "conditions": [
+                "no material code-review or security finding remains",
+                "all required checks pass for the final pull-request head",
+                (
+                    "the post-approval delta is limited to recording and "
+                    "validating this approval and its evidence"
+                ),
+            ],
+            "exclusions": [
+                "autonomy promotion or measured-parity certification",
+                (
+                    "modification or activation of the Copilot "
+                    "invocation-control ledger"
+                ),
+                (
+                    "credential forwarding, broader MCP tools, or "
+                    "production mutation"
+                ),
+                (
+                    "application deployment or release beyond repository "
+                    "default-branch activation"
+                ),
+            ],
+        },
+    }
+    if not isinstance(approval, dict) or approval != expected_approval:
+        errors.append("lifecycle human approval differs from contract")
     return errors
 
 
@@ -1467,6 +1553,7 @@ def validate_static_runtime_parity(
         config.approval.subject_path,
         config.lifecycle_approval.proposal_path,
         config.lifecycle_approval.subject_path,
+        config.lifecycle_approval.approval_path,
         *config.canonical_control_plane.model_dump().values(),
         config.codex_adapter.project_config_path,
         config.codex_adapter.hook_path,

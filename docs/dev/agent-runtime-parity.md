@@ -1,8 +1,7 @@
 # Codex CLI and Copilot CLI runtime adapters
 
-**Status:** implementation candidate; independent Verification Evidence and
-final diff review are required before activation. This document does not claim
-measured runtime parity.
+**Status:** human-approved for merge through PR #756 and default-branch
+activation; measured runtime parity remains pending.
 
 ## Approval and Work Contract
 
@@ -19,10 +18,16 @@ The lifecycle schema-2 addendum is separately bound to
 `sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3`,
 and decision subject digest
 `sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`.
-It records the user's 2026-08-31 plan approval and implementation request as
-authority to prepare and verify this candidate. The exact subject remains
-`human-review-required` and pending; no digest-bound human approval, activation,
-release, or merge decision is claimed.
+Those two files remain byte-for-byte pre-approval snapshots. The authenticated
+user subsequently approved their exact subject after review and requested merge
+of PR #756. The independent approval record is
+`docs/dev/codex-subagent-lifecycle-approval-v2.json` at
+`sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398`.
+It binds subject digest `dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`,
+the reviewed implementation commit `d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a`,
+PR #756, and merge/default-branch activation only. It does not certify measured
+parity, promote autonomy, modify the Copilot ledger, broaden MCP scope, or
+authorize application deployment.
 
 The authoritative deterministic route is:
 
@@ -235,9 +240,10 @@ global interception or atomic cross-process enforcement.
 Dispatch observations include the validated opaque contract/slot identities,
 immutable revision key, logical-work lookup state, exact native target when
 active, target role, reviewer-history provenance, and one-use replacement
-facts. `read_parallel` derives read-only eligibility from the selected adapter's
-checked-in `write_scope`; a caller cannot relabel Engineering or an artifact
-writer as read-only. Cleanup evaluation accepts a complete native tree snapshot
+facts. `read_parallel` requires the selected adapter's checked-in `write_scope`
+to be `none` and excludes coordinator adapters that can transitively dispatch a
+writer; a caller cannot relabel Engineering, an artifact writer, or a coordinator
+as parallel read-only work. Cleanup evaluation accepts a complete native tree snapshot
 and returns leaf-first interrupt order, or records incomplete when the snapshot
 is absent, cyclic, duplicated, or otherwise inconsistent.
 `scripts/check_agent_runtime_parity.py` is the stable local/CI entry point.

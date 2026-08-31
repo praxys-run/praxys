@@ -84,8 +84,11 @@ observations establish duplicate, orphan, correction, latency, and cost outcomes
 The selected behavior is the exact subject in
 `docs/dev/codex-subagent-lifecycle-decision-v2.json`; the user-approved plan and
 explicit implementation request authorize candidate preparation and verification.
-Static validation binds that subject and the complete lifecycle proposal while
-retaining its pending `human-review-required` disposition.
+The later merge request resolves its `human-review-required` route through the
+separate digest-bound approval artifact for PR #756 and reviewed implementation
+commit `d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a`. This changes merge/default-
+branch activation authority only; the paired-task observation and promotion
+guardrails below remain pending.
 
 ## Outcome and guardrail plan
 
