@@ -69,6 +69,30 @@ jobs:
             -f description="Selective-review policy is evaluating this head." \
             --silent
 
+      - name: Require translation validation for generated i18n PRs
+        if: steps.target.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.gate-status.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          author="$(jq -r .user.login <<< "$pull")"
+          head_ref="$(jq -r .head.ref <<< "$pull")"
+          if [[ "$author" != "github-actions[bot]" || "$head_ref" != i18n/refresh-zh-* ]]; then
+            exit 0
+          fi
+          translation_state="$(
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/status" \
+              --jq '[.statuses[] | select(.context == "translation-validation")] | sort_by(.updated_at) | last | .state // empty'
+          )"
+          if [[ "$translation_state" != "success" ]]; then
+            echo "::error::Generated i18n PR requires translation-validation=success on the exact head."
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         if: always()
         with:

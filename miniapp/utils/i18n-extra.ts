@@ -1242,7 +1242,7 @@ const ZH_PLAN_START = {
   'Review before adopting': '采纳前先审核',
   'Keep the current plan until adoption': '采纳前继续执行当前计划',
   'This proposal cannot mutate the canonical plan. Review readiness and create a new proposal when you are ready.':
-    '此提案无法更改规范计划。准备好后请复核准备情况并创建新提案。',
+    '此提案无法更改主计划。准备好后，请检查准备度并创建新提案。',
   'A preview checks current evidence and constraints. It is a proposal, not yet your plan.':
     '预览会核查当前证据和限制条件。它只是提案，尚未成为你的计划。',
   Science: '科学',

@@ -340,7 +340,20 @@ function loadChineseQualityRules() {
       ))
       .map((item) => [item.source, item.target]),
   );
-  return { forbidden, exact };
+  const semantic = (data.semantic_rules ?? [])
+    .filter((rule) => (
+      rule &&
+      typeof rule.id === 'string' &&
+      (typeof rule.source_equals === 'string' || typeof rule.source_contains === 'string')
+    ))
+    .map((rule) => ({
+      id: rule.id,
+      sourceEquals: rule.source_equals ?? null,
+      sourceContains: rule.source_contains ?? null,
+      required: (rule.required_target_terms ?? []).filter((item) => typeof item === 'string'),
+      forbidden: (rule.forbidden_target_terms ?? []).filter((item) => typeof item === 'string'),
+    }));
+  return { forbidden, exact, semantic };
 }
 
 function placeholderNames(text) {
@@ -411,6 +424,31 @@ function scanExtraCatalogQuality(findings) {
         kind: 'zh-style',
         text: `${source} -> contains ${rule.term}; prefer ${rule.prefer}`,
       });
+    }
+    for (const rule of rules.semantic) {
+      const sourceFolded = source.toLocaleLowerCase('en-US');
+      const matches = rule.sourceEquals != null
+        ? sourceFolded === rule.sourceEquals.toLocaleLowerCase('en-US')
+        : sourceFolded.includes(rule.sourceContains.toLocaleLowerCase('en-US'));
+      if (!matches) continue;
+      for (const term of rule.required) {
+        if (translation.includes(term)) continue;
+        findings.push({
+          file: entry.file,
+          line: entry.line,
+          kind: 'zh-semantic-term',
+          text: `${source} -> ${rule.id} requires ${term}`,
+        });
+      }
+      for (const term of rule.forbidden) {
+        if (!translation.includes(term)) continue;
+        findings.push({
+          file: entry.file,
+          line: entry.line,
+          kind: 'zh-semantic-term',
+          text: `${source} -> ${rule.id} forbids ${term}`,
+        });
+      }
     }
     if (/[\u3400-\u9fff]/.test(translation)) {
       if (translation.includes('...')) {

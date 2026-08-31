@@ -2,10 +2,18 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_i18n_quality import check_catalog, load_quality_config  # noqa: E402
+from i18n_semantics import (  # noqa: E402
+    check_semantic_rules,
+    human_review_reasons,
+    is_fuzzy,
+    validate_semantic_rules,
+)
 from translate_missing import parse_po  # noqa: E402
 
 
@@ -24,6 +32,7 @@ CONFIG = {
     "terms": [
         {"en": "HRV", "zh": "HRV"},
     ],
+    "semantic_rules": [],
 }
 
 
@@ -91,3 +100,122 @@ def test_repository_catalog_passes_quality_gate():
     config = load_quality_config(ROOT / "scripts" / "i18n_glossary.yaml")
     findings = check_catalog(source, target, config)
     assert findings == []
+
+
+def test_semantic_rule_supports_path_scope_and_multiple_source_refs():
+    config = {
+        "semantic_rules": [
+            {
+                "id": "training-base",
+                "source_contains": "training base",
+                "source_paths": ["src/pages/**"],
+                "required_target_terms": ["训练基准"],
+                "forbidden_target_terms": ["训练依据"],
+            }
+        ]
+    }
+    matching = {
+        "prefix_lines": [
+            "#: src/components/Setup.tsx:1 src/pages/Setup.tsx:2",
+        ],
+        "msgid": "Choose training base",
+        "msgstr": "选择训练依据",
+    }
+    findings = check_semantic_rules(matching, config)
+    assert {finding.message for finding in findings} == {
+        "required target term '训练基准' is missing",
+        "forbidden target term '训练依据' is present",
+    }
+
+    outside_scope = {**matching, "prefix_lines": ["#: src/components/Setup.tsx:1"]}
+    assert check_semantic_rules(outside_scope, config) == []
+
+
+def test_source_equals_is_case_insensitive_but_not_a_substring():
+    config = {
+        "semantic_rules": [
+            {
+                "id": "peer-metrics",
+                "source_equals": "Peer metrics",
+                "required_target_terms": ["训练指标"],
+            }
+        ]
+    }
+    exact = _entry("peer METRICS", "对比指标")
+    assert check_semantic_rules(exact, config)
+    assert check_semantic_rules(_entry("Open peer metrics", "查看训练指标"), config) == []
+
+
+def test_sensitive_match_routes_human_review_without_becoming_approval():
+    config = {
+        "semantic_rules": [
+            {
+                "id": "symptom-stop",
+                "source_contains": "symptom stop",
+                "required_target_terms": ["症状停止"],
+                "human_review_category": "safety",
+            }
+        ]
+    }
+    entry = _entry("Symptom stop", "症状停止")
+    assert check_semantic_rules(entry, config) == []
+    assert human_review_reasons(entry, config) == ["safety:symptom-stop"]
+    assert human_review_reasons(_entry("Other", "其他"), config) == []
+
+
+@pytest.mark.parametrize(
+    "rules, message",
+    [
+        ({}, "exactly one"),
+        ({"source_equals": "A", "source_contains": "A"}, "exactly one"),
+        ({"source_equals": "A", "unknown": []}, "unknown fields"),
+    ],
+)
+def test_invalid_semantic_rule_schema_fails_closed(rules, message):
+    rule = {"id": "bad", "human_review_category": "safety", **rules}
+    with pytest.raises(ValueError, match=message):
+        validate_semantic_rules({"semantic_rules": [rule]})
+
+
+def test_check_catalog_also_fails_closed_on_invalid_semantic_policy():
+    invalid = {**CONFIG, "semantic_rules": [{"id": "bad"}]}
+    with pytest.raises(ValueError, match="exactly one"):
+        check_catalog([_entry("Hello", "Hello")], [_entry("Hello", "你好")], invalid)
+
+
+def test_fuzzy_translation_is_blocking_even_with_nonempty_msgstr():
+    entry = {
+        "prefix_lines": ["#, fuzzy"],
+        "msgid": "Changed source",
+        "msgstr": "旧译文",
+    }
+    assert is_fuzzy(entry)
+    findings = check_catalog([_entry("Changed source", "Changed source")], [entry], CONFIG)
+    assert any(finding.code == "fuzzy" for finding in findings)
+
+
+def test_source_path_scope_cannot_escape_source_root(tmp_path, monkeypatch):
+    import check_i18n_quality as quality
+
+    source = tmp_path / "en.po"
+    target = tmp_path / "zh.po"
+    glossary = tmp_path / "glossary.yaml"
+    source.write_text('msgid "Hello"\nmsgstr "Hello"\n', encoding="utf-8")
+    target.write_text(
+        '#: ../secret.ts:1\nmsgid "Hello"\nmsgstr "你好"\n',
+        encoding="utf-8",
+    )
+    glossary.write_text("semantic_rules: []\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "check_i18n_quality.py",
+            "--source", str(source),
+            "--target", str(target),
+            "--glossary", str(glossary),
+            "--source-root", str(tmp_path / "web"),
+        ],
+    )
+    with pytest.raises(ValueError, match="escapes source root"):
+        quality.main()

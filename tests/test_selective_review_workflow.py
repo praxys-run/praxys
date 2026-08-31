@@ -90,6 +90,11 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
         ROOT / ".github" / "workflows" / "ci-premerge.yml"
     ).read_text(encoding="utf-8")
     assert "--admin" not in workflow
+    assert "Require translation validation for generated i18n PRs" in workflow
+    assert "github-actions[bot]" in workflow
+    assert "i18n/refresh-zh-*" in workflow
+    assert "translation-validation" in workflow
+    assert "translation_state" in workflow
 
     emergency = (
         ROOT

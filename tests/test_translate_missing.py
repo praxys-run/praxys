@@ -1,4 +1,5 @@
 """Unit tests for scripts/translate_missing.py placeholder validator + glossary."""
+import json
 import os
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ import translate_missing as tm  # noqa: E402
 from translate_missing import (  # noqa: E402
     _extract_context,
     _group_by_screen,
+    _group_by_semantic_cluster,
     _icu_variable_names,
     _json_decisions_by_id,
     _json_text_by_id,
@@ -21,6 +23,7 @@ from translate_missing import (  # noqa: E402
     _placeholders_match,
     _read_source_excerpt,
     _review_candidates,
+    _screen_translation_references,
     build_system_prompt,
     main as translate_cli_main,
     review_translations,
@@ -141,6 +144,15 @@ class TestGlossaryInjection:
         assert "native Mainland Simplified Chinese" in prompt
         assert "不用过度正式的“您”" in prompt
 
+    def test_prompt_includes_every_enforced_glossary_rule_family(self):
+        prompt = build_system_prompt()
+        # These are enforced later by check_i18n_quality.py, so the generator
+        # should receive the same contract before it spends a model call.
+        assert "avoid 账户 → prefer 账号" in prompt
+        assert "Follow Plan → 按计划训练" in prompt
+        assert "Keep these approved brands" in prompt
+        assert "Azure Monitor" in prompt
+
 
 class TestPromptFallbacksGracefully:
     def test_missing_glossary_still_returns_base_prompt(self, tmp_path, monkeypatch):
@@ -203,6 +215,122 @@ class TestPageContext:
             ["B1"],
         ]
 
+    def test_semantic_clusters_are_screen_and_source_proximity_scoped(self):
+        entries = [
+            {"prefix_lines": ["#: src/A.tsx:1"], "msgid": "A1", "msgstr": "甲"},
+            {"prefix_lines": ["#: src/A.tsx:79"], "msgid": "A2", "msgstr": "乙"},
+            {"prefix_lines": ["#: src/A.tsx:81"], "msgid": "A3", "msgstr": "丙"},
+            {"prefix_lines": ["#: src/B.tsx:1"], "msgid": "B1", "msgstr": "丁"},
+        ]
+        assert [
+            [entry["msgid"] for entry in group]
+            for group in _group_by_semantic_cluster(entries)
+        ] == [["A1", "A2"], ["A3"], ["B1"]]
+
+    def test_complete_semantic_cluster_is_one_model_request(
+        self, monkeypatch
+    ):
+        import translate_missing as tm
+
+        prompts: list[str] = []
+        responses = iter([
+            {
+                "translations": [
+                    {"id": index, "text": f"标签 {index}"}
+                    for index in range(1, 21)
+                ]
+            },
+            {
+                "decisions": [
+                    {
+                        "id": index,
+                        "accept": True,
+                        "confidence": 0.99,
+                        "reason": "语义忠实",
+                    }
+                    for index in range(1, 21)
+                ]
+            },
+        ])
+        monkeypatch.setattr(tm, "_client", lambda: object())
+
+        def complete(_client, _system, user, **_kwargs):
+            prompts.append(user)
+            return next(responses)
+
+        monkeypatch.setattr(tm, "_complete_json", complete)
+
+        entries = [
+            {
+                "prefix_lines": [f"#: src/Page.tsx:{index}"],
+                "msgid": f"Label {index}",
+                "msgstr": "",
+            }
+            for index in range(1, 21)
+        ]
+        summary = translate_batch(entries, "Simplified Chinese")
+
+        assert summary["filled"] == 20
+        assert len(prompts) == 2
+        assert all("Label 1" in prompt and "Label 20" in prompt for prompt in prompts)
+
+    def test_screen_references_are_nearby_bounded_and_screen_scoped(self):
+        entries = [
+            {
+                "prefix_lines": ["#: src/A.tsx:1"],
+                "msgid": "Far label",
+                "msgstr": "较远标签",
+            },
+            {
+                "prefix_lines": ["#: src/A.tsx:98"],
+                "msgid": "Nearby action",
+                "msgstr": "附近操作",
+            },
+            {
+                "prefix_lines": ["#: src/B.tsx:100"],
+                "msgid": "Wrong screen",
+                "msgstr": "其他页面",
+            },
+            {
+                "prefix_lines": ["#: src/A.tsx:100"],
+                "msgid": "New action",
+                "msgstr": "",
+            },
+            {
+                "prefix_lines": ["#: src/A.tsx:102"],
+                "msgid": "Closest action",
+                "msgstr": "最近操作",
+            },
+        ]
+
+        references = _screen_translation_references(
+            entries,
+            [entries[3]],
+            limit=2,
+        )
+
+        assert references == [
+            {"english": "Nearby action", "approved_zh": "附近操作"},
+            {"english": "Closest action", "approved_zh": "最近操作"},
+        ]
+
+    def test_screen_references_obey_character_budget(self):
+        current = {
+            "prefix_lines": ["#: src/A.tsx:10"],
+            "msgid": "New",
+            "msgstr": "",
+        }
+        existing = {
+            "prefix_lines": ["#: src/A.tsx:11"],
+            "msgid": "Long English",
+            "msgstr": "很长的中文",
+        }
+        assert _screen_translation_references(
+            [current, existing],
+            [current],
+            max_chars=5,
+        ) == []
+
 
 class TestReviewSelection:
     def test_selection_is_stable_and_capped(self):
@@ -229,7 +357,10 @@ class TestReviewSelection:
         assert [entry["msgid"] for entry in first] == [
             entry["msgid"] for entry in second
         ]
-        assert capped == 15
+        # A source-proximity cluster is indivisible. One large cluster may
+        # exceed the soft cap instead of being split across review runs.
+        assert len(first) == 20
+        assert capped == 0
 
     def test_selection_can_be_limited_to_new_msgids(self):
         entries = [
@@ -257,7 +388,7 @@ class TestReviewSelection:
     def test_capped_selection_rotates_through_shard_tail(self):
         entries = [
             {
-                "prefix_lines": ["#: src/Page.tsx:1"],
+                "prefix_lines": [f"#: src/Page{index}.tsx:1"],
                 "msgid": f"String {index:02d}",
                 "msgstr": f"文案 {index:02d}",
             }
@@ -287,6 +418,42 @@ class TestReviewSelection:
             "String 04",
             "String 05",
         ]
+
+    def test_soft_cap_never_splits_a_semantic_cluster_between_windows(self):
+        entries = [
+            {
+                "prefix_lines": [f"#: src/A.tsx:{index}"],
+                "msgid": f"A{index}",
+                "msgstr": f"甲{index}",
+            }
+            for index in range(4)
+        ] + [
+            {
+                "prefix_lines": [f"#: src/B.tsx:{index}"],
+                "msgid": f"B{index}",
+                "msgstr": f"乙{index}",
+            }
+            for index in range(4)
+        ]
+
+        first, first_capped = _review_candidates(
+            entries,
+            review_shards=1,
+            review_shard=0,
+            max_reviews=5,
+            review_cycle=0,
+        )
+        second, second_capped = _review_candidates(
+            entries,
+            review_shards=1,
+            review_shard=0,
+            max_reviews=5,
+            review_cycle=1,
+        )
+
+        assert [entry["msgid"] for entry in first] == ["A0", "A1", "A2", "A3"]
+        assert [entry["msgid"] for entry in second] == ["B0", "B1", "B2", "B3"]
+        assert first_capped == second_capped == 4
 
     def test_json_parser_ignores_invalid_and_out_of_range_items(self):
         parsed = _json_text_by_id(
@@ -341,6 +508,215 @@ class TestReviewSelection:
             1: (True, 0.94, "语义准确"),
             3: (False, 0.75, ""),
         }
+
+    def test_critic_parser_fails_closed_on_duplicate_or_boolean_ids(self):
+        parsed = _json_decisions_by_id(
+            {
+                "decisions": [
+                    {"id": 1, "accept": True, "confidence": 0.99},
+                    {"id": 1, "accept": False, "confidence": 0.99},
+                    {"id": True, "accept": True, "confidence": 0.99},
+                    {"id": 2, "accept": True, "confidence": 0.98},
+                ]
+            },
+            expected=2,
+        )
+
+        assert parsed == {2: (True, 0.98, "")}
+
+    def test_new_translations_require_high_confidence_semantic_approval(
+        self,
+        monkeypatch,
+    ):
+        import translate_missing as tm
+
+        entries = [
+            {
+                "prefix_lines": [f"#: src/Page.tsx:{index}"],
+                "msgid": english,
+                "msgstr": "",
+            }
+            for index, english in enumerate(
+                [
+                    "Follow Plan",
+                    "Do not disconnect Garmin",
+                    "Open details",
+                    "Delete account",
+                ],
+                start=1,
+            )
+        ]
+        calls: list[tuple[str, str]] = []
+        responses = iter([
+            {
+                "translations": [
+                    {"id": 1, "text": "按计划训练"},
+                    {"id": 2, "text": "断开 Garmin 连接"},
+                    {"id": 3, "text": "查看详情"},
+                    {"id": 4, "text": "删除账号"},
+                ]
+            },
+            {
+                "decisions": [
+                    {
+                        "id": 1,
+                        "accept": True,
+                        "confidence": 0.98,
+                        "reason": "含义完整",
+                    },
+                    {
+                        "id": 2,
+                        "accept": False,
+                        "confidence": 0.99,
+                        "reason": "丢失否定含义",
+                    },
+                    {
+                        "id": 3,
+                        "accept": True,
+                        "confidence": 0.89,
+                        "reason": "上下文仍有歧义",
+                    },
+                    # id 4 is deliberately absent: missing decisions fail closed.
+                ]
+            },
+        ])
+
+        def complete_json(_client, _system, user, *, model, **_kwargs):
+            calls.append((model, user))
+            return next(responses)
+
+        monkeypatch.setattr(tm, "_client", lambda: object())
+        monkeypatch.setattr(tm, "_complete_json", complete_json)
+
+        summary = translate_batch(
+            entries,
+            "Simplified Chinese",
+            max_translations=10,
+        )
+
+        assert [entry["msgstr"] for entry in entries] == [
+            "按计划训练",
+            "",
+            "",
+            "",
+        ]
+        assert summary == {
+            "filled": 1,
+            "rejected_placeholder_mismatch": 0,
+            "rejected_semantic": 1,
+            "semantic_low_confidence": 1,
+            "semantic_unverified": 1,
+            "glossary_warnings": 0,
+            "capped": 0,
+        }
+        assert calls[0][0] == tm.MODEL
+        assert calls[1][0] == tm.REVIEW_MODEL
+        assert "semantic-faithfulness gate" in calls[1][1]
+        assert "separate semantic-faithfulness gate" in calls[1][1]
+        assert "Do not disconnect Garmin" in calls[1][1]
+        assert "断开 Garmin 连接" in calls[1][1]
+
+    def test_structurally_invalid_draft_never_reaches_semantic_gate(
+        self,
+        monkeypatch,
+    ):
+        import translate_missing as tm
+
+        entries = [
+            {
+                "prefix_lines": ["#: src/Page.tsx:1"],
+                "msgid": "Hello {name}",
+                "msgstr": "",
+            },
+            {
+                "prefix_lines": ["#: src/Page.tsx:2"],
+                "msgid": "Open details",
+                "msgstr": "",
+            },
+        ]
+        prompts: list[str] = []
+        responses = iter([
+            {
+                "translations": [
+                    {"id": 1, "text": "你好"},
+                    {"id": 2, "text": "查看详情"},
+                ]
+            },
+            {
+                "decisions": [
+                    {
+                        "id": 2,
+                        "accept": True,
+                        "confidence": 0.99,
+                        "reason": "含义完整",
+                    }
+                ]
+            },
+        ])
+
+        def complete_json(_client, _system, user, **_kwargs):
+            prompts.append(user)
+            return next(responses)
+
+        monkeypatch.setattr(tm, "_client", lambda: object())
+        monkeypatch.setattr(tm, "_complete_json", complete_json)
+
+        summary = translate_batch(entries, "Simplified Chinese")
+
+        assert entries[0]["msgstr"] == ""
+        assert entries[1]["msgstr"] == "查看详情"
+        assert summary["rejected_placeholder_mismatch"] == 1
+        assert "Hello {name}" not in prompts[1]
+        assert "Open details" in prompts[1]
+
+    def test_new_translation_and_semantic_gate_receive_established_screen_copy(
+        self,
+        monkeypatch,
+    ):
+        import translate_missing as tm
+
+        entries = [
+            {
+                "prefix_lines": ["#: src/Page.tsx:10"],
+                "msgid": "Open feedback",
+                "msgstr": "查看反馈",
+            },
+            {
+                "prefix_lines": ["#: src/Page.tsx:12"],
+                "msgid": "Open plan preview",
+                "msgstr": "",
+            },
+        ]
+        prompts: list[str] = []
+        responses = iter([
+            {"translations": [{"id": 1, "text": "查看计划预览"}]},
+            {
+                "decisions": [{
+                    "id": 1,
+                    "accept": True,
+                    "confidence": 0.99,
+                    "reason": "语义与同屏操作一致",
+                }]
+            },
+        ])
+
+        def complete_json(_client, _system, user, **_kwargs):
+            prompts.append(user)
+            return next(responses)
+
+        monkeypatch.setattr(tm, "_client", lambda: object())
+        monkeypatch.setattr(tm, "_complete_json", complete_json)
+
+        summary = translate_batch(entries, "Simplified Chinese")
+
+        assert summary["filled"] == 1
+        assert entries[1]["msgstr"] == "查看计划预览"
+        for prompt in prompts:
+            payload = json.loads(prompt.split("INPUT:\n", 1)[1])
+            assert payload["established_screen_copy_reference_only"] == [{
+                "english": "Open feedback",
+                "approved_zh": "查看反馈",
+            }]
 
     def test_review_applies_only_editor_critic_agreement(self, monkeypatch):
         import translate_missing as tm
@@ -412,6 +788,43 @@ class TestReviewSelection:
         assert summary["revised"] == 1
         assert summary["critic_rejected"] == 1
 
+    def test_review_keeps_revision_that_breaks_deterministic_term_rule(
+        self, monkeypatch
+    ):
+        import translate_missing as tm
+
+        entry = {
+            "prefix_lines": ["#: src/Page.tsx:1"],
+            "msgid": "Choose training base",
+            "msgstr": "选择训练基准",
+        }
+        responses = iter([
+            {
+                "revisions": [{
+                    "id": 1,
+                    "text": "选择训练依据",
+                    "reason": "更自然",
+                    "confidence": 0.99,
+                }]
+            },
+        ])
+        monkeypatch.setattr(tm, "_client", lambda: object())
+        monkeypatch.setattr(
+            tm, "_complete_json", lambda *_args, **_kwargs: next(responses)
+        )
+
+        summary = review_translations(
+            [entry],
+            "Simplified Chinese",
+            source_root=None,
+            review_shards=1,
+            review_shard=0,
+            max_reviews=0,
+        )
+
+        assert entry["msgstr"] == "选择训练基准"
+        assert summary["critic_rejected"] == 1
+
 
 def test_translation_limit_fails_before_opening_client(monkeypatch):
     import translate_missing as tm
@@ -431,6 +844,102 @@ def test_translation_limit_fails_before_opening_client(monkeypatch):
             "Simplified Chinese",
             max_translations=2,
         )
+
+
+def test_fuzzy_translation_is_retranslated_and_cleared_after_all_gates(monkeypatch):
+    import translate_missing as tm
+
+    entry = {
+        "prefix_lines": ["#: src/Page.tsx:1", "#, fuzzy, python-format"],
+        "msgid": "Choose training base",
+        "msgstr": "选择训练依据",
+    }
+    responses = iter([
+        {"translations": [{"id": 1, "text": "选择训练基准"}]},
+        {
+            "decisions": [{
+                "id": 1,
+                "accept": True,
+                "confidence": 0.99,
+                "reason": "语义忠实",
+            }]
+        },
+    ])
+    monkeypatch.setattr(tm, "_client", lambda: object())
+    monkeypatch.setattr(tm, "_complete_json", lambda *_args, **_kwargs: next(responses))
+
+    summary = translate_batch([entry], "Simplified Chinese")
+
+    assert summary["filled"] == 1
+    assert entry["msgstr"] == "选择训练基准"
+    assert entry["prefix_lines"] == ["#: src/Page.tsx:1", "#, python-format"]
+
+
+def test_fuzzy_translation_remains_fuzzy_when_semantic_gate_rejects(monkeypatch):
+    import translate_missing as tm
+
+    entry = {
+        "prefix_lines": ["#, fuzzy"],
+        "msgid": "Choose training base",
+        "msgstr": "选择训练依据",
+    }
+    responses = iter([
+        {"translations": [{"id": 1, "text": "选择训练基准"}]},
+        {
+            "decisions": [{
+                "id": 1,
+                "accept": False,
+                "confidence": 0.99,
+                "reason": "仍需人工判断",
+            }]
+        },
+    ])
+    monkeypatch.setattr(tm, "_client", lambda: object())
+    monkeypatch.setattr(tm, "_complete_json", lambda *_args, **_kwargs: next(responses))
+
+    summary = translate_batch([entry], "Simplified Chinese")
+
+    assert summary["rejected_semantic"] == 1
+    assert entry["msgstr"] == "选择训练依据"
+    assert entry["prefix_lines"] == ["#, fuzzy"]
+
+
+def test_nonempty_nonfuzzy_translation_does_not_open_client(monkeypatch):
+    import translate_missing as tm
+
+    entry = {"prefix_lines": [], "msgid": "Hello", "msgstr": "你好"}
+    monkeypatch.setattr(
+        tm,
+        "_client",
+        lambda: (_ for _ in ()).throw(AssertionError("client should not open")),
+    )
+
+    assert translate_batch([entry], "Simplified Chinese")["filled"] == 0
+
+
+def test_deterministic_semantic_rule_rejects_model_approved_new_translation(
+    monkeypatch,
+):
+    import translate_missing as tm
+
+    entry = {
+        "prefix_lines": ["#: src/Page.tsx:1"],
+        "msgid": "Choose training base",
+        "msgstr": "",
+    }
+    monkeypatch.setattr(tm, "_client", lambda: object())
+    monkeypatch.setattr(
+        tm,
+        "_complete_json",
+        lambda *_args, **_kwargs: {
+            "translations": [{"id": 1, "text": "选择训练依据"}]
+        },
+    )
+
+    summary = translate_batch([entry], "Simplified Chinese")
+
+    assert summary["rejected_semantic"] == 1
+    assert entry["msgstr"] == ""
 
 
 def test_review_cli_accepts_review_cycle_without_model_call(tmp_path, monkeypatch):

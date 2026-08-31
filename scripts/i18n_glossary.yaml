@@ -105,6 +105,76 @@ style:
     - W
     - bpm
 
+semantic_rules:
+  # Blocking terminology invariants. A human_review_category also routes the
+  # matched entry into the generated PR's review manifest; it is not approval.
+  - id: training-base
+    source_contains: training base
+    required_target_terms: [训练基准]
+    forbidden_target_terms: [训练依据, 训练基础]
+  - id: average-work-metric
+    source_equals: "Avg Work {intensityLabel}"
+    required_target_terms: [工作段平均, "{intensityLabel}"]
+    forbidden_target_terms: [强度, 平均工作]
+  - id: canonical-plan
+    source_contains: canonical plan
+    required_target_terms: [主计划]
+    forbidden_target_terms: [原始计划, 规范计划]
+    human_review_category: plan-authority
+  - id: managed-delivery
+    source_contains: managed delivery
+    required_target_terms: [托管下发]
+    forbidden_target_terms: [自动下发, 托管交付]
+    human_review_category: plan-authority
+  - id: managed-delivery-hyphenated
+    source_contains: managed-delivery
+    required_target_terms: [托管下发]
+    forbidden_target_terms: [自动下发, 托管交付, 托管投递]
+    human_review_category: plan-authority
+  - id: symptom-stop
+    source_contains: symptom stop
+    required_target_terms: [症状停止]
+    forbidden_target_terms: [症状中止]
+    human_review_category: safety
+  - id: reference-band
+    source_contains: reference band
+    required_target_terms: [参考区间]
+    forbidden_target_terms: [参考范围]
+    human_review_category: science
+  - id: all-out-5k
+    source_equals: Not an all-out 5K effort
+    required_target_terms: [5 公里]
+    forbidden_target_terms: [全力 5K]
+    human_review_category: safety
+  - id: direct-10k-baseline
+    source_equals: 10K direct baseline
+    required_target_terms: [直接基线]
+    forbidden_target_terms: [直接基准]
+    human_review_category: science
+  - id: peer-metrics
+    source_equals: Peer metrics
+    required_target_terms: [训练指标]
+    forbidden_target_terms: [对比指标]
+  - id: policy-unavailable
+    source_equals: Policy unavailable
+    required_target_terms: [政策]
+    forbidden_target_terms: [策略]
+    human_review_category: plan-authority
+  - id: privacy-copy
+    source_contains: privacy
+    human_review_category: privacy
+  - id: private-copy
+    source_contains: private
+    human_review_category: privacy
+  - id: diagnosis-boundary
+    source_contains: diagnosis
+    source_paths: ["src/components/**", "src/pages/**"]
+    human_review_category: safety
+  - id: science-surface
+    source_contains: science
+    source_paths: ["src/components/**", "src/pages/**"]
+    human_review_category: science
+
 terms:
   # Agentic change-loop operations
   - en: Agent
