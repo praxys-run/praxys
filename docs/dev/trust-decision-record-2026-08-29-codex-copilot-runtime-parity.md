@@ -4,7 +4,7 @@
 - **schema_version:** `1`
 - **artifact_type:** `trust-decision-record`
 - **owner_role:** Trust
-- **status:** Accepted for bounded implementation and verification only
+- **status:** Accepted for PR #756 merge and default-branch activation
 - **decision subject digest:** `sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc`
 
 ## Protected assets and threats
@@ -24,6 +24,14 @@ overriding role defaults; and drift that bypasses routing or review.
 
 Codex CLI may be added as a local parallel adapter only under the following
 controls:
+The lifecycle addendum is constrained by decision subject digest
+`sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`;
+its pre-approval subject remains frozen. The authenticated user approved that
+exact subject and the reviewed PR #756 implementation through the independent
+approval artifact at
+`sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398`.
+This permits merge/default-branch activation only and does not widen any Trust
+boundary below.
 
 1. Project configuration activates only after explicit repository trust.
 2. The supported parent mode is `workspace-write` with
@@ -52,6 +60,19 @@ controls:
    reveal secrets, or widen tools.
 10. Each concurrent task uses a separate branch/worktree. No agent may treat
     another worktree's uncommitted content as accepted policy.
+11. Within one Codex task, only independent read-only siblings may execute in
+    parallel. Repository writes and dependency chains remain serial, and an
+    active logical work key receives follow-up instead of another writer.
+12. Quality and Trust verification start in a fresh read-only thread without
+    executor conversation history. Parent cleanup is leaf-first; uncertain
+    termination cannot authorize automatic relaunch or replacement.
+13. Codex adapters must not use or persist Copilot native IDs, claimed-read
+    tokens, or the `bind_native`/`native_read` protocol. Native Codex thread
+    identity remains runtime state and is not promoted to repository authority.
+14. Only the Orchestrator and Change Loop adapters may perform native Codex
+    child operations. Other roles return a handoff; missing runtime facts about
+    capacity, dependencies, sibling activity, target identity, or reviewer
+    independence fail closed.
 
 ## Verification and failure handling
 

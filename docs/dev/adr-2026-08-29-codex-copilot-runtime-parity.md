@@ -4,7 +4,7 @@
 - **schema_version:** `1`
 - **artifact_type:** `architecture-decision-record`
 - **owner_role:** Architecture
-- **status:** Proposed — bounded implementation authorized; final implementation review pending
+- **status:** Accepted for PR #756 merge and default-branch activation; outcome observation pending
 - **decision subject digest:** `sha256:a04df7cd96ec682efa4694792e488c342a665c8356338054c3f9e91bf140fddc`
 
 ## Question
@@ -51,6 +51,55 @@ references, compares declared role/skill/tool inventories, and fails on drift.
   selection; the root Codex agent must invoke the routed role types.
 - Concurrent Codex and Copilot work uses distinct branches/worktrees. Git's
   one-branch-per-worktree rule remains authoritative.
+
+### 2026-08-31 lifecycle projection addendum
+
+PR #745 makes a Copilot runtime constraint explicit in the canonical
+Orchestrator and Change Loop manifests. Codex has a materially different native
+surface, so contract parity does not mean copying those mechanics. The accepted
+thin-adapter architecture permits a versioned runtime-specific projection while
+keeping shared governance unchanged.
+The exact addendum is bound to
+`docs/dev/codex-subagent-lifecycle-decision-v2.json` at
+`sha256:dbec4d3433d2336631c519f7571e16b42ebe4efa63503e6df790d7b620ddfb43`
+and its complete policy proposal at
+`sha256:8fdc118d5447dc3b8797eefe7cf045f9c70ba257a0cafa38efe6d94c743f4ce3`.
+The frozen packet records the pre-approval `human-review-required` state. After
+independent review and passing required checks, the authenticated user requested
+merge of PR #756. The separate approval artifact
+`docs/dev/codex-subagent-lifecycle-approval-v2.json` at
+`sha256:07f7dc03c49fb69c1449b7e7073a5ad88f27c9475509cc46979b5e4e0469f398`
+binds that approval to the exact subject, proposal, and reviewed implementation
+commit `d667bb9af6f0b7a6e4206b0ba36bd2ad0143f37a`. Its authority is limited to
+merge and default-branch activation; all measured-parity, autonomy, ledger, MCP,
+deployment, and release exclusions remain in force.
+
+Copilot retains its repository ledger, one-active-direct-sibling rule, and
+notification/claimed-read boundary. Codex uses targetable native threads,
+completion delivery, follow-up, wait, interrupt, and tree inspection. It may
+parallelize independent read-only siblings, but serializes writes and dependency
+chains. Logical work is keyed by stable opaque contract ID, stable role-slot ID,
+and immutable artifact digest or Git head; active matching work is followed up
+rather than duplicated.
+Parent abort, shutdown, failure, or replacement triggers leaf-first descendant interruption; replacement is
+explicit and non-chaining, and high-risk verification uses a fresh read-only
+thread without executor history.
+
+This addendum adds no service, datastore, native registry mirror, credential,
+role, authority, autonomy promotion, or cross-session liveness claim. The pure
+dispatch evaluator is a testable policy projection, not a launcher or lifecycle
+ledger. Adding this required top-level contract section advances the runtime
+parity JSON discriminator to schema 2; schema 1 readers refuse it rather than
+silently treating lifecycle mechanics as absent.
+Only the Orchestrator and Change Loop Codex adapters own native child dispatch;
+other roles return handoffs to a coordinator. Unknown capacity, prerequisites,
+active-sibling absence, target addressability, or reviewer identity cannot
+authorize a spawn.
+Read-only parallel eligibility is derived from the target adapter rather than
+caller assertion. The cooperative evaluator requires immutable logical-key and
+native-observation facts, rejects consumed or unconfirmed replacement, and
+computes leaf-first cleanup from a complete inspected tree; an unavailable or
+invalid tree remains incomplete without relaunch.
 
 ## Failure behavior
 
