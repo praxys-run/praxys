@@ -44,7 +44,10 @@ import { apiFetch, useApi } from '@/hooks/useApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import { extractApiError } from '@/lib/api-error';
 import { formatProposalDetail } from '@/lib/proposal-display';
-import { matchingPlanStartCapability } from '@/lib/plan-start-routing';
+import {
+  hasSupportedPlanStartContract,
+  matchingPlanStartCapability,
+} from '@/lib/plan-start-routing';
 import {
   road10kCopy,
   road10kTaperGuardrailForProposal,
@@ -77,8 +80,8 @@ import type {
 } from '@/types/api';
 
 const DAYS: Outdoor5KWeekday[] = [0, 1, 2, 3, 4, 5, 6];
-const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([
-  'outdoor_road_5k_constraints_v1',
+const SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS = new Map([
+  ['outdoor_road_5k_v1', 'outdoor_road_5k_constraints_v1'],
 ]);
 
 type DayLimits = Partial<Record<Outdoor5KWeekday, string>>;
@@ -324,12 +327,10 @@ export function PlanStartGoalEntry() {
   const routedCapability = matchingPlanStartCapability(
     discovery?.capabilities ?? [],
     selectedRoute,
-    SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS,
+    SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS,
   );
-  const routedPurpose = useMemo<PlanGenerationPurposeSelection | null>(() => {
-    if (!routedCapability || !selectedRoute?.purpose_source) {
-      return null;
-    }
+  const routedPurpose: PlanGenerationPurposeSelection | null = (() => {
+    if (!routedCapability || !selectedRoute?.purpose_source) return null;
     if (selectedRoute.purpose_source === 'current_goal') {
       if (!discovery?.current_goal) return null;
       return {
@@ -345,7 +346,7 @@ export function PlanStartGoalEntry() {
       expected_goal_id: null,
       expected_goal_revision: null,
     };
-  }, [discovery?.current_goal, routedCapability, selectedRoute]);
+  })();
   const capabilityUpdateRequired = Boolean(
     selectedRoute?.capability_id && !routedCapability,
   );
@@ -703,14 +704,16 @@ export default function PlanStart({
   );
   const supportedCapabilities = useMemo(
     () => capabilityDiscovery?.capabilities.filter(
-      (item) => SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
-        item.constraint_schema_id,
+      (item) => hasSupportedPlanStartContract(
+        item,
+        SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS,
       ),
     ) ?? [],
     [capabilityDiscovery],
   );
-  const currentCapability = SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
-    capabilityDiscovery?.selected_capability?.constraint_schema_id ?? '',
+  const currentCapability = hasSupportedPlanStartContract(
+    capabilityDiscovery?.selected_capability,
+    SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS,
   )
     ? capabilityDiscovery?.selected_capability ?? null
     : null;

@@ -26,6 +26,7 @@ import {
 import { copyUrlToClipboard } from '../../utils/markdown';
 import { t, tFmt } from '../../utils/i18n';
 import { coachToggleLabel, fetchInsight, insightFeedbackState, localizedInsight } from '../../utils/insights';
+import { hasSupportedPlanStartContract } from '../../utils/plan-start-routing';
 
 // ---- Editor distance choices (unchanged) ----
 type DistanceKey = '5k' | '10k' | 'half' | 'marathon' | '50k' | '50mi' | '100k' | '100mi';
@@ -1336,9 +1337,7 @@ Page({
         ? serverGoalPlanImpact
         : null;
       const supportedCapabilityIds = discovery?.capabilities.filter(
-        (item) => [
-          'outdoor_road_5k_constraints_v1',
-        ].includes(item.constraint_schema_id),
+        hasSupportedPlanStartContract,
       ).map((item) => item.id) ?? [];
       const routing = discovery?.routing ?? null;
       const currentGoalId = discovery?.current_goal?.id ?? '';

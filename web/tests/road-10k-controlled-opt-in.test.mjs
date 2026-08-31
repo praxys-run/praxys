@@ -27,13 +27,15 @@ test('Road 10K stays mechanically absent from web and miniapp surfaces', async (
 test('Plan-start allowlists reject dormant Road capability discovery', async () => {
   const [webPlanStart, miniPlanStart] = await Promise.all([
     read('web/src/components/PlanStart.tsx'),
-    read('miniapp/components/outdoor-5k-plan-start/index.ts'),
+    read('miniapp/utils/plan-start-routing.ts'),
   ]);
 
   for (const source of [webPlanStart, miniPlanStart]) {
-    const declaration = source.match(/const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set\(\[([\s\S]*?)\]\);/);
+    const declaration = source.match(/const SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS[\s\S]*?= (?:new Map\(\[|\{)([\s\S]*?)(?:\]\);|\};)/);
     assert.ok(declaration);
+    assert.match(declaration[1], /outdoor_road_5k_v1/);
     assert.match(declaration[1], /outdoor_road_5k_constraints_v1/);
+    assert.doesNotMatch(declaration[1], /outdoor_road_10k_performance_v1/);
     assert.doesNotMatch(declaration[1], /outdoor_road_10k_constraints_v1/);
   }
 });
@@ -65,9 +67,12 @@ test("Goal editors ignore stale Road 10K discovery while preserving 5K", async (
   assert.doesNotMatch(webGoal, /enablePerformance10k && data\.goal_kind/);
   assert.match(webGoal, /data\.goal_kind === \x27performance_5k\x27/);
 
-  const discoveryAllowlist = miniGoal.match(/const supportedCapabilityIds = discovery\?\.capabilities\.filter\(([\s\S]*?)\)\.map/);
+  const miniRouting = await read('miniapp/utils/plan-start-routing.ts');
+  const discoveryAllowlist = miniRouting.match(/const SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS[\s\S]*?= \{([\s\S]*?)\};/);
   assert.ok(discoveryAllowlist);
+  assert.match(discoveryAllowlist[1], /outdoor_road_5k_v1/);
   assert.match(discoveryAllowlist[1], /outdoor_road_5k_constraints_v1/);
+  assert.doesNotMatch(discoveryAllowlist[1], /outdoor_road_10k_performance_v1/);
   assert.doesNotMatch(discoveryAllowlist[1], /outdoor_road_10k_constraints_v1/);
   assert.match(miniGoal, /performance10kEnabled: false/);
   assert.doesNotMatch(miniGoal, /performance10kEnabled: supportedCapabilityIds\.includes/);

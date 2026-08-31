@@ -2,6 +2,7 @@ import { apiGet, apiPost } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import type { IAppOption } from '../../app';
 import { detectLocale, t } from '../../utils/i18n';
+import { hasSupportedPlanStartContract } from '../../utils/plan-start-routing';
 import {
   road10kCopy,
   road10kTaperGuardrailForProposal,
@@ -42,10 +43,6 @@ interface PurposeOption {
 }
 
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
-
-const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([
-  'outdoor_road_5k_constraints_v1',
-]);
 
 function roadCopy(key: Road10KCopyKey): string {
   return road10kCopy(key, detectLocale() === 'zh' ? 'zh-CN' : 'en');
@@ -623,12 +620,10 @@ Component({
         );
         if (componentState._loadRequestId !== requestId) return;
         const capabilities = discovery.capabilities.filter(
-          (item) => SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
-            item.constraint_schema_id,
-          ),
+          hasSupportedPlanStartContract,
         );
-        const currentCapability = SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS.has(
-          discovery.selected_capability?.constraint_schema_id ?? '',
+        const currentCapability = hasSupportedPlanStartContract(
+          discovery.selected_capability,
         )
           ? discovery.selected_capability
           : null;

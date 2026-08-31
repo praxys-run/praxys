@@ -1097,6 +1097,84 @@ def test_inactive_account_can_retry_cleanup(account_client, monkeypatch):
         db.close()
 
 
+def test_delete_me_reports_pending_when_garmin_token_cleanup_fails(
+    account_client,
+    monkeypatch,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import account_deletion
+    from db.models import User
+
+    attempted: list[str] = []
+
+    def fail_owner_tokenstore(user_id: str) -> None:
+        attempted.append(user_id)
+        if user_id == "delete-me":
+            raise OSError("tokenstore locked")
+
+    monkeypatch.setattr(
+        account_deletion,
+        "_clear_tokenstore",
+        fail_owner_tokenstore,
+    )
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "deleted_cleanup_pending",
+        "email": "athlete@example.test",
+    }
+    assert attempted == ["demo-user", "delete-me"]
+    with db_session.SessionLocal() as db:
+        assert db.query(User).filter(
+            User.id.in_(["delete-me", "demo-user"])
+        ).count() == 0
+
+
+def test_delete_me_attempts_remaining_cleanup_after_one_failure(
+    account_client,
+    monkeypatch,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api import account_deletion
+
+    token_attempts: list[str] = []
+    plan_attempts: list[str] = []
+
+    def fail_demo_tokenstore(user_id: str) -> None:
+        token_attempts.append(user_id)
+        if user_id == "demo-user":
+            raise OSError("tokenstore unavailable")
+
+    def fail_owner_plan_status(_db, user_id: str) -> None:
+        plan_attempts.append(user_id)
+        if user_id == "delete-me":
+            raise OSError("plan status unavailable")
+
+    monkeypatch.setattr(
+        account_deletion,
+        "_clear_tokenstore",
+        fail_demo_tokenstore,
+    )
+    monkeypatch.setattr(
+        account_deletion,
+        "_clear_legacy_plan_status",
+        fail_owner_plan_status,
+    )
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "deleted_cleanup_pending"
+    assert token_attempts == ["demo-user", "delete-me"]
+    assert plan_attempts == ["demo-user", "delete-me"]
+
+
 def test_deletion_first_phase_cancels_labs_work_before_cleanup(
     account_client,
     monkeypatch,
@@ -1242,6 +1320,42 @@ def test_delete_me_removes_legacy_plan_status_files(
     assert response.status_code == 200, response.text
     assert not os.path.exists(path)
     assert glob.glob(f"{path}.*") == []
+
+
+def test_delete_me_reports_pending_when_legacy_plan_status_remains(
+    account_client,
+    monkeypatch,
+    tmp_path,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from api.routes import plan as plan_route
+    from db.models import User
+
+    monkeypatch.setattr(plan_route, "_STRYD_PUSH_STATUS_DIR", str(tmp_path))
+    path = plan_route._stryd_push_status_path("delete-me")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("{}")
+    real_unlink = os.unlink
+
+    def fail_owner_status(candidate: str, *args, **kwargs) -> None:
+        if candidate == path and not args and not kwargs:
+            raise OSError("status file locked")
+        real_unlink(candidate, *args, **kwargs)
+
+    monkeypatch.setattr(os, "unlink", fail_owner_status)
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "deleted_cleanup_pending"
+    assert os.path.exists(path)
+    with db_session.SessionLocal() as db:
+        assert db.query(User).filter(
+            User.id.in_(["delete-me", "demo-user"])
+        ).count() == 0
 
 
 def test_delete_access_accepts_valid_token_for_inactive_user(account_client):

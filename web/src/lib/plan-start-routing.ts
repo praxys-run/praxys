@@ -7,6 +7,17 @@ interface PlanStartCapabilityContract {
   constraint_schema_id: string;
 }
 
+export function hasSupportedPlanStartContract(
+  capability: PlanStartCapabilityContract | null | undefined,
+  supportedContracts: ReadonlyMap<string, string>,
+): capability is PlanStartCapabilityContract {
+  return Boolean(
+    capability
+    && supportedContracts.get(capability.id)
+      === capability.constraint_schema_id,
+  );
+}
+
 /**
  * Resolve a server route only when the exact capability is present and this
  * client explicitly understands its constraint contract. A matching ID alone
@@ -17,13 +28,13 @@ export function matchingPlanStartCapability<
 >(
   capabilities: readonly T[],
   route: PlanStartCapabilityRoute | null | undefined,
-  supportedConstraintSchemas: ReadonlySet<string>,
+  supportedContracts: ReadonlyMap<string, string>,
 ): T | null {
   const capabilityId = route?.capability_id;
   if (!capabilityId) return null;
   const capability = capabilities.find((item) => item.id === capabilityId);
   if (!capability) return null;
-  return supportedConstraintSchemas.has(capability.constraint_schema_id)
+  return hasSupportedPlanStartContract(capability, supportedContracts)
     ? capability
     : null;
 }

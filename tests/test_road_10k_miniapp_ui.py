@@ -22,21 +22,24 @@ def test_road_10k_has_no_mounted_native_opt_in_surface() -> None:
 
 
 def test_native_plan_start_rejects_dormant_road_discovery() -> None:
-    source = _source("miniapp/components/outdoor-5k-plan-start/index.ts")
+    source = _source("miniapp/utils/plan-start-routing.ts")
     declaration = source.split(
-        "const SUPPORTED_PLAN_START_CONSTRAINT_SCHEMA_IDS = new Set([", 1
-    )[1].split("]);", 1)[0]
+        "SUPPORTED_PLAN_START_CAPABILITY_CONTRACTS", 1
+    )[1].split("};", 1)[0]
+    assert "outdoor_road_5k_v1" in declaration
     assert "outdoor_road_5k_constraints_v1" in declaration
+    assert "outdoor_road_10k_performance_v1" not in declaration
     assert "outdoor_road_10k_constraints_v1" not in declaration
 
 
 def test_native_goal_does_not_promote_stale_road_discovery() -> None:
     source = _source("miniapp/pages/goal/index.ts")
-    declaration = source.split(
-        "const supportedCapabilityIds = discovery?.capabilities.filter(", 1
-    )[1].split(").map", 1)[0]
+    declaration = _source("miniapp/utils/plan-start-routing.ts")
+    assert "outdoor_road_5k_v1" in declaration
     assert "outdoor_road_5k_constraints_v1" in declaration
+    assert "outdoor_road_10k_performance_v1" not in declaration
     assert "outdoor_road_10k_constraints_v1" not in declaration
+    assert "hasSupportedPlanStartContract" in source
     assert "performance10kEnabled: false" in source
     assert (
         "performance10kEnabled: supportedCapabilityIds.includes"

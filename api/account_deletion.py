@@ -300,16 +300,13 @@ def _delete_feedback_images(db: Session, user_id: str) -> None:
 
 
 def _clear_tokenstore(user_id: str) -> None:
-    """Best-effort legacy cleanup and plaintext-token blocking after deletion."""
+    """Remove legacy credentials after the database deletion commits."""
     from api.routes.sync import clear_garmin_tokens
 
-    try:
-        clear_garmin_tokens(user_id)
-    except OSError:
-        logger.exception(
-            "User %s deleted but Garmin legacy-token cleanup failed.",
-            user_id,
-        )
+    # The caller must surface a failure as cleanup-pending.  Swallowing this
+    # exception can claim complete deletion while a bearer credential remains
+    # on disk.
+    clear_garmin_tokens(user_id)
 
 
 def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
@@ -318,6 +315,7 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
 
     lock_plan_writes(db, user_id)
     path = plan_route._stryd_push_status_path(user_id)
+    cleanup_error: OSError | None = None
     try:
         with legacy_stryd_status_lock(
             os.path.dirname(path),
@@ -328,12 +326,17 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
                     os.unlink(candidate)
                 except FileNotFoundError:
                     continue
-                except OSError:
+                except OSError as exc:
+                    cleanup_error = cleanup_error or exc
                     logger.exception(
                         "User %s deleted but legacy plan-status cleanup failed for %s.",
                         user_id,
                         candidate,
                     )
+        if cleanup_error is not None:
+            raise OSError(
+                "one or more legacy plan-status files could not be removed"
+            ) from cleanup_error
     finally:
         db.rollback()
 
@@ -532,8 +535,22 @@ def _delete_user_account_locked(
             user_id,
         )
     for deleted_user_id in deleted_user_ids:
-        _clear_tokenstore(deleted_user_id)
-        _clear_legacy_plan_status(db, deleted_user_id)
+        try:
+            _clear_tokenstore(deleted_user_id)
+        except Exception:
+            cleanup_pending = True
+            logger.exception(
+                "Account Garmin token cleanup remains pending for user %s",
+                deleted_user_id,
+            )
+        try:
+            _clear_legacy_plan_status(db, deleted_user_id)
+        except Exception:
+            cleanup_pending = True
+            logger.exception(
+                "Account legacy plan-status cleanup remains pending for user %s",
+                deleted_user_id,
+            )
 
     return AccountDeletionResult(
         email=email,

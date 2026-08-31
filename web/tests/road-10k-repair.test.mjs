@@ -13,7 +13,10 @@ test("Road routing requires the exact present allowlisted capability", async () 
     id: "outdoor_road_10k_performance_v1",
     constraint_schema_id: "outdoor_road_10k_constraints_v1",
   };
-  const allowlisted = new Set(["outdoor_road_10k_constraints_v1"]);
+  const allowlisted = new Map([[
+    "outdoor_road_10k_performance_v1",
+    "outdoor_road_10k_constraints_v1",
+  ]]);
 
   assert.equal(matchingPlanStartCapability([], route, allowlisted), null);
   assert.equal(
@@ -21,6 +24,17 @@ test("Road routing requires the exact present allowlisted capability", async () 
       [{ ...road, id: "outdoor_road_5k_v1" }],
       route,
       allowlisted,
+    ),
+    null,
+  );
+  assert.equal(
+    matchingPlanStartCapability(
+      [{ ...road, constraint_schema_id: "outdoor_road_5k_constraints_v1" }],
+      route,
+      new Map([[
+        "outdoor_road_5k_v1",
+        "outdoor_road_5k_constraints_v1",
+      ]]),
     ),
     null,
   );
