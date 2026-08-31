@@ -80,14 +80,59 @@ attempt identity for nested calls and record an explicit finish or leaf-first
 recovery afterward. Initialize the Git-common-dir ledger explicitly before the
 first instrumented run.
 
+For every lifecycle-aware call, bind the logical work key to the contract,
+stable bounded-role slot, and immutable artifact digest or Git head. Record one
+of `initial_launch`, `resume`, `replacement`, or
+`review_after_new_digest`. Never dispatch a `duplicate_launch` or
+`illegal_transition`. A replacement must name one lost non-replacement attempt,
+is separately identified, is consumed once, and is never launched
+automatically or chained.
+
+Send explicit dispatch provenance. Default to `dispatch_mode=sync` with
+`execution_provenance=sync_inline`. Use background only with
+`dispatch_mode=background` and
+`execution_provenance=background_independent_immediate_no_poll`, and only when
+independent parent work starts immediately. One non-null parent attempt may
+have at most one active direct child; wait for it to terminalize before
+admitting a sibling. Sequential nesting is allowed because the child becomes a
+different parent. Roots and unrelated parents are not globally serialized.
+
+Sync returns inline: do not bind or call `read_agent`. For valid background,
+bind a new `nat_*` repository alias to the exact public agent ID returned by
+successful `task` with `binding_source=task_result`. Carry the attempt ID,
+alias, and exact public ID on completion notification. Wait for external
+notification without status checks, `read_agent(wait:true)`, or polling. Then
+create one caller-held `rcl_*` identity with
+`new_identity(kind: "read_claim")`; use that same `read_claim_id` for every
+retry of `native_read` and for the one `native_observation`. Perform
+`read_agent` exactly once only when the caller knows it has not already invoked
+the physical read. An idempotent claim acknowledgement is the same logical
+authorization, not permission for another physical read. If the token is lost
+or the caller cannot determine whether the physical read already ran, stop
+without rereading, creating another token, observing, marking loss, or
+replacing. Keep the raw token only in the current controlled operation context;
+never put it in files, logs, telemetry, errors, or support artifacts.
+If completion notifications are unavailable, record that limitation and stop
+without reading or polling.
+On shutdown, resume, or context replacement, invalidate the exact binding;
+never search the registry, infer identity, rebind, mark loss, replace, or
+relaunch automatically. Mediated pre-completion write is unsupported.
+
+For parent abort, shutdown, or failure, run idempotent `terminate_tree` cleanup
+so active descendants become explicit leaf-first `orphaned` records before the
+parent terminalizes. Record progress only through new substantive progress
+fingerprints; notifications, reads, and elapsed time are not progress and never
+imply staleness.
+
 The checked-in mode starts at `instrument`; `shadow` is an explicit observation
-step. In either mode, ordinary `would_reject` decisions and missing, corrupt, or
-unsupported state remain non-blocking because enforcement is unavailable. Do not invoke the
-mediated child when `launch_authorized` is false under the explicit kill switch.
-Never request `enforce` or silently alias it to another mode. This is cooperative
-repository mediation only: the repository cannot intercept native agent calls,
-and unmediated activity remains outside coverage. See
-`docs/dev/agent-invocation-control.md`.
+step. Ordinary candidate-policy `would_reject` decisions and unavailable state
+remain non-blocking because enforcement is unavailable. Lifecycle duplicates,
+illegal transitions, direct-sibling conflicts, invalid dispatch provenance,
+binding mismatch/invalidation, the one-read boundary, and the explicit kill
+switch fail closed for cooperative calls. Never request `enforce` or silently
+alias it to another mode. This is cooperative repository mediation only: the repository
+cannot intercept, poll, or cancel native agent calls, and unmediated activity
+remains outside coverage. See `docs/dev/agent-invocation-control.md`.
 
 ## Environment parity
 
