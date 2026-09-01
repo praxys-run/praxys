@@ -423,6 +423,26 @@ def test_cors_response_verifier_uses_exact_values_and_tokens(tmp_path) -> None:
     actual_command = command[:4]
     assert subprocess.run(actual_command, check=False).returncode == 0
 
+    # Fetch permits Access-Control-Allow-Methods to be omitted for a
+    # CORS-safelisted method, even when request headers trigger a preflight.
+    without_methods = valid.replace(
+        "Access-Control-Allow-Methods: OPTIONS, GET\r\n", ""
+    ).replace("Access-Control-Allow-Methods: POST\r\n", "")
+    headers.write_text(without_methods, encoding="utf-8")
+    assert subprocess.run(command, check=False).returncode == 0
+
+    non_safelisted_command = command.copy()
+    non_safelisted_command[4] = "PUT"
+    assert subprocess.run(non_safelisted_command, check=False).returncode != 0
+
+    wrong_method = without_methods.replace(
+        "Access-Control-Allow-Origin: https://praxys.cn\r\n",
+        "Access-Control-Allow-Origin: https://praxys.cn\r\n"
+        "Access-Control-Allow-Methods: PUT\r\n",
+    )
+    headers.write_text(wrong_method, encoding="utf-8")
+    assert subprocess.run(command, check=False).returncode != 0
+
     for invalid in (
         valid.replace(
             "https://praxys.cn\r\n",
