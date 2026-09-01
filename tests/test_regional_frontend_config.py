@@ -114,6 +114,8 @@ def test_launch_exact_cors_preconditions_verification_and_compensation() -> None
     assert "${stale_headers}" in workflow
     assert ".china_processing.disabled == true" in workflow
     assert "https://${host}/login" in workflow
+    assert "grep -F '<div id=\"root\">'" in workflow
+    assert "grep -F '<div id=\"root\"></div>'" not in workflow
     assert "https://${host}${asset_path}" in workflow
     assert "content-type" in workflow
     assert "CORS and Azure AI were unchanged" in workflow
