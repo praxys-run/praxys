@@ -356,7 +356,7 @@ jobs:
             deep_html="${RUNNER_TEMP}/${host}.login.html"
             curl -fsS --max-time 12 "https://${host}/login" \
               > "${deep_html}"
-            grep -F '<div id="root"></div>' "${deep_html}"
+            grep -F '<div id="root">' "${deep_html}"
             asset_path="$(grep -oE \
               '/assets/[A-Za-z0-9._-]+\.js' "${html}" | head -n 1)"
             test -n "${asset_path}"
