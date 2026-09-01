@@ -483,8 +483,8 @@ Regional availability states are exact:
 | `praxys-pg-connections-high` | metric | `praxys-pg` | `active_connections` avg > 40 | 5 min | 2 | ~0.10 |
 | `wt-praxys-homepage` | metric (web test) | `appi-trainsight` + homepage test | `https://www.praxys.run/` reachable | 1 min | 1 | ~0.10 |
 | `wt-praxys-run-apex` | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.run/` reachable | 1 min | 1 | ~0.10 |
-| `wt-praxys-cn-apex` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
-| `wt-praxys-cn-www` **provisioned-disabled** | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | 0 while disabled |
+| `wt-praxys-cn-apex` | metric (web test) | `appi-trainsight` + regional frontend test | `https://praxys.cn/` reachable | 1 min | 1 | ~0.10 |
+| `wt-praxys-cn-www` | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | ~0.10 |
 | `wt-praxys-api-health` | metric (web test) | `appi-praxys-backend` + API test | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `appi-praxys-backend` | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
@@ -495,9 +495,9 @@ Regional availability states are exact:
 | `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
 | `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Current total ≈ 4.6–5.1 USD/mo.** The live `.run` apex pair adds at most
-~0.10 USD/mo before the metric-alert free allotment. Enabling both disabled
-`.cn` pairs later adds at most another ~0.20 USD/mo.
+**Current total ≈ 4.8–5.3 USD/mo.** The live `.run` apex pair adds at most
+~0.10 USD/mo before the metric-alert free allotment. The two live `.cn` pairs
+add at most another ~0.20 USD/mo.
 
 ### Labs analysis worker alerts (deployment-owned)
 
@@ -828,14 +828,14 @@ inside-the-process db-health / readiness probes.
 |---|---|---|---|
 | `wt-praxys-homepage` | live | `appi-trainsight` | `https://www.praxys.run/` |
 | `wt-praxys-run-apex` | live | `appi-trainsight` | `https://praxys.run/` |
-| `wt-praxys-cn-apex` | provisioned-disabled | `appi-trainsight` | `https://praxys.cn/` |
-| `wt-praxys-cn-www` | provisioned-disabled | `appi-trainsight` | `https://www.praxys.cn/` |
+| `wt-praxys-cn-apex` | live | `appi-trainsight` | `https://praxys.cn/` |
+| `wt-praxys-cn-www` | live | `appi-trainsight` | `https://www.praxys.cn/` |
 | `wt-praxys-api-health` | live | `appi-praxys-backend` | `https://trainsight-app.azurewebsites.net/api/health` |
 
-Standard web-test execution is **0.00** in eastasia (free grant); three
-frontend/API availability alerts are live and both `.cn` pairs are
-provisioned-disabled. **Keep each web test and its alert in the same enabled
-state** — a probe that runs while its alert is disabled pays to watch nothing
+Standard web-test execution is **0.00** in eastasia (free grant); all five
+frontend/API availability alerts are live. **Keep each web test and its alert
+in the same enabled state** — a probe that runs while its alert is disabled
+pays to watch nothing
 (found and fixed 2026-07-05). Re-point locations via the availability test's
 *Locations* in the portal or `az resource update`.
 
@@ -1032,16 +1032,18 @@ enable_availability_pair() {
 enable_availability_pair wt-praxys-run-apex
 ```
 
-The 2026-08-22 preparation receipt records:
+The 2026-08-22 preparation receipt and 2026-09-01 launch readback record:
 
-| Web test | Recorded state |
-|---|---|
-| `wt-praxys-run-apex` | `live` |
-| `wt-praxys-cn-apex` | `provisioned-disabled` |
-| `wt-praxys-cn-www` | `provisioned-disabled` |
+| Web test | Recorded state | Last transition verified |
+|---|---|---|
+| `wt-praxys-run-apex` | `live` | 2026-08-22 |
+| `wt-praxys-cn-apex` | `live` | 2026-09-01 |
+| `wt-praxys-cn-www` | `live` | 2026-09-01 |
 
 The first `.run` apex samples succeeded from both
 `apac-hk-hkn-azr` and `us-ca-sjc-azr` at `2026-08-22T03:25:02Z`.
+The first enabled `.cn` samples were read back on 2026-09-01; both host pairs
+reported only successful East Asia and West US results.
 
 For an aborted cutover, disable the same-named metric alert and web test in the
 same maintenance window, then verify neither continues evaluating. Delete both
