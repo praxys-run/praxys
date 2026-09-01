@@ -271,4 +271,4 @@ runbook and require readback before recovery is claimed.
 - `web/src/components/ChinaProcessingNoticeGate.tsx`
 
 ---
-_Scope updated and exact assessment accepted: 2026-08-31 · Owner: human operator / Trust · Live release verification: pending_
+_Scope updated and exact assessment accepted: 2026-08-31 · Owner: human operator / Trust · Live release verification completed: 2026-09-01_

@@ -6,8 +6,8 @@
 > launch.
 
 **Status:** The operator accepted PIPIA `1.2-public-parity` and its overall
-**Medium** residual risk on 2026-08-31. Production enablement remains human-only
-and blocked until the implementation and live controls below are verified.
+**Medium** residual risk on 2026-08-31. Production processing was enabled on
+2026-09-01 after the implementation and live controls below were verified.
 
 ## Boundary
 
@@ -127,6 +127,38 @@ enable never disables an already healthy launch. GitHub logs and the run
 summary are the workflow evidence; no custom evidence JSON or artifact is
 produced.
 
+## 2026-09-01 release evidence
+
+- Conservative first-public-access bound: no later than
+  `2026-09-01T02:09:25Z` (`2026-09-01 10:09:25 CST`), when the first
+  successful status run was dispatched; its live host probes completed by
+  `2026-09-01T02:09:59Z`. Use the earlier bound for the public-security filing
+  window and submit no later than `2026-10-01 10:09:25 CST`.
+- Production processing configuration changed at
+  `2026-09-01T04:02:41Z` (`2026-09-01 12:02:41 CST`). Protected-main enable
+  run [33468253138](https://github.com/praxys-run/praxys/actions/runs/33468253138)
+  succeeded at `da7103ab2094aa036c4608b7ddbd00093c0fce70`; its compensation
+  step was skipped.
+- Post-enable status runs
+  [33468660037](https://github.com/praxys-run/praxys/actions/runs/33468660037)
+  and
+  [33468665442](https://github.com/praxys-run/praxys/actions/runs/33468665442)
+  succeeded. API
+  readiness reported China, Miniapp, and background AI processing enabled.
+  Azure CORS was the exact five-origin set.
+- Both EdgeOne hosts served `praxys-frontend-cn` at
+  `da7103ab2094aa036c4608b7ddbd00093c0fce70` with the accepted legal/API
+  tuple, TLS, HSTS, ICP footer, and security headers. Both origins passed
+  OPTIONS, unauthenticated `401`, and stale-policy
+  `428 CLIENT_PRIVACY_UPDATE_REQUIRED` checks.
+- `wt-praxys-cn-apex` and `wt-praxys-cn-www`, their Sev 1 alerts, and the
+  `praxys-feedback-ag` action group were enabled. Initial East Asia and West US
+  samples were successful. The launch readback contained 8/8 successful apex
+  samples from each region, plus 9/9 East Asia and 8/8 West US `www` samples.
+- Accepted residual risk remains Medium. Browser Statsig remains absent under
+  #754, PITR deletion reconciliation remains tracked by #755, and geographic
+  redirect remains a post-stability operation.
+
 ## Backend deployment
 
 Ordinary backend deployment has its own queue so emergency disable cannot be
@@ -164,4 +196,4 @@ query URL, or icon until the platform issues the exact artifacts.
 - [cn-public-security-filing.md](./cn-public-security-filing.md)
 
 ---
-_Last reviewed: 2026-08-31 · Owner: Operations_
+_Last reviewed: 2026-09-01 · Owner: Operations_
