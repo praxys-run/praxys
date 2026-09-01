@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import translate_missing as tm  # noqa: E402
 from translate_missing import (  # noqa: E402
+    _emit_po_string,
     _extract_context,
     _group_by_screen,
     _group_by_semantic_cluster,
@@ -28,7 +29,54 @@ from translate_missing import (  # noqa: E402
     main as translate_cli_main,
     review_translations,
     translate_batch,
+    write_po,
 )
+
+
+class TestPOEmission:
+    def test_header_uses_empty_first_line(self):
+        assert _emit_po_string(
+            "msgstr",
+            "Language: zh\nPlural-Forms: \n",
+            header=True,
+        ) == [
+            'msgstr ""',
+            '"Language: zh\\n"',
+            '"Plural-Forms: \\n"',
+        ]
+
+    def test_ordinary_multiline_keeps_first_segment_on_key_line(self):
+        assert _emit_po_string("msgid", "Subject\n\nBody") == [
+            'msgid "Subject\\n"',
+            '"\\n"',
+            '"Body"',
+        ]
+        assert _emit_po_string("msgstr", "主题\n\n正文") == [
+            'msgstr "主题\\n"',
+            '"\\n"',
+            '"正文"',
+        ]
+        assert _emit_po_string("msgstr", "第一行\n") == [
+            'msgstr "第一行\\n"',
+        ]
+
+    def test_multiline_round_trip_is_byte_stable(self, tmp_path):
+        catalog = tmp_path / "messages.po"
+        canonical = (
+            '#: src/Page.tsx:1\n'
+            'msgid "Subject {name}\\n"\n'
+            '"\\n"\n'
+            '"Body"\n'
+            'msgstr "主题 {name}\\n"\n'
+            '"\\n"\n'
+            '"正文"\n'
+        )
+        catalog.write_text(canonical, encoding="utf-8")
+
+        entries, tail = tm.parse_po(catalog)
+        write_po(catalog, entries, tail)
+
+        assert catalog.read_text(encoding="utf-8") == canonical
 
 
 class TestICUVariableNames:
