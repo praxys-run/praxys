@@ -4,7 +4,7 @@
     "v2 Trail validation, readiness, and complete reason receipt",
     "trail_course_demand_v2 and non_ultra_trail_constraints_v2 matching"
   ],
-  "contract_digest": "sha256:2fb5776b13453937708a77f54c273c81f81f4ca265932e4e0eb0a7ac0da2064b",
+  "contract_digest": "sha256:afb120c2ef58543751b60d68bbe738698395c9c62e4f42a908f8efcbf9b8ff41",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -54,7 +54,11 @@
         "session_ascent_hard_cap": "recent_maximum_completed_session_ascent",
         "session_descent_hard_cap": "recent_maximum_completed_session_descent",
         "technicality": "no_more_difficult_than_recently_observed_and_currently_accessible_category",
-        "unknown_descent_or_technicality_result": "clarification_or_limited_module",
+        "unknown_course_footing_module_state": "limited",
+        "unknown_descent_result": {
+          "detail_reason": "material_course_demand_unknown",
+          "status": "clarification_required"
+        },
         "weekly_ascent_hard_cap": "recent_maximum_usable_weekly_ascent",
         "weekly_ascent_target": "no_more_than_recent_median_usable_weekly_ascent",
         "weekly_descent_hard_cap": "recent_maximum_usable_weekly_descent",
@@ -95,8 +99,11 @@
         "event_or_race_counts_as_quality_and_load": true,
         "imported_event_must_be_athlete_confirmed": true,
         "taper_implementation": "not_accepted",
-        "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal",
-        "target_within_14_days_of_start": "event_inside_unapproved_taper_window"
+        "target_more_than_14_days_after_start_adds_reason": false,
+        "target_within_14_days_of_start_result": {
+          "detail_reason": "event_inside_unapproved_taper_window",
+          "status": "policy_unavailable"
+        }
       }
     },
     "trail_policy_evidence_use": {
@@ -111,11 +118,11 @@
       ],
       "value": {
         "fueling": "expected_duration_and_practice_context_only",
-        "hiking": "conditional_candidate_module",
+        "hiking": "disabled_deferred_no_accepted_v2_input_or_dose",
         "injury_and_fatigue_findings": "safety_context_only",
         "observed_load_associations": "descriptive_only",
-        "strength_and_multimodal": "conditional_candidate_module",
-        "taper": "indirect_direction_only",
+        "strength_and_multimodal": "disabled_deferred_no_accepted_v2_input_or_dose",
+        "taper": "disabled_deferred_no_accepted_v2_input_or_dose",
         "trail_specificity": "conditional_candidate_module"
       }
     },
@@ -179,6 +186,22 @@
           "count": 2,
           "window": 42
         },
+        "insufficient_ascent_or_trail_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_descent_result": {
+          "detail_reason": "insufficient_descent_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_running_result": {
+          "detail_reason": "insufficient_recent_running_history",
+          "status": "readiness_blocked"
+        },
+        "known_course_footing_not_observed_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
+        },
         "latest_comparable_hilly_or_trail_session_within_completed_days": 21,
         "latest_run_within_completed_days": 10,
         "minimum_running_sessions_per_usable_week": 3,
@@ -190,7 +213,6 @@
           "source_timestamp"
         ],
         "recent_history_lookback_completed_weeks": 8,
-        "sparse_or_stale_result": "insufficient_comparable_trail_history",
         "thresholds_are_published_biological_laws": false,
         "unknown_descent_or_terrain_cannot_satisfy_comparable_exposure": true
       }
@@ -231,20 +253,33 @@
         "non-ultra-trail.fueling-duration-and-practice-context"
       ],
       "value": {
-        "module_requires_matching_input": true,
-        "modules": [
+        "candidate_modules": [
           "readiness_and_history",
           "easy_and_aerobic",
           "ascent_specificity",
           "descent_and_neuromuscular_exposure",
           "technical_terrain",
-          "hiking",
-          "strength",
           "longest_session_and_fueling_practice",
-          "taper",
           "environment_and_altitude",
           "reassessment_and_outcome"
         ],
+        "disabled_deferred_modules": {
+          "hiking": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "strength": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "taper": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          }
+        },
+        "disabled_modules_are_module_availability_keys": false,
+        "disabled_modules_may_be_included_in_v2_proposal": false,
+        "module_requires_matching_input": true,
         "unavailable_module_may_be_silently_replaced": false
       }
     },
@@ -287,8 +322,16 @@
           "stable_recent_running_history",
           "comparable_recent_ascent_exposure",
           "comparable_recent_descent_exposure",
-          "available_training_days_and_limits",
-          "accessible_training_terrain",
+          "available_weekdays",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates_within_14_day_horizon",
+          "optional_preferred_longest_weekday_when_supplied",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
+          "accessible_footing",
+          "adult_nonclinical_scope_confirmation",
+          "performance_intent_confirmation",
           "current_symptom_stop"
         ],
         "server_derived": [
@@ -329,17 +372,26 @@
         "non-ultra-trail.training-specificity-promising-not-prescriptive"
       ],
       "value": {
-        "below_minimum_result": "no_schedule_within_envelope",
+        "below_minimum_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "easy_and_longest_easy_allocation": {
           "automatic_longest_easy_increase": false,
           "preferred_longest_easy_day_used_when_available": true,
           "quality_minutes_allocated_first": true,
           "remaining_minutes_distributed_across_non_quality_days": true
         },
-        "no_schedule_result": "no_schedule_within_envelope",
+        "explicit_request_above_history_envelope_result": {
+          "detail_reason": "training_constraints_outside_history_envelope",
+          "status": "clarification_required"
+        },
+        "no_schedule_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "non_taper_progression_above_recent_median": false,
         "quality_sessions_per_7_day_unit": 1,
-        "requested_above_maximum_result": "clarification_required",
         "selected_running_days_per_7_day_unit": {
           "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
           "maximum": 6,
@@ -382,6 +434,176 @@
       ],
       "value": {
         "authorization_failures_occur_before_product_receipt": true,
+        "condition_reason_mapping": [
+          {
+            "condition": "invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value",
+            "result": {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "course_or_constraint_schema_id_is_not_exact_v2",
+            "result": {
+              "detail_reason": "schema_version_mismatch",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "canonical_replay_receipt_proposal_or_other_invariant_fails",
+            "result": {
+              "detail_reason": "deterministic_invariant_failed",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "required_ontology_policy_or_specialist_dependency_missing_mismatched_inactive_or_not_runtime_authorized",
+            "result": {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
+            "result": {
+              "detail_reason": "material_course_demand_unknown",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_assumption_not_confirmed_at_exact_revision",
+            "result": {
+              "detail_reason": "assumption_confirmation_required",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown",
+            "result": {
+              "detail_reason": "adult_scope_or_constraints_unconfirmed",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "schedule_capacity_unavailable_dates_access_footing_or_symptom_input_missing_or_unknown",
+            "result": {
+              "detail_reason": "training_constraints_missing",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_requested_workload_or_proposal_edit_above_server_history_envelope",
+            "result": {
+              "detail_reason": "training_constraints_outside_history_envelope",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "required_confirmation_course_constraint_or_history_source_revision_stale",
+            "result": {
+              "detail_reason": "stale_confirmation_or_source_revision",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "individually_valid_values_conflict_including_preferred_weekday_outside_available_set",
+            "result": {
+              "detail_reason": "contradictory_input",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "server_derived_recent_running_continuity_insufficient",
+            "result": {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_ascent_or_trail_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_recently_observed_footing",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_descent_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_uphill_or_downhill_access_false",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_accessible_footing",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "current_symptom_stop_known_true",
+            "result": {
+              "detail_reason": "current_symptom_stop",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "complete_valid_constraints_history_caps_and_spacing_leave_no_14_day_schedule",
+            "result": {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "event_within_unapproved_14_day_taper_window",
+            "result": {
+              "detail_reason": "event_inside_unapproved_taper_window",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_ultra_distance_or_multiday",
+            "result": {
+              "detail_reason": "unsupported_ultra_or_multiday",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+            "result": {
+              "detail_reason": "unsupported_population_or_intent",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "hands_assist_or_fixed_rope_known_true",
+            "result": {
+              "detail_reason": "technical_features_outside_v2",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "no_higher_precedence_reason_matches",
+            "result": {
+              "detail_reason": null,
+              "status": "eligible_proposal"
+            }
+          }
+        ],
         "detail_reason": "first_matching_reason_in_selected_status_catalog_order",
         "detail_reason_catalog": {
           "clarification_required": [
@@ -389,6 +611,8 @@
             "assumption_confirmation_required",
             "adult_scope_or_constraints_unconfirmed",
             "training_constraints_missing",
+            "training_constraints_outside_history_envelope",
+            "stale_confirmation_or_source_revision",
             "contradictory_input"
           ],
           "eligible_proposal": [],
@@ -423,10 +647,13 @@
           ],
           "changes_top_level_status": false,
           "empty_means_eligible": false,
+          "empty_means_included": false,
           "generic_or_road_replacement_allowed": false,
           "hides_matching_reason": false,
+          "projection_of": "module_availability_state_limited",
           "serialize_sorted": true,
-          "set_semantics": true
+          "set_semantics": true,
+          "source_of_truth": false
         },
         "matching_reasons": {
           "de_duplicate": true,
@@ -440,6 +667,57 @@
           "pair_fields": [
             "status",
             "detail_reason"
+          ]
+        },
+        "module_availability": {
+          "actual_included_or_omitted_state_exists_only_in_immutable_proposal": true,
+          "allowed_states": [
+            "not_evaluated",
+            "available",
+            "limited"
+          ],
+          "authoritative": true,
+          "limited_reason_targets": {
+            "environment_altitude": [
+              "course.environment_and_altitude"
+            ],
+            "fueling": [
+              "course.aid_and_support",
+              "course.fueling_and_gastrointestinal_context"
+            ],
+            "grade_specificity": [
+              "course.grade_distribution"
+            ],
+            "technical_terrain": [
+              "course.course_footing"
+            ]
+          },
+          "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
+          "required_keys_in_sorted_order": [
+            "environment_altitude",
+            "fueling",
+            "grade_specificity",
+            "technical_terrain"
+          ],
+          "state_rules": {
+            "available": {
+              "guarantees_proposal_inclusion": false,
+              "reason_target": null,
+              "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+            },
+            "limited": {
+              "may_be_included_in_proposal": false,
+              "reason_target": "closed_first_party_field_or_section_target",
+              "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+            },
+            "not_evaluated": {
+              "reason_target": "one_applicable_namespaced_matching_reason",
+              "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+            }
+          },
+          "value_exact_keys": [
+            "state",
+            "reason_target"
           ]
         },
         "namespaced_reason_identity": "<status>.<detail_reason>",
@@ -512,5 +790,5 @@
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:a52d3e7e79f5783453ff5f19cc7ac13f2a7152f756c82c819e94b363704fdf40"
+  "source_decision_digest": "sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56"
 }

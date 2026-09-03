@@ -45,11 +45,12 @@ accepted_interpretation: >
   ascent/descent caps remain reversible Praxys guardrails rather than
   published optima or safety laws. A deterministic v2 receipt returns exactly
   one of five statuses, one cataloged primary detail when applicable, every
-  independently safe matching reason, and sorted limited modules. It never
+  independently safe matching reason, authoritative availability for four
+  modules, and a redundant sorted limited-module projection. It never
   hides a lower-precedence reason, interprets malformed data to manufacture
   more reasons, selects a road fallback, uses activity-average power, or
   authorizes a provider or runtime behavior. Taper, progression above history,
-  fixed fueling, strength, hiking, technical-terrain or recovery dose,
+  fixed fueling, strength, hiking, taper, technical-terrain or recovery dose,
   back-to-back sessions, universal targets, and personal performance or safety
   predictions remain unaccepted.
 decision_review:
@@ -65,12 +66,15 @@ decision_review:
     seven-day reassessment, history qualification, no-initial-progression
     schedule, targetless controlled-uphill template, intensity spacing,
     separate ascent and descent caps, event-window behavior, and hard Science
-    boundaries. I approve the five-status exhaustive reason receipt and sorted
-    limited modules as reversible Praxys operational guardrails, not as
+    boundaries. I approve the five-status exhaustive reason receipt,
+    authoritative four-module availability, and redundant sorted limitation
+    projection as reversible Praxys operational guardrails, not as
     published biological rules, validated safe doses, equivalences, or
-    predictions. This approval authorizes only preparation and review of a
-    separately reviewed inactive implementation bound to this exact decision
-    and contract. It does not approve lifecycle supersession, merge,
+    predictions. Hiking, strength, and taper remain disabled because v2 has no
+    accepted input and dose contract for them. This approval authorizes only
+    preparation and review of a separately reviewed inactive implementation
+    bound to this exact decision and contract. It does not approve lifecycle
+    supersession, merge,
     deployment, production data use, dogfood, catalog visibility, provider
     behavior, delivery, or runtime activation.
   items:
@@ -79,11 +83,13 @@ decision_review:
       disposition: approve
       question: >
         Should the history-rich adult non-ultra performance policy require the
-        accepted v2 ontology, confirmed v2 course and constraint revisions,
-        server-derived history, and the same conditional module structure?
+        accepted v2 ontology, confirmed v2 course and full schedule-constraint
+        revisions, server-derived history, and an explicitly bounded module
+        structure?
       proposed_decision: >
-        Update only the dependency and schema identities while preserving the
-        accepted scope, evidence use, and modular scientific interpretation.
+        Update the dependency and schema identities, preserve the accepted
+        scope and evidence interpretation, and explicitly disable hiking,
+        strength, and taper until accepted inputs and doses exist.
       approval_effect:
         - A future inactive evaluator can require exact v2 inputs without widening the eligible population.
         - Known or unknown context cannot silently enable a module.
@@ -102,12 +108,14 @@ decision_review:
       title: Carry the accepted early-block construction forward unchanged
       disposition: approve
       question: >
-        Should v2 retain every accepted execution, reassessment, history,
-        schedule, and workout-template value exactly as v1?
+        Should v2 retain every accepted execution, reassessment, history
+        threshold, schedule construction, and workout-template value from v1,
+        while normalizing bare results to cataloged status/detail pairs?
       proposed_decision: >
         Preserve the exact fourteen-day, seven-day, history qualification,
         no-progression scheduling, and targetless 38-minute uphill-template
-        guardrails without presenting them as biological optima.
+        guardrails without presenting them as biological optima; change only
+        their receipt representation where a pair is required.
       approval_effect:
         - The successor changes readiness semantics without silently changing the generated training envelope.
       does_not_authorize:
@@ -150,11 +158,12 @@ decision_review:
       question: >
         Should every safely classified evaluation return one status by fixed
         precedence, the first cataloged primary detail, every matching reason,
-        and a separate sorted limited-module set?
+        authoritative state for all four modules, and a redundant sorted
+        limited-module projection?
       proposed_decision: >
         Accept the exact status, detail, namespacing, de-duplication, ordering,
-        independent-evaluation, and module serialization rules from Product v2
-        as reversible operational guardrails.
+        independent-evaluation, condition mapping, module-availability, and
+        projection rules from Product v2 as reversible operational guardrails.
       approval_effect:
         - Clients receive one next-action status without losing simultaneous lower-precedence findings.
         - Malformed fields are never dereferenced merely to fill the receipt.
@@ -180,6 +189,8 @@ decision_review:
         - Taper, progression, fixed dose, broader scope, provider behavior, deployment, or activation.
       parameter_names:
         - trail_policy_event_and_taper
+        - trail_policy_modular_structure
+        - trail_policy_evidence_use
         - trail_policy_deferred_scope
         - trail_policy_non_science_authority
       evidence_claim_ids:
@@ -256,8 +267,16 @@ model_parameters:
         - stable_recent_running_history
         - comparable_recent_ascent_exposure
         - comparable_recent_descent_exposure
-        - available_training_days_and_limits
-        - accessible_training_terrain
+        - available_weekdays
+        - weekly_time_limit_min
+        - maximum_session_duration_min
+        - unavailable_dates_within_14_day_horizon
+        - optional_preferred_longest_weekday_when_supplied
+        - nontechnical_three_minute_uphill_access
+        - controlled_downhill_access
+        - accessible_footing
+        - adult_nonclinical_scope_confirmation
+        - performance_intent_confirmation
         - current_symptom_stop
       server_derived:
         - recent_running_continuity
@@ -317,7 +336,18 @@ model_parameters:
         - usable_elevation_gain_and_loss_or_explicit_unknown
         - source_timestamp
       unknown_descent_or_terrain_cannot_satisfy_comparable_exposure: true
-      sparse_or_stale_result: insufficient_comparable_trail_history
+      insufficient_recent_running_result:
+        status: readiness_blocked
+        detail_reason: insufficient_recent_running_history
+      insufficient_ascent_or_trail_result:
+        status: readiness_blocked
+        detail_reason: insufficient_comparable_trail_history
+      insufficient_recent_descent_result:
+        status: readiness_blocked
+        detail_reason: insufficient_descent_history
+      known_course_footing_not_observed_result:
+        status: readiness_blocked
+        detail_reason: insufficient_comparable_trail_history
       thresholds_are_published_biological_laws: false
     classification: guardrail
     evidence_claim_ids:
@@ -325,9 +355,9 @@ model_parameters:
       - non-ultra-trail.course-specific-policy-required
       - non-ultra-trail.uphill-downhill-require-distinct-handling
     rationale: >
-      Carried unchanged from accepted v1. The counts prevent extrapolation from
-      sparse records and remain conservative qualifications, not safety,
-      adaptation, or readiness laws.
+      The accepted v1 counts and windows are unchanged. Only bare outcomes are
+      normalized to cataloged status/detail pairs; the qualifications remain
+      conservative guardrails, not safety, adaptation, or readiness laws.
     applies_to: owner-scoped readiness history
   - name: trail_policy_schedule_construction
     value:
@@ -335,8 +365,12 @@ model_parameters:
         minimum: 3
         maximum: 6
         deterministic_value: minimum_of_available_days_recent_modal_days_and_policy_maximum
-      below_minimum_result: no_schedule_within_envelope
-      requested_above_maximum_result: clarification_required
+      below_minimum_result:
+        status: readiness_blocked
+        detail_reason: no_schedule_within_envelope
+      explicit_request_above_history_envelope_result:
+        status: clarification_required
+        detail_reason: training_constraints_outside_history_envelope
       weekly_running_minutes_target: minimum_of_recent_median_usable_weekly_minutes_and_athlete_limit
       weekly_running_minutes_hard_cap: minimum_of_recent_maximum_usable_weekly_minutes_and_athlete_limit
       non_taper_progression_above_recent_median: false
@@ -348,15 +382,17 @@ model_parameters:
         remaining_minutes_distributed_across_non_quality_days: true
         preferred_longest_easy_day_used_when_available: true
         automatic_longest_easy_increase: false
-      no_schedule_result: no_schedule_within_envelope
+      no_schedule_result:
+        status: readiness_blocked
+        detail_reason: no_schedule_within_envelope
     classification: guardrail
     evidence_claim_ids:
       - eligibility.fixed-progression-and-acwr-not-safety-laws
       - non-ultra-trail.training-specificity-promising-not-prescriptive
     rationale: >
-      Carried unchanged from accepted v1. Median, maximum, and athlete caps
-      organize existing exposure without automatic progression; one quality
-      session is a conservative Product choice, not a universal optimum.
+      The accepted v1 construction values are unchanged. Only bare outcomes
+      are normalized to cataloged status/detail pairs. Median, maximum, and
+      athlete caps organize existing exposure without automatic progression.
     applies_to: deterministic early-block schedule
   - name: trail_policy_workout_templates
     value:
@@ -420,7 +456,10 @@ model_parameters:
       session_ascent_hard_cap: recent_maximum_completed_session_ascent
       session_descent_hard_cap: recent_maximum_completed_session_descent
       technicality: no_more_difficult_than_recently_observed_and_currently_accessible_category
-      unknown_descent_or_technicality_result: clarification_or_limited_module
+      unknown_descent_result:
+        status: clarification_required
+        detail_reason: material_course_demand_unknown
+      unknown_course_footing_module_state: limited
       high_speed_or_maximal_downhill_repeats: false
       road_or_flat_substitution_claimed_equivalent: false
       automatic_vertical_progression: false
@@ -436,8 +475,10 @@ model_parameters:
   - name: trail_policy_event_and_taper
     value:
       imported_event_must_be_athlete_confirmed: true
-      target_more_than_14_days_after_start: normal_14_day_rolling_proposal
-      target_within_14_days_of_start: event_inside_unapproved_taper_window
+      target_more_than_14_days_after_start_adds_reason: false
+      target_within_14_days_of_start_result:
+        status: policy_unavailable
+        detail_reason: event_inside_unapproved_taper_window
       taper_implementation: not_accepted
       event_or_race_counts_as_quality_and_load: true
       event_day_generated_as_training_workout: false
@@ -445,9 +486,9 @@ model_parameters:
     evidence_claim_ids:
       - non-ultra-trail.taper-direction-indirect
     rationale: >
-      Carried unchanged from accepted v1. General endurance evidence remains
-      insufficient to select a Trail-specific taper; the event-near path fails
-      closed pending a successor decision.
+      The accepted v1 event-window behavior is unchanged and its bare outcome
+      is normalized to a cataloged pair. General endurance evidence remains
+      insufficient to select a Trail-specific taper.
     applies_to: dated Trail goals
   - name: trail_policy_typed_outcomes
     value:
@@ -480,9 +521,60 @@ model_parameters:
           - assumption_confirmation_required
           - adult_scope_or_constraints_unconfirmed
           - training_constraints_missing
+          - training_constraints_outside_history_envelope
+          - stale_confirmation_or_source_revision
           - contradictory_input
         eligible_proposal: []
       namespaced_reason_identity: "<status>.<detail_reason>"
+      condition_reason_mapping:
+        - condition: invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value
+          result: {status: validation_failed, detail_reason: invalid_field_value}
+        - condition: course_or_constraint_schema_id_is_not_exact_v2
+          result: {status: validation_failed, detail_reason: schema_version_mismatch}
+        - condition: canonical_replay_receipt_proposal_or_other_invariant_fails
+          result: {status: validation_failed, detail_reason: deterministic_invariant_failed}
+        - condition: required_ontology_policy_or_specialist_dependency_missing_mismatched_inactive_or_not_runtime_authorized
+          result: {status: policy_unavailable, detail_reason: policy_inactive}
+        - condition: event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown
+          result: {status: clarification_required, detail_reason: material_course_demand_unknown}
+        - condition: explicit_assumption_not_confirmed_at_exact_revision
+          result: {status: clarification_required, detail_reason: assumption_confirmation_required}
+        - condition: adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown
+          result: {status: clarification_required, detail_reason: adult_scope_or_constraints_unconfirmed}
+        - condition: schedule_capacity_unavailable_dates_access_footing_or_symptom_input_missing_or_unknown
+          result: {status: clarification_required, detail_reason: training_constraints_missing}
+        - condition: explicit_requested_workload_or_proposal_edit_above_server_history_envelope
+          result: {status: clarification_required, detail_reason: training_constraints_outside_history_envelope}
+        - condition: required_confirmation_course_constraint_or_history_source_revision_stale
+          result: {status: clarification_required, detail_reason: stale_confirmation_or_source_revision}
+        - condition: individually_valid_values_conflict_including_preferred_weekday_outside_available_set
+          result: {status: clarification_required, detail_reason: contradictory_input}
+        - condition: server_derived_recent_running_continuity_insufficient
+          result: {status: readiness_blocked, detail_reason: insufficient_recent_running_history}
+        - condition: server_derived_recent_ascent_or_trail_exposure_insufficient
+          result: {status: readiness_blocked, detail_reason: insufficient_comparable_trail_history}
+        - condition: known_course_footing_not_subset_of_recently_observed_footing
+          result: {status: readiness_blocked, detail_reason: insufficient_comparable_trail_history}
+        - condition: server_derived_recent_descent_exposure_insufficient
+          result: {status: readiness_blocked, detail_reason: insufficient_descent_history}
+        - condition: known_uphill_or_downhill_access_false
+          result: {status: readiness_blocked, detail_reason: insufficient_terrain_access}
+        - condition: known_course_footing_not_subset_of_accessible_footing
+          result: {status: readiness_blocked, detail_reason: insufficient_terrain_access}
+        - condition: current_symptom_stop_known_true
+          result: {status: readiness_blocked, detail_reason: current_symptom_stop}
+        - condition: complete_valid_constraints_history_caps_and_spacing_leave_no_14_day_schedule
+          result: {status: readiness_blocked, detail_reason: no_schedule_within_envelope}
+        - condition: event_within_unapproved_14_day_taper_window
+          result: {status: policy_unavailable, detail_reason: event_inside_unapproved_taper_window}
+        - condition: event_ultra_distance_or_multiday
+          result: {status: policy_unavailable, detail_reason: unsupported_ultra_or_multiday}
+        - condition: population_clinical_return_to_sport_or_intent_outside_scope
+          result: {status: policy_unavailable, detail_reason: unsupported_population_or_intent}
+        - condition: hands_assist_or_fixed_rope_known_true
+          result: {status: policy_unavailable, detail_reason: technical_features_outside_v2}
+        - condition: no_higher_precedence_reason_matches
+          result: {status: eligible_proposal, detail_reason: null}
       top_level_status: highest_precedence_matching_status
       detail_reason: first_matching_reason_in_selected_status_catalog_order
       matching_reasons:
@@ -492,7 +584,42 @@ model_parameters:
         order_by: [status_precedence, detail_reason_catalog_order]
         malformed_value_may_be_dereferenced_to_find_more_reasons: false
         independently_evaluable_lower_precedence_reasons_preserved: true
+      module_availability:
+        authoritative: true
+        required_keys_in_sorted_order:
+          - environment_altitude
+          - fueling
+          - grade_specificity
+          - technical_terrain
+        value_exact_keys: [state, reason_target]
+        allowed_states:
+          - not_evaluated
+          - available
+          - limited
+        state_rules:
+          not_evaluated:
+            when: validation_policy_clarification_or_core_readiness_prevents_safe_module_decision
+            reason_target: one_applicable_namespaced_matching_reason
+          available:
+            when: module_inputs_and_science_boundary_permit_generation_to_consider_the_module
+            reason_target: null
+            guarantees_proposal_inclusion: false
+          limited:
+            when: accepted_non_core_unknown_requires_omission_or_descriptive_only_handling
+            reason_target: closed_first_party_field_or_section_target
+            may_be_included_in_proposal: false
+        limited_reason_targets:
+          environment_altitude: [course.environment_and_altitude]
+          fueling:
+            - course.aid_and_support
+            - course.fueling_and_gastrointestinal_context
+          grade_specificity: [course.grade_distribution]
+          technical_terrain: [course.course_footing]
+        reason_target_may_be_url_fragment_value_identifier_or_client_string: false
+        actual_included_or_omitted_state_exists_only_in_immutable_proposal: true
       limited_modules:
+        source_of_truth: false
+        projection_of: module_availability_state_limited
         allowed_sorted_order:
           - environment_altitude
           - fueling
@@ -503,6 +630,7 @@ model_parameters:
         changes_top_level_status: false
         hides_matching_reason: false
         empty_means_eligible: false
+        empty_means_included: false
         generic_or_road_replacement_allowed: false
       authorization_failures_occur_before_product_receipt: true
       road_fallback: false
@@ -519,18 +647,27 @@ model_parameters:
     applies_to: v2 validation, policy availability, readiness, and proposal eligibility receipts
   - name: trail_policy_modular_structure
     value:
-      modules:
+      candidate_modules:
         - readiness_and_history
         - easy_and_aerobic
         - ascent_specificity
         - descent_and_neuromuscular_exposure
         - technical_terrain
-        - hiking
-        - strength
         - longest_session_and_fueling_practice
-        - taper
         - environment_and_altitude
         - reassessment_and_outcome
+      disabled_deferred_modules:
+        hiking:
+          state: not_accepted
+          reason: no_accepted_v2_input_and_dose_contract
+        strength:
+          state: not_accepted
+          reason: no_accepted_v2_input_and_dose_contract
+        taper:
+          state: not_accepted
+          reason: no_accepted_v2_input_and_dose_contract
+      disabled_modules_are_module_availability_keys: false
+      disabled_modules_may_be_included_in_v2_proposal: false
       module_requires_matching_input: true
       unavailable_module_may_be_silently_replaced: false
     classification: guardrail
@@ -540,15 +677,16 @@ model_parameters:
       - non-ultra-trail.taper-direction-indirect
       - non-ultra-trail.fueling-duration-and-practice-context
     rationale: >
-      Carried unchanged from accepted v1. Modular handling preserves distinct
-      demands and uncertainty without claiming one universal Trail schedule.
+      V2 preserves distinct demand handling but explicitly disables hiking,
+      strength, and taper because no accepted v2 input and dose contract exists.
+      This is a deferral, not evidence that those modules lack value.
     applies_to: future deterministic generator envelope
   - name: trail_policy_evidence_use
     value:
       trail_specificity: conditional_candidate_module
-      strength_and_multimodal: conditional_candidate_module
-      hiking: conditional_candidate_module
-      taper: indirect_direction_only
+      strength_and_multimodal: disabled_deferred_no_accepted_v2_input_or_dose
+      hiking: disabled_deferred_no_accepted_v2_input_or_dose
+      taper: disabled_deferred_no_accepted_v2_input_or_dose
       fueling: expected_duration_and_practice_context_only
       observed_load_associations: descriptive_only
       injury_and_fatigue_findings: safety_context_only
@@ -560,8 +698,8 @@ model_parameters:
       - non-ultra-trail.taper-direction-indirect
       - non-ultra-trail.fueling-duration-and-practice-context
     rationale: >
-      Carried unchanged from accepted v1. This keeps evidence-supported
-      directions separate from exact prescriptions the sources do not establish.
+      Evidence-supported directions remain distinct from exact prescriptions;
+      v2 disables modules whose required inputs and dose are not accepted.
     applies_to: module selection and ScienceNote claims
   - name: trail_policy_hard_boundaries
     value:
@@ -671,15 +809,15 @@ privacy_implications:
   - Activity-average power is neither collected nor used as readiness or intensity evidence.
   - Owner-scoped goal, readiness, proposal, adoption, reset, export, deletion, and account-deletion controls remain mandatory.
 validation_plan:
-  - Prove every execution, history, schedule, template, intensity, exposure, event, and hard-boundary value is structurally equal to the accepted v1 contract except the named v2 dependency and receipt groups.
-  - Exhaustively exercise every status and detail reason, every pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, and sorted limited modules.
+  - Prove every behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, and hard-boundary value equals accepted v1; allow only the named dependency, pair-normalization, receipt, and disabled-module changes.
+  - Exhaustively exercise every status and detail reason, every condition mapping, pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, authoritative four-module state, and sorted redundant limited-module projection.
   - Verify malformed values are not dereferenced while all independently safe policy, history, schedule, and missingness reasons remain present.
   - Unit-test history qualification, schedule allocation, targetless template steps, low-intensity fraction, quality spacing, and separate ascent/descent/terrain caps against immutable owner-scoped snapshots.
   - Verify no proposal is returned from an inactive contract, a core unknown, a failed gate, a stale revision, route/provider input, or any road fallback.
   - Generate the matching review packet and inactive machine contract and bind any later approval to their exact digests.
 falsification_conditions:
-  - Any accepted v1 execution, history, schedule, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency and receipt groups.
-  - Status selection, primary detail, matching-reason ordering, de-duplication, or limited-module sorting is nondeterministic or loses a safely evaluable reason.
+  - Any accepted v1 behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency, pair-normalization, receipt, and disabled-module groups.
+  - Status selection, condition mapping, primary detail, matching-reason ordering, de-duplication, module availability, or limited-module projection is nondeterministic or loses a safely evaluable reason.
   - A malformed field is interpreted to manufacture a reason, or a core unknown or failed gate produces eligible_proposal.
   - An exact value outside the accepted early-block guardrails is inferred despite literal not_accepted status.
   - Uphill and downhill collapse, terrain or history access is ignored, or an unsupported module is silently substituted.
@@ -710,5 +848,8 @@ decision_notes:
   - "Every exact value outside the v2 dependency and receipt groups is carried unchanged from accepted v1 and remains classified as a reversible Praxys guardrail."
   - "Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md."
   - "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md."
+  - "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md."
+  - "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md."
+  - "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact."
   - "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607."
   - "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."

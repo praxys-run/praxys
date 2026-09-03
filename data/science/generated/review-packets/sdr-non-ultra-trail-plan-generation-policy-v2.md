@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `non-ultra-trail-plan-generation-policy-v2`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:a52d3e7e79f5783453ff5f19cc7ac13f2a7152f756c82c819e94b363704fdf40`
-- **Contract digest:** `sha256:2fb5776b13453937708a77f54c273c81f81f4ca265932e4e0eb0a7ac0da2064b`
+- **Decision digest:** `sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56`
+- **Contract digest:** `sha256:afb120c2ef58543751b60d68bbe738698395c9c62e4f42a908f8efcbf9b8ff41`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -30,8 +30,8 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 #### `v2-scope-dependencies-and-modules` — Bind the narrow accepted policy to the two strict v2 schemas
 
-- **Question:** Should the history-rich adult non-ultra performance policy require the accepted v2 ontology, confirmed v2 course and constraint revisions, server-derived history, and the same conditional module structure?
-- **Proposed decision:** Update only the dependency and schema identities while preserving the accepted scope, evidence use, and modular scientific interpretation.
+- **Question:** Should the history-rich adult non-ultra performance policy require the accepted v2 ontology, confirmed v2 course and full schedule-constraint revisions, server-derived history, and an explicitly bounded module structure?
+- **Proposed decision:** Update the dependency and schema identities, preserve the accepted scope and evidence interpretation, and explicitly disable hiking, strength, and taper until accepted inputs and doses exist.
 - **Approval means:**
   - A future inactive evaluator can require exact v2 inputs without widening the eligible population.
   - Known or unknown context cannot silently enable a module.
@@ -47,8 +47,8 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 #### `unchanged-early-block-construction` — Carry the accepted early-block construction forward unchanged
 
-- **Question:** Should v2 retain every accepted execution, reassessment, history, schedule, and workout-template value exactly as v1?
-- **Proposed decision:** Preserve the exact fourteen-day, seven-day, history qualification, no-progression scheduling, and targetless 38-minute uphill-template guardrails without presenting them as biological optima.
+- **Question:** Should v2 retain every accepted execution, reassessment, history threshold, schedule construction, and workout-template value from v1, while normalizing bare results to cataloged status/detail pairs?
+- **Proposed decision:** Preserve the exact fourteen-day, seven-day, history qualification, no-progression scheduling, and targetless 38-minute uphill-template guardrails without presenting them as biological optima; change only their receipt representation where a pair is required.
 - **Approval means:**
   - The successor changes readiness semantics without silently changing the generated training envelope.
 - **This does not authorize:**
@@ -79,8 +79,8 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 #### `deterministic-complete-v2-receipt` — Adopt the five-status exhaustive deterministic receipt
 
-- **Question:** Should every safely classified evaluation return one status by fixed precedence, the first cataloged primary detail, every matching reason, and a separate sorted limited-module set?
-- **Proposed decision:** Accept the exact status, detail, namespacing, de-duplication, ordering, independent-evaluation, and module serialization rules from Product v2 as reversible operational guardrails.
+- **Question:** Should every safely classified evaluation return one status by fixed precedence, the first cataloged primary detail, every matching reason, authoritative state for all four modules, and a redundant sorted limited-module projection?
+- **Proposed decision:** Accept the exact status, detail, namespacing, de-duplication, ordering, independent-evaluation, condition mapping, module-availability, and projection rules from Product v2 as reversible operational guardrails.
 - **Approval means:**
   - Clients receive one next-action status without losing simultaneous lower-precedence findings.
   - Malformed fields are never dereferenced merely to fill the receipt.
@@ -121,9 +121,9 @@ Do not approve merely because the audit appendix looks reasonable or because you
 - **This does not authorize:**
   - Taper, progression, fixed dose, broader scope, provider behavior, deployment, or activation.
 
-<details><summary>Traceability: 3 contract groups, 4 evidence claims</summary>
+<details><summary>Traceability: 5 contract groups, 4 evidence claims</summary>
 
-- **Contract groups covered:** `trail_policy_event_and_taper`, `trail_policy_deferred_scope`, `trail_policy_non_science_authority`
+- **Contract groups covered:** `trail_policy_event_and_taper`, `trail_policy_modular_structure`, `trail_policy_evidence_use`, `trail_policy_deferred_scope`, `trail_policy_non_science_authority`
 - **Evidence claims:** `non-ultra-trail.training-specificity-promising-not-prescriptive`, `non-ultra-trail.injury-fatigue-no-safe-dose`, `non-ultra-trail.taper-direction-indirect`, `non-ultra-trail.fueling-duration-and-practice-context`
 
 </details>
@@ -132,7 +132,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 A decision approval bound to the displayed digest attests:
 
-> I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt and sorted limited modules as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
+> I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt, authoritative four-module availability, and redundant sorted limitation projection as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. Hiking, strength, and taper remain disabled because v2 has no accepted input and dose contract for them. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 - **Decision approval:** _Pending_
 
@@ -145,12 +145,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-non-ultra-trail-plan-generation-policy-v2`
-- Digest: `sha256:a52d3e7e79f5783453ff5f19cc7ac13f2a7152f756c82c819e94b363704fdf40`
+- Digest: `sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56`
 
-> I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt and sorted limited modules as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
+> I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt, authoritative four-module availability, and redundant sorted limitation projection as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. Hiking, strength, and taper remain disabled because v2 has no accepted input and dose contract for them. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:a52d3e7e79f5783453ff5f19cc7ac13f2a7152f756c82c819e94b363704fdf40","subject_id":"sdr-non-ultra-trail-plan-generation-policy-v2","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56","subject_id":"sdr-non-ultra-trail-plan-generation-policy-v2","subject_kind":"science_decision"}
 -->
 ```
 
@@ -160,7 +160,7 @@ Praxys science approval — **APPROVE**
 
 ### Accepted interpretation
 
-If separately accepted after the ontology successor, this record would bind the accepted history-rich adult non-ultra Trail policy to trail_course_demand_v2 and non_ultra_trail_constraints_v2 without changing any accepted v1 execution, history, schedule, workout-template, intensity, exposure, event-window, taper deferral, or hard scientific boundary. The fourteen-day proposal, seven-day reassessment, eight-week history window, four usable weeks, three-run usable-week floor, ten-day recent-run check, 42/21-day comparable-history checks, no-initial-progression schedule, targetless 38-minute controlled-uphill template, 75-percent low-intensity floor, one nonconsecutive quality exposure, and separate history-anchored ascent/descent caps remain reversible Praxys guardrails rather than published optima or safety laws. A deterministic v2 receipt returns exactly one of five statuses, one cataloged primary detail when applicable, every independently safe matching reason, and sorted limited modules. It never hides a lower-precedence reason, interprets malformed data to manufacture more reasons, selects a road fallback, uses activity-average power, or authorizes a provider or runtime behavior. Taper, progression above history, fixed fueling, strength, hiking, technical-terrain or recovery dose, back-to-back sessions, universal targets, and personal performance or safety predictions remain unaccepted.
+If separately accepted after the ontology successor, this record would bind the accepted history-rich adult non-ultra Trail policy to trail_course_demand_v2 and non_ultra_trail_constraints_v2 without changing any accepted v1 execution, history, schedule, workout-template, intensity, exposure, event-window, taper deferral, or hard scientific boundary. The fourteen-day proposal, seven-day reassessment, eight-week history window, four usable weeks, three-run usable-week floor, ten-day recent-run check, 42/21-day comparable-history checks, no-initial-progression schedule, targetless 38-minute controlled-uphill template, 75-percent low-intensity floor, one nonconsecutive quality exposure, and separate history-anchored ascent/descent caps remain reversible Praxys guardrails rather than published optima or safety laws. A deterministic v2 receipt returns exactly one of five statuses, one cataloged primary detail when applicable, every independently safe matching reason, authoritative availability for four modules, and a redundant sorted limited-module projection. It never hides a lower-precedence reason, interprets malformed data to manufacture more reasons, selects a road fallback, uses activity-average power, or authorizes a provider or runtime behavior. Taper, progression above history, fixed fueling, strength, hiking, taper, technical-terrain or recovery dose, back-to-back sessions, universal targets, and personal performance or safety predictions remain unaccepted.
 
 ### Linked evidence
 
@@ -350,8 +350,16 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
     "stable_recent_running_history",
     "comparable_recent_ascent_exposure",
     "comparable_recent_descent_exposure",
-    "available_training_days_and_limits",
-    "accessible_training_terrain",
+    "available_weekdays",
+    "weekly_time_limit_min",
+    "maximum_session_duration_min",
+    "unavailable_dates_within_14_day_horizon",
+    "optional_preferred_longest_weekday_when_supplied",
+    "nontechnical_three_minute_uphill_access",
+    "controlled_downhill_access",
+    "accessible_footing",
+    "adult_nonclinical_scope_confirmation",
+    "performance_intent_confirmation",
     "current_symptom_stop"
   ],
   "server_derived": [
@@ -388,7 +396,7 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 
 - **Applies to:** owner-scoped readiness history
 - **Evidence claims:** `eligibility.recent-history-anchor-without-universal-threshold`, `non-ultra-trail.course-specific-policy-required`, `non-ultra-trail.uphill-downhill-require-distinct-handling`
-- **Rationale:** Carried unchanged from accepted v1. The counts prevent extrapolation from sparse records and remain conservative qualifications, not safety, adaptation, or readiness laws.
+- **Rationale:** The accepted v1 counts and windows are unchanged. Only bare outcomes are normalized to cataloged status/detail pairs; the qualifications remain conservative guardrails, not safety, adaptation, or readiness laws.
 - **Exact value:**
 
 ```json
@@ -396,6 +404,22 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
   "comparable_hilly_or_trail_sessions_within_completed_days": {
     "count": 2,
     "window": 42
+  },
+  "insufficient_ascent_or_trail_result": {
+    "detail_reason": "insufficient_comparable_trail_history",
+    "status": "readiness_blocked"
+  },
+  "insufficient_recent_descent_result": {
+    "detail_reason": "insufficient_descent_history",
+    "status": "readiness_blocked"
+  },
+  "insufficient_recent_running_result": {
+    "detail_reason": "insufficient_recent_running_history",
+    "status": "readiness_blocked"
+  },
+  "known_course_footing_not_observed_result": {
+    "detail_reason": "insufficient_comparable_trail_history",
+    "status": "readiness_blocked"
   },
   "latest_comparable_hilly_or_trail_session_within_completed_days": 21,
   "latest_run_within_completed_days": 10,
@@ -408,7 +432,6 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
     "source_timestamp"
   ],
   "recent_history_lookback_completed_weeks": 8,
-  "sparse_or_stale_result": "insufficient_comparable_trail_history",
   "thresholds_are_published_biological_laws": false,
   "unknown_descent_or_terrain_cannot_satisfy_comparable_exposure": true
 }
@@ -418,22 +441,31 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 
 - **Applies to:** deterministic early-block schedule
 - **Evidence claims:** `eligibility.fixed-progression-and-acwr-not-safety-laws`, `non-ultra-trail.training-specificity-promising-not-prescriptive`
-- **Rationale:** Carried unchanged from accepted v1. Median, maximum, and athlete caps organize existing exposure without automatic progression; one quality session is a conservative Product choice, not a universal optimum.
+- **Rationale:** The accepted v1 construction values are unchanged. Only bare outcomes are normalized to cataloged status/detail pairs. Median, maximum, and athlete caps organize existing exposure without automatic progression.
 - **Exact value:**
 
 ```json
 {
-  "below_minimum_result": "no_schedule_within_envelope",
+  "below_minimum_result": {
+    "detail_reason": "no_schedule_within_envelope",
+    "status": "readiness_blocked"
+  },
   "easy_and_longest_easy_allocation": {
     "automatic_longest_easy_increase": false,
     "preferred_longest_easy_day_used_when_available": true,
     "quality_minutes_allocated_first": true,
     "remaining_minutes_distributed_across_non_quality_days": true
   },
-  "no_schedule_result": "no_schedule_within_envelope",
+  "explicit_request_above_history_envelope_result": {
+    "detail_reason": "training_constraints_outside_history_envelope",
+    "status": "clarification_required"
+  },
+  "no_schedule_result": {
+    "detail_reason": "no_schedule_within_envelope",
+    "status": "readiness_blocked"
+  },
   "non_taper_progression_above_recent_median": false,
   "quality_sessions_per_7_day_unit": 1,
-  "requested_above_maximum_result": "clarification_required",
   "selected_running_days_per_7_day_unit": {
     "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
     "maximum": 6,
@@ -545,7 +577,11 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
   "session_ascent_hard_cap": "recent_maximum_completed_session_ascent",
   "session_descent_hard_cap": "recent_maximum_completed_session_descent",
   "technicality": "no_more_difficult_than_recently_observed_and_currently_accessible_category",
-  "unknown_descent_or_technicality_result": "clarification_or_limited_module",
+  "unknown_course_footing_module_state": "limited",
+  "unknown_descent_result": {
+    "detail_reason": "material_course_demand_unknown",
+    "status": "clarification_required"
+  },
   "weekly_ascent_hard_cap": "recent_maximum_usable_weekly_ascent",
   "weekly_ascent_target": "no_more_than_recent_median_usable_weekly_ascent",
   "weekly_descent_hard_cap": "recent_maximum_usable_weekly_descent",
@@ -557,7 +593,7 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 
 - **Applies to:** dated Trail goals
 - **Evidence claims:** `non-ultra-trail.taper-direction-indirect`
-- **Rationale:** Carried unchanged from accepted v1. General endurance evidence remains insufficient to select a Trail-specific taper; the event-near path fails closed pending a successor decision.
+- **Rationale:** The accepted v1 event-window behavior is unchanged and its bare outcome is normalized to a cataloged pair. General endurance evidence remains insufficient to select a Trail-specific taper.
 - **Exact value:**
 
 ```json
@@ -566,8 +602,11 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
   "event_or_race_counts_as_quality_and_load": true,
   "imported_event_must_be_athlete_confirmed": true,
   "taper_implementation": "not_accepted",
-  "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal",
-  "target_within_14_days_of_start": "event_inside_unapproved_taper_window"
+  "target_more_than_14_days_after_start_adds_reason": false,
+  "target_within_14_days_of_start_result": {
+    "detail_reason": "event_inside_unapproved_taper_window",
+    "status": "policy_unavailable"
+  }
 }
 ```
 
@@ -581,6 +620,176 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 ```json
 {
   "authorization_failures_occur_before_product_receipt": true,
+  "condition_reason_mapping": [
+    {
+      "condition": "invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value",
+      "result": {
+        "detail_reason": "invalid_field_value",
+        "status": "validation_failed"
+      }
+    },
+    {
+      "condition": "course_or_constraint_schema_id_is_not_exact_v2",
+      "result": {
+        "detail_reason": "schema_version_mismatch",
+        "status": "validation_failed"
+      }
+    },
+    {
+      "condition": "canonical_replay_receipt_proposal_or_other_invariant_fails",
+      "result": {
+        "detail_reason": "deterministic_invariant_failed",
+        "status": "validation_failed"
+      }
+    },
+    {
+      "condition": "required_ontology_policy_or_specialist_dependency_missing_mismatched_inactive_or_not_runtime_authorized",
+      "result": {
+        "detail_reason": "policy_inactive",
+        "status": "policy_unavailable"
+      }
+    },
+    {
+      "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
+      "result": {
+        "detail_reason": "material_course_demand_unknown",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "explicit_assumption_not_confirmed_at_exact_revision",
+      "result": {
+        "detail_reason": "assumption_confirmation_required",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown",
+      "result": {
+        "detail_reason": "adult_scope_or_constraints_unconfirmed",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "schedule_capacity_unavailable_dates_access_footing_or_symptom_input_missing_or_unknown",
+      "result": {
+        "detail_reason": "training_constraints_missing",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "explicit_requested_workload_or_proposal_edit_above_server_history_envelope",
+      "result": {
+        "detail_reason": "training_constraints_outside_history_envelope",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "required_confirmation_course_constraint_or_history_source_revision_stale",
+      "result": {
+        "detail_reason": "stale_confirmation_or_source_revision",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "individually_valid_values_conflict_including_preferred_weekday_outside_available_set",
+      "result": {
+        "detail_reason": "contradictory_input",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "server_derived_recent_running_continuity_insufficient",
+      "result": {
+        "detail_reason": "insufficient_recent_running_history",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "server_derived_recent_ascent_or_trail_exposure_insufficient",
+      "result": {
+        "detail_reason": "insufficient_comparable_trail_history",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "known_course_footing_not_subset_of_recently_observed_footing",
+      "result": {
+        "detail_reason": "insufficient_comparable_trail_history",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "server_derived_recent_descent_exposure_insufficient",
+      "result": {
+        "detail_reason": "insufficient_descent_history",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "known_uphill_or_downhill_access_false",
+      "result": {
+        "detail_reason": "insufficient_terrain_access",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "known_course_footing_not_subset_of_accessible_footing",
+      "result": {
+        "detail_reason": "insufficient_terrain_access",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "current_symptom_stop_known_true",
+      "result": {
+        "detail_reason": "current_symptom_stop",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "complete_valid_constraints_history_caps_and_spacing_leave_no_14_day_schedule",
+      "result": {
+        "detail_reason": "no_schedule_within_envelope",
+        "status": "readiness_blocked"
+      }
+    },
+    {
+      "condition": "event_within_unapproved_14_day_taper_window",
+      "result": {
+        "detail_reason": "event_inside_unapproved_taper_window",
+        "status": "policy_unavailable"
+      }
+    },
+    {
+      "condition": "event_ultra_distance_or_multiday",
+      "result": {
+        "detail_reason": "unsupported_ultra_or_multiday",
+        "status": "policy_unavailable"
+      }
+    },
+    {
+      "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+      "result": {
+        "detail_reason": "unsupported_population_or_intent",
+        "status": "policy_unavailable"
+      }
+    },
+    {
+      "condition": "hands_assist_or_fixed_rope_known_true",
+      "result": {
+        "detail_reason": "technical_features_outside_v2",
+        "status": "policy_unavailable"
+      }
+    },
+    {
+      "condition": "no_higher_precedence_reason_matches",
+      "result": {
+        "detail_reason": null,
+        "status": "eligible_proposal"
+      }
+    }
+  ],
   "detail_reason": "first_matching_reason_in_selected_status_catalog_order",
   "detail_reason_catalog": {
     "clarification_required": [
@@ -588,6 +797,8 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       "assumption_confirmation_required",
       "adult_scope_or_constraints_unconfirmed",
       "training_constraints_missing",
+      "training_constraints_outside_history_envelope",
+      "stale_confirmation_or_source_revision",
       "contradictory_input"
     ],
     "eligible_proposal": [],
@@ -622,10 +833,13 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
     ],
     "changes_top_level_status": false,
     "empty_means_eligible": false,
+    "empty_means_included": false,
     "generic_or_road_replacement_allowed": false,
     "hides_matching_reason": false,
+    "projection_of": "module_availability_state_limited",
     "serialize_sorted": true,
-    "set_semantics": true
+    "set_semantics": true,
+    "source_of_truth": false
   },
   "matching_reasons": {
     "de_duplicate": true,
@@ -639,6 +853,57 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
     "pair_fields": [
       "status",
       "detail_reason"
+    ]
+  },
+  "module_availability": {
+    "actual_included_or_omitted_state_exists_only_in_immutable_proposal": true,
+    "allowed_states": [
+      "not_evaluated",
+      "available",
+      "limited"
+    ],
+    "authoritative": true,
+    "limited_reason_targets": {
+      "environment_altitude": [
+        "course.environment_and_altitude"
+      ],
+      "fueling": [
+        "course.aid_and_support",
+        "course.fueling_and_gastrointestinal_context"
+      ],
+      "grade_specificity": [
+        "course.grade_distribution"
+      ],
+      "technical_terrain": [
+        "course.course_footing"
+      ]
+    },
+    "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
+    "required_keys_in_sorted_order": [
+      "environment_altitude",
+      "fueling",
+      "grade_specificity",
+      "technical_terrain"
+    ],
+    "state_rules": {
+      "available": {
+        "guarantees_proposal_inclusion": false,
+        "reason_target": null,
+        "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+      },
+      "limited": {
+        "may_be_included_in_proposal": false,
+        "reason_target": "closed_first_party_field_or_section_target",
+        "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+      },
+      "not_evaluated": {
+        "reason_target": "one_applicable_namespaced_matching_reason",
+        "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+      }
+    },
+    "value_exact_keys": [
+      "state",
+      "reason_target"
     ]
   },
   "namespaced_reason_identity": "<status>.<detail_reason>",
@@ -658,25 +923,38 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 
 - **Applies to:** future deterministic generator envelope
 - **Evidence claims:** `non-ultra-trail.uphill-downhill-require-distinct-handling`, `non-ultra-trail.training-specificity-promising-not-prescriptive`, `non-ultra-trail.taper-direction-indirect`, `non-ultra-trail.fueling-duration-and-practice-context`
-- **Rationale:** Carried unchanged from accepted v1. Modular handling preserves distinct demands and uncertainty without claiming one universal Trail schedule.
+- **Rationale:** V2 preserves distinct demand handling but explicitly disables hiking, strength, and taper because no accepted v2 input and dose contract exists. This is a deferral, not evidence that those modules lack value.
 - **Exact value:**
 
 ```json
 {
-  "module_requires_matching_input": true,
-  "modules": [
+  "candidate_modules": [
     "readiness_and_history",
     "easy_and_aerobic",
     "ascent_specificity",
     "descent_and_neuromuscular_exposure",
     "technical_terrain",
-    "hiking",
-    "strength",
     "longest_session_and_fueling_practice",
-    "taper",
     "environment_and_altitude",
     "reassessment_and_outcome"
   ],
+  "disabled_deferred_modules": {
+    "hiking": {
+      "reason": "no_accepted_v2_input_and_dose_contract",
+      "state": "not_accepted"
+    },
+    "strength": {
+      "reason": "no_accepted_v2_input_and_dose_contract",
+      "state": "not_accepted"
+    },
+    "taper": {
+      "reason": "no_accepted_v2_input_and_dose_contract",
+      "state": "not_accepted"
+    }
+  },
+  "disabled_modules_are_module_availability_keys": false,
+  "disabled_modules_may_be_included_in_v2_proposal": false,
+  "module_requires_matching_input": true,
   "unavailable_module_may_be_silently_replaced": false
 }
 ```
@@ -685,17 +963,17 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
 
 - **Applies to:** module selection and ScienceNote claims
 - **Evidence claims:** `non-ultra-trail.training-specificity-promising-not-prescriptive`, `non-ultra-trail.injury-fatigue-no-safe-dose`, `non-ultra-trail.observed-load-does-not-prove-prescription`, `non-ultra-trail.taper-direction-indirect`, `non-ultra-trail.fueling-duration-and-practice-context`
-- **Rationale:** Carried unchanged from accepted v1. This keeps evidence-supported directions separate from exact prescriptions the sources do not establish.
+- **Rationale:** Evidence-supported directions remain distinct from exact prescriptions; v2 disables modules whose required inputs and dose are not accepted.
 - **Exact value:**
 
 ```json
 {
   "fueling": "expected_duration_and_practice_context_only",
-  "hiking": "conditional_candidate_module",
+  "hiking": "disabled_deferred_no_accepted_v2_input_or_dose",
   "injury_and_fatigue_findings": "safety_context_only",
   "observed_load_associations": "descriptive_only",
-  "strength_and_multimodal": "conditional_candidate_module",
-  "taper": "indirect_direction_only",
+  "strength_and_multimodal": "disabled_deferred_no_accepted_v2_input_or_dose",
+  "taper": "disabled_deferred_no_accepted_v2_input_or_dose",
   "trail_specificity": "conditional_candidate_module"
 }
 ```
@@ -846,8 +1124,8 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
 
 ### Validation plan
 
-- Prove every execution, history, schedule, template, intensity, exposure, event, and hard-boundary value is structurally equal to the accepted v1 contract except the named v2 dependency and receipt groups.
-- Exhaustively exercise every status and detail reason, every pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, and sorted limited modules.
+- Prove every behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, and hard-boundary value equals accepted v1; allow only the named dependency, pair-normalization, receipt, and disabled-module changes.
+- Exhaustively exercise every status and detail reason, every condition mapping, pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, authoritative four-module state, and sorted redundant limited-module projection.
 - Verify malformed values are not dereferenced while all independently safe policy, history, schedule, and missingness reasons remain present.
 - Unit-test history qualification, schedule allocation, targetless template steps, low-intensity fraction, quality spacing, and separate ascent/descent/terrain caps against immutable owner-scoped snapshots.
 - Verify no proposal is returned from an inactive contract, a core unknown, a failed gate, a stale revision, route/provider input, or any road fallback.
@@ -855,8 +1133,8 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
 
 ### Falsification conditions
 
-- Any accepted v1 execution, history, schedule, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency and receipt groups.
-- Status selection, primary detail, matching-reason ordering, de-duplication, or limited-module sorting is nondeterministic or loses a safely evaluable reason.
+- Any accepted v1 behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency, pair-normalization, receipt, and disabled-module groups.
+- Status selection, condition mapping, primary detail, matching-reason ordering, de-duplication, module availability, or limited-module projection is nondeterministic or loses a safely evaluable reason.
 - A malformed field is interpreted to manufacture a reason, or a core unknown or failed gate produces eligible_proposal.
 - An exact value outside the accepted early-block guardrails is inferred despite literal not_accepted status.
 - Uphill and downhill collapse, terrain or history access is ignored, or an unsupported module is silently substituted.
@@ -871,6 +1149,9 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
 - Every exact value outside the v2 dependency and receipt groups is carried unchanged from accepted v1 and remains classified as a reversible Praxys guardrail.
 - Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md.
 - Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.
+- Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.
+- Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.
+- This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.
 - Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.
 - Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168.
 
@@ -885,7 +1166,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
     "v2 Trail validation, readiness, and complete reason receipt",
     "trail_course_demand_v2 and non_ultra_trail_constraints_v2 matching"
   ],
-  "contract_digest": "sha256:2fb5776b13453937708a77f54c273c81f81f4ca265932e4e0eb0a7ac0da2064b",
+  "contract_digest": "sha256:afb120c2ef58543751b60d68bbe738698395c9c62e4f42a908f8efcbf9b8ff41",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -935,7 +1216,11 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
         "session_ascent_hard_cap": "recent_maximum_completed_session_ascent",
         "session_descent_hard_cap": "recent_maximum_completed_session_descent",
         "technicality": "no_more_difficult_than_recently_observed_and_currently_accessible_category",
-        "unknown_descent_or_technicality_result": "clarification_or_limited_module",
+        "unknown_course_footing_module_state": "limited",
+        "unknown_descent_result": {
+          "detail_reason": "material_course_demand_unknown",
+          "status": "clarification_required"
+        },
         "weekly_ascent_hard_cap": "recent_maximum_usable_weekly_ascent",
         "weekly_ascent_target": "no_more_than_recent_median_usable_weekly_ascent",
         "weekly_descent_hard_cap": "recent_maximum_usable_weekly_descent",
@@ -976,8 +1261,11 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
         "event_or_race_counts_as_quality_and_load": true,
         "imported_event_must_be_athlete_confirmed": true,
         "taper_implementation": "not_accepted",
-        "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal",
-        "target_within_14_days_of_start": "event_inside_unapproved_taper_window"
+        "target_more_than_14_days_after_start_adds_reason": false,
+        "target_within_14_days_of_start_result": {
+          "detail_reason": "event_inside_unapproved_taper_window",
+          "status": "policy_unavailable"
+        }
       }
     },
     "trail_policy_evidence_use": {
@@ -992,11 +1280,11 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
       ],
       "value": {
         "fueling": "expected_duration_and_practice_context_only",
-        "hiking": "conditional_candidate_module",
+        "hiking": "disabled_deferred_no_accepted_v2_input_or_dose",
         "injury_and_fatigue_findings": "safety_context_only",
         "observed_load_associations": "descriptive_only",
-        "strength_and_multimodal": "conditional_candidate_module",
-        "taper": "indirect_direction_only",
+        "strength_and_multimodal": "disabled_deferred_no_accepted_v2_input_or_dose",
+        "taper": "disabled_deferred_no_accepted_v2_input_or_dose",
         "trail_specificity": "conditional_candidate_module"
       }
     },
@@ -1060,6 +1348,22 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           "count": 2,
           "window": 42
         },
+        "insufficient_ascent_or_trail_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_descent_result": {
+          "detail_reason": "insufficient_descent_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_running_result": {
+          "detail_reason": "insufficient_recent_running_history",
+          "status": "readiness_blocked"
+        },
+        "known_course_footing_not_observed_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
+        },
         "latest_comparable_hilly_or_trail_session_within_completed_days": 21,
         "latest_run_within_completed_days": 10,
         "minimum_running_sessions_per_usable_week": 3,
@@ -1071,7 +1375,6 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           "source_timestamp"
         ],
         "recent_history_lookback_completed_weeks": 8,
-        "sparse_or_stale_result": "insufficient_comparable_trail_history",
         "thresholds_are_published_biological_laws": false,
         "unknown_descent_or_terrain_cannot_satisfy_comparable_exposure": true
       }
@@ -1112,20 +1415,33 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
         "non-ultra-trail.fueling-duration-and-practice-context"
       ],
       "value": {
-        "module_requires_matching_input": true,
-        "modules": [
+        "candidate_modules": [
           "readiness_and_history",
           "easy_and_aerobic",
           "ascent_specificity",
           "descent_and_neuromuscular_exposure",
           "technical_terrain",
-          "hiking",
-          "strength",
           "longest_session_and_fueling_practice",
-          "taper",
           "environment_and_altitude",
           "reassessment_and_outcome"
         ],
+        "disabled_deferred_modules": {
+          "hiking": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "strength": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "taper": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          }
+        },
+        "disabled_modules_are_module_availability_keys": false,
+        "disabled_modules_may_be_included_in_v2_proposal": false,
+        "module_requires_matching_input": true,
         "unavailable_module_may_be_silently_replaced": false
       }
     },
@@ -1168,8 +1484,16 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           "stable_recent_running_history",
           "comparable_recent_ascent_exposure",
           "comparable_recent_descent_exposure",
-          "available_training_days_and_limits",
-          "accessible_training_terrain",
+          "available_weekdays",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates_within_14_day_horizon",
+          "optional_preferred_longest_weekday_when_supplied",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
+          "accessible_footing",
+          "adult_nonclinical_scope_confirmation",
+          "performance_intent_confirmation",
           "current_symptom_stop"
         ],
         "server_derived": [
@@ -1210,17 +1534,26 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
         "non-ultra-trail.training-specificity-promising-not-prescriptive"
       ],
       "value": {
-        "below_minimum_result": "no_schedule_within_envelope",
+        "below_minimum_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "easy_and_longest_easy_allocation": {
           "automatic_longest_easy_increase": false,
           "preferred_longest_easy_day_used_when_available": true,
           "quality_minutes_allocated_first": true,
           "remaining_minutes_distributed_across_non_quality_days": true
         },
-        "no_schedule_result": "no_schedule_within_envelope",
+        "explicit_request_above_history_envelope_result": {
+          "detail_reason": "training_constraints_outside_history_envelope",
+          "status": "clarification_required"
+        },
+        "no_schedule_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "non_taper_progression_above_recent_median": false,
         "quality_sessions_per_7_day_unit": 1,
-        "requested_above_maximum_result": "clarification_required",
         "selected_running_days_per_7_day_unit": {
           "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
           "maximum": 6,
@@ -1263,6 +1596,176 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
       ],
       "value": {
         "authorization_failures_occur_before_product_receipt": true,
+        "condition_reason_mapping": [
+          {
+            "condition": "invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value",
+            "result": {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "course_or_constraint_schema_id_is_not_exact_v2",
+            "result": {
+              "detail_reason": "schema_version_mismatch",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "canonical_replay_receipt_proposal_or_other_invariant_fails",
+            "result": {
+              "detail_reason": "deterministic_invariant_failed",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "required_ontology_policy_or_specialist_dependency_missing_mismatched_inactive_or_not_runtime_authorized",
+            "result": {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
+            "result": {
+              "detail_reason": "material_course_demand_unknown",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_assumption_not_confirmed_at_exact_revision",
+            "result": {
+              "detail_reason": "assumption_confirmation_required",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown",
+            "result": {
+              "detail_reason": "adult_scope_or_constraints_unconfirmed",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "schedule_capacity_unavailable_dates_access_footing_or_symptom_input_missing_or_unknown",
+            "result": {
+              "detail_reason": "training_constraints_missing",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_requested_workload_or_proposal_edit_above_server_history_envelope",
+            "result": {
+              "detail_reason": "training_constraints_outside_history_envelope",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "required_confirmation_course_constraint_or_history_source_revision_stale",
+            "result": {
+              "detail_reason": "stale_confirmation_or_source_revision",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "individually_valid_values_conflict_including_preferred_weekday_outside_available_set",
+            "result": {
+              "detail_reason": "contradictory_input",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "server_derived_recent_running_continuity_insufficient",
+            "result": {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_ascent_or_trail_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_recently_observed_footing",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_descent_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_uphill_or_downhill_access_false",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_accessible_footing",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "current_symptom_stop_known_true",
+            "result": {
+              "detail_reason": "current_symptom_stop",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "complete_valid_constraints_history_caps_and_spacing_leave_no_14_day_schedule",
+            "result": {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "event_within_unapproved_14_day_taper_window",
+            "result": {
+              "detail_reason": "event_inside_unapproved_taper_window",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_ultra_distance_or_multiday",
+            "result": {
+              "detail_reason": "unsupported_ultra_or_multiday",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+            "result": {
+              "detail_reason": "unsupported_population_or_intent",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "hands_assist_or_fixed_rope_known_true",
+            "result": {
+              "detail_reason": "technical_features_outside_v2",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "no_higher_precedence_reason_matches",
+            "result": {
+              "detail_reason": null,
+              "status": "eligible_proposal"
+            }
+          }
+        ],
         "detail_reason": "first_matching_reason_in_selected_status_catalog_order",
         "detail_reason_catalog": {
           "clarification_required": [
@@ -1270,6 +1773,8 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             "assumption_confirmation_required",
             "adult_scope_or_constraints_unconfirmed",
             "training_constraints_missing",
+            "training_constraints_outside_history_envelope",
+            "stale_confirmation_or_source_revision",
             "contradictory_input"
           ],
           "eligible_proposal": [],
@@ -1304,10 +1809,13 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           ],
           "changes_top_level_status": false,
           "empty_means_eligible": false,
+          "empty_means_included": false,
           "generic_or_road_replacement_allowed": false,
           "hides_matching_reason": false,
+          "projection_of": "module_availability_state_limited",
           "serialize_sorted": true,
-          "set_semantics": true
+          "set_semantics": true,
+          "source_of_truth": false
         },
         "matching_reasons": {
           "de_duplicate": true,
@@ -1321,6 +1829,57 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           "pair_fields": [
             "status",
             "detail_reason"
+          ]
+        },
+        "module_availability": {
+          "actual_included_or_omitted_state_exists_only_in_immutable_proposal": true,
+          "allowed_states": [
+            "not_evaluated",
+            "available",
+            "limited"
+          ],
+          "authoritative": true,
+          "limited_reason_targets": {
+            "environment_altitude": [
+              "course.environment_and_altitude"
+            ],
+            "fueling": [
+              "course.aid_and_support",
+              "course.fueling_and_gastrointestinal_context"
+            ],
+            "grade_specificity": [
+              "course.grade_distribution"
+            ],
+            "technical_terrain": [
+              "course.course_footing"
+            ]
+          },
+          "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
+          "required_keys_in_sorted_order": [
+            "environment_altitude",
+            "fueling",
+            "grade_specificity",
+            "technical_terrain"
+          ],
+          "state_rules": {
+            "available": {
+              "guarantees_proposal_inclusion": false,
+              "reason_target": null,
+              "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+            },
+            "limited": {
+              "may_be_included_in_proposal": false,
+              "reason_target": "closed_first_party_field_or_section_target",
+              "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+            },
+            "not_evaluated": {
+              "reason_target": "one_applicable_namespaced_matching_reason",
+              "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+            }
+          },
+          "value_exact_keys": [
+            "state",
+            "reason_target"
           ]
         },
         "namespaced_reason_identity": "<status>.<detail_reason>",
@@ -1393,7 +1952,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:a52d3e7e79f5783453ff5f19cc7ac13f2a7152f756c82c819e94b363704fdf40"
+  "source_decision_digest": "sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56"
 }
 ```
 
@@ -1409,7 +1968,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
 
 ```json
 {
-  "accepted_interpretation": "If separately accepted after the ontology successor, this record would bind the accepted history-rich adult non-ultra Trail policy to trail_course_demand_v2 and non_ultra_trail_constraints_v2 without changing any accepted v1 execution, history, schedule, workout-template, intensity, exposure, event-window, taper deferral, or hard scientific boundary. The fourteen-day proposal, seven-day reassessment, eight-week history window, four usable weeks, three-run usable-week floor, ten-day recent-run check, 42/21-day comparable-history checks, no-initial-progression schedule, targetless 38-minute controlled-uphill template, 75-percent low-intensity floor, one nonconsecutive quality exposure, and separate history-anchored ascent/descent caps remain reversible Praxys guardrails rather than published optima or safety laws. A deterministic v2 receipt returns exactly one of five statuses, one cataloged primary detail when applicable, every independently safe matching reason, and sorted limited modules. It never hides a lower-precedence reason, interprets malformed data to manufacture more reasons, selects a road fallback, uses activity-average power, or authorizes a provider or runtime behavior. Taper, progression above history, fixed fueling, strength, hiking, technical-terrain or recovery dose, back-to-back sessions, universal targets, and personal performance or safety predictions remain unaccepted.",
+  "accepted_interpretation": "If separately accepted after the ontology successor, this record would bind the accepted history-rich adult non-ultra Trail policy to trail_course_demand_v2 and non_ultra_trail_constraints_v2 without changing any accepted v1 execution, history, schedule, workout-template, intensity, exposure, event-window, taper deferral, or hard scientific boundary. The fourteen-day proposal, seven-day reassessment, eight-week history window, four usable weeks, three-run usable-week floor, ten-day recent-run check, 42/21-day comparable-history checks, no-initial-progression schedule, targetless 38-minute controlled-uphill template, 75-percent low-intensity floor, one nonconsecutive quality exposure, and separate history-anchored ascent/descent caps remain reversible Praxys guardrails rather than published optima or safety laws. A deterministic v2 receipt returns exactly one of five statuses, one cataloged primary detail when applicable, every independently safe matching reason, authoritative availability for four modules, and a redundant sorted limited-module projection. It never hides a lower-precedence reason, interprets malformed data to manufacture more reasons, selects a road fallback, uses activity-average power, or authorizes a provider or runtime behavior. Taper, progression above history, fixed fueling, strength, hiking, taper, technical-terrain or recovery dose, back-to-back sessions, universal targets, and personal performance or safety predictions remain unaccepted.",
   "affected_surfaces": {
     "apis": [
       "future inactive v2 Trail readiness and proposal contracts"
@@ -1447,11 +2006,14 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Every exact value outside the v2 dependency and receipt groups is carried unchanged from accepted v1 and remains classified as a reversible Praxys guardrail.",
     "Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md.",
     "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.",
+    "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.",
+    "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.",
+    "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.",
     "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.",
     "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."
   ],
   "decision_review": {
-    "approval_statement": "I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt and sorted limited modules as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.",
+    "approval_statement": "I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt, authoritative four-module availability, and redundant sorted limitation projection as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. Hiking, strength, and taper remain disabled because v2 has no accepted input and dose contract for them. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.",
     "items": [
       {
         "approval_effect": [
@@ -1474,8 +2036,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "trail_policy_modular_structure",
           "trail_policy_evidence_use"
         ],
-        "proposed_decision": "Update only the dependency and schema identities while preserving the accepted scope, evidence use, and modular scientific interpretation.",
-        "question": "Should the history-rich adult non-ultra performance policy require the accepted v2 ontology, confirmed v2 course and constraint revisions, server-derived history, and the same conditional module structure?",
+        "proposed_decision": "Update the dependency and schema identities, preserve the accepted scope and evidence interpretation, and explicitly disable hiking, strength, and taper until accepted inputs and doses exist.",
+        "question": "Should the history-rich adult non-ultra performance policy require the accepted v2 ontology, confirmed v2 course and full schedule-constraint revisions, server-derived history, and an explicitly bounded module structure?",
         "title": "Bind the narrow accepted policy to the two strict v2 schemas"
       },
       {
@@ -1498,8 +2060,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "trail_policy_schedule_construction",
           "trail_policy_workout_templates"
         ],
-        "proposed_decision": "Preserve the exact fourteen-day, seven-day, history qualification, no-progression scheduling, and targetless 38-minute uphill-template guardrails without presenting them as biological optima.",
-        "question": "Should v2 retain every accepted execution, reassessment, history, schedule, and workout-template value exactly as v1?",
+        "proposed_decision": "Preserve the exact fourteen-day, seven-day, history qualification, no-progression scheduling, and targetless 38-minute uphill-template guardrails without presenting them as biological optima; change only their receipt representation where a pair is required.",
+        "question": "Should v2 retain every accepted execution, reassessment, history threshold, schedule construction, and workout-template value from v1, while normalizing bare results to cataloged status/detail pairs?",
         "title": "Carry the accepted early-block construction forward unchanged"
       },
       {
@@ -1543,8 +2105,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "parameter_names": [
           "trail_policy_typed_outcomes"
         ],
-        "proposed_decision": "Accept the exact status, detail, namespacing, de-duplication, ordering, independent-evaluation, and module serialization rules from Product v2 as reversible operational guardrails.",
-        "question": "Should every safely classified evaluation return one status by fixed precedence, the first cataloged primary detail, every matching reason, and a separate sorted limited-module set?",
+        "proposed_decision": "Accept the exact status, detail, namespacing, de-duplication, ordering, independent-evaluation, condition mapping, module-availability, and projection rules from Product v2 as reversible operational guardrails.",
+        "question": "Should every safely classified evaluation return one status by fixed precedence, the first cataloged primary detail, every matching reason, authoritative state for all four modules, and a redundant sorted limited-module projection?",
         "title": "Adopt the five-status exhaustive deterministic receipt"
       },
       {
@@ -1564,6 +2126,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "id": "unresolved-dose-and-scope-stays-deferred",
         "parameter_names": [
           "trail_policy_event_and_taper",
+          "trail_policy_modular_structure",
+          "trail_policy_evidence_use",
           "trail_policy_deferred_scope",
           "trail_policy_non_science_authority"
         ],
@@ -1620,8 +2184,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "evidence-plan-generation-eligibility-safety-v1"
   ],
   "falsification_conditions": [
-    "Any accepted v1 execution, history, schedule, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency and receipt groups.",
-    "Status selection, primary detail, matching-reason ordering, de-duplication, or limited-module sorting is nondeterministic or loses a safely evaluable reason.",
+    "Any accepted v1 behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, taper deferral, or hard boundary changes outside the named dependency, pair-normalization, receipt, and disabled-module groups.",
+    "Status selection, condition mapping, primary detail, matching-reason ordering, de-duplication, module availability, or limited-module projection is nondeterministic or loses a safely evaluable reason.",
     "A malformed field is interpreted to manufacture a reason, or a core unknown or failed gate produces eligible_proposal.",
     "An exact value outside the accepted early-block guardrails is inferred despite literal not_accepted status.",
     "Uphill and downhill collapse, terrain or history access is ignored, or an unsupported module is silently substituted.",
@@ -1680,8 +2244,16 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "stable_recent_running_history",
           "comparable_recent_ascent_exposure",
           "comparable_recent_descent_exposure",
-          "available_training_days_and_limits",
-          "accessible_training_terrain",
+          "available_weekdays",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates_within_14_day_horizon",
+          "optional_preferred_longest_weekday_when_supplied",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
+          "accessible_footing",
+          "adult_nonclinical_scope_confirmation",
+          "performance_intent_confirmation",
           "current_symptom_stop"
         ],
         "server_derived": [
@@ -1722,11 +2294,27 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "non-ultra-trail.uphill-downhill-require-distinct-handling"
       ],
       "name": "trail_policy_history_guardrails",
-      "rationale": "Carried unchanged from accepted v1. The counts prevent extrapolation from sparse records and remain conservative qualifications, not safety, adaptation, or readiness laws.",
+      "rationale": "The accepted v1 counts and windows are unchanged. Only bare outcomes are normalized to cataloged status/detail pairs; the qualifications remain conservative guardrails, not safety, adaptation, or readiness laws.",
       "value": {
         "comparable_hilly_or_trail_sessions_within_completed_days": {
           "count": 2,
           "window": 42
+        },
+        "insufficient_ascent_or_trail_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_descent_result": {
+          "detail_reason": "insufficient_descent_history",
+          "status": "readiness_blocked"
+        },
+        "insufficient_recent_running_result": {
+          "detail_reason": "insufficient_recent_running_history",
+          "status": "readiness_blocked"
+        },
+        "known_course_footing_not_observed_result": {
+          "detail_reason": "insufficient_comparable_trail_history",
+          "status": "readiness_blocked"
         },
         "latest_comparable_hilly_or_trail_session_within_completed_days": 21,
         "latest_run_within_completed_days": 10,
@@ -1739,7 +2327,6 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "source_timestamp"
         ],
         "recent_history_lookback_completed_weeks": 8,
-        "sparse_or_stale_result": "insufficient_comparable_trail_history",
         "thresholds_are_published_biological_laws": false,
         "unknown_descent_or_terrain_cannot_satisfy_comparable_exposure": true
       }
@@ -1752,19 +2339,28 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "non-ultra-trail.training-specificity-promising-not-prescriptive"
       ],
       "name": "trail_policy_schedule_construction",
-      "rationale": "Carried unchanged from accepted v1. Median, maximum, and athlete caps organize existing exposure without automatic progression; one quality session is a conservative Product choice, not a universal optimum.",
+      "rationale": "The accepted v1 construction values are unchanged. Only bare outcomes are normalized to cataloged status/detail pairs. Median, maximum, and athlete caps organize existing exposure without automatic progression.",
       "value": {
-        "below_minimum_result": "no_schedule_within_envelope",
+        "below_minimum_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "easy_and_longest_easy_allocation": {
           "automatic_longest_easy_increase": false,
           "preferred_longest_easy_day_used_when_available": true,
           "quality_minutes_allocated_first": true,
           "remaining_minutes_distributed_across_non_quality_days": true
         },
-        "no_schedule_result": "no_schedule_within_envelope",
+        "explicit_request_above_history_envelope_result": {
+          "detail_reason": "training_constraints_outside_history_envelope",
+          "status": "clarification_required"
+        },
+        "no_schedule_result": {
+          "detail_reason": "no_schedule_within_envelope",
+          "status": "readiness_blocked"
+        },
         "non_taper_progression_above_recent_median": false,
         "quality_sessions_per_7_day_unit": 1,
-        "requested_above_maximum_result": "clarification_required",
         "selected_running_days_per_7_day_unit": {
           "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
           "maximum": 6,
@@ -1878,7 +2474,11 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "session_ascent_hard_cap": "recent_maximum_completed_session_ascent",
         "session_descent_hard_cap": "recent_maximum_completed_session_descent",
         "technicality": "no_more_difficult_than_recently_observed_and_currently_accessible_category",
-        "unknown_descent_or_technicality_result": "clarification_or_limited_module",
+        "unknown_course_footing_module_state": "limited",
+        "unknown_descent_result": {
+          "detail_reason": "material_course_demand_unknown",
+          "status": "clarification_required"
+        },
         "weekly_ascent_hard_cap": "recent_maximum_usable_weekly_ascent",
         "weekly_ascent_target": "no_more_than_recent_median_usable_weekly_ascent",
         "weekly_descent_hard_cap": "recent_maximum_usable_weekly_descent",
@@ -1892,14 +2492,17 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "non-ultra-trail.taper-direction-indirect"
       ],
       "name": "trail_policy_event_and_taper",
-      "rationale": "Carried unchanged from accepted v1. General endurance evidence remains insufficient to select a Trail-specific taper; the event-near path fails closed pending a successor decision.",
+      "rationale": "The accepted v1 event-window behavior is unchanged and its bare outcome is normalized to a cataloged pair. General endurance evidence remains insufficient to select a Trail-specific taper.",
       "value": {
         "event_day_generated_as_training_workout": false,
         "event_or_race_counts_as_quality_and_load": true,
         "imported_event_must_be_athlete_confirmed": true,
         "taper_implementation": "not_accepted",
-        "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal",
-        "target_within_14_days_of_start": "event_inside_unapproved_taper_window"
+        "target_more_than_14_days_after_start_adds_reason": false,
+        "target_within_14_days_of_start_result": {
+          "detail_reason": "event_inside_unapproved_taper_window",
+          "status": "policy_unavailable"
+        }
       }
     },
     {
@@ -1913,6 +2516,176 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       "rationale": "The evidence supports explicit missingness and bounded applicability, but the five statuses, exact reason catalog, precedence, and serialization are reversible Product-selected operational guardrails rather than a biological readiness or risk model.",
       "value": {
         "authorization_failures_occur_before_product_receipt": true,
+        "condition_reason_mapping": [
+          {
+            "condition": "invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value",
+            "result": {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "course_or_constraint_schema_id_is_not_exact_v2",
+            "result": {
+              "detail_reason": "schema_version_mismatch",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "canonical_replay_receipt_proposal_or_other_invariant_fails",
+            "result": {
+              "detail_reason": "deterministic_invariant_failed",
+              "status": "validation_failed"
+            }
+          },
+          {
+            "condition": "required_ontology_policy_or_specialist_dependency_missing_mismatched_inactive_or_not_runtime_authorized",
+            "result": {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
+            "result": {
+              "detail_reason": "material_course_demand_unknown",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_assumption_not_confirmed_at_exact_revision",
+            "result": {
+              "detail_reason": "assumption_confirmation_required",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown",
+            "result": {
+              "detail_reason": "adult_scope_or_constraints_unconfirmed",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "schedule_capacity_unavailable_dates_access_footing_or_symptom_input_missing_or_unknown",
+            "result": {
+              "detail_reason": "training_constraints_missing",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "explicit_requested_workload_or_proposal_edit_above_server_history_envelope",
+            "result": {
+              "detail_reason": "training_constraints_outside_history_envelope",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "required_confirmation_course_constraint_or_history_source_revision_stale",
+            "result": {
+              "detail_reason": "stale_confirmation_or_source_revision",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "individually_valid_values_conflict_including_preferred_weekday_outside_available_set",
+            "result": {
+              "detail_reason": "contradictory_input",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "server_derived_recent_running_continuity_insufficient",
+            "result": {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_ascent_or_trail_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_recently_observed_footing",
+            "result": {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "server_derived_recent_descent_exposure_insufficient",
+            "result": {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_uphill_or_downhill_access_false",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "known_course_footing_not_subset_of_accessible_footing",
+            "result": {
+              "detail_reason": "insufficient_terrain_access",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "current_symptom_stop_known_true",
+            "result": {
+              "detail_reason": "current_symptom_stop",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "complete_valid_constraints_history_caps_and_spacing_leave_no_14_day_schedule",
+            "result": {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          },
+          {
+            "condition": "event_within_unapproved_14_day_taper_window",
+            "result": {
+              "detail_reason": "event_inside_unapproved_taper_window",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "event_ultra_distance_or_multiday",
+            "result": {
+              "detail_reason": "unsupported_ultra_or_multiday",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+            "result": {
+              "detail_reason": "unsupported_population_or_intent",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "hands_assist_or_fixed_rope_known_true",
+            "result": {
+              "detail_reason": "technical_features_outside_v2",
+              "status": "policy_unavailable"
+            }
+          },
+          {
+            "condition": "no_higher_precedence_reason_matches",
+            "result": {
+              "detail_reason": null,
+              "status": "eligible_proposal"
+            }
+          }
+        ],
         "detail_reason": "first_matching_reason_in_selected_status_catalog_order",
         "detail_reason_catalog": {
           "clarification_required": [
@@ -1920,6 +2693,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "assumption_confirmation_required",
             "adult_scope_or_constraints_unconfirmed",
             "training_constraints_missing",
+            "training_constraints_outside_history_envelope",
+            "stale_confirmation_or_source_revision",
             "contradictory_input"
           ],
           "eligible_proposal": [],
@@ -1954,10 +2729,13 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           ],
           "changes_top_level_status": false,
           "empty_means_eligible": false,
+          "empty_means_included": false,
           "generic_or_road_replacement_allowed": false,
           "hides_matching_reason": false,
+          "projection_of": "module_availability_state_limited",
           "serialize_sorted": true,
-          "set_semantics": true
+          "set_semantics": true,
+          "source_of_truth": false
         },
         "matching_reasons": {
           "de_duplicate": true,
@@ -1971,6 +2749,57 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "pair_fields": [
             "status",
             "detail_reason"
+          ]
+        },
+        "module_availability": {
+          "actual_included_or_omitted_state_exists_only_in_immutable_proposal": true,
+          "allowed_states": [
+            "not_evaluated",
+            "available",
+            "limited"
+          ],
+          "authoritative": true,
+          "limited_reason_targets": {
+            "environment_altitude": [
+              "course.environment_and_altitude"
+            ],
+            "fueling": [
+              "course.aid_and_support",
+              "course.fueling_and_gastrointestinal_context"
+            ],
+            "grade_specificity": [
+              "course.grade_distribution"
+            ],
+            "technical_terrain": [
+              "course.course_footing"
+            ]
+          },
+          "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
+          "required_keys_in_sorted_order": [
+            "environment_altitude",
+            "fueling",
+            "grade_specificity",
+            "technical_terrain"
+          ],
+          "state_rules": {
+            "available": {
+              "guarantees_proposal_inclusion": false,
+              "reason_target": null,
+              "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+            },
+            "limited": {
+              "may_be_included_in_proposal": false,
+              "reason_target": "closed_first_party_field_or_section_target",
+              "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+            },
+            "not_evaluated": {
+              "reason_target": "one_applicable_namespaced_matching_reason",
+              "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+            }
+          },
+          "value_exact_keys": [
+            "state",
+            "reason_target"
           ]
         },
         "namespaced_reason_identity": "<status>.<detail_reason>",
@@ -1995,22 +2824,35 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "non-ultra-trail.fueling-duration-and-practice-context"
       ],
       "name": "trail_policy_modular_structure",
-      "rationale": "Carried unchanged from accepted v1. Modular handling preserves distinct demands and uncertainty without claiming one universal Trail schedule.",
+      "rationale": "V2 preserves distinct demand handling but explicitly disables hiking, strength, and taper because no accepted v2 input and dose contract exists. This is a deferral, not evidence that those modules lack value.",
       "value": {
-        "module_requires_matching_input": true,
-        "modules": [
+        "candidate_modules": [
           "readiness_and_history",
           "easy_and_aerobic",
           "ascent_specificity",
           "descent_and_neuromuscular_exposure",
           "technical_terrain",
-          "hiking",
-          "strength",
           "longest_session_and_fueling_practice",
-          "taper",
           "environment_and_altitude",
           "reassessment_and_outcome"
         ],
+        "disabled_deferred_modules": {
+          "hiking": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "strength": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          },
+          "taper": {
+            "reason": "no_accepted_v2_input_and_dose_contract",
+            "state": "not_accepted"
+          }
+        },
+        "disabled_modules_are_module_availability_keys": false,
+        "disabled_modules_may_be_included_in_v2_proposal": false,
+        "module_requires_matching_input": true,
         "unavailable_module_may_be_silently_replaced": false
       }
     },
@@ -2025,14 +2867,14 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "non-ultra-trail.fueling-duration-and-practice-context"
       ],
       "name": "trail_policy_evidence_use",
-      "rationale": "Carried unchanged from accepted v1. This keeps evidence-supported directions separate from exact prescriptions the sources do not establish.",
+      "rationale": "Evidence-supported directions remain distinct from exact prescriptions; v2 disables modules whose required inputs and dose are not accepted.",
       "value": {
         "fueling": "expected_duration_and_practice_context_only",
-        "hiking": "conditional_candidate_module",
+        "hiking": "disabled_deferred_no_accepted_v2_input_or_dose",
         "injury_and_fatigue_findings": "safety_context_only",
         "observed_load_associations": "descriptive_only",
-        "strength_and_multimodal": "conditional_candidate_module",
-        "taper": "indirect_direction_only",
+        "strength_and_multimodal": "disabled_deferred_no_accepted_v2_input_or_dose",
+        "taper": "disabled_deferred_no_accepted_v2_input_or_dose",
         "trail_specificity": "conditional_candidate_module"
       }
     },
@@ -2179,8 +3021,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Do not show a personal finish probability, target guarantee, injury-prevention guarantee, diagnosis, treatment, or clearance."
   ],
   "validation_plan": [
-    "Prove every execution, history, schedule, template, intensity, exposure, event, and hard-boundary value is structurally equal to the accepted v1 contract except the named v2 dependency and receipt groups.",
-    "Exhaustively exercise every status and detail reason, every pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, and sorted limited modules.",
+    "Prove every behavior-driving execution, history threshold, schedule construction, template, intensity, exposure, event-window, and hard-boundary value equals accepted v1; allow only the named dependency, pair-normalization, receipt, and disabled-module changes.",
+    "Exhaustively exercise every status and detail reason, every condition mapping, pairwise and representative multi-reason combination, fixed precedence, catalog order, de-duplication, authoritative four-module state, and sorted redundant limited-module projection.",
     "Verify malformed values are not dereferenced while all independently safe policy, history, schedule, and missingness reasons remain present.",
     "Unit-test history qualification, schedule allocation, targetless template steps, low-intensity fraction, quality spacing, and separate ascent/descent/terrain caps against immutable owner-scoped snapshots.",
     "Verify no proposal is returned from an inactive contract, a core unknown, a failed gate, a stale revision, route/provider input, or any road fallback.",

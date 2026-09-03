@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `trail-course-demand-v2`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b`
-- **Contract digest:** `sha256:12c107e9d19f6c5e7204f09ef680ab5c4517a4f9385179d72822630a61df1c96`
+- **Decision digest:** `sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c`
+- **Contract digest:** `sha256:1297f713b992822335978dac92cfaa9b968b092d4ff6869ad73baa3d94ee2e7a`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -64,7 +64,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 #### `descriptive-course-and-access-vocabularies` — Adopt descriptive grade, footing, hazard, and terrain-access DTOs
 
-- **Question:** Should v2 use the exact five signed-grade share buckets, six unordered footing flags, two tri-state hazard gates, and weekday/uphill/downhill/ footing access fields?
+- **Question:** Should v2 use the exact five signed-grade share buckets, six unordered footing flags, two known-or-unknown boolean hazard fields, and bounded schedule plus uphill/downhill/footing access fields?
 - **Proposed decision:** Accept these closed DTOs and exact set-containment rules as deterministic descriptions, not as technicality scores or doses.
 - **Approval means:**
   - Grade boundaries and footing matching replay identically.
@@ -135,7 +135,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 A decision approval bound to the displayed digest attests:
 
-> I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and hazard vocabularies, exact footing containment, bounded optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
+> I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and known-or-unknown boolean hazard fields, exact footing containment, bounded schedule and optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 - **Decision approval:** _Pending_
 
@@ -148,12 +148,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-trail-running-goal-ontology-v2`
-- Digest: `sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b`
+- Digest: `sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c`
 
-> I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and hazard vocabularies, exact footing containment, bounded optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
+> I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and known-or-unknown boolean hazard fields, exact footing containment, bounded schedule and optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b","subject_id":"sdr-trail-running-goal-ontology-v2","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c","subject_id":"sdr-trail-running-goal-ontology-v2","subject_kind":"science_decision"}
 -->
 ```
 
@@ -163,7 +163,7 @@ Praxys science approval — **APPROVE**
 
 ### Accepted interpretation
 
-If separately accepted by the decision approver, this successor would keep every accepted v1 science and safety boundary while defining trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict, provider-neutral, revision-bound data contracts. Reviewable fields carry an explicit known value or explicit unknown state; the server, never the client, stamps provenance and source revisions. Core course, scope, hazard, schedule, terrain-access, symptom, and recent-history gates fail closed. Unknown grade, ordinary course footing, environment, support, or fueling context can limit only their named module after all core gates pass. Five signed-grade basis-point buckets, six unordered footing flags, exact footing set containment, and bounded optional context are reversible Praxys operational guardrails, not validated difficulty scores, training doses, equivalence formulas, predictions, or safety thresholds. No route, GPS, free-text planning, provider payload, activity-average power, road fallback, personal performance prediction, or runtime behavior is accepted.
+If separately accepted by the decision approver, this successor would keep every accepted v1 science and safety boundary while defining trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict, provider-neutral, revision-bound data contracts. Reviewable fields carry an explicit known value or explicit unknown state; the server, never the client, stamps provenance and source revisions. Core course, scope, hazard, schedule, terrain-access, symptom, and recent-history gates fail closed. Unknown grade, ordinary course footing, environment, support, or fueling context can limit only their named module after all core gates pass. Five signed-grade basis-point buckets, six unordered footing flags, known-or- unknown boolean hazard fields, exact footing set containment, bounded schedule capacity, and bounded optional context are reversible Praxys operational guardrails, not validated difficulty scores, training doses, equivalence formulas, predictions, or safety thresholds. No route, GPS, free-text planning, provider payload, activity-average power, road fallback, personal performance prediction, or runtime behavior is accepted.
 
 ### Linked evidence
 
@@ -264,6 +264,7 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "distance_meters": {
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "maximum": 49999,
       "minimum": 1,
       "type": "integer",
       "unit": "meters"
@@ -288,13 +289,9 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "type": "closed_enum"
     },
     "fixed_rope": {
-      "allowed": [
-        "yes",
-        "no",
-        "unknown"
-      ],
+      "envelope": "known_or_unknown",
       "materiality": "core",
-      "type": "tri_state"
+      "type": "strict_boolean"
     },
     "fueling_and_gastrointestinal_context": {
       "envelope": "known_or_unknown",
@@ -309,13 +306,9 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "type": "five_bucket_basis_point_object"
     },
     "hands_assist": {
-      "allowed": [
-        "yes",
-        "no",
-        "unknown"
-      ],
+      "envelope": "known_or_unknown",
       "materiality": "core",
-      "type": "tri_state"
+      "type": "strict_boolean"
     },
     "planning_duration_range": {
       "envelope": "known_or_unknown",
@@ -334,6 +327,7 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "total_ascent_m": {
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "maximum": 20000,
       "minimum": 0,
       "type": "integer",
       "unit": "meters"
@@ -341,6 +335,7 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "total_descent_m": {
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "maximum": 20000,
       "minimum": 0,
       "type": "integer",
       "unit": "meters"
@@ -430,8 +425,11 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
   "feasibility_verdict": false,
   "field": "planning_duration_range",
   "finish_time_prediction": false,
+  "minimum_and_maximum_each": {
+    "maximum": 1440,
+    "minimum": 1
+  },
   "minimum_strictly_less_than_maximum": true,
-  "minimum_value": 1,
   "performance_promise": false,
   "purpose": "planning_context",
   "unit": "integer_minutes"
@@ -516,24 +514,18 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
 {
   "hazard_gates": {
     "fixed_rope": {
-      "allowed": [
-        "yes",
-        "no",
-        "unknown"
-      ],
-      "eligible_value": "no",
-      "unknown_result": "clarification_required",
-      "yes_result": "policy_unavailable.technical_features_outside_v2"
+      "eligible_value": "known_false",
+      "envelope": "known_or_unknown",
+      "known_true_result": "policy_unavailable.technical_features_outside_v2",
+      "known_value_type": "strict_boolean",
+      "unknown_result": "clarification_required.material_course_demand_unknown"
     },
     "hands_assist": {
-      "allowed": [
-        "yes",
-        "no",
-        "unknown"
-      ],
-      "eligible_value": "no",
-      "unknown_result": "clarification_required",
-      "yes_result": "policy_unavailable.technical_features_outside_v2"
+      "eligible_value": "known_false",
+      "envelope": "known_or_unknown",
+      "known_true_result": "policy_unavailable.technical_features_outside_v2",
+      "known_value_type": "strict_boolean",
+      "unknown_result": "clarification_required.material_course_demand_unknown"
     },
     "reducible_to_ordinary_footing": false,
     "technical_skill_or_safety_score": false
@@ -576,10 +568,12 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "vocabulary": "trail_footing_and_hazard_contract.ordinary_footing.allowed"
     },
     "adult_nonclinical_scope_confirmed": {
-      "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+      "envelope": "known_or_unknown",
+      "false_result": "policy_unavailable.unsupported_population_or_intent",
       "materiality": "core",
       "required_value_for_eligibility": true,
-      "type": "strict_boolean"
+      "type": "strict_boolean",
+      "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
     },
     "available_weekdays": {
       "allowed_iso_weekdays": [
@@ -593,35 +587,81 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       ],
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "minimum_members": 1,
       "type": "unique_unordered_set",
       "unknown_result": "clarification_required.training_constraints_missing"
     },
-    "controlled_downhill_terrain_accessible": {
+    "controlled_downhill_access": {
       "duration_distance_grade_speed_or_repeat_fields_allowed": false,
       "envelope": "known_or_unknown",
-      "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+      "false_result": "readiness_blocked.insufficient_terrain_access",
       "materiality": "core",
-      "type": "strict_boolean"
+      "type": "strict_boolean",
+      "unknown_result": "clarification_required.training_constraints_missing"
     },
     "current_symptom_stop": {
       "envelope": "known_or_unknown",
       "materiality": "core",
       "stop_value": true,
       "true_result": "readiness_blocked.current_symptom_stop",
-      "type": "tri_state_boolean",
-      "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+      "type": "strict_boolean",
+      "unknown_result": "clarification_required.training_constraints_missing"
     },
-    "nontechnical_continuous_three_minute_uphill_accessible": {
+    "maximum_session_duration_min": {
       "envelope": "known_or_unknown",
-      "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
       "materiality": "core",
-      "type": "strict_boolean"
+      "maximum": 1440,
+      "minimum": 1,
+      "not_greater_than": "weekly_time_limit_min",
+      "type": "integer",
+      "unknown_result": "clarification_required.training_constraints_missing"
+    },
+    "nontechnical_three_minute_uphill_access": {
+      "envelope": "known_or_unknown",
+      "false_result": "readiness_blocked.insufficient_terrain_access",
+      "materiality": "core",
+      "type": "strict_boolean",
+      "unknown_result": "clarification_required.training_constraints_missing"
     },
     "performance_intent_confirmed": {
-      "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+      "envelope": "known_or_unknown",
+      "false_result": "policy_unavailable.unsupported_population_or_intent",
       "materiality": "core",
       "required_value_for_eligibility": true,
-      "type": "strict_boolean"
+      "type": "strict_boolean",
+      "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+    },
+    "preferred_longest_weekday": {
+      "allowed": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "conflict_result": "clarification_required.contradictory_input",
+      "omitted_means_no_preference": true,
+      "type": "optional_iso_weekday",
+      "when_present_must_be_in": "available_weekdays"
+    },
+    "unavailable_dates": {
+      "all_dates_within_requested_14_day_horizon": true,
+      "empty_known_set_allowed": true,
+      "envelope": "known_or_unknown",
+      "materiality": "core",
+      "maximum_members": 14,
+      "type": "sorted_unique_iso_date_set",
+      "unknown_result": "clarification_required.training_constraints_missing"
+    },
+    "weekly_time_limit_min": {
+      "envelope": "known_or_unknown",
+      "materiality": "core",
+      "maximum": 10080,
+      "minimum": 1,
+      "type": "integer",
+      "unknown_result": "clarification_required.training_constraints_missing"
     }
   },
   "history_provenance": "history_observed",
@@ -795,8 +835,12 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "performance_intent_confirmed",
     "current_symptom_stop",
     "available_weekdays",
-    "nontechnical_continuous_three_minute_uphill_accessible",
-    "controlled_downhill_terrain_accessible",
+    "weekly_time_limit_min",
+    "maximum_session_duration_min",
+    "unavailable_dates",
+    "preferred_longest_weekday_consistency_when_present",
+    "nontechnical_three_minute_uphill_access",
+    "controlled_downhill_access",
     "accessible_footing_when_course_footing_known",
     "recent_running_continuity",
     "recent_ascent_exposure",
@@ -956,6 +1000,7 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
 ```json
 {
   "core_and_limited_materiality": "operational_guardrail_only",
+  "course_domain_bounds": "product_scope_and_operability_guardrail_only",
   "distance_vertical_conversion": "not_accepted",
   "downhill_progression": "not_accepted",
   "environment_or_altitude_dose": "not_accepted",
@@ -966,6 +1011,7 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
   "planning_duration_range_shape": "operational_guardrail_only",
   "road_trail_equivalence": "not_accepted",
   "route_or_provider_inference": "not_accepted",
+  "schedule_capacity_bounds": "product_scope_and_operability_guardrail_only",
   "signed_grade_buckets": "descriptive_operational_guardrail_only",
   "technical_terrain_dose": "not_accepted",
   "technicality_score": "not_accepted",
@@ -1075,6 +1121,9 @@ That would erase course-specific demand and violate the accepted no-road- fallba
 - The accepted evidence remains sufficient only because every new exact value is classified as a reversible operational guardrail rather than a published biological rule.
 - Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md.
 - Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.
+- Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.
+- Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.
+- This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.
 - Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.
 - Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168.
 
@@ -1089,7 +1138,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
     "non_ultra_trail_constraints_v2 input and confirmation envelope",
     "future v2 Trail capability matching contract"
   ],
-  "contract_digest": "sha256:12c107e9d19f6c5e7204f09ef680ab5c4517a4f9385179d72822630a61df1c96",
+  "contract_digest": "sha256:1297f713b992822335978dac92cfaa9b968b092d4ff6869ad73baa3d94ee2e7a",
   "decision_id": "sdr-trail-running-goal-ontology-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -1148,6 +1197,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "distance_meters": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 49999,
             "minimum": 1,
             "type": "integer",
             "unit": "meters"
@@ -1172,13 +1222,9 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "type": "closed_enum"
           },
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "fueling_and_gastrointestinal_context": {
             "envelope": "known_or_unknown",
@@ -1193,13 +1239,9 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "type": "five_bucket_basis_point_object"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "planning_duration_range": {
             "envelope": "known_or_unknown",
@@ -1218,6 +1260,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "total_ascent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -1225,6 +1268,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "total_descent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -1273,6 +1317,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
       ],
       "value": {
         "core_and_limited_materiality": "operational_guardrail_only",
+        "course_domain_bounds": "product_scope_and_operability_guardrail_only",
         "distance_vertical_conversion": "not_accepted",
         "downhill_progression": "not_accepted",
         "environment_or_altitude_dose": "not_accepted",
@@ -1283,6 +1328,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
         "planning_duration_range_shape": "operational_guardrail_only",
         "road_trail_equivalence": "not_accepted",
         "route_or_provider_inference": "not_accepted",
+        "schedule_capacity_bounds": "product_scope_and_operability_guardrail_only",
         "signed_grade_buckets": "descriptive_operational_guardrail_only",
         "technical_terrain_dose": "not_accepted",
         "technicality_score": "not_accepted",
@@ -1360,24 +1406,18 @@ That would erase course-specific demand and violate the accepted no-road- fallba
       "value": {
         "hazard_gates": {
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "reducible_to_ordinary_footing": false,
           "technical_skill_or_safety_score": false
@@ -1630,8 +1670,11 @@ That would erase course-specific demand and violate the accepted no-road- fallba
         "feasibility_verdict": false,
         "field": "planning_duration_range",
         "finish_time_prediction": false,
+        "minimum_and_maximum_each": {
+          "maximum": 1440,
+          "minimum": 1
+        },
         "minimum_strictly_less_than_maximum": true,
-        "minimum_value": 1,
         "performance_promise": false,
         "purpose": "planning_context",
         "unit": "integer_minutes"
@@ -1735,10 +1778,12 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "vocabulary": "trail_footing_and_hazard_contract.ordinary_footing.allowed"
           },
           "adult_nonclinical_scope_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
           },
           "available_weekdays": {
             "allowed_iso_weekdays": [
@@ -1752,35 +1797,81 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "minimum_members": 1,
             "type": "unique_unordered_set",
             "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "controlled_downhill_terrain_accessible": {
+          "controlled_downhill_access": {
             "duration_distance_grade_speed_or_repeat_fields_allowed": false,
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "current_symptom_stop": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "stop_value": true,
             "true_result": "readiness_blocked.current_symptom_stop",
-            "type": "tri_state_boolean",
-            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "nontechnical_continuous_three_minute_uphill_accessible": {
+          "maximum_session_duration_min": {
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "maximum": 1440,
+            "minimum": 1,
+            "not_greater_than": "weekly_time_limit_min",
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "nontechnical_three_minute_uphill_access": {
+            "envelope": "known_or_unknown",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
+            "materiality": "core",
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "performance_intent_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+          },
+          "preferred_longest_weekday": {
+            "allowed": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "conflict_result": "clarification_required.contradictory_input",
+            "omitted_means_no_preference": true,
+            "type": "optional_iso_weekday",
+            "when_present_must_be_in": "available_weekdays"
+          },
+          "unavailable_dates": {
+            "all_dates_within_requested_14_day_horizon": true,
+            "empty_known_set_allowed": true,
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum_members": 14,
+            "type": "sorted_unique_iso_date_set",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "weekly_time_limit_min": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
           }
         },
         "history_provenance": "history_observed",
@@ -1818,8 +1909,12 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "performance_intent_confirmed",
           "current_symptom_stop",
           "available_weekdays",
-          "nontechnical_continuous_three_minute_uphill_accessible",
-          "controlled_downhill_terrain_accessible",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates",
+          "preferred_longest_weekday_consistency_when_present",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
           "accessible_footing_when_course_footing_known",
           "recent_running_continuity",
           "recent_ascent_exposure",
@@ -1854,7 +1949,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b"
+  "source_decision_digest": "sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c"
 }
 ```
 
@@ -1870,7 +1965,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
 
 ```json
 {
-  "accepted_interpretation": "If separately accepted by the decision approver, this successor would keep every accepted v1 science and safety boundary while defining trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict, provider-neutral, revision-bound data contracts. Reviewable fields carry an explicit known value or explicit unknown state; the server, never the client, stamps provenance and source revisions. Core course, scope, hazard, schedule, terrain-access, symptom, and recent-history gates fail closed. Unknown grade, ordinary course footing, environment, support, or fueling context can limit only their named module after all core gates pass. Five signed-grade basis-point buckets, six unordered footing flags, exact footing set containment, and bounded optional context are reversible Praxys operational guardrails, not validated difficulty scores, training doses, equivalence formulas, predictions, or safety thresholds. No route, GPS, free-text planning, provider payload, activity-average power, road fallback, personal performance prediction, or runtime behavior is accepted.",
+  "accepted_interpretation": "If separately accepted by the decision approver, this successor would keep every accepted v1 science and safety boundary while defining trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict, provider-neutral, revision-bound data contracts. Reviewable fields carry an explicit known value or explicit unknown state; the server, never the client, stamps provenance and source revisions. Core course, scope, hazard, schedule, terrain-access, symptom, and recent-history gates fail closed. Unknown grade, ordinary course footing, environment, support, or fueling context can limit only their named module after all core gates pass. Five signed-grade basis-point buckets, six unordered footing flags, known-or- unknown boolean hazard fields, exact footing set containment, bounded schedule capacity, and bounded optional context are reversible Praxys operational guardrails, not validated difficulty scores, training doses, equivalence formulas, predictions, or safety thresholds. No route, GPS, free-text planning, provider payload, activity-average power, road fallback, personal performance prediction, or runtime behavior is accepted.",
   "affected_surfaces": {
     "apis": [
       "future inactive Trail course, constraint, confirmation, and readiness contracts"
@@ -1906,11 +2001,14 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "The accepted evidence remains sufficient only because every new exact value is classified as a reversible operational guardrail rather than a published biological rule.",
     "Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md.",
     "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.",
+    "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.",
+    "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.",
+    "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.",
     "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.",
     "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."
   ],
   "decision_review": {
-    "approval_statement": "I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and hazard vocabularies, exact footing containment, bounded optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.",
+    "approval_statement": "I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and known-or-unknown boolean hazard fields, exact footing containment, bounded schedule and optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.",
     "items": [
       {
         "approval_effect": [
@@ -1976,7 +2074,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "trail_training_constraints_schema"
         ],
         "proposed_decision": "Accept these closed DTOs and exact set-containment rules as deterministic descriptions, not as technicality scores or doses.",
-        "question": "Should v2 use the exact five signed-grade share buckets, six unordered footing flags, two tri-state hazard gates, and weekday/uphill/downhill/ footing access fields?",
+        "question": "Should v2 use the exact five signed-grade share buckets, six unordered footing flags, two known-or-unknown boolean hazard fields, and bounded schedule plus uphill/downhill/footing access fields?",
         "title": "Adopt descriptive grade, footing, hazard, and terrain-access DTOs"
       },
       {
@@ -2109,6 +2207,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "distance_meters": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 49999,
             "minimum": 1,
             "type": "integer",
             "unit": "meters"
@@ -2133,13 +2232,9 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "type": "closed_enum"
           },
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "fueling_and_gastrointestinal_context": {
             "envelope": "known_or_unknown",
@@ -2154,13 +2249,9 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "type": "five_bucket_basis_point_object"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "planning_duration_range": {
             "envelope": "known_or_unknown",
@@ -2179,6 +2270,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "total_ascent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -2186,6 +2278,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "total_descent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -2271,8 +2364,11 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "feasibility_verdict": false,
         "field": "planning_duration_range",
         "finish_time_prediction": false,
+        "minimum_and_maximum_each": {
+          "maximum": 1440,
+          "minimum": 1
+        },
         "minimum_strictly_less_than_maximum": true,
-        "minimum_value": 1,
         "performance_promise": false,
         "purpose": "planning_context",
         "unit": "integer_minutes"
@@ -2356,24 +2452,18 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       "value": {
         "hazard_gates": {
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "reducible_to_ordinary_footing": false,
           "technical_skill_or_safety_score": false
@@ -2417,10 +2507,12 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "vocabulary": "trail_footing_and_hazard_contract.ordinary_footing.allowed"
           },
           "adult_nonclinical_scope_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
           },
           "available_weekdays": {
             "allowed_iso_weekdays": [
@@ -2434,35 +2526,81 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "minimum_members": 1,
             "type": "unique_unordered_set",
             "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "controlled_downhill_terrain_accessible": {
+          "controlled_downhill_access": {
             "duration_distance_grade_speed_or_repeat_fields_allowed": false,
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "current_symptom_stop": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "stop_value": true,
             "true_result": "readiness_blocked.current_symptom_stop",
-            "type": "tri_state_boolean",
-            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "nontechnical_continuous_three_minute_uphill_accessible": {
+          "maximum_session_duration_min": {
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "maximum": 1440,
+            "minimum": 1,
+            "not_greater_than": "weekly_time_limit_min",
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "nontechnical_three_minute_uphill_access": {
+            "envelope": "known_or_unknown",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
+            "materiality": "core",
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "performance_intent_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+          },
+          "preferred_longest_weekday": {
+            "allowed": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "conflict_result": "clarification_required.contradictory_input",
+            "omitted_means_no_preference": true,
+            "type": "optional_iso_weekday",
+            "when_present_must_be_in": "available_weekdays"
+          },
+          "unavailable_dates": {
+            "all_dates_within_requested_14_day_horizon": true,
+            "empty_known_set_allowed": true,
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum_members": 14,
+            "type": "sorted_unique_iso_date_set",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "weekly_time_limit_min": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
           }
         },
         "history_provenance": "history_observed",
@@ -2636,8 +2774,12 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "performance_intent_confirmed",
           "current_symptom_stop",
           "available_weekdays",
-          "nontechnical_continuous_three_minute_uphill_accessible",
-          "controlled_downhill_terrain_accessible",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates",
+          "preferred_longest_weekday_consistency_when_present",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
           "accessible_footing_when_course_footing_known",
           "recent_running_continuity",
           "recent_ascent_exposure",
@@ -2795,6 +2937,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       "rationale": "The accepted evidence supports explicit dimensions but not universal scoring, inference, equivalence, prediction, progression, or dose. Only the closed validation DTO is proposed here.",
       "value": {
         "core_and_limited_materiality": "operational_guardrail_only",
+        "course_domain_bounds": "product_scope_and_operability_guardrail_only",
         "distance_vertical_conversion": "not_accepted",
         "downhill_progression": "not_accepted",
         "environment_or_altitude_dose": "not_accepted",
@@ -2805,6 +2948,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "planning_duration_range_shape": "operational_guardrail_only",
         "road_trail_equivalence": "not_accepted",
         "route_or_provider_inference": "not_accepted",
+        "schedule_capacity_bounds": "product_scope_and_operability_guardrail_only",
         "signed_grade_buckets": "descriptive_operational_guardrail_only",
         "technical_terrain_dose": "not_accepted",
         "technicality_score": "not_accepted",

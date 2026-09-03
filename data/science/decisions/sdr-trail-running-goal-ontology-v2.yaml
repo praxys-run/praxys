@@ -29,8 +29,9 @@ accepted_interpretation: >
   schedule, terrain-access, symptom, and recent-history gates fail closed.
   Unknown grade, ordinary course footing, environment, support, or fueling
   context can limit only their named module after all core gates pass. Five
-  signed-grade basis-point buckets, six unordered footing flags, exact footing
-  set containment, and bounded optional context are reversible Praxys
+  signed-grade basis-point buckets, six unordered footing flags, known-or-
+  unknown boolean hazard fields, exact footing set containment, bounded
+  schedule capacity, and bounded optional context are reversible Praxys
   operational guardrails, not validated difficulty scores, training doses,
   equivalence formulas, predictions, or safety thresholds. No route, GPS,
   free-text planning, provider payload, activity-average power, road fallback,
@@ -45,8 +46,9 @@ decision_review:
     I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as
     strict revision-bound Trail planning envelopes: explicit known or unknown
     fields, server-owned provenance, separate ascent and descent, descriptive
-    signed-grade shares, closed footing and hazard vocabularies, exact footing
-    containment, bounded optional context, and fail-closed core materiality. I
+    signed-grade shares, closed footing and known-or-unknown boolean hazard
+    fields, exact footing containment, bounded schedule and optional context,
+    and fail-closed core materiality. I
     approve the exact DTO values only as reversible Praxys operational
     guardrails, not as published biological findings, difficulty or safety
     scores, doses, equivalences, or predictions. This approval authorizes only
@@ -102,8 +104,8 @@ decision_review:
       disposition: approve
       question: >
         Should v2 use the exact five signed-grade share buckets, six unordered
-        footing flags, two tri-state hazard gates, and weekday/uphill/downhill/
-        footing access fields?
+        footing flags, two known-or-unknown boolean hazard fields, and bounded
+        schedule plus uphill/downhill/footing access fields?
       proposed_decision: >
         Accept these closed DTOs and exact set-containment rules as
         deterministic descriptions, not as technicality scores or doses.
@@ -218,18 +220,21 @@ model_parameters:
           type: integer
           unit: meters
           minimum: 1
+          maximum: 49999
           envelope: known_or_unknown
           materiality: core
         total_ascent_m:
           type: integer
           unit: meters
           minimum: 0
+          maximum: 20000
           envelope: known_or_unknown
           materiality: core
         total_descent_m:
           type: integer
           unit: meters
           minimum: 0
+          maximum: 20000
           envelope: known_or_unknown
           materiality: core
         planning_duration_range:
@@ -263,12 +268,12 @@ model_parameters:
           materiality: limited_with_core_matching_when_known
           limited_module: technical_terrain
         hands_assist:
-          type: tri_state
-          allowed: ["yes", "no", unknown]
+          type: strict_boolean
+          envelope: known_or_unknown
           materiality: core
         fixed_rope:
-          type: tri_state
-          allowed: ["yes", "no", unknown]
+          type: strict_boolean
+          envelope: known_or_unknown
           materiality: core
         environment_and_altitude:
           type: bounded_object
@@ -342,7 +347,9 @@ model_parameters:
     value:
       field: planning_duration_range
       unit: integer_minutes
-      minimum_value: 1
+      minimum_and_maximum_each:
+        minimum: 1
+        maximum: 1440
       minimum_strictly_less_than_maximum: true
       athlete_confirmed: true
       purpose: planning_context
@@ -429,15 +436,17 @@ model_parameters:
         difficulty_score: false
       hazard_gates:
         hands_assist:
-          allowed: ["yes", "no", unknown]
-          unknown_result: clarification_required
-          yes_result: policy_unavailable.technical_features_outside_v2
-          eligible_value: "no"
+          envelope: known_or_unknown
+          known_value_type: strict_boolean
+          unknown_result: clarification_required.material_course_demand_unknown
+          known_true_result: policy_unavailable.technical_features_outside_v2
+          eligible_value: known_false
         fixed_rope:
-          allowed: ["yes", "no", unknown]
-          unknown_result: clarification_required
-          yes_result: policy_unavailable.technical_features_outside_v2
-          eligible_value: "no"
+          envelope: known_or_unknown
+          known_value_type: strict_boolean
+          unknown_result: clarification_required.material_course_demand_unknown
+          known_true_result: policy_unavailable.technical_features_outside_v2
+          eligible_value: known_false
         reducible_to_ordinary_footing: false
         technical_skill_or_safety_score: false
     classification: guardrail
@@ -456,20 +465,52 @@ model_parameters:
         available_weekdays:
           type: unique_unordered_set
           allowed_iso_weekdays: [1, 2, 3, 4, 5, 6, 7]
+          minimum_members: 1
           envelope: known_or_unknown
           materiality: core
           unknown_result: clarification_required.training_constraints_missing
-        nontechnical_continuous_three_minute_uphill_accessible:
+        weekly_time_limit_min:
+          type: integer
+          minimum: 1
+          maximum: 10080
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        maximum_session_duration_min:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          not_greater_than: weekly_time_limit_min
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        unavailable_dates:
+          type: sorted_unique_iso_date_set
+          maximum_members: 14
+          all_dates_within_requested_14_day_horizon: true
+          empty_known_set_allowed: true
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        preferred_longest_weekday:
+          type: optional_iso_weekday
+          allowed: [1, 2, 3, 4, 5, 6, 7]
+          omitted_means_no_preference: true
+          when_present_must_be_in: available_weekdays
+          conflict_result: clarification_required.contradictory_input
+        nontechnical_three_minute_uphill_access:
           type: strict_boolean
           envelope: known_or_unknown
           materiality: core
-          false_or_unknown_result: readiness_blocked.insufficient_terrain_access
-        controlled_downhill_terrain_accessible:
+          unknown_result: clarification_required.training_constraints_missing
+          false_result: readiness_blocked.insufficient_terrain_access
+        controlled_downhill_access:
           type: strict_boolean
           envelope: known_or_unknown
           materiality: core
           duration_distance_grade_speed_or_repeat_fields_allowed: false
-          false_or_unknown_result: readiness_blocked.insufficient_terrain_access
+          unknown_result: clarification_required.training_constraints_missing
+          false_result: readiness_blocked.insufficient_terrain_access
         accessible_footing:
           type: nonempty_unordered_closed_set
           vocabulary: trail_footing_and_hazard_contract.ordinary_footing.allowed
@@ -478,21 +519,25 @@ model_parameters:
           missing_required_member_result: readiness_blocked.insufficient_terrain_access
         adult_nonclinical_scope_confirmed:
           type: strict_boolean
+          envelope: known_or_unknown
           required_value_for_eligibility: true
           materiality: core
-          false_or_unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          false_result: policy_unavailable.unsupported_population_or_intent
         performance_intent_confirmed:
           type: strict_boolean
+          envelope: known_or_unknown
           required_value_for_eligibility: true
           materiality: core
-          false_or_unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          false_result: policy_unavailable.unsupported_population_or_intent
         current_symptom_stop:
-          type: tri_state_boolean
+          type: strict_boolean
           envelope: known_or_unknown
           stop_value: true
           materiality: core
           true_result: readiness_blocked.current_symptom_stop
-          unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          unknown_result: clarification_required.training_constraints_missing
       server_derived_history_fields:
         - recent_running_continuity
         - recent_ascent_exposure
@@ -618,8 +663,12 @@ model_parameters:
         - performance_intent_confirmed
         - current_symptom_stop
         - available_weekdays
-        - nontechnical_continuous_three_minute_uphill_accessible
-        - controlled_downhill_terrain_accessible
+        - weekly_time_limit_min
+        - maximum_session_duration_min
+        - unavailable_dates
+        - preferred_longest_weekday_consistency_when_present
+        - nontechnical_three_minute_uphill_access
+        - controlled_downhill_access
         - accessible_footing_when_course_footing_known
         - recent_running_continuity
         - recent_ascent_exposure
@@ -763,6 +812,8 @@ model_parameters:
       footing_vocabulary: descriptive_operational_guardrail_only
       core_and_limited_materiality: operational_guardrail_only
       planning_duration_range_shape: operational_guardrail_only
+      course_domain_bounds: product_scope_and_operability_guardrail_only
+      schedule_capacity_bounds: product_scope_and_operability_guardrail_only
       optional_context_bounds: operational_guardrail_only
       technicality_score: not_accepted
       route_or_provider_inference: not_accepted
@@ -866,5 +917,8 @@ decision_notes:
   - "The accepted evidence remains sufficient only because every new exact value is classified as a reversible operational guardrail rather than a published biological rule."
   - "Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md."
   - "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md."
+  - "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md."
+  - "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md."
+  - "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact."
   - "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607."
   - "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."

@@ -163,6 +163,27 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert ontology_v2_parameters["trail_training_constraints_schema"][
         "schema_id"
     ] == "non_ultra_trail_constraints_v2"
+    course_fields = ontology_v2_parameters["trail_course_demand_schema"][
+        "fields"
+    ]
+    assert (course_fields["distance_meters"]["minimum"], course_fields["distance_meters"]["maximum"]) == (1, 49999)
+    assert (course_fields["total_ascent_m"]["minimum"], course_fields["total_ascent_m"]["maximum"]) == (0, 20000)
+    assert (course_fields["total_descent_m"]["minimum"], course_fields["total_descent_m"]["maximum"]) == (0, 20000)
+    for hazard in ("hands_assist", "fixed_rope"):
+        assert course_fields[hazard] == {
+            "type": "strict_boolean",
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+        }
+    constraints = ontology_v2_parameters[
+        "trail_training_constraints_schema"
+    ]["client_reviewable_fields"]
+    assert (constraints["weekly_time_limit_min"]["minimum"], constraints["weekly_time_limit_min"]["maximum"]) == (1, 10080)
+    assert (constraints["maximum_session_duration_min"]["minimum"], constraints["maximum_session_duration_min"]["maximum"]) == (1, 1440)
+    assert constraints["maximum_session_duration_min"][
+        "not_greater_than"
+    ] == "weekly_time_limit_min"
+    assert constraints["unavailable_dates"]["maximum_members"] == 14
     assert ontology_v2_parameters["trail_grade_distribution"][
         "exact_sum"
     ] == 10000
@@ -194,7 +215,13 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert changed_policy_groups == {
         "trail_policy_scope_and_dependencies",
         "trail_policy_required_inputs",
+        "trail_policy_history_guardrails",
+        "trail_policy_schedule_construction",
+        "trail_policy_course_exposure_caps",
+        "trail_policy_event_and_taper",
         "trail_policy_typed_outcomes",
+        "trail_policy_modular_structure",
+        "trail_policy_evidence_use",
         "trail_policy_non_science_authority",
     }
     outcomes = policy_v2_parameters["trail_policy_typed_outcomes"]
@@ -211,6 +238,54 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "grade_specificity",
         "technical_terrain",
     ]
+    assert outcomes["module_availability"][
+        "required_keys_in_sorted_order"
+    ] == outcomes["limited_modules"]["allowed_sorted_order"]
+    assert outcomes["module_availability"]["allowed_states"] == [
+        "not_evaluated",
+        "available",
+        "limited",
+    ]
+    catalog_pairs = {
+        (status, detail_reason)
+        for status, detail_reasons in outcomes[
+            "detail_reason_catalog"
+        ].items()
+        for detail_reason in detail_reasons
+    }
+    mapped_pairs = {
+        (item["result"]["status"], item["result"]["detail_reason"])
+        for item in outcomes["condition_reason_mapping"]
+        if item["result"]["detail_reason"] is not None
+    }
+    assert mapped_pairs == catalog_pairs
+    assert policy_v2_parameters["trail_policy_modular_structure"][
+        "disabled_deferred_modules"
+    ] == {
+        module: {
+            "state": "not_accepted",
+            "reason": "no_accepted_v2_input_and_dose_contract",
+        }
+        for module in ("hiking", "strength", "taper")
+    }
+    assert policy_v2_parameters["trail_policy_history_guardrails"][
+        "insufficient_recent_running_result"
+    ] == {
+        "status": "readiness_blocked",
+        "detail_reason": "insufficient_recent_running_history",
+    }
+    assert policy_v2_parameters["trail_policy_schedule_construction"][
+        "no_schedule_result"
+    ] == {
+        "status": "readiness_blocked",
+        "detail_reason": "no_schedule_within_envelope",
+    }
+    assert policy_v2_parameters["trail_policy_event_and_taper"][
+        "target_within_14_days_of_start_result"
+    ] == {
+        "status": "policy_unavailable",
+        "detail_reason": "event_inside_unapproved_taper_window",
+    }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ].status == "accepted"

@@ -4,7 +4,7 @@
     "non_ultra_trail_constraints_v2 input and confirmation envelope",
     "future v2 Trail capability matching contract"
   ],
-  "contract_digest": "sha256:12c107e9d19f6c5e7204f09ef680ab5c4517a4f9385179d72822630a61df1c96",
+  "contract_digest": "sha256:1297f713b992822335978dac92cfaa9b968b092d4ff6869ad73baa3d94ee2e7a",
   "decision_id": "sdr-trail-running-goal-ontology-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -63,6 +63,7 @@
           "distance_meters": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 49999,
             "minimum": 1,
             "type": "integer",
             "unit": "meters"
@@ -87,13 +88,9 @@
             "type": "closed_enum"
           },
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "fueling_and_gastrointestinal_context": {
             "envelope": "known_or_unknown",
@@ -108,13 +105,9 @@
             "type": "five_bucket_basis_point_object"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
+            "envelope": "known_or_unknown",
             "materiality": "core",
-            "type": "tri_state"
+            "type": "strict_boolean"
           },
           "planning_duration_range": {
             "envelope": "known_or_unknown",
@@ -133,6 +126,7 @@
           "total_ascent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -140,6 +134,7 @@
           "total_descent_m": {
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "maximum": 20000,
             "minimum": 0,
             "type": "integer",
             "unit": "meters"
@@ -188,6 +183,7 @@
       ],
       "value": {
         "core_and_limited_materiality": "operational_guardrail_only",
+        "course_domain_bounds": "product_scope_and_operability_guardrail_only",
         "distance_vertical_conversion": "not_accepted",
         "downhill_progression": "not_accepted",
         "environment_or_altitude_dose": "not_accepted",
@@ -198,6 +194,7 @@
         "planning_duration_range_shape": "operational_guardrail_only",
         "road_trail_equivalence": "not_accepted",
         "route_or_provider_inference": "not_accepted",
+        "schedule_capacity_bounds": "product_scope_and_operability_guardrail_only",
         "signed_grade_buckets": "descriptive_operational_guardrail_only",
         "technical_terrain_dose": "not_accepted",
         "technicality_score": "not_accepted",
@@ -275,24 +272,18 @@
       "value": {
         "hazard_gates": {
           "fixed_rope": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "hands_assist": {
-            "allowed": [
-              "yes",
-              "no",
-              "unknown"
-            ],
-            "eligible_value": "no",
-            "unknown_result": "clarification_required",
-            "yes_result": "policy_unavailable.technical_features_outside_v2"
+            "eligible_value": "known_false",
+            "envelope": "known_or_unknown",
+            "known_true_result": "policy_unavailable.technical_features_outside_v2",
+            "known_value_type": "strict_boolean",
+            "unknown_result": "clarification_required.material_course_demand_unknown"
           },
           "reducible_to_ordinary_footing": false,
           "technical_skill_or_safety_score": false
@@ -545,8 +536,11 @@
         "feasibility_verdict": false,
         "field": "planning_duration_range",
         "finish_time_prediction": false,
+        "minimum_and_maximum_each": {
+          "maximum": 1440,
+          "minimum": 1
+        },
         "minimum_strictly_less_than_maximum": true,
-        "minimum_value": 1,
         "performance_promise": false,
         "purpose": "planning_context",
         "unit": "integer_minutes"
@@ -650,10 +644,12 @@
             "vocabulary": "trail_footing_and_hazard_contract.ordinary_footing.allowed"
           },
           "adult_nonclinical_scope_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
           },
           "available_weekdays": {
             "allowed_iso_weekdays": [
@@ -667,35 +663,81 @@
             ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "minimum_members": 1,
             "type": "unique_unordered_set",
             "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "controlled_downhill_terrain_accessible": {
+          "controlled_downhill_access": {
             "duration_distance_grade_speed_or_repeat_fields_allowed": false,
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "current_symptom_stop": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "stop_value": true,
             "true_result": "readiness_blocked.current_symptom_stop",
-            "type": "tri_state_boolean",
-            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
-          "nontechnical_continuous_three_minute_uphill_accessible": {
+          "maximum_session_duration_min": {
             "envelope": "known_or_unknown",
-            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
             "materiality": "core",
-            "type": "strict_boolean"
+            "maximum": 1440,
+            "minimum": 1,
+            "not_greater_than": "weekly_time_limit_min",
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "nontechnical_three_minute_uphill_access": {
+            "envelope": "known_or_unknown",
+            "false_result": "readiness_blocked.insufficient_terrain_access",
+            "materiality": "core",
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.training_constraints_missing"
           },
           "performance_intent_confirmed": {
-            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "envelope": "known_or_unknown",
+            "false_result": "policy_unavailable.unsupported_population_or_intent",
             "materiality": "core",
             "required_value_for_eligibility": true,
-            "type": "strict_boolean"
+            "type": "strict_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+          },
+          "preferred_longest_weekday": {
+            "allowed": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "conflict_result": "clarification_required.contradictory_input",
+            "omitted_means_no_preference": true,
+            "type": "optional_iso_weekday",
+            "when_present_must_be_in": "available_weekdays"
+          },
+          "unavailable_dates": {
+            "all_dates_within_requested_14_day_horizon": true,
+            "empty_known_set_allowed": true,
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum_members": 14,
+            "type": "sorted_unique_iso_date_set",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "weekly_time_limit_min": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer",
+            "unknown_result": "clarification_required.training_constraints_missing"
           }
         },
         "history_provenance": "history_observed",
@@ -733,8 +775,12 @@
           "performance_intent_confirmed",
           "current_symptom_stop",
           "available_weekdays",
-          "nontechnical_continuous_three_minute_uphill_accessible",
-          "controlled_downhill_terrain_accessible",
+          "weekly_time_limit_min",
+          "maximum_session_duration_min",
+          "unavailable_dates",
+          "preferred_longest_weekday_consistency_when_present",
+          "nontechnical_three_minute_uphill_access",
+          "controlled_downhill_access",
           "accessible_footing_when_course_footing_known",
           "recent_running_continuity",
           "recent_ascent_exposure",
@@ -769,5 +815,5 @@
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b"
+  "source_decision_digest": "sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c"
 }
