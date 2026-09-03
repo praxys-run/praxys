@@ -18,12 +18,12 @@ for each choice. Approval of one row does not imply approval of another.
 
 | # | Choice | Recommended Product decision |
 | --- | --- | --- |
-| 1 | Stable readiness result | Adopt the five canonical statuses, exhaustive namespaced reason catalog, deterministic precedence, complete matching-reason receipt, and separate `limited_modules`. |
+| 1 | Stable readiness result | Adopt the five canonical statuses, exhaustive namespaced reason catalog, deterministic precedence, and complete matching-reason receipt. |
 | 2 | Versioned input contract | Adopt `trail_course_demand_v2` and `non_ultra_trail_constraints_v2`, strict known/unknown request values, server-stamped provenance, and revision-bound confirmation. |
 | 3 | Course description | Adopt integer grade-share buckets, the six-value footing vocabulary, explicit hazard gates, and bounded environment, support, fueling, and gastrointestinal context without routes or free-text planning inputs. |
-| 4 | Access and history | Require explicit training weekdays and terrain access while keeping the 42/21-day recent-history assessment server-derived. Treat planning duration as an athlete-confirmed range, not a prediction. |
-| 5 | Block versus limit | Keep core readiness gates fail-closed, but allow ordinary grade, footing, environment, support, and fueling unknowns to limit only their named modules when all core gates pass. |
-| 6 | Data and runtime boundary | Preserve reset, export, and deletion for the current goal; collect no value telemetry; forbid diagnosis, activity `avg_power`, road fallback, route/provider payloads, and any authority beyond inactive implementation. |
+| 4 | Schedule, access, and history | Require bounded schedule capacity, explicit terrain access, and server-derived 42/21-day recent history. Treat planning duration as a confirmed range, not a prediction. |
+| 5 | Block versus module availability | Keep core gates fail-closed; return authoritative availability for four modules; let non-core unknowns limit only their named module. |
+| 6 | Data, actor, and runtime boundary | Keep one current draft, complete reset/export/deletion, first-party owner-only access, data-free navigation, zero-I/O Garmin projection, no value telemetry, and inactive-only authority. |
 
 ## Work Contract and shared decision fields
 
@@ -52,10 +52,14 @@ for each choice. Approval of one row does not imply approval of another.
   unknown.
 - **Dependencies:** the accepted v1 Trail Evidence Reviews and inactive Science
   Decision Records; an independently accepted Science successor for any v2
-  applicability or safety change; Design review of the resulting journey;
-  Architecture review of canonical serialization and revision fences; Trust
-  review of minimization, authorization, export, reset, and deletion; Quality
-  verification of the exact implementation.
+  applicability or safety change; Design review of the resulting journey; the
+  proposed [Trail v2 Architecture decision](trail-running-plan-architecture-decision-v2.md)
+  for serialization, revisions, persistence, URL, and zero-I/O projection;
+  the proposed [Trail v2 Trust decision](trail-running-plan-trust-decision-v2.md)
+  for minimization, first-party owner authorization, retention, export, reset,
+  deletion, and side-channel boundaries; and Quality verification of the exact
+  implementation. Both proposed specialist records require their own human
+  acceptance before implementation.
 - **Review route:** human-review-required. Product neither approves this
   proposal nor selects a different route.
 - **Outcome plan:** verify the inactive contract deterministically, then use
@@ -159,8 +163,10 @@ The response also carries:
 - `matching_reasons`: every matching `(status, detail_reason)` pair across all
   statuses, de-duplicated and ordered first by status precedence and then by
   catalog order; and
-- `limited_modules`: a separate sorted set that never changes the top-level
-  status or hides a matching reason.
+- `module_availability`: the authoritative four-module decision described
+  below; and
+- `limited_modules`: a redundant sorted projection that never changes the
+  top-level status or hides a matching reason.
 
 The fully qualified, namespaced identity of a reason is
 `<status>.<detail_reason>`. Clients must not construct new reason strings,
@@ -179,7 +185,7 @@ specialist review.
 
 | Status | Ordered `detail_reason` values | Product meaning |
 | --- | --- | --- |
-| `clarification_required` | `material_course_demand_unknown`; `assumption_confirmation_required`; `adult_scope_or_constraints_unconfirmed`; `training_constraints_missing`; `contradictory_input` | The owner can resolve or confirm required input; no proposal is returned. |
+| `clarification_required` | `material_course_demand_unknown`; `assumption_confirmation_required`; `adult_scope_or_constraints_unconfirmed`; `training_constraints_missing`; `training_constraints_outside_history_envelope`; `stale_confirmation_or_source_revision`; `contradictory_input` | The owner can resolve or confirm required input; no proposal is returned. |
 | `readiness_blocked` | `insufficient_recent_running_history`; `insufficient_comparable_trail_history`; `insufficient_descent_history`; `insufficient_terrain_access`; `current_symptom_stop`; `no_schedule_within_envelope` | Valid, confirmed input does not satisfy a current core readiness gate; no substitute plan is returned. |
 | `policy_unavailable` | `policy_inactive`; `event_inside_unapproved_taper_window`; `unsupported_ultra_or_multiday`; `unsupported_population_or_intent`; `technical_features_outside_v2` | The requested use is outside the exact available policy or its current runtime state. `policy_inactive` is a detail reason here, never a sixth top-level status. |
 | `validation_failed` | `invalid_field_value`; `schema_version_mismatch`; `deterministic_invariant_failed` | The request or result cannot be safely interpreted or replayed. |
@@ -189,15 +195,71 @@ Authorization failures remain fail-closed before this Product result and do
 not become readiness reasons. A private owner-only boundary must not be leaked
 through this catalog.
 
-### Limited modules
+### Exhaustive condition mapping
 
-`limited_modules` is an unordered set serialized in deterministic sorted order.
-It permits only these values:
+Every safely evaluable core, constraint, dependency, and contract condition
+maps as follows. Multiple rows may match and must all remain in
+`matching_reasons`.
+
+| Condition | Required namespaced reason |
+| --- | --- |
+| Invalid type, non-finite or out-of-domain number, duplicate/unsorted bounded collection, grade sum other than `10000`, forbidden key, maximum session above weekly time, or unavailable date outside the horizon | `validation_failed.invalid_field_value` |
+| Course or constraint schema ID differs from the exact v2 ID | `validation_failed.schema_version_mismatch` |
+| Canonical replay, receipt, proposal, or other deterministic invariant cannot be reproduced | `validation_failed.deterministic_invariant_failed` |
+| Required accepted ontology, Science contract, Product/Design/Architecture/Trust dependency, or inactive capability contract is absent, mismatched, or not runtime-authorized | `policy_unavailable.policy_inactive` |
+| Event identity/date, distance, ascent, descent, planning-duration range, or either hazard gate is unknown | `clarification_required.material_course_demand_unknown` |
+| An `explicit_assumption` section has not been confirmed at its exact revision | `clarification_required.assumption_confirmation_required` |
+| Required adult/non-clinical confirmation is absent or unknown | `clarification_required.adult_scope_or_constraints_unconfirmed` |
+| Available weekdays, weekly time, maximum session, unavailable dates, access booleans, accessible footing, or symptom response is missing or unknown | `clarification_required.training_constraints_missing` |
+| An explicit requested workload or proposal edit is above the server-derived recent-history envelope | `clarification_required.training_constraints_outside_history_envelope` |
+| Any required field/section confirmation, course source, planning source, or history source revision is stale | `clarification_required.stale_confirmation_or_source_revision` |
+| Individually valid values conflict, including preferred weekday not available or mutually inconsistent event/support context | `clarification_required.contradictory_input` |
+| Recent server-derived running continuity is insufficient | `readiness_blocked.insufficient_recent_running_history` |
+| Recent comparable ascent/Trail exposure is insufficient, or known course footing is not contained in recently observed footing | `readiness_blocked.insufficient_comparable_trail_history` |
+| Recent server-derived descent exposure is insufficient | `readiness_blocked.insufficient_descent_history` |
+| Required uphill/downhill access is false, or known course footing is not contained in accessible footing | `readiness_blocked.insufficient_terrain_access` |
+| Confirmed current symptom-stop is true | `readiness_blocked.current_symptom_stop` |
+| Valid complete constraints, unavailable dates, history caps, and policy spacing leave no 14-day schedule | `readiness_blocked.no_schedule_within_envelope` |
+| Event falls inside the unapproved event-near/taper window | `policy_unavailable.event_inside_unapproved_taper_window` |
+| Event is ultra-distance or multiday | `policy_unavailable.unsupported_ultra_or_multiday` |
+| Population, clinical/return-to-sport state, or intent is outside the accepted performance scope | `policy_unavailable.unsupported_population_or_intent` |
+| `hands_assist` or `fixed_rope` is known `true` | `policy_unavailable.technical_features_outside_v2` |
+
+A capacity limit above recent history does not request extra work and therefore
+does not fail by itself; generation remains capped by accepted history. The
+outside-history reason applies only to an explicit request or edit that would
+exceed that envelope. A complete, in-envelope request that still cannot be
+scheduled uses `no_schedule_within_envelope`.
+
+### Authoritative module availability
+
+Readiness returns all four keys in `module_availability`:
 
 - `grade_specificity`;
 - `technical_terrain`;
 - `environment_altitude`; and
 - `fueling`.
+
+Each value contains exactly one state plus a closed `reason_target`:
+
+- `not_evaluated`: a validation, policy, clarification, or core-readiness
+  condition prevented a safe module decision; `reason_target` points to the
+  applicable namespaced readiness reason;
+- `available`: the module may be considered by generation, not that it will be
+  included; `reason_target` is `null`; or
+- `limited`: accepted input requires the module to be omitted or remain
+  descriptive; `reason_target` is the closed first-party field/section target
+  that explains the limit.
+
+Reason targets are fixed keys resolved inside the authenticated UI. They are
+not URLs, fragments, values, identifiers, or client-authored strings.
+
+`limited_modules` is only the sorted list of keys whose authoritative state is
+`limited`. It is redundant compatibility output, not a source of truth.
+Clients must not infer “included” from an absent limitation. Actual module
+selection exists only in an immutable proposal, where each proposal module is
+explicitly `included` or `omitted` and references the readiness receipt.
+`limited` cannot become `included`; `available` does not require inclusion.
 
 Unknown grade distribution limits `grade_specificity`. Unknown ordinary
 footing limits `technical_terrain`. Unknown altitude, temperature, humidity,
@@ -205,9 +267,13 @@ wind, or exposure limits `environment_altitude`. Unknown aid/support, fueling
 practice, or non-diagnostic gastrointestinal experience limits `fueling`; v2
 does not expose a separate aid-support training module.
 
-A module limit means that module is omitted or remains descriptive. It never
-authorizes a generic replacement, a hidden default, a dose increase, or a
-claim that the missing module is unnecessary.
+A module limit never authorizes a generic replacement, hidden default, dose
+increase, or claim that the missing module is unnecessary.
+
+Hiking, strength, and taper are disabled and deferred in v2. They are not
+module-availability keys and may not be included in a v2 proposal because no
+accepted v2 input and dose contract exists for them. Event-near use remains
+`policy_unavailable.event_inside_unapproved_taper_window`.
 
 ## Versioned request and confirmation contract
 
@@ -238,10 +304,14 @@ the single explicit aid-station-gap case below. The server response may add
 provenance and revision metadata, but clients cannot submit or overwrite those
 fields.
 
-Every numeric value must be finite before domain validation. Architecture and
-Engineering must impose and verify an overall serialized-payload bound,
-nesting bound, and collection-length bounds; Product does not invent those
-implementation limits here.
+Every numeric value must be finite before domain validation. This amendment
+adopts by reference the exact request-size, UTF-8, compression, nesting,
+member, collection, string, numeric-token, duplicate-key, and canonicalization
+bounds in the proposed Trail v2 Architecture and Trust decisions. Those are
+abuse and operability controls, not Product value, scientific applicability,
+safety, course-difficulty, or training-dose claims. A material change to those
+bounds requires dependency re-review rather than an undocumented Product
+override.
 
 ### Provenance and revision fence
 
@@ -263,12 +333,15 @@ provenance nor permitted metadata. Grade distribution accepts only
 server-stamped `athlete_stated` or `course_verified` provenance. It is never
 inferred from a route, model, activity trace, or provider payload in v2.
 
-Each mutation creates a new immutable course/constraint field or section
-revision. Confirmation names the exact field or section revision being
+Each successful mutation computes a new opaque revision for the current
+course/constraint field or section and atomically overwrites the previous
+unproposed draft state. It does not retain an immutable edit or confirmation
+history. Confirmation names the exact current field or section revision being
 confirmed. Any value, state, or server-stamped source change invalidates that
 confirmation. Readiness and a later proposal bind the exact goal, course,
 constraint, history-snapshot, policy, and generator revisions; a stale
-confirmation or source revision cannot be silently rebound.
+confirmation or source revision cannot be silently rebound. Immutable
+snapshot and audit retention begins only when a proposal is created.
 
 ## `trail_course_demand_v2`
 
@@ -282,10 +355,16 @@ must be valid, known, and bound to the confirmed course revision before
 Event identity is the existing server-stamped goal/event identifier. The v2
 generator request does not accept a free-text event identity or source label.
 
-Planning duration is a confirmed integer minute range with `minimum < maximum`.
-It is the range the athlete wants Praxys to use for planning context. It is not
-a finish-time prediction, forecast, feasibility verdict, or performance
-promise.
+Distance is an integer from `1` through `49999` meters. This upper limit is a
+reversible Product v2 non-ultra scope guardrail, not a scientific definition of
+ultra distance. Total ascent and total descent are separate integers from `0`
+through `20000` meters. Their bounds are structural/domain validation limits,
+not safety, difficulty, equivalence, or training-dose claims.
+
+Planning duration is a confirmed integer minute range whose minimum and
+maximum are each from `1` through `1440`, with `minimum < maximum`. It is the
+range the athlete wants Praxys to use for planning context. It is not a
+finish-time prediction, forecast, feasibility verdict, or performance promise.
 
 Event format, distance family, and performance intent remain closed enums.
 Unsupported ultra/multiday scope or population/intent produces the appropriate
@@ -339,13 +418,15 @@ footing. `C` must be a subset of `A`; otherwise readiness includes
 
 ### Hazard gates
 
-`hands_assist` and `fixed_rope` are separate tri-state values: `yes`, `no`, or
-`unknown`.
+`hands_assist` and `fixed_rope` each use the strict known/unknown request
+envelope. A known value is a strict boolean. The UI may present the three
+choices Yes, No, and Not sure, but it serializes them only as known `true`,
+known `false`, or unknown.
 
-- `unknown` requires clarification and cannot be reduced to ordinary footing;
-- `yes` is outside v2 and yields
+- unknown requires clarification and cannot be reduced to ordinary footing;
+- known `true` is outside v2 and yields
   `policy_unavailable.technical_features_outside_v2`; and
-- both must be confirmed `no` for `eligible_proposal`.
+- both must be confirmed known `false` for `eligible_proposal`.
 
 These gates are not technical-difficulty ratings and do not authorize a
 diagnosis, skill assessment, or training dose.
@@ -407,24 +488,39 @@ fueling quantity follows from a known value.
 
 Core constraints are:
 
-- explicit available weekdays as a unique set of ISO weekday integers `1..7`
-  (`1` Monday, `7` Sunday);
-- a strict boolean stating whether a nontechnical continuous three-minute
-  uphill is accessible;
-- a strict boolean stating whether controlled downhill terrain is accessible,
-  with no duration estimate requested or implied;
+- `available_weekdays`, known as a non-empty unique set of ISO weekday integers
+  `1..7` (`1` Monday, `7` Sunday);
+- `weekly_time_limit_min`, known as an integer from `1` through `10080`;
+- `maximum_session_duration_min`, known as an integer from `1` through `1440`
+  and not greater than `weekly_time_limit_min`;
+- `unavailable_dates`, known as a sorted unique set of at most `14` ISO dates,
+  all inside the requested 14-day horizon; an empty set is valid;
+- optional `preferred_longest_weekday`; omission means no preference, and a
+  supplied ISO weekday must appear in `available_weekdays`;
+- `nontechnical_three_minute_uphill_access`, known as a strict boolean;
+- `controlled_downhill_access`, known as a strict boolean, with no duration
+  estimate requested or implied;
 - accessible footing as the same six-value unordered set used by the course;
 - current adult/non-clinical scope and performance-intent confirmations; and
 - the current symptom-stop response required by the accepted Science boundary.
 
-Absent schedule input produces clarification. The planning-duration range is
-owned by the confirmed course revision above. A complete schedule that cannot
-fit the accepted envelope produces
-`readiness_blocked.no_schedule_within_envelope`. A missing or false uphill or
-downhill access boolean produces
-`readiness_blocked.insufficient_terrain_access`; it never triggers a flat-road
+Any missing or unknown required schedule field produces
+`clarification_required.training_constraints_missing`. Field values outside
+the Product/domain bounds above fail validation. A preferred weekday outside
+the available set is contradictory input. The planning-duration range is owned
+by the confirmed course revision above. A complete valid schedule that cannot
+fit unavailable dates, accepted history caps, or policy spacing produces
+`readiness_blocked.no_schedule_within_envelope`. An unknown uphill or downhill
+access boolean requires clarification; a known `false` value produces
+`readiness_blocked.insufficient_terrain_access`. Neither triggers a flat-road
 replacement. If course footing is known, missing required footing from the
 access set produces the same terrain-access block.
+
+An explicit request or proposal edit above the server-derived history envelope
+produces
+`clarification_required.training_constraints_outside_history_envelope`. A
+larger capacity limit by itself is not a request to increase load and never
+raises the accepted history cap.
 
 The downhill boolean intentionally has no minutes, distance, slope, speed, or
 maximum-repeat field. Product does not turn “access exists” into a safe dose.
@@ -465,7 +561,8 @@ The following are always core and cannot be converted into a module limit:
 - confirmed planning-duration range;
 - supported population, format, distance family, and intent;
 - current symptom-stop response;
-- available schedule and accepted time/session envelope;
+- known available weekdays, weekly time, maximum session, unavailable dates,
+  preferred-day consistency, and the accepted history envelope;
 - nontechnical three-minute uphill access and controlled-downhill access;
 - recent running, ascent, and descent history;
 - `hands_assist` and `fixed_rope`; and
@@ -496,30 +593,79 @@ The v2 planning contract does not collect or persist:
 
 The current goal must remain user-controllable in the Praxys UI:
 
-- **Reset:** reset the current v2 course/constraint draft to explicit unknowns,
-  invalidate its confirmation, and create a new revision. Reset does not
-  rewrite source activities.
-- **Export:** include the current goal, canonical entered values, server-stamped
-  provenance, revisions, confirmations, readiness status, all matching
-  reasons, limited modules, and any proposal/adoption records already covered
-  by the account export contract.
-- **Deletion:** remove the current goal's v2 drafts, confirmations, derived
-  readiness snapshots, and proposal linkage under the accepted account/goal
-  deletion contract. Failures remain visible and retryable according to Trust
-  policy; Product does not define storage mechanics here.
+Before a proposal, Praxys retains only the current mutable unproposed v2 draft.
+A successful save atomically overwrites its previous values, current revisions,
+and invalidated confirmations. It creates no immutable edit history,
+confirmation event stream, standalone readiness snapshot, or value telemetry.
+Immutable retention begins only when proposal creation atomically writes its
+exact goal snapshot, proposal, and minimized policy audit.
 
-Reset, export, and deletion are authenticated, owner-scoped actions. This
-amendment does not create public sharing, course catalogs sourced from user
-data, cross-user aggregates, or administrator access to planning content.
+- **Reset:** replace the current editable v2 values with explicit unknowns,
+  invalidate current confirmations, and issue new current revisions. Reset is
+  not erasure: it does not rewrite source activities or remove retained
+  immutable proposal snapshots and audits. The Praxys UI must state this
+  distinction.
+- **Export:** include the complete current draft, canonical values and unknowns,
+  server-stamped provenance and source metadata, revisions, confirmations, and
+  every retained immutable goal/proposal snapshot, policy audit, readiness
+  receipt, matching reason, module-availability result, and redundant limited
+  module projection covered by the account export contract.
+- **Deletion:** goal deletion and account deletion remove the current v2
+  namespace and every retained owned snapshot, proposal linkage, audit, index,
+  and cache under the accepted deletion contract. Unknown schema versions have
+  the same export and deletion rights. Failure rolls back or uses the
+  repository's explicit durable cleanup-pending behavior; it never reports
+  completion while known owned data remains.
+
+Reset, export, and deletion follow the Trust decision's first-party,
+authenticated, non-demo owner boundary. This amendment creates no public
+sharing, user-sourced course catalog, cross-user aggregate, MCP surface, or
+administrator Trail surface.
+
+## Actor, navigation, and compatibility boundaries
+
+This amendment adopts by reference the exact owner-isolation, data-free URL,
+and zero-I/O Garmin constraints in the proposed Trail v2 Architecture and
+Trust decisions.
+
+Every Trail read, save, reset, confirmation, readiness, proposal creation/read,
+adoption-related read, export, goal deletion, and compatibility-summary
+operation derives authority only from the active first-party authenticated,
+non-demo owner. Missing and cross-owner objects return the same repository
+private `404`. A demo viewer is rejected before demo-source resolution. No
+Trail operation accepts an owner/actor ID, MCP grant, administrator identity,
+support identity, or client hiding as authority. Existing whole-account
+administration may perform its already-authorized cascade without exposing
+Trail content; it is not a Trail read/write surface.
+
+URL paths, query strings, fragments, browser history, navigation state, deep
+links, analytics, logs, and referrers may carry only closed route, section,
+field, or reason-target keys. They carry no entered value, unknown state, date,
+event/goal/proposal/owner/provider ID, revision, digest, serialized DTO, token,
+or source metadata. The authenticated page fetches current state from the
+server.
+
+Only after an adopted canonical plan exists may the future inactive slice
+compute a Garmin compatibility summary. It is a pure, deterministic, no-write
+projection over stored canonical workouts and a versioned internal matrix. It
+may report only internal `unverified` or `blocked` compatibility and closed
+per-workout reasons; it cannot claim actual account, device, firmware, region,
+or provider support.
+
+The projection performs zero credential/tokenstore loads, adapter or network
+calls, provider reads/writes, identifier access, discovery, consent/ledger
+access, persistence, scheduling, send, retry, replace, reconcile, or delete.
+Live provider compatibility and every form of Garmin delivery remain outside
+v2 and require a new reviewed decision.
 
 ## Product promise and scenarios
 
 ### Product promise
 
 Inside Praxys, the owner can see one stable readiness status, every applicable
-reason, and every omitted module before deciding whether to review a bounded
-proposal. Praxys never makes a missing value look known and never substitutes
-a road plan.
+reason, and the authoritative availability of every module before deciding
+whether to review a bounded proposal. Praxys never makes a missing value look
+known and never substitutes a road plan.
 
 Design owns how this appears in the UI and must preserve the accepted
 Experience Specification's distinction between goal, readiness, proposal,
@@ -528,10 +674,11 @@ component, layout, color, or copy string.
 
 ### Representative scenarios
 
-- **Core complete, grade unknown:** return `eligible_proposal`, include
-  `grade_specificity`, and omit grade-specific behavior.
-- **Core complete, footing unknown:** return `eligible_proposal`, include
-  `technical_terrain`, and do not infer an easy surface.
+- **Core complete, grade unknown:** return `eligible_proposal`, set
+  `grade_specificity` to `limited`, and omit grade-specific behavior from a
+  later proposal.
+- **Core complete, footing unknown:** return `eligible_proposal`, set
+  `technical_terrain` to `limited`, and do not infer an easy surface.
 - **Known rocky course, no rocky access:** include
   `readiness_blocked.insufficient_terrain_access`; preserve every other
   matching reason.
@@ -543,27 +690,32 @@ component, layout, color, or copy string.
   `technical_features_outside_v2`.
 - **Policy inactive and recent descent absent:** top-level status is
   `policy_unavailable`, primary detail is `policy_inactive`, and the complete
-  reason receipt also preserves `insufficient_descent_history`.
+  reason receipt also preserves `insufficient_descent_history`; affected
+  modules are `not_evaluated` rather than “included.”
 - **Malformed grade total plus inactive policy:** top-level status is
   `validation_failed`; the receipt still preserves the policy reason if the
   request can be safely classified without interpreting the malformed value.
 - **Course environment unknown:** permit eligibility only if core gates pass,
-  include `environment_altitude`, and show no environment-specific dose.
+  set `environment_altitude` to `limited`, and show no environment-specific
+  dose.
 - **Fueling or aid context unknown:** permit eligibility only if core gates
-  pass, include `fueling`, and prescribe no quantity.
+  pass, set `fueling` to `limited`, and prescribe no quantity.
 
 ## Non-goals
 
 - Changing the accepted 14-day proposal, seven-day reassessment, history, load,
   workout-template, taper, or intensity Science parameters.
+- Hiking, strength, or taper input/dose modules; all three remain disabled
+  pending a separately accepted input and Science contract.
 - Declaring grade, footing, support, environment, or gastrointestinal values a
   safety score or performance predictor.
 - Finish-time prediction, personal finish probability, diagnosis, clearance,
   rehabilitation, or treatment advice.
 - Ultra, multiday, first-completion, pediatric, clinical, return-to-sport, or
   unsupported-intent planning.
-- Route ingestion, route search, course scraping, provider data import, Garmin
-  workout mapping, provider consent, or delivery.
+- Route ingestion, route search, course scraping, provider data import, live
+  Garmin compatibility, workout mapping, provider consent, or delivery. The
+  data-free pure internal summary above is the only v2 compatibility surface.
 - Automatic adoption, invitation, promotion, catalog exposure, owner pilot,
   deployment, activation, or production use.
 - Value analytics, behavioral telemetry, experimentation, cross-user
@@ -578,9 +730,10 @@ human comprehension, not adoption or retention metrics.
 ### Success measures
 
 - Every valid test fixture produces one of the five statuses and only cataloged
-  reason/module values.
+  reason/module values, with all four authoritative module states present.
 - Reordered inputs, sets, and independent evaluator paths produce the same
-  canonical status, reason order, limited-module order, and replay digest.
+  canonical status, reason order, module availability, redundant
+  limited-module order, and replay digest.
 - Every matching reason remains available in the response while one stable
   status and primary detail provide the next action.
 - Core unknowns and failed gates never yield `eligible_proposal`; non-core
@@ -600,11 +753,17 @@ The tolerated count is zero for:
 - non-catalog status, detail, module, footing, or enum values;
 - stale confirmation or source-revision acceptance;
 - grade shares not summing to `10000` or boundary misclassification;
+- schedule, planning-duration, distance, ascent, or descent domain-bound
+  escape;
 - athlete-provided recent-history aggregates or client-selected provenance;
 - GPS, route, URL, provider-payload, diagnosis, free-text planning, or value
   telemetry collection;
-- use of activity `avg_power`, road fallback, lossy Trail relabeling, automatic
-  adoption, or provider delivery; and
+- Trail state or authority in navigation, demo, MCP, administrator, support,
+  or cross-owner surfaces;
+- any Garmin credential, adapter, provider, consent, delivery-ledger, or
+  network I/O;
+- use of activity `avg_power`, road fallback, lossy Trail relabeling,
+  automatic adoption, or provider delivery; and
 - any visibility or activation beyond a separately authorized runtime change.
 
 ### Falsification conditions
@@ -636,7 +795,8 @@ establish efficacy, safety, or general demand.
 - **Trust** owns data minimization, authorization, retention, reset/export/
   deletion enforcement, and sensitive-data handling.
 - **Design** owns the complete Praxys UI journey, content, accessibility, and
-  rendered distinction among status, reasons, and limited modules.
+  rendered distinction among status, reasons, module availability, and actual
+  proposal inclusion.
 - **Engineering** may implement only the exact accepted inactive slice.
 - **Quality** independently verifies the exact head and all status/reason,
   data-rights, privacy, and fail-closed scenarios.
