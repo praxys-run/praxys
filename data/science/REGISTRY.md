@@ -55,7 +55,10 @@ _None._
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-non-ultra-trail-plan-generation-policy-v2](decisions/sdr-non-ultra-trail-plan-generation-policy-v2.yaml) — Bind the non-ultra Trail policy to the strict v2 readiness receipt | 2 | non-ultra-trail-plan-generation-policy-v2 | 2026-09-04 |
+| [sdr-trail-running-goal-ontology-v2](decisions/sdr-trail-running-goal-ontology-v2.yaml) — Define the strict v2 Trail course-demand and constraint envelope | 2 | trail-course-demand-v2 | 2026-09-04 |
 
 ## Superseded
 

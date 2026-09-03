@@ -1,0 +1,773 @@
+{
+  "affected_models": [
+    "trail_course_demand_v2 ontology",
+    "non_ultra_trail_constraints_v2 input and confirmation envelope",
+    "future v2 Trail capability matching contract"
+  ],
+  "contract_digest": "sha256:12c107e9d19f6c5e7204f09ef680ab5c4517a4f9385179d72822630a61df1c96",
+  "decision_id": "sdr-trail-running-goal-ontology-v2",
+  "decision_status": "draft",
+  "decision_version": 2,
+  "evidence_claim_ids": [
+    "trail-ontology.course-demand-is-multidimensional",
+    "trail-ontology.uphill-downhill-demands-differ",
+    "trail-ontology.technicality-and-downhill-vary-performance",
+    "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone",
+    "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose",
+    "trail-ontology.environment-and-altitude-are-distinct-context",
+    "trail-ontology.duration-and-fueling-practice-are-context"
+  ],
+  "evidence_review_ids": [
+    "evidence-trail-running-goal-ontology-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-trail-running-goal-ontology-v1": "sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a"
+  },
+  "model_version": "trail-course-demand-v2",
+  "parameters": {
+    "trail_course_demand_schema": {
+      "applies_to": "trail_course_demand_v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional",
+        "trail-ontology.uphill-downhill-demands-differ"
+      ],
+      "value": {
+        "event_identity": {
+          "client_writable": false,
+          "field": "event_id",
+          "materiality": "core",
+          "type": "server_owned_identifier"
+        },
+        "fields": {
+          "aid_and_support": {
+            "envelope": "known_or_unknown",
+            "limited_module": "fueling",
+            "materiality": "limited",
+            "type": "bounded_object"
+          },
+          "course_footing": {
+            "envelope": "known_or_unknown",
+            "limited_module": "technical_terrain",
+            "materiality": "limited_with_core_matching_when_known",
+            "type": "nonempty_unordered_closed_set"
+          },
+          "distance_family": {
+            "allowed": [
+              "non_ultra"
+            ],
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "closed_enum"
+          },
+          "distance_meters": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "minimum": 1,
+            "type": "integer",
+            "unit": "meters"
+          },
+          "environment_and_altitude": {
+            "envelope": "known_or_unknown",
+            "limited_module": "environment_altitude",
+            "materiality": "limited",
+            "type": "bounded_object"
+          },
+          "event_date": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "iso_date"
+          },
+          "event_format": {
+            "allowed": [
+              "single_day"
+            ],
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "closed_enum"
+          },
+          "fixed_rope": {
+            "allowed": [
+              "yes",
+              "no",
+              "unknown"
+            ],
+            "materiality": "core",
+            "type": "tri_state"
+          },
+          "fueling_and_gastrointestinal_context": {
+            "envelope": "known_or_unknown",
+            "limited_module": "fueling",
+            "materiality": "limited",
+            "type": "bounded_object"
+          },
+          "grade_distribution": {
+            "envelope": "known_or_unknown",
+            "limited_module": "grade_specificity",
+            "materiality": "limited",
+            "type": "five_bucket_basis_point_object"
+          },
+          "hands_assist": {
+            "allowed": [
+              "yes",
+              "no",
+              "unknown"
+            ],
+            "materiality": "core",
+            "type": "tri_state"
+          },
+          "planning_duration_range": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "integer_range",
+            "unit": "minutes"
+          },
+          "planning_intent": {
+            "allowed": [
+              "performance"
+            ],
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "closed_enum"
+          },
+          "total_ascent_m": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "minimum": 0,
+            "type": "integer",
+            "unit": "meters"
+          },
+          "total_descent_m": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "minimum": 0,
+            "type": "integer",
+            "unit": "meters"
+          }
+        },
+        "schema_id": "trail_course_demand_v2",
+        "strict_unknown_fields_rejected": true
+      }
+    },
+    "trail_distinct_demand_invariants": {
+      "applies_to": "v2 course, access, history, and intensity boundaries",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.uphill-downhill-demands-differ",
+        "trail-ontology.technicality-and-downhill-vary-performance",
+        "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone"
+      ],
+      "value": {
+        "activity_average_power_allowed": false,
+        "ascent_and_descent_separate": true,
+        "downhill_history_required_when_descent_material": true,
+        "footing_set_containment": {
+          "access_failure_reason": "readiness_blocked.insufficient_terrain_access",
+          "access_requirement": "C subset_of A",
+          "accessible_set_symbol": "A",
+          "applies_only_when_course_footing_known": true,
+          "course_set_symbol": "C",
+          "history_failure_reason": "readiness_blocked.insufficient_comparable_trail_history",
+          "history_requirement": "C subset_of H",
+          "observed_history_set_symbol": "H",
+          "similarity_synonyms_or_model_inference_allowed": false
+        },
+        "grade_distribution_descriptive_only": true,
+        "heart_rate_alone_sufficient_for_hilly_intensity": false,
+        "level_pace_alone_sufficient_for_hilly_intensity": false,
+        "technicality_score_allowed": false,
+        "universal_distance_vertical_equivalence": false
+      }
+    },
+    "trail_exact_values": {
+      "applies_to": "unresolved ontology and prescription values",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.uphill-downhill-demands-differ",
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "core_and_limited_materiality": "operational_guardrail_only",
+        "distance_vertical_conversion": "not_accepted",
+        "downhill_progression": "not_accepted",
+        "environment_or_altitude_dose": "not_accepted",
+        "finish_time_prediction": "not_accepted",
+        "footing_vocabulary": "descriptive_operational_guardrail_only",
+        "fueling_amount_or_frequency": "not_accepted",
+        "optional_context_bounds": "operational_guardrail_only",
+        "planning_duration_range_shape": "operational_guardrail_only",
+        "road_trail_equivalence": "not_accepted",
+        "route_or_provider_inference": "not_accepted",
+        "signed_grade_buckets": "descriptive_operational_guardrail_only",
+        "technical_terrain_dose": "not_accepted",
+        "technicality_score": "not_accepted",
+        "vertical_progression": "not_accepted"
+      }
+    },
+    "trail_field_provenance": {
+      "applies_to": "every reviewable v2 course, constraint, and history field",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "assumption_requires_revision_bound_confirmation": true,
+        "client_may_submit_history_hash": false,
+        "client_may_submit_model_version": false,
+        "client_may_submit_provenance": false,
+        "client_may_submit_source_revision": false,
+        "client_may_submit_source_timestamp": false,
+        "field_restrictions": {
+          "athlete_assumption_conditions": [
+            "explicit_assumption"
+          ],
+          "event_id": "server_owned",
+          "grade_distribution": [
+            "athlete_stated",
+            "course_verified",
+            "unknown"
+          ],
+          "recent_history": [
+            "history_observed"
+          ]
+        },
+        "inferred_requires_server_model_version": true,
+        "request_envelope": {
+          "arbitrary_object_invalid": true,
+          "empty_string_invalid": true,
+          "guessed_zero_invalid": true,
+          "known": {
+            "exact_keys": [
+              "state",
+              "value"
+            ],
+            "schema_valid_value_required": true,
+            "state_literal": "known"
+          },
+          "missing_state_invalid": true,
+          "null_invalid_except_explicit_aid_gap_case": true,
+          "numeric_values_must_be_finite": true,
+          "sentinel_number_invalid": true,
+          "unknown": {
+            "exact_keys": [
+              "state"
+            ],
+            "state_literal": "unknown",
+            "value_forbidden": true
+          }
+        },
+        "server_stamped_provenance_allowed": [
+          "athlete_stated",
+          "course_verified",
+          "history_observed",
+          "model_inferred",
+          "explicit_assumption",
+          "unknown"
+        ],
+        "unknown_is_preserved": true
+      }
+    },
+    "trail_footing_and_hazard_contract": {
+      "applies_to": "course, access, and observed-history footing plus v2 hazard gates",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.technicality-and-downhill-vary-performance",
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "hazard_gates": {
+          "fixed_rope": {
+            "allowed": [
+              "yes",
+              "no",
+              "unknown"
+            ],
+            "eligible_value": "no",
+            "unknown_result": "clarification_required",
+            "yes_result": "policy_unavailable.technical_features_outside_v2"
+          },
+          "hands_assist": {
+            "allowed": [
+              "yes",
+              "no",
+              "unknown"
+            ],
+            "eligible_value": "no",
+            "unknown_result": "clarification_required",
+            "yes_result": "policy_unavailable.technical_features_outside_v2"
+          },
+          "reducible_to_ordinary_footing": false,
+          "technical_skill_or_safety_score": false
+        },
+        "ordinary_footing": {
+          "allowed": [
+            "firm_smooth",
+            "loose_gravel",
+            "mud",
+            "rocks_or_roots",
+            "built_steps",
+            "water_crossing"
+          ],
+          "difficulty_score": false,
+          "duplicates_invalid": true,
+          "free_text_allowed": false,
+          "other_value_allowed": false,
+          "type": "nonempty_unordered_set",
+          "unknown_members_invalid": true
+        }
+      }
+    },
+    "trail_grade_distribution": {
+      "applies_to": "known grade_distribution in trail_course_demand_v2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.uphill-downhill-demands-differ"
+      ],
+      "value": {
+        "allowed_provenance": [
+          "athlete_stated",
+          "course_verified"
+        ],
+        "buckets": {
+          "below_neg_10": {
+            "interval": "g < -10%",
+            "upper_bound_percent": -10,
+            "upper_inclusive": false
+          },
+          "neg_10_to_below_neg_3": {
+            "interval": "-10% <= g < -3%",
+            "lower_bound_percent": -10,
+            "lower_inclusive": true,
+            "upper_bound_percent": -3,
+            "upper_inclusive": false
+          },
+          "neg_3_to_below_pos_3": {
+            "interval": "-3% <= g < 3%",
+            "lower_bound_percent": -3,
+            "lower_inclusive": true,
+            "upper_bound_percent": 3,
+            "upper_inclusive": false
+          },
+          "pos_10_and_above": {
+            "interval": "g >= 10%",
+            "lower_bound_percent": 10,
+            "lower_inclusive": true
+          },
+          "pos_3_to_below_pos_10": {
+            "interval": "3% <= g < 10%",
+            "lower_bound_percent": 3,
+            "lower_inclusive": true,
+            "upper_bound_percent": 10,
+            "upper_inclusive": false
+          }
+        },
+        "descriptive_only": true,
+        "difficulty_score": false,
+        "each_share_minimum": 0,
+        "each_share_type": "integer",
+        "equivalence_or_prediction_input": false,
+        "exact_sum": 10000,
+        "known_value_exact_keys": [
+          "below_neg_10",
+          "neg_10_to_below_neg_3",
+          "neg_3_to_below_pos_3",
+          "pos_3_to_below_pos_10",
+          "pos_10_and_above"
+        ],
+        "ordering_semantic": false,
+        "route_or_model_inference": false,
+        "safety_threshold": false,
+        "unit": "basis_points_of_course_distance",
+        "workout_dose_input": false
+      }
+    },
+    "trail_non_science_authority_boundary": {
+      "applies_to": "all work outside the Science role",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "deployment": "not_accepted",
+        "implementation_review": "required",
+        "lifecycle_supersession": "not_accepted",
+        "owner_only_dogfood": "not_accepted",
+        "product_and_experience_dependency": "human_acceptance_required",
+        "product_visibility_or_catalog": "not_accepted",
+        "production_data_use": "not_accepted",
+        "provider_mapping_or_delivery": "not_accepted",
+        "runtime_activation": "not_accepted",
+        "science_authority": [
+          "evidence",
+          "applicability",
+          "uncertainty",
+          "claim_limits",
+          "safety_scope"
+        ]
+      }
+    },
+    "trail_optional_context_shapes": {
+      "applies_to": "optional v2 course context only",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.environment-and-altitude-are-distinct-context",
+        "trail-ontology.duration-and-fueling-practice-are-context"
+      ],
+      "value": {
+        "aid_and_support": {
+          "aid_station_count": {
+            "maximum": 50,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "aid_support_mode": {
+            "known_allowed": [
+              "organized_aid",
+              "mixed",
+              "self_supported"
+            ]
+          },
+          "food_availability": {
+            "known_allowed": [
+              "none",
+              "some_stations",
+              "all_stations"
+            ],
+            "unknown_uses_field_envelope": true
+          },
+          "mandatory_gear": {
+            "allowed": [
+              "water_carry",
+              "food_carry",
+              "weather_shell",
+              "lighting",
+              "navigation_device",
+              "other_required"
+            ],
+            "other_required_has_no_label_or_free_text": true,
+            "type": "unordered_closed_set"
+          },
+          "max_aid_station_gap_km": {
+            "maximum": 50,
+            "minimum": 0.1,
+            "null_allowed_only_for": "no_applicable_gap",
+            "type": "finite_number"
+          },
+          "water_availability": {
+            "known_allowed": [
+              "none",
+              "some_stations",
+              "all_stations"
+            ],
+            "unknown_uses_field_envelope": true
+          }
+        },
+        "environment_and_altitude": {
+          "conditions_basis": {
+            "athlete_assumption_provenance": "explicit_assumption",
+            "athlete_assumption_requires_confirmation": true,
+            "known_allowed": [
+              "organizer_information",
+              "seasonal_expectation",
+              "athlete_assumption"
+            ]
+          },
+          "humidity_range_pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "minimum_may_equal_maximum": true,
+            "type": "finite_number_range"
+          },
+          "maximum_altitude_m": {
+            "maximum": 9000,
+            "minimum": -500,
+            "type": "integer"
+          },
+          "sun_exposure": {
+            "known_allowed": [
+              "low",
+              "mixed",
+              "high"
+            ],
+            "unknown_uses_field_envelope": true
+          },
+          "temperature_range_c": {
+            "maximum": 55,
+            "minimum": -30,
+            "minimum_may_equal_maximum": true,
+            "type": "finite_number_range"
+          },
+          "wind_exposure": {
+            "known_allowed": [
+              "sheltered",
+              "mixed",
+              "exposed"
+            ],
+            "unknown_uses_field_envelope": true
+          }
+        },
+        "fixed_prescription_from_known_context": false,
+        "fueling_and_gastrointestinal_context": {
+          "gastrointestinal_experience": {
+            "known_allowed": [
+              "no_plan_altering_issue",
+              "plan_altering_issue"
+            ],
+            "non_diagnostic": true,
+            "unknown_uses_field_envelope": true
+          },
+          "intake_form": {
+            "known_allowed": [
+              "none",
+              "fluids_only",
+              "carbohydrate_drink",
+              "mixed_food_and_drink"
+            ]
+          },
+          "longest_practiced_duration_min": {
+            "maximum": 1440,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "practice_sessions_last_42_days": {
+            "maximum": 84,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false
+      }
+    },
+    "trail_planning_duration_range": {
+      "applies_to": "trail_course_demand_v2 core confirmation",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.duration-and-fueling-practice-are-context"
+      ],
+      "value": {
+        "athlete_confirmed": true,
+        "feasibility_verdict": false,
+        "field": "planning_duration_range",
+        "finish_time_prediction": false,
+        "minimum_strictly_less_than_maximum": true,
+        "minimum_value": 1,
+        "performance_promise": false,
+        "purpose": "planning_context",
+        "unit": "integer_minutes"
+      }
+    },
+    "trail_revision_and_confirmation": {
+      "applies_to": "every v2 mutation, readiness receipt, and later proposal",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "confirm_all_allowed": false,
+        "confirmation_invalidated_by": [
+          "value_change",
+          "known_unknown_state_change",
+          "server_stamped_source_change",
+          "source_revision_change"
+        ],
+        "confirmation_is_truth_safety_or_eligibility_attestation": false,
+        "confirmation_scope": "exact_visible_field_or_section_revision",
+        "mutation_creates_new_immutable_revision": true,
+        "proposal_binds_same_exact_revisions": true,
+        "readiness_binds_exact_revisions": [
+          "goal",
+          "course",
+          "constraints",
+          "history_snapshot",
+          "policy",
+          "generator"
+        ],
+        "stale_confirmation_rebound_allowed": false,
+        "stale_source_revision_rebound_allowed": false
+      }
+    },
+    "trail_science_safety_and_privacy_boundary": {
+      "applies_to": "all v2 science, storage, API, client, audit, and deletion surfaces",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone",
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "activity_average_power_valid_for_intensity": false,
+        "authenticated_owner_scoped_reset_export_and_deletion_required": true,
+        "diagnosis_treatment_clearance_or_return_to_sport": false,
+        "forbidden_collection_or_persistence": [
+          "gps_points",
+          "route_files",
+          "polylines",
+          "maps",
+          "inferred_course_geometry",
+          "course_source_urls",
+          "scraped_course_content",
+          "provider_request_or_response_payloads",
+          "provider_account_activity_or_workout_ids",
+          "device_identifiers",
+          "free_text_health_symptom_fueling_surface_or_course_narratives",
+          "diagnoses_or_medical_clearance",
+          "injury_probability",
+          "activity_average_power",
+          "road_equivalent_distance_pace_or_load"
+        ],
+        "generic_audit_or_telemetry_may_copy_sensitive_payloads": false,
+        "inferred_and_athlete_stated_fields_correctable_and_deletable": true,
+        "minimum_age_years": 18,
+        "minimum_normalized_storage_only": true,
+        "nonclinical_only": true,
+        "performance_injury_or_safety_guarantee": false,
+        "permitted_persisted_categories": [
+          "canonical_field_values_and_unknown_states",
+          "server_stamped_provenance",
+          "source_and_field_or_section_revisions",
+          "confirmations",
+          "owner_scoped_history_snapshot_reference_and_hash",
+          "readiness_and_proposal_binding_digests"
+        ],
+        "personal_finish_probability": false,
+        "suggestion_only": true,
+        "symptom_stop_required": true,
+        "valid_intensity_sources": [
+          "activity_splits",
+          "activity_samples"
+        ]
+      }
+    },
+    "trail_training_constraints_schema": {
+      "applies_to": "non_ultra_trail_constraints_v2 and owner-scoped readiness",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional",
+        "trail-ontology.uphill-downhill-demands-differ",
+        "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose"
+      ],
+      "value": {
+        "client_may_submit_or_attest_history": false,
+        "client_reviewable_fields": {
+          "accessible_footing": {
+            "envelope": "known_or_unknown",
+            "materiality": "core_when_course_footing_known",
+            "missing_required_member_result": "readiness_blocked.insufficient_terrain_access",
+            "type": "nonempty_unordered_closed_set",
+            "vocabulary": "trail_footing_and_hazard_contract.ordinary_footing.allowed"
+          },
+          "adult_nonclinical_scope_confirmed": {
+            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "materiality": "core",
+            "required_value_for_eligibility": true,
+            "type": "strict_boolean"
+          },
+          "available_weekdays": {
+            "allowed_iso_weekdays": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "type": "unique_unordered_set",
+            "unknown_result": "clarification_required.training_constraints_missing"
+          },
+          "controlled_downhill_terrain_accessible": {
+            "duration_distance_grade_speed_or_repeat_fields_allowed": false,
+            "envelope": "known_or_unknown",
+            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+            "materiality": "core",
+            "type": "strict_boolean"
+          },
+          "current_symptom_stop": {
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+            "stop_value": true,
+            "true_result": "readiness_blocked.current_symptom_stop",
+            "type": "tri_state_boolean",
+            "unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed"
+          },
+          "nontechnical_continuous_three_minute_uphill_accessible": {
+            "envelope": "known_or_unknown",
+            "false_or_unknown_result": "readiness_blocked.insufficient_terrain_access",
+            "materiality": "core",
+            "type": "strict_boolean"
+          },
+          "performance_intent_confirmed": {
+            "false_or_unknown_result": "clarification_required.adult_scope_or_constraints_unconfirmed",
+            "materiality": "core",
+            "required_value_for_eligibility": true,
+            "type": "strict_boolean"
+          }
+        },
+        "history_provenance": "history_observed",
+        "schema_id": "non_ultra_trail_constraints_v2",
+        "server_derived_history_fields": [
+          "recent_running_continuity",
+          "recent_ascent_exposure",
+          "recent_descent_exposure",
+          "recently_observed_footing"
+        ]
+      }
+    },
+    "trail_unknown_and_materiality_policy": {
+      "applies_to": "v2 capability matching and readiness receipts",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional",
+        "trail-ontology.technicality-and-downhill-vary-performance"
+      ],
+      "value": {
+        "bounded_alternative_requires_separate_review": true,
+        "core_fields": [
+          "event_id",
+          "event_date",
+          "distance_meters",
+          "total_ascent_m",
+          "total_descent_m",
+          "planning_duration_range",
+          "event_format",
+          "distance_family",
+          "planning_intent",
+          "hands_assist",
+          "fixed_rope",
+          "adult_nonclinical_scope_confirmed",
+          "performance_intent_confirmed",
+          "current_symptom_stop",
+          "available_weekdays",
+          "nontechnical_continuous_three_minute_uphill_accessible",
+          "controlled_downhill_terrain_accessible",
+          "accessible_footing_when_course_footing_known",
+          "recent_running_continuity",
+          "recent_ascent_exposure",
+          "recent_descent_exposure",
+          "recently_observed_footing_when_course_footing_known"
+        ],
+        "known_value_automatically_enables_module": false,
+        "limited_module_may_substitute_generic_or_road_behavior": false,
+        "limited_modules_sorted_allowed": [
+          "environment_altitude",
+          "fueling",
+          "grade_specificity",
+          "technical_terrain"
+        ],
+        "limited_unknown_mapping": {
+          "aid_and_support": "fueling",
+          "course_footing": "technical_terrain",
+          "environment_and_altitude": "environment_altitude",
+          "fueling_and_gastrointestinal_context": "fueling",
+          "grade_distribution": "grade_specificity"
+        },
+        "material_unknown_result": [
+          "clarification_required",
+          "policy_unavailable"
+        ],
+        "unknown_defaults_to_easy": false,
+        "unknown_defaults_to_nontechnical": false,
+        "unknown_defaults_to_road": false,
+        "unknown_defaults_to_zero": false
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:ba9e6a4fff48ab0138bb1d00cbe1bdccbefcaebbdcdc30d87fbb57652e66659b"
+}

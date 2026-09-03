@@ -87,7 +87,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-road-half-marathon-plan-generation-policy-v1",
         "sdr-road-marathon-plan-generation-policy-v1",
         "sdr-trail-running-goal-ontology-v1",
+        "sdr-trail-running-goal-ontology-v2",
         "sdr-non-ultra-trail-plan-generation-policy-v1",
+        "sdr-non-ultra-trail-plan-generation-policy-v2",
     }
 
     trail_ontology_review = registry.evidence_reviews[
@@ -124,6 +126,91 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert trail_ontology_decision.model_parameters[0].value[
         "schema_id"
     ] == "trail_course_demand_v1"
+
+    trail_ontology_v2 = registry.decisions[
+        "sdr-trail-running-goal-ontology-v2"
+    ]
+    trail_policy_v2 = registry.decisions[
+        "sdr-non-ultra-trail-plan-generation-policy-v2"
+    ]
+    for decision in (trail_ontology_v2, trail_policy_v2):
+        assert decision.status == RecordStatus.DRAFT
+        assert decision.approval_mode == ApprovalMode.ARTIFACT
+        assert decision.artifact_policy is not None
+        assert (
+            decision.artifact_policy.runtime_state
+            == ArtifactRuntimeState.INACTIVE
+        )
+        assert decision.human_reviewers == []
+        assert decision.supersedes == []
+        assert decision.superseded_by is None
+        assert decision.decision_review is not None
+        assert len(decision.decision_review.items) == 6
+        assert "inactive implementation" in (
+            decision.decision_review.approval_statement
+        )
+        assert "runtime activation" in (
+            decision.decision_review.approval_statement
+        )
+
+    ontology_v2_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_ontology_v2.model_parameters
+    }
+    assert ontology_v2_parameters["trail_course_demand_schema"][
+        "schema_id"
+    ] == "trail_course_demand_v2"
+    assert ontology_v2_parameters["trail_training_constraints_schema"][
+        "schema_id"
+    ] == "non_ultra_trail_constraints_v2"
+    assert ontology_v2_parameters["trail_grade_distribution"][
+        "exact_sum"
+    ] == 10000
+    assert ontology_v2_parameters["trail_footing_and_hazard_contract"][
+        "ordinary_footing"
+    ]["allowed"] == [
+        "firm_smooth",
+        "loose_gravel",
+        "mud",
+        "rocks_or_roots",
+        "built_steps",
+        "water_crossing",
+    ]
+
+    policy_v1_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_policy_decision.model_parameters
+    }
+    policy_v2_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_policy_v2.model_parameters
+    }
+    assert set(policy_v2_parameters) == set(policy_v1_parameters)
+    changed_policy_groups = {
+        name
+        for name in policy_v1_parameters
+        if policy_v1_parameters[name] != policy_v2_parameters[name]
+    }
+    assert changed_policy_groups == {
+        "trail_policy_scope_and_dependencies",
+        "trail_policy_required_inputs",
+        "trail_policy_typed_outcomes",
+        "trail_policy_non_science_authority",
+    }
+    outcomes = policy_v2_parameters["trail_policy_typed_outcomes"]
+    assert outcomes["status_precedence"] == [
+        "validation_failed",
+        "policy_unavailable",
+        "readiness_blocked",
+        "clarification_required",
+        "eligible_proposal",
+    ]
+    assert outcomes["limited_modules"]["allowed_sorted_order"] == [
+        "environment_altitude",
+        "fueling",
+        "grade_specificity",
+        "technical_terrain",
+    ]
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ].status == "accepted"
