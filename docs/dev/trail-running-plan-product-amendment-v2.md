@@ -80,10 +80,12 @@ owner found the Product and Experience documents easier to review than the
 machine-oriented Science packets. That is a usability signal for the review
 contract, not evidence that the proposed training policy is effective.
 
-The current inactive implementation exposes v1 inputs and collapses many
-different facts into a single result/detail pair. It can therefore hide
-simultaneous next actions and can make a non-core missing value look equivalent
-to a core readiness stop.
+The accepted v1 contracts and pure generation core have incomplete input and
+result semantics: they collapse many different facts into a single
+result/detail pair. No Trail API or UI exposes those inputs, and the runtime
+remains unreachable. The incomplete pure-core semantics can still hide
+simultaneous next actions and make a non-core missing value look equivalent to
+a core readiness stop if carried forward unchanged.
 
 No broader demand, adoption rate, safety outcome, or efficacy signal is
 claimed. No product-value telemetry exists for this proposed behavior.
@@ -230,25 +232,43 @@ Every reviewable input uses one of two shapes:
 ```
 
 `known` requires exactly one schema-valid value. `unknown` carries no value.
-Missing state, `null`, empty string, sentinel numbers, guessed zero, `other`,
-and client-provided arbitrary objects are invalid. The server response may add
+Missing state, empty string, sentinel numbers, guessed zero, `other`, and
+client-provided arbitrary objects are invalid. `null` is invalid except for
+the single explicit aid-station-gap case below. The server response may add
 provenance and revision metadata, but clients cannot submit or overwrite those
 fields.
 
+Every numeric value must be finite before domain validation. Architecture and
+Engineering must impose and verify an overall serialized-payload bound,
+nesting bound, and collection-length bounds; Product does not invent those
+implementation limits here.
+
 ### Provenance and revision fence
 
-The server stamps provenance from the authenticated write path. The client may
-submit a value but may not label itself `course_entered`, `history_observed`,
-or otherwise choose a more authoritative source. Grade distribution accepts
-only server-stamped `athlete_entered` or `course_entered` provenance. It is
-never inferred from a route, model, activity trace, or provider payload in v2.
+The client submits only a typed value or explicit unknown state plus an
+explicit confirmation action. It never submits provenance, source revision,
+model identity, timestamp, or history hash. The server stamps every response
+field with exactly one canonical v1 provenance value:
 
-Each mutation creates a new immutable course/constraint revision. Confirmation
-names the exact revision being confirmed. Any value, state, or server-stamped
-provenance change invalidates the previous confirmation. Readiness and a later
-proposal bind the exact goal, course, constraint, history-snapshot, policy, and
-generator revisions; a stale confirmation or source revision cannot be
-silently rebound.
+- `athlete_stated`;
+- `course_verified`;
+- `history_observed`;
+- `model_inferred`;
+- `explicit_assumption`; or
+- `unknown`.
+
+The server also owns any source revision, source-model version, source
+timestamp, and owner-scoped history hash. Provider identifiers are neither
+provenance nor permitted metadata. Grade distribution accepts only
+server-stamped `athlete_stated` or `course_verified` provenance. It is never
+inferred from a route, model, activity trace, or provider payload in v2.
+
+Each mutation creates a new immutable course/constraint field or section
+revision. Confirmation names the exact field or section revision being
+confirmed. Any value, state, or server-stamped source change invalidates that
+confirmation. Readiness and a later proposal bind the exact goal, course,
+constraint, history-snapshot, policy, and generator revisions; a stale
+confirmation or source revision cannot be silently rebound.
 
 ## `trail_course_demand_v2`
 
@@ -287,7 +307,7 @@ five integers must sum to `10000`:
 
 These basis points describe the share of distance in each bucket; they are not
 grade values. Boundary values belong only to the bucket shown above. The
-distribution may carry only `athlete_entered` or `course_entered` provenance.
+distribution may carry only `athlete_stated` or `course_verified` provenance.
 It is descriptive and must not be turned into a difficulty score, equivalent
 road distance, finish-time adjustment, workout dose, or safety threshold.
 
@@ -332,26 +352,51 @@ diagnosis, skill assessment, or training dose.
 
 ### Bounded optional context
 
-Optional context uses closed values only and may remain unknown:
+Optional context uses the following closed, bounded shapes and may remain
+unknown.
 
-- maximum altitude: a canonical metric integer from `-500` through `9000`
-  meters;
-- expected temperature band: `below_0_c`, `0_to_below_10_c`,
-  `10_to_below_20_c`, `20_to_below_30_c`, or `30_c_and_above`;
-- expected humidity: `low`, `moderate`, or `high`;
-- wind exposure: `sheltered`, `mixed`, or `exposed`;
-- sun exposure: `low`, `mixed`, or `exposed`;
-- aid/support mode: `self_supported`, `organizer_aid`, or
-  `organizer_aid_and_personal_crew`;
-- aid interval: `none`, `below_5_km`, `5_to_below_10_km`, or
-  `10_km_and_above`;
-- fueling practice: `none`, `some`, or `repeated`; and
-- gastrointestinal experience: `no_issue_reported` or `issue_reported`.
+Environment and altitude:
 
-The gastrointestinal value is a non-diagnostic athlete report. It cannot be
-presented as a condition, clearance, treatment need, or causal explanation.
-These fields accept no notes, labels, URLs, units embedded in strings, or other
-free text. Missing wind or exposure information limits
+- `maximum_altitude_m` is a canonical metric integer from `-500` through
+  `9000` meters;
+- `temperature_min_c` and `temperature_max_c` are finite numbers from `-30`
+  through `55`, with minimum less than or equal to maximum;
+- `humidity_min_pct` and `humidity_max_pct` are finite numbers from `0` through
+  `100`, with minimum less than or equal to maximum;
+- `sun_exposure` is `low`, `mixed`, `high`, or `unknown`;
+- `wind_exposure` is `sheltered`, `mixed`, `exposed`, or `unknown`; and
+- `conditions_basis` is `organizer_information`, `seasonal_expectation`, or
+  `athlete_assumption`. An athlete assumption receives server-stamped
+  `explicit_assumption` provenance and requires revision-bound confirmation.
+
+Aid and support:
+
+- `aid_support_mode` is `organized_aid`, `mixed`, or `self_supported`;
+- `aid_station_count` is an integer from `0` through `50`;
+- `max_aid_station_gap_km` is a finite number from `0.1` through `50`, or
+  `null` when no applicable gap can be represented;
+- `water_availability` and `food_availability` are each `none`,
+  `some_stations`, `all_stations`, or `unknown`; and
+- `mandatory_gear` is an unordered set containing only `water_carry`,
+  `food_carry`, `weather_shell`, `lighting`, `navigation_device`, or
+  `other_required`. `other_required` records only that another organizer
+  requirement exists; it carries no label or free text.
+
+Fueling and gastrointestinal context:
+
+- `longest_practiced_duration_min` is an integer from `0` through `1440`;
+- `practice_sessions_last_42_days` is an integer from `0` through `84`;
+- `intake_form` is `none`, `fluids_only`, `carbohydrate_drink`, or
+  `mixed_food_and_drink`; and
+- `gastrointestinal_experience` is `no_plan_altering_issue`,
+  `plan_altering_issue`, or `unknown`.
+
+These fields are optional and module-limiting. Gastrointestinal experience is
+a non-diagnostic athlete report; it cannot be presented as a condition,
+clearance, treatment need, or causal explanation. No optional value authorizes
+a fueling, environment, altitude, equipment, or support prescription. These
+fields accept no notes, labels, URLs, provider IDs, units embedded in strings,
+or other free text. Missing wind or exposure information limits
 `environment_altitude`; it cannot be silently treated as sheltered. Missing
 aid/support, fueling, or gastrointestinal context limits `fueling`; no fixed
 fueling quantity follows from a known value.
@@ -442,7 +487,8 @@ The v2 planning contract does not collect or persist:
 
 - GPS points, route files, polylines, maps, or inferred course geometry;
 - course-source URLs or scraped course content;
-- provider request/response payloads or device identifiers;
+- provider request/response payloads, provider account/activity/workout IDs, or
+  device identifiers;
 - free-text health, symptom, fueling, surface, or course narratives;
 - diagnoses, medical clearance, or injury probability;
 - activity `avg_power` as readiness or intensity evidence; or
