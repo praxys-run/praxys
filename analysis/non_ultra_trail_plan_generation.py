@@ -7,9 +7,10 @@ authorize an inactive implementation only.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import date, timedelta
+from dataclasses import asdict, dataclass, fields, is_dataclass
+from datetime import date, datetime, timedelta
 import hashlib
+from itertools import combinations
 import json
 import math
 from statistics import median
@@ -201,6 +202,8 @@ class TrailRunningHistoryObservation:
     elevation_gain_meters: int | None
     elevation_loss_meters: int | None
     source: str
+    source_timestamp: datetime
+    outdoor_confirmed: bool
 
 
 @dataclass(frozen=True)
@@ -573,7 +576,7 @@ def generate_non_ultra_trail_plan(
     if primitive_issue is not None:
         return _no_plan(
             issue=primitive_issue,
-            input_hash=_invalid_input_hash(primitive_issue),
+            input_hash=_invalid_input_hash(generation_input, primitive_issue),
             statistics=RecentTrailHistoryStatistics.empty(),
         )
 
@@ -727,15 +730,10 @@ def serialize_generation_input(
 ) -> dict[str, Any]:
     """Return the explicit JSON-safe replay snapshot."""
     history = [
-        _json_safe_dates(asdict(item))
+        _serialize_history_observation(item)
         for item in sorted(
             generation_input.history,
-            key=lambda item: (
-                item.observed_date,
-                item.activity_id,
-                item.activity_type,
-                item.source,
-            ),
+            key=_history_canonical_sort_key,
         )
     ]
     constraints = generation_input.constraints
@@ -799,9 +797,76 @@ def validate_generated_plan(
     generation_input: NonUltraTrailGenerationInput,
 ) -> tuple[PlanInvariantViolation, ...]:
     """Return every deterministic policy-invariant violation in stable order."""
-    statistics = plan.history_statistics
-    constraints = generation_input.constraints
     violations: list[PlanInvariantViolation] = []
+    primitive_issue = _generation_input_primitive_issue(generation_input)
+    if primitive_issue is not None:
+        return (
+            PlanInvariantViolation(
+                "generation_input_primitives",
+                primitive_issue.detail_reason,
+            ),
+        )
+    statistics = derive_recent_history_statistics(
+        generation_input.history,
+        athlete_today=generation_input.athlete_today,
+    )
+    constraints = generation_input.constraints
+    if plan.policy_version != NON_ULTRA_TRAIL_POLICY_VERSION:
+        violations.append(
+            PlanInvariantViolation("policy_version", "validation_failed")
+        )
+    if plan.generator_version != NON_ULTRA_TRAIL_GENERATOR_VERSION:
+        violations.append(
+            PlanInvariantViolation("generator_version", "validation_failed")
+        )
+    expected_course_fingerprint = _canonical_fingerprint(
+        _serialize_course_demand(generation_input.course_demand)
+    )
+    if plan.course_demand_fingerprint != expected_course_fingerprint:
+        violations.append(
+            PlanInvariantViolation("course_fingerprint", "validation_failed")
+        )
+    expected_limited_modules = _limited_modules(
+        generation_input.course_demand,
+        generation_input.prevalidation,
+    )
+    if plan.limited_modules != expected_limited_modules:
+        violations.append(
+            PlanInvariantViolation("limited_modules", "validation_failed")
+        )
+    if plan.history_statistics != statistics:
+        violations.append(
+            PlanInvariantViolation("history_statistics", "validation_failed")
+        )
+    eligibility_issues = (
+        _contract_issue(generation_input),
+        _scope_issue(generation_input),
+        _course_issue(generation_input.course_demand),
+        _prevalidation_issue(generation_input.prevalidation),
+        _history_issue(
+            statistics,
+            athlete_today=generation_input.athlete_today,
+        ),
+        _constraint_issue(generation_input.constraints),
+    )
+    for issue in eligibility_issues:
+        if issue is not None:
+            violations.append(
+                PlanInvariantViolation(
+                    f"eligibility:{issue.rule_id}",
+                    issue.detail_reason,
+                )
+            )
+    if (
+        generation_input.goal.target_event_date
+        - generation_input.block_start
+    ).days <= NON_ULTRA_TRAIL_PROPOSAL_DAYS:
+        violations.append(
+            PlanInvariantViolation(
+                "eligibility:event_and_taper",
+                "event_inside_unapproved_taper_window",
+            )
+        )
     expected_end = generation_input.block_start + timedelta(
         days=NON_ULTRA_TRAIL_PROPOSAL_DAYS - 1
     )
@@ -1001,6 +1066,19 @@ def validate_generated_plan(
             violations.append(
                 PlanInvariantViolation("quality_spacing", "validation_failed")
             )
+    ordered_running_dates = tuple(sorted(seen_dates))
+    for previous, current in zip(
+        ordered_running_dates,
+        ordered_running_dates[1:],
+        strict=False,
+    ):
+        if (current - previous).days <= 1:
+            violations.append(
+                PlanInvariantViolation(
+                    "adjacent_running_days",
+                    "validation_failed",
+                )
+            )
     return tuple(violations)
 
 
@@ -1043,6 +1121,7 @@ def _build_schedule(
     )
     weeks: list[GeneratedTrailWeek] = []
     previous_quality_date: date | None = None
+    previous_workout_date: date | None = None
     for week_index in range(NON_ULTRA_TRAIL_PROPOSAL_DAYS // 7):
         week_start = generation_input.block_start + timedelta(
             days=week_index * _SCHEDULE_UNIT_DAYS
@@ -1067,6 +1146,7 @@ def _build_schedule(
             preferred_longest_easy_weekday=(
                 constraints.preferred_longest_easy_weekday
             ),
+            previous_workout_date=previous_workout_date,
         )
         if selected is None:
             return None
@@ -1118,6 +1198,7 @@ def _build_schedule(
             )
         )
         previous_quality_date = quality_date
+        previous_workout_date = max(selected)
     return tuple(weeks)
 
 
@@ -1261,20 +1342,12 @@ def _allocate_integer_ceiling(
     ):
         return None
     effective_total = min(total_ceiling, per_session_ceiling * len(dates))
-    allocations = {value: 0 for value in dates}
-    remaining = effective_total
-    while remaining:
-        progressed = False
-        for value in ordered:
-            if allocations[value] >= per_session_ceiling:
-                continue
-            allocations[value] += 1
-            remaining -= 1
-            progressed = True
-            if remaining == 0:
-                break
-        if not progressed:
-            return None
+    quotient, remainder = divmod(effective_total, len(ordered))
+    allocations = {value: quotient for value in ordered}
+    for value in ordered[:remainder]:
+        allocations[value] += 1
+    if any(value > per_session_ceiling for value in allocations.values()):
+        return None
     return allocations
 
 
@@ -1283,34 +1356,39 @@ def _select_schedule_dates(
     *,
     frequency: int,
     preferred_longest_easy_weekday: int | None,
+    previous_workout_date: date | None,
 ) -> tuple[date, ...] | None:
     ordered = tuple(sorted(set(dates)))
     if len(ordered) < frequency:
         return None
-    if len(ordered) == frequency:
-        return ordered
-
-    selected_indexes = {
-        round(index * (len(ordered) - 1) / (frequency - 1))
-        for index in range(frequency)
-    }
-    selected = {ordered[index] for index in selected_indexes}
-    preferred = next(
-        (
-            value
-            for value in ordered
-            if value.weekday() == preferred_longest_easy_weekday
-        ),
-        None,
+    candidates = tuple(
+        candidate
+        for candidate in combinations(ordered, frequency)
+        if all(
+            (current - previous).days > 1
+            for previous, current in zip(
+                candidate,
+                candidate[1:],
+                strict=False,
+            )
+        )
+        and (
+            previous_workout_date is None
+            or (candidate[0] - previous_workout_date).days > 1
+        )
     )
-    if preferred is not None and preferred not in selected:
-        selected.remove(max(selected))
-        selected.add(preferred)
-    for value in ordered:
-        if len(selected) >= frequency:
-            break
-        selected.add(value)
-    return tuple(sorted(selected))
+    if not candidates:
+        return None
+    preferred_candidates = tuple(
+        candidate
+        for candidate in candidates
+        if preferred_longest_easy_weekday is not None
+        and any(
+            value.weekday() == preferred_longest_easy_weekday
+            for value in candidate
+        )
+    )
+    return min(preferred_candidates or candidates)
 
 
 def _select_quality_date(
@@ -1800,6 +1878,14 @@ def _history_primitive_issue(
         return _primitive_issue("athlete_today")
     if len(history) > _MAX_HISTORY_OBSERVATIONS:
         return _primitive_issue("history_observation_count")
+    activity_ids = [
+        item.activity_id
+        for item in history
+        if isinstance(item, TrailRunningHistoryObservation)
+        and isinstance(item.activity_id, str)
+    ]
+    if len(activity_ids) != len(set(activity_ids)):
+        return _primitive_issue("history.duplicate_activity_id")
     for item in history:
         if not isinstance(item, TrailRunningHistoryObservation):
             return _primitive_issue("history_observation")
@@ -1810,6 +1896,8 @@ def _history_primitive_issue(
             or type(item.observed_date) is not date
             or not isinstance(item.source, str)
             or not item.source.strip()
+            or type(item.source_timestamp) is not datetime
+            or type(item.outdoor_confirmed) is not bool
         ):
             return _primitive_issue("history_observation")
         if not _is_finite_number(item.duration_min):
@@ -1854,9 +1942,40 @@ def _serialize_course_demand(course: TrailCourseDemand) -> dict[str, Any]:
     }
 
 
+def _serialize_history_observation(
+    item: TrailRunningHistoryObservation,
+) -> dict[str, Any]:
+    return {
+        "activity_id": item.activity_id,
+        "observed_date": item.observed_date.isoformat(),
+        "activity_type": item.activity_type,
+        "duration_min": item.duration_min,
+        "distance_km": item.distance_km,
+        "elevation_gain_meters": item.elevation_gain_meters,
+        "elevation_loss_meters": item.elevation_loss_meters,
+        "source": item.source,
+        "source_timestamp": item.source_timestamp.isoformat(),
+        "outdoor_confirmed": item.outdoor_confirmed,
+    }
+
+
+def _history_canonical_sort_key(
+    item: TrailRunningHistoryObservation,
+) -> str:
+    return json.dumps(
+        _serialize_history_observation(item),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
+
+
 def _is_qualifying_run(item: TrailRunningHistoryObservation) -> bool:
     return (
         item.activity_type in _HISTORY_ACTIVITY_TYPES
+        and item.outdoor_confirmed is True
+        and type(item.source_timestamp) is datetime
         and item.duration_min > 0
         and item.distance_km is not None
         and item.distance_km > 0
@@ -1963,12 +2082,59 @@ def _serialize_step(step: TrailWorkoutStep) -> dict[str, Any]:
     }
 
 
-def _invalid_input_hash(issue: _InputIssue) -> str:
+def _invalid_input_hash(
+    generation_input: NonUltraTrailGenerationInput,
+    issue: _InputIssue,
+) -> str:
     return _canonical_fingerprint({
         "invalid_input": True,
         "rule_id": issue.rule_id,
         "field": issue.missing_field,
+        "sanitized_input": _sanitize_invalid_value(generation_input),
     })
+
+
+def _sanitize_invalid_value(value: Any) -> Any:
+    if type(value) in {date, datetime}:
+        return value.isoformat()
+    if type(value) is float:
+        if math.isnan(value):
+            return {"__nonfinite_float__": "nan"}
+        if math.isinf(value):
+            return {
+                "__nonfinite_float__": (
+                    "positive_infinity" if value > 0 else "negative_infinity"
+                )
+            }
+        return value
+    if value is None or type(value) in {bool, int, str}:
+        return value
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            field.name: _sanitize_invalid_value(getattr(value, field.name))
+            for field in fields(value)
+        }
+    if isinstance(value, Mapping):
+        pairs = [
+            (
+                _sanitize_invalid_value(key),
+                _sanitize_invalid_value(item),
+            )
+            for key, item in value.items()
+        ]
+        return {
+            "__mapping__": sorted(
+                pairs,
+                key=lambda pair: json.dumps(
+                    pair[0],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            )
+        }
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_invalid_value(item) for item in value]
+    return {"__unsupported_type__": type(value).__qualname__}
 
 
 def _canonical_fingerprint(value: Any) -> str:
@@ -1983,7 +2149,7 @@ def _canonical_fingerprint(value: Any) -> str:
 
 
 def _json_safe_dates(value: Any) -> Any:
-    if type(value) is date:
+    if type(value) in {date, datetime}:
         return value.isoformat()
     if isinstance(value, Mapping):
         return {

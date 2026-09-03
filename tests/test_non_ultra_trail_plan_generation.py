@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
@@ -78,19 +78,26 @@ def _history() -> tuple[TrailRunningHistoryObservation, ...]:
     observations: list[TrailRunningHistoryObservation] = []
     for week in range(8):
         week_start = first_week_start + timedelta(weeks=week)
-        schedule = ((0, 40), (2, 45), (4, 50), (6, 65))
+        schedule = ((0, 40), (2, 50), (4, 60))
         for index, (offset, duration) in enumerate(schedule):
-            trail = index >= 2
+            trail = index >= 1
+            observed_date = week_start + timedelta(days=offset)
             observations.append(
                 TrailRunningHistoryObservation(
                     activity_id=f"w{week}-{index}",
-                    observed_date=week_start + timedelta(days=offset),
+                    observed_date=observed_date,
                     activity_type="trail_running" if trail else "running",
                     duration_min=float(duration),
                     distance_km=float(duration) / 6,
-                    elevation_gain_meters=(200 if index == 2 else 300) if trail else 50,
-                    elevation_loss_meters=(180 if index == 2 else 280) if trail else 40,
+                    elevation_gain_meters=(200 if index == 1 else 300) if trail else 50,
+                    elevation_loss_meters=(180 if index == 1 else 280) if trail else 40,
                     source="garmin",
+                    source_timestamp=datetime.combine(
+                        observed_date,
+                        time(hour=12),
+                        tzinfo=timezone.utc,
+                    ),
+                    outdoor_confirmed=True,
                 )
             )
     return tuple(observations)
@@ -121,10 +128,10 @@ def _generation_input(**changes: object) -> NonUltraTrailGenerationInput:
         constraints=TrailPlanGenerationConstraints(
             adult_confirmed=True,
             current_symptom_stop=False,
-            available_weekdays=(0, 2, 4, 6),
+            available_weekdays=(1, 3, 5),
             weekly_time_limit_min=240,
             maximum_session_duration_min=70,
-            preferred_longest_easy_weekday=6,
+            preferred_longest_easy_weekday=5,
         ),
         prevalidation=InternalTrailPrevalidation(
             course_demand_eligible=True,
@@ -176,6 +183,14 @@ def test_history_uses_all_runs_but_only_unambiguous_trail_for_vertical() -> None
             elevation_gain_meters=999,
             elevation_loss_meters=999,
             source="garmin",
+            source_timestamp=datetime(
+                2026,
+                9,
+                1,
+                12,
+                tzinfo=timezone.utc,
+            ),
+            outdoor_confirmed=True,
         )
     )
     history.append(
@@ -188,17 +203,59 @@ def test_history_uses_all_runs_but_only_unambiguous_trail_for_vertical() -> None
             elevation_gain_meters=999,
             elevation_loss_meters=None,
             source="garmin",
+            source_timestamp=datetime(
+                2026,
+                9,
+                2,
+                12,
+                tzinfo=timezone.utc,
+            ),
+            outdoor_confirmed=True,
         )
     )
     statistics = derive_recent_history_statistics(history, athlete_today=ATHLETE_TODAY)
     assert statistics.usable_completed_weeks == 8
-    assert statistics.recent_modal_running_frequency == 4
-    assert statistics.recent_median_usable_weekly_minutes == 200
+    assert statistics.recent_modal_running_frequency == 3
+    assert statistics.recent_median_usable_weekly_minutes == 150
     assert statistics.recent_median_usable_weekly_ascent_meters == 500
     assert statistics.recent_median_usable_weekly_descent_meters == 460
     assert statistics.recent_maximum_session_ascent_meters == 300
     assert statistics.latest_run_date == ATHLETE_TODAY - timedelta(days=1)
-    assert statistics.comparable_trail_sessions_within_window == 12
+    assert statistics.comparable_trail_sessions_within_window == 11
+
+
+def test_duplicate_activity_ids_cannot_inflate_history() -> None:
+    history = _history()
+    duplicate = replace(
+        history[-1],
+        observed_date=ATHLETE_TODAY - timedelta(days=1),
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(history=(*history, duplicate))
+    )
+    assert result.code == "validation_failed"
+    assert result.uncertainty_or_missing_field == "history.duplicate_activity_id"
+
+
+def test_history_requires_typed_source_timestamp_and_outdoor_confirmation() -> None:
+    missing_timestamp = replace(
+        _history()[0],
+        source_timestamp=None,  # type: ignore[arg-type]
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(history=(missing_timestamp, *_history()[1:]))
+    )
+    assert result.code == "validation_failed"
+    assert result.uncertainty_or_missing_field == "history_observation"
+
+    indoor_history = tuple(
+        replace(item, outdoor_confirmed=False) for item in _history()
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(history=indoor_history)
+    )
+    assert result.code == "insufficient_comparable_history"
+    assert result.detail_reason == "insufficient_recent_history"
 
 
 def test_eligible_generation_is_deterministic_and_within_every_cap() -> None:
@@ -214,13 +271,49 @@ def test_eligible_generation_is_deterministic_and_within_every_cap() -> None:
     assert validate_generated_plan(first.plan, generation_input) == ()
     assert len(first.plan.weeks) == 2
     for week in first.plan.weeks:
-        assert len(week.workouts) == 4
-        assert sum(item.planned_duration_min for item in week.workouts) == 200
+        assert len(week.workouts) == 3
+        assert sum(item.planned_duration_min for item in week.workouts) == 150
         assert sum(item.intensity_bucket == "quality" for item in week.workouts) == 1
         assert week.weekly_ascent_ceiling_meters <= 500
         assert week.weekly_descent_ceiling_meters <= 460
-        assert max(item.planned_duration_min for item in week.workouts) <= 65
+        assert max(item.planned_duration_min for item in week.workouts) <= 60
         assert max(item.ascent_ceiling_meters for item in week.workouts) <= 300
+
+
+def test_adjacent_running_days_fail_closed_across_schedule_units() -> None:
+    history = list(_history())
+    current_week_start = ATHLETE_TODAY - timedelta(days=ATHLETE_TODAY.weekday())
+    first_week_start = current_week_start - timedelta(weeks=8)
+    for week in range(8):
+        observed_date = first_week_start + timedelta(weeks=week, days=6)
+        history.append(
+            TrailRunningHistoryObservation(
+                activity_id=f"w{week}-extra",
+                observed_date=observed_date,
+                activity_type="running",
+                duration_min=1,
+                distance_km=0.1,
+                elevation_gain_meters=0,
+                elevation_loss_meters=0,
+                source="garmin",
+                source_timestamp=datetime.combine(
+                    observed_date,
+                    time(hour=12),
+                    tzinfo=timezone.utc,
+                ),
+                outdoor_confirmed=True,
+            )
+        )
+    constraints = replace(
+        _generation_input().constraints,
+        available_weekdays=(0, 2, 4, 6),
+        preferred_longest_easy_weekday=6,
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(history=tuple(history), constraints=constraints)
+    )
+    assert result.code == "validation_failed"
+    assert result.detail_reason == "no_schedule_within_envelope"
 
 
 def test_hash_is_order_independent_and_binds_ascent_and_descent_separately() -> None:
@@ -382,6 +475,47 @@ def test_invariant_validator_rejects_a_tampered_week() -> None:
     }
 
 
+def test_invariant_validator_rebinds_versions_course_modules_and_history() -> None:
+    generation_input = _generation_input()
+    result = generate_non_ultra_trail_plan(generation_input)
+    assert result.plan is not None
+    plan = result.plan
+    tampered = (
+        (replace(plan, policy_version="other"), "policy_version"),
+        (replace(plan, generator_version="other"), "generator_version"),
+        (replace(plan, course_demand_fingerprint="0" * 64), "course_fingerprint"),
+        (replace(plan, limited_modules=("fueling_module_limited",)), "limited_modules"),
+        (
+            replace(
+                plan,
+                history_statistics=replace(
+                    plan.history_statistics,
+                    usable_completed_weeks=99,
+                ),
+            ),
+            "history_statistics",
+        ),
+    )
+    for candidate, expected_rule in tampered:
+        rules = {
+            violation.rule_id
+            for violation in validate_generated_plan(candidate, generation_input)
+        }
+        assert expected_rule in rules
+
+    ineligible_input = replace(
+        generation_input,
+        prevalidation=replace(
+            generation_input.prevalidation,
+            terrain_access_eligible=False,
+        ),
+    )
+    assert "eligibility:internal_terrain_prevalidation" in {
+        violation.rule_id
+        for violation in validate_generated_plan(plan, ineligible_input)
+    }
+
+
 def test_nonfinite_history_is_a_typed_validation_failure() -> None:
     invalid = replace(_history()[0], duration_min=float("nan"))
     result = generate_non_ultra_trail_plan(
@@ -392,3 +526,37 @@ def test_nonfinite_history_is_a_typed_validation_failure() -> None:
     assert result.uncertainty_or_missing_field == "history.duration_min"
     with pytest.raises(ValueError):
         deterministic_input_hash(_generation_input(history=(invalid,)))
+
+
+def test_invalid_hash_distinguishes_each_nonfinite_representation() -> None:
+    hashes = set()
+    for value in (float("nan"), float("inf"), float("-inf")):
+        invalid = replace(_history()[0], duration_min=value)
+        result = generate_non_ultra_trail_plan(
+            _generation_input(history=(invalid, *_history()[1:]))
+        )
+        assert result.code == "validation_failed"
+        hashes.add(result.deterministic_input_hash)
+    assert len(hashes) == 3
+
+
+def test_very_large_vertical_values_remain_bounded_without_per_meter_work() -> None:
+    huge = 10**15
+    history = tuple(
+        replace(
+            item,
+            elevation_gain_meters=huge,
+            elevation_loss_meters=huge - 1,
+        )
+        if item.activity_type == "trail_running"
+        else item
+        for item in _history()
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(history=history)
+    )
+    assert result.code == "eligible_proposal"
+    assert result.plan is not None
+    for week in result.plan.weeks:
+        assert week.weekly_ascent_ceiling_meters == huge * 2
+        assert week.weekly_descent_ceiling_meters == (huge - 1) * 2
