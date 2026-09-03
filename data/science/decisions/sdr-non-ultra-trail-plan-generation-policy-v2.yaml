@@ -529,6 +529,8 @@ model_parameters:
       condition_reason_mapping:
         - condition: invalid_type_nonfinite_out_of_domain_duplicate_forbidden_or_internally_inconsistent_value
           result: {status: validation_failed, detail_reason: invalid_field_value}
+        - condition: unrecognized_event_format_distance_family_or_planning_intent_literal
+          result: {status: validation_failed, detail_reason: invalid_field_value}
         - condition: course_or_constraint_schema_id_is_not_exact_v2
           result: {status: validation_failed, detail_reason: schema_version_mismatch}
         - condition: canonical_replay_receipt_proposal_or_other_invariant_fails
@@ -537,6 +539,8 @@ model_parameters:
           result: {status: policy_unavailable, detail_reason: policy_inactive}
         - condition: event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown
           result: {status: clarification_required, detail_reason: material_course_demand_unknown}
+        - condition: recognized_event_format_distance_family_or_planning_intent_unknown
+          result: {status: clarification_required, detail_reason: adult_scope_or_constraints_unconfirmed}
         - condition: explicit_assumption_not_confirmed_at_exact_revision
           result: {status: clarification_required, detail_reason: assumption_confirmation_required}
         - condition: adult_nonclinical_or_performance_scope_confirmation_missing_or_unknown
@@ -567,9 +571,9 @@ model_parameters:
           result: {status: readiness_blocked, detail_reason: no_schedule_within_envelope}
         - condition: event_within_unapproved_14_day_taper_window
           result: {status: policy_unavailable, detail_reason: event_inside_unapproved_taper_window}
-        - condition: event_ultra_distance_or_multiday
+        - condition: recognized_event_format_multi_day_or_distance_family_ultra
           result: {status: policy_unavailable, detail_reason: unsupported_ultra_or_multiday}
-        - condition: population_clinical_return_to_sport_or_intent_outside_scope
+        - condition: unsupported_population_or_clinical_state_or_recognized_first_completion_or_return_to_consistency_intent
           result: {status: policy_unavailable, detail_reason: unsupported_population_or_intent}
         - condition: hands_assist_or_fixed_rope_known_true
           result: {status: policy_unavailable, detail_reason: technical_features_outside_v2}
@@ -577,6 +581,8 @@ model_parameters:
           result: {status: eligible_proposal, detail_reason: null}
       top_level_status: highest_precedence_matching_status
       detail_reason: first_matching_reason_in_selected_status_catalog_order
+      primary_namespaced_reason: deterministic_top_level_status_dot_detail_reason
+      eligible_proposal_detail_reason: null
       matching_reasons:
         include_every_independently_and_safely_evaluable_match: true
         pair_fields: [status, detail_reason]
@@ -586,11 +592,11 @@ model_parameters:
         independently_evaluable_lower_precedence_reasons_preserved: true
       module_availability:
         authoritative: true
-        required_keys_in_sorted_order:
-          - environment_altitude
-          - fueling
+        required_keys_in_fixed_order:
           - grade_specificity
           - technical_terrain
+          - environment_altitude
+          - fueling
         value_exact_keys: [state, reason_target]
         allowed_states:
           - not_evaluated
@@ -598,21 +604,27 @@ model_parameters:
           - limited
         state_rules:
           not_evaluated:
-            when: validation_policy_clarification_or_core_readiness_prevents_safe_module_decision
-            reason_target: one_applicable_namespaced_matching_reason
+            when: top_level_status_is_not_eligible_proposal
+            reason_target: top_level_primary_namespaced_reason
+            all_four_modules_use_same_reason_target: true
           available:
-            when: module_inputs_and_science_boundary_permit_generation_to_consider_the_module
+            when: top_level_status_is_eligible_proposal_and_module_inputs_and_science_boundary_permit_consideration
             reason_target: null
             guarantees_proposal_inclusion: false
           limited:
-            when: accepted_non_core_unknown_requires_omission_or_descriptive_only_handling
+            when: top_level_status_is_eligible_proposal_and_accepted_non_core_unknown_requires_omission_or_descriptive_only_handling
             reason_target: closed_first_party_field_or_section_target
             may_be_included_in_proposal: false
+        non_eligible_status_evaluates_individual_modules: false
+        multiple_matching_reasons_choose_primary_by:
+          - status_precedence
+          - detail_reason_catalog_order
+        arbitrary_reason_selection_allowed: false
         limited_reason_targets:
-          environment_altitude: [course.environment_and_altitude]
+          environment_altitude: [course.optional_context.environment]
           fueling:
-            - course.aid_and_support
-            - course.fueling_and_gastrointestinal_context
+            - course.optional_context.support
+            - course.optional_context.fueling
           grade_specificity: [course.grade_distribution]
           technical_terrain: [course.course_footing]
         reason_target_may_be_url_fragment_value_identifier_or_client_string: false
@@ -850,6 +862,6 @@ decision_notes:
   - "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md."
   - "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md."
   - "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md."
-  - "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact."
+  - "This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact."
   - "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607."
   - "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."

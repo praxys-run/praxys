@@ -166,9 +166,31 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     course_fields = ontology_v2_parameters["trail_course_demand_schema"][
         "fields"
     ]
-    assert (course_fields["distance_meters"]["minimum"], course_fields["distance_meters"]["maximum"]) == (1, 49999)
-    assert (course_fields["total_ascent_m"]["minimum"], course_fields["total_ascent_m"]["maximum"]) == (0, 20000)
-    assert (course_fields["total_descent_m"]["minimum"], course_fields["total_descent_m"]["maximum"]) == (0, 20000)
+    assert (
+        course_fields["distance_meters"]["minimum"],
+        course_fields["distance_meters"]["maximum"],
+    ) == (1, 49999)
+    assert (
+        course_fields["total_ascent_m"]["minimum"],
+        course_fields["total_ascent_m"]["maximum"],
+    ) == (0, 20000)
+    assert (
+        course_fields["total_descent_m"]["minimum"],
+        course_fields["total_descent_m"]["maximum"],
+    ) == (0, 20000)
+    assert course_fields["event_format"]["recognized"] == [
+        "single_day",
+        "multi_day",
+    ]
+    assert course_fields["distance_family"]["recognized"] == [
+        "non_ultra",
+        "ultra",
+    ]
+    assert course_fields["planning_intent"]["recognized"] == [
+        "performance",
+        "first_completion",
+        "return_to_consistency",
+    ]
     for hazard in ("hands_assist", "fixed_rope"):
         assert course_fields[hazard] == {
             "type": "strict_boolean",
@@ -178,12 +200,46 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     constraints = ontology_v2_parameters[
         "trail_training_constraints_schema"
     ]["client_reviewable_fields"]
-    assert (constraints["weekly_time_limit_min"]["minimum"], constraints["weekly_time_limit_min"]["maximum"]) == (1, 10080)
-    assert (constraints["maximum_session_duration_min"]["minimum"], constraints["maximum_session_duration_min"]["maximum"]) == (1, 1440)
+    assert (
+        constraints["weekly_time_limit_min"]["minimum"],
+        constraints["weekly_time_limit_min"]["maximum"],
+    ) == (1, 10080)
+    assert (
+        constraints["maximum_session_duration_min"]["minimum"],
+        constraints["maximum_session_duration_min"]["maximum"],
+    ) == (1, 1440)
     assert constraints["maximum_session_duration_min"][
         "not_greater_than"
     ] == "weekly_time_limit_min"
     assert constraints["unavailable_dates"]["maximum_members"] == 14
+    optional_context = ontology_v2_parameters[
+        "trail_optional_context_shapes"
+    ]
+    assert optional_context["exact_groups"] == [
+        "environment",
+        "support",
+        "fueling",
+    ]
+    assert optional_context["group_envelope_allowed"] is False
+    assert optional_context["enum_unknown_literals_allowed"] is False
+    aid_gap = optional_context["support"]["max_aid_station_gap_m"]
+    assert aid_gap == {
+        "envelope": "known_or_unknown",
+        "known_value_type": "integer_or_explicit_null",
+        "integer_minimum": 100,
+        "integer_maximum": 50000,
+        "known_null_meaning": "not_applicable",
+        "kilometer_wire_or_storage_field_allowed": False,
+    }
+    assert "max_aid_station_gap_km" not in yaml.safe_dump(
+        optional_context
+    )
+    revisions = ontology_v2_parameters[
+        "trail_revision_and_confirmation"
+    ]
+    assert revisions["prior_draft_value_retained"] is False
+    assert revisions["prior_revision_token_retained"] is False
+    assert revisions["immutable_snapshot_begins_only_with_proposal"] is True
     assert ontology_v2_parameters["trail_grade_distribution"][
         "exact_sum"
     ] == 10000
@@ -239,13 +295,26 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "technical_terrain",
     ]
     assert outcomes["module_availability"][
-        "required_keys_in_sorted_order"
-    ] == outcomes["limited_modules"]["allowed_sorted_order"]
+        "required_keys_in_fixed_order"
+    ] == [
+        "grade_specificity",
+        "technical_terrain",
+        "environment_altitude",
+        "fueling",
+    ]
     assert outcomes["module_availability"]["allowed_states"] == [
         "not_evaluated",
         "available",
         "limited",
     ]
+    not_evaluated = outcomes["module_availability"]["state_rules"][
+        "not_evaluated"
+    ]
+    assert not_evaluated == {
+        "when": "top_level_status_is_not_eligible_proposal",
+        "reason_target": "top_level_primary_namespaced_reason",
+        "all_four_modules_use_same_reason_target": True,
+    }
     catalog_pairs = {
         (status, detail_reason)
         for status, detail_reasons in outcomes[

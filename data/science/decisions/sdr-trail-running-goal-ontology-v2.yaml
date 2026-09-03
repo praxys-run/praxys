@@ -66,8 +66,9 @@ decision_review:
         server-owned and revision-bound?
       proposed_decision: >
         Accept the closed envelope, provenance categories, field-specific
-        provenance restrictions, immutable revisions, and confirmation
-        invalidation rules as operational guardrails.
+        provenance restrictions, replaceable current revision tokens,
+        proposal-time immutable snapshots, and confirmation invalidation rules
+        as operational guardrails.
       approval_effect:
         - Missing values cannot be represented as zero, empty text, or a client-selected source.
         - Readiness and proposals can bind the exact confirmed source revisions used.
@@ -244,17 +245,23 @@ model_parameters:
           materiality: core
         event_format:
           type: closed_enum
-          allowed: [single_day]
+          recognized: [single_day, multi_day]
+          supported_value: single_day
           envelope: known_or_unknown
           materiality: core
         distance_family:
           type: closed_enum
-          allowed: [non_ultra]
+          recognized: [non_ultra, ultra]
+          supported_value: non_ultra
           envelope: known_or_unknown
           materiality: core
         planning_intent:
           type: closed_enum
-          allowed: [performance]
+          recognized:
+            - performance
+            - first_completion
+            - return_to_consistency
+          supported_value: performance
           envelope: known_or_unknown
           materiality: core
         grade_distribution:
@@ -275,21 +282,26 @@ model_parameters:
           type: strict_boolean
           envelope: known_or_unknown
           materiality: core
-        environment_and_altitude:
-          type: bounded_object
-          envelope: known_or_unknown
-          materiality: limited
-          limited_module: environment_altitude
-        aid_and_support:
-          type: bounded_object
-          envelope: known_or_unknown
-          materiality: limited
-          limited_module: fueling
-        fueling_and_gastrointestinal_context:
-          type: bounded_object
-          envelope: known_or_unknown
-          materiality: limited
-          limited_module: fueling
+        optional_context:
+          type: strict_fixed_key_object
+          exact_groups: [environment, support, fueling]
+          group_envelope_allowed: false
+          every_declared_leaf_required: true
+          every_leaf_envelope: known_or_unknown
+          materiality: limited_by_leaf
+      scope_enum_results:
+        unknown_recognized_scope:
+          status: clarification_required
+          detail_reason: adult_scope_or_constraints_unconfirmed
+        recognized_multi_day_or_ultra:
+          status: policy_unavailable
+          detail_reason: unsupported_ultra_or_multiday
+        recognized_non_performance_intent:
+          status: policy_unavailable
+          detail_reason: unsupported_population_or_intent
+        unrecognized_literal:
+          status: validation_failed
+          detail_reason: invalid_field_value
     classification: guardrail
     evidence_claim_ids:
       - trail-ontology.course-demand-is-multidimensional
@@ -557,53 +569,81 @@ model_parameters:
     applies_to: non_ultra_trail_constraints_v2 and owner-scoped readiness
   - name: trail_optional_context_shapes
     value:
-      environment_and_altitude:
+      type: strict_fixed_key_object
+      exact_groups: [environment, support, fueling]
+      group_envelope_allowed: false
+      every_declared_leaf_required: true
+      common_leaf_envelope: known_or_unknown
+      group_unknown_control_is_leaf_batch_action_only: true
+      enum_unknown_literals_allowed: false
+      environment:
         maximum_altitude_m:
+          envelope: known_or_unknown
           type: integer
           minimum: -500
           maximum: 9000
-        temperature_range_c:
-          type: finite_number_range
+        temperature_min_c:
+          envelope: known_or_unknown
+          type: finite_number
           minimum: -30
           maximum: 55
-          minimum_may_equal_maximum: true
-        humidity_range_pct:
-          type: finite_number_range
+        temperature_max_c:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: -30
+          maximum: 55
+        humidity_min_pct:
+          envelope: known_or_unknown
+          type: finite_number
           minimum: 0
           maximum: 100
-          minimum_may_equal_maximum: true
+        humidity_max_pct:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: 0
+          maximum: 100
         sun_exposure:
+          envelope: known_or_unknown
           known_allowed: [low, mixed, high]
-          unknown_uses_field_envelope: true
         wind_exposure:
+          envelope: known_or_unknown
           known_allowed: [sheltered, mixed, exposed]
-          unknown_uses_field_envelope: true
         conditions_basis:
+          envelope: known_or_unknown
           known_allowed:
             - organizer_information
             - seasonal_expectation
             - athlete_assumption
           athlete_assumption_provenance: explicit_assumption
           athlete_assumption_requires_confirmation: true
-      aid_and_support:
+        cross_field_rules:
+          temperature_order_when_both_known: temperature_min_c_lte_temperature_max_c
+          humidity_order_when_both_known: humidity_min_pct_lte_humidity_max_pct
+          one_unknown_leaf_remains_unknown_without_inventing_other_bound: true
+      support:
         aid_support_mode:
+          envelope: known_or_unknown
           known_allowed: [organized_aid, mixed, self_supported]
         aid_station_count:
+          envelope: known_or_unknown
           type: integer
           minimum: 0
           maximum: 50
-        max_aid_station_gap_km:
-          type: finite_number
-          minimum: 0.1
-          maximum: 50
-          null_allowed_only_for: no_applicable_gap
+        max_aid_station_gap_m:
+          envelope: known_or_unknown
+          known_value_type: integer_or_explicit_null
+          integer_minimum: 100
+          integer_maximum: 50000
+          known_null_meaning: not_applicable
+          kilometer_wire_or_storage_field_allowed: false
         water_availability:
+          envelope: known_or_unknown
           known_allowed: [none, some_stations, all_stations]
-          unknown_uses_field_envelope: true
         food_availability:
+          envelope: known_or_unknown
           known_allowed: [none, some_stations, all_stations]
-          unknown_uses_field_envelope: true
         mandatory_gear:
+          envelope: known_or_unknown
           type: unordered_closed_set
           allowed:
             - water_carry
@@ -613,26 +653,29 @@ model_parameters:
             - navigation_device
             - other_required
           other_required_has_no_label_or_free_text: true
-      fueling_and_gastrointestinal_context:
+      fueling:
         longest_practiced_duration_min:
+          envelope: known_or_unknown
           type: integer
           minimum: 0
           maximum: 1440
         practice_sessions_last_42_days:
+          envelope: known_or_unknown
           type: integer
           minimum: 0
           maximum: 84
         intake_form:
+          envelope: known_or_unknown
           known_allowed:
             - none
             - fluids_only
             - carbohydrate_drink
             - mixed_food_and_drink
         gastrointestinal_experience:
+          envelope: known_or_unknown
           known_allowed:
             - no_plan_altering_issue
             - plan_altering_issue
-          unknown_uses_field_envelope: true
           non_diagnostic: true
       notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed: false
       fixed_prescription_from_known_context: false
@@ -677,9 +720,9 @@ model_parameters:
       limited_unknown_mapping:
         grade_distribution: grade_specificity
         course_footing: technical_terrain
-        environment_and_altitude: environment_altitude
-        aid_and_support: fueling
-        fueling_and_gastrointestinal_context: fueling
+        "optional_context.environment.*": environment_altitude
+        "optional_context.support.*": fueling
+        "optional_context.fueling.*": fueling
       limited_modules_sorted_allowed:
         - environment_altitude
         - fueling
@@ -736,7 +779,15 @@ model_parameters:
     applies_to: v2 course, access, history, and intensity boundaries
   - name: trail_revision_and_confirmation
     value:
-      mutation_creates_new_immutable_revision: true
+      current_unproposed_draft_revision_is_mutable_state: true
+      successful_edit_atomically_overwrites:
+        - current_draft_value
+        - current_revision_token
+        - invalidated_confirmation_state
+      prior_draft_value_retained: false
+      prior_revision_token_retained: false
+      pre_proposal_immutable_edit_or_confirmation_history: false
+      immutable_snapshot_begins_only_with_proposal: true
       confirmation_scope: exact_visible_field_or_section_revision
       confirm_all_allowed: false
       confirmation_invalidated_by:
@@ -775,10 +826,11 @@ model_parameters:
       permitted_persisted_categories:
         - canonical_field_values_and_unknown_states
         - server_stamped_provenance
-        - source_and_field_or_section_revisions
-        - confirmations
+        - current_source_and_field_or_section_revisions
+        - current_confirmations
         - owner_scoped_history_snapshot_reference_and_hash
         - readiness_and_proposal_binding_digests
+        - immutable_snapshot_only_after_proposal_creation
       forbidden_collection_or_persistence:
         - gps_points
         - route_files
@@ -919,6 +971,6 @@ decision_notes:
   - "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md."
   - "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md."
   - "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md."
-  - "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact."
+  - "This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact."
   - "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607."
   - "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."

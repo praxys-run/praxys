@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `non-ultra-trail-plan-generation-policy-v2`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56`
-- **Contract digest:** `sha256:afb120c2ef58543751b60d68bbe738698395c9c62e4f42a908f8efcbf9b8ff41`
+- **Decision digest:** `sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe`
+- **Contract digest:** `sha256:fd2c7966d29e2bcdc3337c46e1f96d5a9aed6289c802bfe34e3a9098ede24f0d`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -145,12 +145,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-non-ultra-trail-plan-generation-policy-v2`
-- Digest: `sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56`
+- Digest: `sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe`
 
 > I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt, authoritative four-module availability, and redundant sorted limitation projection as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. Hiking, strength, and taper remain disabled because v2 has no accepted input and dose contract for them. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56","subject_id":"sdr-non-ultra-trail-plan-generation-policy-v2","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe","subject_id":"sdr-non-ultra-trail-plan-generation-policy-v2","subject_kind":"science_decision"}
 -->
 ```
 
@@ -629,6 +629,13 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       }
     },
     {
+      "condition": "unrecognized_event_format_distance_family_or_planning_intent_literal",
+      "result": {
+        "detail_reason": "invalid_field_value",
+        "status": "validation_failed"
+      }
+    },
+    {
       "condition": "course_or_constraint_schema_id_is_not_exact_v2",
       "result": {
         "detail_reason": "schema_version_mismatch",
@@ -653,6 +660,13 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
       "result": {
         "detail_reason": "material_course_demand_unknown",
+        "status": "clarification_required"
+      }
+    },
+    {
+      "condition": "recognized_event_format_distance_family_or_planning_intent_unknown",
+      "result": {
+        "detail_reason": "adult_scope_or_constraints_unconfirmed",
         "status": "clarification_required"
       }
     },
@@ -762,14 +776,14 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       }
     },
     {
-      "condition": "event_ultra_distance_or_multiday",
+      "condition": "recognized_event_format_multi_day_or_distance_family_ultra",
       "result": {
         "detail_reason": "unsupported_ultra_or_multiday",
         "status": "policy_unavailable"
       }
     },
     {
-      "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+      "condition": "unsupported_population_or_clinical_state_or_recognized_first_completion_or_return_to_consistency_intent",
       "result": {
         "detail_reason": "unsupported_population_or_intent",
         "status": "policy_unavailable"
@@ -823,6 +837,7 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       "deterministic_invariant_failed"
     ]
   },
+  "eligible_proposal_detail_reason": null,
   "goal_remains_recorded": true,
   "limited_modules": {
     "allowed_sorted_order": [
@@ -862,14 +877,15 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
       "available",
       "limited"
     ],
+    "arbitrary_reason_selection_allowed": false,
     "authoritative": true,
     "limited_reason_targets": {
       "environment_altitude": [
-        "course.environment_and_altitude"
+        "course.optional_context.environment"
       ],
       "fueling": [
-        "course.aid_and_support",
-        "course.fueling_and_gastrointestinal_context"
+        "course.optional_context.support",
+        "course.optional_context.fueling"
       ],
       "grade_specificity": [
         "course.grade_distribution"
@@ -878,27 +894,33 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
         "course.course_footing"
       ]
     },
+    "multiple_matching_reasons_choose_primary_by": [
+      "status_precedence",
+      "detail_reason_catalog_order"
+    ],
+    "non_eligible_status_evaluates_individual_modules": false,
     "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
-    "required_keys_in_sorted_order": [
-      "environment_altitude",
-      "fueling",
+    "required_keys_in_fixed_order": [
       "grade_specificity",
-      "technical_terrain"
+      "technical_terrain",
+      "environment_altitude",
+      "fueling"
     ],
     "state_rules": {
       "available": {
         "guarantees_proposal_inclusion": false,
         "reason_target": null,
-        "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+        "when": "top_level_status_is_eligible_proposal_and_module_inputs_and_science_boundary_permit_consideration"
       },
       "limited": {
         "may_be_included_in_proposal": false,
         "reason_target": "closed_first_party_field_or_section_target",
-        "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+        "when": "top_level_status_is_eligible_proposal_and_accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
       },
       "not_evaluated": {
-        "reason_target": "one_applicable_namespaced_matching_reason",
-        "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+        "all_four_modules_use_same_reason_target": true,
+        "reason_target": "top_level_primary_namespaced_reason",
+        "when": "top_level_status_is_not_eligible_proposal"
       }
     },
     "value_exact_keys": [
@@ -907,6 +929,7 @@ Current signs and symptoms are relevant before vigorous exercise. This supports 
     ]
   },
   "namespaced_reason_identity": "<status>.<detail_reason>",
+  "primary_namespaced_reason": "deterministic_top_level_status_dot_detail_reason",
   "road_fallback": false,
   "status_precedence": [
     "validation_failed",
@@ -1151,7 +1174,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
 - Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.
 - Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.
 - Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.
-- This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.
+- This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact.
 - Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.
 - Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168.
 
@@ -1166,7 +1189,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
     "v2 Trail validation, readiness, and complete reason receipt",
     "trail_course_demand_v2 and non_ultra_trail_constraints_v2 matching"
   ],
-  "contract_digest": "sha256:afb120c2ef58543751b60d68bbe738698395c9c62e4f42a908f8efcbf9b8ff41",
+  "contract_digest": "sha256:fd2c7966d29e2bcdc3337c46e1f96d5a9aed6289c802bfe34e3a9098ede24f0d",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -1605,6 +1628,13 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             }
           },
           {
+            "condition": "unrecognized_event_format_distance_family_or_planning_intent_literal",
+            "result": {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            }
+          },
+          {
             "condition": "course_or_constraint_schema_id_is_not_exact_v2",
             "result": {
               "detail_reason": "schema_version_mismatch",
@@ -1629,6 +1659,13 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
             "result": {
               "detail_reason": "material_course_demand_unknown",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "recognized_event_format_distance_family_or_planning_intent_unknown",
+            "result": {
+              "detail_reason": "adult_scope_or_constraints_unconfirmed",
               "status": "clarification_required"
             }
           },
@@ -1738,14 +1775,14 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             }
           },
           {
-            "condition": "event_ultra_distance_or_multiday",
+            "condition": "recognized_event_format_multi_day_or_distance_family_ultra",
             "result": {
               "detail_reason": "unsupported_ultra_or_multiday",
               "status": "policy_unavailable"
             }
           },
           {
-            "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+            "condition": "unsupported_population_or_clinical_state_or_recognized_first_completion_or_return_to_consistency_intent",
             "result": {
               "detail_reason": "unsupported_population_or_intent",
               "status": "policy_unavailable"
@@ -1799,6 +1836,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             "deterministic_invariant_failed"
           ]
         },
+        "eligible_proposal_detail_reason": null,
         "goal_remains_recorded": true,
         "limited_modules": {
           "allowed_sorted_order": [
@@ -1838,14 +1876,15 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
             "available",
             "limited"
           ],
+          "arbitrary_reason_selection_allowed": false,
           "authoritative": true,
           "limited_reason_targets": {
             "environment_altitude": [
-              "course.environment_and_altitude"
+              "course.optional_context.environment"
             ],
             "fueling": [
-              "course.aid_and_support",
-              "course.fueling_and_gastrointestinal_context"
+              "course.optional_context.support",
+              "course.optional_context.fueling"
             ],
             "grade_specificity": [
               "course.grade_distribution"
@@ -1854,27 +1893,33 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
               "course.course_footing"
             ]
           },
+          "multiple_matching_reasons_choose_primary_by": [
+            "status_precedence",
+            "detail_reason_catalog_order"
+          ],
+          "non_eligible_status_evaluates_individual_modules": false,
           "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
-          "required_keys_in_sorted_order": [
-            "environment_altitude",
-            "fueling",
+          "required_keys_in_fixed_order": [
             "grade_specificity",
-            "technical_terrain"
+            "technical_terrain",
+            "environment_altitude",
+            "fueling"
           ],
           "state_rules": {
             "available": {
               "guarantees_proposal_inclusion": false,
               "reason_target": null,
-              "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+              "when": "top_level_status_is_eligible_proposal_and_module_inputs_and_science_boundary_permit_consideration"
             },
             "limited": {
               "may_be_included_in_proposal": false,
               "reason_target": "closed_first_party_field_or_section_target",
-              "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+              "when": "top_level_status_is_eligible_proposal_and_accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
             },
             "not_evaluated": {
-              "reason_target": "one_applicable_namespaced_matching_reason",
-              "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+              "all_four_modules_use_same_reason_target": true,
+              "reason_target": "top_level_primary_namespaced_reason",
+              "when": "top_level_status_is_not_eligible_proposal"
             }
           },
           "value_exact_keys": [
@@ -1883,6 +1928,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
           ]
         },
         "namespaced_reason_identity": "<status>.<detail_reason>",
+        "primary_namespaced_reason": "deterministic_top_level_status_dot_detail_reason",
         "road_fallback": false,
         "status_precedence": [
           "validation_failed",
@@ -1952,7 +1998,7 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56"
+  "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe"
 }
 ```
 
@@ -2008,7 +2054,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.",
     "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.",
     "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.",
-    "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.",
+    "This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact.",
     "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.",
     "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."
   ],
@@ -2525,6 +2571,13 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             }
           },
           {
+            "condition": "unrecognized_event_format_distance_family_or_planning_intent_literal",
+            "result": {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            }
+          },
+          {
             "condition": "course_or_constraint_schema_id_is_not_exact_v2",
             "result": {
               "detail_reason": "schema_version_mismatch",
@@ -2549,6 +2602,13 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "condition": "event_identity_date_distance_ascent_descent_planning_duration_or_hazard_unknown",
             "result": {
               "detail_reason": "material_course_demand_unknown",
+              "status": "clarification_required"
+            }
+          },
+          {
+            "condition": "recognized_event_format_distance_family_or_planning_intent_unknown",
+            "result": {
+              "detail_reason": "adult_scope_or_constraints_unconfirmed",
               "status": "clarification_required"
             }
           },
@@ -2658,14 +2718,14 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             }
           },
           {
-            "condition": "event_ultra_distance_or_multiday",
+            "condition": "recognized_event_format_multi_day_or_distance_family_ultra",
             "result": {
               "detail_reason": "unsupported_ultra_or_multiday",
               "status": "policy_unavailable"
             }
           },
           {
-            "condition": "population_clinical_return_to_sport_or_intent_outside_scope",
+            "condition": "unsupported_population_or_clinical_state_or_recognized_first_completion_or_return_to_consistency_intent",
             "result": {
               "detail_reason": "unsupported_population_or_intent",
               "status": "policy_unavailable"
@@ -2719,6 +2779,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "deterministic_invariant_failed"
           ]
         },
+        "eligible_proposal_detail_reason": null,
         "goal_remains_recorded": true,
         "limited_modules": {
           "allowed_sorted_order": [
@@ -2758,14 +2819,15 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "available",
             "limited"
           ],
+          "arbitrary_reason_selection_allowed": false,
           "authoritative": true,
           "limited_reason_targets": {
             "environment_altitude": [
-              "course.environment_and_altitude"
+              "course.optional_context.environment"
             ],
             "fueling": [
-              "course.aid_and_support",
-              "course.fueling_and_gastrointestinal_context"
+              "course.optional_context.support",
+              "course.optional_context.fueling"
             ],
             "grade_specificity": [
               "course.grade_distribution"
@@ -2774,27 +2836,33 @@ Runtime activation remains fail-closed until implementation approval can bind bo
               "course.course_footing"
             ]
           },
+          "multiple_matching_reasons_choose_primary_by": [
+            "status_precedence",
+            "detail_reason_catalog_order"
+          ],
+          "non_eligible_status_evaluates_individual_modules": false,
           "reason_target_may_be_url_fragment_value_identifier_or_client_string": false,
-          "required_keys_in_sorted_order": [
-            "environment_altitude",
-            "fueling",
+          "required_keys_in_fixed_order": [
             "grade_specificity",
-            "technical_terrain"
+            "technical_terrain",
+            "environment_altitude",
+            "fueling"
           ],
           "state_rules": {
             "available": {
               "guarantees_proposal_inclusion": false,
               "reason_target": null,
-              "when": "module_inputs_and_science_boundary_permit_generation_to_consider_the_module"
+              "when": "top_level_status_is_eligible_proposal_and_module_inputs_and_science_boundary_permit_consideration"
             },
             "limited": {
               "may_be_included_in_proposal": false,
               "reason_target": "closed_first_party_field_or_section_target",
-              "when": "accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
+              "when": "top_level_status_is_eligible_proposal_and_accepted_non_core_unknown_requires_omission_or_descriptive_only_handling"
             },
             "not_evaluated": {
-              "reason_target": "one_applicable_namespaced_matching_reason",
-              "when": "validation_policy_clarification_or_core_readiness_prevents_safe_module_decision"
+              "all_four_modules_use_same_reason_target": true,
+              "reason_target": "top_level_primary_namespaced_reason",
+              "when": "top_level_status_is_not_eligible_proposal"
             }
           },
           "value_exact_keys": [
@@ -2803,6 +2871,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           ]
         },
         "namespaced_reason_identity": "<status>.<detail_reason>",
+        "primary_namespaced_reason": "deterministic_top_level_status_dot_detail_reason",
         "road_fallback": false,
         "status_precedence": [
           "validation_failed",

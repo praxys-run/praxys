@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `trail-course-demand-v2`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c`
-- **Contract digest:** `sha256:1297f713b992822335978dac92cfaa9b968b092d4ff6869ad73baa3d94ee2e7a`
+- **Decision digest:** `sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1`
+- **Contract digest:** `sha256:e243bf433223452e86ded967c2575b7089f506d2bef248e9f749349cf27bd617`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -31,7 +31,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 #### `strict-value-provenance-envelope` — Adopt explicit field states and server-owned provenance
 
 - **Question:** Should every reviewable v2 field use an exact known-or-unknown envelope while provenance, source metadata, and history hashes remain server-owned and revision-bound?
-- **Proposed decision:** Accept the closed envelope, provenance categories, field-specific provenance restrictions, immutable revisions, and confirmation invalidation rules as operational guardrails.
+- **Proposed decision:** Accept the closed envelope, provenance categories, field-specific provenance restrictions, replaceable current revision tokens, proposal-time immutable snapshots, and confirmation invalidation rules as operational guardrails.
 - **Approval means:**
   - Missing values cannot be represented as zero, empty text, or a client-selected source.
   - Readiness and proposals can bind the exact confirmed source revisions used.
@@ -148,12 +148,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-trail-running-goal-ontology-v2`
-- Digest: `sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c`
+- Digest: `sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1`
 
 > I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and known-or-unknown boolean hazard fields, exact footing containment, bounded schedule and optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c","subject_id":"sdr-trail-running-goal-ontology-v2","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1","subject_id":"sdr-trail-running-goal-ontology-v2","subject_kind":"science_decision"}
 -->
 ```
 
@@ -241,12 +241,6 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "type": "server_owned_identifier"
   },
   "fields": {
-    "aid_and_support": {
-      "envelope": "known_or_unknown",
-      "limited_module": "fueling",
-      "materiality": "limited",
-      "type": "bounded_object"
-    },
     "course_footing": {
       "envelope": "known_or_unknown",
       "limited_module": "technical_terrain",
@@ -254,11 +248,13 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "type": "nonempty_unordered_closed_set"
     },
     "distance_family": {
-      "allowed": [
-        "non_ultra"
-      ],
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "recognized": [
+        "non_ultra",
+        "ultra"
+      ],
+      "supported_value": "non_ultra",
       "type": "closed_enum"
     },
     "distance_meters": {
@@ -269,35 +265,25 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "type": "integer",
       "unit": "meters"
     },
-    "environment_and_altitude": {
-      "envelope": "known_or_unknown",
-      "limited_module": "environment_altitude",
-      "materiality": "limited",
-      "type": "bounded_object"
-    },
     "event_date": {
       "envelope": "known_or_unknown",
       "materiality": "core",
       "type": "iso_date"
     },
     "event_format": {
-      "allowed": [
-        "single_day"
-      ],
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "recognized": [
+        "single_day",
+        "multi_day"
+      ],
+      "supported_value": "single_day",
       "type": "closed_enum"
     },
     "fixed_rope": {
       "envelope": "known_or_unknown",
       "materiality": "core",
       "type": "strict_boolean"
-    },
-    "fueling_and_gastrointestinal_context": {
-      "envelope": "known_or_unknown",
-      "limited_module": "fueling",
-      "materiality": "limited",
-      "type": "bounded_object"
     },
     "grade_distribution": {
       "envelope": "known_or_unknown",
@@ -310,6 +296,18 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "materiality": "core",
       "type": "strict_boolean"
     },
+    "optional_context": {
+      "every_declared_leaf_required": true,
+      "every_leaf_envelope": "known_or_unknown",
+      "exact_groups": [
+        "environment",
+        "support",
+        "fueling"
+      ],
+      "group_envelope_allowed": false,
+      "materiality": "limited_by_leaf",
+      "type": "strict_fixed_key_object"
+    },
     "planning_duration_range": {
       "envelope": "known_or_unknown",
       "materiality": "core",
@@ -317,11 +315,14 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       "unit": "minutes"
     },
     "planning_intent": {
-      "allowed": [
-        "performance"
-      ],
       "envelope": "known_or_unknown",
       "materiality": "core",
+      "recognized": [
+        "performance",
+        "first_completion",
+        "return_to_consistency"
+      ],
+      "supported_value": "performance",
       "type": "closed_enum"
     },
     "total_ascent_m": {
@@ -342,6 +343,24 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     }
   },
   "schema_id": "trail_course_demand_v2",
+  "scope_enum_results": {
+    "recognized_multi_day_or_ultra": {
+      "detail_reason": "unsupported_ultra_or_multiday",
+      "status": "policy_unavailable"
+    },
+    "recognized_non_performance_intent": {
+      "detail_reason": "unsupported_population_or_intent",
+      "status": "policy_unavailable"
+    },
+    "unknown_recognized_scope": {
+      "detail_reason": "adult_scope_or_constraints_unconfirmed",
+      "status": "clarification_required"
+    },
+    "unrecognized_literal": {
+      "detail_reason": "invalid_field_value",
+      "status": "validation_failed"
+    }
+  },
   "strict_unknown_fields_rejected": true
 }
 ```
@@ -684,13 +703,121 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
 
 ```json
 {
-  "aid_and_support": {
+  "common_leaf_envelope": "known_or_unknown",
+  "enum_unknown_literals_allowed": false,
+  "environment": {
+    "conditions_basis": {
+      "athlete_assumption_provenance": "explicit_assumption",
+      "athlete_assumption_requires_confirmation": true,
+      "envelope": "known_or_unknown",
+      "known_allowed": [
+        "organizer_information",
+        "seasonal_expectation",
+        "athlete_assumption"
+      ]
+    },
+    "cross_field_rules": {
+      "humidity_order_when_both_known": "humidity_min_pct_lte_humidity_max_pct",
+      "one_unknown_leaf_remains_unknown_without_inventing_other_bound": true,
+      "temperature_order_when_both_known": "temperature_min_c_lte_temperature_max_c"
+    },
+    "humidity_max_pct": {
+      "envelope": "known_or_unknown",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "finite_number"
+    },
+    "humidity_min_pct": {
+      "envelope": "known_or_unknown",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "finite_number"
+    },
+    "maximum_altitude_m": {
+      "envelope": "known_or_unknown",
+      "maximum": 9000,
+      "minimum": -500,
+      "type": "integer"
+    },
+    "sun_exposure": {
+      "envelope": "known_or_unknown",
+      "known_allowed": [
+        "low",
+        "mixed",
+        "high"
+      ]
+    },
+    "temperature_max_c": {
+      "envelope": "known_or_unknown",
+      "maximum": 55,
+      "minimum": -30,
+      "type": "finite_number"
+    },
+    "temperature_min_c": {
+      "envelope": "known_or_unknown",
+      "maximum": 55,
+      "minimum": -30,
+      "type": "finite_number"
+    },
+    "wind_exposure": {
+      "envelope": "known_or_unknown",
+      "known_allowed": [
+        "sheltered",
+        "mixed",
+        "exposed"
+      ]
+    }
+  },
+  "every_declared_leaf_required": true,
+  "exact_groups": [
+    "environment",
+    "support",
+    "fueling"
+  ],
+  "fixed_prescription_from_known_context": false,
+  "fueling": {
+    "gastrointestinal_experience": {
+      "envelope": "known_or_unknown",
+      "known_allowed": [
+        "no_plan_altering_issue",
+        "plan_altering_issue"
+      ],
+      "non_diagnostic": true
+    },
+    "intake_form": {
+      "envelope": "known_or_unknown",
+      "known_allowed": [
+        "none",
+        "fluids_only",
+        "carbohydrate_drink",
+        "mixed_food_and_drink"
+      ]
+    },
+    "longest_practiced_duration_min": {
+      "envelope": "known_or_unknown",
+      "maximum": 1440,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "practice_sessions_last_42_days": {
+      "envelope": "known_or_unknown",
+      "maximum": 84,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "group_envelope_allowed": false,
+  "group_unknown_control_is_leaf_batch_action_only": true,
+  "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false,
+  "support": {
     "aid_station_count": {
+      "envelope": "known_or_unknown",
       "maximum": 50,
       "minimum": 0,
       "type": "integer"
     },
     "aid_support_mode": {
+      "envelope": "known_or_unknown",
       "known_allowed": [
         "organized_aid",
         "mixed",
@@ -698,12 +825,12 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
       ]
     },
     "food_availability": {
+      "envelope": "known_or_unknown",
       "known_allowed": [
         "none",
         "some_stations",
         "all_stations"
-      ],
-      "unknown_uses_field_envelope": true
+      ]
     },
     "mandatory_gear": {
       "allowed": [
@@ -714,98 +841,28 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
         "navigation_device",
         "other_required"
       ],
+      "envelope": "known_or_unknown",
       "other_required_has_no_label_or_free_text": true,
       "type": "unordered_closed_set"
     },
-    "max_aid_station_gap_km": {
-      "maximum": 50,
-      "minimum": 0.1,
-      "null_allowed_only_for": "no_applicable_gap",
-      "type": "finite_number"
+    "max_aid_station_gap_m": {
+      "envelope": "known_or_unknown",
+      "integer_maximum": 50000,
+      "integer_minimum": 100,
+      "kilometer_wire_or_storage_field_allowed": false,
+      "known_null_meaning": "not_applicable",
+      "known_value_type": "integer_or_explicit_null"
     },
     "water_availability": {
+      "envelope": "known_or_unknown",
       "known_allowed": [
         "none",
         "some_stations",
         "all_stations"
-      ],
-      "unknown_uses_field_envelope": true
-    }
-  },
-  "environment_and_altitude": {
-    "conditions_basis": {
-      "athlete_assumption_provenance": "explicit_assumption",
-      "athlete_assumption_requires_confirmation": true,
-      "known_allowed": [
-        "organizer_information",
-        "seasonal_expectation",
-        "athlete_assumption"
       ]
-    },
-    "humidity_range_pct": {
-      "maximum": 100,
-      "minimum": 0,
-      "minimum_may_equal_maximum": true,
-      "type": "finite_number_range"
-    },
-    "maximum_altitude_m": {
-      "maximum": 9000,
-      "minimum": -500,
-      "type": "integer"
-    },
-    "sun_exposure": {
-      "known_allowed": [
-        "low",
-        "mixed",
-        "high"
-      ],
-      "unknown_uses_field_envelope": true
-    },
-    "temperature_range_c": {
-      "maximum": 55,
-      "minimum": -30,
-      "minimum_may_equal_maximum": true,
-      "type": "finite_number_range"
-    },
-    "wind_exposure": {
-      "known_allowed": [
-        "sheltered",
-        "mixed",
-        "exposed"
-      ],
-      "unknown_uses_field_envelope": true
     }
   },
-  "fixed_prescription_from_known_context": false,
-  "fueling_and_gastrointestinal_context": {
-    "gastrointestinal_experience": {
-      "known_allowed": [
-        "no_plan_altering_issue",
-        "plan_altering_issue"
-      ],
-      "non_diagnostic": true,
-      "unknown_uses_field_envelope": true
-    },
-    "intake_form": {
-      "known_allowed": [
-        "none",
-        "fluids_only",
-        "carbohydrate_drink",
-        "mixed_food_and_drink"
-      ]
-    },
-    "longest_practiced_duration_min": {
-      "maximum": 1440,
-      "minimum": 0,
-      "type": "integer"
-    },
-    "practice_sessions_last_42_days": {
-      "maximum": 84,
-      "minimum": 0,
-      "type": "integer"
-    }
-  },
-  "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false
+  "type": "strict_fixed_key_object"
 }
 ```
 
@@ -856,11 +913,11 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "technical_terrain"
   ],
   "limited_unknown_mapping": {
-    "aid_and_support": "fueling",
     "course_footing": "technical_terrain",
-    "environment_and_altitude": "environment_altitude",
-    "fueling_and_gastrointestinal_context": "fueling",
-    "grade_distribution": "grade_specificity"
+    "grade_distribution": "grade_specificity",
+    "optional_context.environment.*": "environment_altitude",
+    "optional_context.fueling.*": "fueling",
+    "optional_context.support.*": "fueling"
   },
   "material_unknown_result": [
     "clarification_required",
@@ -922,7 +979,11 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
   ],
   "confirmation_is_truth_safety_or_eligibility_attestation": false,
   "confirmation_scope": "exact_visible_field_or_section_revision",
-  "mutation_creates_new_immutable_revision": true,
+  "current_unproposed_draft_revision_is_mutable_state": true,
+  "immutable_snapshot_begins_only_with_proposal": true,
+  "pre_proposal_immutable_edit_or_confirmation_history": false,
+  "prior_draft_value_retained": false,
+  "prior_revision_token_retained": false,
   "proposal_binds_same_exact_revisions": true,
   "readiness_binds_exact_revisions": [
     "goal",
@@ -933,7 +994,12 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
     "generator"
   ],
   "stale_confirmation_rebound_allowed": false,
-  "stale_source_revision_rebound_allowed": false
+  "stale_source_revision_rebound_allowed": false,
+  "successful_edit_atomically_overwrites": [
+    "current_draft_value",
+    "current_revision_token",
+    "invalidated_confirmation_state"
+  ]
 }
 ```
 
@@ -975,10 +1041,11 @@ Endurance carbohydrate strategy varies with expected exercise duration, feeding 
   "permitted_persisted_categories": [
     "canonical_field_values_and_unknown_states",
     "server_stamped_provenance",
-    "source_and_field_or_section_revisions",
-    "confirmations",
+    "current_source_and_field_or_section_revisions",
+    "current_confirmations",
     "owner_scoped_history_snapshot_reference_and_hash",
-    "readiness_and_proposal_binding_digests"
+    "readiness_and_proposal_binding_digests",
+    "immutable_snapshot_only_after_proposal_creation"
   ],
   "personal_finish_probability": false,
   "suggestion_only": true,
@@ -1123,7 +1190,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
 - Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.
 - Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.
 - Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.
-- This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.
+- This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact.
 - Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.
 - Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168.
 
@@ -1138,7 +1205,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
     "non_ultra_trail_constraints_v2 input and confirmation envelope",
     "future v2 Trail capability matching contract"
   ],
-  "contract_digest": "sha256:1297f713b992822335978dac92cfaa9b968b092d4ff6869ad73baa3d94ee2e7a",
+  "contract_digest": "sha256:e243bf433223452e86ded967c2575b7089f506d2bef248e9f749349cf27bd617",
   "decision_id": "sdr-trail-running-goal-ontology-v2",
   "decision_status": "draft",
   "decision_version": 2,
@@ -1174,12 +1241,6 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "type": "server_owned_identifier"
         },
         "fields": {
-          "aid_and_support": {
-            "envelope": "known_or_unknown",
-            "limited_module": "fueling",
-            "materiality": "limited",
-            "type": "bounded_object"
-          },
           "course_footing": {
             "envelope": "known_or_unknown",
             "limited_module": "technical_terrain",
@@ -1187,11 +1248,13 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "type": "nonempty_unordered_closed_set"
           },
           "distance_family": {
-            "allowed": [
-              "non_ultra"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "non_ultra",
+              "ultra"
+            ],
+            "supported_value": "non_ultra",
             "type": "closed_enum"
           },
           "distance_meters": {
@@ -1202,35 +1265,25 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "type": "integer",
             "unit": "meters"
           },
-          "environment_and_altitude": {
-            "envelope": "known_or_unknown",
-            "limited_module": "environment_altitude",
-            "materiality": "limited",
-            "type": "bounded_object"
-          },
           "event_date": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "type": "iso_date"
           },
           "event_format": {
-            "allowed": [
-              "single_day"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "single_day",
+              "multi_day"
+            ],
+            "supported_value": "single_day",
             "type": "closed_enum"
           },
           "fixed_rope": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "type": "strict_boolean"
-          },
-          "fueling_and_gastrointestinal_context": {
-            "envelope": "known_or_unknown",
-            "limited_module": "fueling",
-            "materiality": "limited",
-            "type": "bounded_object"
           },
           "grade_distribution": {
             "envelope": "known_or_unknown",
@@ -1243,6 +1296,18 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "materiality": "core",
             "type": "strict_boolean"
           },
+          "optional_context": {
+            "every_declared_leaf_required": true,
+            "every_leaf_envelope": "known_or_unknown",
+            "exact_groups": [
+              "environment",
+              "support",
+              "fueling"
+            ],
+            "group_envelope_allowed": false,
+            "materiality": "limited_by_leaf",
+            "type": "strict_fixed_key_object"
+          },
           "planning_duration_range": {
             "envelope": "known_or_unknown",
             "materiality": "core",
@@ -1250,11 +1315,14 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             "unit": "minutes"
           },
           "planning_intent": {
-            "allowed": [
-              "performance"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "performance",
+              "first_completion",
+              "return_to_consistency"
+            ],
+            "supported_value": "performance",
             "type": "closed_enum"
           },
           "total_ascent_m": {
@@ -1275,6 +1343,24 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           }
         },
         "schema_id": "trail_course_demand_v2",
+        "scope_enum_results": {
+          "recognized_multi_day_or_ultra": {
+            "detail_reason": "unsupported_ultra_or_multiday",
+            "status": "policy_unavailable"
+          },
+          "recognized_non_performance_intent": {
+            "detail_reason": "unsupported_population_or_intent",
+            "status": "policy_unavailable"
+          },
+          "unknown_recognized_scope": {
+            "detail_reason": "adult_scope_or_constraints_unconfirmed",
+            "status": "clarification_required"
+          },
+          "unrecognized_literal": {
+            "detail_reason": "invalid_field_value",
+            "status": "validation_failed"
+          }
+        },
         "strict_unknown_fields_rejected": true
       }
     },
@@ -1535,13 +1621,121 @@ That would erase course-specific demand and violate the accepted no-road- fallba
         "trail-ontology.duration-and-fueling-practice-are-context"
       ],
       "value": {
-        "aid_and_support": {
+        "common_leaf_envelope": "known_or_unknown",
+        "enum_unknown_literals_allowed": false,
+        "environment": {
+          "conditions_basis": {
+            "athlete_assumption_provenance": "explicit_assumption",
+            "athlete_assumption_requires_confirmation": true,
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "organizer_information",
+              "seasonal_expectation",
+              "athlete_assumption"
+            ]
+          },
+          "cross_field_rules": {
+            "humidity_order_when_both_known": "humidity_min_pct_lte_humidity_max_pct",
+            "one_unknown_leaf_remains_unknown_without_inventing_other_bound": true,
+            "temperature_order_when_both_known": "temperature_min_c_lte_temperature_max_c"
+          },
+          "humidity_max_pct": {
+            "envelope": "known_or_unknown",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "finite_number"
+          },
+          "humidity_min_pct": {
+            "envelope": "known_or_unknown",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "finite_number"
+          },
+          "maximum_altitude_m": {
+            "envelope": "known_or_unknown",
+            "maximum": 9000,
+            "minimum": -500,
+            "type": "integer"
+          },
+          "sun_exposure": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "low",
+              "mixed",
+              "high"
+            ]
+          },
+          "temperature_max_c": {
+            "envelope": "known_or_unknown",
+            "maximum": 55,
+            "minimum": -30,
+            "type": "finite_number"
+          },
+          "temperature_min_c": {
+            "envelope": "known_or_unknown",
+            "maximum": 55,
+            "minimum": -30,
+            "type": "finite_number"
+          },
+          "wind_exposure": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "sheltered",
+              "mixed",
+              "exposed"
+            ]
+          }
+        },
+        "every_declared_leaf_required": true,
+        "exact_groups": [
+          "environment",
+          "support",
+          "fueling"
+        ],
+        "fixed_prescription_from_known_context": false,
+        "fueling": {
+          "gastrointestinal_experience": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "no_plan_altering_issue",
+              "plan_altering_issue"
+            ],
+            "non_diagnostic": true
+          },
+          "intake_form": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "none",
+              "fluids_only",
+              "carbohydrate_drink",
+              "mixed_food_and_drink"
+            ]
+          },
+          "longest_practiced_duration_min": {
+            "envelope": "known_or_unknown",
+            "maximum": 1440,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "practice_sessions_last_42_days": {
+            "envelope": "known_or_unknown",
+            "maximum": 84,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "group_envelope_allowed": false,
+        "group_unknown_control_is_leaf_batch_action_only": true,
+        "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false,
+        "support": {
           "aid_station_count": {
+            "envelope": "known_or_unknown",
             "maximum": 50,
             "minimum": 0,
             "type": "integer"
           },
           "aid_support_mode": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "organized_aid",
               "mixed",
@@ -1549,12 +1743,12 @@ That would erase course-specific demand and violate the accepted no-road- fallba
             ]
           },
           "food_availability": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "none",
               "some_stations",
               "all_stations"
-            ],
-            "unknown_uses_field_envelope": true
+            ]
           },
           "mandatory_gear": {
             "allowed": [
@@ -1565,98 +1759,28 @@ That would erase course-specific demand and violate the accepted no-road- fallba
               "navigation_device",
               "other_required"
             ],
+            "envelope": "known_or_unknown",
             "other_required_has_no_label_or_free_text": true,
             "type": "unordered_closed_set"
           },
-          "max_aid_station_gap_km": {
-            "maximum": 50,
-            "minimum": 0.1,
-            "null_allowed_only_for": "no_applicable_gap",
-            "type": "finite_number"
+          "max_aid_station_gap_m": {
+            "envelope": "known_or_unknown",
+            "integer_maximum": 50000,
+            "integer_minimum": 100,
+            "kilometer_wire_or_storage_field_allowed": false,
+            "known_null_meaning": "not_applicable",
+            "known_value_type": "integer_or_explicit_null"
           },
           "water_availability": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "none",
               "some_stations",
               "all_stations"
-            ],
-            "unknown_uses_field_envelope": true
-          }
-        },
-        "environment_and_altitude": {
-          "conditions_basis": {
-            "athlete_assumption_provenance": "explicit_assumption",
-            "athlete_assumption_requires_confirmation": true,
-            "known_allowed": [
-              "organizer_information",
-              "seasonal_expectation",
-              "athlete_assumption"
             ]
-          },
-          "humidity_range_pct": {
-            "maximum": 100,
-            "minimum": 0,
-            "minimum_may_equal_maximum": true,
-            "type": "finite_number_range"
-          },
-          "maximum_altitude_m": {
-            "maximum": 9000,
-            "minimum": -500,
-            "type": "integer"
-          },
-          "sun_exposure": {
-            "known_allowed": [
-              "low",
-              "mixed",
-              "high"
-            ],
-            "unknown_uses_field_envelope": true
-          },
-          "temperature_range_c": {
-            "maximum": 55,
-            "minimum": -30,
-            "minimum_may_equal_maximum": true,
-            "type": "finite_number_range"
-          },
-          "wind_exposure": {
-            "known_allowed": [
-              "sheltered",
-              "mixed",
-              "exposed"
-            ],
-            "unknown_uses_field_envelope": true
           }
         },
-        "fixed_prescription_from_known_context": false,
-        "fueling_and_gastrointestinal_context": {
-          "gastrointestinal_experience": {
-            "known_allowed": [
-              "no_plan_altering_issue",
-              "plan_altering_issue"
-            ],
-            "non_diagnostic": true,
-            "unknown_uses_field_envelope": true
-          },
-          "intake_form": {
-            "known_allowed": [
-              "none",
-              "fluids_only",
-              "carbohydrate_drink",
-              "mixed_food_and_drink"
-            ]
-          },
-          "longest_practiced_duration_min": {
-            "maximum": 1440,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "practice_sessions_last_42_days": {
-            "maximum": 84,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false
+        "type": "strict_fixed_key_object"
       }
     },
     "trail_planning_duration_range": {
@@ -1694,7 +1818,11 @@ That would erase course-specific demand and violate the accepted no-road- fallba
         ],
         "confirmation_is_truth_safety_or_eligibility_attestation": false,
         "confirmation_scope": "exact_visible_field_or_section_revision",
-        "mutation_creates_new_immutable_revision": true,
+        "current_unproposed_draft_revision_is_mutable_state": true,
+        "immutable_snapshot_begins_only_with_proposal": true,
+        "pre_proposal_immutable_edit_or_confirmation_history": false,
+        "prior_draft_value_retained": false,
+        "prior_revision_token_retained": false,
         "proposal_binds_same_exact_revisions": true,
         "readiness_binds_exact_revisions": [
           "goal",
@@ -1705,7 +1833,12 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "generator"
         ],
         "stale_confirmation_rebound_allowed": false,
-        "stale_source_revision_rebound_allowed": false
+        "stale_source_revision_rebound_allowed": false,
+        "successful_edit_atomically_overwrites": [
+          "current_draft_value",
+          "current_revision_token",
+          "invalidated_confirmation_state"
+        ]
       }
     },
     "trail_science_safety_and_privacy_boundary": {
@@ -1745,10 +1878,11 @@ That would erase course-specific demand and violate the accepted no-road- fallba
         "permitted_persisted_categories": [
           "canonical_field_values_and_unknown_states",
           "server_stamped_provenance",
-          "source_and_field_or_section_revisions",
-          "confirmations",
+          "current_source_and_field_or_section_revisions",
+          "current_confirmations",
           "owner_scoped_history_snapshot_reference_and_hash",
-          "readiness_and_proposal_binding_digests"
+          "readiness_and_proposal_binding_digests",
+          "immutable_snapshot_only_after_proposal_creation"
         ],
         "personal_finish_probability": false,
         "suggestion_only": true,
@@ -1930,11 +2064,11 @@ That would erase course-specific demand and violate the accepted no-road- fallba
           "technical_terrain"
         ],
         "limited_unknown_mapping": {
-          "aid_and_support": "fueling",
           "course_footing": "technical_terrain",
-          "environment_and_altitude": "environment_altitude",
-          "fueling_and_gastrointestinal_context": "fueling",
-          "grade_distribution": "grade_specificity"
+          "grade_distribution": "grade_specificity",
+          "optional_context.environment.*": "environment_altitude",
+          "optional_context.fueling.*": "fueling",
+          "optional_context.support.*": "fueling"
         },
         "material_unknown_result": [
           "clarification_required",
@@ -1949,7 +2083,7 @@ That would erase course-specific demand and violate the accepted no-road- fallba
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c"
+  "source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1"
 }
 ```
 
@@ -2003,7 +2137,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md.",
     "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md.",
     "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md.",
-    "This revision incorporates the bounded Product correction at repository commit 81c58c1b; it does not approve that role-owned artifact.",
+    "This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact.",
     "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607.",
     "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."
   ],
@@ -2027,7 +2161,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "trail_field_provenance",
           "trail_revision_and_confirmation"
         ],
-        "proposed_decision": "Accept the closed envelope, provenance categories, field-specific provenance restrictions, immutable revisions, and confirmation invalidation rules as operational guardrails.",
+        "proposed_decision": "Accept the closed envelope, provenance categories, field-specific provenance restrictions, replaceable current revision tokens, proposal-time immutable snapshots, and confirmation invalidation rules as operational guardrails.",
         "question": "Should every reviewable v2 field use an exact known-or-unknown envelope while provenance, source metadata, and history hashes remain server-owned and revision-bound?",
         "title": "Adopt explicit field states and server-owned provenance"
       },
@@ -2184,12 +2318,6 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "type": "server_owned_identifier"
         },
         "fields": {
-          "aid_and_support": {
-            "envelope": "known_or_unknown",
-            "limited_module": "fueling",
-            "materiality": "limited",
-            "type": "bounded_object"
-          },
           "course_footing": {
             "envelope": "known_or_unknown",
             "limited_module": "technical_terrain",
@@ -2197,11 +2325,13 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "type": "nonempty_unordered_closed_set"
           },
           "distance_family": {
-            "allowed": [
-              "non_ultra"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "non_ultra",
+              "ultra"
+            ],
+            "supported_value": "non_ultra",
             "type": "closed_enum"
           },
           "distance_meters": {
@@ -2212,35 +2342,25 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "type": "integer",
             "unit": "meters"
           },
-          "environment_and_altitude": {
-            "envelope": "known_or_unknown",
-            "limited_module": "environment_altitude",
-            "materiality": "limited",
-            "type": "bounded_object"
-          },
           "event_date": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "type": "iso_date"
           },
           "event_format": {
-            "allowed": [
-              "single_day"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "single_day",
+              "multi_day"
+            ],
+            "supported_value": "single_day",
             "type": "closed_enum"
           },
           "fixed_rope": {
             "envelope": "known_or_unknown",
             "materiality": "core",
             "type": "strict_boolean"
-          },
-          "fueling_and_gastrointestinal_context": {
-            "envelope": "known_or_unknown",
-            "limited_module": "fueling",
-            "materiality": "limited",
-            "type": "bounded_object"
           },
           "grade_distribution": {
             "envelope": "known_or_unknown",
@@ -2253,6 +2373,18 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "materiality": "core",
             "type": "strict_boolean"
           },
+          "optional_context": {
+            "every_declared_leaf_required": true,
+            "every_leaf_envelope": "known_or_unknown",
+            "exact_groups": [
+              "environment",
+              "support",
+              "fueling"
+            ],
+            "group_envelope_allowed": false,
+            "materiality": "limited_by_leaf",
+            "type": "strict_fixed_key_object"
+          },
           "planning_duration_range": {
             "envelope": "known_or_unknown",
             "materiality": "core",
@@ -2260,11 +2392,14 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             "unit": "minutes"
           },
           "planning_intent": {
-            "allowed": [
-              "performance"
-            ],
             "envelope": "known_or_unknown",
             "materiality": "core",
+            "recognized": [
+              "performance",
+              "first_completion",
+              "return_to_consistency"
+            ],
+            "supported_value": "performance",
             "type": "closed_enum"
           },
           "total_ascent_m": {
@@ -2285,6 +2420,24 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           }
         },
         "schema_id": "trail_course_demand_v2",
+        "scope_enum_results": {
+          "recognized_multi_day_or_ultra": {
+            "detail_reason": "unsupported_ultra_or_multiday",
+            "status": "policy_unavailable"
+          },
+          "recognized_non_performance_intent": {
+            "detail_reason": "unsupported_population_or_intent",
+            "status": "policy_unavailable"
+          },
+          "unknown_recognized_scope": {
+            "detail_reason": "adult_scope_or_constraints_unconfirmed",
+            "status": "clarification_required"
+          },
+          "unrecognized_literal": {
+            "detail_reason": "invalid_field_value",
+            "status": "validation_failed"
+          }
+        },
         "strict_unknown_fields_rejected": true
       }
     },
@@ -2623,13 +2776,121 @@ Runtime activation remains fail-closed until implementation approval can bind bo
       "name": "trail_optional_context_shapes",
       "rationale": "Environment and fueling are relevant context, while every exact bound and enum is a reversible minimization and validation choice. None establishes an exposure, equipment, fueling, gastrointestinal, or safety prescription.",
       "value": {
-        "aid_and_support": {
+        "common_leaf_envelope": "known_or_unknown",
+        "enum_unknown_literals_allowed": false,
+        "environment": {
+          "conditions_basis": {
+            "athlete_assumption_provenance": "explicit_assumption",
+            "athlete_assumption_requires_confirmation": true,
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "organizer_information",
+              "seasonal_expectation",
+              "athlete_assumption"
+            ]
+          },
+          "cross_field_rules": {
+            "humidity_order_when_both_known": "humidity_min_pct_lte_humidity_max_pct",
+            "one_unknown_leaf_remains_unknown_without_inventing_other_bound": true,
+            "temperature_order_when_both_known": "temperature_min_c_lte_temperature_max_c"
+          },
+          "humidity_max_pct": {
+            "envelope": "known_or_unknown",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "finite_number"
+          },
+          "humidity_min_pct": {
+            "envelope": "known_or_unknown",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "finite_number"
+          },
+          "maximum_altitude_m": {
+            "envelope": "known_or_unknown",
+            "maximum": 9000,
+            "minimum": -500,
+            "type": "integer"
+          },
+          "sun_exposure": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "low",
+              "mixed",
+              "high"
+            ]
+          },
+          "temperature_max_c": {
+            "envelope": "known_or_unknown",
+            "maximum": 55,
+            "minimum": -30,
+            "type": "finite_number"
+          },
+          "temperature_min_c": {
+            "envelope": "known_or_unknown",
+            "maximum": 55,
+            "minimum": -30,
+            "type": "finite_number"
+          },
+          "wind_exposure": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "sheltered",
+              "mixed",
+              "exposed"
+            ]
+          }
+        },
+        "every_declared_leaf_required": true,
+        "exact_groups": [
+          "environment",
+          "support",
+          "fueling"
+        ],
+        "fixed_prescription_from_known_context": false,
+        "fueling": {
+          "gastrointestinal_experience": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "no_plan_altering_issue",
+              "plan_altering_issue"
+            ],
+            "non_diagnostic": true
+          },
+          "intake_form": {
+            "envelope": "known_or_unknown",
+            "known_allowed": [
+              "none",
+              "fluids_only",
+              "carbohydrate_drink",
+              "mixed_food_and_drink"
+            ]
+          },
+          "longest_practiced_duration_min": {
+            "envelope": "known_or_unknown",
+            "maximum": 1440,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "practice_sessions_last_42_days": {
+            "envelope": "known_or_unknown",
+            "maximum": 84,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "group_envelope_allowed": false,
+        "group_unknown_control_is_leaf_batch_action_only": true,
+        "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false,
+        "support": {
           "aid_station_count": {
+            "envelope": "known_or_unknown",
             "maximum": 50,
             "minimum": 0,
             "type": "integer"
           },
           "aid_support_mode": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "organized_aid",
               "mixed",
@@ -2637,12 +2898,12 @@ Runtime activation remains fail-closed until implementation approval can bind bo
             ]
           },
           "food_availability": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "none",
               "some_stations",
               "all_stations"
-            ],
-            "unknown_uses_field_envelope": true
+            ]
           },
           "mandatory_gear": {
             "allowed": [
@@ -2653,98 +2914,28 @@ Runtime activation remains fail-closed until implementation approval can bind bo
               "navigation_device",
               "other_required"
             ],
+            "envelope": "known_or_unknown",
             "other_required_has_no_label_or_free_text": true,
             "type": "unordered_closed_set"
           },
-          "max_aid_station_gap_km": {
-            "maximum": 50,
-            "minimum": 0.1,
-            "null_allowed_only_for": "no_applicable_gap",
-            "type": "finite_number"
+          "max_aid_station_gap_m": {
+            "envelope": "known_or_unknown",
+            "integer_maximum": 50000,
+            "integer_minimum": 100,
+            "kilometer_wire_or_storage_field_allowed": false,
+            "known_null_meaning": "not_applicable",
+            "known_value_type": "integer_or_explicit_null"
           },
           "water_availability": {
+            "envelope": "known_or_unknown",
             "known_allowed": [
               "none",
               "some_stations",
               "all_stations"
-            ],
-            "unknown_uses_field_envelope": true
-          }
-        },
-        "environment_and_altitude": {
-          "conditions_basis": {
-            "athlete_assumption_provenance": "explicit_assumption",
-            "athlete_assumption_requires_confirmation": true,
-            "known_allowed": [
-              "organizer_information",
-              "seasonal_expectation",
-              "athlete_assumption"
             ]
-          },
-          "humidity_range_pct": {
-            "maximum": 100,
-            "minimum": 0,
-            "minimum_may_equal_maximum": true,
-            "type": "finite_number_range"
-          },
-          "maximum_altitude_m": {
-            "maximum": 9000,
-            "minimum": -500,
-            "type": "integer"
-          },
-          "sun_exposure": {
-            "known_allowed": [
-              "low",
-              "mixed",
-              "high"
-            ],
-            "unknown_uses_field_envelope": true
-          },
-          "temperature_range_c": {
-            "maximum": 55,
-            "minimum": -30,
-            "minimum_may_equal_maximum": true,
-            "type": "finite_number_range"
-          },
-          "wind_exposure": {
-            "known_allowed": [
-              "sheltered",
-              "mixed",
-              "exposed"
-            ],
-            "unknown_uses_field_envelope": true
           }
         },
-        "fixed_prescription_from_known_context": false,
-        "fueling_and_gastrointestinal_context": {
-          "gastrointestinal_experience": {
-            "known_allowed": [
-              "no_plan_altering_issue",
-              "plan_altering_issue"
-            ],
-            "non_diagnostic": true,
-            "unknown_uses_field_envelope": true
-          },
-          "intake_form": {
-            "known_allowed": [
-              "none",
-              "fluids_only",
-              "carbohydrate_drink",
-              "mixed_food_and_drink"
-            ]
-          },
-          "longest_practiced_duration_min": {
-            "maximum": 1440,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "practice_sessions_last_42_days": {
-            "maximum": 84,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed": false
+        "type": "strict_fixed_key_object"
       }
     },
     {
@@ -2795,11 +2986,11 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "technical_terrain"
         ],
         "limited_unknown_mapping": {
-          "aid_and_support": "fueling",
           "course_footing": "technical_terrain",
-          "environment_and_altitude": "environment_altitude",
-          "fueling_and_gastrointestinal_context": "fueling",
-          "grade_distribution": "grade_specificity"
+          "grade_distribution": "grade_specificity",
+          "optional_context.environment.*": "environment_altitude",
+          "optional_context.fueling.*": "fueling",
+          "optional_context.support.*": "fueling"
         },
         "material_unknown_result": [
           "clarification_required",
@@ -2859,7 +3050,11 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         ],
         "confirmation_is_truth_safety_or_eligibility_attestation": false,
         "confirmation_scope": "exact_visible_field_or_section_revision",
-        "mutation_creates_new_immutable_revision": true,
+        "current_unproposed_draft_revision_is_mutable_state": true,
+        "immutable_snapshot_begins_only_with_proposal": true,
+        "pre_proposal_immutable_edit_or_confirmation_history": false,
+        "prior_draft_value_retained": false,
+        "prior_revision_token_retained": false,
         "proposal_binds_same_exact_revisions": true,
         "readiness_binds_exact_revisions": [
           "goal",
@@ -2870,7 +3065,12 @@ Runtime activation remains fail-closed until implementation approval can bind bo
           "generator"
         ],
         "stale_confirmation_rebound_allowed": false,
-        "stale_source_revision_rebound_allowed": false
+        "stale_source_revision_rebound_allowed": false,
+        "successful_edit_atomically_overwrites": [
+          "current_draft_value",
+          "current_revision_token",
+          "invalidated_confirmation_state"
+        ]
       }
     },
     {
@@ -2912,10 +3112,11 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "permitted_persisted_categories": [
           "canonical_field_values_and_unknown_states",
           "server_stamped_provenance",
-          "source_and_field_or_section_revisions",
-          "confirmations",
+          "current_source_and_field_or_section_revisions",
+          "current_confirmations",
           "owner_scoped_history_snapshot_reference_and_hash",
-          "readiness_and_proposal_binding_digests"
+          "readiness_and_proposal_binding_digests",
+          "immutable_snapshot_only_after_proposal_creation"
         ],
         "personal_finish_probability": false,
         "suggestion_only": true,
