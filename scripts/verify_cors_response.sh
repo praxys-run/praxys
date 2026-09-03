@@ -58,7 +58,17 @@ shift
 allowed_methods="$(
   header_values access-control-allow-methods | paste -sd, -
 )"
-token_present "${allowed_methods}" "${expected_method}"
+if [[ -n "${allowed_methods}" ]]; then
+  token_present "${allowed_methods}" "${expected_method}"
+else
+  # Fetch treats GET, HEAD, and POST as CORS-safelisted methods. A server may
+  # therefore omit Access-Control-Allow-Methods for those methods, even when
+  # non-safelisted request headers still make a preflight necessary.
+  case "${expected_method^^}" in
+    GET|HEAD|POST) ;;
+    *) exit 1 ;;
+  esac
+fi
 
 allowed_headers="$(
   header_values access-control-allow-headers | paste -sd, -

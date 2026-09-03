@@ -360,26 +360,36 @@ def _quote(s: str) -> str:
     return f'"{escaped}"'
 
 
-def _emit_po_string(key: str, value: str) -> list[str]:
+def _emit_po_string(
+    key: str,
+    value: str,
+    *,
+    header: bool = False,
+) -> list[str]:
     """Render a key/value as one or more .po output lines.
 
-    If `value` contains embedded newlines (the PO header is the only common
-    case in Lingui-generated catalogs), write the canonical multi-line
-    continuation form Lingui emits:
+    Lingui keeps the first segment of an ordinary multiline message on the
+    ``msgid`` / ``msgstr`` line and emits later segments as continuations. The
+    empty PO header is the only special case that starts with ``key ""``:
 
-        msgstr ""
-        "line 1\\n"
+        msgstr "line 1\\n"
         "line 2\\n"
 
-    Single-line with `\\n` escapes is valid PO and parses identically, but
-    Lingui rewrites it on every extract — producing pure diff noise. Keep
-    round-trips boringly stable.
+    Both forms parse identically, but using the header form for ordinary
+    messages makes every Lingui extraction rewrite the catalog.
     """
     if "\n" not in value:
         return [f"{key} {_quote(value)}"]
     parts = value.split("\n")
-    out = [f'{key} ""']
-    for i, seg in enumerate(parts):
+    if header:
+        out = [f'{key} ""']
+        start = 0
+    else:
+        first_segment = _quote(parts[0] + "\n")
+        out = [f"{key} {first_segment}"]
+        start = 1
+    for i in range(start, len(parts)):
+        seg = parts[i]
         if i < len(parts) - 1:
             out.append(_quote(seg + "\n"))
         elif seg != "":
@@ -399,7 +409,13 @@ def write_po(path: Path, entries: list[dict], tail: list[str] | None = None) -> 
     for e in entries:
         out.extend(e["prefix_lines"])
         out.extend(_emit_po_string("msgid", e["msgid"]))
-        out.extend(_emit_po_string("msgstr", e["msgstr"]))
+        out.extend(
+            _emit_po_string(
+                "msgstr",
+                e["msgstr"],
+                header=e["msgid"] == "",
+            )
+        )
     if tail:
         out.extend(tail)
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
