@@ -54,10 +54,13 @@ for each choice. Approval of one row does not imply approval of another.
   Decision Records; an independently accepted Science successor for any v2
   applicability or safety change; Design review of the resulting journey; the
   proposed [Trail v2 Architecture decision](trail-running-plan-architecture-decision-v2.md)
-  for serialization, revisions, persistence, URL, and zero-I/O projection;
-  the proposed [Trail v2 Trust decision](trail-running-plan-trust-decision-v2.md)
-  for minimization, first-party owner authorization, retention, export, reset,
-  deletion, and side-channel boundaries; and Quality verification of the exact
+  exactly at commit
+  `a52d23ce8534ce4c29082cacb31b5ab5e856de51` for serialization,
+  revisions, persistence, URL, and zero-I/O projection; the proposed
+  [Trail v2 Trust decision](trail-running-plan-trust-decision-v2.md) exactly at
+  commit `d8c83a87750db02d232f5efd757be5fdc17b8632` for minimization,
+  first-party owner authorization, retention, export, reset, deletion, and
+  side-channel boundaries; and Quality verification of the exact
   implementation. Both proposed specialist records require their own human
   acceptance before implementation.
 - **Review route:** human-review-required. Product neither approves this
@@ -179,9 +182,9 @@ receipt preserves all other independently evaluable matches.
 
 ### Exhaustive reason catalog
 
-The following is the complete v2 Product catalog. Adding, removing, renaming,
-or reclassifying a reason requires a successor Product decision and matching
-specialist review.
+The following is the complete 21-reason v2 Product catalog. Adding, removing,
+renaming, or reclassifying a reason requires a successor Product decision and
+matching specialist review.
 
 | Status | Ordered `detail_reason` values | Product meaning |
 | --- | --- | --- |
@@ -209,7 +212,7 @@ maps as follows. Multiple rows may match and must all remain in
 | Required accepted ontology, Science contract, Product/Design/Architecture/Trust dependency, or inactive capability contract is absent, mismatched, or not runtime-authorized | `policy_unavailable.policy_inactive` |
 | Event identity/date, distance, ascent, descent, planning-duration range, or either hazard gate is unknown | `clarification_required.material_course_demand_unknown` |
 | An `explicit_assumption` section has not been confirmed at its exact revision | `clarification_required.assumption_confirmation_required` |
-| Required adult/non-clinical confirmation is absent or unknown | `clarification_required.adult_scope_or_constraints_unconfirmed` |
+| Required adult/non-clinical confirmation or a recognized scope enum is absent or unknown | `clarification_required.adult_scope_or_constraints_unconfirmed` |
 | Available weekdays, weekly time, maximum session, unavailable dates, access booleans, accessible footing, or symptom response is missing or unknown | `clarification_required.training_constraints_missing` |
 | An explicit requested workload or proposal edit is above the server-derived recent-history envelope | `clarification_required.training_constraints_outside_history_envelope` |
 | Any required field/section confirmation, course source, planning source, or history source revision is stale | `clarification_required.stale_confirmation_or_source_revision` |
@@ -221,8 +224,8 @@ maps as follows. Multiple rows may match and must all remain in
 | Confirmed current symptom-stop is true | `readiness_blocked.current_symptom_stop` |
 | Valid complete constraints, unavailable dates, history caps, and policy spacing leave no 14-day schedule | `readiness_blocked.no_schedule_within_envelope` |
 | Event falls inside the unapproved event-near/taper window | `policy_unavailable.event_inside_unapproved_taper_window` |
-| Event is ultra-distance or multiday | `policy_unavailable.unsupported_ultra_or_multiday` |
-| Population, clinical/return-to-sport state, or intent is outside the accepted performance scope | `policy_unavailable.unsupported_population_or_intent` |
+| Recognized `event_format` is `multi_day` or recognized `distance_family` is `ultra` | `policy_unavailable.unsupported_ultra_or_multiday` |
+| Population/clinical state is unsupported or recognized `planning_intent` is `first_completion` or `return_to_consistency` | `policy_unavailable.unsupported_population_or_intent` |
 | `hands_assist` or `fixed_rope` is known `true` | `policy_unavailable.technical_features_outside_v2` |
 
 A capacity limit above recent history does not request extra work and therefore
@@ -243,8 +246,8 @@ Readiness returns all four keys in `module_availability`:
 Each value contains exactly one state plus a closed `reason_target`:
 
 - `not_evaluated`: a validation, policy, clarification, or core-readiness
-  condition prevented a safe module decision; `reason_target` points to the
-  applicable namespaced readiness reason;
+  status prevented a safe module decision; `reason_target` is the top-level
+  result's primary namespaced reason;
 - `available`: the module may be considered by generation, not that it will be
   included; `reason_target` is `null`; or
 - `limited`: accepted input requires the module to be omitted or remain
@@ -253,6 +256,11 @@ Each value contains exactly one state plus a closed `reason_target`:
 
 Reason targets are fixed keys resolved inside the authenticated UI. They are
 not URLs, fragments, values, identifiers, or client-authored strings.
+
+When the top-level status is anything other than `eligible_proposal`, all four
+modules are `not_evaluated` and all four cite the same primary namespaced
+reason. Only `eligible_proposal` evaluates each module as `available` or
+`limited`.
 
 `limited_modules` is only the sorted list of keys whose authoritative state is
 `limited`. It is redundant compatibility output, not a source of truth.
@@ -366,9 +374,20 @@ maximum are each from `1` through `1440`, with `minimum < maximum`. It is the
 range the athlete wants Praxys to use for planning context. It is not a
 finish-time prediction, forecast, feasibility verdict, or performance promise.
 
-Event format, distance family, and performance intent remain closed enums.
-Unsupported ultra/multiday scope or population/intent produces the appropriate
-`policy_unavailable` reason; it is not coerced into the non-ultra policy.
+The request recognizes only these closed scope enums:
+
+- `event_format`: `single_day` or `multi_day`;
+- `distance_family`: `non_ultra` or `ultra`; and
+- `planning_intent`: `performance`, `first_completion`, or
+  `return_to_consistency`.
+
+An unknown recognized scope field yields
+`clarification_required.adult_scope_or_constraints_unconfirmed`. Known
+`multi_day` or `ultra` yields
+`policy_unavailable.unsupported_ultra_or_multiday`. A known non-performance
+intent yields `policy_unavailable.unsupported_population_or_intent`. An
+unrecognized enum literal is `validation_failed.invalid_field_value`; it is
+never treated as unknown or coerced into the non-ultra performance policy.
 
 ### Canonical grade-share buckets
 
@@ -433,8 +452,13 @@ diagnosis, skill assessment, or training dose.
 
 ### Bounded optional context
 
-Optional context uses the following closed, bounded shapes and may remain
-unknown.
+`optional_context` is exactly three strict fixed-key objects: `environment`,
+`support`, and `fueling`. Group objects have no known/unknown envelope and
+every declared leaf key is always present. Every leaf independently uses the
+common known/unknown envelope. A UI “set group unknown” control is only a batch
+action that writes unknown to every leaf; it has no group-level wire value.
+Unknown or extra group/leaf keys fail validation, and no enum below contains an
+`unknown` literal.
 
 Environment and altitude:
 
@@ -444,20 +468,27 @@ Environment and altitude:
   through `55`, with minimum less than or equal to maximum;
 - `humidity_min_pct` and `humidity_max_pct` are finite numbers from `0` through
   `100`, with minimum less than or equal to maximum;
-- `sun_exposure` is `low`, `mixed`, `high`, or `unknown`;
-- `wind_exposure` is `sheltered`, `mixed`, `exposed`, or `unknown`; and
+- `sun_exposure`, when known, is `low`, `mixed`, or `high`;
+- `wind_exposure`, when known, is `sheltered`, `mixed`, or `exposed`; and
 - `conditions_basis` is `organizer_information`, `seasonal_expectation`, or
   `athlete_assumption`. An athlete assumption receives server-stamped
   `explicit_assumption` provenance and requires revision-bound confirmation.
+
+Temperature and humidity minima and maxima are separate leaf envelopes. Their
+ordering rule is evaluated only when both leaves in the pair are known. One
+unknown leaf remains unknown and limits `environment_altitude`; it does not
+fail or invent the other bound.
 
 Aid and support:
 
 - `aid_support_mode` is `organized_aid`, `mixed`, or `self_supported`;
 - `aid_station_count` is an integer from `0` through `50`;
-- `max_aid_station_gap_km` is a finite number from `0.1` through `50`, or
-  `null` when no applicable gap can be represented;
+- `max_aid_station_gap_m`, when known, is an integer from `100` through
+  `50000`, except that `{"state":"known","value":null}` is the one explicit
+  known-null value and means not applicable; kilometers are UI display/input
+  conversion only;
 - `water_availability` and `food_availability` are each `none`,
-  `some_stations`, `all_stations`, or `unknown`; and
+  `some_stations`, or `all_stations` when known; and
 - `mandatory_gear` is an unordered set containing only `water_carry`,
   `food_carry`, `weather_shell`, `lighting`, `navigation_device`, or
   `other_required`. `other_required` records only that another organizer
@@ -469,8 +500,8 @@ Fueling and gastrointestinal context:
 - `practice_sessions_last_42_days` is an integer from `0` through `84`;
 - `intake_form` is `none`, `fluids_only`, `carbohydrate_drink`, or
   `mixed_food_and_drink`; and
-- `gastrointestinal_experience` is `no_plan_altering_issue`,
-  `plan_altering_issue`, or `unknown`.
+- `gastrointestinal_experience` is `no_plan_altering_issue` or
+  `plan_altering_issue` when known.
 
 These fields are optional and module-limiting. Gastrointestinal experience is
 a non-diagnostic athlete report; it cannot be presented as a condition,
