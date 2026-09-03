@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
+from decimal import localcontext
 
 import pytest
 
@@ -707,4 +708,31 @@ def test_arbitrary_size_integer_duration_and_distance_do_not_overflow() -> None:
     assert result.code == "eligible_proposal"
     assert deterministic_input_hash(generation_input) == (
         result.deterministic_input_hash
+    )
+
+
+def test_duration_aggregation_is_order_and_decimal_context_independent() -> None:
+    huge = 10**400
+    history = list(_history())
+    history[0] = replace(
+        history[0],
+        duration_min=huge,
+        distance_km=huge,
+    )
+    history[1] = replace(history[1], duration_min=50.125)
+    generation_input = _generation_input(history=tuple(history))
+    reordered_input = replace(
+        generation_input,
+        history=tuple(reversed(history)),
+    )
+    with localcontext() as context:
+        context.prec = 28
+        low_precision = generate_non_ultra_trail_plan(generation_input)
+    with localcontext() as context:
+        context.prec = 500
+        high_precision = generate_non_ultra_trail_plan(reordered_input)
+    assert low_precision == high_precision
+    assert low_precision.history_statistics == high_precision.history_statistics
+    assert low_precision.deterministic_input_hash == (
+        high_precision.deterministic_input_hash
     )

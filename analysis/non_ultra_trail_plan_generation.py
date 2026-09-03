@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields, is_dataclass
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from fractions import Fraction
 import hashlib
 from itertools import combinations
 import json
@@ -2075,10 +2075,18 @@ def _integer_median(values: Sequence[int]) -> int:
 def _duration_minutes_total(
     values: Sequence[TrailRunningHistoryObservation],
 ) -> int:
-    return int(sum(
-        (Decimal(str(value.duration_min)) for value in values),
-        start=Decimal(0),
-    ))
+    total = sum(
+        (_exact_number_fraction(value.duration_min) for value in values),
+        start=Fraction(0),
+    )
+    return int(total)
+
+
+def _exact_number_fraction(value: int | float) -> Fraction:
+    if type(value) is int:
+        return Fraction(value)
+    numerator, denominator = value.as_integer_ratio()
+    return Fraction(numerator, denominator)
 
 
 def _conservative_mode(values: Sequence[int]) -> int:
