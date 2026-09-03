@@ -164,6 +164,7 @@ def test_stryd_connectiq_record_power_is_mapped(app_id):
         (STRYD_CONNECTIQ_APP_IDS[1], 8, 250),
         (STRYD_CONNECTIQ_APP_IDS[1], 0, "not-a-number"),
         (STRYD_CONNECTIQ_APP_IDS[1], 0, "nan"),
+        (STRYD_CONNECTIQ_APP_IDS[1], 0, -25),
     ],
 )
 def test_unrelated_or_malformed_connectiq_power_is_ignored(

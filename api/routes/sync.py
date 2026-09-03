@@ -1974,13 +1974,6 @@ def _sync_garmin_locked(
         except Exception as e:
             split_failures += 1
             logger.debug("Splits for %s: skipped (%s)", aid, e)
-    if total and split_failures >= max(3, total // 2):
-        logger.warning(
-            "Garmin splits fetch failed for %d of %d activities (user %s) — "
-            "intensity analysis will be missing for those runs",
-            split_failures, total, user_id,
-        )
-
     # Fetch per-second streams and write to activity_samples. One extra API
     # call per activity (get_activity_details). Rate-limited the same as splits.
     # Standard and explicitly recognized Stryd ConnectIQ power also enriches
@@ -2008,11 +2001,21 @@ def _sync_garmin_locked(
 
     all_splits = []
     for aid in activity_ids:
-        all_splits.extend(parse_splits(
-            aid,
-            split_payloads.get(aid, {}),
-            activity_samples=samples_by_activity.get(aid),
-        ))
+        try:
+            all_splits.extend(parse_splits(
+                aid,
+                split_payloads.get(aid, {}),
+                activity_samples=samples_by_activity.get(aid),
+            ))
+        except Exception as e:
+            split_failures += 1
+            logger.debug("Splits for %s: skipped (%s)", aid, e)
+    if total and split_failures >= max(3, total // 2):
+        logger.warning(
+            "Garmin splits fetch or parse failed for %d of %d activities "
+            "(user %s) — intensity analysis will be missing for those runs",
+            split_failures, total, user_id,
+        )
     split_count = sync_writer.write_splits(user_id, all_splits, db)
     sample_count = sync_writer.write_samples(user_id, all_samples, db)
     logger.debug("Garmin sync: %d splits, %d samples written", split_count, sample_count)

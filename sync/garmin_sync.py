@@ -581,7 +581,7 @@ def _connectiq_power_value(
         ):
             continue
         value = _finite_number(field.get("value"))
-        if value is None:
+        if value is None or value < 0:
             continue
         if found is not None and not math.isclose(found, value, abs_tol=1e-6):
             return None
@@ -658,6 +658,7 @@ def _stream_power_for_lap(
         if (
             sample_time is None
             or power is None
+            or power < 0
             or not start <= sample_time < end
         ):
             continue
@@ -897,6 +898,8 @@ def parse_activity_stream(activity_id: str, details: dict) -> list[dict]:
             continue
         speed = _val(metrics, "directSpeed")
         stryd_power = _metric_value(metrics, stryd_power_idx)
+        if stryd_power is not None and stryd_power < 0:
+            stryd_power = None
         samples.append({
             "activity_id": str(activity_id),
             "source": "stryd" if stryd_power is not None else "garmin",

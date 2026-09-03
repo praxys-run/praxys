@@ -756,9 +756,8 @@ def write_samples(user_id: str, rows: list[dict], db: Session) -> int:
         return 0
     lock_revision_writes(db, user_id)
 
-    # Dialect-agnostic upsert: SQLite and PostgreSQL both expose
-    # on_conflict_do_nothing(index_elements=...) on their INSERT construct,
-    # but via dialect-specific modules (#360).
+    # SQLite and PostgreSQL expose conditional on_conflict_do_update() through
+    # dialect-specific INSERT constructs (#360).
     if db.bind.dialect.name == "postgresql":
         from sqlalchemy.dialects.postgresql import insert as _dialect_insert
     else:

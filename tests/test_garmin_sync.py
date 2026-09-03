@@ -446,7 +446,7 @@ def test_parse_activity_weather_requires_a_valid_complete_pair(payload):
     assert parse_activity_weather(payload) == {}
 
 
-def test_sync_garmin_wires_weather_and_stryd_stream_power(
+def test_sync_garmin_isolates_bad_split_and_wires_valid_enrichment(
     tmp_path, monkeypatch,
 ):
     weather_calls = []
@@ -494,6 +494,8 @@ def test_sync_garmin_wires_weather_and_stryd_stream_power(
             return {"temp": 86, "relativeHumidity": 72}
 
         def get_activity_splits(self, activity_id):
+            if str(activity_id) == "1002":
+                return {"lapDTOs": [{"distance": "invalid", "duration": 300}]}
             if str(activity_id) == "1003":
                 return {"lapDTOs": [{
                     "startTimeGMT": "2023-11-14T22:13:20.0",
@@ -1011,7 +1013,10 @@ def test_parse_splits_ignores_wrong_field_from_stryd_app():
     assert rows[0]["power_source"] == ""
 
 
-@pytest.mark.parametrize("value", [None, "not-a-number", "nan", "inf", []])
+@pytest.mark.parametrize(
+    "value",
+    [None, "not-a-number", "nan", "inf", [], -25],
+)
 def test_parse_splits_ignores_malformed_stryd_lap_power(value):
     """Malformed values from an otherwise-recognized Stryd field fail closed."""
     data = {
