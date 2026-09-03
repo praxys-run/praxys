@@ -5,14 +5,17 @@ successor; human Design review required; runtime inactive and unreachable.
 **Evidence:** no implementation or rendered verification is claimed.
 
 **Dependency binding:** [Product v2](trail-running-plan-product-amendment-v2.md)
-is `pdr-owner-non-ultra-trail-plan-v2-amendment` at commit `81c58c1b`;
+is `pdr-owner-non-ultra-trail-plan-v2-amendment` at commit
+`f9678d64a599d814473470c6b8eaf09b5bc00c75`;
 [Architecture v2](trail-running-plan-architecture-decision-v2.md) is
-`adr-owner-non-ultra-trail-plan-v2`; [Trust v2](trail-running-plan-trust-decision-v2.md)
-is `tdr-owner-non-ultra-trail-plan-v2`; the draft Science decisions at commit
-`b5177e40` are `sdr-trail-running-goal-ontology-v2` at decision digest
-`sha256:73dd653f8637004ff2ab3a754c3e775225eaf9faa79ccc52c97de3c3dbbf0b7c`
+`adr-owner-non-ultra-trail-plan-v2` at commit
+`a52d23ce8534ce4c29082cacb31b5ab5e856de51`; [Trust v2](trail-running-plan-trust-decision-v2.md)
+is `tdr-owner-non-ultra-trail-plan-v2` at commit
+`d8c83a87750db02d232f5efd757be5fdc17b8632`; the draft Science decisions are
+`sdr-trail-running-goal-ontology-v2` at decision digest
+`sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1`
 and `sdr-non-ultra-trail-plan-generation-policy-v2` at decision digest
-`sha256:8c10f0846e356afa0522025fe2c02f095fe4487537eaae9d7d0203449a36bb56`.
+`sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe`.
 All four v2 specialist decisions remain proposed/draft and require human
 acceptance plus an accepted inactive-contract rebind before implementation.
 
@@ -65,9 +68,12 @@ The mode is **Operate**. The owner should finish with one answer—what Praxys
 can do next—and a complete receipt showing why. The route is a dedicated page,
 `/training/plan-start/trail/course-review`; Goal may link to it but its dialog
 does not host the ledger. The path has no variable segment or query string.
-Optional hashes are limited to `#event`, `#grade-footing`,
-`#training-access`, `#recent-experience`, and
-`#conditions-support-fueling`. In-page focus and browser navigation state may
+The fixed section keys are `section.event-duration`,
+`section.grade-footing`, `section.training-access`,
+`section.recent-experience`, `section.optional-context`, and
+`section.policy-receipt`; optional hashes use only the corresponding suffix
+(`event-duration` through `policy-receipt`). In-page focus and browser
+navigation state may
 carry only the fixed section/field/action target keys defined below—never a
 value, unknown state, date, identifier, revision, digest, DTO, token, or source
 metadata.
@@ -103,6 +109,12 @@ Server response provenance always uses these labels: **You entered this /
 required / 你的假设—需要确认** (`explicit_assumption`), and **Unknown / 未知**
 (`unknown`). Clients never author provenance.
 
+UI conversions that serialize integer meters—race distance and aid-station
+gap—accept at most three fractional kilometre digits. Grade percentages and
+canonical decimal temperature/humidity values accept at most two fractional
+digits. Every other numeric field below is integer-only; exponent notation,
+non-finite values, coercion, and silently rounded input are invalid.
+
 ### 1. Event & planning duration / 赛事与计划用时
 
 | EN / 中文 label | Product v2 field and UI mapping |
@@ -114,9 +126,9 @@ required / 你的假设—需要确认** (`explicit_assumption`), and **Unknown 
 | Total descent / 累计下降 | Integer meters `0..20000`. |
 | Minimum planning duration / 计划用时下限 | Hours/minutes control → integer minutes `1..1440`. |
 | Maximum planning duration / 计划用时上限 | Hours/minutes control → integer minutes `1..1440`, strictly greater than minimum. |
-| Event format / 比赛形式 | `single_day` → **One-day event / 单日赛事**. |
-| Distance category / 距离类别 | `non_ultra` → **Non-ultra Trail / 非超长距离越野**. |
-| Planning goal / 计划目标 | `performance` → **Improve race performance / 提升比赛表现**. |
+| Event format / 比赛形式 | `single_day` → **One-day event / 单日赛事**; recognized unsupported `multi_day` → **Multi-day event / 多日赛事**. |
+| Distance category / 距离类别 | `non_ultra` → **Non-ultra Trail / 非超长距离越野**; recognized unsupported `ultra` → **Ultra-distance Trail / 超长距离越野**. |
+| Planning goal / 计划目标 | `performance` → **Improve race performance / 提升比赛表现**; recognized unsupported `first_completion` → **Finish the event / 完成赛事**; `return_to_consistency` → **Rebuild training consistency / 恢复训练规律**. |
 
 Planning-duration help is **The range you want Praxys to plan around—not a
 finish-time prediction. / 这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。**
@@ -132,8 +144,8 @@ finish-time prediction. / 这是你希望 Praxys 用于制定计划的时长范�
 - **Steep uphill (10% and above) / 陡上坡（10% 及以上）**
 
 Display percentages accept at most two decimal places and convert exactly to
-five integer basis-point shares. The live summary is **Total / 合计**; the five
-values must equal `100.00%` (`10000` basis points). The entire distribution may
+five integer basis-point shares. Each input is `0..100.00`; the live summary is
+**Total / 合计**; the five values must equal `100.00%` (`10000` basis points). The entire distribution may
 instead be explicitly unknown. Boundaries are explanatory text, not sliders
 or inferred route geometry.
 
@@ -149,7 +161,8 @@ plain-language values:
 | Built steps / 人工台阶 | `built_steps` |
 | Water crossings / 涉水路段 | `water_crossing` |
 
-The set may be explicitly unknown; there is no Other or free text. Use
+When known, the set is non-empty. It may instead be explicitly unknown; there
+is no Other or free text. Use
 **Does any section require hands for progress? / 是否有路段需要用手辅助通过？**
 for `hands_assist`, and **Does any section use fixed ropes? /
 是否有路段需要使用固定绳索？** for `fixed_rope`. Both offer exactly **Yes /
@@ -179,9 +192,10 @@ for `hands_assist`, and **Does any section use fixed ropes? /
   你能使用适合受控下坡训练的路线吗？** uses the same mapping and asks for no
   slope, speed, distance, or duration.
 - **Footing available for training / 可用于训练的路面** uses the same six
-  footing values or explicit unknown.
-- **I confirm this is an adult, non-clinical planning context. /
-  我确认这是成人、非医疗场景的训练计划。** binds the scope confirmation.
+  footing values; a known set is non-empty, otherwise use explicit unknown.
+- **I confirm I am 18 or older and this is not clinical or return-to-sport
+  planning. / 我确认本人已满 18 岁，且这不是医疗或重返运动计划。** binds the
+  adult/non-clinical scope confirmation.
 - **I confirm the goal is race performance. / 我确认目标是提升比赛表现。**
   binds the intent confirmation.
 - **Do you currently have symptoms that should stop performance planning? /
@@ -202,20 +216,26 @@ correction, attestation, or athlete-entered replacement inside plan start.
 Open this collapsed section before it can be confirmed. Environment, support,
 and fueling must each be explicitly completed or set to unknown; opening one
 group never reviews another. Each group offers **Set this group to unknown /
-将本组设为未知**, which writes strict unknown envelopes for that group's
-fields, creates a new section revision, and never supplies defaults.
+将本组设为未知**. `optional_context` remains three fixed objects whose every
+declared leaf is always present and independently uses the strict known/unknown
+envelope; group objects have no envelope. The batch control writes unknown to
+every leaf, creates a new section revision, and supplies no group-level wire
+value or default. No closed enum contains an `unknown` literal.
 
-- Environment: **Maximum course altitude / 赛道最高海拔** (integer m),
-  **Expected temperature range / 预计气温范围** (°C min/max), **Expected
-  humidity range / 预计湿度范围** (% min/max), **Sun exposure / 日晒暴露**
+- Environment: **Maximum course altitude / 赛道最高海拔** (integer
+  `-500..9000` m), **Expected temperature range / 预计气温范围** (`-30..55`
+  °C, minimum ≤ maximum when both are known), **Expected humidity range /
+  预计湿度范围** (`0..100%`, minimum ≤ maximum when both are known), **Sun exposure / 日晒暴露**
   (Low/Mixed/High / 低/混合/高), **Wind exposure / 风力暴露**
   (Sheltered/Mixed/Exposed / 遮蔽/混合/暴露), and **Conditions based on /
   环境信息依据** (Organizer information/Seasonal expectation/My assumption /
   赛事方信息/季节预期/我的假设). My assumption requires explicit confirmation.
 - Support: **Support setup / 补给支持方式** (Organized aid/Mixed/Self-supported
-  / 赛事补给/混合/自助), **Number of aid stations / 补给站数量**,
-  **Longest gap between aid stations / 最长补给站间距** (km value, No
-  applicable gap / 不适用, or Not sure / 不确定), **Water availability /
+  / 赛事补给/混合/自助), **Number of aid stations / 补给站数量** (integer
+  `0..50`), **Longest gap between aid stations / 最长补给站间距** (UI km
+  `0.1..50`, at most three decimals, converting exactly to integer
+  `max_aid_station_gap_m` `100..50000`; **Not applicable / 不适用** maps only
+  to known `null`; **Not sure / 不确定** maps to the leaf unknown envelope), **Water availability /
   饮水供应** and **Food availability / 食物供应** (None/Some stations/Every
   station/Not sure / 无/部分站点/每个站点/不确定), and **Required equipment /
   强制装备** (Carry water/Carry food/Weather shell/Lighting/Navigation
@@ -224,8 +244,8 @@ fields, creates a new section revision, and never supplies defaults.
   equipment listed / 未列出强制装备** is a known-empty set and is distinct from
   **I don't know yet / 目前不确定**.
 - Fueling: **Longest practiced fueling duration / 最长补给练习时长** (integer
-  minutes), **Fueling practice sessions in the past 42 days /
-  过去 42 天的补给练习次数** (integer), **Practiced intake / 已练习的摄入形式**
+  `0..1440` minutes), **Fueling practice sessions in the past 42 days /
+  过去 42 天的补给练习次数** (integer `0..84`), **Practiced intake / 已练习的摄入形式**
   (None/Fluids only/Carbohydrate drink/Mixed food and drink /
   无/仅液体/碳水饮料/食物与饮品混合), and **Did stomach or gut issues change
   your plan? / 胃肠不适是否曾让你改变计划？** (No plan-altering issue/Plan-
@@ -267,12 +287,35 @@ they are never user-visible. Target keys are fixed internal keys, not URLs or
 personal state. `first-*` actions resolve from the server's closed field-error
 or reason-target data and never from client-authored strings.
 
+Fixed field targets resolve as follows: `field.event-date` and
+`field.event-scope` open `section.event-duration`; `field.adult-performance-scope`
+and `field.symptom-stop` open `section.training-access`; and
+`field.history-running`, `field.history-comparable-trail`, and
+`field.history-descent` open `section.recent-experience` and focus their
+read-only row. `section.policy-receipt` focuses the policy explanation in the
+receipt. Every target opens a collapsed section before focus and announces its
+heading.
+
+Generic action targets are also closed. `action.first-invalid-field`,
+`action.first-unknown-core-field`, `action.first-unconfirmed-assumption`,
+`action.first-missing-training-field`, and `action.first-conflicting-field`
+focus the first server-targeted field in canonical field order;
+`action.first-confirmed-hazard` orders hands assistance before fixed ropes;
+`action.first-stale-section` uses the six fixed section keys in page order.
+`action.reload-supported-version` refetches and focuses
+`section.policy-receipt` without writing; `action.retry-readiness` reruns the
+no-write check only for the current composite revision. `action.review-history-envelope`
+opens `section.recent-experience`, focuses its heading, and renders a read-only
+requested-versus-observed comparison. If authoritative target data is absent
+or invalid, the action focuses the receipt error and fails closed; the client
+never guesses a destination.
+
 | Reason code | Finding — EN / 中文 | Effect — EN / 中文 | Fixed target; action — EN / 中文 |
 | --- | --- | --- | --- |
 | `validation_failed.invalid_field_value` | One or more values is outside the accepted format or range. / 一项或多项数据不符合格式或范围要求。 | Praxys cannot interpret this revision safely. / Praxys 无法安全解释当前版本。 | `action.first-invalid-field`; **Review the first invalid value / 查看首个无效值** |
 | `validation_failed.schema_version_mismatch` | This course review was created with an unsupported version. / 此赛道核对使用了不受支持的版本。 | Praxys will not guess how old or future fields map to v2. / Praxys 不会猜测旧版或未来字段如何映射到 v2。 | `action.reload-supported-version`; **Reload the supported version / 重新加载受支持版本** |
 | `validation_failed.deterministic_invariant_failed` | Praxys could not reproduce the same readiness receipt. / Praxys 无法复现同一份准备情况回执。 | No proposal can be trusted from this result. / 无法信任基于此结果生成的提案。 | `action.retry-readiness`; **Retry the readiness check / 重新检查准备情况** |
-| `policy_unavailable.policy_inactive` | This Trail policy is not active. / 此越野策略尚未启用。 | No proposal is available from this inactive slice. / 此未启用切片不能生成提案。 | `section.policy-status`; **Review policy status / 查看策略状态** |
+| `policy_unavailable.policy_inactive` | This Trail policy is not active. / 此越野策略尚未启用。 | No proposal is available from this inactive slice. / 此未启用切片不能生成提案。 | `section.policy-receipt`; **Review policy status / 查看策略状态** |
 | `policy_unavailable.event_inside_unapproved_taper_window` | The event is inside a period without an accepted taper policy. / 比赛已进入尚无获批减量策略的阶段。 | This policy cannot organize the event-near period. / 此策略无法安排临赛阶段。 | `field.event-date`; **Review the event date / 查看比赛日期** |
 | `policy_unavailable.unsupported_ultra_or_multiday` | This event is ultra-distance or multiday. / 此赛事属于超长距离或多日赛。 | It is outside the non-ultra, one-day policy. / 它超出非超长距离单日策略范围。 | `field.event-scope`; **Review event scope / 查看赛事范围** |
 | `policy_unavailable.unsupported_population_or_intent` | The confirmed context or goal is outside this performance policy. / 已确认的适用场景或目标不在此竞速策略范围内。 | Praxys will not substitute another population or intent. / Praxys 不会替换为其他人群或目标。 | `field.adult-performance-scope`; **Review planning scope / 查看计划适用范围** |
@@ -282,7 +325,7 @@ or reason-target data and never from client-authored strings.
 | `readiness_blocked.insufficient_descent_history` | Recent descent exposure is insufficient. / 近期下降训练经历不足。 | Downhill work cannot be bounded from observed history. / 无法依据已观察历史约束下坡训练。 | `field.history-descent`; **Review descent experience / 查看下降训练经历** |
 | `readiness_blocked.insufficient_terrain_access` | Required uphill, downhill, or footing access is unavailable. / 缺少所需的上坡、下坡或路面训练条件。 | Praxys will not replace the course demand with road training. / Praxys 不会用公路训练替代赛道需求。 | `section.training-access`; **Review training access / 查看训练场地条件** |
 | `readiness_blocked.current_symptom_stop` | You confirmed a current symptom that should stop performance planning. / 你确认目前有应停止竞速计划的症状。 | Performance planning stops; Praxys makes no diagnosis. / 竞速计划将停止；Praxys 不作诊断。 | `field.symptom-stop`; **Review your response / 查看你的回答** |
-| `readiness_blocked.no_schedule_within_envelope` | No 14-day schedule fits the confirmed availability and accepted limits. / 没有 14 天安排能同时满足已确认时间和已接受限制。 | Praxys will not compress, stack, or substitute sessions. / Praxys 不会压缩、堆叠或替换训练。 | `section.training-schedule`; **Review your schedule / 查看训练时间安排** |
+| `readiness_blocked.no_schedule_within_envelope` | No 14-day schedule fits the confirmed availability and accepted limits. / 没有 14 天安排能同时满足已确认时间和已接受限制。 | Praxys will not compress, stack, or substitute sessions. / Praxys 不会压缩、堆叠或替换训练。 | `section.training-access`; **Review your schedule / 查看训练时间安排** |
 | `clarification_required.material_course_demand_unknown` | A core course detail is still unknown. / 仍有核心赛道信息未知。 | Readiness cannot be decided without that detail. / 缺少该信息时无法判断准备情况。 | `action.first-unknown-core-field`; **Complete the next course detail / 补充下一项赛道信息** |
 | `clarification_required.assumption_confirmation_required` | A course or conditions assumption has not been confirmed. / 一项赛道或环境假设尚未确认。 | Praxys will not treat an assumption as reviewed fact. / Praxys 不会把未确认假设当作已核对事实。 | `action.first-unconfirmed-assumption`; **Review the assumption / 查看该假设** |
 | `clarification_required.adult_scope_or_constraints_unconfirmed` | Adult, non-clinical performance scope is not confirmed. / 尚未确认成人、非医疗的竞速适用范围。 | This policy cannot be applied yet. / 暂时无法应用此策略。 | `field.adult-performance-scope`; **Confirm planning scope / 确认计划适用范围** |
