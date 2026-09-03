@@ -549,6 +549,11 @@ def _finite_number(value: object) -> float | None:
     return number if math.isfinite(number) else None
 
 
+def _nonnegative_power(value: object) -> float | None:
+    number = _finite_number(value)
+    return number if number is not None and number >= 0 else None
+
+
 def _connectiq_field_identity(
     field: object,
 ) -> tuple[str, int] | None:
@@ -580,8 +585,8 @@ def _connectiq_power_value(
             or not isinstance(field, Mapping)
         ):
             continue
-        value = _finite_number(field.get("value"))
-        if value is None or value < 0:
+        value = _nonnegative_power(field.get("value"))
+        if value is None:
             continue
         if found is not None and not math.isclose(found, value, abs_tol=1e-6):
             return None
@@ -654,11 +659,10 @@ def _stream_power_for_lap(
         if sample.get("source") != "stryd":
             continue
         sample_time = _finite_number(sample.get("t_sec"))
-        power = _finite_number(sample.get("power_watts"))
+        power = _nonnegative_power(sample.get("power_watts"))
         if (
             sample_time is None
             or power is None
-            or power < 0
             or not start <= sample_time < end
         ):
             continue
@@ -705,10 +709,10 @@ def parse_activities(raw_activities: list[dict]) -> list[dict]:
 
         # get_activities_by_date() uses avgPower. Detailed activity summaries
         # use averagePower, so retain that as a compatibility fallback.
-        avg_power = _finite_number(a.get("avgPower"))
+        avg_power = _nonnegative_power(a.get("avgPower"))
         if avg_power is None:
-            avg_power = _finite_number(a.get("averagePower"))
-        max_power = _finite_number(a.get("maxPower"))
+            avg_power = _nonnegative_power(a.get("averagePower"))
+        max_power = _nonnegative_power(a.get("maxPower"))
 
         rows.append({
             "activity_id": str(a.get("activityId", "")),
@@ -770,7 +774,7 @@ def parse_splits(
         # Standard Garmin power wins over app-specific and derived fallbacks.
         avg_power = ""
         power_source = ""
-        native_power = _finite_number(lap.get("averagePower"))
+        native_power = _nonnegative_power(lap.get("averagePower"))
         if native_power is not None:
             avg_power = str(int(native_power))
             power_source = "garmin"
@@ -897,9 +901,9 @@ def parse_activity_stream(activity_id: str, details: dict) -> list[dict]:
         if timestamp_ms is None:
             continue
         speed = _val(metrics, "directSpeed")
-        stryd_power = _metric_value(metrics, stryd_power_idx)
-        if stryd_power is not None and stryd_power < 0:
-            stryd_power = None
+        stryd_power = _nonnegative_power(
+            _metric_value(metrics, stryd_power_idx)
+        )
         samples.append({
             "activity_id": str(activity_id),
             "source": "stryd" if stryd_power is not None else "garmin",

@@ -927,6 +927,20 @@ def test_parse_activities_no_power_when_missing():
     assert rows[0]["max_power"] == ""
 
 
+@pytest.mark.parametrize("power_key", ["avgPower", "averagePower"])
+def test_parse_activities_rejects_negative_native_power(power_key):
+    act = {
+        **SAMPLE_ACTIVITY,
+        power_key: -25,
+        "maxPower": -50,
+    }
+
+    rows = parse_activities([act])
+
+    assert rows[0]["avg_power"] == ""
+    assert rows[0]["max_power"] == ""
+
+
 def test_parse_splits_prefers_native_power_over_connectiq():
     """Native lap averagePower wins over ConnectIQ field 10."""
     data = {
@@ -964,6 +978,26 @@ def test_parse_splits_connectiq_fallback_when_native_absent():
         }],
     }
     rows = parse_splits("a1", data)
+    assert rows[0]["avg_power"] == "270"
+    assert rows[0]["power_source"] == "stryd"
+
+
+def test_parse_splits_negative_native_power_uses_stryd_fallback():
+    data = {
+        "lapDTOs": [{
+            "distance": 1000.0,
+            "duration": 300.0,
+            "averagePower": -25,
+            "connectIQMeasurement": [{
+                "appID": STRYD_POWER_ZONE_APP_ID,
+                "developerFieldNumber": 10,
+                "value": "270.0",
+            }],
+        }],
+    }
+
+    rows = parse_splits("a1", data)
+
     assert rows[0]["avg_power"] == "270"
     assert rows[0]["power_source"] == "stryd"
 
