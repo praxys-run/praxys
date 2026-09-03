@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-non-ultra-trail-plan-generation-policy-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `non-ultra-trail-plan-generation-policy-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:afc9fecefd55c699a8fdf3d3ab885968c7f7981fadbcba7bf09494fdfcdcd606`
-- **Contract digest:** `sha256:534d292e7e770fff6c9078ef2adf1d1b881cb226d510a839013a170365184973`
+- **Contract digest:** `sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639393))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -136,7 +136,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve the narrow history-rich adult non-ultra trail performance scope, exact trail_course_demand_v1 matching, conditional terrain/downhill/ strength/fueling modules, suggestion-only athlete control, and typed fail-closed outcomes. I approve keeping uphill and downhill distinct and prohibiting road fallback, universal vertical conversion, fixed safe dose, activity-average-power intensity use, and personal finish or safety guarantees. I also approve the fourteen-day block, seven-day review, history qualification, no-initial-load-progression schedule, one controlled quality exposure, seventy-five-percent low-intensity floor, and course- exposure caps as labelled reversible Praxys guardrails. This authorizes only a separately reviewed inactive implementation. It does not approve taper, progression above history, fixed fueling or strength dose, an owner-only pilot, provider delivery, rollout, deployment, or activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639393))
 
 ### Decision approval
 
@@ -818,9 +818,9 @@ Post-hoc validation cannot make unsupported assumptions or values accepted and c
     "inactive non-ultra trail deterministic early-block policy and generator",
     "trail course-demand and history snapshot matching"
   ],
-  "contract_digest": "sha256:534d292e7e770fff6c9078ef2adf1d1b881cb226d510a839013a170365184973",
+  "contract_digest": "sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

@@ -3,11 +3,11 @@
 > Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
 
 - **Record:** `evidence-trail-running-goal-ontology-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Review mode:** `artifact`
 - **Reviewed content digest:** `sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a`
 - **Required role:** `evidence_reviewer`
-- **Approval:** _Pending_
+- **Approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527638249))
 
 ## Approval
 

@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-non-ultra-trail-plan-generation-policy-v1
 version: 1
 title: "Use a history-anchored 14-day non-ultra trail performance block"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-09-01
 owners:

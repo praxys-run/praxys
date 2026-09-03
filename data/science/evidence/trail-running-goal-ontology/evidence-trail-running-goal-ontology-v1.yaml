@@ -8,13 +8,13 @@ research_question: >
   represented before Praxys may match a governed plan-generation policy, and
   what does the literature not justify converting or inferring?
 topic: trail-running-goal-ontology
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:codex
 human_reviewers: []
 created_on: 2026-09-01
-reviewed_on:
+reviewed_on: 2026-09-03
 intended_product_purpose: >
   Define one versioned, provider-neutral trail_course_demand_v1 contract that
   preserves course specificity and unknowns. It must prevent distance-only

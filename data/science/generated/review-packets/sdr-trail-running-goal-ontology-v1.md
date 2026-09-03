@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-trail-running-goal-ontology-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `trail-course-demand-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:cb53936289927d0f5f73268b5b6468e17a5b771532e2eaeee5c5c8781e541774`
-- **Contract digest:** `sha256:6a6024f339a8b92814e4a9dd16f8fa85416235a68fa2a279a05979938c2bb151`
+- **Contract digest:** `sha256:5bf6b47ede65af84af85fb364d148bffa38c1ea330272a3e71553d091a8695dc`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639012))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -135,7 +135,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve trail_course_demand_v1 as the required science boundary for trail capability matching, including explicit field provenance and unknown states, separate uphill and downhill representation, and fail- closed behavior for material unknowns. I approve the prohibition on road fallback, universal distance/elevation conversion, activity-average-power intensity use, and personal performance or safety guarantees. This does not approve a generator, numeric dose, implementation, rollout, provider mapping, or runtime activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639012))
 
 ### Decision approval
 
@@ -514,9 +514,9 @@ Generated assumptions cannot replace athlete confirmation or a verified course s
     "trail_course_demand_v1 ontology",
     "trail capability matching contract"
   ],
-  "contract_digest": "sha256:6a6024f339a8b92814e4a9dd16f8fa85416235a68fa2a279a05979938c2bb151",
+  "contract_digest": "sha256:5bf6b47ede65af84af85fb364d148bffa38c1ea330272a3e71553d091a8695dc",
   "decision_id": "sdr-trail-running-goal-ontology-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

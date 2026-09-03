@@ -3,9 +3,9 @@
     "inactive non-ultra trail deterministic early-block policy and generator",
     "trail course-demand and history snapshot matching"
   ],
-  "contract_digest": "sha256:534d292e7e770fff6c9078ef2adf1d1b881cb226d510a839013a170365184973",
+  "contract_digest": "sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

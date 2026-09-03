@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-trail-running-goal-ontology-v1
 version: 1
 title: "Represent trail goals with an explicit course-demand vector"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-09-01
 owners:

@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-non-ultra-trail-plan-generation-policy-v1
+subject_digest: sha256:51e9349704d969b6524b947311a04e585477cffd7071254a9d2859690d87d78e
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-09-03'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/759#issuecomment-5527638619

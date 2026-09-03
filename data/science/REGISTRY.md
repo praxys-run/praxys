@@ -17,6 +17,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-heat-adaptation-v1](evidence/heat-adaptation/evidence-heat-adaptation-v1.yaml) — Repeated-exposure heat adaptation | 1 | heat-adaptation | 2026-07-25 |
 | [evidence-heat-decay-v1](evidence/heat-decay/evidence-heat-decay-v1.yaml) — Heat adaptation decay and re-induction | 1 | heat-decay | 2026-07-25 |
 | [evidence-individual-goal-feasibility-v1](evidence/individual-goal-feasibility/evidence-individual-goal-feasibility-v1.yaml) — Individual goal feasibility and prediction limits | 1 | individual-goal-feasibility | 2026-08-16 |
+| [evidence-non-ultra-trail-plan-generation-policy-v1](evidence/non-ultra-trail-plan-generation-policy/evidence-non-ultra-trail-plan-generation-policy-v1.yaml) — History-rich adult non-ultra trail-running plan generation | 1 | non-ultra-trail-plan-generation-policy | 2026-09-03 |
 | [evidence-outdoor-5k-plan-generation-policy-v1](evidence/outdoor-5k-plan-generation-policy/evidence-outdoor-5k-plan-generation-policy-v1.yaml) — Adult recreational outdoor 5 km plan generation | 1 | outdoor-5k-plan-generation-policy | 2026-08-13 |
 | [evidence-personal-environment-response-v1](evidence/personal-environment-response/evidence-personal-environment-response-v1.yaml) — Personal retrospective environmental and heart-rate associations | 1 | personal-environment-response | 2026-08-08 |
 | [evidence-plan-generation-eligibility-safety-v1](evidence/plan-generation-eligibility-safety/evidence-plan-generation-eligibility-safety-v1.yaml) — Cross-cutting plan-generation eligibility and safety | 1 | plan-generation-eligibility-safety | 2026-08-14 |
@@ -27,6 +28,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [evidence-road-marathon-plan-generation-policy-v1](evidence/road-marathon-plan-generation-policy/evidence-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance planning | 1 | road-marathon-plan-generation-policy | 2026-08-15 |
 | [evidence-running-field-tests-v1](evidence/running-field-tests/evidence-running-field-tests-v1.yaml) — Running field tests for plan baselines and outcomes | 1 | running-field-tests | 2026-08-16 |
 | [evidence-short-interruption-detraining-v1](evidence/short-interruption-detraining/evidence-short-interruption-detraining-v1.yaml) — Short training interruption and detraining | 1 | short-interruption-detraining | 2026-08-16 |
+| [evidence-trail-running-goal-ontology-v1](evidence/trail-running-goal-ontology/evidence-trail-running-goal-ontology-v1.yaml) — Trail-running course-demand ontology and generation boundary | 1 | trail-running-goal-ontology | 2026-09-03 |
 
 ### Science decisions
 
@@ -36,28 +38,24 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
+| [sdr-non-ultra-trail-plan-generation-policy-v1](decisions/sdr-non-ultra-trail-plan-generation-policy-v1.yaml) — Use a history-anchored 14-day non-ultra trail performance block | 1 | non-ultra-trail-plan-generation-policy-v1 | 2026-09-01 |
 | [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Use a history-anchored 28-day outdoor 5 km plan block | 1 | outdoor-5k-plan-generation-policy-v1 | 2026-08-13 |
 | [sdr-plan-generation-eligibility-safety-v1](decisions/sdr-plan-generation-eligibility-safety-v1.yaml) — Match plan generation by capability, history, and non-medical safety state | 1 | plan-generation-eligibility-safety-v1 | 2026-08-14 |
 | [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 | [sdr-road-10k-plan-generation-policy-v2](decisions/sdr-road-10k-plan-generation-policy-v2.yaml) — Generator-ready adult outdoor road 10 km performance policy | 2 | road-10k-plan-generation-policy-v2 | 2026-08-18 |
 | [sdr-road-half-marathon-plan-generation-policy-v1](decisions/sdr-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance policy | 1 | road-half-marathon-plan-generation-policy-v1 | 2026-08-14 |
 | [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
+| [sdr-trail-running-goal-ontology-v1](decisions/sdr-trail-running-goal-ontology-v1.yaml) — Represent trail goals with an explicit course-demand vector | 1 | trail-course-demand-v1 | 2026-09-01 |
 
 ## Pending
 
 ### Evidence reviews
 
-| Record | Version | Topic/model | Reviewed/decided |
-|---|---:|---|---|
-| [evidence-non-ultra-trail-plan-generation-policy-v1](evidence/non-ultra-trail-plan-generation-policy/evidence-non-ultra-trail-plan-generation-policy-v1.yaml) — History-rich adult non-ultra trail-running plan generation | 1 | non-ultra-trail-plan-generation-policy | 2026-09-01 |
-| [evidence-trail-running-goal-ontology-v1](evidence/trail-running-goal-ontology/evidence-trail-running-goal-ontology-v1.yaml) — Trail-running course-demand ontology and generation boundary | 1 | trail-running-goal-ontology | 2026-09-01 |
+_None._
 
 ### Science decisions
 
-| Record | Version | Topic/model | Reviewed/decided |
-|---|---:|---|---|
-| [sdr-non-ultra-trail-plan-generation-policy-v1](decisions/sdr-non-ultra-trail-plan-generation-policy-v1.yaml) — Use a history-anchored 14-day non-ultra trail performance block | 1 | non-ultra-trail-plan-generation-policy-v1 | 2026-09-01 |
-| [sdr-trail-running-goal-ontology-v1](decisions/sdr-trail-running-goal-ontology-v1.yaml) — Represent trail goals with an explicit course-demand vector | 1 | trail-course-demand-v1 | 2026-09-01 |
+_None._
 
 ## Superseded
 

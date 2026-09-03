@@ -3,11 +3,11 @@
 > Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
 
 - **Record:** `evidence-non-ultra-trail-plan-generation-policy-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Review mode:** `artifact`
 - **Reviewed content digest:** `sha256:51e9349704d969b6524b947311a04e585477cffd7071254a9d2859690d87d78e`
 - **Required role:** `evidence_reviewer`
-- **Approval:** _Pending_
+- **Approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527638619))
 
 ## Approval
 

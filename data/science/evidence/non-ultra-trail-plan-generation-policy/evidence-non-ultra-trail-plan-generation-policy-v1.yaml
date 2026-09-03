@@ -10,13 +10,13 @@ research_question: >
   uphill and downhill exposure, intensity, strength, long sessions, taper,
   fueling practice, reassessment, and typed unavailable outcomes?
 topic: non-ultra-trail-plan-generation-policy
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
   - agent:codex
 human_reviewers: []
 created_on: 2026-09-01
-reviewed_on:
+reviewed_on: 2026-09-03
 intended_product_purpose: >
   Establish whether Praxys may offer one bounded, history-rich non-ultra trail
   performance policy without copying a road schedule or inventing a universal
