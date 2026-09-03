@@ -13,7 +13,6 @@ import hashlib
 from itertools import combinations
 import json
 import math
-from statistics import median
 from typing import Any, Literal, Mapping, Sequence
 
 from analysis.non_ultra_trail_contract import (
@@ -937,6 +936,9 @@ def validate_generated_plan(
         quality = tuple(
             item for item in week.workouts if item.intensity_bucket == "quality"
         )
+        low_workouts = tuple(
+            item for item in week.workouts if item.intensity_bucket == "low"
+        )
         if len(quality) != _MAX_QUALITY_PER_UNIT:
             violations.append(
                 PlanInvariantViolation(
@@ -945,6 +947,44 @@ def validate_generated_plan(
                 )
             )
         quality_dates.extend(item.scheduled_date for item in quality)
+        longest_easy = tuple(
+            item for item in week.workouts if item.workout_type == "longest_easy"
+        )
+        expected_longest_date = _longest_easy_date(
+            tuple(item.scheduled_date for item in low_workouts),
+            preferred_longest_easy_weekday=(
+                constraints.preferred_longest_easy_weekday
+            ),
+        )
+        if (
+            len(longest_easy) != 1
+            or expected_longest_date is None
+            or longest_easy[0].scheduled_date != expected_longest_date
+        ):
+            violations.append(
+                PlanInvariantViolation("longest_easy_date", "validation_failed")
+            )
+        expected_easy_minutes = _allocate_easy_minutes(
+            tuple(item.scheduled_date for item in low_workouts),
+            total_minutes=(
+                weekly_minutes_target
+                - CONTROLLED_UPHILL_TEMPLATE.total_minutes
+            ),
+            preferred_longest_easy_weekday=(
+                constraints.preferred_longest_easy_weekday
+            ),
+        )
+        if any(
+            item.planned_duration_min
+            != expected_easy_minutes.get(item.scheduled_date)
+            for item in low_workouts
+        ):
+            violations.append(
+                PlanInvariantViolation(
+                    "longest_easy_duration",
+                    "validation_failed",
+                )
+            )
         if total_minutes != weekly_minutes_target:
             violations.append(
                 PlanInvariantViolation("weekly_minutes_target", "validation_failed")
@@ -1034,8 +1074,16 @@ def validate_generated_plan(
                     PlanInvariantViolation("terrain_reference", "validation_failed")
                 )
             if workout.intensity_bucket == "quality":
+                if workout.workout_type != "controlled_quality":
+                    violations.append(
+                        PlanInvariantViolation(
+                            "quality_workout_type",
+                            "validation_failed",
+                        )
+                    )
                 if (
-                    workout.template_id != CONTROLLED_UPHILL_TEMPLATE.template_id
+                    workout.template_id
+                    != CONTROLLED_UPHILL_TEMPLATE.template_id
                     or workout.steps != CONTROLLED_UPHILL_TEMPLATE.steps
                     or workout.planned_duration_min != 38
                 ):
@@ -1045,21 +1093,32 @@ def validate_generated_plan(
                             "validation_failed",
                         )
                     )
-            elif (
-                workout.template_id is not None
-                or workout.steps
-                != (
-                    TrailWorkoutStep(
-                        kind="step",
-                        phase="easy",
-                        duration_min=workout.planned_duration_min,
-                        intended_intensity="low",
-                    ),
-                )
-            ):
-                violations.append(
-                    PlanInvariantViolation("easy_template", "validation_failed")
-                )
+            else:
+                if workout.workout_type not in {"easy", "longest_easy"}:
+                    violations.append(
+                        PlanInvariantViolation(
+                            "easy_workout_type",
+                            "validation_failed",
+                        )
+                    )
+                if (
+                    workout.template_id is not None
+                    or workout.steps
+                    != (
+                        TrailWorkoutStep(
+                            kind="step",
+                            phase="easy",
+                            duration_min=workout.planned_duration_min,
+                            intended_intensity="low",
+                        ),
+                    )
+                ):
+                    violations.append(
+                        PlanInvariantViolation(
+                            "easy_template",
+                            "validation_failed",
+                        )
+                    )
 
     for previous, current in zip(quality_dates, quality_dates[1:], strict=False):
         if (current - previous).days <= 1:
@@ -1551,6 +1610,17 @@ def _course_issue(course: TrailCourseDemand) -> _InputIssue | None:
             rule_id="athlete_confirmed_course",
             missing_field=NON_ULTRA_TRAIL_COURSE_SCHEMA_ID,
         )
+    for field_name, field in _course_fields(course):
+        if (
+            field.provenance == "explicit_assumption"
+            and field.athlete_confirmed is not True
+        ):
+            return _InputIssue(
+                code="course_clarification_required",
+                detail_reason="course_clarification_required",
+                rule_id="assumption_confirmation",
+                missing_field=field_name,
+            )
     for field_name in _MATERIAL_COURSE_FIELDS:
         field = getattr(course, field_name)
         if field.is_unknown:
@@ -1565,16 +1635,6 @@ def _course_issue(course: TrailCourseDemand) -> _InputIssue | None:
                 code="course_clarification_required",
                 detail_reason="course_clarification_required",
                 rule_id="material_course_demand",
-                missing_field=field_name,
-            )
-        if (
-            field.provenance == "explicit_assumption"
-            and field.athlete_confirmed is not True
-        ):
-            return _InputIssue(
-                code="course_clarification_required",
-                detail_reason="course_clarification_required",
-                rule_id="assumption_confirmation",
                 missing_field=field_name,
             )
     return None
@@ -2000,7 +2060,15 @@ def _workout_low_minutes(workout: GeneratedTrailWorkout) -> int:
 
 
 def _integer_median(values: Sequence[int]) -> int:
-    return int(median(values)) if values else 0
+    if not values:
+        return 0
+    if any(type(value) is not int or value < 0 for value in values):
+        raise ValueError("integer median requires nonnegative integers")
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) // 2
 
 
 def _conservative_mode(values: Sequence[int]) -> int:

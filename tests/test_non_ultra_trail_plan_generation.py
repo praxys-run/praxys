@@ -398,6 +398,38 @@ def test_material_unknown_and_unconfirmed_assumption_fail_closed() -> None:
     assert result.code == "course_clarification_required"
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "maximum_altitude_meters",
+        "environmental_demand",
+        "fueling_practice_experience",
+    ),
+)
+def test_unconfirmed_assumption_fails_for_every_conditional_field(
+    field_name: str,
+) -> None:
+    assumed_value: object = (
+        430 if field_name == "maximum_altitude_meters" else {"reference": "x"}
+    )
+    course = replace(
+        _course(),
+        **{
+            field_name: ProvenancedValue(
+                value=assumed_value,
+                provenance="explicit_assumption",
+                athlete_confirmed=False,
+            )
+        },
+    )
+    result = generate_non_ultra_trail_plan(
+        _generation_input(course_demand=course)
+    )
+    assert result.code == "course_clarification_required"
+    assert result.failed_rule_id == "assumption_confirmation"
+    assert result.uncertainty_or_missing_field == field_name
+
+
 def test_conditional_unknowns_limit_modules_without_inventing_values() -> None:
     course = replace(
         _course(),
@@ -516,6 +548,103 @@ def test_invariant_validator_rebinds_versions_course_modules_and_history() -> No
     }
 
 
+def test_invariant_validator_binds_workout_and_longest_easy_semantics() -> None:
+    generation_input = _generation_input()
+    result = generate_non_ultra_trail_plan(generation_input)
+    assert result.plan is not None
+    week = result.plan.weeks[0]
+    ordinary_easy = next(
+        workout for workout in week.workouts if workout.workout_type == "easy"
+    )
+    changed_type = replace(ordinary_easy, workout_type="controlled_quality")
+    type_tampered_week = replace(
+        week,
+        workouts=tuple(
+            changed_type if workout == ordinary_easy else workout
+            for workout in week.workouts
+        ),
+    )
+    type_tampered_plan = replace(
+        result.plan,
+        weeks=(type_tampered_week, result.plan.weeks[1]),
+    )
+    assert "easy_workout_type" in {
+        violation.rule_id
+        for violation in validate_generated_plan(
+            type_tampered_plan,
+            generation_input,
+        )
+    }
+
+    longest = next(
+        workout
+        for workout in week.workouts
+        if workout.workout_type == "longest_easy"
+    )
+    removed_longest = replace(longest, workout_type="easy")
+    longest_tampered_week = replace(
+        week,
+        workouts=tuple(
+            removed_longest if workout == longest else workout
+            for workout in week.workouts
+        ),
+    )
+    longest_tampered_plan = replace(
+        result.plan,
+        weeks=(longest_tampered_week, result.plan.weeks[1]),
+    )
+    assert "longest_easy_date" in {
+        violation.rule_id
+        for violation in validate_generated_plan(
+            longest_tampered_plan,
+            generation_input,
+        )
+    }
+
+    shortened_ordinary = replace(
+        ordinary_easy,
+        planned_duration_min=ordinary_easy.planned_duration_min - 1,
+        steps=(
+            replace(
+                ordinary_easy.steps[0],
+                duration_min=ordinary_easy.planned_duration_min - 1,
+            ),
+        ),
+    )
+    lengthened_longest = replace(
+        longest,
+        planned_duration_min=longest.planned_duration_min + 1,
+        steps=(
+            replace(
+                longest.steps[0],
+                duration_min=longest.planned_duration_min + 1,
+            ),
+        ),
+    )
+    duration_tampered_week = replace(
+        week,
+        workouts=tuple(
+            shortened_ordinary
+            if workout == ordinary_easy
+            else lengthened_longest
+            if workout == longest
+            else workout
+            for workout in week.workouts
+        ),
+    )
+    duration_tampered_plan = replace(
+        result.plan,
+        weeks=(duration_tampered_week, result.plan.weeks[1]),
+    )
+    assert "longest_easy_duration" in {
+        violation.rule_id
+        for violation in validate_generated_plan(
+            duration_tampered_plan,
+            generation_input,
+        )
+    }
+
+
 def test_nonfinite_history_is_a_typed_validation_failure() -> None:
     invalid = replace(_history()[0], duration_min=float("nan"))
     result = generate_non_ultra_trail_plan(
@@ -541,7 +670,7 @@ def test_invalid_hash_distinguishes_each_nonfinite_representation() -> None:
 
 
 def test_very_large_vertical_values_remain_bounded_without_per_meter_work() -> None:
-    huge = 10**15
+    huge = 10**400
     history = tuple(
         replace(
             item,
