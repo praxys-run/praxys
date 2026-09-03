@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields, is_dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 import hashlib
 from itertools import combinations
 import json
@@ -482,10 +483,10 @@ def derive_recent_history_statistics(
         (week_start, tuple(values))
         for week_start, values in sorted(week_buckets.items())
         if len(values) >= _MINIMUM_RUNS_PER_USABLE_WEEK
-        and sum(value.duration_min for value in values) > 0
+        and _duration_minutes_total(values) > 0
     )
     weekly_minutes = tuple(
-        int(sum(item.duration_min for item in values))
+        _duration_minutes_total(values)
         for _, values in usable_weeks
     )
     weekly_ascent = tuple(
@@ -2071,6 +2072,15 @@ def _integer_median(values: Sequence[int]) -> int:
     return (ordered[midpoint - 1] + ordered[midpoint]) // 2
 
 
+def _duration_minutes_total(
+    values: Sequence[TrailRunningHistoryObservation],
+) -> int:
+    return int(sum(
+        (Decimal(str(value.duration_min)) for value in values),
+        start=Decimal(0),
+    ))
+
+
 def _conservative_mode(values: Sequence[int]) -> int:
     if not values:
         return 0
@@ -2080,10 +2090,11 @@ def _conservative_mode(values: Sequence[int]) -> int:
 
 
 def _is_finite_number(value: Any) -> bool:
-    return (
-        type(value) in {int, float}
-        and math.isfinite(float(value))
-    )
+    if type(value) is int:
+        return True
+    if type(value) is float:
+        return math.isfinite(value)
+    return False
 
 
 def _is_json_value(value: Any) -> bool:

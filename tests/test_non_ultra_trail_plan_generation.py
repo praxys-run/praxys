@@ -689,3 +689,22 @@ def test_very_large_vertical_values_remain_bounded_without_per_meter_work() -> N
     for week in result.plan.weeks:
         assert week.weekly_ascent_ceiling_meters == huge * 2
         assert week.weekly_descent_ceiling_meters == (huge - 1) * 2
+
+
+def test_arbitrary_size_integer_duration_and_distance_do_not_overflow() -> None:
+    huge = 10**400
+    first = replace(
+        _history()[0],
+        duration_min=huge,
+        distance_km=huge,
+    )
+    generation_input = _generation_input(
+        history=(first, *_history()[1:])
+    )
+    result = generate_non_ultra_trail_plan(generation_input)
+    replay = generate_non_ultra_trail_plan(generation_input)
+    assert result == replay
+    assert result.code == "eligible_proposal"
+    assert deterministic_input_hash(generation_input) == (
+        result.deterministic_input_hash
+    )
