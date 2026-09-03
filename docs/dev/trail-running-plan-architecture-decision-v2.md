@@ -26,6 +26,12 @@ This decision depends on human acceptance of the exact Product and Experience
 v2 artifacts. If either changes materially, this record must be reviewed and
 rebound before Engineering starts.
 
+Until an accepted Trust digest exists, the normative Trust dependency is
+`d8c83a87750db02d232f5efd757be5fdc17b8632:docs/dev/trail-running-plan-trust-decision-v2.md`.
+That immutable commit binding does not approve the proposed TDR. Engineering
+remains blocked until a human accepts that exact content or a reviewed
+successor and this ADR is rebound to its approval digest.
+
 ## Context and constraints
 
 The current pure Trail core is unreachable and has no Trail API or editor. The
@@ -80,10 +86,10 @@ or:
 {"state":"unknown"}
 ```
 
-`known` must contain `value`; `unknown` must not. Missing states, `null`, empty
+`known` must contain `value`; `unknown` must not. Missing states, empty
 sentinels, strings for numbers or booleans, and extra metadata fail validation.
-The one Product-approved nullable aid-gap meaning remains a typed known value,
-not a third envelope state.
+`null` is invalid except for the sole aid-gap known-null case defined below;
+that case remains a known value, not a third envelope state.
 
 `hands_assist` and `fixed_rope` use this same envelope with a strict boolean
 value. The UI maps Yes/No/Not sure to known `true`, known `false`, or unknown;
@@ -101,6 +107,12 @@ The wire and persisted contract accepts one unit per value: meters for
 distance/elevation, minutes for duration, Celsius for temperature, percentage
 points for humidity, ISO dates, and ISO weekday integers `1..7`. UI hours,
 kilometres, and percentages are presentation conversions only.
+
+The aid-gap wire field is `max_aid_station_gap_m`. Its known value is an integer
+from `100` through `50000`, except that `{"state":"known","value":null}` is
+the one explicit known-null value and means `not_applicable`. UI kilometres are
+display/input conversion only; there is no separate kilometre-named wire or
+stored field.
 
 Grade shares are five integer basis-point values, each `0..10000`, whose sum is
 exactly `10000`. Sets must already be unique and serialize in canonical enum or
@@ -129,7 +141,30 @@ or training-science thresholds. The chosen values are well above the closed
 v2 payload's legitimate maximum while bounding parser, validation, logging,
 and canonicalization work.
 
-### 5. Complete the planning-context DTO
+### 5. Freeze optional-context structure
+
+`optional_context` has three strict fixed-key objects: `environment`,
+`support`, and `fueling`. The group objects never have a known/unknown envelope;
+every leaf inside them uses the common envelope above, and every declared leaf
+key is present. Unknown or extra group/leaf keys fail validation.
+
+The environment leaves are `maximum_altitude_m`, `temperature_min_c`,
+`temperature_max_c`, `humidity_min_pct`, `humidity_max_pct`, `sun_exposure`,
+`wind_exposure`, and `conditions_basis`. Support contains `aid_support_mode`,
+`aid_station_count`, `max_aid_station_gap_m`, `water_availability`,
+`food_availability`, and `mandatory_gear`. Fueling contains
+`longest_practiced_duration_min`, `practice_sessions_last_42_days`,
+`intake_form`, and `gastrointestinal_experience`.
+
+No closed enum contains an `unknown` literal; unknownness exists only in the
+leaf envelope. A UI group-level “unknown” control is a batch action that writes
+`{"state":"unknown"}` to every leaf and has no separate wire representation.
+Temperature and humidity ranges are two independent leaf envelopes. Their
+minimum/maximum ordering rule runs only when both leaves are known; one unknown
+leaf remains unknown and limits the corresponding module rather than failing a
+comparison.
+
+### 6. Complete the planning-context DTO
 
 The schedule portion of `non_ultra_trail_constraints_v2` contains:
 
@@ -147,7 +182,7 @@ No time value or unavailable date is inferred from a calendar provider. A
 schedule that is complete but cannot fit policy constraints is a readiness
 block; it is not rewritten into a smaller or road plan.
 
-### 6. Split revision ownership
+### 7. Split revision ownership
 
 The server issues four opaque `sha256:` revisions:
 
@@ -176,12 +211,16 @@ revision, and refuses any mismatch before it creates immutable records. An
 idempotent replay may return the existing proposal only when its complete
 fingerprint matches.
 
-### 7. Store only current drafts until a proposal exists
+### 8. Store only current drafts until a proposal exists
 
 The only mutable Trail course and planning draft lives in a versioned namespace
 inside `UserConfig.goal`. Saving a new value overwrites the old draft value,
 revision, and confirmation state atomically. Praxys does not retain prior draft
 values, a confirmation event stream, or standalone readiness snapshots.
+
+The current revision token is mutable state beside the current draft. Each
+successful edit replaces the prior token; neither the prior value nor token is
+retained elsewhere. No immutable edit history exists before a proposal.
 
 An immutable `AdaptivePlanGoalSnapshot` is created only in the same transaction
 as a `PlanProposal`. It contains the exact canonical course and planning values
@@ -204,21 +243,26 @@ ID, credential, or device state. The audit row and immutable snapshot are part
 of owner data export and goal/account deletion. Standalone readiness calls do
 not write an audit row.
 
-### 8. Make module availability explicit
+### 9. Make module availability explicit
 
-Readiness returns every one of the four closed module keys in an authoritative
-`module_availability` object. Each value is exactly:
+Readiness returns every one of the four closed module keys in this fixed order:
+`grade_specificity`, `technical_terrain`, `environment_altitude`, `fueling`.
+The authoritative `module_availability` value for each key is exactly:
 
-- `not_evaluated`: a core, validation, or policy condition prevented a safe
-  module decision;
+- `not_evaluated`: eligibility prevented a module decision;
 - `available`: the module may be considered by generation, but is not yet
   included; or
 - `limited`: the accepted input requires that module to be omitted or remain
   descriptive, with the matching reason reference.
 
-`limited_modules` may remain only as a sorted redundant projection of keys
-whose status is `limited`. Clients must not infer “Included” from its absence.
-Actual inclusion exists only in an immutable proposal, where each module is
+When the top-level status is not `eligible_proposal`, all four module states are
+`not_evaluated` and each cites the same primary namespaced result reason
+`<status>.<detail_reason>`. Only `eligible_proposal` evaluates modules as
+`available` or `limited`, in the fixed order above. `limited_modules` may remain
+only as the sorted redundant projection of `limited` keys; an empty projection
+does not mean Included.
+
+Actual inclusion exists only in an immutable proposal, where every module is
 explicitly `included` or `omitted` and references the readiness receipt.
 `limited` cannot become `included`; `available` need not become `included`.
 
@@ -226,7 +270,7 @@ This corrects a semantic conflict in the proposed Experience v2 receipt.
 Design must rebind its readiness labels before implementation; Architecture
 does not choose the replacement copy or layout.
 
-### 9. Keep navigation data-free
+### 10. Keep navigation data-free
 
 The application route is fixed. URL paths, query strings, fragments, browser
 history, return-focus state, and deep links may carry only closed route,
@@ -239,28 +283,35 @@ API reason targets are closed keys, not arbitrary URLs. Web maps them to known
 focus targets. This preserves refresh/navigation without turning history,
 analytics, logs, or referrers into a planning-data channel.
 
-### 10. Require owner authorization everywhere
+### 11. Require first-party owner authorization everywhere
 
 Every read, save, reset, confirmation, readiness, proposal, proposal read,
-adoption-related read, export, deletion, and Garmin-preview operation derives
-the owner from the authenticated principal. User identity is not accepted as
-request authority. Cross-owner objects return the repository's private
-not-found response and do not disclose existence.
+adoption-related read, export, deletion, and Garmin-preview operation requires
+an active, non-demo owner authenticated through the first-party Praxys viewer.
+The endpoint rejects a demo before resolving `demo_of`; there is no source-owner
+fallback. MCP grants/sessions, administrators, and support actors have no Trail
+authority or surface. User or actor identity in a request is never authority.
+Unauthenticated calls follow the repository authentication failure and never
+reach Trail evaluation. After that boundary, every inactive, demo, MCP,
+admin/support, missing, or cross-owner outcome on every Trail operation uses
+the same private `404`; every lookup is owner-scoped and discloses no object
+existence, as required by the commit-bound TDR.
 
-### 11. Bound Garmin to a pure internal projection
+### 12. Bound Garmin to a pure internal projection
 
 The post-adoption Garmin preview reads only the authenticated owner's stored
 canonical plan/workout structures and a versioned internal compatibility
 matrix. It is a deterministic, no-write projection that may report only
 internal `unverified` or `blocked` compatibility and per-workout reasons.
 
-The preview loads no Garmin credential or tokenstore, invokes no adapter,
-performs no provider or network I/O, reads or emits no provider workout/device
-ID, schedules nothing, and writes no consent, delivery, retry, ledger, or
-provider state. It cannot prove device support. Connect, send, reconcile,
-replace, and delete remain outside this decision.
+The preview loads no credential or tokenstore, invokes no adapter or network,
+and reads or emits no provider identifier. It does not read or write provider
+connections, account region, device/firmware state, consent, delivery ledger,
+retry state, or any provider state. It schedules nothing and performs no send,
+reconcile, replace, or delete. It cannot prove device support; live checks and
+delivery remain outside this decision.
 
-### 12. Preserve unknown schemas without executing them
+### 13. Preserve unknown schemas without executing them
 
 An authenticated read or export preserves a stored Trail namespace whose
 schema ID is unknown to the running code as an opaque value. The code reports
