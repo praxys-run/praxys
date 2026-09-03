@@ -746,10 +746,11 @@ _SAMPLE_BATCH_SIZE = 500
 def write_samples(user_id: str, rows: list[dict], db: Session) -> int:
     """Upsert per-second activity samples. Returns count of rows written.
 
-    Uses an idempotent INSERT ... ON CONFLICT DO NOTHING keyed on
-    (user_id, activity_id, t_sec) so re-syncing an
-    activity is idempotent — existing rows are left untouched. Inserts are
-    batched to avoid oversized transactions for long activities.
+    Inserts are keyed on ``(user_id, activity_id, t_sec)``. A conflict may
+    fill power and its provider only when the stored sample has no power; an
+    existing non-null observation remains authoritative. This lets a re-sync
+    recover power added by a newer parser without changing prior data.
+    Inserts are batched to avoid oversized transactions for long activities.
     """
     if not rows:
         return 0
@@ -799,7 +800,17 @@ def write_samples(user_id: str, rows: list[dict], db: Session) -> int:
         if not records:
             continue
         stmt = _dialect_insert(ActivitySample).values(records)
-        stmt = stmt.on_conflict_do_nothing(index_elements=["user_id", "activity_id", "t_sec"])
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["user_id", "activity_id", "t_sec"],
+            set_={
+                "power_watts": stmt.excluded.power_watts,
+                "source": stmt.excluded.source,
+            },
+            where=(
+                ActivitySample.power_watts.is_(None)
+                & stmt.excluded.power_watts.is_not(None)
+            ),
+        )
         result = db.execute(stmt)
         total += result.rowcount
     if total > 0:

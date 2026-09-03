@@ -4,12 +4,24 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
 RATE_LIMIT_DELAY = 0.5  # seconds between per-activity API calls
 GARMIN_CALENDAR_DAYS_BACK = 2
 GARMIN_CALENDAR_DAYS_AHEAD = 31
+
+# Garmin identifies ConnectIQ fields by the app UUID plus an app-scoped field
+# number. Public Stryd FIT/Garmin payload pairs show two Stryd apps: the legacy
+# data field and the current Stryd Power Zone field. Both write record power in
+# field 0; only Power Zone writes a lap-level aggregate in field 10.
+_STRYD_CONNECTIQ_RECORD_POWER_FIELDS = frozenset({
+    ("660a581e-5301-460c-8f2f-034c8b6dc90f", 0),
+    ("18fb2cf0-1a4b-430d-ad66-988c847421f4", 0),
+})
+_STRYD_CONNECTIQ_LAP_POWER_FIELDS = frozenset({
+    ("18fb2cf0-1a4b-430d-ad66-988c847421f4", 10),
+})
 
 
 def garmin_provider_account_id(
@@ -526,6 +538,136 @@ def _garmin_speed_to_pace_sec_km(speed_value: float) -> float | None:
     return round(1000.0 / speed_ms)
 
 
+def _finite_number(value: object) -> float | None:
+    """Return one finite numeric value without trusting provider coercions."""
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _connectiq_field_identity(
+    field: object,
+) -> tuple[str, int] | None:
+    if not isinstance(field, Mapping):
+        return None
+    app_id = field.get("appID")
+    field_number = field.get("developerFieldNumber")
+    if (
+        not isinstance(app_id, str)
+        or isinstance(field_number, bool)
+        or not isinstance(field_number, int)
+    ):
+        return None
+    return app_id.strip().casefold(), field_number
+
+
+def _connectiq_power_value(
+    fields: object,
+    *,
+    accepted_fields: frozenset[tuple[str, int]],
+) -> float | None:
+    """Read one unambiguous power value from explicitly accepted fields."""
+    if not isinstance(fields, list):
+        return None
+    found = None
+    for field in fields:
+        if (
+            _connectiq_field_identity(field) not in accepted_fields
+            or not isinstance(field, Mapping)
+        ):
+            continue
+        value = _finite_number(field.get("value"))
+        if value is None:
+            continue
+        if found is not None and not math.isclose(found, value, abs_tol=1e-6):
+            return None
+        found = value
+    return found
+
+
+def _stryd_record_power_metric_index(descriptors: object) -> int | None:
+    """Return the sole metric index for an observed Stryd record-power field."""
+    if not isinstance(descriptors, list):
+        return None
+    indexes: set[int] = set()
+    for descriptor in descriptors:
+        if (
+            _connectiq_field_identity(descriptor)
+            not in _STRYD_CONNECTIQ_RECORD_POWER_FIELDS
+            or not isinstance(descriptor, Mapping)
+        ):
+            continue
+        index = descriptor.get("metricsIndex")
+        if isinstance(index, int) and not isinstance(index, bool) and index >= 0:
+            indexes.add(index)
+    if len(indexes) != 1:
+        return None
+    return next(iter(indexes))
+
+
+def _garmin_lap_start_epoch(lap: Mapping[str, Any]) -> float | None:
+    raw_timestamp = lap.get("startTimeGMT")
+    if not isinstance(raw_timestamp, str) or not raw_timestamp.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(
+            raw_timestamp.strip().replace("Z", "+00:00")
+        )
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return parsed.timestamp()
+
+
+def _stream_power_for_lap(
+    lap: Mapping[str, Any],
+    next_lap: Mapping[str, Any] | None,
+    activity_samples: object,
+) -> tuple[str, str] | None:
+    """Average parsed record power inside one lap's UTC time boundary."""
+    if not isinstance(activity_samples, list):
+        return None
+    start = _garmin_lap_start_epoch(lap)
+    if start is None:
+        return None
+
+    end = _garmin_lap_start_epoch(next_lap) if next_lap is not None else None
+    if end is None or end <= start:
+        elapsed = _finite_number(lap.get("elapsedDuration"))
+        if elapsed is None or elapsed <= 0:
+            elapsed = _finite_number(lap.get("duration"))
+        if elapsed is None or elapsed <= 0:
+            return None
+        end = start + elapsed
+
+    values: list[float] = []
+    for sample in activity_samples:
+        if not isinstance(sample, Mapping):
+            continue
+        if sample.get("source") != "stryd":
+            continue
+        sample_time = _finite_number(sample.get("t_sec"))
+        power = _finite_number(sample.get("power_watts"))
+        if (
+            sample_time is None
+            or power is None
+            or not start <= sample_time < end
+        ):
+            continue
+        values.append(power)
+    if not values:
+        return None
+    average_power = sum(values) / len(values)
+    return str(int(round(average_power))), "stryd"
+
+
 def parse_activities(raw_activities: list[dict]) -> list[dict]:
     """Transform Garmin activity list data into our CSV schema.
 
@@ -560,12 +702,12 @@ def parse_activities(raw_activities: list[dict]) -> list[dict]:
             val = a.get(f"hrTimeInZone_{z}")
             hr_zones[f"hr_zone{z}_sec"] = str(int(val)) if val is not None else ""
 
-        # Native Garmin running power is present on modern watches (Fenix 6+,
-        # FR 255/955/965, Epix) and when an HRM-Pro or Stryd pod is paired via
-        # ANT+. Older watches may only surface power through ConnectIQ (handled
-        # at the lap level in parse_splits).
-        avg_power_raw = a.get("averagePower")
-        max_power_raw = a.get("maxPower")
+        # get_activities_by_date() uses avgPower. Detailed activity summaries
+        # use averagePower, so retain that as a compatibility fallback.
+        avg_power = _finite_number(a.get("avgPower"))
+        if avg_power is None:
+            avg_power = _finite_number(a.get("averagePower"))
+        max_power = _finite_number(a.get("maxPower"))
 
         rows.append({
             "activity_id": str(a.get("activityId", "")),
@@ -575,8 +717,8 @@ def parse_activities(raw_activities: list[dict]) -> list[dict]:
             "distance_km": str(round(distance_m / 1000, 1)) if distance_m else "",
             "duration_sec": str(int(duration)) if duration else "",
             "avg_pace_min_km": avg_pace,
-            "avg_power": str(round(float(avg_power_raw), 1)) if avg_power_raw is not None else "",
-            "max_power": str(round(float(max_power_raw), 1)) if max_power_raw is not None else "",
+            "avg_power": str(round(avg_power, 1)) if avg_power is not None else "",
+            "max_power": str(round(max_power, 1)) if max_power is not None else "",
             "avg_hr": str(int(a["averageHR"])) if a.get("averageHR") else "",
             "max_hr": str(int(a["maxHR"])) if a.get("maxHR") else "",
             "elevation_gain_m": str(a["elevationGain"]) if a.get("elevationGain") else "",
@@ -589,24 +731,31 @@ def parse_activities(raw_activities: list[dict]) -> list[dict]:
     return rows
 
 
-def parse_splits(activity_id: str, splits_data: dict) -> list[dict]:
+def parse_splits(
+    activity_id: str,
+    splits_data: object,
+    *,
+    activity_samples: list[dict] | None = None,
+) -> list[dict]:
     """Parse per-lap split data from get_activity_splits() response.
 
-    Garmin returns laps as lapDTOs. Power comes from one of two sources, in
-    priority order:
+    Garmin returns laps as lapDTOs. Power comes from these sources, in order:
     1. Native Garmin running power (lap["averagePower"]) — present on modern
-       watches and when HRM-Pro / Stryd pod is paired via ANT+.
-    2. ConnectIQ developer field 10 — Stryd's ConnectIQ data-field convention,
-       used when the watch doesn't expose power natively. Field numbers are
-       defined per-app, so the `developerFieldName` must explicitly identify
-       both Stryd and power before it establishes provenance.
+       watches and standardized sensor integrations.
+    2. Stryd Power Zone's app-scoped lap-power field 10.
+    3. Parsed native/Stryd record power averaged within the lap boundary. This
+       covers the legacy Stryd app, whose Garmin lap payload has no aggregate.
     """
     rows = []
+    if not isinstance(splits_data, Mapping):
+        return rows
     laps = splits_data.get("lapDTOs", [])
-    if not laps:
+    if not isinstance(laps, list) or not laps:
         return rows
 
     for i, lap in enumerate(laps, start=1):
+        if not isinstance(lap, Mapping):
+            continue
         distance_m = lap.get("distance", 0) or 0
         duration_sec = lap.get("duration", 0) or 0
 
@@ -617,33 +766,32 @@ def parse_splits(activity_id: str, splits_data: dict) -> list[dict]:
             secs = int(pace_sec_per_km % 60)
             avg_pace = f"{mins}:{secs:02d}"
 
-        # Prefer native Garmin power; fall back to ConnectIQ field 10.
+        # Standard Garmin power wins over app-specific and derived fallbacks.
         avg_power = ""
         power_source = ""
-        native_power = lap.get("averagePower")
+        native_power = _finite_number(lap.get("averagePower"))
         if native_power is not None:
-            try:
-                avg_power = str(int(float(native_power)))
-                power_source = "garmin"
-            except (ValueError, TypeError):
-                pass
+            avg_power = str(int(native_power))
+            power_source = "garmin"
         if not avg_power:
-            for ciq in lap.get("connectIQMeasurement", []):
-                if ciq.get("developerFieldNumber") != 10:
-                    continue
-                # Developer field numbers are app-scoped. A generic "power"
-                # name identifies a metric, not the app that produced it.
-                field_name = str(
-                    ciq.get("developerFieldName") or ciq.get("fieldName") or ""
-                ).lower()
-                if "stryd" not in field_name or "power" not in field_name:
-                    continue
-                try:
-                    avg_power = str(int(float(ciq["value"])))
-                    power_source = "stryd"
-                except (ValueError, KeyError, TypeError):
-                    pass
-                break
+            stryd_lap_power = _connectiq_power_value(
+                lap.get("connectIQMeasurement"),
+                accepted_fields=_STRYD_CONNECTIQ_LAP_POWER_FIELDS,
+            )
+            if stryd_lap_power is not None:
+                avg_power = str(int(stryd_lap_power))
+                power_source = "stryd"
+        if not avg_power:
+            next_lap = laps[i] if i < len(laps) else None
+            if not isinstance(next_lap, Mapping):
+                next_lap = None
+            stream_power = _stream_power_for_lap(
+                lap,
+                next_lap,
+                activity_samples,
+            )
+            if stream_power is not None:
+                avg_power, power_source = stream_power
 
         elev_gain = lap.get("elevationGain")
         elev_loss = lap.get("elevationLoss", 0)
@@ -683,8 +831,9 @@ def parse_activity_stream(activity_id: str, details: dict) -> list[dict]:
 
     Timestamps are in milliseconds; sampling is typically every 2 seconds
     (half the row count of a 1Hz Stryd stream for the same activity duration).
-    Power is not available in the stream for ConnectIQ-based devices — it only
-    appears in lap splits via the CIQ developer field.
+    Stryd ConnectIQ power uses an app-scoped developer descriptor; only
+    observed Stryd app/field identities are accepted, because field numbers
+    and display names are not global.
 
     Returns an empty list and logs a warning when the response was truncated
     (metricsCount < totalMetricsCount), which would indicate GARMIN_MAX_CHART_SIZE
@@ -693,8 +842,12 @@ def parse_activity_stream(activity_id: str, details: dict) -> list[dict]:
     import logging as _log
     _logger = _log.getLogger(__name__)
 
+    if not isinstance(details, Mapping):
+        return []
     descriptors = details.get("metricDescriptors") or []
     rows = details.get("activityDetailMetrics") or []
+    if not isinstance(descriptors, list) or not isinstance(rows, list):
+        return []
     if not descriptors or not rows:
         return []
 
@@ -708,32 +861,47 @@ def parse_activity_stream(activity_id: str, details: dict) -> list[dict]:
         )
 
     key_idx: dict[str, int] = {
-        m["key"]: m["metricsIndex"]
-        for m in descriptors
-        if "key" in m and "metricsIndex" in m
+        descriptor["key"]: descriptor["metricsIndex"]
+        for descriptor in descriptors
+        if isinstance(descriptor, Mapping)
+        and isinstance(descriptor.get("key"), str)
+        and isinstance(descriptor.get("metricsIndex"), int)
+        and not isinstance(descriptor.get("metricsIndex"), bool)
+        and descriptor["metricsIndex"] >= 0
     }
+    stryd_power_idx = _stryd_record_power_metric_index(descriptors)
 
     ts_idx = key_idx.get("directTimestamp")
     if ts_idx is None:
         return []
 
-    def _val(metrics: list, key: str) -> float | None:
-        idx = key_idx.get(key)
-        if idx is None or idx >= len(metrics):
+    def _metric_value(metrics: object, idx: int | None) -> float | None:
+        if (
+            idx is None
+            or not isinstance(metrics, list)
+            or idx >= len(metrics)
+        ):
             return None
-        v = metrics[idx]
-        return float(v) if v is not None else None
+        return _finite_number(metrics[idx])
+
+    def _val(metrics: object, key: str) -> float | None:
+        return _metric_value(metrics, key_idx.get(key))
 
     samples = []
     for row in rows:
+        if not isinstance(row, Mapping):
+            continue
         metrics = row.get("metrics") or []
-        if ts_idx >= len(metrics) or metrics[ts_idx] is None:
+        timestamp_ms = _metric_value(metrics, ts_idx)
+        if timestamp_ms is None:
             continue
         speed = _val(metrics, "directSpeed")
+        stryd_power = _metric_value(metrics, stryd_power_idx)
         samples.append({
             "activity_id": str(activity_id),
-            "source": "garmin",
-            "t_sec": int(metrics[ts_idx] / 1000),
+            "source": "stryd" if stryd_power is not None else "garmin",
+            "t_sec": int(timestamp_ms / 1000),
+            "power_watts": stryd_power,
             "hr_bpm": _val(metrics, "directHeartRate"),
             "cadence_spm": _val(metrics, "directDoubleCadence"),
             "speed_ms": speed,
