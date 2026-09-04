@@ -63,6 +63,7 @@ from api.road_10k_baseline import (
     build_road_10k_baseline_view,
     resolve_road_10k_baseline_snapshot_id,
 )
+from api.road_10k_control import record_result, require_road_10k_gate
 from db.models import (
     AdaptivePlanGoalSnapshot,
     PlanProposal,
@@ -103,6 +104,25 @@ def _plan_returned(code: str) -> bool:
     return bool(_typed_outcome_fields(code)["plan_returned"])
 
 
+def _record_owner_evaluation(
+    db: Session,
+    *,
+    user_id: str,
+    boundary: str,
+    result: Road10KGenerationResult,
+) -> None:
+    """Persist only the accepted typed outcome, never plan or activity data."""
+    record_result(
+        db,
+        user_id=user_id,
+        result_code=result.code,
+        payload={
+            "boundary": boundary,
+            **_typed_outcome_fields(result.code),
+        },
+    )
+
+
 def build_road_10k_readiness(
     db: Session,
     *,
@@ -111,12 +131,20 @@ def build_road_10k_readiness(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the typed road 10K readiness envelope without persisting."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         purpose_selection=purpose_selection,
     )
+    _record_owner_evaluation(
+        db,
+        user_id=user_id,
+        boundary="readiness",
+        result=result,
+    )
+    require_road_10k_gate(db, user_id=user_id, expose=False)
     return _readiness_envelope(
         generation_input,
         result,
@@ -133,12 +161,20 @@ def build_road_10k_alternatives(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return bounded alternatives for the exact current road 10K readiness."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     generation_input, result, purpose, baseline = _evaluate(
         db,
         user_id=user_id,
         constraints=constraints,
         purpose_selection=purpose_selection,
     )
+    _record_owner_evaluation(
+        db,
+        user_id=user_id,
+        boundary="alternatives",
+        result=result,
+    )
+    require_road_10k_gate(db, user_id=user_id, expose=False)
     return {
         **_readiness_envelope(
             generation_input,
@@ -160,6 +196,7 @@ def generate_road_10k_proposal(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Persist one valid immutable proposal or return a typed no-plan result."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     request_fingerprint = _request_fingerprint(
         request_kind="generate",
         expected_source_revision=expected_source_revision,
@@ -173,6 +210,7 @@ def generate_road_10k_proposal(
         request_fingerprint=request_fingerprint,
     )
     if replay is not None:
+        require_road_10k_gate(db, user_id=user_id, expose=False)
         return replay, True
 
     generation_input, result, purpose, baseline = _evaluate(
@@ -186,6 +224,13 @@ def generate_road_10k_proposal(
         actual_source_revision=result.deterministic_input_hash,
     )
     if not _plan_returned(result.code) or result.plan is None:
+        _record_owner_evaluation(
+            db,
+            user_id=user_id,
+            boundary="generate",
+            result=result,
+        )
+        require_road_10k_gate(db, user_id=user_id, expose=False)
         return _readiness_envelope(
             generation_input,
             result,
@@ -208,6 +253,11 @@ def generate_road_10k_proposal(
     def prepare_locked_generation(session: Session) -> None:
         nonlocal locked_generation_input, locked_result
         nonlocal locked_purpose, locked_snapshot
+        require_road_10k_gate(
+            session,
+            user_id=user_id,
+            expose=False,
+        )
         session.expire_all()
         (
             locked_generation_input,
@@ -261,6 +311,11 @@ def generate_road_10k_proposal(
             request_fingerprint=request_fingerprint,
             predecessor=None,
         )
+        require_road_10k_gate(
+            session,
+            user_id=user_id,
+            expose=False,
+        )
 
     proposal = create_draft_proposal(
         db,
@@ -270,6 +325,7 @@ def generate_road_10k_proposal(
         before_persist=prepare_locked_generation,
         idempotency_replay_state=idempotency_replay_state,
         validated_policy_purpose=True,
+        allow_road_10k_policy=True,
         on_created=record_locked_generation,
     )
     if idempotency_replay_state["replayed"]:
@@ -280,19 +336,28 @@ def generate_road_10k_proposal(
             request_fingerprint=request_fingerprint,
         )
         if replay is not None:
+            require_road_10k_gate(db, user_id=user_id, expose=False)
             return replay, True
         raise Road10KGenerationError(
             409,
             "ROAD_10K_IDEMPOTENCY_CONFLICT",
             "This idempotency key was already used for a different proposal request.",
         )
-    return _proposal_envelope(
+    response = _proposal_envelope(
         generation_input,
         result,
         purpose=purpose,
         proposal=proposal,
         replayed=False,
-    ), False
+    )
+    _record_owner_evaluation(
+        db,
+        user_id=user_id,
+        boundary="generate",
+        result=result,
+    )
+    require_road_10k_gate(db, user_id=user_id, expose=False)
+    return response, False
 
 
 def regenerate_road_10k_proposal(
@@ -307,6 +372,7 @@ def regenerate_road_10k_proposal(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Create one bounded immutable successor after an exact source revision."""
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     request_fingerprint = _request_fingerprint(
         request_kind="regenerate",
         expected_source_revision=expected_source_revision,
@@ -321,6 +387,7 @@ def regenerate_road_10k_proposal(
         request_fingerprint=request_fingerprint,
     )
     if replay is not None:
+        require_road_10k_gate(db, user_id=user_id, expose=False)
         return replay, True
 
     parent = db.execute(
@@ -374,7 +441,14 @@ def regenerate_road_10k_proposal(
             "Regeneration requires a changed versioned input.",
         )
     if not _plan_returned(result.code) or result.plan is None:
-        return _readiness_envelope(
+            _record_owner_evaluation(
+                db,
+                user_id=user_id,
+                boundary="regenerate",
+                result=result,
+            )
+            require_road_10k_gate(db, user_id=user_id, expose=False)
+            return _readiness_envelope(
             generation_input,
             result,
             purpose=purpose,
@@ -396,6 +470,11 @@ def regenerate_road_10k_proposal(
     def prepare_locked_generation(session: Session) -> None:
         nonlocal locked_generation_input, locked_result
         nonlocal locked_purpose, locked_snapshot
+        require_road_10k_gate(
+            session,
+            user_id=user_id,
+            expose=False,
+        )
         session.expire_all()
         (
             locked_generation_input,
@@ -449,6 +528,11 @@ def regenerate_road_10k_proposal(
             request_fingerprint=request_fingerprint,
             predecessor=(parent.id, parent.version),
         )
+        require_road_10k_gate(
+            session,
+            user_id=user_id,
+            expose=False,
+        )
 
     proposal = create_successor_proposal(
         db,
@@ -461,6 +545,7 @@ def regenerate_road_10k_proposal(
         idempotency_replay_state=idempotency_replay_state,
         allow_policy_successor=True,
         validated_policy_purpose=True,
+        allow_road_10k_policy=True,
         on_created=record_locked_generation,
     )
     if idempotency_replay_state["replayed"]:
@@ -471,19 +556,28 @@ def regenerate_road_10k_proposal(
             request_fingerprint=request_fingerprint,
         )
         if replay is not None:
+            require_road_10k_gate(db, user_id=user_id, expose=False)
             return replay, True
         raise Road10KGenerationError(
             409,
             "ROAD_10K_IDEMPOTENCY_CONFLICT",
             "This idempotency key was already used for a different proposal request.",
         )
-    return _proposal_envelope(
+    response = _proposal_envelope(
         generation_input,
         result,
         purpose=purpose,
         proposal=proposal,
         replayed=False,
-    ), False
+    )
+    _record_owner_evaluation(
+        db,
+        user_id=user_id,
+        boundary="regenerate",
+        result=result,
+    )
+    require_road_10k_gate(db, user_id=user_id, expose=False)
+    return response, False
 
 
 def validate_road_10k_proposal_adoption(
@@ -493,6 +587,14 @@ def validate_road_10k_proposal_adoption(
     proposal: PlanProposal,
 ) -> None:
     """Revalidate a generated proposal before canonical adoption."""
+    try:
+        require_road_10k_gate(db, user_id=user_id, expose=False)
+    except Exception as exc:
+        raise AdaptivePlanError(
+            404,
+            "ROAD_10K_PROPOSAL_NOT_AVAILABLE",
+            "The road 10K proposal is not available under the current rollout.",
+        ) from exc
     audit = _generation_for_proposal(db, user_id=user_id, proposal_id=proposal.id)
     if audit is None:
         raise AdaptivePlanError(
@@ -710,6 +812,11 @@ def _proposal_input(
                     else None
                 ),
                 "event_state": result.event_context.state,
+                "guardrail_projection": {
+                    "contract_digest": result.contract_digest,
+                    "source_decision_digest": result.source_decision_digest,
+                    "taper": ROAD_10K_GUARDRAILS.public_payload()["taper"],
+                },
             },
             "horizon_start": result.plan.horizon_start.isoformat(),
             "horizon_end": result.plan.horizon_end.isoformat(),
@@ -1424,8 +1531,17 @@ def _constraints_snapshot(
         "weekly_time_limit_min": constraints.weekly_time_limit_min,
         "maximum_session_duration_min": constraints.maximum_session_duration_min,
         "unavailable_dates": [
-            item.isoformat() for item in constraints.unavailable_dates
+            item.isoformat() for item in (constraints.unavailable_dates or ())
         ],
+        "unavailable_dates_confirmed_none": (
+            constraints.unavailable_dates_confirmed_none
+        ),
+        "event_context_confirmed_none": (
+            constraints.event_context_confirmed_none
+        ),
+        "outdoor_road_intent_confirmed": (
+            constraints.outdoor_road_intent_confirmed
+        ),
         "preferred_longest_easy_weekday": (
             constraints.preferred_longest_easy_weekday
         ),
@@ -1443,7 +1559,11 @@ def _constraints_from_snapshot(
     try:
         return Road10KPlanGenerationConstraints(
             adult_confirmed=bool(snapshot["adult_confirmed"]),
-            current_symptom_stop=bool(snapshot["current_symptom_stop"]),
+            current_symptom_stop=(
+                snapshot["current_symptom_stop"]
+                if type(snapshot.get("current_symptom_stop")) is bool
+                else None
+            ),
             available_weekdays=tuple(
                 int(item) for item in snapshot["available_weekdays"]
             ),
@@ -1451,9 +1571,22 @@ def _constraints_from_snapshot(
             maximum_session_duration_min=int(
                 snapshot["maximum_session_duration_min"]
             ),
-            unavailable_dates=tuple(
-                date.fromisoformat(str(item))
-                for item in snapshot["unavailable_dates"]
+            unavailable_dates=(
+                tuple(
+                    date.fromisoformat(str(item))
+                    for item in snapshot["unavailable_dates"]
+                )
+                if snapshot.get("unavailable_dates") is not None
+                else None
+            ),
+            unavailable_dates_confirmed_none=(
+                snapshot.get("unavailable_dates_confirmed_none") is True
+            ),
+            event_context_confirmed_none=(
+                snapshot.get("event_context_confirmed_none") is True
+            ),
+            outdoor_road_intent_confirmed=(
+                snapshot.get("outdoor_road_intent_confirmed") is True
             ),
             preferred_longest_easy_weekday=(
                 None

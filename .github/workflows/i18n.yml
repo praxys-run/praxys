@@ -320,7 +320,7 @@ jobs:
             ## UI quality
 
             - Impeccable: `audit web/src/locales/zh/messages.po` via the automated context-aware native-copy critic
-            - Visual review: desktop and mobile Web plus WeChat miniapp rendered review unavailable in this catalog-only run; the Draft remains blocked on maintainer review
+            - Visual review: catalog-only static review; desktop/mobile Web and native WeChat rendering remain an explicit maintainer-review exception
             - Primary journey: generated Chinese catalog -> synchronized miniapp catalog -> maintainer copy review
             - Reviewer handoff: CI artifact - i18n human-review manifest; exact-head Web and miniapp build runs are linked by translation-validation
             - States checked: catalog coverage, placeholders, protected tokens, terminology, typography, fuzzy entries, and long-content diff review

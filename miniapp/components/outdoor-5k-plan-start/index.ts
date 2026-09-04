@@ -1,7 +1,14 @@
 import { apiGet, apiPost } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import type { IAppOption } from '../../app';
-import { t } from '../../utils/i18n';
+import { detectLocale, t } from '../../utils/i18n';
+import { hasSupportedPlanStartContract } from '../../utils/plan-start-routing';
+import {
+  road10kCopy,
+  road10kTaperGuardrailForProposal,
+  road10kTaperScienceCopy,
+  type Road10KCopyKey,
+} from '../../utils/road-10k-control';
 import type {
   AdaptivePlanProposal,
   AdaptivePlanProposalAdoptResponse,
@@ -37,6 +44,10 @@ interface PurposeOption {
 
 type LifecycleOperation = 'generate' | 'regenerate' | 'reject' | 'adopt';
 
+function roadCopy(key: Road10KCopyKey): string {
+  return road10kCopy(key, detectLocale() === 'zh' ? 'zh-CN' : 'en');
+}
+
 function purposeValue(
   source: PlanGenerationPurposeSelection['source'],
   capabilityId: string,
@@ -61,7 +72,8 @@ function samePurposeSelection(
 function copy() {
   return {
     title: t('Plan preview'),
-    road10kTitle: t('10K performance'),
+    road10kTitle: roadCopy('inputs.title'),
+    road10kInputBody: roadCopy('inputs.body'),
     unsupportedTitle: t('Plan generation for this goal'),
     supportedGoal: t('No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy.'),
     purpose: t('Plan purpose'),
@@ -110,6 +122,10 @@ function copy() {
     checking: t('Checking readiness…'),
     create: t('Create proposal'),
     creating: t('Creating proposal…'),
+    roadCheck: roadCopy('action.check'),
+    roadChecking: roadCopy('progress.checking'),
+    roadCreate: roadCopy('action.generate'),
+    roadCreating: roadCopy('progress.generating'),
     result: t('Readiness result'),
     planCandidate: t('Plan candidate'),
     readinessOnly: t('Readiness first'),
@@ -153,19 +169,34 @@ function copy() {
     alternativeReviewBeforeAdopting: t('Review before adopting'),
     alternativeKeepCurrentPlan: t('Keep the current plan until adoption'),
     proposal: t('Plan proposal'),
+    proposalHorizon: roadCopy('proposal.horizon'),
+    roadProposal: roadCopy('proposal.title'),
+    roadProposalBadge: roadCopy('proposal.badge'),
+    roadProposalBody: roadCopy('proposal.body'),
     purposeLabel: t('Purpose'),
     policy: t('Policy'),
+    roadPolicy: roadCopy('proposal.policy'),
     generator: t('Generator'),
+    roadGenerator: roadCopy('proposal.generator'),
     science: t('Science'),
+    roadScience: roadCopy('proposal.science'),
     proposalNotPlan: t('This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.'),
     inputsOnly: t('Workout content is view-only in this deterministic policy. Change the bounded inputs above and regenerate to create an immutable successor; Praxys never constructs replacement workouts in this client.'),
     regenerate: t('Regenerate successor'),
     regenerating: t('Regenerating…'),
+    roadRegenerate: roadCopy('action.regenerate'),
+    roadRegenerating: roadCopy('progress.regenerating'),
     adopt: t('Adopt exact proposal'),
     adopting: t('Adopting…'),
+    roadAdopt: roadCopy('action.adopt'),
+    roadAdopting: roadCopy('progress.adopting'),
     reject: t('Reject or defer'),
     rejecting: t('Rejecting…'),
-    deliveryDisabled: t('Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
+    roadReject: roadCopy('action.reject'),
+    roadRejecting: roadCopy('progress.rejecting'),
+    roadReviewLater: roadCopy('action.review_later'),
+    roadPlanActive: roadCopy('plan.active_body'),
+    deliveryDisabled: t('Delivery remains disabled. Review the managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.'),
     refresh: t('Refresh proposal'),
     retry: t('Retry'),
     failed: t('Plan-start action did not complete'),
@@ -209,9 +240,71 @@ function reason(
   result: Outdoor5KOutcomeResponse | Road10KOutcomeResponse,
   fallback: string,
 ): string {
+  if ('route_state' in result) {
+    return roadCopy(roadOutcomeCopyKeys(result.code)[1]);
+  }
   return result.observed_or_stated_reason
     ?? result.uncertainty_or_missing_field
     ?? fallback;
+}
+
+function roadOutcomeCopyKeys(
+  code: Road10KOutcomeResponse['code'],
+): readonly [Road10KCopyKey, Road10KCopyKey] {
+  const mapping: Record<
+    Road10KOutcomeResponse['code'],
+    readonly [Road10KCopyKey, Road10KCopyKey]
+  > = {
+    eligible_rolling_proposal: [
+      'eligibility.ready_title',
+      'eligibility.ready_body',
+    ],
+    eligible_taper_proposal: [
+      'eligibility.ready_title',
+      'eligibility.ready_body',
+    ],
+    missing_or_stale_direct_baseline: [
+      'eligibility.baseline_title',
+      'eligibility.baseline_body',
+    ],
+    insufficient_recent_history: [
+      'eligibility.history_title',
+      'eligibility.history_body',
+    ],
+    limited_guidance_event_conflict: [
+      'eligibility.limited_title',
+      'eligibility.event_body',
+    ],
+    limited_near_term_guidance: [
+      'eligibility.limited_title',
+      'eligibility.near_body',
+    ],
+    safety_stop: [
+      'eligibility.safety_title',
+      'eligibility.safety_body',
+    ],
+    adult_scope_or_constraints_unconfirmed: [
+      'eligibility.confirm_title',
+      'eligibility.confirm_body',
+    ],
+    contradictory_input: [
+      'eligibility.conflict_title',
+      'eligibility.conflict_body',
+    ],
+    unsupported_intent_distance_surface_or_population: [
+      'eligibility.unsupported_title',
+      'eligibility.unsupported_body',
+    ],
+    no_schedule_within_envelope: [
+      'eligibility.schedule_title',
+      'eligibility.schedule_body',
+    ],
+    validation_failed: [
+      'eligibility.unavailable_title',
+      'eligibility.unavailable_body',
+    ],
+  };
+  return mapping[code];
 }
 
 type ReadinessResponse =
@@ -227,12 +320,7 @@ function readinessBadge(
   tr: ReturnType<typeof copy>,
 ): string {
   if ('route_state' in result) {
-    return {
-      plan_candidate: tr.planCandidate,
-      readiness_only: tr.readinessOnly,
-      clarification_required: tr.clarificationRequired,
-      policy_unavailable: tr.policyUnavailable,
-    }[result.route_state] ?? tr.readinessOnly;
+    return roadCopy(roadOutcomeCopyKeys(result.code)[0]);
   }
   return result.code === 'ready' ? tr.ready : tr.readinessOnly;
 }
@@ -268,6 +356,7 @@ function road10kReadinessContext(
       ? t('Intentional all-out complete 10K')
       : '—';
   const eventState = {
+    unconfirmed: '—',
     confirmed_none: tr.noEvent,
     single_target: tr.singleTarget,
     race_dense: tr.eventConflict,
@@ -321,6 +410,26 @@ function readinessAlternatives(
   return result.alternatives
     .map((alternative) => labels[alternative])
     .filter((label): label is string => Boolean(label));
+}
+
+function hasProposalHorizon(
+  proposal: AdaptivePlanProposal | null,
+): boolean {
+  return Boolean(
+    proposal?.goal?.horizon_start
+    && proposal?.goal?.horizon_end,
+  );
+}
+
+function roadTaperScience(
+  proposal: AdaptivePlanProposal | null,
+): ReturnType<typeof road10kTaperScienceCopy> | null {
+  const taper = road10kTaperGuardrailForProposal(proposal);
+  if (!taper) return null;
+  return road10kTaperScienceCopy(
+    taper,
+    detectLocale() === 'zh' ? 'zh-CN' : 'en',
+  );
 }
 
 function isRoad10KCapability(
@@ -414,6 +523,8 @@ Component({
     readinessIsPlanReady: false,
     showBaselineRefreshPanel: false,
     proposal: null as AdaptivePlanProposal | null,
+    proposalHasHorizon: false,
+    roadTaperScience: null as ReturnType<typeof road10kTaperScienceCopy> | null,
     proposalStateLabel: '',
     working: '',
     operationKeys: {} as Partial<Record<LifecycleOperation, string>>,
@@ -476,6 +587,8 @@ Component({
         proposalMatchesPurpose: true,
         proposalPurposeLabel: '',
         proposal: null,
+        proposalHasHorizon: false,
+        roadTaperScience: null,
         proposalStateLabel: '',
         readiness: null,
         readinessReason: '',
@@ -507,15 +620,11 @@ Component({
         );
         if (componentState._loadRequestId !== requestId) return;
         const capabilities = discovery.capabilities.filter(
-          (item) => [
-            'outdoor_road_5k_constraints_v1',
-            'outdoor_road_10k_constraints_v1',
-          ].includes(item.constraint_schema_id),
+          hasSupportedPlanStartContract,
         );
-        const currentCapability = [
-          'outdoor_road_5k_constraints_v1',
-          'outdoor_road_10k_constraints_v1',
-        ].includes(discovery.selected_capability?.constraint_schema_id ?? '')
+        const currentCapability = hasSupportedPlanStartContract(
+          discovery.selected_capability,
+        )
           ? discovery.selected_capability
           : null;
         const capabilityAvailable = Boolean(
@@ -653,6 +762,7 @@ Component({
               === 'reassessment_required',
           proposal,
           proposalMatchesPurpose,
+          proposalHasHorizon: hasProposalHorizon(proposal),
           proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposalSource === 'current_goal'
             ? this.data.tr.currentGoalPurpose
@@ -677,6 +787,7 @@ Component({
           selectedPurpose: null,
           proposal,
           proposalMatchesPurpose: !proposal,
+          proposalHasHorizon: hasProposalHorizon(proposal),
           proposalStateLabel: proposalStateLabel(proposal, this.data.tr),
           proposalPurposeLabel: proposal?.goal?.purpose_source === 'current_goal'
             ? this.data.tr.currentGoalPurpose
@@ -832,38 +943,8 @@ Component({
       }
       const road10kMode = this.data.road10kMode;
       if (road10kMode) {
-        const days = this.data.dayOptions.filter((option) => option.selected);
-        const weeklyTimeLimit = Number(this.data.weeklyTimeLimit);
-        const singleSessionLimit = Number(this.data.singleSessionLimit);
-        if (!this.data.adult) {
-          this.setData({ errorMessage: this.data.tr.road10kScopeRequired });
-          return null;
-        }
-        if (days.length === 0) {
-          this.setData({ errorMessage: this.data.tr.daysRequired });
-          return null;
-        }
-        if (!Number.isInteger(weeklyTimeLimit) || weeklyTimeLimit <= 0) {
-          this.setData({ errorMessage: this.data.tr.weeklyLimitRequired });
-          return null;
-        }
-        if (!Number.isInteger(singleSessionLimit) || singleSessionLimit <= 0) {
-          this.setData({ errorMessage: this.data.tr.singleSessionRequired });
-          return null;
-        }
-        return {
-          purpose,
-          adult_confirmed: this.data.adult,
-          current_symptom_stop: this.data.safetyStop,
-          available_weekdays: days.map((option) => option.value),
-          weekly_time_limit_min: weeklyTimeLimit,
-          maximum_session_duration_min: singleSessionLimit,
-          unavailable_dates: [],
-          preferred_longest_easy_weekday: this.data.longDayIndex === 0
-            ? null
-            : days[this.data.longDayIndex - 1]?.value ?? null,
-          benchmark_date: this.data.benchmarkDate || null,
-        };
+        this.setData({ errorMessage: this.data.tr.road10kScopeRequired });
+        return null;
       }
       const scopeComplete = this.data.adult
         && this.data.selfCoached
@@ -919,6 +1000,7 @@ Component({
         const context = road10kReadinessContext(readiness, this.data.tr);
         this.setData({
           readiness,
+          roadTaperScience: null,
           readinessReason: reason(readiness.result, this.data.tr.noExplanation),
           readinessBadge: readinessBadge(readiness.result, this.data.tr),
           readinessContextRows: context.rows,
@@ -974,6 +1056,8 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalHasHorizon: hasProposalHorizon(response.proposal),
+            roadTaperScience: roadTaperScience(response.proposal),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -992,6 +1076,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
+            roadTaperScience: null,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,
@@ -1012,7 +1097,22 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onRegenerate() {
+    onRegenerate() {
+      if (!this.data.road10kMode) {
+        void this.performRegenerate();
+        return;
+      }
+      wx.showModal({
+        title: roadCopy('proposal.regen_title'),
+        content: roadCopy('proposal.regen_body'),
+        confirmText: roadCopy('action.regenerate'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performRegenerate();
+        },
+      });
+    },
+    async performRegenerate() {
       if (this.data.working) return;
       if (!this.data.proposalMatchesPurpose) {
         this.setData({ errorMessage: this.data.tr.conflictingPurpose });
@@ -1048,6 +1148,8 @@ Component({
           );
           this.setData({
             proposal: response.proposal,
+            proposalHasHorizon: hasProposalHorizon(response.proposal),
+            roadTaperScience: roadTaperScience(response.proposal),
             proposalStateLabel: proposalStateLabel(
               response.proposal,
               this.data.tr,
@@ -1069,6 +1171,7 @@ Component({
           const context = road10kReadinessContext(response, this.data.tr);
           this.setData({
             readiness: response,
+            roadTaperScience: null,
             readinessReason: reason(response.result, this.data.tr.noExplanation),
             readinessBadge: readinessBadge(response.result, this.data.tr),
             readinessContextRows: context.rows,
@@ -1089,7 +1192,22 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onReject() {
+    onReject() {
+      if (!this.data.road10kMode) {
+        void this.performReject();
+        return;
+      }
+      wx.showModal({
+        title: roadCopy('proposal.reject_title'),
+        content: roadCopy('proposal.reject_body'),
+        confirmText: roadCopy('action.reject'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performReject();
+        },
+      });
+    },
+    async performReject() {
       if (this.data.working) return;
       const proposal = this.data.proposal;
       if (!proposal) return;
@@ -1105,6 +1223,8 @@ Component({
           proposalPurposeLabel: '',
           notice: this.data.tr.rejected,
           proposalStateLabel: '',
+          proposalHasHorizon: false,
+          roadTaperScience: null,
         });
         this.clearOperationKey('reject');
       } catch (error) {
@@ -1114,7 +1234,32 @@ Component({
         this.setData({ working: '' });
       }
     },
-    async onAdopt() {
+    onReviewLater() {
+      this.setData({
+        notice: roadCopy('success.later'),
+        errorMessage: '',
+      });
+    },
+    onAdopt() {
+      if (!this.data.road10kMode) {
+        void this.performAdopt();
+        return;
+      }
+      const version = String(this.data.proposal?.version ?? '');
+      wx.showModal({
+        title: roadCopy('proposal.adopt_title'),
+        content: roadCopy('proposal.adopt_body').replace(
+          '{version}',
+          version,
+        ),
+        confirmText: roadCopy('action.adopt'),
+        cancelText: roadCopy('action.cancel'),
+        success: (result) => {
+          if (result.confirm) void this.performAdopt();
+        },
+      });
+    },
+    async performAdopt() {
       if (this.data.working) return;
       if (!this.data.proposalMatchesPurpose) {
         this.setData({ errorMessage: this.data.tr.conflictingPurpose });
@@ -1141,13 +1286,28 @@ Component({
         );
         this.setData({
           proposal: result.proposal,
+          proposalHasHorizon: hasProposalHorizon(result.proposal),
           proposalStateLabel: proposalStateLabel(
             result.proposal,
             this.data.tr,
           ),
           notice: result.status === 'already_adopted'
-            ? this.data.tr.alreadyAdopted
-            : this.data.tr.adopted,
+            ? (
+              this.data.road10kMode
+                ? roadCopy('success.adopted').replace(
+                  '{version}',
+                  String(result.proposal.version),
+                )
+                : this.data.tr.alreadyAdopted
+            )
+            : (
+              this.data.road10kMode
+                ? roadCopy('success.adopted').replace(
+                  '{version}',
+                  String(result.proposal.version),
+                )
+                : this.data.tr.adopted
+            ),
         });
         this.clearOperationKey('adopt');
       } catch (error) {

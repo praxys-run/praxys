@@ -44,6 +44,7 @@ import type {
   AdminConfig,
   AdminInvitationCreateResponse,
   AdminInvitationsResponse,
+  AccountDeletionResponse,
   AdminUserInfo,
   AdminUsersResponse,
   AdminWaitlistResponse,
@@ -243,6 +244,10 @@ export default function AdminUsers() {
       if (!res.ok) {
         setMembershipMsg(await extractErrorMessage(res, t`Failed to delete user.`));
         return;
+      }
+      const result = await res.json() as AccountDeletionResponse;
+      if (result.status === 'deleted_cleanup_pending') {
+        setMembershipMsg(t`Your account was deleted. Private storage cleanup is still being retried in the background.`);
       }
       setDeleteUser(null);
       await Promise.all([refetchConfig(), refetchUsers(), refetchInvitations(), refetchWaitlist()]);

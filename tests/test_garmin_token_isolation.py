@@ -967,6 +967,31 @@ def test_startup_blocks_orphaned_legacy_tokenstore(
         engine.dispose()
 
 
+def test_account_cleanup_removes_user_from_migration_quarantine(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from api.routes.sync import (
+        _clear_legacy_garmin_token_files,
+        _garmin_token_root,
+    )
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    root = _garmin_token_root()
+    quarantine = root + ".migration"
+    token_dir = os.path.join(quarantine, "deleted-user")
+    os.makedirs(token_dir, exist_ok=True)
+    Path(token_dir, "garmin_tokens.json").write_text(
+        _serialized_tokens("quarantined"),
+        encoding="utf-8",
+    )
+
+    _clear_legacy_garmin_token_files("deleted-user")
+
+    assert not os.path.lexists(token_dir)
+    _assert_legacy_tokenstore_blocked("deleted-user")
+
+
 def test_startup_preserves_plaintext_when_encryption_key_is_ephemeral(
     tmp_path,
     monkeypatch,

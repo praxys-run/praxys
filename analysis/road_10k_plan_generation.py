@@ -79,13 +79,17 @@ class Road10KPlanGenerationConstraints:
     """Typed athlete-stated constraints for the deterministic generator."""
 
     adult_confirmed: bool
-    current_symptom_stop: bool
+    current_symptom_stop: bool | None
     available_weekdays: tuple[int, ...]
     weekly_time_limit_min: int
     maximum_session_duration_min: int
-    unavailable_dates: tuple[date, ...]
+    unavailable_dates: tuple[date, ...] | None
     preferred_longest_easy_weekday: int | None
     benchmark_date: date | None = None
+    # Explicit statements prevent null/absence from becoming a false negative.
+    unavailable_dates_confirmed_none: bool = False
+    event_context_confirmed_none: bool = False
+    outdoor_road_intent_confirmed: bool = False
 
 
 @dataclass(frozen=True)
@@ -158,7 +162,7 @@ class Road10KEventContext:
     """Explicit event or benchmark context admitted by the policy."""
 
     snapshot_version: str
-    state: Literal["confirmed_none", "single_target", "race_dense"]
+    state: Literal["unconfirmed", "confirmed_none", "single_target", "race_dense"]
     goal_target_date: date | None
     benchmark_date: date | None
     target_date: date | None
@@ -201,7 +205,7 @@ class GeneratedWeek:
 
 @dataclass(frozen=True)
 class GeneratedRoad10KPlan:
-    """A reviewed immutable 14-day non-canonical proposal payload."""
+    """A reviewed immutable bounded non-canonical proposal payload."""
 
     policy_version: str
     generator_version: str
@@ -542,7 +546,11 @@ def build_event_context(
         )
     return Road10KEventContext(
         snapshot_version=ROAD_10K_EVENT_CONTEXT_SNAPSHOT_VERSION,
-        state="confirmed_none",
+        state=(
+            "confirmed_none"
+            if constraints.event_context_confirmed_none
+            else "unconfirmed"
+        ),
         goal_target_date=None,
         benchmark_date=None,
         target_date=None,
@@ -553,7 +561,7 @@ def build_event_context(
 def generate_road_10k_plan(
     generation_input: Road10KGenerationInput,
 ) -> Road10KGenerationResult:
-    """Generate a reviewed 14-day proposal or a typed no-plan outcome."""
+    """Generate a reviewed bounded proposal or a typed no-plan outcome."""
     training_pattern = build_road_10k_training_pattern_snapshot(
         generation_input.history,
         athlete_today=generation_input.athlete_today,
@@ -583,6 +591,42 @@ def generate_road_10k_plan(
             reason="The supplied contract or version identifiers do not match the reviewed road 10K policy.",
             missing="reviewed contract identifiers",
             alternatives=("refresh_policy_metadata",),
+        )
+    if generation_input.constraints.current_symptom_stop is True:
+        return _no_plan(
+            code="safety_stop",
+            input_hash=input_hash,
+            statistics=statistics,
+            event_context=event_context,
+            rule="current_symptom_stop",
+            reason="The athlete reported a current symptom stop.",
+            missing=None,
+            alternatives=("defer_plan_generation", "use_non_medical_safety_guidance"),
+        )
+    if generation_input.constraints.event_context_confirmed_none and (
+        generation_input.goal.target_event_date is not None
+        or generation_input.constraints.benchmark_date is not None
+    ):
+        return _no_plan(
+            code="contradictory_input",
+            input_hash=input_hash,
+            statistics=statistics,
+            event_context=event_context,
+            rule="event_context_confirmation",
+            reason="A dated target conflicts with the explicit no-event confirmation.",
+            missing="one consistent event context statement",
+            alternatives=("revise_event_context",),
+        )
+    if event_context.state == "unconfirmed":
+        return _no_plan(
+            code="adult_scope_or_constraints_unconfirmed",
+            input_hash=input_hash,
+            statistics=statistics,
+            event_context=event_context,
+            rule="event_context_confirmation",
+            reason="An explicit event-context none confirmation is required.",
+            missing="event context statement",
+            alternatives=("keep_manual_training",),
         )
     if not _eligible_goal(generation_input.goal):
         return _no_plan(
@@ -618,17 +662,6 @@ def generate_road_10k_plan(
             reason=reason,
             missing=missing,
             alternatives=alternatives,
-        )
-    if generation_input.constraints.current_symptom_stop:
-        return _no_plan(
-            code="safety_stop",
-            input_hash=input_hash,
-            statistics=statistics,
-            event_context=event_context,
-            rule="current_symptom_stop",
-            reason="The athlete reported a current symptom stop.",
-            missing=None,
-            alternatives=("defer_plan_generation", "use_non_medical_safety_guidance"),
         )
     if not _baseline_is_current(generation_input):
         return _no_plan(
@@ -667,7 +700,7 @@ def generate_road_10k_plan(
             statistics=statistics,
             event_context=event_context,
             rule="race_dense_event_context",
-            reason="A confirmed target date and a separate benchmark date cannot both drive one reviewed 14-day proposal.",
+            reason="A confirmed target date and a separate benchmark date cannot both drive one reviewed bounded proposal.",
             missing=None,
             alternatives=("keep_one_target_date", "decline_optional_benchmark"),
         )
@@ -823,9 +856,22 @@ def deterministic_input_hash(
             "maximum_session_duration_min": (
                 generation_input.constraints.maximum_session_duration_min
             ),
-            "unavailable_dates": sorted(
-                item.isoformat()
-                for item in generation_input.constraints.unavailable_dates
+            "unavailable_dates": (
+                None
+                if generation_input.constraints.unavailable_dates is None
+                else sorted(
+                    item.isoformat()
+                    for item in generation_input.constraints.unavailable_dates
+                )
+            ),
+            "unavailable_dates_confirmed_none": (
+                generation_input.constraints.unavailable_dates_confirmed_none
+            ),
+            "event_context_confirmed_none": (
+                generation_input.constraints.event_context_confirmed_none
+            ),
+            "outdoor_road_intent_confirmed": (
+                generation_input.constraints.outdoor_road_intent_confirmed
             ),
             "preferred_longest_easy_weekday": (
                 generation_input.constraints.preferred_longest_easy_weekday
@@ -945,9 +991,9 @@ def _constraint_error(
         )
     if len(weekdays) < _MIN_RUN_DAYS:
         return (
-            "contradictory_input",
+            "no_schedule_within_envelope",
             "stated_constraints",
-            "At least three available running days are required for this capability.",
+            "One or two available running days cannot form a reviewed schedule.",
             "three to six available running days",
             ("expand_available_weekdays",),
         )
@@ -958,6 +1004,55 @@ def _constraint_error(
             "More than six available running days is outside the reviewed envelope.",
             "three to six available running days",
             ("reduce_available_weekdays",),
+        )
+    if constraints.current_symptom_stop is None:
+        return (
+            "adult_scope_or_constraints_unconfirmed",
+            "current_symptom_confirmation",
+            "An explicit yes or no symptom-stop confirmation is required.",
+            "current symptom-stop confirmation",
+            ("use_non_medical_safety_guidance",),
+        )
+    if not constraints.outdoor_road_intent_confirmed:
+        return (
+            "adult_scope_or_constraints_unconfirmed",
+            "outdoor_road_intent_confirmation",
+            "Explicit outdoor-road intent confirmation is required.",
+            "outdoor-road intent confirmation",
+            ("keep_manual_training",),
+        )
+    unavailable_dates = constraints.unavailable_dates
+    if unavailable_dates is None:
+        return (
+            "adult_scope_or_constraints_unconfirmed",
+            "unavailable_dates_confirmation",
+            "Unavailable dates require explicit dates or an explicit none confirmation.",
+            "unavailable date statement",
+            ("revise_constraints",),
+        )
+    if not unavailable_dates and not constraints.unavailable_dates_confirmed_none:
+        return (
+            "adult_scope_or_constraints_unconfirmed",
+            "unavailable_dates_confirmation",
+            "An empty unavailable-date list requires explicit none confirmation.",
+            "unavailable date statement",
+            ("revise_constraints",),
+        )
+    if unavailable_dates and constraints.unavailable_dates_confirmed_none:
+        return (
+            "contradictory_input",
+            "unavailable_dates_confirmation",
+            "Unavailable dates conflict with the explicit none confirmation.",
+            "unavailable date statement",
+            ("revise_constraints",),
+        )
+    if tuple(sorted(set(unavailable_dates))) != unavailable_dates:
+        return (
+            "contradictory_input",
+            "unavailable_dates",
+            "Unavailable dates must be unique and sorted.",
+            "unique sorted unavailable dates",
+            ("revise_constraints",),
         )
     if constraints.weekly_time_limit_min <= 0:
         return (
@@ -1062,7 +1157,7 @@ def _build_schedule(
         return None
 
     blocked_dates = set(generation_input.reserved_dates) | set(
-        generation_input.constraints.unavailable_dates
+        generation_input.constraints.unavailable_dates or ()
     )
     if event_context.target_date is not None:
         blocked_dates.add(event_context.target_date)
@@ -1134,13 +1229,8 @@ def _build_schedule(
         if selected_dates is None:
             return None
         if is_taper:
-            reference_dates = (
-                tuple(sorted((*selected_dates, external_quality_date)))
-                if external_quality_date is not None
-                else selected_dates
-            )
             reference = _normal_week_workouts(
-                dates=reference_dates,
+                dates=selected_dates,
                 total_target=weekly_target,
                 session_cap=session_cap,
                 maximum_distance_ceiling_km=session_distance_cap,
@@ -1155,12 +1245,14 @@ def _build_schedule(
             reference_total = sum(
                 item.planned_duration_min for item in reference.workouts
             )
-            target_total = max(
-                1,
-                int(round(
-                    reference_total * (1.0 - _TAPER_VOLUME_REDUCTION)
-                )),
+            target_total_exact = (
+                reference_total * (1.0 - _TAPER_VOLUME_REDUCTION)
             )
+            if not target_total_exact.is_integer():
+                return None
+            target_total = int(target_total_exact)
+            if target_total <= 0:
+                return None
             week = _normal_week_workouts(
                 dates=selected_dates,
                 total_target=target_total,
@@ -1236,7 +1328,9 @@ def _normal_week_workouts(
     if quality_date is not None and quality_minutes > session_cap:
         return None
     max_total = quality_minutes + session_cap * len(easy_dates)
-    effective_total = min(total_target, max_total)
+    if total_target > max_total:
+        return None
+    effective_total = total_target
     if effective_total < quality_minutes + len(easy_dates):
         return None
     remaining = effective_total - quality_minutes
@@ -1358,14 +1452,20 @@ def _easy_allocation_priority(
     *,
     preferred_longest_easy_weekday: int | None,
 ) -> tuple[date, ...]:
-    longest = _longest_easy_date(
-        dates,
-        preferred_longest_easy_weekday=preferred_longest_easy_weekday,
-    )
     ordered = tuple(sorted(dates))
-    if longest is None:
+    if preferred_longest_easy_weekday is None:
         return ordered
-    return (longest,) + tuple(item for item in ordered if item != longest)
+    preferred = next(
+        (
+            item
+            for item in ordered
+            if item.weekday() == preferred_longest_easy_weekday
+        ),
+        None,
+    )
+    if preferred is None:
+        return ordered
+    return (preferred,) + tuple(item for item in ordered if item != preferred)
 
 
 def _longest_easy_date(
@@ -1379,7 +1479,7 @@ def _longest_easy_date(
         for candidate in sorted(dates):
             if candidate.weekday() == preferred_longest_easy_weekday:
                 return candidate
-    return max(dates)
+    return None
 
 
 def _select_schedule_dates(

@@ -695,6 +695,57 @@ def _block_legacy_garmin_tokenstore(user_id: str) -> None:
     _write_legacy_garmin_root_blocker()
 
 
+def _clear_legacy_garmin_token_files(user_id: str) -> None:
+    """Remove one user's token files from active and migration roots.
+
+    Account deletion can race a failed startup migration after the legacy
+    root was moved to ``.migration``.  Clearing only the active root would
+    then incorrectly acknowledge deletion while bearer tokens remain in the
+    quarantine.  The global migration lock serializes both roots with startup.
+    """
+    import shutil
+
+    lock_path = _garmin_token_migration_lock_path()
+    with _GARMIN_MIGRATION_PROCESS_LOCK:
+        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+        with portalocker.Lock(
+            lock_path,
+            mode="a",
+            timeout=float("inf"),
+        ):
+            with _garmin_tokenstore_lease(user_id):
+                root = _garmin_token_root()
+                quarantine = root + ".migration"
+                for candidate_root in (root, quarantine):
+                    if os.path.islink(candidate_root):
+                        raise OSError(
+                            "Refusing symlinked Garmin token root"
+                        )
+                    if not os.path.isdir(candidate_root):
+                        continue
+                    path = os.path.normpath(
+                        os.path.join(candidate_root, user_id)
+                    )
+                    if (
+                        os.path.dirname(path) != candidate_root
+                        or not path.startswith(candidate_root + os.sep)
+                    ):
+                        raise ValueError(
+                            f"Invalid user_id for Garmin token directory: {user_id!r}"
+                        )
+                    if not os.path.lexists(path):
+                        continue
+                    if os.path.islink(path):
+                        raise OSError(
+                            "Refusing symlinked Garmin tokenstore path"
+                        )
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    else:
+                        os.unlink(path)
+                _block_legacy_garmin_tokenstore(user_id)
+
+
 def _clear_garmin_bound_tokens(user_id: str) -> None:
     """Block legacy disk tokens while preserving in-flight memory state."""
     with _garmin_tokenstore_lease(user_id):
@@ -706,6 +757,7 @@ def clear_garmin_tokens(
     db: Session | None = None,
     *,
     block_legacy: bool = True,
+    include_migration_quarantine: bool = False,
 ) -> None:
     """Remove encrypted and legacy Garmin OAuth tokens for a user.
 
@@ -715,7 +767,6 @@ def clear_garmin_tokens(
     filesystem cleanup raises on failure so bearer tokens cannot be silently
     left behind.
     """
-    import shutil
     from db import session as db_session
     from db.garmin_tokens import clear_stored_garmin_tokens
 
@@ -724,6 +775,8 @@ def clear_garmin_tokens(
         owned_db = db_session.SessionLocal()
         db = owned_db
     try:
+        # Process-local challenge/refresh state is safe to clear even when a
+        # filesystem error leaves the durable cleanup obligation pending.
         with _garmin_tokenstore_lease(user_id):
             with _pending_mfa_lock:
                 for key in [
@@ -739,23 +792,22 @@ def clear_garmin_tokens(
                 ]:
                     _completed_garmin_tokens.pop(key, None)
                     _completed_garmin_token_created.pop(key, None)
-            path = _garmin_token_dir(user_id)
-            if os.path.lexists(path):
-                try:
+        if block_legacy and include_migration_quarantine:
+            _clear_legacy_garmin_token_files(user_id)
+        with _garmin_tokenstore_lease(user_id):
+            if block_legacy and not include_migration_quarantine:
+                path = _garmin_token_dir(user_id)
+                if os.path.lexists(path):
                     if os.path.islink(path):
-                        raise OSError(f"Refusing symlinked tokenstore path: {path}")
+                        raise OSError(
+                            "Refusing symlinked Garmin tokenstore path"
+                        )
                     if os.path.isdir(path):
+                        import shutil
+
                         shutil.rmtree(path)
                     else:
                         os.unlink(path)
-                except OSError:
-                    logger.exception(
-                        "Failed to clear legacy Garmin tokenstore for user %s at %s",
-                        user_id,
-                        path,
-                    )
-                    raise
-            if block_legacy:
                 _block_legacy_garmin_tokenstore(user_id)
             if db is not None:
                 clear_stored_garmin_tokens(db, user_id=user_id)

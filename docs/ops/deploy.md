@@ -135,6 +135,27 @@ protection, PIPIA acceptance, and provider topology separately.
 - **Configuration:** correct the repository-owned secret/variable and rerun
   with `sync_config=true`; do not rely on a portal edit that the workflow owns.
 
+## Road 10K deployment boundary
+
+This repository-only change must deploy inactive.  Do not add an authority
+artifact, `PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH` value, provider credential,
+feature flag, roster, schedule, alert, or purge job to a deployment.  Old
+binaries ignore the additive ledger; new binaries facing a missing or mixed
+schema deny.  A soft rollback removes the path from traffic while retaining
+the migration, ledger, markers, and objects; never run a destructive
+downgrade after a cumulative slot is consumed.
+
+After any future restore, replay Road 10K deletion markers and validate ledger
+consistency before readiness or traffic.  A valid authority, independent
+pause/kill control, provider fence, and Quality/Operations evidence are
+separate prerequisites for any later exposure and are not created here.
+Absent/off authority with no committed Road 10K obligation remains a healthy
+dormant whole-product state and does not require Road 10K-specific storage
+configuration.  A parsed or visible authority fixture alone creates no storage
+prerequisite.  Only a committed Road 10K database deletion obligation requires
+the existing private marker storage to be available and startup replay to
+succeed.
+
 ## Related
 
 - [config-and-secrets.md](./config-and-secrets.md)

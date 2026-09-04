@@ -18,7 +18,9 @@ test('web goal page switches into the baseline pilot flow', async () => {
     read('../src/components/GoalBaselinePanel.tsx'),
   ]);
 
-  assert.match(page, /data\.goal_kind === 'performance_5k'[\s\S]*enablePerformance10k && data\.goal_kind === 'performance_10k'/);
+  assert.match(page, /data\.goal_kind === 'performance_5k' && data\.baseline/);
+  assert.match(page, /enablePerformance10k=\{false\}/);
+  assert.doesNotMatch(page, /enablePerformance10k && data\.goal_kind === 'performance_10k'/);
   assert.match(page, /<GoalBaselinePanel/);
   assert.match(panel, /Road10KHistoryConfirmationRequest/);
   assert.match(panel, /\/api\/goal\/baseline\/history\/confirm|\/api\/plan\/road-10k\/baseline\/history\/confirm/);
@@ -116,6 +118,11 @@ test('web and miniapp expose the exact schema-v6 road 10K export contract', asyn
     'UserDataExportRoad10KTrainingPatternSnapshot',
     'UserDataExportRoad10KGeneration',
     'UserDataExportRoad10KPlanGeneration',
+    'UserDataExportRoad10KOwnerReceipt',
+    'UserDataExportRoad10KExposureReceipt',
+    'UserDataExportRoad10KEvaluation',
+    'UserDataExportRoad10KScreenshotReference',
+    'UserDataExportRoad10KControl',
     'UserDataExportResponse',
   ];
   for (const name of interfaceNames) {
@@ -236,10 +243,28 @@ test('web and miniapp expose the exact schema-v6 road 10K export contract', asyn
       'created_at',
     ],
   );
+  assert.deepEqual(
+    interfaceProperties(interfaceBlock(webTypes, 'UserDataExportRoad10KControl')),
+    [
+      'schema_version',
+      'exported_at',
+      'owner_receipts',
+      'exposure_receipts',
+      'evaluations',
+      'screenshot_references',
+    ],
+  );
   const response = interfaceBlock(webTypes, 'UserDataExportResponse');
   assert.match(response, /schema_version: 6;/);
   assert.match(response, /road_10k_baseline: UserDataExportRoad10KBaseline;/);
+  assert.match(response, /road_10k_control: UserDataExportRoad10KControl;/);
   assert.match(response, /road_10k_plan_generation: UserDataExportRoad10KPlanGeneration;/);
+  const eventContext = interfaceBlock(webTypes, 'Road10KEventContext');
+  assert.equal(eventContext, interfaceBlock(miniTypes, 'Road10KEventContext'));
+  assert.match(
+    eventContext,
+    /state: 'unconfirmed' \| 'confirmed_none' \| 'single_target' \| 'race_dense';/,
+  );
   assert.doesNotMatch(
     interfaceNames.map((name) => interfaceBlock(webTypes, name)).join('\n'),
     /history_observation_ids/,

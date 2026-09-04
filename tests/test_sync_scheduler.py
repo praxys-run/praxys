@@ -9,6 +9,7 @@ from db.sync_scheduler import (
     ALLOWED_SYNC_INTERVAL_HOURS,
     DEFAULT_SYNC_INTERVAL_HOURS,
     _sync_connection,
+    _run_account_deletion_cleanup_tick,
     _run_managed_delivery_tick,
     _run_personal_context_retention_tick,
     get_user_sync_interval_hours,
@@ -96,6 +97,29 @@ def test_scheduler_tick_isolates_context_retention_failure(
     )
 
     _run_personal_context_retention_tick()
+
+
+def test_scheduler_tick_runs_account_deletion_cleanup(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "api.account_deletion_cleanup.run_scheduled_cleanup",
+        lambda: calls.append("cleanup"),
+    )
+
+    _run_account_deletion_cleanup_tick()
+
+    assert calls == ["cleanup"]
+
+
+def test_scheduler_tick_isolates_account_deletion_cleanup_failure(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "api.account_deletion_cleanup.run_scheduled_cleanup",
+        lambda: (_ for _ in ()).throw(RuntimeError("cleanup failed")),
+    )
+
+    _run_account_deletion_cleanup_tick()
 
 
 def test_garmin_sync_rechecks_processing_boundary_after_lease(

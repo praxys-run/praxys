@@ -27,6 +27,7 @@ _WEB_CODE_EXTENSIONS = {
 }
 _MINIAPP_CODE_EXTENSIONS = {
     ".css",
+    ".scss",
     ".js",
     ".json",
     ".ts",
@@ -103,6 +104,11 @@ _IMPECCABLE_COMMANDS = {
 }
 _PLACEHOLDER_RE = re.compile(
     r"(?:^|\b)(?:todo|tbd|pending|not checked|not run|n/?a)(?:\b|$)",
+    re.IGNORECASE,
+)
+_UNVERIFIED_EVIDENCE_RE = re.compile(
+    r"(?:\bunavailable\b|\bnot[\s-]+(?:performed|verified)\b|"
+    r"\bsource(?:[\s-]+(?:level|only)|[\s-]+and[\s-]+tests?[\s-]+only)\b)",
     re.IGNORECASE,
 )
 _REVIEWER_HANDOFF_RE = re.compile(
@@ -240,6 +246,7 @@ def _is_placeholder(value: str) -> bool:
         or "<!--" in value
         or "-->" in value
         or _PLACEHOLDER_RE.search(value) is not None
+        or _UNVERIFIED_EVIDENCE_RE.search(value) is not None
     )
 
 

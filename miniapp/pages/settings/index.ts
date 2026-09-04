@@ -26,6 +26,7 @@ import {
   planTargetSelection,
 } from '../../utils/managed-plan';
 import type {
+  AccountDeletionResponse,
   FeedbackKind,
   FeedbackRequest,
   FeedbackResponse,
@@ -1727,9 +1728,11 @@ Page({
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
     wx.showLoading({ title: t('Deleting...'), mask: true });
     try {
-      await apiDelete('/api/me');
+      const result = await apiDelete<AccountDeletionResponse>('/api/me');
       clearToken();
-      wx.reLaunch({ url: '/pages/login/index' });
+      wx.reLaunch({
+        url: `/pages/login/index?accountDeletionStatus=${result.status}`,
+      });
     } catch (e) {
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') return;

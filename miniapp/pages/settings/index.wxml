@@ -379,6 +379,7 @@
         </view>
       </view>
 
+
       <view class="settings-actions">
         <button class="ts-button ts-button--secondary settings-action-btn" bindtap="onSendFeedback">
           {{tr.sendFeedback}}

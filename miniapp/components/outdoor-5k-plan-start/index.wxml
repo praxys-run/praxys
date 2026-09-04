@@ -13,7 +13,7 @@
   <block wx:else>
     <view class="ts-card plan-start-card">
       <text class="plan-start-title">{{road10kMode ? tr.road10kTitle : tr.title}}</text>
-      <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
+      <text class="plan-start-copy">{{road10kMode ? tr.road10kInputBody : tr.proposalNotPlan}}</text>
 
       <view class="plan-start-rule"></view>
       <text class="plan-start-section">{{tr.purpose}}</text>
@@ -103,8 +103,8 @@
       </view>
 
       <text wx:if="{{errorMessage}}" class="plan-start-error" aria-live="assertive">{{errorMessage}}</text>
-      <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{working === 'readiness' ? tr.checking : tr.check}}</text></view>
-      <view wx:if="{{readinessIsPlanReady && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{working === 'generate' ? tr.creating : tr.create}}</text></view>
+      <view class="plan-start-primary" bindtap="onCheckReadiness" aria-role="button"><text>{{road10kMode ? (working === 'readiness' ? tr.roadChecking : tr.roadCheck) : (working === 'readiness' ? tr.checking : tr.check)}}</text></view>
+      <view wx:if="{{readinessIsPlanReady && (!proposal || proposalMatchesPurpose) && !proposal}}" class="plan-start-secondary" bindtap="onGenerate" aria-role="button"><text>{{road10kMode ? (working === 'generate' ? tr.roadCreating : tr.roadCreate) : (working === 'generate' ? tr.creating : tr.create)}}</text></view>
       </block>
       <view wx:else class="plan-start-note">
         <text class="plan-start-copy">{{tr.purposeRequired}}</text>
@@ -112,7 +112,7 @@
     </view>
 
     <view wx:if="{{readiness}}" class="ts-card plan-start-card">
-      <text class="plan-start-title">{{tr.result}}</text>
+      <text class="plan-start-title">{{road10kMode ? readinessBadge : tr.result}}</text>
       <text class="plan-start-badge">{{readinessBadge}}</text>
       <text class="plan-start-copy">{{readinessReason}}</text>
       <view wx:if="{{readinessContextRows.length}}" class="plan-start-version-grid">
@@ -137,14 +137,24 @@
   </block>
 
   <view wx:if="{{proposal}}" class="ts-card plan-start-card">
-      <text class="plan-start-title">{{tr.proposal}}</text>
-      <text class="plan-start-badge">{{proposalStateLabel}}</text>
-      <text class="plan-start-copy">{{tr.proposalNotPlan}}</text>
+      <text class="plan-start-title">{{road10kMode ? tr.roadProposal : tr.proposal}}</text>
+      <text wx:if="{{road10kMode && proposal.state === 'draft'}}" class="plan-start-badge">{{tr.roadProposalBadge}}</text>
+      <text wx:else class="plan-start-badge">{{proposalStateLabel}}</text>
+      <text class="plan-start-copy">{{road10kMode ? tr.roadProposalBody : tr.proposalNotPlan}}</text>
       <view class="plan-start-version-grid">
         <text class="ts-muted">{{tr.purposeLabel}}</text><text>{{proposalPurposeLabel || '—'}}</text>
-        <text class="ts-muted">{{tr.policy}}</text><text class="ts-value">{{proposal.policy_version || '—'}}</text>
-        <text class="ts-muted">{{tr.generator}}</text><text class="ts-value">{{proposal.model_version || '—'}}</text>
-        <text class="ts-muted">{{tr.science}}</text><text class="ts-value">{{proposal.science_version || '—'}}</text>
+        <text class="ts-muted">{{road10kMode ? tr.roadPolicy : tr.policy}}</text><text class="ts-value">{{proposal.policy_version || '—'}}</text>
+        <text class="ts-muted">{{road10kMode ? tr.roadGenerator : tr.generator}}</text><text class="ts-value">{{proposal.model_version || '—'}}</text>
+        <text class="ts-muted">{{road10kMode ? tr.roadScience : tr.science}}</text><text class="ts-value">{{proposal.science_version || '—'}}</text>
+      </view>
+      <view wx:if="{{road10kMode && proposalHasHorizon}}" class="plan-start-version-grid">
+        <text class="ts-muted">{{roadTaperScience ? roadTaperScience.horizon : tr.proposalHorizon}}</text>
+        <text class="ts-value">{{proposal.goal.horizon_start}} – {{proposal.goal.horizon_end}}<text wx:if="{{roadTaperScience}}"> ({{roadTaperScience.event_eve}})</text></text>
+      </view>
+      <view wx:if="{{road10kMode && roadTaperScience}}" class="plan-start-note">
+        <text class="plan-start-note-title">{{roadTaperScience.title}}</text>
+        <text class="plan-start-copy">{{roadTaperScience.body}}</text>
+        <text class="ts-muted">{{roadTaperScience.source_label}} · {{roadTaperScience.source_path}}</text>
       </view>
       <view class="plan-start-workouts">
         <view wx:for="{{proposal.workouts}}" wx:key="date" class="plan-start-workout">
@@ -157,12 +167,13 @@
         <view wx:if="{{activePlanNeedsReassessment && proposal.goal.purpose_source === 'current_goal'}}" class="plan-start-warning">
           <text class="plan-start-copy">{{tr.adoptionPaused}}</text>
         </view>
-        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-primary" bindtap="onAdopt" aria-role="button"><text>{{working === 'adopt' ? tr.adopting : tr.adopt}}</text></view>
-        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-secondary" bindtap="onRegenerate" aria-role="button"><text>{{working === 'regenerate' ? tr.regenerating : tr.regenerate}}</text></view>
-        <view class="plan-start-ghost" bindtap="onReject" aria-role="button"><text>{{working === 'reject' ? tr.rejecting : tr.reject}}</text></view>
+        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-primary" bindtap="onAdopt" aria-role="button"><text>{{road10kMode ? (working === 'adopt' ? tr.roadAdopting : tr.roadAdopt) : (working === 'adopt' ? tr.adopting : tr.adopt)}}</text></view>
+        <view wx:if="{{proposalMatchesPurpose}}" class="plan-start-secondary" bindtap="onRegenerate" aria-role="button"><text>{{road10kMode ? (working === 'regenerate' ? tr.roadRegenerating : tr.roadRegenerate) : (working === 'regenerate' ? tr.regenerating : tr.regenerate)}}</text></view>
+        <view wx:if="{{road10kMode}}" class="plan-start-ghost" bindtap="onReviewLater" aria-role="button"><text>{{tr.roadReviewLater}}</text></view>
+        <view class="plan-start-ghost" bindtap="onReject" aria-role="button"><text>{{road10kMode ? (working === 'reject' ? tr.roadRejecting : tr.roadReject) : (working === 'reject' ? tr.rejecting : tr.reject)}}</text></view>
       </block>
       <view wx:if="{{proposal.state === 'adopted'}}" class="plan-start-note">
-        <text class="plan-start-note-title">{{tr.deliveryDisabled}}</text>
+        <text class="plan-start-note-title">{{road10kMode ? tr.roadPlanActive : tr.deliveryDisabled}}</text>
       </view>
       <view wx:if="{{proposal.state === 'expired' || proposal.state === 'rejected' || proposal.state === 'superseded'}}" class="plan-start-warning">
         <text>{{tr.lifecycle}}</text>

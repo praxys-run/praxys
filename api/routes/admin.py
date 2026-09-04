@@ -284,7 +284,14 @@ def delete_user(
     from api.account_deletion import delete_user_account
 
     result = delete_user_account(db, target_user_id)
-    return {"status": "deleted", "email": result.email}
+    return {
+        "status": (
+            "deleted_cleanup_pending"
+            if result.cleanup_pending
+            else "deleted"
+        ),
+        "email": result.email,
+    }
 
 
 # ---------------------------------------------------------------------------

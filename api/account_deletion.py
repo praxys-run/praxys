@@ -91,6 +91,7 @@ class AccountDeletionResult:
 
     email: str
     deleted_user_ids: list[str]
+    cleanup_pending: bool = False
 
 
 def _cancel_active_labs_work(
@@ -299,16 +300,16 @@ def _delete_feedback_images(db: Session, user_id: str) -> None:
 
 
 def _clear_tokenstore(user_id: str) -> None:
-    """Best-effort legacy cleanup and plaintext-token blocking after deletion."""
+    """Remove legacy credentials after the database deletion commits."""
     from api.routes.sync import clear_garmin_tokens
 
-    try:
-        clear_garmin_tokens(user_id)
-    except OSError:
-        logger.exception(
-            "User %s deleted but Garmin legacy-token cleanup failed.",
-            user_id,
-        )
+    # The caller must surface a failure as cleanup-pending.  Swallowing this
+    # exception can claim complete deletion while a bearer credential remains
+    # on disk.
+    clear_garmin_tokens(
+        user_id,
+        include_migration_quarantine=True,
+    )
 
 
 def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
@@ -317,6 +318,7 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
 
     lock_plan_writes(db, user_id)
     path = plan_route._stryd_push_status_path(user_id)
+    cleanup_error: OSError | None = None
     try:
         with legacy_stryd_status_lock(
             os.path.dirname(path),
@@ -327,12 +329,15 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
                     os.unlink(candidate)
                 except FileNotFoundError:
                     continue
-                except OSError:
-                    logger.exception(
-                        "User %s deleted but legacy plan-status cleanup failed for %s.",
-                        user_id,
-                        candidate,
+                except OSError as exc:
+                    cleanup_error = cleanup_error or exc
+                    logger.error(
+                        "Legacy plan-status cleanup failed during account deletion."
                     )
+        if cleanup_error is not None:
+            raise OSError(
+                "one or more legacy plan-status files could not be removed"
+            ) from cleanup_error
     finally:
         db.rollback()
 
@@ -429,6 +434,16 @@ def _delete_user_account_locked(
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
+    from api.road_10k_control import (
+        Road10KDeletionFailed,
+        commit_deletion_manifests as commit_road_deletion_manifests,
+        complete_deletion_manifests as complete_road_deletion_manifests,
+        prepare_account_deletion as prepare_road_account_deletion,
+        record_deletion_obligations as record_road_deletion_obligations,
+    )
+
+    road_manifests: list[dict[str, object]] = []
+
     user.is_active = False
     _cancel_active_labs_work(db, user_id)
     for demo_user in demo_users:
@@ -462,13 +477,29 @@ def _delete_user_account_locked(
         .filter(User.demo_of == user_id)
         .all()
     )
+    from api.account_deletion_cleanup import (
+        pending_cleanup_exists,
+        record_cleanup_obligations,
+        replay_cleanup_obligations,
+    )
+
+    scoped_user_ids = [user_id, *(demo.id for demo in demo_users)]
     try:
-        for scoped_user_id in [user_id, *(demo.id for demo in demo_users)]:
-            _delete_feedback_images(db, scoped_user_id)
-    except feedback_storage.FeedbackStorageDeletionError:
+        # Persist filesystem-cleanup authority before removing the accounts.
+        # These payload-free rows commit atomically with the database deletion
+        # and remain replayable after this request or process exits.
+        record_cleanup_obligations(db, scoped_user_ids)
+        for scoped_user_id in scoped_user_ids:
+            road_manifests.extend(
+                prepare_road_account_deletion(
+                    db,
+                    user_id=scoped_user_id,
+                )
+            )
+    except Road10KDeletionFailed:
         db.rollback()
         logger.exception(
-            "Feedback screenshot deletion failed for user %s",
+            "Private deletion manifest failed for user %s",
             user_id,
         )
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
@@ -483,6 +514,7 @@ def _delete_user_account_locked(
     deleted_user_ids.append(user_id)
 
     try:
+        record_road_deletion_obligations(db, road_manifests)
         db.commit()
     except Exception:
         db.rollback()
@@ -491,9 +523,42 @@ def _delete_user_account_locked(
 
     from api.personal_context import complete_account_deletion_manifests
 
-    complete_account_deletion_manifests(context_manifests)
-    for deleted_user_id in deleted_user_ids:
-        _clear_tokenstore(deleted_user_id)
-        _clear_legacy_plan_status(db, deleted_user_id)
+    cleanup_pending = False
+    try:
+        complete_account_deletion_manifests(context_manifests)
+    except Exception:
+        cleanup_pending = True
+        logger.exception(
+            "Account personal-context cleanup remains pending for user %s",
+            user_id,
+        )
+    try:
+        committed_road_manifests = commit_road_deletion_manifests(
+            road_manifests
+        )
+        complete_road_deletion_manifests(
+            committed_road_manifests,
+            db=db,
+        )
+    except Exception:
+        cleanup_pending = True
+        logger.exception(
+            "Account private-object cleanup remains pending for user %s",
+            user_id,
+        )
+    try:
+        replay_cleanup_obligations(db, user_ids=deleted_user_ids)
+    except Exception:
+        cleanup_pending = True
+        db.rollback()
+        logger.exception(
+            "Account external cleanup replay failed after deletion commit"
+        )
+    if pending_cleanup_exists(db, user_ids=deleted_user_ids):
+        cleanup_pending = True
 
-    return AccountDeletionResult(email=email, deleted_user_ids=deleted_user_ids)
+    return AccountDeletionResult(
+        email=email,
+        deleted_user_ids=deleted_user_ids,
+        cleanup_pending=cleanup_pending,
+    )

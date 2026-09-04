@@ -39,6 +39,10 @@
   "packOptions": {
     "ignore": [
       {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
         "type": "file",
         "value": "package-lock.json"
       },

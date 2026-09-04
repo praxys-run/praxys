@@ -312,17 +312,36 @@ def submit_feedback(
             db.rollback()
             raise HTTPException(409, detail="FEEDBACK_ACCOUNT_UNAVAILABLE")
 
+        retained_keys: list[str] = []
         for i, (data, expected_key) in enumerate(zip(decoded_images, keys)):
-            stored_key = feedback_storage.store_image(
-                data,
-                feedback_id=feedback_id,
-                index=i,
-            )
-            if stored_key != expected_key:
+            try:
+                stored_key = feedback_storage.store_image(
+                    data,
+                    feedback_id=feedback_id,
+                    index=i,
+                )
+            except feedback_storage.FeedbackStorageWriteUncertain as exc:
+                # The locator was committed before upload. Preserve it for
+                # account-deletion/replay when provider acknowledgement is
+                # lost after a possible write.
+                stored_key = exc.object_key
+            if (
+                stored_key == expected_key
+                or (
+                    stored_key is None
+                    and not feedback_storage.private_blob_enabled()
+                )
+            ):
+                retained_keys.append(expected_key)
+            else:
                 logger.error(
                     "feedback image upload unverified for durable key %s",
                     expected_key,
                 )
+        # Known pre-write unavailability proves no object exists, so do not
+        # expose a phantom attachment. Successful or uncertain writes retain
+        # their deterministic deletion locator.
+        row.image_keys = retained_keys or None
         try:
             db.commit()
         except Exception:

@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,11 @@ from api.adaptive_plan_service import (
     read_current_proposal,
     reject_proposal,
 )
-from api.auth import get_data_user_id, require_write_access
+from api.auth import (
+    get_authenticated_identity,
+    get_data_user_id,
+    require_write_access,
+)
 from api.plan_workout_structure import (
     AdaptivePlanDiscipline,
     PlanActivityType,
@@ -324,6 +328,7 @@ def create_plan_proposal(
 
 @router.get("/plan/proposals/current", response_model=PlanProposalResponse)
 def get_current_plan_proposal(
+    request: Request,
     response: Response,
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
@@ -339,6 +344,25 @@ def get_current_plan_proposal(
                 "message": "No active plan proposal exists.",
             },
         )
+    if proposal.get("policy_version") == ROAD_10K_POLICY_VERSION:
+        identity = get_authenticated_identity(request, db)
+        if (
+            identity.credential_kind != "first_party_jwt"
+            or identity.is_demo
+            or identity.user_id != user_id
+        ):
+            raise HTTPException(status_code=404, detail="Not found")
+        from api.road_10k_control import require_road_10k_participation
+
+        try:
+            require_road_10k_participation(
+                db,
+                user_id=user_id,
+                allow_withdrawn=True,
+                lifecycle=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=404, detail="Not found") from exc
     return proposal
 
 

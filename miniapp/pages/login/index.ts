@@ -197,6 +197,9 @@ function buildLoginTr(locale: Locale) {
     ),
     deleteAccountConfirm: t('Delete account'),
     deleteAccountFailed: t('Could not delete account — please try again.'),
+    deletionCleanupPending: t(
+      'Your account was deleted. Private storage cleanup is still being retried in the background.',
+    ),
     signOut: t('Sign out'),
 
     consentLead: t('By signing in, you agree to our'),
@@ -326,7 +329,7 @@ const initialData: PageData = {
 Page<PageData, PageMethods>({
   data: { ...initialData },
 
-  onLoad() {
+  onLoad(options: { accountDeletionStatus?: string }) {
     const locale = detectLocale();
     const noticeAcknowledged = hasAcknowledgedChinaProcessingNotice();
     const hasToken = Boolean(getToken());
@@ -335,6 +338,9 @@ Page<PageData, PageMethods>({
       themePref: getThemePreference(),
       locale,
       tr: buildLoginTr(locale),
+      errorMessage: options.accountDeletionStatus === 'deleted_cleanup_pending'
+        ? buildLoginTr(locale).deletionCleanupPending
+        : '',
       stage: noticeAcknowledged ? (hasToken ? 'loading' : 'idle') : 'notice',
     });
     if (noticeAcknowledged && hasToken) {

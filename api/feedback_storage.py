@@ -68,10 +68,23 @@ MAX_IMAGE_COUNT = 3
 _KEY_RE = re.compile(
     r"^feedback/(?P<feedback_id>\d+)/\d+\.(png|jpg|jpeg|webp)$"
 )
+_ROAD_10K_KEY_RE = re.compile(
+    r"^road-10k/screenshots/[0-9a-fA-F-]+\.(png|jpg|webp)$"
+)
 
 
 class FeedbackStorageDeletionError(RuntimeError):
     """Raised when an exact screenshot key cannot be safely deleted."""
+
+
+class FeedbackStorageWriteUncertain(OSError):
+    """A configured private upload may have written its deterministic key."""
+
+    def __init__(self, object_key: str):
+        if not _KEY_RE.fullmatch(object_key):
+            raise ValueError("invalid feedback screenshot object key")
+        super().__init__("private feedback upload outcome is uncertain")
+        self.object_key = object_key
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +252,12 @@ def image_storage_key(data: bytes, *, feedback_id: int, index: int) -> str:
     return f"feedback/{feedback_id}/{index}.{ext}"
 
 
+def feedback_key_belongs_to(key: str, *, feedback_id: int) -> bool:
+    """Return whether a server-shaped key belongs to one feedback row."""
+    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    return match is not None and int(match.group("feedback_id")) == feedback_id
+
+
 def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
     """Persist one screenshot and return its storage key, or ``None`` on failure.
 
@@ -273,13 +292,13 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
                 content_settings=_blob_content_settings(content_type),
             )
             return key
-        except Exception:
+        except Exception as exc:
             logger.warning(
-                "store_image: blob upload failed for %s",
+                "store_image: blob upload outcome is uncertain for %s",
                 key,
                 exc_info=True,
             )
-            return None
+            raise FeedbackStorageWriteUncertain(key) from exc
 
     _warn_local_once()
     try:
@@ -306,13 +325,14 @@ def load_image(key: str) -> tuple[bytes, str] | None:
 
     if _use_blob():
         client = _blob_container_client()
-        if client is not None:
-            try:
-                data = client.download_blob(key).readall()
-                return data, content_type
-            except Exception:
-                logger.info("load_image: blob %s not found or unreadable", key)
-                # fall through to local in case it predates blob config
+        if client is None:
+            return None
+        try:
+            data = client.download_blob(key).readall()
+            return data, content_type
+        except Exception:
+            logger.info("load_image: blob %s not found or unreadable", key)
+            return None
 
     try:
         path = os.path.join(_local_dir(), *key.split("/"))
@@ -361,8 +381,7 @@ def delete_image(key: str, *, feedback_id: int) -> None:
     success while a screenshot may remain. When Blob is configured, an exact
     legacy local copy is also removed after the Blob result is known.
     """
-    match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
-    if match is None or int(match.group("feedback_id")) != feedback_id:
+    if not feedback_key_belongs_to(key, feedback_id=feedback_id):
         raise FeedbackStorageDeletionError(
             "Feedback image key is invalid or belongs to another row"
         )
@@ -388,6 +407,78 @@ def delete_image(key: str, *, feedback_id: int) -> None:
             ) from exc
 
     _delete_local_image(key)
+
+
+def delete_private_object(key: str) -> None:
+    """Delete a server-created feedback or Road object for replay."""
+    feedback_match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    road_match = (
+        _ROAD_10K_KEY_RE.fullmatch(key) if isinstance(key, str) else None
+    )
+    if feedback_match is None and road_match is None:
+        raise ValueError("invalid private screenshot object key")
+    if _use_blob():
+        client = _blob_container_client()
+        if client is None:
+            raise OSError("private blob storage unavailable")
+        _delete_blob_variants(client, key)
+    try:
+        _delete_local_image(key)
+    except FeedbackStorageDeletionError as exc:
+        raise OSError("local private object deletion failed") from exc
+
+
+def _delete_blob_variants(client, key: str) -> None:
+    """Delete a blob and any discoverable snapshots or versions."""
+    try:
+        blob = client.get_blob_client(key)
+    except AttributeError:
+        try:
+            client.delete_blob(key)
+        except Exception as exc:
+            if _blob_error_code(exc) != "BlobNotFound":
+                raise OSError("private Blob deletion failed") from exc
+        return
+    try:
+        blob.delete_blob(delete_snapshots="include")
+    except Exception as exc:
+        if _blob_error_code(exc) != "BlobNotFound":
+            raise OSError("private Blob deletion failed") from exc
+    list_versions = getattr(client, "list_blob_versions", None)
+    if callable(list_versions):
+        variants = list(list_versions(name=key))
+    else:
+        list_blobs = getattr(client, "list_blobs", None)
+        if not callable(list_blobs):
+            variants = []
+        else:
+            try:
+                variants = list(
+                    list_blobs(
+                        name_starts_with=key,
+                        include=["versions", "snapshots"],
+                    )
+                )
+            except TypeError:
+                variants = list(list_blobs(name_starts_with=key))
+    for variant in variants:
+        version_id = getattr(variant, "version_id", None)
+        snapshot = getattr(variant, "snapshot", None)
+        if isinstance(variant, dict):
+            version_id = version_id or variant.get("version_id")
+            snapshot = snapshot or variant.get("snapshot")
+        if version_id is None and snapshot is None:
+            continue
+        kwargs = (
+            {"version_id": version_id}
+            if version_id is not None
+            else {"snapshot": snapshot}
+        )
+        try:
+            client.get_blob_client(key, **kwargs).delete_blob()
+        except Exception as exc:
+            if _blob_error_code(exc) != "BlobNotFound":
+                raise OSError("private Blob variant deletion failed") from exc
 
 
 def _blob_content_settings(content_type: str | None):

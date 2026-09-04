@@ -1098,6 +1098,52 @@ For an immediate mid-run stop, set the kill switch and dispatch the emergency
 workflow: it cancels gate runs and reasserts failed required statuses after
 quiescence, so a stale workflow variable snapshot is not the final authority.
 
+## Road 10K dormant control signals
+
+road_10k_runtime_snapshot is a restricted in-process diagnostic, not an
+activation surface, dashboard, metric, or live alert. Its bounded values are:
+
+- authority: inactive_revision or counter_mismatch;
+- the fixed ceiling fields are always present: 60 invitations and 30
+  first-result exposures, including when ledger validation is blocked;
+- aggregate consumed counts, reported as zero when no trustworthy snapshot can
+  be produced;
+- deletion_replay_status: pending, not_required, or blocked. Blocked means
+  schema or ledger validation failed before replay state could be trusted;
+- ready: false for an invalid ledger or pending replay, otherwise true.
+
+Never add owner IDs, hashes, pseudonyms, invitation IDs, object keys, payloads,
+screenshots, raw latency, traces, locale, device, cohort, or provider dimensions.
+A cap attempt, counter mismatch, committed obligation without a matching marker,
+storage failure, or replay failure is fail-closed private operations evidence.
+The snapshot's blocked replay value is DB-validation evidence. The separate
+old process-local not_run, ready, and blocked values remain diagnostic only and
+must not drive health. Defining a future alert remains deferred until Operations
+accepts live resources and action-group behavior.
+
+## Account deletion cleanup obligations
+
+`account_deletion_cleanup_obligations` is the database-authoritative recovery
+queue for external Garmin token and legacy plan-status files. It emits no
+per-user telemetry and has no Azure alert resource in this PR. Inspect only
+aggregate pending counts from an authorized App Service shell or database
+session; never select or log `user_id` or `id`:
+
+```sql
+SELECT cleanup_kind, count(*) AS pending
+FROM account_deletion_cleanup_obligations
+WHERE status = 'pending'
+GROUP BY cleanup_kind;
+```
+
+Healthy is no rows. Any pending row after the next ten-minute scheduler tick,
+or any startup failure naming an account-deletion cleanup kind, is operator
+actionable: keep traffic closed when startup failed, restore filesystem access,
+restart, and rerun the aggregate query. Never delete or mutate an obligation by
+hand, and never add its locator to logs, metrics, dashboards, or alert
+dimensions. A live alert remains deferred until Operations accepts an action
+group and inventory/cost change in the same PR.
+
 ## Related
 
 - `api/telemetry.py` (signal emitters) · [cost-and-scaling.md](./cost-and-scaling.md) (budget + LLM spend) · [admin-tasks.md](./admin-tasks.md) (feedback triage)

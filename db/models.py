@@ -2015,6 +2015,629 @@ def _reject_road_10k_training_pattern_snapshot_update(
     raise ValueError("road 10K training pattern snapshots are immutable")
 
 
+class Road10KStageCounter(Base):
+    """Monotonic, non-identifying counters for one controlled Road 10K stage."""
+
+    __tablename__ = "road_10k_stage_counters"
+
+    stage_id = Column(String(80), primary_key=True)
+    schema_version = Column(Integer, nullable=False, default=2)
+    capability_id = Column(String(80), nullable=False)
+    invitation_slots_consumed = Column(Integer, nullable=False, default=0)
+    distinct_exposed_owners_consumed = Column(Integer, nullable=False, default=0)
+    invitation_ceiling = Column(Integer, nullable=False, default=60)
+    exposure_ceiling = Column(Integer, nullable=False, default=30)
+    aggregate = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "schema_version = 2",
+            name="ck_road_10k_stage_counter_schema",
+        ),
+        CheckConstraint(
+            "capability_id = 'outdoor_road_10k_performance_v1'",
+            name="ck_road_10k_stage_counter_capability",
+        ),
+        CheckConstraint(
+            "invitation_slots_consumed >= 0 AND invitation_slots_consumed <= 60",
+            name="ck_road_10k_stage_counter_invitations",
+        ),
+        CheckConstraint(
+            "distinct_exposed_owners_consumed >= 0 "
+            "AND distinct_exposed_owners_consumed <= 30",
+            name="ck_road_10k_stage_counter_exposures",
+        ),
+        CheckConstraint(
+            "invitation_ceiling = 60 AND exposure_ceiling = 30",
+            name="ck_road_10k_stage_counter_ceilings",
+        ),
+    )
+
+
+class Road10KOwnerStageReceipt(Base):
+    """Owner/stage control receipt.
+
+    ``user_id`` is nullable solely for account deletion.  A null owner link
+    retains the consumed receipt without creating a pseudonym or allowing a
+    future account to inherit it.
+    """
+
+    __tablename__ = "road_10k_owner_stage_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stage_id = Column(String(80), nullable=False, index=True)
+    capability_id = Column(String(80), nullable=False)
+    schema_version = Column(Integer, nullable=False, default=2)
+    policy_version = Column(String(80), nullable=False)
+    authority_digest = Column(String(64), nullable=False)
+    notice_digest = Column(String(64), nullable=False)
+    cohort_rule_digest = Column(String(64), nullable=False)
+    sampling_run_evidence_digest = Column(String(64), nullable=False)
+    invitation_idempotency_key = Column(String(128), nullable=False)
+    state = Column(String(24), nullable=False, default="invited_only")
+    invitation_issued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    enrolled_at = Column(DateTime, nullable=True)
+    first_exposed_at = Column(DateTime, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "stage_id",
+            name="uq_road_10k_owner_stage_receipt_owner_stage",
+        ),
+        UniqueConstraint(
+            "stage_id",
+            "invitation_idempotency_key",
+            name="uq_road_10k_owner_stage_receipt_invitation_key",
+        ),
+        CheckConstraint(
+            "capability_id = 'outdoor_road_10k_performance_v1'",
+            name="ck_road_10k_owner_stage_receipt_capability",
+        ),
+        CheckConstraint(
+            "schema_version = 2",
+            name="ck_road_10k_owner_stage_receipt_schema",
+        ),
+        CheckConstraint(
+            "length(authority_digest) = 64 "
+            "AND length(notice_digest) = 64 "
+            "AND length(cohort_rule_digest) = 64 "
+            "AND length(sampling_run_evidence_digest) = 64",
+            name="ck_road_10k_owner_stage_receipt_digests",
+        ),
+        CheckConstraint(
+            "state IN ('invited_only','enrolled_unexposed','exposed',"
+            "'withdrawn','deleted')",
+            name="ck_road_10k_owner_stage_receipt_state",
+        ),
+        CheckConstraint(
+            "(state = 'invited_only' AND enrolled_at IS NULL AND first_exposed_at IS NULL AND withdrawn_at IS NULL AND deleted_at IS NULL) OR "
+            "(state = 'enrolled_unexposed' AND enrolled_at IS NOT NULL AND first_exposed_at IS NULL AND withdrawn_at IS NULL AND deleted_at IS NULL) OR "
+            "(state = 'exposed' AND enrolled_at IS NOT NULL AND first_exposed_at IS NOT NULL AND withdrawn_at IS NULL AND deleted_at IS NULL) OR "
+            "(state = 'withdrawn' AND withdrawn_at IS NOT NULL AND deleted_at IS NULL) OR "
+            "(state = 'deleted' AND deleted_at IS NOT NULL)",
+            name="ck_road_10k_owner_stage_receipt_lifecycle",
+        ),
+        CheckConstraint(
+            "created_at = invitation_issued_at AND updated_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR enrolled_at >= invitation_issued_at) AND "
+            "(first_exposed_at IS NULL OR (enrolled_at IS NOT NULL AND first_exposed_at >= enrolled_at)) AND "
+            "(withdrawn_at IS NULL OR (withdrawn_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR withdrawn_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR withdrawn_at >= first_exposed_at))) AND "
+            "(deleted_at IS NULL OR (deleted_at >= invitation_issued_at AND "
+            "(enrolled_at IS NULL OR deleted_at >= enrolled_at) AND "
+            "(first_exposed_at IS NULL OR deleted_at >= first_exposed_at) AND "
+            "(withdrawn_at IS NULL OR deleted_at >= withdrawn_at)))",
+            name="ck_road_10k_owner_stage_receipt_timestamps",
+        ),
+        Index(
+            "ix_road_10k_owner_stage_receipt_stage_state",
+            "stage_id",
+            "state",
+        ),
+    )
+
+
+class Road10KExposureReceipt(Base):
+    """First-result exposure receipt, committed before any result bytes escape."""
+
+    __tablename__ = "road_10k_exposure_receipts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    stage_id = Column(String(80), nullable=False, index=True)
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    owner_stage_receipt_id = Column(
+        String(36),
+        ForeignKey("road_10k_owner_stage_receipts.id"),
+        nullable=False,
+    )
+    authority_digest = Column(String(64), nullable=False)
+    # Logical first-result reference. It intentionally has no foreign key: the
+    # evaluation payload is deleted at retention/withdrawal while this minimal
+    # no-recycling receipt remains immutable. The insert trigger proves the
+    # referenced evaluation exists and exactly matches this owner/stage/time.
+    evaluation_id = Column(String(36), nullable=False)
+    evaluation_expires_at = Column(DateTime, nullable=False)
+    exposed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "stage_id",
+            "user_id",
+            name="uq_road_10k_exposure_owner_stage",
+        ),
+        UniqueConstraint(
+            "evaluation_id",
+            name="uq_road_10k_exposure_first_evaluation",
+        ),
+        CheckConstraint(
+            "length(authority_digest) = 64",
+            name="ck_road_10k_exposure_authority_digest",
+        ),
+    )
+
+
+event.listen(
+    Road10KStageCounter.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_stage_counters_monotonic "
+        "BEFORE UPDATE ON road_10k_stage_counters "
+        "WHEN NEW.invitation_slots_consumed < OLD.invitation_slots_consumed "
+        "OR NEW.distinct_exposed_owners_consumed "
+        "< OLD.distinct_exposed_owners_consumed "
+        "OR NEW.invitation_ceiling != OLD.invitation_ceiling "
+        "OR NEW.exposure_ceiling != OLD.exposure_ceiling "
+        "OR NEW.capability_id != OLD.capability_id "
+        "OR NEW.schema_version != OLD.schema_version "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K counters cannot decrement'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KOwnerStageReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_owner_stage_receipts_no_delete "
+        "BEFORE DELETE ON road_10k_owner_stage_receipts "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K owner receipts cannot be deleted'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KOwnerStageReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_owner_stage_receipts_immutable "
+        "BEFORE UPDATE ON road_10k_owner_stage_receipts "
+        "WHEN NEW.id != OLD.id OR NEW.stage_id != OLD.stage_id "
+        "OR NEW.capability_id != OLD.capability_id "
+        "OR NEW.schema_version != OLD.schema_version "
+        "OR NEW.policy_version != OLD.policy_version "
+        "OR NEW.authority_digest != OLD.authority_digest "
+        "OR NEW.notice_digest != OLD.notice_digest "
+        "OR NEW.cohort_rule_digest != OLD.cohort_rule_digest "
+        "OR NEW.sampling_run_evidence_digest != OLD.sampling_run_evidence_digest "
+        "OR NEW.invitation_idempotency_key != OLD.invitation_idempotency_key "
+        "OR NEW.invitation_issued_at != OLD.invitation_issued_at "
+        "OR NEW.created_at != OLD.created_at "
+        "OR (OLD.user_id IS NULL AND NEW.user_id IS NOT NULL) "
+        "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state != 'deleted') "
+        "OR NOT (NEW.state = OLD.state "
+        "OR (OLD.state = 'invited_only' AND NEW.state IN ('enrolled_unexposed','withdrawn')) "
+        "OR (OLD.state = 'enrolled_unexposed' AND NEW.state IN ('exposed','withdrawn')) "
+        "OR (OLD.state = 'exposed' AND NEW.state = 'withdrawn') "
+        "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state = 'deleted')) "
+        "BEGIN SELECT RAISE(ABORT, 'road 10K owner receipt immutable'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KOwnerStageReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_owner_stage_receipts_lifecycle "
+        "BEFORE UPDATE ON road_10k_owner_stage_receipts "
+        "WHEN NOT ("
+        "(OLD.state = 'invited_only' AND NEW.state = 'enrolled_unexposed' "
+        "AND NEW.user_id IS OLD.user_id AND NEW.enrolled_at IS NOT NULL "
+        "AND NEW.first_exposed_at IS OLD.first_exposed_at AND NEW.withdrawn_at IS OLD.withdrawn_at "
+        "AND NEW.deleted_at IS OLD.deleted_at AND NEW.updated_at = NEW.enrolled_at) "
+        "OR (OLD.state = 'enrolled_unexposed' AND NEW.state = 'exposed' "
+        "AND NEW.user_id IS OLD.user_id AND NEW.enrolled_at IS OLD.enrolled_at "
+        "AND NEW.first_exposed_at IS NOT NULL AND NEW.withdrawn_at IS OLD.withdrawn_at "
+        "AND NEW.deleted_at IS OLD.deleted_at AND NEW.updated_at = NEW.first_exposed_at) "
+        "OR (OLD.state IN ('invited_only','enrolled_unexposed','exposed') AND NEW.state = 'withdrawn' "
+        "AND NEW.user_id IS OLD.user_id AND NEW.enrolled_at IS OLD.enrolled_at "
+        "AND NEW.first_exposed_at IS OLD.first_exposed_at AND NEW.withdrawn_at IS NOT NULL "
+        "AND NEW.withdrawn_at >= OLD.updated_at "
+        "AND NEW.deleted_at IS OLD.deleted_at AND NEW.updated_at = NEW.withdrawn_at) "
+        "OR (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL AND NEW.state = 'deleted' "
+        "AND NEW.enrolled_at IS OLD.enrolled_at AND NEW.first_exposed_at IS OLD.first_exposed_at "
+        "AND NEW.withdrawn_at IS OLD.withdrawn_at AND NEW.deleted_at IS NOT NULL "
+        "AND NEW.deleted_at >= OLD.updated_at "
+        "AND NEW.updated_at = NEW.deleted_at)"
+        ") "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K owner receipt lifecycle invalid'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_insert_match "
+        "BEFORE INSERT ON road_10k_exposure_receipts "
+        "WHEN NOT EXISTS ("
+        "SELECT 1 FROM road_10k_owner_stage_receipts AS owner_receipt "
+        "WHERE owner_receipt.id = NEW.owner_stage_receipt_id "
+        "AND owner_receipt.stage_id = NEW.stage_id "
+        "AND owner_receipt.user_id IS NEW.user_id "
+        "AND owner_receipt.authority_digest = NEW.authority_digest "
+        "AND owner_receipt.state = 'exposed' "
+        "AND owner_receipt.first_exposed_at = NEW.exposed_at"
+        ") "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K exposure receipt mismatch'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_immutable "
+        "BEFORE UPDATE ON road_10k_exposure_receipts "
+        "WHEN NOT ("
+        "OLD.user_id IS NOT NULL AND NEW.user_id IS NULL "
+        "AND NEW.id = OLD.id "
+        "AND NEW.stage_id = OLD.stage_id "
+        "AND NEW.owner_stage_receipt_id = OLD.owner_stage_receipt_id "
+        "AND NEW.authority_digest = OLD.authority_digest "
+        "AND NEW.evaluation_id = OLD.evaluation_id "
+        "AND NEW.evaluation_expires_at = OLD.evaluation_expires_at "
+        "AND NEW.exposed_at = OLD.exposed_at"
+        ") "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K exposure receipts are immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KExposureReceipt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_no_delete "
+        "BEFORE DELETE ON road_10k_exposure_receipts "
+        "BEGIN "
+        "SELECT RAISE(ABORT, 'road 10K exposure receipts cannot be deleted'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+class Road10KDeletionObligation(Base):
+    """DB-durable private-object deletion replay obligation."""
+
+    __tablename__ = "road_10k_deletion_obligations"
+
+    id = Column(String(36), primary_key=True)
+    stage_id = Column(String(80), nullable=False)
+    reason = Column(String(32), nullable=False)
+    manifest_digest = Column(String(64), nullable=False)
+    status = Column(String(16), nullable=False, default="committed")
+    requested_at = Column(DateTime, nullable=False)
+    committed_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "reason IN ('withdrawal','account_deletion','retention')",
+            name="ck_road_10k_deletion_obligation_reason",
+        ),
+        CheckConstraint(
+            "length(manifest_digest) = 64",
+            name="ck_road_10k_deletion_obligation_manifest_digest",
+        ),
+        CheckConstraint(
+            "status IN ('committed','completed')",
+            name="ck_road_10k_deletion_obligation_status",
+        ),
+        CheckConstraint(
+            "(status = 'committed' AND completed_at IS NULL) OR "
+            "(status = 'completed' AND completed_at IS NOT NULL)",
+            name="ck_road_10k_deletion_obligation_completion",
+        ),
+        CheckConstraint(
+            "requested_at <= committed_at",
+            name="ck_road_10k_deletion_obligation_commit_order",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= committed_at",
+            name="ck_road_10k_deletion_obligation_complete_order",
+        ),
+        Index(
+            "ix_road_10k_deletion_obligation_status",
+            "status",
+        ),
+    )
+
+
+event.listen(
+    Road10KDeletionObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_deletion_obligations_no_delete "
+        "BEFORE DELETE ON road_10k_deletion_obligations "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K deletion obligations cannot be deleted'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Road10KDeletionObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_deletion_obligations_immutable "
+        "BEFORE UPDATE ON road_10k_deletion_obligations "
+        "WHEN NOT ((OLD.status = 'committed' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id AND NEW.stage_id = OLD.stage_id "
+        "AND NEW.reason = OLD.reason AND NEW.manifest_digest = OLD.manifest_digest "
+        "AND NEW.requested_at = OLD.requested_at AND NEW.committed_at = OLD.committed_at "
+        "AND NEW.completed_at IS NOT NULL "
+        "AND NEW.completed_at >= OLD.committed_at) "
+        "OR (OLD.status = 'completed' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id AND NEW.stage_id = OLD.stage_id "
+        "AND NEW.reason = OLD.reason AND NEW.manifest_digest = OLD.manifest_digest "
+        "AND NEW.requested_at = OLD.requested_at AND NEW.committed_at = OLD.committed_at "
+        "AND NEW.completed_at = OLD.completed_at)) "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K deletion obligation immutable'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+class AccountDeletionCleanupObligation(Base):
+    """Durable authority to finish external account-data cleanup."""
+
+    __tablename__ = "account_deletion_cleanup_obligations"
+
+    # This is the opaque account UUID needed to address legacy per-user token
+    # storage.  The row deliberately contains no email, path, token, provider
+    # payload, error text, or foreign key to the deleted account.
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), nullable=False)
+    cleanup_kind = Column(String(32), nullable=False)
+    status = Column(String(16), nullable=False, default="pending")
+    requested_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(user_id) BETWEEN 1 AND 36 "
+            "AND user_id NOT LIKE '%/%' AND user_id NOT IN ('.','..')",
+            name="ck_account_deletion_cleanup_obligation_user_id",
+        ),
+        CheckConstraint(
+            "cleanup_kind IN ('garmin_tokens','legacy_plan_status')",
+            name="ck_account_deletion_cleanup_obligation_kind",
+        ),
+        CheckConstraint(
+            "status IN ('pending','completed')",
+            name="ck_account_deletion_cleanup_obligation_status",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND completed_at IS NULL) OR "
+            "(status = 'completed' AND completed_at IS NOT NULL)",
+            name="ck_account_deletion_cleanup_obligation_completion",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= requested_at",
+            name="ck_account_deletion_cleanup_obligation_order",
+        ),
+        Index(
+            "ix_account_deletion_cleanup_obligation_status",
+            "status",
+        ),
+        Index(
+            "ix_account_deletion_cleanup_obligation_user_status",
+            "user_id",
+            "status",
+        ),
+    )
+
+
+event.listen(
+    AccountDeletionCleanupObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_account_deletion_cleanup_obligations_no_delete "
+        "BEFORE DELETE ON account_deletion_cleanup_obligations "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'account deletion cleanup obligations cannot be deleted'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    AccountDeletionCleanupObligation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_account_deletion_cleanup_obligations_immutable "
+        "BEFORE UPDATE ON account_deletion_cleanup_obligations "
+        "WHEN NOT ((OLD.status = 'pending' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id "
+        "AND NEW.user_id = OLD.user_id "
+        "AND NEW.cleanup_kind = OLD.cleanup_kind "
+        "AND NEW.requested_at = OLD.requested_at "
+        "AND NEW.completed_at IS NOT NULL "
+        "AND NEW.completed_at >= OLD.requested_at) "
+        "OR (OLD.status = 'completed' AND NEW.status = 'completed' "
+        "AND NEW.id = OLD.id "
+        "AND NEW.user_id = OLD.user_id "
+        "AND NEW.cleanup_kind = OLD.cleanup_kind "
+        "AND NEW.requested_at = OLD.requested_at "
+        "AND NEW.completed_at = OLD.completed_at)) "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'account deletion cleanup obligation immutable'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+class Road10KEvaluation(Base):
+    """Owner-scoped, deletable evaluation payload and result record."""
+
+    __tablename__ = "road_10k_evaluations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stage_id = Column(String(80), nullable=False, index=True)
+    result_code = Column(String(80), nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
+    deletion_reason = Column(String(32), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "expires_at >= created_at",
+            name="ck_road_10k_evaluation_expiry_after_creation",
+        ),
+        CheckConstraint(
+            "result_code IN ('eligible_rolling_proposal',"
+            "'eligible_taper_proposal','missing_or_stale_direct_baseline',"
+            "'insufficient_recent_history','limited_guidance_event_conflict',"
+            "'limited_near_term_guidance','safety_stop',"
+            "'adult_scope_or_constraints_unconfirmed','contradictory_input',"
+            "'unsupported_intent_distance_surface_or_population',"
+            "'no_schedule_within_envelope','validation_failed')",
+            name="ck_road_10k_evaluation_result",
+        ),
+    )
+
+
+event.listen(
+    Road10KEvaluation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_evaluations_expiry_immutable "
+        "BEFORE INSERT ON road_10k_evaluations "
+        "WHEN julianday(NEW.expires_at) < julianday(NEW.created_at) "
+        "OR julianday(NEW.expires_at) > julianday(NEW.created_at) + 30 "
+        "BEGIN SELECT RAISE(ABORT, 'road 10K evaluation expiry invalid'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+event.listen(
+    Base.metadata,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_exposure_receipts_result_match "
+        "BEFORE INSERT ON road_10k_exposure_receipts "
+        "WHEN NOT EXISTS ("
+        "SELECT 1 FROM road_10k_evaluations AS evaluation "
+        "WHERE evaluation.id = NEW.evaluation_id "
+        "AND evaluation.stage_id = NEW.stage_id "
+        "AND evaluation.user_id IS NEW.user_id "
+        "AND evaluation.created_at = NEW.exposed_at "
+        "AND evaluation.expires_at = NEW.evaluation_expires_at"
+        ") BEGIN SELECT RAISE(ABORT, "
+        "'road 10K exposure result mismatch'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    Road10KEvaluation.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_road_10k_evaluations_retention_immutable "
+        "BEFORE UPDATE ON road_10k_evaluations "
+        "WHEN NEW.created_at != OLD.created_at "
+        "OR NEW.expires_at != OLD.expires_at "
+        "BEGIN SELECT RAISE(ABORT, "
+        "'road 10K evaluation retention deadline immutable'); END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+class Road10KScreenshotReference(Base):
+    """Private screenshot reference; screenshot bytes never enter the DB."""
+
+    __tablename__ = "road_10k_screenshot_references"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    evaluation_id = Column(
+        String(36),
+        ForeignKey("road_10k_evaluations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    object_key = Column(String(240), nullable=False, unique=True)
+    content_type = Column(String(40), nullable=False)
+    captured_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "object_key NOT LIKE '%@%' AND object_key NOT LIKE '%email%'",
+            name="ck_road_10k_screenshot_key_private",
+        ),
+    )
+
+
 class Road10KPlanGeneration(Base):
     """Immutable audit record for one deterministic road 10K proposal."""
 

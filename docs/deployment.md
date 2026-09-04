@@ -417,6 +417,18 @@ This means deploying a new version with additional model columns just works — 
 
 ## Post-Deploy Steps
 
+### Road 10K foundation
+
+Do not configure or deploy a Road 10K stage-authority artifact as part of a
+normal release.  The repository implementation is unconditionally hard-off
+before stage-authority evaluation: no absent, present, or syntactically valid
+artifact and no parsed lifecycle value can authorize a Road 10K action.  No
+deployment setting can raise the compiled 60-invitation or
+30-distinct-exposed-owner ceilings, create an invitation, collect a result,
+upload a screenshot, or call a provider/AI.  After any restore,
+deletion-marker replay and ledger validation must complete before readiness or
+traffic.
+
 1. **Register first user** — `POST /api/auth/register` with email + password (becomes admin)
 2. **Connect platforms** — via Settings page (credentials stored encrypted in DB via Key Vault)
 3. **Trigger first sync** — via Settings page or `POST /api/sync` (authenticated)

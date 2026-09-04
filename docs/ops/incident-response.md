@@ -108,6 +108,7 @@ curl -s --connect-timeout 5 --max-time 15 -o /dev/null -w "%{http_code}\n" https
 | Symptom | Likely area | Go to |
 |---|---|---|
 | `/api/health` fails / 5xx | backend down or crashing | **Backend** below |
+| Startup reports account deletion cleanup pending | External credential/status storage unavailable | Restore storage access; do not bypass startup replay or delete obligation rows; restart and verify no pending rows |
 | `/healthz` fails, API ok | frontend host | **Frontend** below |
 | Both ok, data stale for some users | sync stuck | [sync-troubleshooting.md](./sync-troubleshooting.md) |
 | Started right after a deploy | bad release | [deploy.md](./deploy.md) → Rollback |
@@ -222,5 +223,21 @@ user dashboard.
 
 - [deploy.md](./deploy.md) · [sync-troubleshooting.md](./sync-troubleshooting.md) · [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 
+## Road 10K control incident
+
+Treat any reachable Road stage action, cap mismatch, owner-isolation failure,
+retention breach, screenshot capture, deletion failure, or provider call as a
+zero-tolerance incident. The affected revision must remain hard-off. Operations
+cannot pause, resume, or activate Road through an authority file, environment
+value, or deployment setting; preserve owner export, withdrawal, and account
+deletion rights while containing the defect.
+
+A committed deletion obligation with unavailable storage, a missing or malformed
+marker, or failed object deletion keeps readiness closed. Preserve the database
+obligation and private marker, use a forward repair, and never infer replay
+completion from a process-local status. Live alerting, database/private-store
+restore reconciliation, production purge scheduling, provider audit, and
+rollback drills require separate authorization and remain unperformed here.
+
 ---
-_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_

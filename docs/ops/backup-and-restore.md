@@ -67,6 +67,14 @@ recorded request. Account-deletion markers remove all restored context for the
 owner, including context created during the live deletion window. Startup fails
 closed if configured private Blob storage cannot be read or an overdue privacy
 deletion cannot complete.
+Database-backed external cleanup obligations are also replayed before traffic:
+for every account deletion they re-delete any legacy Garmin tokenstore from
+both the active and migration-quarantine roots and remove legacy plan-status
+files. A pending or failed replay keeps startup
+closed; inspect logs for the cleanup kind only (account identifiers and paths
+must not be logged), repair the storage/permission fault, and restart. This is
+limited to external local artifacts; complete pre-deletion PostgreSQL PITR
+reconciliation remains tracked by #755.
 Before cutover, verify that withdrawn Labs experiments and deleted personal
 context remain absent.
 
@@ -210,5 +218,27 @@ estimated.
 
 - [disaster-recovery.md](./disaster-recovery.md) · [deploy.md](./deploy.md) · `db/session.py` (`init_db`, `_SQLITE_PRAGMAS`)
 
+## Road 10K deletion replay boundary
+
+Road evaluation and private-object deletion uses a payload-free private marker
+plus a matching database obligation. The destructive database transaction
+commits the obligation; startup probes marker storage only while a committed
+obligation exists. Missing storage, a missing or malformed matching marker, or
+a failed delete keeps readiness closed. Prepared markers without a committed
+obligation are ignored, completed obligations are immutable, and empty
+withdrawals do not create markers.
+
+Evaluation expiry remains fixed at no more than 30 days from creation. The purge
+primitive is unscheduled, and this change performs no purge or live restore.
+Never run the destructive Road migration downgrade after any receipt, slot, or
+obligation exists.
+
+A database snapshot older than a deletion may also predate its database
+obligation. Therefore repository tests do not prove post-restore reconciliation.
+Before any future traffic, a separately authorized live restore drill must
+reconcile current obligations with private markers and verify that evaluation
+and screenshot data does not reappear. Until then this is release-only evidence
+and restore safety is unvalidated.
+
 ---
-_Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+_Last reviewed: 2026-08-22 · Owner: @dddtc2005_

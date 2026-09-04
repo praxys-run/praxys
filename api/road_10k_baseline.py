@@ -195,6 +195,9 @@ def confirm_road_10k_history_candidate(
     purpose_selection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Persist one owner-scoped 10K history confirmation."""
+    from api.road_10k_control import require_road_10k_gate
+
+    require_road_10k_gate(db, user_id=user_id, expose=True)
     timestamp = _utc_naive(now or datetime.utcnow())
     payload = {
         "activity_id": activity_id,
@@ -218,13 +221,16 @@ def confirm_road_10k_history_candidate(
         request_fingerprint=fingerprint,
     )
     if existing is not None:
-        return _replayed_confirmation_response(
+        result = _replayed_confirmation_response(
             db,
             user_id=user_id,
             confirmation=existing,
             now=timestamp,
         )
+        require_road_10k_gate(db, user_id=user_id, expose=False)
+        return result
     lock_plan_writes(db, user_id)
+    require_road_10k_gate(db, user_id=user_id, expose=False)
     config, goal_source, _scope = _resolve_context(
         db,
         user_id=user_id,
@@ -279,12 +285,14 @@ def confirm_road_10k_history_candidate(
     )
     created = _insert_idempotent(db, row)
     if not created:
-        return _replayed_confirmation_response(
+        result = _replayed_confirmation_response(
             db,
             user_id=user_id,
             confirmation=row,
             now=timestamp,
         )
+        require_road_10k_gate(db, user_id=user_id, expose=False)
+        return result
     _record_snapshot(
         db,
         user_id=user_id,
@@ -295,8 +303,9 @@ def confirm_road_10k_history_candidate(
         created_at=timestamp,
     )
     bump_revisions(db, user_id, ["goals"])
+    require_road_10k_gate(db, user_id=user_id, expose=False)
     db.commit()
-    return {
+    result = {
         "replayed": False,
         "guardrails": ROAD_10K_GUARDRAILS.public_payload(),
         "confirmation": _serialize_confirmation_row(row),
@@ -307,6 +316,8 @@ def confirm_road_10k_history_candidate(
             purpose_selection=purpose_selection,
         )["baseline"],
     }
+    require_road_10k_gate(db, user_id=user_id, expose=False)
+    return result
 
 
 def resolve_road_10k_baseline_snapshot_id(

@@ -1,6 +1,7 @@
 """Unit and schema tests for the managed-plan revision/delivery ledger."""
 import copy
 from datetime import date
+from datetime import datetime
 import logging
 from pathlib import Path
 import re
@@ -269,10 +270,15 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["e1f2a3b4c5d6"]
+    assert script.get_heads() == ["e3f4a5b6c7d8"]
+    assert script.get_revision("e3f4a5b6c7d8").down_revision == "d2e3f4a5b6c7"
+    assert script.get_revision("d2e3f4a5b6c7").down_revision == "e1f2a3b4c5d6"
     assert script.get_revision("e1f2a3b4c5d6").down_revision == "d0e1f2a3b4c5"
     assert script.get_revision("d0e1f2a3b4c5").down_revision == "c9d0e1f2a3b4"
     assert script.get_revision("c9d0e1f2a3b4").down_revision == "b8d4e6f7a9c1"
+    assert "c1d2e3f4a5b6" not in {
+        revision.revision for revision in script.walk_revisions()
+    }
     assert set(script.get_revision("b8d4e6f7a9c1").down_revision) == {
         "a7f3c2d1e9b4",
         "ae1f2a3b4c5d",
@@ -281,6 +287,359 @@ def test_alembic_head_includes_adaptive_plan_proposals():
     assert script.get_revision("8c9d0e1f2a3b").down_revision == "f7b8c9d0e1f2"
     assert script.get_revision("e6a7b8c9d0f1").down_revision == "d95e6f7a8b9c"
     assert script.get_revision("d95e6f7a8b9c").down_revision == "c84f0912ab6d"
+
+
+def test_account_cleanup_migration_refuses_downgrade_with_obligation(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    database_url = f"sqlite:///{tmp_path / 'cleanup-downgrade.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO account_deletion_cleanup_obligations (
+                    id, user_id, cleanup_kind, status, requested_at
+                ) VALUES (
+                    '00000000-0000-4000-8000-000000000001',
+                    'deleted-owner', 'garmin_tokens', 'pending',
+                    CURRENT_TIMESTAMP
+                )
+                """
+            )
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade account deletion cleanup obligations",
+        ):
+            command.downgrade(config, "d2e3f4a5b6c7")
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "e3f4a5b6c7d8"
+    finally:
+        engine.dispose()
+
+
+def test_migrated_sqlite_exposure_receipt_allows_only_native_owner_unlink(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import DatabaseError
+    from sqlalchemy.orm import sessionmaker
+
+    from db.models import (
+        Road10KDeletionObligation,
+        Road10KExposureReceipt,
+        Road10KEvaluation,
+        Road10KOwnerStageReceipt,
+        Road10KStageCounter,
+        User,
+    )
+
+    database_url = f"sqlite:///{tmp_path / 'migrated-road-10k.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    command.upgrade(Config("alembic.ini"), "head")
+
+    engine = create_engine(database_url)
+    SessionLocal = sessionmaker(bind=engine)
+    with SessionLocal() as db:
+        db.add(
+            User(
+                id="migration-owner",
+                email="migration-owner@example.com",
+                hashed_password="hashed",
+            )
+        )
+        db.add(
+            Road10KStageCounter(
+                stage_id="road-10k-controlled-opt-in-v1",
+                schema_version=2,
+                capability_id="outdoor_road_10k_performance_v1",
+                invitation_slots_consumed=1,
+                distinct_exposed_owners_consumed=1,
+                invitation_ceiling=60,
+                exposure_ceiling=30,
+            )
+        )
+        db.add(
+            Road10KOwnerStageReceipt(
+                id="migration-owner-receipt",
+                user_id="migration-owner",
+                stage_id="road-10k-controlled-opt-in-v1",
+                capability_id="outdoor_road_10k_performance_v1",
+                schema_version=2,
+                policy_version="road-10k-plan-generation-policy-v2",
+                authority_digest="a" * 64,
+                notice_digest="b" * 64,
+                cohort_rule_digest="c" * 64,
+                sampling_run_evidence_digest="d" * 64,
+                invitation_idempotency_key="migration-invitation",
+                state="exposed",
+                invitation_issued_at=datetime(2026, 8, 20),
+                enrolled_at=datetime(2026, 8, 20),
+                first_exposed_at=datetime(2026, 8, 20),
+                created_at=datetime(2026, 8, 20),
+                updated_at=datetime(2026, 8, 20),
+            )
+        )
+        db.flush()
+        db.add(
+            Road10KEvaluation(
+                id="migration-first-evaluation",
+                user_id="migration-owner",
+                stage_id="road-10k-controlled-opt-in-v1",
+                result_code="validation_failed",
+                payload={},
+                created_at=datetime(2026, 8, 20),
+                expires_at=datetime(2026, 9, 19),
+            )
+        )
+        db.flush()
+        db.add(
+            Road10KExposureReceipt(
+                id="migration-exposure-receipt",
+                stage_id="road-10k-controlled-opt-in-v1",
+                user_id="migration-owner",
+                owner_stage_receipt_id="migration-owner-receipt",
+                authority_digest="a" * 64,
+                evaluation_id="migration-first-evaluation",
+                evaluation_expires_at=datetime(2026, 9, 19),
+                exposed_at=datetime(2026, 8, 20),
+            )
+        )
+        db.commit()
+
+        owner_receipt = db.get(
+            Road10KOwnerStageReceipt,
+            "migration-owner-receipt",
+        )
+        owner_receipt.state = "withdrawn"
+        owner_receipt.withdrawn_at = datetime(2026, 8, 21)
+        owner_receipt.updated_at = owner_receipt.withdrawn_at
+        db.commit()
+
+        counter = db.get(
+            Road10KStageCounter,
+            "road-10k-controlled-opt-in-v1",
+        )
+        counter.invitation_slots_consumed = 0
+        with pytest.raises(DatabaseError, match="counters cannot decrement"):
+            db.commit()
+        db.rollback()
+
+        exposure = db.get(
+            Road10KExposureReceipt,
+            "migration-exposure-receipt",
+        )
+        assert exposure is not None
+        exposure.user_id = None
+        db.commit()
+
+        exposure.authority_digest = "d" * 64
+        with pytest.raises(DatabaseError, match="exposure receipts are immutable"):
+            db.commit()
+        db.rollback()
+
+        assert db.get(
+            Road10KExposureReceipt,
+            "migration-exposure-receipt",
+        ).authority_digest == "a" * 64
+
+        db.delete(
+            db.get(
+                Road10KExposureReceipt,
+                "migration-exposure-receipt",
+            )
+        )
+        with pytest.raises(
+            DatabaseError,
+            match="exposure receipts cannot be deleted",
+        ):
+            db.commit()
+        db.rollback()
+
+        db.delete(
+            db.get(
+                Road10KOwnerStageReceipt,
+                "migration-owner-receipt",
+            )
+        )
+        with pytest.raises(
+            DatabaseError,
+            match="owner receipts cannot be deleted",
+        ):
+            db.commit()
+        db.rollback()
+
+        obligation = Road10KDeletionObligation(
+            id="00000000-0000-4000-8000-000000000736",
+            manifest_digest="a" * 64,
+            stage_id="road-10k-controlled-opt-in-v1",
+            reason="withdrawal",
+            status="committed",
+            requested_at=datetime(2026, 8, 21),
+            committed_at=datetime(2026, 8, 21),
+        )
+        db.add(obligation)
+        db.commit()
+        obligation.status = "completed"
+        obligation.completed_at = datetime(2026, 8, 21, 0, 0, 1)
+        db.commit()
+
+        obligation.status = "committed"
+        obligation.completed_at = None
+        with pytest.raises(DatabaseError, match="deletion obligation immutable"):
+            db.commit()
+        db.rollback()
+
+        obligation = db.get(Road10KDeletionObligation, obligation.id)
+        db.delete(obligation)
+        with pytest.raises(DatabaseError, match="cannot be deleted"):
+            db.commit()
+        db.rollback()
+    engine.dispose()
+
+
+def test_road_10k_destructive_downgrade_refuses_consumed_receipt(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    database_url = f"sqlite:///{tmp_path / 'road-10k-downgrade.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO users (
+                    id, email, hashed_password, is_active, is_superuser,
+                    is_verified, is_demo
+                ) VALUES (
+                    'downgrade-owner', 'downgrade-owner@example.com', 'hash',
+                    1, 0, 0, 0
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO road_10k_stage_counters (
+                    stage_id, schema_version, capability_id,
+                    invitation_slots_consumed,
+                    distinct_exposed_owners_consumed,
+                    invitation_ceiling, exposure_ceiling, aggregate,
+                    created_at, updated_at
+                ) VALUES (
+                    'road-10k-controlled-opt-in-v1', 2,
+                    'outdoor_road_10k_performance_v1',
+                    1, 0, 60, 30, '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO road_10k_owner_stage_receipts (
+                    id, user_id, stage_id, capability_id, schema_version,
+                    policy_version, authority_digest, notice_digest,
+                    cohort_rule_digest, sampling_run_evidence_digest,
+                    invitation_idempotency_key, state, invitation_issued_at,
+                    created_at, updated_at
+                ) VALUES (
+                    'downgrade-owner-receipt', 'downgrade-owner',
+                    'road-10k-controlled-opt-in-v1',
+                    'outdoor_road_10k_performance_v1', 2,
+                    'road-10k-plan-generation-policy-v2',
+                    ?, ?, ?, ?, 'downgrade-owner-invitation', 'invited_only',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """,
+                ("a" * 64, "b" * 64, "c" * 64, "d" * 64),
+            )
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade Road 10K control ledger",
+        ):
+            command.downgrade(config, "b8d4e6f7a9c1")
+
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "d2e3f4a5b6c7"
+    finally:
+        engine.dispose()
+
+
+def test_road_10k_destructive_downgrade_refuses_evaluation_only(
+    tmp_path,
+    monkeypatch,
+    preserve_logger_disabled_state,
+):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    database_url = f"sqlite:///{tmp_path / 'road-10k-evaluation-downgrade.db'}"
+    monkeypatch.setenv("PRAXYS_DATABASE_URL", database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                """
+                INSERT INTO road_10k_evaluations (
+                    id, user_id, stage_id, result_code, payload,
+                    created_at, expires_at
+                ) VALUES (
+                    'evaluation-only', NULL,
+                    'road-10k-controlled-opt-in-v1', 'safety_stop', '{}',
+                    CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+1 day')
+                )
+                """
+            )
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot downgrade Road 10K control ledger",
+        ):
+            command.downgrade(config, "b8d4e6f7a9c1")
+
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "d2e3f4a5b6c7"
+    finally:
+        engine.dispose()
+
+
+def test_road_10k_downgrade_guards_screenshot_references() -> None:
+    from pathlib import Path
+
+    source = Path(
+        "alembic/versions/d2e3f4a5b6c7_add_road_10k_control_ledger.py"
+    ).read_text(encoding="utf-8")
+    downgrade = source.split("def downgrade() -> None:", 1)[1]
+    assert "EXISTS (SELECT 1 FROM road_10k_screenshot_references)" in downgrade
 
 
 def test_terms_receipt_migration_refuses_destructive_downgrade(
@@ -446,7 +805,7 @@ def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
             }
             assert conn.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == "e1f2a3b4c5d6"
+            ).scalar_one() == "e3f4a5b6c7d8"
         assert "history_observation_ids" not in columns
         with open(database_path, "rb") as database_file:
             assert marker.encode() not in database_file.read()

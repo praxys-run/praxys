@@ -693,6 +693,18 @@ fail Garmin authentication until the encrypted-token release is restored.
 A cross-worker migration lock elects one startup worker, which acquires all
 known per-user token leases before the cutover. The blocker is written and
 fsynced under a temporary name, then atomically installed.
+A committed account deletion also writes one payload-free
+`account_deletion_cleanup_obligations` row for Garmin tokens and one for
+legacy plan-status files before deleting the account. The rows contain only
+the opaque account UUID, fixed cleanup kind, lifecycle state, and timestamps;
+they never contain an email, filesystem path, credential, token, error text,
+or training payload. The request immediately replays them, every sync-scheduler
+tick retries pending rows, and startup replays every pending row before
+serving traffic. Cleanup covers both `.garmin_tokens/<uuid>` and
+`.garmin_tokens.migration/<uuid>` under the existing migration and per-user
+leases. Any unconfirmed residual file keeps the obligation pending and the
+API reports `deleted_cleanup_pending`; startup fails closed until all replayed
+cleanup succeeds. Admin deletion propagates the same status.
 A running Garmin sync is generation fenced and
 rolls back if the connection changes, so old OAuth sessions cannot
 authorize or degrade the replacement connection. Do not provision, copy, or
@@ -1201,6 +1213,27 @@ outgrown.
 - [deploy.md](./deploy.md) · [environment.md](./environment.md) · `docs/deployment.md`
 - `.github/workflows/deploy-backend.yml` and `scripts/appinsights_boundary.sh`
   (source of truth for App Service settings and telemetry routing)
+
+## Road 10K controlled opt-in (repository-only, inactive)
+
+This revision has no Road activation configuration. The optional
+PRAXYS_ROAD_10K_STAGE_AUTHORITY_PATH reader remains dormant scaffolding and a
+diagnostic input. Capability discovery may call it, but every artifact remains
+unusable and cannot expose Road. Activation, invitation, exposure, and plan
+generation routes are statically denied before authority, authentication,
+database, storage, or provider work. Do not add the reader to deployment
+configuration.
+
+The cumulative ceilings are fixed at exactly 60 invitations and 30 first-result
+exposures. No authority or environment value can lower, raise, reset, or recycle
+them. There is no pause, kill, heartbeat, readiness, provider, cohort, actor, or
+notice value that can authorize a stage action in this revision.
+
+Do not add a Road secret, scheduled purge, live alert, action group, or storage
+resource. Dormant startup does not construct or probe private storage. Existing
+private marker storage is required only when the application database contains
+a committed deletion obligation; missing storage or a missing matching marker
+then fails readiness closed.
 
 ---
 _Last reviewed: 2026-08-27 · Owner: @dddtc2005_

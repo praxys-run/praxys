@@ -78,6 +78,7 @@ startup does not depend on a machine-specific `python` command name.
 - [Contributing](docs/dev/contributing.md)
 - [Contributing Scientific Evidence](docs/science/contributing.md)
 - [Webhook Feasibility (Oura + Garmin)](docs/studies/webhook-feasibility.md)
+- [Road 10K controlled opt-in foundation](docs/ops/road-10k-controlled-opt-in.md) (repository-only, default-off)
 
 ## Legal
 
@@ -99,3 +100,9 @@ Garmin, Strava, Oura, COROS, and WeChat are trademarks of their respective owner
 
 - **Self-hosted (local development or your own Azure deployment):** all data sits in your own SQLite database. You control the host, the backups, and who has access.
 - **Cloud app at `praxys.run`:** your activity, recovery, and goal data are stored in our managed Azure deployment. Platform credentials and access tokens are protected with **envelope encryption** — per-user Fernet DEKs wrapped by a KEK held outside the database — so they're never stored in plaintext, never returned to the frontend, and never logged. Activity and recovery data themselves are not encrypted at the application layer beyond standard storage-level encryption. See [`docs/security.md`](docs/security.md) for the full scheme.
+
+Road 10K is mechanically hidden and inactive in this revision. Digest-bound
+authority artifacts are parsing-only fixtures and cannot invite, expose,
+collect, activate, expand caps, upload screenshots, or invoke providers/AI.
+The 60/30 and 30-day retained-record constraints are repository safeguards;
+release-only storage, restore, and lifecycle evidence remains unresolved.

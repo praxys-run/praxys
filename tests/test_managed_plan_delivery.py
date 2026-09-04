@@ -346,10 +346,16 @@ def test_default_off_modes_make_zero_provider_calls(
 
 def test_road_10k_policy_is_fenced_at_managed_delivery_boundary(
     managed_db,
+    monkeypatch,
 ) -> None:
     from analysis.road_10k_contract import ROAD_10K_POLICY_VERSION
 
     db, adapter = managed_db
+    telemetry_calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "api.plan_delivery.rolling.telemetry.record_managed_plan_event",
+        lambda **values: telemetry_calls.append(values),
+    )
     plan = _add_plan(db, date(2026, 8, 2))
     plan.meta = {"policy_version": ROAD_10K_POLICY_VERSION}
     db.commit()
@@ -392,6 +398,7 @@ def test_road_10k_policy_is_fenced_at_managed_delivery_boundary(
     assert adapter.create_attempts == 0
     assert adapter.delete_attempts == 0
     assert adapter.calendar == []
+    assert telemetry_calls == []
 
     direct_loader_calls = 0
 

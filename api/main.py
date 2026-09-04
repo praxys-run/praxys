@@ -116,12 +116,19 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as context_db:
         replay_deletion_manifests(context_db)
         run_retention(context_db, raise_on_failure=True)
+        from api.road_10k_control import initialize_road_10k_runtime
+
+        initialize_road_10k_runtime(context_db)
     with SessionLocal() as labs_db:
         replay_deletion_tombstones(labs_db)
         recover_interrupted_jobs(labs_db)
-    from api.routes.sync import migrate_legacy_garmin_tokenstores
+    # A deleted account cannot authenticate to retry provider-credential or
+    # compatibility-file cleanup.  Replay the DB-durable obligation before
+    # serving traffic; unresolved external data fails startup closed and will
+    # be retried by the next process start.
+    from api.account_deletion_cleanup import run_startup_cleanup
 
-    migrate_legacy_garmin_tokenstores()
+    run_startup_cleanup()
 
     # Resolve the JWT secret eagerly so a misconfigured deployment (no
     # PRAXYS_JWT_SECRET and no dev opt-in) dies at boot rather than on the
@@ -194,6 +201,24 @@ app.add_exception_handler(
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
 app.add_middleware(ChinaClientBoundaryMiddleware)
+
+
+@app.middleware("http")
+async def _private_plan_no_store(request: Request, call_next):
+    """Keep owner plan, rollout, and export responses out of shared caches."""
+    response = await call_next(request)
+    path = request.url.path
+    if (
+        path.startswith("/api/road-10k")
+        or path.startswith("/api/plan/road-10k")
+        or path.startswith("/api/plan/proposals")
+        or path == "/api/plan/generation/capabilities"
+        or path == "/api/me/export"
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Vary"] = "Authorization"
+    return response
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -274,6 +299,11 @@ app.include_router(announcements_router, prefix="/api", tags=["announcements"])
 from api.routes.feedback import router as feedback_router
 app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 
+# Road generation remains hard-off, but owner withdrawal and export rights
+# stay reachable even while the capability is hidden.
+from api.routes.road_10k import router as road_10k_control_router
+app.include_router(road_10k_control_router, prefix="/api")
+
 # Data routes
 from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
@@ -347,6 +377,12 @@ def health_ready(response: Response):
                 raise RuntimeError(
                     "shared China processing authority did not converge"
                 )
+            from api.road_10k_control import (
+                require_road_10k_replay_ready,
+                validate_road_10k_runtime_obligations,
+            )
+            if validate_road_10k_runtime_obligations(db):
+                require_road_10k_replay_ready(db)
         finally:
             db.close()
     except Exception as exc:
@@ -456,7 +492,14 @@ def delete_me(
     from api.account_deletion import delete_user_account
 
     result = delete_user_account(db, user_id)
-    return {"status": "deleted", "email": result.email}
+    return {
+        "status": (
+            "deleted_cleanup_pending"
+            if result.cleanup_pending
+            else "deleted"
+        ),
+        "email": result.email,
+    }
 
 
 @app.get("/api/me/export")

@@ -37,6 +37,7 @@ def test_rendered_surface_classification_is_strict_but_cross_client():
     assert rendered_surface("web/src/pages/Today.test.tsx") is None
     assert rendered_surface("miniapp/pages/today/index.wxml") == "miniapp"
     assert rendered_surface("miniapp/app.json") == "miniapp"
+    assert rendered_surface("miniapp/components/road-10k/index.scss") == "miniapp"
     assert rendered_surface("miniapp/scripts/sync-types.cjs") is None
     assert rendered_surface("api/routes/today.py") is None
     assert is_design_governance_path("DESIGN.md")
@@ -131,6 +132,64 @@ def test_copilot_draft_can_record_truthful_pending_ui_evidence():
         has_web=False,
         has_miniapp=True,
     )
+
+
+def test_unavailable_source_only_evidence_requires_draft_mode():
+    evidence = (
+        "## UI quality\n"
+        "- Impeccable: clarify web/src/pages/Road10KControlledOptIn.tsx - "
+        "existing source-level target\n"
+        "- Visual review: unavailable - desktop and mobile Chrome were not "
+        "performed\n"
+        "- Primary journey: invited Goal -> Training summary\n"
+        "- Reviewer handoff: none - exact-head captures are unavailable\n"
+        "- States checked: source and test only - invited and enrolled states\n"
+        "- Accessibility: source only - keyboard and focus were not verified\n"
+        "- Design system impact: none - accepted components cover the change\n"
+        "- Miniapp parity: preserved - native WeChat rendering is unavailable\n"
+        "- Exceptions: none\n"
+    )
+
+    errors = validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=True,
+    )
+    for field in (
+        "impeccable",
+        "visual review",
+        "reviewer handoff",
+        "states checked",
+        "accessibility",
+        "miniapp parity",
+    ):
+        assert any(field in error for error in errors)
+
+    assert validate_ui_evidence(
+        evidence,
+        has_web=True,
+        has_miniapp=True,
+        allow_unverified=True,
+    ) == []
+
+    hyphenated = evidence.replace(
+        "source and test only",
+        "source-and-test-only",
+    )
+    assert any(
+        "states checked" in error
+        for error in validate_ui_evidence(
+            hyphenated,
+            has_web=True,
+            has_miniapp=True,
+        )
+    )
+    assert validate_ui_evidence(
+        hyphenated,
+        has_web=True,
+        has_miniapp=True,
+        allow_unverified=True,
+    ) == []
 
 
 def test_design_system_update_requires_changed_governance_path():

@@ -8,7 +8,7 @@
 - Science decision id: `sdr-road-10k-plan-generation-policy-v2`
 - Contract digest: `sha256:2d0d25d994bc0a623e3c7fed6e538bb992f66313cefd7f8314aed2c5b1d3e496`
 - Source decision digest: `sha256:aa420e4c8b24ca6e0ce0340cc78934edca29c4cda70876dbf46d0a0ca2bee1ad`
-- Runtime state: **inactive by default** until a separate rollout decision explicitly moves the capability into `PLAN_GENERATION_CAPABILITIES`
+- Runtime state: **mechanically inactive and hidden**. This revision has no activation path; authority binding is parsing-only and cannot authorize a capability.
 
 ## Machine-contract mapping
 
@@ -28,11 +28,11 @@ While the capability stays inactive:
 
 - `PUT /api/settings` rejects new `performance_10k` goal writes with `GOAL_KIND_UNAVAILABLE`.
 - Existing stored `performance_10k` config is preserved in the database, but `/api/settings`, `/api/goal`, and `/api/plan/generation/capabilities` all fall back to honest generic race/continuous presentation instead of leaking the inactive goal kind to clients.
-- Web and miniapp only expose the 10K editor / baseline panel when discovery advertises the 10K constraint schema.
-- The main app leaves `/api/plan/road-10k/*` unmounted while inactive, and the router itself also fails closed with 404 if mounted accidentally.
-- Plan-start discovery still reports honest `policy_unavailable` / `readiness_only` states instead of claiming activation.
+- Web and miniapp mount no Road opt-in surface and reject the Road constraint schema even if stale discovery data contains it.
+- The mounted route dependency fails closed with 404 before authentication or Road side effects; it is not an activation path.
+- Road access, opt-in, readiness, generation, regeneration, and baseline routes return a private 404 before request-side effects.
 
-When tests or a future rollout mock the capability active, the 10K settings, goal page, baseline flow, readiness flow, and proposal flow all continue to work on the same code path.
+Future activation authority, signer rotation, and signed-file-versus-database design are unresolved and intentionally absent.
 
 ## Required inputs and accepted baseline metadata
 
@@ -90,16 +90,16 @@ Fail-closed readiness outcomes remain typed, including:
 - `no_schedule_within_envelope`
 - `validation_failed`
 
-Runtime responses map every accepted 10K result code to the contract-backed
-typed fields `route_state`, `plan_returned`, and the applicable
+The dormant response mapper covers every accepted 10K result code with the
+contract-backed typed fields `route_state`, `plan_returned`, and the applicable
 `adoption_required`, `goal_remains_recorded`, or
-`limited_guidance_returned` booleans. The web and miniapp plan-start flows use
-those fields instead of prefix-matching success strings.
+`limited_guidance_returned` booleans. No mounted client flow consumes those
+responses while the routes are hard-off and absent from OpenAPI.
 
 Notable reviewed implementation details:
 
 - taper eligibility is anchored only to `(target_date - block_start).days`
-- targets 8-14 days after block start produce taper proposals truncated to event eve
+- targets 8-14 days after block start enter the taper path, but still return no schedule when the exact bounded target cannot be filled
 - targets >14 days remain normal rolling proposals
 - every generated workout carries a truthful maximum-distance ceiling derived from `recent_maximum_session_distance_km`
 - the proposal stays duration-based; it does **not** invent pace, power, or distance targets for easy / longest-easy / quality sessions
@@ -140,11 +140,14 @@ route-level post-adoption trigger fence.
 
 ## Web and miniapp semantics
 
-- Web is the canonical API-type source: `web/src/types/api.ts`
-- Miniapp types are generated; do not hand-edit `miniapp/types/api.ts`
-- The direct-10K confirm UI collects protocol, route/venue, assistance, timing, and measured-distance confirmation
-- The 10K path exposes an optional benchmark note only; it does not reuse the 5K pilot-test UI
-- Miniapp plan-start constructs the exact `Road10KConstraintsRequest` shape (`adult_confirmed`, `current_symptom_stop`, weekdays, weekly limit, max-session limit, unavailable dates, preferred longest-easy day, benchmark date`) and accepts `eligible_*` readiness / proposal unions
+- Web is the canonical API-type source: `web/src/types/api.ts`.
+- Miniapp types are generated; do not hand-edit `miniapp/types/api.ts`.
+- Neither client mounts a Road access, opt-in, baseline-confirmation, readiness,
+  generation, or withdrawal control in this revision.
+- Both plan-start clients retain a 5K-only constraint allowlist and reject stale
+  discovery data that names the dormant Road constraint schema.
+- Dormant Road request and response types remain implementation scaffolding;
+  they do not advertise an OpenAPI operation or a reachable user journey.
 
 ## Privacy-safe runtime and meta-eval signals
 

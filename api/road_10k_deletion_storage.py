@@ -1,0 +1,377 @@
+"""Restore-safe, payload-free Road 10K deletion manifests.
+
+Manifests live outside the primary database backup boundary and contain only
+references needed for idempotent deletion.  Evaluation or screenshot bytes
+are never copied into a marker.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+import hashlib
+import json
+from typing import Callable, Iterator, Mapping, Protocol
+from uuid import UUID, uuid4
+
+from api import feedback_storage
+
+MARKER_RETENTION_DAYS = 14
+_PREFIX = "road-10k/deletion-manifests"
+_last_replay_status = "not_run"
+
+
+class Road10KDeletionStorageError(RuntimeError):
+    """A marker could not be staged, replayed, or completed."""
+
+
+class Road10KDeletionManifestStore(Protocol):
+    """Private object-store seam used by production and explicit test stores."""
+
+    def put(self, key: str, payload: bytes) -> None: ...
+
+    def iter(self, prefix: str) -> Iterator[tuple[str, bytes]]: ...
+
+    def delete(self, key: str) -> None: ...
+
+
+def _utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _job_id(value: str | None) -> str:
+    if value is None:
+        return str(uuid4())
+    try:
+        return str(UUID(value))
+    except (TypeError, ValueError) as exc:
+        raise Road10KDeletionStorageError("invalid deletion marker id") from exc
+
+
+def _key(job_id: str) -> str:
+    return f"{_PREFIX}/{job_id}.json"
+
+
+_test_store: Road10KDeletionManifestStore | None = None
+
+
+def set_test_store(store: Road10KDeletionManifestStore | None) -> None:
+    """Install an explicit independent store for repository-only tests."""
+    global _test_store
+    _test_store = store
+
+
+def private_marker_store_available() -> bool:
+    """Whether the existing private marker store is currently usable."""
+    if feedback_storage.private_blob_enabled():
+        return feedback_storage.private_container_client() is not None
+    return _test_store is not None
+
+
+def _manifest_time(value: object, field: str) -> datetime | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        )
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise Road10KDeletionStorageError(
+            f"invalid Road 10K deletion {field}"
+        )
+    return _utc(parsed)
+
+
+def _validate_manifest(manifest: Mapping[str, object]) -> None:
+    required = {
+        "job_id",
+        "owner_id",
+        "stage_id",
+        "reason",
+        "evaluation_ids",
+        "screenshot_keys",
+        "requested_at",
+        "committed_at",
+        "completed_at",
+        "status",
+    }
+    if set(manifest) != required:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion marker")
+    try:
+        UUID(str(manifest["job_id"]))
+    except (TypeError, ValueError) as exc:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion marker id") from exc
+    if (
+        not isinstance(manifest["owner_id"], str)
+        or not manifest["owner_id"]
+        or len(manifest["owner_id"]) > 36
+        or not isinstance(manifest["stage_id"], str)
+        or not manifest["stage_id"]
+        or len(manifest["stage_id"]) > 80
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion owner")
+    if manifest["reason"] not in {"withdrawal", "account_deletion", "retention"}:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion reason")
+    status = manifest["status"]
+    if status not in {"prepared", "committed", "completed"}:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion status")
+    for key in ("evaluation_ids", "screenshot_keys"):
+        values = manifest[key]
+        if (
+            not isinstance(values, list)
+            or any(not isinstance(item, str) or not item for item in values)
+            or len(values) != len(set(values))
+        ):
+            raise Road10KDeletionStorageError("invalid Road 10K deletion targets")
+    requested_at = _manifest_time(manifest["requested_at"], "requested_at")
+    committed_at = _manifest_time(manifest["committed_at"], "committed_at")
+    completed_at = _manifest_time(manifest["completed_at"], "completed_at")
+    if requested_at is None:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion requested_at")
+    if status == "prepared" and (committed_at is not None or completed_at is not None):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if status == "committed" and (
+        committed_at is None or completed_at is not None
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if status == "completed" and (
+        committed_at is None or completed_at is None
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if committed_at is not None and committed_at < requested_at:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+    if completed_at is not None and (
+        committed_at is None or completed_at < committed_at
+    ):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion lifecycle")
+
+
+def manifest_intent_digest(manifest: Mapping[str, object]) -> str:
+    """Bind a durable obligation to the marker owner and exact targets."""
+    _validate_manifest(manifest)
+    intent = {
+        key: manifest[key]
+        for key in (
+            "job_id",
+            "owner_id",
+            "stage_id",
+            "reason",
+            "evaluation_ids",
+            "screenshot_keys",
+            "requested_at",
+        )
+    }
+    encoded = json.dumps(
+        intent,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _store(manifest: Mapping[str, object]) -> None:
+    _validate_manifest(manifest)
+    payload = json.dumps(
+        dict(manifest),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    key = _key(str(manifest["job_id"]))
+    if feedback_storage.private_blob_enabled():
+        client = feedback_storage.private_container_client()
+        if client is None:
+            raise Road10KDeletionStorageError("private marker storage unavailable")
+        try:
+            client.upload_blob(name=key, data=payload, overwrite=True)
+            return
+        except Exception as exc:
+            raise Road10KDeletionStorageError(
+                "could not persist Road 10K deletion marker"
+            ) from exc
+    if _test_store is None:
+        raise Road10KDeletionStorageError("private marker storage unavailable")
+    try:
+        _test_store.put(key, payload)
+    except Exception as exc:
+        raise Road10KDeletionStorageError(
+            "could not persist Road 10K deletion marker"
+        ) from exc
+
+
+def stage_manifest(
+    *,
+    owner_id: str,
+    stage_id: str,
+    reason: str,
+    evaluation_ids: list[str],
+    screenshot_keys: list[str],
+    requested_at: datetime,
+    job_id: str | None = None,
+) -> dict[str, object]:
+    """Write a prepared marker before deleting any DB/object data."""
+    manifest: dict[str, object] = {
+        "job_id": _job_id(job_id),
+        "owner_id": owner_id,
+        "stage_id": stage_id,
+        "reason": reason,
+        "evaluation_ids": list(evaluation_ids),
+        "screenshot_keys": list(screenshot_keys),
+        "requested_at": _utc(requested_at).isoformat(),
+        "committed_at": None,
+        "completed_at": None,
+        "status": "prepared",
+    }
+    _store(manifest)
+    return manifest
+
+
+def mark_committed(manifest: Mapping[str, object], committed_at: datetime) -> dict[str, object]:
+    """Persist that the related DB deletion intent committed authoritatively."""
+    global _last_replay_status
+    _last_replay_status = "blocked"
+    committed = dict(manifest)
+    committed["status"] = "committed"
+    committed["committed_at"] = _utc(committed_at).isoformat()
+    _store(committed)
+    return committed
+
+
+def mark_completed(manifest: Mapping[str, object], completed_at: datetime) -> None:
+    """Persist the completion state without changing target references."""
+    completed = dict(manifest)
+    completed["status"] = "completed"
+    completed["committed_at"] = completed.get("committed_at") or _utc(
+        completed_at
+    ).isoformat()
+    completed["completed_at"] = _utc(completed_at).isoformat()
+    _store(completed)
+
+
+def _decode(raw: bytes) -> dict[str, object]:
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Road10KDeletionStorageError("invalid Road 10K deletion marker") from exc
+    if not isinstance(value, dict):
+        raise Road10KDeletionStorageError("invalid Road 10K deletion marker")
+    _validate_manifest(value)
+    return value
+
+
+def iter_active(now: datetime | None = None) -> Iterator[dict[str, object]]:
+    """Yield markers within the actual restore horizon and expire older ones."""
+    cutoff = _utc(now or datetime.now(timezone.utc)) - timedelta(
+        days=MARKER_RETENTION_DAYS
+    )
+    if feedback_storage.private_blob_enabled():
+        client = feedback_storage.private_container_client()
+        if client is None:
+            raise Road10KDeletionStorageError("private marker storage unavailable")
+        try:
+            for item in client.list_blobs(name_starts_with=f"{_PREFIX}/"):
+                blob = client.get_blob_client(item.name)
+                value = _decode(blob.download_blob().readall())
+                requested = datetime.fromisoformat(
+                    str(value["requested_at"]).replace("Z", "+00:00")
+                )
+                if requested < cutoff and value["status"] == "completed":
+                    blob.delete_blob()
+                else:
+                    yield value
+        except Road10KDeletionStorageError:
+            raise
+        except Exception as exc:
+            raise Road10KDeletionStorageError(
+                "could not enumerate Road 10K deletion markers"
+            ) from exc
+        return
+    if _test_store is None:
+        raise Road10KDeletionStorageError("private marker storage unavailable")
+    try:
+        for key, raw in _test_store.iter(_PREFIX + "/"):
+            value = _decode(raw)
+            requested = datetime.fromisoformat(
+                str(value["requested_at"]).replace("Z", "+00:00")
+            )
+            if requested < cutoff and value["status"] == "completed":
+                _test_store.delete(key)
+            else:
+                yield value
+    except Road10KDeletionStorageError:
+        raise
+    except Exception as exc:
+        raise Road10KDeletionStorageError(
+            "could not enumerate Road 10K deletion markers"
+        ) from exc
+
+
+def replay_manifests(
+    *,
+    delete_object: Callable[[str], None],
+    delete_evaluation: Callable[[str, Mapping[str, object]], None],
+    delete_feedback: Callable[[Mapping[str, object]], None] | None = None,
+    should_replay: Callable[[Mapping[str, object]], bool] | None = None,
+    now: datetime | None = None,
+) -> int:
+    """Replay every committed Road 10K marker before traffic is considered ready."""
+    global _last_replay_status
+    completed = 0
+    try:
+        for manifest in iter_active(now):
+            if should_replay is not None:
+                if not should_replay(manifest):
+                    continue
+            elif manifest["status"] == "prepared":
+                continue
+            for key in manifest["screenshot_keys"]:
+                delete_object(str(key))
+            for evaluation_id in manifest["evaluation_ids"]:
+                delete_evaluation(str(evaluation_id), manifest)
+            if delete_feedback is not None:
+                delete_feedback(manifest)
+            mark_completed(manifest, now or datetime.now(timezone.utc))
+            completed += 1
+    except Exception as exc:
+        _last_replay_status = "blocked"
+        raise Road10KDeletionStorageError(
+            "Road 10K deletion marker replay failed"
+        ) from exc
+    _last_replay_status = "ready"
+    return completed
+
+
+def replay_status() -> str:
+    """Return only a bounded replay status for readiness/operations."""
+    return _last_replay_status
+
+
+def confirm_replay_ready(now: datetime | None = None) -> None:
+    """Mark replay ready only when storage has no unresolved committed marker."""
+    global _last_replay_status
+    try:
+        pending = any(
+            manifest["status"] == "committed"
+            for manifest in iter_active(now)
+        )
+    except Exception as exc:
+        _last_replay_status = "blocked"
+        raise Road10KDeletionStorageError(
+            "could not confirm Road 10K deletion replay"
+        ) from exc
+    _last_replay_status = "blocked" if pending else "ready"
+
+
+def marker_contains_payload(manifest: Mapping[str, object]) -> bool:
+    """Test helper used by storage checks; payload fields are never permitted."""
+    return any(
+        key in manifest
+        for key in {"payload", "screenshot_bytes", "evaluation_payload", "image"}
+    )

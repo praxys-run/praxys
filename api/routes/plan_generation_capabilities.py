@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from api.auth import get_data_user_id
+from api.auth import get_authenticated_identity, get_current_user_id
 from api.plan_generation_capabilities import (
     build_plan_generation_capability_discovery,
 )
@@ -38,6 +38,16 @@ class PlanGenerationGoalMatchResponse(BaseModel):
     surfaces: list[str]
 
 
+class PlanGenerationCapabilityPurposeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1]
+    goal_kind: str
+    distance: str | None
+    allows_capability_goal: bool
+    allows_unlinked: bool
+
+
 class PlanGenerationCapabilityResponse(BaseModel):
     """One accepted capability available to every Praxys client."""
 
@@ -55,7 +65,7 @@ class PlanGenerationCapabilityResponse(BaseModel):
         "return_to_consistency",
     ]
     constraint_schema_id: str
-    purpose: dict[str, Any]
+    purpose: PlanGenerationCapabilityPurposeResponse
     policy_version: str
     generator_version: str
     science_decision_id: str
@@ -89,9 +99,9 @@ class ActivePlanGoalResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     adaptive_plan_id: str
-    lifecycle: str
+    lifecycle: Literal["draft", "active", "completed", "archived"]
     goal_snapshot_id: str
-    purpose_source: str | None
+    purpose_source: Literal["current_goal", "capability", "unlinked"] | None
     source_goal_id: str | None
     source_goal_revision: str | None
     link_status: Literal[
@@ -194,17 +204,24 @@ class PlanGenerationCapabilityDiscoveryResponse(BaseModel):
     response_model=PlanGenerationCapabilityDiscoveryResponse,
 )
 def get_plan_generation_capabilities(
+    request: Request,
     intent: Literal[
         "first_completion",
         "performance",
         "return_to_consistency",
     ] | None = None,
-    user_id: str = Depends(get_data_user_id),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Return accepted policies and the match for the caller's current goal."""
+    identity = get_authenticated_identity(request, db)
     return build_plan_generation_capability_discovery(
         db,
         user_id=user_id,
         intent=intent,
+        include_road_10k=(
+            identity.credential_kind == "first_party_jwt"
+            and not identity.is_demo
+            and identity.user_id == user_id
+        ),
     )

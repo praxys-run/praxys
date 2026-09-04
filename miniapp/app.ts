@@ -16,6 +16,8 @@ export interface IAppOption {
     locale: string;
     /** One-shot Goal-to-Training plan-purpose handoff. */
     pendingPlanStartPurpose: PlanGenerationPurposeSelection | null;
+    /** One-shot Goal-to-Training Road 10K rollout handoff. */
+    pendingRoad10KIntent: 'review_invitation' | 'review_status' | null;
   };
 }
 
@@ -24,6 +26,7 @@ App<IAppOption>({
     themeClass: 'theme-light',
     locale: 'zh',
     pendingPlanStartPurpose: null,
+    pendingRoad10KIntent: null,
   },
 
   onLaunch() {

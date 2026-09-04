@@ -19,6 +19,9 @@ export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const accountDeletionStatus = (
+    location.state as { accountDeletionStatus?: string } | null
+  )?.accountDeletionStatus;
   const { t } = useLingui();
   const { locale, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
@@ -355,6 +358,11 @@ export default function Login() {
           </div>
 
           {/* ───────────── Sign-in form ───────────── */}
+          {accountDeletionStatus === 'deleted_cleanup_pending' && (
+            <div className="login-aside" role="status" aria-live="polite">
+              <Trans>Your account was deleted. Private storage cleanup is still being retried in the background.</Trans>
+            </div>
+          )}
           {mode === 'login' && (
             <form className="login-form" onSubmit={handleAuthSubmit} noValidate>
               {error && (

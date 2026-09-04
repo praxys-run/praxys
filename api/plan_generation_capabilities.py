@@ -1,7 +1,7 @@
 """Authoritative discovery and purpose selection for accepted plan policies."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 import hashlib
 import json
@@ -29,6 +29,7 @@ from analysis.road_10k_contract import (
     ROAD_10K_SCIENCE_DECISION_ID,
 )
 from db.models import AdaptivePlan, AdaptivePlanGoalSnapshot, PlanProposal
+from db.models import Road10KOwnerStageReceipt, User
 
 
 PLAN_PURPOSE_SCHEMA_VERSION = 1
@@ -234,8 +235,8 @@ def capability_is_available(capability_id: str) -> bool:
 
 
 def road_10k_capability_available() -> bool:
-    """Return whether the reviewed road 10K capability is active."""
-    return capability_is_available(OUTDOOR_ROAD_10K_CAPABILITY.capability_id)
+    """The Road 10K capability is mechanically unavailable in this revision."""
+    return False
 
 
 def client_visible_goal(goal: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -329,7 +330,11 @@ def resolve_plan_generation_purpose(
     config = load_config_from_db(user_id, db)
     raw_goal = dict(config.goal or {})
     current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
-    selected_current = _select_capability(raw_goal)
+    available_capabilities = _owner_visible_capabilities(db, user_id=user_id)
+    selected_current = _select_capability(
+        raw_goal,
+        capabilities=available_capabilities,
+    )
     explicit = selection is not None
 
     if selection is None:
@@ -348,7 +353,7 @@ def resolve_plan_generation_purpose(
         capability = next(
             (
                 item
-                for item in PLAN_GENERATION_CAPABILITIES
+                for item in available_capabilities
                 if item.capability_id == capability_id
             ),
             None,
@@ -447,13 +452,27 @@ def discover_plan_generation_capabilities(
     *,
     user_id: str,
     intent: PlanIntent | None = None,
+    include_road_10k: bool = True,
 ) -> dict[str, Any]:
     """Return the owner-scoped current Goal and all accepted policies."""
     config = load_config_from_db(user_id, db)
     raw_goal = dict(config.goal or {})
-    normalized_goal = _normalize_goal(client_visible_goal(raw_goal))
+    visible_capabilities = _owner_visible_capabilities(
+        db,
+        user_id=user_id,
+        include_road_10k=include_road_10k,
+    )
+    normalized_goal = _normalize_goal(
+        raw_goal
+        if any(
+            capability.capability_id
+            == OUTDOOR_ROAD_10K_CAPABILITY.capability_id
+            for capability in visible_capabilities
+        )
+        else client_visible_goal(raw_goal)
+    )
     current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
-    selected = _select_capability(raw_goal)
+    selected = _select_capability(raw_goal, capabilities=visible_capabilities)
     active_plan_goal = _active_plan_goal_link(
         db,
         user_id=user_id,
@@ -477,12 +496,13 @@ def discover_plan_generation_capabilities(
         ),
         "capabilities": [
             _serialize_capability(capability)
-            for capability in PLAN_GENERATION_CAPABILITIES
+            for capability in visible_capabilities
         ],
         "active_plan_goal": active_plan_goal,
         "goal_plan_impact": goal_plan_reconciliation_impact(
             db,
             user_id=user_id,
+            include_road_10k=include_road_10k,
         ),
         "routing": _build_plan_routing(
             db,
@@ -491,6 +511,7 @@ def discover_plan_generation_capabilities(
             current_goal=current_goal,
             selected_capability=selected,
             explicit_intent=intent,
+            capabilities=visible_capabilities,
         ),
         "unsupported_reason": (
             None if selected is not None else NO_ACCEPTED_PLAN_GENERATION_POLICY
@@ -503,12 +524,14 @@ def build_plan_generation_capability_discovery(
     *,
     user_id: str,
     intent: PlanIntent | None = None,
+    include_road_10k: bool = True,
 ) -> dict[str, Any]:
     """Backward-compatible capability discovery entry point."""
     return discover_plan_generation_capabilities(
         db,
         user_id=user_id,
         intent=intent,
+        include_road_10k=include_road_10k,
     )
 
 
@@ -610,6 +633,7 @@ def goal_plan_reconciliation_impact(
     db: Session,
     *,
     user_id: str,
+    include_road_10k: bool = True,
 ) -> dict[str, Any] | None:
     """Return a changed-Goal decision only when plan provenance is stale."""
     config = load_config_from_db(user_id, db)
@@ -617,7 +641,12 @@ def goal_plan_reconciliation_impact(
     current_goal = current_goal_reference(user_id=user_id, goal=raw_goal)
     if current_goal is None:
         return None
-    selected = _select_capability(raw_goal)
+    capabilities = _owner_visible_capabilities(
+        db,
+        user_id=user_id,
+        include_road_10k=include_road_10k,
+    )
+    selected = _select_capability(raw_goal, capabilities=capabilities)
     plan = db.execute(
         select(AdaptivePlan)
         .where(
@@ -674,6 +703,7 @@ def goal_plan_reconciliation_impact(
                 goal=normalized_goal,
                 current_goal=current_goal,
                 selected_capability=selected,
+                capabilities=capabilities,
             )
         )
         == 1
@@ -765,15 +795,68 @@ def _goal_link_status(
 
 def _select_capability(
     goal: Mapping[str, Any],
+    *,
+    capabilities: tuple[PlanGenerationCapability, ...] = PLAN_GENERATION_CAPABILITIES,
 ) -> PlanGenerationCapability | None:
     return next(
         (
             capability
-            for capability in PLAN_GENERATION_CAPABILITIES
+            for capability in capabilities
             if capability.policy_status == "accepted"
             and capability.matches(goal)
         ),
         None,
+    )
+
+
+def _owner_visible_capabilities(
+    db: Session,
+    *,
+    user_id: str,
+    include_road_10k: bool = True,
+) -> tuple[PlanGenerationCapability, ...]:
+    """Add Road 10K only to a valid invited native owner's catalog."""
+    capabilities = list(PLAN_GENERATION_CAPABILITIES)
+    if not include_road_10k:
+        return tuple(capabilities)
+    from api.road_10k_control import (
+        Road10KControlError,
+        coerce_road_10k_control_error,
+        receipt_matches_authority,
+        require_road_10k_replay_ready,
+    )
+    from api.road_10k_stage_authority import load_stage_authority
+
+    authority = load_stage_authority()
+    if authority is None or not authority.is_usable:
+        return tuple(capabilities)
+    try:
+        require_road_10k_replay_ready(db, authority=authority)
+        owner = db.query(User).filter(User.id == user_id).first()
+        if owner is None or not owner.is_active or owner.is_demo:
+            return tuple(capabilities)
+        receipt = (
+            db.query(Road10KOwnerStageReceipt)
+            .filter(
+                Road10KOwnerStageReceipt.user_id == user_id,
+                Road10KOwnerStageReceipt.stage_id == authority.stage_id,
+                Road10KOwnerStageReceipt.state.in_(
+                    ("enrolled_unexposed", "exposed")
+                ),
+            )
+            .first()
+        )
+    except Exception as exc:
+        if isinstance(coerce_road_10k_control_error(exc), Road10KControlError):
+            return tuple(capabilities)
+        raise
+    if receipt is None or not receipt_matches_authority(receipt, authority):
+        return tuple(capabilities)
+    return tuple(
+        [
+            *capabilities,
+            replace(OUTDOOR_ROAD_10K_CAPABILITY, status="available"),
+        ]
     )
 
 
@@ -795,6 +878,7 @@ def _build_plan_routing(
     current_goal: CurrentGoalReference | None,
     selected_capability: PlanGenerationCapability | None,
     explicit_intent: PlanIntent | None,
+    capabilities: tuple[PlanGenerationCapability, ...] = PLAN_GENERATION_CAPABILITIES,
 ) -> dict[str, Any]:
     normalized_goal = _normalize_goal(raw_goal)
     readiness_cache: dict[tuple[str, str], str | None] = {}
@@ -807,6 +891,7 @@ def _build_plan_routing(
             current_goal=current_goal,
             selected_capability=selected_capability,
             readiness_cache=readiness_cache,
+            capabilities=capabilities,
         )
         for intent in PLAN_INTENTS
     ]
@@ -857,12 +942,14 @@ def _build_plan_routing_option(
     current_goal: CurrentGoalReference | None,
     selected_capability: PlanGenerationCapability | None,
     readiness_cache: dict[tuple[str, str], str | None],
+    capabilities: tuple[PlanGenerationCapability, ...],
 ) -> dict[str, Any]:
     purpose_candidates = _routing_purpose_candidates(
         intent=intent,
         goal=goal,
         current_goal=current_goal,
         selected_capability=selected_capability,
+        capabilities=capabilities,
     )
     if len(purpose_candidates) > 1:
         return _routing_option_payload(
@@ -913,11 +1000,12 @@ def _routing_purpose_candidates(
     goal: Mapping[str, str | None],
     current_goal: CurrentGoalReference | None,
     selected_capability: PlanGenerationCapability | None,
+    capabilities: tuple[PlanGenerationCapability, ...],
 ) -> list[tuple[PlanGenerationCapability, str]]:
     distance = goal.get("distance")
     candidates = [
         capability
-        for capability in PLAN_GENERATION_CAPABILITIES
+        for capability in capabilities
         if capability.policy_status == "accepted"
         and capability.plan_intent == intent
         and distance is not None
@@ -956,6 +1044,11 @@ def _routing_baseline_readiness(
                 "Unsupported plan-routing readiness strategy: "
                 f"{capability.routing_readiness_strategy}"
             )
+        from api.road_10k_control import (
+            Road10KControlError,
+            coerce_road_10k_control_error,
+            require_road_10k_gate,
+        )
         from api.road_10k_baseline import build_road_10k_baseline_view
 
         purpose_selection = {
@@ -970,11 +1063,25 @@ def _routing_baseline_readiness(
                 else None
             ),
         }
-        baseline = build_road_10k_baseline_view(
-            db,
-            user_id=user_id,
-            purpose_selection=purpose_selection,
-        )["baseline"]
+
+        try:
+            require_road_10k_gate(
+                db,
+                user_id=user_id,
+                expose=False,
+                allow_withdrawn=True,
+            )
+            baseline = build_road_10k_baseline_view(
+                db,
+                user_id=user_id,
+                purpose_selection=purpose_selection,
+            )["baseline"]
+        except Exception as exc:
+            if isinstance(coerce_road_10k_control_error(exc), Road10KControlError):
+                # Invitation/catalog discovery never reads the Road 10K data
+                # surface before the committed first-exposure receipt.
+                return None
+            raise
         return str(baseline["readiness"])
     from api.goal_baseline import build_goal_baseline_view
 

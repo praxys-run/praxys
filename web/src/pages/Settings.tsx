@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
 import { API_BASE, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
-import type { ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse, VersionResponse } from '@/types/api';
+import type { AccountDeletionResponse, ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse, VersionResponse } from '@/types/api';
 import {
   buildStravaReturnTo,
   getStravaOAuthMessage,
@@ -606,8 +606,12 @@ export default function Settings() {
         setDeletingAccount(false);
         return;
       }
+      const result = await res.json() as AccountDeletionResponse;
       logout();
-      navigate('/login', { replace: true });
+      navigate('/login', {
+        replace: true,
+        state: { accountDeletionStatus: result.status },
+      });
     } catch (err) {
       setDeleteError(err instanceof Error && err.message ? err.message : t`Network error`);
       setDeletingAccount(false);
@@ -1545,6 +1549,7 @@ export default function Settings() {
       </Card>
 
       <MobileAppCard />
+
 
       {/* ===== SECTION 7: Data export ===== */}
       <Card className="mb-8">

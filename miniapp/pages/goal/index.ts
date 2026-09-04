@@ -26,6 +26,7 @@ import {
 import { copyUrlToClipboard } from '../../utils/markdown';
 import { t, tFmt } from '../../utils/i18n';
 import { coachToggleLabel, fetchInsight, insightFeedbackState, localizedInsight } from '../../utils/insights';
+import { hasSupportedPlanStartContract } from '../../utils/plan-start-routing';
 
 // ---- Editor distance choices (unchanged) ----
 type DistanceKey = '5k' | '10k' | 'half' | 'marathon' | '50k' | '50mi' | '100k' | '100mi';
@@ -964,18 +965,29 @@ Page({
       && route.capability_id
       && route.purpose_source,
     );
-    getApp<IAppOption>().globalData.pendingPlanStartPurpose = canHandoff
-      ? {
-        capability_id: route?.capability_id ?? '',
-        source: route?.purpose_source ?? 'capability',
-        expected_goal_id: route?.purpose_source === 'current_goal'
-          ? this.data.planCurrentGoalId || null
-          : null,
-        expected_goal_revision: route?.purpose_source === 'current_goal'
-          ? this.data.planCurrentGoalRevision || null
-          : null,
-      } satisfies PlanGenerationPurposeSelection
-      : null;
+    let purpose: PlanGenerationPurposeSelection | null = null;
+    if (canHandoff && route?.capability_id && route.purpose_source) {
+      if (
+        route.purpose_source === 'current_goal'
+        && this.data.planCurrentGoalId
+        && this.data.planCurrentGoalRevision
+      ) {
+        purpose = {
+          capability_id: route.capability_id,
+          source: 'current_goal',
+          expected_goal_id: this.data.planCurrentGoalId,
+          expected_goal_revision: this.data.planCurrentGoalRevision,
+        };
+      } else if (route.purpose_source !== 'current_goal') {
+        purpose = {
+          capability_id: route.capability_id,
+          source: route.purpose_source,
+          expected_goal_id: null,
+          expected_goal_revision: null,
+        };
+      }
+    }
+    getApp<IAppOption>().globalData.pendingPlanStartPurpose = purpose;
     wx.switchTab({ url: '/pages/training/index' });
   },
 
@@ -1325,10 +1337,7 @@ Page({
         ? serverGoalPlanImpact
         : null;
       const supportedCapabilityIds = discovery?.capabilities.filter(
-        (item) => [
-          'outdoor_road_5k_constraints_v1',
-          'outdoor_road_10k_constraints_v1',
-        ].includes(item.constraint_schema_id),
+        hasSupportedPlanStartContract,
       ).map((item) => item.id) ?? [];
       const routing = discovery?.routing ?? null;
       const currentGoalId = discovery?.current_goal?.id ?? '';
@@ -1382,9 +1391,7 @@ Page({
         planCurrentGoalRevision: currentGoalRevision,
         planRoutingOptions: routing?.options ?? [],
         planSupportedCapabilityIds: supportedCapabilityIds,
-        performance10kEnabled: supportedCapabilityIds.includes(
-          'outdoor_road_10k_performance_v1',
-        ),
+        performance10kEnabled: false,
         goalPlanImpact,
         _response: response,
       } as Record<string, unknown>);

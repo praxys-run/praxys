@@ -4,85 +4,24 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('web and miniapp add gated 10K performance plan support', async () => {
-  const [
-    webGoal,
-    webEditor,
-    webPlanStart,
-    webTypes,
-    miniGoalScript,
-    miniGoalMarkup,
-    miniPlanStart,
-    miniPlanStartMarkup,
-    miniTypes,
-  ] = await Promise.all([
-    read('../src/pages/Goal.tsx'),
-    read('../src/components/GoalEditor.tsx'),
-    read('../src/components/PlanStart.tsx'),
-    read('../src/types/api.ts'),
-    read('../../miniapp/pages/goal/index.ts'),
-    read('../../miniapp/pages/goal/index.wxml'),
-    read('../../miniapp/components/outdoor-5k-plan-start/index.ts'),
-    read('../../miniapp/components/outdoor-5k-plan-start/index.wxml'),
-    read('../../miniapp/types/api.ts'),
+test("web and miniapp keep Road 10K planning mechanically hidden", async () => {
+  const [webPlanStart, miniPlanStart, webTypes, miniTypes] = await Promise.all([
+    read("../src/components/PlanStart.tsx"),
+    read("../../miniapp/components/outdoor-5k-plan-start/index.ts"),
+    read("../src/types/api.ts"),
+    read("../../miniapp/types/api.ts"),
   ]);
 
   for (const source of [webTypes, miniTypes]) {
-    assert.match(source, /performance_10k/);
-    assert.match(source, /outdoor_road_10k_constraints_v1/);
     assert.match(source, /Road10K/);
-    assert.match(source, /interface Road10KHistoryConfirmationRequest/);
+    assert.match(source, /outdoor_road_10k_constraints_v1/);
+    assert.match(source, /current_symptom_stop: boolean \| null/);
   }
 
-  assert.match(webGoal, /performance_10k/);
-  assert.match(webGoal, /GoalBaselinePanel/);
-  assert.match(webGoal, /enablePerformance10k && data\.goal_kind === 'performance_10k'/);
-  assert.match(webEditor, /enablePerformance10k && \(/);
-  assert.match(webPlanStart, /outdoor_road_10k_constraints_v1/);
-  assert.match(webPlanStart, /10K performance/);
-  assert.match(webPlanStart, /baseline source/i);
-  assert.match(webPlanStart, /history cutoff/i);
-  assert.match(webPlanStart, /benchmark/i);
-  assert.match(webPlanStart, /adult_confirmed/);
-  assert.match(webPlanStart, /weekly_time_limit_min/);
-  assert.match(webPlanStart, /maximum_session_duration_min/);
-  assert.match(webPlanStart, /preferred_longest_easy_weekday/);
-  assert.match(webPlanStart, /plan_returned/);
-  assert.match(webPlanStart, /route_state/);
-  assert.match(webPlanStart, /focusFirstInvalidConstraint/);
-  assert.match(webPlanStart, /role="alert"/);
-  assert.match(webPlanStart, /showRoad10KScheduleGuardrails/);
-  assert.match(webPlanStart, /eligible_rolling_proposal/);
-  assert.match(webPlanStart, /eligible_taper_proposal/);
-  assert.match(webPlanStart, /Road 10K schedule guardrails/);
-  assert.match(webPlanStart, /road10KGuardrails\.committed_proposal_days/);
-  assert.match(webPlanStart, /road10KGuardrails\.advisory_reassessment_after_completed_days/);
-  assert.match(webPlanStart, /road10KGuardrails\.minimum_planned_low_intensity_running_minutes_fraction/);
-  assert.doesNotMatch(webPlanStart, />14<\/span>-day proposal/);
-  assert.doesNotMatch(webPlanStart, />75%<\/span> planned low-intensity/);
-  assert.match(
-    webPlanStart,
-    /data\/science\/decisions\/sdr-road-10k-plan-generation-policy-v2\.yaml/,
-  );
-
-  assert.match(miniGoalScript, /performance_10k/);
-  assert.match(miniGoalMarkup, /performance10kEnabled && goalKind === 'performance_10k'/);
-  assert.match(miniGoalMarkup, /wx:if="\{\{performance10kEnabled\}\}"/);
-  assert.match(miniPlanStart, /outdoor_road_10k_constraints_v1/);
-  assert.match(miniPlanStart, /10 公里表现|10K performance/);
-  assert.match(miniPlanStart, /benchmark/i);
-  assert.match(miniPlanStart, /adult_confirmed/);
-  assert.match(miniPlanStart, /weekly_time_limit_min/);
-  assert.match(miniPlanStart, /maximum_session_duration_min/);
-  assert.match(miniPlanStart, /preferred_longest_easy_weekday/);
-  assert.match(miniPlanStart, /plan_returned/);
-  assert.match(miniPlanStart, /route_state/);
-  assert.match(miniPlanStart, /road10kReadinessContext/);
-  assert.match(miniPlanStart, /readinessBadge/);
-  assert.match(miniPlanStartMarkup, /\{\{readinessBadge\}\}/);
-  assert.match(miniPlanStartMarkup, /readinessContextRows/);
-  assert.match(miniPlanStartMarkup, /\{\{proposalStateLabel\}\}/);
-  assert.doesNotMatch(miniPlanStartMarkup, /readiness\.result\.code/);
+  assert.match(webPlanStart, /Road 10K planning is unavailable in this revision/);
+  assert.match(miniPlanStart, /road10kScopeRequired/);
+  assert.doesNotMatch(webPlanStart, /adult_confirmed/);
+  assert.doesNotMatch(miniPlanStart, /adult_confirmed/);
 });
 
 test('PlanStart keeps the plan-purpose Select controlled through selection', async () => {
@@ -98,4 +37,66 @@ test('PlanStart keeps the plan-purpose Select controlled through selection', asy
   );
   assert.match(planStart, /setSelectedPurposeKey\(value \?\? ''\);/);
   assert.doesNotMatch(planStart, /value=\{selectedPurposeKey \|\| undefined\}/);
+});
+
+
+test("taper UI renders the returned horizon and digest-bound science projection", async () => {
+  const [
+    webTypes,
+    miniTypes,
+    webPlanStart,
+    miniPlanStart,
+    miniTemplate,
+    webCopy,
+    miniCopy,
+    contractProjection,
+    apiModels,
+  ] = await Promise.all([
+    read("../src/types/api.ts"),
+    read("../../miniapp/types/api.ts"),
+    read("../src/components/PlanStart.tsx"),
+    read("../../miniapp/components/outdoor-5k-plan-start/index.ts"),
+    read("../../miniapp/components/outdoor-5k-plan-start/index.wxml"),
+    read("../src/lib/road-10k-control.ts"),
+    read("../../miniapp/utils/road-10k-control.ts"),
+    read("../../analysis/road_10k_contract.py"),
+    read("../../api/routes/road_10k_plan_generation.py"),
+  ]);
+
+  for (const source of [webTypes, miniTypes]) {
+    assert.match(source, /interface Road10KTaperGuardrailProjection/);
+    assert.match(source, /planned_volume_reduction_fraction: number/);
+    assert.match(source, /maintain_intensity_exposure_without_adding_quality: true/);
+    assert.match(source, /evidence_population: \x27mixed_endurance_athletes\x27/);
+    assert.match(source, /direct_recreational_road_10k_validation: false/);
+    assert.match(source, /single_target_taper_result: \x27taper_proposal_truncated_to_event_eve\x27/);
+    assert.match(source, /personal_performance_gain_claim: false/);
+    assert.match(source, /causal_plan_benefit_claim: \x27disabled\x27/);
+    assert.match(source, /personal_injury_probability: \x27disabled\x27/);
+    assert.match(source, /taper: Road10KTaperGuardrailProjection/);
+  }
+
+  assert.match(contractProjection, /ROAD_10K_EVENTS\["taper"\]/);
+  assert.match(contractProjection, /ROAD_10K_DEMOGRAPHICS/);
+  assert.match(apiModels, /class Road10KTaperGuardrailProjectionResponse/);
+  assert.match(apiModels, /taper: Road10KTaperGuardrailProjectionResponse/);
+
+  assert.match(webPlanStart, /displayedProposal\.goal\?\.horizon_start/);
+  assert.match(webPlanStart, /displayedProposal\.goal\?\.horizon_end/);
+  assert.match(webPlanStart, /road10kTaperScienceCopy/);
+  assert.match(webPlanStart, /proposal\.event_eve/);
+  assert.match(webPlanStart, /sdr-road-10k-plan-generation-policy-v2\.yaml/);
+
+  assert.match(miniPlanStart, /road10kTaperScienceCopy/);
+  assert.match(miniPlanStart, /proposal\?\.goal\?\.horizon_start/);
+  assert.match(miniPlanStart, /proposal\?\.goal\?\.horizon_end/);
+  assert.match(miniTemplate, /proposal\.goal\.horizon_start/);
+  assert.match(miniTemplate, /proposal\.goal\.horizon_end/);
+  assert.match(miniTemplate, /roadTaperScience/);
+
+  for (const source of [webCopy, miniCopy]) {
+    assert.match(source, /road10kTaperScienceCopy/);
+    assert.doesNotMatch(source, /This exact 14-day proposal/);
+    assert.doesNotMatch(source, /The 14-day plan window is complete/);
+  }
 });
