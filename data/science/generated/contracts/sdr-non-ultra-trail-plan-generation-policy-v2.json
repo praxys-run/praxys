@@ -4,9 +4,9 @@
     "v2 Trail validation, readiness, and complete reason receipt",
     "trail_course_demand_v2 and non_ultra_trail_constraints_v2 matching"
   ],
-  "contract_digest": "sha256:fd2c7966d29e2bcdc3337c46e1f96d5a9aed6289c802bfe34e3a9098ede24f0d",
+  "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

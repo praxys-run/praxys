@@ -677,6 +677,51 @@ def test_decision_cannot_be_accepted_without_linked_evidence_approval(
     assert registry.decisions[decision.id].status == RecordStatus.DRAFT
 
 
+def test_trail_v2_successor_lifecycle_keeps_exact_authenticated_approvals() -> None:
+    science_dir = Path("data/science")
+    registry = load_science_registry(science_dir)
+    approvals = {
+        approval.subject_id: approval
+        for approval in load_science_approvals(science_dir)
+        if approval.subject_id in {
+            "sdr-trail-running-goal-ontology-v2",
+            "sdr-non-ultra-trail-plan-generation-policy-v2",
+        }
+    }
+    expected = {
+        "sdr-trail-running-goal-ontology-v2": (
+            "sdr-trail-running-goal-ontology-v1",
+            "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+            "https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653482",
+        ),
+        "sdr-non-ultra-trail-plan-generation-policy-v2": (
+            "sdr-non-ultra-trail-plan-generation-policy-v1",
+            "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+            "https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653739",
+        ),
+    }
+
+    assert set(approvals) == set(expected)
+    for decision_id, (predecessor_id, digest, source_ref) in expected.items():
+        decision = registry.decisions[decision_id]
+        predecessor = registry.decisions[predecessor_id]
+        approval = approvals[decision_id]
+        assert decision.status == RecordStatus.ACCEPTED
+        assert decision.supersedes == [predecessor_id]
+        assert predecessor.status == RecordStatus.SUPERSEDED
+        assert predecessor.superseded_by == decision_id
+        assert decision.artifact_policy is not None
+        assert decision.artifact_policy.runtime_state == ArtifactRuntimeState.INACTIVE
+        assert approval.role == ReviewRole.DECISION_APPROVER
+        assert approval.subject_digest == digest == science_decision_digest(decision)
+        assert approval.reviewer == "github:dddtc2005"
+        assert approval.reviewed_on == date(2026, 9, 4)
+        assert str(approval.source_ref) == source_ref
+        assert set(approval.scopes) == set(
+            required_review_scopes(ReviewRole.DECISION_APPROVER)
+        )
+
+
 def test_workflow_uses_trusted_code_and_rechecks_the_exact_pr_head() -> None:
     workflow = _WORKFLOW.read_text(encoding="utf-8").replace("\r\n", "\n")
 

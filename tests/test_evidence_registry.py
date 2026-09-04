@@ -111,7 +111,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         assert review.reviewed_on == date(2026, 9, 3)
         _assert_exact_verification_notes(review)
     for decision in (trail_ontology_decision, trail_policy_decision):
-        assert decision.status == RecordStatus.ACCEPTED
+        assert decision.status == RecordStatus.SUPERSEDED
         assert decision.approval_mode == ApprovalMode.ARTIFACT
         assert decision.artifact_policy is not None
         assert (
@@ -119,6 +119,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
             == ArtifactRuntimeState.INACTIVE
         )
         assert decision.human_reviewers == []
+        assert decision.supersedes == []
     assert trail_policy_decision.evidence_review_ids[:2] == [
         trail_ontology_review.id,
         trail_policy_review.id,
@@ -133,8 +134,12 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     trail_policy_v2 = registry.decisions[
         "sdr-non-ultra-trail-plan-generation-policy-v2"
     ]
+    assert trail_ontology_decision.superseded_by == trail_ontology_v2.id
+    assert trail_policy_decision.superseded_by == trail_policy_v2.id
+    assert trail_ontology_v2.supersedes == [trail_ontology_decision.id]
+    assert trail_policy_v2.supersedes == [trail_policy_decision.id]
     for decision in (trail_ontology_v2, trail_policy_v2):
-        assert decision.status == RecordStatus.DRAFT
+        assert decision.status == RecordStatus.ACCEPTED
         assert decision.approval_mode == ApprovalMode.ARTIFACT
         assert decision.artifact_policy is not None
         assert (
@@ -142,7 +147,6 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
             == ArtifactRuntimeState.INACTIVE
         )
         assert decision.human_reviewers == []
-        assert decision.supersedes == []
         assert decision.superseded_by is None
         assert decision.decision_review is not None
         assert len(decision.decision_review.items) == 6

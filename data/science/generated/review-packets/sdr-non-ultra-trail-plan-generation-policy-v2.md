@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-non-ultra-trail-plan-generation-policy-v2`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `non-ultra-trail-plan-generation-policy-v2`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe`
-- **Contract digest:** `sha256:fd2c7966d29e2bcdc3337c46e1f96d5a9aed6289c802bfe34e3a9098ede24f0d`
+- **Contract digest:** `sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-04` ([source](https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653739))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -134,7 +134,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve the non-ultra Trail policy v2 as a strict successor candidate bound to trail_course_demand_v2 and non_ultra_trail_constraints_v2. I approve carrying forward unchanged the accepted v1 fourteen-day execution, seven-day reassessment, history qualification, no-initial-progression schedule, targetless controlled-uphill template, intensity spacing, separate ascent and descent caps, event-window behavior, and hard Science boundaries. I approve the five-status exhaustive reason receipt, authoritative four-module availability, and redundant sorted limitation projection as reversible Praxys operational guardrails, not as published biological rules, validated safe doses, equivalences, or predictions. Hiking, strength, and taper remain disabled because v2 has no accepted input and dose contract for them. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-04` ([source](https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653739))
 
 ### Decision approval
 
@@ -1189,9 +1189,9 @@ Those inputs and fallbacks are outside the accepted evidence and privacy boundar
     "v2 Trail validation, readiness, and complete reason receipt",
     "trail_course_demand_v2 and non_ultra_trail_constraints_v2 matching"
   ],
-  "contract_digest": "sha256:fd2c7966d29e2bcdc3337c46e1f96d5a9aed6289c802bfe34e3a9098ede24f0d",
+  "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

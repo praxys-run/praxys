@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-trail-running-goal-ontology-v2`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `trail-course-demand-v2`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1`
-- **Contract digest:** `sha256:e243bf433223452e86ded967c2575b7089f506d2bef248e9f749349cf27bd617`
+- **Contract digest:** `sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-04` ([source](https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653482))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -137,7 +137,7 @@ A decision approval bound to the displayed digest attests:
 
 > I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict revision-bound Trail planning envelopes: explicit known or unknown fields, server-owned provenance, separate ascent and descent, descriptive signed-grade shares, closed footing and known-or-unknown boolean hazard fields, exact footing containment, bounded schedule and optional context, and fail-closed core materiality. I approve the exact DTO values only as reversible Praxys operational guardrails, not as published biological findings, difficulty or safety scores, doses, equivalences, or predictions. This approval authorizes only preparation and review of a separately reviewed inactive implementation bound to this exact decision and contract. It does not approve lifecycle supersession, merge, deployment, production data use, dogfood, catalog visibility, provider behavior, delivery, or runtime activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-09-04` ([source](https://github.com/praxys-run/praxys/pull/776#issuecomment-5534653482))
 
 ### Decision approval
 
@@ -1205,9 +1205,9 @@ That would erase course-specific demand and violate the accepted no-road- fallba
     "non_ultra_trail_constraints_v2 input and confirmation envelope",
     "future v2 Trail capability matching contract"
   ],
-  "contract_digest": "sha256:e243bf433223452e86ded967c2575b7089f506d2bef248e9f749349cf27bd617",
+  "contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
   "decision_id": "sdr-trail-running-goal-ontology-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

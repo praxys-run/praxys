@@ -4,9 +4,9 @@
     "non_ultra_trail_constraints_v2 input and confirmation envelope",
     "future v2 Trail capability matching contract"
   ],
-  "contract_digest": "sha256:e243bf433223452e86ded967c2575b7089f506d2bef248e9f749349cf27bd617",
+  "contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
   "decision_id": "sdr-trail-running-goal-ontology-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

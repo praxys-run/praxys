@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-trail-running-goal-ontology-v2
 version: 2
 title: "Define the strict v2 Trail course-demand and constraint envelope"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-09-04
 owners:
@@ -961,7 +961,8 @@ affected_surfaces:
     - Why planning duration is context rather than a prediction
 artifact_policy:
   runtime_state: inactive
-supersedes: []
+supersedes:
+  - sdr-trail-running-goal-ontology-v1
 superseded_by:
 decision_notes:
   - "Decision Proposal mode; this record is draft and inactive and adds no Evidence Review or scientific claim."

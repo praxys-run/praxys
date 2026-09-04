@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-non-ultra-trail-plan-generation-policy-v2
 version: 2
 title: "Bind the non-ultra Trail policy to the strict v2 readiness receipt"
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-09-04
 owners:
@@ -851,7 +851,8 @@ affected_surfaces:
     - Why a complete deterministic receipt is not a biological readiness score
 artifact_policy:
   runtime_state: inactive
-supersedes: []
+supersedes:
+  - sdr-non-ultra-trail-plan-generation-policy-v1
 superseded_by:
 decision_notes:
   - "Decision Proposal mode; this record is draft and inactive and adds no Evidence Review or scientific claim."

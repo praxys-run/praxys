@@ -3,9 +3,9 @@
     "trail_course_demand_v1 ontology",
     "trail capability matching contract"
   ],
-  "contract_digest": "sha256:5bf6b47ede65af84af85fb364d148bffa38c1ea330272a3e71553d091a8695dc",
+  "contract_digest": "sha256:e341c379d8f60a27ee5919beab4800721c96b79458c861237d6e14800cdcd752",
   "decision_id": "sdr-trail-running-goal-ontology-v1",
-  "decision_status": "accepted",
+  "decision_status": "superseded",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",
