@@ -103,13 +103,15 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-non-ultra-trail-plan-generation-policy-v1"
     ]
     for review in (trail_ontology_review, trail_policy_review):
-        assert review.status == RecordStatus.DRAFT
+        assert review.status == RecordStatus.ACCEPTED
         assert review.approval_mode == ApprovalMode.ARTIFACT
         assert review.human_reviewers == []
-        assert review.reviewed_on is None
+        assert review.reviewed_on == date(2026, 9, 3)
+        assert review.supersedes == []
+        assert review.superseded_by is None
         _assert_exact_verification_notes(review)
     for decision in (trail_ontology_decision, trail_policy_decision):
-        assert decision.status == RecordStatus.DRAFT
+        assert decision.status == RecordStatus.ACCEPTED
         assert decision.approval_mode == ApprovalMode.ARTIFACT
         assert decision.artifact_policy is not None
         assert (
@@ -117,6 +119,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
             == ArtifactRuntimeState.INACTIVE
         )
         assert decision.human_reviewers == []
+        assert decision.decision_date == date(2026, 9, 1)
+        assert decision.supersedes == []
+        assert decision.superseded_by is None
     assert trail_policy_decision.evidence_review_ids[:2] == [
         trail_ontology_review.id,
         trail_policy_review.id,
