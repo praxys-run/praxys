@@ -88,6 +88,7 @@ _MAX_QUALITY_PER_UNIT = int(
 )
 _HISTORY_ACTIVITY_TYPES = frozenset({"running", "trail_running"})
 _MAX_HISTORY_OBSERVATIONS = 1000
+TRAIL_HISTORY_EVALUATOR_SCHEMA_ID = "trail-running-history-statistics-v2"
 _DIGEST_PREFIX = "sha256:"
 _GRADE_KEYS = tuple(
     str(value)
@@ -295,6 +296,10 @@ class RecentTrailHistoryStatistics:
     comparable_descent_sessions_within_window: int
     latest_comparable_descent_session_date: date | None
     recently_observed_footing: tuple[str, ...]
+    observation_window_start: date | None
+    observation_window_end: date | None
+    source_revision_fingerprint: str
+    evaluator_schema_id: str
 
     @classmethod
     def empty(cls) -> "RecentTrailHistoryStatistics":
@@ -316,6 +321,10 @@ class RecentTrailHistoryStatistics:
             comparable_descent_sessions_within_window=0,
             latest_comparable_descent_session_date=None,
             recently_observed_footing=(),
+            observation_window_start=None,
+            observation_window_end=None,
+            source_revision_fingerprint=_revision([]),
+            evaluator_schema_id=TRAIL_HISTORY_EVALUATOR_SCHEMA_ID,
         )
 
     def public_payload(self) -> dict[str, Any]:
@@ -630,6 +639,17 @@ def derive_recent_history_statistics(
         for footing in (item.observed_footing or ())
     }
     frequencies = tuple(len(values) for _, values in usable_weeks)
+    latest_run = max(completed, key=lambda item: item.observed_date, default=None)
+    contributing_revisions = {
+        item.source_revision
+        for item in (*complete, *windowed)
+    }
+    if latest_run is not None:
+        contributing_revisions.add(latest_run.source_revision)
+    observation_window_start = min(
+        first_week_start,
+        athlete_today - timedelta(days=_COMPARABLE_WINDOW_DAYS),
+    )
     return RecentTrailHistoryStatistics(
         usable_completed_weeks=len(usable_weeks),
         recent_modal_running_frequency=_conservative_mode(frequencies),
@@ -650,7 +670,9 @@ def derive_recent_history_statistics(
             (int(item.elevation_loss_meters or 0) for item in descent_usable),
             default=0,
         ),
-        latest_run_date=max((item.observed_date for item in completed), default=None),
+        latest_run_date=(
+            latest_run.observed_date if latest_run is not None else None
+        ),
         comparable_ascent_sessions_within_window=len(ascent_window),
         latest_comparable_ascent_session_date=max(
             (item.observed_date for item in ascent_window), default=None
@@ -660,6 +682,12 @@ def derive_recent_history_statistics(
             (item.observed_date for item in descent_window), default=None
         ),
         recently_observed_footing=_canonical_footing(observed_footing),
+        observation_window_start=observation_window_start,
+        observation_window_end=athlete_today - timedelta(days=1),
+        source_revision_fingerprint=_revision(
+            sorted(contributing_revisions)
+        ),
+        evaluator_schema_id=TRAIL_HISTORY_EVALUATOR_SCHEMA_ID,
     )
 
 
@@ -2218,6 +2246,31 @@ def _history_statistics_invalid(statistics: RecentTrailHistoryStatistics) -> boo
         or not _valid_footing(
             statistics.recently_observed_footing, allow_empty=True
         )
+        or (
+            statistics.observation_window_start is not None
+            and type(statistics.observation_window_start) is not date
+        )
+        or (
+            statistics.observation_window_end is not None
+            and type(statistics.observation_window_end) is not date
+        )
+        or (
+            statistics.observation_window_start is None
+            and statistics.observation_window_end is not None
+        )
+        or (
+            statistics.observation_window_start is not None
+            and statistics.observation_window_end is None
+        )
+        or (
+            statistics.observation_window_start is not None
+            and statistics.observation_window_end is not None
+            and statistics.observation_window_start
+            > statistics.observation_window_end
+        )
+        or not _is_digest(statistics.source_revision_fingerprint)
+        or statistics.evaluator_schema_id
+        != TRAIL_HISTORY_EVALUATOR_SCHEMA_ID
     )
 
 
@@ -2271,7 +2324,9 @@ def _section_payloads(
     course: TrailCourseDemand,
     constraints: TrailPlanGenerationConstraints,
 ) -> tuple[tuple[str, Any], ...]:
-    course_fields = _serialize_course_demand(course)["fields"]
+    course_fields = _revision_payload(
+        _serialize_course_demand(course)["fields"]
+    )
     return (
         (
             "section.event-duration",
@@ -2304,16 +2359,34 @@ def _section_payloads(
                 )
             },
         ),
-        ("section.training-access", _serialize_constraints(constraints)),
+        (
+            "section.training-access",
+            _revision_payload(_serialize_constraints(constraints)),
+        ),
         (
             "section.optional-context",
-            _serialize_optional_context(course.optional_context),
+            _revision_payload(
+                _serialize_optional_context(course.optional_context)
+            ),
         ),
     )
 
 
+def _revision_payload(value: Any) -> Any:
+    """Remove confirmation state from value-and-source revision material."""
+    if isinstance(value, Mapping):
+        return {
+            key: _revision_payload(item)
+            for key, item in value.items()
+            if key != "assumption_confirmed_revision"
+        }
+    if isinstance(value, (tuple, list)):
+        return [_revision_payload(item) for item in value]
+    return value
+
+
 def _course_revision_payload(course: TrailCourseDemand) -> dict[str, Any]:
-    payload = _serialize_course_demand(course)
+    payload = _revision_payload(_serialize_course_demand(course))
     return {
         "schema_id": payload["schema_id"],
         "event_id": payload["event_id"],
@@ -2330,8 +2403,10 @@ def _planning_revision_payload(
     constraints: TrailPlanGenerationConstraints,
 ) -> dict[str, Any]:
     return {
-        "constraints": _serialize_constraints(constraints),
-        "optional_context": _serialize_optional_context(course.optional_context),
+        "constraints": _revision_payload(_serialize_constraints(constraints)),
+        "optional_context": _revision_payload(
+            _serialize_optional_context(course.optional_context)
+        ),
     }
 
 

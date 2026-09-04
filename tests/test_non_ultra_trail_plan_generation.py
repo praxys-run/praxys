@@ -378,7 +378,48 @@ def test_history_snapshot_separates_ascent_descent_and_footing() -> None:
         "firm_smooth",
         "loose_gravel",
     )
+    assert statistics.observation_window_start is not None
+    assert statistics.observation_window_end == ATHLETE_TODAY - timedelta(days=1)
+    assert statistics.source_revision_fingerprint.startswith("sha256:")
     assert "activity_id" not in statistics.public_payload()
+
+
+def test_history_revision_changes_when_source_revision_changes_at_same_totals() -> None:
+    history = _history()
+    first = derive_recent_history_statistics(
+        history,
+        athlete_today=ATHLETE_TODAY,
+    )
+    corrected = (
+        replace(history[0], source_revision=_digest("corrected-source")),
+        *history[1:],
+    )
+    second = derive_recent_history_statistics(
+        corrected,
+        athlete_today=ATHLETE_TODAY,
+    )
+
+    assert first.source_revision_fingerprint != (
+        second.source_revision_fingerprint
+    )
+    assert replace(
+        first,
+        source_revision_fingerprint=second.source_revision_fingerprint,
+    ) == second
+    first_bindings = derive_revision_bindings(
+        course_demand=_course(),
+        constraints=_constraints(),
+        history_statistics=first,
+    )
+    second_bindings = derive_revision_bindings(
+        course_demand=_course(),
+        constraints=_constraints(),
+        history_statistics=second,
+    )
+    assert first_bindings.history_revision != second_bindings.history_revision
+    assert first_bindings.composite_revision != (
+        second_bindings.composite_revision
+    )
 
 
 def test_history_derivation_rejects_duplicate_unstamped_and_nonfinite_input() -> None:
@@ -649,6 +690,56 @@ def test_stale_revision_and_v1_v2_mix_fail_closed() -> None:
         "policy_unavailable.policy_inactive",
     )
     assert result.plan is None
+
+
+def test_assumption_confirmation_does_not_change_value_revision() -> None:
+    generation_input = _generation_input()
+    course = generation_input.course_demand
+    unconfirmed_basis = _known(
+        "athlete_assumption",
+        label="athlete-assumption",
+        provenance="explicit_assumption",
+    )
+    unconfirmed_course = replace(
+        course,
+        optional_context=replace(
+            course.optional_context,
+            environment=replace(
+                course.optional_context.environment,
+                conditions_basis=unconfirmed_basis,
+            ),
+        ),
+    )
+    confirmed_course = replace(
+        unconfirmed_course,
+        optional_context=replace(
+            unconfirmed_course.optional_context,
+            environment=replace(
+                unconfirmed_course.optional_context.environment,
+                conditions_basis=replace(
+                    unconfirmed_basis,
+                    assumption_confirmed_revision=(
+                        unconfirmed_basis.source_revision
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    before = derive_revision_bindings(
+        course_demand=unconfirmed_course,
+        constraints=generation_input.constraints,
+        history_statistics=generation_input.history_statistics,
+        confirmed=False,
+    )
+    after = derive_revision_bindings(
+        course_demand=confirmed_course,
+        constraints=generation_input.constraints,
+        history_statistics=generation_input.history_statistics,
+        confirmed=False,
+    )
+
+    assert before == after
 
 
 def test_malformed_revision_preserves_safe_scope_and_inactive_reasons() -> None:

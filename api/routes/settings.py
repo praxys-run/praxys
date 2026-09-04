@@ -185,6 +185,20 @@ class SettingsUpdate(BaseModel):
     language: str | None = None
 
 
+# Reserved server-owned namespace for the inactive Trail v2 draft. Generic
+# settings clients (including the established MCP settings tool) may neither
+# observe nor author it; the unregistered Trail route is its sole writer.
+_RESERVED_TRAIL_PLAN_GOAL_NAMESPACE = "trail_plan"
+
+
+def _reject_reserved_trail_goal_update(body: SettingsUpdate) -> None:
+    if (
+        body.goal is not None
+        and _RESERVED_TRAIL_PLAN_GOAL_NAMESPACE in body.goal
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
 def _legacy_execution_target(plan_source: object) -> str | None:
     """Return a plan-capable provider from a legacy preference value."""
     if not isinstance(plan_source, str):
@@ -687,7 +701,9 @@ def _client_visible_settings_config(
     payload = asdict(config) if stryd_enabled else _without_stryd_config(config)
     from api.plan_generation_capabilities import client_visible_goal
 
-    payload["goal"] = client_visible_goal(payload.get("goal"))
+    visible_goal = dict(client_visible_goal(payload.get("goal")))
+    visible_goal.pop(_RESERVED_TRAIL_PLAN_GOAL_NAMESPACE, None)
+    payload["goal"] = visible_goal
     return payload
 
 
@@ -784,6 +800,7 @@ def update_settings(
     db: Session = Depends(get_db),
 ) -> dict:
     """Update user settings and persist to database."""
+    _reject_reserved_trail_goal_update(body)
     token_lease = nullcontext()
     if (
         body.source_options is not None
@@ -802,6 +819,7 @@ def _update_settings(
     db: Session,
 ) -> dict:
     """Apply a settings update after any required provider lease is held."""
+    _reject_reserved_trail_goal_update(body)
     config = load_config_from_db(user_id, db)
     stryd_enabled = stryd_connection_enabled(db, user_id=user_id)
     if not stryd_enabled and _settings_update_requests_stryd(body):
@@ -1140,6 +1158,26 @@ def _update_settings(
     # both the config change and the revision bump atomically.
     from db.cache_revision import bump_revisions
     bump_revisions(db, user_id, ["config"])
+    # The Trail writer and generic settings writer share the config-revision
+    # lock. Re-read the protected namespace after acquiring it so a settings
+    # request that began earlier cannot overwrite a concurrent Trail save or
+    # resurrect a concurrently deleted draft from its stale config snapshot.
+    from db.models import UserConfig as UserConfigModel
+
+    current_row = (
+        db.query(UserConfigModel)
+        .populate_existing()
+        .with_for_update()
+        .filter(UserConfigModel.user_id == user_id)
+        .one_or_none()
+    )
+    current_goal = dict(current_row.goal or {}) if current_row is not None else {}
+    if _RESERVED_TRAIL_PLAN_GOAL_NAMESPACE in current_goal:
+        config.goal[_RESERVED_TRAIL_PLAN_GOAL_NAMESPACE] = current_goal[
+            _RESERVED_TRAIL_PLAN_GOAL_NAMESPACE
+        ]
+    else:
+        config.goal.pop(_RESERVED_TRAIL_PLAN_GOAL_NAMESPACE, None)
     save_config_to_db(user_id, config, db)
     if garmin_region_changed:
         from api.routes.sync import clear_garmin_tokens
