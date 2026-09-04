@@ -28,6 +28,9 @@ from sync.garmin_sync import (
 )
 
 
+STRYD_POWER_ZONE_APP_ID = "18fb2cf0-1a4b-430d-ad66-988c847421f4"
+
+
 def _garmin_connection_error(status_code):
     return GarminConnectConnectionError(
         f"API call client error ({status_code}): API Error {status_code}",
@@ -443,11 +446,13 @@ def test_parse_activity_weather_requires_a_valid_complete_pair(payload):
     assert parse_activity_weather(payload) == {}
 
 
-def test_sync_garmin_enriches_only_outdoor_runs_with_weather(
+def test_sync_garmin_isolates_bad_split_and_wires_valid_enrichment(
     tmp_path, monkeypatch,
 ):
     weather_calls = []
     written_rows = []
+    written_splits = []
+    written_samples = []
     raw_activities = [
         {
             "activityId": 1000,
@@ -468,6 +473,7 @@ def test_sync_garmin_enriches_only_outdoor_runs_with_weather(
             "activityId": 1003,
             "startTimeLocal": "2026-07-22 07:00:00",
             "activityType": {"typeKey": "treadmill_running"},
+            "avgPower": 250,
         },
     ]
 
@@ -488,9 +494,32 @@ def test_sync_garmin_enriches_only_outdoor_runs_with_weather(
             return {"temp": 86, "relativeHumidity": 72}
 
         def get_activity_splits(self, activity_id):
+            if str(activity_id) == "1002":
+                return {"lapDTOs": [{"distance": "invalid", "duration": 300}]}
+            if str(activity_id) == "1003":
+                return {"lapDTOs": [{
+                    "startTimeGMT": "2023-11-14T22:13:20.0",
+                    "duration": 4,
+                }]}
             return {}
 
         def get_activity_details(self, activity_id, maxchart):
+            if str(activity_id) == "1003":
+                return {
+                    "metricDescriptors": [
+                        {"metricsIndex": 0, "key": "directTimestamp"},
+                        {
+                            "metricsIndex": 1,
+                            "key": "connectIQDeveloperField00",
+                            "appID": "660a581e-5301-460c-8f2f-034c8b6dc90f",
+                            "developerFieldNumber": 0,
+                        },
+                    ],
+                    "activityDetailMetrics": [
+                        {"metrics": [1_700_000_000_000, 260]},
+                        {"metrics": [1_700_000_002_000, 280]},
+                    ],
+                }
             return {}
 
         def get_lactate_threshold(self, **kwargs):
@@ -524,13 +553,21 @@ def test_sync_garmin_enriches_only_outdoor_runs_with_weather(
         written_rows.extend(rows)
         return len(rows)
 
+    def capture_splits(user_id, rows, db):
+        written_splits.extend(rows)
+        return len(rows)
+
+    def capture_samples(user_id, rows, db):
+        written_samples.extend(rows)
+        return len(rows)
+
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr("garminconnect.Garmin", FakeGarmin)
     monkeypatch.setattr("sync.garmin_sync.RATE_LIMIT_DELAY", 0)
     monkeypatch.setattr("db.sync_writer.write_activities", capture_activities)
+    monkeypatch.setattr("db.sync_writer.write_splits", capture_splits)
+    monkeypatch.setattr("db.sync_writer.write_samples", capture_samples)
     for name in (
-        "write_splits",
-        "write_samples",
         "write_lactate_threshold",
         "write_daily_metrics",
         "write_recovery",
@@ -588,6 +625,11 @@ def test_sync_garmin_enriches_only_outdoor_runs_with_weather(
     assert "temperature_c" not in rows_by_id["1000"]
     assert "temperature_c" not in rows_by_id["1002"]
     assert "temperature_c" not in rows_by_id["1003"]
+    assert rows_by_id["1003"]["avg_power"] == "250.0"
+    assert written_splits[0]["avg_power"] == "270"
+    assert written_splits[0]["power_source"] == "stryd"
+    assert [row["power_watts"] for row in written_samples] == [260, 280]
+    assert {row["source"] for row in written_samples} == {"stryd"}
 
 
 @pytest.mark.parametrize(
@@ -728,8 +770,8 @@ SAMPLE_LAP_DTOS = {
             "elevationLoss": 5.0,
             "connectIQMeasurement": [
                 {
+                    "appID": STRYD_POWER_ZONE_APP_ID,
                     "developerFieldNumber": 10,
-                    "developerFieldName": "Stryd Power",
                     "value": "265.0",
                 },
             ],
@@ -855,10 +897,10 @@ def test_parse_daily_metrics_empty():
 
 
 def test_parse_activities_native_power():
-    """Activity-level averagePower/maxPower from native running power."""
+    """The activity-list endpoint exposes native running power as avgPower."""
     act = {
         **SAMPLE_ACTIVITY,
-        "averagePower": 252.4,
+        "avgPower": 252.4,
         "maxPower": 410,
     }
     rows = parse_activities([act])
@@ -866,9 +908,35 @@ def test_parse_activities_native_power():
     assert rows[0]["max_power"] == "410.0"
 
 
+def test_parse_activities_accepts_average_power_compatibility_shape():
+    """Detailed activity summaries may use averagePower instead of avgPower."""
+    act = {
+        **SAMPLE_ACTIVITY,
+        "averagePower": 251.4,
+        "maxPower": 409,
+    }
+    rows = parse_activities([act])
+    assert rows[0]["avg_power"] == "251.4"
+    assert rows[0]["max_power"] == "409.0"
+
+
 def test_parse_activities_no_power_when_missing():
     """Activities without power fields leave the column empty."""
     rows = parse_activities([SAMPLE_ACTIVITY])
+    assert rows[0]["avg_power"] == ""
+    assert rows[0]["max_power"] == ""
+
+
+@pytest.mark.parametrize("power_key", ["avgPower", "averagePower"])
+def test_parse_activities_rejects_negative_native_power(power_key):
+    act = {
+        **SAMPLE_ACTIVITY,
+        power_key: -25,
+        "maxPower": -50,
+    }
+
+    rows = parse_activities([act])
+
     assert rows[0]["avg_power"] == ""
     assert rows[0]["max_power"] == ""
 
@@ -882,7 +950,11 @@ def test_parse_splits_prefers_native_power_over_connectiq():
             "elevationGain": 0.0, "elevationLoss": 0.0,
             "averagePower": 245.0,
             "connectIQMeasurement": [
-                {"developerFieldNumber": 10, "value": "999.0"},
+                {
+                    "appID": STRYD_POWER_ZONE_APP_ID,
+                    "developerFieldNumber": 10,
+                    "value": "999.0",
+                },
             ],
         }],
     }
@@ -892,14 +964,14 @@ def test_parse_splits_prefers_native_power_over_connectiq():
 
 
 def test_parse_splits_connectiq_fallback_when_native_absent():
-    """ConnectIQ field 10 picks up when native power isn't present."""
+    """Stryd Power Zone lap field 10 is used when native power is absent."""
     data = {
         "lapDTOs": [{
             "distance": 1000.0, "duration": 300.0,
             "connectIQMeasurement": [
                 {
+                    "appID": STRYD_POWER_ZONE_APP_ID,
                     "developerFieldNumber": 10,
-                    "developerFieldName": "Stryd Power",
                     "value": "270.0",
                 },
             ],
@@ -910,34 +982,37 @@ def test_parse_splits_connectiq_fallback_when_native_absent():
     assert rows[0]["power_source"] == "stryd"
 
 
-def test_parse_splits_ignores_unnamed_connectiq_field():
-    """An app-scoped field number alone cannot establish Stryd provenance."""
+def test_parse_splits_negative_native_power_uses_stryd_fallback():
     data = {
         "lapDTOs": [{
             "distance": 1000.0,
             "duration": 300.0,
-            "connectIQMeasurement": [
-                {"developerFieldNumber": 10, "value": "270.0"},
-            ],
+            "averagePower": -25,
+            "connectIQMeasurement": [{
+                "appID": STRYD_POWER_ZONE_APP_ID,
+                "developerFieldNumber": 10,
+                "value": "270.0",
+            }],
         }],
     }
 
     rows = parse_splits("a1", data)
 
-    assert rows[0]["avg_power"] == ""
-    assert rows[0]["power_source"] == ""
+    assert rows[0]["avg_power"] == "270"
+    assert rows[0]["power_source"] == "stryd"
 
 
-def test_parse_splits_ignores_generic_connectiq_power_field():
-    """A power metric without an explicit Stryd identity has unknown provenance."""
+def test_parse_splits_ignores_connectiq_field_from_unknown_app():
+    """A field number or attacker-controlled name cannot establish provenance."""
     data = {
         "lapDTOs": [{
             "distance": 1000.0,
             "duration": 300.0,
             "connectIQMeasurement": [
                 {
+                    "appID": "00000000-0000-0000-0000-000000000000",
                     "developerFieldNumber": 10,
-                    "developerFieldName": "Running Power",
+                    "developerFieldName": "Stryd Power",
                     "value": "270.0",
                 },
             ],
@@ -950,23 +1025,49 @@ def test_parse_splits_ignores_generic_connectiq_power_field():
     assert rows[0]["power_source"] == ""
 
 
-def test_parse_splits_ignores_connectiq_non_power_field():
-    """ConnectIQ field 10 from an unrelated app (by name) is skipped."""
+def test_parse_splits_ignores_wrong_field_from_stryd_app():
+    """Record power field 0 is not a lap-power aggregate."""
+    data = {
+        "lapDTOs": [{
+            "distance": 1000.0,
+            "duration": 300.0,
+            "connectIQMeasurement": [
+                {
+                    "appID": STRYD_POWER_ZONE_APP_ID,
+                    "developerFieldNumber": 0,
+                    "value": "270.0",
+                },
+            ],
+        }],
+    }
+
+    rows = parse_splits("a1", data)
+
+    assert rows[0]["avg_power"] == ""
+    assert rows[0]["power_source"] == ""
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, "not-a-number", "nan", "inf", [], -25],
+)
+def test_parse_splits_ignores_malformed_stryd_lap_power(value):
+    """Malformed values from an otherwise-recognized Stryd field fail closed."""
     data = {
         "lapDTOs": [{
             "distance": 1000.0, "duration": 300.0,
             "connectIQMeasurement": [
                 {
+                    "appID": STRYD_POWER_ZONE_APP_ID,
                     "developerFieldNumber": 10,
-                    "developerFieldName": "Leg Spring Stiffness",
-                    "value": "11.5",
+                    "value": value,
                 },
             ],
         }],
     }
     rows = parse_splits("a1", data)
-    # Non-power field 10 must not be mis-read as power.
     assert rows[0]["avg_power"] == ""
+    assert rows[0]["power_source"] == ""
 
 
 # --- User profile (LTHR + max HR thresholds) ---

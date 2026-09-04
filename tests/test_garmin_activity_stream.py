@@ -1,6 +1,12 @@
 """Tests for parse_activity_stream() in sync/garmin_sync.py."""
 import pytest
-from sync.garmin_sync import parse_activity_stream
+from sync.garmin_sync import parse_activity_stream, parse_splits
+
+
+STRYD_CONNECTIQ_APP_IDS = (
+    "660a581e-5301-460c-8f2f-034c8b6dc90f",
+    "18fb2cf0-1a4b-430d-ad66-988c847421f4",
+)
 
 
 def _make_details(
@@ -42,6 +48,27 @@ def _make_details(
         ]
         rows.append({"metrics": metrics})
     return {"metricDescriptors": descriptors, "activityDetailMetrics": rows}
+
+
+def _add_metric(
+    details: dict,
+    *,
+    key: str,
+    values: list[object],
+    app_id: str | None = None,
+    developer_field_number: int | None = None,
+) -> None:
+    """Append one descriptor and its values to a synthetic details payload."""
+    assert len(values) == len(details["activityDetailMetrics"])
+    metrics_index = len(details["activityDetailMetrics"][0]["metrics"])
+    descriptor = {"metricsIndex": metrics_index, "key": key}
+    if app_id is not None:
+        descriptor["appID"] = app_id
+    if developer_field_number is not None:
+        descriptor["developerFieldNumber"] = developer_field_number
+    details["metricDescriptors"].append(descriptor)
+    for row, value in zip(details["activityDetailMetrics"], values, strict=True):
+        row["metrics"].append(value)
 
 
 def test_returns_one_sample_per_row():
@@ -104,11 +131,97 @@ def test_dynamics_populated():
     assert s["vertical_ratio"] == pytest.approx(6.8)
 
 
-def test_no_power_in_output():
-    """power_watts is not in the sample dict — unavailable in Garmin stream."""
+def test_no_power_in_output_without_supported_descriptor():
+    """A stream without a supported power descriptor remains power-empty."""
     details = _make_details(n=1)
     s = parse_activity_stream("act-8", details)[0]
-    assert "power_watts" not in s
+    assert s["power_watts"] is None
+    assert s["source"] == "garmin"
+
+
+@pytest.mark.parametrize("app_id", STRYD_CONNECTIQ_APP_IDS)
+def test_stryd_connectiq_record_power_is_mapped(app_id):
+    """Both observed Stryd apps record watts in developer field 0."""
+    details = _make_details(n=3)
+    _add_metric(
+        details,
+        key="connectIQDeveloperField00",
+        values=[240, 250, 260],
+        app_id=app_id,
+        developer_field_number=0,
+    )
+
+    samples = parse_activity_stream("stryd-run", details)
+
+    assert [sample["power_watts"] for sample in samples] == [240, 250, 260]
+    assert {sample["source"] for sample in samples} == {"stryd"}
+
+
+@pytest.mark.parametrize(
+    ("app_id", "field_number", "value"),
+    [
+        ("00000000-0000-0000-0000-000000000000", 0, 250),
+        (STRYD_CONNECTIQ_APP_IDS[1], 8, 250),
+        (STRYD_CONNECTIQ_APP_IDS[1], 0, "not-a-number"),
+        (STRYD_CONNECTIQ_APP_IDS[1], 0, "nan"),
+        (STRYD_CONNECTIQ_APP_IDS[1], 0, -25),
+    ],
+)
+def test_unrelated_or_malformed_connectiq_power_is_ignored(
+    app_id, field_number, value,
+):
+    details = _make_details(n=1)
+    _add_metric(
+        details,
+        key="connectIQDeveloperField00",
+        values=[value],
+        app_id=app_id,
+        developer_field_number=field_number,
+    )
+
+    sample = parse_activity_stream("untrusted-run", details)[0]
+
+    assert sample["power_watts"] is None
+    assert sample["source"] == "garmin"
+
+
+def test_stream_power_fills_only_laps_without_native_power():
+    """Record power is averaged into laps while native lap power stays first."""
+    details = _make_details(
+        n=4,
+        start_ms=1_700_000_000_000,
+        step_ms=2000,
+    )
+    _add_metric(
+        details,
+        key="connectIQDeveloperField00",
+        values=[200, 220, 300, 320],
+        app_id=STRYD_CONNECTIQ_APP_IDS[0],
+        developer_field_number=0,
+    )
+    samples = parse_activity_stream("mixed-run", details)
+    splits = parse_splits(
+        "mixed-run",
+        {
+            "lapDTOs": [
+                {
+                    "startTimeGMT": "2023-11-14T22:13:20.0",
+                    "duration": 4,
+                    "averagePower": 250,
+                },
+                {
+                    "startTimeGMT": "2023-11-14T22:13:24.0",
+                    "duration": 4,
+                },
+            ],
+        },
+        activity_samples=samples,
+    )
+
+    assert splits[0]["avg_power"] == "250"
+    assert splits[0]["power_source"] == "garmin"
+    assert splits[1]["avg_power"] == "310"
+    assert splits[1]["power_source"] == "stryd"
 
 
 def test_dynamic_descriptor_order():
