@@ -7,11 +7,15 @@ readonly API_WEBTEST_NAME="wt-praxys-api-health"
 readonly SCHEDULED_QUERY_API_VERSION="2026-03-01"
 readonly MANAGED_PLAN_PROVIDER_ALERT="praxys-managed-plan-provider-failures"
 readonly MANAGED_PLAN_DEFECT_ALERT="praxys-managed-plan-defects"
+readonly FEEDBACK_PUBLICATION_CONFIG_ALERT="praxys-feedback-publication-config-provider"
+readonly FEEDBACK_PUBLICATION_AGING_ALERT="praxys-feedback-publication-aging"
 readonly OPERATIONS_ACTION_GROUP="praxys-feedback-ag"
 readonly OPERATIONS_EMAIL_RECEIVER="support@praxys.run"
 readonly BACKEND_ALERT_NAMES=(
   "praxys-db-health-unhealthy"
   "praxys-feedback-needs-review"
+  "${FEEDBACK_PUBLICATION_CONFIG_ALERT}"
+  "${FEEDBACK_PUBLICATION_AGING_ALERT}"
   "praxys-today-latency-regression"
   "praxys-sync-systemic-failures"
   "praxys-connect-systemic-failures"
@@ -28,6 +32,35 @@ is_managed_plan_alert() {
   local alert_name="$1"
   [[ "${alert_name}" == "${MANAGED_PLAN_PROVIDER_ALERT}" ||
      "${alert_name}" == "${MANAGED_PLAN_DEFECT_ALERT}" ]]
+}
+
+is_feedback_publication_alert() {
+  local alert_name="$1"
+  [[ "${alert_name}" == "${FEEDBACK_PUBLICATION_CONFIG_ALERT}" ||
+     "${alert_name}" == "${FEEDBACK_PUBLICATION_AGING_ALERT}" ]]
+}
+
+feedback_alert_action() {
+  local transition="$1"
+  local prior_scope="${2:-}"
+  local prior_enabled="${3:-false}"
+  case "${transition}" in
+    backend) echo "backend-enabled" ;;
+    frontend) echo "delete" ;;
+    restore)
+      if [[ -n "${BACKEND_AI_ID:-}" ]] &&
+         ids_equal "${prior_scope}" "${BACKEND_AI_ID}"; then
+        if [[ "${prior_enabled,,}" == "true" ]]; then
+          echo "backend-preserve-enabled"
+        else
+          echo "backend-preserve-disabled"
+        fi
+      else
+        echo "delete"
+      fi
+      ;;
+    *) fail "unknown feedback alert transition: ${transition}" ;;
+  esac
 }
 
 require_env() {
@@ -160,9 +193,11 @@ scheduled_alert_url() {
 scheduled_alert_body() {
   local source_json="$1"
   local target_scope="$2"
+  local enabled_override="${3:-preserve}"
 
   jq -S -c \
     --arg scope "${target_scope}" \
+    --arg enabled_override "${enabled_override}" \
     '
       def writable_identity:
         if . == null then null
@@ -184,6 +219,9 @@ scheduled_alert_body() {
           .properties
           | del(.createdWithApiVersion)
           | .scopes = [$scope]
+          | if $enabled_override == "true" then .enabled = true
+            elif $enabled_override == "false" then .enabled = false
+            else . end
         )
       } | with_entries(select(.value != null))
     ' <<< "${source_json}"
@@ -213,7 +251,33 @@ normalize_scheduled_alert() {
 }
 
 is_resource_not_found() {
-  grep -Eqi 'ResourceNotFound|Not Found|status.?404|HTTP 404' <<< "$1"
+  grep -Eqi 'ResourceNotFound|status.?404|HTTP.?404' <<< "$1"
+}
+
+resolve_scheduled_alert_id() {
+  local alert_name="$1"
+  local output status
+  if output="$(az resource show \
+      --resource-group "${AZURE_RESOURCE_GROUP}" \
+      --name "${alert_name}" \
+      --resource-type Microsoft.Insights/scheduledQueryRules \
+      --query id -o tsv 2>&1)"; then
+    if [[ -z "${output}" ]]; then
+      fail "scheduled alert lookup returned an empty id: ${alert_name}"
+      return 1
+    fi
+    printf '%s\n' "${output}"
+    return 0
+  else
+    status=$?
+  fi
+  if is_resource_not_found "${output}"; then
+    return 3
+  fi
+  echo "${output}" >&2
+  # Status 3 is reserved internally for content-proven resource absence.
+  # Normalize every other Azure CLI failure so a raw exit code cannot collide.
+  return 1
 }
 
 delete_scheduled_alert() {
@@ -254,9 +318,15 @@ recreate_scheduled_alert() {
   local alert_id="$1"
   local source_json="$2"
   local target_scope="$3"
+  local enabled_override="${4:-preserve}"
   local body output actual_json expected_normalized actual_normalized
 
-  body="$(scheduled_alert_body "${source_json}" "${target_scope}")"
+  body="$(
+    scheduled_alert_body \
+      "${source_json}" \
+      "${target_scope}" \
+      "${enabled_override}"
+  )"
   delete_scheduled_alert "${alert_id}"
 
   local attempt
@@ -305,8 +375,10 @@ managed_plan_alert_definition() {
   local scope="$2"
   local action_group_id="$3"
   local location="$4"
-  local description query
+  local enabled="${5:-true}"
+  local description query workload
   local severity=2
+  workload="managed-plan"
 
   case "${alert_name}" in
     "${MANAGED_PLAN_PROVIDER_ALERT}")
@@ -363,6 +435,45 @@ union isfuzzy=true
 KQL
 )"
       ;;
+    "${FEEDBACK_PUBLICATION_CONFIG_ALERT}")
+      workload="feedback-publication"
+      description="Feedback publication has an actionable configuration, authentication, or GitHub provider failure."
+      query="$(cat <<'KQL'
+union isfuzzy=true
+  (customEvents
+   | where name == "praxys.feedback_publication"
+   | project status=tostring(customDimensions.status),
+       reason=tostring(customDimensions.reason)),
+  (customMetrics
+   | where name == "praxys.feedback_publication"
+   | project status=tostring(customDimensions.status),
+       reason=tostring(customDimensions.reason))
+| where status in ("config_failure", "provider_failure")
+| summarize failures=count() by status, reason
+| where failures > 0
+KQL
+)"
+      ;;
+    "${FEEDBACK_PUBLICATION_AGING_ALERT}")
+      workload="feedback-publication"
+      severity=3
+      description="A consent-bound feedback publication has remained queued or ambiguous beyond its action threshold."
+      query="$(cat <<'KQL'
+union isfuzzy=true
+  (customEvents
+   | where name == "praxys.feedback_publication"
+   | project status=tostring(customDimensions.status),
+       reason=tostring(customDimensions.reason)),
+  (customMetrics
+   | where name == "praxys.feedback_publication"
+   | project status=tostring(customDimensions.status),
+       reason=tostring(customDimensions.reason))
+| where status in ("queue_aged", "unknown_aged")
+| summarize aged=count() by status, reason
+| where aged > 0
+KQL
+)"
+      ;;
     *)
       fail "unknown managed-plan alert: ${alert_name}"
       ;;
@@ -375,19 +486,21 @@ KQL
     --arg display_name "${alert_name}" \
     --arg description "${description}" \
     --arg query "${query}" \
+    --arg workload "${workload}" \
     --argjson severity "${severity}" \
+    --argjson enabled "${enabled}" \
     '{
       location: $location,
       kind: "LogAlert",
       tags: {
         managedBy: "deploy-backend",
-        workload: "managed-plan"
+        workload: $workload
       },
       properties: {
         displayName: $display_name,
         description: $description,
         severity: $severity,
-        enabled: true,
+        enabled: $enabled,
         evaluationFrequency: "PT15M",
         windowSize: "PT15M",
         scopes: [$scope],
@@ -422,16 +535,20 @@ upsert_managed_plan_alert() {
   local scope="$3"
   local action_group_id="$4"
   local location="$5"
-  local body output actual expected_query
+  local enabled="${6:-true}"
+  local body output actual expected_query expected_severity expected_workload
 
   body="$(
     managed_plan_alert_definition \
       "${alert_name}" \
       "${scope}" \
       "${action_group_id}" \
-      "${location}"
+      "${location}" \
+      "${enabled}"
   )"
   expected_query="$(jq -r '.properties.criteria.allOf[0].query' <<< "${body}")"
+  expected_severity="$(jq -r '.properties.severity' <<< "${body}")"
+  expected_workload="$(jq -r '.tags.workload' <<< "${body}")"
 
   local attempt
   for attempt in {1..5}; do
@@ -459,14 +576,17 @@ upsert_managed_plan_alert() {
     --arg action_group_id "${action_group_id}" \
     --arg location "${location}" \
     --arg expected_query "${expected_query}" \
+    --arg expected_workload "${expected_workload}" \
+    --argjson expected_severity "${expected_severity}" \
+    --argjson expected_enabled "${enabled}" \
     '
       def lower: ascii_downcase;
       (.location | lower) == ($location | lower)
       and .kind == "LogAlert"
       and .tags.managedBy == "deploy-backend"
-      and .tags.workload == "managed-plan"
-      and .properties.enabled == true
-      and .properties.severity == 2
+      and .tags.workload == $expected_workload
+      and .properties.enabled == $expected_enabled
+      and .properties.severity == $expected_severity
       and .properties.evaluationFrequency == "PT15M"
       and .properties.windowSize == "PT15M"
       and (.properties.scopes | length) == 1
@@ -521,6 +641,86 @@ ensure_managed_plan_alerts() {
       "${telemetry_scope}" \
       "${action_group_id}" \
       "${location}"
+  done
+}
+
+ensure_feedback_publication_alerts() {
+  local backend_scope="$1"
+  local action_group_json action_group_id resource_group_id location
+  local alert_name alert_id
+  action_group_json="$(az monitor action-group show \
+    --resource-group "${AZURE_RESOURCE_GROUP}" \
+    --name "${OPERATIONS_ACTION_GROUP}" \
+    -o json)"
+  jq -e \
+    --arg receiver "${OPERATIONS_EMAIL_RECEIVER}" \
+    '
+      .enabled == true
+      and any(
+        .emailReceivers[]?;
+        ((.emailAddress // "") | ascii_downcase)
+            == ($receiver | ascii_downcase)
+        and ((.status // "") | ascii_downcase) == "enabled"
+      )
+    ' <<< "${action_group_json}" >/dev/null ||
+    fail "${OPERATIONS_ACTION_GROUP} or its ${OPERATIONS_EMAIL_RECEIVER} receiver is disabled"
+  action_group_id="$(jq -r '.id // empty' <<< "${action_group_json}")"
+  resource_group_id="$(az group show \
+    --name "${AZURE_RESOURCE_GROUP}" \
+    --query id -o tsv)"
+  location="$(az resource show \
+    --ids "${backend_scope}" \
+    --query location -o tsv)"
+  [[ -n "${action_group_id}" && -n "${resource_group_id}" && -n "${location}" ]] ||
+    fail "feedback-publication alert resources could not be resolved"
+
+  for alert_name in \
+    "${FEEDBACK_PUBLICATION_CONFIG_ALERT}" \
+    "${FEEDBACK_PUBLICATION_AGING_ALERT}"; do
+    alert_id="${resource_group_id}/providers/Microsoft.Insights/scheduledQueryRules/${alert_name}"
+    upsert_managed_plan_alert \
+      "${alert_name}" \
+      "${alert_id}" \
+      "${backend_scope}" \
+      "${action_group_id}" \
+      "${location}" \
+      true
+  done
+}
+
+delete_feedback_publication_alerts() {
+  local alert_name alert_id lookup_status
+  for alert_name in \
+    "${FEEDBACK_PUBLICATION_CONFIG_ALERT}" \
+    "${FEEDBACK_PUBLICATION_AGING_ALERT}"; do
+    if alert_id="$(resolve_scheduled_alert_id "${alert_name}")"; then
+      delete_scheduled_alert "${alert_id}"
+      continue
+    else
+      lookup_status=$?
+    fi
+    if [[ "${lookup_status}" == "3" ]]; then
+      echo "Skipping missing feedback-publication alert: ${alert_name}" >&2
+      continue
+    fi
+    return "${lookup_status}"
+  done
+}
+
+verify_feedback_publication_alerts_absent() {
+  local alert_name alert_id lookup_status
+  for alert_name in \
+    "${FEEDBACK_PUBLICATION_CONFIG_ALERT}" \
+    "${FEEDBACK_PUBLICATION_AGING_ALERT}"; do
+    if alert_id="$(resolve_scheduled_alert_id "${alert_name}")"; then
+      fail "feedback-publication alert still exists after frontend rollback: ${alert_name} (${alert_id})"
+      return 1
+    else
+      lookup_status=$?
+    fi
+    if [[ "${lookup_status}" != "3" ]]; then
+      return "${lookup_status}"
+    fi
   done
 }
 
@@ -618,6 +818,7 @@ backend_preflight() {
     fail "backend Application Insights connection string is empty"
 
   verify_anonymous_ingestion_rejected "${connection_string}"
+  ensure_feedback_publication_alerts "${BACKEND_AI_ID}"
 
   local current_admin_resource_id managed_alert_scope
   current_admin_resource_id="$(az webapp config appsettings list \
@@ -756,20 +957,29 @@ telemetry_cutover() {
   local -a alert_ids=()
   local -a old_alert_jsons=()
   local -a old_alert_scopes=()
-  local alert_name alert_id alert_json alert_scope scope_count
+  local alert_name alert_id alert_json alert_scope scope_count lookup_status
   for alert_name in "${BACKEND_ALERT_NAMES[@]}"; do
-    if ! alert_id="$(az resource show \
-        --resource-group "${AZURE_RESOURCE_GROUP}" \
-        --name "${alert_name}" \
-        --resource-type Microsoft.Insights/scheduledQueryRules \
-        --query id -o tsv 2>/dev/null)" ||
-       [[ -z "${alert_id}" ]]; then
-      if [[ "${target}" == "frontend" ]] &&
-         is_managed_plan_alert "${alert_name}"; then
-        echo "Skipping missing deployment-owned managed-plan alert during rollback: ${alert_name}" >&2
-        continue
+    if alert_id="$(resolve_scheduled_alert_id "${alert_name}")"; then
+      :
+    else
+      lookup_status=$?
+      if [[ "${target}" == "frontend" ]]; then
+        if [[ "${lookup_status}" == "3" ]] &&
+           is_feedback_publication_alert "${alert_name}"; then
+          echo "Skipping missing feedback-publication alert during rollback: ${alert_name}" >&2
+          continue
+        fi
+        if [[ "${lookup_status}" == "3" ]] &&
+           is_managed_plan_alert "${alert_name}"; then
+          echo "Skipping missing deployment-owned managed-plan alert during rollback: ${alert_name}" >&2
+          continue
+        fi
       fi
-      fail "required backend alert not found: ${alert_name}"
+      if [[ "${lookup_status}" == "3" ]]; then
+        fail "required backend alert not found: ${alert_name}"
+      else
+        return "${lookup_status}"
+      fi
     fi
     alert_json="$(az rest \
       --method get \
@@ -895,11 +1105,34 @@ telemetry_cutover() {
 
     local index
     for index in "${!alert_ids[@]}"; do
-      if ! recreate_scheduled_alert \
-        "${alert_ids[$index]}" \
-        "${old_alert_jsons[$index]}" \
-        "${old_alert_scopes[$index]}"; then
-        rollback_failed=true
+      alert_name="${active_alert_names[$index]}"
+      if is_feedback_publication_alert "${alert_name}"; then
+        local old_feedback_enabled feedback_restore_action
+        old_feedback_enabled="$(
+          jq -r '.properties.enabled // false' \
+            <<< "${old_alert_jsons[$index]}"
+        )"
+        feedback_restore_action="$(
+          feedback_alert_action restore \
+            "${old_alert_scopes[$index]}" \
+            "${old_feedback_enabled}"
+        )"
+        if [[ "${feedback_restore_action}" == "delete" ]]; then
+          if ! delete_scheduled_alert "${alert_ids[$index]}"; then
+            rollback_failed=true
+          fi
+        elif ! recreate_scheduled_alert \
+          "${alert_ids[$index]}" \
+          "${old_alert_jsons[$index]}" \
+          "${BACKEND_AI_ID}" \
+          "${old_feedback_enabled}"; then
+          rollback_failed=true
+        fi
+      elif ! recreate_scheduled_alert \
+          "${alert_ids[$index]}" \
+          "${old_alert_jsons[$index]}" \
+          "${old_alert_scopes[$index]}"; then
+          rollback_failed=true
       fi
     done
 
@@ -1009,12 +1242,39 @@ telemetry_cutover() {
       --output none
   fi
 
+  local feedback_transition_action
+  if [[ "${target}" == "frontend" ]]; then
+    feedback_transition_action="$(
+      feedback_alert_action frontend "${BACKEND_AI_ID}" true
+    )"
+    [[ "${feedback_transition_action}" == "delete" ]] ||
+      fail "frontend feedback-alert transition must delete"
+    delete_feedback_publication_alerts
+  fi
+
   local index
   for index in "${!alert_ids[@]}"; do
-    recreate_scheduled_alert \
-      "${alert_ids[$index]}" \
-      "${old_alert_jsons[$index]}" \
-      "${target_ai_id}"
+    alert_name="${active_alert_names[$index]}"
+    if is_feedback_publication_alert "${alert_name}"; then
+      if [[ "${target}" == "frontend" ]]; then
+        continue
+      fi
+      feedback_transition_action="$(
+        feedback_alert_action backend "${old_alert_scopes[$index]}" true
+      )"
+      [[ "${feedback_transition_action}" == "backend-enabled" ]] ||
+        fail "backend feedback-alert transition must enable"
+      recreate_scheduled_alert \
+        "${alert_ids[$index]}" \
+        "${old_alert_jsons[$index]}" \
+        "${BACKEND_AI_ID}" \
+        true
+    else
+      recreate_scheduled_alert \
+        "${alert_ids[$index]}" \
+        "${old_alert_jsons[$index]}" \
+        "${target_ai_id}"
+    fi
   done
 
   local new_api_webtest_tags
@@ -1059,11 +1319,30 @@ telemetry_cutover() {
   else
     [[ -z "${live_admin_resource_id}" ]] ||
       fail "admin telemetry resource must be unset outside the trusted backend boundary"
+    verify_feedback_publication_alerts_absent
   fi
 
   for index in "${!alert_ids[@]}"; do
     alert_name="${active_alert_names[$index]}"
     alert_id="${alert_ids[$index]}"
+    if is_feedback_publication_alert "${alert_name}"; then
+      if [[ "${target}" == "frontend" ]]; then
+        continue
+      fi
+      alert_json="$(az rest \
+        --method get \
+        --url "$(scheduled_alert_url "${alert_id}")" \
+        -o json)"
+      jq -e \
+        --arg backend "${BACKEND_AI_ID}" \
+        '(.properties.scopes | length) == 1
+         and (.properties.scopes[0] | ascii_downcase)
+             == ($backend | ascii_downcase)
+         and .properties.enabled == true' \
+        <<< "${alert_json}" >/dev/null ||
+        fail "${alert_name} is not enabled on authenticated backend telemetry"
+      continue
+    fi
     alert_scope="$(az rest \
       --method get \
       --url "$(scheduled_alert_url "${alert_id}")" \
@@ -1104,13 +1383,15 @@ telemetry_cutover() {
   trap - ERR
 }
 
-case "${1:-}" in
-  backend-preflight) backend_preflight ;;
-  backend-cutover) telemetry_cutover backend ;;
-  rollback-to-frontend) telemetry_cutover frontend ;;
-  frontend-resolve) frontend_resolve ;;
-  *)
-    echo "Usage: $0 {backend-preflight|backend-cutover|rollback-to-frontend|frontend-resolve}" >&2
-    exit 2
-    ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  case "${1:-}" in
+    backend-preflight) backend_preflight ;;
+    backend-cutover) telemetry_cutover backend ;;
+    rollback-to-frontend) telemetry_cutover frontend ;;
+    frontend-resolve) frontend_resolve ;;
+    *)
+      echo "Usage: $0 {backend-preflight|backend-cutover|rollback-to-frontend|frontend-resolve}" >&2
+      exit 2
+      ;;
+  esac
+fi

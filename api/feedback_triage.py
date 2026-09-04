@@ -1,4 +1,4 @@
-"""Background triage for user feedback: scrub → classify → publish.
+"""Background triage for user feedback: scrub → classify → durable enqueue.
 
 Pipeline (runs as a FastAPI ``BackgroundTask`` after the submit returns):
 
@@ -10,11 +10,10 @@ Pipeline (runs as a FastAPI ``BackgroundTask`` after the submit returns):
    into a clean issue title + structured markdown body and to confirm the
    ``kind``. The model only ever sees already-scrubbed text. When the model
    is unavailable, a deterministic rule-based title/body is used instead.
-4. Run the final title + body through the scrubber *again* (we never trust the
-   model as the sole redactor for a public repo).
-5. If GitHub is configured, open an issue (labeled so an agent can pick it up)
-   and record the number/url. Otherwise leave the row ``triaged`` for an admin
-   to promote from the Admin page.
+4. Run the final title + body through the scrubber *again*, then require a
+   separate fail-closed privacy review of that exact public candidate.
+5. Atomically enqueue eligible v2 submissions. The publication worker owns all
+   GitHub calls, leases, fencing, and ambiguous-result reconciliation.
 
 Nothing here raises: a failure marks the row ``failed`` with a short error and
 returns. The submit endpoint already returned 200 to the user.
@@ -37,6 +36,7 @@ from analysis.agent_policy import (
 )
 from api import (
     feedback_prompt,
+    feedback_publication,
     feedback_scrub,
     feedback_storage,
     feedback_vision,
@@ -47,7 +47,6 @@ from api import (
 from api.optional_processing import (
     background_ai_authorized,
     feedback_has_publication_consent,
-    feedback_publication_authorized,
 )
 from db.agent_loop import (
     canonical_json_hash,
@@ -64,41 +63,39 @@ _VALID_KINDS = set(_KIND_LABEL)
 _TRIAGE_MODEL = llm.INSIGHT_MODEL
 
 
-def _autofile_without_ai() -> bool:
-    """Whether to auto-file to the public tracker when the LLM gate is absent.
-
-    Off by default: with no AI to judge residual sensitivity, holding for an
-    admin is the safe choice for a public repo. An operator who accepts the
-    scrub-only risk can set PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=true.
-    """
-    return (os.environ.get("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "") or "").lower() in ("1", "true", "yes")
+def _contains_redaction_marker(value: object) -> bool:
+    return "[redacted" in str(value).casefold()
 
 
 def _gate_blocks_publish(
     *,
     used_llm: bool,
     llm_flag: bool,
+    title: str = "",
     body: str,
+    pre_model_redaction: bool = False,
     has_image: bool = False,
     image_sensitive: Optional[bool] = None,
+    privacy_review_safe: Optional[bool] = None,
 ) -> bool:
     """Decide whether to withhold a report from auto-opening a public issue.
 
-    Blocks when: (a) the scrubber removed a key/token — a strong signal the
-    user pasted a secret; (b) an attached screenshot was flagged sensitive by
-    the vision model, or is present but could not be vision-verified
-    (``image_sensitive is None``) — an unread image is unsafe to auto-publish;
-    (c) the LLM judged the text report still sensitive; or (d) there is no LLM
-    verdict and the operator hasn't opted into scrub-only auto-filing. Blocked
-    rows are parked as ``needs_review`` for an admin.
+    Blocks when: (a) either scrub pass emitted a redaction marker; (b) the
+    authoring model judged the report sensitive; (c) the separate final-payload
+    privacy reviewer did not return an exact safe verdict; (d) a screenshot is
+    sensitive or could not be privately verified; or (e) there is no usable
+    authoring-model result. Screenshot-derived text itself is never public.
     """
-    if "[redacted-key]" in body or "[redacted-token]" in body:
+    output = title + "\n" + body
+    if pre_model_redaction or _contains_redaction_marker(output):
         return True
     if has_image and (image_sensitive is None or image_sensitive):
         return True
     if used_llm:
-        return bool(llm_flag)
-    return not _autofile_without_ai()
+        return bool(llm_flag) or privacy_review_safe is not True
+    # Missing, malformed, or unavailable AI sensitivity output is never enough
+    # authority for automatic publication to the public repository.
+    return True
 
 
 # --- The change loop (a.k.a. Loop A, issue #362) ---------------------------
@@ -226,6 +223,28 @@ def _call_triage_model(
     )
 
 
+def _call_publication_privacy_model(
+    client: object,
+    *,
+    title: str,
+    body: str,
+) -> bool | None:
+    """Independently review the final scrubbed public payload, fail closed."""
+    result = llm.chat_json(
+        client,
+        system=feedback_prompt.publication_privacy_review_prompt(),
+        user=feedback_prompt.publication_privacy_review_payload(
+            title=title,
+            body=body,
+        ),
+        model=_TRIAGE_MODEL,
+        max_completion_tokens=80,
+        temperature=0.0,
+        insight_type="feedback_publication_privacy_review",
+    )
+    return feedback_prompt.parse_publication_privacy_review(result)
+
+
 def _rule_based(kind: str, message: str, context: dict) -> tuple[str, str]:
     """Deterministic fallback title + body when the LLM is unavailable."""
     first_line = (message.strip().splitlines() or [""])[0]
@@ -240,16 +259,6 @@ def _rule_based(kind: str, message: str, context: dict) -> tuple[str, str]:
     return title, "\n".join(lines)
 
 
-def _publish_footer(feedback_id: int, user_id: Optional[str]) -> str:
-    """Audit footer. Identifies the submitter by a non-reversible hash only."""
-    who = telemetry.hash_user_id(user_id) if user_id else "anonymous"
-    return (
-        "\n\n---\n"
-        f"_Auto-filed from Praxys in-app feedback (id `{feedback_id}`, "
-        f"reporter `{who}`). PII-scrubbed before publication._"
-    )
-
-
 def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) -> dict:
     """Triage one feedback row and publish it. Returns a small status dict.
 
@@ -259,7 +268,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             is opened and owned by this function.
     """
     from db.models import AgentDecision, Feedback
-    from db.session import SessionLocal
+    from db.session import SessionLocal, begin_serialized_write
 
     owns_session = _session is None
     db = _session or (SessionLocal() if SessionLocal is not None else None)
@@ -268,47 +277,62 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         return {"status": "error", "reason": "db_uninitialized"}
 
     row = None
-    issue: dict | None = None
     decision_id: str | None = None
     decision_kwargs: dict | None = None
     try:
-        row = (
-            db.query(Feedback)
-            .filter(Feedback.id == feedback_id)
-            .with_for_update()
-            .first()
-        )
-        if row is None:
-            logger.warning("triage_and_publish: feedback %s not found", feedback_id)
+        if not db.in_transaction():
+            begin_serialized_write(db)
+        owner_id = feedback_publication.feedback_owner_id(db, feedback_id)
+        if owner_id is None:
+            db.rollback()
+            logger.warning("triage_and_publish: feedback not found")
             return {"status": "error", "reason": "not_found"}
+        owner = feedback_publication.lock_feedback_user(db, owner_id)
+        if owner is None or not owner.is_active:
+            db.rollback()
+            return {"status": "skipped", "reason": "account_unavailable"}
+        row = feedback_publication.lock_feedback(db, feedback_id)
+        if row is None:
+            db.rollback()
+            logger.warning("triage_and_publish: feedback not found")
+            return {"status": "error", "reason": "not_found"}
+        if str(row.user_id) != owner_id:
+            db.rollback()
+            return {"status": "skipped", "reason": "account_changed"}
         if row.status not in ("new", "failed"):
             # Idempotent: don't re-publish an already-handled row.
-            return {"status": "skipped", "reason": row.status}
+            current_status = str(row.status)
+            db.rollback()
+            return {"status": "skipped", "reason": current_status}
 
         reported_kind = row.kind if row.kind in _VALID_KINDS else "other"
         kind = reported_kind
         clean_message = feedback_scrub.scrub_text(row.message)
         clean_context = feedback_scrub.scrub_context(row.context_json)
+        pre_model_redaction = _contains_redaction_marker(
+            clean_message
+        ) or _contains_redaction_marker(clean_context)
 
         # --- Screenshot vision triage (issue #337) ---
         # Load any attached screenshots, ask the vision model for a scrubbed
-        # description + sensitivity verdict, and record both on the row. The raw
-        # image is NEVER folded into the issue — only the scrubbed description
-        # plus an "in the admin console" reference. image_flag stays None when a
-        # screenshot is present but couldn't be vision-verified, which the gate
-        # treats as unsafe to auto-publish.
+        # description + sensitivity verdict, and record both on the private row
+        # for admin handling. Neither the raw image nor any image-derived text is
+        # folded into the public issue. This keeps a vision false negative from
+        # becoming a second route around the text-only privacy review.
         image_keys = list(row.image_keys or [])
         allow_background_ai = background_ai_authorized(
             db,
             user_id=row.user_id,
         )
-        image_section = ""
         used_vision = False
         image_flag: Optional[bool] = None
         if image_keys:
             loaded = []
             for key in image_keys:
-                got = feedback_storage.load_image(key)
+                got = feedback_storage.load_image(
+                    key,
+                    provenance=row.image_storage_provenance,
+                )
                 if got is not None:
                     loaded.append(got)
             vision = (
@@ -322,23 +346,11 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                 image_flag = bool(vision["sensitive"])
                 row.image_description = description
                 row.image_sensitive = image_flag
-                image_section = (
-                    f"\n\n## Screenshot\n{description}\n\n"
-                    f"_{len(image_keys)} screenshot(s) attached — view in the Praxys "
-                    f"admin console (feedback id {feedback_id}). The image itself is "
-                    f"not published here._"
-                )
             else:
-                # No vision verdict (model unavailable or call failed). Reference
-                # the attachment but publish no image-derived text; the gate holds
-                # the row for admin review.
+                # No vision verdict (model unavailable or call failed). The
+                # screenshot remains private and cannot influence public text.
                 row.image_description = None
                 row.image_sensitive = None
-                image_section = (
-                    f"\n\n## Screenshot\n_{len(image_keys)} screenshot(s) attached — "
-                    f"view in the Praxys admin console (feedback id {feedback_id}). "
-                    f"Not analysed (no vision model); image not published here._"
-                )
 
         used_llm = False
         llm_flag = False
@@ -380,14 +392,29 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         if not title or not body:
             title, body = _rule_based(kind, clean_message, clean_context)
 
-        # Fold the (already-scrubbed) screenshot description into the body so it
-        # too passes through the final scrub below (belt-and-suspenders).
-        if image_section:
-            body = body + image_section
-
         # Belt-and-suspenders: never trust the model as the sole redactor.
         title = feedback_scrub.scrub_text(title)[:120] or f"User {kind}"
-        body = feedback_scrub.scrub_text(body) + _publish_footer(feedback_id, row.user_id)
+        body = feedback_scrub.scrub_text(body)
+
+        privacy_review_safe: Optional[bool] = None
+        privacy_review_attempted = False
+        final_has_redaction = pre_model_redaction or _contains_redaction_marker(
+            title + "\n" + body
+        )
+        if (
+            used_llm
+            and not llm_flag
+            and not final_has_redaction
+            and client is not None
+            and feedback_has_publication_consent(row)
+            and not owner.is_demo
+        ):
+            privacy_review_attempted = True
+            privacy_review_safe = _call_publication_privacy_model(
+                client,
+                title=title,
+                body=body,
+            )
 
         labels = [_KIND_LABEL[kind], "feedback"]
         if used_llm:
@@ -403,9 +430,12 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         gate_blocked = _gate_blocks_publish(
             used_llm=used_llm,
             llm_flag=llm_flag,
+            title=title,
             body=body,
+            pre_model_redaction=pre_model_redaction,
             has_image=bool(image_keys),
             image_sensitive=image_flag,
+            privacy_review_safe=privacy_review_safe,
         )
         # The change loop (issue #362): tag a genuine, actionable bug so the
         # labeled-issue workflow hands it to the Copilot coding agent. Never for
@@ -473,9 +503,8 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         if agent_ready_decision.eligible and not shadow:
             labels.append(AGENT_READY_LABEL)
         logger.info(
-            "change-loop agent-ready decision for feedback %s: "
+            "change-loop agent-ready decision: "
             "candidate=%s applied=%s shadow=%s reason=%s",
-            feedback_id,
             agent_ready_decision.eligible,
             AGENT_READY_LABEL in labels,
             shadow,
@@ -502,22 +531,28 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             "input_data": {
                 "reported_kind": reported_kind,
                 "locale": _decision_locale(row.locale),
-                "message_sha256": canonical_json_hash(clean_message),
                 "detail_word_count": detail_word_count,
                 "detail_alnum_count": detail_alnum_count,
                 "context_keys": sorted(clean_context),
                 "has_image": bool(image_keys),
-                "image_description_sha256": (
-                    canonical_json_hash(row.image_description)
-                    if row.image_description
-                    else None
-                ),
                 "image_sensitive": row.image_sensitive,
             },
             "output_data": {
                 "kind": kind,
                 "priority": priority,
                 "contains_sensitive": llm_flag if used_llm else None,
+                "publication_privacy_review_version": (
+                    feedback_prompt.PUBLICATION_PRIVACY_REVIEW_VERSION
+                    if privacy_review_attempted
+                    else None
+                ),
+                "publication_privacy_review_policy_digest": (
+                    feedback_prompt.publication_privacy_review_digest()
+                    if privacy_review_attempted
+                    else None
+                ),
+                "publication_privacy_review_attempted": privacy_review_attempted,
+                "publication_privacy_review_safe": privacy_review_safe,
                 "agent_eligible": agent_eligible,
                 "gate_blocked": gate_blocked,
                 "agent_ready_candidate": agent_ready_decision.eligible,
@@ -536,54 +571,48 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         decision = record_decision(db, **decision_kwargs)
         decision_id = decision.id
 
-        if not github_issues.is_configured():
-            # No GitHub configured — scrubbed + classified, awaiting manual
-            # promotion from the Admin page.
+        if owner.is_demo and (
+            feedback_has_publication_consent(row)
+            or row.publication_status == "unavailable"
+        ):
+            # Demo accounts can retain private feedback, but no persisted or
+            # legacy grant may progress toward an external publication.
             row.status = "triaged"
+            row.publication_status = "unavailable"
             row.error = None
-            outcome_type = "triaged_without_publish"
+            outcome_type = "publication_unavailable"
+        elif not feedback_has_publication_consent(row):
+            # Private submission is a complete outcome. Neither an admin nor a
+            # later config change may turn it into a publication candidate.
+            row.status = "triaged"
+            row.publication_status = "private"
+            row.error = None
+            outcome_type = "triaged_private"
         elif gate_blocked:
             # The report may still carry sensitive content — don't auto-open a
             # public issue. Park it for an admin to review / approve.
             row.status = "needs_review"
+            row.publication_status = (
+                "manual_required"
+                if feedback_has_publication_consent(row)
+                else "private"
+            )
             row.error = None
             outcome_type = "held_for_review"
         else:
-            if not feedback_publication_authorized(
+            row.status = "triaged"
+            outbox = feedback_publication.enqueue_publication(
                 db,
-                user_id=row.user_id,
-                submission_authorized=feedback_has_publication_consent(row),
-            ):
-                # A submission authorizes private support handling, not public
-                # publication. Preserve the scrubbed draft for explicit admin
-                # review; only the approve route may call create_issue().
-                row.status = "needs_review"
-                row.error = None
-                outcome_type = "held_for_publication_authorization"
+                feedback_id,
+                locked_user=owner,
+                locked_feedback=row,
+            )
+            if outbox is None and row.publication_status == "manual_required":
+                outcome_type = "held_for_review"
+            elif outbox is None:
+                outcome_type = "publication_unavailable"
             else:
-                issue = github_issues.create_issue(
-                    title=title,
-                    body=body,
-                    labels=labels,
-                    publication_authorized=True,
-                )
-                if issue and issue.get("number"):
-                    row.github_issue_number = issue["number"]
-                    row.github_issue_url = issue.get("url")
-                    row.status = "issue_created"
-                    row.error = None
-                    outcome_type = "github_issue_created"
-                    if AGENT_READY_LABEL in labels:
-                        applied_output = {
-                            **decision.output_json,
-                            "agent_ready_applied": True,
-                        }
-                        decision.output_json = applied_output
-                        decision_kwargs["output_data"] = applied_output
-                else:
-                    row.status = "failed"
-                    row.error = "github_publish_failed"
-                    outcome_type = "github_publish_failed"
+                outcome_type = "publication_queued"
 
         outcome_payload = {"status": row.status}
         if row.github_issue_number is not None:
@@ -597,7 +626,7 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
             db,
             decision_id=decision.id,
             outcome_type=outcome_type,
-            source="github" if outcome_type.startswith("github_") else "triage",
+            source="publication" if outcome_type.startswith("publication_") else "triage",
             payload=outcome_payload,
             dedupe_key=outcome_type,
         )
@@ -615,25 +644,39 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
         }
 
     except Exception as exc:
-        logger.exception("triage_and_publish failed for feedback %s", feedback_id)
+        logger.error("triage_and_publish failed")
         try:
-            # If create_issue already opened a GitHub issue but the commit
-            # failed, persist issue_created so a later retry can't file a
-            # duplicate. Roll back the broken transaction and re-load the row
-            # before writing the terminal state.
             db.rollback()
-            recovered = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+            begin_serialized_write(db)
+            recovered_owner_id = feedback_publication.feedback_owner_id(
+                db,
+                feedback_id,
+            )
+            recovered_owner = (
+                feedback_publication.lock_feedback_user(db, recovered_owner_id)
+                if recovered_owner_id is not None
+                else None
+            )
+            if recovered_owner is None or not recovered_owner.is_active:
+                db.rollback()
+                return {"status": "failed"}
+            recovered = feedback_publication.lock_feedback(db, feedback_id)
             if recovered is not None:
-                if issue and issue.get("number"):
-                    recovered.github_issue_number = issue["number"]
-                    recovered.github_issue_url = issue.get("url")
-                    recovered.status = "issue_created"
-                    recovered.error = None
-                    outcome_type = "github_issue_created"
+                recovered.status = "failed"
+                recovered.error = "triage_exception"
+                if recovered_owner.is_demo:
+                    recovered.publication_status = (
+                        "unavailable"
+                        if feedback_has_publication_consent(recovered)
+                        else "private"
+                    )
                 else:
-                    recovered.status = "failed"
-                    recovered.error = "triage_exception"
-                    outcome_type = "triage_failed"
+                    recovered.publication_status = (
+                        "manual_required"
+                        if feedback_has_publication_consent(recovered)
+                        else "private"
+                    )
+                outcome_type = "triage_failed"
                 decision = (
                     db.query(AgentDecision)
                     .filter(AgentDecision.id == decision_id)
@@ -649,22 +692,11 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
                         "status": recovered.status,
                         "error_type": type(exc).__name__,
                     }
-                    if recovered.github_issue_number is not None:
-                        payload.update(
-                            {
-                                "issue_number": recovered.github_issue_number,
-                                "issue_url": recovered.github_issue_url,
-                            }
-                        )
                     record_outcome(
                         db,
                         decision_id=decision.id,
                         outcome_type=outcome_type,
-                        source=(
-                            "github"
-                            if outcome_type == "github_issue_created"
-                            else "triage"
-                        ),
+                        source="triage",
                         payload=payload,
                         dedupe_key=outcome_type,
                     )
@@ -677,3 +709,10 @@ def triage_and_publish(feedback_id: int, *, _session: Optional[Session] = None) 
     finally:
         if owns_session:
             db.close()
+
+
+def triage_and_wake_publication(feedback_id: int) -> dict:
+    """Triage one row, then give the durable worker an immediate wakeup."""
+    result = triage_and_publish(feedback_id)
+    feedback_publication.safe_wake_publication_queue(limit=1)
+    return result

@@ -68,6 +68,8 @@ the SPA and ship to browsers)
 | `PRAXYS_PG_SERVER` | Postgres Flexible Server name. **Reserved / currently unused** - the on-demand backup jobs it gated were removed (Burstable tier can't do on-demand backups; PITR covers backup). Kept for a future off-site backup job. | (reserved) |
 | `PRAXYS_GITHUB_APP_ID` / `PRAXYS_GITHUB_APP_INSTALLATION_ID` | Feedback GitHub App identifiers. | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_GITHUB_REPO` / `PRAXYS_FEEDBACK_GITHUB_LABELS` / `PRAXYS_FEEDBACK_GITHUB_ASSIGNEES` | Feedback issue target and optional issue metadata. | App Service setting (backend) |
+| `PRAXYS_ENABLE_FEEDBACK_PUBLICATION` | Reviewed positive enable; defaults false. Every backend deploy first sets it false, keeps it false through exact-SHA cutover, then restores the current value (or the repository variable during config sync). It has no effect while the emergency stop or another publication gate blocks. | GitHub Actions variable → App Service setting |
+| `PRAXYS_DISABLE_FEEDBACK_PUBLICATION` | Protected emergency stop; defaults true and wins over the positive flag. Ordinary deploy may read and validate it but never writes it, so a concurrent incident stop cannot be overwritten. | Protected production control in App Service |
 | `PRAXYS_AGENT_READY_SHADOW` / `PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION` | Withhold active labels, or run a versioned semantic challenger without acting. Both are optional and default off. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_ID` | App ID for the independent review-governance GitHub App. Optional on ordinary review-required runs, but required to materialize verified science approvals. | `selective-review.yml`, `science-approval-ledger.yml` |
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies every minted privileged identity. | `selective-review.yml`, `selective-review-emergency-stop.yml`, `science-approval-ledger.yml` |
@@ -109,10 +111,20 @@ reachable. Ordinary healthy service requires
 never changes it. Launch may report but never changes the Miniapp gate.
 
 Feedback publication remains independently fail closed:
+`PRAXYS_ENABLE_FEEDBACK_PUBLICATION` defaults false and
+`PRAXYS_DISABLE_FEEDBACK_PUBLICATION` defaults true. Effective publication
+requires positive=true, kill=false, exact `praxys-run/praxys` configuration,
+complete GitHub App credentials, current account/Terms authority, and the
+submission's exact `feedback-publication-v2-public-github` grant. Missing or
+malformed values are off; the emergency stop wins. Ordinary deploy quiesces the
+positive switch until the exact new source SHA is live, then restores it; the
+protected kill value is read-only throughout. Neither admin action nor Terms
+acceptance substitutes for consent, and screenshots remain private.
+
+The safe initialization pair is
 `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false` and
-`PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true` are workflow-owned backend settings.
-Changing them never substitutes for the exact per-submission publication
-consent, and screenshots remain private.
+`PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`. These are defaults, not authority
+to overwrite a later protected emergency-stop value during ordinary deploy.
 
 Runtime Azure provider failures are latched across backend workers and App
 Service instances by
@@ -150,8 +162,8 @@ Browser Statsig reads it and remains disabled for the EdgeOne artifact pending
 [#754](https://github.com/praxys-run/praxys/issues/754).
 
 The public China launch is governed by `PIPIA-CN-2026-08-25-01`, version
-`1.2-public-parity`. The operator accepted it and its overall **Medium**
-residual risk on 2026-08-31. No repository
+`1.3-feedback-publication`. The operator accepted it and its overall **Medium**
+residual risk on 2026-09-04. No repository
 variable represents that acceptance; a human still verifies the deployed
 controls before `enable`. Miniapp CI upload and manual production publication
 remain uncoupled from the web launch workflow.
@@ -171,11 +183,12 @@ monitoring, alerts, PIPIA acceptance, or provider topology. Production
 enablement remains a human-protected workflow action; see
 [cn-web-private-alpha.md](./cn-web-private-alpha.md).
 
-Changing `PRAXYS_FEEDBACK_GITHUB_REPO` does not reinterpret historical issue
-numbers. Feedback sync and adjudication compare each stored GitHub URL with the
-current repo and fail closed on a mismatch, exposing the skipped count in Admin
-Feedback. Plan a deliberate link migration before switching repositories; do
-not assume issue `#N` refers to the same work in the new target.
+`PRAXYS_FEEDBACK_GITHUB_REPO` is accepted only when it is exactly
+`praxys-run/praxys`. A mismatch disables publication. Feedback sync,
+adjudication, API results, and the outbox also validate every stored link
+against `https://github.com/praxys-run/praxys/issues/<number>` and fail closed.
+Repository migration is explicitly outside this recovery scope; do not
+reinterpret historical issue numbers.
 
 ### Copilot repository MCP servers
 
@@ -490,7 +503,7 @@ stalled SCM endpoint cannot monopolize the serialized production lane.
 Source of truth = `deploy-backend.yml`. Literals set inline: `DATA_DIR=/home/data`,
 `WEBSITES_PORT=8000`, `SCM_DO_BUILD_DURING_DEPLOYMENT=true`,
 `WEBSITE_HTTPLOGGING_RETENTION_DAYS=3` and
-`PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`.
+`PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=false`.
 `PRAXYS_DISABLE_BACKGROUND_AI` and `PRAXYS_DISABLE_CN_PROCESSING` are read and
 reported but never written by ordinary backend deploys; healthy ordinary
 service expects the AI switch to be `false`, while an intentional emergency
@@ -504,6 +517,13 @@ absent, existing App Service values are preserved.
 `appi-praxys-backend` through `scripts/appinsights_boundary.sh`; everything else
 comes from the secrets/variables above.
 
+The feedback positive switch and reviewed GitHub App configuration come from
+repository variables/secrets. Every ordinary workflow quiesces the positive
+switch to `false`, deploys and verifies the exact source SHA, then restores the
+reviewed desired value and verifies the effective state. The workflow never
+writes `PRAXYS_DISABLE_FEEDBACK_PUBLICATION`; it only requires the live value
+to be a valid Boolean, so a concurrent emergency stop always wins.
+
 The same backend preflight is the source of truth for the telemetry privacy
 settings: it sets `appi-praxys-backend` local auth off, IP masking on
 (`DisableIpMasking=false`), and retention to 30 days, and sets
@@ -511,14 +531,15 @@ settings: it sets `appi-praxys-backend` local auth off, IP masking on
 configuration-sync backend deployment; portal edits are drift and will be
 overwritten.
 
-The two negative compliance switches are fixed production policy, not mutable
-GitHub variables. The first blocks automatic post-sync insights and feedback
-AI/vision processing that lack a purpose-specific user authorization. The
-second prevents automatic or admin-approved feedback text from being published
-to GitHub; feedback remains private in Praxys for admin handling. Removing
-either literal requires an updated
+The background-AI and feedback-publication negative controls are protected
+production policy, not mutable GitHub variables. The first blocks automatic
+post-sync insights and feedback AI/vision processing that lack current
+authority. The second immediately stops new public feedback claims while
+retaining outbox evidence. Changing either control requires the documented
+review/readback path; enabling feedback additionally requires an updated
 [China PIPIA](./cn-personal-information-impact-assessment.md), user disclosure,
-and execution-path tests in the same change.
+exact per-submission publication consent, and execution-path tests in the same
+change.
 
 ### Statsig feature gates
 
@@ -911,9 +932,11 @@ set +a
 bash scripts/appinsights_boundary.sh rollback-to-frontend
 ```
 
-The reverse cutover atomically restores backend routing, all five scheduled
-queries, the API web-test hidden link, and its metric-alert component to
-`appi-trainsight`. It also removes
+The reverse cutover atomically restores backend routing, the ordinary
+scheduled queries, the API web-test hidden link, and its metric-alert component
+to `appi-trainsight`. Feedback-publication scheduled queries are deleted rather
+than restored on the frontend telemetry component; a missing or partially
+created pair does not block rollback. It also removes
 `PRAXYS_BACKEND_APPINSIGHTS_RESOURCE_ID`, so the in-app admin Azure sections
 become explicitly unavailable rather than reading the untrusted browser
 component. It restores the previous shared-resource behavior and therefore
@@ -970,6 +993,20 @@ screenshots are omitted rather than written to an undeclared local fallback;
 the text feedback remains available.
 `api/feedback_storage.py` selects the shared private backend and authenticates
 with `DefaultAzureCredential`.
+
+Each new screenshot locator is bound to a non-secret write-time storage
+provenance fingerprint. The fingerprint covers the Blob account endpoint and
+container, or the resolved local `DATA_DIR/feedback_images` root; it never
+contains a connection string, account key, credential, or filesystem path.
+Reads and deletion use only that recorded namespace and never fall back across
+Blob/local boundaries. Rotating credentials for the same Blob account and
+container is safe. Changing the Blob account, container, Blob/local mode, or
+`DATA_DIR` while screenshot rows remain requires a planned copy-and-cleanup
+operation before the setting change. Otherwise reads fail closed and account
+deletion returns `ACCOUNT_DELETE_STORAGE_UNAVAILABLE` while retaining the
+account and exact database locator. Pre-provenance rows with screenshots also
+require explicit operator cleanup; never attest them to the current namespace
+merely because an object with the same key is absent there.
 
 ### The change loop — coding-agent labels & assignment (issue #362)
 
@@ -1192,7 +1229,7 @@ outgrown.
 | `WECHAT_MINIAPP_SECRET` | Rotate in mp.weixin.qq.com, update GitHub secret, re-deploy | Mini program auth briefly fails until deploy lands. |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Regenerate in mp.weixin.qq.com, update GitHub secret | Only affects mini program CI publishing. |
 | Frontend/backend Application Insights routing | Provision the replacement component, update `.github/azure-observability.env`, grant backend MI RBAC if needed, and re-deploy | The workflows fetch fresh routing strings directly from Azure; no GitHub value rotates. |
-| Feedback GitHub App key (`PRAXYS_GITHUB_APP_PRIVATE_KEY`) | Generate a new private key on the app, update the secret, re-deploy (rarely needed). Setup: [setup-github-app.md](./setup-github-app.md). | Issue auto-filing dormant until updated; rest of app unaffected. |
+| Feedback GitHub App key (`PRAXYS_GITHUB_APP_PRIVATE_KEY`) | Generate a new private key on the app, update the secret, re-deploy (rarely needed). Setup: [setup-github-app.md](./setup-github-app.md). | Consent-bound publication reports unavailable until updated; private feedback capture is unaffected. |
 | SMTP auth code (`PRAXYS_SMTP_PASSWORD`) | Regenerate the 客户端授权码 in the Exmail/WeCom mailbox settings, update the GitHub secret, re-deploy. | Verification + invitation emails fail to send until updated (codes can still be copied by hand). |
 | Key Vault RSA key `trainsight-master-key` | ⚠️ **High-impact** — the per-user DEKs were wrapped with the current key; rotating without a re-wrap/re-encrypt migration makes stored platform credentials undecryptable. Treat as non-rotatable until the migration tool and operator-approved drill in [secret-rotation.md](./secret-rotation.md) exist. | Users would have to reconnect platforms. |
 

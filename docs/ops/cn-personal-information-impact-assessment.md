@@ -1,6 +1,6 @@
 # Mainland China personal-information protection impact assessment
 
-> **Status:** **ACCEPTED BY THE HUMAN OPERATOR ON 2026-08-31 — LIVE RELEASE VERIFICATION STILL REQUIRED BEFORE ENABLE**
+> **Status:** **VERSION 1.3 ACCEPTED BY THE HUMAN OPERATOR ON 2026-09-04 — LIVE RELEASE VERIFICATION STILL REQUIRED BEFORE ENABLE**
 > **Summary:** Assessment record for the public Praxys China web and WeChat
 > surfaces, including overseas Azure processing, telemetry, recipients,
 > sensitive information, rights, and accepted residual risks.
@@ -13,17 +13,17 @@
 | Field | Value |
 |---|---|
 | Record ID | `PIPIA-CN-2026-08-25-01` |
-| Version | `1.2-public-parity` |
-| Assessment date | 2026-08-31 |
-| Acceptance date | 2026-08-31 |
+| Version | `1.3-feedback-publication` |
+| Assessment date | 2026-09-04 |
+| Acceptance date | 2026-09-04 |
 | Operator / personal-information handler | Fei Tao |
 | Rights contact | `support@praxys.run` |
 | Service | Public registration on the Praxys web service at `praxys.cn` and `www.praxys.cn`; existing WeChat Miniapp |
-| Decision | **The human operator accepted this exact `1.2-public-parity` assessment on 2026-08-31. Live control verification and production enablement remain separate human gates.** |
-| Residual risk | **Medium; accepted by the human operator for this launch on 2026-08-31**; principally the contract-necessity interpretation for sensitive fitness/recovery data and overseas processing |
+| Decision | **The human operator accepted this exact `1.3-feedback-publication` assessment on 2026-09-04. Live control verification and production enablement remain separate human gates.** |
+| Residual risk | **Medium; accepted by the human operator on 2026-09-04**; optional public feedback publication is Low–Medium after the controls below, while the overall China processing assessment remains Medium |
 | Deferred, non-blocking risks | Browser Statsig remains disabled on `.cn` pending [#754](https://github.com/praxys-run/praxys/issues/754); restore-safe account deletion is tracked in [#755](https://github.com/praxys-run/praxys/issues/755) |
 | Review trigger | Before any material change listed under [Immediate review or stop triggers](#immediate-review-or-stop-triggers) |
-| Minimum record retention | Through 2029-08-31, and longer while the assessed processing continues or a dispute/investigation requires it |
+| Minimum record retention | Through 2029-09-04, and longer while the assessed processing continues or a dispute/investigation requires it |
 
 This is the repository record of the operator's stated product and telemetry
 decisions and acceptance of this exact assessment and its overall **Medium**
@@ -98,7 +98,7 @@ Official sources:
 | Configured mail service | Configured region | Destination address and requested verification or service-email content | Only for the requested email function |
 | Garmin, Strava, Stryd, Oura, or COROS selected by the user | Provider-selected region | Authentication material and supported user-initiated data transfer | Optional connection after just-in-time recipient/category notice |
 | Statsig service operated by Amplitude | Rules are downloaded from the service; backend evaluation occurs inside Praxys | Backend SDK downloads gate/config rules without user identity | User-event logging and SDK diagnostics stay disabled; browser Statsig remains absent from `.cn` pending #754 |
-| GitHub issue service | Outside mainland China | Scrubbed support text only if an individual submission receives exact publication permission and global switches allow it | External publication remains independently fail-closed; screenshots remain private |
+| GitHub, Inc. issue service and published service providers | Outside mainland China | A twice-scrubbed, independently privacy-reviewed text summary only after exact `feedback-publication-v2-public-github` permission for that submission, current account/Terms authority, safety review, and effective global switches | Destination is only public `praxys-run/praxys`; anyone may view and copy it; public issues may be retained long term; screenshots and image-derived descriptions, raw feedback, diagnostics, identity, and credentials remain private |
 
 Provider legal entity and processing location may depend on the user's account
 region. The connection dialog must identify the provider and current official
@@ -113,7 +113,7 @@ privacy/contact notice immediately before transfer.
 | Activity, pace, power, route, heart rate, HRV, sleep, and recovery | Required only by selected training/recovery functions; may reveal health, routine, or location | Sensitive-data treatment, encryption, account scope, no advertising or cross-user training |
 | Goals, plans, settings, and language | Required to configure requested service | Editable, exportable, account-scoped, deleted with the active account |
 | Optional private plan context | Optional input to reduce guessing | Purpose/version/field minimization, expiry/deletion controls, current Terms |
-| Support text and screenshots | Only when the user requests support | Private storage; no automatic public publication; exact per-submission grant for text publication |
+| Support text and screenshots | Only when the user requests support | Private storage by default; exact v2 per-submission grant plus a separate fail-closed final privacy review for a scrubbed text summary; screenshots and image-derived descriptions never publish; public GitHub issues may be retained long term and are outside the private account-deletion path |
 | Backend security/reliability and product telemetry | Detect abuse/failures and measure service behavior | Allowlisted fields, pseudonymous account hash where needed, no intentional raw training payload, credential, token, or email; 30-day Azure component/workspace retention |
 | Browser Application Insights | Diagnose `.cn` page, dependency, and performance behavior | Page/dependency/performance scope; query/fragment stripping and no automatic exception capture on the regional artifact; no raw training content, feedback text, email, or raw account ID |
 | Product events | Measure a bounded set of app/Today interactions | Allowlisted event names, surface, version, and bounded enums; backend derives a pseudonymous account hash and rejects extra fields |
@@ -175,6 +175,8 @@ personal information.
 | Account deletion is reversed by a PITR restore | **Medium-low; accepted for launch**, closed-traffic reconciliation, tracked by #755 |
 | Shared Azure capacity affects `.run` or `.cn` | Low; monitor and disable affected China processing if needed |
 | Geographic redirect loops, loses context, or disrupts sessions | Low while temporary, public-page-only, path-preserving, query-dropping, and verified |
+| Authorized scrubbed feedback becomes broadly visible or persists beyond the user's expectation | **Low–Medium** after exact per-submission notice, twice-scrubbing, independent final-payload privacy review, screenshot-derived-text exclusion, App-authenticated reconciliation, one-candidate fencing, durable reconciliation, and public/overseas/long-retention copy |
+| A timeout or crash creates a duplicate public issue | Low after the metadata-only outbox, committed random lease, exact marker/digest reconciliation, and the prohibition on retrying unknown outcomes |
 
 ## Mandatory controls and release evidence
 
@@ -192,7 +194,17 @@ verification obligations, not new product approvals:
   robot 5 development upload is not production evidence;
 - `PRAXYS_DISABLE_BACKGROUND_AI=false` for ordinary service and the
   independent emergency-stop behavior tested;
-- `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`;
+- feedback publication remains ineffective until Release Evidence separately
+  proves `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=true`, the protected emergency
+  control reads `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=false`, the exact target
+  is `praxys-run/praxys`, the GitHub App grant is limited to Issues read/write
+  plus Pull requests read, current Terms and the exact
+  `feedback-publication-v2-public-github` submission receipt are enforced, and
+  the outbox/reconciler synthetic canary completes without a duplicate;
+- ordinary deployment never writes the emergency-stop value, quiesces the
+  positive switch until the exact new source SHA is verified, and cannot clear
+  a concurrent stop; absent, malformed, or mismatched settings fail closed;
+- no legacy v1 row is migrated, replayed, or made a candidate;
 - browser Statsig absent from `.cn` and backend Statsig user logging and
   diagnostics disabled;
 - regional App Insights URL minimization/exception suppression, allowlisted
@@ -221,6 +233,8 @@ Stop the affected new processing and update this assessment before resuming if:
   parameters, email, raw account IDs, training content, or feedback text;
 - product events accept fields beyond the reviewed allowlist;
 - feedback publication is enabled without exact per-submission authority;
+- a screenshot, raw feedback/context, identity, redaction marker, ambiguous
+  delivery, or non-allowlisted issue URL crosses the public boundary;
 - a provider privacy notice, legal entity, or access method materially changes;
 - a security incident, unauthorized disclosure, failed deletion, or regulator
   inquiry occurs;
@@ -249,6 +263,13 @@ On 2026-08-31, the operator stated and approved these bounded choices:
 7. Accept this exact `1.2-public-parity` assessment and its overall **Medium**
    residual risk for this launch.
 
+On 2026-09-04, the operator separately accepted version
+`1.3-feedback-publication`: restore the existing optional public-feedback path
+for new v2 submissions on both domains only after repository implementation,
+independent verification, later Release Evidence, and live readback. This does
+not authorize legacy replay, deployment, a production canary, or clearing the
+emergency stop in an ordinary deploy.
+
 These decisions do not constitute live provider readback, a successful
 deployment, or public-security filing completion.
 
@@ -259,6 +280,12 @@ CORS, and preserve `.run` plus the DNS-only API. Static EdgeOne takedown is
 manual. Disable a faulty geolocation rule separately and verify both public
 domains no longer loop. Personal-data/security incidents follow the incident
 runbook and require readback before recovery is claimed.
+
+For feedback publication, set and read back
+`PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`, confirm effective publication is
+false, stop new claims, and retain every outbox/attempt row for reconciliation.
+Do not delete evidence, make unknown attempts pending, or replay any legacy
+feedback as part of rollback.
 
 ## Related
 
@@ -271,4 +298,4 @@ runbook and require readback before recovery is claimed.
 - `web/src/components/ChinaProcessingNoticeGate.tsx`
 
 ---
-_Scope updated and exact assessment accepted: 2026-08-31 · Owner: human operator / Trust · Live release verification completed: 2026-09-01_
+_Version 1.3 feedback-publication scope accepted: 2026-09-04 · Owner: human operator / Trust · China core release verification completed: 2026-09-01 · feedback-publication live verification: pending_

@@ -5,6 +5,19 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _configure_httpx_logging_boundary() -> None:
+    """Suppress HTTPX's INFO request line before telemetry handlers attach.
+
+    HTTPX renders the complete request URL, including percent-encoded path and
+    query values. Publication markers and digests must therefore never cross
+    the process logging boundary.
+    """
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+_configure_httpx_logging_boundary()
+
 # Configure stdout logging before anything else — once configure_azure_monitor
 # attaches its own handler to the root logger, a later basicConfig() call is a
 # no-op (basicConfig only runs when no handlers are present).
@@ -63,6 +76,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from api.auth import (
     get_current_user_id,
@@ -89,6 +104,42 @@ from api.views import utc_isoformat
 from db.session import get_db
 
 from db.session import init_db
+
+
+_FEEDBACK_OWNER_STATUS_PATH = "/api/me/feedback/status"
+_PRIVATE_NO_STORE = "private, no-store"
+
+
+def _is_feedback_owner_status_path(path: str) -> bool:
+    """Match only the fixed owner-status path, excluding image/admin routes."""
+    return path == _FEEDBACK_OWNER_STATUS_PATH
+
+
+class FeedbackOwnerStatusPrivacyMiddleware:
+    """Force private no-store on every owner-status response, including errors."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if (
+            scope.get("type") != "http"
+            or not _is_feedback_owner_status_path(str(scope.get("path", "")))
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_private(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["Cache-Control"] = _PRIVATE_NO_STORE
+            await send(message)
+
+        await self.app(scope, receive, send_private)
 
 
 @asynccontextmanager
@@ -144,14 +195,24 @@ async def lifespan(app: FastAPI):
     await init_statsig()
     try:
         from api.labs_dispatch import start_dispatcher
+        from api.feedback_publication import start_publication_reconciler
 
         start_dispatcher()
+        start_publication_reconciler()
         if scheduler_enabled:
             from db.sync_scheduler import start_scheduler
 
             start_scheduler()
         yield
     finally:
+        try:
+            from api.feedback_publication import stop_publication_reconciler
+
+            stop_publication_reconciler()
+        except Exception:
+            logger.error(
+                "Failed to stop feedback publication reconciler cleanly"
+            )
         try:
             from api.labs_dispatch import stop_dispatcher
             stop_dispatcher()
@@ -193,6 +254,7 @@ app.add_exception_handler(
 # runs last on the response path (middleware order = reverse LIFO).
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
+app.add_middleware(FeedbackOwnerStatusPrivacyMiddleware)
 app.add_middleware(ChinaClientBoundaryMiddleware)
 
 # CORS — use FastAPI middleware for local dev only.

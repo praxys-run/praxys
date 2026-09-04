@@ -383,6 +383,39 @@
         <button class="ts-button ts-button--secondary settings-action-btn" bindtap="onSendFeedback">
           {{tr.sendFeedback}}
         </button>
+        <view
+          wx:if="{{feedbackResultOpen}}"
+          class="settings-feedback-result ts-section"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <text class="settings-feedback-result__title">{{feedbackResultTitle}}</text>
+          <text class="settings-feedback-result__message ts-muted">{{feedbackResultMessage}}</text>
+          <text
+            wx:if="{{feedbackError}}"
+            class="settings-feedback__error"
+            role="alert"
+          >{{feedbackError}}</text>
+          <view class="settings-feedback-result__actions">
+            <button
+              wx:if="{{feedbackResultStatus === 'published' && feedbackResultUrl}}"
+              class="ts-button ts-button--secondary settings-feedback__button"
+              bindtap="onCopyFeedbackIssue"
+            >{{tr.feedbackCopyIssue}}</button>
+            <button
+              wx:if="{{feedbackResultCanCheck}}"
+              class="ts-button ts-button--secondary settings-feedback__button"
+              loading="{{feedbackStatusChecking}}"
+              disabled="{{feedbackStatusChecking}}"
+              bindtap="onCheckRecentFeedbackStatus"
+            >{{feedbackStatusChecking ? tr.feedbackCheckingStatus : tr.feedbackCheckStatus}}</button>
+            <button
+              class="ts-button settings-feedback__button"
+              bindtap="onCloseFeedbackResult"
+            >{{tr.feedbackCloseResult}}</button>
+          </view>
+        </view>
         <view wx:if="{{feedbackFormOpen}}" class="settings-feedback ts-section">
           <textarea
             class="settings-feedback__message"
@@ -400,13 +433,35 @@
             </view>
             <switch
               checked="{{feedbackPublicationConsent}}"
-              disabled="{{feedbackSubmitting}}"
+              disabled="{{feedbackSubmitting || feedbackPublicationAvailable !== true}}"
               color="#1f7a4d"
               aria-label="{{tr.feedbackPublish}}"
               bindchange="onFeedbackPublicationChange"
             />
           </view>
-          <text wx:if="{{feedbackError}}" class="settings-feedback__error" role="alert">{{feedbackError}}</text>
+          <text
+            wx:if="{{feedbackPublicationAvailable === false}}"
+            class="settings-feedback__availability ts-muted"
+            role="status"
+          >{{tr.feedbackPublicationOff}}</text>
+          <text
+            wx:if="{{feedbackPublicationAvailable === null}}"
+            class="settings-feedback__availability ts-muted"
+            role="status"
+          >{{tr.feedbackCheckingAvailability}}</text>
+          <text
+            wx:if="{{feedbackError}}"
+            class="settings-feedback__error"
+            role="alert"
+            aria-live="assertive"
+          >{{feedbackError}}</text>
+          <button
+            wx:if="{{recentFeedbackId}}"
+            class="ts-button ts-button--secondary settings-feedback__button settings-feedback__check"
+            loading="{{feedbackStatusChecking}}"
+            disabled="{{feedbackSubmitting || feedbackStatusChecking}}"
+            bindtap="onCheckRecentFeedbackStatus"
+          >{{feedbackStatusChecking ? tr.feedbackCheckingStatus : tr.feedbackCheckRecent}}</button>
           <view class="settings-feedback__actions">
             <button
               class="ts-button ts-button--secondary settings-feedback__button"
@@ -416,7 +471,7 @@
             <button
               class="ts-button settings-feedback__button"
               loading="{{feedbackSubmitting}}"
-              disabled="{{feedbackSubmitting || !feedbackMessage}}"
+              disabled="{{feedbackSubmitting || feedbackTransportUnknown || !feedbackCanSubmit}}"
               bindtap="onSubmitFeedback"
             >{{feedbackSubmitting ? tr.feedbackSubmitting : tr.feedbackSubmit}}</button>
           </view>

@@ -298,6 +298,26 @@ and the current legal bundle before publishing:
 Priority is returned separately on the feedback row and is never an
 agent-readiness input.
 
+### PATCH /api/admin/feedback/{id}
+
+Retry triage, reject feedback, or approve a reviewed public draft. The admin
+list returns `publication_review_token`, an opaque digest of the exact displayed
+title/body, labels, consent, screenshot state, and current privacy policy.
+`approve` must echo that token:
+
+```json
+{
+  "action": "approve",
+  "review_token": "sha256:..."
+}
+```
+
+If retriage or another writer changed the draft after it was displayed, the
+endpoint returns `409`; the admin must refresh and review the new exact public
+text. An existing manual-review outbox may be superseded only when every prior
+attempt is proven `not_sent`/`rejected`. Any ambiguous attempt remains blocked
+for marker reconciliation and is never resent.
+
 ### PUT /api/admin/feedback/{id}/agent-ready-adjudication
 
 Append maintainer ground truth for the latest decision and synchronize the

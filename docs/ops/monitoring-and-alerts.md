@@ -64,6 +64,7 @@ custom signals in the table below belong to `appi-praxys-backend`.
 | `praxys.coach_feedback` | `insight_type`, `dataset_hash`*, `model`, `pillars`*, `vote`, `has_comment`, `comment_length`*, `comment_excerpt`*, `user_id_hash` | Dataset-scoped feedback on generated Coach insights. `*` customEvent only; the metric fallback omits high-cardinality fields. | `record_coach_feedback` |
 | `praxys.product_event` | `event_name`, `surface`, `app_version`, `response`, `user_id_hash` | Authenticated app/Today exposure, reasoning, and Decision Check events | `record_product_event` |
 | `praxys.feedback` | `kind`, `status` | In-app feedback submissions + triage outcomes | `record_feedback` |
+| `praxys.feedback_publication` | `status`, `reason` | Metadata-only publication config/provider failures and aggregate queue-age thresholds; never content, feedback/user ids, marker, URL, token, or response body | `record_feedback_publication` |
 | `praxys.db_health` | `status`, `backend` | DB integrity/connectivity failures (startup check + readiness probe) | `record_db_health` |
 | `praxys.sync` | `platform`, `outcome`, `failure_class`, `trigger`, `user_id_hash` | Per-platform sync attempt outcomes (success/failure + why) | `record_sync` |
 | `praxys.connection` | `platform`, `flow`, `stage`, `outcome`, `failure_class`, `region`, `user_id_hash` | Account-connect attempts; `flow` is the Garmin **mfa** vs **non_mfa** sub-category | `record_connection` |
@@ -487,6 +488,8 @@ Regional availability states are exact:
 | `wt-praxys-cn-www` | metric (web test) | `appi-trainsight` + regional frontend test | `https://www.praxys.cn/` reachable | 1 min | 1 | ~0.10 |
 | `wt-praxys-api-health` | metric (web test) | `appi-praxys-backend` + API test | `.../api/health` reachable | 1 min | 1 | ~0.10 |
 | `praxys-feedback-needs-review` | log | `appi-praxys-backend` | `praxys.feedback` `status == needs_review` | 15 min | 3 | 0.50 |
+| `praxys-feedback-publication-config-provider` | log | `appi-praxys-backend` | `praxys.feedback_publication` `config_failure` or `provider_failure` while the positive switch requests service | 15 min | 2 | 0.50 |
+| `praxys-feedback-publication-aging` | log | `appi-praxys-backend` | `praxys.feedback_publication` `queue_aged` (15 min) or `unknown_aged` (30 min) | 15 min | 3 | 0.50 |
 | `praxys-today-latency-regression` | log | `appi-praxys-backend` | `GET /api/today` avg latency > 3000 ms | 1 h | 3 | 0.50 |
 | `praxys-sync-systemic-failures` | log | `appi-praxys-backend` | `praxys.sync` — ≥5 distinct users hit systemic failure classes for one platform / 15 min | 15 min | 2 | 0.50 |
 | `praxys-connect-systemic-failures` | log | `appi-praxys-backend` | `praxys.connection` — ≥5 distinct users fail connect with systemic classes for one platform / 15 min | 15 min | 2 | 0.50 |
@@ -495,7 +498,7 @@ Regional availability states are exact:
 | `praxys-labs-queue-backlog` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `ActiveMessages` average > 2 over 30 min | 5 min | 2 | ~0.10 |
 | `praxys-labs-dead-lettered` | metric | dedicated Labs Service Bus namespace / `labs-environment-response` | `DeadletteredMessages` maximum > 0 over 5 min | 5 min | 2 | ~0.10 |
 
-**Current total ≈ 4.8–5.3 USD/mo.** The live `.run` apex pair adds at most
+**Current total ≈ 5.8–6.3 USD/mo.** The live `.run` apex pair adds at most
 ~0.10 USD/mo before the metric-alert free allotment. The two live `.cn` pairs
 add at most another ~0.20 USD/mo.
 
@@ -743,6 +746,37 @@ Wired as `praxys-feedback-needs-review` (results > 0, every 15 min, Sev 3,
 
 **Verify:** submit a test report that trips the gate (e.g. with `AZURE_AI_ENDPOINT`
 unset, or paste a fake `sk-...` token) and confirm the email within ~15 min.
+
+### Feedback publication delivery
+
+The deployment-owned `praxys-feedback-publication-config-provider` and
+`praxys-feedback-publication-aging` rules both attach the existing
+`praxys-feedback-ag` action group. The backend emits only bounded `status` and
+`reason` dimensions. It never emits feedback content, a feedback/user id,
+opaque marker, issue URL, credential, token, or provider response body.
+
+The config/provider rule fires only for an actionable mismatch after the
+positive enable requests publication with the emergency stop clear, or for a
+GitHub provider/authentication failure. Policy-off and emergency-stop states do
+not page. The aging rule fires when the oldest nonterminal queue item has been
+present for at least 15 minutes, or an ambiguous send has remained unresolved
+for at least 30 minutes. Investigate through the private metadata-only
+`GET /api/admin/feedback/publication-queue` view, then follow
+[admin-tasks.md](./admin-tasks.md); do not query or copy feedback bodies into
+logs.
+
+Both rules are created/read back by `scripts/appinsights_boundary.sh`, use a
+15-minute window/frequency, and fail deployment preflight if the action group
+or its enabled `support@praxys.run` receiver is missing.
+
+These two rules are backend-only trust-boundary resources. Preflight first
+proves that anonymous instrumentation-key ingestion is rejected, then creates
+or repairs them enabled on `appi-praxys-backend`. A reverse cutover deletes
+them instead of moving them to the browser-writable frontend component. A
+failed cutover restores a prior backend-scoped rule (including a prior disabled
+state), but deletes any legacy frontend-scoped prior state. Missing or partially
+created feedback-publication rules are safe during frontend rollback and are
+logged and skipped.
 
 ## Alert deep-dives
 
@@ -1057,7 +1091,9 @@ to an origin hostname is not a rollback and would hide the user-visible outage.
 `scripts/appinsights_boundary.sh backend-cutover` restores the prior App Service
 routing, scheduled-query scopes, API web-test hidden link, and metric-alert
 component if any step fails. For an operator-requested reverse migration,
-`rollback-to-frontend` moves the same complete set back to `appi-trainsight`.
+`rollback-to-frontend` moves the ordinary scheduled-query set back to
+`appi-trainsight`; feedback-publication rules are deleted and are never enabled
+or restored on that frontend component.
 Scheduled-query scopes are immutable in Azure, so both directions preserve the
 full writable rule JSON and delete/recreate each rule under the same name. Each
 replacement is read back and compared before the cutover continues; an

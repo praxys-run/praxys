@@ -1,11 +1,11 @@
-"""Minimal GitHub Issues REST client for the feedback triage pipeline.
+"""Typed GitHub Issues client for consent-bound feedback publication.
 
-Why a hand-rolled client instead of PyGithub: we make exactly one call
-(create an issue) against one repo, already depend on ``httpx``, and want to
-avoid pulling a new dependency into ``requirements.txt`` for a single POST.
+The client creates issues only in the fixed public repository
+``praxys-run/praxys`` and reconciles ambiguous sends by an exact opaque marker.
+It uses ``httpx`` directly to avoid adding a GitHub SDK dependency.
 
-Configuration (all optional — when unset, issue creation is skipped and the
-feedback row stays at ``triaged`` for manual admin promotion):
+Configuration is optional and fail-closed: when credentials, the exact
+repository setting, or publication authority are absent, no request is sent.
 
 Auth uses a **GitHub App** (no token to rotate): ``PRAXYS_GITHUB_APP_ID`` +
 ``PRAXYS_GITHUB_APP_INSTALLATION_ID`` + ``PRAXYS_GITHUB_APP_PRIVATE_KEY`` (PEM).
@@ -14,9 +14,7 @@ it. The app needs *Issues: write* and *Pull requests: read* on the target repo.
 The latter is used only to reconcile closing-PR outcome metadata. Setup:
 ``docs/ops/setup-github-app.md``.
 
-- ``PRAXYS_FEEDBACK_GITHUB_REPO`` — ``owner/repo`` of the triage repo. Because
-  the main repo is public, operators are encouraged to point this at a
-  PRIVATE triage repo so even scrubbed reports aren't world-readable.
+- ``PRAXYS_FEEDBACK_GITHUB_REPO`` — must equal ``praxys-run/praxys``.
 - ``PRAXYS_FEEDBACK_GITHUB_LABELS`` — comma-separated labels added to every
   issue *in addition* to the per-kind label (e.g. a label your coding-agent
   automation watches). Optional.
@@ -24,36 +22,75 @@ The latter is used only to reconcile closing-PR outcome metadata. Setup:
   (e.g. the GitHub Copilot coding-agent bot login, once enabled on the repo).
   Optional.
 
-Nothing here raises to the caller: a GitHub outage must not turn into a
-500 on the user's submit or an unhandled exception in a background task.
-Failures return ``None`` (or are logged) so the triage step can mark the row
-``failed`` and an admin can retry.
+Create and reconciliation calls return bounded typed outcomes. Ambiguous
+provider results remain unknown for marker-only reconciliation and are never
+blindly re-sent.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import os
+import re
+from typing import Literal, TypedDict
 from urllib.parse import quote, urlsplit
 
 import httpx
 
-from api.optional_processing import feedback_publication_disabled
+from api.optional_processing import (
+    feedback_publication_disabled,
+    feedback_publication_switch_status,
+)
 
 logger = logging.getLogger(__name__)
 
 _API_ROOT = "https://api.github.com"
 _API_VERSION = "2022-11-28"
 _TIMEOUT_S = 15.0
+FEEDBACK_REPOSITORY = "praxys-run/praxys"
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+class IssueCreateOutcome(TypedDict):
+    """Bounded result of a single GitHub issue POST."""
+
+    outcome: Literal["created", "not_sent", "rejected", "unknown"]
+    number: int | None
+    url: str | None
+    http_status: int | None
+    error_code: str | None
+
+
+class IssueReconcileOutcome(TypedDict):
+    """Bounded exact-marker reconciliation result."""
+
+    outcome: Literal["reconciled", "unknown", "multiple", "provider_failure"]
+    number: int | None
+    url: str | None
+    http_status: int | None
+    error_code: str | None
 
 
 def _repo() -> str | None:
-    return os.environ.get("PRAXYS_FEEDBACK_GITHUB_REPO") or None
+    raw = (os.environ.get("PRAXYS_FEEDBACK_GITHUB_REPO") or "").strip()
+    return FEEDBACK_REPOSITORY if raw == FEEDBACK_REPOSITORY else None
 
 
 # --- GitHub App auth (preferred — no token to rotate) ----------------------
 
 def _app_id() -> str | None:
     return os.environ.get("PRAXYS_GITHUB_APP_ID") or None
+
+
+def _configured_app_id() -> int | None:
+    """Return only a canonical positive decimal GitHub App identifier."""
+    raw = _app_id()
+    if not raw or not raw.isascii() or not raw.isdecimal():
+        return None
+    value = int(raw)
+    return value if value > 0 and str(value) == raw else None
 
 
 def _app_installation_id() -> str | None:
@@ -68,7 +105,49 @@ def _app_private_key() -> str | None:
 
 
 def _app_configured() -> bool:
-    return bool(_app_id() and _app_installation_id() and _app_private_key())
+    return bool(
+        _configured_app_id()
+        and _app_installation_id()
+        and _app_private_key()
+    )
+
+
+def credential_config_status() -> dict[str, bool]:
+    """Return non-secret GitHub App configuration presence."""
+    return {
+        "app_id_present": bool(_app_id()),
+        "installation_id_present": bool(_app_installation_id()),
+        "private_key_present": bool(_app_private_key()),
+        "credentials_present": _app_configured(),
+    }
+
+
+def publication_readiness() -> dict[str, bool | str]:
+    """Return a private, metadata-only publication readiness snapshot."""
+    switches = feedback_publication_switch_status()
+    credentials = credential_config_status()
+    repo_valid = _repo() == FEEDBACK_REPOSITORY
+    effective = bool(
+        switches["effective"]
+        and repo_valid
+        and credentials["credentials_present"]
+    )
+    if not switches["config_valid"] or not switches["positive_enable"] or not repo_valid:
+        reason = "policy_disabled"
+    elif switches["kill_switch"]:
+        reason = "emergency_stop"
+    elif not credentials["credentials_present"]:
+        reason = "credentials_missing"
+    else:
+        reason = "ready"
+    return {
+        **switches,
+        **credentials,
+        "repository_valid": repo_valid,
+        "target_repository": FEEDBACK_REPOSITORY,
+        "effective": effective,
+        "reason": reason,
+    }
 
 
 # Cache the minted installation token until shortly before it expires (~1h
@@ -94,7 +173,7 @@ def _app_jwt() -> str | None:
     try:
         return jwt.encode(payload, key, algorithm="RS256")
     except Exception:
-        logger.warning("GitHub App JWT signing failed — check the private key", exc_info=True)
+        logger.warning("GitHub App JWT signing failed")
         return None
 
 
@@ -116,14 +195,11 @@ def _mint_installation_token() -> str | None:
     }
     try:
         resp = httpx.post(url, headers=headers, timeout=_TIMEOUT_S)
-    except httpx.HTTPError as exc:
-        logger.warning("GitHub App token mint failed (network): %s", exc)
+    except httpx.HTTPError:
+        logger.warning("GitHub App token mint failed during provider request")
         return None
     if resp.status_code != 201:
-        logger.warning(
-            "GitHub App token mint failed: HTTP %s (%s)",
-            resp.status_code, resp.reason_phrase,
-        )
+        logger.warning("GitHub App token mint rejected by provider")
         return None
     # Parse once; a malformed-but-201 body must degrade to None (the module
     # contract is "never raise to the caller" — the admin approve route calls
@@ -167,9 +243,7 @@ def _bearer_token() -> str | None:
 
 def is_configured() -> bool:
     """Return whether external feedback publication is configured and allowed."""
-    return not feedback_publication_disabled() and bool(
-        _repo() and _app_configured()
-    )
+    return bool(publication_readiness()["effective"])
 
 
 def _csv_env(name: str) -> list[str]:
@@ -188,31 +262,38 @@ def assignees() -> list[str]:
     return _csv_env("PRAXYS_FEEDBACK_GITHUB_ASSIGNEES")
 
 
-def create_issue(
+def create_issue_outcome(
     *,
     title: str,
     body: str,
     labels: list[str] | None = None,
     assignees_override: list[str] | None = None,
     publication_authorized: bool = False,
-) -> dict | None:
-    """Create a GitHub issue and return ``{"number", "url"}`` or ``None``.
-
-    ``None`` is returned (and the cause logged) when GitHub isn't configured or
-    the API call fails for any reason. Callers must treat ``None`` as
-    "not published" and persist a retryable state.
-    """
+) -> IssueCreateOutcome:
+    """POST one issue and classify ambiguous outcomes without retrying them."""
     if feedback_publication_disabled() or not publication_authorized:
         logger.info(
             "GitHub issue creation skipped — publication disabled or unauthorized"
         )
-        return None
+        return {
+            "outcome": "not_sent",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "publication_not_authorized",
+        }
 
     token, repo = _bearer_token(), _repo()
     if not token or not repo:
         logger.info("GitHub issue creation skipped — GitHub App not configured "
                     "or PRAXYS_FEEDBACK_GITHUB_REPO unset")
-        return None
+        return {
+            "outcome": "not_sent",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "auth_missing",
+        }
 
     payload: dict = {"title": title[:256], "body": body}
     all_labels = list(labels or []) + extra_labels()
@@ -232,21 +313,263 @@ def create_issue(
     }
     try:
         resp = httpx.post(url, json=payload, headers=headers, timeout=_TIMEOUT_S)
-    except httpx.HTTPError as exc:
-        logger.warning("GitHub issue creation failed (network): %s", exc)
-        return None
+    except httpx.HTTPError:
+        # The request may have left this process. Never ordinary-retry it.
+        logger.warning("GitHub issue creation outcome is unknown (network)")
+        return {
+            "outcome": "unknown",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "network_unknown",
+        }
 
+    if resp.status_code >= 500:
+        logger.warning(
+            "GitHub issue creation outcome is unknown after provider error"
+        )
+        return {
+            "outcome": "unknown",
+            "number": None,
+            "url": None,
+            "http_status": resp.status_code,
+            "error_code": "provider_5xx",
+        }
     if resp.status_code not in (200, 201):
         # Don't log the response body verbatim at INFO — it can echo the
         # submitted title. Status + a short reason is enough for operators.
-        logger.warning(
-            "GitHub issue creation failed: HTTP %s (%s)",
-            resp.status_code, resp.reason_phrase,
-        )
-        return None
+        logger.warning("GitHub issue creation rejected by provider")
+        return {
+            "outcome": "rejected",
+            "number": None,
+            "url": None,
+            "http_status": resp.status_code,
+            "error_code": "provider_rejected",
+        }
 
-    data = resp.json()
-    return {"number": data.get("number"), "url": data.get("html_url")}
+    try:
+        data = resp.json() or {}
+        number = int(data.get("number"))
+        issue_url = str(data.get("html_url") or "")
+    except (TypeError, ValueError):
+        number = 0
+        issue_url = ""
+    if number < 1 or not issue_url_allowed(number, issue_url):
+        logger.warning("GitHub issue creation returned malformed success metadata")
+        return {
+            "outcome": "unknown",
+            "number": None,
+            "url": None,
+            "http_status": resp.status_code,
+            "error_code": "malformed_success",
+        }
+    return {
+        "outcome": "created",
+        "number": number,
+        "url": issue_url,
+        "http_status": resp.status_code,
+        "error_code": None,
+    }
+
+
+def create_issue(
+    *,
+    title: str,
+    body: str,
+    labels: list[str] | None = None,
+    assignees_override: list[str] | None = None,
+    publication_authorized: bool = False,
+) -> dict | None:
+    """Compatibility adapter returning a link only for confirmed creation."""
+    outcome = create_issue_outcome(
+        title=title,
+        body=body,
+        labels=labels,
+        assignees_override=assignees_override,
+        publication_authorized=publication_authorized,
+    )
+    if outcome["outcome"] != "created":
+        return None
+    return {"number": outcome["number"], "url": outcome["url"]}
+
+
+def issue_url_allowed(number: int, issue_url: str | None) -> bool:
+    """Allow only the exact public feedback repository issue URL."""
+    if not issue_url:
+        return False
+    parsed = urlsplit(issue_url)
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc.casefold() == "github.com"
+        and parsed.query == ""
+        and parsed.fragment == ""
+        and parsed.path.rstrip("/").casefold()
+        == f"/{FEEDBACK_REPOSITORY}/issues/{number}".casefold()
+    )
+
+
+def public_issue_content_sha256(*, title: str, body: str) -> str:
+    """Digest the exact public title/body without retaining either value."""
+    canonical = json.dumps(
+        {"body": body, "title": title},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def reconcile_issue_marker(
+    marker: str,
+    *,
+    public_content_sha256: str,
+) -> IssueReconcileOutcome:
+    """Find one exact, content-bound non-PR issue marker."""
+    if _SHA256_RE.fullmatch(public_content_sha256) is None:
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "invalid_content_binding",
+        }
+    token, repo = _bearer_token(), _repo()
+    expected_app_id = _configured_app_id()
+    if not token or not repo or expected_app_id is None:
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "auth_missing",
+        }
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _API_VERSION,
+        "User-Agent": "praxys-feedback",
+    }
+    try:
+        response = httpx.get(
+            f"{_API_ROOT}/search/issues",
+            params={"q": f'"{marker}" repo:{repo} type:issue', "per_page": 100},
+            headers=headers,
+            timeout=_TIMEOUT_S,
+        )
+    except httpx.HTTPError:
+        logger.warning("GitHub publication reconciliation failed (network)")
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": None,
+            "error_code": "network_failure",
+        }
+    if response.status_code != 200:
+        logger.warning("GitHub publication reconciliation rejected by provider")
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": response.status_code,
+            "error_code": "provider_failure",
+        }
+    try:
+        search_payload = response.json() or {}
+    except Exception:
+        search_payload = None
+    if not isinstance(search_payload, dict):
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": response.status_code,
+            "error_code": "malformed_response",
+        }
+    items = search_payload.get("items") or []
+    incomplete_results = search_payload.get("incomplete_results")
+    total_count = search_payload.get("total_count")
+    malformed_completeness = (
+        incomplete_results is not None
+        and type(incomplete_results) is not bool
+    ) or (
+        total_count is not None
+        and (type(total_count) is not int or total_count < 0)
+    )
+    if not isinstance(items, list) or malformed_completeness:
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": response.status_code,
+            "error_code": "malformed_response",
+        }
+    if incomplete_results is True or (
+        type(total_count) is int and total_count > len(items)
+    ):
+        return {
+            "outcome": "provider_failure",
+            "number": None,
+            "url": None,
+            "http_status": response.status_code,
+            "error_code": "incomplete_search_results",
+        }
+    matches: list[tuple[int, str]] = []
+    for item in items:
+        if not isinstance(item, dict) or item.get("pull_request") is not None:
+            continue
+        try:
+            number = int(item.get("number"))
+        except (TypeError, ValueError):
+            continue
+        url = str(item.get("html_url") or "")
+        title = item.get("title")
+        body = item.get("body")
+        performed_via = item.get("performed_via_github_app")
+        performed_via_id = (
+            performed_via.get("id")
+            if isinstance(performed_via, dict)
+            else None
+        )
+        if (
+            isinstance(title, str)
+            and isinstance(body, str)
+            and body.count(marker) == 1
+            and body.endswith("\n\n" + marker)
+            and hmac.compare_digest(
+                public_issue_content_sha256(title=title, body=body),
+                public_content_sha256,
+            )
+            and issue_url_allowed(number, url)
+            and type(performed_via_id) is int
+            and performed_via_id == expected_app_id
+        ):
+            matches.append((number, url))
+    if len(matches) == 1:
+        number, url = matches[0]
+        return {
+            "outcome": "reconciled",
+            "number": number,
+            "url": url,
+            "http_status": response.status_code,
+            "error_code": None,
+        }
+    if len(matches) > 1:
+        return {
+            "outcome": "multiple",
+            "number": None,
+            "url": None,
+            "http_status": response.status_code,
+            "error_code": "multiple_matches",
+        }
+    # Search is eventually consistent: zero matches never proves no POST.
+    return {
+        "outcome": "unknown",
+        "number": None,
+        "url": None,
+        "http_status": response.status_code,
+        "error_code": "not_indexed_or_absent",
+    }
 
 
 def set_issue_label(number: int, label: str, *, present: bool) -> bool:
@@ -278,15 +601,11 @@ def set_issue_label(number: int, label: str, *, present: bool) -> bool:
                 timeout=_TIMEOUT_S,
             )
             ok = resp.status_code in (200, 204, 404)
-    except httpx.HTTPError as exc:
-        logger.warning("GitHub issue label update failed (network): %s", exc)
+    except httpx.HTTPError:
+        logger.warning("GitHub issue label update failed during provider request")
         return False
     if not ok:
-        logger.warning(
-            "GitHub issue label update failed: HTTP %s (%s)",
-            resp.status_code,
-            resp.reason_phrase,
-        )
+        logger.warning("GitHub issue label update rejected by provider")
     return ok
 
 
@@ -295,14 +614,9 @@ def issue_matches_configured_repo(
     issue_url: str | None,
 ) -> bool:
     """Return whether a stored GitHub issue URL matches the configured repo."""
-    repo = _repo()
-    if not repo or not issue_url:
-        return False
-    parsed = urlsplit(issue_url)
-    if parsed.scheme != "https" or parsed.netloc.casefold() != "github.com":
-        return False
-    expected_path = f"/{repo}/issues/{number}"
-    return parsed.path.rstrip("/").casefold() == expected_path.casefold()
+    return _repo() == FEEDBACK_REPOSITORY and issue_url_allowed(
+        number, issue_url
+    )
 
 
 def get_issue_state(number: int) -> dict | None:
@@ -325,14 +639,11 @@ def get_issue_state(number: int) -> dict | None:
     }
     try:
         resp = httpx.get(url, headers=headers, timeout=_TIMEOUT_S)
-    except httpx.HTTPError as exc:
-        logger.warning("GitHub issue state fetch failed (network): %s", exc)
+    except httpx.HTTPError:
+        logger.warning("GitHub issue state fetch failed during provider request")
         return None
     if resp.status_code != 200:
-        logger.warning(
-            "GitHub issue state fetch failed: HTTP %s (%s)",
-            resp.status_code, resp.reason_phrase,
-        )
+        logger.warning("GitHub issue state fetch rejected by provider")
         return None
     try:
         data = resp.json() or {}
@@ -418,15 +729,11 @@ def get_issue_outcome(number: int) -> dict | None:
             headers=headers,
             timeout=_TIMEOUT_S,
         )
-    except httpx.HTTPError as exc:
-        logger.warning("GitHub issue outcome fetch failed (network): %s", exc)
+    except httpx.HTTPError:
+        logger.warning("GitHub issue outcome fetch failed during provider request")
         return _state_only_outcome(number)
     if resp.status_code != 200:
-        logger.warning(
-            "GitHub issue outcome fetch failed: HTTP %s (%s)",
-            resp.status_code,
-            resp.reason_phrase,
-        )
+        logger.warning("GitHub issue outcome fetch rejected by provider")
         return _state_only_outcome(number)
     try:
         payload = resp.json() or {}

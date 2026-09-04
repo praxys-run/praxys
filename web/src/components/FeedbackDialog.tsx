@@ -1,10 +1,28 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
-import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
+import { apiFetch } from '@/hooks/useApi';
 import { WEB_VERSION } from '@/lib/version';
 import { useLocale } from '@/contexts/LocaleContext';
-import type { FeedbackKind, FeedbackRequest, FeedbackResponse } from '@/types/api';
-import { feedbackPublicationConsent } from '@/lib/feedback';
+import type {
+  FeedbackKind,
+  FeedbackPublicationReadiness,
+  FeedbackPublicationResult,
+  FeedbackPublicationStatus,
+  FeedbackRequest,
+  FeedbackResponse,
+  FeedbackStatusResponse,
+} from '@/types/api';
+import {
+  applyFeedbackStatusLookup,
+  FeedbackReadinessRequestFence,
+  feedbackPublicationConsent,
+  feedbackPublicationCanCheck,
+  feedbackPublicationShouldRefresh,
+  getRecentFeedbackId,
+  normalizeFeedbackPublicationResult,
+  parseRecentFeedbackId,
+  setRecentFeedbackId,
+} from '@/lib/feedback';
 import {
   Dialog,
   DialogContent,
@@ -13,19 +31,53 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Check, ImagePlus, X } from 'lucide-react';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { cn } from '@/lib/utils';
 
 const MESSAGE_MAX = 5000;
 const MAX_IMAGES = 3;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const PUBLICATION_REFRESH_DELAY_MS = 2_000;
+
+function PublicationResultCopy({ status }: { status: FeedbackPublicationStatus }) {
+  switch (status) {
+    case 'private':
+      return <Trans>Your feedback was saved privately. No public GitHub issue will be created from this submission.</Trans>;
+    case 'queued':
+      return (
+        <Trans>
+          Your feedback was saved. Its scrubbed text summary is queued for review. No public GitHub issue has been
+          created yet, and publication is not guaranteed. Screenshots remain private.
+        </Trans>
+      );
+    case 'manual_required':
+      return <Trans>Your feedback was saved privately and needs manual review. No public GitHub issue has been created yet.</Trans>;
+    case 'published':
+      return <Trans>A scrubbed text summary was published to public GitHub. Anyone can view it. Screenshots remain private.</Trans>;
+    case 'unknown':
+      return (
+        <Trans>
+          Your feedback was received, but Praxys cannot confirm whether a public GitHub issue was created. Do not
+          submit it again yet. Check again later.
+        </Trans>
+      );
+    case 'unavailable':
+      return (
+        <Trans>
+          Your feedback was saved privately. Public GitHub publishing is currently unavailable, so no public issue
+          was created.
+        </Trans>
+      );
+  }
+}
 
 /** Read a File as a base64 data-URL (`data:image/png;base64,…`) for the API. */
 function fileToDataUrl(file: File): Promise<string> {
@@ -64,33 +116,224 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
   const [kind, setKind] = useState<FeedbackKind>(defaultKind);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<FeedbackPublicationResult | null>(null);
+  const [resultOrigin, setResultOrigin] = useState<'submitted' | 'status'>('submitted');
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [feedbackId, setFeedbackId] = useState<number | null>(null);
+  const [recentFeedbackId, setRecentFeedbackIdState] = useState<number | null>(null);
+  const [statusChecking, setStatusChecking] = useState(false);
+  const [statusCheckError, setStatusCheckError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [publishExternally, setPublishExternally] = useState(false);
+  const [publicationAvailable, setPublicationAvailable] = useState<boolean | null>(null);
+  const [transportUnknown, setTransportUnknown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const submittingRef = useRef(false);
+  const publicationRefreshCountRef = useRef(0);
+  const resultHeadingRef = useRef<HTMLParagraphElement | null>(null);
+  const resultRefreshButtonRef = useRef<HTMLButtonElement | null>(null);
+  const readinessFenceRef = useRef(new FeedbackReadinessRequestFence());
+  const statusCheckControllerRef = useRef<AbortController | null>(null);
+  const statusCheckGenerationRef = useRef(0);
+  const resultVisible = result !== null || resultMessage !== null;
+  const resultStatus = result?.status;
+  const kindItems = KIND_OPTIONS.map((option) => ({
+    label: i18n._(option.label),
+    value: option.value,
+  }));
 
   // Object URLs for thumbnail previews, derived from the selected files and
   // revoked when the set changes or the dialog unmounts so we don't leak them.
   const previews = useMemo(() => images.map((f) => URL.createObjectURL(f)), [images]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
+  const abortStatusCheck = () => {
+    statusCheckGenerationRef.current += 1;
+    statusCheckControllerRef.current?.abort();
+    statusCheckControllerRef.current = null;
+    setStatusChecking(false);
+  };
+
+  const abortPublicationReadiness = useCallback(() => {
+    readinessFenceRef.current.cancel();
+  }, []);
+
   const reset = () => {
+    abortPublicationReadiness();
+    abortStatusCheck();
     setMessage('');
     setKind(defaultKind);
-    setDone(false);
+    setResult(null);
+    setResultOrigin('submitted');
+    setResultMessage(null);
+    setFeedbackId(null);
+    setStatusCheckError(null);
     setError(null);
     setImages([]);
     setImageError(null);
     setPublishExternally(false);
+    setPublicationAvailable(null);
+    setTransportUnknown(false);
     setSubmitting(false);
+    submittingRef.current = false;
+    publicationRefreshCountRef.current = 0;
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
+    if (!next && submittingRef.current) return;
+    if (!next) {
+      reset();
+    }
     onOpenChange(next);
   };
+
+  useEffect(() => {
+    if (!open) {
+      abortPublicationReadiness();
+      return;
+    }
+    const readinessFence = readinessFenceRef.current;
+    const controller = new AbortController();
+    const generation = readinessFence.begin();
+    let readinessActive = true;
+    readinessFence.attach(generation, controller);
+    const isCurrent = () => readinessFence.canApply(
+      generation,
+      readinessActive,
+      controller.signal.aborted,
+    );
+    queueMicrotask(() => {
+      if (!isCurrent()) return;
+      setPublishExternally(false);
+      setPublicationAvailable(null);
+      setTransportUnknown(false);
+      setRecentFeedbackIdState(getRecentFeedbackId());
+      setStatusCheckError(null);
+    });
+    void apiFetch('/api/feedback/publication-readiness', {
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+      .then(async (response) => {
+        if (!isCurrent()) return null;
+        if (!response.ok) return { available: false };
+        const readiness = (await response.json()) as FeedbackPublicationReadiness;
+        return isCurrent() ? readiness : null;
+      })
+      .then((readiness) => {
+        if (readiness == null || !isCurrent()) return;
+        setPublicationAvailable(readiness.available === true);
+        if (readiness.available !== true) setPublishExternally(false);
+      })
+      .catch((reason: unknown) => {
+        if (!isCurrent()) return;
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        setPublicationAvailable(false);
+        setPublishExternally(false);
+      })
+      .finally(() => {
+        readinessFence.finish(generation, controller);
+      });
+    return () => {
+      readinessActive = false;
+      readinessFence.cancel(generation);
+    };
+  }, [abortPublicationReadiness, open]);
+
+  useEffect(() => {
+    if (resultVisible) resultHeadingRef.current?.focus();
+  }, [resultVisible]);
+
+  useEffect(() => {
+    if (
+      !open
+      || feedbackId == null
+      || resultStatus == null
+      || !feedbackPublicationShouldRefresh(
+        resultStatus,
+        publicationRefreshCountRef.current,
+      )
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = () => {
+      if (
+        controller.signal.aborted
+        || document.visibilityState === 'hidden'
+        || !feedbackPublicationShouldRefresh(
+          resultStatus,
+          publicationRefreshCountRef.current,
+        )
+      ) {
+        return;
+      }
+      timer = setTimeout(() => {
+        timer = null;
+        if (document.visibilityState === 'hidden') return;
+        publicationRefreshCountRef.current += 1;
+        void apiFetch('/api/me/feedback/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback_id: feedbackId }),
+          signal: controller.signal,
+          cache: 'no-store',
+        })
+          .then(async (response) => {
+            if (controller.signal.aborted) return null;
+            if (!response.ok) {
+              const disposition = applyFeedbackStatusLookup(
+                response.status,
+                feedbackId,
+                null,
+              );
+              if (disposition !== 'gone') return null;
+              setRecentFeedbackIdState(null);
+              setFeedbackId(null);
+              setResult(null);
+              setResultOrigin('status');
+              setResultMessage(t`The most recent feedback status is no longer available.`);
+              return null;
+            }
+            return (await response.json()) as FeedbackStatusResponse;
+          })
+          .then((response) => {
+            if (response == null || controller.signal.aborted) return;
+            if (
+              applyFeedbackStatusLookup(200, feedbackId, response.id)
+              !== 'success'
+            ) {
+              setRecentFeedbackIdState(null);
+              setFeedbackId(null);
+              setResult(null);
+              setResultOrigin('status');
+              setResultMessage(t`The most recent feedback status is no longer available.`);
+              return;
+            }
+            setResult(
+              normalizeFeedbackPublicationResult(response.publication),
+            );
+          })
+          .catch(() => undefined)
+          .finally(schedule);
+      }, PUBLICATION_REFRESH_DELAY_MS);
+    };
+    const resumeWhenVisible = () => {
+      if (document.visibilityState === 'visible' && timer == null) schedule();
+    };
+
+    document.addEventListener('visibilitychange', resumeWhenVisible);
+    schedule();
+    return () => {
+      controller.abort();
+      if (timer != null) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', resumeWhenVisible);
+    };
+  }, [feedbackId, open, resultStatus, t]);
 
   const captureContext = (): Record<string, string | number> => ({
     page: location.pathname,
@@ -144,9 +387,100 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
     }
   };
 
+  const checkRecentFeedbackStatus = async () => {
+    const expectedId = getRecentFeedbackId();
+    if (expectedId == null) {
+      setRecentFeedbackIdState(null);
+      return;
+    }
+    const refreshingResult = resultVisible;
+    abortStatusCheck();
+    setFeedbackId(null);
+    publicationRefreshCountRef.current = 0;
+    const controller = new AbortController();
+    statusCheckControllerRef.current = controller;
+    const generation = statusCheckGenerationRef.current;
+    setStatusChecking(true);
+    setStatusCheckError(null);
+    try {
+      const response = await apiFetch('/api/me/feedback/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback_id: expectedId }),
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      if (controller.signal.aborted || generation !== statusCheckGenerationRef.current) return;
+
+      let payload: FeedbackStatusResponse | null = null;
+      if (response.ok) {
+        const parsed: unknown = await response.json();
+        if (
+          parsed == null
+          || typeof parsed !== 'object'
+          || Array.isArray(parsed)
+          || !('publication' in parsed)
+        ) {
+          throw new Error('invalid feedback status response');
+        }
+        payload = parsed as FeedbackStatusResponse;
+      }
+      if (controller.signal.aborted || generation !== statusCheckGenerationRef.current) return;
+
+      const disposition = applyFeedbackStatusLookup(
+        response.status,
+        expectedId,
+        payload?.id,
+      );
+      if (disposition === 'gone') {
+        setRecentFeedbackIdState(null);
+        setResult(null);
+        setResultOrigin('status');
+        setResultMessage(t`The most recent feedback status is no longer available.`);
+        if (refreshingResult) {
+          requestAnimationFrame(() => resultHeadingRef.current?.focus());
+        }
+        return;
+      }
+      if (disposition !== 'success' || payload == null) {
+        setStatusCheckError(t`Couldn't check feedback status. Try again.`);
+        return;
+      }
+
+      const nextResult = normalizeFeedbackPublicationResult(payload.publication);
+      setResult(nextResult);
+      setResultOrigin('status');
+      setResultMessage(null);
+      setStatusCheckError(null);
+      if (refreshingResult) {
+        requestAnimationFrame(() => {
+          if (feedbackPublicationCanCheck(nextResult.status)) {
+            resultRefreshButtonRef.current?.focus();
+          } else {
+            resultHeadingRef.current?.focus();
+          }
+        });
+      }
+    } catch (reason: unknown) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      if (generation === statusCheckGenerationRef.current) {
+        setStatusCheckError(t`Couldn't check feedback status. Try again.`);
+      }
+    } finally {
+      if (generation === statusCheckGenerationRef.current) {
+        statusCheckControllerRef.current = null;
+        setStatusChecking(false);
+      }
+    }
+  };
+
   const submit = async () => {
+    if (submittingRef.current || transportUnknown) return;
     const trimmed = message.trim();
     if (!trimmed) return;
+    abortPublicationReadiness();
+    abortStatusCheck();
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -159,31 +493,59 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
         images: imagePayload,
         ...feedbackPublicationConsent(publishExternally),
       };
-      const res = await fetch(`${API_BASE}/api/feedback`, {
+      const res = await apiFetch('/api/feedback', {
         method: 'POST',
-        headers: { ...(getAuthHeaders() as Record<string, string>), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (res.status === 429) {
         setError(t`You've sent several reports recently — please wait a few minutes before sending more.`);
         return;
       }
+      if (res.status >= 500) {
+        setTransportUnknown(true);
+        setError(t`Praxys could not confirm whether your feedback was received. It may already have been saved. Do not submit it again yet; reconnect and check its status.`);
+        return;
+      }
       if (!res.ok) {
         setError(t`Couldn't send your feedback. Please try again.`);
         return;
       }
-      (await res.json()) as FeedbackResponse;
-      setDone(true);
+      const response = (await res.json()) as FeedbackResponse;
+      const acknowledgedId = parseRecentFeedbackId(response.id);
+      if (acknowledgedId == null) {
+        setTransportUnknown(true);
+        setError(t`Praxys could not confirm whether your feedback was received. It may already have been saved. Do not submit it again yet; reconnect and check its status.`);
+        return;
+      }
+      const acknowledgedResult = normalizeFeedbackPublicationResult(
+        response.publication,
+      );
+      const storedId = setRecentFeedbackId(acknowledgedId)
+        ? getRecentFeedbackId()
+        : null;
+      setRecentFeedbackIdState(storedId);
+      publicationRefreshCountRef.current = 0;
+      setFeedbackId(acknowledgedId);
+      setResultOrigin('submitted');
+      setResultMessage(null);
+      setStatusCheckError(null);
+      setResult(acknowledgedResult);
     } catch {
-      setError(t`Network error — please try again.`);
+      setTransportUnknown(true);
+      setError(t`Praxys could not confirm whether your feedback was received. It may already have been saved. Do not submit it again yet; reconnect and check its status.`);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        closeLabel={t`Close`}
+      >
         <DialogHeader>
           <DialogTitle>
             <Trans>Send feedback</Trans>
@@ -193,42 +555,85 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
           </DialogDescription>
         </DialogHeader>
 
-        {done ? (
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <Check className="h-5 w-5" />
+        {resultVisible ? (
+          <div
+            className="flex flex-col items-center gap-3 py-6 text-center"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {result ? (
+              <div className="flex size-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Check className="size-5" aria-hidden="true" />
+              </div>
+            ) : null}
+            <p ref={resultHeadingRef} tabIndex={-1} className="text-sm font-medium outline-none">
+              {resultOrigin === 'submitted' ? <Trans>Feedback sent</Trans> : <Trans>Feedback status</Trans>}
+            </p>
+            <p className="max-w-[65ch] text-sm text-muted-foreground">
+              {resultMessage ?? (result ? <PublicationResultCopy status={result.status} /> : null)}
+            </p>
+            {statusCheckError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{statusCheckError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              {result?.status === 'published' && result.issue_url ? (
+                <a
+                  href={result.issue_url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={cn(buttonVariants({ variant: 'outline' }), 'min-h-11')}
+                >
+                  <Trans>View public GitHub issue</Trans>
+                </a>
+              ) : null}
+              {result && recentFeedbackId != null && feedbackPublicationCanCheck(result.status) ? (
+                <Button
+                  ref={resultRefreshButtonRef}
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={statusChecking}
+                  onClick={() => void checkRecentFeedbackStatus()}
+                >
+                  {statusChecking ? <Trans>Checking status…</Trans> : <Trans>Check status</Trans>}
+                </Button>
+              ) : null}
+              <Button className="min-h-11" onClick={() => handleOpenChange(false)}>
+                <Trans>Close</Trans>
+              </Button>
             </div>
-            <p className="text-sm font-medium">
-              <Trans>Thanks for the feedback!</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>We've logged it and will take a look.</Trans>
-            </p>
-            <Button className="mt-2" onClick={() => handleOpenChange(false)}>
-              <Trans>Close</Trans>
-            </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-4" aria-busy={submitting}>
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="feedback-kind">
-                <Trans>Type</Trans>
+                <Trans>Feedback Type</Trans>
               </Label>
-              <Select value={kind} onValueChange={(v) => v && setKind(v as FeedbackKind)}>
-                <SelectTrigger id="feedback-kind" className="w-full">
+              <Select
+                items={kindItems}
+                value={kind}
+                disabled={submitting}
+                onValueChange={(v) => v && setKind(v as FeedbackKind)}
+              >
+                <SelectTrigger id="feedback-kind" className="min-h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {KIND_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {i18n._(opt.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {KIND_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {i18n._(opt.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="feedback-message">
                 <Trans>Details</Trans>
               </Label>
@@ -255,29 +660,43 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
               </Trans>
             </p>
 
-            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+            <label className="flex min-h-11 items-start gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={publishExternally}
                 onChange={(event) => setPublishExternally(event.target.checked)}
-                disabled={submitting}
+                disabled={submitting || publicationAvailable !== true}
                 aria-describedby="feedback-publication-helper"
                 className="mt-0.5 flex-none"
               />
-              <span className="space-y-1">
+              <span className="flex flex-col gap-1">
                 <span className="block text-foreground">
-                  <Trans>Publish a scrubbed text summary to Praxys’s external issue tracker</Trans>
+                  <Trans>Allow Praxys to publish a scrubbed text summary of this feedback as a public GitHub issue</Trans>
                 </span>
                 <span id="feedback-publication-helper" className="block text-xs leading-relaxed">
                   <Trans>
-                    Optional. Praxys removes personal details before publication. Screenshots always remain private.
-                    You can send feedback without allowing publication.
+                    Optional and off by default. If published to praxys-run/praxys, anyone can view the text summary.
+                    GitHub is outside mainland China, and public issues may be retained long term. Screenshots are
+                    never published. Leave this unchecked to send your feedback privately.
                   </Trans>
                 </span>
               </span>
             </label>
 
-            <div className="space-y-2">
+            {publicationAvailable === false ? (
+              <Alert>
+                <AlertDescription>
+                  <Trans>Public GitHub publishing is currently turned off. You can still send this feedback privately.</Trans>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {publicationAvailable === null ? (
+              <p className="text-xs text-muted-foreground" role="status">
+                <Trans>Checking public publishing availability…</Trans>
+              </p>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -289,7 +708,7 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
                   e.target.value = '';
                 }}
               />
-              {previews.length > 0 && (
+              {previews.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {previews.map((src, i) => (
                     <div key={i} className="relative">
@@ -298,27 +717,30 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
                         alt=""
                         className="h-16 w-16 rounded-md border border-border object-cover"
                       />
-                      <button
+                      <Button
                         type="button"
                         aria-label={t`Remove image`}
                         onClick={() => removeImage(i)}
                         disabled={submitting}
-                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background text-muted-foreground shadow ring-1 ring-border transition-colors hover:text-foreground disabled:opacity-50"
+                        variant="outline"
+                        size="icon"
+                        className="absolute -right-2 -top-2 size-11"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
+                        <X />
+                      </Button>
                     </div>
                   ))}
                 </div>
-              )}
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || images.length >= MAX_IMAGES}
               >
-                <ImagePlus className="h-4 w-4" />
+                <ImagePlus data-icon="inline-start" />
                 <Trans>Add screenshot</Trans>
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -327,20 +749,45 @@ export default function FeedbackDialog({ open, onOpenChange, defaultKind = 'bug'
                   help investigate your feedback.
                 </Trans>
               </p>
-              {imageError && <p className="text-xs text-destructive">{imageError}</p>}
+              {imageError ? <p className="text-xs text-destructive" role="alert">{imageError}</p> : null}
             </div>
 
-            {error && (
-              <Alert variant="destructive">
+            {error ? (
+              <Alert variant="destructive" role="alert" aria-live="assertive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
-            )}
+            ) : null}
+            {statusCheckError ? (
+              <Alert variant="destructive" role="alert">
+                <AlertDescription>{statusCheckError}</AlertDescription>
+              </Alert>
+            ) : null}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
+              {recentFeedbackId != null ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={submitting || statusChecking}
+                  onClick={() => void checkRecentFeedbackStatus()}
+                >
+                  {statusChecking ? <Trans>Checking status…</Trans> : <Trans>Check most recent feedback status</Trans>}
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                className="min-h-11"
+                onClick={() => handleOpenChange(false)}
+                disabled={submitting}
+              >
                 <Trans>Cancel</Trans>
               </Button>
-              <Button onClick={submit} disabled={submitting || !message.trim()}>
+              <Button
+                className="min-h-11"
+                onClick={submit}
+                disabled={submitting || transportUnknown || !message.trim()}
+              >
                 {submitting ? <Trans>Sending…</Trans> : <Trans>Send feedback</Trans>}
               </Button>
             </DialogFooter>

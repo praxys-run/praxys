@@ -29,6 +29,7 @@ import type {
   AgentReadyAdjudicationReason,
   AgentReadyDecisionReason,
   FeedbackPriority,
+  FeedbackPublicationStatus,
   FeedbackStatus,
 } from '@/types/api';
 import { AdminEmptyState, AdminRouteError, AdminRouteSkeleton } from './AdminRouteState';
@@ -114,6 +115,23 @@ export default function AdminFeedback() {
     }
   };
 
+  const feedbackPublicationLabel = (status: FeedbackPublicationStatus): string => {
+    switch (status) {
+      case 'private':
+        return t`Private`;
+      case 'queued':
+        return t`Publication queued`;
+      case 'published':
+        return t`Published`;
+      case 'manual_required':
+        return t`Manual publication review`;
+      case 'unknown':
+        return t`Publication unknown`;
+      case 'unavailable':
+        return t`Publication unavailable`;
+    }
+  };
+
   const feedbackKindLabel = (kind: AdminFeedbackItem['kind']): string => {
     switch (kind) {
       case 'bug':
@@ -174,15 +192,18 @@ export default function AdminFeedback() {
     [feedback],
   );
 
-  const handleFeedbackAction = async (id: number, action: 'retry' | 'reject' | 'approve') => {
-    setFeedbackBusy(id);
+  const handleFeedbackAction = async (item: AdminFeedbackItem, action: 'retry' | 'reject' | 'approve') => {
+    setFeedbackBusy(item.id);
     setFeedbackActionMsg(null);
     setFeedbackActionError(false);
     try {
-      const res = await apiFetch(`/api/admin/feedback/${id}`, {
+      const res = await apiFetch(`/api/admin/feedback/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          review_token: action === 'approve' ? item.publication_review_token : null,
+        }),
       });
       if (!res.ok) {
         setFeedbackActionMsg(await extractErrorMessage(res, t`Couldn't update feedback.`));
@@ -366,11 +387,14 @@ export default function AdminFeedback() {
             </div>
           </div>
           {feedbackSyncMsg ? <p className="mt-2 text-xs text-muted-foreground">{feedbackSyncMsg}</p> : null}
-          {feedbackActionMsg ? (
-            <p className={`mt-2 text-xs ${feedbackActionError ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {feedbackActionMsg}
-            </p>
-          ) : null}
+          <p
+            className={`mt-2 min-h-4 text-xs ${feedbackActionError ? 'text-destructive' : 'text-muted-foreground'}`}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {feedbackActionMsg ?? ''}
+          </p>
         </CardHeader>
         <CardContent>
           {sortedFeedback.length === 0 ? (
@@ -397,16 +421,19 @@ export default function AdminFeedback() {
               <TableBody>
                 {sortedFeedback.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <Badge variant="outline">{feedbackKindLabel(item.kind)}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <div className="flex flex-col items-start gap-1">
                         <Badge
                           variant={feedbackStatusVariant(item.status)}
                           className={item.status === 'resolved' ? 'border-primary/40 text-primary' : undefined}
                         >
                           {feedbackStatusLabel(item.status)}
+                        </Badge>
+                        <Badge variant="outline">
+                          {feedbackPublicationLabel(item.publication_status)}
                         </Badge>
                         {item.priority ? (
                           <Badge variant="outline" className={FEEDBACK_PRIORITY_CLASS[item.priority]}>
@@ -415,8 +442,18 @@ export default function AdminFeedback() {
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-sm">
+                    <TableCell className="max-w-sm align-top">
                       <p className="truncate text-sm" title={item.message}>{item.ai_title || item.message}</p>
+                      {item.ai_body ? (
+                        <details className="mt-2 text-xs">
+                          <summary className="min-h-11 cursor-pointer py-3 text-muted-foreground hover:text-foreground">
+                            <Trans>Review exact public issue text</Trans>
+                          </summary>
+                          <p className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-3 leading-relaxed text-foreground">
+                            {item.ai_body}
+                          </p>
+                        </details>
+                      ) : null}
                       {item.error ? <p className="text-xs text-destructive">{item.error}</p> : null}
                       {item.image_count > 0 ? (
                         <>
@@ -434,7 +471,7 @@ export default function AdminFeedback() {
                         </>
                       ) : null}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       {item.github_issue_url ? (
                         <a
                           href={item.github_issue_url}
@@ -449,7 +486,7 @@ export default function AdminFeedback() {
                         <span className="text-sm text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="min-w-[290px] whitespace-normal">
+                    <TableCell className="min-w-[290px] align-top whitespace-normal">
                       {item.agent_readiness ? (
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
@@ -556,7 +593,7 @@ export default function AdminFeedback() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="align-top text-right">
                       <div className="flex flex-wrap items-center justify-end gap-1">
                         {item.status === 'needs_review' ? (
                           item.external_publication_consent ? (
@@ -564,11 +601,11 @@ export default function AdminFeedback() {
                               type="button"
                               size="xs"
                               variant="outline"
-                              disabled={feedbackBusy === item.id}
-                              onClick={() => void handleFeedbackAction(item.id, 'approve')}
+                              disabled={feedbackBusy === item.id || !item.publication_review_token}
+                              onClick={() => void handleFeedbackAction(item, 'approve')}
                             >
                               <Check className="h-3 w-3" />
-                              <Trans>Approve & file</Trans>
+                              <Trans>Approve & queue</Trans>
                             </Button>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs leading-tight text-muted-foreground">
@@ -583,7 +620,7 @@ export default function AdminFeedback() {
                             size="xs"
                             variant="outline"
                             disabled={feedbackBusy === item.id}
-                            onClick={() => void handleFeedbackAction(item.id, 'retry')}
+                            onClick={() => void handleFeedbackAction(item, 'retry')}
                           >
                             <RotateCcw className="h-3 w-3" />
                             <Trans>Retry</Trans>
@@ -595,7 +632,7 @@ export default function AdminFeedback() {
                             size="xs"
                             variant="ghost"
                             disabled={feedbackBusy === item.id}
-                            onClick={() => void handleFeedbackAction(item.id, 'reject')}
+                            onClick={() => void handleFeedbackAction(item, 'reject')}
                           >
                             <Trans>Reject</Trans>
                           </Button>

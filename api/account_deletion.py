@@ -25,6 +25,8 @@ from db.models import (
     CacheRevision,
     DashboardCache,
     Feedback,
+    FeedbackPublicationAttempt,
+    FeedbackPublicationOutbox,
     FitnessData,
     GoalBaselineAssessment,
     GoalBaselineConfirmation,
@@ -131,7 +133,17 @@ def _cancel_active_labs_work(
     return len(jobs)
 
 
-def _delete_user_owned_rows(db: Session, user_id: str) -> None:
+def _delete_user_owned_rows(
+    db: Session,
+    user_id: str,
+    *,
+    feedback_ids: list[int],
+    publication_outboxes_by_feedback_id: dict[int, FeedbackPublicationOutbox],
+    publication_attempts_by_outbox_id: dict[
+        str,
+        list[FeedbackPublicationAttempt],
+    ],
+) -> None:
     """Delete a user's owned rows and detach every remaining reference to them.
 
     Rows keyed by a NOT-NULL ``user_id`` FK are the user's own data and are
@@ -149,14 +161,22 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
       ``used_by IS NULL``; see api/invitations.py).
     * ``app_config.updated_by`` (nullable) — the operator flag row is kept; only
       the "who last changed this" reference is nulled.
+    * ``feedback_publication_outbox.feedback_id`` (nullable) — private feedback
+      is deleted, while marker/digest delivery evidence is detached and retained.
     """
-    feedback_refs = [
-        str(feedback_id)
-        for (feedback_id,) in db.query(Feedback.id)
-        .filter(Feedback.user_id == user_id)
-        .with_for_update()
-        .all()
-    ]
+    feedback_refs = [str(feedback_id) for feedback_id in feedback_ids]
+    _detach_feedback_publication_evidence(
+        db,
+        sorted(
+            (
+                publication_outboxes_by_feedback_id[feedback_id]
+                for feedback_id in feedback_ids
+                if feedback_id in publication_outboxes_by_feedback_id
+            ),
+            key=lambda outbox: str(outbox.id),
+        ),
+        publication_attempts_by_outbox_id,
+    )
     delivery_ids = [
         delivery_id
         for (delivery_id,) in db.query(PlanDelivery.id)
@@ -285,17 +305,146 @@ def _delete_user_owned_rows(db: Session, user_id: str) -> None:
     )
 
 
-def _delete_feedback_images(db: Session, user_id: str) -> None:
-    """Delete exact screenshot keys owned by one server-selected account."""
-    rows = (
-        db.query(Feedback.id, Feedback.image_keys)
-        .filter(Feedback.user_id == user_id)
-        .with_for_update()
-        .all()
+def _feedback_publication_outbox_lock_query(
+    db: Session,
+    user_ids: tuple[str, ...],
+) -> object:
+    """Build the stable account-deletion Outbox lock query."""
+    query = (
+        db.query(FeedbackPublicationOutbox)
+        .populate_existing()
+        .join(Feedback, Feedback.id == FeedbackPublicationOutbox.feedback_id)
+        .filter(
+            Feedback.user_id.in_(user_ids),
+            FeedbackPublicationOutbox.feedback_id.isnot(None),
+        )
+        .order_by(FeedbackPublicationOutbox.id.asc())
     )
-    for feedback_id, image_keys in rows:
-        for key in image_keys or []:
-            feedback_storage.delete_image(key, feedback_id=feedback_id)
+    if db.get_bind().dialect.name == "postgresql":
+        return query.with_for_update(of=FeedbackPublicationOutbox)
+    return query.with_for_update()
+
+
+def _feedback_publication_attempt_lock_query(
+    db: Session,
+    outbox_ids: tuple[str, ...],
+) -> object:
+    """Build the stable mutable-A lock query for account deletion."""
+    query = (
+        db.query(FeedbackPublicationAttempt)
+        .populate_existing()
+        .filter(
+            FeedbackPublicationAttempt.outbox_id.in_(outbox_ids),
+            FeedbackPublicationAttempt.outcome == "in_flight",
+        )
+        .order_by(FeedbackPublicationAttempt.id.asc())
+    )
+    if db.get_bind().dialect.name == "postgresql":
+        return query.with_for_update(of=FeedbackPublicationAttempt)
+    return query.with_for_update()
+
+
+def _account_feedback_lock_query(
+    db: Session,
+    user_ids: tuple[str, ...],
+) -> object:
+    """Build the stable exact-F lock query after O and A are owned."""
+    query = (
+        db.query(Feedback)
+        .populate_existing()
+        .filter(Feedback.user_id.in_(user_ids))
+        .order_by(Feedback.id.asc())
+    )
+    if db.get_bind().dialect.name == "postgresql":
+        return query.with_for_update(of=Feedback)
+    return query.with_for_update()
+
+
+def _lock_feedback_publication_evidence(
+    db: Session,
+    user_ids: tuple[str, ...],
+) -> dict[int, FeedbackPublicationOutbox]:
+    """Lock every attached publication row before any private Feedback row."""
+    if not user_ids:
+        return {}
+    outboxes = _feedback_publication_outbox_lock_query(db, user_ids).all()
+    return {
+        int(outbox.feedback_id): outbox
+        for outbox in outboxes
+        if outbox.feedback_id is not None
+    }
+
+
+def _lock_feedback_publication_attempts(
+    db: Session,
+    outboxes: tuple[FeedbackPublicationOutbox, ...],
+) -> dict[str, list[FeedbackPublicationAttempt]]:
+    """Lock all mutable attempt rows after O and before any F lock."""
+    if not outboxes:
+        return {}
+    attempts = _feedback_publication_attempt_lock_query(
+        db,
+        tuple(str(outbox.id) for outbox in outboxes),
+    ).all()
+    by_outbox_id: dict[str, list[FeedbackPublicationAttempt]] = {}
+    for attempt in attempts:
+        by_outbox_id.setdefault(str(attempt.outbox_id), []).append(attempt)
+    return by_outbox_id
+
+
+def _detach_feedback_publication_evidence(
+    db: Session,
+    outboxes: list[FeedbackPublicationOutbox],
+    attempts_by_outbox_id: dict[str, list[FeedbackPublicationAttempt]],
+) -> None:
+    """Detach already-locked O/A evidence without reversing the global order."""
+    now = datetime.utcnow()
+    for outbox in outboxes:
+        if outbox.state in ("sending", "reconciling"):
+            outbox.delivery_evidence = "ambiguous"
+            for attempt in attempts_by_outbox_id.get(str(outbox.id), []):
+                attempt.outcome = "unknown"
+                attempt.error_code = "account_deleted_during_send"
+                attempt.finished_at = now
+        if (
+            outbox.delivery_evidence == "not_sent"
+            and outbox.state in ("pending", "retry_wait", "held", "manual_review")
+        ):
+            outbox.state = "cancelled"
+            outbox.last_error_code = "account_deleted_before_send"
+        elif outbox.state == "sending":
+            outbox.state = "reconciling"
+            outbox.available_at = now
+            outbox.last_error_code = "account_deleted_during_send"
+        elif outbox.state == "reconciling":
+            # Fence a concurrent or abandoned marker lookup. Reconciliation can
+            # resume from the immutable marker and digest after the private row
+            # is gone, but no send path may run again.
+            outbox.available_at = now
+            if not outbox.last_error_code:
+                outbox.last_error_code = "account_deleted_after_unknown"
+        elif outbox.delivery_evidence == "ambiguous":
+            # Manual ambiguity (notably multiple exact marker matches) cannot
+            # be relabelled as "before send" merely because private source data
+            # is being erased. Preserve it for operator investigation.
+            outbox.state = "manual_review"
+            if not outbox.last_error_code:
+                outbox.last_error_code = "account_deleted_after_ambiguity"
+        outbox.lease_token = None
+        outbox.lease_expires_at = None
+        outbox.updated_at = now
+        outbox.feedback_id = None
+
+
+def _delete_feedback_images(rows: list[Feedback]) -> None:
+    """Delete exact screenshot keys from already-locked private rows."""
+    for feedback in rows:
+        for key in feedback.image_keys or []:
+            feedback_storage.delete_image(
+                key,
+                feedback_id=feedback.id,
+                provenance=feedback.image_storage_provenance,
+            )
 
 
 def _clear_tokenstore(user_id: str) -> None:
@@ -305,10 +454,7 @@ def _clear_tokenstore(user_id: str) -> None:
     try:
         clear_garmin_tokens(user_id)
     except OSError:
-        logger.exception(
-            "User %s deleted but Garmin legacy-token cleanup failed.",
-            user_id,
-        )
+        logger.error("Account deletion Garmin legacy-token cleanup failed")
 
 
 def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
@@ -328,10 +474,8 @@ def _clear_legacy_plan_status(db: Session, user_id: str) -> None:
                 except FileNotFoundError:
                     continue
                 except OSError:
-                    logger.exception(
-                        "User %s deleted but legacy plan-status cleanup failed for %s.",
-                        user_id,
-                        candidate,
+                    logger.error(
+                        "Account deletion legacy plan-status cleanup failed"
                     )
     finally:
         db.rollback()
@@ -359,7 +503,7 @@ def delete_user_account(
             )
     except AccountLifecycleBusy as exc:
         db.rollback()
-        logger.warning("Account deletion lease busy for user %s", user_id)
+        logger.warning("Account deletion lease busy")
         raise HTTPException(503, "ACCOUNT_DELETE_BUSY") from exc
 
 
@@ -423,10 +567,7 @@ def _delete_user_account_locked(
         )
     except PersonalContextDeletionError:
         db.rollback()
-        logger.exception(
-            "Account context deletion manifest failed for user %s",
-            user_id,
-        )
+        logger.error("Account context deletion manifest staging failed")
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
     user.is_active = False
@@ -438,7 +579,7 @@ def _delete_user_account_locked(
         db.commit()
     except Exception:
         db.rollback()
-        logger.exception("Failed to mark account deleting for user %s", user_id)
+        logger.error("Account deletion deactivation commit failed")
         raise HTTPException(500, "ACCOUNT_DELETE_FAILED")
 
     begin_serialized_write(db)
@@ -460,25 +601,61 @@ def _delete_user_account_locked(
         .populate_existing()
         .with_for_update()
         .filter(User.demo_of == user_id)
+        .order_by(User.id.asc())
         .all()
     )
+    scoped_user_ids = tuple(
+        sorted([user_id, *(str(demo.id) for demo in demo_users)])
+    )
+    publication_outboxes_by_feedback_id = _lock_feedback_publication_evidence(
+        db,
+        scoped_user_ids,
+    )
+    locked_publication_outboxes = tuple(
+        sorted(
+            publication_outboxes_by_feedback_id.values(),
+            key=lambda outbox: str(outbox.id),
+        )
+    )
+    publication_attempts_by_outbox_id = _lock_feedback_publication_attempts(
+        db,
+        locked_publication_outboxes,
+    )
+    feedback_rows = _account_feedback_lock_query(db, scoped_user_ids).all()
+    feedback_ids_by_user: dict[str, list[int]] = {
+        scoped_user_id: [] for scoped_user_id in scoped_user_ids
+    }
+    for feedback in feedback_rows:
+        feedback_ids_by_user.setdefault(str(feedback.user_id), []).append(
+            int(feedback.id)
+        )
     try:
-        for scoped_user_id in [user_id, *(demo.id for demo in demo_users)]:
-            _delete_feedback_images(db, scoped_user_id)
+        _delete_feedback_images(feedback_rows)
     except feedback_storage.FeedbackStorageDeletionError:
         db.rollback()
-        logger.exception(
-            "Feedback screenshot deletion failed for user %s",
-            user_id,
-        )
+        logger.error("Account feedback screenshot deletion failed")
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
 
     for demo_user in demo_users:
-        _delete_user_owned_rows(db, demo_user.id)
+        _delete_user_owned_rows(
+            db,
+            demo_user.id,
+            feedback_ids=feedback_ids_by_user.get(str(demo_user.id), []),
+            publication_outboxes_by_feedback_id=publication_outboxes_by_feedback_id,
+            publication_attempts_by_outbox_id=(
+                publication_attempts_by_outbox_id
+            ),
+        )
         db.delete(demo_user)
         deleted_user_ids.append(demo_user.id)
 
-    _delete_user_owned_rows(db, user_id)
+    _delete_user_owned_rows(
+        db,
+        user_id,
+        feedback_ids=feedback_ids_by_user.get(user_id, []),
+        publication_outboxes_by_feedback_id=publication_outboxes_by_feedback_id,
+        publication_attempts_by_outbox_id=publication_attempts_by_outbox_id,
+    )
     db.delete(user)
     deleted_user_ids.append(user_id)
 
@@ -486,7 +663,7 @@ def _delete_user_account_locked(
         db.commit()
     except Exception:
         db.rollback()
-        logger.exception("Account deletion failed for user %s", user_id)
+        logger.error("Account deletion final commit failed")
         raise HTTPException(500, "ACCOUNT_DELETE_FAILED")
 
     from api.personal_context import complete_account_deletion_manifests

@@ -4,19 +4,16 @@ Given the user's attached screenshot(s), a vision-capable Azure OpenAI model:
 
   (a) extracts a factual, PII-free, debugging-focused description of what's shown
       (which screen, the affected component, visible error text, what looks
-      broken) to fold into the (public) issue body. This scrubbed description is
-      the ONLY view of the screenshot the change-loop coding agent gets — the raw
-      image never leaves the private plane (issue #337) — so it is written to be
-      complete enough to act on, and
+      broken) for the private admin support path. Neither that description nor
+      the raw image leaves the private plane (issue #337), and
   (b) flags whether the image contains sensitive content (faces, emails, names,
       health / performance data) — a verdict that feeds the same sensitivity
       gate as the text path in :mod:`api.feedback_triage`.
 
-The raw image is NEVER published — only the scrubbed description (which the
-triage step passes through the deterministic scrubber again). When no vision
-model is configured (:func:`api.llm.get_client` returns None) this returns
-``None`` and the triage step treats the unanalysed image as "unsafe to
-auto-publish" and parks the report for admin review.
+The raw image and derived description are NEVER published. When no vision model
+is configured (:func:`api.llm.get_client` returns None) this returns ``None``
+and the triage step treats the unanalysed image as unsafe, parking the report
+for admin review.
 """
 from __future__ import annotations
 
@@ -43,8 +40,8 @@ def _system_prompt() -> str:
         "analytics app. A user attached one or more screenshots to a bug report. "
         "Look at the image(s) and:\n"
         "- Write a THOROUGH, factual description of what the screenshot shows, "
-        "written so an engineer or an automated coding agent can fix the problem "
-        "WITHOUT seeing the image. Capture: which screen / page / route; the "
+        "written so an authorized support engineer can diagnose the problem "
+        "from the private admin view. Capture: which screen / page / route; the "
         "specific UI component or element affected; any visible error text, "
         "codes, or stack traces (transcribe verbatim EXCEPT personal data — see "
         "below); and exactly what looks wrong or broken (layout, rendering, "
@@ -77,8 +74,8 @@ def analyze_images(images: list[tuple[bytes, str]]) -> dict | None:
 
     Returns:
         ``{"description": str, "sensitive": bool}`` on success, or ``None`` when
-        no vision model is configured or the call fails. A missing/invalid
-        ``contains_sensitive`` field defaults to ``True`` (fail safe).
+        no vision model is configured, the call fails, or the sensitivity field
+        is not a native JSON boolean.
     """
     if not images:
         return None
@@ -96,9 +93,8 @@ def analyze_images(images: list[tuple[bytes, str]]) -> dict | None:
             f"rules. There are {len(data_urls)} image(s)."
         ),
         model=VISION_MODEL,
-        # Richer budget: this description is the change-loop coding agent's ONLY
-        # view of the screenshot (the raw image never leaves the private plane —
-        # issue #337), so it must carry enough debugging detail to act on.
+        # Richer budget: the description helps an authorized support engineer
+        # diagnose the private screenshot without copying it to a public issue.
         max_completion_tokens=1200,
         # Deterministic: triage/classification shouldn't vary run-to-run.
         temperature=0.0,
@@ -110,8 +106,10 @@ def analyze_images(images: list[tuple[bytes, str]]) -> dict | None:
     description = result["description"].strip()
     if not description:
         return None
+    raw_sensitive = result.get("contains_sensitive")
+    if not isinstance(raw_sensitive, bool):
+        return None
     return {
         "description": description,
-        # Missing field → sensitive (fail safe), matching the text triage gate.
-        "sensitive": bool(result.get("contains_sensitive", True)),
+        "sensitive": raw_sensitive,
     }

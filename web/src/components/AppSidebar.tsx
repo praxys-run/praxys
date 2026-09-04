@@ -214,7 +214,7 @@ export default function AppSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={() => setFeedbackOpen(true)} tooltip={t`Send feedback`}>
+          <SidebarMenuButton className="min-h-11" onClick={() => setFeedbackOpen(true)} tooltip={t`Send feedback`}>
             <MessageSquarePlus />
             <span>{t`Send feedback`}</span>
           </SidebarMenuButton>

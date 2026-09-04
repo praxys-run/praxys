@@ -3857,11 +3857,35 @@ export interface ServiceStatus {
 // --- Feedback (bug report / feature request / general) ---
 
 export const FEEDBACK_PUBLICATION_CONSENT_VERSION =
-  'feedback-publication-v1' as const;
+  'feedback-publication-v2-public-github' as const;
 
 export type FeedbackKind = 'bug' | 'feature' | 'other';
 
 export type FeedbackStatus = 'new' | 'triaged' | 'needs_review' | 'issue_created' | 'resolved' | 'failed' | 'rejected';
+
+export type FeedbackPublicationStatus =
+  | 'private'
+  | 'queued'
+  | 'published'
+  | 'manual_required'
+  | 'unknown'
+  | 'unavailable';
+
+export interface FeedbackPublicationResult {
+  status: FeedbackPublicationStatus;
+  issue_url: string | null;
+}
+
+export interface FeedbackPublicationReadiness {
+  available: boolean;
+  reason:
+    | 'ready'
+    | 'policy_disabled'
+    | 'emergency_stop'
+    | 'credentials_missing'
+    | 'auth_missing'
+    | 'provider_failure';
+}
 
 /** LLM-suggested triage priority. Null on a ticket triaged without an LLM
  * (the rule-based fallback doesn't guess) or not yet triaged. */
@@ -3895,6 +3919,12 @@ export interface FeedbackResponse {
   ok: boolean;
   id: number;
   status: string;
+  publication: FeedbackPublicationResult;
+}
+
+export interface FeedbackStatusResponse {
+  id: number;
+  publication: FeedbackPublicationResult;
 }
 
 export type AgentReadyDecisionReason =
@@ -3975,10 +4005,13 @@ export interface AdminFeedbackItem {
   ai_title: string | null;
   ai_body: string | null;
   ai_labels: string[];
+  /** Opaque digest binding approval to the exact displayed public draft. */
+  publication_review_token: string | null;
   /** LLM-suggested triage priority, or null (rule-based / not yet triaged). */
   priority: FeedbackPriority | null;
   github_issue_number: number | null;
   github_issue_url: string | null;
+  publication_status: FeedbackPublicationStatus;
   error: string | null;
   /** Whether this exact submission carries the current external-publication consent. */
   external_publication_consent: boolean;

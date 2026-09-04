@@ -17,6 +17,8 @@ import {
   TERMS_VERSION,
 } from '@/lib/legal';
 import { extractApiError } from '@/lib/api-error';
+import { apiFetch } from '@/hooks/useApi';
+import { removeRecentFeedbackId } from '@/lib/feedback';
 import type {
   CurrentUserProfile,
   TermsAcceptanceResponse,
@@ -105,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(stored);
 
     const clearRestoredSession = () => {
+      removeRecentFeedbackId();
       removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
       removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
       removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
@@ -233,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const me = await meResponse.json() as CurrentUserProfile;
 
+      removeRecentFeedbackId();
       setCompatItem(KEYS.authToken.new, KEYS.authToken.legacy, accessToken);
       setCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy, email);
       setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(me.is_superuser));
@@ -311,6 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [login]);
 
   const logout = useCallback(() => {
+    removeRecentFeedbackId();
     removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
     removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
     removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
@@ -328,7 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const tk = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
     if (!tk) return false;
     try {
-      const res = await fetch(`${API_BASE}/api/me/accept-terms`, {
+      const res = await apiFetch('/api/me/accept-terms', {
         method: 'POST',
         headers: {
           ...getChinaClientHeaders(),
