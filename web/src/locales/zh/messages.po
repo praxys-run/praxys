@@ -1043,8 +1043,12 @@ msgid "Analysis"
 msgstr "训练分析"
 
 #: src/pages/admin/AdminFeedback.tsx:213
-msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
-msgstr "已刷新分析和分流结果。发布权限和 GitHub Issue 状态均未更改。"
+#~ msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
+#~ msgstr "已刷新分析和分流结果。发布权限和 GitHub Issue 状态均未更改。"
+
+#: src/pages/admin/AdminFeedback.tsx:213
+msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
@@ -7508,12 +7512,20 @@ msgid "Re-run triage"
 msgstr "重新分析并分流"
 
 #: src/pages/admin/AdminFeedback.tsx:369
-msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
-msgstr "重新分析并分流只会刷新分析和分流结果，不会授予发布权限，也不会创建 GitHub Issue。"
+#~ msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
+#~ msgstr "重新分析并分流只会刷新分析和分流结果，不会授予发布权限，也不会创建 GitHub Issue。"
+
+#: src/pages/admin/AdminFeedback.tsx:369
+msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "重新分析并分流会刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
 #: src/pages/admin/AdminFeedback.tsx:636
-msgid "Re-running…"
+msgid "Re-running triage…"
 msgstr "正在重新分析并分流…"
+
+#: src/pages/admin/AdminFeedback.tsx:636
+#~ msgid "Re-running…"
+#~ msgstr "正在重新分析并分流…"
 
 #: src/components/HeatAdaptationPanel.tsx:59
 #~ msgid "Re-sync training data so the power provider can be verified."

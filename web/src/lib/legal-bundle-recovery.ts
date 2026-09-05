@@ -28,6 +28,10 @@ export type LegalBundleRecoveryResult =
   | { action: 'reload' }
   | { action: 'fallback'; reason: LegalBundleRecoveryFallbackReason };
 
+export type TermsBundleMismatchRecoveryResult =
+  | { matched: false }
+  | { matched: true; recovery: LegalBundleRecoveryResult };
+
 interface RecoveryStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -49,6 +53,11 @@ export interface LegalBundleRecoveryEnvironment {
   storage: RecoveryStorage | null;
   serviceWorker: RecoveryServiceWorker | null;
   timeoutMs?: number;
+}
+
+interface TermsBundleMismatchRecoveryOptions {
+  environment?: LegalBundleRecoveryEnvironment;
+  onMismatch?: () => void;
 }
 
 type BoundedResult<T> =
@@ -100,11 +109,8 @@ function browserEnvironment(): LegalBundleRecoveryEnvironment {
   };
 }
 
-export function isTermsBundleMismatch(
-  status: number,
-  code: string | undefined,
-): boolean {
-  return status === 409 && code === TERMS_BUNDLE_MISMATCH_CODE;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
 export async function prepareLegalBundleRecovery(
@@ -177,6 +183,32 @@ export async function prepareLegalBundleRecovery(
     return { action: 'fallback', reason: 'update-failed' };
   }
   return { action: 'reload' };
+}
+
+export async function recoverTermsBundleMismatchResponse(
+  response: Response,
+  options: TermsBundleMismatchRecoveryOptions = {},
+): Promise<TermsBundleMismatchRecoveryResult> {
+  if (response.status !== 409) return { matched: false };
+
+  let payload: unknown;
+  try {
+    payload = await response.clone().json();
+  } catch {
+    return { matched: false };
+  }
+  if (!isRecord(payload) || !isRecord(payload.detail)) {
+    return { matched: false };
+  }
+  if (payload.detail.code !== TERMS_BUNDLE_MISMATCH_CODE) {
+    return { matched: false };
+  }
+
+  options.onMismatch?.();
+  return {
+    matched: true,
+    recovery: await prepareLegalBundleRecovery(options.environment),
+  };
 }
 
 export function clearLegalBundleRecoveryMarker(

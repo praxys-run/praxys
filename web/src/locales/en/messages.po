@@ -1044,8 +1044,12 @@ msgid "Analysis"
 msgstr "Analysis"
 
 #: src/pages/admin/AdminFeedback.tsx:213
-msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
-msgstr "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
+#~ msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
+#~ msgstr "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
+
+#: src/pages/admin/AdminFeedback.tsx:213
+msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
@@ -7421,12 +7425,20 @@ msgid "Re-run triage"
 msgstr "Re-run triage"
 
 #: src/pages/admin/AdminFeedback.tsx:369
-msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
-msgstr "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
+#~ msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
+#~ msgstr "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
+
+#: src/pages/admin/AdminFeedback.tsx:369
+msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
 #: src/pages/admin/AdminFeedback.tsx:636
-msgid "Re-running…"
-msgstr "Re-running…"
+msgid "Re-running triage…"
+msgstr "Re-running triage…"
+
+#: src/pages/admin/AdminFeedback.tsx:636
+#~ msgid "Re-running…"
+#~ msgstr "Re-running…"
 
 #: src/components/HeatAdaptationPanel.tsx:59
 #~ msgid "Re-sync training data so the power provider can be verified."

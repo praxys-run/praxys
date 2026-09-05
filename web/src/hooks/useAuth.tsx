@@ -21,9 +21,7 @@ import { apiFetch } from '@/hooks/useApi';
 import { removeRecentFeedbackId } from '@/lib/feedback';
 import {
   clearLegalBundleRecoveryMarker,
-  isTermsBundleMismatch,
-  prepareLegalBundleRecovery,
-  TERMS_BUNDLE_MISMATCH_CODE,
+  recoverTermsBundleMismatchResponse,
   type TermsAcceptanceStatus,
 } from '@/lib/legal-bundle-recovery';
 import type {
@@ -372,23 +370,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
       if (!res.ok) {
-        const apiError = await extractApiError(
-          res,
-          `Could not accept Terms (HTTP ${res.status}).`,
-        );
-        if (
-          res.status === 409
-          && apiError.code === TERMS_BUNDLE_MISMATCH_CODE
-          && isTermsBundleMismatch(res.status, apiError.code)
-        ) {
-          // Keep the gate closed while this exact stale-bundle response tries
-          // one bounded, same-origin service-worker refresh. Server-reported
-          // policy metadata is diagnostic only and never enters a resubmit.
-          setTermsCurrent(false);
-          setTermsAcceptanceStatus('updating');
-          onBundleMismatch?.();
-          const recovery = await prepareLegalBundleRecovery();
-          if (recovery.action === 'reload') {
+        const mismatch = await recoverTermsBundleMismatchResponse(res, {
+          onMismatch: () => {
+            // Keep the gate closed while this exact stale-bundle response
+            // tries one bounded, same-origin service-worker refresh.
+            // Server policy metadata never enters a resubmit.
+            setTermsCurrent(false);
+            setTermsAcceptanceStatus('updating');
+            onBundleMismatch?.();
+          },
+        });
+        if (mismatch.matched) {
+          if (mismatch.recovery.action === 'reload') {
             setTermsAcceptanceStatus('reloading');
             window.setTimeout(() => window.location.reload(), 0);
             return 'reloading';

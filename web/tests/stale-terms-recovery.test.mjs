@@ -6,8 +6,8 @@ import {
   LEGAL_BUNDLE_RECOVERY_MARKER_KEY,
   LEGAL_BUNDLE_RECOVERY_MARKER_VALUE,
   clearLegalBundleRecoveryMarker,
-  isTermsBundleMismatch,
   prepareLegalBundleRecovery,
+  recoverTermsBundleMismatchResponse,
 } from '../src/lib/legal-bundle-recovery.ts';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
@@ -56,15 +56,51 @@ function recoveryEnvironment(overrides = {}) {
   };
 }
 
-test('only the exact accept-terms 409 bundle mismatch starts recovery', () => {
-  assert.equal(isTermsBundleMismatch(409, 'TERMS_BUNDLE_MISMATCH'), true);
-  for (const [status, code] of [
-    [400, 'TERMS_BUNDLE_MISMATCH'],
-    [409, 'TERMS_ACCEPTANCE_REQUIRED'],
-    [409, undefined],
-    [500, 'TERMS_BUNDLE_MISMATCH'],
+test('only a 409 with an object detail carrying the exact mismatch code starts recovery', async () => {
+  const matchedEvents = [];
+  const matched = await recoverTermsBundleMismatchResponse(
+    new Response(JSON.stringify({
+      detail: {
+        code: 'TERMS_BUNDLE_MISMATCH',
+        terms_version: '2026.10.0',
+        terms_digest: 'sha256:diagnostic-only',
+      },
+    }), { status: 409, headers: { 'Content-Type': 'application/json' } }),
+    {
+      environment: recoveryEnvironment({ events: matchedEvents }),
+      onMismatch: () => matchedEvents.push('matched'),
+    },
+  );
+  assert.deepEqual(matched, { matched: true, recovery: { action: 'reload' } });
+  assert.deepEqual(matchedEvents, [
+    'matched',
+    'read-marker',
+    'write-marker',
+    'read-marker',
+    'get-registration',
+    'update-worker',
+  ]);
+
+  for (const [status, payload] of [
+    [409, { code: 'TERMS_BUNDLE_MISMATCH' }],
+    [409, { detail: 'TERMS_BUNDLE_MISMATCH' }],
+    [409, { detail: { code: 'TERMS_ACCEPTANCE_REQUIRED' } }],
+    [400, { detail: { code: 'TERMS_BUNDLE_MISMATCH' } }],
+    [500, { detail: { code: 'TERMS_BUNDLE_MISMATCH' } }],
   ]) {
-    assert.equal(isTermsBundleMismatch(status, code), false);
+    const events = [];
+    const result = await recoverTermsBundleMismatchResponse(
+      new Response(JSON.stringify(payload), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      {
+        environment: recoveryEnvironment({ events }),
+        onMismatch: () => events.push('matched'),
+      },
+    );
+    assert.deepEqual(result, { matched: false });
+    assert.deepEqual(events, []);
   }
 });
 
@@ -202,11 +238,9 @@ test('web gate exposes all recovery states while keeping acceptance explicit and
   ]) {
     assert.ok(auth.includes(`'${state}'`) || gate.includes(`'${state}'`), state);
   }
-  assert.match(
-    auth,
-    /res\.status === 409[\s\S]*apiError\.code === TERMS_BUNDLE_MISMATCH_CODE/,
-  );
-  assert.match(auth, /setTermsCurrent\(false\)[\s\S]*prepareLegalBundleRecovery/);
+  assert.match(auth, /recoverTermsBundleMismatchResponse\(res/);
+  assert.doesNotMatch(auth, /apiError\.code === TERMS_BUNDLE_MISMATCH_CODE/);
+  assert.match(auth, /setTermsCurrent\(false\)[\s\S]*onBundleMismatch/);
   assert.match(auth, /clearLegalBundleRecoveryMarker/);
   assert.match(
     auth,
@@ -224,13 +258,24 @@ test('web gate exposes all recovery states while keeping acceptance explicit and
 });
 
 test('admin retry copy names triage-only behavior without changing publication authority', async () => {
-  const admin = await read('../src/pages/admin/AdminFeedback.tsx');
+  const [admin, zhCatalog] = await Promise.all([
+    read('../src/pages/admin/AdminFeedback.tsx'),
+    read('../src/locales/zh/messages.po'),
+  ]);
 
   assert.match(admin, /Re-run triage/);
-  assert.match(admin, /Re-running…/);
-  assert.match(admin, /refreshes analysis and routing only/);
-  assert.match(admin, /does not grant publication permission or create a GitHub issue/);
+  assert.match(admin, /Re-running triage…/);
+  assert.match(admin, /refreshes analysis and routing/);
+  assert.match(admin, /grants no publication permission/);
+  assert.match(admin, /does not directly create a GitHub issue/);
+  assert.match(admin, /already has current publication authorization/);
+  assert.match(admin, /normal review and publication gates/);
+  assert.doesNotMatch(admin, /Publication permission and GitHub issue state were unchanged/);
+  assert.doesNotMatch(admin, /does not grant publication permission or create a GitHub issue/);
   assert.match(admin, /Agent-ready applies only to feedback already linked to a public GitHub issue/);
   assert.match(admin, /handleFeedbackAction\(item, 'retry'\)/);
   assert.match(admin, /external_publication_consent/);
+  assert.match(zhCatalog, /此操作不会授予发布权限，也不会直接创建 GitHub Issue/);
+  assert.match(zhCatalog, /已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁/);
+  assert.match(zhCatalog, /msgid "Re-running triage…"\s+msgstr "正在重新分析并分流…"/);
 });

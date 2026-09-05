@@ -210,7 +210,7 @@ export default function AdminFeedback() {
         setFeedbackActionError(true);
       } else if (action === 'retry') {
         setFeedbackActionMsg(
-          t`Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged.`,
+          t`Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.`,
         );
       }
       await refetch();
@@ -367,7 +367,7 @@ export default function AdminFeedback() {
                 </CardDescription>
                 <CardDescription className="mt-1">
                   <Trans>
-                    Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue.
+                    Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.
                   </Trans>
                 </CardDescription>
               </div>
@@ -633,7 +633,7 @@ export default function AdminFeedback() {
                           >
                             <RotateCcw className="h-3 w-3" />
                             {feedbackBusy === item.id
-                              ? <Trans>Re-running…</Trans>
+                              ? <Trans>Re-running triage…</Trans>
                               : <Trans>Re-run triage</Trans>}
                           </Button>
                         ) : null}
