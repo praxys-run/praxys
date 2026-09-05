@@ -1590,7 +1590,7 @@ msgstr "调整了今天的训练安排"
 
 #: src/components/FeedbackDialog.tsx:775
 msgid "Check most recent feedback status"
-msgstr "查看最近一次反馈状态"
+msgstr "查看最新反馈状态"
 
 #: src/components/PlanStart.tsx:1797
 msgid "Check readiness"
@@ -1622,7 +1622,7 @@ msgstr "正在检查交付兼容性…"
 
 #: src/components/FeedbackDialog.tsx:695
 msgid "Checking public publishing availability…"
-msgstr "正在检查公开发布可用性…"
+msgstr "正在检查能否公开发布…"
 
 #: src/components/PlanStart.tsx:1797
 msgid "Checking readiness…"
@@ -1631,7 +1631,7 @@ msgstr "正在检查准备情况…"
 #: src/components/FeedbackDialog.tsx:601
 #: src/components/FeedbackDialog.tsx:775
 msgid "Checking status…"
-msgstr "正在查看状态…"
+msgstr "查看状态中…"
 
 #: src/components/GoalBaselinePanel.tsx:587
 msgid "Chest pain or pressure"
@@ -7168,7 +7168,7 @@ msgstr "就绪评估不使用优先级。"
 
 #: src/pages/admin/AdminFeedback.tsx:121
 msgid "Private"
-msgstr "私密"
+msgstr "不公开"
 
 #: src/pages/Login.tsx:222
 msgid "Private alpha · Invitation only"
@@ -7317,11 +7317,11 @@ msgstr "发布人工覆盖"
 
 #: src/pages/admin/AdminFeedback.tsx:123
 msgid "Publication queued"
-msgstr "已进入发布队列"
+msgstr "待发布"
 
 #: src/pages/admin/AdminFeedback.tsx:131
 msgid "Publication unavailable"
-msgstr "发布不可用"
+msgstr "暂不可发布"
 
 #: src/pages/admin/AdminFeedback.tsx:129
 msgid "Publication unknown"
@@ -11679,11 +11679,11 @@ msgstr "你的反馈已收到，但 Praxys 无法确认是否已创建公开 Git
 
 #: src/components/FeedbackDialog.tsx:62
 msgid "Your feedback was saved privately and needs manual review. No public GitHub issue has been created yet."
-msgstr "你的反馈已私下保存，且需要人工审核。目前尚未创建公开 GitHub issue。"
+msgstr "反馈已私下保存，需人工审核。目前尚未创建公开的 GitHub issue。"
 
 #: src/components/FeedbackDialog.tsx:53
 msgid "Your feedback was saved privately. No public GitHub issue will be created from this submission."
-msgstr "你的反馈已私下保存。本次提交不会创建公开 GitHub issue。"
+msgstr "反馈已私下保存。本次提交不会创建公开的 GitHub issue。"
 
 #: src/components/FeedbackDialog.tsx:74
 msgid "Your feedback was saved privately. Public GitHub publishing is currently unavailable, so no public issue was created."
