@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
 import { skipSetupForSession, useSetupStatus } from '@/hooks/useSetupStatus';
-import { API_BASE, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
+import { apiFetch, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse } from '@/types/api';
 import {
@@ -330,7 +330,7 @@ export default function Setup({ onSkip }: SetupProps) {
   useEffect(() => {
     if (syncing && !pollRef.current) {
       pollRef.current = setInterval(() => {
-        fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+        apiFetch('/api/sync/status', { headers: getAuthHeaders() })
           .then((r) => r.json())
           .then((data: SyncStatusResponse) => {
             setLiveSyncStatus(data);
@@ -401,9 +401,9 @@ export default function Setup({ onSkip }: SetupProps) {
       // account can be prompted for its verification code; the generic
       // endpoint just stores credentials without validating them.
       const endpoint = connectPlatform === 'garmin'
-        ? `${API_BASE}/api/settings/connections/garmin/login`
-        : `${API_BASE}/api/settings/connections/${connectPlatform}`;
-      const res = await fetch(endpoint, {
+        ? '/api/settings/connections/garmin/login'
+        : `/api/settings/connections/${connectPlatform}`;
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -482,7 +482,7 @@ export default function Setup({ onSkip }: SetupProps) {
     setConnecting(true);
     setConnectError('');
     try {
-      const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
+      const res = await apiFetch('/api/settings/connections/garmin/mfa', {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -542,7 +542,7 @@ export default function Setup({ onSkip }: SetupProps) {
     setSyncKickoffError('');
     setLiveSyncStatus({});
     try {
-      const res = await fetch(`${API_BASE}/api/sync`, {
+      const res = await apiFetch('/api/sync', {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from_date: from }),

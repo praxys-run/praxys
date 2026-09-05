@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  API_BASE,
+  apiFetch,
   extractErrorMessage,
   getAuthHeaders,
 } from "@/hooks/useApi";
@@ -65,7 +65,7 @@ export default function TermsGate() {
     }
 
     let active = true;
-    void fetch(`${API_BASE}/api/settings/connections`, {
+    void apiFetch('/api/settings/connections', {
       headers: getAuthHeaders(),
     })
       .then(async (response) => {
@@ -125,7 +125,7 @@ export default function TermsGate() {
     setRightsBusy("export");
     setRightsMessage(null);
     try {
-      const response = await fetch(`${API_BASE}/api/me/export`, {
+      const response = await apiFetch('/api/me/export', {
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
@@ -161,7 +161,7 @@ export default function TermsGate() {
     setRightsBusy("delete");
     setRightsMessage(null);
     try {
-      const response = await fetch(`${API_BASE}/api/me`, {
+      const response = await apiFetch('/api/me', {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -189,8 +189,8 @@ export default function TermsGate() {
     setDisconnectingPlatform(platform);
     setRightsMessage(null);
     try {
-      const response = await fetch(
-        `${API_BASE}/api/settings/connections/${encodeURIComponent(platform)}`,
+      const response = await apiFetch(
+        `/api/settings/connections/${encodeURIComponent(platform)}`,
         {
         method: "DELETE",
         headers: getAuthHeaders(),

@@ -19,9 +19,11 @@ Schema management:
 import json
 import logging
 import os
-from uuid import UUID, uuid4
+from datetime import datetime
+from urllib.parse import urlsplit
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy import DateTime, String, create_engine, event, inspect, text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -462,7 +464,394 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "personal_context_consent_receipts": (
         ("idempotency_key", "VARCHAR(128)"),
     ),
+    "feedback": (
+        ("publication_consent_version", "VARCHAR(64)"),
+        ("publication_consented_at", "DATETIME"),
+        (
+            "publication_status",
+            "VARCHAR(24) NOT NULL DEFAULT 'private'",
+        ),
+        ("image_storage_provenance", "JSON"),
+    ),
+    "feedback_publication_outbox": (
+        ("public_content_sha256", "VARCHAR(71)"),
+        (
+            "delivery_evidence",
+            "VARCHAR(16) NOT NULL DEFAULT 'not_sent'",
+        ),
+    ),
 }
+
+
+def _sqlite_legacy_target_repo(
+    issue_url: object,
+    issue_number: int,
+    feedback_id: int,
+) -> tuple[str, bool]:
+    """Return a strict GitHub repo or an internal legacy placeholder."""
+    if isinstance(issue_url, str):
+        parsed = urlsplit(issue_url)
+        parts = [part for part in parsed.path.split("/") if part]
+        if (
+            parsed.scheme == "https"
+            and parsed.netloc.casefold() == "github.com"
+            and not parsed.query
+            and not parsed.fragment
+            and len(parts) == 4
+            and parts[2].casefold() == "issues"
+            and parts[3].isascii()
+            and parts[3].isdecimal()
+            and int(parts[3]) == issue_number
+            and parts[0]
+            and parts[1]
+        ):
+            return f"{parts[0]}/{parts[1]}", True
+    return f"legacy-unresolved/{feedback_id}", False
+
+
+def _normalize_sqlite_feedback_publication_rows(connection) -> None:
+    """Fence rows written by the unshipped v1-marker outbox implementation."""
+    connection.exec_driver_sql(
+        "UPDATE feedback_publication_outbox SET state = 'published', "
+        "delivery_evidence = 'published' WHERE state = 'published' OR "
+        "github_issue_number IS NOT NULL"
+    )
+    connection.exec_driver_sql(
+        "UPDATE feedback_publication_outbox SET delivery_evidence = "
+        "'ambiguous' WHERE delivery_evidence != 'published' AND ("
+        "state IN ('sending', 'reconciling') OR "
+        "last_error_code = 'multiple_marker_matches' OR EXISTS ("
+        "SELECT 1 FROM feedback_publication_attempts AS attempt WHERE "
+        "attempt.outbox_id = feedback_publication_outbox.id AND "
+        "attempt.outcome IN ('in_flight', 'unknown', 'created', "
+        "'reconciled')))"
+    )
+    connection.exec_driver_sql(
+        "UPDATE feedback_publication_outbox SET state = 'manual_review', "
+        "last_error_code = COALESCE(last_error_code, "
+        "'marker_content_binding_missing') WHERE marker_version NOT IN "
+        "('v2', 'legacy') AND state NOT IN ('published', 'cancelled')"
+    )
+
+
+def _normalize_sqlite_feedback_publication_evidence(engine_obj) -> None:
+    """Apply the idempotent old-row fence outside a required table rebuild."""
+    table_names = set(inspect(engine_obj).get_table_names())
+    if not {
+        "feedback_publication_outbox",
+        "feedback_publication_attempts",
+    } <= table_names:
+        return
+    outbox_columns = {
+        column["name"]
+        for column in inspect(engine_obj).get_columns(
+            "feedback_publication_outbox"
+        )
+    }
+    if "delivery_evidence" not in outbox_columns:
+        return
+    with engine_obj.begin() as connection:
+        _normalize_sqlite_feedback_publication_rows(connection)
+
+
+def _sqlite_feedback_publication_outbox_needs_rebuild(engine_obj) -> bool:
+    inspector = inspect(engine_obj)
+    if "feedback_publication_outbox" not in set(inspector.get_table_names()):
+        return False
+    columns = {
+        column["name"]: column
+        for column in inspector.get_columns("feedback_publication_outbox")
+    }
+    if any(
+        not columns.get(name, {}).get("nullable", True)
+        for name in ("consent_version", "consented_at", "payload_sha256")
+    ):
+        return True
+    unique_names = {
+        constraint.get("name")
+        for constraint in inspector.get_unique_constraints(
+            "feedback_publication_outbox"
+        )
+    }
+    check_names = {
+        constraint.get("name")
+        for constraint in inspector.get_check_constraints(
+            "feedback_publication_outbox"
+        )
+    }
+    return bool(
+        "uq_feedback_publication_repo_issue" in unique_names
+        or {
+            "ck_feedback_publication_outbox_delivery_evidence",
+            "ck_feedback_publication_outbox_binding_shape",
+            "ck_feedback_publication_outbox_published_evidence",
+        }
+        - check_names
+    )
+
+
+def _rebuild_sqlite_feedback_publication_outbox(engine_obj) -> None:
+    """Transactionally replace only the obsolete local outbox table shape."""
+    if not _sqlite_feedback_publication_outbox_needs_rebuild(engine_obj):
+        return
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    connection = engine_obj.connect()
+    foreign_keys_enabled = bool(
+        connection.exec_driver_sql("PRAGMA foreign_keys").scalar()
+    )
+    connection.commit()
+    if foreign_keys_enabled:
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.commit()
+    transaction = connection.begin()
+    try:
+        _normalize_sqlite_feedback_publication_rows(connection)
+        inspector = inspect(connection)
+        unique_names = {
+            constraint.get("name")
+            for constraint in inspector.get_unique_constraints(
+                "feedback_publication_outbox"
+            )
+        }
+        check_names = {
+            constraint.get("name")
+            for constraint in inspector.get_check_constraints(
+                "feedback_publication_outbox"
+            )
+        }
+        operations = Operations(MigrationContext.configure(connection))
+        with operations.batch_alter_table(
+            "feedback_publication_outbox",
+            recreate="always",
+        ) as batch_op:
+            if "uq_feedback_publication_repo_issue" in unique_names:
+                batch_op.drop_constraint(
+                    "uq_feedback_publication_repo_issue",
+                    type_="unique",
+                )
+            if "ck_feedback_publication_outbox_digest" in check_names:
+                batch_op.drop_constraint(
+                    "ck_feedback_publication_outbox_digest",
+                    type_="check",
+                )
+            batch_op.alter_column(
+                "consent_version",
+                existing_type=String(64),
+                nullable=True,
+            )
+            batch_op.alter_column(
+                "consented_at",
+                existing_type=DateTime(),
+                nullable=True,
+            )
+            batch_op.alter_column(
+                "payload_sha256",
+                existing_type=String(71),
+                nullable=True,
+            )
+            if (
+                "ck_feedback_publication_outbox_delivery_evidence"
+                not in check_names
+            ):
+                batch_op.create_check_constraint(
+                    "ck_feedback_publication_outbox_delivery_evidence",
+                    "delivery_evidence IN "
+                    "('not_sent', 'ambiguous', 'published')",
+                )
+            if "ck_feedback_publication_outbox_binding_shape" not in check_names:
+                batch_op.create_check_constraint(
+                    "ck_feedback_publication_outbox_binding_shape",
+                    "((marker_version = 'legacy' AND state = 'published' AND "
+                    "delivery_evidence = 'published' AND consent_version IS NULL "
+                    "AND consented_at IS NULL AND payload_sha256 IS NULL AND "
+                    "public_content_sha256 IS NULL) OR (marker_version = 'v2' "
+                    "AND consent_version IS NOT NULL AND consented_at IS NOT NULL "
+                    "AND payload_sha256 LIKE 'sha256:%' AND "
+                    "public_content_sha256 LIKE 'sha256:%') OR "
+                    "(marker_version = 'v1' AND state IN ('manual_review', "
+                    "'cancelled', 'published') AND consent_version IS NOT NULL "
+                    "AND consented_at IS NOT NULL AND payload_sha256 LIKE "
+                    "'sha256:%' AND public_content_sha256 IS NULL))",
+                )
+            if (
+                "ck_feedback_publication_outbox_published_evidence"
+                not in check_names
+            ):
+                batch_op.create_check_constraint(
+                    "ck_feedback_publication_outbox_published_evidence",
+                    "((state = 'published' AND delivery_evidence = 'published') "
+                    "OR (state != 'published' AND "
+                    "delivery_evidence != 'published'))",
+                )
+        violations = connection.exec_driver_sql(
+            "PRAGMA foreign_key_check"
+        ).all()
+        if violations:
+            raise RuntimeError(
+                "Feedback publication outbox rebuild would violate foreign keys"
+            )
+        transaction.commit()
+    except Exception:
+        transaction.rollback()
+        raise
+    finally:
+        if foreign_keys_enabled:
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
+        connection.close()
+
+
+def _repair_sqlite_feedback_publication(engine_obj) -> None:
+    """Idempotently retain legacy issues and fence intermediate outbox rows."""
+    inspector = inspect(engine_obj)
+    table_names = set(inspector.get_table_names())
+    if not {"feedback", "feedback_publication_outbox"} <= table_names:
+        return
+    feedback_columns = {
+        column["name"] for column in inspector.get_columns("feedback")
+    }
+    required = {
+        "id",
+        "status",
+        "github_issue_number",
+        "github_issue_url",
+        "created_at",
+        "updated_at",
+        "publication_status",
+    }
+    if not required <= feedback_columns:
+        return
+    now = datetime.utcnow()
+    with engine_obj.begin() as conn:
+        rows = list(
+            conn.execute(
+                text(
+                    "SELECT id, status, github_issue_number, github_issue_url, "
+                    "created_at, updated_at FROM feedback "
+                    "WHERE github_issue_number IS NOT NULL"
+                )
+            ).mappings()
+        )
+        for row in rows:
+            try:
+                feedback_id = int(row["id"])
+                issue_number = int(row["github_issue_number"])
+            except (TypeError, ValueError):
+                continue
+            if feedback_id <= 0 or issue_number <= 0:
+                continue
+            target_repo, _url_is_strict = _sqlite_legacy_target_repo(
+                row["github_issue_url"],
+                issue_number,
+                feedback_id,
+            )
+            existing = conn.execute(
+                text(
+                    "SELECT 1 FROM feedback_publication_outbox "
+                    "WHERE feedback_id = :feedback_id LIMIT 1"
+                ),
+                {"feedback_id": feedback_id},
+            ).first()
+            if existing is None:
+                identity = (
+                    f"feedback:{feedback_id}:repo:{target_repo}:"
+                    f"issue:{issue_number}"
+                )
+                created_at = row["created_at"] or row["updated_at"] or now
+                published_at = row["updated_at"] or row["created_at"] or now
+                conn.execute(
+                    text(
+                        "INSERT INTO feedback_publication_outbox ("
+                        "id, feedback_id, public_id, marker_version, "
+                        "target_repo, consent_version, consented_at, "
+                        "payload_sha256, public_content_sha256, state, "
+                        "delivery_evidence, attempt_count, reconcile_count, "
+                        "available_at, lease_token, lease_expires_at, "
+                        "github_issue_number, github_issue_url, "
+                        "last_error_code, created_at, updated_at, published_at"
+                        ") VALUES ("
+                        ":id, :feedback_id, :public_id, 'legacy', "
+                        ":target_repo, NULL, NULL, NULL, NULL, 'published', "
+                        "'published', 0, 0, :available_at, NULL, NULL, "
+                        ":issue_number, :issue_url, "
+                        "'legacy_publication_migrated', :created_at, "
+                        ":updated_at, :published_at)"
+                    ),
+                    {
+                        "id": str(
+                            uuid5(
+                                NAMESPACE_URL,
+                                "praxys-feedback-legacy-outbox:" + identity,
+                            )
+                        ),
+                        "feedback_id": feedback_id,
+                        "public_id": uuid5(
+                            NAMESPACE_URL,
+                            "praxys-feedback-legacy-public:" + identity,
+                        ).hex,
+                        "target_repo": target_repo,
+                        "available_at": published_at,
+                        "issue_number": issue_number,
+                        "issue_url": row["github_issue_url"],
+                        "created_at": created_at,
+                        "updated_at": published_at,
+                        "published_at": published_at,
+                    },
+                )
+            conn.execute(
+                text(
+                    "UPDATE feedback SET publication_status = 'published' "
+                    "WHERE id = :feedback_id"
+                ),
+                {"feedback_id": feedback_id},
+            )
+
+        conn.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS "
+            "uq_feedback_publication_repo_issue_current ON "
+            "feedback_publication_outbox (target_repo, github_issue_number) "
+            "WHERE marker_version != 'legacy' AND "
+            "github_issue_number IS NOT NULL"
+        )
+        conn.exec_driver_sql(
+            "DROP TRIGGER IF EXISTS "
+            "trg_feedback_publication_outbox_binding_immutable"
+        )
+        conn.exec_driver_sql(
+            "CREATE TRIGGER "
+            "trg_feedback_publication_outbox_binding_immutable "
+            "BEFORE UPDATE OF feedback_id, public_id, marker_version, "
+            "target_repo, consent_version, consented_at, payload_sha256, "
+            "public_content_sha256 ON feedback_publication_outbox WHEN NOT ("
+            "(OLD.feedback_id IS NEW.feedback_id OR "
+            "(OLD.feedback_id IS NOT NULL AND NEW.feedback_id IS NULL)) AND "
+            "OLD.public_id IS NEW.public_id AND "
+            "OLD.marker_version IS NEW.marker_version AND "
+            "OLD.target_repo IS NEW.target_repo AND "
+            "OLD.consent_version IS NEW.consent_version AND "
+            "OLD.consented_at IS NEW.consented_at AND "
+            "OLD.payload_sha256 IS NEW.payload_sha256 AND "
+            "OLD.public_content_sha256 IS NEW.public_content_sha256) BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'feedback publication binding is immutable'); END"
+        )
+        conn.exec_driver_sql(
+            "DROP TRIGGER IF EXISTS "
+            "trg_feedback_publication_evidence_published_terminal"
+        )
+        conn.exec_driver_sql(
+            "CREATE TRIGGER "
+            "trg_feedback_publication_evidence_published_terminal "
+            "BEFORE UPDATE OF delivery_evidence ON "
+            "feedback_publication_outbox WHEN "
+            "OLD.delivery_evidence = 'published' AND "
+            "NEW.delivery_evidence != 'published' BEGIN "
+            "SELECT RAISE(ABORT, "
+            "'published feedback evidence is terminal'); END"
+        )
 
 
 def _ensure_sqlite_compat_columns(engine_obj) -> None:
@@ -537,6 +926,12 @@ def _ensure_sqlite_compat_columns(engine_obj) -> None:
                             'SET "workout_origin" = ? WHERE "id" = ?',
                             ("imported", plan_id),
                         )
+            elif table == "feedback":
+                conn.exec_driver_sql(
+                    "CREATE INDEX IF NOT EXISTS "
+                    "ix_feedback_publication_status "
+                    "ON feedback (publication_status)"
+                )
 
         delivery_rows = conn.exec_driver_sql(
             'SELECT "id", "user_id", "target", "canonical_key", '
@@ -726,6 +1121,9 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         Base.metadata.create_all(bind=engine_obj)
         _ensure_sqlite_road_10k_snapshot_schema(engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
+        _rebuild_sqlite_feedback_publication_outbox(engine_obj)
+        _normalize_sqlite_feedback_publication_evidence(engine_obj)
+        _repair_sqlite_feedback_publication(engine_obj)
         _ensure_sqlite_context_idempotency_indexes(engine_obj)
         _ensure_sqlite_terms_receipt_immutability(engine_obj)
         _ensure_sqlite_training_plan_identity(engine_obj)

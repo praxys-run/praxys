@@ -223,6 +223,172 @@ def test_product_event_swallows_telemetry_backend_failures(
     )
 
 
+def test_feedback_publication_telemetry_fallback_logs_omit_sensitive_exception(
+    monkeypatch,
+    reset_telemetry_caches,
+    caplog,
+):
+    from api import telemetry
+
+    sensitive = (
+        "feedback-id=918273645;user-id=private-user;"
+        "key=feedback/918273645/0.png;path=/tmp/private-user/file;"
+        f"hash={'ab' * 32};url=https://storage.invalid/private;"
+        "content=private feedback content;"
+        "consent=feedback-publication-v2-public-github"
+    )
+
+    def broken_track(*_args, **_kwargs):
+        raise RuntimeError(sensitive)
+
+    class BrokenCounter:
+        def add(self, *_args, **_kwargs):
+            raise RuntimeError(sensitive)
+
+    caplog.set_level("WARNING", logger="api.telemetry")
+    monkeypatch.setattr(telemetry, "_track_event", lambda: broken_track)
+    monkeypatch.setattr(telemetry, "_counter", lambda *_args: BrokenCounter())
+
+    telemetry.record_feedback_publication(
+        status="provider_failure",
+        reason="provider_failure",
+    )
+
+    assert "Telemetry event emission failed; falling back to counter" in caplog.text
+    assert "Telemetry counter recording failed" in caplog.text
+    for sentinel in sensitive.split(";"):
+        assert sentinel not in caplog.text
+
+
+def test_httpx_request_urls_are_suppressed_before_telemetry_capture(caplog):
+    """Real HTTPX request logging must not expose publication identifiers."""
+    import logging
+
+    import httpx
+
+    from api.main import _configure_httpx_logging_boundary
+
+    public_id = "feedface" * 4
+    digest = "sha256:" + "ab" * 32
+    marker = (
+        "<!-- praxys-feedback-publication:v1 "
+        f"id={public_id} payload={digest} -->"
+    )
+    encoded_marker = httpx.URL("https://example.test/", params={"marker": marker})
+
+    caplog.set_level(logging.INFO)
+    httpx_logger = logging.getLogger("httpx")
+    httpx_logger.setLevel(logging.NOTSET)
+    _configure_httpx_logging_boundary()
+    assert httpx_logger.getEffectiveLevel() >= logging.WARNING
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(204, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        client.get(f"https://example.test/{public_id}/{digest}")
+        client.get(str(encoded_marker))
+    httpx_logger.warning("HTTP client transport warning without request data")
+
+    rendered = caplog.text
+    assert "HTTP client transport warning without request data" in rendered
+    assert public_id not in rendered
+    assert digest not in rendered
+    assert marker not in rendered
+    assert "%3C%21--%20praxys-feedback-publication" not in rendered
+
+
+def test_httpx_logging_boundary_is_installed_before_azure_handlers():
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1] / "api" / "main.py"
+    ).read_text(encoding="utf-8")
+    assert source.index("_configure_httpx_logging_boundary()") < source.index(
+        "configure_azure_monitor("
+    )
+
+
+def test_shared_telemetry_init_log_omits_dynamic_event_and_exception(
+    monkeypatch,
+    reset_telemetry_caches,
+    caplog,
+):
+    from api import telemetry
+
+    sensitive_event = "private-feedback-event-name-sentinel"
+    sensitive_exception = "private-feedback-exception-sentinel"
+    caplog.set_level("WARNING", logger="api.telemetry")
+    monkeypatch.setattr(
+        telemetry,
+        "_track_event",
+        lambda: (_ for _ in ()).throw(RuntimeError(sensitive_exception)),
+    )
+    monkeypatch.setattr(telemetry, "_counter", lambda *_args: None)
+
+    telemetry._emit_event_or_count(sensitive_event, "private description", {})
+
+    assert "Could not initialize telemetry event emitter" in caplog.text
+    assert sensitive_event not in caplog.text
+    assert sensitive_exception not in caplog.text
+
+
+def test_record_feedback_fallback_logs_omit_sensitive_exception(
+    monkeypatch,
+    reset_telemetry_caches,
+    caplog,
+):
+    from api import telemetry
+
+    sensitive = "private-feedback-fallback-exception-sentinel"
+
+    def broken_track(*_args, **_kwargs):
+        raise RuntimeError(sensitive)
+
+    class BrokenCounter:
+        def add(self, *_args, **_kwargs):
+            raise RuntimeError(sensitive)
+
+    caplog.set_level("DEBUG", logger="api.telemetry")
+    monkeypatch.setattr(telemetry, "_track_event", lambda: broken_track)
+    monkeypatch.setattr(telemetry, "_counter", lambda *_args: BrokenCounter())
+
+    telemetry.record_feedback(kind="bug", status="failed")
+
+    assert "Telemetry event emission failed; falling back to counter" in caplog.text
+    assert "Telemetry counter recording failed" in caplog.text
+    assert sensitive not in caplog.text
+
+
+def test_record_feedback_factory_failures_never_escape_or_log_sentinels(
+    monkeypatch,
+    reset_telemetry_caches,
+    caplog,
+):
+    from api import telemetry
+
+    track_sentinel = "private-feedback-track-factory-sentinel"
+    counter_sentinel = "private-feedback-counter-factory-sentinel"
+    caplog.set_level("WARNING", logger="api.telemetry")
+    monkeypatch.setattr(
+        telemetry,
+        "_track_event",
+        lambda: (_ for _ in ()).throw(RuntimeError(track_sentinel)),
+    )
+    monkeypatch.setattr(
+        telemetry,
+        "_counter",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError(counter_sentinel)),
+    )
+
+    telemetry.record_feedback(kind="bug", status="failed")
+
+    assert "Could not initialize telemetry event emitter" in caplog.text
+    assert "Could not initialize telemetry counter" in caplog.text
+    assert track_sentinel not in caplog.text
+    assert counter_sentinel not in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # record_coach_tokens
 # ---------------------------------------------------------------------------

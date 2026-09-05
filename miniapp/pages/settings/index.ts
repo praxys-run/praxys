@@ -27,8 +27,11 @@ import {
 } from '../../utils/managed-plan';
 import type {
   FeedbackKind,
+  FeedbackPublicationReadiness,
+  FeedbackPublicationStatus,
   FeedbackRequest,
   FeedbackResponse,
+  FeedbackStatusResponse,
   PlanAdjustment,
   PlanAdjustmentHistoryResponse,
   PlanCleanupRequest,
@@ -40,7 +43,18 @@ import type {
 } from '../../types/api';
 import type { ManagedPlanState } from '../../utils/managed-plan';
 import { MINIAPP_BUILD_VERSION } from '../../utils/version';
-import { feedbackPublicationConsent } from '../../utils/feedback';
+import {
+  applyFeedbackStatusLookup,
+  FeedbackReadinessRequestFence,
+  feedbackPublicationCanCheck,
+  feedbackPublicationConsent,
+  feedbackPublicationShouldRefresh,
+  feedbackSubmissionTransportUnknown,
+  getRecentFeedbackId,
+  normalizeFeedbackPublicationResult,
+  parseRecentFeedbackId,
+  setRecentFeedbackId,
+} from '../../utils/feedback';
 
 const ADJUSTMENT_SOURCES = {
   plews: 'https://doi.org/10.1007/s00421-012-2354-4',
@@ -91,12 +105,29 @@ function buildSettingsTr() {
     feedbackFeature: t('Feature request'),
     feedbackOther: t('General feedback'),
     feedbackPrompt: t('What happened, or what would you like to see?'),
-    feedbackPublish: t('Publish a scrubbed text summary to Praxys’s external issue tracker'),
-    feedbackPublishHelper: t('Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication.'),
+    feedbackPublish: t('Allow Praxys to publish a scrubbed text summary of this feedback as a public GitHub issue'),
+    feedbackPublishHelper: t('Optional and off by default. If published to praxys-run/praxys, anyone can view the text summary. GitHub is outside mainland China, and public issues may be retained long term. Screenshots are never published. Leave this unchecked to send your feedback privately.'),
+    feedbackPublicationOff: t('Public GitHub publishing is currently turned off. You can still send this feedback privately.'),
     feedbackCancel: t('Cancel'),
     feedbackSubmit: t('Send feedback'),
     feedbackSubmitting: t('Sending…'),
-    feedbackThanks: t('Thanks for the feedback!'),
+    feedbackSent: t('Feedback sent'),
+    feedbackStatus: t('Feedback status'),
+    feedbackCheckRecent: t('Check most recent feedback status'),
+    feedbackCheckStatus: t('Check status'),
+    feedbackCheckingStatus: t('Checking status…'),
+    feedbackNoLongerAvailable: t('The most recent feedback status is no longer available.'),
+    feedbackCheckFailed: t("Couldn't check feedback status. Try again."),
+    feedbackCheckingAvailability: t('Checking public publishing availability…'),
+    feedbackPrivate: t('Your feedback was saved privately. No public GitHub issue will be created from this submission.'),
+    feedbackQueued: t('Your feedback was saved. Its scrubbed text summary is queued for review. No public GitHub issue has been created yet, and publication is not guaranteed. Screenshots remain private.'),
+    feedbackManual: t('Your feedback was saved privately and needs manual review. No public GitHub issue has been created yet.'),
+    feedbackPublished: t('A scrubbed text summary was published to public GitHub. Anyone can view it. Screenshots remain private.'),
+    feedbackUnknown: t('Your feedback was received, but Praxys cannot confirm whether a public GitHub issue was created. Do not submit it again yet. Check again later.'),
+    feedbackUnavailable: t('Your feedback was saved privately. Public GitHub publishing is currently unavailable, so no public issue was created.'),
+    feedbackTransportUnknown: t('Praxys could not confirm whether your feedback was received. It may already have been saved. Do not submit it again yet; reconnect and check its status.'),
+    feedbackCopyIssue: t('Copy public GitHub issue link'),
+    feedbackCloseResult: t('Close'),
     feedbackError: t("Couldn't send your feedback. Please try again."),
     feedbackRateLimited: t("You've sent several reports recently — please wait a few minutes before sending more."),
     feedbackAddPhotoTitle: t('Add a screenshot?'),
@@ -293,9 +324,29 @@ function buildSettingsTr() {
   };
 }
 
+function feedbackResultMessage(
+  status: FeedbackPublicationStatus,
+  tr: ReturnType<typeof buildSettingsTr>,
+): string {
+  const messages: Record<FeedbackPublicationStatus, string> = {
+    private: tr.feedbackPrivate,
+    queued: tr.feedbackQueued,
+    published: tr.feedbackPublished,
+    manual_required: tr.feedbackManual,
+    unknown: tr.feedbackUnknown,
+    unavailable: tr.feedbackUnavailable,
+  };
+  return messages[status];
+}
+
 type LanguagePref = 'auto' | 'en' | 'zh';
 
 const MAX_FEEDBACK_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB — mirrors the server cap
+const FEEDBACK_PUBLICATION_REFRESH_DELAY_MS = 2_000;
+let feedbackPublicationRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+let feedbackPublicationRefreshGeneration = 0;
+let feedbackStatusRequestTask: WechatMiniprogram.RequestTask | null = null;
+const feedbackReadinessFence = new FeedbackReadinessRequestFence();
 
 /**
  * Optionally let the user attach one screenshot to a feedback report (issue
@@ -497,9 +548,25 @@ interface SettingsState {
   feedbackFormOpen: boolean;
   feedbackKind: FeedbackKind;
   feedbackMessage: string;
+  feedbackCanSubmit: boolean;
   feedbackPublicationConsent: boolean;
+  feedbackPublicationAvailable: boolean | null;
+  feedbackImage: string;
+  feedbackImageSelectionMade: boolean;
   feedbackSubmitting: boolean;
   feedbackError: string;
+  feedbackTransportUnknown: boolean;
+  feedbackResultOpen: boolean;
+  feedbackResultTitle: string;
+  feedbackResultStatus: FeedbackPublicationStatus | '';
+  feedbackResultMessage: string;
+  feedbackResultUrl: string;
+  feedbackResultId: number | null;
+  feedbackResultRefreshCount: number;
+  feedbackResultAutoRefresh: boolean;
+  feedbackResultCanCheck: boolean;
+  recentFeedbackId: number | null;
+  feedbackStatusChecking: boolean;
 
   appVersion: string;
 }
@@ -657,9 +724,25 @@ const initialData: SettingsState = {
   feedbackFormOpen: false,
   feedbackKind: 'other',
   feedbackMessage: '',
+  feedbackCanSubmit: false,
   feedbackPublicationConsent: false,
+  feedbackPublicationAvailable: null,
+  feedbackImage: '',
+  feedbackImageSelectionMade: false,
   feedbackSubmitting: false,
   feedbackError: '',
+  feedbackTransportUnknown: false,
+  feedbackResultOpen: false,
+  feedbackResultTitle: '',
+  feedbackResultStatus: '',
+  feedbackResultMessage: '',
+  feedbackResultUrl: '',
+  feedbackResultId: null,
+  feedbackResultRefreshCount: 0,
+  feedbackResultAutoRefresh: false,
+  feedbackResultCanCheck: false,
+  recentFeedbackId: null,
+  feedbackStatusChecking: false,
   appVersion: '',
 };
 
@@ -900,9 +983,23 @@ Page({
       void this.refetch();
     }
     pageState._hasShownOnce = true;
+    this.scheduleFeedbackPublicationRefresh();
+    if (
+      this.data.feedbackFormOpen
+      && this.data.feedbackPublicationAvailable === null
+    ) {
+      void this.loadFeedbackPublicationReadiness();
+    }
+  },
+
+  onHide() {
+    this.stopFeedbackPublicationRefresh();
+    this.stopFeedbackPublicationReadiness();
   },
 
   onUnload() {
+    this.stopFeedbackPublicationRefresh();
+    this.stopFeedbackPublicationReadiness();
     invalidateManagedPlanRequests(this);
   },
 
@@ -1610,6 +1707,130 @@ Page({
     }
   },
 
+  stopFeedbackPublicationRefresh() {
+    feedbackPublicationRefreshGeneration += 1;
+    feedbackStatusRequestTask?.abort();
+    feedbackStatusRequestTask = null;
+    if (feedbackPublicationRefreshTimer != null) {
+      clearTimeout(feedbackPublicationRefreshTimer);
+      feedbackPublicationRefreshTimer = null;
+    }
+  },
+
+  stopFeedbackPublicationReadiness() {
+    feedbackReadinessFence.cancel();
+  },
+
+  scheduleFeedbackPublicationRefresh(resetCount = false) {
+    this.stopFeedbackPublicationRefresh();
+    const refreshCount = resetCount
+      ? 0
+      : this.data.feedbackResultRefreshCount;
+    if (resetCount) {
+      this.setData({ feedbackResultRefreshCount: 0 });
+    }
+    const feedbackId = this.data.feedbackResultId;
+    const status = this.data.feedbackResultStatus;
+    if (
+      !this.data.feedbackResultOpen
+      || !this.data.feedbackResultAutoRefresh
+      || feedbackId == null
+      || status === ''
+      || !feedbackPublicationShouldRefresh(status, refreshCount)
+    ) {
+      return;
+    }
+    const generation = feedbackPublicationRefreshGeneration;
+    feedbackPublicationRefreshTimer = setTimeout(() => {
+      feedbackPublicationRefreshTimer = null;
+      if (generation !== feedbackPublicationRefreshGeneration) return;
+      const nextCount = refreshCount + 1;
+      this.setData({ feedbackResultRefreshCount: nextCount });
+      void apiPost<FeedbackStatusResponse>(
+        '/api/me/feedback/status',
+        { feedback_id: feedbackId },
+        {
+          onRequestTask: (task) => {
+            feedbackStatusRequestTask = task;
+          },
+        },
+      )
+        .then((response) => {
+          if (
+            generation !== feedbackPublicationRefreshGeneration
+          ) {
+            return;
+          }
+          if (
+            applyFeedbackStatusLookup(200, feedbackId, response.id)
+            !== 'success'
+          ) {
+            const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+            this.setData({
+              recentFeedbackId: null,
+              feedbackResultTitle: tr.feedbackStatus,
+              feedbackResultStatus: '',
+              feedbackResultMessage: tr.feedbackNoLongerAvailable,
+              feedbackResultUrl: '',
+              feedbackResultId: null,
+              feedbackResultAutoRefresh: false,
+              feedbackResultCanCheck: false,
+            });
+            return;
+          }
+          const result = normalizeFeedbackPublicationResult(
+            response.publication,
+          );
+          const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+          this.setData(
+            {
+              feedbackResultStatus: result.status,
+              feedbackResultMessage: feedbackResultMessage(result.status, tr),
+              feedbackResultUrl: result.issue_url ?? '',
+              feedbackResultCanCheck: (
+                this.data.recentFeedbackId != null
+                && feedbackPublicationCanCheck(result.status)
+              ),
+            },
+            () => this.scheduleFeedbackPublicationRefresh(),
+          );
+        })
+        .catch((error: unknown) => {
+          if (generation !== feedbackPublicationRefreshGeneration) return;
+          const apiError = error as Partial<ApiError>;
+          const disposition = applyFeedbackStatusLookup(
+            apiError.status ?? 0,
+            feedbackId,
+            null,
+          );
+          if (
+            apiError.code === 'UNAUTHENTICATED'
+            || disposition === 'unauthenticated'
+          ) return;
+          if (disposition === 'gone') {
+            const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+            this.setData({
+              recentFeedbackId: null,
+              feedbackResultTitle: tr.feedbackStatus,
+              feedbackResultStatus: '',
+              feedbackResultMessage: tr.feedbackNoLongerAvailable,
+              feedbackResultUrl: '',
+              feedbackResultId: null,
+              feedbackResultAutoRefresh: false,
+              feedbackResultCanCheck: false,
+            });
+          } else {
+            this.scheduleFeedbackPublicationRefresh();
+          }
+        })
+        .finally(() => {
+          if (generation === feedbackPublicationRefreshGeneration) {
+            feedbackStatusRequestTask = null;
+          }
+        });
+    }, FEEDBACK_PUBLICATION_REFRESH_DELAY_MS);
+  },
+
   /** Open the real Miniapp feedback form after category selection. */
   onSendFeedback() {
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
@@ -1619,26 +1840,93 @@ Page({
       success: (sheet) => {
         const kind = kinds[sheet.tapIndex];
         if (!kind) return;
-        this.setData({
-          feedbackFormOpen: true,
-          feedbackKind: kind,
-          feedbackMessage: '',
-          feedbackPublicationConsent: false,
-          feedbackSubmitting: false,
-          feedbackError: '',
-        });
+        this.stopFeedbackPublicationRefresh();
+        this.stopFeedbackPublicationReadiness();
+        this.setData(
+          {
+            feedbackFormOpen: true,
+            feedbackKind: kind,
+            feedbackMessage: '',
+            feedbackCanSubmit: false,
+            feedbackPublicationConsent: false,
+            feedbackPublicationAvailable: null,
+            feedbackImage: '',
+            feedbackImageSelectionMade: false,
+            feedbackSubmitting: false,
+            feedbackError: '',
+            feedbackTransportUnknown: false,
+            feedbackResultOpen: false,
+            feedbackResultTitle: '',
+            feedbackResultStatus: '',
+            feedbackResultMessage: '',
+            feedbackResultUrl: '',
+            feedbackResultId: null,
+            feedbackResultRefreshCount: 0,
+            feedbackResultAutoRefresh: false,
+            feedbackResultCanCheck: false,
+            recentFeedbackId: getRecentFeedbackId(),
+            feedbackStatusChecking: false,
+          },
+          () => void this.loadFeedbackPublicationReadiness(),
+        );
       },
     });
   },
 
+  async loadFeedbackPublicationReadiness() {
+    const generation = feedbackReadinessFence.begin();
+    try {
+      const readiness = await apiGet<FeedbackPublicationReadiness>(
+        '/api/feedback/publication-readiness',
+        {
+          onRequestTask: (task) => {
+            feedbackReadinessFence.attach(generation, task);
+          },
+        },
+      );
+      if (
+        !feedbackReadinessFence.canApply(
+          generation,
+          this.data.feedbackFormOpen,
+          false,
+        )
+      ) return;
+      const available = readiness.available === true;
+      this.setData({
+        feedbackPublicationAvailable: available,
+        feedbackPublicationConsent: available
+          ? this.data.feedbackPublicationConsent
+          : false,
+      });
+    } catch (error) {
+      if (
+        !feedbackReadinessFence.canApply(
+          generation,
+          this.data.feedbackFormOpen,
+          false,
+        )
+      ) return;
+      if ((error as Partial<ApiError>).code === 'UNAUTHENTICATED') return;
+      this.setData({
+        feedbackPublicationAvailable: false,
+        feedbackPublicationConsent: false,
+      });
+    } finally {
+      feedbackReadinessFence.finish(generation);
+    }
+  },
+
   onFeedbackMessageInput(event: WechatMiniprogram.Input) {
+    const feedbackMessage = String(event.detail.value ?? '').slice(0, 5000);
     this.setData({
-      feedbackMessage: String(event.detail.value ?? '').slice(0, 5000),
+      feedbackMessage,
+      feedbackCanSubmit: feedbackMessage.trim().length > 0,
       feedbackError: '',
     });
   },
 
   onFeedbackPublicationChange(event: WechatMiniprogram.SwitchChange) {
+    if (this.data.feedbackPublicationAvailable !== true) return;
     this.setData({
       feedbackPublicationConsent: event.detail.value,
       feedbackError: '',
@@ -1647,22 +1935,139 @@ Page({
 
   onCancelFeedback() {
     if (this.data.feedbackSubmitting) return;
+    this.stopFeedbackPublicationRefresh();
+    this.stopFeedbackPublicationReadiness();
     this.setData({
       feedbackFormOpen: false,
       feedbackMessage: '',
+      feedbackCanSubmit: false,
       feedbackPublicationConsent: false,
+      feedbackPublicationAvailable: null,
+      feedbackImage: '',
+      feedbackImageSelectionMade: false,
       feedbackError: '',
+      feedbackTransportUnknown: false,
+      feedbackStatusChecking: false,
     });
   },
 
+  async onCheckRecentFeedbackStatus() {
+    const expectedId = getRecentFeedbackId();
+    if (expectedId == null) {
+      this.setData({ recentFeedbackId: null });
+      return;
+    }
+    const fromResult = this.data.feedbackResultOpen;
+    this.stopFeedbackPublicationRefresh();
+    const generation = feedbackPublicationRefreshGeneration;
+    const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
+    this.setData({
+      feedbackStatusChecking: true,
+      feedbackError: '',
+      feedbackResultAutoRefresh: false,
+    });
+    try {
+      const response = await apiPost<FeedbackStatusResponse>(
+        '/api/me/feedback/status',
+        { feedback_id: expectedId },
+        {
+          onRequestTask: (task) => {
+            feedbackStatusRequestTask = task;
+          },
+        },
+      );
+      if (generation !== feedbackPublicationRefreshGeneration) return;
+      const disposition = applyFeedbackStatusLookup(
+        200,
+        expectedId,
+        response.id,
+      );
+      if (disposition !== 'success') {
+        this.setData({
+          recentFeedbackId: null,
+          feedbackResultOpen: fromResult,
+          feedbackResultTitle: fromResult ? tr.feedbackStatus : '',
+          feedbackResultStatus: '',
+          feedbackResultMessage: fromResult ? tr.feedbackNoLongerAvailable : '',
+          feedbackResultUrl: '',
+          feedbackResultId: null,
+          feedbackResultCanCheck: false,
+          feedbackError: fromResult ? '' : tr.feedbackNoLongerAvailable,
+        });
+        return;
+      }
+      const result = normalizeFeedbackPublicationResult(response.publication);
+      this.stopFeedbackPublicationReadiness();
+      this.setData({
+        feedbackFormOpen: false,
+        feedbackResultOpen: true,
+        feedbackResultTitle: tr.feedbackStatus,
+        feedbackResultStatus: result.status,
+        feedbackResultMessage: feedbackResultMessage(result.status, tr),
+        feedbackResultUrl: result.issue_url ?? '',
+        feedbackResultId: expectedId,
+        feedbackResultRefreshCount: 0,
+        feedbackResultAutoRefresh: false,
+        feedbackResultCanCheck: feedbackPublicationCanCheck(result.status),
+        recentFeedbackId: expectedId,
+        feedbackError: '',
+      });
+    } catch (error) {
+      if (generation !== feedbackPublicationRefreshGeneration) return;
+      const apiError = error as Partial<ApiError>;
+      const disposition = applyFeedbackStatusLookup(
+        apiError.status ?? 0,
+        expectedId,
+        null,
+      );
+      if (
+        apiError.code === 'UNAUTHENTICATED'
+        || disposition === 'unauthenticated'
+      ) return;
+      if (disposition === 'gone') {
+        this.setData({
+          recentFeedbackId: null,
+          feedbackResultOpen: fromResult,
+          feedbackResultTitle: fromResult ? tr.feedbackStatus : '',
+          feedbackResultStatus: '',
+          feedbackResultMessage: fromResult ? tr.feedbackNoLongerAvailable : '',
+          feedbackResultUrl: '',
+          feedbackResultId: null,
+          feedbackResultCanCheck: false,
+          feedbackError: fromResult ? '' : tr.feedbackNoLongerAvailable,
+        });
+      } else {
+        this.setData({ feedbackError: tr.feedbackCheckFailed });
+      }
+    } finally {
+      if (generation === feedbackPublicationRefreshGeneration) {
+        feedbackStatusRequestTask = null;
+        this.setData({ feedbackStatusChecking: false });
+      }
+    }
+  },
+
   async onSubmitFeedback() {
-    if (this.data.feedbackSubmitting) return;
+    if (
+      this.data.feedbackSubmitting
+      || this.data.feedbackTransportUnknown
+      || !this.data.feedbackCanSubmit
+    ) return;
     const message = this.data.feedbackMessage.trim();
     if (!message) return;
+    this.stopFeedbackPublicationRefresh();
+    this.stopFeedbackPublicationReadiness();
     const tr = this.data.tr as ReturnType<typeof buildSettingsTr>;
     this.setData({ feedbackSubmitting: true, feedbackError: '' });
     try {
-      const image = await pickFeedbackScreenshot(tr);
+      let image = this.data.feedbackImage;
+      if (!this.data.feedbackImageSelectionMade) {
+        image = (await pickFeedbackScreenshot(tr)) ?? '';
+        this.setData({
+          feedbackImage: image,
+          feedbackImageSelectionMade: true,
+        });
+      }
       const locale = getLanguagePreference();
       const body: FeedbackRequest = {
         kind: this.data.feedbackKind,
@@ -1679,27 +2084,86 @@ Page({
           this.data.feedbackPublicationConsent,
         ),
       };
-      await apiPost<FeedbackResponse>('/api/feedback', body);
-      this.setData({
-        feedbackFormOpen: false,
-        feedbackMessage: '',
-        feedbackPublicationConsent: false,
-      });
-      wx.showToast({
-        title: tr.feedbackThanks,
-        icon: 'success',
-        duration: 1800,
-      });
+      const response = await apiPost<FeedbackResponse>('/api/feedback', body);
+      const acknowledgedId = parseRecentFeedbackId(response.id);
+      if (acknowledgedId == null) {
+        this.setData({
+          feedbackTransportUnknown: true,
+          feedbackError: tr.feedbackTransportUnknown,
+        });
+        return;
+      }
+      const result = normalizeFeedbackPublicationResult(response.publication);
+      const stored = setRecentFeedbackId(acknowledgedId)
+        ? getRecentFeedbackId()
+        : null;
+      this.setData(
+        {
+          feedbackFormOpen: false,
+          feedbackMessage: '',
+          feedbackCanSubmit: false,
+          feedbackPublicationConsent: false,
+          feedbackPublicationAvailable: null,
+          feedbackImage: '',
+          feedbackImageSelectionMade: false,
+          feedbackTransportUnknown: false,
+          feedbackResultOpen: true,
+          feedbackResultTitle: tr.feedbackSent,
+          feedbackResultStatus: result.status,
+          feedbackResultMessage: feedbackResultMessage(result.status, tr),
+          feedbackResultUrl: result.issue_url ?? '',
+          feedbackResultId: acknowledgedId,
+          feedbackResultRefreshCount: 0,
+          feedbackResultAutoRefresh: true,
+          feedbackResultCanCheck: (
+            stored != null && feedbackPublicationCanCheck(result.status)
+          ),
+          recentFeedbackId: stored,
+          feedbackStatusChecking: false,
+        },
+        () => this.scheduleFeedbackPublicationRefresh(),
+      );
     } catch (error) {
       const apiError = error as Partial<ApiError>;
       if (apiError.code === 'UNAUTHENTICATED') return;
+      const transportUnknown = feedbackSubmissionTransportUnknown(apiError);
       this.setData({
+        feedbackTransportUnknown: transportUnknown,
         feedbackError: apiError.status === 429
           ? tr.feedbackRateLimited
-          : apiError.detail ?? tr.feedbackError,
+          : transportUnknown
+            ? tr.feedbackTransportUnknown
+            : apiError.detail ?? tr.feedbackError,
       });
     } finally {
       this.setData({ feedbackSubmitting: false });
+    }
+  },
+
+  onCloseFeedbackResult() {
+    this.stopFeedbackPublicationRefresh();
+    this.setData({
+      feedbackResultOpen: false,
+      feedbackResultTitle: '',
+      feedbackResultStatus: '',
+      feedbackResultMessage: '',
+      feedbackResultUrl: '',
+      feedbackResultId: null,
+      feedbackResultRefreshCount: 0,
+      feedbackResultAutoRefresh: false,
+      feedbackResultCanCheck: false,
+      feedbackStatusChecking: false,
+      feedbackPublicationConsent: false,
+    });
+  },
+
+  onCopyFeedbackIssue() {
+    const result = normalizeFeedbackPublicationResult({
+      status: 'published',
+      issue_url: this.data.feedbackResultUrl,
+    });
+    if (result.status === 'published' && result.issue_url) {
+      copyUrlToClipboard(result.issue_url);
     }
   },
 

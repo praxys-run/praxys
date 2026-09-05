@@ -24,7 +24,10 @@ The workflow:
 1. Optionally relies on the required pre-merge suite or runs it again.
 2. Stamps the API version and full source SHA.
 3. Logs in with protected-main OIDC.
-5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS, and
+4. Quiesces `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false` before old code can
+   observe any new publication configuration.
+5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS,
+   `PRAXYS_DISABLE_FEEDBACK_PUBLICATION`, and
    `PRAXYS_DISABLE_BACKGROUND_AI` untouched.
 6. Preserves telemetry, database, Labs, secrets, Always On, and other ordinary
    configuration behavior when `sync_config=true`.
@@ -32,7 +35,9 @@ The workflow:
    credentials when both GitHub secrets are absent; on the first rollout, an
    absent Miniapp switch is initialized enabled. Supplying exactly one
    WeChat secret fails before any configuration mutation.
-8. Deploys and verifies exact API version/source SHA, readiness, either
+8. Deploys and verifies exact API version/source SHA and readiness while
+   feedback publication remains quiesced, then restores and verifies the
+   reviewed positive value. It also verifies either
    preserved China/Miniapp state and the reported Azure
    AI emergency state.
 9. Writes a concise run summary. It performs no EdgeOne probe or restoration.

@@ -128,11 +128,31 @@ In-app bug reports / feature requests land in `/admin/feedback`
 tickets — use the status filter to view **All** or a single status
 (`resolved`, `rejected`, …). During AI triage each ticket is also assigned a
 **priority** (`low`/`medium`/`high`/`critical`), shown as a badge and mirrored
-to a `priority: <level>` label on the filed GitHub issue. Per-row actions:
-- **Approve & file** — publish a parked (`needs_review`) report's scrubbed
-  title/body to GitHub.
+to a `priority: <level>` label only after confirmed publication. Per-row
+actions:
+- **Approve & queue** — for a new v2-consented, human-reviewed safe draft,
+  atomically enqueue metadata; this action never calls GitHub and cannot grant
+  or replace the submitter's consent.
 - **Retry** — re-run triage.
 - **Reject** — discard.
+
+Publication results are separate and server-authoritative: `private`,
+`queued`, `published`, `manual_required`, `unknown`, or `unavailable`.
+`unknown` means do not retry or ask the user to resubmit; the periodic
+reconciler must search the exact opaque marker first. Multiple matches require
+manual investigation and cannot be approved, rejected, or superseded while
+publication evidence remains ambiguous. Account deletion removes the private
+feedback but retains detached ambiguity metadata for that investigation. A
+legacy v1 row that was never published is private and must be resubmitted
+through the v2 form; never edit, migrate, or replay its consent fields.
+Already-public legacy issue locators are retained as non-sending publication
+evidence without manufacturing v2 consent or a payload digest.
+
+`GET /api/admin/feedback/publication-queue` is the safe operations view. It is
+authenticated, `private, no-store`, and contains only row id/time, bounded
+status/error, consent validity, issue-link and triage-output presence, and
+attempt/reconcile counts. It excludes feedback text/context, user identity,
+screenshot keys/descriptions, marker, payload, token, and provider response.
 
 **Sync from GitHub** reconciles each filed ticket with its linked issue: a
 closed issue flips the ticket to `resolved`, a reopened one back to
@@ -142,12 +162,19 @@ labels, timestamps, PR numbers, and URLs — no ticket/PR text, comments, commit
 or authors. It is a no-op when GitHub isn't configured; the App needs *Issues:
 read/write* plus *Pull requests: read*.
 
-Auto-filing + the sensitivity gate are configured via the GitHub App settings
+Publication + the sensitivity gate are configured via the GitHub App settings
 (`PRAXYS_GITHUB_APP_*` / `PRAXYS_FEEDBACK_GITHUB_*`; see
 [config-and-secrets.md](./config-and-secrets.md) and
 [setup-github-app.md](./setup-github-app.md)).
 To get emailed when something needs review, wire the alert in
 [monitoring-and-alerts.md](./monitoring-and-alerts.md).
+
+For an alert, first inspect the metadata-only queue view and runtime readiness.
+`config_failure`/`provider_failure` is actionable only when the positive switch
+requests service and the emergency stop is clear. `queue_aged` and
+`unknown_aged` require outbox/reconciler investigation; do not copy private
+feedback into logs. Rollback sets the emergency stop true, stops claims, and
+retains the delivery ledger.
 
 > The feedback feature ships in praxys-run/praxys#328; ticket status sync, status
 > filtering, and priority suggestions in praxys-run/praxys#359.
@@ -157,4 +184,4 @@ To get emailed when something needs review, wire the alert in
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md) · `api/routes/admin.py` · `api/routes/announcements.py`
 
 ---
-_Last reviewed: 2026-07-17 · Owner: @dddtc2005_
+_Last reviewed: 2026-09-04 · Owner: @dddtc2005_

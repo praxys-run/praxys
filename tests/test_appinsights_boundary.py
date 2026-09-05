@@ -133,3 +133,113 @@ def test_boundary_script_has_valid_bash_syntax() -> None:
     if os.name == "nt":
         pytest.skip("Windows resolves bash to WSL; Actions validation runs on Linux")
     subprocess.run(["bash", "-n", str(BOUNDARY_SCRIPT)], check=True)
+
+
+def test_feedback_publication_alert_transition_scenarios_are_backend_only() -> None:
+    """Cutover/rollback policy never enables publication alerts on frontend."""
+    command = f'''
+source "{BOUNDARY_SCRIPT}"
+BACKEND_AI_ID="/subscriptions/test/backend"
+FRONTEND_AI_ID="/subscriptions/test/frontend"
+feedback_alert_action backend "$FRONTEND_AI_ID" true
+feedback_alert_action frontend "$BACKEND_AI_ID" true
+feedback_alert_action restore "$FRONTEND_AI_ID" true
+feedback_alert_action restore "$BACKEND_AI_ID" false
+'''
+    result = subprocess.run(
+        ["bash", "-c", command],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.splitlines() == [
+        "backend-enabled",
+        "delete",
+        "delete",
+        "backend-preserve-disabled",
+    ]
+
+
+def test_feedback_publication_alert_lifecycle_is_pinned_after_auth_rejection() -> None:
+    script = BOUNDARY_SCRIPT.read_text(encoding="utf-8")
+    preflight = script.split("backend_preflight()", 1)[1].split(
+        "frontend_resolve()", 1
+    )[0]
+    assert preflight.index("verify_anonymous_ingestion_rejected") < preflight.index(
+        'ensure_feedback_publication_alerts "${BACKEND_AI_ID}"'
+    )
+    assert "is_feedback_publication_alert" in script
+    assert "delete_feedback_publication_alerts" in script
+    assert "Skipping missing feedback-publication alert" in script
+    assert 'feedback_alert_action frontend' in script
+    assert 'feedback_alert_action restore' in script
+    assert 'if [[ "${BASH_SOURCE[0]}" == "$0" ]]' in script
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected_success"),
+    [
+        ("missing", True),
+        ("lookup_error", False),
+        ("verify_lookup_error", False),
+        ("subscription_not_found", False),
+        ("verify_subscription_not_found", False),
+        ("raw_status_three", False),
+        ("verify_raw_status_three", False),
+        ("delete_error", False),
+        ("still_present", False),
+    ],
+)
+def test_feedback_alert_absence_is_verified_fail_closed(
+    scenario: str,
+    expected_success: bool,
+) -> None:
+    command = f'''
+source "{BOUNDARY_SCRIPT}"
+AZURE_RESOURCE_GROUP="rg-test"
+SCENARIO="{scenario}"
+az() {{
+  if [[ "$1 $2" == "resource show" ]]; then
+    case "$SCENARIO" in
+      missing) echo "ResourceNotFound" >&2; return 3 ;;
+      lookup_error|verify_lookup_error)
+        echo "control plane unavailable" >&2; return 42 ;;
+      subscription_not_found|verify_subscription_not_found)
+        echo "Subscription 'deadbeef' not found" >&2; return 1 ;;
+      raw_status_three|verify_raw_status_three)
+        echo "control plane unavailable" >&2; return 3 ;;
+      *) echo "/subscriptions/test/alerts/praxys-feedback"; return 0 ;;
+    esac
+  fi
+  if [[ "$1 $2 $3" == "rest --method delete" ]]; then
+    if [[ "$SCENARIO" == "delete_error" ]]; then
+      echo "delete denied" >&2
+      return 42
+    fi
+    return 0
+  fi
+  echo "unexpected az invocation: $*" >&2
+  return 44
+}}
+case "$SCENARIO" in
+  missing)
+    delete_feedback_publication_alerts && verify_feedback_publication_alerts_absent ;;
+  still_present|verify_lookup_error|verify_subscription_not_found|verify_raw_status_three)
+    verify_feedback_publication_alerts_absent ;;
+  *)
+    delete_feedback_publication_alerts ;;
+esac
+'''
+    result = subprocess.run(
+        ["bash", "-c", command],
+        capture_output=True,
+        text=True,
+    )
+    assert (result.returncode == 0) is expected_success, result.stderr
+
+
+def test_frontend_cutover_verifies_feedback_alert_absence() -> None:
+    script = BOUNDARY_SCRIPT.read_text(encoding="utf-8")
+    cutover = script.split("telemetry_cutover()", 1)[1]
+    assert "verify_feedback_publication_alerts_absent" in cutover
+    assert "resolve_scheduled_alert_id" in script

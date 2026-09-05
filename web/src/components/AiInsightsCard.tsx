@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { API_BASE, getAuthHeaders, useApi } from '@/hooks/useApi';
+import { apiFetch, getAuthHeaders, useApi } from '@/hooks/useApi';
 import type {
   AiInsightResponse,
   AiInsightFinding,
@@ -162,7 +162,7 @@ export default function AiInsightsCard({
     setFeedbackSending(true);
     setFeedbackError('');
     try {
-      const response = await fetch(`${API_BASE}/api/insights/${insightType}/feedback`, {
+      const response = await apiFetch(`/api/insights/${insightType}/feedback`, {
         method: 'POST',
         headers: {
           ...(getAuthHeaders() as Record<string, string>),

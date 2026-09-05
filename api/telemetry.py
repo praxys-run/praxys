@@ -153,9 +153,7 @@ def _emit_event_or_count(
         track = _track_event()
     except Exception:
         logger.warning(
-            "Could not initialize track_event for %s; falling back to counter",
-            name,
-            exc_info=True,
+            "Could not initialize telemetry event emitter; falling back to counter"
         )
         track = None
     if track is not None:
@@ -164,22 +162,20 @@ def _emit_event_or_count(
             return
         except Exception:
             logger.warning(
-                "track_event failed for %s; falling back to counter",
-                name,
-                exc_info=True,
+                "Telemetry event emission failed; falling back to counter"
             )
 
     try:
         counter = _counter(name, description)
     except Exception:
-        logger.warning("Could not initialize counter for %s", name, exc_info=True)
+        logger.warning("Could not initialize telemetry counter")
         return
     if counter is None:
         return
     try:
         counter.add(1, attributes)
     except Exception:
-        logger.warning("Failed to record %s", name, exc_info=True)
+        logger.warning("Telemetry counter recording failed")
 
 
 def record_coach_tokens(
@@ -422,21 +418,50 @@ def record_feedback(*, kind: str, status: str) -> None:
     Prefers the customEvents path when available; falls back to a counter
     (lands in customMetrics) otherwise — same contract as record_coach_run.
     """
-    attrs = {"kind": kind, "status": status}
-    track = _track_event()
-    if track is not None:
-        try:
-            track("praxys.feedback", attrs)
-            return
-        except Exception:
-            logger.debug("track_event(feedback) failed; falling back to counter", exc_info=True)
-    counter = _counter("praxys.feedback", "User-submitted feedback submissions")
-    if counter is None:
-        return
-    try:
-        counter.add(1, attrs)
-    except Exception:
-        logger.debug("record_feedback counter failed", exc_info=True)
+    _emit_event_or_count(
+        "praxys.feedback",
+        "User-submitted feedback submissions",
+        {"kind": kind, "status": status},
+    )
+
+
+_FEEDBACK_PUBLICATION_STATUSES = frozenset({
+    "config_failure",
+    "provider_failure",
+    "queue_aged",
+    "unknown_aged",
+    "published",
+    "reconciled",
+})
+_FEEDBACK_PUBLICATION_REASONS = frozenset({
+    "policy_disabled",
+    "emergency_stop",
+    "credentials_missing",
+    "auth_missing",
+    "provider_failure",
+    "pending",
+    "retry_wait",
+    "held",
+    "reconciling",
+    "network_unknown",
+    "provider_5xx",
+    "malformed_success",
+    "unknown",
+    "none",
+})
+
+
+def record_feedback_publication(*, status: str, reason: str) -> None:
+    """Emit bounded publication health with no content or user dimension."""
+    bounded_status = (
+        status if status in _FEEDBACK_PUBLICATION_STATUSES else "provider_failure"
+    )
+    bounded_reason = reason if reason in _FEEDBACK_PUBLICATION_REASONS else "unknown"
+    _emit_event_or_count(
+        "praxys.feedback_publication",
+        "Feedback publication configuration, provider, and queue health",
+        {"status": bounded_status, "reason": bounded_reason},
+    )
 
 def record_db_health(*, status: str, backend: str) -> None:
     """Record a database health signal (issues #350 / #351).

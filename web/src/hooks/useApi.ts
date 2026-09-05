@@ -16,6 +16,7 @@ import {
   getChinaClientHeaders,
   TERMS_REQUIRED_EVENT,
 } from '../lib/client-boundary';
+import { handleUnauthorizedSession } from '../lib/auth-session';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -68,8 +69,7 @@ async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> 
   });
   const res = await fetch(fullUrl, { ...init, headers });
   if (res.status === 401) {
-    removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
-    window.location.href = '/login';
+    handleUnauthorizedSession();
     // Return a never-resolving promise to prevent callers from updating stale UI
     // while the hard redirect clears the in-memory query cache.
     return new Promise<Response>(() => {});

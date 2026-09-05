@@ -21,6 +21,7 @@ import {
   MINIAPP_BUILD_VERSION,
 } from './version';
 import { TERMS_CONTENT_DIGEST } from './legal';
+import { removeRecentFeedbackId } from './feedback';
 
 export const API_BASE: string = 'https://api.praxys.run';
 
@@ -55,6 +56,8 @@ interface RequestOptions {
   skipAuthRedirect?: boolean;
   /** Bound one request when an unfinished result would block the user. */
   timeoutMs?: number;
+  /** Expose the native task only to callers that must abort stale UI work. */
+  onRequestTask?: (task: WechatMiniprogram.RequestTask) => void;
 }
 
 const LOGIN_PAGE = 'pages/login/index';
@@ -120,14 +123,18 @@ function clientBoundaryHeaders(): Record<string, string> {
 // or a host isn't whitelisted.
 const REQUEST_TIMEOUT_MS = 30000;
 
-function wxRequest(opts: WechatMiniprogram.RequestOption): Promise<WechatMiniprogram.RequestSuccessCallbackResult> {
+function wxRequest(
+  opts: WechatMiniprogram.RequestOption,
+  onRequestTask?: (task: WechatMiniprogram.RequestTask) => void,
+): Promise<WechatMiniprogram.RequestSuccessCallbackResult> {
   return new Promise((resolve, reject) => {
-    wx.request({
+    const task = wx.request({
       timeout: REQUEST_TIMEOUT_MS,
       ...opts,
       success: (res) => resolve(res),
       fail: (err) => reject(err),
     });
+    onRequestTask?.(task);
   });
 }
 
@@ -144,18 +151,21 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
   let response: WechatMiniprogram.RequestSuccessCallbackResult;
   try {
-    response = await wxRequest({
-      url,
-      timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS,
-      method: (options.method ?? 'GET') as WechatMiniprogram.RequestOption['method'],
-      data: options.body as WechatMiniprogram.RequestOption['data'],
-      header: {
-        'Content-Type': 'application/json',
-        ...clientBoundaryHeaders(),
-        ...authHeader(),
-        ...options.headers,
+    response = await wxRequest(
+      {
+        url,
+        timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS,
+        method: (options.method ?? 'GET') as WechatMiniprogram.RequestOption['method'],
+        data: options.body as WechatMiniprogram.RequestOption['data'],
+        header: {
+          'Content-Type': 'application/json',
+          ...clientBoundaryHeaders(),
+          ...authHeader(),
+          ...options.headers,
+        },
       },
-    });
+      options.onRequestTask,
+    );
   } catch (e) {
     // wx.request fail callbacks deliver `{ errMsg: "request:fail ...", errno }`
     // — translate to our ApiError shape so the page error UI shows
@@ -190,6 +200,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     // ApiError so callers' `finally`/`catch` branches actually run.
     // Pages catching `code === 'UNAUTHENTICATED'` can show a session-
     // expired toast before the reLaunch unmounts them.
+    removeRecentFeedbackId();
     wx.removeStorageSync(TOKEN_KEY);
     if (!isOnLoginPage()) redirectToLogin();
     throw { status: 401, detail: 'UNAUTHENTICATED', code: 'UNAUTHENTICATED' } as ApiError;
@@ -225,7 +236,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
 export const apiGet = <T>(
   path: string,
-  opts?: Pick<RequestOptions, 'timeoutMs'>,
+  opts?: Pick<RequestOptions, 'timeoutMs' | 'onRequestTask'>,
 ) => request<T>(path, { ...opts, method: 'GET' });
 export const apiPost = <T>(path: string, body?: unknown, opts?: RequestOptions) =>
   request<T>(path, { ...opts, method: 'POST', body });

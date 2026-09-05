@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useApi, API_BASE, getAuthHeaders } from '@/hooks/useApi';
+import { useApi, apiFetch, getAuthHeaders } from '@/hooks/useApi';
 import type { RecoveryAnalysis, TodayResponse, TrainingSignal } from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -471,7 +471,7 @@ export default function Today() {
   const handleSyncNow = async () => {
     setSyncing(true);
     try {
-      await fetch(`${API_BASE}/api/sync`, {
+      await apiFetch('/api/sync', {
         method: 'POST',
         headers: getAuthHeaders() as Record<string, string>,
       });
@@ -479,8 +479,8 @@ export default function Today() {
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2_000));
         try {
-          const res = await fetch(
-            `${API_BASE}/api/sync/status`,
+          const res = await apiFetch(
+            '/api/sync/status',
             { headers: getAuthHeaders() as Record<string, string> },
           );
           if (!res.ok) break;

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from api import feedback_prompt
 from db.agent_loop import canonical_json_hash
 
@@ -83,3 +85,48 @@ def test_model_output_parser_matches_production_contract() -> None:
     assert parsed is not None
     assert parsed.priority == "low"
     assert parsed.agent_eligible is True
+
+
+def test_publication_privacy_review_is_separate_and_fail_closed() -> None:
+    prompt = feedback_prompt.publication_privacy_review_prompt().lower()
+    payload = json.loads(
+        feedback_prompt.publication_privacy_review_payload(
+            title="Calendar clips text",
+            body="The calendar status leaves its card.",
+        )
+    )
+
+    assert feedback_prompt.PUBLICATION_PRIVACY_REVIEW_VERSION == "v1"
+    assert "final privacy reviewer" in prompt
+    assert "unsure, return false" in prompt
+    assert feedback_prompt.publication_privacy_review_digest().startswith("sha256:")
+    assert payload == {
+        "title": "Calendar clips text",
+        "body": "The calendar status leaves its card.",
+    }
+    assert (
+        feedback_prompt.parse_publication_privacy_review(
+            {"safe_to_publish": True}
+        )
+        is True
+    )
+    assert (
+        feedback_prompt.parse_publication_privacy_review(
+            {"safe_to_publish": False}
+        )
+        is False
+    )
+
+
+@pytest.mark.parametrize(
+    "result",
+    (
+        None,
+        {},
+        {"safe_to_publish": 0},
+        {"safe_to_publish": "false"},
+        {"safe_to_publish": True, "reason": "extra"},
+    ),
+)
+def test_publication_privacy_review_rejects_non_exact_results(result) -> None:
+    assert feedback_prompt.parse_publication_privacy_review(result) is None

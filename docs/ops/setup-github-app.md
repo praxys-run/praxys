@@ -1,11 +1,11 @@
 # Set up the feedback GitHub App (no-rotation issue filing)
 
 > **Summary:** Configure the GitHub App that lets the backend file feedback as
-> GitHub issues. It mints short-lived installation tokens on demand, so there is
-> no token to rotate.
+> public GitHub issues through the consent-bound durable outbox. It mints
+> short-lived installation tokens on demand, so there is no token to rotate.
 > **Use when:** Standing up feedback → GitHub issue filing. The App is the only
-> auth path; without it, feedback is still captured for admin-only manual
-> promotion.
+> auth path; without it, feedback is still captured privately and publication
+> reports unavailable.
 
 ## Why a GitHub App
 
@@ -24,10 +24,10 @@ Gather these before step 3 — an agent can't derive them:
 
 ## Prerequisite — running backend build
 
-Steps 1–3 (create / install / store config) can run any time and are safe to do
-early. **Step 4 (deploy → verify) only takes effect once the deployed backend
-includes the GitHub App support (PR praxys-run/praxys#328 or later)** — setting the
-config before that ships just sits idle until the next backend deploy.
+Steps 1–3 (create / install / store config) can run before release. Publication
+must remain ineffective until the v2 outbox migration, current legal bundle,
+client parity, independent verification, protected enable approval, and live
+readback all bind to the same released head.
 
 ## Steps
 
@@ -41,6 +41,8 @@ GitHub → *Settings → Developer settings → GitHub Apps → New GitHub App*:
 - **Permissions → Repository → Pull requests:** **Read-only**. This is used only
   to read numeric/state metadata for PRs that close a feedback issue; the backend
   never requests PR text, comments, commits, reviews, or authors.
+- GitHub grants **Metadata: read** implicitly. Do not grant Contents, Actions,
+  Administration, organization write, or webhook permissions.
 - **Where can this App be installed:** *Only on this account*.
 - Create, then note the **App ID**.
 - *Generate a private key* → downloads a `.pem`. Keep it secret.
@@ -53,8 +55,8 @@ fallback. Re-run the token-grant check below to verify `pull_requests: read`.
 
 ### 2. Install it on the repo  — human
 
-App → *Install App* → install on `praxys-run/praxys` (or your triage repo), *Only
-select repositories* → that repo. After installing, the browser URL ends in
+App → *Install App* → install on `praxys-run/praxys`, *Only select
+repositories* → that exact repo. After installing, the browser URL ends in
 `…/installations/<INSTALLATION_ID>` — **that number is the Installation ID.**
 
 > Heads up: a normal `gh` / PAT token **cannot** read this via the API
@@ -71,20 +73,27 @@ settings don't keep multi-line cleanly; the backend restores the newlines).
 gh variable set PRAXYS_GITHUB_APP_ID --repo praxys-run/praxys --body '<APP_ID>'
 gh variable set PRAXYS_GITHUB_APP_INSTALLATION_ID --repo praxys-run/praxys --body '<INSTALLATION_ID>'
 gh variable set PRAXYS_FEEDBACK_GITHUB_REPO --repo praxys-run/praxys --body 'praxys-run/praxys'
+gh variable set PRAXYS_ENABLE_FEEDBACK_PUBLICATION --repo praxys-run/praxys --body 'false'
 
 # Private key → Actions secret, flattened to one line with literal \n
 KEY_ONELINE=$(awk 'BEGIN{ORS="\\n"}{print}' path/to/private-key.pem)
 printf '%s' "$KEY_ONELINE" | gh secret set PRAXYS_GITHUB_APP_PRIVATE_KEY --repo praxys-run/praxys
 ```
 
-### 4. Roll out  — agent-executable
+Do not store the emergency stop as a GitHub variable. The ordinary backend
+workflow reads and validates `PRAXYS_DISABLE_FEEDBACK_PUBLICATION` but never
+writes it, so a concurrent incident stop cannot be cleared by deployment.
+
+### 4. Roll out — separately approved release operation
 
 ```bash
 gh workflow run deploy-backend.yml --ref main
 ```
 
-The deploy's *sync settings* step pushes the variables + secret to App Service
-(they're optional — see [config-and-secrets.md](./config-and-secrets.md)).
+The deploy first quiesces the positive flag, pushes the reviewed repo metadata
+and secret, verifies the exact new API source SHA, and only then restores the
+reviewed positive value. The protected emergency stop remains read-only. This
+command is release documentation, not authorization to deploy.
 
 ## Verify
 
@@ -106,18 +115,21 @@ print(r.status_code, r.json().get("permissions"), r.json().get("repository_selec
 PY
 ```
 
-**After deploy:** submit a test bug report (or Admin → User Feedback → **Retry** a
-`failed` row) and confirm it reaches `issue_created` with a real issue link. The
-issue is authored by the App (e.g. `praxys-feedback[bot]`), not a personal account.
-Close it with a PR, run Admin → User Feedback → **Sync from GitHub**, and confirm
-the ticket resolves and Admin → Operations records the closing-PR outcome.
+**After an independently approved deploy:** first read back the exact repo,
+positive switch, emergency stop, credential presence, and App grants. Then run
+one separately approved synthetic v2 canary and confirm one opaque marker maps
+to one allowlisted issue URL whose `performed_via_github_app.id` matches the
+configured App ID. Missing or mismatched provenance must remain unknown rather
+than being adopted. A repository test, config sync, or ordinary user submission
+is not a canary and cannot prove recovery. Never replay a v1 or old feedback row.
 
 ## Rollback / Recovery
 
-Unset the three App settings and feedback auto-filing goes dormant — reports are
-still captured for **admin-only manual promotion** (Admin → User Feedback). The
-App can be uninstalled from the repo at any time without affecting the rest of
-the app.
+Set and read back `PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true`. Confirm effective
+publication is false and new claims stop; retain every outbox and attempt row so
+unknown outcomes can still be reconciled. Do not make an unknown attempt
+pending, delete evidence, or replay old feedback. The App can then be
+uninstalled without affecting private feedback capture.
 
 ## Related
 
@@ -125,4 +137,4 @@ the app.
 - Feedback feature: praxys-run/praxys#328
 
 ---
-_Last reviewed: 2026-07-25 · Owner: @dddtc2005_
+_Last reviewed: 2026-09-04 · Owner: @dddtc2005_

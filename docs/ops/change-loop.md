@@ -205,22 +205,17 @@ the (public) GitHub issue, and the coding agent has no path to it (no Azure
 credential, and giving it one would pipe potentially-PII image bytes into a
 public-repo agent).
 
-Instead, the vision model (`api/feedback_vision.py`) is the **single controlled
-image→text crossing**: at triage it writes a thorough, **PII-scrubbed** description
-of what the screenshot shows (screen, affected component, visible error text, what
-looks broken) into the issue body's `## Screenshot` section. That description —
-double-scrubbed, and only ever from a **non-sensitive** image (a screenshot the
-vision model flags sensitive parks the report as `needs_review`, so it is never
-`agent-ready`) — is what the coding agent reads. For a code-fixing agent, a
-complete scrubbed description is effectively equivalent to the image, since it
-fixes bugs by reading code and reasoning about the described symptom, not by
-pixel-measuring. The rare pixel-precise visual bug that a description cannot
-capture should be `agent_eligible=false` and handled by a human (who *can* view the
-image in the admin console).
+The vision model (`api/feedback_vision.py`) may write a private, scrubbed
+description for the admin console, but neither that description nor the image
+is copied into the public issue. Sensitive or unverified screenshots continue
+to park the report for review. A public-repo coding agent therefore receives
+only the independently privacy-reviewed text report; screenshot-dependent or
+pixel-precise defects must be handled by a human who can view the private image
+in the admin console.
 
 **Do not** build a second path (an MCP tool or credential) that hands the agent the
-raw image — that would breach the #337 invariant for a public repo. Enrich the
-scrubbed description instead.
+raw image or its derived description — that would breach the #337 invariant for
+a public repo. Keep screenshot evidence on the private admin path instead.
 
 ### Maintainer adjudication
 
