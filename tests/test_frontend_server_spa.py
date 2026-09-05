@@ -49,6 +49,7 @@ def fake_dist(tmp_path):
             encoding="utf-8",
         )
     (dist / "assets" / "index-abc123.js").write_text("console.log('app');\n")
+    (dist / "sw.js").write_text("self.skipWaiting();\n")
     (dist / "favicon.svg").write_text("<svg/>")
     return dist
 
@@ -127,6 +128,14 @@ def test_cache_control_immutable_for_hashed_assets(client):
     cc = res.headers.get("cache-control", "")
     assert "max-age=31536000" in cc
     assert "immutable" in cc
+
+
+def test_service_worker_always_revalidates(client):
+    res = client.get("/sw.js")
+    assert res.status_code == 200
+    assert res.headers.get("cache-control") == (
+        "no-cache, max-age=0, must-revalidate"
+    )
 
 
 def test_cache_control_short_for_brand_assets(client):

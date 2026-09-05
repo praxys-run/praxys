@@ -43,13 +43,11 @@ function platformLabel(platform: string): string {
  * language can open the full Terms / Privacy pages, which carry their own toggle.
  */
 export default function TermsGate() {
-  const { acceptTerms, isDemo, logout } = useAuth();
+  const { acceptTerms, isDemo, logout, termsAcceptanceStatus } = useAuth();
   const { locale } = useLocale();
   const navigate = useNavigate();
   const zh = locale === "zh";
   const [agreed, setAgreed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [rightsBusy, setRightsBusy] = useState<"export" | "delete" | null>(null);
   const [rightsMessage, setRightsMessage] = useState<string | null>(null);
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
@@ -57,6 +55,14 @@ export default function TermsGate() {
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  const staleBundle = termsAcceptanceStatus === "updating"
+    || termsAcceptanceStatus === "reloading"
+    || termsAcceptanceStatus === "fallback";
+  const acceptanceBusy = termsAcceptanceStatus === "submitting"
+    || termsAcceptanceStatus === "accepted"
+    || termsAcceptanceStatus === "updating"
+    || termsAcceptanceStatus === "reloading";
 
   useEffect(() => {
     if (isDemo) {
@@ -111,13 +117,7 @@ export default function TermsGate() {
 
   const handleAccept = async () => {
     if (!agreed) return;
-    setSubmitting(true);
-    setError(null);
-    const ok = await acceptTerms();
-    if (!ok) {
-      setError(zh ? "提交失败，请重试。" : "Could not save — please try again.");
-      setSubmitting(false);
-    }
+    await acceptTerms(() => setAgreed(false));
     // On success the gate unmounts as termsCurrent flips true.
   };
 
@@ -242,9 +242,9 @@ export default function TermsGate() {
         <label className="mt-5 flex items-start gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
-            checked={agreed}
+            checked={!staleBundle && agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            disabled={submitting}
+            disabled={acceptanceBusy || termsAcceptanceStatus === "fallback"}
             className="mt-0.5 flex-none"
           />
           <span>
@@ -260,20 +260,47 @@ export default function TermsGate() {
           </span>
         </label>
 
-        {error && (
-          <p className="mt-3 text-sm text-destructive" role="alert">
-            {error}
+        {termsAcceptanceStatus !== "ready" && termsAcceptanceStatus !== "accepted" && (
+          <p
+            className={`mt-3 text-sm ${
+              termsAcceptanceStatus === "submit_error" || termsAcceptanceStatus === "fallback"
+                ? "text-destructive"
+                : "text-muted-foreground"
+            }`}
+            role={termsAcceptanceStatus === "submit_error" || termsAcceptanceStatus === "fallback" ? "alert" : "status"}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {termsAcceptanceStatus === "submitting"
+              ? (zh ? "正在保存条款选择…" : "Saving your Terms choice…")
+              : termsAcceptanceStatus === "updating"
+                ? (zh ? "检测到新版条款，正在安全更新页面…" : "A newer Terms bundle is available. Updating this page safely…")
+                : termsAcceptanceStatus === "reloading"
+                  ? (zh ? "更新已就绪，正在载入当前条款…" : "Update ready. Reloading the current Terms…")
+                  : termsAcceptanceStatus === "fallback"
+                    ? (zh ? "此页面版本已过期，且无法自动更新。请刷新页面，然后阅读并接受当前条款。" : "This page is out of date and could not update automatically. Refresh this page, then review and accept the current Terms.")
+                    : (zh ? "无法保存，请重试。" : "Could not save — please try again.")}
           </p>
         )}
 
         <Button
-          onClick={handleAccept}
-          disabled={!agreed || submitting}
+          onClick={termsAcceptanceStatus === "fallback"
+            ? () => window.location.reload()
+            : handleAccept}
+          disabled={termsAcceptanceStatus === "fallback"
+            ? false
+            : !agreed || acceptanceBusy}
           className="mt-6 h-10 w-full"
         >
-          {submitting
-            ? (zh ? "保存中…" : "Saving…")
-            : (zh ? "接受条款并继续" : "Accept Terms and continue")}
+          {termsAcceptanceStatus === "fallback"
+            ? (zh ? "刷新此页面" : "Refresh this page")
+            : acceptanceBusy
+              ? (termsAcceptanceStatus === "updating"
+                ? (zh ? "正在更新…" : "Updating…")
+                : termsAcceptanceStatus === "reloading"
+                  ? (zh ? "正在重新载入…" : "Reloading…")
+                  : (zh ? "保存中…" : "Saving…"))
+              : (zh ? "接受条款并继续" : "Accept Terms and continue")}
         </Button>
 
         <div className="mt-6 border-t border-border pt-4">

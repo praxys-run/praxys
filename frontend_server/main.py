@@ -116,6 +116,8 @@ def create_app(
         """Set cache-control + browser security headers on every response.
 
         Cache-control by path shape:
+        - The exact service-worker script at ``/sw.js`` always revalidates;
+          it is the authority that discovers and installs a new app shell.
         - Hashed assets under ``/assets/`` are content-addressed (Vite emits
           filenames with content hashes), so they're safe to cache for a year.
         - The SPA shell at ``/index.html`` (and SPA-router fallbacks that
@@ -129,7 +131,14 @@ def create_app(
         """
         response: Response = await call_next(request)
         path = request.url.path
-        if path.startswith("/assets/"):
+        if path == "/sw.js":
+            # The service-worker script is the update authority for the
+            # precached app shell. It must never inherit the generic one-day
+            # JavaScript policy or a stale worker can pin an old legal bundle.
+            response.headers["Cache-Control"] = (
+                "no-cache, max-age=0, must-revalidate"
+            )
+        elif path.startswith("/assets/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         elif _looks_like_asset(path):
             # Brand assets, fonts, favicon — long but not immutable.

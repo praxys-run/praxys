@@ -385,9 +385,14 @@ def test_edgeone_config_keeps_static_security_boundary() -> None:
         "X-Frame-Options": "DENY",
         "Referrer-Policy": "strict-origin-when-cross-origin",
     }
+    assert headers["/sw.js"]["Cache-Control"] == (
+        "no-cache, max-age=0, must-revalidate"
+    )
     assert headers["/assets/*"]["Cache-Control"] == (
         "public, max-age=31536000, immutable"
     )
+    sources = [rule["source"] for rule in config["headers"]]
+    assert sources.index("/sw.js") < sources.index("/assets/*")
     for route in ("/login*", "/today*", "/settings*", "/admin*"):
         assert headers[route]["X-Robots-Tag"] == "noindex, nofollow"
 
