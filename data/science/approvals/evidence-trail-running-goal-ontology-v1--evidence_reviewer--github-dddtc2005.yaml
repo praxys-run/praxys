@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-trail-running-goal-ontology-v1
+subject_digest: sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-09-03'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/759#issuecomment-5527638249

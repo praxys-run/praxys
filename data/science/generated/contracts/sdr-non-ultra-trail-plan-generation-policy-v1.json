@@ -1,0 +1,449 @@
+{
+  "affected_models": [
+    "inactive non-ultra trail deterministic early-block policy and generator",
+    "trail course-demand and history snapshot matching"
+  ],
+  "contract_digest": "sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b",
+  "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v1",
+  "decision_status": "accepted",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "trail-ontology.course-demand-is-multidimensional",
+    "trail-ontology.uphill-downhill-demands-differ",
+    "trail-ontology.technicality-and-downhill-vary-performance",
+    "trail-ontology.heart-rate-and-road-pace-are-insufficient-alone",
+    "trail-ontology.training-and-injury-evidence-does-not-set-safe-dose",
+    "non-ultra-trail.course-specific-policy-required",
+    "non-ultra-trail.uphill-downhill-require-distinct-handling",
+    "non-ultra-trail.hr-and-road-pace-not-sole-targets",
+    "non-ultra-trail.training-specificity-promising-not-prescriptive",
+    "non-ultra-trail.injury-fatigue-no-safe-dose",
+    "non-ultra-trail.observed-load-does-not-prove-prescription",
+    "non-ultra-trail.taper-direction-indirect",
+    "non-ultra-trail.fueling-duration-and-practice-context",
+    "eligibility.recent-history-anchor-without-universal-threshold",
+    "eligibility.fixed-progression-and-acwr-not-safety-laws",
+    "eligibility.goal-relevant-current-capability-task-specific",
+    "eligibility.current-symptoms-support-stop-not-clearance"
+  ],
+  "evidence_review_ids": [
+    "evidence-trail-running-goal-ontology-v1",
+    "evidence-non-ultra-trail-plan-generation-policy-v1",
+    "evidence-plan-generation-eligibility-safety-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-non-ultra-trail-plan-generation-policy-v1": "sha256:51e9349704d969b6524b947311a04e585477cffd7071254a9d2859690d87d78e",
+    "evidence-plan-generation-eligibility-safety-v1": "sha256:e884907d33783edc6cdb16fd5504f7f10b6d68f968bfe7cf87e3f024b5bda773",
+    "evidence-trail-running-goal-ontology-v1": "sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a"
+  },
+  "model_version": "non-ultra-trail-plan-generation-policy-v1",
+  "parameters": {
+    "trail_policy_course_exposure_caps": {
+      "applies_to": "early-block terrain and vertical exposure",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.uphill-downhill-require-distinct-handling",
+        "non-ultra-trail.injury-fatigue-no-safe-dose",
+        "eligibility.fixed-progression-and-acwr-not-safety-laws"
+      ],
+      "value": {
+        "automatic_vertical_progression": false,
+        "high_speed_or_maximal_downhill_repeats": false,
+        "road_or_flat_substitution_claimed_equivalent": false,
+        "session_ascent_hard_cap": "recent_maximum_completed_session_ascent",
+        "session_descent_hard_cap": "recent_maximum_completed_session_descent",
+        "technicality": "no_more_difficult_than_recently_observed_and_currently_accessible_category",
+        "unknown_descent_or_technicality_result": "clarification_or_limited_module",
+        "weekly_ascent_hard_cap": "recent_maximum_usable_weekly_ascent",
+        "weekly_ascent_target": "no_more_than_recent_median_usable_weekly_ascent",
+        "weekly_descent_hard_cap": "recent_maximum_usable_weekly_descent",
+        "weekly_descent_target": "no_more_than_recent_median_usable_weekly_descent"
+      }
+    },
+    "trail_policy_deferred_scope": {
+      "applies_to": "scope outside the early rolling block",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.training-specificity-promising-not-prescriptive",
+        "non-ultra-trail.injury-fatigue-no-safe-dose",
+        "non-ultra-trail.taper-direction-indirect",
+        "non-ultra-trail.fueling-duration-and-practice-context"
+      ],
+      "value": {
+        "back_to_back_sessions": "not_accepted",
+        "fueling_amount_or_frequency": "not_accepted",
+        "hiking_threshold_or_dose": "not_accepted",
+        "hr_pace_power_or_rpe_targets": "not_accepted",
+        "outcome_window_or_meaningful_change": "not_accepted",
+        "progression_above_recent_typical_load": "not_accepted",
+        "recovery_interval": "not_accepted",
+        "strength_frequency_or_dose": "not_accepted",
+        "taper_duration_and_reduction": "not_accepted",
+        "technical_terrain_dose": "not_accepted",
+        "vertical_or_downhill_progression_above_recent_history": "not_accepted"
+      }
+    },
+    "trail_policy_event_and_taper": {
+      "applies_to": "dated trail goals",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.taper-direction-indirect"
+      ],
+      "value": {
+        "event_day_generated_as_training_workout": false,
+        "event_or_race_counts_as_quality_and_load": true,
+        "imported_event_must_be_athlete_confirmed": true,
+        "taper_implementation": "not_accepted",
+        "target_more_than_14_days_after_start": "normal_14_day_rolling_proposal",
+        "target_within_14_days_of_start": "event_inside_unapproved_taper_window"
+      }
+    },
+    "trail_policy_evidence_use": {
+      "applies_to": "module selection and ScienceNote claims",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.training-specificity-promising-not-prescriptive",
+        "non-ultra-trail.injury-fatigue-no-safe-dose",
+        "non-ultra-trail.observed-load-does-not-prove-prescription",
+        "non-ultra-trail.taper-direction-indirect",
+        "non-ultra-trail.fueling-duration-and-practice-context"
+      ],
+      "value": {
+        "fueling": "expected_duration_and_practice_context_only",
+        "hiking": "conditional_candidate_module",
+        "injury_and_fatigue_findings": "safety_context_only",
+        "observed_load_associations": "descriptive_only",
+        "strength_and_multimodal": "conditional_candidate_module",
+        "taper": "indirect_direction_only",
+        "trail_specificity": "conditional_candidate_module"
+      }
+    },
+    "trail_policy_execution_and_reassessment": {
+      "applies_to": "early non-ultra trail rolling proposals",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "non-ultra-trail.course-specific-policy-required"
+      ],
+      "value": {
+        "advisory_reassessment_after_completed_days": 7,
+        "automatic_overwrite_of_adopted_future_days": false,
+        "automatic_successor_adoption": false,
+        "biological_optimum_claim": false,
+        "calendar_schedule_unit_days": 7,
+        "committed_proposal_days": 14,
+        "continued_goal_horizon_requires_successor": true,
+        "each_successor_requires_fresh_history_course_and_constraints": true,
+        "proposal_end_inclusive": true
+      }
+    },
+    "trail_policy_hard_boundaries": {
+      "applies_to": "all future policy and implementation surfaces",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.hr-and-road-pace-not-sole-targets",
+        "non-ultra-trail.injury-fatigue-no-safe-dose",
+        "eligibility.fixed-progression-and-acwr-not-safety-laws",
+        "eligibility.current-symptoms-support-stop-not-clearance"
+      ],
+      "value": {
+        "activity_average_power_valid_for_intensity": false,
+        "canonical_adoption_requires_explicit_athlete_action": true,
+        "diagnosis_or_clearance": false,
+        "heart_rate_or_level_pace_may_be_sole_hilly_controller": false,
+        "missed_work_may_create_catch_up": false,
+        "performance_injury_or_safety_guarantee": false,
+        "personal_finish_probability": false,
+        "provider_delivery_requires_separate_explicit_consent": true,
+        "road_policy_fallback": false,
+        "target_gap_may_raise_dose": false,
+        "universal_ascent_descent_equivalence": false,
+        "universal_distance_vertical_conversion": false,
+        "valid_intensity_sources": [
+          "activity_splits",
+          "activity_samples"
+        ]
+      }
+    },
+    "trail_policy_history_guardrails": {
+      "applies_to": "owner-scoped readiness history",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.recent-history-anchor-without-universal-threshold",
+        "non-ultra-trail.course-specific-policy-required",
+        "non-ultra-trail.uphill-downhill-require-distinct-handling"
+      ],
+      "value": {
+        "comparable_hilly_or_trail_sessions_within_completed_days": {
+          "count": 2,
+          "window": 42
+        },
+        "latest_comparable_hilly_or_trail_session_within_completed_days": 21,
+        "latest_run_within_completed_days": 10,
+        "minimum_running_sessions_per_usable_week": 3,
+        "minimum_usable_completed_weeks": 4,
+        "qualifying_activity_requires": [
+          "outdoor_running_or_trail_running",
+          "positive_duration_and_distance",
+          "usable_elevation_gain_and_loss_or_explicit_unknown",
+          "source_timestamp"
+        ],
+        "recent_history_lookback_completed_weeks": 8,
+        "sparse_or_stale_result": "insufficient_comparable_trail_history",
+        "thresholds_are_published_biological_laws": false,
+        "unknown_descent_or_terrain_cannot_satisfy_comparable_exposure": true
+      }
+    },
+    "trail_policy_intensity_and_spacing": {
+      "applies_to": "all planned running minutes",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.hr-and-road-pace-not-sole-targets",
+        "non-ultra-trail.training-specificity-promising-not-prescriptive"
+      ],
+      "value": {
+        "activity_average_power_allowed": false,
+        "consecutive_quality_running_days_allowed": false,
+        "historical_intensity_source_priority": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "low_intensity_fraction_is_optimum_claim": false,
+        "maximum_quality_exposures_per_7_day_unit": 1,
+        "minimum_intervening_easy_rest_or_non_running_days": 1,
+        "minimum_planned_low_intensity_running_minutes_fraction": 0.75,
+        "missed_quality_makeup_allowed": false,
+        "quality_exposures_include": [
+          "controlled_quality_template",
+          "confirmed_race_or_maximal_effort"
+        ],
+        "reduce_or_remove_quality_before_adding_minutes": true
+      }
+    },
+    "trail_policy_modular_structure": {
+      "applies_to": "future deterministic generator envelope",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.uphill-downhill-require-distinct-handling",
+        "non-ultra-trail.training-specificity-promising-not-prescriptive",
+        "non-ultra-trail.taper-direction-indirect",
+        "non-ultra-trail.fueling-duration-and-practice-context"
+      ],
+      "value": {
+        "module_requires_matching_input": true,
+        "modules": [
+          "readiness_and_history",
+          "easy_and_aerobic",
+          "ascent_specificity",
+          "descent_and_neuromuscular_exposure",
+          "technical_terrain",
+          "hiking",
+          "strength",
+          "longest_session_and_fueling_practice",
+          "taper",
+          "environment_and_altitude",
+          "reassessment_and_outcome"
+        ],
+        "unavailable_module_may_be_silently_replaced": false
+      }
+    },
+    "trail_policy_non_science_authority": {
+      "applies_to": "work outside Science authority",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "deployment": "not_accepted",
+        "garmin_mapping": "not_accepted",
+        "implementation_review": "required",
+        "owner_only_pilot": "not_accepted",
+        "product_visibility": "not_accepted",
+        "runtime_activation": "not_accepted"
+      }
+    },
+    "trail_policy_required_inputs": {
+      "applies_to": "capability matching and readiness",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.course-specific-policy-required",
+        "non-ultra-trail.uphill-downhill-require-distinct-handling",
+        "eligibility.recent-history-anchor-without-universal-threshold"
+      ],
+      "value": {
+        "conditional": [
+          "technical_terrain_history",
+          "altitude_and_environment_history",
+          "hiking_exposure",
+          "strength_exposure",
+          "fueling_practice_experience"
+        ],
+        "material_unknown_behavior": "typed_no_plan_or_limited_module",
+        "required": [
+          "athlete_confirmed_trail_course_demand_v1",
+          "stable_recent_running_history",
+          "comparable_recent_ascent_exposure",
+          "comparable_recent_descent_exposure",
+          "available_training_days_and_limits",
+          "accessible_training_terrain",
+          "current_symptom_stop"
+        ]
+      }
+    },
+    "trail_policy_runtime_evaluation": {
+      "applies_to": "inactive dry run and separately authorized owner pilot",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.injury-fatigue-no-safe-dose",
+        "eligibility.fixed-progression-and-acwr-not-safety-laws"
+      ],
+      "value": {
+        "dry_run": {
+          "deterministic_invariant_breach_tolerance": 0,
+          "replay_mismatch_tolerance": 0,
+          "unsupported_or_material_unknown_plan_tolerance": 0
+        },
+        "efficacy_or_safety_claim_from_process_pilot": false,
+        "owner_only_pilot": {
+          "major_edit_definition": "session_duration_or_vertical_change_over_twenty_percent_or_two_scheduled_days_changed",
+          "maximum_major_edit_fraction": 0.3,
+          "serious_plausibly_related_report_pause_threshold": 1
+        },
+        "pause_or_revise_when_threshold_crossed": true
+      }
+    },
+    "trail_policy_schedule_construction": {
+      "applies_to": "deterministic early-block schedule",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "eligibility.fixed-progression-and-acwr-not-safety-laws",
+        "non-ultra-trail.training-specificity-promising-not-prescriptive"
+      ],
+      "value": {
+        "below_minimum_result": "no_schedule_within_envelope",
+        "easy_and_longest_easy_allocation": {
+          "automatic_longest_easy_increase": false,
+          "preferred_longest_easy_day_used_when_available": true,
+          "quality_minutes_allocated_first": true,
+          "remaining_minutes_distributed_across_non_quality_days": true
+        },
+        "no_schedule_result": "no_schedule_within_envelope",
+        "non_taper_progression_above_recent_median": false,
+        "quality_sessions_per_7_day_unit": 1,
+        "requested_above_maximum_result": "clarification_required",
+        "selected_running_days_per_7_day_unit": {
+          "deterministic_value": "minimum_of_available_days_recent_modal_days_and_policy_maximum",
+          "maximum": 6,
+          "minimum": 3
+        },
+        "session_duration_hard_cap": "minimum_of_recent_maximum_completed_session_and_athlete_limit",
+        "target_time_gap_may_raise_load": false,
+        "weekly_running_minutes_hard_cap": "minimum_of_recent_maximum_usable_weekly_minutes_and_athlete_limit",
+        "weekly_running_minutes_target": "minimum_of_recent_median_usable_weekly_minutes_and_athlete_limit"
+      }
+    },
+    "trail_policy_scope_and_dependencies": {
+      "applies_to": "non-ultra-trail-plan-generation-policy-v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.course-specific-policy-required",
+        "eligibility.goal-relevant-current-capability-task-specific"
+      ],
+      "value": {
+        "clinical_or_return_to_sport": false,
+        "distance_family": "non_ultra",
+        "event_format": "single_day",
+        "intent": "performance",
+        "minimum_age_years": 18,
+        "requires_accepted_ontology": "sdr-trail-running-goal-ontology-v1",
+        "requires_course_demand_schema": "trail_course_demand_v1",
+        "suggestion_only": true
+      }
+    },
+    "trail_policy_typed_outcomes": {
+      "applies_to": "readiness and generation responses",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-ontology.course-demand-is-multidimensional"
+      ],
+      "value": {
+        "candidate_success": "eligible_proposal",
+        "goal_remains_recorded": true,
+        "limited_modules": [
+          "environment_module_limited",
+          "fueling_module_limited",
+          "technicality_module_limited"
+        ],
+        "no_plan": [
+          "ontology_not_accepted",
+          "policy_inactive",
+          "course_clarification_required",
+          "material_course_demand_unknown",
+          "insufficient_comparable_history",
+          "insufficient_terrain_access",
+          "adult_scope_or_constraints_unconfirmed",
+          "current_symptom_stop",
+          "unsupported_ultra_or_multiday",
+          "validation_failed"
+        ],
+        "road_fallback": false
+      }
+    },
+    "trail_policy_workout_templates": {
+      "applies_to": "eligible early-block quality session",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "non-ultra-trail.training-specificity-promising-not-prescriptive",
+        "non-ultra-trail.hr-and-road-pace-not-sole-targets",
+        "non-ultra-trail.uphill-downhill-require-distinct-handling"
+      ],
+      "value": {
+        "controlled_quality": {
+          "steps": [
+            {
+              "duration_minutes": 10,
+              "intended_intensity": "low",
+              "kind": "step",
+              "phase": "warmup"
+            },
+            {
+              "kind": "repeat",
+              "repetitions": 4,
+              "steps": [
+                {
+                  "duration_minutes": 3,
+                  "intended_intensity": "controlled_uphill_effort",
+                  "kind": "step",
+                  "phase": "work"
+                },
+                {
+                  "duration_minutes": 2,
+                  "intended_intensity": "low",
+                  "kind": "step",
+                  "phase": "recovery"
+                }
+              ]
+            },
+            {
+              "duration_minutes": 8,
+              "intended_intensity": "low",
+              "kind": "step",
+              "phase": "cooldown"
+            }
+          ],
+          "template_id": "trail-controlled-uphill-quality-v1",
+          "total_planned_minutes": 38
+        },
+        "downhill_recovery_may_be_prescribed": false,
+        "easy": "duration_only_with_optional_accessible_terrain_category",
+        "exact_hr_pace_power_or_rpe_target": false,
+        "longest_easy": "duration_only_with_observed_duration_and_course_exposure_caps",
+        "target_expression": "duration_phase_and_effort_label_only",
+        "template_must_fit_history_constraint_and_exposure_caps": true,
+        "template_optimum_claim": false,
+        "work_step_requires_accessible_non_technical_uphill": true
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:afc9fecefd55c699a8fdf3d3ab885968c7f7981fadbcba7bf09494fdfcdcd606"
+}

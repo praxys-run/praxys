@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-trail-running-goal-ontology-v1
+subject_digest: sha256:cb53936289927d0f5f73268b5b6468e17a5b771532e2eaeee5c5c8781e541774
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-09-03'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639012

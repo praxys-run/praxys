@@ -1,0 +1,371 @@
+schema_version: 1
+id: evidence-non-ultra-trail-plan-generation-policy-v1
+version: 1
+title: "History-rich adult non-ultra trail-running plan generation"
+research_question: >
+  For nonclinical adults with recent, comparable running and trail exposure who
+  are preparing for a single-day non-ultra trail event described by
+  trail_course_demand_v1, what evidence supports and limits a deterministic,
+  suggestion-only, history-anchored plan policy covering terrain specificity,
+  uphill and downhill exposure, intensity, strength, long sessions, taper,
+  fueling practice, reassessment, and typed unavailable outcomes?
+topic: non-ultra-trail-plan-generation-policy
+status: accepted
+approval_mode: artifact
+authors:
+  - agent:codex
+human_reviewers: []
+created_on: 2026-09-01
+reviewed_on: 2026-09-03
+intended_product_purpose: >
+  Establish whether Praxys may offer one bounded, history-rich non-ultra trail
+  performance policy without copying a road schedule or inventing a universal
+  distance/elevation conversion. Separate published findings from reversible
+  Praxys guardrails, preserve course and athlete unknowns, and identify every
+  unresolved dose, taper, progression, intensity, and rollout decision. The
+  review does not itself authorize implementation or runtime activation.
+scope:
+  population:
+    - Adults aged 18 years or older with recent stable running history
+    - Adults with recent terrain, ascent, and descent exposure comparable enough for a reviewed capability match
+    - Single-day non-ultra trail performance intent
+    - Nonclinical planning only
+  intervention_or_exposure:
+    - Trail-specific and mixed-terrain running practice
+    - Uphill, downhill, level, hiking, strength, and multimodal training
+    - History-anchored volume, duration, frequency, and terrain exposure
+    - General endurance taper and duration-dependent fueling practice
+  comparator:
+    - Trail versus road training
+    - Uphill versus downhill versus level demand
+    - Different trail distances and course profiles
+    - Strength, high-intensity, and combined training
+    - Tapered versus maintained endurance load
+  outcomes:
+    - Trail performance and course-specific readiness
+    - Neuromuscular, mechanical, metabolic, and cardiovascular response
+    - Injury and fatigue observations
+    - Proposal availability, uncertainty, and post-plan evaluation
+method:
+  review_type: rigorous
+  search_date: 2026-09-01
+  sources:
+    - name: Europe PMC and PubMed - trail policy exact records
+      search_string: >
+        33508776[PMID] OR 35213820[PMID] OR 31114511[PMID] OR
+        36901510[PMID] OR 35022162[PMID] OR 33538997[PMID] OR
+        33191845[PMID] OR 34853187[PMID] OR 27396389[PMID] OR
+        33266272[PMID] OR 41718076[PMID] OR 42479880[PMID]
+    - name: PubMed Central full text
+      search_string: >
+        PMC6503082 OR PMC10002259 OR PMC7730662 OR PMC12921809
+    - name: Europe PMC and PubMed - taper and fueling transfer
+      search_string: >
+        37163550[PMID] OR 21660838[PMID] OR 37061651[PMID]
+    - name: Europe PMC trail training discovery
+      search_string: >
+        (trail running OR mountain running) AND (training intervention OR
+        periodization OR taper OR strength OR downhill OR uphill OR fueling)
+        AND adult
+  inclusion_criteria:
+    - Adult human trail-running performance, training, fatigue, or injury evidence
+    - Direct trail studies preferred; broader endurance evidence labelled indirect
+    - Systematic reviews, controlled studies, observational cohorts, and authoritative guidance with stable identifiers
+    - Numeric findings used only at their verified access level and study context
+  exclusion_criteria:
+    - Ultra or multi-day findings converted directly into a non-ultra schedule
+    - Road-plan percentages or distance-only policies reused as trail prescriptions
+    - Clinical, rehabilitation, pregnancy-specific, pediatric, or return-to-sport prescription
+    - Coaching templates, blogs, vendor content, and unverified search snippets
+  quality_appraisal: >
+    Evidence was appraised for directness to history-rich adult non-ultra trail
+    runners, course comparability, intervention design, sample size, sex and
+    age representation, terrain realism, confounding, and whether a finding
+    supports a directional module or an exact personal dose. Direct training
+    intervention evidence is sparse and small. Injury and race-fatigue evidence
+    is mainly observational. General taper and fueling evidence is more mature
+    but indirect and cannot choose trail-specific values by itself.
+  method_limitations:
+    - Screening and extraction were not independently duplicated by human reviewers.
+    - SPORTDiscus, Scopus, Embase, and Web of Science were not independently searched in this run.
+    - Several direct trail records were available only as indexed abstracts.
+    - Direct non-ultra intervention evidence is sparse, heterogeneous, and often male-heavy.
+    - No reviewed source validates a complete deterministic trail plan, safe progression law, or personal finish probability.
+claims:
+  - id: non-ultra-trail.course-specific-policy-required
+    statement: >
+      Trail performance and training demand are course-specific and
+      multifactorial. A policy must match an explicit course-demand vector and
+      comparable exposure rather than distance, level pace, or one physiological
+      marker alone.
+    source_ids:
+      - de-waal-2021-performance-review
+      - pastor-2022-distance-determinants
+      - bjorklund-2019-short-trail
+    evidence_strength: moderate
+    applicable_population:
+      - Adult trail runners represented by the systematic review and direct studies
+    domain:
+      - Capability matching
+      - Course specificity
+    limitations:
+      - Associations and prediction models do not establish causal training dose.
+      - The reviewed courses and populations are heterogeneous.
+  - id: non-ultra-trail.uphill-downhill-require-distinct-handling
+    statement: >
+      Uphill and downhill running have materially different metabolic,
+      mechanical, cardiovascular, and neuromuscular profiles. Training history
+      and proposed exposure should therefore preserve ascent, descent, grade,
+      and technical context separately.
+    source_ids:
+      - bjorklund-2019-short-trail
+      - lemire-2021-downhill-fatigue
+      - lemire-2022-slope-energy-cost
+    evidence_strength: moderate
+    applicable_population:
+      - Adult trained trail runners in short field and laboratory studies
+    domain:
+      - Uphill exposure
+      - Downhill exposure
+      - Fatigue and mechanics
+    limitations:
+      - Small studies at specific grades do not establish universal progression.
+      - Comparable oxygen uptake does not imply comparable mechanical cost.
+  - id: non-ultra-trail.hr-and-road-pace-not-sole-targets
+    statement: >
+      Heart rate can lag or fail to reflect rapid slope-dependent changes, and
+      level-running pace does not preserve trail mechanical demand. Neither
+      should be the sole driver of a hilly or technical prescription.
+    source_ids:
+      - born-2017-hilly-intensity
+      - lemire-2022-slope-energy-cost
+    evidence_strength: low
+    applicable_population:
+      - Competitive and well-trained adult trail runners in small hilly protocols
+    domain:
+      - Intensity interpretation
+      - Workout targets
+    limitations:
+      - This does not prohibit contextual athlete-specific HR or pace use.
+      - No reviewed evidence validates one universal trail RPE, power, HR, or pace equivalence.
+  - id: non-ultra-trail.training-specificity-promising-not-prescriptive
+    statement: >
+      Trail-specific and multimodal training can be plausible modules, but the
+      reviewed interventions are too small and heterogeneous to establish a
+      universal session mix, weekly frequency, vertical dose, or superiority
+      over road training.
+    source_ids:
+      - drum-2023-trail-road-rct
+      - panthong-2026-masters-training
+    evidence_strength: low
+    applicable_population:
+      - Sedentary adult novices in one small trail-versus-road trial
+      - Masters trail runners aged 35 to 55 in one 12-week trial
+    domain:
+      - Terrain specificity
+      - Strength and high-intensity modules
+    limitations:
+      - The trail-versus-road study found no significant group-by-time interactions.
+      - The masters trial does not define a universal plan or transfer to every age and course.
+  - id: non-ultra-trail.injury-fatigue-no-safe-dose
+    statement: >
+      Trail racing is associated with heterogeneous injury, illness, muscular,
+      and neuromuscular stress observations, but current evidence does not
+      establish a universal injury-preventive plan, safe downhill dose,
+      recovery interval, or progression percentage.
+    source_ids:
+      - viljoen-2022-risk-factors
+      - garcia-valiente-2026-damage-review
+    evidence_strength: low
+    applicable_population:
+      - Trail runners across heterogeneous race and observational studies
+    domain:
+      - Safety guardrails
+      - Downhill and recovery uncertainty
+    limitations:
+      - Associations do not establish causality or individual safety.
+      - Race biomarkers cannot be converted into medical clearance or training readiness.
+  - id: non-ultra-trail.observed-load-does-not-prove-prescription
+    statement: >
+      Observed trail workload and pacing associations may inform descriptive
+      context, but they do not validate ACWR zones, fixed taper behavior,
+      activity-average-power intensity, or an individual causal prescription.
+    source_ids:
+      - matos-2020-load-profiles
+    evidence_strength: very_low
+    applicable_population:
+      - Recreational male trail runners in one observational season
+    domain:
+      - Training history
+      - Load interpretation
+    limitations:
+      - Small observational male sample and heterogeneous events.
+      - Correlation and group averages do not select individual dose.
+  - id: non-ultra-trail.taper-direction-indirect
+    statement: >
+      Broader endurance evidence supports a pre-event reduction in training
+      volume while generally retaining intensity and frequency, but it does not
+      validate one trail-specific taper duration, reduction percentage, or
+      personal performance gain.
+    source_ids:
+      - wang-2023
+    evidence_strength: moderate
+    applicable_population:
+      - Endurance athletes, indirectly applicable to non-ultra trail runners
+    domain:
+      - Taper
+      - Event preparation
+    limitations:
+      - Mixed sports and protocols rather than direct non-ultra trail trials.
+      - Subgroup estimates cannot be treated as an individual optimum.
+  - id: non-ultra-trail.fueling-duration-and-practice-context
+    statement: >
+      During-exercise carbohydrate strategy depends on expected duration and
+      tolerance, and practice can reduce gastrointestinal problems in some
+      endurance contexts. Distance alone does not select a fueling prescription.
+    source_ids:
+      - burke-2011
+      - martinez-2023
+    evidence_strength: moderate
+    applicable_population:
+      - Adult endurance athletes, indirectly including trail runners
+    domain:
+      - Fueling practice
+      - Expected duration
+    limitations:
+      - Numeric guidance is not trail-course specific.
+      - Practice does not guarantee tolerance or performance for an individual.
+citations:
+  - id: de-waal-2021-performance-review
+    title: "Physiological Indicators of Trail Running Performance: A Systematic Review"
+    authors: ["S. J. de Waal", "J. Gomez-Ezeiza", "R. E. Venter", "R. P. Lamberts"]
+    year: 2021
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2020-0812
+    pmid: "33508776"
+  - id: pastor-2022-distance-determinants
+    title: "Performance Determinants in Trail-Running Races of Different Distances"
+    authors: ["F. S. Pastor", "T. Besson", "G. Varesco", "A. Parent", "M. Fanget", "J. Koral", "C. Foschia", "T. Rupp", "D. Rimaud", "L. Feasson", "G. Y. Millet"]
+    year: 2022
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2021-0362
+    pmid: "35213820"
+  - id: bjorklund-2019-short-trail
+    title: "Biomechanical Adaptations and Performance Indicators in Short Trail Running"
+    authors: ["G. Bjorklund", "M. Swaren", "D. P. Born", "T. Stoggl"]
+    year: 2019
+    journal: Frontiers in Physiology
+    doi: 10.3389/fphys.2019.00506
+    pmid: "31114511"
+  - id: born-2017-hilly-intensity
+    title: "Near-Infrared Spectroscopy: More Accurate Than Heart Rate for Monitoring Intensity in Running in Hilly Terrain"
+    authors: ["D. P. Born", "T. Stoggl", "M. Swaren", "G. Bjorklund"]
+    year: 2017
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2016-0101
+    pmid: "27396389"
+  - id: lemire-2021-downhill-fatigue
+    title: "High-intensity downhill running exacerbates heart rate and muscular fatigue in trail runners"
+    authors: ["M. Lemire", "R. Remetter", "T. J. Hureau", "B. Y. L. Kouassi", "E. Lonsdorfer", "B. Geny", "M. E. Isner-Horobeti", "F. Favret", "S. P. Dufour"]
+    year: 2021
+    journal: Journal of Sports Sciences
+    doi: 10.1080/02640414.2020.1847502
+    pmid: "33191845"
+  - id: lemire-2022-slope-energy-cost
+    title: "Energy Cost of Running in Well-Trained Athletes: Toward Slope-Dependent Factors"
+    authors: ["M. Lemire", "R. Remetter", "T. J. Hureau", "B. Geny", "E. Lonsdorfer", "F. Favret", "S. P. Dufour"]
+    year: 2022
+    journal: International Journal of Sports Physiology and Performance
+    doi: 10.1123/ijspp.2021-0047
+    pmid: "34853187"
+  - id: drum-2023-trail-road-rct
+    title: "Effects of Trail Running versus Road Running-Effects on Neuromuscular and Endurance Performance-A Two Arm Randomized Controlled Study"
+    authors: ["S. N. Drum", "L. Rappelt", "S. Held", "L. Donath"]
+    year: 2023
+    journal: International Journal of Environmental Research and Public Health
+    doi: 10.3390/ijerph20054501
+    pmid: "36901510"
+  - id: panthong-2026-masters-training
+    title: "Comparative Effects of Circuit Training, High-Intensity Interval Training, and Combined Training on Performance and Neuromuscular Function in Masters Trail Runners"
+    authors: ["S. Panthong", "N. Tongsiri", "H. Tanaka", "D. Suksom"]
+    year: 2026
+    journal: Journal of Strength and Conditioning Research
+    doi: 10.1519/JSC.0000000000005622
+    pmid: "42479880"
+  - id: viljoen-2022-risk-factors
+    title: "Trail running injury risk factors: a living systematic review"
+    authors: ["C. Viljoen", "D. C. C. Janse van Rensburg", "W. van Mechelen", "E. Verhagen", "B. Silva", "V. Scheer", "M. Besomi", "R. Gajardo-Burgos", "S. Matos", "M. Schoeman", "A. Jansen van Rensburg", "N. van Dyk", "S. Scheepers", "T. Botha"]
+    year: 2022
+    journal: British Journal of Sports Medicine
+    doi: 10.1136/bjsports-2021-104858
+    pmid: "35022162"
+  - id: garcia-valiente-2026-damage-review
+    title: "Muscle, Neuromuscular, and Cardiac Damage in Trail Running: A Systematic Review"
+    authors: ["I. Garcia-Valiente", "F. Pradas", "M. A. Ortega-Zayas", "C. Castellar-Otin", "A. Garcia-Gimenez", "M. Lecina"]
+    year: 2026
+    journal: Muscles
+    doi: 10.3390/muscles5010009
+    pmid: "41718076"
+  - id: matos-2020-load-profiles
+    title: "Performance and Training Load Profiles in Recreational Male Trail Runners: Analyzing Their Interactions during Competitions"
+    authors: ["S. Matos", "F. M. Clemente", "R. Silva", "J. Pereira", "J. M. Cancela Carral"]
+    year: 2020
+    journal: International Journal of Environmental Research and Public Health
+    doi: 10.3390/ijerph17238902
+    pmid: "33266272"
+  - id: wang-2023
+    title: "Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis"
+    authors: ["Z. Wang", "Y. Wang", "W. Gao", "Y. Zhong"]
+    year: 2023
+    journal: PLOS ONE
+    doi: 10.1371/journal.pone.0282838
+    pmid: "37163550"
+  - id: burke-2011
+    title: "Carbohydrates for training and competition"
+    authors: ["L. M. Burke", "J. A. Hawley", "S. H. Wong", "A. E. Jeukendrup"]
+    year: 2011
+    journal: Journal of Sports Sciences
+    doi: 10.1080/02640414.2011.585473
+    pmid: "21660838"
+  - id: martinez-2023
+    title: "The Effect of Gut-Training and Feeding-Challenge on Markers of Gastrointestinal Status in Response to Endurance Exercise: A Systematic Literature Review"
+    authors: ["I. G. Martinez", "A. S. Mika", "J. R. Biesiekierski", "R. J. S. Costa"]
+    year: 2023
+    journal: Sports Medicine
+    doi: 10.1007/s40279-023-01841-0
+    pmid: "37061651"
+known_gaps:
+  - A prospectively evaluated deterministic non-ultra trail plan policy
+  - A validated comparable-history and course-demand matching threshold
+  - Safe vertical, downhill, technical-terrain, long-session, and weekly progression values
+  - Direct trail-specific taper duration and reduction values
+  - Universal HR, pace, power, RPE, hiking, or terrain-substitution equivalences
+  - Adequate female, older, diverse, and different-access subgroup evidence
+conflicting_findings:
+  - Trail determinants differ by course distance and profile, preventing one universal predictor or plan.
+  - Small intervention studies suggest possible benefits without establishing one superior training mix.
+  - Lower metabolic cost downhill can coexist with greater peak force and neuromuscular fatigue.
+  - General endurance taper and fueling findings are directionally relevant but not trail-specific prescriptions.
+follow_up_questions:
+  - Which exact history window and comparability rules should qualify a bounded policy?
+  - Which conservative session mix can be piloted without claiming biological optimality?
+  - How should inaccessible terrain produce alternatives without pretending road running is equivalent?
+  - Which taper, fueling-practice, and reassessment values are acceptable reversible guardrails?
+  - Which outcome signals can be compared without reducing trail performance to road pace?
+supersedes: []
+superseded_by:
+review_notes:
+  - "Verification: de-waal-2021-performance-review - abstract; Europe PMC PMID 33508776 metadata and abstract; 2026-09-01."
+  - "Verification: pastor-2022-distance-determinants - abstract; Europe PMC PMID 35213820 metadata and abstract; 2026-09-01."
+  - "Verification: bjorklund-2019-short-trail - full-text; Europe PMC PMID 31114511 metadata and PubMed Central PMC6503082 full text; 2026-09-01."
+  - "Verification: born-2017-hilly-intensity - abstract; Europe PMC PMID 27396389 metadata and abstract; 2026-09-01."
+  - "Verification: lemire-2021-downhill-fatigue - abstract; Europe PMC PMID 33191845 metadata and abstract; 2026-09-01."
+  - "Verification: lemire-2022-slope-energy-cost - abstract; Europe PMC PMID 34853187 metadata and abstract; 2026-09-01."
+  - "Verification: drum-2023-trail-road-rct - full-text; Europe PMC PMID 36901510 metadata and PubMed Central PMC10002259 full text; 2026-09-01."
+  - "Verification: panthong-2026-masters-training - abstract; Europe PMC PMID 42479880 metadata and abstract; 2026-09-01."
+  - "Verification: viljoen-2022-risk-factors - abstract; Europe PMC PMID 35022162 metadata and abstract; 2026-09-01."
+  - "Verification: garcia-valiente-2026-damage-review - full-text; Europe PMC PMID 41718076 metadata and PubMed Central PMC12921809 full text; 2026-09-01."
+  - "Verification: matos-2020-load-profiles - full-text; Europe PMC PMID 33266272 metadata and PubMed Central PMC7730662 full text; 2026-09-01."
+  - "Verification: wang-2023 - full-text; Europe PMC PMID 37163550 metadata and PubMed Central PMC10171681 full text; 2026-09-01."
+  - "Verification: burke-2011 - abstract; Europe PMC PMID 21660838 metadata and abstract; 2026-09-01."
+  - "Verification: martinez-2023 - full-text; Europe PMC PMID 37061651 metadata and PubMed Central PMC10185635 full text; 2026-09-01."

@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-non-ultra-trail-plan-generation-policy-v1
+subject_digest: sha256:afc9fecefd55c699a8fdf3d3ab885968c7f7981fadbcba7bf09494fdfcdcd606
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-09-03'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639393

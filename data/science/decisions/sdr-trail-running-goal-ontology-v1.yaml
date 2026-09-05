@@ -1,0 +1,354 @@
+schema_version: 1
+id: sdr-trail-running-goal-ontology-v1
+version: 1
+title: "Represent trail goals with an explicit course-demand vector"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-09-01
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: trail-course-demand-v1
+evidence_review_ids:
+  - evidence-trail-running-goal-ontology-v1
+evidence_claim_ids:
+  - trail-ontology.course-demand-is-multidimensional
+  - trail-ontology.uphill-downhill-demands-differ
+  - trail-ontology.technicality-and-downhill-vary-performance
+  - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+  - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+accepted_interpretation: >
+  If separately accepted by the evidence reviewer and decision approver, this
+  record would define trail_course_demand_v1 as a science-owned ontology for
+  exact capability matching. A trail goal records expected duration, distance,
+  elevation gain and loss, grade distribution, technicality, maximum altitude,
+  environmental demand, aid and external support, accessible training terrain,
+  recent downhill exposure, and fueling-practice experience with source and
+  uncertainty. Distance, gain, and event date alone are insufficient. Material
+  unknowns produce clarification_required or policy_unavailable; they never
+  select a road policy or invent equivalence. The record does not select
+  thresholds, plan dose, a generator, product visibility, rollout, or Garmin
+  behavior, and runtime remains inactive.
+decision_review:
+  reviewer_task: >
+    Decide whether the four proposed ontology and safety boundaries should be
+    accepted while the two implementation and numeric decisions remain
+    deferred. Approve the sheet as a unit or request changes by item ID.
+  approval_statement: >
+    I approve trail_course_demand_v1 as the required science boundary for
+    trail capability matching, including explicit field provenance and
+    unknown states, separate uphill and downhill representation, and fail-
+    closed behavior for material unknowns. I approve the prohibition on road
+    fallback, universal distance/elevation conversion, activity-average-power
+    intensity use, and personal performance or safety guarantees. This does
+    not approve a generator, numeric dose, implementation, rollout, provider
+    mapping, or runtime activation.
+  items:
+    - id: course-demand-schema
+      title: Accept the versioned course-demand dimensions
+      disposition: approve
+      question: >
+        Should every trail capability match trail_course_demand_v1 rather than
+        a distance-only goal?
+      proposed_decision: >
+        Require typed expected duration, distance, ascent, descent, grade
+        distribution, technicality, altitude, environment, support, terrain
+        access, downhill exposure, and fueling-practice fields with explicit
+        provenance and unknown states.
+      approval_effect:
+        - Trail goals retain the course dimensions needed for policy matching.
+        - Course-derived, athlete-stated, observed, inferred, assumed, and unknown values remain distinguishable.
+      does_not_authorize:
+        - A plan, dose, automatic route inference, implementation, or activation.
+      parameter_names:
+        - trail_course_demand_schema
+        - trail_field_provenance
+      evidence_claim_ids:
+        - trail-ontology.course-demand-is-multidimensional
+        - trail-ontology.uphill-downhill-demands-differ
+    - id: material-unknowns
+      title: Fail closed on material unknowns
+      disposition: approve
+      question: >
+        Should a material unknown block the dependent capability match rather
+        than be defaulted or replaced by a road assumption?
+      proposed_decision: >
+        Return clarification_required when the athlete or verified course
+        source can resolve the field, otherwise policy_unavailable or a
+        separately reviewed bounded alternative. Never silently use a road
+        plan.
+      approval_effect:
+        - Known values remain usable without erasing uncertainty.
+        - Material missingness is visible and action-oriented.
+      does_not_authorize:
+        - Treating an unknown as zero, average, easy, road, or nontechnical.
+      parameter_names:
+        - trail_unknown_and_materiality_policy
+      evidence_claim_ids:
+        - trail-ontology.course-demand-is-multidimensional
+        - trail-ontology.technicality-and-downhill-vary-performance
+    - id: distinct-slope-demands
+      title: Preserve uphill, downhill, and technical demand separately
+      disposition: approve
+      question: >
+        Should elevation loss, grade distribution, technicality, and downhill
+        exposure remain distinct rather than being inferred from total gain?
+      proposed_decision: >
+        Keep those dimensions separate and require exact policy support when
+        any is material.
+      approval_effect:
+        - Capability matching cannot collapse ascent and descent into one vertical number.
+        - Heart rate or level pace cannot be the sole intensity representation for hilly demand.
+      does_not_authorize:
+        - A universal ascent/descent equivalence, hiking threshold, or technicality dose.
+      parameter_names:
+        - trail_distinct_demand_invariants
+      evidence_claim_ids:
+        - trail-ontology.uphill-downhill-demands-differ
+        - trail-ontology.technicality-and-downhill-vary-performance
+        - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+    - id: safety-claim-boundary
+      title: Accept nonclinical claim and safety limits
+      disposition: approve
+      question: >
+        Should the ontology prohibit medical inference, individual safety or
+        finish guarantees, and activity-average-power intensity use?
+      proposed_decision: >
+        Preserve those prohibitions and use activity splits or samples for any
+        future intensity interpretation.
+      approval_effect:
+        - Trail planning remains adult, nonclinical, suggestion-only, and uncertainty-aware.
+      does_not_authorize:
+        - Diagnosis, treatment, clearance, injury prevention, finish probability, or performance guarantee.
+      parameter_names:
+        - trail_science_and_safety_boundary
+      evidence_claim_ids:
+        - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    - id: exact-values-deferred
+      title: Defer all exact ontology thresholds and conversions
+      disposition: defer
+      question: >
+        Should grade bins, technicality scores, materiality thresholds,
+        freshness windows, equivalence formulas, and safe progression values
+        remain unaccepted?
+      proposed_decision: >
+        Keep every exact behavior-driving threshold and conversion literal
+        not_accepted until separately reviewed.
+      approval_effect:
+        - Future policies must select and validate their own bounded values.
+      does_not_authorize:
+        - Inferring, defaulting, or implementing any exact value.
+      parameter_names:
+        - trail_unknown_and_materiality_policy
+        - trail_exact_values
+      evidence_claim_ids:
+        - trail-ontology.uphill-downhill-demands-differ
+        - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    - id: non-science-decisions-deferred
+      title: Defer product, design, implementation, rollout, and delivery
+      disposition: defer
+      question: >
+        Should all product visibility, interaction, storage, generator,
+        provider, pilot, rollout, and activation choices stay outside this SDR?
+      proposed_decision: >
+        Keep the contract inactive and require linked role-owned decisions and
+        implementation review.
+      approval_effect:
+        - Science constrains later work without assuming its authority.
+      does_not_authorize:
+        - User exposure, data writes, plan generation, Garmin mapping, deployment, or activation.
+      parameter_names:
+        - trail_non_science_authority_boundary
+      evidence_claim_ids: []
+rejected_alternatives:
+  - alternative: "Represent a trail race with distance, ascent, and date only"
+    rationale: >
+      This loses descent, grade, technicality, altitude, environment, support,
+      expected duration, terrain access, and relevant prior exposure.
+  - alternative: "Convert trail distance and elevation into a road-equivalent distance"
+    rationale: >
+      The reviewed evidence shows nonlinear and distinct slope-specific demands
+      and does not validate one universal equivalence.
+  - alternative: "Treat missing technicality or descent as easy or zero"
+    rationale: >
+      That would turn unknown course demand into an unsupported low-risk claim.
+  - alternative: "Let a generator or AI fill material unknowns"
+    rationale: >
+      Generated assumptions cannot replace athlete confirmation or a verified
+      course source and cannot broaden a reviewed capability.
+model_parameters:
+  - name: trail_course_demand_schema
+    value:
+      schema_id: trail_course_demand_v1
+      fields:
+        expected_duration_seconds: {type: integer, unit: seconds, minimum: 1, material: true}
+        distance_meters: {type: integer, unit: meters, minimum: 1, material: true}
+        elevation_gain_meters: {type: integer, unit: meters, minimum: 0, material: true}
+        elevation_loss_meters: {type: integer, unit: meters, minimum: 0, material: true}
+        grade_distribution: {type: object, unit: percent_of_course, material: true}
+        technicality: {type: categorical_object, unit: versioned_rubric, material: true}
+        maximum_altitude_meters: {type: integer, unit: meters_above_sea_level, material: conditional}
+        environmental_demand: {type: object, unit: observed_or_expected_conditions, material: conditional}
+        aid_and_support: {type: object, unit: event_support_model, material: true}
+        training_terrain_access: {type: object, unit: accessible_demand_classes, material: true}
+        recent_downhill_exposure: {type: object, unit: observed_exposure_summary, material: true}
+        fueling_practice_experience: {type: categorical_object, unit: versioned_rubric, material: conditional}
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+      - trail-ontology.uphill-downhill-demands-differ
+    rationale: >
+      The schema keeps evidence-relevant dimensions distinct; exact rubrics and
+      materiality thresholds remain deferred.
+    applies_to: trail_course_demand_v1
+  - name: trail_field_provenance
+    value:
+      allowed:
+        - course_verified
+        - athlete_stated
+        - history_observed
+        - model_inferred
+        - explicit_assumption
+        - unknown
+      inferred_requires_model_version: true
+      assumed_requires_athlete_confirmation: true
+      unknown_is_preserved: true
+      source_timestamp_required_when_applicable: true
+    classification: guardrail
+    rationale: >
+      Facts, statements, inferences, assumptions, and unknowns must not be
+      collapsed because they carry different decision confidence.
+    applies_to: every trail_course_demand_v1 field
+  - name: trail_unknown_and_materiality_policy
+    value:
+      material_unknown_result:
+        - clarification_required
+        - policy_unavailable
+        - bounded_alternative_only_when_separately_reviewed
+      unknown_defaults_to_zero: false
+      unknown_defaults_to_road: false
+      module_specific_unknown_may_limit_only_dependent_module: true
+      exact_materiality_thresholds: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+      - trail-ontology.technicality-and-downhill-vary-performance
+    rationale: >
+      Failing closed prevents missing course data from becoming an implicit
+      easier-course or road assumption while allowing explicit modular limits.
+    applies_to: trail capability matching
+  - name: trail_distinct_demand_invariants
+    value:
+      ascent_and_descent_separate: true
+      grade_distribution_required_when_material: true
+      technicality_required_when_material: true
+      downhill_history_required_when_descent_material: true
+      heart_rate_alone_sufficient_for_hilly_intensity: false
+      level_pace_alone_sufficient_for_hilly_intensity: false
+      universal_distance_vertical_equivalence: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.uphill-downhill-demands-differ
+      - trail-ontology.technicality-and-downhill-vary-performance
+      - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+    rationale: >
+      Uphill, downhill, and technical terrain have different demands that one
+      scalar or level-running signal cannot preserve.
+    applies_to: trail ontology and future policy matching
+  - name: trail_science_and_safety_boundary
+    value:
+      minimum_age_years: 18
+      nonclinical_only: true
+      diagnosis_or_clearance: false
+      personal_finish_probability: false
+      performance_or_injury_guarantee: false
+      activity_average_power_valid_for_intensity: false
+      valid_intensity_sources: [activity_splits, activity_samples]
+      symptom_stop_required: true
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      Injury and training evidence does not establish a safe individual dose;
+      the repository intensity invariant also excludes activity-average power.
+    applies_to: future trail capability decisions
+  - name: trail_exact_values
+    value:
+      grade_bins: not_accepted
+      technicality_rubric: not_accepted
+      materiality_thresholds: not_accepted
+      history_freshness: not_accepted
+      distance_vertical_conversion: not_accepted
+      road_trail_equivalence: not_accepted
+      downhill_progression: not_accepted
+      vertical_progression: not_accepted
+      technical_terrain_dose: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.uphill-downhill-demands-differ
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      The evidence supports keeping dimensions explicit, not universal numeric
+      values or prescriptions.
+    applies_to: unresolved ontology and future generation values
+  - name: trail_non_science_authority_boundary
+    value:
+      science_authority: [evidence, applicability, uncertainty, claim_limits, safety_scope]
+      deferred_to_product: [visibility, catalog, opt_in, outcome_metrics]
+      deferred_to_design: [clarification_journey, review_experience, accessibility, copy]
+      deferred_to_engineering: [storage, api, generator, clients, provider_delivery]
+      deferred_to_operations: [owner_gate, rollout, activation, monitoring]
+    classification: guardrail
+    rationale: >
+      This SDR cannot authorize role-owned product, experience,
+      implementation, rollout, or provider decisions.
+    applies_to: all non-science work
+applicability:
+  - Adult nonclinical single-day trail-running goal representation
+  - Course-demand capture and exact capability matching before generation
+  - Evidence, uncertainty, claim limits, and safety scope only
+user_facing_claim_limits:
+  - Do not claim distance and ascent alone describe trail demand.
+  - Do not claim a universal road-equivalent distance or ascent/descent conversion.
+  - Do not present unknown technicality, descent, environment, or support as easy, zero, or average.
+  - Do not present a personal finish probability, performance guarantee, injury-prevention guarantee, diagnosis, or clearance.
+safety_implications:
+  - Missing material modifiers fail closed or return a separately reviewed bounded alternative.
+  - Uphill, downhill, technical terrain, altitude, and heat require distinct handling when material.
+  - Current symptoms stop performance optimization without creating a diagnosis.
+  - Intensity uses activity splits or samples, never activity-average power.
+privacy_implications:
+  - Store the minimum normalized field value, provenance, uncertainty, and source reference needed for replay.
+  - Do not copy raw route files, activity samples, free text, or provider payloads into generic audit or telemetry.
+  - Athlete-stated and inferred fields remain correctable and deletable under existing account controls.
+validation_plan:
+  - Validate every field type, unit, source category, and explicit unknown state deterministically.
+  - Replay matching with each material field unknown and verify no road policy or success-shaped plan is selected.
+  - Verify ascent and descent changes alter the course-demand digest independently.
+  - Verify activity-average power cannot satisfy intensity provenance.
+  - Generate matching review packet and inactive machine contract and bind later approvals to their exact digests.
+falsification_conditions:
+  - A trail capability matches on distance alone or silently selects a road policy.
+  - An unknown material field is treated as zero, average, easy, nontechnical, or confirmed.
+  - Ascent and descent are collapsed or one universal conversion is presented as established.
+  - Activity-average power drives intensity or a personal safety, finish, or performance guarantee is shown.
+  - The generated contract becomes active without separate implementation review and activation authority.
+affected_surfaces:
+  models:
+    - trail_course_demand_v1 ontology
+    - trail capability matching contract
+  apis:
+    - future plan-generation capability discovery and readiness contracts
+  clients:
+    - future web, miniapp, plugin, and MCP trail goal clients
+  science_notes:
+    - Why trail demand needs more than distance and ascent
+    - Why uphill and downhill are represented separately
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by:
+decision_notes:
+  - "This artifact-mode decision addresses issue #690 and remains draft and inactive."
+  - "Work Contract classification digest: sha256:55c4da66e7f504dd0d40c681c2a006fdbe7079c0cd06de43cb95802e679f78f5."
+  - "Work Contract route digest: sha256:2f237b07f7a41582707e1a647e69aa634749c487c258b555c559f80f98cfc160."
