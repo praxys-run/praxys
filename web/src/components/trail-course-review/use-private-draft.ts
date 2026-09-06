@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { apiFetcher, getAuthCacheScope } from '@/hooks/useApi';
 import { ApiResponseError } from '@/lib/api-error';
-import { ApiTimeoutError } from '@/lib/request-timeout';
 import { TRAIL_API_ENDPOINTS, type TrailDraftResponse } from '@/types/trail-plan';
 import { parseTrailDraftResponse } from './validation';
 import {
@@ -10,8 +9,8 @@ import {
 } from './private-draft-state';
 import {
   TrailOperationCancelledError,
-  TrailTransportError,
 } from './mutation-error';
+import { requestPrivateTrailDraft } from './private-draft-request';
 
 interface PrivateTrailDraftResult {
   data: TrailDraftResponse | null;
@@ -59,20 +58,14 @@ export function usePrivateTrailDraft(): PrivateTrailDraftResult {
     requestSequenceRef.current = requestId;
     const lifetime = lifetimeRef.current;
     const ownerScope = getAuthCacheScope();
-    let raw: unknown;
-    try {
-      raw = await apiFetcher<unknown>(
+    const raw = await requestPrivateTrailDraft(
+      (signal) => apiFetcher<unknown>(
         TRAIL_API_ENDPOINTS.draft,
-        controller.signal,
+        signal,
         15_000,
-      );
-    } catch (error) {
-      if (controller.signal.aborted) throw new TrailOperationCancelledError();
-      if (error instanceof ApiResponseError || error instanceof ApiTimeoutError) {
-        throw error;
-      }
-      throw new TrailTransportError();
-    }
+      ),
+      controller.signal,
+    );
     if (
       !mountedRef.current
       || requestId !== requestSequenceRef.current

@@ -92,7 +92,10 @@ function isExactTrailOwnerExportFetch(call) {
   for (const property of options.properties) {
     if (!ts.isPropertyAssignment(property) || property.name === undefined) return false;
     if (property.name && ts.isComputedPropertyName(property.name)) return false;
-    const name = property.name.getText(file).replaceAll(/['"]/g, "");
+    const name = ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)
+      ? property.name.text
+      : null;
+    if (name === null) return false;
     const predicate = expected.get(name);
     if (!predicate || !predicate(property.initializer)) return false;
     expected.delete(name);
@@ -159,6 +162,16 @@ test("Trail owner export raw-fetch recognition is exact and rejects override sur
     isAllowedRawFetch("components/trail-course-review/other.ts", exactCall),
     false,
   );
+  const quotedExact = exact
+    .replace("method:", "'method':")
+    .replace("headers:", "'headers':")
+    .replace("mode:", "'mode':")
+    .replace("redirect:", "'redirect':")
+    .replace("signal:", "'signal':");
+  assert.equal(
+    isExactTrailOwnerExportFetch(fetchCalls(quotedExact, "owner-export.ts")[0]),
+    true,
+  );
   for (const source of [
     exact.replace("'/api/me/export'", "endpoint"),
     exact.replace("'/api/me/export'", "'https://example.com/api/me/export'"),
@@ -170,7 +183,10 @@ test("Trail owner export raw-fetch recognition is exact and rejects override sur
     exact.replace("signal: controller.signal", "signal: other.signal"),
     exact.replace("signal: controller.signal,", "signal: controller.signal, body: '{}',"),
     exact.replace("signal: controller.signal,", "signal: controller.signal, ...overrides,"),
+    exact.replace("headers:", "\"hea'ders\":"),
+    exact.replace("headers:", "['headers']:"),
     `${exact}; ${exact}`,
+    'const noExportRequest = true;',
   ]) {
     const calls = fetchCalls(source, "owner-export.ts");
     assert.equal(

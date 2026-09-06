@@ -70,12 +70,14 @@ import {
   FIELD_TARGET_SECTIONS,
   GRADE_KEYS,
   MODULE_LIMIT_TARGETS,
+  EMPTY_NUMERIC_INPUTS,
   REVISION_PATTERN,
   SECTION_ELEMENT_IDS,
   buildValidatedRequest,
   clearOptionalGroupNumericInputs,
   clearPlanningDurationNumericInputs,
   currentDraftFromResponse,
+  emptyDraftRequest,
   formatIsoDate,
   known,
   localIsoDate,
@@ -113,7 +115,9 @@ import {
   requestTrailMutation,
 } from './trail-course-review/mutation-error';
 import {
+  bindTrailOwnerScopeInvalidation,
   isCurrentTrailOperation,
+  runTrailConfirmationCallback,
   type TrailOperationStamp,
 } from './trail-course-review/operation-fence';
 import { usePrivateTrailDraft } from './trail-course-review/use-private-draft';
@@ -195,6 +199,7 @@ function TrailCourseReviewWorkbench({
   const errorSummaryRef = useRef<HTMLHeadingElement>(null);
   const receiptErrorRef = useRef<HTMLDivElement>(null);
   const remoteRevisionRef = useRef(remoteDraft.composite_revision);
+  const ownerScopeRef = useRef(getAuthCacheScope());
   const pendingRef = useRef(false);
   const lifetimeRef = useRef(1);
   const operationSequenceRef = useRef(0);
@@ -252,9 +257,54 @@ function TrailCourseReviewWorkbench({
 
   const pending = dirtySections.size > 0;
 
+  const invalidatePrivateLifetime = useCallback(() => {
+    lifetimeRef.current += 1;
+    operationSequenceRef.current += 1;
+    editGenerationRef.current += 1;
+    remoteRevisionRef.current = '';
+    const active = activeOperationRef.current;
+    if (active) {
+      window.clearTimeout(active.slowTimer);
+      active.controller.abort();
+    }
+    activeOperationRef.current = null;
+    ownerExport.cancel();
+    pendingRef.current = false;
+    setRequest(emptyDraftRequest());
+    setNumericInputs({ ...EMPTY_NUMERIC_INPUTS });
+    setDirtySections(new Set());
+    setReadiness(null);
+    setHistoryComparisonVisible(false);
+    setValidationIssues([]);
+    setOperationError(null);
+    setReceiptTargetError(null);
+    setNotice(null);
+    setBusyAction(null);
+    setSlowAction(false);
+    setDialogAction(null);
+    setLatestDraft(null);
+    setStaleConflict(false);
+    setUnavailableDateInput('');
+    setMoreActionsOpen(false);
+    setExportMenuClosing(false);
+    setExportStatus('idle');
+    onClearRemote();
+  }, [onClearRemote, ownerExport]);
+
+  useEffect(() => bindTrailOwnerScopeInvalidation(
+    window,
+    ownerScopeRef.current,
+    getAuthCacheScope,
+    invalidatePrivateLifetime,
+  ), [invalidatePrivateLifetime]);
+
   useEffect(() => () => {
     lifetimeRef.current += 1;
-    activeOperationRef.current?.controller.abort();
+    const active = activeOperationRef.current;
+    if (active) {
+      window.clearTimeout(active.slowTimer);
+      active.controller.abort();
+    }
     activeOperationRef.current = null;
   }, []);
 
@@ -292,6 +342,7 @@ function TrailCourseReviewWorkbench({
   useEffect(() => {
     if (!pending) return undefined;
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!pendingRef.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -350,10 +401,7 @@ function TrailCourseReviewWorkbench({
     if (!active || active.requestId !== operation.requestId) return false;
     if (operation.lifetime !== lifetimeRef.current) return false;
     if (operation.ownerScope !== getAuthCacheScope()) {
-      pendingRef.current = false;
-      active.controller.abort();
-      activeOperationRef.current = null;
-      onClearRemote();
+      invalidatePrivateLifetime();
       return false;
     }
     return isCurrentTrailOperation(operation, {
@@ -363,7 +411,7 @@ function TrailCourseReviewWorkbench({
       revision: remoteRevisionRef.current,
       editGeneration: editGenerationRef.current,
     });
-  }, [onClearRemote]);
+  }, [invalidatePrivateLifetime]);
 
   const endBusy = useCallback((operation: ActiveTrailOperation) => {
     const active = activeOperationRef.current;
@@ -679,7 +727,11 @@ function TrailCourseReviewWorkbench({
 
   const confirmSection = useCallback(async (sectionKey: TrailEditableSectionKey) => {
     if (activeOperationRef.current) return;
-    if (serverDraft.state !== 'current' || dirtySections.has(sectionKey)) return;
+    if (
+      serverDraft.state !== 'current'
+      || pendingRef.current
+      || dirtySections.size > 0
+    ) return;
     const confirmation = sectionConfirmation(serverDraft, sectionKey);
     if (!confirmation || !REVISION_PATTERN.test(confirmation.current_revision)) {
       const failure = l(
@@ -773,6 +825,15 @@ function TrailCourseReviewWorkbench({
     operationIsCurrent,
     t,
   ]);
+
+  const handleConfirmSection = useCallback((sectionKey: TrailEditableSectionKey) => {
+    void runTrailConfirmationCallback(
+      sectionKey,
+      () => activeOperationRef.current !== null,
+      () => pendingRef.current,
+      confirmSection,
+    );
+  }, [confirmSection]);
 
   const allConfirmed = serverDraft.state === 'current'
     && TRAIL_EDITABLE_SECTION_KEYS.every((sectionKey) => {
@@ -1592,7 +1653,7 @@ function TrailCourseReviewWorkbench({
               confirmedLabel={copy.confirmedRevision}
               changedLabel={copy.changedConfirmAgain}
               saveFirstLabel={copy.saveBeforeConfirming}
-              onConfirm={(key) => { void confirmSection(key); }}
+              onConfirm={handleConfirmSection}
             />
           </SectionShell>
           <SectionShell
@@ -1721,7 +1782,7 @@ function TrailCourseReviewWorkbench({
               confirmedLabel={copy.confirmedRevision}
               changedLabel={copy.changedConfirmAgain}
               saveFirstLabel={copy.saveBeforeConfirming}
-              onConfirm={(key) => { void confirmSection(key); }}
+              onConfirm={handleConfirmSection}
             />
           </SectionShell>
           <SectionShell
@@ -1994,7 +2055,7 @@ function TrailCourseReviewWorkbench({
               confirmedLabel={copy.confirmedRevision}
               changedLabel={copy.changedConfirmAgain}
               saveFirstLabel={copy.saveBeforeConfirming}
-              onConfirm={(key) => { void confirmSection(key); }}
+              onConfirm={handleConfirmSection}
             />
           </SectionShell>
           <SectionShell
@@ -2532,7 +2593,7 @@ function TrailCourseReviewWorkbench({
                 t`Open this section before confirming`,
                 t`确认前请先打开本节`,
               )}
-              onConfirm={(key) => { void confirmSection(key); }}
+              onConfirm={handleConfirmSection}
             />
           </SectionShell>
           <div className="flex min-w-0 flex-col gap-2 border-t border-border pt-6 sm:flex-row sm:justify-end">

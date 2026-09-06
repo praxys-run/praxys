@@ -557,6 +557,51 @@ function differs(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) !== JSON.stringify(right);
 }
 
+const NUMERIC_INPUT_KEYS_BY_ENVELOPE: Readonly<
+  Record<string, readonly NumericInputKey[]>
+> = {
+  'course.distance_meters': ['distanceKm'],
+  'course.total_ascent_m': ['totalAscentM'],
+  'course.total_descent_m': ['totalDescentM'],
+  'course.planning_duration_range': [
+    'planningMinimumHours',
+    'planningMinimumMinutes',
+    'planningMaximumHours',
+    'planningMaximumMinutes',
+  ],
+  'course.grade_distribution': [
+    'gradeBelowNeg10',
+    'gradeNeg10ToNeg3',
+    'gradeNearLevel',
+    'gradePos3ToPos10',
+    'gradePos10AndAbove',
+  ],
+  'constraints.weekly_time_limit_min': ['weeklyHours', 'weeklyMinutes'],
+  'constraints.maximum_session_duration_min': ['sessionHours', 'sessionMinutes'],
+  'optional.environment.maximum_altitude_m': ['maximumAltitudeM'],
+  'optional.environment.temperature_min_c': ['temperatureMinimumC'],
+  'optional.environment.temperature_max_c': ['temperatureMaximumC'],
+  'optional.environment.humidity_min_pct': ['humidityMinimumPct'],
+  'optional.environment.humidity_max_pct': ['humidityMaximumPct'],
+  'optional.support.aid_station_count': ['aidStationCount'],
+  'optional.support.max_aid_station_gap_m': ['aidStationGapKm'],
+  'optional.fueling.longest_practiced_duration_min': [
+    'fuelingHours',
+    'fuelingMinutes',
+  ],
+  'optional.fueling.practice_sessions_last_42_days': ['fuelingSessions'],
+};
+
+function reapplyAssociatedNumericInputs(
+  envelopeKey: string,
+  pendingInputs: NumericInputs,
+  numericInputs: NumericInputs,
+): void {
+  for (const inputKey of NUMERIC_INPUT_KEYS_BY_ENVELOPE[envelopeKey] ?? []) {
+    numericInputs[inputKey] = pendingInputs[inputKey];
+  }
+}
+
 export function reapplyPendingTrailEdits(
   baseDraft: TrailDraftResponse,
   pendingRequest: TrailDraftRequest,
@@ -579,12 +624,22 @@ export function reapplyPendingTrailEdits(
     }
     (request.course_demand.fields as unknown as Record<string, unknown>)[key] =
       pendingRequest.course_demand.fields[key];
+    reapplyAssociatedNumericInputs(
+      `course.${key}`,
+      pendingInputs,
+      numericInputs,
+    );
     dirtySections.add(COURSE_FIELD_SECTIONS[key]);
   }
   for (const key of Object.keys(CONSTRAINT_FIELD_SECTIONS) as ConstraintEnvelopeKey[]) {
     if (!differs(pendingRequest.constraints[key], baseRequest.constraints[key])) continue;
     (request.constraints as unknown as Record<string, unknown>)[key] =
       pendingRequest.constraints[key];
+    reapplyAssociatedNumericInputs(
+      `constraints.${key}`,
+      pendingInputs,
+      numericInputs,
+    );
     dirtySections.add(CONSTRAINT_FIELD_SECTIONS[key]);
   }
   if (differs(
@@ -607,6 +662,11 @@ export function reapplyPendingTrailEdits(
     for (const key of Object.keys(baseGroup) as Array<keyof typeof baseGroup>) {
       if (!differs(pendingGroup[key], baseGroup[key])) continue;
       (latestGroup as Record<string, unknown>)[key] = pendingGroup[key];
+      reapplyAssociatedNumericInputs(
+        `optional.${group}.${String(key)}`,
+        pendingInputs,
+        numericInputs,
+      );
       dirtySections.add('section.optional-context');
     }
   }

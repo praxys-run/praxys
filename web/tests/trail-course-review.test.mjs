@@ -41,14 +41,19 @@ import {
   EMPTY_NUMERIC_INPUTS,
   clearOptionalGroupNumericInputs,
   clearPlanningDurationNumericInputs,
+  buildValidatedRequest,
   numericInputsFromDraft,
   reapplyPendingTrailEdits,
   requestFromDraft,
 } from '../src/components/trail-course-review/model.ts';
 import {
+  bindTrailOwnerScopeInvalidation,
   isCurrentTrailOperation,
+  runTrailConfirmationCallback,
 } from '../src/components/trail-course-review/operation-fence.ts';
 import { ApiTimeoutError } from '../src/lib/request-timeout.ts';
+import { handleUnauthorizedSession } from '../src/lib/auth-session.ts';
+import { tokenCacheScope } from '../src/lib/auth-cache-scope.ts';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
@@ -60,6 +65,7 @@ const TRAIL_IMPLEMENTATION_PATHS = [
   '../src/components/trail-course-review/mutation-error.ts',
   '../src/components/trail-course-review/operation-fence.ts',
   '../src/components/trail-course-review/owner-export.ts',
+  '../src/components/trail-course-review/private-draft-request.ts',
   '../src/components/trail-course-review/private-draft-state.ts',
   '../src/components/trail-course-review/states.tsx',
   '../src/components/trail-course-review/transitions.ts',
@@ -282,6 +288,7 @@ test('the private implementation uses an isolated draft read and exact revision-
   ]);
 
   assert.match(implementation, /usePrivateTrailDraft/);
+  assert.match(implementation, /requestPrivateTrailDraft/);
   assert.match(implementation, /apiFetcher<unknown>/);
   assert.match(implementation, /method: 'PUT'/);
   assert.match(implementation, /method: 'POST'/);
@@ -615,6 +622,148 @@ test('stale restore reapplies only intentional field edits onto the validated la
   );
 });
 
+test('stale restore applies nullable and unknown numeric envelopes with their buffers atomically', () => {
+  const knownNullBase = structuredClone(inactiveReadinessResponse().draft);
+  knownNullBase.course_demand.fields.optional_context.support.max_aid_station_gap_m = {
+    state: 'known',
+    value: null,
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  const knownNullParsed = parseTrailDraftResponse(knownNullBase);
+  assert.equal(knownNullParsed?.state, 'current');
+
+  const latestKnownGap = structuredClone(knownNullBase);
+  latestKnownGap.composite_revision = SHA_C;
+  latestKnownGap.revision_bindings.composite_revision = SHA_C;
+  latestKnownGap.course_demand.fields.optional_context.support.max_aid_station_gap_m = {
+    state: 'known',
+    value: 2000,
+    provenance: 'course_verified',
+    source_revision: SHA_B,
+  };
+  const latestKnownGapParsed = parseTrailDraftResponse(latestKnownGap);
+  assert.equal(latestKnownGapParsed?.state, 'current');
+
+  const unknownGapRequest = requestFromDraft(knownNullParsed);
+  unknownGapRequest.course_demand.fields.optional_context.support.max_aid_station_gap_m = unknown();
+  const unknownGapInputs = numericInputsFromDraft(knownNullParsed);
+  const restoredUnknownGap = reapplyPendingTrailEdits(
+    knownNullParsed,
+    unknownGapRequest,
+    unknownGapInputs,
+    latestKnownGapParsed,
+  );
+  assert.equal(
+    restoredUnknownGap.request.course_demand.fields.optional_context.support
+      .max_aid_station_gap_m.state,
+    'unknown',
+  );
+  assert.equal(restoredUnknownGap.numericInputs.aidStationGapKm, '');
+  assert.equal(
+    buildValidatedRequest(
+      restoredUnknownGap.request,
+      restoredUnknownGap.numericInputs,
+    ).request.course_demand.fields.optional_context.support.max_aid_station_gap_m.state,
+    'unknown',
+  );
+
+  const unknownBase = structuredClone(inactiveReadinessResponse().draft);
+  const unknownBaseParsed = parseTrailDraftResponse(unknownBase);
+  assert.equal(unknownBaseParsed?.state, 'current');
+  const knownNullRequest = requestFromDraft(unknownBaseParsed);
+  knownNullRequest.course_demand.fields.optional_context.support.max_aid_station_gap_m =
+    known(null);
+  const restoredKnownNull = reapplyPendingTrailEdits(
+    unknownBaseParsed,
+    knownNullRequest,
+    numericInputsFromDraft(unknownBaseParsed),
+    latestKnownGapParsed,
+  );
+  assert.deepEqual(
+    restoredKnownNull.request.course_demand.fields.optional_context.support
+      .max_aid_station_gap_m,
+    known(null),
+  );
+  assert.equal(restoredKnownNull.numericInputs.aidStationGapKm, '');
+  assert.deepEqual(
+    buildValidatedRequest(
+      restoredKnownNull.request,
+      restoredKnownNull.numericInputs,
+    ).request.course_demand.fields.optional_context.support.max_aid_station_gap_m,
+    known(null),
+  );
+});
+
+test('stale restore clears all associated planning and fueling duration buffers', () => {
+  const base = structuredClone(inactiveReadinessResponse().draft);
+  base.course_demand.fields.planning_duration_range = {
+    state: 'known',
+    value: { minimum_min: 120, maximum_min: 180 },
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  base.course_demand.fields.optional_context.fueling.longest_practiced_duration_min = {
+    state: 'known',
+    value: 90,
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  const parsedBase = parseTrailDraftResponse(base);
+  assert.equal(parsedBase?.state, 'current');
+
+  const latest = structuredClone(base);
+  latest.composite_revision = SHA_C;
+  latest.revision_bindings.composite_revision = SHA_C;
+  latest.course_demand.fields.planning_duration_range.value = {
+    minimum_min: 240,
+    maximum_min: 300,
+  };
+  latest.course_demand.fields.optional_context.fueling.longest_practiced_duration_min.value =
+    180;
+  const parsedLatest = parseTrailDraftResponse(latest);
+  assert.equal(parsedLatest?.state, 'current');
+
+  const pendingRequest = requestFromDraft(parsedBase);
+  pendingRequest.course_demand.fields.planning_duration_range = unknown();
+  pendingRequest.course_demand.fields.optional_context.fueling
+    .longest_practiced_duration_min = unknown();
+  const pendingInputs = numericInputsFromDraft(parsedBase);
+  for (const key of [
+    'planningMinimumHours',
+    'planningMinimumMinutes',
+    'planningMaximumHours',
+    'planningMaximumMinutes',
+    'fuelingHours',
+    'fuelingMinutes',
+  ]) {
+    pendingInputs[key] = '';
+  }
+
+  const restored = reapplyPendingTrailEdits(
+    parsedBase,
+    pendingRequest,
+    pendingInputs,
+    parsedLatest,
+  );
+  assert.equal(restored.request.course_demand.fields.planning_duration_range.state, 'unknown');
+  assert.equal(
+    restored.request.course_demand.fields.optional_context.fueling
+      .longest_practiced_duration_min.state,
+    'unknown',
+  );
+  for (const key of [
+    'planningMinimumHours',
+    'planningMinimumMinutes',
+    'planningMaximumHours',
+    'planningMaximumMinutes',
+    'fuelingHours',
+    'fuelingMinutes',
+  ]) {
+    assert.equal(restored.numericInputs[key], '', key);
+  }
+});
+
 test('operation fences reject every stale owner, request, revision, edit, and lifetime callback', () => {
   const started = {
     lifetime: 3,
@@ -633,6 +782,87 @@ test('operation fences reject every stale owner, request, revision, edit, and li
   ]) {
     assert.equal(isCurrentTrailOperation(started, { ...started, ...changed }), false);
   }
+});
+
+test('owner-scope loss invalidates a never-settling request even when navigation is vetoed', async () => {
+  const values = new Map([['praxys-auth-token', 'owner-a-token']]);
+  const previousStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  const target = new EventTarget();
+  let invalidations = 0;
+  const currentScope = () => tokenCacheScope(
+    globalThis.localStorage.getItem('praxys-auth-token'),
+  );
+  const initialScope = currentScope();
+  const stop = bindTrailOwnerScopeInvalidation(
+    target,
+    initialScope,
+    currentScope,
+    () => { invalidations += 1; },
+  );
+  target.addEventListener('beforeunload', (event) => event.preventDefault());
+  const neverSettles = new Promise(() => {});
+  try {
+    handleUnauthorizedSession(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      assert.equal(target.dispatchEvent(event), false);
+      assert.equal(event.defaultPrevented, true);
+    });
+    assert.equal(currentScope(), 'anonymous');
+    assert.equal(invalidations, 1);
+    assert.equal(
+      await Promise.race([neverSettles, Promise.resolve('request-still-pending')]),
+      'request-still-pending',
+    );
+    target.dispatchEvent(new Event('storage'));
+    assert.equal(invalidations, 1);
+  } finally {
+    stop();
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+
+  const component = await read('../src/components/TrailCourseReview.tsx');
+  assert.match(component, /bindTrailOwnerScopeInvalidation\(\s*window,/);
+  assert.match(component, /ownerExport\.cancel\(\)/);
+  assert.match(component, /setRequest\(emptyDraftRequest\(\)\)/);
+  assert.match(component, /setNumericInputs\(\{ \.\.\.EMPTY_NUMERIC_INPUTS \}\)/);
+  assert.match(component, /setDirtySections\(new Set\(\)\)/);
+  assert.match(component, /setReadiness\(null\)/);
+  assert.match(component, /setLatestDraft\(null\)/);
+  assert.match(component, /setStaleConflict\(false\)/);
+  assert.match(component, /onClearRemote\(\)/);
+});
+
+test('confirmation callback rejects pending intent synchronously across sections', async () => {
+  const pendingRef = { current: false };
+  const confirmed = [];
+  const confirm = async (sectionKey) => { confirmed.push(sectionKey); };
+  const invoke = (sectionKey) => runTrailConfirmationCallback(
+    sectionKey,
+    () => false,
+    () => pendingRef.current,
+    confirm,
+  );
+
+  pendingRef.current = true;
+  assert.equal(invoke('section.event-duration'), undefined);
+  assert.deepEqual(confirmed, []);
+
+  pendingRef.current = false;
+  await invoke('section.event-duration');
+  assert.deepEqual(confirmed, ['section.event-duration']);
+
+  const component = await read('../src/components/TrailCourseReview.tsx');
+  assert.match(
+    component,
+    /serverDraft\.state !== 'current'\s*\|\| pendingRef\.current\s*\|\| dirtySections\.size > 0/,
+  );
+  assert.equal((component.match(/onConfirm=\{handleConfirmSection\}/g) ?? []).length, 4);
 });
 
 test('stale and ambiguous writes preserve explicit recovery without generic retry', async () => {
