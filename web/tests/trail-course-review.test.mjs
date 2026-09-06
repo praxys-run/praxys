@@ -56,6 +56,9 @@ import { handleUnauthorizedSession } from '../src/lib/auth-session.ts';
 import { tokenCacheScope } from '../src/lib/auth-cache-scope.ts';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
+const ACTUAL_TRAIL_CONTRACT = JSON.parse(
+  await read('./fixtures/trail-readiness-service-contract.json'),
+);
 
 const TRAIL_IMPLEMENTATION_PATHS = [
   '../src/components/TrailCourseReview.tsx',
@@ -215,7 +218,7 @@ function inactiveReadinessResponse() {
         reason_target: 'policy_unavailable.policy_inactive',
       })),
       limited_modules: [],
-      deterministic_input_hash: SHA_A,
+      deterministic_input_hash: 'a'.repeat(64),
       readiness_receipt_digest: SHA_B,
       revision_bindings: structuredClone(REVISION_BINDINGS),
       plan: null,
@@ -1054,12 +1057,6 @@ test('readiness validation accepts only the exact inactive contract receipt', ()
       };
     },
     (value) => {
-      value.draft.constraints.available_weekdays = {
-        state: 'known', value: [1], provenance: 'athlete_stated', source_revision: SHA_A,
-      };
-      value.draft.constraints.preferred_longest_weekday = 2;
-    },
-    (value) => {
       value.draft.course_demand.fields.grade_distribution = {
         state: 'known',
         value: {
@@ -1141,6 +1138,204 @@ test('readiness validation accepts only the exact inactive contract receipt', ()
     assert.equal(parseTrailReadinessResponse(candidate, SHA_D), null);
   }
   assert.equal(parseTrailReadinessResponse(valid, SHA_A), null);
+});
+
+test('actual Python Trail readiness serialization stays accepted and closed', () => {
+  const cases = ACTUAL_TRAIL_CONTRACT.cases;
+  assert.deepEqual(Object.keys(cases), [
+    'contradictory_preferred_weekday',
+    'empty_history_fallback',
+    'expired_unavailable_date',
+    'old_loaded_activity',
+    'ordinary_confirmed',
+  ]);
+  for (const fixture of Object.values(cases)) {
+    assert.equal(fixture.evaluation_statement_count, 4);
+    assert.notEqual(
+      parseTrailReadinessResponse(
+        structuredClone(fixture.response),
+        fixture.expected_composite_revision,
+      ),
+      null,
+    );
+  }
+
+  const ordinary = structuredClone(cases.ordinary_confirmed.response);
+  assert.match(ordinary.readiness.deterministic_input_hash, /^[0-9a-f]{64}$/);
+
+  const rollover = structuredClone(cases.expired_unavailable_date.response);
+  assert.deepEqual(rollover.readiness.matching_reasons.slice(0, 2), [
+    { status: 'validation_failed', detail_reason: 'invalid_field_value' },
+    { status: 'policy_unavailable', detail_reason: 'policy_inactive' },
+  ]);
+
+  const old = structuredClone(cases.old_loaded_activity.response);
+  assert.equal(old.readiness.history_statistics.latest_run_date, '2026-07-01');
+  assert.equal(old.readiness.history_statistics.observation_window_start, '2026-07-06');
+
+  const empty = structuredClone(cases.empty_history_fallback.response);
+  assert.deepEqual(
+    [
+      empty.readiness.history_statistics.observation_window_start,
+      empty.readiness.history_statistics.observation_window_end,
+      empty.readiness.history_statistics.latest_run_date,
+      empty.readiness.history_statistics.latest_comparable_ascent_session_date,
+      empty.readiness.history_statistics.latest_comparable_descent_session_date,
+    ],
+    [null, null, null, null, null],
+  );
+  assert.equal(
+    empty.readiness.history_statistics.source_revision_fingerprint,
+    'sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+  );
+
+  const contradiction = structuredClone(cases.contradictory_preferred_weekday.response);
+  assert.deepEqual(contradiction.draft.constraints.available_weekdays.value, [2, 4]);
+  assert.equal(contradiction.draft.constraints.preferred_longest_weekday, 6);
+  assert.equal(
+    contradiction.readiness.matching_reasons.at(-1).detail_reason,
+    'contradictory_input',
+  );
+});
+
+test('actual Trail contract fixtures reject bounded parser negative controls', () => {
+  const cases = ACTUAL_TRAIL_CONTRACT.cases;
+  const rejects = (caseName, mutate, expectedRevision) => {
+    const candidate = structuredClone(cases[caseName].response);
+    mutate(candidate);
+    assert.equal(
+      parseTrailReadinessResponse(
+        candidate,
+        expectedRevision ?? cases[caseName].expected_composite_revision,
+      ),
+      null,
+    );
+  };
+
+  for (const badHash of [
+    `sha256:${'a'.repeat(64)}`,
+    'A'.repeat(64),
+    'g'.repeat(64),
+    'a'.repeat(63),
+    `${'a'.repeat(64)} `,
+  ]) {
+    rejects('ordinary_confirmed', (value) => {
+      value.readiness.deterministic_input_hash = badHash;
+    });
+  }
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.readiness_receipt_digest = 'b'.repeat(64);
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.contract_digest = SHA_A;
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.contract_runtime_state = 'active';
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.inactive_dry_run = true;
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.plan = {};
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.matching_reasons =
+      value.readiness.matching_reasons.filter(
+        (reason) => reason.detail_reason !== 'policy_inactive',
+      );
+  });
+  rejects('expired_unavailable_date', (value) => {
+    value.readiness.matching_reasons.reverse();
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.matching_reasons.splice(1, 0, {
+      status: 'policy_unavailable',
+      detail_reason: 'policy_inactive',
+    });
+  });
+  rejects('expired_unavailable_date', (value) => {
+    value.readiness.status = 'validation_failed';
+    value.readiness.detail_reason = 'schema_version_mismatch';
+    value.readiness.matching_reasons[0].detail_reason = 'schema_version_mismatch';
+    for (const module of value.readiness.module_availability) {
+      module.reason_target = 'validation_failed.schema_version_mismatch';
+    }
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.module_availability[0].reason_target =
+      'readiness_blocked.insufficient_recent_running_history';
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.module_availability.pop();
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.module_availability.push({
+      module: 'future_module',
+      state: 'not_evaluated',
+      reason_target: 'policy_unavailable.policy_inactive',
+    });
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.module_availability[0].state = 'limited';
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.limited_modules = ['grade_specificity'];
+  });
+
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.observation_window_start = '2026-07-06';
+  });
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.usable_completed_weeks = 1;
+  });
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.latest_run_date = '2026-09-01';
+  });
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.recently_observed_footing = ['firm_smooth'];
+  });
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.evaluator_schema_id = 'future-history';
+  });
+  rejects('empty_history_fallback', (value) => {
+    value.readiness.history_statistics.source_revision_fingerprint = SHA_A;
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.history_statistics.observation_window_start = null;
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.history_statistics.latest_comparable_ascent_session_date =
+      '2026-06-01';
+  });
+  rejects('old_loaded_activity', (value) => {
+    value.readiness.history_statistics.latest_run_date = '2026-09-04';
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.history_statistics.recent_maximum_session_minutes =
+      value.readiness.history_statistics.recent_maximum_usable_weekly_minutes + 1;
+  });
+
+  for (const badWeekday of [0, 8, 2.5, '6']) {
+    rejects('contradictory_preferred_weekday', (value) => {
+      value.draft.constraints.preferred_longest_weekday = badWeekday;
+    });
+  }
+  rejects('contradictory_preferred_weekday', (value) => {
+    value.draft.constraints.available_weekdays.value = [4, 2];
+  });
+  rejects('contradictory_preferred_weekday', (value) => {
+    value.draft.constraints.available_weekdays.value = [2, 2];
+  });
+  rejects('contradictory_preferred_weekday', (value) => {
+    value.draft.constraints.available_weekdays.value = [];
+  });
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.private_extension = true;
+  });
+  rejects('ordinary_confirmed', () => {}, SHA_A);
+  rejects('ordinary_confirmed', (value) => {
+    value.readiness.revision_bindings.section_confirmations[0].confirmed_revision = null;
+  });
 });
 
 test('all five ordered ledger sections and only four server confirmations are implemented', async () => {

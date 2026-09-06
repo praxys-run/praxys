@@ -9,7 +9,9 @@ import {
 } from '../../types/trail-plan.ts';
 
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const BARE_SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const ABSENT_TRAIL_PLAN_REVISION = 'sha256:8adaaec35fb1a6ff05f212e69fc57c9e41bceaa30b65b95a8b3f90120ef5a321';
+const EMPTY_HISTORY_REVISION = 'sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const STATUS_PRECEDENCE = [
   'validation_failed',
@@ -396,13 +398,6 @@ function isCurrentDraft(value: Record<string, unknown>): boolean {
     && constraints.maximum_session_duration_min.state === 'known'
     && Number(constraints.maximum_session_duration_min.value)
       > Number(constraints.weekly_time_limit_min.value)) return false;
-  if (constraints.preferred_longest_weekday !== null
-    && isRecord(constraints.available_weekdays)
-    && constraints.available_weekdays.state === 'known'
-    && (!Array.isArray(constraints.available_weekdays.value)
-      || !constraints.available_weekdays.value.includes(constraints.preferred_longest_weekday))) {
-    return false;
-  }
   return isServerEnvelope(constraints.available_weekdays, (item) => Array.isArray(item)
       && item.length > 0
       && new Set(item).size === item.length
@@ -512,6 +507,13 @@ function isHistoryStatistics(value: unknown): boolean {
   if (new Set(footing).size !== footing.length
     || footing.some((item) => typeof item !== 'string' || !FOOTING.has(item))) return false;
   if (value.evaluator_schema_id !== 'trail-running-history-statistics-v2') return false;
+  if (typeof value.source_revision_fingerprint !== 'string'
+    || !SHA256_PATTERN.test(value.source_revision_fingerprint)) return false;
+  const exactEmptyFallback = HISTORY_NUMBER_KEYS.every((key) => value[key] === 0)
+    && HISTORY_DATE_KEYS.every((key) => value[key] === null)
+    && footing.length === 0
+    && value.source_revision_fingerprint === EMPTY_HISTORY_REVISION;
+  if (exactEmptyFallback) return true;
   const start = value.observation_window_start;
   const end = value.observation_window_end;
   if (typeof start !== 'string' || typeof end !== 'string') return false;
@@ -520,8 +522,9 @@ function isHistoryStatistics(value: unknown): boolean {
     || observationDays < 55
     || observationDays > 61) return false;
   if (typeof start === 'string' && typeof end === 'string') {
+    const latestRun = value.latest_run_date;
+    if (typeof latestRun === 'string' && latestRun > end) return false;
     for (const dateKey of [
-      'latest_run_date',
       'latest_comparable_ascent_session_date',
       'latest_comparable_descent_session_date',
     ]) {
@@ -557,9 +560,7 @@ function isHistoryStatistics(value: unknown): boolean {
       > Number(value.recent_maximum_usable_weekly_descent_meters)
     || Number(value.recent_maximum_session_descent_meters)
       > Number(value.recent_maximum_usable_weekly_descent_meters)) return false;
-  return typeof value.source_revision_fingerprint === 'string'
-    && SHA256_PATTERN.test(value.source_revision_fingerprint)
-    && typeof value.evaluator_schema_id === 'string';
+  return true;
 }
 
 export function parseTrailReadinessResponse(
@@ -581,7 +582,7 @@ export function parseTrailReadinessResponse(
   }
   if (readiness.inactive_dry_run !== false || readiness.plan !== null) return null;
   if (typeof readiness.deterministic_input_hash !== 'string'
-    || !SHA256_PATTERN.test(readiness.deterministic_input_hash)
+    || !BARE_SHA256_PATTERN.test(readiness.deterministic_input_hash)
     || typeof readiness.readiness_receipt_digest !== 'string'
     || !SHA256_PATTERN.test(readiness.readiness_receipt_digest)
     || !isRevisionBindings(readiness.revision_bindings, expectedCompositeRevision)
@@ -609,8 +610,10 @@ export function parseTrailReadinessResponse(
   if (typeof readiness.status !== 'string'
     || !(STATUS_PRECEDENCE as readonly string[]).includes(readiness.status)) return null;
   const status = readiness.status;
-  if (status !== 'policy_unavailable'
-    || readiness.detail_reason !== 'policy_inactive') return null;
+  if (typeof readiness.detail_reason !== 'string') return null;
+  const primaryReason = `${status}.${readiness.detail_reason}`;
+  if (primaryReason !== 'policy_unavailable.policy_inactive'
+    && primaryReason !== 'validation_failed.invalid_field_value') return null;
   const matching = readiness.matching_reasons;
   if (!Array.isArray(matching)) return null;
   const codes: string[] = [];
@@ -624,23 +627,30 @@ export function parseTrailReadinessResponse(
     codes.push(code);
   }
   if (new Set(codes).size !== codes.length) return null;
+  if (codes.some((code) => code.startsWith('validation_failed.')
+    && code !== 'validation_failed.invalid_field_value')) return null;
   const indexes = codes.map((code) => (TRAIL_REASON_CODES as readonly string[]).indexOf(code));
   if (indexes.some((index, position) => position > 0 && index <= indexes[position - 1])) {
     return null;
   }
-
-  if (typeof readiness.detail_reason !== 'string') return null;
-  const primaryReason = `${status}.${readiness.detail_reason}`;
-  if (!(TRAIL_REASON_CODES as readonly string[]).includes(primaryReason)
-    || codes[0] !== primaryReason) return null;
+  if (codes[0] !== primaryReason
+    || codes.filter((code) => code === 'policy_unavailable.policy_inactive').length !== 1) {
+    return null;
+  }
 
   const history = readiness.history_statistics as Record<string, unknown>;
-  const historyEnd = String(history.observation_window_end);
+  const historyEnd = history.observation_window_end;
+  const completedDaysSince = (candidate: unknown): number | null => (
+    typeof historyEnd === 'string' && typeof candidate === 'string'
+      ? isoDayDifference(historyEnd, candidate)
+      : null
+  );
   const requiredHistoryReasons: string[] = [];
   const latestRun = history.latest_run_date;
+  const latestRunAge = completedDaysSince(latestRun);
   const insufficientRecentRunning = Number(history.usable_completed_weeks) < 4
-    || typeof latestRun !== 'string'
-    || isoDayDifference(historyEnd, latestRun) > 9;
+    || latestRunAge === null
+    || latestRunAge > 9;
   if (insufficientRecentRunning) {
     requiredHistoryReasons.push('readiness_blocked.insufficient_recent_running_history');
   }
@@ -649,17 +659,19 @@ export function parseTrailReadinessResponse(
   const observedFooting = history.recently_observed_footing as string[];
   const footingMismatch = courseFooting.state === 'known'
     && courseFooting.value.some((footing) => !observedFooting.includes(footing));
+  const latestAscentAge = completedDaysSince(latestAscent);
   const insufficientComparableHistory = Number(history.comparable_ascent_sessions_within_window) < 2
-    || typeof latestAscent !== 'string'
-    || isoDayDifference(historyEnd, latestAscent) > 20
+    || latestAscentAge === null
+    || latestAscentAge > 20
     || footingMismatch;
   if (insufficientComparableHistory) {
     requiredHistoryReasons.push('readiness_blocked.insufficient_comparable_trail_history');
   }
   const latestDescent = history.latest_comparable_descent_session_date;
+  const latestDescentAge = completedDaysSince(latestDescent);
   const insufficientDescentHistory = Number(history.comparable_descent_sessions_within_window) < 2
-    || typeof latestDescent !== 'string'
-    || isoDayDifference(historyEnd, latestDescent) > 20;
+    || latestDescentAge === null
+    || latestDescentAge > 20;
   if (insufficientDescentHistory) {
     requiredHistoryReasons.push('readiness_blocked.insufficient_descent_history');
   }
