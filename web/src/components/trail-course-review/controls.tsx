@@ -33,6 +33,8 @@ import {
 
 interface FieldShellProps {
   id: string;
+  /** Supply only when the heading labels one real input or Select trigger. */
+  htmlFor?: string;
   label: ReactNode;
   description?: ReactNode;
   meta?: ReactNode;
@@ -130,19 +132,30 @@ interface ConfirmBarProps {
 
 export function FieldShell({
   id,
+  htmlFor,
   label,
   description,
   meta,
   invalidMessage,
   children,
 }: FieldShellProps) {
+  const describedBy = [
+    description ? `${id}-description` : undefined,
+    invalidMessage ? `${id}-error` : undefined,
+  ].filter(Boolean).join(' ') || undefined;
   return (
     <div className="min-w-0 space-y-2 border-t border-border/70 pt-4 first:border-t-0 first:pt-0">
-      <Label id={`${id}-label`} htmlFor={id} className="block whitespace-normal text-sm leading-5">
-        {label}
-      </Label>
+      {htmlFor ? (
+        <Label id={`${id}-label`} htmlFor={htmlFor} className="block whitespace-normal text-sm leading-5">
+          {label}
+        </Label>
+      ) : (
+        <h3 id={`${id}-label`} className="whitespace-normal text-sm font-medium leading-5">
+          {label}
+        </h3>
+      )}
       {description ? (
-        <p className="max-w-[72ch] break-words text-xs leading-5 text-muted-foreground">
+        <p id={`${id}-description`} className="max-w-[72ch] break-words text-xs leading-5 text-muted-foreground dark:text-foreground/80">
           {description}
         </p>
       ) : null}
@@ -150,7 +163,7 @@ export function FieldShell({
         className="min-w-0"
         role="group"
         aria-labelledby={`${id}-label`}
-        aria-describedby={invalidMessage ? `${id}-error` : undefined}
+        aria-describedby={describedBy}
         aria-invalid={invalidMessage ? true : undefined}
       >
         {children}
@@ -160,7 +173,7 @@ export function FieldShell({
           {invalidMessage}
         </p>
       ) : null}
-      {meta ? <div className="text-xs leading-5 text-muted-foreground">{meta}</div> : null}
+      {meta ? <div className="text-xs leading-5 text-muted-foreground dark:text-foreground/80">{meta}</div> : null}
     </div>
   );
 }
@@ -189,7 +202,7 @@ export function SectionShell({
         <span className="min-w-0 break-words text-base font-semibold leading-6">
           {title}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground dark:text-foreground/80">
           {status ?? (open ? '−' : '+')}
         </span>
       </CollapsibleTrigger>
@@ -198,7 +211,7 @@ export function SectionShell({
         className="pb-6 motion-reduce:transition-none"
       >
         {description ? (
-          <p className="mb-5 max-w-[72ch] break-words text-sm leading-6 text-muted-foreground">
+          <p className="mb-5 max-w-[72ch] break-words text-sm leading-6 text-muted-foreground dark:text-foreground/80">
             {description}
           </p>
         ) : null}
@@ -249,9 +262,13 @@ export function EnumEditor<T extends string>({
         <SelectTrigger
           id={id}
           aria-labelledby={`${id}-label`}
-          className="min-h-11 w-full min-w-0 whitespace-normal sm:max-w-sm motion-reduce:transition-none"
+          className="min-h-11 w-full min-w-0 whitespace-normal sm:max-w-sm motion-reduce:transition-none dark:data-placeholder:text-foreground/80"
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder}>
+            {envelope.state === 'known'
+              ? options.find((option) => option.value === envelope.value)?.label
+              : placeholder}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent className="motion-reduce:animate-none">
           {options.map((option) => (
@@ -333,12 +350,13 @@ export function MultiSelectEditor<T extends string | number>({
   const values = envelope.state === 'known' ? envelope.value : [];
   return (
     <div className="space-y-2">
-      <div id={id} role="group" aria-labelledby={`${id}-label`} className="flex min-w-0 flex-wrap gap-2">
-        {options.map((option) => {
+      <div role="group" aria-labelledby={`${id}-label`} className="flex min-w-0 flex-wrap gap-2">
+        {options.map((option, index) => {
           const selected = values.includes(option.value);
           return (
             <Button
               key={String(option.value)}
+              id={index === 0 ? id : undefined}
               type="button"
               variant={selected ? 'secondary' : 'outline'}
               aria-pressed={selected}
@@ -394,7 +412,7 @@ export function DurationEditor({
     <div className="space-y-2">
       <div className="grid min-w-0 grid-cols-2 gap-2 sm:max-w-sm">
         <div className="space-y-1.5">
-          <Label htmlFor={id} className="text-xs text-muted-foreground">{hoursLabel}</Label>
+          <Label htmlFor={id} className="text-xs text-muted-foreground dark:text-foreground/80">{hoursLabel}</Label>
           <Input
             id={id}
             inputMode="numeric"
@@ -405,7 +423,7 @@ export function DurationEditor({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${id}-minutes`} className="text-xs text-muted-foreground">{minutesLabel}</Label>
+          <Label htmlFor={`${id}-minutes`} className="text-xs text-muted-foreground dark:text-foreground/80">{minutesLabel}</Label>
           <Input
             id={`${id}-minutes`}
             inputMode="numeric"
@@ -456,7 +474,7 @@ export function NumberEditor({
           onChange={(event) => onValueChange(event.target.value)}
           className="h-11 font-data"
         />
-        {suffix ? <span className="shrink-0 font-data text-sm text-muted-foreground">{suffix}</span> : null}
+        {suffix ? <span className="shrink-0 font-data text-sm text-muted-foreground dark:text-foreground/80">{suffix}</span> : null}
       </div>
       <UnknownButton
         unknown={visuallyUnknown}
@@ -491,7 +509,7 @@ export function ConfirmBar({
     && confirmedRevision === currentRevision;
   return (
     <div className="flex min-w-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="min-w-0 break-all text-xs text-muted-foreground" aria-live="polite">
+      <p className="min-w-0 break-all text-xs text-muted-foreground dark:text-foreground/80" aria-live="polite">
         {dirty
           ? changedLabel
           : confirmed

@@ -62,6 +62,8 @@ const ACTUAL_TRAIL_CONTRACT = JSON.parse(
 
 const TRAIL_IMPLEMENTATION_PATHS = [
   '../src/components/TrailCourseReview.tsx',
+  '../src/components/trail-course-review/comparison-model.ts',
+  '../src/components/trail-course-review/comparison.tsx',
   '../src/components/trail-course-review/controls.tsx',
   '../src/components/trail-course-review/copy.tsx',
   '../src/components/trail-course-review/model.ts',
@@ -1440,7 +1442,9 @@ test('state, accessibility, and responsive markers cover the approved workbench 
   }
   assert.match(component, /status === 412/);
   assert.match(component, /requestAnimationFrame\(\(\) => errorSummaryRef\.current\?\.focus\(\)\)/);
-  assert.match(component, /aria-describedby=\{invalidMessage \? `\$\{id\}-error` : undefined\}/);
+  assert.match(component, /aria-describedby=\{describedBy\}/);
+  assert.match(component, /invalidMessage \? `\$\{id\}-error` : undefined/);
+  assert.match(component, /description \? `\$\{id\}-description` : undefined/);
   assert.match(component, /<Label htmlFor=\{id\}[^>]*>\{hoursLabel\}<\/Label>/);
   assert.match(component, /<Label htmlFor=\{`\$\{id\}-minutes`\}[^>]*>\{minutesLabel\}<\/Label>/);
   assert.match(component, /closeLabel=\{isZh \? t`关闭` : t`Close`\}/);

@@ -65,6 +65,7 @@ import {
   UnknownButton,
 } from './trail-course-review/controls';
 import { useTrailCourseReviewCopy } from './trail-course-review/copy';
+import { TrailPendingComparison } from './trail-course-review/comparison';
 import {
   FIELD_ELEMENT_IDS,
   FIELD_TARGET_SECTIONS,
@@ -1158,14 +1159,6 @@ function TrailCourseReviewWorkbench({
     'section.training-access': copy.trainingSection,
     'section.optional-context': copy.optionalSection,
   };
-  const changedServerSections = serverDraft.state === 'current'
-    && latestDraft?.state === 'current'
-      ? TRAIL_EDITABLE_SECTION_KEYS.filter((sectionKey) => {
-        const earlier = sectionConfirmation(serverDraft, sectionKey);
-        const latest = sectionConfirmation(latestDraft, sectionKey);
-        return earlier?.current_revision !== latest?.current_revision;
-      })
-      : [];
   const validationLabel = (issue: ValidationIssue) => {
     const names: Record<string, string> = {
       'event-date': copy.eventDate,
@@ -1261,7 +1254,7 @@ function TrailCourseReviewWorkbench({
       <header className="mb-6 flex min-w-0 flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-semibold tracking-tight">{copy.title}</h1>
-          <p className="mt-2 max-w-[72ch] break-words text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 max-w-[72ch] break-words text-sm leading-6 text-muted-foreground dark:text-foreground/80">
             {copy.support}
           </p>
         </div>
@@ -1296,7 +1289,7 @@ function TrailCourseReviewWorkbench({
               >
                 <span className="flex min-w-0 flex-col gap-0.5 text-left">
                   <span>{exportStatus === 'preparing' ? copy.exportBusy : copy.export}</span>
-                  <span className="break-words text-xs text-muted-foreground">
+                  <span className="break-words text-xs text-muted-foreground dark:text-foreground/80">
                     {copy.exportSupport}
                   </span>
                 </span>
@@ -1310,7 +1303,7 @@ function TrailCourseReviewWorkbench({
       </header>
 
       <div className="mb-5 min-h-6 space-y-1" aria-live="polite" aria-atomic="true">
-        <p className="break-words text-sm text-muted-foreground">
+        <p className="break-words text-sm text-muted-foreground dark:text-foreground/80">
           {!online
             ? copy.offline
             : slowAction
@@ -1326,7 +1319,7 @@ function TrailCourseReviewWorkbench({
 
       <div role="status" aria-live="polite" aria-atomic="true">
         {exportStatus === 'preparing' || exportStatus === 'success' ? (
-          <p className="mb-5 break-words text-sm text-muted-foreground">
+          <p className="mb-5 break-words text-sm text-muted-foreground dark:text-foreground/80">
             {exportStatus === 'preparing' ? copy.exportBusy : copy.exportSuccess}
           </p>
         ) : null}
@@ -1387,15 +1380,14 @@ function TrailCourseReviewWorkbench({
       {staleConflict ? (
         <Alert className="mb-5 border-accent-amber/60">
           <AlertTitle>{copy.staleTitle}</AlertTitle>
-          <AlertDescription className="space-y-3">
+          <AlertDescription className="space-y-3 dark:text-foreground/80">
             <p>{copy.staleExplanation}</p>
-            {changedServerSections.length > 0 ? (
-              <ul className="list-disc space-y-1 pl-5">
-                {changedServerSections.map((sectionKey) => (
-                  <li key={sectionKey}>{sectionTitle[sectionKey]}</li>
-                ))}
-              </ul>
-            ) : null}
+            <TrailPendingComparison
+              baseDraft={serverDraft}
+              pendingRequest={request}
+              pendingInputs={numericInputs}
+              latestDraft={latestDraft}
+            />
             <div className="flex flex-wrap gap-2">
               {!latestDraft ? (
                 <Button type="button" variant="outline" className="min-h-11" onClick={() => { void reviewLatest(); }}>
@@ -1449,6 +1441,7 @@ function TrailCourseReviewWorkbench({
             </FieldShell>
             <FieldShell
               id="trail-event-date"
+              htmlFor="trail-event-date"
               label={copy.eventDate}
               invalidMessage={validationMessageFor('trail-event-date')}
               meta={provenanceMeta(
@@ -1482,6 +1475,7 @@ function TrailCourseReviewWorkbench({
             </FieldShell>
             <FieldShell
               id="trail-race-distance"
+              htmlFor="trail-race-distance"
               label={copy.raceDistance}
               invalidMessage={validationMessageFor('trail-race-distance')}
               meta={provenanceMeta(
@@ -1506,6 +1500,7 @@ function TrailCourseReviewWorkbench({
             <div className="grid min-w-0 gap-5 sm:grid-cols-2">
               <FieldShell
                 id="trail-total-ascent"
+                htmlFor="trail-total-ascent"
                 label={copy.totalAscent}
                 invalidMessage={validationMessageFor('trail-total-ascent')}
                 meta={provenanceMeta(
@@ -1529,6 +1524,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-total-descent"
+                htmlFor="trail-total-descent"
                 label={copy.totalDescent}
                 invalidMessage={validationMessageFor('trail-total-descent')}
                 meta={provenanceMeta(
@@ -1609,6 +1605,7 @@ function TrailCourseReviewWorkbench({
             </FieldShell>
             <FieldShell
               id="trail-event-format"
+              htmlFor="trail-event-format"
               label={copy.eventFormat}
               meta={provenanceMeta(
                 currentFields?.event_format as TrailServerEnvelope<unknown> | null,
@@ -1625,7 +1622,7 @@ function TrailCourseReviewWorkbench({
                 onChange={(value) => updateCourse('event_format', value, 'section.event-duration')}
               />
             </FieldShell>
-            <FieldShell id="trail-distance-category" label={copy.distanceCategory}>
+            <FieldShell id="trail-distance-category" htmlFor="trail-distance-category" label={copy.distanceCategory}>
               <EnumEditor
                 id="trail-distance-category"
                 envelope={request.course_demand.fields.distance_family}
@@ -1635,7 +1632,7 @@ function TrailCourseReviewWorkbench({
                 onChange={(value) => updateCourse('distance_family', value, 'section.event-duration')}
               />
             </FieldShell>
-            <FieldShell id="trail-planning-goal" label={copy.planningGoal}>
+            <FieldShell id="trail-planning-goal" htmlFor="trail-planning-goal" label={copy.planningGoal}>
               <EnumEditor
                 id="trail-planning-goal"
                 envelope={request.course_demand.fields.planning_intent}
@@ -1703,7 +1700,7 @@ function TrailCourseReviewWorkbench({
                           )}
                           className="h-11 font-data"
                         />
-                        <span className="font-data text-sm text-muted-foreground">%</span>
+                        <span className="font-data text-sm text-muted-foreground dark:text-foreground/80">%</span>
                       </div>
                     </div>
                   );
@@ -1864,6 +1861,7 @@ function TrailCourseReviewWorkbench({
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                   <Input
                     id="trail-unavailable-date"
+                    aria-label={copy.unavailableDates}
                     type="date"
                     min={localIsoDate()}
                     max={localIsoDate(13)}
@@ -1919,7 +1917,7 @@ function TrailCourseReviewWorkbench({
                         </li>
                       ))}
                     </ul>
-                  ) : <p className="text-sm text-muted-foreground">{copy.noDates}</p>
+                  ) : <p className="text-sm text-muted-foreground dark:text-foreground/80">{copy.noDates}</p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -1950,6 +1948,7 @@ function TrailCourseReviewWorkbench({
             </FieldShell>
             <FieldShell
               id="trail-preferred-day"
+              htmlFor="trail-preferred-day"
               label={copy.preferredDay}
               invalidMessage={validationMessageFor('trail-preferred-day')}
             >
@@ -1972,7 +1971,12 @@ function TrailCourseReviewWorkbench({
                 }}
               >
                 <SelectTrigger id="trail-preferred-day" className="min-h-11 w-full max-w-sm">
-                  <SelectValue />
+                  <SelectValue>
+                    {request.constraints.preferred_longest_weekday === undefined
+                      ? copy.noPreference
+                      : weekdayOptions.find((option) =>
+                        option.value === request.constraints.preferred_longest_weekday)?.label}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="motion-reduce:animate-none">
                   <SelectItem value="none" className="min-h-11">{copy.noPreference}</SelectItem>
@@ -2119,7 +2123,7 @@ function TrailCourseReviewWorkbench({
               <article key={row.id} id={row.id} tabIndex={-1} className="min-w-0 border-t border-border pt-4 first:border-t-0 first:pt-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <h3 className="break-words text-sm font-semibold">{row.label}</h3>
                 <p className="mt-1 break-words font-data text-sm">{row.value}</p>
-                <dl className="mt-3 grid min-w-0 gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                <dl className="mt-3 grid min-w-0 gap-2 text-xs text-muted-foreground dark:text-foreground/80 sm:grid-cols-2">
                   <div>
                     <dt>{copy.observationWindow}</dt>
                     <dd className="mt-1 break-words font-data">
@@ -2146,10 +2150,10 @@ function TrailCourseReviewWorkbench({
             {historyComparisonVisible ? (
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-semibold text-accent-cobalt">{copy.compareHistory}</h3>
-                <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{copy.historyComparisonHelp}</p>
+                <p className="mt-2 break-words text-sm leading-6 text-muted-foreground dark:text-foreground/80">{copy.historyComparisonHelp}</p>
                 <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <dt className="text-xs text-muted-foreground">
+                    <dt className="text-xs text-muted-foreground dark:text-foreground/80">
                       {copy.requested}: {copy.weeklyTime}
                     </dt>
                     <dd className="font-data text-sm">
@@ -2159,7 +2163,7 @@ function TrailCourseReviewWorkbench({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">
+                    <dt className="text-xs text-muted-foreground dark:text-foreground/80">
                       {copy.fromHistory}: {copy.weeklyTime}
                     </dt>
                     <dd className="font-data text-sm">
@@ -2169,7 +2173,7 @@ function TrailCourseReviewWorkbench({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">
+                    <dt className="text-xs text-muted-foreground dark:text-foreground/80">
                       {copy.requested}: {copy.longestSession}
                     </dt>
                     <dd className="font-data text-sm">
@@ -2179,7 +2183,7 @@ function TrailCourseReviewWorkbench({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">
+                    <dt className="text-xs text-muted-foreground dark:text-foreground/80">
                       {copy.fromHistory}: {copy.longestSession}
                     </dt>
                     <dd className="font-data text-sm">
@@ -2230,6 +2234,7 @@ function TrailCourseReviewWorkbench({
               </div>
               <FieldShell
                 id="trail-maximum-altitude"
+                htmlFor="trail-maximum-altitude"
                 label={copy.maximumAltitude}
                 invalidMessage={validationMessageFor('trail-maximum-altitude')}
               >
@@ -2328,7 +2333,7 @@ function TrailCourseReviewWorkbench({
                   </div>
                 </div>
               </FieldShell>
-              <FieldShell id="trail-sun-exposure" label={copy.sunExposure}>
+              <FieldShell id="trail-sun-exposure" htmlFor="trail-sun-exposure" label={copy.sunExposure}>
                 <EnumEditor
                   id="trail-sun-exposure"
                   envelope={request.course_demand.fields.optional_context.environment.sun_exposure}
@@ -2338,7 +2343,7 @@ function TrailCourseReviewWorkbench({
                   onChange={(value) => updateOptional('environment', 'sun_exposure', value)}
                 />
               </FieldShell>
-              <FieldShell id="trail-wind-exposure" label={copy.windExposure}>
+              <FieldShell id="trail-wind-exposure" htmlFor="trail-wind-exposure" label={copy.windExposure}>
                 <EnumEditor
                   id="trail-wind-exposure"
                   envelope={request.course_demand.fields.optional_context.environment.wind_exposure}
@@ -2350,6 +2355,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-conditions-basis"
+                htmlFor="trail-conditions-basis"
                 label={copy.conditionsBasis}
                 description={request.course_demand.fields.optional_context.environment.conditions_basis.state === 'known'
                   && request.course_demand.fields.optional_context.environment.conditions_basis.value === 'athlete_assumption'
@@ -2387,7 +2393,7 @@ function TrailCourseReviewWorkbench({
                   {copy.setGroupUnknown}
                 </Button>
               </div>
-              <FieldShell id="trail-support-setup" label={copy.supportSetup}>
+              <FieldShell id="trail-support-setup" htmlFor="trail-support-setup" label={copy.supportSetup}>
                 <EnumEditor
                   id="trail-support-setup"
                   envelope={request.course_demand.fields.optional_context.support.aid_support_mode}
@@ -2399,6 +2405,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-aid-count"
+                htmlFor="trail-aid-count"
                 label={copy.aidCount}
                 invalidMessage={validationMessageFor('trail-aid-count')}
               >
@@ -2416,6 +2423,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-aid-gap"
+                htmlFor="trail-aid-gap"
                 label={copy.aidGap}
                 invalidMessage={validationMessageFor('trail-aid-gap')}
               >
@@ -2428,9 +2436,10 @@ function TrailCourseReviewWorkbench({
                       onChange={(event) => updateNumeric('aidStationGapKm', event.target.value, 'section.optional-context')}
                       className="h-11 font-data"
                     />
-                    <span className="font-data text-sm text-muted-foreground">km</span>
+                    <span className="font-data text-sm text-muted-foreground dark:text-foreground/80">km</span>
                   </div>
                   <ToggleGroup
+                    aria-labelledby="trail-aid-gap-label"
                     value={[
                       numericInputs.aidStationGapKm !== ''
                         ? 'value'
@@ -2464,7 +2473,7 @@ function TrailCourseReviewWorkbench({
                   </ToggleGroup>
                 </div>
               </FieldShell>
-              <FieldShell id="trail-water" label={copy.water}>
+              <FieldShell id="trail-water" htmlFor="trail-water" label={copy.water}>
                 <EnumEditor
                   id="trail-water"
                   envelope={request.course_demand.fields.optional_context.support.water_availability}
@@ -2474,7 +2483,7 @@ function TrailCourseReviewWorkbench({
                   onChange={(value) => updateOptional('support', 'water_availability', value)}
                 />
               </FieldShell>
-              <FieldShell id="trail-food" label={copy.food}>
+              <FieldShell id="trail-food" htmlFor="trail-food" label={copy.food}>
                 <EnumEditor
                   id="trail-food"
                   envelope={request.course_demand.fields.optional_context.support.food_availability}
@@ -2539,6 +2548,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-fueling-sessions"
+                htmlFor="trail-fueling-sessions"
                 label={copy.fuelingSessions}
                 invalidMessage={validationMessageFor('trail-fueling-sessions')}
               >
@@ -2554,7 +2564,7 @@ function TrailCourseReviewWorkbench({
                   }}
                 />
               </FieldShell>
-              <FieldShell id="trail-intake" label={copy.intake}>
+              <FieldShell id="trail-intake" htmlFor="trail-intake" label={copy.intake}>
                 <EnumEditor
                   id="trail-intake"
                   envelope={request.course_demand.fields.optional_context.fueling.intake_form}
@@ -2566,6 +2576,7 @@ function TrailCourseReviewWorkbench({
               </FieldShell>
               <FieldShell
                 id="trail-gut-issue"
+                htmlFor="trail-gut-issue"
                 label={copy.gutIssue}
                 description={l(
                   t`This answer is non-diagnostic and does not prescribe an intake quantity.`,
@@ -2660,7 +2671,7 @@ function TrailCourseReviewWorkbench({
                       <span className="break-words text-sm font-medium">{moduleLabels[moduleKey]}</span>
                       <span className="shrink-0 text-xs font-semibold">{stateLabel}</span>
                     </div>
-                    <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">{explanation}</p>
+                    <p className="mt-1 break-words text-xs leading-5 text-muted-foreground dark:text-foreground/80">{explanation}</p>
                     {module.state === 'limited' ? (
                       <Button
                         type="button"
@@ -2695,7 +2706,7 @@ function TrailCourseReviewWorkbench({
                       </div>
                       <div>
                         <dt className="text-xs font-semibold text-accent-cobalt">{copy.effect}</dt>
-                        <dd className="mt-1 break-words leading-5 text-muted-foreground">{reason.copy.effect}</dd>
+                        <dd className="mt-1 break-words leading-5 text-muted-foreground dark:text-foreground/80">{reason.copy.effect}</dd>
                       </div>
                     </dl>
                     <Button
@@ -2710,7 +2721,7 @@ function TrailCourseReviewWorkbench({
                 ))}
               </ol>
             ) : (
-              <p className="mt-2 break-words text-xs leading-5 text-muted-foreground">
+              <p className="mt-2 break-words text-xs leading-5 text-muted-foreground dark:text-foreground/80">
                 {copy.noReceipt}
               </p>
             )}
@@ -2745,7 +2756,7 @@ function TrailCourseReviewWorkbench({
             <DialogTitle>
               {dialogAction === 'reset' ? copy.resetTitle : copy.deleteTitle}
             </DialogTitle>
-            <DialogDescription className="break-words leading-6">
+            <DialogDescription className="break-words leading-6 dark:text-foreground/80">
               {dialogAction === 'reset' ? copy.resetExplanation : copy.deleteExplanation}
             </DialogDescription>
           </DialogHeader>

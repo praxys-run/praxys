@@ -557,7 +557,7 @@ function differs(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) !== JSON.stringify(right);
 }
 
-const NUMERIC_INPUT_KEYS_BY_ENVELOPE: Readonly<
+export const NUMERIC_INPUT_KEYS_BY_ENVELOPE: Readonly<
   Record<string, readonly NumericInputKey[]>
 > = {
   'course.distance_meters': ['distanceKm'],

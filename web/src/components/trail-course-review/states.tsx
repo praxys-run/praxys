@@ -35,23 +35,23 @@ export function TrailCourseReviewSkeleton() {
       className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
     >
       <div className="space-y-3">
-        <Skeleton className="h-8 w-64 max-w-full" />
-        <Skeleton className="h-4 w-[34rem] max-w-full" />
+        <Skeleton className="h-8 w-64 max-w-full motion-reduce:animate-none" />
+        <Skeleton className="h-4 w-[34rem] max-w-full motion-reduce:animate-none" />
       </div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
         <div className="space-y-5">
           {[1, 2, 3, 4, 5].map((item) => (
             <div key={item} className="space-y-3 border-b border-border pb-5">
-              <Skeleton className="h-6 w-56 max-w-full" />
-              <Skeleton className="h-11 w-full" />
-              <Skeleton className="h-11 w-4/5" />
+              <Skeleton className="h-6 w-56 max-w-full motion-reduce:animate-none" />
+              <Skeleton className="h-11 w-full motion-reduce:animate-none" />
+              <Skeleton className="h-11 w-4/5 motion-reduce:animate-none" />
             </div>
           ))}
         </div>
         <div className="space-y-3 lg:sticky lg:top-6 lg:self-start">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-7 w-48 motion-reduce:animate-none" />
+          <Skeleton className="h-24 w-full motion-reduce:animate-none" />
+          <Skeleton className="h-11 w-full motion-reduce:animate-none" />
         </div>
       </div>
     </div>
@@ -212,7 +212,7 @@ export function TrailUnknownVersion({
           {isZh ? t`删除越野目标` : t`Delete Trail goal`}
         </Button>
       </div>
-      <p aria-live="polite" className="break-words text-sm text-muted-foreground">
+      <p aria-live="polite" className="break-words text-sm text-muted-foreground dark:text-foreground/80">
         {message}
       </p>
       <Dialog open={dialog !== null} onOpenChange={(open) => { if (!open) setDialog(null); }}>
@@ -226,7 +226,7 @@ export function TrailUnknownVersion({
                 ? isZh ? t`重置赛道核对？` : t`Reset course review?`
                 : isZh ? t`删除越野目标？` : t`Delete Trail goal?`}
             </DialogTitle>
-            <DialogDescription className="break-words leading-6">
+            <DialogDescription className="break-words leading-6 dark:text-foreground/80">
               {dialog === 'reset'
                 ? isZh
                   ? t`重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。`

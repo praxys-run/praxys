@@ -220,6 +220,10 @@ export function useTrailCourseReviewCopy() {
     reviewLatest: l(t`Review latest version`, t`查看最新版本`),
     restorePending: l(t`Restore pending changes`, t`恢复待保存更改`),
     discardPending: l(t`Discard pending changes`, t`放弃待保存更改`),
+    latestSaved: l(t`Latest saved`, t`最新保存值`),
+    afterRestore: l(t`After restore (unsaved)`, t`恢复后（未保存）`),
+    changedOnServer: l(t`Changed on server`, t`服务端已更改`),
+    noEditableChanges: l(t`No editable values changed.`, t`可编辑值未发生变化。`),
     staleTitle: l(t`The Trail course review changed`, t`越野赛道核对已更改`),
     staleExplanation: l(
       t`Pending edits were kept only in this page. Compare the latest server version, then reapply or discard them. Reapplying does not save or confirm.`,
