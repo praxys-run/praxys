@@ -709,7 +709,7 @@ msgstr "已拒绝访问"
 msgid "Action"
 msgstr "操作"
 
-#: src/pages/admin/AdminFeedback.tsx:427
+#: src/pages/admin/AdminFeedback.tsx:508
 #: src/pages/admin/AdminUsers.tsx:580
 #: src/pages/admin/AdminUsers.tsx:737
 msgid "Actions"
@@ -726,7 +726,7 @@ msgstr "启用托管计划"
 #: src/components/ManagedPlanSettingsCard.tsx:490
 #: src/components/PersonalContextPanel.tsx:721
 #: src/components/PersonalContextPanel.tsx:1250
-#: src/pages/admin/AdminFeedback.tsx:381
+#: src/pages/admin/AdminFeedback.tsx:462
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
@@ -963,11 +963,11 @@ msgstr "恢复后（未保存）"
 msgid "Agent learning"
 msgstr "智能体学习"
 
-#: src/pages/admin/AdminFeedback.tsx:426
+#: src/pages/admin/AdminFeedback.tsx:507
 msgid "Agent readiness"
 msgstr "Agent-ready 判断"
 
-#: src/pages/admin/AdminFeedback.tsx:594
+#: src/pages/admin/AdminFeedback.tsx:666
 msgid "Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 msgstr "仅当反馈已关联到公开的 GitHub Issue 时，agent-ready 才适用。肯定判断会同步该标签；若标签被新加到一个未进入待办且尚未分派的开放 Issue，分派工作流会将其交给 Copilot。否定判断会移除标签，但已有的分派或 PR 可能仍会保留。"
 
@@ -1026,13 +1026,13 @@ msgid "Align the activity and threshold power sources before Praxys uses these s
 msgstr "先统一活动功率和阈值功率的数据来源，Praxys 才会把这些训练纳入估算。"
 
 #: src/components/charts/CpTrendChart.tsx:56
-#: src/pages/admin/AdminFeedback.tsx:382
+#: src/pages/admin/AdminFeedback.tsx:463
 #: src/pages/Setup.tsx:1029
 msgid "All"
 msgstr "全部"
 
 #. placeholder {0}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:313
+#: src/pages/admin/AdminFeedback.tsx:394
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "{0} 个关联工单均已是最新状态。"
 
@@ -1118,7 +1118,7 @@ msgstr "训练分析"
 #~ msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
 #~ msgstr "已刷新分析和分流结果。发布权限和 GitHub Issue 状态均未更改。"
 
-#: src/pages/admin/AdminFeedback.tsx:213
+#: src/pages/admin/AdminFeedback.tsx:294
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 msgstr "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
@@ -1171,7 +1171,7 @@ msgstr "正在应用…"
 #~ msgid "Approve & file"
 #~ msgstr "批准并提交"
 
-#: src/pages/admin/AdminFeedback.tsx:617
+#: src/pages/admin/AdminFeedback.tsx:689
 msgid "Approve & queue"
 msgstr "批准并加入发布队列"
 
@@ -1335,7 +1335,7 @@ msgstr "工作段平均{intensityLabel}"
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 msgstr "请勿填写姓名、疾病诊断、精确位置等敏感信息。即使其他信息仍在保留期内，补充说明也会在 30 天后删除。"
 
-#: src/pages/admin/AdminFeedback.tsx:601
+#: src/pages/admin/AdminFeedback.tsx:673
 msgid "Awaiting triage decision"
 msgstr "等待分诊判断"
 
@@ -1500,7 +1500,7 @@ msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而
 msgid "Browse plan dates"
 msgstr "浏览训练计划日期"
 
-#: src/pages/admin/AdminFeedback.tsx:138
+#: src/pages/admin/AdminFeedback.tsx:219
 msgid "Bug"
 msgstr "缺陷"
 
@@ -1516,7 +1516,7 @@ msgstr "问题反馈"
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 #~ msgstr "从应用内提交的问题反馈和功能建议。配置后会自动分流到 GitHub。"
 
-#: src/pages/admin/AdminFeedback.tsx:364
+#: src/pages/admin/AdminFeedback.tsx:445
 msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
 msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，绝不决定是否为 agent-ready。"
 
@@ -1612,8 +1612,8 @@ msgstr "取消并退出"
 msgid "Cancel preview"
 msgstr "取消预览"
 
-#: src/pages/admin/AdminFeedback.tsx:514
-#: src/pages/admin/AdminFeedback.tsx:537
+#: src/pages/admin/AdminFeedback.tsx:586
+#: src/pages/admin/AdminFeedback.tsx:609
 msgid "Candidate"
 msgstr "候选"
 
@@ -1665,7 +1665,7 @@ msgstr "类别"
 msgid "CAUTION"
 msgstr "注意"
 
-#: src/pages/admin/AdminFeedback.tsx:532
+#: src/pages/admin/AdminFeedback.tsx:604
 #: src/pages/admin/AdminOps.tsx:1591
 msgid "Challenger"
 msgstr "挑战策略"
@@ -2212,6 +2212,22 @@ msgstr "连接已恢复。请先查看当前服务端版本，再恢复待保存
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "连接器提供的活动摘要"
 
+#: src/pages/admin/AdminFeedback.tsx:206
+msgid "Consent receipt: current"
+msgstr "授权凭据：当前版本"
+
+#: src/pages/admin/AdminFeedback.tsx:212
+msgid "Consent receipt: invalid"
+msgstr "授权凭据：无效"
+
+#: src/pages/admin/AdminFeedback.tsx:208
+msgid "Consent receipt: legacy"
+msgstr "授权凭据：旧版"
+
+#: src/pages/admin/AdminFeedback.tsx:210
+msgid "Consent receipt: no grant recorded"
+msgstr "授权凭据：无授权记录"
+
 #: src/pages/LabsEnvironment.tsx:957
 msgid "Consent text version"
 msgstr "同意文本版本"
@@ -2503,7 +2519,7 @@ msgstr "无法查看反馈状态，请重试。"
 msgid "Couldn't load announcements"
 msgstr "无法加载公告"
 
-#: src/pages/admin/AdminFeedback.tsx:330
+#: src/pages/admin/AdminFeedback.tsx:411
 msgid "Couldn't load feedback queue"
 msgstr "无法加载反馈队列"
 
@@ -2515,7 +2531,7 @@ msgstr "无法加载事件"
 msgid "Couldn't load operations summary"
 msgstr "无法加载运营摘要"
 
-#: src/pages/admin/AdminFeedback.tsx:252
+#: src/pages/admin/AdminFeedback.tsx:333
 msgid "Couldn't record the readiness judgment."
 msgstr "无法记录 agent-ready 判断。"
 
@@ -2537,7 +2553,7 @@ msgstr "反馈发送失败，请重试。"
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:209
+#: src/pages/admin/AdminFeedback.tsx:290
 msgid "Couldn't update feedback."
 msgstr "无法更新反馈。"
 
@@ -2637,7 +2653,7 @@ msgstr "正在创建提案…"
 msgid "Creating…"
 msgstr "正在创建…"
 
-#: src/pages/admin/AdminFeedback.tsx:108
+#: src/pages/admin/AdminFeedback.tsx:174
 #: src/pages/admin/AdminIncidents.tsx:31
 #: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
@@ -3498,7 +3514,7 @@ msgstr "爬升"
 msgid "Eligibility check could not load"
 msgstr "无法加载资格检查"
 
-#: src/pages/admin/AdminFeedback.tsx:149
+#: src/pages/admin/AdminFeedback.tsx:230
 msgid "Eligible"
 msgstr "符合条件"
 
@@ -3852,8 +3868,8 @@ msgstr "不会修改外部、手动添加或其他教练安排的训练。证据
 msgid "Fading"
 msgstr "减退中"
 
-#: src/pages/admin/AdminFeedback.tsx:99
-#: src/pages/admin/AdminFeedback.tsx:385
+#: src/pages/admin/AdminFeedback.tsx:165
+#: src/pages/admin/AdminFeedback.tsx:466
 #: src/pages/LabsEnvironment.tsx:166
 msgid "Failed"
 msgstr "失败"
@@ -4003,7 +4019,7 @@ msgstr "疲劳"
 #~ msgid "Fatigued"
 #~ msgstr "疲劳"
 
-#: src/pages/admin/AdminFeedback.tsx:140
+#: src/pages/admin/AdminFeedback.tsx:221
 msgid "Feature"
 msgstr "功能请求"
 
@@ -4033,10 +4049,11 @@ msgid "Feedback state unavailable"
 msgstr "反馈状态不可用"
 
 #: src/components/FeedbackDialog.tsx:571
+#: src/pages/admin/AdminFeedback.tsx:458
 msgid "Feedback status"
 msgstr "反馈状态"
 
-#: src/pages/admin/AdminFeedback.tsx:342
+#: src/pages/admin/AdminFeedback.tsx:423
 msgid "Feedback triage"
 msgstr "反馈处理"
 
@@ -4313,7 +4330,7 @@ msgstr "开始使用 Praxys"
 #~ msgid "GitHub isn't configured — nothing to sync."
 #~ msgstr "未配置 GitHub —— 无需同步。"
 
-#: src/pages/admin/AdminFeedback.tsx:308
+#: src/pages/admin/AdminFeedback.tsx:389
 msgid "GitHub isn't configured. Nothing to sync."
 msgstr "未配置 GitHub，无需同步。"
 
@@ -4491,7 +4508,7 @@ msgid "Hide other providers"
 msgstr "收起其他平台"
 
 #: src/components/trail-course-review/copy.tsx:304
-#: src/pages/admin/AdminFeedback.tsx:110
+#: src/pages/admin/AdminFeedback.tsx:176
 msgid "High"
 msgstr "高"
 
@@ -4896,7 +4913,7 @@ msgstr "当前 HRV 数据不足，无法比较"
 msgid "Insufficient data"
 msgstr "数据不足"
 
-#: src/pages/admin/AdminFeedback.tsx:157
+#: src/pages/admin/AdminFeedback.tsx:238
 msgid "Insufficient detail"
 msgstr "信息不足"
 
@@ -4993,12 +5010,12 @@ msgstr "邀请"
 msgid "Invited"
 msgstr "已邀请"
 
-#: src/pages/admin/AdminFeedback.tsx:425
+#: src/pages/admin/AdminFeedback.tsx:506
 msgid "Issue"
 msgstr "工单"
 
-#: src/pages/admin/AdminFeedback.tsx:95
-#: src/pages/admin/AdminFeedback.tsx:386
+#: src/pages/admin/AdminFeedback.tsx:161
+#: src/pages/admin/AdminFeedback.tsx:467
 msgid "Issue created"
 msgstr "已创建 Issue"
 
@@ -5029,27 +5046,27 @@ msgstr "加入此个人实验"
 msgid "Joined"
 msgstr "已加入"
 
-#: src/pages/admin/AdminFeedback.tsx:279
+#: src/pages/admin/AdminFeedback.tsx:360
 msgid "Judgment recorded and agent-ready removed."
 msgstr "判断已记录，agent-ready 已移除。"
 
-#: src/pages/admin/AdminFeedback.tsx:278
+#: src/pages/admin/AdminFeedback.tsx:359
 msgid "Judgment recorded and agent-ready synchronized."
 msgstr "判断已记录，agent-ready 已同步。"
 
-#: src/pages/admin/AdminFeedback.tsx:259
+#: src/pages/admin/AdminFeedback.tsx:340
 msgid "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
 msgstr "判断已记录，但无法同步 GitHub 的 agent-ready 标签。"
 
-#: src/pages/admin/AdminFeedback.tsx:272
+#: src/pages/admin/AdminFeedback.tsx:353
 msgid "Judgment recorded, but the linked issue belongs to a different repository configuration."
 msgstr "判断已记录，但关联议题属于另一项仓库配置。"
 
-#: src/pages/admin/AdminFeedback.tsx:264
+#: src/pages/admin/AdminFeedback.tsx:345
 msgid "Judgment recorded. The linked issue is not open, so no label was added."
 msgstr "判断已记录。关联议题未开启，因此未添加标签。"
 
-#: src/pages/admin/AdminFeedback.tsx:268
+#: src/pages/admin/AdminFeedback.tsx:349
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "判断已记录。此反馈尚未关联 GitHub 议题。"
 
@@ -5485,7 +5502,7 @@ msgstr "松散碎石"
 #~ msgstr "偏低"
 
 #: src/components/trail-course-review/copy.tsx:302
-#: src/pages/admin/AdminFeedback.tsx:114
+#: src/pages/admin/AdminFeedback.tsx:180
 msgid "Low"
 msgstr "偏低"
 
@@ -5509,7 +5526,7 @@ msgstr "LTHR 趋势"
 msgid "Main"
 msgstr "主训练"
 
-#: src/pages/admin/AdminFeedback.tsx:550
+#: src/pages/admin/AdminFeedback.tsx:622
 msgid "Maintainer verdict:"
 msgstr "维护者判断："
 
@@ -5649,7 +5666,7 @@ msgstr "手动创建和其他教练安排的训练不受影响。整个过程都
 msgid "Manual lap"
 msgstr "手动记圈"
 
-#: src/pages/admin/AdminFeedback.tsx:127
+#: src/pages/admin/AdminFeedback.tsx:193
 msgid "Manual publication review"
 msgstr "需要人工发布审核"
 
@@ -5713,7 +5730,7 @@ msgstr "实测 5 公里比赛"
 msgid "Measured race"
 msgstr "实测比赛"
 
-#: src/pages/admin/AdminFeedback.tsx:112
+#: src/pages/admin/AdminFeedback.tsx:178
 msgid "Medium"
 msgstr "中"
 
@@ -6029,8 +6046,8 @@ msgstr "需要重试"
 
 #: src/components/GoalBaselinePanel.tsx:106
 #: src/components/GoalBaselinePanel.tsx:502
-#: src/pages/admin/AdminFeedback.tsx:93
-#: src/pages/admin/AdminFeedback.tsx:384
+#: src/pages/admin/AdminFeedback.tsx:159
+#: src/pages/admin/AdminFeedback.tsx:465
 msgid "Needs review"
 msgstr "需审核"
 
@@ -6063,9 +6080,9 @@ msgstr "网络错误"
 #: src/pages/admin/AdminCommunications.tsx:77
 #: src/pages/admin/AdminCommunications.tsx:98
 #: src/pages/admin/AdminCommunications.tsx:117
-#: src/pages/admin/AdminFeedback.tsx:218
-#: src/pages/admin/AdminFeedback.tsx:285
-#: src/pages/admin/AdminFeedback.tsx:317
+#: src/pages/admin/AdminFeedback.tsx:299
+#: src/pages/admin/AdminFeedback.tsx:366
+#: src/pages/admin/AdminFeedback.tsx:398
 #: src/pages/admin/AdminIncidents.tsx:67
 #: src/pages/admin/AdminIncidents.tsx:91
 #: src/pages/admin/AdminIncidents.tsx:110
@@ -6091,8 +6108,8 @@ msgstr "网络错误。请刷新队列后重试。"
 msgid "Network error. Try again."
 msgstr "网络错误，请重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:89
-#: src/pages/admin/AdminFeedback.tsx:383
+#: src/pages/admin/AdminFeedback.tsx:155
+#: src/pages/admin/AdminFeedback.tsx:464
 msgid "New"
 msgstr "新建"
 
@@ -6116,7 +6133,7 @@ msgstr "第一次使用 Praxys？"
 msgid "Newer workout structure"
 msgstr "较新版本的训练结构"
 
-#: src/pages/admin/AdminFeedback.tsx:414
+#: src/pages/admin/AdminFeedback.tsx:495
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 
@@ -6170,7 +6187,7 @@ msgstr "暂无与该计划方向和距离匹配的生效自动政策。"
 msgid "No active service incidents"
 msgstr "当前无服务异常"
 
-#: src/pages/admin/AdminFeedback.tsx:411
+#: src/pages/admin/AdminFeedback.tsx:492
 msgid "No active tickets"
 msgstr "暂无活跃工单"
 
@@ -6255,7 +6272,7 @@ msgstr "暂无数据"
 msgid "No dates"
 msgstr "无"
 
-#: src/pages/admin/AdminFeedback.tsx:159
+#: src/pages/admin/AdminFeedback.tsx:240
 msgid "No decision"
 msgstr "暂无判断"
 
@@ -6366,7 +6383,7 @@ msgstr "无偏好"
 msgid "No private context saved"
 msgstr "暂无计划个性化信息"
 
-#: src/pages/admin/AdminFeedback.tsx:528
+#: src/pages/admin/AdminFeedback.tsx:600
 msgid "No prompt"
 msgstr "未使用提示词"
 
@@ -6377,6 +6394,10 @@ msgstr "无法信任基于此结果生成的提案。"
 #: src/components/trail-course-review/copy.tsx:393
 msgid "No proposal is available from this inactive slice."
 msgstr "此未启用切片不能生成提案。"
+
+#: src/pages/admin/AdminFeedback.tsx:91
+msgid "No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "此提交未记录发布授权，因此无法发布。这并不表示提交者曾主动拒绝。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -6478,7 +6499,7 @@ msgstr "无目标"
 msgid "No target selected"
 msgstr "未选择执行平台"
 
-#: src/pages/admin/AdminFeedback.tsx:411
+#: src/pages/admin/AdminFeedback.tsx:492
 msgid "No tickets to show"
 msgstr "暂无可显示的工单"
 
@@ -6574,7 +6595,7 @@ msgstr "当前时间窗口内无记录"
 #~ msgid "Normal"
 #~ msgstr "正常"
 
-#: src/pages/admin/AdminFeedback.tsx:151
+#: src/pages/admin/AdminFeedback.tsx:232
 msgid "Not a bug"
 msgstr "不是缺陷"
 
@@ -6586,7 +6607,7 @@ msgstr "不是缺陷"
 msgid "Not a direct 10K baseline"
 msgstr "这不是直接 10K 基线"
 
-#: src/pages/admin/AdminFeedback.tsx:155
+#: src/pages/admin/AdminFeedback.tsx:236
 msgid "Not actionable"
 msgstr "不可直接处理"
 
@@ -7038,7 +7059,7 @@ msgstr "赛事方信息"
 #: src/components/UpcomingPlanCard.tsx:574
 #: src/components/WorkoutPlanEditor.tsx:452
 #: src/components/WorkoutStructureEditor.tsx:328
-#: src/pages/admin/AdminFeedback.tsx:142
+#: src/pages/admin/AdminFeedback.tsx:223
 msgid "Other"
 msgstr "其他"
 
@@ -7932,7 +7953,7 @@ msgstr "就绪评估不使用优先级。"
 #~ msgid "Privacy Policy"
 #~ msgstr "隐私政策"
 
-#: src/pages/admin/AdminFeedback.tsx:121
+#: src/pages/admin/AdminFeedback.tsx:187
 msgid "Private"
 msgstr "私密"
 
@@ -7969,7 +7990,7 @@ msgstr "补充说明"
 msgid "Private note (optional)"
 msgstr "补充说明（选填）"
 
-#: src/pages/admin/AdminFeedback.tsx:622
+#: src/pages/admin/AdminFeedback.tsx:694
 msgid "Private submission"
 msgstr "私密提交"
 
@@ -8081,15 +8102,15 @@ msgstr "公开状态页"
 msgid "publication overrides"
 msgstr "发布人工覆盖"
 
-#: src/pages/admin/AdminFeedback.tsx:123
+#: src/pages/admin/AdminFeedback.tsx:189
 msgid "Publication queued"
 msgstr "已进入发布队列"
 
-#: src/pages/admin/AdminFeedback.tsx:131
+#: src/pages/admin/AdminFeedback.tsx:197
 msgid "Publication unavailable"
 msgstr "发布不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:129
+#: src/pages/admin/AdminFeedback.tsx:195
 msgid "Publication unknown"
 msgstr "发布状态未知"
 
@@ -8105,7 +8126,7 @@ msgstr "在上方发布横幅，用于通知维护窗口、功能上线或接入
 msgid "Publish service updates on the <0>public status page</0>."
 msgstr "在<0>公开状态页</0>发布服务动态。"
 
-#: src/pages/admin/AdminFeedback.tsx:125
+#: src/pages/admin/AdminFeedback.tsx:191
 msgid "Published"
 msgstr "已发布"
 
@@ -8265,7 +8286,7 @@ msgstr "重新邀请"
 #~ msgid "Re-push to Stryd"
 #~ msgstr "重新推送到 Stryd"
 
-#: src/pages/admin/AdminFeedback.tsx:635
+#: src/pages/admin/AdminFeedback.tsx:707
 msgid "Re-run triage"
 msgstr "重新分析并分流"
 
@@ -8273,9 +8294,13 @@ msgstr "重新分析并分流"
 #~ msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
 #~ msgstr "重新分析并分流只会刷新分析和分流结果，不会授予发布权限，也不会创建 GitHub Issue。"
 
+#: src/pages/admin/AdminFeedback.tsx:450
+msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Consent receipt status is diagnostic: current does not mean eligible, queued, or guaranteed to publish; all existing review and publication gates still apply."
+msgstr "重新分析并分流会刷新分析和分流结果，但不会授予发布权限，也不会直接创建 GitHub Issue。授权凭据状态仅供诊断：“当前版本”不代表反馈符合发布条件、已进入队列或一定会发布；所有既有审核与发布门禁仍然适用。"
+
 #: src/pages/admin/AdminFeedback.tsx:369
-msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
-msgstr "重新分析并分流会刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
+#~ msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+#~ msgstr "重新分析并分流会刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
 #: src/pages/admin/AdminFeedback.tsx:636
 #~ msgid "Re-running triage…"
@@ -8622,11 +8647,11 @@ msgstr "请先在上方重新连接 {targetLabel}，再继续托管下发。"
 #~ msgid "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 #~ msgstr "重新连接 Garmin 或更改账号区域会撤销此权限并暂停下发，重新选择加入后才能恢复。"
 
-#: src/pages/admin/AdminFeedback.tsx:590
+#: src/pages/admin/AdminFeedback.tsx:662
 msgid "Record judgment"
 msgstr "记录判断"
 
-#: src/pages/admin/AdminFeedback.tsx:565
+#: src/pages/admin/AdminFeedback.tsx:637
 msgid "Record maintainer judgment"
 msgstr "记录维护者判断"
 
@@ -8864,7 +8889,7 @@ msgstr "注册时间"
 msgid "Registration settings unavailable"
 msgstr "注册设置暂不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:646
+#: src/pages/admin/AdminFeedback.tsx:718
 msgid "Reject"
 msgstr "驳回"
 
@@ -8873,8 +8898,8 @@ msgstr "驳回"
 msgid "Reject or defer"
 msgstr "拒绝或暂缓"
 
-#: src/pages/admin/AdminFeedback.tsx:101
-#: src/pages/admin/AdminFeedback.tsx:388
+#: src/pages/admin/AdminFeedback.tsx:167
+#: src/pages/admin/AdminFeedback.tsx:469
 msgid "Rejected"
 msgstr "已拒绝"
 
@@ -8991,7 +9016,7 @@ msgstr "重复次数"
 msgid "Replay blocked by safety policy"
 msgstr "安全策略已阻止重试"
 
-#: src/pages/admin/AdminFeedback.tsx:424
+#: src/pages/admin/AdminFeedback.tsx:505
 msgid "Report"
 msgstr "反馈内容"
 
@@ -9079,8 +9104,8 @@ msgstr "处理首个冲突"
 msgid "Resolve workout conflict"
 msgstr "处理训练冲突"
 
-#: src/pages/admin/AdminFeedback.tsx:97
-#: src/pages/admin/AdminFeedback.tsx:387
+#: src/pages/admin/AdminFeedback.tsx:163
+#: src/pages/admin/AdminFeedback.tsx:468
 #: src/pages/admin/AdminIncidents.tsx:44
 #: src/pages/Status.tsx:94
 #: src/pages/Status.tsx:265
@@ -9262,7 +9287,7 @@ msgstr "请重试加载公共通知横幅。"
 #~ msgid "Retry to load seats, users, invitations, and waitlist activity."
 #~ msgstr "请重试加载席位、用户、邀请和候补名单活动。"
 
-#: src/pages/admin/AdminFeedback.tsx:331
+#: src/pages/admin/AdminFeedback.tsx:412
 msgid "Retry to load submitted reports and GitHub sync state."
 msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 
@@ -9343,8 +9368,8 @@ msgid "Review event scope"
 msgstr "查看赛事范围"
 
 #: src/pages/admin/AdminFeedback.tsx:459
-msgid "Review exact public issue text"
-msgstr "审核将公开发布的完整 issue 文本"
+#~ msgid "Review exact public issue text"
+#~ msgstr "审核将公开发布的完整 issue 文本"
 
 #: src/components/PlanStart.tsx:1486
 msgid "Review existing draft"
@@ -9402,12 +9427,12 @@ msgstr "查看准备度"
 msgid "Review recent running"
 msgstr "查看近期跑步记录"
 
-#: src/pages/admin/AdminFeedback.tsx:345
+#: src/pages/admin/AdminFeedback.tsx:426
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 
-#: src/pages/admin/AdminFeedback.tsx:515
-#: src/pages/admin/AdminFeedback.tsx:538
+#: src/pages/admin/AdminFeedback.tsx:587
+#: src/pages/admin/AdminFeedback.tsx:610
 #: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "需要审核"
@@ -9565,7 +9590,7 @@ msgstr "路线或场地标识"
 msgid "RPE · 0–10"
 msgstr "主观用力程度（RPE）· 0–10"
 
-#: src/pages/admin/AdminFeedback.tsx:525
+#: src/pages/admin/AdminFeedback.tsx:597
 msgid "Rule based"
 msgstr "规则判断"
 
@@ -9723,6 +9748,10 @@ msgstr "保存训练"
 msgid "Saved"
 msgstr "已保存"
 
+#: src/pages/admin/AdminFeedback.tsx:543
+msgid "Saved draft"
+msgstr "已保存的草稿"
+
 #: src/components/PersonalContextPanel.tsx:471
 msgid "Saved without guessing a reason. The cause remains unknown."
 msgstr "已保存，Praxys 不会推测具体原因。"
@@ -9799,7 +9828,7 @@ msgstr "科学模型"
 msgid "Scope and guardrails"
 msgstr "范围与护栏"
 
-#: src/pages/admin/AdminFeedback.tsx:471
+#: src/pages/admin/AdminFeedback.tsx:555
 msgid "Screenshot flagged sensitive"
 msgstr "截图已标记为敏感"
 
@@ -9909,7 +9938,7 @@ msgstr "发送中…"
 msgid "Sending…"
 msgstr "发送中…"
 
-#: src/pages/admin/AdminFeedback.tsx:153
+#: src/pages/admin/AdminFeedback.tsx:234
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
@@ -10069,7 +10098,7 @@ msgstr "如果感到疲劳，就缩短训练"
 #~ msgid "Should be agent-ready"
 #~ msgstr "应标记为 agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:166
+#: src/pages/admin/AdminFeedback.tsx:247
 msgid "Should be agent-ready — bounded actionable defect"
 msgstr "应标记为 agent-ready：范围明确且可处理的缺陷"
 
@@ -10077,19 +10106,19 @@ msgstr "应标记为 agent-ready：范围明确且可处理的缺陷"
 #~ msgid "Should not be agent-ready"
 #~ msgstr "不应标记为 agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:170
+#: src/pages/admin/AdminFeedback.tsx:251
 msgid "Should not be agent-ready — insufficient detail"
 msgstr "不应标记为 agent-ready：信息不足"
 
-#: src/pages/admin/AdminFeedback.tsx:172
+#: src/pages/admin/AdminFeedback.tsx:253
 msgid "Should not be agent-ready — needs product judgment"
 msgstr "不应标记为 agent-ready：需要产品判断"
 
-#: src/pages/admin/AdminFeedback.tsx:168
+#: src/pages/admin/AdminFeedback.tsx:249
 msgid "Should not be agent-ready — not a defect"
 msgstr "不应标记为 agent-ready：不是缺陷"
 
-#: src/pages/admin/AdminFeedback.tsx:176
+#: src/pages/admin/AdminFeedback.tsx:257
 msgid "Should not be agent-ready — other"
 msgstr "不应标记为 agent-ready：其他原因"
 
@@ -10097,7 +10126,7 @@ msgstr "不应标记为 agent-ready：其他原因"
 #~ msgid "Should not be agent-ready — sensitive or high risk"
 #~ msgstr "不应标记为 agent-ready — 敏感或高风险"
 
-#: src/pages/admin/AdminFeedback.tsx:174
+#: src/pages/admin/AdminFeedback.tsx:255
 msgid "Should not be agent-ready — sensitivity or privacy gate"
 msgstr "不应标记为 agent-ready：触发敏感或隐私限制"
 
@@ -10325,7 +10354,7 @@ msgstr "开始日期"
 
 #: src/components/GoalBaselinePanel.tsx:122
 #: src/components/PersonalContextPanel.tsx:1248
-#: src/pages/admin/AdminFeedback.tsx:423
+#: src/pages/admin/AdminFeedback.tsx:504
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
 msgid "Status"
@@ -10605,11 +10634,11 @@ msgstr "全部同步"
 msgid "Sync complete! Your data is ready."
 msgstr "同步完成！数据已就绪。"
 
-#: src/pages/admin/AdminFeedback.tsx:301
+#: src/pages/admin/AdminFeedback.tsx:382
 msgid "Sync failed."
 msgstr "同步失败。"
 
-#: src/pages/admin/AdminFeedback.tsx:394
+#: src/pages/admin/AdminFeedback.tsx:475
 msgid "Sync from GitHub"
 msgstr "从 GitHub 同步"
 
@@ -11226,7 +11255,7 @@ msgstr "快速检查发现一项需要处理的数据要求。"
 msgid "The range you want Praxys to plan around—not a finish-time prediction."
 msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
 
-#: src/pages/admin/AdminFeedback.tsx:246
+#: src/pages/admin/AdminFeedback.tsx:327
 msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
 msgstr "就绪判断已更新。请查看刷新后的判断，再记录结论。"
 
@@ -11727,6 +11756,14 @@ msgstr "此来源使用了较新版本的训练结构；为避免丢失细节，
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "此结构是权威内容。请编辑其步骤，而非更改扁平摘要。"
 
+#: src/pages/admin/AdminFeedback.tsx:84
+msgid "This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "此提交使用旧版授权凭据，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+
+#: src/pages/admin/AdminFeedback.tsx:98
+msgid "This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "此提交的授权凭据无效，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+
 #: src/components/trail-course-review/copy.tsx:391
 msgid "This Trail policy is not active."
 msgstr "此越野策略尚未启用。"
@@ -12009,8 +12046,8 @@ msgstr "跑步机"
 msgid "Trend"
 msgstr "趋势"
 
-#: src/pages/admin/AdminFeedback.tsx:91
-#: src/pages/admin/AdminFeedback.tsx:389
+#: src/pages/admin/AdminFeedback.tsx:157
+#: src/pages/admin/AdminFeedback.tsx:470
 msgid "Triaged"
 msgstr "已分类"
 
@@ -12034,7 +12071,7 @@ msgstr "试试上方更长的时间窗口。"
 msgid "Try again"
 msgstr "重试"
 
-#: src/pages/admin/AdminFeedback.tsx:415
+#: src/pages/admin/AdminFeedback.tsx:496
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "试试其他筛选条件，或等有新报告后再同步。"
 
@@ -12095,7 +12132,7 @@ msgstr "两项各自有效的回答彼此冲突。"
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler 热适应荟萃分析"
 
-#: src/pages/admin/AdminFeedback.tsx:422
+#: src/pages/admin/AdminFeedback.tsx:503
 msgid "Type"
 msgstr "类型"
 
@@ -12123,8 +12160,8 @@ msgstr "无法连接状态服务"
 msgid "Unassisted"
 msgstr "无辅助"
 
-#: src/pages/admin/AdminFeedback.tsx:512
-#: src/pages/admin/AdminFeedback.tsx:539
+#: src/pages/admin/AdminFeedback.tsx:584
+#: src/pages/admin/AdminFeedback.tsx:611
 #: src/pages/admin/AdminOps.tsx:191
 #: src/pages/LabsEnvironment.tsx:165
 msgid "Unavailable"
@@ -12267,13 +12304,13 @@ msgid "Updated {0}"
 msgstr "更新于{0}"
 
 #. placeholder {0}: result.updated
-#: src/pages/admin/AdminFeedback.tsx:310
+#: src/pages/admin/AdminFeedback.tsx:391
 msgid "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
 msgstr "已更新 {0} 个关联议题。另有 {repositoryMismatches} 个因其记录的仓库与当前反馈仓库配置不一致而跳过。"
 
 #. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:312
+#: src/pages/admin/AdminFeedback.tsx:393
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 
@@ -12394,7 +12431,7 @@ msgstr "仅用于已确认的用途和有效期"
 msgid "User"
 msgstr "用户"
 
-#: src/pages/admin/AdminFeedback.tsx:356
+#: src/pages/admin/AdminFeedback.tsx:437
 msgid "User feedback"
 msgstr "用户反馈"
 

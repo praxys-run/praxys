@@ -1266,6 +1266,130 @@ def test_admin_list_requires_admin(db_with_users):
     assert isinstance(out, list)
 
 
+@pytest.mark.parametrize(
+    ("version", "consented_at", "expected"),
+    (
+        ("feedback-publication-v2-public-github", datetime(2026, 1, 2), "current"),
+        ("feedback-publication-v1", datetime(2026, 1, 2), "legacy"),
+        (None, None, "not_granted"),
+        ("feedback-publication-v2-public-github", None, "invalid"),
+        ("feedback-publication-v1", None, "invalid"),
+        (None, datetime(2026, 1, 2), "invalid"),
+        ("feedback-publication-unknown", datetime(2026, 1, 2), "invalid"),
+        ("", None, "invalid"),
+    ),
+)
+def test_admin_list_classifies_publication_consent_receipt(
+    db_with_users,
+    version,
+    consented_at,
+    expected,
+):
+    from api.routes.feedback import list_feedback
+    from db.models import (
+        Feedback,
+        FeedbackPublicationAttempt,
+        FeedbackPublicationOutbox,
+    )
+
+    db, _, admin_id, user_id = db_with_users
+    row = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="Synthetic receipt classification report",
+        status="triaged",
+        publication_status="private",
+        publication_consent_version=version,
+        publication_consented_at=consented_at,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    before = (
+        row.publication_consent_version,
+        row.publication_consented_at,
+        row.status,
+        row.publication_status,
+    )
+
+    listed = next(
+        item
+        for item in list_feedback(user_id=admin_id, db=db)
+        if item["id"] == row.id
+    )
+
+    assert listed["publication_consent_receipt"] == expected
+    assert "publication_consent_version" not in listed
+    assert "publication_consented_at" not in listed
+    db.refresh(row)
+    assert (
+        row.publication_consent_version,
+        row.publication_consented_at,
+        row.status,
+        row.publication_status,
+    ) == before
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+    assert db.query(FeedbackPublicationAttempt).count() == 0
+
+
+def test_admin_list_preserves_legacy_publication_evidence_precedence(
+    db_with_users,
+):
+    from api.routes.feedback import list_feedback
+    from db.models import Feedback, FeedbackPublicationOutbox
+
+    db, _, admin_id, user_id = db_with_users
+    consented_at = datetime(2026, 1, 2)
+    private = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="Synthetic private legacy report",
+        status="triaged",
+        publication_status="private",
+        publication_consent_version="feedback-publication-v1",
+        publication_consented_at=consented_at,
+    )
+    published = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="Synthetic published legacy report",
+        status="issue_created",
+        publication_status="published",
+        publication_consent_version="feedback-publication-v1",
+        publication_consented_at=consented_at,
+        github_issue_number=801,
+        github_issue_url="https://github.com/praxys-run/praxys/issues/801",
+    )
+    malformed = Feedback(
+        user_id=user_id,
+        kind="bug",
+        message="Synthetic malformed publication locator",
+        status="issue_created",
+        publication_status="published",
+        publication_consent_version="feedback-publication-v1",
+        publication_consented_at=consented_at,
+        github_issue_number=802,
+        github_issue_url="https://example.invalid/issues/802",
+    )
+    db.add_all((private, published, malformed))
+    db.commit()
+
+    by_id = {
+        item["id"]: item
+        for item in list_feedback(user_id=admin_id, db=db)
+    }
+
+    assert by_id[private.id]["publication_consent_receipt"] == "legacy"
+    assert by_id[private.id]["publication_status"] == "private"
+    assert by_id[published.id]["publication_consent_receipt"] == "legacy"
+    assert by_id[published.id]["publication_status"] == "published"
+    assert by_id[published.id]["github_issue_url"].endswith("/issues/801")
+    assert by_id[malformed.id]["publication_consent_receipt"] == "legacy"
+    assert by_id[malformed.id]["publication_status"] == "unknown"
+    assert by_id[malformed.id]["github_issue_url"] is None
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+
+
 def test_admin_reject_and_retry(db_with_users):
     from api.routes.feedback import submit_feedback, update_feedback, FeedbackRequest, FeedbackAction
     from db.models import Feedback

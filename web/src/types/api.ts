@@ -3871,6 +3871,12 @@ export type FeedbackPublicationStatus =
   | 'unknown'
   | 'unavailable';
 
+export type FeedbackPublicationConsentReceipt =
+  | 'current'
+  | 'legacy'
+  | 'not_granted'
+  | 'invalid';
+
 export interface FeedbackPublicationResult {
   status: FeedbackPublicationStatus;
   issue_url: string | null;
@@ -4015,6 +4021,8 @@ export interface AdminFeedbackItem {
   error: string | null;
   /** Whether this exact submission carries the current external-publication consent. */
   external_publication_consent: boolean;
+  /** Bounded server-derived receipt classification; raw receipt fields stay private. */
+  publication_consent_receipt: FeedbackPublicationConsentReceipt;
   /** Number of attached screenshots. Each is fetched (admin-only) from
    * `GET /api/admin/feedback/{id}/image/{index}` for index in `0..image_count-1`. */
   image_count: number;

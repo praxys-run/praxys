@@ -150,8 +150,10 @@ reconciler must search the exact opaque marker first. Multiple matches require
 manual investigation and cannot be approved, rejected, or superseded while
 publication evidence remains ambiguous. Account deletion removes the private
 feedback but retains detached ambiguity metadata for that investigation. A
-legacy v1 row that was never published is private and must be resubmitted
-through the v2 form; never edit, migrate, or replay its consent fields.
+legacy v1 row that was never published remains private. Only the original
+submitter may choose to create new feedback through the current form and
+explicitly opt in to publication; never edit, migrate, or replay the old row's
+consent fields.
 Already-public legacy issue locators are retained as non-sending publication
 evidence without manufacturing v2 consent or a payload digest.
 
@@ -160,6 +162,12 @@ authenticated, `private, no-store`, and contains only row id/time, bounded
 status/error, consent validity, issue-link and triage-output presence, and
 attempt/reconcile counts. It excludes feedback text/context, user identity,
 screenshot keys/descriptions, marker, payload, token, and provider response.
+The view begins at the durable outbox boundary, so it cannot diagnose rows
+blocked before enqueue. A private row blocked before an outbox record is
+created—for example by a legacy or invalid consent receipt, or because no
+publication grant is recorded—will not appear. Use the authenticated feedback
+list for its bounded receipt state. Absence from this queue is not evidence
+that GitHub was contacted or that publication failed.
 
 **Sync from GitHub** reconciles each filed ticket with its linked issue: a
 closed issue flips the ticket to `resolved`, a reopened one back to

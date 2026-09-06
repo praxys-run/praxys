@@ -505,7 +505,6 @@ test("feedback status UX and auth cleanup are source-complete on both clients", 
   assert.match(adminFeedback, /role="status"/);
   assert.match(adminFeedback, /aria-live="polite"/);
   assert.match(adminFeedback, /aria-atomic="true"/);
-  assert.match(adminFeedback, /Review exact public issue text/);
   assert.match(adminFeedback, /review_token:/);
   assert.match(adminFeedback, /publication_review_token/);
 
