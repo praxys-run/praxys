@@ -241,11 +241,17 @@ def build_trail_readiness_contract_fixture() -> dict[str, Any]:
     )
     return {
         "schema_version": 1,
+        "generator": "tests/trail_api_contract_fixture.py",
         "provenance": (
             "Actual save, four confirmations, fresh read, and repeated inactive "
             "evaluation through api.trail_plan_service using fresh synthetic SQLite; "
             "only save-nonce-dependent digests are canonically substituted while "
             "preserving format, equality, bindings, and all semantic values."
+        ),
+        "dynamic_digest_normalization": (
+            "Deterministic test-only replacements preserve bare versus sha256-prefixed "
+            "formats and every equality relationship; frozen contract and history "
+            "fingerprints are not replaced."
         ),
         "reference_date": TODAY.isoformat(),
         "reference_now": NOW.isoformat(),
