@@ -2037,19 +2037,19 @@ msgstr "连接转化漏斗"
 
 #: src/pages/admin/AdminFeedback.tsx:206
 msgid "Consent receipt: current"
-msgstr "授权凭据：当前版本"
+msgstr "同意回执：当前版本"
 
 #: src/pages/admin/AdminFeedback.tsx:212
 msgid "Consent receipt: invalid"
-msgstr "授权凭据：无效"
+msgstr "同意记录：无效"
 
 #: src/pages/admin/AdminFeedback.tsx:208
 msgid "Consent receipt: legacy"
-msgstr "授权凭据：旧版"
+msgstr "同意记录：旧版"
 
 #: src/pages/admin/AdminFeedback.tsx:210
 msgid "Consent receipt: no grant recorded"
-msgstr "授权凭据：无授权记录"
+msgstr "同意记录：未记录授权"
 
 #: src/pages/LabsEnvironment.tsx:957
 msgid "Consent text version"
@@ -5853,7 +5853,7 @@ msgstr "未使用提示词"
 
 #: src/pages/admin/AdminFeedback.tsx:91
 msgid "No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交未记录发布授权，因此无法发布。这并不表示提交者曾主动拒绝。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交没有记录发布授权，因此无法发布。这不表示提交者曾拒绝。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -10565,11 +10565,11 @@ msgstr "此结构是权威内容。请编辑其步骤，而非更改扁平摘要
 
 #: src/pages/admin/AdminFeedback.tsx:84
 msgid "This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交使用旧版授权凭据，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交附带的是旧版同意凭据，因此无法发布。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/pages/admin/AdminFeedback.tsx:98
 msgid "This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交的授权凭据无效，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交附带的同意凭据无效，因此无法发布。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/components/WorkoutStructureEditor.tsx:187
 #~ msgid "This typed target cannot be represented safely."
