@@ -632,9 +632,7 @@ export default function AdminFeedback() {
                             onClick={() => void handleFeedbackAction(item, 'retry')}
                           >
                             <RotateCcw className="h-3 w-3" />
-                            {feedbackBusy === item.id
-                              ? <Trans>Re-running triage…</Trans>
-                              : <Trans>Re-run triage</Trans>}
+                            <Trans>Re-run triage</Trans>
                           </Button>
                         ) : null}
                         {item.status !== 'rejected' ? (

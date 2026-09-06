@@ -7507,7 +7507,7 @@ msgstr "重新邀请"
 #~ msgid "Re-push to Stryd"
 #~ msgstr "重新推送到 Stryd"
 
-#: src/pages/admin/AdminFeedback.tsx:637
+#: src/pages/admin/AdminFeedback.tsx:635
 msgid "Re-run triage"
 msgstr "重新分析并分流"
 
@@ -7520,8 +7520,8 @@ msgid "Re-run triage refreshes analysis and routing. It grants no publication pe
 msgstr "重新分析并分流会刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
 #: src/pages/admin/AdminFeedback.tsx:636
-msgid "Re-running triage…"
-msgstr "正在重新分析并分流…"
+#~ msgid "Re-running triage…"
+#~ msgstr "正在重新分析并分流…"
 
 #: src/pages/admin/AdminFeedback.tsx:636
 #~ msgid "Re-running…"
@@ -8049,7 +8049,7 @@ msgstr "注册时间"
 msgid "Registration settings unavailable"
 msgstr "注册设置暂不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:648
+#: src/pages/admin/AdminFeedback.tsx:646
 msgid "Reject"
 msgstr "驳回"
 

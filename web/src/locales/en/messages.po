@@ -7420,7 +7420,7 @@ msgstr "Re-invite"
 #~ msgid "Re-push to Stryd"
 #~ msgstr "Re-push to Stryd"
 
-#: src/pages/admin/AdminFeedback.tsx:637
+#: src/pages/admin/AdminFeedback.tsx:635
 msgid "Re-run triage"
 msgstr "Re-run triage"
 
@@ -7433,8 +7433,8 @@ msgid "Re-run triage refreshes analysis and routing. It grants no publication pe
 msgstr "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
 #: src/pages/admin/AdminFeedback.tsx:636
-msgid "Re-running triage…"
-msgstr "Re-running triage…"
+#~ msgid "Re-running triage…"
+#~ msgstr "Re-running triage…"
 
 #: src/pages/admin/AdminFeedback.tsx:636
 #~ msgid "Re-running…"
@@ -7946,7 +7946,7 @@ msgstr "Registration date"
 msgid "Registration settings unavailable"
 msgstr "Registration settings unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:648
+#: src/pages/admin/AdminFeedback.tsx:646
 msgid "Reject"
 msgstr "Reject"
 

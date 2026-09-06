@@ -470,7 +470,6 @@ test('admin retry copy names triage-only behavior without changing publication a
   ]);
 
   assert.match(admin, /Re-run triage/);
-  assert.match(admin, /Re-running triage…/);
   assert.match(admin, /refreshes analysis and routing/);
   assert.match(admin, /grants no publication permission/);
   assert.match(admin, /does not directly create a GitHub issue/);
@@ -483,5 +482,4 @@ test('admin retry copy names triage-only behavior without changing publication a
   assert.match(admin, /external_publication_consent/);
   assert.match(zhCatalog, /此操作不会授予发布权限，也不会直接创建 GitHub Issue/);
   assert.match(zhCatalog, /已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁/);
-  assert.match(zhCatalog, /msgid "Re-running triage…"\s+msgstr "正在重新分析并分流…"/);
 });
