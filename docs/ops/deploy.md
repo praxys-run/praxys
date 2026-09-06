@@ -70,6 +70,49 @@ The EdgeOne native Git project separately runs `web/edgeone.json`. Its static
 build contains `healthz`, `deployed_sha.txt`, ICP markup, and security
 configuration without a checksum manifest or release-preflight ceremony.
 
+### Service-worker cache contract
+
+Both frontend providers must serve the exact `/sw.js` path with:
+
+```text
+Cache-Control: no-cache, max-age=0, must-revalidate
+```
+
+For `.run`, `frontend_server/main.py` sets this at the Azure origin and
+Cloudflare must preserve it. For `.cn`, `web/edgeone.json` sets the same value
+at EdgeOne. The exact rule precedes generic JavaScript/static rules. Only
+content-addressed `/assets/*` files receive
+`public, max-age=31536000, immutable`; never apply that policy to `sw.js`.
+
+After both provider releases report the expected protected-main SHA, read back
+the final response at all four public origins:
+
+```bash
+for url in \
+  https://praxys.run/sw.js \
+  https://www.praxys.run/sw.js \
+  https://praxys.cn/sw.js \
+  https://www.praxys.cn/sw.js; do
+  curl -fsSIL --max-time 15 "${url}" \
+    | grep -Ei '^(HTTP/|cache-control:|etag:|last-modified:)'
+done
+```
+
+If a previously cacheable worker is still present during this correction,
+purge **only those four exact `/sw.js` URLs** in Cloudflare and EdgeOne after
+the matching deployment is live. Do not wildcard-purge `/`, HTML, or
+`/assets/*`. Repeat the readback and verify a normal reload reaches the current
+Terms bundle while keeping its acceptance checkbox initially clear.
+
+Rollback application code through protected `main`, then repeat the SHA and
+header readback. Preserve this `sw.js` header contract during rollback: restoring
+the old cacheable-worker policy recreates the incident. The client recovery is
+bounded to one automatic reload per tab episode. It reloads only after a
+same-origin replacement worker reaches `activated` and takes control of the
+current page; activation or controller-handoff timeout remains gated. Recovery
+also remains gated when offline, storage is unavailable, no same-origin worker
+exists, or the update fails.
+
 ## China public web launch
 
 Follow [cn-web-private-alpha.md](./cn-web-private-alpha.md). `status` is
@@ -148,4 +191,4 @@ protection, PIPIA acceptance, and provider topology separately.
 - [labs-analysis-worker.md](./labs-analysis-worker.md)
 
 ---
-_Last reviewed: 2026-08-29 · Owner: Operations_
+_Last reviewed: 2026-09-06 · Owner: Operations_

@@ -19,6 +19,11 @@ import {
 import { extractApiError } from '@/lib/api-error';
 import { apiFetch } from '@/hooks/useApi';
 import { removeRecentFeedbackId } from '@/lib/feedback';
+import {
+  clearLegalBundleRecoveryMarker,
+  recoverTermsBundleMismatchResponse,
+  type TermsAcceptanceStatus,
+} from '@/lib/legal-bundle-recovery';
 import type {
   CurrentUserProfile,
   TermsAcceptanceResponse,
@@ -34,13 +39,14 @@ interface AuthState {
   isLoading: boolean;
   restoreStatus: 'restoring' | 'retryable' | 'idle';
   termsCurrent: boolean;
+  termsAcceptanceStatus: TermsAcceptanceStatus;
 }
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   register: (email: string, password: string, invitationCode?: string, acceptedTerms?: boolean, honeypot?: string) => Promise<{ ok: boolean; error?: string; verificationRequired?: boolean }>;
   logout: () => void;
-  acceptTerms: () => Promise<boolean>;
+  acceptTerms: (onBundleMismatch?: () => void) => Promise<TermsAcceptanceStatus>;
 }
 
 // The API base URL may be empty (same origin via SWA linked backend)
@@ -57,10 +63,11 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   restoreStatus: 'restoring',
   termsCurrent: false,
+  termsAcceptanceStatus: 'ready',
   login: async () => ({ ok: false }),
   register: async () => ({ ok: false }),
   logout: () => {},
-  acceptTerms: async () => false,
+  acceptTerms: async () => 'submit_error',
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -76,9 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >('restoring');
   // Fail closed until /api/auth/me confirms the current legal bundle.
   const [termsCurrent, setTermsCurrent] = useState(false);
+  const [termsAcceptanceStatus, setTermsAcceptanceStatus] =
+    useState<TermsAcceptanceStatus>('ready');
 
   useEffect(() => {
-    const requireTerms = () => setTermsCurrent(false);
+    const requireTerms = () => {
+      setTermsCurrent(false);
+      setTermsAcceptanceStatus('ready');
+    };
     window.addEventListener(TERMS_REQUIRED_EVENT, requireTerms);
     return () => {
       window.removeEventListener(TERMS_REQUIRED_EVENT, requireTerms);
@@ -158,10 +170,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(data.is_superuser);
         setIsDemo(data.is_demo ?? false);
         setTermsCurrent(data.terms_current === true);
+        setTermsAcceptanceStatus('ready');
         setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(data.is_superuser));
         setToken(stored);
         setRestoreStatus('idle');
         if (data.terms_current === true) {
+          clearLegalBundleRecoveryMarker();
           void setAppInsightsUser(data.id);
           const recordWhenVisible = () => {
             if (document.visibilityState !== 'visible') return;
@@ -245,8 +259,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(me.is_superuser);
       setIsDemo(me.is_demo ?? false);
       setTermsCurrent(me.terms_current === true);
+      setTermsAcceptanceStatus('ready');
       setToken(accessToken);
       if (me.terms_current === true) {
+        clearLegalBundleRecoveryMarker();
         void setAppInsightsUser(me.id);
         recordProductEventOnce('app_opened', 'authenticated-session');
       }
@@ -325,13 +341,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(false);
     setIsDemo(false);
     setTermsCurrent(false);
+    setTermsAcceptanceStatus('ready');
     setRestoreStatus('idle');
     clearAppInsightsUser();
   }, []);
 
-  const acceptTerms = useCallback(async (): Promise<boolean> => {
+  const acceptTerms = useCallback(async (
+    onBundleMismatch?: () => void,
+  ): Promise<TermsAcceptanceStatus> => {
     const tk = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
-    if (!tk) return false;
+    if (!tk) {
+      setTermsAcceptanceStatus('submit_error');
+      return 'submit_error';
+    }
+    setTermsAcceptanceStatus('submitting');
     try {
       const res = await apiFetch('/api/me/accept-terms', {
         method: 'POST',
@@ -346,15 +369,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           locale: document.documentElement.lang || navigator.language,
         }),
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const mismatch = await recoverTermsBundleMismatchResponse(res, {
+          onMismatch: () => {
+            // Keep the gate closed while this exact stale-bundle response
+            // tries one bounded, same-origin service-worker refresh.
+            // Server policy metadata never enters a resubmit.
+            setTermsCurrent(false);
+            setTermsAcceptanceStatus('updating');
+            onBundleMismatch?.();
+          },
+        });
+        if (mismatch.matched) {
+          if (mismatch.recovery.action === 'reload') {
+            setTermsAcceptanceStatus('reloading');
+            window.setTimeout(() => window.location.reload(), 0);
+            return 'reloading';
+          }
+          setTermsAcceptanceStatus('fallback');
+          return 'fallback';
+        }
+        setTermsAcceptanceStatus('submit_error');
+        return 'submit_error';
+      }
       await res.json() as TermsAcceptanceResponse;
+      clearLegalBundleRecoveryMarker();
+      setTermsAcceptanceStatus('accepted');
       setTermsCurrent(true);
       if (userId) void setAppInsightsUser(userId);
       recordProductEventOnce('app_opened', 'authenticated-session');
       void queryClient.invalidateQueries();
-      return true;
+      return 'accepted';
     } catch {
-      return false;
+      setTermsAcceptanceStatus('submit_error');
+      return 'submit_error';
     }
   }, [queryClient, userId]);
 
@@ -362,7 +410,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, userId, email, isAdmin, isDemo, isAuthenticated, isLoading, restoreStatus, termsCurrent, login, register, logout, acceptTerms }}
+      value={{ token, userId, email, isAdmin, isDemo, isAuthenticated, isLoading, restoreStatus, termsCurrent, termsAcceptanceStatus, login, register, logout, acceptTerms }}
     >
       {children}
     </AuthContext.Provider>

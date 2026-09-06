@@ -208,6 +208,10 @@ export default function AdminFeedback() {
       if (!res.ok) {
         setFeedbackActionMsg(await extractErrorMessage(res, t`Couldn't update feedback.`));
         setFeedbackActionError(true);
+      } else if (action === 'retry') {
+        setFeedbackActionMsg(
+          t`Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.`,
+        );
       }
       await refetch();
     } catch {
@@ -359,6 +363,11 @@ export default function AdminFeedback() {
                 <CardDescription>
                   <Trans>
                     Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness.
+                  </Trans>
+                </CardDescription>
+                <CardDescription className="mt-1">
+                  <Trans>
+                    Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.
                   </Trans>
                 </CardDescription>
               </div>
@@ -583,7 +592,7 @@ export default function AdminFeedback() {
                           </div>
                           <p className="text-[11px] leading-relaxed text-muted-foreground">
                             <Trans>
-                              A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain.
+                              Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain.
                             </Trans>
                           </p>
                         </div>
@@ -623,7 +632,7 @@ export default function AdminFeedback() {
                             onClick={() => void handleFeedbackAction(item, 'retry')}
                           >
                             <RotateCcw className="h-3 w-3" />
-                            <Trans>Retry</Trans>
+                            <Trans>Re-run triage</Trans>
                           </Button>
                         ) : null}
                         {item.status !== 'rejected' ? (

@@ -133,8 +133,15 @@ actions:
 - **Approve & queue** — for a new v2-consented, human-reviewed safe draft,
   atomically enqueue metadata; this action never calls GitHub and cannot grant
   or replace the submitter's consent.
-- **Retry** — re-run triage.
+- **Re-run triage** — refresh only the analysis and routing result. The action
+  grants no publication consent and does not directly create a GitHub issue.
+  Feedback that already has current-v2 publication authorization may still
+  continue through the normal review and publication gates. A private, legacy,
+  or otherwise non-current-v2 submission remains private.
 - **Reject** — discard.
+
+`agent-ready` applies only after feedback is linked to an existing public
+GitHub issue; it does not turn private feedback into a publication candidate.
 
 Publication results are separate and server-authoritative: `private`,
 `queued`, `published`, `manual_required`, `unknown`, or `unavailable`.
@@ -184,4 +191,4 @@ retains the delivery ledger.
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md) · `api/routes/admin.py` · `api/routes/announcements.py`
 
 ---
-_Last reviewed: 2026-09-04 · Owner: @dddtc2005_
+_Last reviewed: 2026-09-06 · Owner: @dddtc2005_
