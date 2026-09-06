@@ -58,6 +58,13 @@ _PUBLICATION_STATUSES = {
     "unknown",
     "unavailable",
 }
+_LEGACY_PUBLICATION_CONSENT_VERSION = "feedback-publication-v1"
+PublicationConsentReceipt = Literal[
+    "current",
+    "legacy",
+    "not_granted",
+    "invalid",
+]
 
 # Lightweight anti-spam: cap submissions per user in a sliding window. The
 # auth-rate-limit middleware guards the unauthenticated surface; this guards an
@@ -233,6 +240,23 @@ def _safe_publication_result(row: Feedback) -> dict[str, Any]:
     elif status == "published":
         status = "unknown"
     return {"status": status, "issue_url": issue_url}
+
+
+def _publication_consent_receipt(row: Feedback) -> PublicationConsentReceipt:
+    """Classify persisted receipt shape without exposing its raw fields."""
+    if feedback_has_publication_consent(row):
+        return "current"
+
+    version = row.publication_consent_version
+    consented_at = row.publication_consented_at
+    if (
+        version == _LEGACY_PUBLICATION_CONSENT_VERSION
+        and consented_at is not None
+    ):
+        return "legacy"
+    if version is None and consented_at is None:
+        return "not_granted"
+    return "invalid"
 
 
 @router.get("/feedback/publication-readiness")
@@ -550,6 +574,7 @@ def _serialize_admin(
         "publication_status": _safe_publication_result(row)["status"],
         "error": row.error,
         "external_publication_consent": feedback_has_publication_consent(row),
+        "publication_consent_receipt": _publication_consent_receipt(row),
         # Screenshot attachment (issue #337): count + scrubbed vision outputs.
         # The raw image is served only via the admin image endpoint below.
         "image_count": len(row.image_keys or []),
