@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { apiFetch, extractErrorMessage } from '@/hooks/useApi';
+import { apiFetch, extractErrorMessage, getAuthHeaders } from '@/hooks/useApi';
 import {
   TRAIL_API_ENDPOINTS,
   TRAIL_EDITABLE_SECTION_KEYS,
@@ -102,6 +102,10 @@ import {
   preservesPendingTrailEdits,
 } from './trail-course-review/mutation-error';
 import { usePrivateTrailDraft } from './trail-course-review/use-private-draft';
+import {
+  createTrailOwnerExportAction,
+  type TrailOwnerExportStatus,
+} from './trail-course-review/owner-export';
 import {
   parseTrailDeleteResponse,
   parseTrailReadinessResponse,
@@ -201,6 +205,25 @@ function TrailCourseReviewWorkbench({
     () => typeof navigator === 'undefined' || navigator.onLine,
   );
   const [unavailableDateInput, setUnavailableDateInput] = useState('');
+  const moreActionsRef = useRef<HTMLButtonElement>(null);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [exportMenuClosing, setExportMenuClosing] = useState(false);
+  const [exportStatus, setExportStatus] = useState<TrailOwnerExportStatus>('idle');
+  const [ownerExport] = useState(() => createTrailOwnerExportAction({
+    getAuthHeaders,
+    onStatusChange: setExportStatus,
+    closeMenuAndFocus: () => {
+      // Keep the popup mounted for Base UI's close lifecycle so its focus
+      // manager can restore the trigger after removing the menu item.
+      setExportMenuClosing(true);
+      setMoreActionsOpen(false);
+    },
+  }));
+  useEffect(() => () => ownerExport.cancel(), [ownerExport]);
+  const handleMoreActionsOpenChange = useCallback((open: boolean) => {
+    if (open) setExportMenuClosing(false);
+    setMoreActionsOpen(open);
+  }, []);
 
   const pending = dirtySections.size > 0;
 
@@ -902,8 +925,9 @@ function TrailCourseReviewWorkbench({
           </p>
         </div>
         <div className="max-w-xs sm:text-right">
-          <DropdownMenu>
+          <DropdownMenu open={moreActionsOpen} onOpenChange={handleMoreActionsOpenChange}>
             <DropdownMenuTrigger
+              ref={moreActionsRef}
               render={
                 <Button
                   type="button"
@@ -914,15 +938,25 @@ function TrailCourseReviewWorkbench({
             >
               {copy.moreActions}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-64 motion-reduce:animate-none">
+            <DropdownMenuContent
+              align="end"
+              finalFocus={exportMenuClosing ? moreActionsRef : undefined}
+              className="w-80 min-w-64 max-w-[calc(100vw-2rem)] motion-reduce:animate-none"
+            >
               <DropdownMenuItem className="min-h-11 whitespace-normal" onClick={() => setDialogAction('reset')}>
                 {copy.reset}
               </DropdownMenuItem>
-              <DropdownMenuItem disabled className="min-h-11 whitespace-normal">
+              <DropdownMenuItem
+                disabled={exportStatus === 'preparing'}
+                aria-busy={exportStatus === 'preparing'}
+                closeOnClick={false}
+                className="min-h-11 whitespace-normal"
+                onClick={() => { void ownerExport.run(); }}
+              >
                 <span className="flex min-w-0 flex-col gap-0.5 text-left">
-                  <span>{copy.export}</span>
+                  <span>{exportStatus === 'preparing' ? copy.exportBusy : copy.export}</span>
                   <span className="break-words text-xs text-muted-foreground">
-                    {copy.exportUnavailable}
+                    {copy.exportSupport}
                   </span>
                 </span>
               </DropdownMenuItem>
@@ -948,6 +982,19 @@ function TrailCourseReviewWorkbench({
           <p className="break-words text-sm font-semibold">{copy.pending}</p>
         ) : null}
       </div>
+
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {exportStatus === 'preparing' || exportStatus === 'success' ? (
+          <p className="mb-5 break-words text-sm text-muted-foreground">
+            {exportStatus === 'preparing' ? copy.exportBusy : copy.exportSuccess}
+          </p>
+        ) : null}
+      </div>
+      {exportStatus === 'error' ? (
+        <Alert role="alert" variant="destructive" className="mb-5">
+          <AlertDescription className="break-words">{copy.exportError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {operationError ? (
         <Alert variant="destructive" className="mb-5">

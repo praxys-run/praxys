@@ -70,6 +70,24 @@ msgstr "{0} / {thresholdMinutes} min"
 #~ msgid "{0} activities"
 #~ msgstr "{0} activities"
 
+#. placeholder {0}: history.comparable_ascent_sessions_within_window
+#. placeholder {1}: history.recent_maximum_session_ascent_meters
+#: src/components/TrailCourseReview.tsx:1649
+msgid "{0} comparable sessions · {1} m maximum observed ascent"
+msgstr "{0} comparable sessions · {1} m maximum observed ascent"
+
+#. placeholder {0}: history.comparable_descent_sessions_within_window
+#. placeholder {1}: history.recent_maximum_session_descent_meters
+#: src/components/TrailCourseReview.tsx:1660
+msgid "{0} comparable sessions · {1} m maximum observed descent"
+msgstr "{0} comparable sessions · {1} m maximum observed descent"
+
+#. placeholder {0}: history.usable_completed_weeks
+#. placeholder {1}: history.recent_modal_running_frequency
+#: src/components/TrailCourseReview.tsx:1638
+msgid "{0} completed weeks · {1} runs per week"
+msgstr "{0} completed weeks · {1} runs per week"
+
 #. placeholder {0}: status.contributing_sessions
 #. placeholder {1}: status.exposure_days
 #. placeholder {2}: status.evidence_thresholds.active_window_days
@@ -180,6 +198,24 @@ msgstr "{0} shadow decisions · {1} labels applied · {2} durable outcomes"
 #: src/components/HeatAdaptationPanel.tsx:416
 #~ msgid "{0} work min · {1} effective min"
 #~ msgstr "{0} work min · {1} effective min"
+
+#. placeholder {0}: history.usable_completed_weeks
+#. placeholder {1}: history.recent_modal_running_frequency
+#: src/components/TrailCourseReview.tsx:1639
+msgid "{0} 个完整周 · 每周 {1} 次跑步"
+msgstr "{0} 个完整周 · 每周 {1} 次跑步"
+
+#. placeholder {0}: history.comparable_descent_sessions_within_window
+#. placeholder {1}: history.recent_maximum_session_descent_meters
+#: src/components/TrailCourseReview.tsx:1661
+msgid "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
+msgstr "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
+
+#. placeholder {0}: history.comparable_ascent_sessions_within_window
+#. placeholder {1}: history.recent_maximum_session_ascent_meters
+#: src/components/TrailCourseReview.tsx:1650
+msgid "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
+msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Analysis.tsx:307
@@ -506,9 +542,25 @@ msgstr "7 days"
 msgid "A clinician or restriction already rules out vigorous testing"
 msgstr "A clinician or restriction already rules out vigorous testing"
 
+#: src/components/trail-course-review/copy.tsx:561
+msgid "A confirmed section or source changed after review."
+msgstr "A confirmed section or source changed after review."
+
+#: src/components/trail-course-review/copy.tsx:506
+msgid "A core course detail is still unknown."
+msgstr "A core course detail is still unknown."
+
+#: src/components/trail-course-review/copy.tsx:516
+msgid "A course or conditions assumption has not been confirmed."
+msgstr "A course or conditions assumption has not been confirmed."
+
 #: src/components/PlanStart.tsx:1473
 msgid "A draft exists for another plan purpose"
 msgstr "A draft exists for another plan purpose"
+
+#: src/components/TrailCourseReview.tsx:785
+msgid "A few answers are needed before Praxys can check readiness"
+msgstr "A few answers are needed before Praxys can check readiness"
 
 #: src/components/GoalBaselinePanel.tsx:518
 msgid "A non-diagnostic safety stop is active; Praxys does not diagnose, treat, or clear return to running."
@@ -565,6 +617,14 @@ msgstr "A prior qualifying block still informs this qualitative stage, but respo
 #: src/components/HeatAdaptationPanel.tsx:185
 msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 msgstr "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
+
+#: src/components/trail-course-review/copy.tsx:549
+msgid "A requested workload or edit is above recent observed history."
+msgstr "A requested workload or edit is above recent observed history."
+
+#: src/components/trail-course-review/copy.tsx:537
+msgid "A required schedule, access, or symptom answer is missing."
+msgstr "A required schedule, access, or symptom answer is missing."
 
 #: src/pages/LabsEnvironment.tsx:96
 msgid "A single activity has too much influence on the result."
@@ -783,6 +843,10 @@ msgstr "Add at least one step to this repeat."
 msgid "Add availability"
 msgstr "Add availability"
 
+#: src/components/trail-course-review/copy.tsx:86
+msgid "Add date"
+msgstr "Add date"
+
 #: src/components/WorkoutPlanEditor.tsx:656
 msgid "Add one future workout to the Praxys canonical plan."
 msgstr "Add one future workout to the Praxys canonical plan."
@@ -855,6 +919,10 @@ msgstr "Adopting…"
 #: src/components/PlanStart.tsx:1964
 msgid "Adoption is paused"
 msgstr "Adoption is paused"
+
+#: src/components/trail-course-review/copy.tsx:528
+msgid "Adult, non-clinical performance scope is not confirmed."
+msgstr "Adult, non-clinical performance scope is not confirmed."
 
 #: src/pages/Science.tsx:133
 #~ msgid "Advanced"
@@ -1135,6 +1203,10 @@ msgstr "Attempts {0}"
 msgid "Authentication mode"
 msgstr "Authentication mode"
 
+#: src/components/trail-course-review/copy.tsx:228
+msgid "Authoritative readiness modules"
+msgstr "Authoritative readiness modules"
+
 #: src/pages/McpAuthorization.tsx:193
 msgid "Authorization link unavailable"
 msgstr "Authorization link unavailable"
@@ -1193,6 +1265,7 @@ msgstr "Availability"
 msgid "Availability rate"
 msgstr "Availability rate"
 
+#: src/components/trail-course-review/copy.tsx:229
 #: src/pages/admin/AdminUsers.tsx:768
 #: src/pages/LabsEnvironment.tsx:164
 msgid "Available"
@@ -1453,6 +1526,10 @@ msgstr "Building toward {distLabel}. Current {abbrev} <0>{currentStr}{unit}</0>,
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 msgstr "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 
+#: src/components/trail-course-review/copy.tsx:278
+msgid "Built steps"
+msgstr "Built steps"
+
 #: src/pages/Science.tsx:428
 msgid "by"
 msgstr "by"
@@ -1465,6 +1542,14 @@ msgstr "Calculate proxy"
 msgid "Calculator"
 msgstr "Calculator"
 
+#: src/components/trail-course-review/copy.tsx:94
+msgid "Can you access a continuous, nontechnical uphill for at least 3 minutes?"
+msgstr "Can you access a continuous, nontechnical uphill for at least 3 minutes?"
+
+#: src/components/trail-course-review/copy.tsx:98
+msgid "Can you access terrain for controlled downhill training?"
+msgstr "Can you access terrain for controlled downhill training?"
+
 #: src/components/AiInsightsCard.tsx:382
 #: src/components/FeedbackDialog.tsx:341
 #: src/components/GoalBaselinePanel.tsx:169
@@ -1475,6 +1560,8 @@ msgstr "Calculator"
 #: src/components/ManagedPlanSettingsCard.tsx:1438
 #: src/components/ManagedPlanSettingsCard.tsx:1457
 #: src/components/PersonalContextPanel.tsx:1384
+#: src/components/trail-course-review/copy.tsx:210
+#: src/components/trail-course-review/states.tsx:215
 #: src/components/UpcomingPlanCard.tsx:844
 #: src/components/WorkoutPlanEditor.tsx:917
 #: src/pages/admin/AdminOps.tsx:1215
@@ -1511,9 +1598,21 @@ msgstr "Canonical workout remains safe"
 msgid "CAPTCHA required"
 msgstr "CAPTCHA required"
 
+#: src/components/trail-course-review/copy.tsx:326
+msgid "Carbohydrate drink"
+msgstr "Carbohydrate drink"
+
 #: src/components/PersonalContextPanel.tsx:221
 msgid "Caregiving"
 msgstr "Caregiving"
+
+#: src/components/trail-course-review/copy.tsx:317
+msgid "Carry food"
+msgstr "Carry food"
+
+#: src/components/trail-course-review/copy.tsx:316
+msgid "Carry water"
+msgstr "Carry water"
 
 #: src/components/MobileApp.tsx:95
 msgid "Carry your training signal outdoors. Scan to open Praxys in WeChat."
@@ -1577,7 +1676,16 @@ msgstr "Changed later"
 msgid "Changed what I'll do"
 msgstr "Changed what I'll do"
 
+#: src/components/trail-course-review/copy.tsx:170
+msgid "Changed—confirm again"
+msgstr "Changed—confirm again"
+
+#: src/components/TrailCourseReview.tsx:286
+msgid "Changed—confirm this section again after saving."
+msgstr "Changed—confirm this section again after saving."
+
 #: src/components/PlanStart.tsx:1797
+#: src/components/trail-course-review/copy.tsx:173
 msgid "Check readiness"
 msgstr "Check readiness"
 
@@ -1660,6 +1768,10 @@ msgstr "Choose and date an optional benchmark in the Training plan preview if yo
 msgid "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
 msgstr "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
 
+#: src/components/TrailCourseReview.tsx:1426
+msgid "Choose at most 14 dates inside the displayed 14-day horizon."
+msgstr "Choose at most 14 dates inside the displayed 14-day horizon."
+
 #: src/components/PlanStart.tsx:393
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
 msgstr "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
@@ -1674,6 +1786,7 @@ msgstr "Choose intent"
 
 #: src/components/GoalBaselinePanel.tsx:171
 #: src/components/GoalBaselinePanel.tsx:560
+#: src/components/trail-course-review/copy.tsx:49
 msgid "Choose one"
 msgstr "Choose one"
 
@@ -1818,6 +1931,10 @@ msgstr "Committed / cap"
 msgid "Communications"
 msgstr "Communications"
 
+#: src/components/trail-course-review/copy.tsx:447
+msgid "Comparable Trail, ascent, or footing history is insufficient."
+msgstr "Comparable Trail, ascent, or footing history is insufficient."
+
 #: src/pages/LabsEnvironment.tsx:590
 msgid "Comparable-power activity support"
 msgstr "Comparable-power activity support"
@@ -1827,6 +1944,10 @@ msgstr "Comparable-power activity support"
 msgid "Compare other providers ({0})"
 msgstr "Compare other providers ({0})"
 
+#: src/components/trail-course-review/copy.tsx:557
+msgid "Compare the request with recent history"
+msgstr "Compare the request with recent history"
+
 #: src/components/WorkoutPlanEditor.tsx:401
 msgid "Compatibility preview is unavailable. Check your connection and try again."
 msgstr "Compatibility preview is unavailable. Check your connection and try again."
@@ -1834,6 +1955,14 @@ msgstr "Compatibility preview is unavailable. Check your connection and try agai
 #: src/components/WorkoutStructureEditor.tsx:1075
 #~ msgid "Compatible"
 #~ msgstr "Compatible"
+
+#: src/components/trail-course-review/copy.tsx:512
+msgid "Complete the next course detail"
+msgstr "Complete the next course detail"
+
+#: src/components/trail-course-review/copy.tsx:545
+msgid "Complete the next training detail"
+msgstr "Complete the next training detail"
 
 #: src/components/SetupChecklist.tsx:98
 #: src/pages/Setup.tsx:591
@@ -1872,17 +2001,43 @@ msgstr "Component health is unavailable right now."
 msgid "Components"
 msgstr "Components"
 
+#: src/components/trail-course-review/copy.tsx:144
+msgid "Conditions based on"
+msgstr "Conditions based on"
+
+#: src/components/trail-course-review/copy.tsx:42
+msgid "Conditions, support, and fueling"
+msgstr "Conditions, support, and fueling"
+
 #: src/pages/Settings.tsx:704
 msgid "Configure your training system"
 msgstr "Configure your training system"
+
+#: src/components/trail-course-review/copy.tsx:212
+#: src/components/trail-course-review/states.tsx:228
+msgid "Confirm deletion"
+msgstr "Confirm deletion"
+
+#: src/components/trail-course-review/copy.tsx:222
+msgid "Confirm every visible editable section to check readiness. Confirmation is review, not proof of safety or eligibility."
+msgstr "Confirm every visible editable section to check readiness. Confirmation is review, not proof of safety or eligibility."
 
 #: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 msgstr "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 
+#: src/components/trail-course-review/copy.tsx:533
+msgid "Confirm planning scope"
+msgstr "Confirm planning scope"
+
 #: src/pages/admin/AdminOps.tsx:1228
 msgid "Confirm replay"
 msgstr "Confirm replay"
+
+#: src/components/trail-course-review/copy.tsx:211
+#: src/components/trail-course-review/states.tsx:227
+msgid "Confirm reset"
+msgstr "Confirm reset"
 
 #: src/pages/LabsEnvironment.tsx:1012
 msgid "Confirm that you are 18 or older to join this experiment."
@@ -1900,9 +2055,17 @@ msgstr "Confirm the reviewed adult scope first."
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "Confirm the supported athlete and goal scope first."
 
+#: src/components/trail-course-review/copy.tsx:168
+msgid "Confirm this section"
+msgstr "Confirm this section"
+
 #: src/components/GoalBaselinePanel.tsx:570
 msgid "Confirmed all-out effort"
 msgstr "Confirmed all-out effort"
+
+#: src/components/trail-course-review/copy.tsx:169
+msgid "Confirmed for revision"
+msgstr "Confirmed for revision"
 
 #: src/components/TodayDecisionCheck.tsx:23
 msgid "Confirmed what I planned"
@@ -1989,6 +2152,10 @@ msgstr "Connecting..."
 #: src/pages/admin/AdminOps.tsx:1735
 msgid "Connection funnel"
 msgstr "Connection funnel"
+
+#: src/components/TrailCourseReview.tsx:251
+msgid "Connection restored. Review the current server version before restoring pending changes."
+msgstr "Connection restored. Review the current server version before restoring pending changes."
 
 #: src/components/HeatAdaptationPanel.tsx:82
 #~ msgid "Connector-provided activity summary"
@@ -2331,6 +2498,22 @@ msgstr "Couldn't update feedback."
 #~ msgid "Counts use authenticated request activity. Today reach and Coach usefulness stay unavailable until trusted telemetry is separated."
 #~ msgstr "Counts use authenticated request activity. Today reach and Coach usefulness stay unavailable until trusted telemetry is separated."
 
+#: src/components/trail-course-review/copy.tsx:72
+msgid "Course footing"
+msgstr "Course footing"
+
+#: src/components/trail-course-review/copy.tsx:66
+msgid "Course grade distribution"
+msgstr "Course grade distribution"
+
+#: src/components/TrailCourseReview.tsx:483
+msgid "Course review saved. Confirm each reviewed section at this revision."
+msgstr "Course review saved. Confirm each reviewed section at this revision."
+
+#: src/components/trail-course-review/copy.tsx:451
+msgid "Course-specific work cannot be bounded from observed experience."
+msgstr "Course-specific work cannot be bounded from observed experience."
+
 #: src/components/charts/CpTrendChart.tsx:59
 #: src/lib/display-labels.ts:62
 msgid "CP Trend"
@@ -2497,6 +2680,10 @@ msgstr "Current HRV crossed your personal caution band."
 msgid "Current qualifying evidence"
 msgstr "Current qualifying evidence"
 
+#: src/components/trail-course-review/copy.tsx:51
+msgid "Current Trail race goal"
+msgstr "Current Trail race goal"
+
 #. placeholder {0}: config?.training_base || 'power'
 #: src/components/SetupChecklist.tsx:64
 msgid "Currently set to {0}-based training"
@@ -2561,6 +2748,10 @@ msgstr "Database health failures"
 msgid "Date"
 msgstr "Date"
 
+#: src/components/trail-course-review/copy.tsx:84
+msgid "Dates you cannot train"
+msgstr "Dates you cannot train"
+
 #: src/pages/admin/AdminOps.tsx:1384
 #: src/pages/admin/AdminUsers.tsx:135
 msgid "DAU"
@@ -2577,6 +2768,10 @@ msgstr "DAU, WAU, and MAU use authenticated request activity for context. Today 
 #: src/pages/Goal.tsx:246
 msgid "days"
 msgstr "days"
+
+#: src/components/trail-course-review/copy.tsx:81
+msgid "Days available to run"
+msgstr "Days available to run"
 
 #: src/pages/Goal.tsx:246
 msgid "Days left"
@@ -2682,6 +2877,16 @@ msgstr "Delete this context permanently?"
 msgid "Delete this workout?"
 msgstr "Delete this workout?"
 
+#: src/components/trail-course-review/copy.tsx:199
+#: src/components/trail-course-review/states.tsx:189
+msgid "Delete Trail goal"
+msgstr "Delete Trail goal"
+
+#: src/components/trail-course-review/copy.tsx:205
+#: src/components/trail-course-review/states.tsx:201
+msgid "Delete Trail goal?"
+msgstr "Delete Trail goal?"
+
 #: src/pages/admin/AdminUsers.tsx:1062
 #: src/pages/admin/AdminUsers.tsx:1076
 msgid "Delete user"
@@ -2705,6 +2910,14 @@ msgstr "Deletes {0}"
 #: src/components/PersonalContextPanel.tsx:1253
 msgid "Deleting"
 msgstr "Deleting"
+
+#: src/components/trail-course-review/states.tsx:210
+msgid "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches; only the server-confirmed result will be reported as complete."
+msgstr "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches; only the server-confirmed result will be reported as complete."
+
+#: src/components/trail-course-review/copy.tsx:207
+msgid "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches. Praxys reports completion only from the server response; rollback or cleanup-pending must remain visible."
+msgstr "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches. Praxys reports completion only from the server response; rollback or cleanup-pending must remain visible."
 
 #: src/pages/Settings.tsx:1658
 msgid "Deleting..."
@@ -2800,6 +3013,10 @@ msgstr "Demote to User"
 msgid "Deny"
 msgstr "Deny"
 
+#: src/components/trail-course-review/copy.tsx:35
+msgid "Describe the course and where you can train. Praxys will keep unknowns visible."
+msgstr "Describe the course and where you can train. Praxys will keep unknowns visible."
+
 #: src/components/HeatAdaptationPanel.tsx:447
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "Detailed activity evidence is unavailable for this day."
@@ -2829,6 +3046,10 @@ msgstr "Diagnose Praxys-owned workout delivery without exposing athlete identity
 #: src/pages/Analysis.tsx:358
 msgid "Diagnosis"
 msgstr "Diagnosis"
+
+#: src/components/trail-course-review/copy.tsx:165
+msgid "Did stomach or gut issues change your plan?"
+msgstr "Did stomach or gut issues change your plan?"
 
 #: src/components/GoalBaselinePanel.tsx:164
 #: src/components/GoalBaselinePanel.tsx:546
@@ -2887,6 +3108,10 @@ msgstr "Disable delivery from any other planner first. Two planners can create o
 msgid "Disabled. Click to open"
 msgstr "Disabled. Click to open"
 
+#: src/components/trail-course-review/copy.tsx:215
+msgid "Discard pending changes"
+msgstr "Discard pending changes"
+
 #: src/components/PersonalContextPanel.tsx:230
 #: src/components/PersonalContextPanel.tsx:234
 msgid "Disclosure choice"
@@ -2933,6 +3158,10 @@ msgstr "Distance"
 msgid "Distance (km)"
 msgstr "Distance (km)"
 
+#: src/components/trail-course-review/copy.tsx:64
+msgid "Distance category"
+msgstr "Distance category"
+
 #. placeholder {0}: distance.unit
 #: src/components/WorkoutStructureEditor.tsx:1530
 msgid "Distance in {0}"
@@ -2975,14 +3204,38 @@ msgstr "Do not replay this item. Its failure is marked non-retryable by the deli
 msgid "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 msgstr "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
 
+#: src/components/trail-course-review/copy.tsx:111
+msgid "Do you currently have symptoms that should stop performance planning?"
+msgstr "Do you currently have symptoms that should stop performance planning?"
+
+#: src/components/trail-course-review/copy.tsx:74
+msgid "Does any section require hands for progress?"
+msgstr "Does any section require hands for progress?"
+
+#: src/components/trail-course-review/copy.tsx:78
+msgid "Does any section use fixed ropes?"
+msgstr "Does any section use fixed ropes?"
+
 #: src/components/ManagedPlanSettingsCard.tsx:1212
 #: src/components/ManagedPlanSettingsCard.tsx:1425
 msgid "Done"
 msgstr "Done"
 
+#: src/components/trail-course-review/copy.tsx:336
+msgid "Downhill (−10% to below −3%)"
+msgstr "Downhill (−10% to below −3%)"
+
+#: src/components/trail-course-review/copy.tsx:463
+msgid "Downhill work cannot be bounded from observed history."
+msgstr "Downhill work cannot be bounded from observed history."
+
 #: src/pages/Settings.tsx:1559
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
+
+#: src/components/trail-course-review/copy.tsx:196
+msgid "Download your Praxys account data export. It includes the current saved Trail course review—values and unknowns, provenance, revisions, and confirmations—and any retained Trail proposal snapshots, audits, and receipts. Unsaved changes on this page are not included."
+msgstr "Download your Praxys account data export. It includes the current saved Trail course review—values and unknowns, provenance, revisions, and confirmations—and any retained Trail proposal snapshots, audits, and receipts. Unsaved changes on this page are not included."
 
 #: src/pages/McpAuthorization.tsx:237
 msgid "Draft one change for your review"
@@ -3132,9 +3385,17 @@ msgstr "Easy Run"
 msgid "Edit"
 msgstr "Edit"
 
+#: src/components/trail-course-review/copy.tsx:52
+msgid "Edit Goal"
+msgstr "Edit Goal"
+
 #: src/components/WorkoutPlanEditor.tsx:641
 msgid "Edit workout"
 msgstr "Edit workout"
+
+#: src/components/trail-course-review/copy.tsx:226
+msgid "Effect"
+msgstr "Effect"
 
 #: src/components/HeatAdaptationPanel.tsx:642
 msgid "Effective heat"
@@ -3267,6 +3528,10 @@ msgstr "Enough source data to attempt the experiment"
 msgid "Enter a complete value in this unit."
 msgstr "Enter a complete value in this unit."
 
+#: src/components/trail-course-review/copy.tsx:153
+msgid "Enter a distance"
+msgstr "Enter a distance"
+
 #: src/components/PlanStart.tsx:814
 msgid "Enter a whole-number single-session limit."
 msgstr "Enter a whole-number single-session limit."
@@ -3291,10 +3556,19 @@ msgstr "Enter pace as minutes:seconds per kilometre."
 msgid "Enter pace as minutes:seconds per mile."
 msgstr "Enter pace as minutes:seconds per mile."
 
+#: src/components/trail-course-review/copy.tsx:68
+msgid "Enter percentages for the five fixed grade bands. The total must be exactly 100.00%."
+msgstr "Enter percentages for the five fixed grade bands. The total must be exactly 100.00%."
+
 #: src/components/PersonalContextPanel.tsx:228
 #: src/components/PersonalContextPanel.tsx:229
+#: src/components/trail-course-review/copy.tsx:131
 msgid "Environment"
 msgstr "Environment"
+
+#: src/components/trail-course-review/copy.tsx:585
+msgid "Environment and altitude"
+msgstr "Environment and altitude"
 
 #: src/pages/Labs.tsx:69
 #: src/pages/LabsEnvironment.tsx:1140
@@ -3318,6 +3592,10 @@ msgstr "Error"
 msgid "estimated"
 msgstr "estimated"
 
+#: src/components/trail-course-review/copy.tsx:252
+msgid "Estimated by Praxys"
+msgstr "Estimated by Praxys"
+
 #: src/components/WorkoutStructureEditor.tsx:829
 msgid "Estimated from targets"
 msgstr "Estimated from targets"
@@ -3338,6 +3616,22 @@ msgstr "Estimates race performance from current fitness."
 msgid "EU"
 msgstr "EU"
 
+#: src/components/trail-course-review/copy.tsx:50
+msgid "Event"
+msgstr "Event"
+
+#: src/components/trail-course-review/copy.tsx:38
+msgid "Event & planning duration"
+msgstr "Event & planning duration"
+
+#: src/components/trail-course-review/copy.tsx:53
+msgid "Event date"
+msgstr "Event date"
+
+#: src/components/trail-course-review/copy.tsx:63
+msgid "Event format"
+msgstr "Event format"
+
 #: src/components/PlanStart.tsx:1831
 msgid "Event state"
 msgstr "Event state"
@@ -3350,6 +3644,10 @@ msgstr "Every <0>{0}</0> hours"
 #: src/components/ManagedPlanSettingsCard.tsx:1269
 msgid "Every change is recorded here and can be restored while that exact workout version is still current."
 msgstr "Every change is recorded here and can be restored while that exact workout version is still current."
+
+#: src/components/trail-course-review/copy.tsx:313
+msgid "Every station"
+msgstr "Every station"
 
 #: src/components/HeatAdaptationPanel.tsx:531
 msgid "evidence"
@@ -3414,6 +3712,14 @@ msgstr "Execution target"
 msgid "Execution target changed. Delivery remains paused."
 msgstr "Execution target changed. Delivery remains paused."
 
+#: src/components/trail-course-review/copy.tsx:139
+msgid "Expected humidity range"
+msgstr "Expected humidity range"
+
+#: src/components/trail-course-review/copy.tsx:136
+msgid "Expected temperature range"
+msgstr "Expected temperature range"
+
 #: src/components/ManagedPlanSettingsCard.tsx:507
 #~ msgid "Experimental Garmin delivery"
 #~ msgstr "Experimental Garmin delivery"
@@ -3439,10 +3745,22 @@ msgstr "Explore whether modeled heart rate varied with temperature and humidity 
 msgid "Export context"
 msgstr "Export context"
 
+#: src/components/trail-course-review/copy.tsx:196
+msgid "Export isn't available in this private preview yet."
+msgstr "Export isn't available in this private preview yet."
+
 #: src/pages/Settings.tsx:1557
 #: src/pages/Settings.tsx:1587
 msgid "Export my data"
 msgstr "Export my data"
+
+#: src/components/trail-course-review/copy.tsx:194
+msgid "Export my Trail plan data"
+msgstr "Export my Trail plan data"
+
+#: src/components/trail-course-review/copy.tsx:298
+msgid "Exposed"
+msgstr "Exposed"
 
 #: src/components/HeatAdaptationPanel.tsx:265
 #~ msgid "Exposure days"
@@ -3650,9 +3968,17 @@ msgstr "Feedback state unavailable"
 msgid "Feedback triage"
 msgstr "Feedback triage"
 
+#: src/components/trail-course-review/copy.tsx:225
+msgid "Finding"
+msgstr "Finding"
+
 #: src/components/AiInsightsCard.tsx:281
 msgid "Findings"
 msgstr "Findings"
+
+#: src/components/trail-course-review/copy.tsx:270
+msgid "Finish the event"
+msgstr "Finish the event"
 
 #: src/components/WorkoutStructureEditor.tsx:1057
 #~ msgid "Finish the required step fields to preview compatibility."
@@ -3665,6 +3991,10 @@ msgstr "Finish the required step fields to preview delivery."
 #: src/components/PlanStart.tsx:284
 msgid "Finish this distance"
 msgstr "Finish this distance"
+
+#: src/components/trail-course-review/copy.tsx:274
+msgid "Firm, smooth trail"
+msgstr "Firm, smooth trail"
 
 #: src/components/PlanStart.tsx:467
 msgid "First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule."
@@ -3697,6 +4027,10 @@ msgstr "flat"
 msgid "Flat"
 msgstr "Flat"
 
+#: src/components/trail-course-review/copy.tsx:325
+msgid "Fluids only"
+msgstr "Fluids only"
+
 #: src/components/SignalHero.tsx:20
 #: src/pages/Today.tsx:73
 msgid "Follow Plan"
@@ -3709,6 +4043,14 @@ msgstr "Follow Plan"
 #: src/components/HeatAdaptationPanel.tsx:61
 #~ msgid "Follow your existing plan; do not add load or heat solely to change this tracker."
 #~ msgstr "Follow your existing plan; do not add load or heat solely to change this tracker."
+
+#: src/components/trail-course-review/copy.tsx:155
+msgid "Food availability"
+msgstr "Food availability"
+
+#: src/components/trail-course-review/copy.tsx:101
+msgid "Footing available for training"
+msgstr "Footing available for training"
 
 #: src/components/charts/FitnessFatigueChart.tsx:64
 #: src/components/charts/FitnessFatigueChart.tsx:202
@@ -3755,13 +4097,17 @@ msgstr "Fourteen-day activity record"
 #~ msgid "Freshened up — good window for racing or testing."
 #~ msgstr "Freshened up — good window for racing or testing."
 
+#: src/components/trail-course-review/copy.tsx:119
+msgid "Freshness"
+msgstr "Freshness"
+
 #: src/components/PersonalContextPanel.tsx:242
 msgid "Fri"
 msgstr "Fri"
 
-#: src/components/Outdoor5KPlanStart.tsx:215
-#~ msgid "Friday"
-#~ msgstr "Friday"
+#: src/components/trail-course-review/copy.tsx:286
+msgid "Friday"
+msgstr "Friday"
 
 #: src/pages/Today.tsx:546
 msgid "From {dataAsOfLabel}"
@@ -3778,6 +4124,23 @@ msgstr "From activities"
 #: src/components/UpcomingPlanCard.tsx:162
 #~ msgid "From Stryd"
 #~ msgstr "From Stryd"
+
+#: src/components/trail-course-review/copy.tsx:244
+#: src/components/trail-course-review/copy.tsx:251
+msgid "From your activity history"
+msgstr "From your activity history"
+
+#: src/components/trail-course-review/copy.tsx:133
+msgid "Fueling"
+msgstr "Fueling"
+
+#: src/components/trail-course-review/copy.tsx:586
+msgid "Fueling practice"
+msgstr "Fueling practice"
+
+#: src/components/trail-course-review/copy.tsx:160
+msgid "Fueling practice sessions in the past 42 days"
+msgstr "Fueling practice sessions in the past 42 days"
 
 #: src/components/GoalBaselinePanel.tsx:131
 #: src/components/GoalBaselinePanel.tsx:527
@@ -3853,6 +4216,10 @@ msgstr "Generate a token at cloud.ouraring.com/personal-access-tokens."
 msgid "Generating…"
 msgstr "Generating…"
 
+#: src/components/trail-course-review/copy.tsx:236
+msgid "Generation may consider this module. It is not yet included in a proposal."
+msgstr "Generation may consider this module. It is not yet included in a proposal."
+
 #: src/components/PlanStart.tsx:515
 #: src/components/PlanStart.tsx:1935
 msgid "Generator"
@@ -3916,6 +4283,14 @@ msgstr "Goal type"
 #: src/components/charts/FormSparkline.tsx:27
 #~ msgid "Good balance of fitness and recovery. Ready for quality work."
 #~ msgstr "Good balance of fitness and recovery. Ready for quality work."
+
+#: src/components/trail-course-review/copy.tsx:39
+msgid "Grade & footing"
+msgstr "Grade & footing"
+
+#: src/components/trail-course-review/copy.tsx:583
+msgid "Grade-specific training"
+msgstr "Grade-specific training"
 
 #: src/components/PersonalContextPanel.tsx:250
 msgid "Gym"
@@ -4039,6 +4414,7 @@ msgstr "Hide methodology details"
 msgid "Hide other providers"
 msgstr "Hide other providers"
 
+#: src/components/trail-course-review/copy.tsx:293
 #: src/pages/admin/AdminFeedback.tsx:109
 msgid "High"
 msgstr "High"
@@ -4115,6 +4491,10 @@ msgstr "History used:"
 #: src/pages/LabsEnvironment.tsx:334
 msgid "hour rolling window"
 msgstr "hour rolling window"
+
+#: src/components/trail-course-review/copy.tsx:47
+msgid "Hours"
+msgstr "Hours"
 
 #: src/pages/Science.tsx:26
 #~ msgid "How do we assess readiness to train?"
@@ -4273,9 +4653,21 @@ msgstr "I am self-coached for recreational road running."
 msgid "I can currently complete 5 km."
 msgstr "I can currently complete 5 km."
 
+#: src/components/trail-course-review/copy.tsx:103
+msgid "I confirm I am 18 or older and this is not clinical or return-to-sport planning."
+msgstr "I confirm I am 18 or older and this is not clinical or return-to-sport planning."
+
 #: src/pages/LabsEnvironment.tsx:919
 msgid "I confirm that I am 18 or older. Praxys records this attestation, not my birth date."
 msgstr "I confirm that I am 18 or older. Praxys records this attestation, not my birth date."
+
+#: src/components/trail-course-review/copy.tsx:107
+msgid "I confirm the goal is race performance."
+msgstr "I confirm the goal is race performance."
+
+#: src/components/trail-course-review/copy.tsx:43
+msgid "I don't know yet"
+msgstr "I don't know yet"
 
 #: src/pages/LabsEnvironment.tsx:922
 msgid "I understand the purpose, limits, storage, and withdrawal terms above and choose to participate in this experiment."
@@ -4298,6 +4690,10 @@ msgstr "Illness"
 #: src/components/PlanStart.tsx:289
 msgid "Improve performance"
 msgstr "Improve performance"
+
+#: src/components/trail-course-review/copy.tsx:269
+msgid "Improve race performance"
+msgstr "Improve race performance"
 
 #: src/pages/Today.tsx:119
 #~ msgid "improving"
@@ -4493,6 +4889,10 @@ msgstr "Issue"
 #: src/pages/admin/AdminFeedback.tsx:356
 msgid "Issue created"
 msgstr "Issue created"
+
+#: src/components/trail-course-review/copy.tsx:406
+msgid "It is outside the non-ultra, one-day policy."
+msgstr "It is outside the non-ultra, one-day policy."
 
 #: src/components/PersonalContextPanel.tsx:1367
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
@@ -4748,6 +5148,10 @@ msgstr "Light"
 msgid "Light theme (click for dark)"
 msgstr "Light theme (click for dark)"
 
+#: src/components/trail-course-review/copy.tsx:319
+msgid "Lighting"
+msgstr "Lighting"
+
 #: src/components/HeatAdaptationPanel.tsx:20
 #: src/components/HeatAdaptationPanel.tsx:28
 msgid "Likely adapted"
@@ -4768,6 +5172,10 @@ msgstr "Likely adapted to similar recent conditions."
 #: src/components/HeatAdaptationPanel.tsx:411
 #~ msgid "Likely-adapted threshold"
 #~ msgstr "Likely-adapted threshold"
+
+#: src/components/trail-course-review/copy.tsx:230
+msgid "Limited"
+msgstr "Limited"
 
 #: src/components/HeatAdaptationPanel.tsx:49
 #~ msgid "Limited data coverage"
@@ -4877,6 +5285,10 @@ msgstr "Loading private context"
 msgid "Loading recent workouts…"
 msgstr "Loading recent workouts…"
 
+#: src/components/trail-course-review/states.tsx:29
+msgid "Loading Trail course review"
+msgstr "Loading Trail course review"
+
 #: src/pages/Status.tsx:145
 msgid "Loading…"
 msgstr "Loading…"
@@ -4932,10 +5344,27 @@ msgstr "Long-term load, recent load, and their modeled balance over time."
 msgid "Long-term modeled load is above recent modeled load."
 msgstr "Long-term modeled load is above recent modeled load."
 
+#: src/components/trail-course-review/copy.tsx:151
+msgid "Longest gap between aid stations"
+msgstr "Longest gap between aid stations"
+
+#: src/components/trail-course-review/copy.tsx:158
+msgid "Longest practiced fueling duration"
+msgstr "Longest practiced fueling duration"
+
+#: src/components/trail-course-review/copy.tsx:83
+msgid "Longest training session available"
+msgstr "Longest training session available"
+
+#: src/components/trail-course-review/copy.tsx:275
+msgid "Loose gravel"
+msgstr "Loose gravel"
+
 #: src/pages/Today.tsx:131
 #~ msgid "low"
 #~ msgstr "low"
 
+#: src/components/trail-course-review/copy.tsx:291
 #: src/pages/admin/AdminFeedback.tsx:113
 msgid "Low"
 msgstr "Low"
@@ -5120,9 +5549,25 @@ msgstr "MAU"
 msgid "Max HR"
 msgstr "Max HR"
 
+#: src/components/trail-course-review/copy.tsx:135
+msgid "Maximum course altitude"
+msgstr "Maximum course altitude"
+
+#: src/components/trail-course-review/copy.tsx:141
+msgid "Maximum humidity"
+msgstr "Maximum humidity"
+
 #: src/components/PersonalContextPanel.tsx:973
 msgid "Maximum minutes available per affected day"
 msgstr "Maximum minutes available per affected day"
+
+#: src/components/trail-course-review/copy.tsx:58
+msgid "Maximum planning duration"
+msgstr "Maximum planning duration"
+
+#: src/components/trail-course-review/copy.tsx:138
+msgid "Maximum temperature"
+msgstr "Maximum temperature"
 
 #: src/components/PersonalContextPanel.tsx:266
 msgid "Maximum training minutes per day"
@@ -5192,11 +5637,27 @@ msgstr "minimum {referenceMinimum} per environmental range"
 #~ msgid "minimum {referenceMinimum} per range"
 #~ msgstr "minimum {referenceMinimum} per range"
 
+#: src/components/trail-course-review/copy.tsx:140
+msgid "Minimum humidity"
+msgstr "Minimum humidity"
+
+#: src/components/trail-course-review/copy.tsx:57
+msgid "Minimum planning duration"
+msgstr "Minimum planning duration"
+
+#: src/components/trail-course-review/copy.tsx:137
+msgid "Minimum temperature"
+msgstr "Minimum temperature"
+
 #: src/pages/admin/AdminIncidents.tsx:27
 #: src/pages/admin/AdminIncidents.tsx:184
 #: src/pages/Status.tsx:100
 msgid "Minor"
 msgstr "Minor"
+
+#: src/components/trail-course-review/copy.tsx:48
+msgid "Minutes"
+msgstr "Minutes"
 
 #. placeholder {0}: user.demo_of_email
 #: src/pages/admin/AdminUsers.tsx:609
@@ -5221,6 +5682,16 @@ msgstr "Missing evidence"
 #~ msgid "mixed"
 #~ msgstr "mixed"
 
+#: src/components/trail-course-review/copy.tsx:292
+#: src/components/trail-course-review/copy.tsx:297
+#: src/components/trail-course-review/copy.tsx:307
+msgid "Mixed"
+msgstr "Mixed"
+
+#: src/components/trail-course-review/copy.tsx:327
+msgid "Mixed food and drink"
+msgstr "Mixed food and drink"
+
 #: src/components/HeatAdaptationPanel.tsx:336
 #~ msgid "Mixed power sources"
 #~ msgstr "Mixed power sources"
@@ -5238,6 +5709,7 @@ msgstr "Mobility"
 msgid "Mode"
 msgstr "Mode"
 
+#: src/components/trail-course-review/copy.tsx:245
 #: src/pages/LabsEnvironment.tsx:1297
 msgid "Model version"
 msgstr "Model version"
@@ -5280,9 +5752,9 @@ msgstr "MODIFY"
 msgid "Mon"
 msgstr "Mon"
 
-#: src/components/Outdoor5KPlanStart.tsx:211
-#~ msgid "Monday"
-#~ msgstr "Monday"
+#: src/components/trail-course-review/copy.tsx:282
+msgid "Monday"
+msgstr "Monday"
 
 #: src/pages/admin/AdminIncidents.tsx:42
 #: src/pages/admin/AdminIncidents.tsx:255
@@ -5297,6 +5769,10 @@ msgstr "Monitoring runbook"
 #: src/pages/Goal.tsx:292
 msgid "months"
 msgstr "months"
+
+#: src/components/trail-course-review/copy.tsx:192
+msgid "More actions"
+msgstr "More actions"
 
 #: src/pages/Today.tsx:254
 msgid "More historical HRV observations are needed before Praxys can form a personal recovery band. Follow the plan without an HRV-based adjustment."
@@ -5340,14 +5816,30 @@ msgstr "Move down"
 msgid "Move up"
 msgstr "Move up"
 
+#: src/components/trail-course-review/copy.tsx:276
+msgid "Mud"
+msgstr "Mud"
+
+#: src/components/trail-course-review/copy.tsx:262
+msgid "Multi-day event"
+msgstr "Multi-day event"
+
 #. placeholder {0}: primaryPrompt?.category
 #: src/pages/Setup.tsx:1119
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 
+#: src/components/trail-course-review/copy.tsx:303
+msgid "My assumption"
+msgstr "My assumption"
+
 #: src/components/PlanStart.tsx:1658
 msgid "My goal is an outdoor road 5K."
 msgstr "My goal is an outdoor road 5K."
+
+#: src/components/trail-course-review/copy.tsx:320
+msgid "Navigation device"
+msgstr "Navigation device"
 
 #: src/pages/Today.tsx:125
 msgid "near baseline"
@@ -5356,6 +5848,10 @@ msgstr "near baseline"
 #: src/components/RecoveryPanel.tsx:32
 msgid "Near baseline"
 msgstr "Near baseline"
+
+#: src/components/trail-course-review/copy.tsx:337
+msgid "Near level (−3% to below 3%)"
+msgstr "Near level (−3% to below 3%)"
 
 #: src/pages/Analysis.tsx:296
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
@@ -5496,6 +5992,10 @@ msgstr "Newly triaged work will appear here when admin action is needed."
 msgid "Next"
 msgstr "Next"
 
+#: src/components/trail-course-review/copy.tsx:227
+msgid "Next action"
+msgstr "Next action"
+
 #: src/components/UpcomingPlanCard.tsx:1483
 msgid "Next plan window"
 msgstr "Next plan window"
@@ -5510,8 +6010,13 @@ msgstr "Next sync"
 
 #: src/components/GoalBaselinePanel.tsx:146
 #: src/components/GoalBaselinePanel.tsx:566
+#: src/components/trail-course-review/copy.tsx:45
 msgid "No"
 msgstr "No"
+
+#: src/components/trail-course-review/copy.tsx:495
+msgid "No 14-day schedule fits the confirmed availability and accepted limits."
+msgstr "No 14-day schedule fits the confirmed availability and accepted limits."
 
 #: src/components/PlanStart.tsx:1244
 msgid "No accepted automatic policy matches this goal yet. Praxys keeps manual plan management available instead of repurposing the 5K policy."
@@ -5585,6 +6090,10 @@ msgstr "No connection attempts were recorded in this window."
 #~ msgid "No contributing heat session yet"
 #~ msgstr "No contributing heat session yet"
 
+#: src/components/trail-course-review/copy.tsx:178
+msgid "No course review has been saved yet"
+msgstr "No course review has been saved yet"
+
 #: src/components/RecoveryPanel.tsx:21
 msgid "No current classification"
 msgstr "No current classification"
@@ -5609,6 +6118,10 @@ msgstr "no data"
 #: src/components/RecoveryPanel.tsx:21
 #~ msgid "No Data"
 #~ msgstr "No Data"
+
+#: src/components/trail-course-review/copy.tsx:85
+msgid "No dates"
+msgstr "No dates"
 
 #: src/pages/admin/AdminFeedback.tsx:141
 msgid "No decision"
@@ -5692,6 +6205,10 @@ msgstr "No new HRV, sleep, or activity since."
 msgid "NO PLAN"
 msgstr "NO PLAN"
 
+#: src/components/trail-course-review/copy.tsx:330
+msgid "No plan-altering issue"
+msgstr "No plan-altering issue"
+
 #: src/components/WeeklyLoadMini.tsx:61
 msgid "No planned load this week"
 msgstr "No planned load this week"
@@ -5705,6 +6222,7 @@ msgstr "No Praxys workouts are scheduled in this window. Future Praxys-created w
 #: src/components/PlanStart.tsx:1614
 #: src/components/PlanStart.tsx:1763
 #: src/components/PlanStart.tsx:1768
+#: src/components/trail-course-review/copy.tsx:92
 msgid "No preference"
 msgstr "No preference"
 
@@ -5716,9 +6234,21 @@ msgstr "No private context saved"
 msgid "No prompt"
 msgstr "No prompt"
 
+#: src/components/trail-course-review/copy.tsx:373
+msgid "No proposal can be trusted from this result."
+msgstr "No proposal can be trusted from this result."
+
+#: src/components/trail-course-review/copy.tsx:382
+msgid "No proposal is available from this inactive slice."
+msgstr "No proposal is available from this inactive slice."
+
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
 #~ msgstr "No qualifying condition range yet"
+
+#: src/components/TrailCourseReview.tsx:1672
+msgid "No qualifying footing observed"
+msgstr "No qualifying footing observed"
 
 #: src/components/HeatAdaptationPanel.tsx:247
 #~ msgid "No recent activities are available to inspect."
@@ -5748,6 +6278,10 @@ msgstr "No recent Praxys workout is available to link."
 #: src/components/HeatAdaptationPanel.tsx:452
 #~ msgid "No reliable heat history yet"
 #~ msgstr "No reliable heat history yet"
+
+#: src/components/trail-course-review/copy.tsx:157
+msgid "No required equipment listed"
+msgstr "No required equipment listed"
 
 #: src/components/PlanStart.tsx:1693
 msgid "No safety stop"
@@ -5869,7 +6403,13 @@ msgstr "No workout scheduled."
 msgid "No workouts scheduled in this window."
 msgstr "No workouts scheduled in this window."
 
+#: src/components/trail-course-review/copy.tsx:265
+msgid "Non-ultra Trail"
+msgstr "Non-ultra Trail"
+
 #: src/components/PersonalContextPanel.tsx:247
+#: src/components/trail-course-review/copy.tsx:311
+#: src/components/trail-course-review/copy.tsx:324
 msgid "None"
 msgstr "None"
 
@@ -5905,6 +6445,10 @@ msgstr "Not actionable"
 #: src/components/GoalBaselinePanel.tsx:564
 msgid "Not an all-out 5K effort"
 msgstr "Not an all-out 5K effort"
+
+#: src/components/trail-course-review/copy.tsx:152
+msgid "Not applicable"
+msgstr "Not applicable"
 
 #: src/pages/Settings.tsx:936
 msgid "Not connected"
@@ -5959,10 +6503,9 @@ msgstr "Not enrolled"
 msgid "Not established"
 msgstr "Not established"
 
-#: src/components/HeatAdaptationPanel.tsx:334
-#: src/components/HeatAdaptationPanel.tsx:338
-#~ msgid "Not evaluated"
-#~ msgstr "Not evaluated"
+#: src/components/trail-course-review/copy.tsx:122
+msgid "Not evaluated"
+msgstr "Not evaluated"
 
 #: src/components/AiInsightsCard.tsx:349
 msgid "Not helpful"
@@ -5985,6 +6528,10 @@ msgstr "Not safely representable"
 #: src/pages/Settings.tsx:1501
 msgid "Not set"
 msgstr "Not set"
+
+#: src/components/trail-course-review/copy.tsx:46
+msgid "Not sure"
+msgstr "Not sure"
 
 #: src/pages/admin/AdminUsers.tsx:733
 msgid "Note"
@@ -6009,6 +6556,14 @@ msgstr "Nothing is stored until you confirm this exact purpose and expiry."
 #: src/pages/Login.tsx:221
 msgid "Now open · Create your account"
 msgstr "Now open · Create your account"
+
+#: src/components/trail-course-review/copy.tsx:150
+msgid "Number of aid stations"
+msgstr "Number of aid stations"
+
+#: src/components/trail-course-review/copy.tsx:118
+msgid "Observation window"
+msgstr "Observation window"
 
 #: src/components/HeatAdaptationPanel.tsx:327
 #: src/components/HeatAdaptationPanel.tsx:377
@@ -6064,6 +6619,11 @@ msgstr "Off"
 #~ msgid "Off by default. The note may contain more private detail than the structured fields."
 #~ msgstr "Off by default. The note may contain more private detail than the structured fields."
 
+#: src/components/trail-course-review/copy.tsx:180
+#: src/components/TrailCourseReview.tsx:443
+msgid "Offline. Changes are kept only on this page and have not been saved."
+msgstr "Offline. Changes are kept only on this page and have not been saved."
+
 #: src/components/ManagedPlanSettingsCard.tsx:896
 msgid "On"
 msgstr "On"
@@ -6072,9 +6632,17 @@ msgstr "On"
 msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 msgstr "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 
+#: src/components/trail-course-review/copy.tsx:345
+msgid "One or more values is outside the accepted format or range."
+msgstr "One or more values is outside the accepted format or range."
+
 #: src/components/TodayDecisionCheck.tsx:167
 msgid "One tap helps us make this brief more useful."
 msgstr "One tap helps us make this brief more useful."
+
+#: src/components/trail-course-review/copy.tsx:261
+msgid "One-day event"
+msgstr "One-day event"
 
 #: src/pages/Admin.tsx:713
 #~ msgid "One-time codes for new user registration"
@@ -6083,6 +6651,10 @@ msgstr "One tap helps us make this brief more useful."
 #: src/pages/admin/AdminUsers.tsx:690
 msgid "One-time codes for new user registration."
 msgstr "One-time codes for new user registration."
+
+#: src/components/trail-course-review/copy.tsx:177
+msgid "Online · saved"
+msgstr "Online · saved"
 
 #. placeholder {0}: baseline.guardrails.baseline_current_through_completed_days
 #: src/components/GoalBaselinePanel.tsx:332
@@ -6149,6 +6721,10 @@ msgstr "Open"
 msgid "Open an incident here when you need to communicate a live service issue."
 msgstr "Open an incident here when you need to communicate a live service issue."
 
+#: src/components/TrailCourseReview.tsx:1733
+msgid "Open and review this section before confirming it. Each group can be set to unknown without inventing defaults."
+msgstr "Open and review this section before confirming it. Each group can be set to unknown without inventing defaults."
+
 #: src/pages/admin/AdminOps.tsx:859
 msgid "Open Azure alerts"
 msgstr "Open Azure alerts"
@@ -6184,6 +6760,10 @@ msgstr "Open plan preview"
 #: src/components/PlanStart.tsx:327
 msgid "Open the readiness path for this separate plan purpose. Your current Goal remains unchanged."
 msgstr "Open the readiness path for this separate plan purpose. Your current Goal remains unchanged."
+
+#: src/components/TrailCourseReview.tsx:2078
+msgid "Open this section before confirming"
+msgstr "Open this section before confirming"
 
 #: src/pages/Labs.tsx:20
 msgid "Open to check"
@@ -6290,9 +6870,17 @@ msgstr "Optional. Praxys removes personal details before publication. Screenshot
 msgid "Options"
 msgstr "Options"
 
+#: src/components/trail-course-review/copy.tsx:306
+msgid "Organized aid"
+msgstr "Organized aid"
+
 #: src/components/GoalBaselinePanel.tsx:139
 msgid "Organized outdoor road 10K race"
 msgstr "Organized outdoor road 10K race"
+
+#: src/components/trail-course-review/copy.tsx:301
+msgid "Organizer information"
+msgstr "Organizer information"
 
 #: src/components/PersonalContextPanel.tsx:230
 #: src/components/UpcomingPlanCard.tsx:574
@@ -6305,6 +6893,10 @@ msgstr "Other"
 #: src/components/PlanStart.tsx:253
 #~ msgid "Other plan purpose available"
 #~ msgstr "Other plan purpose available"
+
+#: src/components/trail-course-review/copy.tsx:321
+msgid "Other required"
+msgstr "Other required"
 
 #: src/components/RecoveryPanel.tsx:185
 msgid "Other Signals"
@@ -6467,6 +7059,22 @@ msgstr "Peer metrics"
 msgid "Pending <0>{0}</0>"
 msgstr "Pending <0>{0}</0>"
 
+#: src/components/trail-course-review/copy.tsx:176
+msgid "Pending changes"
+msgstr "Pending changes"
+
+#: src/components/TrailCourseReview.tsx:747
+msgid "Pending changes were discarded."
+msgstr "Pending changes were discarded."
+
+#: src/components/trail-course-review/copy.tsx:218
+msgid "Pending edits were kept only in this page. Compare the latest server version, then reapply or discard them. Reapplying does not save or confirm."
+msgstr "Pending edits were kept only in this page. Compare the latest server version, then reapply or discard them. Reapplying does not save or confirm."
+
+#: src/components/TrailCourseReview.tsx:737
+msgid "Pending values were reapplied in memory to the latest revision. They have not been saved or confirmed."
+msgstr "Pending values were reapplied in memory to the latest revision. They have not been saved or confirmed."
+
 #: src/components/PlanStart.tsx:1746
 msgid "Per-day limits are unsupported"
 msgstr "Per-day limits are unsupported"
@@ -6486,6 +7094,10 @@ msgstr "Percentage of the athlete's current critical power."
 #: src/components/WorkoutStructureEditor.tsx:127
 msgid "Percentage of the athlete's lactate-threshold heart rate."
 msgstr "Percentage of the athlete's lactate-threshold heart rate."
+
+#: src/components/trail-course-review/copy.tsx:487
+msgid "Performance planning stops; Praxys makes no diagnosis."
+msgstr "Performance planning stops; Praxys makes no diagnosis."
 
 #: src/pages/Settings.tsx:1602
 msgid "Permanently remove your Praxys account, synced data, plans, settings, and encrypted credentials."
@@ -6574,6 +7186,10 @@ msgstr "Plan purpose needs reassessment"
 msgid "Plan window"
 msgstr "Plan window"
 
+#: src/components/trail-course-review/copy.tsx:331
+msgid "Plan-altering issue"
+msgstr "Plan-altering issue"
+
 #: src/components/PlanStart.tsx:1182
 #: src/components/PlanStart.tsx:2023
 msgid "Plan-start action did not complete"
@@ -6599,6 +7215,10 @@ msgstr "Planned · Today"
 #: src/components/WorkoutCard.tsx:54
 msgid "Planned Workout"
 msgstr "Planned Workout"
+
+#: src/components/trail-course-review/copy.tsx:65
+msgid "Planning goal"
+msgstr "Planning goal"
 
 #: src/pages/admin/AdminOps.tsx:440
 #~ msgid "Platform aggregates are not connected yet."
@@ -6750,6 +7370,10 @@ msgstr "Power-source match"
 #~ msgid "Power-source mismatch"
 #~ msgstr "Power-source mismatch"
 
+#: src/components/trail-course-review/copy.tsx:163
+msgid "Practiced intake"
+msgstr "Practiced intake"
+
 #: src/components/RecoveryPanel.tsx:227
 #~ msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact Fresh, Normal, and Fatigued cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
 #~ msgstr "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact Fresh, Normal, and Fatigued cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
@@ -6777,6 +7401,22 @@ msgstr "Praxys becomes canonical for its own and explicitly adopted workouts."
 #: src/components/ManagedPlanSettingsCard.tsx:543
 msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 msgstr "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
+
+#: src/components/trail-course-review/copy.tsx:439
+msgid "Praxys cannot anchor a proposal to enough recent running."
+msgstr "Praxys cannot anchor a proposal to enough recent running."
+
+#: src/components/trail-course-review/copy.tsx:574
+msgid "Praxys cannot choose which answer should govern the plan."
+msgstr "Praxys cannot choose which answer should govern the plan."
+
+#: src/components/trail-course-review/copy.tsx:541
+msgid "Praxys cannot evaluate the complete planning envelope."
+msgstr "Praxys cannot evaluate the complete planning envelope."
+
+#: src/components/trail-course-review/copy.tsx:349
+msgid "Praxys cannot interpret this revision safely."
+msgstr "Praxys cannot interpret this revision safely."
 
 #: src/pages/LabsEnvironment.tsx:359
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
@@ -6806,6 +7446,10 @@ msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version cano
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
+#: src/components/trail-course-review/copy.tsx:369
+msgid "Praxys could not reproduce the same readiness receipt."
+msgstr "Praxys could not reproduce the same readiness receipt."
+
 #: src/pages/admin/AdminOps.tsx:198
 msgid "Praxys database"
 msgstr "Praxys database"
@@ -6817,6 +7461,10 @@ msgstr "Praxys defect"
 #: src/pages/admin/AdminOps.tsx:1038
 msgid "Praxys defects"
 msgstr "Praxys defects"
+
+#: src/components/TrailCourseReview.tsx:334
+msgid "Praxys did not provide a safe destination for this action. Review the receipt and retry after reloading."
+msgstr "Praxys did not provide a safe destination for this action. Review the receipt and retry after reloading."
 
 #: src/components/HeatAdaptationPanel.tsx:463
 #~ msgid "Praxys does not yet have enough supported weather and power evidence to estimate a stage."
@@ -6938,6 +7586,34 @@ msgstr "Praxys will analyze eligible past runs to see whether modeled heart rate
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 
+#: src/components/trail-course-review/copy.tsx:499
+msgid "Praxys will not compress, stack, or substitute sessions."
+msgstr "Praxys will not compress, stack, or substitute sessions."
+
+#: src/components/trail-course-review/copy.tsx:361
+msgid "Praxys will not guess how old or future fields map to v2."
+msgstr "Praxys will not guess how old or future fields map to v2."
+
+#: src/components/trail-course-review/states.tsx:173
+msgid "Praxys will not guess how old or future fields map to v2. Reload, reset the course review, or delete this Trail draft."
+msgstr "Praxys will not guess how old or future fields map to v2. Reload, reset the course review, or delete this Trail draft."
+
+#: src/components/trail-course-review/copy.tsx:553
+msgid "Praxys will not increase the accepted history envelope."
+msgstr "Praxys will not increase the accepted history envelope."
+
+#: src/components/trail-course-review/copy.tsx:475
+msgid "Praxys will not replace the course demand with road training."
+msgstr "Praxys will not replace the course demand with road training."
+
+#: src/components/trail-course-review/copy.tsx:418
+msgid "Praxys will not substitute another population or intent."
+msgstr "Praxys will not substitute another population or intent."
+
+#: src/components/trail-course-review/copy.tsx:520
+msgid "Praxys will not treat an assumption as reviewed fact."
+msgstr "Praxys will not treat an assumption as reviewed fact."
+
 #: src/components/PersonalContextPanel.tsx:916
 msgid "Praxys will preserve the reason as unknown. This never counts against you."
 msgstr "Praxys will preserve the reason as unknown. This never counts against you."
@@ -6949,6 +7625,58 @@ msgstr "Praxys will stop changing the target calendar. Your canonical Praxys pla
 #: src/pages/LabsEnvironment.tsx:1307
 msgid "Praxys workload-support review"
 msgstr "Praxys workload-support review"
+
+#: src/components/trail-course-review/copy.tsx:500
+msgid "Praxys 不会压缩、堆叠或替换训练。"
+msgstr "Praxys 不会压缩、堆叠或替换训练。"
+
+#: src/components/trail-course-review/copy.tsx:521
+msgid "Praxys 不会把未确认假设当作已核对事实。"
+msgstr "Praxys 不会把未确认假设当作已核对事实。"
+
+#: src/components/trail-course-review/copy.tsx:554
+msgid "Praxys 不会提高已接受的历史边界。"
+msgstr "Praxys 不会提高已接受的历史边界。"
+
+#: src/components/trail-course-review/copy.tsx:419
+msgid "Praxys 不会替换为其他人群或目标。"
+msgstr "Praxys 不会替换为其他人群或目标。"
+
+#: src/components/trail-course-review/copy.tsx:362
+msgid "Praxys 不会猜测旧版或未来字段如何映射到 v2。"
+msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。"
+
+#: src/components/trail-course-review/states.tsx:172
+msgid "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以重新加载、重置赛道核对，或删除这份越野草稿。"
+msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以重新加载、重置赛道核对，或删除这份越野草稿。"
+
+#: src/components/trail-course-review/copy.tsx:476
+msgid "Praxys 不会用公路训练替代赛道需求。"
+msgstr "Praxys 不会用公路训练替代赛道需求。"
+
+#: src/components/trail-course-review/copy.tsx:370
+msgid "Praxys 无法复现同一份准备情况回执。"
+msgstr "Praxys 无法复现同一份准备情况回执。"
+
+#: src/components/trail-course-review/copy.tsx:350
+msgid "Praxys 无法安全解释当前版本。"
+msgstr "Praxys 无法安全解释当前版本。"
+
+#: src/components/trail-course-review/copy.tsx:440
+msgid "Praxys 无法用足够的近期跑步记录约束提案。"
+msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
+
+#: src/components/trail-course-review/copy.tsx:575
+msgid "Praxys 无法自行选择哪项回答应约束计划。"
+msgstr "Praxys 无法自行选择哪项回答应约束计划。"
+
+#: src/components/trail-course-review/copy.tsx:542
+msgid "Praxys 无法评估完整计划边界。"
+msgstr "Praxys 无法评估完整计划边界。"
+
+#: src/components/TrailCourseReview.tsx:335
+msgid "Praxys 未提供可安全跳转的目标。请查看回执并重新加载后重试。"
+msgstr "Praxys 未提供可安全跳转的目标。请查看回执并重新加载后重试。"
 
 #: src/pages/Goal.tsx:248
 #: src/pages/Goal.tsx:285
@@ -6972,6 +7700,10 @@ msgstr "Prefer not to say"
 msgid "Prefer to wait?"
 msgstr "Prefer to wait?"
 
+#: src/components/trail-course-review/copy.tsx:89
+msgid "Preferred day for the longest easy session"
+msgstr "Preferred day for the longest easy session"
+
 #: src/components/PlanStart.tsx:1603
 msgid "Preferred longest-easy day"
 msgstr "Preferred longest-easy day"
@@ -6987,6 +7719,10 @@ msgstr "Prepare to complete the selected distance."
 #: src/pages/Settings.tsx:1587
 msgid "Preparing export..."
 msgstr "Preparing export..."
+
+#: src/components/trail-course-review/copy.tsx:199
+msgid "Preparing export…"
+msgstr "Preparing export…"
 
 #: src/pages/Science.tsx:438
 #: src/pages/Science.tsx:586
@@ -7283,6 +8019,10 @@ msgstr "Race Date"
 msgid "Race date is required"
 msgstr "Race date is required"
 
+#: src/components/trail-course-review/copy.tsx:54
+msgid "Race distance"
+msgstr "Race distance"
+
 #: src/pages/admin/AdminOps.tsx:386
 msgid "Race forecast"
 msgstr "Race forecast"
@@ -7372,17 +8112,38 @@ msgstr "Read-only accounts that mirror your dashboard data."
 msgid "Readiness"
 msgstr "Readiness"
 
+#: src/components/trail-course-review/copy.tsx:508
+msgid "Readiness cannot be decided without that detail."
+msgstr "Readiness cannot be decided without that detail."
+
+#: src/components/TrailCourseReview.tsx:606
+#: src/components/TrailCourseReview.tsx:627
+msgid "Readiness could not be checked."
+msgstr "Readiness could not be checked."
+
 #: src/components/PlanStart.tsx:324
 msgid "Readiness first"
 msgstr "Readiness first"
+
+#: src/components/trail-course-review/copy.tsx:565
+msgid "Readiness is stale and cannot be silently rebound."
+msgstr "Readiness is stale and cannot be silently rebound."
 
 #: src/components/PlanStart.tsx:1368
 msgid "Readiness not checked"
 msgstr "Readiness not checked"
 
+#: src/components/trail-course-review/copy.tsx:172
+msgid "Readiness receipt"
+msgstr "Readiness receipt"
+
 #: src/components/PlanStart.tsx:1813
 msgid "Readiness result"
 msgstr "Readiness result"
+
+#: src/components/TrailCourseReview.tsx:622
+msgid "Readiness updated for the current confirmed revision."
+msgstr "Readiness updated for the current confirmed revision."
 
 #: src/pages/Science.tsx:26
 msgid "Reads readiness from the body's signals."
@@ -7391,6 +8152,10 @@ msgstr "Reads readiness from the body's signals."
 #: src/components/WorkoutStructureEditor.tsx:2013
 msgid "Ready to deliver"
 msgstr "Ready to deliver"
+
+#: src/components/TrailCourseReview.tsx:789
+msgid "Ready to review a 14-day proposal"
+msgstr "Ready to review a 14-day proposal"
 
 #: src/pages/Goal.tsx:376
 msgid "Realistic alternative targets"
@@ -7403,6 +8168,10 @@ msgstr "Reasonable model variations do not preserve the same historical relation
 #: src/components/PlanStart.tsx:294
 msgid "Rebuild consistency"
 msgstr "Rebuild consistency"
+
+#: src/components/trail-course-review/copy.tsx:271
+msgid "Rebuild training consistency"
+msgstr "Rebuild training consistency"
 
 #: src/components/HeatAdaptationPanel.tsx:140
 msgid "Rebuilding"
@@ -7426,6 +8195,10 @@ msgstr "Recent activities need supported temperature and humidity data before a 
 #~ msgid "Recent alert instances: {0}. Resolved: {1}."
 #~ msgstr "Recent alert instances: {0}. Resolved: {1}."
 
+#: src/components/trail-course-review/copy.tsx:115
+msgid "Recent ascent exposure"
+msgstr "Recent ascent exposure"
+
 #: src/components/ManagedPlanSettingsCard.tsx:965
 msgid "Recent automatic changes"
 msgstr "Recent automatic changes"
@@ -7437,6 +8210,14 @@ msgstr "Recent automatic changes"
 #: src/components/HeatAdaptationPanel.tsx:162
 #~ msgid "Recent connector readings and split-derived workload used by the qualitative stage."
 #~ msgstr "Recent connector readings and split-derived workload used by the qualitative stage."
+
+#: src/components/trail-course-review/copy.tsx:116
+msgid "Recent descent exposure"
+msgstr "Recent descent exposure"
+
+#: src/components/trail-course-review/copy.tsx:459
+msgid "Recent descent exposure is insufficient."
+msgstr "Recent descent exposure is insufficient."
 
 #: src/components/HeatAdaptationPanel.tsx:523
 #~ msgid "Recent evidence"
@@ -7453,6 +8234,10 @@ msgstr "Recent automatic changes"
 #: src/components/HeatAdaptationPanel.tsx:83
 #~ msgid "Recent evidence suggests acclimatization to similar conditions may be retained."
 #~ msgstr "Recent evidence suggests acclimatization to similar conditions may be retained."
+
+#: src/components/trail-course-review/copy.tsx:41
+msgid "Recent experience"
+msgstr "Recent experience"
 
 #: src/components/HeatAdaptationPanel.tsx:201
 #~ msgid "Recent heat cadence"
@@ -7507,6 +8292,14 @@ msgstr "Recent modeled load is substantially below long-term modeled load."
 #~ msgid "Recent qualifying training range"
 #~ msgstr "Recent qualifying training range"
 
+#: src/components/trail-course-review/copy.tsx:114
+msgid "Recent running continuity"
+msgstr "Recent running continuity"
+
+#: src/components/trail-course-review/copy.tsx:435
+msgid "Recent running continuity is below the accepted history gate."
+msgstr "Recent running continuity is below the accepted history gate."
+
 #: src/components/HeatAdaptationPanel.tsx:181
 msgid "Recent training clears the Building threshold but remains below the conservative Likely adapted stage."
 msgstr "Recent training clears the Building threshold but remains below the conservative Likely adapted stage."
@@ -7530,6 +8323,10 @@ msgstr "Recent training remains below the model's Building threshold."
 #: src/pages/admin/AdminUsers.tsx:504
 msgid "Recent usage across the registered base."
 msgstr "Recent usage across the registered base."
+
+#: src/components/trail-course-review/copy.tsx:117
+msgid "Recently observed footing"
+msgstr "Recently observed footing"
 
 #: src/pages/Science.tsx:224
 msgid "Recommendation available"
@@ -7876,6 +8673,11 @@ msgstr "Reload Labs"
 msgid "Reload the page or verify the management endpoints are available."
 msgstr "Reload the page or verify the management endpoints are available."
 
+#: src/components/trail-course-review/copy.tsx:365
+#: src/components/trail-course-review/states.tsx:183
+msgid "Reload the supported version"
+msgstr "Reload the supported version"
+
 #: src/pages/admin/AdminUsers.tsx:478
 msgid "Remaining"
 msgstr "Remaining"
@@ -7883,6 +8685,10 @@ msgstr "Remaining"
 #: src/components/ManagedPlanSettingsCard.tsx:1224
 msgid "Remove and switch"
 msgstr "Remove and switch"
+
+#: src/components/trail-course-review/copy.tsx:87
+msgid "Remove date"
+msgstr "Remove date"
 
 #: src/components/ManagedPlanSettingsCard.tsx:811
 #: src/components/ManagedPlanSettingsCard.tsx:1312
@@ -7988,13 +8794,44 @@ msgstr "Request invite"
 msgid "Request p95"
 msgstr "Request p95"
 
+#: src/components/trail-course-review/copy.tsx:124
+msgid "Requested versus observed comparison"
+msgstr "Requested versus observed comparison"
+
+#: src/components/trail-course-review/copy.tsx:156
+msgid "Required equipment"
+msgstr "Required equipment"
+
+#: src/components/trail-course-review/copy.tsx:471
+msgid "Required uphill, downhill, or footing access is unavailable."
+msgstr "Required uphill, downhill, or footing access is unavailable."
+
 #: src/pages/Login.tsx:415
 msgid "Resend verification email"
 msgstr "Resend verification email"
 
+#: src/components/trail-course-review/copy.tsx:193
+#: src/components/trail-course-review/states.tsx:186
+msgid "Reset course review"
+msgstr "Reset course review"
+
+#: src/components/trail-course-review/copy.tsx:200
+#: src/components/trail-course-review/states.tsx:200
+msgid "Reset course review?"
+msgstr "Reset course review?"
+
+#: src/components/trail-course-review/copy.tsx:202
+#: src/components/trail-course-review/states.tsx:207
+msgid "Reset replaces the current editable answers with unknowns. It does not erase source activities or retained proposal records."
+msgstr "Reset replaces the current editable answers with unknowns. It does not erase source activities or retained proposal records."
+
 #: src/pages/admin/AdminIncidents.tsx:264
 msgid "Resolve"
 msgstr "Resolve"
+
+#: src/components/trail-course-review/copy.tsx:578
+msgid "Resolve the first conflict"
+msgstr "Resolve the first conflict"
 
 #: src/components/UpcomingPlanCard.tsx:749
 msgid "Resolve workout conflict"
@@ -8043,6 +8880,10 @@ msgstr "Resting heart rate is elevated above your baseline. This can be a cautio
 #: src/pages/Settings.tsx:107
 msgid "Resting HR"
 msgstr "Resting HR"
+
+#: src/components/trail-course-review/copy.tsx:214
+msgid "Restore pending changes"
+msgstr "Restore pending changes"
 
 #: src/components/UpcomingPlanCard.tsx:864
 msgid "Restore Praxys"
@@ -8093,6 +8934,8 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/components/PlanStart.tsx:1206
 #: src/components/PlanStart.tsx:1285
 #: src/components/PlanStart.tsx:1902
+#: src/components/trail-course-review/copy.tsx:243
+#: src/components/trail-course-review/states.tsx:95
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
 #: src/pages/admin/AdminFeedback.tsx:589
@@ -8145,6 +8988,14 @@ msgstr "Retry the policy check before choosing a route. Praxys will not infer av
 #: src/components/PlanStart.tsx:261
 #~ msgid "Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone."
 #~ msgstr "Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone."
+
+#: src/components/trail-course-review/copy.tsx:377
+msgid "Retry the readiness check"
+msgstr "Retry the readiness check"
+
+#: src/components/trail-course-review/states.tsx:81
+msgid "Retry the request. Unavailable data will not be guessed or replaced."
+msgstr "Retry the request. Unavailable data will not be guessed or replaced."
 
 #: src/components/UpcomingPlanCard.tsx:748
 msgid "Retry this delivery?"
@@ -8214,6 +9065,10 @@ msgstr "Review and update plan"
 msgid "Review before saving"
 msgstr "Review before saving"
 
+#: src/components/trail-course-review/copy.tsx:455
+msgid "Review comparable experience"
+msgstr "Review comparable experience"
+
 #: src/components/UpcomingPlanCard.tsx:426
 #: src/components/UpcomingPlanCard.tsx:440
 #: src/components/UpcomingPlanCard.tsx:470
@@ -8225,6 +9080,14 @@ msgstr "Review conflict"
 #: src/pages/admin/AdminOps.tsx:902
 msgid "Review delivery queue"
 msgstr "Review delivery queue"
+
+#: src/components/trail-course-review/copy.tsx:467
+msgid "Review descent experience"
+msgstr "Review descent experience"
+
+#: src/components/trail-course-review/copy.tsx:410
+msgid "Review event scope"
+msgstr "Review event scope"
 
 #: src/components/PlanStart.tsx:1486
 msgid "Review existing draft"
@@ -8246,6 +9109,10 @@ msgstr "Review goal"
 #~ msgid "Review heat history"
 #~ msgstr "Review heat history"
 
+#: src/components/trail-course-review/copy.tsx:213
+msgid "Review latest version"
+msgstr "Review latest version"
+
 #: src/pages/Analysis.tsx:353
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
 msgstr "Review load, volume, heat adaptation, and Praxys Coach."
@@ -8258,6 +9125,14 @@ msgstr "Review optional test"
 msgid "Review plan outcomes"
 msgstr "Review plan outcomes"
 
+#: src/components/trail-course-review/copy.tsx:422
+msgid "Review planning scope"
+msgstr "Review planning scope"
+
+#: src/components/trail-course-review/copy.tsx:386
+msgid "Review policy status"
+msgstr "Review policy status"
+
 #: src/components/PersonalContextPanel.tsx:1206
 msgid "Review purpose and expiry"
 msgstr "Review purpose and expiry"
@@ -8265,6 +9140,10 @@ msgstr "Review purpose and expiry"
 #: src/components/PlanStart.tsx:450
 msgid "Review readiness"
 msgstr "Review readiness"
+
+#: src/components/trail-course-review/copy.tsx:443
+msgid "Review recent running"
+msgstr "Review recent running"
 
 #: src/pages/admin/AdminFeedback.tsx:320
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
@@ -8276,6 +9155,10 @@ msgstr "Review reports, manage screenshots, and sync linked GitHub issues."
 msgid "Review required"
 msgstr "Review required"
 
+#: src/components/trail-course-review/copy.tsx:524
+msgid "Review the assumption"
+msgstr "Review the assumption"
+
 #: src/components/PlanStart.tsx:917
 msgid "Review the constraints and try again."
 msgstr "Review the constraints and try again."
@@ -8283,6 +9166,10 @@ msgstr "Review the constraints and try again."
 #: src/pages/McpAuthorization.tsx:38
 msgid "Review the current goal"
 msgstr "Review the current goal"
+
+#: src/components/trail-course-review/copy.tsx:398
+msgid "Review the event date"
+msgstr "Review the event date"
 
 #: src/pages/McpAuthorization.tsx:166
 msgid "Review the exact purpose and access below. The plugin cannot approve this request, read private notes, change Azure AI processing authority, or save context on its own."
@@ -8296,14 +9183,34 @@ msgstr "Review the exact purpose and access below. The plugin cannot approve thi
 msgid "Review the existing history-first readiness path before asking Praxys to create a proposal."
 msgstr "Review the existing history-first readiness path before asking Praxys to create a proposal."
 
+#: src/components/trail-course-review/copy.tsx:353
+msgid "Review the first invalid value"
+msgstr "Review the first invalid value"
+
 #: src/components/UpcomingPlanCard.tsx:1209
 #: src/components/WorkoutPlanEditor.tsx:544
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
 msgstr "Review the highlighted step fields. Every typed target and termination must be complete."
 
+#: src/components/trail-course-review/copy.tsx:569
+msgid "Review the latest revision"
+msgstr "Review the latest revision"
+
+#: src/components/TrailCourseReview.tsx:452
+msgid "Review the linked fields before saving."
+msgstr "Review the linked fields before saving."
+
 #: src/components/GoalBaselinePanel.tsx:549
 msgid "Review the optional test"
 msgstr "Review the optional test"
+
+#: src/components/trail-course-review/copy.tsx:431
+msgid "Review the technical feature"
+msgstr "Review the technical feature"
+
+#: src/components/trail-course-review/copy.tsx:187
+msgid "Review these fields"
+msgstr "Review these fields"
 
 #: src/components/GoalBaselinePanel.tsx:160
 #: src/components/GoalBaselinePanel.tsx:542
@@ -8315,9 +9222,25 @@ msgstr "Review this activity"
 msgid "Review this effort"
 msgstr "Review this effort"
 
+#: src/components/trail-course-review/copy.tsx:33
+msgid "Review Trail event"
+msgstr "Review Trail event"
+
+#: src/components/trail-course-review/copy.tsx:479
+msgid "Review training access"
+msgstr "Review training access"
+
 #: src/components/ManagedPlanSettingsCard.tsx:1052
 #~ msgid "Review what Praxys can safely send before granting access for this Garmin connection."
 #~ msgstr "Review what Praxys can safely send before granting access for this Garmin connection."
+
+#: src/components/trail-course-review/copy.tsx:491
+msgid "Review your response"
+msgstr "Review your response"
+
+#: src/components/trail-course-review/copy.tsx:503
+msgid "Review your schedule"
+msgstr "Review your schedule"
 
 #: src/pages/admin/AdminUsers.tsx:788
 msgid "Revoke"
@@ -8356,6 +9279,10 @@ msgstr "Road and trail policies are exposed here only after their population, go
 #: src/components/WorkoutPlanEditor.tsx:443
 msgid "Road running"
 msgstr "Road running"
+
+#: src/components/trail-course-review/copy.tsx:277
+msgid "Rocks or roots"
+msgstr "Rocks or roots"
 
 #: src/pages/admin/AdminUsers.tsx:578
 msgid "Role"
@@ -8473,15 +9400,27 @@ msgstr "Safety stop applies"
 msgid "Sat"
 msgstr "Sat"
 
-#: src/components/Outdoor5KPlanStart.tsx:216
-#~ msgid "Saturday"
-#~ msgstr "Saturday"
+#: src/components/trail-course-review/copy.tsx:287
+msgid "Saturday"
+msgstr "Saturday"
 
 #: src/components/GoalBaselinePanel.tsx:168
 #: src/components/GoalBaselinePanel.tsx:557
 #: src/pages/admin/AdminUsers.tsx:447
 msgid "Save"
 msgstr "Save"
+
+#: src/components/TrailCourseReview.tsx:404
+msgid "Save and confirm the current revision before retrying readiness."
+msgstr "Save and confirm the current revision before retrying readiness."
+
+#: src/components/trail-course-review/copy.tsx:174
+msgid "Save and leave"
+msgstr "Save and leave"
+
+#: src/components/trail-course-review/copy.tsx:175
+msgid "Save changes"
+msgstr "Save changes"
 
 #: src/components/PersonalContextPanel.tsx:1193
 msgid "Save correction"
@@ -8502,6 +9441,10 @@ msgstr "Save private context"
 #: src/components/ManagedPlanSettingsCard.tsx:756
 msgid "Save target"
 msgstr "Save target"
+
+#: src/components/trail-course-review/copy.tsx:171
+msgid "Save this section before confirming"
+msgstr "Save this section before confirming"
 
 #: src/components/WorkoutPlanEditor.tsx:930
 msgid "Save workout"
@@ -8595,6 +9538,10 @@ msgstr "Screenshot flagged sensitive"
 msgid "Screenshot unavailable"
 msgstr "Screenshot unavailable"
 
+#: src/components/trail-course-review/copy.tsx:302
+msgid "Seasonal expectation"
+msgstr "Seasonal expectation"
+
 #: src/pages/admin/AdminUsers.tsx:436
 msgid "Seat cap"
 msgstr "Seat cap"
@@ -8651,6 +9598,10 @@ msgstr "Selecting a target does not enable delivery. You will confirm the manage
 #: src/pages/admin/AdminUsers.tsx:418
 msgid "Self-registration"
 msgstr "Self-registration"
+
+#: src/components/trail-course-review/copy.tsx:308
+msgid "Self-supported"
+msgstr "Self-supported"
 
 #: src/components/WorkoutStructureEditor.tsx:146
 msgid "semantic"
@@ -8720,6 +9671,10 @@ msgstr "Sequence, not invented training load"
 msgid "Server error rate"
 msgstr "Server error rate"
 
+#: src/components/trail-course-review/copy.tsx:120
+msgid "Server source"
+msgstr "Server source"
+
 #: src/pages/admin/AdminOps.tsx:1254
 msgid "Service health"
 msgstr "Service health"
@@ -8787,6 +9742,10 @@ msgstr "Set goal"
 #~ msgid "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 #~ msgstr "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 
+#: src/components/trail-course-review/copy.tsx:134
+msgid "Set this group to unknown"
+msgstr "Set this group to unknown"
+
 #: src/pages/Setup.tsx:588
 msgid "Set up Praxys"
 msgstr "Set up Praxys"
@@ -8824,6 +9783,10 @@ msgstr "Share only what changes your plan."
 #: src/components/PersonalContextPanel.tsx:630
 msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
 msgstr "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
+
+#: src/components/trail-course-review/copy.tsx:296
+msgid "Sheltered"
+msgstr "Sheltered"
 
 #: src/pages/Today.tsx:309
 msgid "Shorten the session if fatigue develops"
@@ -8898,6 +9861,10 @@ msgstr "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 #: src/pages/Login.tsx:399
 msgid "Sign in"
 msgstr "Sign in"
+
+#: src/components/trail-course-review/states.tsx:78
+msgid "Sign in as the owner of the event goal. Praxys does not reveal whether another account has this data."
+msgstr "Sign in as the owner of the event goal. Praxys does not reveal whether another account has this data."
 
 #: src/pages/Login.tsx:308
 #~ msgid "Sign in to connect your CLI plugin."
@@ -8975,10 +9942,18 @@ msgstr "Some parts of the environmental range do not have enough independent act
 msgid "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
 msgstr "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
 
+#: src/components/trail-course-review/copy.tsx:312
+msgid "Some stations"
+msgstr "Some stations"
+
 #: src/components/ScienceNote.tsx:49
 #: src/pages/Goal.tsx:390
 msgid "Source"
 msgstr "Source"
+
+#: src/components/trail-course-review/copy.tsx:121
+msgid "Source revision"
+msgstr "Source revision"
 
 #: src/components/WorkoutPlanEditor.tsx:900
 msgid "Source stays unchanged"
@@ -9078,6 +10053,14 @@ msgstr "Stay on the no-test path"
 #: src/lib/phase-label.ts:12
 msgid "Steady"
 msgstr "Steady"
+
+#: src/components/trail-course-review/copy.tsx:335
+msgid "Steep downhill (below −10%)"
+msgstr "Steep downhill (below −10%)"
+
+#: src/components/trail-course-review/copy.tsx:339
+msgid "Steep uphill (10% and above)"
+msgstr "Steep uphill (10% and above)"
 
 #: src/components/WorkoutStructureEditor.tsx:623
 msgid "step"
@@ -9242,13 +10225,25 @@ msgstr "Summary window"
 msgid "Sun"
 msgstr "Sun"
 
-#: src/components/Outdoor5KPlanStart.tsx:217
-#~ msgid "Sunday"
-#~ msgstr "Sunday"
+#: src/components/trail-course-review/copy.tsx:142
+msgid "Sun exposure"
+msgstr "Sun exposure"
+
+#: src/components/trail-course-review/copy.tsx:288
+msgid "Sunday"
+msgstr "Sunday"
+
+#: src/components/trail-course-review/copy.tsx:132
+msgid "Support"
+msgstr "Support"
 
 #: src/pages/LabsEnvironment.tsx:1217
 msgid "Support ID"
 msgstr "Support ID"
+
+#: src/components/trail-course-review/copy.tsx:149
+msgid "Support setup"
+msgstr "Support setup"
 
 #: src/pages/LabsEnvironment.tsx:642
 msgid "Supported"
@@ -9490,6 +10485,10 @@ msgstr "Target Time"
 msgid "Target type"
 msgstr "Target type"
 
+#: src/components/trail-course-review/copy.tsx:584
+msgid "Technical terrain"
+msgstr "Technical terrain"
+
 #: src/pages/admin/AdminOps.tsx:599
 #~ msgid "Telemetry trust boundary"
 #~ msgstr "Telemetry trust boundary"
@@ -9615,6 +10614,10 @@ msgstr "The accepted deterministic policy has one shared maximum-session field. 
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 msgstr "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 
+#: src/components/trail-course-review/states.tsx:154
+msgid "The action did not complete."
+msgstr "The action did not complete."
+
 #: src/pages/Analysis.tsx:243
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
@@ -9675,6 +10678,10 @@ msgstr "The chronological holdout and sensitivity checks passed, but this person
 msgid "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 msgstr "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 
+#: src/components/trail-course-review/copy.tsx:414
+msgid "The confirmed context or goal is outside this performance policy."
+msgstr "The confirmed context or goal is outside this performance policy."
+
 #: src/pages/LabsEnvironment.tsx:1018
 msgid "The consent text changed. Review and confirm the current version."
 msgstr "The consent text changed. Review and confirm the current version."
@@ -9686,6 +10693,10 @@ msgstr "The continuous sample coverage is too sparse for a stable comparison."
 #: src/pages/LabsEnvironment.tsx:313
 msgid "The cooldown prevents accidental repeat analysis."
 msgstr "The cooldown prevents accidental repeat analysis."
+
+#: src/components/trail-course-review/copy.tsx:426
+msgid "The course requires hands assistance or fixed ropes."
+msgstr "The course requires hands assistance or fixed ropes."
 
 #: src/components/PlanStart.tsx:1464
 msgid "The current Goal changed after this plan purpose was captured. Check readiness again and create a fresh proposal before adoption."
@@ -9706,6 +10717,10 @@ msgstr "The current Goal is the default when an accepted policy matches it. A se
 #: src/components/PlanStart.tsx:231
 #~ msgid "The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview."
 #~ msgstr "The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview."
+
+#: src/components/TrailCourseReview.tsx:680
+msgid "The deletion response was not recognized."
+msgstr "The deletion response was not recognized."
 
 #: src/components/PlanStart.tsx:1816
 msgid "The deterministic policy returned no additional explanation."
@@ -9731,6 +10746,10 @@ msgstr "The end date must be after the start date."
 msgid "The estimated direction changes too much when activities are resampled."
 msgstr "The estimated direction changes too much when activities are resampled."
 
+#: src/components/trail-course-review/copy.tsx:390
+msgid "The event is inside a period without an accepted taper policy."
+msgstr "The event is inside a period without an accepted taper policy."
+
 #: src/pages/admin/AdminOps.tsx:837
 msgid "The feedback aggregate could not be refreshed."
 msgstr "The feedback aggregate could not be refreshed."
@@ -9738,6 +10757,14 @@ msgstr "The feedback aggregate could not be refreshed."
 #: src/components/PlanStart.tsx:1313
 msgid "The goal response and capability response no longer agree. Refresh before creating a proposal."
 msgstr "The goal response and capability response no longer agree. Refresh before creating a proposal."
+
+#: src/components/TrailCourseReview.tsx:690
+msgid "The inactive Trail API reported no Trail draft to delete. Your Praxys account was not deleted."
+msgstr "The inactive Trail API reported no Trail draft to delete. Your Praxys account was not deleted."
+
+#: src/components/TrailCourseReview.tsx:686
+msgid "The inactive Trail API reported the Trail draft deleted. Your Praxys account was not deleted."
+msgstr "The inactive Trail API reported the Trail draft deleted. Your Praxys account was not deleted."
 
 #: src/pages/admin/AdminOps.tsx:816
 msgid "The incident aggregate could not be refreshed."
@@ -9766,6 +10793,14 @@ msgstr "The latest HRV reading is out of date. Follow the plan without an HRV-ba
 #: src/components/RecoveryPanel.tsx:117
 msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
 msgstr "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
+
+#: src/components/TrailCourseReview.tsx:379
+msgid "The latest server version is ready to compare. Pending changes were not overwritten."
+msgstr "The latest server version is ready to compare. Pending changes were not overwritten."
+
+#: src/components/TrailCourseReview.tsx:384
+msgid "The latest version could not be loaded."
+msgstr "The latest version could not be loaded."
 
 #: src/components/WorkoutStructureEditor.tsx:351
 msgid "The legacy summary needs a duration and power range before it can be delivered without provider defaults."
@@ -9873,9 +10908,34 @@ msgstr "The public status feed has no unresolved incidents."
 msgid "The quick check found a data requirement that needs attention."
 msgstr "The quick check found a data requirement that needs attention."
 
+#: src/components/trail-course-review/copy.tsx:60
+msgid "The range you want Praxys to plan around—not a finish-time prediction."
+msgstr "The range you want Praxys to plan around—not a finish-time prediction."
+
 #: src/pages/admin/AdminFeedback.tsx:221
 msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
 msgstr "The readiness decision changed. Review the refreshed decision before recording a judgment."
+
+#: src/components/TrailCourseReview.tsx:616
+msgid "The readiness response did not match the accepted inactive Trail contract. No result was applied."
+msgstr "The readiness response did not match the accepted inactive Trail contract. No result was applied."
+
+#: src/components/TrailCourseReview.tsx:2224
+msgid "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
+msgstr "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
+
+#: src/components/TrailCourseReview.tsx:659
+#: src/components/TrailCourseReview.tsx:702
+msgid "The requested Trail data action did not complete."
+msgstr "The requested Trail data action did not complete."
+
+#: src/components/trail-course-review/copy.tsx:128
+msgid "The requested weekly and single-session limits are shown beside the server-observed history. This comparison does not increase the accepted history envelope."
+msgstr "The requested weekly and single-session limits are shown beside the server-observed history. This comparison does not increase the accepted history envelope."
+
+#: src/components/TrailCourseReview.tsx:667
+msgid "The reset response was not recognized."
+msgstr "The reset response was not recognized."
 
 #. placeholder {0}: target ?? 'your target'
 #: src/components/UpcomingPlanCard.tsx:240
@@ -9906,6 +10966,22 @@ msgstr "The same comparable-power range is not represented across enough environ
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
 msgstr "The selected day's activities show why each session entered or stayed outside the estimate."
 
+#: src/components/TrailCourseReview.tsx:673
+msgid "The server reset editable answers to unknown and invalidated confirmations. Source activities and retained proposals were not erased."
+msgstr "The server reset editable answers to unknown and invalidated confirmations. Source activities and retained proposals were not erased."
+
+#: src/components/TrailCourseReview.tsx:550
+msgid "The server returned an unsupported confirmation response."
+msgstr "The server returned an unsupported confirmation response."
+
+#: src/components/TrailCourseReview.tsx:477
+msgid "The server returned an unsupported Trail draft."
+msgstr "The server returned an unsupported Trail draft."
+
+#: src/components/TrailCourseReview.tsx:430
+msgid "The server revision changed. Review the latest version before choosing whether to reapply pending changes."
+msgstr "The server revision changed. Review the latest version before choosing whether to reapply pending changes."
+
 #: src/components/WorkoutPlanEditor.tsx:646
 msgid "The source workout stays locked. Save this copy as a new Praxys-owned workout before changing it."
 msgstr "The source workout stays locked. Save this copy as a new Praxys-owned workout before changing it."
@@ -9921,6 +10997,15 @@ msgstr "The target version is unavailable."
 #: src/components/HeatAdaptationPanel.tsx:675
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
 msgstr "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
+
+#: src/components/trail-course-review/copy.tsx:216
+msgid "The Trail course review changed"
+msgstr "The Trail course review changed"
+
+#: src/components/TrailCourseReview.tsx:471
+#: src/components/TrailCourseReview.tsx:489
+msgid "The Trail course review could not be saved."
+msgstr "The Trail course review could not be saved."
 
 #: src/pages/Analysis.tsx:325
 msgid "The weekly history will appear after the data service update completes."
@@ -9961,6 +11046,10 @@ msgstr "There is not enough chronological history to evaluate whether the relati
 #: src/components/WorkoutStructureEditor.tsx:180
 #~ msgid "This activity is not supported by the provider."
 #~ msgstr "This activity is not supported by the provider."
+
+#: src/components/TrailCourseReview.tsx:2056
+msgid "This answer is non-diagnostic and does not prescribe an intake quantity."
+msgstr "This answer is non-diagnostic and does not prescribe an intake quantity."
 
 #: src/components/GoalBaselinePanel.tsx:550
 msgid "This appears only when history is missing, stale, or still needs review. It is a maximal-effort outdoor 5K pilot."
@@ -10006,6 +11095,14 @@ msgstr "This combination is outside Praxys’s conservative Stull method domain.
 msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 msgstr "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 
+#: src/components/trail-course-review/states.tsx:168
+msgid "This course review uses an unsupported version"
+msgstr "This course review uses an unsupported version"
+
+#: src/components/trail-course-review/copy.tsx:357
+msgid "This course review was created with an unsupported version."
+msgstr "This course review was created with an unsupported version."
+
 #: src/components/PersonalContextPanel.tsx:1580
 #~ msgid "This decision is separate from saving context and applies only to this exact version."
 #~ msgstr "This decision is separate from saving context and applies only to this exact version."
@@ -10031,9 +11128,17 @@ msgstr "This enters the safety path and stops ordinary performance optimization.
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "This evaluates past training only; it does not assess today's weather or conditions."
 
+#: src/components/trail-course-review/copy.tsx:402
+msgid "This event is ultra-distance or multiday."
+msgstr "This event is ultra-distance or multiday."
+
 #: src/components/PlanStart.tsx:1139
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
+
+#: src/components/TrailCourseReview.tsx:556
+msgid "This exact section revision is confirmed. Confirmation does not attest safety or eligibility."
+msgstr "This exact section revision is confirmed. Confirmation does not attest safety or eligibility."
 
 #: src/pages/LabsEnvironment.tsx:835
 msgid "This falls in an unsupported historical range, so it is not marked on the curve."
@@ -10131,6 +11236,14 @@ msgstr "This link is invalid or has expired. Try signing in to request a new lin
 msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 msgstr "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 
+#: src/components/trail-course-review/copy.tsx:240
+msgid "This module has not been evaluated for the current revision."
+msgstr "This module has not been evaluated for the current revision."
+
+#: src/components/trail-course-review/copy.tsx:232
+msgid "This module would be omitted from generation unless its linked reason is resolved."
+msgstr "This module would be omitted from generation unless its linked reason is resolved."
+
 #: src/pages/Status.tsx:233
 msgid "This page refreshes automatically every 30 seconds."
 msgstr "This page refreshes automatically every 30 seconds."
@@ -10163,6 +11276,14 @@ msgstr "This plan route uses an accepted policy that this client does not recogn
 #~ msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 #~ msgstr "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 
+#: src/components/trail-course-review/copy.tsx:531
+msgid "This policy cannot be applied yet."
+msgstr "This policy cannot be applied yet."
+
+#: src/components/trail-course-review/copy.tsx:394
+msgid "This policy cannot organize the event-near period."
+msgstr "This policy cannot organize the event-near period."
+
 #: src/components/PlanStart.tsx:1781
 msgid "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
 msgstr "This policy supports outdoor road running only. Terrain, treadmill, trail, and equipment preferences are unsupported inputs and are not inferred."
@@ -10170,6 +11291,10 @@ msgstr "This policy supports outdoor road running only. Terrain, treadmill, trai
 #: src/components/WorkoutStructureEditor.tsx:1082
 #~ msgid "This portable structure can be represented without flattening."
 #~ msgstr "This portable structure can be represented without flattening."
+
+#: src/components/trail-course-review/states.tsx:71
+msgid "This private Trail course review was not found"
+msgstr "This private Trail course review was not found"
 
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
 #: src/components/PlanStart.tsx:1994
@@ -10202,6 +11327,10 @@ msgstr "This quick check only covers definite prerequisites. The full analysis c
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 
+#: src/components/trail-course-review/copy.tsx:184
+msgid "This request is taking longer than usual. Do not close this page."
+msgstr "This request is taking longer than usual. Do not close this page."
+
 #: src/pages/LabsEnvironment.tsx:991
 msgid "This result did not pass the experiment’s release guardrails."
 msgstr "This result did not pass the experiment’s release guardrails."
@@ -10218,12 +11347,25 @@ msgstr "This reviewed 10K performance capability uses adult confirmation, direct
 #~ msgid "This revokes access immediately and pauses managed delivery when Garmin is your target."
 #~ msgstr "This revokes access immediately and pauses managed delivery when Garmin is your target."
 
+#: src/components/TrailCourseReview.tsx:544
+#: src/components/TrailCourseReview.tsx:561
+msgid "This section could not be confirmed."
+msgstr "This section could not be confirmed."
+
+#: src/components/TrailCourseReview.tsx:521
+msgid "This section has no safe revision to confirm. Reload and review it again."
+msgstr "This section has no safe revision to confirm. Reload and review it again."
+
 #: src/pages/admin/AdminUsers.tsx:341
 #: src/pages/admin/AdminUsers.tsx:349
 #: src/pages/admin/AdminUsers.tsx:357
 #: src/pages/admin/AdminUsers.tsx:365
 msgid "This section is unavailable. Other management workflows remain available."
 msgstr "This section is unavailable. Other management workflows remain available."
+
+#: src/components/TrailCourseReview.tsx:1623
+msgid "This server-derived receipt is read-only. Correct source activities from Activities; plan start does not accept replacement attestations."
+msgstr "This server-derived receipt is read-only. Correct source activities from Activities; plan start does not accept replacement attestations."
 
 #: src/pages/LabsEnvironment.tsx:820
 msgid "This sits inside your displayed historical range and is marked on the curve."
@@ -10250,9 +11392,17 @@ msgstr "This source uses a newer workout structure and cannot be duplicated with
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "This structure is authoritative. Edit its steps instead of changing its flat summary."
 
+#: src/components/trail-course-review/copy.tsx:380
+msgid "This Trail policy is not active."
+msgstr "This Trail policy is not active."
+
 #: src/components/WorkoutStructureEditor.tsx:187
 #~ msgid "This typed target cannot be represented safely."
 #~ msgstr "This typed target cannot be represented safely."
+
+#: src/components/trail-course-review/copy.tsx:189
+msgid "This value is missing, outside the accepted range, or conflicts with another answer."
+msgstr "This value is missing, outside the accepted range, or conflicts with another answer."
 
 #. placeholder {0}: deleteUser?.email
 #: src/pages/admin/AdminUsers.tsx:1065
@@ -10279,6 +11429,10 @@ msgstr "This workout uses a newer portable structure that this editor cannot cha
 #~ msgid "This workout was imported from Stryd."
 #~ msgstr "This workout was imported from Stryd."
 
+#: src/components/trail-course-review/copy.tsx:429
+msgid "Those technical features are outside v2."
+msgstr "Those technical features are outside v2."
+
 #: src/components/UpcomingPlanCard.tsx:581
 #: src/components/WorkoutPlanEditor.tsx:436
 #: src/lib/display-labels.ts:45
@@ -10303,9 +11457,9 @@ msgstr "Thresholds"
 msgid "Thu"
 msgstr "Thu"
 
-#: src/components/Outdoor5KPlanStart.tsx:214
-#~ msgid "Thursday"
-#~ msgstr "Thursday"
+#: src/components/trail-course-review/copy.tsx:285
+msgid "Thursday"
+msgstr "Thursday"
 
 #: src/components/WorkoutStructureEditor.tsx:1436
 #: src/components/WorkoutStructureEditor.tsx:1485
@@ -10399,6 +11553,18 @@ msgstr "Token rejected"
 msgid "Too many attempts from this network. Please email us instead."
 msgstr "Too many attempts from this network. Please email us instead."
 
+#: src/components/trail-course-review/copy.tsx:71
+msgid "Total"
+msgstr "Total"
+
+#: src/components/trail-course-review/copy.tsx:55
+msgid "Total ascent"
+msgstr "Total ascent"
+
+#: src/components/trail-course-review/copy.tsx:56
+msgid "Total descent"
+msgstr "Total descent"
+
 #: src/pages/admin/AdminUsers.tsx:512
 msgid "Total users tracked"
 msgstr "Total users tracked"
@@ -10423,6 +11589,18 @@ msgstr "Tracking"
 #: src/components/PersonalContextPanel.tsx:257
 msgid "Trail"
 msgstr "Trail"
+
+#: src/components/TrailCourseReview.tsx:954
+msgid "Trail action did not complete"
+msgstr "Trail action did not complete"
+
+#: src/components/trail-course-review/states.tsx:74
+msgid "Trail course review could not be loaded"
+msgstr "Trail course review could not be loaded"
+
+#: src/components/TrailCourseReview.tsx:777
+msgid "Trail planning isn't available for this case"
+msgstr "Trail planning isn't available for this case"
 
 #: src/components/UpcomingPlanCard.tsx:566
 #: src/components/WorkoutPlanEditor.tsx:444
@@ -10537,9 +11715,9 @@ msgstr "TSB (load balance)"
 msgid "Tue"
 msgstr "Tue"
 
-#: src/components/Outdoor5KPlanStart.tsx:212
-#~ msgid "Tuesday"
-#~ msgstr "Tuesday"
+#: src/components/trail-course-review/copy.tsx:283
+msgid "Tuesday"
+msgstr "Tuesday"
 
 #: src/components/ManagedPlanSettingsCard.tsx:925
 msgid "Turn off"
@@ -10570,6 +11748,10 @@ msgstr "Turning off…"
 msgid "Turning on…"
 msgstr "Turning on…"
 
+#: src/components/trail-course-review/copy.tsx:572
+msgid "Two otherwise valid answers conflict."
+msgstr "Two otherwise valid answers conflict."
+
 #: src/components/HeatAdaptationPanel.tsx:72
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler heat-acclimation meta-analysis"
@@ -10590,6 +11772,10 @@ msgstr "Type precise bounds in the visible unit."
 #: src/pages/Goal.tsx:93
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
 msgstr "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
+
+#: src/components/trail-course-review/copy.tsx:266
+msgid "Ultra-distance Trail"
+msgstr "Ultra-distance Trail"
 
 #: src/pages/Status.tsx:76
 msgid "Unable to reach the status service"
@@ -10658,6 +11844,7 @@ msgstr "Units"
 #~ msgid "unknown"
 #~ msgstr "unknown"
 
+#: src/components/trail-course-review/copy.tsx:257
 #: src/components/WorkoutStructureEditor.tsx:813
 #: src/components/WorkoutStructureEditor.tsx:823
 #: src/components/WorkoutStructureEditor.tsx:830
@@ -10767,6 +11954,10 @@ msgstr "Updated the 5K baseline."
 #: src/pages/admin/AdminUsers.tsx:1047
 msgid "Updating…"
 msgstr "Updating…"
+
+#: src/components/trail-course-review/copy.tsx:338
+msgid "Uphill (3% to below 10%)"
+msgstr "Uphill (3% to below 10%)"
 
 #: src/pages/Settings.tsx:1144
 msgid "US"
@@ -10903,6 +12094,10 @@ msgstr "Verification email sent. Check your inbox."
 msgid "Verification failed"
 msgstr "Verification failed"
 
+#: src/components/trail-course-review/copy.tsx:250
+msgid "Verified course information"
+msgstr "Verified course information"
+
 #: src/pages/Settings.tsx:1092
 #: src/pages/Setup.tsx:946
 msgid "Verify"
@@ -11007,6 +12202,14 @@ msgstr "Was the full effort a measured 5K?"
 msgid "Was this insight useful?"
 msgstr "Was this insight useful?"
 
+#: src/components/trail-course-review/copy.tsx:154
+msgid "Water availability"
+msgstr "Water availability"
+
+#: src/components/trail-course-review/copy.tsx:279
+msgid "Water crossings"
+msgstr "Water crossings"
+
 #: src/pages/admin/AdminOps.tsx:1385
 #: src/pages/admin/AdminUsers.tsx:136
 msgid "WAU"
@@ -11019,6 +12222,14 @@ msgstr "WAU"
 #: src/components/FeedbackDialog.tsx:252
 msgid "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
 msgstr "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
+
+#: src/components/TrailCourseReview.tsx:775
+msgid "We couldn't check this information"
+msgstr "We couldn't check this information"
+
+#: src/components/trail-course-review/copy.tsx:202
+msgid "We couldn't export your data. Try again."
+msgstr "We couldn't export your data. Try again."
 
 #: src/pages/Login.tsx:442
 msgid "We're inviting runners in waves while we tighten the science. Drop your email and we'll reach back when a slot opens."
@@ -11035,6 +12246,10 @@ msgstr "Weather"
 #: src/components/HeatAdaptationPanel.tsx:486
 msgid "Weather evidence"
 msgstr "Weather evidence"
+
+#: src/components/trail-course-review/copy.tsx:318
+msgid "Weather shell"
+msgstr "Weather shell"
 
 #: src/components/GoalBaselinePanel.tsx:594
 msgid "Weather, air, traffic, visibility, or footing was unsafe"
@@ -11056,9 +12271,9 @@ msgstr "WeChat Mini Program QR code"
 msgid "Wed"
 msgstr "Wed"
 
-#: src/components/Outdoor5KPlanStart.tsx:213
-#~ msgid "Wednesday"
-#~ msgstr "Wednesday"
+#: src/components/trail-course-review/copy.tsx:284
+msgid "Wednesday"
+msgstr "Wednesday"
 
 #. placeholder {0}: formatWeekEnding(String(value), locale)
 #: src/components/charts/WeeklyVolumeChart.tsx:88
@@ -11092,6 +12307,10 @@ msgstr "Weekly Load"
 #: src/components/PlanStart.tsx:1570
 msgid "Weekly time limit (minutes)"
 msgstr "Weekly time limit (minutes)"
+
+#: src/components/trail-course-review/copy.tsx:82
+msgid "Weekly training time available"
+msgstr "Weekly training time available"
 
 #: src/pages/Analysis.tsx:308
 msgid "Weekly volume"
@@ -11166,6 +12385,10 @@ msgstr "What was useful or missing?"
 msgid "What's your training goal? (optional)"
 msgstr "What's your training goal? (optional)"
 
+#: src/components/trail-course-review/copy.tsx:40
+msgid "When and where you can train"
+msgstr "When and where you can train"
+
 #. placeholder {0}: provider.label
 #. placeholder {1}: provider.label
 #: src/components/PlatformConnectionNotice.tsx:42
@@ -11195,6 +12418,10 @@ msgstr "Why this remains experimental"
 #: src/pages/Setup.tsx:901
 msgid "Will sync:"
 msgstr "Will sync:"
+
+#: src/components/trail-course-review/copy.tsx:143
+msgid "Wind exposure"
+msgstr "Wind exposure"
 
 #: src/pages/LabsEnvironment.tsx:1239
 msgid "Withdraw"
@@ -11241,6 +12468,7 @@ msgstr "Within reference band"
 msgid "Work"
 msgstr "Work"
 
+#: src/components/trail-course-review/states.tsx:225
 #: src/components/UpcomingPlanCard.tsx:325
 msgid "Working…"
 msgstr "Working…"
@@ -11320,6 +12548,7 @@ msgstr "Workout structure"
 
 #: src/components/GoalBaselinePanel.tsx:145
 #: src/components/GoalBaselinePanel.tsx:565
+#: src/components/trail-course-review/copy.tsx:44
 msgid "Yes"
 msgstr "Yes"
 
@@ -11351,9 +12580,17 @@ msgstr "You can still save this workout in Praxys, but managed delivery cannot p
 #~ msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 #~ msgstr "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 
+#: src/components/trail-course-review/copy.tsx:483
+msgid "You confirmed a current symptom that should stop performance planning."
+msgstr "You confirmed a current symptom that should stop performance planning."
+
 #: src/pages/LabsEnvironment.tsx:1332
 msgid "You control this experiment"
 msgstr "You control this experiment"
+
+#: src/components/trail-course-review/copy.tsx:249
+msgid "You entered this"
+msgstr "You entered this"
 
 #: src/components/GoalBaselinePanel.tsx:112
 msgid "You have older 10K evidence. Praxys keeps it visible, but new planning stays readiness-only until you refresh it."
@@ -11380,6 +12617,14 @@ msgstr "you@example.com"
 #: src/pages/Verify.tsx:58
 msgid "Your account is active. You can now sign in."
 msgstr "Your account is active. You can now sign in."
+
+#: src/components/trail-course-review/copy.tsx:146
+msgid "Your assumption requires confirmation at this exact section revision."
+msgstr "Your assumption requires confirmation at this exact section revision."
+
+#: src/components/trail-course-review/copy.tsx:254
+msgid "Your assumption—confirmation required"
+msgstr "Your assumption—confirmation required"
 
 #: src/pages/LabsEnvironment.tsx:689
 msgid "Your comparable power range"
@@ -11488,6 +12733,10 @@ msgstr "Your Strava API Client ID"
 msgid "Your Strava API Client Secret"
 msgstr "Your Strava API Client Secret"
 
+#: src/components/TrailCourseReview.tsx:780
+msgid "Your symptoms, schedule, history, or terrain access blocks a proposal for now"
+msgstr "Your symptoms, schedule, history, or terrain access blocks a proposal for now"
+
 #: src/components/AiInsightsCard.tsx:219
 #: src/components/AiInsightsCard.tsx:249
 msgid "Your synced data and deterministic training metrics remain available."
@@ -11543,3 +12792,1188 @@ msgstr "Zones & load from Lactate Threshold HR"
 #: src/pages/Setup.tsx:186
 msgid "Zones & load from Threshold Pace"
 msgstr "Zones & load from Threshold Pace"
+
+#: src/components/trail-course-review/copy.tsx:346
+msgid "一项或多项数据不符合格式或范围要求。"
+msgstr "一项或多项数据不符合格式或范围要求。"
+
+#: src/components/trail-course-review/copy.tsx:517
+msgid "一项赛道或环境假设尚未确认。"
+msgstr "一项赛道或环境假设尚未确认。"
+
+#: src/components/trail-course-review/copy.tsx:338
+msgid "上坡（3% 至低于 10%）"
+msgstr "上坡（3% 至低于 10%）"
+
+#: src/components/trail-course-review/copy.tsx:227
+msgid "下一步"
+msgstr "下一步"
+
+#: src/components/trail-course-review/copy.tsx:336
+msgid "下坡（−10% 至低于 −3%）"
+msgstr "下坡（−10% 至低于 −3%）"
+
+#: src/components/trail-course-review/copy.tsx:197
+msgid "下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。"
+msgstr "下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。"
+
+#: src/components/trail-course-review/copy.tsx:46
+msgid "不确定"
+msgstr "不确定"
+
+#: src/components/trail-course-review/copy.tsx:152
+msgid "不适用"
+msgstr "不适用"
+
+#: src/components/trail-course-review/copy.tsx:572
+msgid "两项各自有效的回答彼此冲突。"
+msgstr "两项各自有效的回答彼此冲突。"
+
+#: src/components/trail-course-review/copy.tsx:69
+msgid "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
+msgstr "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
+
+#: src/components/trail-course-review/copy.tsx:278
+msgid "人工台阶"
+msgstr "人工台阶"
+
+#: src/components/trail-course-review/copy.tsx:325
+msgid "仅液体"
+msgstr "仅液体"
+
+#: src/components/trail-course-review/copy.tsx:506
+msgid "仍有核心赛道信息未知。"
+msgstr "仍有核心赛道信息未知。"
+
+#: src/components/trail-course-review/copy.tsx:291
+msgid "低"
+msgstr "低"
+
+#: src/components/trail-course-review/copy.tsx:255
+msgid "你的假设—需要确认"
+msgstr "你的假设—需要确认"
+
+#: src/components/trail-course-review/copy.tsx:147
+msgid "你的假设需要按本节的确切版本确认。"
+msgstr "你的假设需要按本节的确切版本确认。"
+
+#: src/components/trail-course-review/copy.tsx:112
+msgid "你目前是否有应停止竞速计划的症状？"
+msgstr "你目前是否有应停止竞速计划的症状？"
+
+#: src/components/trail-course-review/copy.tsx:484
+msgid "你确认目前有应停止竞速计划的症状。"
+msgstr "你确认目前有应停止竞速计划的症状。"
+
+#: src/components/trail-course-review/copy.tsx:95
+msgid "你能使用可连续进行至少 3 分钟、非技术性的上坡路线吗？"
+msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线吗？"
+
+#: src/components/trail-course-review/copy.tsx:99
+msgid "你能使用适合受控下坡训练的路线吗？"
+msgstr "你能使用适合受控下坡训练的路线吗？"
+
+#: src/components/TrailCourseReview.tsx:453
+msgid "保存前请检查已链接的字段。"
+msgstr "保存前请检查已链接的字段。"
+
+#: src/components/trail-course-review/copy.tsx:174
+msgid "保存并稍后继续"
+msgstr "保存并稍后继续"
+
+#: src/components/trail-course-review/copy.tsx:175
+msgid "保存更改"
+msgstr "保存更改"
+
+#: src/components/trail-course-review/copy.tsx:321
+msgid "其他必需装备"
+msgstr "其他必需装备"
+
+#: src/components/trail-course-review/copy.tsx:137
+msgid "最低气温"
+msgstr "最低气温"
+
+#: src/components/trail-course-review/copy.tsx:140
+msgid "最低湿度"
+msgstr "最低湿度"
+
+#: src/components/TrailCourseReview.tsx:1427
+msgid "最多选择显示的 14 天范围内的 14 个日期。"
+msgstr "最多选择显示的 14 天范围内的 14 个日期。"
+
+#: src/components/TrailCourseReview.tsx:380
+msgid "最新服务端版本已可对照。待保存更改未被覆盖。"
+msgstr "最新服务端版本已可对照。待保存更改未被覆盖。"
+
+#: src/components/trail-course-review/copy.tsx:151
+msgid "最长补给站间距"
+msgstr "最长补给站间距"
+
+#: src/components/trail-course-review/copy.tsx:158
+msgid "最长补给练习时长"
+msgstr "最长补给练习时长"
+
+#: src/components/trail-course-review/copy.tsx:90
+msgid "最长轻松训练的首选星期"
+msgstr "最长轻松训练的首选星期"
+
+#: src/components/trail-course-review/copy.tsx:138
+msgid "最高气温"
+msgstr "最高气温"
+
+#: src/components/trail-course-review/copy.tsx:141
+msgid "最高湿度"
+msgstr "最高湿度"
+
+#: src/components/TrailCourseReview.tsx:617
+msgid "准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。"
+msgstr "准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。"
+
+#: src/components/trail-course-review/copy.tsx:172
+msgid "准备情况回执"
+msgstr "准备情况回执"
+
+#: src/components/trail-course-review/copy.tsx:566
+msgid "准备情况已过期，不能静默重新绑定。"
+msgstr "准备情况已过期，不能静默重新绑定。"
+
+#: src/components/trail-course-review/copy.tsx:48
+msgid "分钟"
+msgstr "分钟"
+
+#: src/components/trail-course-review/copy.tsx:199
+#: src/components/trail-course-review/states.tsx:189
+msgid "删除越野目标"
+msgstr "删除越野目标"
+
+#: src/components/trail-course-review/copy.tsx:205
+#: src/components/trail-course-review/states.tsx:201
+msgid "删除越野目标？"
+msgstr "删除越野目标？"
+
+#: src/components/trail-course-review/copy.tsx:208
+msgid "删除越野目标不同于删除账号。此操作请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存。Praxys 只依据服务端响应报告完成；回滚或清理待处理状态必须保持可见。"
+msgstr "删除越野目标不同于删除账号。此操作请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存。Praxys 只依据服务端响应报告完成；回滚或清理待处理状态必须保持可见。"
+
+#: src/components/trail-course-review/states.tsx:209
+msgid "删除越野目标不同于删除账号。系统会请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存；只有服务端确认的结果才会显示为完成。"
+msgstr "删除越野目标不同于删除账号。系统会请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存；只有服务端确认的结果才会显示为完成。"
+
+#: src/components/trail-course-review/copy.tsx:261
+msgid "单日赛事"
+msgstr "单日赛事"
+
+#: src/components/trail-course-review/copy.tsx:83
+msgid "单次最长可训练时间"
+msgstr "单次最长可训练时间"
+
+#: src/components/trail-course-review/copy.tsx:225
+msgid "发现"
+msgstr "发现"
+
+#: src/components/trail-course-review/copy.tsx:210
+#: src/components/trail-course-review/states.tsx:215
+msgid "取消"
+msgstr "取消"
+
+#: src/components/trail-course-review/copy.tsx:230
+msgid "受限"
+msgstr "受限"
+
+#: src/components/TrailCourseReview.tsx:789
+msgid "可以查看 14 天计划提案"
+msgstr "可以查看 14 天计划提案"
+
+#: src/components/trail-course-review/copy.tsx:448
+msgid "可比的越野、爬升或路面训练历史不足。"
+msgstr "可比的越野、爬升或路面训练历史不足。"
+
+#: src/components/trail-course-review/copy.tsx:229
+msgid "可用于生成"
+msgstr "可用于生成"
+
+#: src/components/trail-course-review/copy.tsx:101
+msgid "可用于训练的路面"
+msgstr "可用于训练的路面"
+
+#: src/components/trail-course-review/copy.tsx:40
+msgid "可训练时间与场地"
+msgstr "可训练时间与场地"
+
+#: src/components/trail-course-review/copy.tsx:81
+msgid "可跑步的星期"
+msgstr "可跑步的星期"
+
+#: src/components/trail-course-review/copy.tsx:71
+msgid "合计"
+msgstr "合计"
+
+#: src/components/trail-course-review/copy.tsx:45
+msgid "否"
+msgstr "否"
+
+#: src/components/TrailCourseReview.tsx:2225
+msgid "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
+msgstr "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
+
+#: src/components/trail-course-review/copy.tsx:177
+msgid "在线 · 已保存"
+msgstr "在线 · 已保存"
+
+#: src/components/trail-course-review/copy.tsx:274
+msgid "坚实平整路面"
+msgstr "坚实平整路面"
+
+#: src/components/trail-course-review/copy.tsx:39
+msgid "坡度与路面"
+msgstr "坡度与路面"
+
+#: src/components/trail-course-review/copy.tsx:583
+msgid "坡度专项训练"
+msgstr "坡度专项训练"
+
+#: src/components/trail-course-review/copy.tsx:36
+msgid "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
+msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
+
+#: src/components/trail-course-review/copy.tsx:578
+msgid "处理首个冲突"
+msgstr "处理首个冲突"
+
+#: src/components/trail-course-review/copy.tsx:262
+msgid "多日赛事"
+msgstr "多日赛事"
+
+#: src/components/trail-course-review/copy.tsx:233
+msgid "如未解决所链接原因，生成时将省略此模块。"
+msgstr "如未解决所链接原因，生成时将省略此模块。"
+
+#: src/components/trail-course-review/copy.tsx:302
+msgid "季节预期"
+msgstr "季节预期"
+
+#: src/components/trail-course-review/copy.tsx:407
+msgid "它超出非超长距离单日策略范围。"
+msgstr "它超出非超长距离单日策略范围。"
+
+#: src/components/trail-course-review/copy.tsx:270
+msgid "完成赛事"
+msgstr "完成赛事"
+
+#: src/components/trail-course-review/copy.tsx:557
+msgid "对照近期历史查看请求"
+msgstr "对照近期历史查看请求"
+
+#: src/components/trail-course-review/copy.tsx:194
+msgid "导出我的越野计划数据"
+msgstr "导出我的越野计划数据"
+
+#: src/components/trail-course-review/copy.tsx:320
+msgid "导航设备"
+msgstr "导航设备"
+
+#: src/components/trail-course-review/copy.tsx:134
+msgid "将本组设为未知"
+msgstr "将本组设为未知"
+
+#: src/components/trail-course-review/copy.tsx:47
+msgid "小时"
+msgstr "小时"
+
+#: src/components/trail-course-review/copy.tsx:178
+msgid "尚未保存赛道核对"
+msgstr "尚未保存赛道核对"
+
+#: src/components/trail-course-review/copy.tsx:529
+msgid "尚未确认成人、非医疗的竞速适用范围。"
+msgstr "尚未确认成人、非医疗的竞速适用范围。"
+
+#: src/components/trail-course-review/copy.tsx:122
+msgid "尚未评估"
+msgstr "尚未评估"
+
+#: src/components/trail-course-review/copy.tsx:241
+msgid "尚未针对当前版本评估此模块。"
+msgstr "尚未针对当前版本评估此模块。"
+
+#: src/components/trail-course-review/copy.tsx:277
+msgid "岩石或树根"
+msgstr "岩石或树根"
+
+#: src/components/TrailCourseReview.tsx:623
+msgid "已按当前确认版本更新准备情况。"
+msgstr "已按当前确认版本更新准备情况。"
+
+#: src/components/TrailCourseReview.tsx:748
+msgid "已放弃待保存更改。"
+msgstr "已放弃待保存更改。"
+
+#: src/components/TrailCourseReview.tsx:287
+msgid "已更改，保存后请重新确认本节。"
+msgstr "已更改，保存后请重新确认本节。"
+
+#: src/components/trail-course-review/copy.tsx:170
+msgid "已更改，请重新确认"
+msgstr "已更改，请重新确认"
+
+#: src/components/trail-course-review/copy.tsx:250
+msgid "已核实的赛道信息"
+msgstr "已核实的赛道信息"
+
+#: src/components/TrailCourseReview.tsx:557
+msgid "已确认本节的确切版本。确认不代表安全或符合生成条件。"
+msgstr "已确认本节的确切版本。确认不代表安全或符合生成条件。"
+
+#: src/components/trail-course-review/copy.tsx:169
+msgid "已确认版本"
+msgstr "已确认版本"
+
+#: src/components/trail-course-review/copy.tsx:562
+msgid "已确认的分段或来源在核对后发生变化。"
+msgstr "已确认的分段或来源在核对后发生变化。"
+
+#: src/components/trail-course-review/copy.tsx:415
+msgid "已确认的适用场景或目标不在此竞速策略范围内。"
+msgstr "已确认的适用场景或目标不在此竞速策略范围内。"
+
+#: src/components/trail-course-review/copy.tsx:163
+msgid "已练习的摄入形式"
+msgstr "已练习的摄入形式"
+
+#: src/components/trail-course-review/copy.tsx:156
+msgid "强制装备"
+msgstr "强制装备"
+
+#: src/components/TrailCourseReview.tsx:781
+msgid "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
+msgstr "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
+
+#: src/components/trail-course-review/copy.tsx:181
+#: src/components/TrailCourseReview.tsx:444
+msgid "当前离线。更改仅保留在此页面，尚未保存。"
+msgstr "当前离线。更改仅保留在此页面，尚未保存。"
+
+#: src/components/trail-course-review/copy.tsx:197
+msgid "当前私密预览暂不支持导出。"
+msgstr "当前私密预览暂不支持导出。"
+
+#: src/components/trail-course-review/copy.tsx:51
+msgid "当前越野赛事目标"
+msgstr "当前越野赛事目标"
+
+#: src/components/trail-course-review/copy.tsx:226
+msgid "影响"
+msgstr "影响"
+
+#: src/components/TrailCourseReview.tsx:738
+msgid "待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。"
+msgstr "待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。"
+
+#: src/components/trail-course-review/copy.tsx:176
+msgid "待保存更改"
+msgstr "待保存更改"
+
+#: src/components/trail-course-review/copy.tsx:219
+msgid "待保存编辑仅保留在本页面。请对照最新服务端版本，再重新应用或放弃。重新应用不会保存或确认。"
+msgstr "待保存编辑仅保留在本页面。请对照最新服务端版本，再重新应用或放弃。重新应用不会保存或确认。"
+
+#: src/components/trail-course-review/copy.tsx:214
+msgid "恢复待保存更改"
+msgstr "恢复待保存更改"
+
+#: src/components/trail-course-review/copy.tsx:271
+msgid "恢复训练规律"
+msgstr "恢复训练规律"
+
+#: src/components/trail-course-review/copy.tsx:303
+msgid "我的假设"
+msgstr "我的假设"
+
+#: src/components/trail-course-review/copy.tsx:104
+msgid "我确认本人已满 18 岁，且这不是医疗或重返运动计划。"
+msgstr "我确认本人已满 18 岁，且这不是医疗或重返运动计划。"
+
+#: src/components/trail-course-review/copy.tsx:108
+msgid "我确认目标是提升比赛表现。"
+msgstr "我确认目标是提升比赛表现。"
+
+#: src/components/trail-course-review/copy.tsx:584
+msgid "技术路面训练"
+msgstr "技术路面训练"
+
+#: src/components/trail-course-review/copy.tsx:269
+msgid "提升比赛表现"
+msgstr "提升比赛表现"
+
+#: src/components/trail-course-review/copy.tsx:317
+msgid "携带食物"
+msgstr "携带食物"
+
+#: src/components/trail-course-review/copy.tsx:316
+msgid "携水"
+msgstr "携水"
+
+#: src/components/trail-course-review/states.tsx:153
+msgid "操作未完成。"
+msgstr "操作未完成。"
+
+#: src/components/trail-course-review/copy.tsx:132
+msgid "支持"
+msgstr "支持"
+
+#: src/components/trail-course-review/copy.tsx:215
+msgid "放弃待保存更改"
+msgstr "放弃待保存更改"
+
+#: src/components/trail-course-review/copy.tsx:119
+msgid "新鲜度"
+msgstr "新鲜度"
+
+#: src/components/trail-course-review/copy.tsx:85
+#: src/components/trail-course-review/copy.tsx:311
+#: src/components/trail-course-review/copy.tsx:324
+msgid "无"
+msgstr "无"
+
+#: src/components/trail-course-review/copy.tsx:92
+msgid "无偏好"
+msgstr "无偏好"
+
+#: src/components/trail-course-review/copy.tsx:464
+msgid "无法依据已观察历史约束下坡训练。"
+msgstr "无法依据已观察历史约束下坡训练。"
+
+#: src/components/trail-course-review/copy.tsx:452
+msgid "无法依据已观察经历约束赛道专项训练。"
+msgstr "无法依据已观察经历约束赛道专项训练。"
+
+#: src/components/TrailCourseReview.tsx:472
+#: src/components/TrailCourseReview.tsx:490
+msgid "无法保存越野赛道核对。"
+msgstr "无法保存越野赛道核对。"
+
+#: src/components/trail-course-review/copy.tsx:374
+msgid "无法信任基于此结果生成的提案。"
+msgstr "无法信任基于此结果生成的提案。"
+
+#: src/components/TrailCourseReview.tsx:385
+msgid "无法加载最新版本。"
+msgstr "无法加载最新版本。"
+
+#: src/components/TrailCourseReview.tsx:545
+#: src/components/TrailCourseReview.tsx:562
+msgid "无法确认本节。"
+msgstr "无法确认本节。"
+
+#: src/components/trail-course-review/copy.tsx:84
+msgid "无法训练的日期"
+msgstr "无法训练的日期"
+
+#: src/components/TrailCourseReview.tsx:681
+msgid "无法识别删除响应。"
+msgstr "无法识别删除响应。"
+
+#: src/components/TrailCourseReview.tsx:668
+msgid "无法识别重置响应。"
+msgstr "无法识别重置响应。"
+
+#: src/components/trail-course-review/copy.tsx:142
+msgid "日晒暴露"
+msgstr "日晒暴露"
+
+#: src/components/trail-course-review/copy.tsx:282
+msgid "星期一"
+msgstr "星期一"
+
+#: src/components/trail-course-review/copy.tsx:284
+msgid "星期三"
+msgstr "星期三"
+
+#: src/components/trail-course-review/copy.tsx:283
+msgid "星期二"
+msgstr "星期二"
+
+#: src/components/trail-course-review/copy.tsx:286
+msgid "星期五"
+msgstr "星期五"
+
+#: src/components/trail-course-review/copy.tsx:287
+msgid "星期六"
+msgstr "星期六"
+
+#: src/components/trail-course-review/copy.tsx:285
+msgid "星期四"
+msgstr "星期四"
+
+#: src/components/trail-course-review/copy.tsx:288
+msgid "星期日"
+msgstr "星期日"
+
+#: src/components/trail-course-review/copy.tsx:44
+msgid "是"
+msgstr "是"
+
+#: src/components/trail-course-review/copy.tsx:79
+msgid "是否有路段需要使用固定绳索？"
+msgstr "是否有路段需要使用固定绳索？"
+
+#: src/components/trail-course-review/copy.tsx:75
+msgid "是否有路段需要用手辅助通过？"
+msgstr "是否有路段需要用手辅助通过？"
+
+#: src/components/trail-course-review/states.tsx:73
+msgid "暂时无法加载越野赛道核对"
+msgstr "暂时无法加载越野赛道核对"
+
+#: src/components/trail-course-review/copy.tsx:203
+msgid "暂时无法导出数据，请重试。"
+msgstr "暂时无法导出数据，请重试。"
+
+#: src/components/trail-course-review/copy.tsx:531
+msgid "暂时无法应用此策略。"
+msgstr "暂时无法应用此策略。"
+
+#: src/components/TrailCourseReview.tsx:607
+#: src/components/TrailCourseReview.tsx:628
+msgid "暂时无法检查准备情况。"
+msgstr "暂时无法检查准备情况。"
+
+#: src/components/TrailCourseReview.tsx:775
+msgid "暂时无法检查这些信息"
+msgstr "暂时无法检查这些信息"
+
+#: src/components/trail-course-review/copy.tsx:298
+msgid "暴露"
+msgstr "暴露"
+
+#: src/components/trail-course-review/copy.tsx:192
+msgid "更多操作"
+msgstr "更多操作"
+
+#: src/components/trail-course-review/copy.tsx:331
+msgid "曾影响计划"
+msgstr "曾影响计划"
+
+#: src/components/TrailCourseReview.tsx:674
+msgid "服务端已把可编辑回答重置为未知并使确认失效。来源活动和已保留提案未被删除。"
+msgstr "服务端已把可编辑回答重置为未知并使确认失效。来源活动和已保留提案未被删除。"
+
+#: src/components/trail-course-review/copy.tsx:120
+msgid "服务端来源"
+msgstr "服务端来源"
+
+#: src/components/TrailCourseReview.tsx:431
+msgid "服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。"
+msgstr "服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。"
+
+#: src/components/TrailCourseReview.tsx:551
+msgid "服务端返回了不受支持的确认响应。"
+msgstr "服务端返回了不受支持的确认响应。"
+
+#: src/components/TrailCourseReview.tsx:478
+msgid "服务端返回了不受支持的越野草稿。"
+msgstr "服务端返回了不受支持的越野草稿。"
+
+#: src/components/trail-course-review/copy.tsx:157
+msgid "未列出强制装备"
+msgstr "未列出强制装备"
+
+#: src/components/TrailCourseReview.tsx:687
+msgid "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
+
+#: src/components/TrailCourseReview.tsx:691
+msgid "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
+
+#: src/components/trail-course-review/copy.tsx:330
+msgid "未影响计划"
+msgstr "未影响计划"
+
+#: src/components/trail-course-review/states.tsx:70
+msgid "未找到此私密越野赛道核对"
+msgstr "未找到此私密越野赛道核对"
+
+#: src/components/trail-course-review/copy.tsx:257
+msgid "未知"
+msgstr "未知"
+
+#: src/components/TrailCourseReview.tsx:1672
+msgid "未观察到符合条件的路面"
+msgstr "未观察到符合条件的路面"
+
+#: src/components/TrailCourseReview.tsx:522
+msgid "本节没有可安全确认的版本。请重新加载并再次核对。"
+msgstr "本节没有可安全确认的版本。请重新加载并再次核对。"
+
+#: src/components/trail-course-review/copy.tsx:228
+msgid "权威准备情况模块"
+msgstr "权威准备情况模块"
+
+#: src/components/trail-course-review/copy.tsx:121
+msgid "来源版本"
+msgstr "来源版本"
+
+#: src/components/trail-course-review/copy.tsx:244
+#: src/components/trail-course-review/copy.tsx:251
+msgid "来自你的活动历史"
+msgstr "来自你的活动历史"
+
+#: src/components/trail-course-review/copy.tsx:275
+msgid "松散碎石"
+msgstr "松散碎石"
+
+#: src/components/trail-course-review/copy.tsx:467
+msgid "查看下降训练经历"
+msgstr "查看下降训练经历"
+
+#: src/components/trail-course-review/copy.tsx:491
+msgid "查看你的回答"
+msgstr "查看你的回答"
+
+#: src/components/trail-course-review/copy.tsx:213
+#: src/components/trail-course-review/copy.tsx:569
+msgid "查看最新版本"
+msgstr "查看最新版本"
+
+#: src/components/trail-course-review/copy.tsx:455
+msgid "查看可比训练经历"
+msgstr "查看可比训练经历"
+
+#: src/components/trail-course-review/copy.tsx:431
+msgid "查看技术特征"
+msgstr "查看技术特征"
+
+#: src/components/trail-course-review/copy.tsx:398
+msgid "查看比赛日期"
+msgstr "查看比赛日期"
+
+#: src/components/trail-course-review/copy.tsx:386
+msgid "查看策略状态"
+msgstr "查看策略状态"
+
+#: src/components/trail-course-review/copy.tsx:422
+msgid "查看计划适用范围"
+msgstr "查看计划适用范围"
+
+#: src/components/trail-course-review/copy.tsx:479
+msgid "查看训练场地条件"
+msgstr "查看训练场地条件"
+
+#: src/components/trail-course-review/copy.tsx:503
+msgid "查看训练时间安排"
+msgstr "查看训练时间安排"
+
+#: src/components/trail-course-review/copy.tsx:524
+msgid "查看该假设"
+msgstr "查看该假设"
+
+#: src/components/trail-course-review/copy.tsx:410
+msgid "查看赛事范围"
+msgstr "查看赛事范围"
+
+#: src/components/trail-course-review/copy.tsx:443
+msgid "查看近期跑步记录"
+msgstr "查看近期跑步记录"
+
+#: src/components/trail-course-review/copy.tsx:353
+msgid "查看首个无效值"
+msgstr "查看首个无效值"
+
+#: src/components/trail-course-review/copy.tsx:33
+msgid "核对越野赛事"
+msgstr "核对越野赛事"
+
+#: src/components/trail-course-review/copy.tsx:173
+msgid "检查准备情况"
+msgstr "检查准备情况"
+
+#: src/components/trail-course-review/copy.tsx:245
+msgid "模型版本"
+msgstr "模型版本"
+
+#: src/components/trail-course-review/copy.tsx:200
+msgid "正在下载数据导出文件。"
+msgstr "正在下载数据导出文件。"
+
+#: src/components/trail-course-review/copy.tsx:199
+msgid "正在准备导出…"
+msgstr "正在准备导出…"
+
+#: src/components/trail-course-review/states.tsx:28
+msgid "正在加载越野赛道核对"
+msgstr "正在加载越野赛道核对"
+
+#: src/components/trail-course-review/states.tsx:225
+msgid "正在处理…"
+msgstr "正在处理…"
+
+#: src/components/trail-course-review/copy.tsx:190
+msgid "此值缺失、超出允许范围，或与另一项回答冲突。"
+msgstr "此值缺失、超出允许范围，或与另一项回答冲突。"
+
+#: src/components/TrailCourseReview.tsx:2057
+msgid "此回答不用于诊断，也不提供摄入量处方。"
+msgstr "此回答不用于诊断，也不提供摄入量处方。"
+
+#: src/components/TrailCourseReview.tsx:777
+msgid "此情况暂不支持越野计划"
+msgstr "此情况暂不支持越野计划"
+
+#: src/components/TrailCourseReview.tsx:1624
+msgid "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
+msgstr "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
+
+#: src/components/trail-course-review/copy.tsx:383
+msgid "此未启用切片不能生成提案。"
+msgstr "此未启用切片不能生成提案。"
+
+#: src/components/trail-course-review/copy.tsx:395
+msgid "此策略无法安排临赛阶段。"
+msgstr "此策略无法安排临赛阶段。"
+
+#: src/components/trail-course-review/copy.tsx:185
+msgid "此请求用时较长，请勿关闭本页面。"
+msgstr "此请求用时较长，请勿关闭本页面。"
+
+#: src/components/trail-course-review/copy.tsx:403
+msgid "此赛事属于超长距离或多日赛。"
+msgstr "此赛事属于超长距离或多日赛。"
+
+#: src/components/trail-course-review/states.tsx:167
+msgid "此赛道核对使用了不受支持的版本"
+msgstr "此赛道核对使用了不受支持的版本"
+
+#: src/components/trail-course-review/copy.tsx:358
+msgid "此赛道核对使用了不受支持的版本。"
+msgstr "此赛道核对使用了不受支持的版本。"
+
+#: src/components/trail-course-review/copy.tsx:380
+msgid "此越野策略尚未启用。"
+msgstr "此越野策略尚未启用。"
+
+#: src/components/trail-course-review/copy.tsx:313
+msgid "每个站点"
+msgstr "每个站点"
+
+#: src/components/trail-course-review/copy.tsx:82
+msgid "每周可训练时间"
+msgstr "每周可训练时间"
+
+#: src/components/trail-course-review/copy.tsx:391
+msgid "比赛已进入尚无获批减量策略的阶段。"
+msgstr "比赛已进入尚无获批减量策略的阶段。"
+
+#: src/components/trail-course-review/copy.tsx:63
+msgid "比赛形式"
+msgstr "比赛形式"
+
+#: src/components/trail-course-review/copy.tsx:53
+msgid "比赛日期"
+msgstr "比赛日期"
+
+#: src/components/trail-course-review/copy.tsx:54
+msgid "比赛距离"
+msgstr "比赛距离"
+
+#: src/components/trail-course-review/copy.tsx:496
+msgid "没有 14 天安排能同时满足已确认时间和已接受限制。"
+msgstr "没有 14 天安排能同时满足已确认时间和已接受限制。"
+
+#: src/components/trail-course-review/copy.tsx:276
+msgid "泥地"
+msgstr "泥地"
+
+#: src/components/trail-course-review/copy.tsx:279
+msgid "涉水路段"
+msgstr "涉水路段"
+
+#: src/components/trail-course-review/copy.tsx:292
+#: src/components/trail-course-review/copy.tsx:297
+#: src/components/trail-course-review/copy.tsx:307
+msgid "混合"
+msgstr "混合"
+
+#: src/components/trail-course-review/copy.tsx:86
+msgid "添加日期"
+msgstr "添加日期"
+
+#: src/components/trail-course-review/copy.tsx:319
+msgid "照明"
+msgstr "照明"
+
+#: src/components/trail-course-review/copy.tsx:131
+msgid "环境"
+msgstr "环境"
+
+#: src/components/trail-course-review/copy.tsx:42
+msgid "环境、支持与补给"
+msgstr "环境、支持与补给"
+
+#: src/components/trail-course-review/copy.tsx:585
+msgid "环境与海拔适应"
+msgstr "环境与海拔适应"
+
+#: src/components/trail-course-review/copy.tsx:144
+msgid "环境信息依据"
+msgstr "环境信息依据"
+
+#: src/components/trail-course-review/copy.tsx:237
+msgid "生成时可考虑此模块；它尚未包含在任何提案中。"
+msgstr "生成时可考虑此模块；它尚未包含在任何提案中。"
+
+#: src/components/trail-course-review/copy.tsx:252
+msgid "由 Praxys 推断"
+msgstr "由 Praxys 推断"
+
+#: src/components/trail-course-review/copy.tsx:249
+msgid "由你填写"
+msgstr "由你填写"
+
+#: src/components/trail-course-review/copy.tsx:43
+msgid "目前不确定"
+msgstr "目前不确定"
+
+#: src/components/trail-course-review/copy.tsx:212
+#: src/components/trail-course-review/states.tsx:228
+msgid "确认删除"
+msgstr "确认删除"
+
+#: src/components/trail-course-review/copy.tsx:171
+msgid "确认前请先保存本节"
+msgstr "确认前请先保存本节"
+
+#: src/components/TrailCourseReview.tsx:2079
+msgid "确认前请先打开本节"
+msgstr "确认前请先打开本节"
+
+#: src/components/TrailCourseReview.tsx:1734
+msgid "确认前请打开并核对本节。每组都可设为未知，不会虚构默认值。"
+msgstr "确认前请打开并核对本节。每组都可设为未知，不会虚构默认值。"
+
+#: src/components/trail-course-review/copy.tsx:168
+msgid "确认本节"
+msgstr "确认本节"
+
+#: src/components/trail-course-review/copy.tsx:533
+msgid "确认计划适用范围"
+msgstr "确认计划适用范围"
+
+#: src/components/trail-course-review/copy.tsx:211
+#: src/components/trail-course-review/states.tsx:227
+msgid "确认重置"
+msgstr "确认重置"
+
+#: src/components/trail-course-review/copy.tsx:326
+msgid "碳水饮料"
+msgstr "碳水饮料"
+
+#: src/components/trail-course-review/copy.tsx:87
+msgid "移除日期"
+msgstr "移除日期"
+
+#: src/components/trail-course-review/copy.tsx:488
+msgid "竞速计划将停止；Praxys 不作诊断。"
+msgstr "竞速计划将停止；Praxys 不作诊断。"
+
+#: src/components/trail-course-review/copy.tsx:56
+msgid "累计下降"
+msgstr "累计下降"
+
+#: src/components/trail-course-review/copy.tsx:55
+msgid "累计爬升"
+msgstr "累计爬升"
+
+#: src/components/trail-course-review/copy.tsx:52
+msgid "编辑目标"
+msgstr "编辑目标"
+
+#: src/components/trail-course-review/copy.tsx:538
+msgid "缺少必填的时间、场地或症状回答。"
+msgstr "缺少必填的时间、场地或症状回答。"
+
+#: src/components/trail-course-review/copy.tsx:472
+msgid "缺少所需的上坡、下坡或路面训练条件。"
+msgstr "缺少所需的上坡、下坡或路面训练条件。"
+
+#: src/components/trail-course-review/copy.tsx:509
+msgid "缺少该信息时无法判断准备情况。"
+msgstr "缺少该信息时无法判断准备情况。"
+
+#: src/components/trail-course-review/copy.tsx:166
+msgid "胃肠不适是否曾让你改变计划？"
+msgstr "胃肠不适是否曾让你改变计划？"
+
+#: src/components/trail-course-review/copy.tsx:308
+msgid "自助"
+msgstr "自助"
+
+#: src/components/trail-course-review/copy.tsx:545
+msgid "补充下一项训练信息"
+msgstr "补充下一项训练信息"
+
+#: src/components/trail-course-review/copy.tsx:512
+msgid "补充下一项赛道信息"
+msgstr "补充下一项赛道信息"
+
+#: src/components/trail-course-review/copy.tsx:133
+msgid "补给"
+msgstr "补给"
+
+#: src/components/trail-course-review/copy.tsx:149
+msgid "补给支持方式"
+msgstr "补给支持方式"
+
+#: src/components/trail-course-review/copy.tsx:150
+msgid "补给站数量"
+msgstr "补给站数量"
+
+#: src/components/trail-course-review/copy.tsx:586
+msgid "补给练习"
+msgstr "补给练习"
+
+#: src/components/trail-course-review/copy.tsx:118
+msgid "观察窗口"
+msgstr "观察窗口"
+
+#: src/components/trail-course-review/copy.tsx:58
+msgid "计划用时上限"
+msgstr "计划用时上限"
+
+#: src/components/trail-course-review/copy.tsx:57
+msgid "计划用时下限"
+msgstr "计划用时下限"
+
+#: src/components/trail-course-review/copy.tsx:65
+msgid "计划目标"
+msgstr "计划目标"
+
+#: src/components/TrailCourseReview.tsx:405
+msgid "请先保存并确认当前版本，再重新检查准备情况。"
+msgstr "请先保存并确认当前版本，再重新检查准备情况。"
+
+#: src/components/trail-course-review/copy.tsx:187
+msgid "请检查以下字段"
+msgstr "请检查以下字段"
+
+#: src/components/trail-course-review/copy.tsx:125
+msgid "请求与已观察情况对照"
+msgstr "请求与已观察情况对照"
+
+#: src/components/trail-course-review/copy.tsx:129
+msgid "请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。"
+msgstr "请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。"
+
+#: src/components/trail-course-review/copy.tsx:550
+msgid "请求的训练量或编辑超出近期已观察历史。"
+msgstr "请求的训练量或编辑超出近期已观察历史。"
+
+#: src/components/TrailCourseReview.tsx:660
+#: src/components/TrailCourseReview.tsx:703
+msgid "请求的越野数据操作未完成。"
+msgstr "请求的越野数据操作未完成。"
+
+#: src/components/trail-course-review/states.tsx:77
+msgid "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
+msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
+
+#: src/components/trail-course-review/copy.tsx:223
+msgid "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
+msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
+
+#: src/components/trail-course-review/copy.tsx:49
+msgid "请选择"
+msgstr "请选择"
+
+#: src/components/trail-course-review/states.tsx:80
+msgid "请重试。未加载的数据不会被猜测或替换。"
+msgstr "请重试。未加载的数据不会被猜测或替换。"
+
+#: src/components/trail-course-review/copy.tsx:50
+msgid "赛事"
+msgstr "赛事"
+
+#: src/components/trail-course-review/copy.tsx:38
+msgid "赛事与计划用时"
+msgstr "赛事与计划用时"
+
+#: src/components/trail-course-review/copy.tsx:301
+msgid "赛事方信息"
+msgstr "赛事方信息"
+
+#: src/components/trail-course-review/copy.tsx:306
+msgid "赛事补给"
+msgstr "赛事补给"
+
+#: src/components/trail-course-review/copy.tsx:135
+msgid "赛道最高海拔"
+msgstr "赛道最高海拔"
+
+#: src/components/trail-course-review/copy.tsx:66
+msgid "赛道坡度分布"
+msgstr "赛道坡度分布"
+
+#: src/components/TrailCourseReview.tsx:484
+msgid "赛道核对已保存。请按当前版本逐节确认。"
+msgstr "赛道核对已保存。请按当前版本逐节确认。"
+
+#: src/components/trail-course-review/copy.tsx:72
+msgid "赛道路面"
+msgstr "赛道路面"
+
+#: src/components/trail-course-review/copy.tsx:427
+msgid "赛道需要用手辅助或使用固定绳索。"
+msgstr "赛道需要用手辅助或使用固定绳索。"
+
+#: src/components/trail-course-review/copy.tsx:266
+msgid "超长距离越野"
+msgstr "超长距离越野"
+
+#: src/components/TrailCourseReview.tsx:954
+msgid "越野操作未完成"
+msgstr "越野操作未完成"
+
+#: src/components/trail-course-review/copy.tsx:216
+msgid "越野赛道核对已更改"
+msgstr "越野赛道核对已更改"
+
+#: src/components/trail-course-review/copy.tsx:64
+msgid "距离类别"
+msgstr "距离类别"
+
+#: src/components/trail-course-review/copy.tsx:153
+msgid "输入距离"
+msgstr "输入距离"
+
+#: src/components/trail-course-review/copy.tsx:161
+msgid "过去 42 天的补给练习次数"
+msgstr "过去 42 天的补给练习次数"
+
+#: src/components/trail-course-review/copy.tsx:337
+msgid "近似平缓（−3% 至低于 3%）"
+msgstr "近似平缓（−3% 至低于 3%）"
+
+#: src/components/trail-course-review/copy.tsx:116
+msgid "近期下降训练"
+msgstr "近期下降训练"
+
+#: src/components/trail-course-review/copy.tsx:460
+msgid "近期下降训练经历不足。"
+msgstr "近期下降训练经历不足。"
+
+#: src/components/trail-course-review/copy.tsx:115
+msgid "近期爬升训练"
+msgstr "近期爬升训练"
+
+#: src/components/trail-course-review/copy.tsx:41
+msgid "近期训练经历"
+msgstr "近期训练经历"
+
+#: src/components/trail-course-review/copy.tsx:117
+msgid "近期记录到的路面"
+msgstr "近期记录到的路面"
+
+#: src/components/trail-course-review/copy.tsx:114
+msgid "近期跑步连续性"
+msgstr "近期跑步连续性"
+
+#: src/components/trail-course-review/copy.tsx:436
+msgid "近期跑步连续性未达到已接受的历史门槛。"
+msgstr "近期跑步连续性未达到已接受的历史门槛。"
+
+#: src/components/TrailCourseReview.tsx:786
+msgid "还需补充少量信息，Praxys 才能检查准备情况"
+msgstr "还需补充少量信息，Praxys 才能检查准备情况"
+
+#: src/components/trail-course-review/copy.tsx:429
+msgid "这些技术特征超出 v2 范围。"
+msgstr "这些技术特征超出 v2 范围。"
+
+#: src/components/trail-course-review/copy.tsx:61
+msgid "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
+msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
+
+#: src/components/TrailCourseReview.tsx:252
+msgid "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
+msgstr "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
+
+#: src/components/trail-course-review/copy.tsx:296
+msgid "遮蔽"
+msgstr "遮蔽"
+
+#: src/components/trail-course-review/copy.tsx:312
+msgid "部分站点"
+msgstr "部分站点"
+
+#: src/components/trail-course-review/copy.tsx:365
+#: src/components/trail-course-review/states.tsx:183
+msgid "重新加载受支持版本"
+msgstr "重新加载受支持版本"
+
+#: src/components/trail-course-review/copy.tsx:377
+msgid "重新检查准备情况"
+msgstr "重新检查准备情况"
+
+#: src/components/trail-course-review/copy.tsx:203
+#: src/components/trail-course-review/states.tsx:206
+msgid "重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。"
+msgstr "重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。"
+
+#: src/components/trail-course-review/copy.tsx:193
+#: src/components/trail-course-review/states.tsx:186
+msgid "重置赛道核对"
+msgstr "重置赛道核对"
+
+#: src/components/trail-course-review/copy.tsx:200
+#: src/components/trail-course-review/states.tsx:200
+msgid "重置赛道核对？"
+msgstr "重置赛道核对？"
+
+#: src/components/trail-course-review/copy.tsx:243
+#: src/components/trail-course-review/states.tsx:95
+msgid "重试"
+msgstr "重试"
+
+#: src/components/trail-course-review/copy.tsx:318
+msgid "防风雨外套"
+msgstr "防风雨外套"
+
+#: src/components/trail-course-review/copy.tsx:339
+msgid "陡上坡（10% 及以上）"
+msgstr "陡上坡（10% 及以上）"
+
+#: src/components/trail-course-review/copy.tsx:335
+msgid "陡下坡（低于 −10%）"
+msgstr "陡下坡（低于 −10%）"
+
+#: src/components/trail-course-review/copy.tsx:265
+msgid "非超长距离越野"
+msgstr "非超长距离越野"
+
+#: src/components/trail-course-review/copy.tsx:136
+msgid "预计气温范围"
+msgstr "预计气温范围"
+
+#: src/components/trail-course-review/copy.tsx:139
+msgid "预计湿度范围"
+msgstr "预计湿度范围"
+
+#: src/components/trail-course-review/copy.tsx:143
+msgid "风力暴露"
+msgstr "风力暴露"
+
+#: src/components/trail-course-review/copy.tsx:327
+msgid "食物与饮品混合"
+msgstr "食物与饮品混合"
+
+#: src/components/trail-course-review/copy.tsx:155
+msgid "食物供应"
+msgstr "食物供应"
+
+#: src/components/trail-course-review/copy.tsx:154
+msgid "饮水供应"
+msgstr "饮水供应"
+
+#: src/components/trail-course-review/copy.tsx:293
+msgid "高"
+msgstr "高"

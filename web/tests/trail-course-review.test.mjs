@@ -43,6 +43,7 @@ const TRAIL_IMPLEMENTATION_PATHS = [
   '../src/components/trail-course-review/copy.tsx',
   '../src/components/trail-course-review/model.tsx',
   '../src/components/trail-course-review/mutation-error.ts',
+  '../src/components/trail-course-review/owner-export.ts',
   '../src/components/trail-course-review/private-draft-state.ts',
   '../src/components/trail-course-review/states.tsx',
   '../src/components/trail-course-review/transitions.ts',
@@ -274,7 +275,7 @@ test('the private implementation uses an isolated draft read and exact revision-
   assert.match(implementation, /section_key: sectionKey/);
   assert.match(implementation, /section_revision: confirmation\.current_revision/);
   assert.match(implementation, /TRAIL_API_ENDPOINTS\.readiness/);
-  assert.doesNotMatch(implementation, /ownerExport|\/api\/me\/export|downloadOwnerExport/);
+  assert.match(implementation, /createTrailOwnerExportAction/);
   assert.match(route, /@router\.get\("\/draft"/);
   assert.match(route, /@router\.post\("\/confirm"/);
   assert.match(route, /@router\.post\("\/reset"/);
@@ -452,12 +453,59 @@ test('HTTP 412 renders stale recovery with intentional discard but no generic re
   assert.match(copy, /t`放弃待保存更改`/);
   assert.match(component, /if \(!latestDraft \|\| latestDraft\.state === 'unknown_schema'\) return;/);
   assert.doesNotMatch(component, /preservesPendingTrailEdits\(error\)[\s\S]{0,160}onRefetch/);
-  assert.match(component, /<DropdownMenuItem disabled[^>]*>[\s\S]*?copy\.export[\s\S]*?copy\.exportUnavailable/);
-  assert.match(copy, /t`Export my Trail plan data`/);
-  assert.match(copy, /t`导出我的越野计划数据`/);
-  assert.match(copy, /t`Export isn't available in this private preview yet\.`/);
-  assert.match(copy, /t`当前私密预览暂不支持导出。`/);
-  assert.doesNotMatch(`${component}\n${copy}`, /\/api\/me\/export|ownerExport|downloadOwnerExport/);
+  assert.match(component, /onClick=\{\(\) => \{ void ownerExport\.run\(\); \}\}/);
+  assert.doesNotMatch(`${component}\n${copy}`, /exportUnavailable/);
+});
+
+test('owner export delegates close-time focus restoration to the mounted Base UI menu', async () => {
+  const component = await read('../src/components/TrailCourseReview.tsx');
+  const exportSetup = component.slice(
+    component.indexOf('const [ownerExport]'),
+    component.indexOf('const pending ='),
+  );
+  assert.doesNotMatch(component, /import \{ flushSync \} from 'react-dom'/);
+  assert.match(component, /getAuthHeaders/);
+  assert.match(exportSetup, /createTrailOwnerExportAction\(\{/);
+  assert.match(exportSetup, /getAuthHeaders,/);
+  assert.match(exportSetup, /onStatusChange: setExportStatus/);
+  assert.match(exportSetup, /setExportMenuClosing\(true\);\s*setMoreActionsOpen\(false\)/);
+  assert.doesNotMatch(exportSetup, /moreActionsRef\.current\?\.focus\(\)|requestAnimationFrame|setTimeout/);
+  assert.match(exportSetup, /ownerExport\.cancel\(\)/);
+  assert.doesNotMatch(exportSetup, /onRefetch|onReplaceRemote|setRequest|setDirtySections|JSON\.stringify/);
+  assert.match(component, /<DropdownMenu open=\{moreActionsOpen\} onOpenChange=\{handleMoreActionsOpenChange\}>/);
+  assert.match(component, /ref=\{moreActionsRef\}/);
+  assert.match(component, /finalFocus=\{exportMenuClosing \? moreActionsRef : undefined\}/);
+  assert.match(component, /if \(open\) setExportMenuClosing\(false\)/);
+  assert.match(component, /<DropdownMenuItem\s+disabled=\{exportStatus === 'preparing'\}\s+aria-busy=\{exportStatus === 'preparing'\}\s+closeOnClick=\{false\}/);
+  assert.match(component, /exportStatus === 'preparing' \? copy\.exportBusy : copy\.export/);
+  assert.match(component, /copy\.exportSupport/);
+  assert.match(component, /<div role="status" aria-live="polite" aria-atomic="true">/);
+  assert.match(component, /exportStatus === 'preparing' \|\| exportStatus === 'success'/);
+  assert.match(component, /exportStatus === 'preparing' \? copy\.exportBusy : copy\.exportSuccess/);
+  assert.match(component, /exportStatus === 'error' \? \(\s*<Alert role="alert"[\s\S]*?copy\.exportError/);
+});
+
+test('owner export copy matches frozen v3 through normal locale-only Lingui descriptors', async () => {
+  const [copy, amendment] = await Promise.all([
+    read('../src/components/trail-course-review/copy.tsx'),
+    read('../../docs/dev/trail-running-plan-export-experience-amendment-v3.md'),
+  ]);
+  const pairs = [
+    ['export', 'Export my Trail plan data', '导出我的越野计划数据'],
+    ['exportSupport', 'Download your Praxys account data export. It includes the current saved Trail course review—values and unknowns, provenance, revisions, and confirmations—and any retained Trail proposal snapshots, audits, and receipts. Unsaved changes on this page are not included.', '下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。'],
+    ['exportBusy', 'Preparing export…', '正在准备导出…'],
+    ['exportSuccess', 'Your data export is downloading.', '正在下载数据导出文件。'],
+    ['exportError', "We couldn't export your data. Try again.", '暂时无法导出数据，请重试。'],
+  ];
+  for (const [key, english, chinese] of pairs) {
+    const descriptor = copy.match(new RegExp(`${key}: l\\(\\s*t\`([^\`]+)\`,\\s*t\`([^\`]+)\`,?\\s*\\)`));
+    assert.ok(descriptor, `${key} must use the incumbent locale-only copy hook`);
+    assert.deepEqual(descriptor.slice(1), [english, chinese]);
+    assert.ok(amendment.includes(`**${english}**`));
+    assert.ok(amendment.includes(`**${chinese}**`));
+  }
+  assert.match(copy, /\(english: string, chinese: string\) => isZh \? chinese : english/);
+  assert.doesNotMatch(copy, /i18n\.load|loadAndActivate/);
 });
 
 test('Trail delete responses accept only the exact absent revision receipt', () => {

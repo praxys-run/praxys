@@ -192,9 +192,15 @@ export function useTrailCourseReviewCopy() {
     moreActions: l(t`More actions`, t`更多操作`),
     reset: l(t`Reset course review`, t`重置赛道核对`),
     export: l(t`Export my Trail plan data`, t`导出我的越野计划数据`),
-    exportUnavailable: l(
-      t`Export isn't available in this private preview yet.`,
-      t`当前私密预览暂不支持导出。`,
+    exportSupport: l(
+      t`Download your Praxys account data export. It includes the current saved Trail course review—values and unknowns, provenance, revisions, and confirmations—and any retained Trail proposal snapshots, audits, and receipts. Unsaved changes on this page are not included.`,
+      t`下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。`,
+    ),
+    exportBusy: l(t`Preparing export…`, t`正在准备导出…`),
+    exportSuccess: l(t`Your data export is downloading.`, t`正在下载数据导出文件。`),
+    exportError: l(
+      t`We couldn't export your data. Try again.`,
+      t`暂时无法导出数据，请重试。`,
     ),
     delete: l(t`Delete Trail goal`, t`删除越野目标`),
     resetTitle: l(t`Reset course review?`, t`重置赛道核对？`),
