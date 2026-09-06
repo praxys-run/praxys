@@ -1,0 +1,2300 @@
+{
+  "cases": {
+    "contradictory_preferred_weekday": {
+      "evaluation_date": "2026-09-04",
+      "evaluation_statement_count": 4,
+      "expected_composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
+      "response": {
+        "draft": {
+          "composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
+          "constraints": {
+            "accessible_footing": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:da41f567f2da1e25e344cbae50b34333d15325b63838f0fd46830ed12b7a2f89",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "firm_smooth",
+                "rocks_or_roots"
+              ]
+            },
+            "adult_nonclinical_scope_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:70f0e314d1c495fc3552229434b4c12fac6d7ae63ec2359113da20e2d2231ec9",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "available_weekdays": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:ef11a7168c29681ac8c3f65e62ab2e4758170118c2e0faee9a6d9baa85af8fd2",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                2,
+                4
+              ]
+            },
+            "controlled_downhill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:0f69a34f9c823d3058c7e6e2e6b85dde87bcc4b890a7d1b5f44a918205fb1c9a",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "current_symptom_stop": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:a620e03cf20758a1003ccf2e1724f7661b228369e1f150778d2a7b271cd3bf98",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": false
+            },
+            "maximum_session_duration_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:5610136eb886375632b3a9550168e73eab727bdf4b8d1da8887778476ce18dfc",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 70
+            },
+            "nontechnical_three_minute_uphill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:f80c4b6a0d4bc848ecd26a73ab88c8a55171e05c8d7d2c74d1970aa7e5954e22",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "performance_intent_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:97ed34af8c8d0c597cf018f50104e072634ad05b2229c2735ee126dc607893e4",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "preferred_longest_weekday": 6,
+            "schema_id": "non_ultra_trail_constraints_v2",
+            "unavailable_dates": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:57185ddbc5fee2b358dba9434f1fcecc00c9c5630d965865b8af464b5d734f70",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": []
+            },
+            "weekly_time_limit_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:7484e3800a3972b908aab5e0a7fe286a7099c42284668b788240ef0926262133",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 240
+            }
+          },
+          "course_demand": {
+            "event_id": "942628b8-6d65-5d46-ab85-22404c28d626",
+            "fields": {
+              "course_footing": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:0bd38f27c64ba60fec60c9550162742def031eb0dfba051859d79728c45246eb",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": [
+                  "firm_smooth",
+                  "rocks_or_roots"
+                ]
+              },
+              "distance_family": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:b9564c3d3ca9e8560c20103f2ff7bc78009c6abaa32779c678da07357f5479cc",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "non_ultra"
+              },
+              "distance_meters": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:5a4ac66175a0e0a1b60a28f41c9b573e2cba11c293052e58fc905b41188427d5",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 24700
+              },
+              "event_date": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:a9eebe026c238748ca2264cdbde91da44d0535c8fbb3dbde211a92e31e2955fc",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "2026-11-15"
+              },
+              "event_format": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:b2e98925a766be5b7c0bb088ea9805c6c5ae198902eb35713e69ab893e5c7223",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "single_day"
+              },
+              "fixed_rope": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:5ac61fda34ec49cf77521c0a1c1f5d3cf7e52bc066b65a3dcc86a52e2c03190b",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "grade_distribution": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:89b53574e232f5aa89fd4bf46e4430e8d8d130f11de560fb84fe6fee6be78249",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "below_neg_10": 500,
+                  "neg_10_to_below_neg_3": 1500,
+                  "neg_3_to_below_pos_3": 4000,
+                  "pos_10_and_above": 1000,
+                  "pos_3_to_below_pos_10": 3000
+                }
+              },
+              "hands_assist": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:69a5805c93606faf7cd24852dd28992bbdcd5a42fd9ea2e1433b74cf7a4451b9",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "optional_context": {
+                "environment": {
+                  "conditions_basis": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:1172cde51e2be9a9c1e739b45edcfccf666db48c9cb800d11fe14308feaee8e4",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_max_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:e1ae4d0cce436d8f7680cb44b0f8c71c22d83d94a02ec49ea1d6c98a19fe2429",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_min_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:7332c1b10cabca187d40fa18972d8f50d64bc592e5954b1b5642db710dc0d710",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "maximum_altitude_m": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:8330b2a56ff3f205bf8f9c8b7e150df7601156badc3bcc3e7ce24e14542c1f6a",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "sun_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:33a0270713ce64a9141a1e3614f068052231038f24943c6a3feea4a4745cdd5d",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_max_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:a7527ab6de841be0ad9af5e855e27065521c734ae0b5c1f58e87aa058adca0d3",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_min_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:a6322c523f933ad96dcf8a77800901e085a391593d4c17909197fea98464e156",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "wind_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:616a74a680247bb8d22459cc670f2c2757099249d86d48dce1da0e63beb8b3bb",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "fueling": {
+                  "gastrointestinal_experience": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:fbb6dc1eb75270b22d946748c5bc8500a62939803b7a39070650cd46fcc15ce6",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "intake_form": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f4e19009f81c652ece8f8d5ab7945d8fa2bab07bfc2b58dab71867967ec37481",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "longest_practiced_duration_min": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:6238f9d24f12a18b3f359e9bbb4c86976c9cd87050c8555e3ece5e4b7b322125",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "practice_sessions_last_42_days": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:13693699cdac52631af343d8e6f4ee3db489ea3a710b95f436f041b70ee88b5c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "support": {
+                  "aid_station_count": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:069025f0746a8f073d928229afabdebc7bce632746951bc213406c5f2069d6cd",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "aid_support_mode": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:067b745ef9188e1d12aa1c59150f2a28ee394c2f664abc9ee6782f34f56c7fd9",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "food_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:bd8d383cb319183622885f4f1da1a629fe295da0441a9a19451a76b4fa983085",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "mandatory_gear": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:db8f17ca7cf37d17a80d447fcb8d3f4e98f8c8fddc143619601c358a302d9955",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": []
+                  },
+                  "max_aid_station_gap_m": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:025950eb6ba02b525220ccb0170c44b3a3163214897d93091a28c3ff40242435",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": null
+                  },
+                  "water_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:166f0ddb9bb250a56dad18434a5eeb087174e31b4a44e33c5a0dd1706ba7e31f",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                }
+              },
+              "planning_duration_range": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:2d767cf8d06e875302e67847ee14243abb3daf1739254af2348491a69bec42fa",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "maximum_min": 300,
+                  "minimum_min": 180
+                }
+              },
+              "planning_intent": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:112b51182787f3646570dcba83072b4d23af446b7d3f417c3cb45f8485259db7",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "performance"
+              },
+              "total_ascent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:063b0f6e8c428a2179c9e3908b139a744e0f7ab052994da49b01ae392e9b3611",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 618
+              },
+              "total_descent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:3f584e257b638cda263ba2a7849b46406f494995d770466a405d0adc406a944e",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 620
+              }
+            },
+            "schema_id": "trail_course_demand_v2"
+          },
+          "namespace_version": 1,
+          "revision_bindings": {
+            "composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
+            "course_revision": "sha256:0484ccde4814a3f5e37719fbe7a613b658e26db64bdb592aae68fb8342491da7",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "current_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
+                "current_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
+                "current_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
+                "current_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "state": "current"
+        },
+        "readiness": {
+          "constraint_schema_id": "non_ultra_trail_constraints_v2",
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "contract_runtime_state": "inactive",
+          "course_schema_id": "trail_course_demand_v2",
+          "detail_reason": "policy_inactive",
+          "deterministic_input_hash": "abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
+          "generator_version": "non-ultra-trail-deterministic-generator-v2",
+          "history_statistics": {
+            "comparable_ascent_sessions_within_window": 0,
+            "comparable_descent_sessions_within_window": 0,
+            "evaluator_schema_id": "trail-running-history-statistics-v2",
+            "latest_comparable_ascent_session_date": null,
+            "latest_comparable_descent_session_date": null,
+            "latest_run_date": null,
+            "observation_window_end": "2026-09-03",
+            "observation_window_start": "2026-07-06",
+            "recent_maximum_session_ascent_meters": 0,
+            "recent_maximum_session_descent_meters": 0,
+            "recent_maximum_session_minutes": 0,
+            "recent_maximum_usable_weekly_ascent_meters": 0,
+            "recent_maximum_usable_weekly_descent_meters": 0,
+            "recent_maximum_usable_weekly_minutes": 0,
+            "recent_median_usable_weekly_ascent_meters": 0,
+            "recent_median_usable_weekly_descent_meters": 0,
+            "recent_median_usable_weekly_minutes": 0,
+            "recent_modal_running_frequency": 0,
+            "recently_observed_footing": [],
+            "source_revision_fingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "usable_completed_weeks": 0
+          },
+          "inactive_dry_run": false,
+          "limited_modules": [],
+          "matching_reasons": [
+            {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            },
+            {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "contradictory_input",
+              "status": "clarification_required"
+            }
+          ],
+          "module_availability": [
+            {
+              "module": "grade_specificity",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "technical_terrain",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "environment_altitude",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "fueling",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            }
+          ],
+          "ontology_contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+          "ontology_decision_id": "sdr-trail-running-goal-ontology-v2",
+          "ontology_source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+          "ontology_version": "trail-course-demand-v2",
+          "plan": null,
+          "policy_version": "non-ultra-trail-plan-generation-policy-v2",
+          "readiness_receipt_digest": "sha256:6b65f5b86f553a9d296c446fa77570ecf8130051fb30f6231c85278faea39523",
+          "revision_bindings": {
+            "composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
+            "course_revision": "sha256:0484ccde4814a3f5e37719fbe7a613b658e26db64bdb592aae68fb8342491da7",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "current_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
+                "current_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
+                "current_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
+                "current_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "science_decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+          "status": "policy_unavailable"
+        }
+      }
+    },
+    "empty_history_fallback": {
+      "evaluation_date": "2026-09-04",
+      "evaluation_statement_count": 4,
+      "expected_composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
+      "response": {
+        "draft": {
+          "composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
+          "constraints": {
+            "accessible_footing": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:0b3042d75808065a12d68c06feea5ef519ee7f41994ce343f801cd08eb3dc6f2",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "firm_smooth",
+                "rocks_or_roots"
+              ]
+            },
+            "adult_nonclinical_scope_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:aba6a570d36c3caf44bfb6e390c03c79c9e068d5d10fcf038ad13ca7f3fc6858",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "available_weekdays": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:1cb5c04a937b3e5a8fcc68825d7a03d2346098c90db02142112f2efc805ecabd",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                2,
+                4,
+                6
+              ]
+            },
+            "controlled_downhill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:8f12bb915a7da1c044c7cede306cd6abf52b23226a0df643a01949be1dac3961",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "current_symptom_stop": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:eb8aff3199ab2817fb6086f46e704efc4ef854e3084128257850022d3af934cf",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": false
+            },
+            "maximum_session_duration_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:78fbd5bafc43617b7e8e25c2e9c17945b2eea0ad227e3869b08a1c2648bf24ad",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 70
+            },
+            "nontechnical_three_minute_uphill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:9844a3a8175ffdedbb8b98abc0b5ea343bba63b0e29873d5491b280bfcd6adc9",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "performance_intent_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:1e035463a2dce298d4f6dfd43e9617becdcb8d264523efddf7dd1256dbf7ddb8",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "preferred_longest_weekday": 6,
+            "schema_id": "non_ultra_trail_constraints_v2",
+            "unavailable_dates": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:ef34ee3d5ccb5f4d1f020c30692d4a4c67ce25b180d2d81b0a752c73047d5b0a",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": []
+            },
+            "weekly_time_limit_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:adba6f620df79b00404d965e3eace5619aa08529ef4c79c7f8b1da6777e7dfbe",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 240
+            }
+          },
+          "course_demand": {
+            "event_id": "942628b8-6d65-5d46-ab85-22404c28d626",
+            "fields": {
+              "course_footing": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:cb5d69d6daf37d7d00d1f8c5a868aead8fa1df22bbab116b322257c0bd14a63e",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": [
+                  "firm_smooth",
+                  "rocks_or_roots"
+                ]
+              },
+              "distance_family": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:5658b41c12de13725bf4ad424efb134c17ababff4db21c2a962ba2d845ef7dcb",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "non_ultra"
+              },
+              "distance_meters": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:fff23cdf2dce88de8b42820dd574f22c16baa6b93ae3e340703b6208cea46744",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 24700
+              },
+              "event_date": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:1a491e8f4cf0327656e231957e7a851f58254b888a84482108f60a1e70127f76",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "2026-11-15"
+              },
+              "event_format": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:115c781d3500d143a0f6f174092a279e44a402caf25b176b49541b743ba59fac",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "single_day"
+              },
+              "fixed_rope": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:608f7e194395542d4e52754a3ad08b509a0514daf7debabcabc47a9a9f976825",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "grade_distribution": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:52ba7a9e96d9e5a6cb6eac627462e58b0ac49ffe2555e7edf87533fc4e2b82e5",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "below_neg_10": 500,
+                  "neg_10_to_below_neg_3": 1500,
+                  "neg_3_to_below_pos_3": 4000,
+                  "pos_10_and_above": 1000,
+                  "pos_3_to_below_pos_10": 3000
+                }
+              },
+              "hands_assist": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:bdd7387e979fca6d60ab534a5a0688248451f26cba390de933a849249207d6da",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "optional_context": {
+                "environment": {
+                  "conditions_basis": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:03b9cff61da7e64ee7c5699a9e3e4a3b62a18675246c043ef11a4a40e41ae65f",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_max_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:4f96462c897ad68f55d61125a45b764639ad29c6235edb29f8e54cc59d8655b9",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_min_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:36c04fc8d3b9b3a466c276c294c988c498d15f418c0b97f1b1e47364089359e0",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "maximum_altitude_m": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:75099b5018ac3881e71e386c781fe07d8ffd4b49967f3c8d92fbf9e0ec877624",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "sun_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:5de3db2d9327fdc9a5e1cae12da8ee9ec9c62cf45b65f699c2c04b9dc180ca53",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_max_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:dbfd426bbd09f64925656c1ed644899032cc7374bc9551c3cf833e358fb5be4d",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_min_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f52b4d2312b3af71db86b16fa60855c5b29a758d16d1717fc2a68b7c6b42d116",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "wind_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:8ddfbec622a0454fea60ea288e5037110f0fa8113db19ce986d63c63b3547e9b",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "fueling": {
+                  "gastrointestinal_experience": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:85b723c5ef3d6d69b73886a784d190f6d153993f0e94bdcaf330e132ccc4967d",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "intake_form": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:7615a87d9110639c72dd587de9b89078d24af623cf09d3f74193be0e60bc5484",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "longest_practiced_duration_min": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:26867a0d89b5ce76eba0d8298d56cac268eccca9de51bfc14d052c1a63ed9fee",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "practice_sessions_last_42_days": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:a3f975e1915dd8b5b55b30e0125c88115bf8d7bdd86dc648ed42224decb36aea",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "support": {
+                  "aid_station_count": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:94557405322920aedc4b50310dbdefd32b00f85e0faf3f3956bcbacb31bc106c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "aid_support_mode": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:3224f73a9603ebb745a53b95b2cec70f7958a0b51cb570880c3a268d98d5fee0",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "food_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:77d610bc1ceb482e63333537cfbce3682782c9ce52244df53a7143989453796a",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "mandatory_gear": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:2232e21f51496656b9efeae062ac154f1c270882693783786c9937fc33d79dcc",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": []
+                  },
+                  "max_aid_station_gap_m": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:a62881d372abefb110d35c14a324e37e0d14312a4d14d43878413ed574f8b3e7",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": null
+                  },
+                  "water_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:652b3c815e8895f5fd475df64cb15c1a54087f9b90835c5163e5e6b43dc651da",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                }
+              },
+              "planning_duration_range": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:399d190d53cb822a3f6cede942f455c4ec49c5cd16ef19a86e87da9bc5f2efa6",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "maximum_min": 300,
+                  "minimum_min": 180
+                }
+              },
+              "planning_intent": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:34ac153b8c956577c221fa41e07b85070365083b0a86120b56bc0737cfdb956e",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "performance"
+              },
+              "total_ascent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:298b297937941127365f401fbf52c6f1e491d4df6ca7b49436f43f85b5e2bcf8",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 618
+              },
+              "total_descent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:e579f9fa2ad980a7cc3a99e9dc0b1f75169b46425c4093379aab24c08a67f52c",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 620
+              }
+            },
+            "schema_id": "trail_course_demand_v2"
+          },
+          "namespace_version": 1,
+          "revision_bindings": {
+            "composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
+            "course_revision": "sha256:b014bd56219615c5e259ced9a3edd0ab135189ba546c652fc3bab409694afc6e",
+            "history_revision": "sha256:fa6240c9fdad0c44a7a1aaf3f50c4b557a1eca4f73f1a91d2cf89333ffa4585a",
+            "planning_context_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "current_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
+                "current_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
+                "current_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
+                "current_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "state": "current"
+        },
+        "readiness": {
+          "constraint_schema_id": "non_ultra_trail_constraints_v2",
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "contract_runtime_state": "inactive",
+          "course_schema_id": "trail_course_demand_v2",
+          "detail_reason": "policy_inactive",
+          "deterministic_input_hash": "51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
+          "generator_version": "non-ultra-trail-deterministic-generator-v2",
+          "history_statistics": {
+            "comparable_ascent_sessions_within_window": 0,
+            "comparable_descent_sessions_within_window": 0,
+            "evaluator_schema_id": "trail-running-history-statistics-v2",
+            "latest_comparable_ascent_session_date": null,
+            "latest_comparable_descent_session_date": null,
+            "latest_run_date": null,
+            "observation_window_end": null,
+            "observation_window_start": null,
+            "recent_maximum_session_ascent_meters": 0,
+            "recent_maximum_session_descent_meters": 0,
+            "recent_maximum_session_minutes": 0,
+            "recent_maximum_usable_weekly_ascent_meters": 0,
+            "recent_maximum_usable_weekly_descent_meters": 0,
+            "recent_maximum_usable_weekly_minutes": 0,
+            "recent_median_usable_weekly_ascent_meters": 0,
+            "recent_median_usable_weekly_descent_meters": 0,
+            "recent_median_usable_weekly_minutes": 0,
+            "recent_modal_running_frequency": 0,
+            "recently_observed_footing": [],
+            "source_revision_fingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "usable_completed_weeks": 0
+          },
+          "inactive_dry_run": false,
+          "limited_modules": [],
+          "matching_reasons": [
+            {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            },
+            {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          ],
+          "module_availability": [
+            {
+              "module": "grade_specificity",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "technical_terrain",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "environment_altitude",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "fueling",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            }
+          ],
+          "ontology_contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+          "ontology_decision_id": "sdr-trail-running-goal-ontology-v2",
+          "ontology_source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+          "ontology_version": "trail-course-demand-v2",
+          "plan": null,
+          "policy_version": "non-ultra-trail-plan-generation-policy-v2",
+          "readiness_receipt_digest": "sha256:96a37556d6ccfddeee4fb112991b059f68ac27fa71015a90c475e665dde2766c",
+          "revision_bindings": {
+            "composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
+            "course_revision": "sha256:b014bd56219615c5e259ced9a3edd0ab135189ba546c652fc3bab409694afc6e",
+            "history_revision": "sha256:fa6240c9fdad0c44a7a1aaf3f50c4b557a1eca4f73f1a91d2cf89333ffa4585a",
+            "planning_context_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "current_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
+                "current_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
+                "current_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
+                "current_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "science_decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+          "status": "policy_unavailable"
+        }
+      }
+    },
+    "expired_unavailable_date": {
+      "evaluation_date": "2026-09-05",
+      "evaluation_statement_count": 4,
+      "expected_composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
+      "response": {
+        "draft": {
+          "composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
+          "constraints": {
+            "accessible_footing": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:66f9c2d4e4582ed39b0e1e6aec754f88c1ccffe6479ae379a0ca0e6b37ef8206",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "firm_smooth",
+                "rocks_or_roots"
+              ]
+            },
+            "adult_nonclinical_scope_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:beb9ac4ef654899466820d4947331d285af2849c428fef685e380878bc833986",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "available_weekdays": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:d5b8a55f8567fe551cfb7c8d6aa1ff2e5e7f249ade907e70c2ba4fd187f592a1",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                2,
+                4,
+                6
+              ]
+            },
+            "controlled_downhill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:977fe3332fc75ac2459d87234772f87581772394fe6559359bd114a2f639bd09",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "current_symptom_stop": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:e5d7442b9562cb4503abe20b497daf9081fb03f8b5981752b8d35349461d6f12",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": false
+            },
+            "maximum_session_duration_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:52359fcd15ba267e5bef4932125a62a8cbdf0a1b7d549c51fa68ef9f1b33d252",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 70
+            },
+            "nontechnical_three_minute_uphill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:56c3a025fe782d548cf968e761a30b2086fa74ad0af9a432d53f61126fc75808",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "performance_intent_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:93192567ae3735cb053dfeda8e4f9a9f4687242f7c04f5308216cc7d6dc8186c",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "preferred_longest_weekday": 6,
+            "schema_id": "non_ultra_trail_constraints_v2",
+            "unavailable_dates": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:238b2e2afea58f76d9d54387792a34a2170a352579dad218e8e730ee2ca17a13",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "2026-09-04"
+              ]
+            },
+            "weekly_time_limit_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:5ba81e03e534ae7c9f5fff7ac2e943503de31836e7afa11235a032eed2681800",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 240
+            }
+          },
+          "course_demand": {
+            "event_id": "942628b8-6d65-5d46-ab85-22404c28d626",
+            "fields": {
+              "course_footing": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:8444baccafd52be742c4413106ce9f5a515cb2312dc0e71c1043de7e279a4cd4",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": [
+                  "firm_smooth",
+                  "rocks_or_roots"
+                ]
+              },
+              "distance_family": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:9b34ccba0b270283882e08ccc94c17e9f1855bad77cb519dc90e9f17fde7c210",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "non_ultra"
+              },
+              "distance_meters": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:f982190443743ee2d11e4dca9b6497da30d919aa918e24300803e65f8273c187",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 24700
+              },
+              "event_date": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:8c0197cee032c671737c22d39c7ff0909695f6622feb79c87b40cdd5afce54e4",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "2026-11-15"
+              },
+              "event_format": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:6eabcd8616f86c422e858cc37abd21682b02fbcdbf98daaeeeb39131c5c5b97e",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "single_day"
+              },
+              "fixed_rope": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:49ae32d5f0f0b4afda99f2246750214a0736a9e4ceb5c3371f78a3f57b5d35bd",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "grade_distribution": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:ecebbfab6d7bb44f822764d8b453f1cd2f1252734450e0e90087da80d07dcd9a",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "below_neg_10": 500,
+                  "neg_10_to_below_neg_3": 1500,
+                  "neg_3_to_below_pos_3": 4000,
+                  "pos_10_and_above": 1000,
+                  "pos_3_to_below_pos_10": 3000
+                }
+              },
+              "hands_assist": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:6cf15d86b7f7c5123088adea3eb68400be54f647b0bf8767f27f3aa0f5ee5a8a",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "optional_context": {
+                "environment": {
+                  "conditions_basis": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f09f3fae04cb014c21996752ab9fb311a51784ad67158c7464bd55b53b5451bb",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_max_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:97f24694bd5f91d0d27c748e05849ed507498bda8081b73dfe00cb3e1bbbe50e",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_min_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:b0a3ce06c8dd2f0244d62118193e1fcdf3ee0bd181c3788c4f5ceafd7613631f",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "maximum_altitude_m": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:33fc60294393636cf42a7c5ca4c08ea29624fd38c516d2d4f04c5fc567627131",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "sun_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:12994fafca8d8cd20782a6d7fdda3f8df96947f0875961eacbccee1c66f86bee",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_max_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:7fb87dc17aa4d0a8c4a527d9007503ed3fb92d3e89b87cfd8e0fec324c205234",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_min_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d7eecea7c62678b14f902b55a07fd8bcc2425ce3a80515da91fadd2fe4615c38",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "wind_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f9caf0de164d728be51e7c8bdd8eb7b0231e77067009e7c0f869cd5b25754da2",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "fueling": {
+                  "gastrointestinal_experience": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:044539f22406c351d0ba50375a67c2d34bc40a36e930af5c47bf0673477ee64e",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "intake_form": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:9dec4c176d1d2d7fbd235ba2c60dedb7db94c9f333ed545edc2be942c8c2434c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "longest_practiced_duration_min": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:32ac98cc0577585b25b8f7f7fa92147844ef8e9d8d5c059f0efeaaf9ac2d7b61",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "practice_sessions_last_42_days": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:4431df1719b01228790173a26bb266d0bc835c0215ef2cf7c2204faf3120321a",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "support": {
+                  "aid_station_count": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:62e93d76abf27a19a74dbb943cf183efa9a595d078c239866c9b420cab95dd0c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "aid_support_mode": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:20cc95bef07d99aa605bc0769880a52b3ade4655f1baf4994b5a827f9fe9f1f3",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "food_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:e25d6b90c33f046bf436a1ccd568dfa53070e20930a46ed9a39a07418413d311",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "mandatory_gear": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:9c82b50b51003de0c2046ad65c440185a84cb065675c9e688c49c6b805f0ce66",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": []
+                  },
+                  "max_aid_station_gap_m": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:137c3bf1e3604aa2a911c2beda34771d3d7384626dbd772b247eb6b085adb28e",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": null
+                  },
+                  "water_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:5711b1666a442c63aefacd47bed795553e198f39c4c085d393b00d3196856b3f",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                }
+              },
+              "planning_duration_range": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:756b524364b045215c6d29d2257f75e02edbe38fc6920ced2c5400d2f5afc38f",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "maximum_min": 300,
+                  "minimum_min": 180
+                }
+              },
+              "planning_intent": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:21cc84c950a41674fdc31c7368346ad123bb76a03f6a95dbd3221bd514e494c5",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "performance"
+              },
+              "total_ascent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:c528285fa442e267d9ba92ce30d21bc39188e223d18e14f220af98e20766d02f",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 618
+              },
+              "total_descent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:6c70ddf2ff9f366d2ba501f601659dcb36432f4fea3cb76a9d19365cff01b571",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 620
+              }
+            },
+            "schema_id": "trail_course_demand_v2"
+          },
+          "namespace_version": 1,
+          "revision_bindings": {
+            "composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
+            "course_revision": "sha256:c345f6e6232c4d129c3418b4e6a16b1713b01890191023cb3ffb644cc13452e6",
+            "history_revision": "sha256:e2b8e634a3d7302322f1a36510b2741e8dea2a3ef79df30f758f9ebd99946ad0",
+            "planning_context_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "current_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
+                "current_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
+                "current_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
+                "current_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "state": "current"
+        },
+        "readiness": {
+          "constraint_schema_id": "non_ultra_trail_constraints_v2",
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "contract_runtime_state": "inactive",
+          "course_schema_id": "trail_course_demand_v2",
+          "detail_reason": "invalid_field_value",
+          "deterministic_input_hash": "476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
+          "generator_version": "non-ultra-trail-deterministic-generator-v2",
+          "history_statistics": {
+            "comparable_ascent_sessions_within_window": 0,
+            "comparable_descent_sessions_within_window": 0,
+            "evaluator_schema_id": "trail-running-history-statistics-v2",
+            "latest_comparable_ascent_session_date": null,
+            "latest_comparable_descent_session_date": null,
+            "latest_run_date": null,
+            "observation_window_end": "2026-09-04",
+            "observation_window_start": "2026-07-06",
+            "recent_maximum_session_ascent_meters": 0,
+            "recent_maximum_session_descent_meters": 0,
+            "recent_maximum_session_minutes": 0,
+            "recent_maximum_usable_weekly_ascent_meters": 0,
+            "recent_maximum_usable_weekly_descent_meters": 0,
+            "recent_maximum_usable_weekly_minutes": 0,
+            "recent_median_usable_weekly_ascent_meters": 0,
+            "recent_median_usable_weekly_descent_meters": 0,
+            "recent_median_usable_weekly_minutes": 0,
+            "recent_modal_running_frequency": 0,
+            "recently_observed_footing": [],
+            "source_revision_fingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "usable_completed_weeks": 0
+          },
+          "inactive_dry_run": false,
+          "limited_modules": [],
+          "matching_reasons": [
+            {
+              "detail_reason": "invalid_field_value",
+              "status": "validation_failed"
+            },
+            {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            },
+            {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            }
+          ],
+          "module_availability": [
+            {
+              "module": "grade_specificity",
+              "reason_target": "validation_failed.invalid_field_value",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "technical_terrain",
+              "reason_target": "validation_failed.invalid_field_value",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "environment_altitude",
+              "reason_target": "validation_failed.invalid_field_value",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "fueling",
+              "reason_target": "validation_failed.invalid_field_value",
+              "state": "not_evaluated"
+            }
+          ],
+          "ontology_contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+          "ontology_decision_id": "sdr-trail-running-goal-ontology-v2",
+          "ontology_source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+          "ontology_version": "trail-course-demand-v2",
+          "plan": null,
+          "policy_version": "non-ultra-trail-plan-generation-policy-v2",
+          "readiness_receipt_digest": "sha256:f6bdecc9c6248e129f0c46a52600861e7304a3ff54eb959e0c3c802ca1f4608f",
+          "revision_bindings": {
+            "composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
+            "course_revision": "sha256:c345f6e6232c4d129c3418b4e6a16b1713b01890191023cb3ffb644cc13452e6",
+            "history_revision": "sha256:e2b8e634a3d7302322f1a36510b2741e8dea2a3ef79df30f758f9ebd99946ad0",
+            "planning_context_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "current_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
+                "current_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
+                "current_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
+                "current_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "science_decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+          "status": "validation_failed"
+        }
+      }
+    },
+    "old_loaded_activity": {
+      "evaluation_date": "2026-09-04",
+      "evaluation_statement_count": 4,
+      "expected_composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
+      "response": {
+        "draft": {
+          "composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
+          "constraints": {
+            "accessible_footing": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:f99636172198b5e6388af24b0e52d9e882714dcffbcb957db4021cd156c55216",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "firm_smooth",
+                "rocks_or_roots"
+              ]
+            },
+            "adult_nonclinical_scope_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:552046b1711d53c75d25447d0de65bf517b4b6ae5931015b4b95e534baaa0388",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "available_weekdays": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:dcaa33e1de76d5da1c26f7bf5dcdb8ecdde8e8cbf91f2d32e620f9f5af7d2582",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                2,
+                4,
+                6
+              ]
+            },
+            "controlled_downhill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:36e4c1ad1a94229fa7163b346d7696f4f78acf72649d68d992036c2849708df2",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "current_symptom_stop": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:e08c92535caeaae2df18aab4be0e00dcb23a2c5b32d351fb4d20f46f33726ddd",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": false
+            },
+            "maximum_session_duration_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:53b01892c11d44ff244eb5ae2356cbff1c098eee284a5c6df2cba4f641c3ed32",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 70
+            },
+            "nontechnical_three_minute_uphill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:bb062db61fb1b1beb1e4b2d1e483136d119a2cf9d7ee4220ba1a154711dbda69",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "performance_intent_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:5d8f563c6918544bbda66fc1051b8640eed6b01eb772d473b9c482bccbcec7dc",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "preferred_longest_weekday": 6,
+            "schema_id": "non_ultra_trail_constraints_v2",
+            "unavailable_dates": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:4c761139191f6b62bb8822918149dd7141425e6e01aa4a6d9b0e053ae0dc4434",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": []
+            },
+            "weekly_time_limit_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:0e8d7a176a6efd6bda05a323ded3c746e35cb1b863f6449f9b0f4f5b4be1ccda",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 240
+            }
+          },
+          "course_demand": {
+            "event_id": "942628b8-6d65-5d46-ab85-22404c28d626",
+            "fields": {
+              "course_footing": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:17f9385d9fb0a8b135e21de4e2b13910e4f5beef7c4b6d821a3e64ed1285fa6c",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": [
+                  "firm_smooth",
+                  "rocks_or_roots"
+                ]
+              },
+              "distance_family": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:963e7d4c49b9702e7aa39e8d5dec999a9c7b045059fbaa34ad9feab3a001d50c",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "non_ultra"
+              },
+              "distance_meters": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:759207c7c68ec631be8015dbc39bfe4518ab4252fd2c84482332b397db77f32f",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 24700
+              },
+              "event_date": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:d2b9e1c3454982313ba90b4c37618b4ea490c3fe9ec17842f404f87f19d66afb",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "2026-11-15"
+              },
+              "event_format": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:4888a8646bb894c28dbe8ffd275726003c337ae487a442853b0734c7c65beeef",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "single_day"
+              },
+              "fixed_rope": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:f86696aaa9d79c3747cc67a222b8cac1da08cc91586ac70ec83d18fdd7fcd3d5",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "grade_distribution": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:cb12ad14f281214235ed3b46d0fe51f82f8812a04c488e0d4a19304ba59034b0",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "below_neg_10": 500,
+                  "neg_10_to_below_neg_3": 1500,
+                  "neg_3_to_below_pos_3": 4000,
+                  "pos_10_and_above": 1000,
+                  "pos_3_to_below_pos_10": 3000
+                }
+              },
+              "hands_assist": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:e3066b8df739316e4785100d02adac6bbf0f5d8ebbcee0bb699f5fc2febc57b3",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "optional_context": {
+                "environment": {
+                  "conditions_basis": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:c5830fac3dff99cb94213955e9d06ae9519bd4bf843e270c1c135e999a82512c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_max_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:5968b1eee08e7b2393bdba9f6d4df97bd263aaee4a84c97e2320ba18d23e9cae",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_min_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f6eda5b301a4552ec3628f1ec74447b85d553b6c3dc8f90050a0cab92ae9db9d",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "maximum_altitude_m": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:c690763b9cfc25672b15f21e1dbcf9d41ed0d19d32b96af1ebb5db14930e49ba",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "sun_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d52229dc6c53d94b165b375336523a00533d454a4218fd5c8c13f483011939db",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_max_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f9f809293ba057d9ad584ee6af9d717c1aefb628bb5392452e73f10324ce461d",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_min_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:76d97c966a93b9944f2f39d369326517014f24d05074c4e25a8d653fb21cfdf3",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "wind_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:25aafa003a3d4815cc4f56b48a37c1972a68b450a93bedf3b84f6400c6cc3539",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "fueling": {
+                  "gastrointestinal_experience": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:4419d65f9eb4827181122fdf01c41a624f1b0131844808a36d9fbcc49370b086",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "intake_form": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d804045edd6ccaf96b858287d3e84f18dff9b57d80b9038ed3471cf08a8a22a1",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "longest_practiced_duration_min": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:b6d28323e42ba170cba915708cba671f0f4381821d04d9d32be815c66f78de46",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "practice_sessions_last_42_days": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d5b19ed1c6dca205e00cbaca838929d327fb480fa7231004047073a11da77b82",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "support": {
+                  "aid_station_count": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:284ce7253983680103f74aa95c1a8149e63d646c6f38af9bdbb67d8eefe558c1",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "aid_support_mode": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:f2ad739a9306412c36521726b7da4bb6064d2eb3067085ab88827b636ef28cd1",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "food_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:b6c94f3ec05c45156216f508ae9f12a53716282becd40f9781e2c08f9775ee97",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "mandatory_gear": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:6ff276126dd3d250245d1c0c0a01a46be0ddbf3f102c83d88d886dada70e42ad",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": []
+                  },
+                  "max_aid_station_gap_m": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:eeb73e787d56ed6c60d8d7c25f965c7a3b11eae26c2a3aa7dd3ca1742cd6a189",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": null
+                  },
+                  "water_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:fea11fc579fdfb203e89078d49c5c4326bbbe2f056937d7f5061916d57e1d330",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                }
+              },
+              "planning_duration_range": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:fbc88e0820e6d2a340dfbcbf3f7e367bc10e220a996f86e27a9f1fae468cd7de",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "maximum_min": 300,
+                  "minimum_min": 180
+                }
+              },
+              "planning_intent": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:aea9a22650be819884b2ed3f4c370c23a467ccd97f9b0ad170046a22eb1a35e9",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "performance"
+              },
+              "total_ascent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:f1c004cd6834a4ba45cd4499e988fcbf963e3e3b02c41aba19a9eabe15812e8c",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 618
+              },
+              "total_descent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:12618bb70d20262a2aff35775ab43b8082a9645795d2b92af253943f517b8f72",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 620
+              }
+            },
+            "schema_id": "trail_course_demand_v2"
+          },
+          "namespace_version": 1,
+          "revision_bindings": {
+            "composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
+            "course_revision": "sha256:afeedf9af8fdc859e0260444c50532c2324e3eb8cc939b7f1492a2f0b0055bb3",
+            "history_revision": "sha256:38f9f4bed1a44a30c8e52458191f633a0dee709a95dd0fdd1ef6b4df3cd54b77",
+            "planning_context_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "current_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
+                "current_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
+                "current_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
+                "current_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "state": "current"
+        },
+        "readiness": {
+          "constraint_schema_id": "non_ultra_trail_constraints_v2",
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "contract_runtime_state": "inactive",
+          "course_schema_id": "trail_course_demand_v2",
+          "detail_reason": "policy_inactive",
+          "deterministic_input_hash": "b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
+          "generator_version": "non-ultra-trail-deterministic-generator-v2",
+          "history_statistics": {
+            "comparable_ascent_sessions_within_window": 0,
+            "comparable_descent_sessions_within_window": 0,
+            "evaluator_schema_id": "trail-running-history-statistics-v2",
+            "latest_comparable_ascent_session_date": null,
+            "latest_comparable_descent_session_date": null,
+            "latest_run_date": "2026-07-01",
+            "observation_window_end": "2026-09-03",
+            "observation_window_start": "2026-07-06",
+            "recent_maximum_session_ascent_meters": 0,
+            "recent_maximum_session_descent_meters": 0,
+            "recent_maximum_session_minutes": 0,
+            "recent_maximum_usable_weekly_ascent_meters": 0,
+            "recent_maximum_usable_weekly_descent_meters": 0,
+            "recent_maximum_usable_weekly_minutes": 0,
+            "recent_median_usable_weekly_ascent_meters": 0,
+            "recent_median_usable_weekly_descent_meters": 0,
+            "recent_median_usable_weekly_minutes": 0,
+            "recent_modal_running_frequency": 0,
+            "recently_observed_footing": [],
+            "source_revision_fingerprint": "sha256:9676e57cbc477d375a77a0ea41bcc54aa14e9830dcf82a56fd4d84a225c67f60",
+            "usable_completed_weeks": 0
+          },
+          "inactive_dry_run": false,
+          "limited_modules": [],
+          "matching_reasons": [
+            {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            },
+            {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          ],
+          "module_availability": [
+            {
+              "module": "grade_specificity",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "technical_terrain",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "environment_altitude",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "fueling",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            }
+          ],
+          "ontology_contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+          "ontology_decision_id": "sdr-trail-running-goal-ontology-v2",
+          "ontology_source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+          "ontology_version": "trail-course-demand-v2",
+          "plan": null,
+          "policy_version": "non-ultra-trail-plan-generation-policy-v2",
+          "readiness_receipt_digest": "sha256:ce6dc4638e84eab3a1c0e0a595e08ebc3b9b3df84ee7306e603aba6616818ac5",
+          "revision_bindings": {
+            "composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
+            "course_revision": "sha256:afeedf9af8fdc859e0260444c50532c2324e3eb8cc939b7f1492a2f0b0055bb3",
+            "history_revision": "sha256:38f9f4bed1a44a30c8e52458191f633a0dee709a95dd0fdd1ef6b4df3cd54b77",
+            "planning_context_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "current_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
+                "current_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
+                "current_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
+                "current_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "science_decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+          "status": "policy_unavailable"
+        }
+      }
+    },
+    "ordinary_confirmed": {
+      "evaluation_date": "2026-09-04",
+      "evaluation_statement_count": 4,
+      "expected_composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
+      "response": {
+        "draft": {
+          "composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
+          "constraints": {
+            "accessible_footing": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:2caf7f29cb522e161528c6ac98ee5812dce3ea2816a7b8c7ef3c90e704d85417",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                "firm_smooth",
+                "rocks_or_roots"
+              ]
+            },
+            "adult_nonclinical_scope_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:5f0639a9a3ea481eb564cf6096ccbb73e04b047169f895dd75501bba584ba5a4",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "available_weekdays": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:6919230c2408ddecab6d708ca004cf6e470f798d5b6741c390030f88e78cd551",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": [
+                2,
+                4,
+                6
+              ]
+            },
+            "controlled_downhill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:b3e6539914d6c512f70526e8a5308661b4e48d604518dba5c72eda10ddb2a8c6",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "current_symptom_stop": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:8f7cef255e0df49262f6f254e2fea3f72a1b31716e3d165007e0d92b67a59a2d",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": false
+            },
+            "maximum_session_duration_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:3a361ce54772b2d3c415304cd355c2d06a27219f980439b87249be602e5d33f6",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 70
+            },
+            "nontechnical_three_minute_uphill_access": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:57ebaf130d315448c14b6449a142051e8065b994e148fe60ff4680de3ada43e5",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "performance_intent_confirmed": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:7d0c8bef419051d6470b9564a340021d4bcfb836f17afe535d3e678073812012",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": true
+            },
+            "preferred_longest_weekday": 6,
+            "schema_id": "non_ultra_trail_constraints_v2",
+            "unavailable_dates": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:17b4cf3d3e250d02157cd88fed268bb5ada4adc35fa0d619906b6c2ffe05071a",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": []
+            },
+            "weekly_time_limit_min": {
+              "provenance": "athlete_stated",
+              "source_revision": "sha256:18e3b750006741555e8f8c1c799396ece4086a7387387a6835902c8d0a1f8486",
+              "source_timestamp": "2026-09-04T08:00:00+00:00",
+              "state": "known",
+              "value": 240
+            }
+          },
+          "course_demand": {
+            "event_id": "942628b8-6d65-5d46-ab85-22404c28d626",
+            "fields": {
+              "course_footing": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:8e6258faf15dc5bf3ea4b6a224d8440287bef614adacc855e88e98220b91aa1b",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": [
+                  "firm_smooth",
+                  "rocks_or_roots"
+                ]
+              },
+              "distance_family": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:7c8313cd0a77fad17e99e8024ab90b97551cf83819127be011b0d7391fff2eae",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "non_ultra"
+              },
+              "distance_meters": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:59668f72f55ac01efd7d5f6e424096fb3a0ad2a9e0a95f0de017dcdb2eea56ec",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 24700
+              },
+              "event_date": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:f9d64a4983ab63f57ae91f8b6e4628f9402ef2b48692df08bae8181b5b8823d2",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "2026-11-15"
+              },
+              "event_format": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:c70049420fcd65d33256ac0f07cb4b447ce75a1922039f0501c6aa3ea190f458",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "single_day"
+              },
+              "fixed_rope": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:134dc0109ef7991de8d1cc7fbdc3d9682a6d8f5e32b289add257a5b350d120e6",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "grade_distribution": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:3f3bebd2f54e1b084cdc5fa5230786df8f47f155c7361256682579e718e5a706",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "below_neg_10": 500,
+                  "neg_10_to_below_neg_3": 1500,
+                  "neg_3_to_below_pos_3": 4000,
+                  "pos_10_and_above": 1000,
+                  "pos_3_to_below_pos_10": 3000
+                }
+              },
+              "hands_assist": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:adffd82f543f9e682d026460035b6ebae3bc05366d63152fa3ad57c4d9b56312",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": false
+              },
+              "optional_context": {
+                "environment": {
+                  "conditions_basis": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:8c870ce994c7c95b5922d950dc86ff3585ef721611f4b032d7a89114ca822742",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_max_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d42be1f4874c1a444d44b517f31cc58a51c0517c2ad71d74890dd8bc13958b59",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "humidity_min_pct": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:370175cf207e5b8b8fd6c5b6cbc850cdded2a989bdd8a2adb10b9f5c2a61e600",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "maximum_altitude_m": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:b322d19d8a30c7df38690ccd7f552dc9570a8ee407000b9f9465f34595b28479",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "sun_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:983068a1b2f5488381df8c98e032a5ff9cb1e04b060c0f1f78e8fe003cf8b5af",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_max_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:5e70a87b747dc9e2dae7b470f30be714e61e0b5c96b92587e695c2ea1d932cda",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "temperature_min_c": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:d5abf19707650088772a99fc61f6bd8f29e1cccc49decb3fb7338d6562bbd663",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "wind_exposure": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:32ab5381b8310a6715ac75f57811635dd30b5ca10a174c498c6151aa63782fa2",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "fueling": {
+                  "gastrointestinal_experience": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:0a5cc3efbea4f265241b47aa3436a790d2472c251cf68e009525b41041884941",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "intake_form": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:c5e123bfb7a5afed8ceec2718e2571f9267a21c91853cfdb797e3333fc088d74",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "longest_practiced_duration_min": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:556d9de94c715a8ab83c28a3ae80561d9e682c980a40fa50b111d6012c890cb1",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "practice_sessions_last_42_days": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:ef91457cd0f507cfbc6129ca25859e25dc292a6b9eac6d3c86997ffa1a00a614",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                },
+                "support": {
+                  "aid_station_count": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:cf1e63215a1f11e0146ecd6441bf26261370e0adbf577d96807c216595ab9dd3",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "aid_support_mode": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:30ac060c42765ed512bd6691468b402cb6b459b1622c5c2d8de0cbdea5dc6c95",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "food_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:066b59f37d81f30d8496d23a8763a1bf49eac2da6431dcba133f6cfb83d0dd12",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  },
+                  "mandatory_gear": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:69ff0b15044f72eab8876b8ba409101d89ac248df6d3aa36fd15a7c7cd59ddfc",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": []
+                  },
+                  "max_aid_station_gap_m": {
+                    "provenance": "athlete_stated",
+                    "source_revision": "sha256:b5468c2268c993296e827e9f4f0045c0d3cd892899ce66634c6f5d2bdfdc276c",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "known",
+                    "value": null
+                  },
+                  "water_availability": {
+                    "provenance": "unknown",
+                    "source_revision": "sha256:5b22d625e555692c7df1c0927bdb4d84654bb904924c959f142d595af5fad4bd",
+                    "source_timestamp": "2026-09-04T08:00:00+00:00",
+                    "state": "unknown"
+                  }
+                }
+              },
+              "planning_duration_range": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:d1f5db6e380564562d1d2129cc82c8d74b25d9622d2fea749dd2e2f9935218a1",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": {
+                  "maximum_min": 300,
+                  "minimum_min": 180
+                }
+              },
+              "planning_intent": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:582736cceaae9fbdfcb359ac69370cc68184f1a0ef4e9f8e91b448b134011fc2",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": "performance"
+              },
+              "total_ascent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:532f1da1f1d557f8fa17633d160023e0b2cdf3ed313416e052c255132b10c576",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 618
+              },
+              "total_descent_m": {
+                "provenance": "athlete_stated",
+                "source_revision": "sha256:15e22e218be0226353e8b56fc0a2810ec424c3286804dc3ec87275d40a8d594c",
+                "source_timestamp": "2026-09-04T08:00:00+00:00",
+                "state": "known",
+                "value": 620
+              }
+            },
+            "schema_id": "trail_course_demand_v2"
+          },
+          "namespace_version": 1,
+          "revision_bindings": {
+            "composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
+            "course_revision": "sha256:5406ad41fa9f8bcb898010b06c77888024dd8f4e6bd143ba9855d3774e1b2cc6",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "current_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
+                "current_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
+                "current_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
+                "current_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "state": "current"
+        },
+        "readiness": {
+          "constraint_schema_id": "non_ultra_trail_constraints_v2",
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "contract_runtime_state": "inactive",
+          "course_schema_id": "trail_course_demand_v2",
+          "detail_reason": "policy_inactive",
+          "deterministic_input_hash": "36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
+          "generator_version": "non-ultra-trail-deterministic-generator-v2",
+          "history_statistics": {
+            "comparable_ascent_sessions_within_window": 0,
+            "comparable_descent_sessions_within_window": 0,
+            "evaluator_schema_id": "trail-running-history-statistics-v2",
+            "latest_comparable_ascent_session_date": null,
+            "latest_comparable_descent_session_date": null,
+            "latest_run_date": null,
+            "observation_window_end": "2026-09-03",
+            "observation_window_start": "2026-07-06",
+            "recent_maximum_session_ascent_meters": 0,
+            "recent_maximum_session_descent_meters": 0,
+            "recent_maximum_session_minutes": 0,
+            "recent_maximum_usable_weekly_ascent_meters": 0,
+            "recent_maximum_usable_weekly_descent_meters": 0,
+            "recent_maximum_usable_weekly_minutes": 0,
+            "recent_median_usable_weekly_ascent_meters": 0,
+            "recent_median_usable_weekly_descent_meters": 0,
+            "recent_median_usable_weekly_minutes": 0,
+            "recent_modal_running_frequency": 0,
+            "recently_observed_footing": [],
+            "source_revision_fingerprint": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "usable_completed_weeks": 0
+          },
+          "inactive_dry_run": false,
+          "limited_modules": [],
+          "matching_reasons": [
+            {
+              "detail_reason": "policy_inactive",
+              "status": "policy_unavailable"
+            },
+            {
+              "detail_reason": "insufficient_recent_running_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_comparable_trail_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "insufficient_descent_history",
+              "status": "readiness_blocked"
+            },
+            {
+              "detail_reason": "no_schedule_within_envelope",
+              "status": "readiness_blocked"
+            }
+          ],
+          "module_availability": [
+            {
+              "module": "grade_specificity",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "technical_terrain",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "environment_altitude",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            },
+            {
+              "module": "fueling",
+              "reason_target": "policy_unavailable.policy_inactive",
+              "state": "not_evaluated"
+            }
+          ],
+          "ontology_contract_digest": "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+          "ontology_decision_id": "sdr-trail-running-goal-ontology-v2",
+          "ontology_source_decision_digest": "sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1",
+          "ontology_version": "trail-course-demand-v2",
+          "plan": null,
+          "policy_version": "non-ultra-trail-plan-generation-policy-v2",
+          "readiness_receipt_digest": "sha256:d8f1bd00fd42589c27650147d8eb39a5817a3825badba81ac4b083a43b10878f",
+          "revision_bindings": {
+            "composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
+            "course_revision": "sha256:5406ad41fa9f8bcb898010b06c77888024dd8f4e6bd143ba9855d3774e1b2cc6",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
+            "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "current_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "section_key": "section.event-duration"
+              },
+              {
+                "confirmed_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
+                "current_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
+                "section_key": "section.grade-footing"
+              },
+              {
+                "confirmed_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
+                "current_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
+                "section_key": "section.training-access"
+              },
+              {
+                "confirmed_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
+                "current_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
+                "section_key": "section.optional-context"
+              }
+            ]
+          },
+          "science_decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe",
+          "status": "policy_unavailable"
+        }
+      }
+    }
+  },
+  "dynamic_digest_normalization": "Only source, editable/section/composite revision, input, and receipt digests derived from _stamp's mutation nonce receive consistent, noncollapsing test-only replacements. Bare versus sha256-prefixed formats and all semantic values are preserved. history_revision (derived from history statistics), source_revision_fingerprint, and frozen contract digests retain their exact raw service values.",
+  "generator": "tests/trail_api_contract_fixture.py",
+  "provenance": "Actual save, four confirmations, fresh read, and repeated inactive evaluation through api.trail_plan_service using fresh synthetic SQLite; raw digest formats, fresh-read equality, mirrored revision bindings, and four current section confirmations are checked before substitution.",
+  "reference_date": "2026-09-04",
+  "reference_now": "2026-09-04T08:00:00+00:00",
+  "schema_version": 1
+}

@@ -390,6 +390,95 @@ def test_get_settings_exposes_sync_interval_options(api_client):
     assert body["default_sync_interval_hours"] == 6
 
 
+def test_generic_settings_hides_and_preserves_reserved_trail_namespace(api_client):
+    """The ordinary/MCP-allowlisted settings surface cannot read Trail state."""
+    client, user_id = api_client
+    from db import session as db_session
+    from db.models import UserConfig
+
+    reserved = {
+        "namespace_version": 99,
+        "future": {"opaque": True},
+    }
+    with db_session.SessionLocal() as db:
+        row = db.get(UserConfig, user_id)
+        if row is None:
+            row = UserConfig(user_id=user_id)
+            db.add(row)
+        row.goal = {
+            "goal_kind": "race",
+            "race_date": "2026-11-15",
+            "trail_plan": reserved,
+        }
+        db.commit()
+
+    response = client.get("/api/settings")
+    assert response.status_code == 200, response.text
+    assert response.json()["config"]["goal"] == {
+        "goal_kind": "race",
+        "race_date": "2026-11-15",
+    }
+
+    updated = client.put("/api/settings", json={
+        "goal": {"target_time_sec": 14_400},
+    })
+    assert updated.status_code == 200, updated.text
+    assert "trail_plan" not in updated.json()["config"]["goal"]
+    with db_session.SessionLocal() as db:
+        assert db.get(UserConfig, user_id).goal["trail_plan"] == reserved
+
+
+def test_generic_settings_rejects_reserved_trail_namespace_writes(api_client):
+    client, user_id = api_client
+    from db import session as db_session
+    from db.models import UserConfig
+
+    response = client.put("/api/settings", json={
+        "goal": {
+            "trail_plan": {
+                "namespace_version": 1,
+                "course_demand": {"forged": True},
+            },
+        },
+    })
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found"}
+    with db_session.SessionLocal() as db:
+        row = db.get(UserConfig, user_id)
+        assert row is None or "trail_plan" not in (row.goal or {})
+
+
+def test_stale_generic_settings_snapshot_cannot_overwrite_trail_namespace(
+    api_client,
+    monkeypatch,
+):
+    client, user_id = api_client
+    from analysis.config import UserConfig as ConfigValue
+    from db import session as db_session
+    from db.models import UserConfig
+
+    reserved = {"namespace_version": 99, "opaque": "keep-current"}
+    with db_session.SessionLocal() as db:
+        db.add(UserConfig(
+            user_id=user_id,
+            language="en",
+            goal={"goal_kind": "race", "trail_plan": reserved},
+        ))
+        db.commit()
+
+    stale = ConfigValue(goal={"goal_kind": "race"}, language="en")
+    monkeypatch.setattr(
+        "api.routes.settings.load_config_from_db",
+        lambda _user_id, _db: stale,
+    )
+    response = client.put("/api/settings", json={"language": "zh"})
+    assert response.status_code == 200, response.text
+    with db_session.SessionLocal() as db:
+        row = db.get(UserConfig, user_id)
+        assert row.language == "zh"
+        assert row.goal["trail_plan"] == reserved
+
+
 def test_put_science_reloads_config_after_plan_write_lock(
     api_client,
     monkeypatch,

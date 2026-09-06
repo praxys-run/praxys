@@ -3,11 +3,11 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-non-ultra-trail-plan-generation-policy-v1`
-- **Lifecycle:** `accepted`
+- **Lifecycle:** `superseded`
 - **Model version:** `non-ultra-trail-plan-generation-policy-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:afc9fecefd55c699a8fdf3d3ab885968c7f7981fadbcba7bf09494fdfcdcd606`
-- **Contract digest:** `sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b`
+- **Contract digest:** `sha256:2035f855cea2c1c117bd092796615148e98e59f1536013f86fb2bba1cab73ce2`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639393))
 - **Required activation role:** `implementation_reviewer`
@@ -818,9 +818,9 @@ Post-hoc validation cannot make unsupported assumptions or values accepted and c
     "inactive non-ultra trail deterministic early-block policy and generator",
     "trail course-demand and history snapshot matching"
   ],
-  "contract_digest": "sha256:472c895bc4c3d467eac4a59dbacaeaaf665ddee462fdc76bba4cdf772df8e42b",
+  "contract_digest": "sha256:2035f855cea2c1c117bd092796615148e98e59f1536013f86fb2bba1cab73ce2",
   "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v1",
-  "decision_status": "accepted",
+  "decision_status": "superseded",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

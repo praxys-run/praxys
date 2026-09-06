@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-non-ultra-trail-plan-generation-policy-v1
 version: 1
 title: "Use a history-anchored 14-day non-ultra trail performance block"
-status: accepted
+status: superseded
 approval_mode: artifact
 decision_date: 2026-09-01
 owners:
@@ -656,7 +656,7 @@ affected_surfaces:
 artifact_policy:
   runtime_state: inactive
 supersedes: []
-superseded_by:
+superseded_by: sdr-non-ultra-trail-plan-generation-policy-v2
 decision_notes:
   - "This artifact-mode decision addresses issue #692 and remains draft and inactive."
   - "It depends on separate acceptance of sdr-trail-running-goal-ontology-v1."
