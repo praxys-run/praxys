@@ -2363,7 +2363,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "An external planner overlaps the Praxys plan. Use one planner at a time to avoid duplicate or conflicting sessions.": "其他计划源与 Praxys 计划有重叠。建议一次只使用一个计划源，避免重复或冲突训练。",
     "An unexpected error occurred.": "发生了意外错误。",
     "Analysis": "训练分析",
-    "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.": "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。",
+    "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.": "分析和分流已刷新。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已具备当前发布授权的反馈，仍可能继续进入正常的审核和发布门禁。",
     "Analysis needs a manual retry": "分析需要手动重试",
     "Analysis request saved": "分析请求已保存",
     "Analysis worker is running": "分析任务正在运行",
