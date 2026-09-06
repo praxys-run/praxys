@@ -638,6 +638,15 @@ export function parseTrailReadinessResponse(
     return null;
   }
 
+  const { available_weekdays: availableWeekdays, preferred_longest_weekday: preferredWeekday } =
+    draft.constraints;
+  // Both operands already passed strict draft validation. This implication is
+  // one-way: other server conditions can also require contradictory_input.
+  if (availableWeekdays.state === 'known'
+    && preferredWeekday !== null
+    && !availableWeekdays.value.includes(preferredWeekday)
+    && !codes.includes('clarification_required.contradictory_input')) return null;
+
   const history = readiness.history_statistics as Record<string, unknown>;
   const historyEnd = history.observation_window_end;
   const completedDaysSince = (candidate: unknown): number | null => (

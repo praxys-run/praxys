@@ -54,6 +54,12 @@ import {
 import { ApiTimeoutError } from '../src/lib/request-timeout.ts';
 import { handleUnauthorizedSession } from '../src/lib/auth-session.ts';
 import { tokenCacheScope } from '../src/lib/auth-cache-scope.ts';
+import {
+  byId,
+  createWorkbenchHarness,
+  markupNodes,
+  textContent,
+} from './helpers/trail-component-harness.mjs';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 const ACTUAL_TRAIL_CONTRACT = JSON.parse(
@@ -870,6 +876,108 @@ test('confirmation callback rejects pending intent synchronously across sections
   assert.equal((component.match(/onConfirm=\{handleConfirmSection\}/g) ?? []).length, 4);
 });
 
+test('actual readiness callback rejects same-turn editor intent before POST or receipt installation', async () => {
+  const response = structuredClone(ACTUAL_TRAIL_CONTRACT.cases.ordinary_confirmed.response);
+  const h = createWorkbenchHarness(response.draft, {
+    respond: () => new Response(JSON.stringify(response)),
+  });
+  const editor = h.find((node) => node.props?.id === 'trail-race-distance'
+    && typeof node.props.onValueChange === 'function').props.onValueChange;
+  const readinessControl = h.find((node) => node.props?.id === 'trail-readiness-action-desktop');
+  assert.equal(readinessControl.props.disabled, false);
+  const capturedReadiness = readinessControl.props.onClick;
+
+  // Both actual callbacks come from the same clean, confirmed render. There is
+  // no await or rerender between editing and invoking that captured callback.
+  // The harness stubs useEffect; this is not mounted-lifecycle evidence.
+  await h.invoke(() => {
+    editor('25');
+    capturedReadiness();
+  });
+
+  const reasons = byId(h.markup, 'trail-reasons-heading').parent;
+  assert.deepEqual({
+    posts: h.calls.filter((call) => call.init?.method === 'POST').length,
+    installedReceipts: markupNodes(reasons, (node) => node.tag === 'ol').length,
+  }, { posts: 0, installedReceipts: 0 });
+  assert.equal(byId(h.markup, 'trail-race-distance').attributes.value, '25');
+  assert.equal(
+    h.find((node) => node.props?.id === 'trail-readiness-action-desktop').props.disabled,
+    true,
+  );
+  assert.doesNotMatch(textContent(h.markup), /Readiness updated for the current confirmed revision/);
+});
+
+test('actual readiness callback accepts the current receipt after saving and reconfirming', async () => {
+  const response = structuredClone(ACTUAL_TRAIL_CONTRACT.cases.ordinary_confirmed.response);
+  const sectionKey = 'section.event-duration';
+  const section = (draft) => draft.revision_bindings.section_confirmations
+    .find((item) => item.section_key === sectionKey);
+
+  // Network doubles model the prior edit and the unconfirmed save. The final
+  // confirmation and readiness use the complete service-backed fixture.
+  const previous = structuredClone(response.draft);
+  previous.course_demand.fields.distance_meters.value = 25000;
+  previous.course_demand.fields.distance_meters.source_revision = SHA_A;
+  previous.revision_bindings.course_revision = SHA_B;
+  previous.composite_revision = SHA_C;
+  previous.revision_bindings.composite_revision = SHA_C;
+  section(previous).current_revision = SHA_D;
+  section(previous).confirmed_revision = SHA_D;
+  const saved = structuredClone(response.draft);
+  saved.composite_revision = SHA_A;
+  saved.revision_bindings.composite_revision = SHA_A;
+  section(saved).confirmed_revision = null;
+  assert.notEqual(parseTrailDraftResponse(previous), null);
+  assert.notEqual(parseTrailDraftResponse(saved), null);
+
+  const h = createWorkbenchHarness(previous, {
+    respond: (url, init) => {
+      if (url === TRAIL_API_ENDPOINTS.draft) {
+        assert.equal(init.method, 'PUT');
+        assert.equal(init.headers['If-Match'], previous.composite_revision);
+        assert.equal(JSON.parse(init.body).course_demand.fields.distance_meters.value, 24700);
+        return new Response(JSON.stringify(saved));
+      }
+      if (url === TRAIL_API_ENDPOINTS.confirm) {
+        assert.equal(init.headers['If-Match'], saved.composite_revision);
+        assert.deepEqual(JSON.parse(init.body), {
+          section_key: sectionKey,
+          section_revision: section(saved).current_revision,
+        });
+        return new Response(JSON.stringify(response.draft));
+      }
+      assert.equal(url, TRAIL_API_ENDPOINTS.readiness);
+      return new Response(JSON.stringify(response));
+    },
+  });
+  const readinessControl = () => h.find(
+    (node) => node.props?.id === 'trail-readiness-action-desktop',
+  );
+  await h.invoke(h.find((node) => node.props?.id === 'trail-race-distance'
+    && typeof node.props.onValueChange === 'function').props.onValueChange, '24.7');
+  assert.equal(readinessControl().props.disabled, true);
+  await h.invoke(h.find((node) => node.props?.children === 'Save changes').props.onClick);
+  assert.equal(readinessControl().props.disabled, true, 'the saved section still needs confirmation');
+  await h.invoke(h.find((node) => node.props?.sectionKey === sectionKey
+    && typeof node.props.onConfirm === 'function').props.onConfirm, sectionKey);
+  assert.equal(readinessControl().props.disabled, false);
+  await h.invoke(readinessControl().props.onClick);
+
+  assert.deepEqual(h.calls.map(({ url, init }) => [url, init.method]), [
+    [TRAIL_API_ENDPOINTS.draft, 'PUT'],
+    [TRAIL_API_ENDPOINTS.confirm, 'POST'],
+    [TRAIL_API_ENDPOINTS.readiness, 'POST'],
+  ]);
+  const reasons = byId(h.markup, 'trail-reasons-heading').parent;
+  assert.equal(markupNodes(reasons, (node) => node.tag === 'ol').length, 1);
+  assert.equal(
+    markupNodes(reasons, (node) => node.tag === 'li').length,
+    response.readiness.matching_reasons.length,
+  );
+  assert.match(textContent(h.markup), /Readiness updated for the current confirmed revision/);
+});
+
 test('stale and ambiguous writes preserve explicit recovery without generic retry', async () => {
   const [component, copy] = await Promise.all([
     read('../src/components/TrailCourseReview.tsx'),
@@ -1198,6 +1306,59 @@ test('actual Python Trail readiness serialization stays accepted and closed', ()
     contradiction.readiness.matching_reasons.at(-1).detail_reason,
     'contradictory_input',
   );
+});
+
+test('actual contradictory weekday receipt requires its reason without changing the draft', () => {
+  const fixture = ACTUAL_TRAIL_CONTRACT.cases.contradictory_preferred_weekday;
+  const complete = structuredClone(fixture.response);
+  assert.equal(parseTrailDraftResponse(complete.draft), complete.draft);
+  assert.equal(
+    parseTrailReadinessResponse(complete, fixture.expected_composite_revision),
+    complete,
+  );
+  assert.deepEqual(complete.draft.constraints.available_weekdays.value, [2, 4]);
+  assert.equal(complete.draft.constraints.preferred_longest_weekday, 6);
+
+  const incomplete = structuredClone(complete);
+  incomplete.readiness.matching_reasons = incomplete.readiness.matching_reasons.filter(
+    (reason) => reason.detail_reason !== 'contradictory_input',
+  );
+  assert.equal(incomplete.readiness.matching_reasons.length, complete.readiness.matching_reasons.length - 1);
+  const before = structuredClone(incomplete);
+  assert.ok(
+    parseTrailReadinessResponse(incomplete, fixture.expected_composite_revision) === null,
+    'omitting only the required contradiction reason must fail closed',
+  );
+  assert.deepEqual(incomplete, before, 'rejection must not normalize values or fabricate/reorder reasons');
+});
+
+test('weekday reason consistency is one-way and does not rule out another contradiction', () => {
+  const fixture = ACTUAL_TRAIL_CONTRACT.cases.contradictory_preferred_weekday;
+  const inSet = structuredClone(fixture.response);
+  inSet.draft.constraints.preferred_longest_weekday = 2;
+  const before = structuredClone(inSet);
+  // A different server condition (for example a past block start) can require
+  // the same reason. The DTO-visible weekday predicate is not an iff rule.
+  assert.equal(parseTrailReadinessResponse(inSet, fixture.expected_composite_revision), inSet);
+  assert.deepEqual(inSet, before);
+
+  for (const change of [
+    (constraints) => { constraints.preferred_longest_weekday = null; },
+    (constraints) => {
+      constraints.available_weekdays = {
+        state: 'unknown',
+        provenance: 'unknown',
+        source_revision: constraints.available_weekdays.source_revision,
+      };
+    },
+  ]) {
+    const candidate = structuredClone(fixture.response);
+    change(candidate.draft.constraints);
+    candidate.readiness.matching_reasons = candidate.readiness.matching_reasons.filter(
+      (reason) => reason.detail_reason !== 'contradictory_input',
+    );
+    assert.equal(parseTrailReadinessResponse(candidate, fixture.expected_composite_revision), candidate);
+  }
 });
 
 test('actual Trail contract fixtures reject bounded parser negative controls', () => {

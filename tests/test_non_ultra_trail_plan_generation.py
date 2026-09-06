@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import getcontext
 import hashlib
 import math
+import sys
+from types import FrameType
 
 import pytest
 
@@ -252,6 +256,24 @@ def _reason_names(result: object) -> tuple[str, ...]:
     return tuple(reason.namespaced for reason in result.matching_reasons)  # type: ignore[attr-defined]
 
 
+@contextmanager
+def _record_schedule_returns() -> Iterator[list[object]]:
+    """Observe the real scheduler without replacing its execution or result."""
+    returns: list[object] = []
+    schedule_code = trail_generation._build_schedule.__code__
+    previous = sys.getprofile()
+
+    def observe(frame: FrameType, event: str, result: object) -> None:
+        if frame.f_code is schedule_code and event == "return":
+            returns.append(result)
+
+    sys.setprofile(observe)
+    try:
+        yield returns
+    finally:
+        sys.setprofile(previous)
+
+
 def test_exact_v2_contracts_are_accepted_but_remain_inactive() -> None:
     assert NON_ULTRA_TRAIL_ONTOLOGY_DECISION_ID.endswith("-v2")
     assert NON_ULTRA_TRAIL_SCIENCE_DECISION_ID.endswith("-v2")
@@ -291,9 +313,12 @@ def test_v2_status_reason_and_module_catalog_is_exact_and_closed() -> None:
 
 
 def test_actual_inactive_entry_point_fails_closed_without_a_plan() -> None:
-    result = generate_non_ultra_trail_plan(
-        replace(_generation_input(), synthetic_verification_only=False)
-    )
+    with _record_schedule_returns() as schedules:
+        result = generate_non_ultra_trail_plan(
+            replace(_generation_input(), synthetic_verification_only=False)
+        )
+    assert len(schedules) == 1
+    assert schedules[0] is not None
     assert result.status == "policy_unavailable"
     assert result.detail_reason == "policy_inactive"
     assert _reason_names(result) == ("policy_unavailable.policy_inactive",)
@@ -774,6 +799,29 @@ def test_malformed_revision_preserves_safe_scope_and_inactive_reasons() -> None:
     )
     assert actual.plan is None
 
+    infeasible = _generation_input(
+        constraints=replace(
+            _constraints(),
+            maximum_session_duration_min=_known(37, label="short-session"),
+        ),
+        synthetic_verification_only=False,
+    )
+    with _record_schedule_returns() as schedules:
+        actual = generate_non_ultra_trail_plan(replace(
+            infeasible,
+            revision_bindings=replace(
+                infeasible.revision_bindings, course_revision="malformed",
+            ),
+        ))
+    assert schedules == [None]
+    assert _reason_names(actual) == (
+        "validation_failed.invalid_field_value",
+        "policy_unavailable.policy_inactive",
+        "readiness_blocked.no_schedule_within_envelope",
+    )
+    assert actual.plan is None
+    assert actual.inactive_dry_run is False
+
 
 def test_adult_scope_unknown_and_contradictory_input_have_explicit_triggers() -> None:
     constraints = replace(
@@ -795,6 +843,21 @@ def test_adult_scope_unknown_and_contradictory_input_have_explicit_triggers() ->
     )
     assert result.status == "clarification_required"
     assert result.detail_reason == "contradictory_input"
+
+    for constraints, block_start in (
+        (contradictory, BLOCK_START),
+        (_constraints(), ATHLETE_TODAY - timedelta(days=1)),
+    ):
+        actual = generate_non_ultra_trail_plan(_generation_input(
+            constraints=constraints,
+            block_start=block_start,
+            synthetic_verification_only=False,
+        ))
+        assert "clarification_required.contradictory_input" in _reason_names(actual)
+        assert actual.status == "policy_unavailable"
+        assert actual.detail_reason == "policy_inactive"
+        assert actual.plan is None
+        assert actual.inactive_dry_run is False
 
 
 def test_explicit_workload_above_history_is_clarification_not_progression() -> None:
@@ -828,6 +891,76 @@ def test_event_window_and_no_schedule_are_canonical_policy_and_readiness_results
     )
     assert result.status == "readiness_blocked"
     assert result.detail_reason == "no_schedule_within_envelope"
+
+    with _record_schedule_returns() as schedules:
+        actual = generate_non_ultra_trail_plan(_generation_input(
+            constraints=constraints,
+            synthetic_verification_only=False,
+        ))
+    assert schedules == [None]
+    assert _reason_names(actual) == (
+        "policy_unavailable.policy_inactive",
+        "readiness_blocked.no_schedule_within_envelope",
+    )
+    assert actual.plan is None
+    assert actual.inactive_dry_run is False
+
+
+@pytest.mark.parametrize(
+    ("group", "field"),
+    [
+        ("course", "event_date"),
+        ("constraints", "available_weekdays"),
+        ("constraints", "weekly_time_limit_min"),
+        ("constraints", "maximum_session_duration_min"),
+        ("constraints", "unavailable_dates"),
+    ],
+)
+def test_normal_inactive_entry_skips_schedule_for_each_unknown_prerequisite(
+    group: str, field: str,
+) -> None:
+    course = _course()
+    constraints = _constraints()
+    if group == "course":
+        course = replace(course, **{field: _unknown(field)})
+    else:
+        constraints = replace(constraints, **{field: _unknown(field)})
+    with _record_schedule_returns() as schedules:
+        result = generate_non_ultra_trail_plan(_generation_input(
+            course=course,
+            constraints=constraints,
+            synthetic_verification_only=False,
+        ))
+    assert schedules == []
+    clarification = (
+        "material_course_demand_unknown"
+        if group == "course" else "training_constraints_missing"
+    )
+    assert _reason_names(result) == (
+        "policy_unavailable.policy_inactive",
+        f"clarification_required.{clarification}",
+    )
+    assert result.plan is None
+    assert result.inactive_dry_run is False
+
+
+def test_normal_inactive_entry_skips_schedule_for_invalid_session_domain() -> None:
+    constraints = replace(
+        _constraints(),
+        maximum_session_duration_min=_known(0, label="invalid-session"),
+    )
+    with _record_schedule_returns() as schedules:
+        result = generate_non_ultra_trail_plan(_generation_input(
+            constraints=constraints,
+            synthetic_verification_only=False,
+        ))
+    assert schedules == []
+    assert _reason_names(result) == (
+        "validation_failed.invalid_field_value",
+        "policy_unavailable.policy_inactive",
+    )
+    assert result.plan is None
+    assert result.inactive_dry_run is False
 
 
 def test_plan_validator_binds_contract_receipt_revisions_and_workouts() -> None:

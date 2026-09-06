@@ -311,27 +311,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
             "course_revision": "sha256:0484ccde4814a3f5e37719fbe7a613b658e26db64bdb592aae68fb8342491da7",
-            "history_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
-            "planning_context_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "current_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
                 "current_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
                 "current_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
                 "current_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
-                "current_revision": "sha256:abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
                 "section_key": "section.optional-context"
               }
             ]
@@ -344,7 +344,7 @@
           "contract_runtime_state": "inactive",
           "course_schema_id": "trail_course_demand_v2",
           "detail_reason": "policy_inactive",
-          "deterministic_input_hash": "9a55fd92575c70633a19f8b9dbdc5340846d80502d0d5b4a47729b6a7e029db0",
+          "deterministic_input_hash": "abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
           "generator_version": "non-ultra-trail-deterministic-generator-v2",
           "history_statistics": {
             "comparable_ascent_sessions_within_window": 0,
@@ -429,27 +429,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:8624d6e6b0e17590f24988aa48ca1772814f3ee2bb42003d91794246eaf45f37",
             "course_revision": "sha256:0484ccde4814a3f5e37719fbe7a613b658e26db64bdb592aae68fb8342491da7",
-            "history_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
-            "planning_context_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:107983b559eac5a2f01948d78b84a2420ebd3c2a76858bf81cbd7a455768eafe",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "current_revision": "sha256:d952d55a3226006cf8b8ef113c7fe54d64bbb03103c4d0b44b46dea32d465aab",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
                 "current_revision": "sha256:c15399d62aec1a3b29c9576f1b157e41a5e92c19e4709785f9319000157d886f",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
                 "current_revision": "sha256:7b52ef85cbecdb6121a985e2eeaad808df1dcba6bfe7a8af829508df787fe6e2",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
                 "current_revision": "sha256:57056d754971e5c531085967e79c190f3a15e21f019e42c164dcc7b4c17e85a0",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
-                "current_revision": "sha256:abdb4ef86dcb75312d643a4aa540301548ca80336ddc8743b193df4bc9ec60ca",
                 "section_key": "section.optional-context"
               }
             ]
@@ -772,27 +772,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
             "course_revision": "sha256:b014bd56219615c5e259ced9a3edd0ab135189ba546c652fc3bab409694afc6e",
-            "history_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
-            "planning_context_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+            "history_revision": "sha256:fa6240c9fdad0c44a7a1aaf3f50c4b557a1eca4f73f1a91d2cf89333ffa4585a",
+            "planning_context_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "current_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
                 "current_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
                 "current_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
                 "current_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
-                "current_revision": "sha256:51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
                 "section_key": "section.optional-context"
               }
             ]
@@ -805,7 +805,7 @@
           "contract_runtime_state": "inactive",
           "course_schema_id": "trail_course_demand_v2",
           "detail_reason": "policy_inactive",
-          "deterministic_input_hash": "6631827657262f3cdbebfd1fd734db3167de576403495b8653802cab1af4efae",
+          "deterministic_input_hash": "51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
           "generator_version": "non-ultra-trail-deterministic-generator-v2",
           "history_statistics": {
             "comparable_ascent_sessions_within_window": 0,
@@ -886,27 +886,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:d8fb7e333f4165b7e8c0532f96e332b7d03950ef1dbb56b4655b40efba16e1b2",
             "course_revision": "sha256:b014bd56219615c5e259ced9a3edd0ab135189ba546c652fc3bab409694afc6e",
-            "history_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
-            "planning_context_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+            "history_revision": "sha256:fa6240c9fdad0c44a7a1aaf3f50c4b557a1eca4f73f1a91d2cf89333ffa4585a",
+            "planning_context_revision": "sha256:785d1be77e33e4d366bc73258f46267d9e6f054749bbc28269ad108cb9f120ec",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "current_revision": "sha256:ba6dfa5e19e0ff4b439d63c3dc8dca01eb84922a6c83d43a705a8fafdac89426",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
                 "current_revision": "sha256:22226e310f17be3a521ff3de6d3a960dd3baed1f2da86878a11f6fa9c15194f0",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
                 "current_revision": "sha256:4eabe2c53cd6e05941f560d4431178bafce15cf0a6c76e05f980e2b9ba999cfc",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
                 "current_revision": "sha256:04b229abf0e936b89a50f93e9709dcb60cec7e761bdf9aa158c27c001e530972",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
-                "current_revision": "sha256:51ec70e867273322096b839e1987463afa8f4f8ce92079b6b3bdb2c634664c1b",
                 "section_key": "section.optional-context"
               }
             ]
@@ -1231,27 +1231,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
             "course_revision": "sha256:c345f6e6232c4d129c3418b4e6a16b1713b01890191023cb3ffb644cc13452e6",
-            "history_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
-            "planning_context_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+            "history_revision": "sha256:e2b8e634a3d7302322f1a36510b2741e8dea2a3ef79df30f758f9ebd99946ad0",
+            "planning_context_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "current_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
                 "current_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
                 "current_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
                 "current_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
-                "current_revision": "sha256:476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
                 "section_key": "section.optional-context"
               }
             ]
@@ -1264,7 +1264,7 @@
           "contract_runtime_state": "inactive",
           "course_schema_id": "trail_course_demand_v2",
           "detail_reason": "invalid_field_value",
-          "deterministic_input_hash": "ae017cd3db95d549969fdf7463d79c3e1f2d2da050babb59342d917979b91291",
+          "deterministic_input_hash": "476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
           "generator_version": "non-ultra-trail-deterministic-generator-v2",
           "history_statistics": {
             "comparable_ascent_sessions_within_window": 0,
@@ -1345,27 +1345,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:ac10bc090f84b5720bd65d9a260c5449c219871921fcadc7596601cd4709f4aa",
             "course_revision": "sha256:c345f6e6232c4d129c3418b4e6a16b1713b01890191023cb3ffb644cc13452e6",
-            "history_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
-            "planning_context_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+            "history_revision": "sha256:e2b8e634a3d7302322f1a36510b2741e8dea2a3ef79df30f758f9ebd99946ad0",
+            "planning_context_revision": "sha256:5406135ac9eddd3113a997b21e8b97580f9c4dd57fcfdf123753156d0b6c9c20",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "current_revision": "sha256:4a5078416c94c5c8eea94ee5275b380fc3a421afc1a901b67de32aba277db3ef",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
                 "current_revision": "sha256:c0fe52b1d4cd9a0ac52987b9dbc205ca718eeaa7af058ef23d8525fac704eb28",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
                 "current_revision": "sha256:534f1ae7b560650336acb0d49525bb5d25e91f5f3cd09cec430f266284e1e703",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
                 "current_revision": "sha256:b129409a075acdcd8bcbfe8b701a69d16993fb1f3d60a0d0a92ad71ffb54ba72",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
-                "current_revision": "sha256:476be787b6068cbe0a02b3f1a0c1dc6c3c0708f7e38e68fec1cf923e37e72cce",
                 "section_key": "section.optional-context"
               }
             ]
@@ -1688,27 +1688,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
             "course_revision": "sha256:afeedf9af8fdc859e0260444c50532c2324e3eb8cc939b7f1492a2f0b0055bb3",
-            "history_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
-            "planning_context_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+            "history_revision": "sha256:38f9f4bed1a44a30c8e52458191f633a0dee709a95dd0fdd1ef6b4df3cd54b77",
+            "planning_context_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "current_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
                 "current_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
                 "current_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
                 "current_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
-                "current_revision": "sha256:b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
                 "section_key": "section.optional-context"
               }
             ]
@@ -1721,7 +1721,7 @@
           "contract_runtime_state": "inactive",
           "course_schema_id": "trail_course_demand_v2",
           "detail_reason": "policy_inactive",
-          "deterministic_input_hash": "ba6b9ac2bcbbcd618b16738c0702f7f18fed2b152452412c33eec09c1bc74089",
+          "deterministic_input_hash": "b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
           "generator_version": "non-ultra-trail-deterministic-generator-v2",
           "history_statistics": {
             "comparable_ascent_sessions_within_window": 0,
@@ -1802,27 +1802,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:ba3386e07652c1b35c76ebb88b96f222686090549a8764849a6da12bc020f1e4",
             "course_revision": "sha256:afeedf9af8fdc859e0260444c50532c2324e3eb8cc939b7f1492a2f0b0055bb3",
-            "history_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
-            "planning_context_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+            "history_revision": "sha256:38f9f4bed1a44a30c8e52458191f633a0dee709a95dd0fdd1ef6b4df3cd54b77",
+            "planning_context_revision": "sha256:4e4cd78b8fbedb5c9031c9567ad878028b1eb984de750bca75476da5aec91735",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "current_revision": "sha256:2e2a7e26d6b459c1c95b02e3b3600d4e048fe94e5edc2b4728b4feafd98f0883",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
                 "current_revision": "sha256:7f8f46564f1d190b606cd8f3c6d689b31a58392f203ae82779d1484603ab7c3b",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
                 "current_revision": "sha256:41729ee90b3c15479a92637b6a8da3ceffa59468202c93277bc2e210b730fd5f",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
                 "current_revision": "sha256:92439e3e846b14121b1ddb9bef0b77077bb2c309519077d927f55edb961d388e",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
-                "current_revision": "sha256:b9037f9ce8c4ad569e9ee361b2f7b8af699198dfeadbe414a9673fe9b6dbd928",
                 "section_key": "section.optional-context"
               }
             ]
@@ -2145,27 +2145,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
             "course_revision": "sha256:5406ad41fa9f8bcb898010b06c77888024dd8f4e6bd143ba9855d3774e1b2cc6",
-            "history_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
-            "planning_context_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "current_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
                 "current_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
                 "current_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
                 "current_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
-                "current_revision": "sha256:36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
                 "section_key": "section.optional-context"
               }
             ]
@@ -2178,7 +2178,7 @@
           "contract_runtime_state": "inactive",
           "course_schema_id": "trail_course_demand_v2",
           "detail_reason": "policy_inactive",
-          "deterministic_input_hash": "ca694ca450ec7d148bb44c97853595dc050222faa639270a146fceaa82b434c1",
+          "deterministic_input_hash": "36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
           "generator_version": "non-ultra-trail-deterministic-generator-v2",
           "history_statistics": {
             "comparable_ascent_sessions_within_window": 0,
@@ -2259,27 +2259,27 @@
           "revision_bindings": {
             "composite_revision": "sha256:7cbe67c6d1af93a4cbf3f1fa8427d83fbd90ea0f4928d30cf9008da0a70e74a8",
             "course_revision": "sha256:5406ad41fa9f8bcb898010b06c77888024dd8f4e6bd143ba9855d3774e1b2cc6",
-            "history_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
-            "planning_context_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+            "history_revision": "sha256:200f5eb58dbd26b035a6f46b82a713165c6c4c3337d2868ef2086beac144314f",
+            "planning_context_revision": "sha256:58ab50e2f7e57efae48bd3a4b18a902d7b44c44a86b827f95aea9710c28b637e",
             "section_confirmations": [
+              {
+                "confirmed_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "current_revision": "sha256:6eaf3191f9527194ef9fbb3adf84d9eb0273427c37880dfc7fdc24f6ccd09ce5",
+                "section_key": "section.event-duration"
+              },
               {
                 "confirmed_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
                 "current_revision": "sha256:af784d078121bb5c16be415ebaaf18a00fc771b6e7d23c4b14ae8e4185f61b4e",
-                "section_key": "section.event-duration"
+                "section_key": "section.grade-footing"
               },
               {
                 "confirmed_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
                 "current_revision": "sha256:153a53bc83ea5ef360af1208d07532c637545121eca20b672a3de2b346361a13",
-                "section_key": "section.grade-footing"
+                "section_key": "section.training-access"
               },
               {
                 "confirmed_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
                 "current_revision": "sha256:096adfd2c3c836948df5f75c0e5942e8d0fbaa164079ebd1fd5126d8cb9af944",
-                "section_key": "section.training-access"
-              },
-              {
-                "confirmed_revision": "sha256:36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
-                "current_revision": "sha256:36447c340dfaae392d1e1055204b5c480e07fc5e9af6951728d9d5e28b67100f",
                 "section_key": "section.optional-context"
               }
             ]
@@ -2291,9 +2291,9 @@
       }
     }
   },
-  "dynamic_digest_normalization": "Deterministic test-only replacements preserve bare versus sha256-prefixed formats and every equality relationship; frozen contract and history fingerprints are not replaced.",
+  "dynamic_digest_normalization": "Only source, editable/section/composite revision, input, and receipt digests derived from _stamp's mutation nonce receive consistent, noncollapsing test-only replacements. Bare versus sha256-prefixed formats and all semantic values are preserved. history_revision (derived from history statistics), source_revision_fingerprint, and frozen contract digests retain their exact raw service values.",
   "generator": "tests/trail_api_contract_fixture.py",
-  "provenance": "Actual save, four confirmations, fresh read, and repeated inactive evaluation through api.trail_plan_service using fresh synthetic SQLite; only save-nonce-dependent digests are canonically substituted while preserving format, equality, bindings, and all semantic values.",
+  "provenance": "Actual save, four confirmations, fresh read, and repeated inactive evaluation through api.trail_plan_service using fresh synthetic SQLite; raw digest formats, fresh-read equality, mirrored revision bindings, and four current section confirmations are checked before substitution.",
   "reference_date": "2026-09-04",
   "reference_now": "2026-09-04T08:00:00+00:00",
   "schema_version": 1

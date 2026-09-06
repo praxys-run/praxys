@@ -845,7 +845,7 @@ function TrailCourseReviewWorkbench({
     });
 
   const checkReadiness = useCallback(async () => {
-    if (!allConfirmed || pending || busyAction || activeOperationRef.current) return;
+    if (!allConfirmed || pendingRef.current || pending || busyAction || activeOperationRef.current) return;
     const operation = beginBusy('readiness', serverDraft.composite_revision);
     if (!operation) return;
     setOperationError(null);
