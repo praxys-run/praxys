@@ -22,6 +22,10 @@ export type LegalBundleRecoveryFallbackReason =
   | 'registration-failed'
   | 'cross-origin-registration'
   | 'update-failed'
+  | 'no-replacement'
+  | 'activation-failed'
+  | 'activation-timeout'
+  | 'control-timeout'
   | 'timeout';
 
 export type LegalBundleRecoveryResult =
@@ -38,13 +42,28 @@ interface RecoveryStorage {
   removeItem(key: string): void;
 }
 
+interface RecoveryWorker {
+  readonly scriptURL: string;
+  readonly state: string;
+  addEventListener(type: 'statechange', listener: EventListener): void;
+  removeEventListener(type: 'statechange', listener: EventListener): void;
+}
+
 interface RecoveryRegistration {
   readonly scope: string;
+  readonly active: RecoveryWorker | null;
+  readonly installing: RecoveryWorker | null;
+  readonly waiting: RecoveryWorker | null;
   update(): Promise<unknown>;
+  addEventListener(type: 'updatefound', listener: EventListener): void;
+  removeEventListener(type: 'updatefound', listener: EventListener): void;
 }
 
 interface RecoveryServiceWorker {
+  readonly controller: RecoveryWorker | null;
   getRegistration(): Promise<RecoveryRegistration | undefined | null>;
+  addEventListener(type: 'controllerchange', listener: EventListener): void;
+  removeEventListener(type: 'controllerchange', listener: EventListener): void;
 }
 
 export interface LegalBundleRecoveryEnvironment {
@@ -113,6 +132,159 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function workerMatchesOrigin(
+  worker: RecoveryWorker,
+  origin: string,
+): boolean {
+  try {
+    return new URL(worker.scriptURL).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+function controllerOwnsReplacement(
+  controller: RecoveryWorker | null,
+  replacement: RecoveryWorker,
+  previousController: RecoveryWorker | null,
+): boolean {
+  if (controller === replacement) return true;
+  return (
+    controller !== null
+    && controller !== previousController
+    && controller.state === 'activated'
+    && replacement.state === 'activated'
+    && controller.scriptURL === replacement.scriptURL
+  );
+}
+
+async function updateAndAwaitReplacement(
+  registration: RecoveryRegistration,
+  serviceWorker: RecoveryServiceWorker,
+  origin: string,
+  timeoutMs: number,
+): Promise<LegalBundleRecoveryResult> {
+  const previousActive = registration.active;
+  const previousController = serviceWorker.controller;
+  let replacement: RecoveryWorker | null = null;
+  let replacementStateListener: EventListener | null = null;
+  let completed = false;
+  let resolveHandoff: (
+    value: 'ready' | 'activation-failed',
+  ) => void = () => {};
+  const handoff = new Promise<'ready' | 'activation-failed'>((resolve) => {
+    resolveHandoff = resolve;
+  });
+
+  const complete = (value: 'ready' | 'activation-failed') => {
+    if (completed) return;
+    completed = true;
+    resolveHandoff(value);
+  };
+  const checkHandoff = () => {
+    if (!replacement) return;
+    if (replacement.state === 'redundant') {
+      complete('activation-failed');
+      return;
+    }
+    if (
+      replacement.state === 'activated'
+      && controllerOwnsReplacement(
+        serviceWorker.controller,
+        replacement,
+        previousController,
+      )
+    ) {
+      complete('ready');
+    }
+  };
+  const observeReplacement = (worker: RecoveryWorker | null) => {
+    if (
+      !worker
+      || worker === previousActive
+      || worker === previousController
+      || !workerMatchesOrigin(worker, origin)
+    ) {
+      return;
+    }
+    if (replacement === worker) {
+      checkHandoff();
+      return;
+    }
+    if (replacement && replacementStateListener) {
+      replacement.removeEventListener(
+        'statechange',
+        replacementStateListener,
+      );
+    }
+    replacement = worker;
+    replacementStateListener = () => checkHandoff();
+    replacement.addEventListener('statechange', replacementStateListener);
+    checkHandoff();
+  };
+  const inspectRegistration = () => {
+    observeReplacement(registration.installing);
+    observeReplacement(registration.waiting);
+    observeReplacement(registration.active);
+  };
+  const updateFoundListener: EventListener = () => inspectRegistration();
+  const controllerChangeListener: EventListener = () => {
+    inspectRegistration();
+    checkHandoff();
+  };
+  const cleanup = () => {
+    registration.removeEventListener('updatefound', updateFoundListener);
+    serviceWorker.removeEventListener(
+      'controllerchange',
+      controllerChangeListener,
+    );
+    if (replacement && replacementStateListener) {
+      replacement.removeEventListener(
+        'statechange',
+        replacementStateListener,
+      );
+    }
+  };
+
+  registration.addEventListener('updatefound', updateFoundListener);
+  serviceWorker.addEventListener(
+    'controllerchange',
+    controllerChangeListener,
+  );
+  inspectRegistration();
+  const deadline = Date.now() + timeoutMs;
+  const updateResult = await settleWithin(
+    () => registration.update(),
+    timeoutMs,
+  );
+  if (updateResult.outcome === 'timeout') {
+    cleanup();
+    return { action: 'fallback', reason: 'timeout' };
+  }
+  if (updateResult.outcome === 'failed') {
+    cleanup();
+    return { action: 'fallback', reason: 'update-failed' };
+  }
+
+  inspectRegistration();
+  checkHandoff();
+  const remainingMs = Math.max(1, deadline - Date.now());
+  const handoffResult = await settleWithin(() => handoff, remainingMs);
+  cleanup();
+  if (handoffResult.outcome === 'completed') {
+    return handoffResult.value === 'ready'
+      ? { action: 'reload' }
+      : { action: 'fallback', reason: 'activation-failed' };
+  }
+  const timedOutReplacement = replacement as RecoveryWorker | null;
+  if (!timedOutReplacement) {
+    return { action: 'fallback', reason: 'no-replacement' };
+  }
+  return timedOutReplacement.state === 'activated'
+    ? { action: 'fallback', reason: 'control-timeout' }
+    : { action: 'fallback', reason: 'activation-timeout' };
+}
+
 export async function prepareLegalBundleRecovery(
   environment: LegalBundleRecoveryEnvironment = browserEnvironment(),
 ): Promise<LegalBundleRecoveryResult> {
@@ -172,17 +344,12 @@ export async function prepareLegalBundleRecovery(
     return { action: 'fallback', reason: 'cross-origin-registration' };
   }
 
-  const updateResult = await settleWithin(
-    () => registration.update(),
+  return updateAndAwaitReplacement(
+    registration,
+    environment.serviceWorker,
+    environment.origin,
     timeoutMs,
   );
-  if (updateResult.outcome === 'timeout') {
-    return { action: 'fallback', reason: 'timeout' };
-  }
-  if (updateResult.outcome === 'failed') {
-    return { action: 'fallback', reason: 'update-failed' };
-  }
-  return { action: 'reload' };
 }
 
 export async function recoverTermsBundleMismatchResponse(

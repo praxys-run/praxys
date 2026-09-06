@@ -107,8 +107,11 @@ Terms bundle while keeping its acceptance checkbox initially clear.
 Rollback application code through protected `main`, then repeat the SHA and
 header readback. Preserve this `sw.js` header contract during rollback: restoring
 the old cacheable-worker policy recreates the incident. The client recovery is
-bounded to one automatic reload per tab episode and remains gated when offline,
-storage is unavailable, no same-origin worker exists, or the update fails.
+bounded to one automatic reload per tab episode. It reloads only after a
+same-origin replacement worker reaches `activated` and takes control of the
+current page; activation or controller-handoff timeout remains gated. Recovery
+also remains gated when offline, storage is unavailable, no same-origin worker
+exists, or the update fails.
 
 ## China public web launch
 

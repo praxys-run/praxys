@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocale } from "@/contexts/LocaleContext";
@@ -24,6 +24,23 @@ const PLATFORM_LABELS: Record<PlatformName, string> = {
   oura: "Oura",
   coros: "COROS",
 };
+
+const TERMS_GATE_TITLE_ID = "terms-gate-title";
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function visibleFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  ).filter((element) => (
+    element.getAttribute('aria-hidden') !== 'true'
+    && element.getClientRects().length > 0
+  ));
+}
 
 function platformLabel(platform: string): string {
   return PLATFORM_LABELS[platform as PlatformName] ?? platform;
@@ -55,6 +72,8 @@ export default function TermsGate() {
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const fallbackAlertRef = useRef<HTMLParagraphElement>(null);
+  const fallbackFocusedRef = useRef(false);
 
   const staleBundle = termsAcceptanceStatus === "updating"
     || termsAcceptanceStatus === "reloading"
@@ -63,6 +82,30 @@ export default function TermsGate() {
     || termsAcceptanceStatus === "accepted"
     || termsAcceptanceStatus === "updating"
     || termsAcceptanceStatus === "reloading";
+  const progressMessage = termsAcceptanceStatus === "submitting"
+    ? (zh ? "正在保存条款选择…" : "Saving your Terms choice…")
+    : termsAcceptanceStatus === "updating"
+      ? (zh ? "检测到新版条款，正在安全更新页面…" : "A newer Terms bundle is available. Updating this page safely…")
+      : termsAcceptanceStatus === "reloading"
+        ? (zh ? "更新已就绪，正在载入当前条款…" : "Update ready. Reloading the current Terms…")
+        : null;
+  const acceptanceError = termsAcceptanceStatus === "fallback"
+    ? (zh ? "此页面版本已过期，且无法自动更新。请刷新页面，然后阅读并接受当前条款。" : "This page is out of date and could not update automatically. Refresh this page, then review and accept the current Terms.")
+    : termsAcceptanceStatus === "submit_error"
+      ? (zh ? "无法保存，请重试。" : "Could not save — please try again.")
+      : null;
+
+  useEffect(() => {
+    if (
+      termsAcceptanceStatus !== "fallback"
+      || fallbackFocusedRef.current
+      || !fallbackAlertRef.current
+    ) {
+      return;
+    }
+    fallbackAlertRef.current.focus({ preventScroll: true });
+    fallbackFocusedRef.current = true;
+  }, [termsAcceptanceStatus]);
 
   useEffect(() => {
     if (isDemo) {
@@ -221,13 +264,42 @@ export default function TermsGate() {
     navigate("/login", { replace: true });
   };
 
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const focusable = visibleFocusableElements(event.currentTarget);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      document.getElementById(TERMS_GATE_TITLE_ID)?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    const title = document.getElementById(TERMS_GATE_TITLE_ID);
+    if (event.shiftKey && (active === first || active === title)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || active === title)) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
-    <Dialog open>
+    <Dialog open modal>
       <DialogContent
         showCloseButton={false}
+        initialFocus={() => document.getElementById(TERMS_GATE_TITLE_ID)}
+        onKeyDownCapture={handleDialogKeyDown}
         className="max-h-[calc(100vh-2rem)] max-w-lg gap-0 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg sm:max-w-lg"
       >
-        <DialogTitle className="text-lg leading-normal font-semibold">
+        <DialogTitle
+          id={TERMS_GATE_TITLE_ID}
+          tabIndex={-1}
+          className="text-lg leading-normal font-semibold outline-none"
+        >
           {zh ? "条款与隐私告知已更新" : "Updated Terms and Privacy notice"}
         </DialogTitle>
         <p className="mt-1 text-sm text-muted-foreground font-data">
@@ -239,47 +311,55 @@ export default function TermsGate() {
             : "The Terms of Service have been updated. The Privacy Policy distinguishes Azure core hosting from Azure AI processing and explains the enumerated ordinary AI purposes, minimization, outage behavior, and rights channels. Ordinary service has no separate AI opt-out. Review the Terms and Privacy notice before continuing."}
         </p>
 
-        <label className="mt-5 flex items-start gap-2 text-sm text-muted-foreground">
+        <label className="mt-5 flex min-h-11 items-start gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={!staleBundle && agreed}
             onChange={(e) => setAgreed(e.target.checked)}
             disabled={acceptanceBusy || termsAcceptanceStatus === "fallback"}
-            className="mt-0.5 flex-none"
+            className="mt-3 size-5 flex-none accent-primary"
           />
-          <span>
-            {zh ? "我接受" : "I accept the"}{" "}
-            <Link to="/terms" target="_blank" className="text-primary hover:underline">
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 leading-relaxed">
+            <span>{zh ? "我接受" : "I accept the"}</span>
+            <Link
+              to="/terms"
+              target="_blank"
+              className="inline-flex min-h-11 min-w-11 items-center rounded-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {zh ? "服务条款" : "Terms of Service"}
-            </Link>{" "}
-            {zh ? "，并确认已阅读" : "and acknowledge that I have read the"}{" "}
-            <Link to="/privacy" target="_blank" className="text-primary hover:underline">
+            </Link>
+            <span>{zh ? "，并确认已阅读" : "and acknowledge that I have read the"}</span>
+            <Link
+              to="/privacy"
+              target="_blank"
+              className="inline-flex min-h-11 min-w-11 items-center rounded-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {zh ? "隐私政策" : "Privacy Policy"}
             </Link>
-            {zh ? "。" : "."}
+            <span>{zh ? "。" : "."}</span>
           </span>
         </label>
 
-        {termsAcceptanceStatus !== "ready" && termsAcceptanceStatus !== "accepted" && (
+        {progressMessage && (
           <p
-            className={`mt-3 text-sm ${
-              termsAcceptanceStatus === "submit_error" || termsAcceptanceStatus === "fallback"
-                ? "text-destructive"
-                : "text-muted-foreground"
-            }`}
-            role={termsAcceptanceStatus === "submit_error" || termsAcceptanceStatus === "fallback" ? "alert" : "status"}
+            className="mt-3 text-sm text-muted-foreground"
+            role="status"
             aria-live="polite"
             aria-atomic="true"
           >
-            {termsAcceptanceStatus === "submitting"
-              ? (zh ? "正在保存条款选择…" : "Saving your Terms choice…")
-              : termsAcceptanceStatus === "updating"
-                ? (zh ? "检测到新版条款，正在安全更新页面…" : "A newer Terms bundle is available. Updating this page safely…")
-                : termsAcceptanceStatus === "reloading"
-                  ? (zh ? "更新已就绪，正在载入当前条款…" : "Update ready. Reloading the current Terms…")
-                  : termsAcceptanceStatus === "fallback"
-                    ? (zh ? "此页面版本已过期，且无法自动更新。请刷新页面，然后阅读并接受当前条款。" : "This page is out of date and could not update automatically. Refresh this page, then review and accept the current Terms.")
-                    : (zh ? "无法保存，请重试。" : "Could not save — please try again.")}
+            {progressMessage}
+          </p>
+        )}
+
+        {acceptanceError && (
+          <p
+            ref={termsAcceptanceStatus === "fallback" ? fallbackAlertRef : undefined}
+            tabIndex={termsAcceptanceStatus === "fallback" ? -1 : undefined}
+            className="mt-3 text-sm text-destructive outline-none"
+            role="alert"
+            aria-atomic="true"
+          >
+            {acceptanceError}
           </p>
         )}
 
@@ -290,7 +370,7 @@ export default function TermsGate() {
           disabled={termsAcceptanceStatus === "fallback"
             ? false
             : !agreed || acceptanceBusy}
-          className="mt-6 h-10 w-full"
+          className="mt-6 min-h-11 w-full"
         >
           {termsAcceptanceStatus === "fallback"
             ? (zh ? "刷新此页面" : "Refresh this page")
@@ -320,7 +400,7 @@ export default function TermsGate() {
                   type="button"
                   variant="link"
                   size="sm"
-                  className="h-9 px-0 text-muted-foreground"
+                  className="h-11 min-w-11 px-1 text-muted-foreground"
                   disabled={rightsBusy !== null || disconnectingPlatform !== null}
                   onClick={handleExport}
                 >
@@ -333,7 +413,7 @@ export default function TermsGate() {
                   type="button"
                   variant="link"
                   size="sm"
-                  className="h-9 px-0 text-destructive"
+                  className="h-11 min-w-11 px-1 text-destructive"
                   disabled={rightsBusy !== null || disconnectingPlatform !== null}
                   onClick={() => setShowDelete(true)}
                 >
@@ -346,7 +426,7 @@ export default function TermsGate() {
               type="button"
               variant="link"
               size="sm"
-              className="h-9 px-0 text-muted-foreground"
+              className="h-11 min-w-11 px-1 text-muted-foreground"
               disabled={rightsBusy !== null || disconnectingPlatform !== null}
               onClick={handleSignOut}
             >
@@ -374,7 +454,7 @@ export default function TermsGate() {
                         type="button"
                         variant="link"
                         size="sm"
-                        className="h-9 px-0 text-muted-foreground"
+                        className="h-11 min-w-11 px-1 text-muted-foreground"
                         disabled={rightsBusy !== null || disconnectingPlatform !== null}
                         onClick={() => void handleDisconnect(platform)}
                       >
@@ -402,12 +482,13 @@ export default function TermsGate() {
                 placeholder="DELETE"
                 aria-label={zh ? "输入 DELETE 以确认删除账号" : "Type DELETE to confirm account deletion"}
                 disabled={rightsBusy !== null}
-                className="mt-3"
+                className="mt-3 min-h-11"
               />
               <div className="mt-3 flex justify-end gap-2">
                 <Button
                   type="button"
                   variant="ghost"
+                  className="min-h-11 min-w-11"
                   disabled={rightsBusy !== null}
                   onClick={() => {
                     setShowDelete(false);
@@ -419,6 +500,7 @@ export default function TermsGate() {
                 <Button
                   type="button"
                   variant="destructive"
+                  className="min-h-11 min-w-11"
                   disabled={deleteConfirm !== "DELETE" || rightsBusy !== null}
                   onClick={handleDelete}
                 >
