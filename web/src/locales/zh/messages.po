@@ -3721,6 +3721,7 @@ msgid "Feedback state unavailable"
 msgstr "反馈状态不可用"
 
 #: src/components/FeedbackDialog.tsx:571
+#: src/pages/admin/AdminFeedback.tsx:458
 msgid "Feedback status"
 msgstr "反馈状态"
 

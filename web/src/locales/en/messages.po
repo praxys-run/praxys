@@ -3714,6 +3714,7 @@ msgid "Feedback state unavailable"
 msgstr "Feedback state unavailable"
 
 #: src/components/FeedbackDialog.tsx:571
+#: src/pages/admin/AdminFeedback.tsx:458
 msgid "Feedback status"
 msgstr "Feedback status"
 

@@ -455,7 +455,7 @@ export default function AdminFeedback() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={feedbackFilter} onValueChange={(value) => setFeedbackFilter(value as AdminFeedbackFilter)}>
-                <SelectTrigger size="sm" className="w-[160px]">
+                <SelectTrigger size="sm" className="w-[160px]" aria-label={t`Feedback status`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
