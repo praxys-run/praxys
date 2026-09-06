@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import {
   TRAIL_REASON_CODES,
   TRAIL_SCHEMA_IDS,
@@ -13,7 +13,7 @@ import {
   type TrailReasonCode,
   type TrailSectionKey,
   type TrailServerEnvelope,
-} from '@/types/trail-plan';
+} from '../../types/trail-plan.ts';
 import {
   decimalEnvelopeFromExplicitInput,
   durationEnvelopeFromExplicitInputs,
@@ -22,10 +22,10 @@ import {
   known,
   metresEnvelopeFromExplicitKilometres,
   unknown,
-} from './transitions';
-import { parseTrailDraftResponse } from './validation';
+} from './transitions.ts';
+import { parseTrailDraftResponse } from './validation.ts';
 
-export { known, parseGradeBasisPoints, unknown } from './transitions';
+export { known, parseGradeBasisPoints, unknown } from './transitions.ts';
 
 export const GRADE_KEYS = [
   'below_neg_10',
@@ -114,6 +114,7 @@ export interface ValidationIssue {
   id: string;
   target: TrailFocusTarget;
   section: TrailEditableSectionKey;
+  controlId: string;
 }
 export interface ReasonCopy {
   finding: string;
@@ -156,6 +157,42 @@ export const EMPTY_NUMERIC_INPUTS: NumericInputs = {
   fuelingMinutes: '',
   fuelingSessions: '',
 };
+
+const OPTIONAL_GROUP_NUMERIC_KEYS: Record<
+  OptionalGroup,
+  readonly NumericInputKey[]
+> = {
+  environment: [
+    'maximumAltitudeM',
+    'temperatureMinimumC',
+    'temperatureMaximumC',
+    'humidityMinimumPct',
+    'humidityMaximumPct',
+  ],
+  support: ['aidStationCount', 'aidStationGapKm'],
+  fueling: ['fuelingHours', 'fuelingMinutes', 'fuelingSessions'],
+};
+
+export function clearPlanningDurationNumericInputs(
+  inputs: NumericInputs,
+): NumericInputs {
+  return {
+    ...inputs,
+    planningMinimumHours: '',
+    planningMinimumMinutes: '',
+    planningMaximumHours: '',
+    planningMaximumMinutes: '',
+  };
+}
+
+export function clearOptionalGroupNumericInputs(
+  inputs: NumericInputs,
+  group: OptionalGroup,
+): NumericInputs {
+  const next = { ...inputs };
+  for (const key of OPTIONAL_GROUP_NUMERIC_KEYS[group]) next[key] = '';
+  return next;
+}
 
 export function projectEnvelope<T>(
   envelope: TrailServerEnvelope<T>,
@@ -456,6 +493,133 @@ function cloneDraftRequest(request: TrailDraftRequest): TrailDraftRequest {
   };
 }
 
+const COURSE_FIELD_SECTIONS: Record<CourseEnvelopeKey, TrailEditableSectionKey> = {
+  event_date: 'section.event-duration',
+  distance_meters: 'section.event-duration',
+  total_ascent_m: 'section.event-duration',
+  total_descent_m: 'section.event-duration',
+  planning_duration_range: 'section.event-duration',
+  event_format: 'section.event-duration',
+  distance_family: 'section.event-duration',
+  planning_intent: 'section.event-duration',
+  grade_distribution: 'section.grade-footing',
+  course_footing: 'section.grade-footing',
+  hands_assist: 'section.grade-footing',
+  fixed_rope: 'section.grade-footing',
+};
+
+const CONSTRAINT_FIELD_SECTIONS: Record<
+  ConstraintEnvelopeKey,
+  TrailEditableSectionKey
+> = {
+  available_weekdays: 'section.training-access',
+  weekly_time_limit_min: 'section.training-access',
+  maximum_session_duration_min: 'section.training-access',
+  unavailable_dates: 'section.training-access',
+  nontechnical_three_minute_uphill_access: 'section.training-access',
+  controlled_downhill_access: 'section.training-access',
+  accessible_footing: 'section.training-access',
+  adult_nonclinical_scope_confirmed: 'section.training-access',
+  performance_intent_confirmed: 'section.training-access',
+  current_symptom_stop: 'section.training-access',
+};
+
+const NUMERIC_INPUT_SECTIONS: Record<NumericInputKey, TrailEditableSectionKey> = {
+  distanceKm: 'section.event-duration',
+  totalAscentM: 'section.event-duration',
+  totalDescentM: 'section.event-duration',
+  planningMinimumHours: 'section.event-duration',
+  planningMinimumMinutes: 'section.event-duration',
+  planningMaximumHours: 'section.event-duration',
+  planningMaximumMinutes: 'section.event-duration',
+  gradeBelowNeg10: 'section.grade-footing',
+  gradeNeg10ToNeg3: 'section.grade-footing',
+  gradeNearLevel: 'section.grade-footing',
+  gradePos3ToPos10: 'section.grade-footing',
+  gradePos10AndAbove: 'section.grade-footing',
+  weeklyHours: 'section.training-access',
+  weeklyMinutes: 'section.training-access',
+  sessionHours: 'section.training-access',
+  sessionMinutes: 'section.training-access',
+  maximumAltitudeM: 'section.optional-context',
+  temperatureMinimumC: 'section.optional-context',
+  temperatureMaximumC: 'section.optional-context',
+  humidityMinimumPct: 'section.optional-context',
+  humidityMaximumPct: 'section.optional-context',
+  aidStationCount: 'section.optional-context',
+  aidStationGapKm: 'section.optional-context',
+  fuelingHours: 'section.optional-context',
+  fuelingMinutes: 'section.optional-context',
+  fuelingSessions: 'section.optional-context',
+};
+
+function differs(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) !== JSON.stringify(right);
+}
+
+export function reapplyPendingTrailEdits(
+  baseDraft: TrailDraftResponse,
+  pendingRequest: TrailDraftRequest,
+  pendingInputs: NumericInputs,
+  latestDraft: Exclude<TrailDraftResponse, { state: 'unknown_schema' }>,
+): {
+  request: TrailDraftRequest;
+  numericInputs: NumericInputs;
+  dirtySections: Set<TrailEditableSectionKey>;
+} {
+  const baseRequest = requestFromDraft(baseDraft);
+  const baseInputs = numericInputsFromDraft(baseDraft);
+  const request = requestFromDraft(latestDraft);
+  const numericInputs = numericInputsFromDraft(latestDraft);
+  const dirtySections = new Set<TrailEditableSectionKey>();
+
+  for (const key of Object.keys(COURSE_FIELD_SECTIONS) as CourseEnvelopeKey[]) {
+    if (!differs(pendingRequest.course_demand.fields[key], baseRequest.course_demand.fields[key])) {
+      continue;
+    }
+    (request.course_demand.fields as unknown as Record<string, unknown>)[key] =
+      pendingRequest.course_demand.fields[key];
+    dirtySections.add(COURSE_FIELD_SECTIONS[key]);
+  }
+  for (const key of Object.keys(CONSTRAINT_FIELD_SECTIONS) as ConstraintEnvelopeKey[]) {
+    if (!differs(pendingRequest.constraints[key], baseRequest.constraints[key])) continue;
+    (request.constraints as unknown as Record<string, unknown>)[key] =
+      pendingRequest.constraints[key];
+    dirtySections.add(CONSTRAINT_FIELD_SECTIONS[key]);
+  }
+  if (differs(
+    pendingRequest.constraints.preferred_longest_weekday,
+    baseRequest.constraints.preferred_longest_weekday,
+  )) {
+    if (pendingRequest.constraints.preferred_longest_weekday === undefined) {
+      delete request.constraints.preferred_longest_weekday;
+    } else {
+      request.constraints.preferred_longest_weekday =
+        pendingRequest.constraints.preferred_longest_weekday;
+    }
+    dirtySections.add('section.training-access');
+  }
+
+  for (const group of ['environment', 'support', 'fueling'] as const) {
+    const pendingGroup = pendingRequest.course_demand.fields.optional_context[group];
+    const baseGroup = baseRequest.course_demand.fields.optional_context[group];
+    const latestGroup = request.course_demand.fields.optional_context[group];
+    for (const key of Object.keys(baseGroup) as Array<keyof typeof baseGroup>) {
+      if (!differs(pendingGroup[key], baseGroup[key])) continue;
+      (latestGroup as Record<string, unknown>)[key] = pendingGroup[key];
+      dirtySections.add('section.optional-context');
+    }
+  }
+
+  for (const key of Object.keys(NUMERIC_INPUT_SECTIONS) as NumericInputKey[]) {
+    if (pendingInputs[key] === baseInputs[key]) continue;
+    numericInputs[key] = pendingInputs[key];
+    dirtySections.add(NUMERIC_INPUT_SECTIONS[key]);
+  }
+
+  return { request, numericInputs, dirtySections };
+}
+
 export function buildValidatedRequest(
   request: TrailDraftRequest,
   inputs: NumericInputs,
@@ -469,26 +633,27 @@ export function buildValidatedRequest(
     id: string,
     target: TrailFocusTarget,
     section: TrailEditableSectionKey,
-  ) => issues.push({ id, target, section });
+    controlId: string,
+  ) => issues.push({ id, target, section, controlId });
 
   if (fields.event_date.state === 'known'
     && !/^\d{4}-\d{2}-\d{2}$/.test(fields.event_date.value)) {
-    add('event-date', 'field.event-date', 'section.event-duration');
+    add('event-date', 'field.event-date', 'section.event-duration', 'trail-event-date');
   }
 
   if (fields.distance_meters.state === 'known' || inputs.distanceKm !== '') {
     const value = metresEnvelopeFromExplicitKilometres(inputs.distanceKm, 1, 49999);
-    if (value.state === 'unknown') add('distance', 'section.event-duration', 'section.event-duration');
+    if (value.state === 'unknown') add('distance', 'section.event-duration', 'section.event-duration', 'trail-race-distance');
     else fields.distance_meters = value;
   }
   if (fields.total_ascent_m.state === 'known' || inputs.totalAscentM !== '') {
     const value = integerEnvelopeFromExplicitInput(inputs.totalAscentM, 0, 20000);
-    if (value.state === 'unknown') add('ascent', 'section.event-duration', 'section.event-duration');
+    if (value.state === 'unknown') add('ascent', 'section.event-duration', 'section.event-duration', 'trail-total-ascent');
     else fields.total_ascent_m = value;
   }
   if (fields.total_descent_m.state === 'known' || inputs.totalDescentM !== '') {
     const value = integerEnvelopeFromExplicitInput(inputs.totalDescentM, 0, 20000);
-    if (value.state === 'unknown') add('descent', 'section.event-duration', 'section.event-duration');
+    if (value.state === 'unknown') add('descent', 'section.event-duration', 'section.event-duration', 'trail-total-descent');
     else fields.total_descent_m = value;
   }
   if (fields.planning_duration_range.state === 'known' || [
@@ -512,7 +677,7 @@ export function buildValidatedRequest(
     if (minimum.state === 'unknown'
       || maximum.state === 'unknown'
       || minimum.value >= maximum.value) {
-      add('planning-duration', 'section.event-duration', 'section.event-duration');
+      add('planning-duration', 'section.event-duration', 'section.event-duration', 'trail-planning-minimum');
     } else {
       fields.planning_duration_range = known({
         minimum_min: minimum.value,
@@ -532,13 +697,13 @@ export function buildValidatedRequest(
     || rawGrade.some((value) => value !== '')) {
     const grade = gradeEnvelopeFromExplicitInputs(rawGrade);
     if (grade.state === 'unknown') {
-      add('grade-distribution', 'section.grade-footing', 'section.grade-footing');
+      add('grade-distribution', 'section.grade-footing', 'section.grade-footing', 'trail-grade-below_neg_10');
     } else {
       fields.grade_distribution = grade;
     }
   }
   if (fields.course_footing.state === 'known' && fields.course_footing.value.length === 0) {
-    add('course-footing', 'section.grade-footing', 'section.grade-footing');
+    add('course-footing', 'section.grade-footing', 'section.grade-footing', 'trail-course-footing');
   }
 
   let weekly: number | null = null;
@@ -552,7 +717,7 @@ export function buildValidatedRequest(
       10080,
     );
     if (value.state === 'unknown') {
-      add('weekly-time', 'section.training-access', 'section.training-access');
+      add('weekly-time', 'section.training-access', 'section.training-access', 'trail-weekly-time');
     } else {
       weekly = value.value;
       constraints.weekly_time_limit_min = value;
@@ -569,18 +734,18 @@ export function buildValidatedRequest(
     );
     if (session.state === 'unknown'
       || (weekly !== null && session.value > weekly)) {
-      add('session-time', 'section.training-access', 'section.training-access');
+      add('session-time', 'section.training-access', 'section.training-access', 'trail-session-time');
     } else {
       constraints.maximum_session_duration_min = session;
     }
   }
   if (constraints.available_weekdays.state === 'known'
     && constraints.available_weekdays.value.length === 0) {
-    add('available-days', 'section.training-access', 'section.training-access');
+    add('available-days', 'section.training-access', 'section.training-access', 'trail-available-days');
   }
   if (constraints.accessible_footing.state === 'known'
     && constraints.accessible_footing.value.length === 0) {
-    add('accessible-footing', 'section.training-access', 'section.training-access');
+    add('accessible-footing', 'section.training-access', 'section.training-access', 'trail-training-footing');
   }
   if (
     constraints.preferred_longest_weekday !== undefined
@@ -589,13 +754,13 @@ export function buildValidatedRequest(
       constraints.preferred_longest_weekday,
     )
   ) {
-    add('preferred-day', 'section.training-access', 'section.training-access');
+    add('preferred-day', 'section.training-access', 'section.training-access', 'trail-preferred-day');
   }
 
   if (optional.environment.maximum_altitude_m.state === 'known'
     || inputs.maximumAltitudeM !== '') {
     const value = integerEnvelopeFromExplicitInput(inputs.maximumAltitudeM, -500, 9000);
-    if (value.state === 'unknown') add('maximum-altitude', 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') add('maximum-altitude', 'section.optional-context', 'section.optional-context', 'trail-maximum-altitude');
     else optional.environment.maximum_altitude_m = value;
   }
   const decimalOptional = [
@@ -608,7 +773,16 @@ export function buildValidatedRequest(
     const envelope = optional.environment[fieldKey];
     if (envelope.state !== 'known' && inputs[inputKey] === '') continue;
     const value = decimalEnvelopeFromExplicitInput(inputs[inputKey], 2, minimum, maximum);
-    if (value.state === 'unknown') add(fieldKey, 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') {
+      const controlId = fieldKey === 'temperature_min_c'
+        ? 'trail-temperature-minimum'
+        : fieldKey === 'temperature_max_c'
+          ? 'trail-temperature-minimum'
+          : fieldKey === 'humidity_min_pct'
+            ? 'trail-humidity-minimum'
+            : 'trail-humidity-minimum';
+      add(fieldKey, 'section.optional-context', 'section.optional-context', controlId);
+    }
     else optional.environment[fieldKey] = value;
   }
   const temperatureMinimum = optional.environment.temperature_min_c;
@@ -618,7 +792,7 @@ export function buildValidatedRequest(
     && temperatureMaximum.state === 'known'
     && temperatureMinimum.value > temperatureMaximum.value
   ) {
-    add('temperature-range', 'section.optional-context', 'section.optional-context');
+    add('temperature-range', 'section.optional-context', 'section.optional-context', 'trail-temperature-minimum');
   }
   const humidityMinimum = optional.environment.humidity_min_pct;
   const humidityMaximum = optional.environment.humidity_max_pct;
@@ -627,12 +801,12 @@ export function buildValidatedRequest(
     && humidityMaximum.state === 'known'
     && humidityMinimum.value > humidityMaximum.value
   ) {
-    add('humidity-range', 'section.optional-context', 'section.optional-context');
+    add('humidity-range', 'section.optional-context', 'section.optional-context', 'trail-humidity-minimum');
   }
   if (optional.support.aid_station_count.state === 'known'
     || inputs.aidStationCount !== '') {
     const value = integerEnvelopeFromExplicitInput(inputs.aidStationCount, 0, 50);
-    if (value.state === 'unknown') add('aid-count', 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') add('aid-count', 'section.optional-context', 'section.optional-context', 'trail-aid-count');
     else optional.support.aid_station_count = value;
   }
   if (
@@ -641,7 +815,7 @@ export function buildValidatedRequest(
       && optional.support.max_aid_station_gap_m.value !== null)
   ) {
     const value = metresEnvelopeFromExplicitKilometres(inputs.aidStationGapKm, 100, 50000);
-    if (value.state === 'unknown') add('aid-gap', 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') add('aid-gap', 'section.optional-context', 'section.optional-context', 'trail-aid-gap');
     else optional.support.max_aid_station_gap_m = value;
   }
   if (optional.fueling.longest_practiced_duration_min.state === 'known'
@@ -653,13 +827,13 @@ export function buildValidatedRequest(
       0,
       1440,
     );
-    if (value.state === 'unknown') add('fueling-duration', 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') add('fueling-duration', 'section.optional-context', 'section.optional-context', 'trail-fueling-duration');
     else optional.fueling.longest_practiced_duration_min = value;
   }
   if (optional.fueling.practice_sessions_last_42_days.state === 'known'
     || inputs.fuelingSessions !== '') {
     const value = integerEnvelopeFromExplicitInput(inputs.fuelingSessions, 0, 84);
-    if (value.state === 'unknown') add('fueling-sessions', 'section.optional-context', 'section.optional-context');
+    if (value.state === 'unknown') add('fueling-sessions', 'section.optional-context', 'section.optional-context', 'trail-fueling-sessions');
     else optional.fueling.practice_sessions_last_42_days = value;
   }
   return { request: next, issues };
@@ -820,12 +994,12 @@ export function provenanceMeta(
   modelLabel: string,
 ): ReactNode {
   if (!envelope) return null;
-  return (
-    <span className="break-words">
-      {labels[envelope.provenance]}
-      {envelope.provenance === 'model_inferred' && envelope.model_version
-        ? ` · ${modelLabel} ${envelope.model_version}`
-        : ''}
-    </span>
+  return createElement(
+    'span',
+    { className: 'break-words' },
+    labels[envelope.provenance],
+    envelope.provenance === 'model_inferred' && envelope.model_version
+      ? ` · ${modelLabel} ${envelope.model_version}`
+      : '',
   );
 }

@@ -240,8 +240,8 @@ dependencies before the agent starts.
 For an `agent-ready` issue that touches UI, the agent must:
 
 - keep the PR draft while the rendered review or evidence is incomplete;
-- use only the scrubbed screenshot description in the public issue, never the
-  private raw screenshot;
+- keep the raw screenshot and every image-derived description on the private
+  admin path; public issues contain only independently privacy-reviewed text;
 - complete the UI evidence and pass `frontend-quality` (plus the compatibility
   `backend-tests` context) before the ready handoff;
 - accept the independent invariant review as review evidence, not as permission

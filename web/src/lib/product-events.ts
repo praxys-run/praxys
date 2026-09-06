@@ -1,4 +1,4 @@
-import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
+import { apiFetch, getAuthHeaders } from '@/hooks/useApi';
 import type {
   NonDecisionProductEventName,
   ProductEventName,
@@ -75,7 +75,7 @@ export async function recordProductEvent(
   }
 
   try {
-    const result = await fetch(`${API_BASE}/api/product-events`, {
+    const result = await apiFetch('/api/product-events', {
       method: 'POST',
       headers: {
         ...(getAuthHeaders() as Record<string, string>),
@@ -99,8 +99,8 @@ export function claimTodayDecisionCheck(): Promise<ProductEventResponse | null> 
 
   const promise = (async () => {
     try {
-      const result = await fetch(
-        `${API_BASE}/api/product-events/today-feedback-claim`,
+      const result = await apiFetch(
+        '/api/product-events/today-feedback-claim',
         { method: 'POST', headers: getAuthHeaders() as Record<string, string> },
       );
       if (!result.ok) return null;

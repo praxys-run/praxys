@@ -89,6 +89,59 @@ def test_write_samples_idempotent(db_with_user):
     assert len(rows) == 5
 
 
+def test_write_samples_backfills_missing_power_and_provenance(db_with_user):
+    """A re-sync fills newly parsed Stryd watts on an existing Garmin sample."""
+    from analysis.data_loader import load_activity_samples
+    from db import sync_writer
+    from db.models import ActivitySample
+
+    db, user_id = db_with_user
+    first = _make_sample(
+        "act-power-backfill",
+        2500,
+        source="garmin",
+        power_watts=None,
+    )
+    incoming = _make_sample(
+        "act-power-backfill",
+        2500,
+        source="stryd",
+        power_watts=275.0,
+    )
+
+    assert sync_writer.write_samples(user_id, [first], db) == 1
+    db.commit()
+    assert sync_writer.write_samples(user_id, [incoming], db) == 1
+    db.commit()
+
+    row = db.query(ActivitySample).filter_by(
+        user_id=user_id,
+        activity_id="act-power-backfill",
+    ).one()
+    assert row.power_watts == 275.0
+    assert row.source == "stryd"
+
+    downstream = load_activity_samples(
+        user_id,
+        db,
+        activity_ids=["act-power-backfill"],
+    )
+    assert downstream.loc[0, "power_watts"] == 275.0
+    assert downstream.loc[0, "source"] == "stryd"
+
+    later_native = _make_sample(
+        "act-power-backfill",
+        2500,
+        source="garmin",
+        power_watts=250.0,
+    )
+    assert sync_writer.write_samples(user_id, [later_native], db) == 0
+    db.commit()
+    db.refresh(row)
+    assert row.power_watts == 275.0
+    assert row.source == "stryd"
+
+
 def test_write_samples_pace_derived_from_speed(db_with_user):
     """pace_sec_km is computed from speed_ms when not explicitly provided."""
     from db import sync_writer

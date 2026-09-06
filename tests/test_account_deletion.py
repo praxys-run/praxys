@@ -11,6 +11,87 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def test_account_deletion_failure_logs_omit_user_and_filesystem_path(
+    monkeypatch,
+    caplog,
+):
+    import errno
+    from contextlib import contextmanager
+
+    from api import account_deletion
+    from api.routes import plan as plan_route
+    from api.routes import sync as sync_route
+
+    user_id = "private-account-id-sentinel"
+    base_path = "/tmp/private-account-id-sentinel/status.json"
+    archive_path = f"{base_path}.corrupt-private-sentinel"
+    token_path = "/tmp/private-account-id-sentinel/garmin-token.json"
+    caplog.set_level("ERROR", logger="api.account_deletion")
+    monkeypatch.setattr(
+        sync_route,
+        "clear_garmin_tokens",
+        lambda _user_id: (_ for _ in ()).throw(
+            OSError(errno.EACCES, "cleanup unavailable", token_path)
+        ),
+    )
+    account_deletion._clear_tokenstore(user_id)
+
+    class FakeSession:
+        rolled_back = False
+
+        def rollback(self):
+            self.rolled_back = True
+
+    @contextmanager
+    def status_lock(*_args, **_kwargs):
+        yield
+
+    session = FakeSession()
+    monkeypatch.setattr(account_deletion, "lock_plan_writes", lambda *_args: None)
+    monkeypatch.setattr(account_deletion, "legacy_stryd_status_lock", status_lock)
+    monkeypatch.setattr(plan_route, "_stryd_push_status_path", lambda _user_id: base_path)
+    monkeypatch.setattr(account_deletion.glob, "glob", lambda _pattern: [archive_path])
+    monkeypatch.setattr(
+        account_deletion.os,
+        "unlink",
+        lambda _candidate: (_ for _ in ()).throw(
+            OSError(errno.EACCES, "unlink unavailable", _candidate)
+        ),
+    )
+
+    account_deletion._clear_legacy_plan_status(session, user_id)
+
+    assert session.rolled_back is True
+    assert user_id not in caplog.text
+    assert base_path not in caplog.text
+    assert archive_path not in caplog.text
+    assert token_path not in caplog.text
+
+
+def test_account_deletion_logging_does_not_interpolate_runtime_identifiers():
+    import ast
+    import inspect
+
+    from api import account_deletion
+
+    tree = ast.parse(inspect.getsource(account_deletion))
+    logger_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logger"
+    ]
+    assert logger_calls
+    assert all(len(call.args) == 1 for call in logger_calls)
+    assert all(call.func.attr != "exception" for call in logger_calls)
+    assert all(
+        all(keyword.arg != "exc_info" for keyword in call.keywords)
+        for call in logger_calls
+    )
+
+
 @pytest.fixture
 def account_client(monkeypatch):
     """Yield a TestClient backed by a fresh SQLite DB and overridable user id."""
@@ -879,6 +960,11 @@ def test_account_deletion_deletes_only_scoped_feedback_images(
         outsider_feedback.image_keys = [
             f"feedback/{outsider_feedback.id}/0.png"
         ]
+        provenance = feedback_storage.current_storage_provenance()
+        assert provenance is not None
+        owner_feedback.image_storage_provenance = provenance
+        demo_feedback.image_storage_provenance = provenance
+        outsider_feedback.image_storage_provenance = provenance
         scoped = {
             (owner_feedback.image_keys[0], owner_feedback.id),
             (demo_feedback.image_keys[0], demo_feedback.id),
@@ -888,7 +974,8 @@ def test_account_deletion_deletes_only_scoped_feedback_images(
 
     deleted: list[tuple[str, int]] = []
 
-    def _delete_image(key: str, *, feedback_id: int) -> None:
+    def _delete_image(key: str, *, feedback_id: int, provenance: object) -> None:
+        assert provenance is not None
         deleted.append((key, feedback_id))
 
     monkeypatch.setattr(feedback_storage, "delete_image", _delete_image)
@@ -945,6 +1032,168 @@ def test_account_deletion_storage_failure_is_visible_and_preserves_locators(
         assert row.image_keys == image_keys
 
 
+def test_account_deletion_missing_storage_provenance_preserves_locator(
+    account_client,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from db.models import Feedback, User
+
+    with db_session.SessionLocal() as db:
+        row = db.query(Feedback).filter(Feedback.user_id == "delete-me").one()
+        row.image_keys = [f"feedback/{row.id}/0.png"]
+        row.image_storage_provenance = None
+        feedback_id = row.id
+        db.commit()
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "ACCOUNT_DELETE_STORAGE_UNAVAILABLE"
+    with db_session.SessionLocal() as db:
+        assert db.get(User, "delete-me") is not None
+        retained = db.get(Feedback, feedback_id)
+        assert retained is not None
+        assert retained.image_keys == [f"feedback/{feedback_id}/0.png"]
+        assert retained.image_storage_provenance is None
+
+
+def test_account_deletion_detaches_without_cancelling_ambiguous_evidence(
+    account_client,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from db.models import (
+        Feedback,
+        FeedbackPublicationAttempt,
+        FeedbackPublicationOutbox,
+    )
+
+    now = datetime.utcnow()
+    with db_session.SessionLocal() as db:
+        feedback = db.query(Feedback).filter(
+            Feedback.user_id == "delete-me"
+        ).one()
+        feedback.status = "needs_review"
+        feedback.publication_status = "manual_required"
+        outbox = FeedbackPublicationOutbox(
+            id="account-delete-ambiguous-outbox",
+            feedback_id=feedback.id,
+            public_id="a" * 32,
+            marker_version="v2",
+            target_repo="praxys-run/praxys",
+            consent_version="feedback-publication-v2-public-github",
+            consented_at=now,
+            payload_sha256="sha256:" + "a" * 64,
+            public_content_sha256="sha256:" + "b" * 64,
+            state="manual_review",
+            delivery_evidence="ambiguous",
+            attempt_count=1,
+            available_at=now,
+            last_error_code="multiple_marker_matches",
+        )
+        db.add(outbox)
+        db.flush()
+        db.add(
+            FeedbackPublicationAttempt(
+                id="account-delete-ambiguous-attempt",
+                outbox_id=outbox.id,
+                attempt_no=1,
+                lease_token="account-delete-ambiguous-lease",
+                target_repo=outbox.target_repo,
+                payload_sha256=outbox.payload_sha256,
+                started_at=now,
+                finished_at=now,
+                outcome="not_sent",
+                error_code="multiple_marker_matches",
+            )
+        )
+        db.commit()
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    with db_session.SessionLocal() as db:
+        retained = db.get(
+            FeedbackPublicationOutbox,
+            "account-delete-ambiguous-outbox",
+        )
+        assert retained is not None
+        assert retained.feedback_id is None
+        assert retained.state == "manual_review"
+        assert retained.delivery_evidence == "ambiguous"
+        assert retained.last_error_code == "multiple_marker_matches"
+        attempt = db.get(
+            FeedbackPublicationAttempt,
+            "account-delete-ambiguous-attempt",
+        )
+        assert attempt is not None
+        assert attempt.outcome == "not_sent"
+        assert attempt.error_code == "multiple_marker_matches"
+
+
+def test_account_deletion_preserves_legacy_public_issue_locator(
+    account_client,
+):
+    client, db_session = account_client
+    _seed_account_rows(db_session)
+
+    from db.models import Feedback, FeedbackPublicationOutbox
+
+    now = datetime.utcnow()
+    issue_url = "https://github.com/legacy-owner/legacy-repo/issues/42"
+    with db_session.SessionLocal() as db:
+        feedback = db.query(Feedback).filter(
+            Feedback.user_id == "delete-me"
+        ).one()
+        feedback.status = "resolved"
+        feedback.publication_status = "published"
+        feedback.github_issue_number = 42
+        feedback.github_issue_url = issue_url
+        db.add(
+            FeedbackPublicationOutbox(
+                id="account-delete-legacy-outbox",
+                feedback_id=feedback.id,
+                public_id="c" * 32,
+                marker_version="legacy",
+                target_repo="legacy-owner/legacy-repo",
+                consent_version=None,
+                consented_at=None,
+                payload_sha256=None,
+                public_content_sha256=None,
+                state="published",
+                delivery_evidence="published",
+                attempt_count=0,
+                reconcile_count=0,
+                available_at=now,
+                github_issue_number=42,
+                github_issue_url=issue_url,
+                published_at=now,
+            )
+        )
+        db.commit()
+
+    response = client.delete("/api/me")
+
+    assert response.status_code == 200, response.text
+    with db_session.SessionLocal() as db:
+        retained = db.get(
+            FeedbackPublicationOutbox,
+            "account-delete-legacy-outbox",
+        )
+        assert retained is not None
+        assert retained.feedback_id is None
+        assert retained.marker_version == "legacy"
+        assert retained.state == "published"
+        assert retained.delivery_evidence == "published"
+        assert retained.github_issue_number == 42
+        assert retained.github_issue_url == issue_url
+        assert retained.consent_version is None
+        assert retained.payload_sha256 is None
+
+
 def test_feedback_submission_serializes_with_account_deletion(
     account_client, monkeypatch
 ):
@@ -972,6 +1221,7 @@ def test_feedback_submission_serializes_with_account_deletion(
         *,
         feedback_id: int,
         index: int,
+        provenance: object,
     ) -> str:
         with db_session.SessionLocal() as observer:
             persisted = observer.get(Feedback, feedback_id)
@@ -979,11 +1229,13 @@ def test_feedback_submission_serializes_with_account_deletion(
             assert persisted.image_keys == [
                 f"feedback/{feedback_id}/{index}.png"
             ]
+            assert persisted.image_storage_provenance == provenance
         store_started.set()
         assert release_store.wait(3)
         return f"feedback/{feedback_id}/{index}.png"
 
-    def _delete_image(key: str, *, feedback_id: int) -> None:
+    def _delete_image(key: str, *, feedback_id: int, provenance: object) -> None:
+        assert provenance is not None
         deleted.append((key, feedback_id))
 
     original_guard = account_deletion.begin_active_admin_guard
@@ -1137,7 +1389,7 @@ def test_deletion_first_phase_cancels_labs_work_before_cleanup(
     monkeypatch.setattr(
         account_deletion,
         "_delete_user_owned_rows",
-        lambda *_args: (_ for _ in ()).throw(
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError("cleanup interrupted")
         ),
     )
@@ -1661,4 +1913,496 @@ def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
         assert cfg.updated_by is None
     finally:
         db.close()
+    engine.dispose()
+
+
+def test_account_deletion_prelocks_publication_outboxes_before_feedback(
+    monkeypatch, tmp_path
+) -> None:
+    """Owner and demo deletion use one O->F lock order without re-locking O."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Query, sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import api.account_deletion as account_deletion
+    import api.personal_context as personal_context
+    from db.models import (
+        Base,
+        Feedback,
+        FeedbackPublicationAttempt,
+        FeedbackPublicationOutbox,
+        User,
+    )
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(account_deletion, "_clear_tokenstore", lambda _uid: None)
+    monkeypatch.setattr(
+        account_deletion, "_clear_legacy_plan_status", lambda _db, _uid: None
+    )
+    monkeypatch.setattr(
+        personal_context,
+        "stage_account_deletion_manifests",
+        lambda _db, _user_ids: [],
+    )
+    monkeypatch.setattr(
+        personal_context, "complete_account_deletion_manifests", lambda _items: None
+    )
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    now = datetime.utcnow()
+    with Session() as db:
+        db.add_all(
+            (
+                User(
+                    id="lock-order-owner",
+                    email="lock-owner@example.test",
+                    hashed_password="x",
+                ),
+                User(
+                    id="lock-order-demo",
+                    email="lock-demo@example.test",
+                    hashed_password="x",
+                    is_demo=True,
+                    demo_of="lock-order-owner",
+                ),
+            )
+        )
+        db.commit()
+        for index, user_id in enumerate(
+            ("lock-order-owner", "lock-order-demo"), start=1
+        ):
+            feedback = Feedback(
+                user_id=user_id,
+                kind="bug",
+                message=f"private lock-order sentinel {index}",
+                status="triaged",
+                publication_status="queued",
+            )
+            db.add(feedback)
+            db.flush()
+            db.add(
+                FeedbackPublicationOutbox(
+                    id=f"lock-order-outbox-{index}",
+                    feedback_id=feedback.id,
+                    public_id=f"{index:032x}",
+                    marker_version="v2",
+                    target_repo="praxys-run/praxys",
+                    consent_version="feedback-publication-v2",
+                    consented_at=now,
+                    payload_sha256="sha256:" + f"{index:064x}",
+                    public_content_sha256=(
+                        "sha256:" + f"{index + 10:064x}"
+                    ),
+                    state="sending" if index == 1 else "pending",
+                    delivery_evidence=(
+                        "ambiguous" if index == 1 else "not_sent"
+                    ),
+                    available_at=now,
+                    lease_token="lock-order-lease" if index == 1 else None,
+                    lease_expires_at=(
+                        now + timedelta(minutes=2) if index == 1 else None
+                    ),
+                )
+            )
+            if index == 1:
+                db.flush()
+                db.add(
+                    FeedbackPublicationAttempt(
+                        id="lock-order-attempt-1",
+                        outbox_id="lock-order-outbox-1",
+                        attempt_no=1,
+                        lease_token="lock-order-lease",
+                        target_repo="praxys-run/praxys",
+                        payload_sha256="sha256:" + f"{index:064x}",
+                        started_at=now,
+                        outcome="in_flight",
+                    )
+                )
+        db.commit()
+
+    lock_events: list[str] = []
+    detach_batches: list[tuple[str, ...]] = []
+    original_with_for_update = Query.with_for_update
+    original_detach = account_deletion._detach_feedback_publication_evidence
+
+    def _record_lock(query, *args, **kwargs):
+        entities = {
+            description.get("entity") for description in query.column_descriptions
+        }
+        if FeedbackPublicationOutbox in entities:
+            lock_events.append("outbox")
+        elif FeedbackPublicationAttempt in entities:
+            lock_events.append("attempt")
+        elif Feedback in entities:
+            lock_events.append("feedback")
+        return original_with_for_update(query, *args, **kwargs)
+
+    def _record_detach(db, outboxes, *args, **kwargs):
+        detach_batches.append(tuple(outbox.id for outbox in outboxes))
+        return original_detach(db, outboxes, *args, **kwargs)
+
+    monkeypatch.setattr(Query, "with_for_update", _record_lock)
+    monkeypatch.setattr(
+        account_deletion, "_detach_feedback_publication_evidence", _record_detach
+    )
+
+    with Session() as db:
+        result = account_deletion.delete_user_account(
+            db,
+            "lock-order-owner",
+            enforce_last_admin_guard=False,
+        )
+
+    assert set(result.deleted_user_ids) == {
+        "lock-order-owner",
+        "lock-order-demo",
+    }
+    assert lock_events[0] == "outbox"
+    assert lock_events.count("outbox") == 1
+    assert lock_events.count("attempt") == 1
+    assert (
+        lock_events.index("outbox")
+        < lock_events.index("attempt")
+        < lock_events.index("feedback")
+    )
+    assert {outbox_id for batch in detach_batches for outbox_id in batch} == {
+        "lock-order-outbox-1",
+        "lock-order-outbox-2",
+    }
+
+    with Session() as db:
+        outboxes = db.query(FeedbackPublicationOutbox).order_by(
+            FeedbackPublicationOutbox.id
+        ).all()
+        assert len(outboxes) == 2
+        assert all(outbox.feedback_id is None for outbox in outboxes)
+    engine.dispose()
+
+
+def test_postgres_account_deletion_prelock_sql_is_exact_and_stable() -> None:
+    """The joined scope query locks only Outbox rows in a total order."""
+    from sqlalchemy import create_mock_engine
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.orm import Session
+
+    import api.account_deletion as account_deletion
+
+    engine = create_mock_engine("postgresql+psycopg://", lambda *_args, **_kw: None)
+    with Session(bind=engine) as db:
+        query = account_deletion._feedback_publication_outbox_lock_query(
+            db,
+            ("lock-order-demo", "lock-order-owner"),
+        )
+        outbox_sql = " ".join(
+            str(
+                query.statement.compile(
+                    dialect=postgresql.dialect(),
+                    compile_kwargs={"literal_binds": True},
+                )
+            ).split()
+        )
+        attempt_query = account_deletion._feedback_publication_attempt_lock_query(
+            db,
+            ("lock-order-outbox-2", "lock-order-outbox-1"),
+        )
+        attempt_sql = " ".join(
+            str(
+                attempt_query.statement.compile(
+                    dialect=postgresql.dialect(),
+                    compile_kwargs={"literal_binds": True},
+                )
+            ).split()
+        )
+
+    assert "ORDER BY feedback_publication_outbox.id ASC" in outbox_sql
+    assert "FOR UPDATE OF feedback_publication_outbox" in outbox_sql
+    assert "SKIP LOCKED" not in outbox_sql
+    assert "ORDER BY feedback_publication_attempts.id ASC" in attempt_sql
+    assert "FOR UPDATE OF feedback_publication_attempts" in attempt_sql
+    assert "SKIP LOCKED" not in attempt_sql
+
+
+@pytest.mark.parametrize("foreign_keys", (False, True))
+def test_account_deletion_detaches_feedback_publication_evidence(
+    monkeypatch, tmp_path, foreign_keys: bool
+) -> None:
+    """Private feedback is erased while delivery evidence remains deidentified."""
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import api.account_deletion as account_deletion
+    import api.personal_context as personal_context
+    from api import github_issues
+    from api.feedback_publication import (
+        claim_next_reconciliation,
+        claim_next_send,
+        publication_marker,
+        reconcile_claim,
+    )
+    from api.optional_processing import FEEDBACK_PUBLICATION_CONSENT_VERSION
+    from api.routes.feedback import feedback_publication_queue
+    from db.models import (
+        Base,
+        Feedback,
+        FeedbackPublicationAttempt,
+        FeedbackPublicationOutbox,
+        User,
+    )
+    from fastapi import Response
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(account_deletion, "_clear_tokenstore", lambda _uid: None)
+    monkeypatch.setattr(
+        account_deletion, "_clear_legacy_plan_status", lambda _db, _uid: None
+    )
+    monkeypatch.setattr(
+        personal_context,
+        "stage_account_deletion_manifests",
+        lambda _db, _user_ids: [],
+    )
+    monkeypatch.setattr(
+        personal_context, "complete_account_deletion_manifests", lambda _items: None
+    )
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    if foreign_keys:
+        @event.listens_for(engine, "connect")
+        def _enforce_fks(dbapi_conn, _rec):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    now = datetime.utcnow()
+    states = (
+        "pending",
+        "retry_wait",
+        "held",
+        "manual_review",
+        "sending",
+        "reconciling",
+        "published",
+    )
+    original_evidence: dict[str, tuple[str, str, str, int | None, str | None]] = {}
+
+    with Session() as db:
+        db.add_all(
+            (
+                User(
+                    id="publication-admin",
+                    email="publication-admin@example.test",
+                    hashed_password="x",
+                    is_superuser=True,
+                ),
+                User(
+                    id="publication-delete-target",
+                    email="erase-this-account@example.test",
+                    hashed_password="private-password-hash",
+                ),
+            )
+        )
+        db.commit()
+        for index, state in enumerate(states, start=1):
+            feedback = Feedback(
+                user_id="publication-delete-target",
+                kind="bug",
+                message=f"private feedback sentinel {state}",
+                status="issue_created" if state == "published" else "triaged",
+                publication_status=(
+                    "published"
+                    if state == "published"
+                    else "unknown"
+                    if state in ("sending", "reconciling")
+                    else "manual_required"
+                    if state == "manual_review"
+                    else "queued"
+                ),
+                publication_consent_version=FEEDBACK_PUBLICATION_CONSENT_VERSION,
+                publication_consented_at=now,
+                ai_title=f"private title sentinel {state}",
+                ai_body=f"private body sentinel {state}",
+                ai_labels=["bug", "feedback"],
+            )
+            db.add(feedback)
+            db.flush()
+            public_id = f"{index:032x}"
+            digest = "sha256:" + f"{index:064x}"
+            issue_number = 700 + index if state == "published" else None
+            issue_url = (
+                f"https://github.com/praxys-run/praxys/issues/{issue_number}"
+                if issue_number is not None
+                else None
+            )
+            lease = f"lease-{state}" if state in ("sending", "reconciling") else None
+            outbox = FeedbackPublicationOutbox(
+                id=f"publication-outbox-{index}",
+                feedback_id=feedback.id,
+                public_id=public_id,
+                marker_version="v2",
+                target_repo="praxys-run/praxys",
+                consent_version=FEEDBACK_PUBLICATION_CONSENT_VERSION,
+                consented_at=now,
+                payload_sha256=digest,
+                public_content_sha256=(
+                    "sha256:" + f"{index + 10:064x}"
+                ),
+                state=state,
+                delivery_evidence=(
+                    "published"
+                    if state == "published"
+                    else "ambiguous"
+                    if state in ("sending", "reconciling")
+                    else "not_sent"
+                ),
+                attempt_count=1 if state in ("sending", "reconciling") else 0,
+                reconcile_count=1 if state == "reconciling" else 0,
+                available_at=now - timedelta(seconds=1),
+                lease_token=lease,
+                lease_expires_at=(
+                    now + timedelta(minutes=2) if lease is not None else None
+                ),
+                github_issue_number=issue_number,
+                github_issue_url=issue_url,
+                published_at=now if state == "published" else None,
+            )
+            db.add(outbox)
+            db.flush()
+            if state in ("sending", "reconciling"):
+                db.add(
+                    FeedbackPublicationAttempt(
+                        id=f"publication-attempt-{index}",
+                        outbox_id=outbox.id,
+                        attempt_no=1,
+                        lease_token=(
+                            lease if state == "sending" else "prior-send-lease"
+                        ),
+                        target_repo=outbox.target_repo,
+                        payload_sha256=digest,
+                        started_at=now - timedelta(seconds=10),
+                        finished_at=(now if state == "reconciling" else None),
+                        outcome=("in_flight" if state == "sending" else "unknown"),
+                    )
+                )
+            original_evidence[outbox.id] = (
+                public_id,
+                digest,
+                outbox.target_repo,
+                issue_number,
+                issue_url,
+            )
+        db.commit()
+
+    with Session() as db:
+        result = account_deletion.delete_user_account(
+            db,
+            "publication-delete-target",
+            enforce_last_admin_guard=False,
+        )
+    assert result.deleted_user_ids == ["publication-delete-target"]
+
+    with Session() as db:
+        assert db.get(User, "publication-delete-target") is None
+        assert (
+            db.query(Feedback)
+            .filter(Feedback.user_id == "publication-delete-target")
+            .count()
+            == 0
+        )
+        outboxes = {
+            row.id: row
+            for row in db.query(FeedbackPublicationOutbox)
+            .order_by(FeedbackPublicationOutbox.id)
+            .all()
+        }
+        assert len(outboxes) == len(states)
+        assert all(row.feedback_id is None for row in outboxes.values())
+        assert {
+            outboxes[f"publication-outbox-{index}"].state
+            for index in range(1, 5)
+        } == {"cancelled"}
+        assert outboxes["publication-outbox-5"].state == "reconciling"
+        assert outboxes["publication-outbox-6"].state == "reconciling"
+        assert outboxes["publication-outbox-7"].state == "published"
+        for outbox_id, expected in original_evidence.items():
+            row = outboxes[outbox_id]
+            assert (
+                row.public_id,
+                row.payload_sha256,
+                row.target_repo,
+                row.github_issue_number,
+                row.github_issue_url,
+            ) == expected
+            assert row.lease_token is None
+            assert row.lease_expires_at is None
+
+        sending_attempt = db.get(
+            FeedbackPublicationAttempt, "publication-attempt-5"
+        )
+        assert sending_attempt is not None
+        assert sending_attempt.outcome == "unknown"
+        assert sending_attempt.finished_at is not None
+
+        monkeypatch.setattr(
+            github_issues,
+            "create_issue_outcome",
+            lambda **_kwargs: pytest.fail("detached publication must never POST"),
+        )
+        reconciled_markers: list[str] = []
+
+        def _reconcile(marker: str, **_kwargs):
+            reconciled_markers.append(marker)
+            return {
+                "outcome": "unknown",
+                "number": None,
+                "url": None,
+                "http_status": 200,
+                "error_code": "not_indexed_or_absent",
+            }
+
+        monkeypatch.setattr(github_issues, "reconcile_issue_marker", _reconcile)
+        assert claim_next_send(db) is None
+        for _ in range(2):
+            claim = claim_next_reconciliation(db)
+            assert claim is not None
+            assert reconcile_claim(db, *claim) == "unknown"
+        assert claim_next_reconciliation(db) is None
+        assert set(reconciled_markers) == {
+            publication_marker(
+                original_evidence[f"publication-outbox-{index}"][0],
+                original_evidence[f"publication-outbox-{index}"][1],
+            )
+            for index in (5, 6)
+        }
+
+        response = Response()
+        queue = feedback_publication_queue(
+            response,
+            user_id="publication-admin",
+            db=db,
+        )
+        serialized = json.dumps(queue)
+        assert response.headers["Cache-Control"] == "private, no-store"
+        assert len(queue["items"]) == len(states)
+        assert all(item["detached"] is True for item in queue["items"])
+        for forbidden in (
+            "private feedback sentinel",
+            "private title sentinel",
+            "private body sentinel",
+            "erase-this-account@example.test",
+            "private-password-hash",
+        ):
+            assert forbidden not in serialized
+
     engine.dispose()

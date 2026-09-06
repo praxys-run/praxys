@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { ScienceResponse, TsbZoneConfig, SciencePillar } from '../types/api';
-import { API_BASE, getAuthHeaders } from '../hooks/useApi';
+import { apiFetch, getAuthHeaders } from '../hooks/useApi';
 
 interface ScienceContextValue {
   /** Active TSB zones from the load theory + label set. */
@@ -37,12 +37,8 @@ export function ScienceProvider({ children }: { children: ReactNode }) {
 
   const fetchScience = useCallback(() => {
     setLoading(true);
-    fetch(`${API_BASE}/api/science`, { headers: getAuthHeaders() })
+    apiFetch('/api/science', { headers: getAuthHeaders() })
       .then((r) => {
-        if (r.status === 401) {
-          window.location.href = '/login';
-          throw new Error('Unauthorized');
-        }
         return r.json();
       })
       .then((data: ScienceResponse) => {
@@ -61,15 +57,11 @@ export function ScienceProvider({ children }: { children: ReactNode }) {
 
   const updateScience = useCallback(
     async (update: { science?: Partial<Record<SciencePillar, string>>; zone_labels?: string }) => {
-      const res = await fetch(`${API_BASE}/api/science`, {
+      await apiFetch('/api/science', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(update),
       });
-      if (res.status === 401) {
-        window.location.href = '/login';
-        return;
-      }
       fetchScience();
     },
     [fetchScience],

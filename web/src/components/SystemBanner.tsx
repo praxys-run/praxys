@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
-import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
+import { apiFetch } from '@/hooks/useApi';
 import type { SystemAnnouncement } from '@/types/api';
 
 const STORAGE_KEY = 'praxys_dismissed_banners';
@@ -38,9 +38,7 @@ export default function SystemBanner() {
   const { t } = useLingui();
 
   useEffect(() => {
-    const headers = getAuthHeaders();
-    if (!headers) return;
-    fetch(`${API_BASE}/api/announcements`, { headers })
+    apiFetch('/api/announcements')
       .then((r) => r.ok ? r.json() : [])
       .then((data: SystemAnnouncement[]) => {
         const dismissed = getDismissed();

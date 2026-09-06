@@ -92,6 +92,12 @@ There is no checksum-manifest, release-floor, registry, or repeated preflight
 evidence ceremony. Source SHA is provenance, not PIPIA acceptance or production
 authority.
 
+EdgeOne must serve exact `/sw.js` with
+`Cache-Control: no-cache, max-age=0, must-revalidate`, before the immutable
+`/assets/*` rule. This intentionally matches the Cloudflare/Azure `.run`
+contract. Deployment readback, the bounded four-URL purge procedure, and
+rollback requirements live in [deploy.md](./deploy.md#service-worker-cache-contract).
+
 ## API CORS and runtime gate
 
 Before the first launch CORS may be exactly:
@@ -204,4 +210,4 @@ mitigation, verification, recurrence, and durable follow-ups.
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 
 ---
-_Last reviewed: 2026-08-31 · Owner: Operations_
+_Last reviewed: 2026-09-06 · Owner: Operations_

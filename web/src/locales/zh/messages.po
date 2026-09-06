@@ -72,19 +72,19 @@ msgstr "{0} / {thresholdMinutes} 分钟"
 
 #. placeholder {0}: history.comparable_ascent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_ascent_meters
-#: src/components/TrailCourseReview.tsx:1649
+#: src/components/TrailCourseReview.tsx:2030
 msgid "{0} comparable sessions · {1} m maximum observed ascent"
 msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 
 #. placeholder {0}: history.comparable_descent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_descent_meters
-#: src/components/TrailCourseReview.tsx:1660
+#: src/components/TrailCourseReview.tsx:2041
 msgid "{0} comparable sessions · {1} m maximum observed descent"
 msgstr "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
 
 #. placeholder {0}: history.usable_completed_weeks
 #. placeholder {1}: history.recent_modal_running_frequency
-#: src/components/TrailCourseReview.tsx:1638
+#: src/components/TrailCourseReview.tsx:2019
 msgid "{0} completed weeks · {1} runs per week"
 msgstr "{0} 个完整周 · 每周 {1} 次跑步"
 
@@ -201,19 +201,19 @@ msgstr "{0} 个影子决策 · 已应用 {1} 个标签 · {2} 个持久化结果
 
 #. placeholder {0}: history.usable_completed_weeks
 #. placeholder {1}: history.recent_modal_running_frequency
-#: src/components/TrailCourseReview.tsx:1639
+#: src/components/TrailCourseReview.tsx:2020
 msgid "{0} 个完整周 · 每周 {1} 次跑步"
 msgstr "{0} 个完整周 · 每周 {1} 次跑步"
 
 #. placeholder {0}: history.comparable_descent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_descent_meters
-#: src/components/TrailCourseReview.tsx:1661
+#: src/components/TrailCourseReview.tsx:2042
 msgid "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
 msgstr "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
 
 #. placeholder {0}: history.comparable_ascent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_ascent_meters
-#: src/components/TrailCourseReview.tsx:1650
+#: src/components/TrailCourseReview.tsx:2031
 msgid "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 
@@ -542,15 +542,15 @@ msgstr "7 天"
 msgid "A clinician or restriction already rules out vigorous testing"
 msgstr "已有医疗限制或临床建议不要做高强度测试"
 
-#: src/components/trail-course-review/copy.tsx:561
+#: src/components/trail-course-review/copy.tsx:568
 msgid "A confirmed section or source changed after review."
 msgstr "已确认的分段或来源在核对后发生变化。"
 
-#: src/components/trail-course-review/copy.tsx:506
+#: src/components/trail-course-review/copy.tsx:513
 msgid "A core course detail is still unknown."
 msgstr "仍有核心赛道信息未知。"
 
-#: src/components/trail-course-review/copy.tsx:516
+#: src/components/trail-course-review/copy.tsx:523
 msgid "A course or conditions assumption has not been confirmed."
 msgstr "一项赛道或环境假设尚未确认。"
 
@@ -558,7 +558,7 @@ msgstr "一项赛道或环境假设尚未确认。"
 msgid "A draft exists for another plan purpose"
 msgstr "另一项计划用途已有草稿"
 
-#: src/components/TrailCourseReview.tsx:785
+#: src/components/TrailCourseReview.tsx:1049
 msgid "A few answers are needed before Praxys can check readiness"
 msgstr "还需补充少量信息，Praxys 才能检查准备情况"
 
@@ -582,9 +582,9 @@ msgstr "已触发非诊断安全停止；Praxys 不会给出诊断、治疗或�
 #~ msgid "A positive judgment adds agent-ready; if the issue is open, not backlogged, and not already assigned, this hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 #~ msgstr "正向判断会添加 agent-ready；若议题处于开启状态、未进入待办且尚未分配，将交给 Copilot。负向判断会移除该标签，但已有分配或 PR 可能仍会保留。"
 
-#: src/pages/admin/AdminFeedback.tsx:548
-msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
-msgstr "正向判断会同步 agent-ready；若这次操作为处于开启状态且未列入 backlog 的关联议题新添标签，指派工作流会将其交给 Copilot。负向判断会移除标签，但已有指派或 PR 可能保留。"
+#: src/pages/admin/AdminFeedback.tsx:585
+#~ msgid "A positive judgment synchronizes agent-ready; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+#~ msgstr "正向判断会同步 agent-ready；若这次操作为处于开启状态且未列入 backlog 的关联议题新添标签，指派工作流会将其交给 Copilot。负向判断会移除标签，但已有指派或 PR 可能保留。"
 
 #: src/components/PlanStart.tsx:269
 #~ msgid "A preview is a proposal, not yet your plan. Praxys checks the current evidence and constraints again before it creates one."
@@ -617,13 +617,17 @@ msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不
 msgid "A prior qualifying block still informs this qualitative stage, but response-specific adaptation evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 msgstr "此前一段达标训练仍可作为当前定性阶段的依据，但不同适应反应的证据正在减弱。这里显示的是当前达标训练的证据范围，并非此前那段训练。"
 
-#: src/components/trail-course-review/copy.tsx:549
+#: src/components/trail-course-review/copy.tsx:556
 msgid "A requested workload or edit is above recent observed history."
 msgstr "请求的训练量或编辑超出近期已观察历史。"
 
-#: src/components/trail-course-review/copy.tsx:537
+#: src/components/trail-course-review/copy.tsx:544
 msgid "A required schedule, access, or symptom answer is missing."
 msgstr "缺少必填的时间、场地或症状回答。"
+
+#: src/components/FeedbackDialog.tsx:64
+msgid "A scrubbed text summary was published to public GitHub. Anyone can view it. Screenshots remain private."
+msgstr "去除个人信息后的文字摘要已发布到公开 GitHub，任何人都可查看。截图保持私密。"
 
 #: src/pages/LabsEnvironment.tsx:96
 msgid "A single activity has too much influence on the result."
@@ -705,7 +709,7 @@ msgstr "已拒绝访问"
 msgid "Action"
 msgstr "操作"
 
-#: src/pages/admin/AdminFeedback.tsx:394
+#: src/pages/admin/AdminFeedback.tsx:427
 #: src/pages/admin/AdminUsers.tsx:580
 #: src/pages/admin/AdminUsers.tsx:737
 msgid "Actions"
@@ -722,7 +726,7 @@ msgstr "启用托管计划"
 #: src/components/ManagedPlanSettingsCard.tsx:490
 #: src/components/PersonalContextPanel.tsx:721
 #: src/components/PersonalContextPanel.tsx:1250
-#: src/pages/admin/AdminFeedback.tsx:351
+#: src/pages/admin/AdminFeedback.tsx:381
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
@@ -858,7 +862,7 @@ msgstr "将一项未来训练加入 Praxys 主计划。"
 msgid "Add repeat step"
 msgstr "添加重复步骤"
 
-#: src/components/FeedbackDialog.tsx:322
+#: src/components/FeedbackDialog.tsx:744
 msgid "Add screenshot"
 msgstr "添加截图"
 
@@ -919,7 +923,7 @@ msgstr "正在采纳…"
 msgid "Adoption is paused"
 msgstr "暂时无法采纳"
 
-#: src/components/trail-course-review/copy.tsx:528
+#: src/components/trail-course-review/copy.tsx:535
 msgid "Adult, non-clinical performance scope is not confirmed."
 msgstr "尚未确认成人、非医疗的竞速适用范围。"
 
@@ -955,9 +959,13 @@ msgstr "同步后，仅当日 HRV 越过个人警戒区间时，Praxys 才可能
 msgid "Agent learning"
 msgstr "智能体学习"
 
-#: src/pages/admin/AdminFeedback.tsx:393
+#: src/pages/admin/AdminFeedback.tsx:426
 msgid "Agent readiness"
 msgstr "Agent-ready 判断"
+
+#: src/pages/admin/AdminFeedback.tsx:594
+msgid "Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
+msgstr "仅当反馈已关联到公开的 GitHub Issue 时，agent-ready 才适用。肯定判断会同步该标签；若标签被新加到一个未进入待办且尚未分派的开放 Issue，分派工作流会将其交给 Copilot。否定判断会移除标签，但已有的分派或 PR 可能仍会保留。"
 
 #: src/pages/admin/AdminOps.tsx:1603
 msgid "agent-ready candidates"
@@ -1014,13 +1022,13 @@ msgid "Align the activity and threshold power sources before Praxys uses these s
 msgstr "先统一活动功率和阈值功率的数据来源，Praxys 才会把这些训练纳入估算。"
 
 #: src/components/charts/CpTrendChart.tsx:56
-#: src/pages/admin/AdminFeedback.tsx:352
+#: src/pages/admin/AdminFeedback.tsx:382
 #: src/pages/Setup.tsx:1029
 msgid "All"
 msgstr "全部"
 
 #. placeholder {0}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:288
+#: src/pages/admin/AdminFeedback.tsx:313
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "{0} 个关联工单均已是最新状态。"
 
@@ -1047,6 +1055,10 @@ msgstr "所有系统运行正常"
 #: src/components/PersonalContextPanel.tsx:1700
 #~ msgid "Allow for this item"
 #~ msgstr "允许处理当前版本"
+
+#: src/components/FeedbackDialog.tsx:674
+msgid "Allow Praxys to publish a scrubbed text summary of this feedback as a public GitHub issue"
+msgstr "允许 Praxys 将本次反馈中去除个人信息后的文字摘要发布为公开 GitHub issue"
 
 #: src/pages/McpAuthorization.tsx:160
 msgid "Allow structured plan context?"
@@ -1098,6 +1110,14 @@ msgstr "发生了意外错误。"
 msgid "Analysis"
 msgstr "训练分析"
 
+#: src/pages/admin/AdminFeedback.tsx:213
+#~ msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
+#~ msgstr "已刷新分析和分流结果。发布权限和 GitHub Issue 状态均未更改。"
+
+#: src/pages/admin/AdminFeedback.tsx:213
+msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
+
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
 msgstr "分析需要手动重试"
@@ -1144,8 +1164,12 @@ msgid "Applying…"
 msgstr "正在应用…"
 
 #: src/pages/admin/AdminFeedback.tsx:571
-msgid "Approve & file"
-msgstr "批准并提交"
+#~ msgid "Approve & file"
+#~ msgstr "批准并提交"
+
+#: src/pages/admin/AdminFeedback.tsx:617
+msgid "Approve & queue"
+msgstr "批准并加入发布队列"
 
 #: src/pages/McpAuthorization.tsx:311
 msgid "Approve access"
@@ -1202,7 +1226,7 @@ msgstr "尝试 {0} 次"
 msgid "Authentication mode"
 msgstr "登录方式"
 
-#: src/components/trail-course-review/copy.tsx:228
+#: src/components/trail-course-review/copy.tsx:235
 msgid "Authoritative readiness modules"
 msgstr "权威准备情况模块"
 
@@ -1264,7 +1288,7 @@ msgstr "可用性"
 msgid "Availability rate"
 msgstr "可用率"
 
-#: src/components/trail-course-review/copy.tsx:229
+#: src/components/trail-course-review/copy.tsx:236
 #: src/pages/admin/AdminUsers.tsx:768
 #: src/pages/LabsEnvironment.tsx:164
 msgid "Available"
@@ -1307,7 +1331,7 @@ msgstr "工作段平均{intensityLabel}"
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 msgstr "请勿填写姓名、疾病诊断、精确位置等敏感信息。即使其他信息仍在保留期内，补充说明也会在 30 天后删除。"
 
-#: src/pages/admin/AdminFeedback.tsx:555
+#: src/pages/admin/AdminFeedback.tsx:601
 msgid "Awaiting triage decision"
 msgstr "等待分诊判断"
 
@@ -1472,11 +1496,11 @@ msgstr "必须同时达到两个阈值。这些进度条表示模型证据，而
 msgid "Browse plan dates"
 msgstr "浏览训练计划日期"
 
-#: src/pages/admin/AdminFeedback.tsx:120
+#: src/pages/admin/AdminFeedback.tsx:138
 msgid "Bug"
 msgstr "缺陷"
 
-#: src/components/FeedbackDialog.tsx:41
+#: src/components/FeedbackDialog.tsx:93
 msgid "Bug report"
 msgstr "问题反馈"
 
@@ -1488,7 +1512,7 @@ msgstr "问题反馈"
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 #~ msgstr "从应用内提交的问题反馈和功能建议。配置后会自动分流到 GitHub。"
 
-#: src/pages/admin/AdminFeedback.tsx:339
+#: src/pages/admin/AdminFeedback.tsx:364
 msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
 msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，绝不决定是否为 agent-ready。"
 
@@ -1525,7 +1549,7 @@ msgstr "正在追求 {distLabel}。当前 {abbrev} <0>{currentStr}{unit}</0>，�
 msgid "Building toward <0>{0}</0> {distLabel}. Current {abbrev} <1>{currentStr}{unit}</1>, need <2>{targetStr}{unit}</2>."
 msgstr "目标是 <0>{0}</0> {distLabel}。当前 {abbrev} <1>{currentStr}{unit}</1>，还需达到 <2>{targetStr}{unit}</2>。"
 
-#: src/components/trail-course-review/copy.tsx:278
+#: src/components/trail-course-review/copy.tsx:285
 msgid "Built steps"
 msgstr "人工台阶"
 
@@ -1550,7 +1574,7 @@ msgid "Can you access terrain for controlled downhill training?"
 msgstr "你能使用适合受控下坡训练的路线吗？"
 
 #: src/components/AiInsightsCard.tsx:382
-#: src/components/FeedbackDialog.tsx:341
+#: src/components/FeedbackDialog.tsx:784
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
 #: src/components/GoalEditor.tsx:59
@@ -1559,8 +1583,8 @@ msgstr "你能使用适合受控下坡训练的路线吗？"
 #: src/components/ManagedPlanSettingsCard.tsx:1438
 #: src/components/ManagedPlanSettingsCard.tsx:1457
 #: src/components/PersonalContextPanel.tsx:1384
-#: src/components/trail-course-review/copy.tsx:210
-#: src/components/trail-course-review/states.tsx:215
+#: src/components/trail-course-review/copy.tsx:217
+#: src/components/trail-course-review/states.tsx:241
 #: src/components/UpcomingPlanCard.tsx:844
 #: src/components/WorkoutPlanEditor.tsx:917
 #: src/pages/admin/AdminOps.tsx:1215
@@ -1584,8 +1608,8 @@ msgstr "取消并退出"
 msgid "Cancel preview"
 msgstr "取消预览"
 
-#: src/pages/admin/AdminFeedback.tsx:468
-#: src/pages/admin/AdminFeedback.tsx:491
+#: src/pages/admin/AdminFeedback.tsx:514
+#: src/pages/admin/AdminFeedback.tsx:537
 msgid "Candidate"
 msgstr "候选"
 
@@ -1597,7 +1621,7 @@ msgstr "Praxys 仍会完整保留训练"
 msgid "CAPTCHA required"
 msgstr "需要 CAPTCHA"
 
-#: src/components/trail-course-review/copy.tsx:326
+#: src/components/trail-course-review/copy.tsx:333
 msgid "Carbohydrate drink"
 msgstr "碳水饮料"
 
@@ -1605,11 +1629,11 @@ msgstr "碳水饮料"
 msgid "Caregiving"
 msgstr "照护安排"
 
-#: src/components/trail-course-review/copy.tsx:317
+#: src/components/trail-course-review/copy.tsx:324
 msgid "Carry food"
 msgstr "携带食物"
 
-#: src/components/trail-course-review/copy.tsx:316
+#: src/components/trail-course-review/copy.tsx:323
 msgid "Carry water"
 msgstr "携水"
 
@@ -1637,7 +1661,7 @@ msgstr "类别"
 msgid "CAUTION"
 msgstr "注意"
 
-#: src/pages/admin/AdminFeedback.tsx:486
+#: src/pages/admin/AdminFeedback.tsx:532
 #: src/pages/admin/AdminOps.tsx:1591
 msgid "Challenger"
 msgstr "挑战策略"
@@ -1675,22 +1699,30 @@ msgstr "后续已更改"
 msgid "Changed what I'll do"
 msgstr "调整了今天的训练安排"
 
-#: src/components/trail-course-review/copy.tsx:170
+#: src/components/trail-course-review/copy.tsx:171
 msgid "Changed—confirm again"
 msgstr "已更改，请重新确认"
 
-#: src/components/TrailCourseReview.tsx:286
+#: src/components/TrailCourseReview.tsx:389
 msgid "Changed—confirm this section again after saving."
 msgstr "已更改，保存后请重新确认本节。"
 
+#: src/components/FeedbackDialog.tsx:775
+msgid "Check most recent feedback status"
+msgstr "查看最近一次反馈状态"
+
 #: src/components/PlanStart.tsx:1797
-#: src/components/trail-course-review/copy.tsx:173
+#: src/components/trail-course-review/copy.tsx:174
 msgid "Check readiness"
 msgstr "检查准备情况"
 
 #: src/pages/Labs.tsx:25
 #~ msgid "Check required"
 #~ msgstr "需要进一步检查"
+
+#: src/components/FeedbackDialog.tsx:601
+msgid "Check status"
+msgstr "查看状态"
 
 #: src/pages/Setup.tsx:781
 msgid "Check your credentials in the connection step, then try again."
@@ -1708,9 +1740,18 @@ msgstr "正在检查交付兼容性…"
 #~ msgid "Checking provider compatibility…"
 #~ msgstr "正在检查平台兼容性…"
 
+#: src/components/FeedbackDialog.tsx:695
+msgid "Checking public publishing availability…"
+msgstr "正在检查公开发布可用性…"
+
 #: src/components/PlanStart.tsx:1797
 msgid "Checking readiness…"
 msgstr "正在检查准备情况…"
+
+#: src/components/FeedbackDialog.tsx:601
+#: src/components/FeedbackDialog.tsx:775
+msgid "Checking status…"
+msgstr "正在查看状态…"
 
 #: src/components/GoalBaselinePanel.tsx:587
 msgid "Chest pain or pressure"
@@ -1767,7 +1808,7 @@ msgstr "如果你需要，可在训练计划预览里选择并标注一个可选
 msgid "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
 msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys 不会自动安排，目标完赛时间差距本身也不会提高训练负荷。"
 
-#: src/components/TrailCourseReview.tsx:1426
+#: src/components/TrailCourseReview.tsx:1798
 msgid "Choose at most 14 dates inside the displayed 14-day horizon."
 msgstr "最多选择显示的 14 天范围内的 14 个日期。"
 
@@ -1868,8 +1909,11 @@ msgstr "点击复制"
 msgid "Client"
 msgstr "客户端"
 
-#: src/components/FeedbackDialog.tsx:208
+#: src/components/FeedbackDialog.tsx:547
+#: src/components/FeedbackDialog.tsx:605
 #: src/components/MetricDetailSheet.tsx:65
+#: src/components/trail-course-review/states.tsx:220
+#: src/components/TrailCourseReview.tsx:2680
 msgid "Close"
 msgstr "关闭"
 
@@ -1930,7 +1974,7 @@ msgstr "已承诺 / 上限"
 msgid "Communications"
 msgstr "公告"
 
-#: src/components/trail-course-review/copy.tsx:447
+#: src/components/trail-course-review/copy.tsx:454
 msgid "Comparable Trail, ascent, or footing history is insufficient."
 msgstr "可比的越野、爬升或路面训练历史不足。"
 
@@ -1943,7 +1987,7 @@ msgstr "可比功率活动支持"
 msgid "Compare other providers ({0})"
 msgstr "比较其他平台（{0}）"
 
-#: src/components/trail-course-review/copy.tsx:557
+#: src/components/trail-course-review/copy.tsx:564
 msgid "Compare the request with recent history"
 msgstr "对照近期历史查看请求"
 
@@ -1955,11 +1999,11 @@ msgstr "兼容性预览暂不可用。请检查网络后重试。"
 #~ msgid "Compatible"
 #~ msgstr "兼容"
 
-#: src/components/trail-course-review/copy.tsx:512
+#: src/components/trail-course-review/copy.tsx:519
 msgid "Complete the next course detail"
 msgstr "补充下一项赛道信息"
 
-#: src/components/trail-course-review/copy.tsx:545
+#: src/components/trail-course-review/copy.tsx:552
 msgid "Complete the next training detail"
 msgstr "补充下一项训练信息"
 
@@ -2000,7 +2044,7 @@ msgstr "当前无法获取组件健康状态。"
 msgid "Components"
 msgstr "组件"
 
-#: src/components/trail-course-review/copy.tsx:144
+#: src/components/trail-course-review/copy.tsx:145
 msgid "Conditions based on"
 msgstr "环境信息依据"
 
@@ -2012,12 +2056,12 @@ msgstr "环境、支持与补给"
 msgid "Configure your training system"
 msgstr "设置训练系统"
 
-#: src/components/trail-course-review/copy.tsx:212
-#: src/components/trail-course-review/states.tsx:228
+#: src/components/trail-course-review/copy.tsx:219
+#: src/components/trail-course-review/states.tsx:254
 msgid "Confirm deletion"
 msgstr "确认删除"
 
-#: src/components/trail-course-review/copy.tsx:222
+#: src/components/trail-course-review/copy.tsx:229
 msgid "Confirm every visible editable section to check readiness. Confirmation is review, not proof of safety or eligibility."
 msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
 
@@ -2025,7 +2069,7 @@ msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
 msgstr "确认执行一次受保护的重试。Praxys 会先刷新数据来源日历；若所有权或下发状态已变更，则立即停止。"
 
-#: src/components/trail-course-review/copy.tsx:533
+#: src/components/trail-course-review/copy.tsx:540
 msgid "Confirm planning scope"
 msgstr "确认计划适用范围"
 
@@ -2033,8 +2077,8 @@ msgstr "确认计划适用范围"
 msgid "Confirm replay"
 msgstr "确认重试"
 
-#: src/components/trail-course-review/copy.tsx:211
-#: src/components/trail-course-review/states.tsx:227
+#: src/components/trail-course-review/copy.tsx:218
+#: src/components/trail-course-review/states.tsx:253
 msgid "Confirm reset"
 msgstr "确认重置"
 
@@ -2054,7 +2098,7 @@ msgstr "请先确认经过审查的成人范围。"
 msgid "Confirm the supported athlete and goal scope first."
 msgstr "请先确认受支持的运动员和目标范围。"
 
-#: src/components/trail-course-review/copy.tsx:168
+#: src/components/trail-course-review/copy.tsx:169
 msgid "Confirm this section"
 msgstr "确认本节"
 
@@ -2062,7 +2106,7 @@ msgstr "确认本节"
 msgid "Confirmed all-out effort"
 msgstr "已确认的全力活动"
 
-#: src/components/trail-course-review/copy.tsx:169
+#: src/components/trail-course-review/copy.tsx:170
 msgid "Confirmed for revision"
 msgstr "已确认版本"
 
@@ -2152,7 +2196,7 @@ msgstr "连接中…"
 msgid "Connection funnel"
 msgstr "连接转化漏斗"
 
-#: src/components/TrailCourseReview.tsx:251
+#: src/components/TrailCourseReview.tsx:307
 msgid "Connection restored. Review the current server version before restoring pending changes."
 msgstr "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
 
@@ -2438,6 +2482,11 @@ msgstr "无法更新这项训练"
 #~ msgid "Could not withdraw AI processing."
 #~ msgstr "无法撤回 AI 处理。"
 
+#: src/components/FeedbackDialog.tsx:446
+#: src/components/FeedbackDialog.tsx:467
+msgid "Couldn't check feedback status. Try again."
+msgstr "无法查看反馈状态，请重试。"
+
 #: src/pages/admin/AdminUsers.tsx:329
 #~ msgid "Couldn't load admin management data"
 #~ msgstr "无法加载管理数据"
@@ -2446,7 +2495,7 @@ msgstr "无法更新这项训练"
 msgid "Couldn't load announcements"
 msgstr "无法加载公告"
 
-#: src/pages/admin/AdminFeedback.tsx:305
+#: src/pages/admin/AdminFeedback.tsx:330
 msgid "Couldn't load feedback queue"
 msgstr "无法加载反馈队列"
 
@@ -2458,7 +2507,7 @@ msgstr "无法加载事件"
 msgid "Couldn't load operations summary"
 msgstr "无法加载运营摘要"
 
-#: src/pages/admin/AdminFeedback.tsx:227
+#: src/pages/admin/AdminFeedback.tsx:252
 msgid "Couldn't record the readiness judgment."
 msgstr "无法记录 agent-ready 判断。"
 
@@ -2476,11 +2525,11 @@ msgstr "无法保存更改。"
 msgid "Couldn't send feedback. Try again."
 msgstr "反馈发送失败，请重试。"
 
-#: src/components/FeedbackDialog.tsx:172
+#: src/components/FeedbackDialog.tsx:511
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:188
+#: src/pages/admin/AdminFeedback.tsx:209
 msgid "Couldn't update feedback."
 msgstr "无法更新反馈。"
 
@@ -2505,11 +2554,11 @@ msgstr "赛道路面"
 msgid "Course grade distribution"
 msgstr "赛道坡度分布"
 
-#: src/components/TrailCourseReview.tsx:483
+#: src/components/TrailCourseReview.tsx:629
 msgid "Course review saved. Confirm each reviewed section at this revision."
 msgstr "赛道核对已保存。请按当前版本逐节确认。"
 
-#: src/components/trail-course-review/copy.tsx:451
+#: src/components/trail-course-review/copy.tsx:458
 msgid "Course-specific work cannot be bounded from observed experience."
 msgstr "无法依据已观察经历约束赛道专项训练。"
 
@@ -2580,7 +2629,7 @@ msgstr "正在创建提案…"
 msgid "Creating…"
 msgstr "正在创建…"
 
-#: src/pages/admin/AdminFeedback.tsx:107
+#: src/pages/admin/AdminFeedback.tsx:108
 #: src/pages/admin/AdminIncidents.tsx:31
 #: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
@@ -2876,13 +2925,13 @@ msgstr "永久删除这条信息？"
 msgid "Delete this workout?"
 msgstr "删除这项训练？"
 
-#: src/components/trail-course-review/copy.tsx:199
-#: src/components/trail-course-review/states.tsx:189
+#: src/components/trail-course-review/copy.tsx:206
+#: src/components/trail-course-review/states.tsx:212
 msgid "Delete Trail goal"
 msgstr "删除越野目标"
 
-#: src/components/trail-course-review/copy.tsx:205
-#: src/components/trail-course-review/states.tsx:201
+#: src/components/trail-course-review/copy.tsx:212
+#: src/components/trail-course-review/states.tsx:227
 msgid "Delete Trail goal?"
 msgstr "删除越野目标？"
 
@@ -2910,11 +2959,11 @@ msgstr "将于 {0} 删除"
 msgid "Deleting"
 msgstr "删除中"
 
-#: src/components/trail-course-review/states.tsx:210
+#: src/components/trail-course-review/states.tsx:236
 msgid "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches; only the server-confirmed result will be reported as complete."
 msgstr "删除越野目标不同于删除账号。系统会请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存；只有服务端确认的结果才会显示为完成。"
 
-#: src/components/trail-course-review/copy.tsx:207
+#: src/components/trail-course-review/copy.tsx:214
 msgid "Deleting the Trail goal is different from deleting your account. This requests removal of its owned draft, snapshots, proposals, audits, indexes, and caches. Praxys reports completion only from the server response; rollback or cleanup-pending must remain visible."
 msgstr "删除越野目标不同于删除账号。此操作请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存。Praxys 只依据服务端响应报告完成；回滚或清理待处理状态必须保持可见。"
 
@@ -3020,7 +3069,7 @@ msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项�
 msgid "Detailed activity evidence is unavailable for this day."
 msgstr "当天暂无详细活动证据。"
 
-#: src/components/FeedbackDialog.tsx:233
+#: src/components/FeedbackDialog.tsx:638
 #: src/pages/Analysis.tsx:78
 msgid "Details"
 msgstr "详情"
@@ -3046,7 +3095,7 @@ msgstr "诊断 Praxys 管理的训练下发问题，同时不暴露运动员身�
 msgid "Diagnosis"
 msgstr "诊断"
 
-#: src/components/trail-course-review/copy.tsx:165
+#: src/components/trail-course-review/copy.tsx:166
 msgid "Did stomach or gut issues change your plan?"
 msgstr "胃肠不适是否曾让你改变计划？"
 
@@ -3107,7 +3156,7 @@ msgstr "请先关闭其他计划工具的下发功能。多个计划工具可能
 msgid "Disabled. Click to open"
 msgstr "已关闭，点击开启"
 
-#: src/components/trail-course-review/copy.tsx:215
+#: src/components/trail-course-review/copy.tsx:222
 msgid "Discard pending changes"
 msgstr "放弃待保存更改"
 
@@ -3125,7 +3174,7 @@ msgid "Discussion"
 msgstr "讨论"
 
 #: src/components/StatusBanner.tsx:71
-#: src/components/SystemBanner.tsx:97
+#: src/components/SystemBanner.tsx:95
 #: src/components/TodayDecisionCheck.tsx:193
 msgid "Dismiss"
 msgstr "关闭"
@@ -3220,11 +3269,11 @@ msgstr "是否有路段需要使用固定绳索？"
 msgid "Done"
 msgstr "完成"
 
-#: src/components/trail-course-review/copy.tsx:336
+#: src/components/trail-course-review/copy.tsx:343
 msgid "Downhill (−10% to below −3%)"
 msgstr "下坡（−10% 至低于 −3%）"
 
-#: src/components/trail-course-review/copy.tsx:463
+#: src/components/trail-course-review/copy.tsx:470
 msgid "Downhill work cannot be bounded from observed history."
 msgstr "无法依据已观察历史约束下坡训练。"
 
@@ -3232,7 +3281,7 @@ msgstr "无法依据已观察历史约束下坡训练。"
 msgid "Download a JSON copy of your activities, recovery, fitness, plans, and settings. Platform credentials are never included."
 msgstr "下载包含活动、恢复、体能、训练计划和设置的 JSON 副本。绝不包含平台凭据。"
 
-#: src/components/trail-course-review/copy.tsx:196
+#: src/components/trail-course-review/copy.tsx:197
 msgid "Download your Praxys account data export. It includes the current saved Trail course review—values and unknowns, provenance, revisions, and confirmations—and any retained Trail proposal snapshots, audits, and receipts. Unsaved changes on this page are not included."
 msgstr "下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。"
 
@@ -3356,7 +3405,7 @@ msgstr "每个环境区间内，每次活动只计一次。可比功率范围以
 msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
 msgstr "每项实验都有独立的同意流程、数据要求、局限说明和退出控制。"
 
-#: src/components/FeedbackDialog.tsx:116
+#: src/components/FeedbackDialog.tsx:359
 msgid "Each image must be under 5 MB."
 msgstr "每张图片需小于 5 MB。"
 
@@ -3400,7 +3449,7 @@ msgstr "编辑目标"
 msgid "Edit workout"
 msgstr "编辑训练"
 
-#: src/components/trail-course-review/copy.tsx:226
+#: src/components/trail-course-review/copy.tsx:233
 msgid "Effect"
 msgstr "影响"
 
@@ -3441,7 +3490,7 @@ msgstr "爬升"
 msgid "Eligibility check could not load"
 msgstr "无法加载资格检查"
 
-#: src/pages/admin/AdminFeedback.tsx:131
+#: src/pages/admin/AdminFeedback.tsx:149
 msgid "Eligible"
 msgstr "符合条件"
 
@@ -3535,7 +3584,7 @@ msgstr "源数据足以尝试这项实验"
 msgid "Enter a complete value in this unit."
 msgstr "请使用当前显示的单位输入完整数值。"
 
-#: src/components/trail-course-review/copy.tsx:153
+#: src/components/trail-course-review/copy.tsx:154
 msgid "Enter a distance"
 msgstr "输入距离"
 
@@ -3569,11 +3618,11 @@ msgstr "为五个固定坡度区间输入百分比，合计必须正好为 100.0
 
 #: src/components/PersonalContextPanel.tsx:228
 #: src/components/PersonalContextPanel.tsx:229
-#: src/components/trail-course-review/copy.tsx:131
+#: src/components/trail-course-review/copy.tsx:132
 msgid "Environment"
 msgstr "环境"
 
-#: src/components/trail-course-review/copy.tsx:585
+#: src/components/trail-course-review/copy.tsx:592
 msgid "Environment and altitude"
 msgstr "环境与海拔适应"
 
@@ -3599,7 +3648,7 @@ msgstr "错误"
 msgid "estimated"
 msgstr "估算"
 
-#: src/components/trail-course-review/copy.tsx:252
+#: src/components/trail-course-review/copy.tsx:259
 msgid "Estimated by Praxys"
 msgstr "由 Praxys 推断"
 
@@ -3652,7 +3701,7 @@ msgstr "每<0>{0}</0>小时"
 msgid "Every change is recorded here and can be restored while that exact workout version is still current."
 msgstr "每次调整都会记录在这里；只要该训练的当前版本未发生变化，就可以恢复。"
 
-#: src/components/trail-course-review/copy.tsx:313
+#: src/components/trail-course-review/copy.tsx:320
 msgid "Every station"
 msgstr "每个站点"
 
@@ -3719,11 +3768,11 @@ msgstr "执行平台"
 msgid "Execution target changed. Delivery remains paused."
 msgstr "执行平台已更换，下发仍保持暂停。"
 
-#: src/components/trail-course-review/copy.tsx:139
+#: src/components/trail-course-review/copy.tsx:140
 msgid "Expected humidity range"
 msgstr "预计湿度范围"
 
-#: src/components/trail-course-review/copy.tsx:136
+#: src/components/trail-course-review/copy.tsx:137
 msgid "Expected temperature range"
 msgstr "预计气温范围"
 
@@ -3753,19 +3802,19 @@ msgid "Export context"
 msgstr "导出信息"
 
 #: src/components/trail-course-review/copy.tsx:196
-msgid "Export isn't available in this private preview yet."
-msgstr "当前私密预览暂不支持导出。"
+#~ msgid "Export isn't available in this private preview yet."
+#~ msgstr "当前私密预览暂不支持导出。"
 
 #: src/pages/Settings.tsx:1557
 #: src/pages/Settings.tsx:1587
 msgid "Export my data"
 msgstr "导出我的数据"
 
-#: src/components/trail-course-review/copy.tsx:194
+#: src/components/trail-course-review/copy.tsx:195
 msgid "Export my Trail plan data"
 msgstr "导出我的越野计划数据"
 
-#: src/components/trail-course-review/copy.tsx:298
+#: src/components/trail-course-review/copy.tsx:305
 msgid "Exposed"
 msgstr "暴露"
 
@@ -3795,8 +3844,8 @@ msgstr "不会修改外部、手动添加或其他教练安排的训练。证据
 msgid "Fading"
 msgstr "减退中"
 
-#: src/pages/admin/AdminFeedback.tsx:98
-#: src/pages/admin/AdminFeedback.tsx:355
+#: src/pages/admin/AdminFeedback.tsx:99
+#: src/pages/admin/AdminFeedback.tsx:385
 #: src/pages/LabsEnvironment.tsx:166
 msgid "Failed"
 msgstr "失败"
@@ -3946,11 +3995,11 @@ msgstr "疲劳"
 #~ msgid "Fatigued"
 #~ msgstr "疲劳"
 
-#: src/pages/admin/AdminFeedback.tsx:122
+#: src/pages/admin/AdminFeedback.tsx:140
 msgid "Feature"
 msgstr "功能请求"
 
-#: src/components/FeedbackDialog.tsx:42
+#: src/components/FeedbackDialog.tsx:94
 msgid "Feature request"
 msgstr "功能建议"
 
@@ -3967,15 +4016,27 @@ msgstr "反馈队列暂无待处理项"
 msgid "Feedback requiring action: {0}"
 msgstr "需要处理的反馈：{0}"
 
+#: src/components/FeedbackDialog.tsx:571
+msgid "Feedback sent"
+msgstr "反馈已提交"
+
 #: src/pages/admin/AdminOps.tsx:830
 msgid "Feedback state unavailable"
 msgstr "反馈状态不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:317
+#: src/components/FeedbackDialog.tsx:571
+msgid "Feedback status"
+msgstr "反馈状态"
+
+#: src/pages/admin/AdminFeedback.tsx:342
 msgid "Feedback triage"
 msgstr "反馈处理"
 
-#: src/components/trail-course-review/copy.tsx:225
+#: src/components/FeedbackDialog.tsx:613
+msgid "Feedback Type"
+msgstr "反馈类型"
+
+#: src/components/trail-course-review/copy.tsx:232
 msgid "Finding"
 msgstr "发现"
 
@@ -3983,7 +4044,7 @@ msgstr "发现"
 msgid "Findings"
 msgstr "解读要点"
 
-#: src/components/trail-course-review/copy.tsx:270
+#: src/components/trail-course-review/copy.tsx:277
 msgid "Finish the event"
 msgstr "完成赛事"
 
@@ -3999,7 +4060,7 @@ msgstr "完成必填的步骤字段后即可预览交付。"
 msgid "Finish this distance"
 msgstr "完成这个距离"
 
-#: src/components/trail-course-review/copy.tsx:274
+#: src/components/trail-course-review/copy.tsx:281
 msgid "Firm, smooth trail"
 msgstr "坚实平整路面"
 
@@ -4034,7 +4095,7 @@ msgstr "持平"
 msgid "Flat"
 msgstr "持平"
 
-#: src/components/trail-course-review/copy.tsx:325
+#: src/components/trail-course-review/copy.tsx:332
 msgid "Fluids only"
 msgstr "仅液体"
 
@@ -4051,7 +4112,7 @@ msgstr "按计划训练"
 #~ msgid "Follow your existing plan; do not add load or heat solely to change this tracker."
 #~ msgstr "请遵循现有训练计划；不要仅为改变此追踪状态而额外增加负荷或热暴露。"
 
-#: src/components/trail-course-review/copy.tsx:155
+#: src/components/trail-course-review/copy.tsx:156
 msgid "Food availability"
 msgstr "食物供应"
 
@@ -4072,7 +4133,7 @@ msgstr "可用于训练的路面"
 #~ msgid "Form (TSB)"
 #~ msgstr "竞技状态 (TSB)"
 
-#: src/components/FeedbackDialog.tsx:192
+#: src/components/FeedbackDialog.tsx:554
 msgid "Found a bug or have an idea? Tell us — reports are reviewed and triaged automatically."
 msgstr "发现问题或有想法？告诉我们。反馈会自动审阅并分流。"
 
@@ -4112,7 +4173,7 @@ msgstr "新鲜度"
 msgid "Fri"
 msgstr "周五"
 
-#: src/components/trail-course-review/copy.tsx:286
+#: src/components/trail-course-review/copy.tsx:293
 msgid "Friday"
 msgstr "星期五"
 
@@ -4132,20 +4193,20 @@ msgstr "来自活动"
 #~ msgid "From Stryd"
 #~ msgstr "来自 Stryd"
 
-#: src/components/trail-course-review/copy.tsx:244
 #: src/components/trail-course-review/copy.tsx:251
+#: src/components/trail-course-review/copy.tsx:258
 msgid "From your activity history"
 msgstr "来自你的活动历史"
 
-#: src/components/trail-course-review/copy.tsx:133
+#: src/components/trail-course-review/copy.tsx:134
 msgid "Fueling"
 msgstr "补给"
 
-#: src/components/trail-course-review/copy.tsx:586
+#: src/components/trail-course-review/copy.tsx:593
 msgid "Fueling practice"
 msgstr "补给练习"
 
-#: src/components/trail-course-review/copy.tsx:160
+#: src/components/trail-course-review/copy.tsx:161
 msgid "Fueling practice sessions in the past 42 days"
 msgstr "过去 42 天的补给练习次数"
 
@@ -4207,7 +4268,7 @@ msgstr "目前尚无法充分验证 Garmin 腕部功率来源，因此不能用�
 #~ msgid "Gate-passing semantic slice:"
 #~ msgstr "通过规则门槛的语义样本："
 
-#: src/components/FeedbackDialog.tsx:43
+#: src/components/FeedbackDialog.tsx:95
 msgid "General feedback"
 msgstr "其他反馈"
 
@@ -4223,7 +4284,7 @@ msgstr "请前往 cloud.ouraring.com/personal-access-tokens 生成令牌。"
 msgid "Generating…"
 msgstr "正在生成…"
 
-#: src/components/trail-course-review/copy.tsx:236
+#: src/components/trail-course-review/copy.tsx:243
 msgid "Generation may consider this module. It is not yet included in a proposal."
 msgstr "生成时可考虑此模块；它尚未包含在任何提案中。"
 
@@ -4244,7 +4305,7 @@ msgstr "开始使用 Praxys"
 #~ msgid "GitHub isn't configured — nothing to sync."
 #~ msgstr "未配置 GitHub —— 无需同步。"
 
-#: src/pages/admin/AdminFeedback.tsx:283
+#: src/pages/admin/AdminFeedback.tsx:308
 msgid "GitHub isn't configured. Nothing to sync."
 msgstr "未配置 GitHub，无需同步。"
 
@@ -4295,7 +4356,7 @@ msgstr "目标类型"
 msgid "Grade & footing"
 msgstr "坡度与路面"
 
-#: src/components/trail-course-review/copy.tsx:583
+#: src/components/trail-course-review/copy.tsx:590
 msgid "Grade-specific training"
 msgstr "坡度专项训练"
 
@@ -4421,8 +4482,8 @@ msgstr "收起方法论详情"
 msgid "Hide other providers"
 msgstr "收起其他平台"
 
-#: src/components/trail-course-review/copy.tsx:293
-#: src/pages/admin/AdminFeedback.tsx:109
+#: src/components/trail-course-review/copy.tsx:300
+#: src/pages/admin/AdminFeedback.tsx:110
 msgid "High"
 msgstr "高"
 
@@ -4734,7 +4795,7 @@ msgstr "生病或不适"
 msgid "Improve performance"
 msgstr "提升表现"
 
-#: src/components/trail-course-review/copy.tsx:269
+#: src/components/trail-course-review/copy.tsx:276
 msgid "Improve race performance"
 msgstr "提升比赛表现"
 
@@ -4827,7 +4888,7 @@ msgstr "当前 HRV 数据不足，无法比较"
 msgid "Insufficient data"
 msgstr "数据不足"
 
-#: src/pages/admin/AdminFeedback.tsx:139
+#: src/pages/admin/AdminFeedback.tsx:157
 msgid "Insufficient detail"
 msgstr "信息不足"
 
@@ -4924,16 +4985,16 @@ msgstr "邀请"
 msgid "Invited"
 msgstr "已邀请"
 
-#: src/pages/admin/AdminFeedback.tsx:392
+#: src/pages/admin/AdminFeedback.tsx:425
 msgid "Issue"
 msgstr "工单"
 
-#: src/pages/admin/AdminFeedback.tsx:94
-#: src/pages/admin/AdminFeedback.tsx:356
+#: src/pages/admin/AdminFeedback.tsx:95
+#: src/pages/admin/AdminFeedback.tsx:386
 msgid "Issue created"
 msgstr "已创建 Issue"
 
-#: src/components/trail-course-review/copy.tsx:406
+#: src/components/trail-course-review/copy.tsx:413
 msgid "It is outside the non-ultra, one-day policy."
 msgstr "它超出非超长距离单日策略范围。"
 
@@ -4960,27 +5021,27 @@ msgstr "加入此个人实验"
 msgid "Joined"
 msgstr "已加入"
 
-#: src/pages/admin/AdminFeedback.tsx:254
+#: src/pages/admin/AdminFeedback.tsx:279
 msgid "Judgment recorded and agent-ready removed."
 msgstr "判断已记录，agent-ready 已移除。"
 
-#: src/pages/admin/AdminFeedback.tsx:253
+#: src/pages/admin/AdminFeedback.tsx:278
 msgid "Judgment recorded and agent-ready synchronized."
 msgstr "判断已记录，agent-ready 已同步。"
 
-#: src/pages/admin/AdminFeedback.tsx:234
+#: src/pages/admin/AdminFeedback.tsx:259
 msgid "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
 msgstr "判断已记录，但无法同步 GitHub 的 agent-ready 标签。"
 
-#: src/pages/admin/AdminFeedback.tsx:247
+#: src/pages/admin/AdminFeedback.tsx:272
 msgid "Judgment recorded, but the linked issue belongs to a different repository configuration."
 msgstr "判断已记录，但关联议题属于另一项仓库配置。"
 
-#: src/pages/admin/AdminFeedback.tsx:239
+#: src/pages/admin/AdminFeedback.tsx:264
 msgid "Judgment recorded. The linked issue is not open, so no label was added."
 msgstr "判断已记录。关联议题未开启，因此未添加标签。"
 
-#: src/pages/admin/AdminFeedback.tsx:243
+#: src/pages/admin/AdminFeedback.tsx:268
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "判断已记录。此反馈尚未关联 GitHub 议题。"
 
@@ -5195,7 +5256,7 @@ msgstr "浅色"
 msgid "Light theme (click for dark)"
 msgstr "浅色主题（点击切换为深色）"
 
-#: src/components/trail-course-review/copy.tsx:319
+#: src/components/trail-course-review/copy.tsx:326
 msgid "Lighting"
 msgstr "照明"
 
@@ -5220,7 +5281,7 @@ msgstr "可能已适应近期类似环境。"
 #~ msgid "Likely-adapted threshold"
 #~ msgstr "可能已适应阈值"
 
-#: src/components/trail-course-review/copy.tsx:230
+#: src/components/trail-course-review/copy.tsx:237
 msgid "Limited"
 msgstr "受限"
 
@@ -5332,7 +5393,7 @@ msgstr "正在加载计划个性化信息"
 msgid "Loading recent workouts…"
 msgstr "正在加载近期训练…"
 
-#: src/components/trail-course-review/states.tsx:29
+#: src/components/trail-course-review/states.tsx:30
 msgid "Loading Trail course review"
 msgstr "正在加载越野赛道核对"
 
@@ -5391,11 +5452,11 @@ msgstr "长期负荷、近期负荷及两者随时间变化的模型平衡。"
 msgid "Long-term modeled load is above recent modeled load."
 msgstr "长期模型负荷高于近期模型负荷。"
 
-#: src/components/trail-course-review/copy.tsx:151
+#: src/components/trail-course-review/copy.tsx:152
 msgid "Longest gap between aid stations"
 msgstr "最长补给站间距"
 
-#: src/components/trail-course-review/copy.tsx:158
+#: src/components/trail-course-review/copy.tsx:159
 msgid "Longest practiced fueling duration"
 msgstr "最长补给练习时长"
 
@@ -5403,7 +5464,7 @@ msgstr "最长补给练习时长"
 msgid "Longest training session available"
 msgstr "单次最长可训练时间"
 
-#: src/components/trail-course-review/copy.tsx:275
+#: src/components/trail-course-review/copy.tsx:282
 msgid "Loose gravel"
 msgstr "松散碎石"
 
@@ -5411,8 +5472,8 @@ msgstr "松散碎石"
 #~ msgid "low"
 #~ msgstr "偏低"
 
-#: src/components/trail-course-review/copy.tsx:291
-#: src/pages/admin/AdminFeedback.tsx:113
+#: src/components/trail-course-review/copy.tsx:298
+#: src/pages/admin/AdminFeedback.tsx:114
 msgid "Low"
 msgstr "偏低"
 
@@ -5436,7 +5497,7 @@ msgstr "LTHR 趋势"
 msgid "Main"
 msgstr "主训练"
 
-#: src/pages/admin/AdminFeedback.tsx:504
+#: src/pages/admin/AdminFeedback.tsx:550
 msgid "Maintainer verdict:"
 msgstr "维护者判断："
 
@@ -5576,6 +5637,10 @@ msgstr "手动创建和其他教练安排的训练不受影响。整个过程都
 msgid "Manual lap"
 msgstr "手动记圈"
 
+#: src/pages/admin/AdminFeedback.tsx:127
+msgid "Manual publication review"
+msgstr "需要人工发布审核"
+
 #: src/pages/LabsEnvironment.tsx:331
 msgid "manual recomputes remaining"
 msgstr "次手动重新计算机会"
@@ -5600,11 +5665,11 @@ msgstr "MAU"
 msgid "Max HR"
 msgstr "最大心率"
 
-#: src/components/trail-course-review/copy.tsx:135
+#: src/components/trail-course-review/copy.tsx:136
 msgid "Maximum course altitude"
 msgstr "赛道最高海拔"
 
-#: src/components/trail-course-review/copy.tsx:141
+#: src/components/trail-course-review/copy.tsx:142
 msgid "Maximum humidity"
 msgstr "最高湿度"
 
@@ -5616,7 +5681,7 @@ msgstr "这些天每天最多可训练多久（分钟）"
 msgid "Maximum planning duration"
 msgstr "计划用时上限"
 
-#: src/components/trail-course-review/copy.tsx:138
+#: src/components/trail-course-review/copy.tsx:139
 msgid "Maximum temperature"
 msgstr "最高气温"
 
@@ -5636,7 +5701,7 @@ msgstr "实测 5 公里比赛"
 msgid "Measured race"
 msgstr "实测比赛"
 
-#: src/pages/admin/AdminFeedback.tsx:111
+#: src/pages/admin/AdminFeedback.tsx:112
 msgid "Medium"
 msgstr "中"
 
@@ -5688,7 +5753,7 @@ msgstr "每个环境区间至少 {referenceMinimum} 次"
 #~ msgid "minimum {referenceMinimum} per range"
 #~ msgstr "每个区间至少 {referenceMinimum} 次"
 
-#: src/components/trail-course-review/copy.tsx:140
+#: src/components/trail-course-review/copy.tsx:141
 msgid "Minimum humidity"
 msgstr "最低湿度"
 
@@ -5696,7 +5761,7 @@ msgstr "最低湿度"
 msgid "Minimum planning duration"
 msgstr "计划用时下限"
 
-#: src/components/trail-course-review/copy.tsx:137
+#: src/components/trail-course-review/copy.tsx:138
 msgid "Minimum temperature"
 msgstr "最低气温"
 
@@ -5733,13 +5798,13 @@ msgstr "缺少证据"
 #~ msgid "mixed"
 #~ msgstr "混合"
 
-#: src/components/trail-course-review/copy.tsx:292
-#: src/components/trail-course-review/copy.tsx:297
-#: src/components/trail-course-review/copy.tsx:307
+#: src/components/trail-course-review/copy.tsx:299
+#: src/components/trail-course-review/copy.tsx:304
+#: src/components/trail-course-review/copy.tsx:314
 msgid "Mixed"
 msgstr "混合"
 
-#: src/components/trail-course-review/copy.tsx:327
+#: src/components/trail-course-review/copy.tsx:334
 msgid "Mixed food and drink"
 msgstr "食物与饮品混合"
 
@@ -5760,7 +5825,7 @@ msgstr "灵活性训练"
 msgid "Mode"
 msgstr "模式"
 
-#: src/components/trail-course-review/copy.tsx:245
+#: src/components/trail-course-review/copy.tsx:252
 #: src/pages/LabsEnvironment.tsx:1297
 msgid "Model version"
 msgstr "模型版本"
@@ -5803,7 +5868,7 @@ msgstr "调整"
 msgid "Mon"
 msgstr "周一"
 
-#: src/components/trail-course-review/copy.tsx:282
+#: src/components/trail-course-review/copy.tsx:289
 msgid "Monday"
 msgstr "星期一"
 
@@ -5821,7 +5886,7 @@ msgstr "监控手册"
 msgid "months"
 msgstr "月"
 
-#: src/components/trail-course-review/copy.tsx:192
+#: src/components/trail-course-review/copy.tsx:193
 msgid "More actions"
 msgstr "更多操作"
 
@@ -5867,11 +5932,11 @@ msgstr "下移"
 msgid "Move up"
 msgstr "上移"
 
-#: src/components/trail-course-review/copy.tsx:276
+#: src/components/trail-course-review/copy.tsx:283
 msgid "Mud"
 msgstr "泥地"
 
-#: src/components/trail-course-review/copy.tsx:262
+#: src/components/trail-course-review/copy.tsx:269
 msgid "Multi-day event"
 msgstr "多日赛事"
 
@@ -5880,7 +5945,7 @@ msgstr "多日赛事"
 msgid "Multiple platforms provide <0>{0}</0> data. Which should be the primary source?"
 msgstr "多个平台都提供 <0>{0}</0> 数据。要将哪个设为主要来源？"
 
-#: src/components/trail-course-review/copy.tsx:303
+#: src/components/trail-course-review/copy.tsx:310
 msgid "My assumption"
 msgstr "我的假设"
 
@@ -5888,7 +5953,7 @@ msgstr "我的假设"
 msgid "My goal is an outdoor road 5K."
 msgstr "我的目标是户外公路 5 公里。"
 
-#: src/components/trail-course-review/copy.tsx:320
+#: src/components/trail-course-review/copy.tsx:327
 msgid "Navigation device"
 msgstr "导航设备"
 
@@ -5900,7 +5965,7 @@ msgstr "接近基准"
 msgid "Near baseline"
 msgstr "接近基准"
 
-#: src/components/trail-course-review/copy.tsx:337
+#: src/components/trail-course-review/copy.tsx:344
 msgid "Near level (−3% to below 3%)"
 msgstr "近似平缓（−3% 至低于 3%）"
 
@@ -5952,8 +6017,8 @@ msgstr "需要重试"
 
 #: src/components/GoalBaselinePanel.tsx:106
 #: src/components/GoalBaselinePanel.tsx:502
-#: src/pages/admin/AdminFeedback.tsx:92
-#: src/pages/admin/AdminFeedback.tsx:354
+#: src/pages/admin/AdminFeedback.tsx:93
+#: src/pages/admin/AdminFeedback.tsx:384
 msgid "Needs review"
 msgstr "需审核"
 
@@ -5980,15 +6045,15 @@ msgid "Network error"
 msgstr "网络错误"
 
 #: src/components/FeedbackDialog.tsx:178
-msgid "Network error — please try again."
-msgstr "网络错误——请重试。"
+#~ msgid "Network error — please try again."
+#~ msgstr "网络错误——请重试。"
 
 #: src/pages/admin/AdminCommunications.tsx:77
 #: src/pages/admin/AdminCommunications.tsx:98
 #: src/pages/admin/AdminCommunications.tsx:117
-#: src/pages/admin/AdminFeedback.tsx:193
-#: src/pages/admin/AdminFeedback.tsx:260
-#: src/pages/admin/AdminFeedback.tsx:292
+#: src/pages/admin/AdminFeedback.tsx:218
+#: src/pages/admin/AdminFeedback.tsx:285
+#: src/pages/admin/AdminFeedback.tsx:317
 #: src/pages/admin/AdminIncidents.tsx:67
 #: src/pages/admin/AdminIncidents.tsx:91
 #: src/pages/admin/AdminIncidents.tsx:110
@@ -6014,8 +6079,8 @@ msgstr "网络错误。请刷新队列后重试。"
 msgid "Network error. Try again."
 msgstr "网络错误，请重试。"
 
-#: src/pages/admin/AdminFeedback.tsx:88
-#: src/pages/admin/AdminFeedback.tsx:353
+#: src/pages/admin/AdminFeedback.tsx:89
+#: src/pages/admin/AdminFeedback.tsx:383
 msgid "New"
 msgstr "新建"
 
@@ -6039,7 +6104,7 @@ msgstr "第一次使用 Praxys？"
 msgid "Newer workout structure"
 msgstr "较新版本的训练结构"
 
-#: src/pages/admin/AdminFeedback.tsx:381
+#: src/pages/admin/AdminFeedback.tsx:414
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 
@@ -6047,7 +6112,7 @@ msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 msgid "Next"
 msgstr "下一页"
 
-#: src/components/trail-course-review/copy.tsx:227
+#: src/components/trail-course-review/copy.tsx:234
 msgid "Next action"
 msgstr "下一步"
 
@@ -6069,7 +6134,7 @@ msgstr "下次同步"
 msgid "No"
 msgstr "否"
 
-#: src/components/trail-course-review/copy.tsx:495
+#: src/components/trail-course-review/copy.tsx:502
 msgid "No 14-day schedule fits the confirmed availability and accepted limits."
 msgstr "没有 14 天安排能同时满足已确认时间和已接受限制。"
 
@@ -6093,7 +6158,7 @@ msgstr "暂无与该计划方向和距离匹配的生效自动政策。"
 msgid "No active service incidents"
 msgstr "当前无服务异常"
 
-#: src/pages/admin/AdminFeedback.tsx:378
+#: src/pages/admin/AdminFeedback.tsx:411
 msgid "No active tickets"
 msgstr "暂无活跃工单"
 
@@ -6145,7 +6210,7 @@ msgstr "在此时间窗口内未记录连接尝试。"
 #~ msgid "No contributing heat session yet"
 #~ msgstr "尚无可计入的热环境训练"
 
-#: src/components/trail-course-review/copy.tsx:178
+#: src/components/trail-course-review/copy.tsx:179
 msgid "No course review has been saved yet"
 msgstr "尚未保存赛道核对"
 
@@ -6178,7 +6243,7 @@ msgstr "暂无数据"
 msgid "No dates"
 msgstr "无"
 
-#: src/pages/admin/AdminFeedback.tsx:141
+#: src/pages/admin/AdminFeedback.tsx:159
 msgid "No decision"
 msgstr "暂无判断"
 
@@ -6260,7 +6325,7 @@ msgstr "此后无新的 HRV、睡眠或活动数据。"
 msgid "NO PLAN"
 msgstr "无计划"
 
-#: src/components/trail-course-review/copy.tsx:330
+#: src/components/trail-course-review/copy.tsx:337
 msgid "No plan-altering issue"
 msgstr "未影响计划"
 
@@ -6285,15 +6350,15 @@ msgstr "无偏好"
 msgid "No private context saved"
 msgstr "暂无计划个性化信息"
 
-#: src/pages/admin/AdminFeedback.tsx:482
+#: src/pages/admin/AdminFeedback.tsx:528
 msgid "No prompt"
 msgstr "未使用提示词"
 
-#: src/components/trail-course-review/copy.tsx:373
+#: src/components/trail-course-review/copy.tsx:380
 msgid "No proposal can be trusted from this result."
 msgstr "无法信任基于此结果生成的提案。"
 
-#: src/components/trail-course-review/copy.tsx:382
+#: src/components/trail-course-review/copy.tsx:389
 msgid "No proposal is available from this inactive slice."
 msgstr "此未启用切片不能生成提案。"
 
@@ -6301,7 +6366,7 @@ msgstr "此未启用切片不能生成提案。"
 #~ msgid "No qualifying condition range yet"
 #~ msgstr "尚无符合条件的环境范围"
 
-#: src/components/TrailCourseReview.tsx:1672
+#: src/components/TrailCourseReview.tsx:2053
 msgid "No qualifying footing observed"
 msgstr "未观察到符合条件的路面"
 
@@ -6334,7 +6399,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 #~ msgid "No reliable heat history yet"
 #~ msgstr "尚无可靠的热适应历史"
 
-#: src/components/trail-course-review/copy.tsx:157
+#: src/components/trail-course-review/copy.tsx:158
 msgid "No required equipment listed"
 msgstr "未列出强制装备"
 
@@ -6397,7 +6462,7 @@ msgstr "无目标"
 msgid "No target selected"
 msgstr "未选择执行平台"
 
-#: src/pages/admin/AdminFeedback.tsx:378
+#: src/pages/admin/AdminFeedback.tsx:411
 msgid "No tickets to show"
 msgstr "暂无可显示的工单"
 
@@ -6470,13 +6535,13 @@ msgstr "今日无训练安排。"
 msgid "No workouts scheduled in this window."
 msgstr "这段时间内暂无训练安排。"
 
-#: src/components/trail-course-review/copy.tsx:265
+#: src/components/trail-course-review/copy.tsx:272
 msgid "Non-ultra Trail"
 msgstr "非超长距离越野"
 
 #: src/components/PersonalContextPanel.tsx:247
-#: src/components/trail-course-review/copy.tsx:311
-#: src/components/trail-course-review/copy.tsx:324
+#: src/components/trail-course-review/copy.tsx:318
+#: src/components/trail-course-review/copy.tsx:331
 msgid "None"
 msgstr "无"
 
@@ -6493,7 +6558,7 @@ msgstr "当前时间窗口内无记录"
 #~ msgid "Normal"
 #~ msgstr "正常"
 
-#: src/pages/admin/AdminFeedback.tsx:133
+#: src/pages/admin/AdminFeedback.tsx:151
 msgid "Not a bug"
 msgstr "不是缺陷"
 
@@ -6505,7 +6570,7 @@ msgstr "不是缺陷"
 msgid "Not a direct 10K baseline"
 msgstr "这不是直接 10K 基线"
 
-#: src/pages/admin/AdminFeedback.tsx:137
+#: src/pages/admin/AdminFeedback.tsx:155
 msgid "Not actionable"
 msgstr "不可直接处理"
 
@@ -6513,7 +6578,7 @@ msgstr "不可直接处理"
 msgid "Not an all-out 5K effort"
 msgstr "不是 5 公里全力跑"
 
-#: src/components/trail-course-review/copy.tsx:152
+#: src/components/trail-course-review/copy.tsx:153
 msgid "Not applicable"
 msgstr "不适用"
 
@@ -6624,7 +6689,7 @@ msgstr "在你确认这个具体用途和到期时间前，不会存储任何内
 msgid "Now open · Create your account"
 msgstr "现已开放 · 创建账号"
 
-#: src/components/trail-course-review/copy.tsx:150
+#: src/components/trail-course-review/copy.tsx:151
 msgid "Number of aid stations"
 msgstr "补给站数量"
 
@@ -6686,8 +6751,8 @@ msgstr "关"
 #~ msgid "Off by default. The note may contain more private detail than the structured fields."
 #~ msgstr "默认不发送。补充说明可能包含比上方字段更多的隐私信息。"
 
-#: src/components/trail-course-review/copy.tsx:180
-#: src/components/TrailCourseReview.tsx:443
+#: src/components/trail-course-review/copy.tsx:181
+#: src/components/TrailCourseReview.tsx:584
 msgid "Offline. Changes are kept only on this page and have not been saved."
 msgstr "当前离线。更改仅保留在此页面，尚未保存。"
 
@@ -6699,7 +6764,7 @@ msgstr "开"
 msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
 msgstr "一项或多项研究诊断不支持预测性解读。请仅将曲线视为合格历史跑步中的关联模式。"
 
-#: src/components/trail-course-review/copy.tsx:345
+#: src/components/trail-course-review/copy.tsx:352
 msgid "One or more values is outside the accepted format or range."
 msgstr "一项或多项数据不符合格式或范围要求。"
 
@@ -6707,7 +6772,7 @@ msgstr "一项或多项数据不符合格式或范围要求。"
 msgid "One tap helps us make this brief more useful."
 msgstr "一键反馈，帮助我们让今日简报更实用。"
 
-#: src/components/trail-course-review/copy.tsx:261
+#: src/components/trail-course-review/copy.tsx:268
 msgid "One-day event"
 msgstr "单日赛事"
 
@@ -6719,7 +6784,7 @@ msgstr "单日赛事"
 msgid "One-time codes for new user registration."
 msgstr "新用户注册用的一次性邀请码。"
 
-#: src/components/trail-course-review/copy.tsx:177
+#: src/components/trail-course-review/copy.tsx:178
 msgid "Online · saved"
 msgstr "在线 · 已保存"
 
@@ -6744,7 +6809,7 @@ msgstr "只有明确确认距离、计时、协议、路线或场地及训练意
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 #~ msgstr "只有 Praxys 下发账本记录的训练才能取消排期。手动添加和其他教练平台的训练保持不变。"
 
-#: src/components/FeedbackDialog.tsx:112
+#: src/components/FeedbackDialog.tsx:355
 msgid "Only PNG, JPG, or WebP images are supported."
 msgstr "仅支持 PNG、JPG 或 WebP 图片。"
 
@@ -6788,7 +6853,7 @@ msgstr "开放"
 msgid "Open an incident here when you need to communicate a live service issue."
 msgstr "需要通报正在发生的服务问题时，可在这里创建事件。"
 
-#: src/components/TrailCourseReview.tsx:1733
+#: src/components/TrailCourseReview.tsx:2138
 msgid "Open and review this section before confirming it. Each group can be set to unknown without inventing defaults."
 msgstr "确认前请打开并核对本节。每组都可设为未知，不会虚构默认值。"
 
@@ -6828,7 +6893,7 @@ msgstr "打开计划预览"
 msgid "Open the readiness path for this separate plan purpose. Your current Goal remains unchanged."
 msgstr "打开这项独立计划用途的准备度流程。当前目标保持不变。"
 
-#: src/components/TrailCourseReview.tsx:2078
+#: src/components/TrailCourseReview.tsx:2532
 msgid "Open this section before confirming"
 msgstr "确认前请先打开本节"
 
@@ -6877,7 +6942,7 @@ msgstr "选填"
 msgid "Optional"
 msgstr "选填"
 
-#: src/components/FeedbackDialog.tsx:325
+#: src/components/FeedbackDialog.tsx:747
 msgid "Optional — PNG, JPG, or WebP, up to 3 images. Screenshots are kept private; we read them only to help investigate your feedback."
 msgstr "可选：PNG、JPG 或 WebP，最多 3 张。截图会保持私密；我们只会读取截图来帮助调查你的反馈。"
 
@@ -6896,6 +6961,10 @@ msgstr "可选 10K 基准"
 #: src/components/GoalBaselinePanel.tsx:533
 msgid "Optional 5K pilot test"
 msgstr "可选 5 公里试点测试"
+
+#: src/components/FeedbackDialog.tsx:677
+msgid "Optional and off by default. If published to praxys-run/praxys, anyone can view the text summary. GitHub is outside mainland China, and public issues may be retained long term. Screenshots are never published. Leave this unchecked to send your feedback privately."
+msgstr "此选项可选，默认不勾选。如果发布到 praxys-run/praxys，任何人都可查看文字摘要。GitHub 位于中国大陆境外，公开 issue 可能被长期保留。截图绝不会发布。不勾选也可私下提交反馈。"
 
 #: src/components/PlanStart.tsx:1624
 msgid "Optional benchmark date"
@@ -6930,14 +6999,14 @@ msgstr "可选的整节训练备注"
 #~ msgstr "可填写训练结构、地形或训练目的"
 
 #: src/components/FeedbackDialog.tsx:272
-msgid "Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication."
-msgstr "可选。Praxys 会在发布前移除个人信息。截图始终保持私密。即使不允许发布，你仍可发送反馈。"
+#~ msgid "Optional. Praxys removes personal details before publication. Screenshots always remain private. You can send feedback without allowing publication."
+#~ msgstr "可选。Praxys 会在发布前移除个人信息。截图始终保持私密。即使不允许发布，你仍可发送反馈。"
 
 #: src/components/WorkoutCard.tsx:82
 msgid "Options"
 msgstr "选项"
 
-#: src/components/trail-course-review/copy.tsx:306
+#: src/components/trail-course-review/copy.tsx:313
 msgid "Organized aid"
 msgstr "赛事补给"
 
@@ -6945,7 +7014,7 @@ msgstr "赛事补给"
 msgid "Organized outdoor road 10K race"
 msgstr "有组织的户外公路 10K 比赛"
 
-#: src/components/trail-course-review/copy.tsx:301
+#: src/components/trail-course-review/copy.tsx:308
 msgid "Organizer information"
 msgstr "赛事方信息"
 
@@ -6953,7 +7022,7 @@ msgstr "赛事方信息"
 #: src/components/UpcomingPlanCard.tsx:574
 #: src/components/WorkoutPlanEditor.tsx:452
 #: src/components/WorkoutStructureEditor.tsx:328
-#: src/pages/admin/AdminFeedback.tsx:124
+#: src/pages/admin/AdminFeedback.tsx:142
 msgid "Other"
 msgstr "其他"
 
@@ -6961,7 +7030,7 @@ msgstr "其他"
 #~ msgid "Other plan purpose available"
 #~ msgstr "有其他计划用途可用"
 
-#: src/components/trail-course-review/copy.tsx:321
+#: src/components/trail-course-review/copy.tsx:328
 msgid "Other required"
 msgstr "其他必需装备"
 
@@ -7126,19 +7195,19 @@ msgstr "训练指标"
 msgid "Pending <0>{0}</0>"
 msgstr "待处理 <0>{0}</0>"
 
-#: src/components/trail-course-review/copy.tsx:176
+#: src/components/trail-course-review/copy.tsx:177
 msgid "Pending changes"
 msgstr "待保存更改"
 
-#: src/components/TrailCourseReview.tsx:747
+#: src/components/TrailCourseReview.tsx:1011
 msgid "Pending changes were discarded."
 msgstr "已放弃待保存更改。"
 
-#: src/components/trail-course-review/copy.tsx:218
+#: src/components/trail-course-review/copy.tsx:225
 msgid "Pending edits were kept only in this page. Compare the latest server version, then reapply or discard them. Reapplying does not save or confirm."
 msgstr "待保存编辑仅保留在本页面。请对照最新服务端版本，再重新应用或放弃。重新应用不会保存或确认。"
 
-#: src/components/TrailCourseReview.tsx:737
+#: src/components/TrailCourseReview.tsx:989
 msgid "Pending values were reapplied in memory to the latest revision. They have not been saved or confirmed."
 msgstr "待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。"
 
@@ -7162,7 +7231,7 @@ msgstr "当前临界功率的百分比。"
 msgid "Percentage of the athlete's lactate-threshold heart rate."
 msgstr "乳酸阈心率的百分比。"
 
-#: src/components/trail-course-review/copy.tsx:487
+#: src/components/trail-course-review/copy.tsx:494
 msgid "Performance planning stops; Praxys makes no diagnosis."
 msgstr "竞速计划将停止；Praxys 不作诊断。"
 
@@ -7253,7 +7322,7 @@ msgstr "计划用途需要重新评估"
 msgid "Plan window"
 msgstr "计划范围"
 
-#: src/components/trail-course-review/copy.tsx:331
+#: src/components/trail-course-review/copy.tsx:338
 msgid "Plan-altering issue"
 msgstr "曾影响计划"
 
@@ -7441,7 +7510,7 @@ msgstr "功率数据源匹配"
 #~ msgid "Power-source mismatch"
 #~ msgstr "功率来源不匹配"
 
-#: src/components/trail-course-review/copy.tsx:163
+#: src/components/trail-course-review/copy.tsx:164
 msgid "Practiced intake"
 msgstr "已练习的摄入形式"
 
@@ -7477,19 +7546,19 @@ msgstr "Praxys 创建或明确采纳的训练将以 Praxys 版本为准。"
 msgid "Praxys can analyze this schedule, but it will not create, replace, or remove target workouts."
 msgstr "Praxys 可以分析此日程，但不会在目标平台创建、替换或移除训练。"
 
-#: src/components/trail-course-review/copy.tsx:439
+#: src/components/trail-course-review/copy.tsx:446
 msgid "Praxys cannot anchor a proposal to enough recent running."
 msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
 
-#: src/components/trail-course-review/copy.tsx:574
+#: src/components/trail-course-review/copy.tsx:581
 msgid "Praxys cannot choose which answer should govern the plan."
 msgstr "Praxys 无法自行选择哪项回答应约束计划。"
 
-#: src/components/trail-course-review/copy.tsx:541
+#: src/components/trail-course-review/copy.tsx:548
 msgid "Praxys cannot evaluate the complete planning envelope."
 msgstr "Praxys 无法评估完整计划边界。"
 
-#: src/components/trail-course-review/copy.tsx:349
+#: src/components/trail-course-review/copy.tsx:356
 msgid "Praxys cannot interpret this revision safely."
 msgstr "Praxys 无法安全解释当前版本。"
 
@@ -7509,6 +7578,12 @@ msgstr "Praxys 教练解读"
 msgid "Praxys Coach plugin"
 msgstr "Praxys Coach 插件"
 
+#: src/components/FeedbackDialog.tsx:507
+#: src/components/FeedbackDialog.tsx:518
+#: src/components/FeedbackDialog.tsx:536
+msgid "Praxys could not confirm whether your feedback was received. It may already have been saved. Do not submit it again yet; reconnect and check its status."
+msgstr "Praxys 无法确认是否已收到你的反馈；它可能已经保存。请暂勿重复提交，重新联网后确认状态。"
+
 #: src/components/ManagedPlanSettingsCard.tsx:421
 msgid "Praxys could not determine your time zone. Check your device settings and try again."
 msgstr "Praxys 无法确定所在时区。请检查设备设置后重试。"
@@ -7521,7 +7596,7 @@ msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "应用更新后，此页面未能完成加载。重新加载一次即可使用最新版本。"
 
-#: src/components/trail-course-review/copy.tsx:369
+#: src/components/trail-course-review/copy.tsx:376
 msgid "Praxys could not reproduce the same readiness receipt."
 msgstr "Praxys 无法复现同一份准备情况回执。"
 
@@ -7537,7 +7612,7 @@ msgstr "Praxys 缺陷"
 msgid "Praxys defects"
 msgstr "Praxys 缺陷"
 
-#: src/components/TrailCourseReview.tsx:334
+#: src/components/TrailCourseReview.tsx:441
 msgid "Praxys did not provide a safe destination for this action. Review the receipt and retry after reloading."
 msgstr "Praxys 未提供可安全跳转的目标。请查看回执并重新加载后重试。"
 
@@ -7661,31 +7736,31 @@ msgstr "Praxys 将分析符合条件的历史跑步，观察在可比的 Stryd �
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
 msgstr "Praxys 将立即删除 Labs 同意记录和派生汇总结果，但不会删除账号中的原始活动。"
 
-#: src/components/trail-course-review/copy.tsx:499
+#: src/components/trail-course-review/copy.tsx:506
 msgid "Praxys will not compress, stack, or substitute sessions."
 msgstr "Praxys 不会压缩、堆叠或替换训练。"
 
-#: src/components/trail-course-review/copy.tsx:361
+#: src/components/trail-course-review/copy.tsx:368
 msgid "Praxys will not guess how old or future fields map to v2."
 msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。"
 
-#: src/components/trail-course-review/states.tsx:173
+#: src/components/trail-course-review/states.tsx:196
 msgid "Praxys will not guess how old or future fields map to v2. Reload, reset the course review, or delete this Trail draft."
 msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以重新加载、重置赛道核对，或删除这份越野草稿。"
 
-#: src/components/trail-course-review/copy.tsx:553
+#: src/components/trail-course-review/copy.tsx:560
 msgid "Praxys will not increase the accepted history envelope."
 msgstr "Praxys 不会提高已接受的历史边界。"
 
-#: src/components/trail-course-review/copy.tsx:475
+#: src/components/trail-course-review/copy.tsx:482
 msgid "Praxys will not replace the course demand with road training."
 msgstr "Praxys 不会用公路训练替代赛道需求。"
 
-#: src/components/trail-course-review/copy.tsx:418
+#: src/components/trail-course-review/copy.tsx:425
 msgid "Praxys will not substitute another population or intent."
 msgstr "Praxys 不会替换为其他人群或目标。"
 
-#: src/components/trail-course-review/copy.tsx:520
+#: src/components/trail-course-review/copy.tsx:527
 msgid "Praxys will not treat an assumption as reviewed fact."
 msgstr "Praxys 不会把未确认假设当作已核对事实。"
 
@@ -7701,55 +7776,55 @@ msgstr "Praxys 将停止更改目标日历。Praxys 计划仍会保留，可继�
 msgid "Praxys workload-support review"
 msgstr "Praxys 训练负荷支持证据综述"
 
-#: src/components/trail-course-review/copy.tsx:500
+#: src/components/trail-course-review/copy.tsx:507
 msgid "Praxys 不会压缩、堆叠或替换训练。"
 msgstr "Praxys 不会压缩、堆叠或替换训练。"
 
-#: src/components/trail-course-review/copy.tsx:521
+#: src/components/trail-course-review/copy.tsx:528
 msgid "Praxys 不会把未确认假设当作已核对事实。"
 msgstr "Praxys 不会把未确认假设当作已核对事实。"
 
-#: src/components/trail-course-review/copy.tsx:554
+#: src/components/trail-course-review/copy.tsx:561
 msgid "Praxys 不会提高已接受的历史边界。"
 msgstr "Praxys 不会提高已接受的历史边界。"
 
-#: src/components/trail-course-review/copy.tsx:419
+#: src/components/trail-course-review/copy.tsx:426
 msgid "Praxys 不会替换为其他人群或目标。"
 msgstr "Praxys 不会替换为其他人群或目标。"
 
-#: src/components/trail-course-review/copy.tsx:362
+#: src/components/trail-course-review/copy.tsx:369
 msgid "Praxys 不会猜测旧版或未来字段如何映射到 v2。"
 msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。"
 
-#: src/components/trail-course-review/states.tsx:172
+#: src/components/trail-course-review/states.tsx:195
 msgid "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以重新加载、重置赛道核对，或删除这份越野草稿。"
 msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以重新加载、重置赛道核对，或删除这份越野草稿。"
 
-#: src/components/trail-course-review/copy.tsx:476
+#: src/components/trail-course-review/copy.tsx:483
 msgid "Praxys 不会用公路训练替代赛道需求。"
 msgstr "Praxys 不会用公路训练替代赛道需求。"
 
-#: src/components/trail-course-review/copy.tsx:370
+#: src/components/trail-course-review/copy.tsx:377
 msgid "Praxys 无法复现同一份准备情况回执。"
 msgstr "Praxys 无法复现同一份准备情况回执。"
 
-#: src/components/trail-course-review/copy.tsx:350
+#: src/components/trail-course-review/copy.tsx:357
 msgid "Praxys 无法安全解释当前版本。"
 msgstr "Praxys 无法安全解释当前版本。"
 
-#: src/components/trail-course-review/copy.tsx:440
+#: src/components/trail-course-review/copy.tsx:447
 msgid "Praxys 无法用足够的近期跑步记录约束提案。"
 msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
 
-#: src/components/trail-course-review/copy.tsx:575
+#: src/components/trail-course-review/copy.tsx:582
 msgid "Praxys 无法自行选择哪项回答应约束计划。"
 msgstr "Praxys 无法自行选择哪项回答应约束计划。"
 
-#: src/components/trail-course-review/copy.tsx:542
+#: src/components/trail-course-review/copy.tsx:549
 msgid "Praxys 无法评估完整计划边界。"
 msgstr "Praxys 无法评估完整计划边界。"
 
-#: src/components/TrailCourseReview.tsx:335
+#: src/components/TrailCourseReview.tsx:442
 msgid "Praxys 未提供可安全跳转的目标。请查看回执并重新加载后重试。"
 msgstr "Praxys 未提供可安全跳转的目标。请查看回执并重新加载后重试。"
 
@@ -7795,7 +7870,7 @@ msgstr "为完成所选距离做准备。"
 msgid "Preparing export..."
 msgstr "正在准备导出…"
 
-#: src/components/trail-course-review/copy.tsx:199
+#: src/components/trail-course-review/copy.tsx:200
 msgid "Preparing export…"
 msgstr "正在准备导出…"
 
@@ -7841,6 +7916,10 @@ msgstr "就绪评估不使用优先级。"
 #~ msgid "Privacy Policy"
 #~ msgstr "隐私政策"
 
+#: src/pages/admin/AdminFeedback.tsx:121
+msgid "Private"
+msgstr "私密"
+
 #: src/pages/Login.tsx:222
 msgid "Private alpha · Invitation only"
 msgstr "内测中 · 仅限邀请"
@@ -7874,7 +7953,7 @@ msgstr "补充说明"
 msgid "Private note (optional)"
 msgstr "补充说明（选填）"
 
-#: src/pages/admin/AdminFeedback.tsx:576
+#: src/pages/admin/AdminFeedback.tsx:622
 msgid "Private submission"
 msgstr "私密提交"
 
@@ -7974,6 +8053,10 @@ msgstr "数据来源故障"
 msgid "Provider outcome is uncertain"
 msgstr "数据来源端结果不确定"
 
+#: src/components/FeedbackDialog.tsx:689
+msgid "Public GitHub publishing is currently turned off. You can still send this feedback privately."
+msgstr "公开发布到 GitHub 目前已关闭。你仍可私下提交本次反馈。"
+
 #: src/pages/admin/AdminOps.tsx:1363
 msgid "Public status"
 msgstr "公开状态页"
@@ -7982,17 +8065,33 @@ msgstr "公开状态页"
 msgid "publication overrides"
 msgstr "发布人工覆盖"
 
+#: src/pages/admin/AdminFeedback.tsx:123
+msgid "Publication queued"
+msgstr "已进入发布队列"
+
+#: src/pages/admin/AdminFeedback.tsx:131
+msgid "Publication unavailable"
+msgstr "发布不可用"
+
+#: src/pages/admin/AdminFeedback.tsx:129
+msgid "Publication unknown"
+msgstr "发布状态未知"
+
 #: src/pages/admin/AdminCommunications.tsx:228
 msgid "Publish a banner above to communicate maintenance windows, launches, or onboarding news."
 msgstr "在上方发布横幅，用于通知维护窗口、功能上线或接入消息。"
 
 #: src/components/FeedbackDialog.tsx:269
-msgid "Publish a scrubbed text summary to Praxys’s external issue tracker"
-msgstr "将去除个人信息后的文字摘要发布到 Praxys 的外部问题追踪系统"
+#~ msgid "Publish a scrubbed text summary to Praxys’s external issue tracker"
+#~ msgstr "将去除个人信息后的文字摘要发布到 Praxys 的外部问题追踪系统"
 
 #: src/pages/admin/AdminIncidents.tsx:153
 msgid "Publish service updates on the <0>public status page</0>."
 msgstr "在<0>公开状态页</0>发布服务动态。"
+
+#: src/pages/admin/AdminFeedback.tsx:125
+msgid "Published"
+msgstr "已发布"
 
 #: src/components/SetupChecklist.tsx:56
 msgid "Pull your latest activities, power data, and recovery metrics"
@@ -8150,6 +8249,26 @@ msgstr "重新邀请"
 #~ msgid "Re-push to Stryd"
 #~ msgstr "重新推送到 Stryd"
 
+#: src/pages/admin/AdminFeedback.tsx:635
+msgid "Re-run triage"
+msgstr "重新分析并分流"
+
+#: src/pages/admin/AdminFeedback.tsx:369
+#~ msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
+#~ msgstr "重新分析并分流只会刷新分析和分流结果，不会授予发布权限，也不会创建 GitHub Issue。"
+
+#: src/pages/admin/AdminFeedback.tsx:369
+msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+msgstr "重新分析并分流会刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
+
+#: src/pages/admin/AdminFeedback.tsx:636
+#~ msgid "Re-running triage…"
+#~ msgstr "正在重新分析并分流…"
+
+#: src/pages/admin/AdminFeedback.tsx:636
+#~ msgid "Re-running…"
+#~ msgstr "正在重新分析并分流…"
+
 #: src/components/HeatAdaptationPanel.tsx:59
 #~ msgid "Re-sync training data so the power provider can be verified."
 #~ msgstr "重新同步训练数据，以验证功率提供方。"
@@ -8199,12 +8318,12 @@ msgstr "镜像主页数据的只读账号。"
 msgid "Readiness"
 msgstr "准备度"
 
-#: src/components/trail-course-review/copy.tsx:508
+#: src/components/trail-course-review/copy.tsx:515
 msgid "Readiness cannot be decided without that detail."
 msgstr "缺少该信息时无法判断准备情况。"
 
-#: src/components/TrailCourseReview.tsx:606
-#: src/components/TrailCourseReview.tsx:627
+#: src/components/TrailCourseReview.tsx:799
+#: src/components/TrailCourseReview.tsx:829
 msgid "Readiness could not be checked."
 msgstr "暂时无法检查准备情况。"
 
@@ -8212,7 +8331,7 @@ msgstr "暂时无法检查准备情况。"
 msgid "Readiness first"
 msgstr "先评估准备度"
 
-#: src/components/trail-course-review/copy.tsx:565
+#: src/components/trail-course-review/copy.tsx:572
 msgid "Readiness is stale and cannot be silently rebound."
 msgstr "准备情况已过期，不能静默重新绑定。"
 
@@ -8220,7 +8339,7 @@ msgstr "准备情况已过期，不能静默重新绑定。"
 msgid "Readiness not checked"
 msgstr "尚未检查准备情况"
 
-#: src/components/trail-course-review/copy.tsx:172
+#: src/components/trail-course-review/copy.tsx:173
 msgid "Readiness receipt"
 msgstr "准备情况回执"
 
@@ -8228,7 +8347,7 @@ msgstr "准备情况回执"
 msgid "Readiness result"
 msgstr "准备情况结果"
 
-#: src/components/TrailCourseReview.tsx:622
+#: src/components/TrailCourseReview.tsx:818
 msgid "Readiness updated for the current confirmed revision."
 msgstr "已按当前确认版本更新准备情况。"
 
@@ -8240,7 +8359,7 @@ msgstr "根据身体信号判断准备度。"
 msgid "Ready to deliver"
 msgstr "可交付"
 
-#: src/components/TrailCourseReview.tsx:789
+#: src/components/TrailCourseReview.tsx:1053
 msgid "Ready to review a 14-day proposal"
 msgstr "可以查看 14 天计划提案"
 
@@ -8256,7 +8375,7 @@ msgstr "在合理的模型变化下，历史关系无法保持一致。"
 msgid "Rebuild consistency"
 msgstr "恢复规律训练"
 
-#: src/components/trail-course-review/copy.tsx:271
+#: src/components/trail-course-review/copy.tsx:278
 msgid "Rebuild training consistency"
 msgstr "恢复训练规律"
 
@@ -8302,7 +8421,7 @@ msgstr "最近的自动调整"
 msgid "Recent descent exposure"
 msgstr "近期下降训练"
 
-#: src/components/trail-course-review/copy.tsx:459
+#: src/components/trail-course-review/copy.tsx:466
 msgid "Recent descent exposure is insufficient."
 msgstr "近期下降训练经历不足。"
 
@@ -8383,7 +8502,7 @@ msgstr "近期模型负荷明显低于长期模型负荷。"
 msgid "Recent running continuity"
 msgstr "近期跑步连续性"
 
-#: src/components/trail-course-review/copy.tsx:435
+#: src/components/trail-course-review/copy.tsx:442
 msgid "Recent running continuity is below the accepted history gate."
 msgstr "近期跑步连续性未达到已接受的历史门槛。"
 
@@ -8487,11 +8606,11 @@ msgstr "请先在上方重新连接 {targetLabel}，再继续托管下发。"
 #~ msgid "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 #~ msgstr "重新连接 Garmin 或更改账号区域会撤销此权限并暂停下发，重新选择加入后才能恢复。"
 
-#: src/pages/admin/AdminFeedback.tsx:544
+#: src/pages/admin/AdminFeedback.tsx:590
 msgid "Record judgment"
 msgstr "记录判断"
 
-#: src/pages/admin/AdminFeedback.tsx:519
+#: src/pages/admin/AdminFeedback.tsx:565
 msgid "Record maintainer judgment"
 msgstr "记录维护者判断"
 
@@ -8729,7 +8848,7 @@ msgstr "注册时间"
 msgid "Registration settings unavailable"
 msgstr "注册设置暂不可用"
 
-#: src/pages/admin/AdminFeedback.tsx:600
+#: src/pages/admin/AdminFeedback.tsx:646
 msgid "Reject"
 msgstr "驳回"
 
@@ -8738,8 +8857,8 @@ msgstr "驳回"
 msgid "Reject or defer"
 msgstr "拒绝或暂缓"
 
-#: src/pages/admin/AdminFeedback.tsx:100
-#: src/pages/admin/AdminFeedback.tsx:358
+#: src/pages/admin/AdminFeedback.tsx:101
+#: src/pages/admin/AdminFeedback.tsx:388
 msgid "Rejected"
 msgstr "已拒绝"
 
@@ -8776,8 +8895,8 @@ msgstr "重新加载 Labs"
 msgid "Reload the page or verify the management endpoints are available."
 msgstr "重新加载页面，或确认管理接口可用。"
 
-#: src/components/trail-course-review/copy.tsx:365
-#: src/components/trail-course-review/states.tsx:183
+#: src/components/trail-course-review/copy.tsx:372
+#: src/components/trail-course-review/states.tsx:206
 msgid "Reload the supported version"
 msgstr "重新加载受支持版本"
 
@@ -8799,7 +8918,7 @@ msgstr "移除日期"
 msgid "Remove future Praxys deliveries"
 msgstr "移除未来由 Praxys 下发的训练"
 
-#: src/components/FeedbackDialog.tsx:303
+#: src/components/FeedbackDialog.tsx:722
 msgid "Remove image"
 msgstr "删除图片"
 
@@ -8856,7 +8975,7 @@ msgstr "重复次数"
 msgid "Replay blocked by safety policy"
 msgstr "安全策略已阻止重试"
 
-#: src/pages/admin/AdminFeedback.tsx:391
+#: src/pages/admin/AdminFeedback.tsx:424
 msgid "Report"
 msgstr "反馈内容"
 
@@ -8897,15 +9016,19 @@ msgstr "申请邀请"
 msgid "Request p95"
 msgstr "请求 p95"
 
+#: src/components/trail-course-review/copy.tsx:127
+msgid "Requested"
+msgstr "请求值"
+
 #: src/components/trail-course-review/copy.tsx:124
 msgid "Requested versus observed comparison"
 msgstr "请求与已观察情况对照"
 
-#: src/components/trail-course-review/copy.tsx:156
+#: src/components/trail-course-review/copy.tsx:157
 msgid "Required equipment"
 msgstr "强制装备"
 
-#: src/components/trail-course-review/copy.tsx:471
+#: src/components/trail-course-review/copy.tsx:478
 msgid "Required uphill, downhill, or footing access is unavailable."
 msgstr "缺少所需的上坡、下坡或路面训练条件。"
 
@@ -8913,18 +9036,18 @@ msgstr "缺少所需的上坡、下坡或路面训练条件。"
 msgid "Resend verification email"
 msgstr "重新发送验证邮件"
 
-#: src/components/trail-course-review/copy.tsx:193
-#: src/components/trail-course-review/states.tsx:186
+#: src/components/trail-course-review/copy.tsx:194
+#: src/components/trail-course-review/states.tsx:209
 msgid "Reset course review"
 msgstr "重置赛道核对"
 
-#: src/components/trail-course-review/copy.tsx:200
-#: src/components/trail-course-review/states.tsx:200
+#: src/components/trail-course-review/copy.tsx:207
+#: src/components/trail-course-review/states.tsx:226
 msgid "Reset course review?"
 msgstr "重置赛道核对？"
 
-#: src/components/trail-course-review/copy.tsx:202
-#: src/components/trail-course-review/states.tsx:207
+#: src/components/trail-course-review/copy.tsx:209
+#: src/components/trail-course-review/states.tsx:233
 msgid "Reset replaces the current editable answers with unknowns. It does not erase source activities or retained proposal records."
 msgstr "重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。"
 
@@ -8932,7 +9055,7 @@ msgstr "重置会把当前可编辑回答改为未知；不会删除来源活动
 msgid "Resolve"
 msgstr "标记为已解决"
 
-#: src/components/trail-course-review/copy.tsx:578
+#: src/components/trail-course-review/copy.tsx:585
 msgid "Resolve the first conflict"
 msgstr "处理首个冲突"
 
@@ -8940,8 +9063,8 @@ msgstr "处理首个冲突"
 msgid "Resolve workout conflict"
 msgstr "处理训练冲突"
 
-#: src/pages/admin/AdminFeedback.tsx:96
-#: src/pages/admin/AdminFeedback.tsx:357
+#: src/pages/admin/AdminFeedback.tsx:97
+#: src/pages/admin/AdminFeedback.tsx:387
 #: src/pages/admin/AdminIncidents.tsx:44
 #: src/pages/Status.tsx:94
 #: src/pages/Status.tsx:265
@@ -8996,7 +9119,7 @@ msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作
 msgid "Resting HR"
 msgstr "静息心率"
 
-#: src/components/trail-course-review/copy.tsx:214
+#: src/components/trail-course-review/copy.tsx:221
 msgid "Restore pending changes"
 msgstr "恢复待保存更改"
 
@@ -9049,11 +9172,10 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/components/PlanStart.tsx:1206
 #: src/components/PlanStart.tsx:1285
 #: src/components/PlanStart.tsx:1902
-#: src/components/trail-course-review/copy.tsx:243
-#: src/components/trail-course-review/states.tsx:95
+#: src/components/trail-course-review/copy.tsx:250
+#: src/components/trail-course-review/states.tsx:96
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/admin/AdminFeedback.tsx:589
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171
@@ -9104,11 +9226,11 @@ msgstr "请重试政策检查后再选择路径。Praxys 不会只根据当前�
 #~ msgid "Retry the policy check before opening a preview. Praxys will not infer availability from the current goal alone."
 #~ msgstr "打开预览前请重试政策检查。Praxys 不会仅凭当前目标推断政策是否可用。"
 
-#: src/components/trail-course-review/copy.tsx:377
+#: src/components/trail-course-review/copy.tsx:384
 msgid "Retry the readiness check"
 msgstr "重新检查准备情况"
 
-#: src/components/trail-course-review/states.tsx:81
+#: src/components/trail-course-review/states.tsx:82
 msgid "Retry the request. Unavailable data will not be guessed or replaced."
 msgstr "请重试。未加载的数据不会被猜测或替换。"
 
@@ -9124,7 +9246,7 @@ msgstr "请重试加载公共通知横幅。"
 #~ msgid "Retry to load seats, users, invitations, and waitlist activity."
 #~ msgstr "请重试加载席位、用户、邀请和候补名单活动。"
 
-#: src/pages/admin/AdminFeedback.tsx:306
+#: src/pages/admin/AdminFeedback.tsx:331
 msgid "Retry to load submitted reports and GitHub sync state."
 msgstr "请重试加载已提交报告和 GitHub 同步状态。"
 
@@ -9180,7 +9302,7 @@ msgstr "查看并更新计划"
 msgid "Review before saving"
 msgstr "保存前确认"
 
-#: src/components/trail-course-review/copy.tsx:455
+#: src/components/trail-course-review/copy.tsx:462
 msgid "Review comparable experience"
 msgstr "查看可比训练经历"
 
@@ -9196,13 +9318,17 @@ msgstr "处理冲突"
 msgid "Review delivery queue"
 msgstr "查看下发队列"
 
-#: src/components/trail-course-review/copy.tsx:467
+#: src/components/trail-course-review/copy.tsx:474
 msgid "Review descent experience"
 msgstr "查看下降训练经历"
 
-#: src/components/trail-course-review/copy.tsx:410
+#: src/components/trail-course-review/copy.tsx:417
 msgid "Review event scope"
 msgstr "查看赛事范围"
+
+#: src/pages/admin/AdminFeedback.tsx:459
+msgid "Review exact public issue text"
+msgstr "审核将公开发布的完整 issue 文本"
 
 #: src/components/PlanStart.tsx:1486
 msgid "Review existing draft"
@@ -9224,7 +9350,7 @@ msgstr "复核目标"
 #~ msgid "Review heat history"
 #~ msgstr "查看热适应历史"
 
-#: src/components/trail-course-review/copy.tsx:213
+#: src/components/trail-course-review/copy.tsx:220
 msgid "Review latest version"
 msgstr "查看最新版本"
 
@@ -9240,11 +9366,11 @@ msgstr "查看可选测试"
 msgid "Review plan outcomes"
 msgstr "回顾计划结果"
 
-#: src/components/trail-course-review/copy.tsx:422
+#: src/components/trail-course-review/copy.tsx:429
 msgid "Review planning scope"
 msgstr "查看计划适用范围"
 
-#: src/components/trail-course-review/copy.tsx:386
+#: src/components/trail-course-review/copy.tsx:393
 msgid "Review policy status"
 msgstr "查看策略状态"
 
@@ -9256,21 +9382,21 @@ msgstr "确认用途和保留期限"
 msgid "Review readiness"
 msgstr "查看准备度"
 
-#: src/components/trail-course-review/copy.tsx:443
+#: src/components/trail-course-review/copy.tsx:450
 msgid "Review recent running"
 msgstr "查看近期跑步记录"
 
-#: src/pages/admin/AdminFeedback.tsx:320
+#: src/pages/admin/AdminFeedback.tsx:345
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "审核报告、管理截图，并同步关联的 GitHub issue。"
 
-#: src/pages/admin/AdminFeedback.tsx:469
-#: src/pages/admin/AdminFeedback.tsx:492
+#: src/pages/admin/AdminFeedback.tsx:515
+#: src/pages/admin/AdminFeedback.tsx:538
 #: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "需要审核"
 
-#: src/components/trail-course-review/copy.tsx:524
+#: src/components/trail-course-review/copy.tsx:531
 msgid "Review the assumption"
 msgstr "查看该假设"
 
@@ -9282,7 +9408,7 @@ msgstr "请复核限制条件后重试。"
 msgid "Review the current goal"
 msgstr "回顾当前目标"
 
-#: src/components/trail-course-review/copy.tsx:398
+#: src/components/trail-course-review/copy.tsx:405
 msgid "Review the event date"
 msgstr "查看比赛日期"
 
@@ -9298,7 +9424,7 @@ msgstr "请核对以下具体用途和访问权限。插件无法自行批准该
 msgid "Review the existing history-first readiness path before asking Praxys to create a proposal."
 msgstr "请先查看现有的历史优先准备度流程，再让 Praxys 创建提案。"
 
-#: src/components/trail-course-review/copy.tsx:353
+#: src/components/trail-course-review/copy.tsx:360
 msgid "Review the first invalid value"
 msgstr "查看首个无效值"
 
@@ -9307,11 +9433,11 @@ msgstr "查看首个无效值"
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
 msgstr "请检查标出的步骤字段。每个带类型的目标和结束条件都必须完整。"
 
-#: src/components/trail-course-review/copy.tsx:569
+#: src/components/trail-course-review/copy.tsx:576
 msgid "Review the latest revision"
 msgstr "查看最新版本"
 
-#: src/components/TrailCourseReview.tsx:452
+#: src/components/TrailCourseReview.tsx:593
 msgid "Review the linked fields before saving."
 msgstr "保存前请检查已链接的字段。"
 
@@ -9319,11 +9445,11 @@ msgstr "保存前请检查已链接的字段。"
 msgid "Review the optional test"
 msgstr "查看可选测试"
 
-#: src/components/trail-course-review/copy.tsx:431
+#: src/components/trail-course-review/copy.tsx:438
 msgid "Review the technical feature"
 msgstr "查看技术特征"
 
-#: src/components/trail-course-review/copy.tsx:187
+#: src/components/trail-course-review/copy.tsx:188
 msgid "Review these fields"
 msgstr "请检查以下字段"
 
@@ -9341,7 +9467,7 @@ msgstr "确认这次活动"
 msgid "Review Trail event"
 msgstr "核对越野赛事"
 
-#: src/components/trail-course-review/copy.tsx:479
+#: src/components/trail-course-review/copy.tsx:486
 msgid "Review training access"
 msgstr "查看训练场地条件"
 
@@ -9349,11 +9475,11 @@ msgstr "查看训练场地条件"
 #~ msgid "Review what Praxys can safely send before granting access for this Garmin connection."
 #~ msgstr "授权当前 Garmin 连接前，请先确认 Praxys 可以安全发送的内容。"
 
-#: src/components/trail-course-review/copy.tsx:491
+#: src/components/trail-course-review/copy.tsx:498
 msgid "Review your response"
 msgstr "查看你的回答"
 
-#: src/components/trail-course-review/copy.tsx:503
+#: src/components/trail-course-review/copy.tsx:510
 msgid "Review your schedule"
 msgstr "查看训练时间安排"
 
@@ -9395,7 +9521,7 @@ msgstr "只有在人群、目标和安全边界完成审核并版本化后，公
 msgid "Road running"
 msgstr "公路跑"
 
-#: src/components/trail-course-review/copy.tsx:277
+#: src/components/trail-course-review/copy.tsx:284
 msgid "Rocks or roots"
 msgstr "岩石或树根"
 
@@ -9423,7 +9549,7 @@ msgstr "路线或场地标识"
 msgid "RPE · 0–10"
 msgstr "主观用力程度（RPE）· 0–10"
 
-#: src/pages/admin/AdminFeedback.tsx:479
+#: src/pages/admin/AdminFeedback.tsx:525
 msgid "Rule based"
 msgstr "规则判断"
 
@@ -9527,7 +9653,7 @@ msgstr "存在安全停止条件"
 msgid "Sat"
 msgstr "周六"
 
-#: src/components/trail-course-review/copy.tsx:287
+#: src/components/trail-course-review/copy.tsx:294
 msgid "Saturday"
 msgstr "星期六"
 
@@ -9537,15 +9663,15 @@ msgstr "星期六"
 msgid "Save"
 msgstr "保存"
 
-#: src/components/TrailCourseReview.tsx:404
+#: src/components/TrailCourseReview.tsx:537
 msgid "Save and confirm the current revision before retrying readiness."
 msgstr "请先保存并确认当前版本，再重新检查准备情况。"
 
-#: src/components/trail-course-review/copy.tsx:174
+#: src/components/trail-course-review/copy.tsx:175
 msgid "Save and leave"
 msgstr "保存并稍后继续"
 
-#: src/components/trail-course-review/copy.tsx:175
+#: src/components/trail-course-review/copy.tsx:176
 msgid "Save changes"
 msgstr "保存更改"
 
@@ -9569,7 +9695,7 @@ msgstr "保存"
 msgid "Save target"
 msgstr "保存执行平台"
 
-#: src/components/trail-course-review/copy.tsx:171
+#: src/components/trail-course-review/copy.tsx:172
 msgid "Save this section before confirming"
 msgstr "确认前请先保存本节"
 
@@ -9657,7 +9783,7 @@ msgstr "科学模型"
 msgid "Scope and guardrails"
 msgstr "范围与护栏"
 
-#: src/pages/admin/AdminFeedback.tsx:425
+#: src/pages/admin/AdminFeedback.tsx:471
 msgid "Screenshot flagged sensitive"
 msgstr "截图已标记为敏感"
 
@@ -9665,7 +9791,7 @@ msgstr "截图已标记为敏感"
 msgid "Screenshot unavailable"
 msgstr "无法显示截图"
 
-#: src/components/trail-course-review/copy.tsx:302
+#: src/components/trail-course-review/copy.tsx:309
 msgid "Seasonal expectation"
 msgstr "季节预期"
 
@@ -9726,7 +9852,7 @@ msgstr "选择执行平台不会立即启用下发。下一步会先确认托管
 msgid "Self-registration"
 msgstr "自助注册"
 
-#: src/components/trail-course-review/copy.tsx:308
+#: src/components/trail-course-review/copy.tsx:315
 msgid "Self-supported"
 msgstr "自助"
 
@@ -9744,8 +9870,8 @@ msgstr "发送"
 
 #: src/components/AppSidebar.tsx:217
 #: src/components/AppSidebar.tsx:219
-#: src/components/FeedbackDialog.tsx:189
-#: src/components/FeedbackDialog.tsx:344
+#: src/components/FeedbackDialog.tsx:551
+#: src/components/FeedbackDialog.tsx:791
 msgid "Send feedback"
 msgstr "发送反馈"
 
@@ -9761,13 +9887,13 @@ msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动
 msgid "Sending..."
 msgstr "发送中…"
 
-#: src/components/FeedbackDialog.tsx:344
+#: src/components/FeedbackDialog.tsx:791
 #: src/pages/admin/AdminUsers.tsx:939
 #: src/pages/Login.tsx:415
 msgid "Sending…"
 msgstr "发送中…"
 
-#: src/pages/admin/AdminFeedback.tsx:135
+#: src/pages/admin/AdminFeedback.tsx:153
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
@@ -9869,7 +9995,7 @@ msgstr "设置目标"
 #~ msgid "Set the constraints you can actually keep. Praxys returns a versioned <0>{0}</0>-day proposal; it is not yet your plan."
 #~ msgstr "设置实际能够遵守的限制条件。Praxys 会返回一个带版本的 <0>{0}</0> 天提案；它尚未成为你的计划。"
 
-#: src/components/trail-course-review/copy.tsx:134
+#: src/components/trail-course-review/copy.tsx:135
 msgid "Set this group to unknown"
 msgstr "将本组设为未知"
 
@@ -9911,7 +10037,7 @@ msgstr "只填写会影响训练计划的内容。"
 msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
 msgstr "只分享可能改变训练计划的信息。Praxys 会将其保密，不猜测训练变化原因，并仅在确认的用途和有效期内使用。"
 
-#: src/components/trail-course-review/copy.tsx:296
+#: src/components/trail-course-review/copy.tsx:303
 msgid "Sheltered"
 msgstr "遮蔽"
 
@@ -9927,7 +10053,7 @@ msgstr "如果感到疲劳，就缩短训练"
 #~ msgid "Should be agent-ready"
 #~ msgstr "应标记为 agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:148
+#: src/pages/admin/AdminFeedback.tsx:166
 msgid "Should be agent-ready — bounded actionable defect"
 msgstr "应标记为 agent-ready：范围明确且可处理的缺陷"
 
@@ -9935,19 +10061,19 @@ msgstr "应标记为 agent-ready：范围明确且可处理的缺陷"
 #~ msgid "Should not be agent-ready"
 #~ msgstr "不应标记为 agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:152
+#: src/pages/admin/AdminFeedback.tsx:170
 msgid "Should not be agent-ready — insufficient detail"
 msgstr "不应标记为 agent-ready：信息不足"
 
-#: src/pages/admin/AdminFeedback.tsx:154
+#: src/pages/admin/AdminFeedback.tsx:172
 msgid "Should not be agent-ready — needs product judgment"
 msgstr "不应标记为 agent-ready：需要产品判断"
 
-#: src/pages/admin/AdminFeedback.tsx:150
+#: src/pages/admin/AdminFeedback.tsx:168
 msgid "Should not be agent-ready — not a defect"
 msgstr "不应标记为 agent-ready：不是缺陷"
 
-#: src/pages/admin/AdminFeedback.tsx:158
+#: src/pages/admin/AdminFeedback.tsx:176
 msgid "Should not be agent-ready — other"
 msgstr "不应标记为 agent-ready：其他原因"
 
@@ -9955,7 +10081,7 @@ msgstr "不应标记为 agent-ready：其他原因"
 #~ msgid "Should not be agent-ready — sensitive or high risk"
 #~ msgstr "不应标记为 agent-ready — 敏感或高风险"
 
-#: src/pages/admin/AdminFeedback.tsx:156
+#: src/pages/admin/AdminFeedback.tsx:174
 msgid "Should not be agent-ready — sensitivity or privacy gate"
 msgstr "不应标记为 agent-ready：触发敏感或隐私限制"
 
@@ -9997,7 +10123,7 @@ msgstr "显示的是昨天的快照。最近一次读数 {dataAsOfLabel}。"
 msgid "Sign in"
 msgstr "登录"
 
-#: src/components/trail-course-review/states.tsx:78
+#: src/components/trail-course-review/states.tsx:79
 msgid "Sign in as the owner of the event goal. Praxys does not reveal whether another account has this data."
 msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
 
@@ -10089,7 +10215,7 @@ msgstr "环境范围的部分区间缺少足够的独立活动支持。"
 msgid "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
 msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据可能已经开始减弱。"
 
-#: src/components/trail-course-review/copy.tsx:312
+#: src/components/trail-course-review/copy.tsx:319
 msgid "Some stations"
 msgstr "部分站点"
 
@@ -10183,7 +10309,7 @@ msgstr "开始日期"
 
 #: src/components/GoalBaselinePanel.tsx:122
 #: src/components/PersonalContextPanel.tsx:1248
-#: src/pages/admin/AdminFeedback.tsx:390
+#: src/pages/admin/AdminFeedback.tsx:423
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
 msgid "Status"
@@ -10201,11 +10327,11 @@ msgstr "暂不测试"
 msgid "Steady"
 msgstr "匀速"
 
-#: src/components/trail-course-review/copy.tsx:335
+#: src/components/trail-course-review/copy.tsx:342
 msgid "Steep downhill (below −10%)"
 msgstr "陡下坡（低于 −10%）"
 
-#: src/components/trail-course-review/copy.tsx:339
+#: src/components/trail-course-review/copy.tsx:346
 msgid "Steep uphill (10% and above)"
 msgstr "陡上坡（10% 及以上）"
 
@@ -10372,15 +10498,15 @@ msgstr "汇总时间范围"
 msgid "Sun"
 msgstr "周日"
 
-#: src/components/trail-course-review/copy.tsx:142
+#: src/components/trail-course-review/copy.tsx:143
 msgid "Sun exposure"
 msgstr "日晒暴露"
 
-#: src/components/trail-course-review/copy.tsx:288
+#: src/components/trail-course-review/copy.tsx:295
 msgid "Sunday"
 msgstr "星期日"
 
-#: src/components/trail-course-review/copy.tsx:132
+#: src/components/trail-course-review/copy.tsx:133
 msgid "Support"
 msgstr "支持"
 
@@ -10388,7 +10514,7 @@ msgstr "支持"
 msgid "Support ID"
 msgstr "支持 ID"
 
-#: src/components/trail-course-review/copy.tsx:149
+#: src/components/trail-course-review/copy.tsx:150
 msgid "Support setup"
 msgstr "补给支持方式"
 
@@ -10463,11 +10589,11 @@ msgstr "全部同步"
 msgid "Sync complete! Your data is ready."
 msgstr "同步完成！数据已就绪。"
 
-#: src/pages/admin/AdminFeedback.tsx:276
+#: src/pages/admin/AdminFeedback.tsx:301
 msgid "Sync failed."
 msgstr "同步失败。"
 
-#: src/pages/admin/AdminFeedback.tsx:364
+#: src/pages/admin/AdminFeedback.tsx:394
 msgid "Sync from GitHub"
 msgstr "从 GitHub 同步"
 
@@ -10636,7 +10762,7 @@ msgstr "目标完赛时间"
 msgid "Target type"
 msgstr "目标类型"
 
-#: src/components/trail-course-review/copy.tsx:584
+#: src/components/trail-course-review/copy.tsx:591
 msgid "Technical terrain"
 msgstr "技术路面训练"
 
@@ -10722,8 +10848,8 @@ msgid "Thanks - that helps us improve Today."
 msgstr "谢谢，这会帮助我们改进今日建议。"
 
 #: src/components/FeedbackDialog.tsx:202
-msgid "Thanks for the feedback!"
-msgstr "感谢你的反馈！"
+#~ msgid "Thanks for the feedback!"
+#~ msgstr "感谢你的反馈！"
 
 #: src/components/UpcomingPlanCard.tsx:1203
 msgid "That date is now completed history and can no longer be changed."
@@ -10765,7 +10891,7 @@ msgstr "已接受的确定性政策只有一个共享的单次训练上限字段
 msgid "The accepted Praxys evidence review found controlled support for heat-related cardiovascular drift, but no field study validating a causal or predictive personal Stull wet-bulb response curve. V1 is therefore descriptive and Stryd-only."
 msgstr "已接受的 Praxys 证据评审支持热环境相关的心血管漂移，但尚无实地研究验证具有因果或预测能力的个人 Stull 湿球温度响应曲线。因此 V1 仅作描述，并且只支持 Stryd。"
 
-#: src/components/trail-course-review/states.tsx:154
+#: src/components/trail-course-review/states.tsx:174
 msgid "The action did not complete."
 msgstr "操作未完成。"
 
@@ -10829,7 +10955,11 @@ msgstr "时间顺序留出检验和敏感性检查已通过，但这一私人历
 msgid "The chronological prediction check could not be evaluated, so Praxys withholds the fitted curve."
 msgstr "无法评估按时间顺序进行的预测检查，因此 Praxys 不显示拟合曲线。"
 
-#: src/components/trail-course-review/copy.tsx:414
+#: src/components/TrailCourseReview.tsx:752
+msgid "The confirmation result is uncertain. Review the latest server version before trying again."
+msgstr "确认结果尚不确定。再次操作前，请先查看最新服务端版本。"
+
+#: src/components/trail-course-review/copy.tsx:421
 msgid "The confirmed context or goal is outside this performance policy."
 msgstr "已确认的适用场景或目标不在此竞速策略范围内。"
 
@@ -10845,7 +10975,7 @@ msgstr "连续采样覆盖过于稀疏，无法进行稳定比较。"
 msgid "The cooldown prevents accidental repeat analysis."
 msgstr "冷却期可避免意外重复分析。"
 
-#: src/components/trail-course-review/copy.tsx:426
+#: src/components/trail-course-review/copy.tsx:433
 msgid "The course requires hands assistance or fixed ropes."
 msgstr "赛道需要用手辅助或使用固定绳索。"
 
@@ -10869,7 +10999,11 @@ msgstr "如果当前目标匹配已接受政策，系统会默认选择它。选
 #~ msgid "The current Goal stays unchanged, and an accepted separate 5K plan purpose is available to preview."
 #~ msgstr "当前目标保持不变，同时可以预览一个已接受的独立 5 公里计划用途。"
 
-#: src/components/TrailCourseReview.tsx:680
+#: src/components/TrailCourseReview.tsx:938
+msgid "The data action result is uncertain. Review the latest server version before trying another action."
+msgstr "数据操作结果尚不确定。再次操作前，请先查看最新服务端版本。"
+
+#: src/components/TrailCourseReview.tsx:897
 msgid "The deletion response was not recognized."
 msgstr "无法识别删除响应。"
 
@@ -10897,7 +11031,7 @@ msgstr "结束日期必须晚于开始日期。"
 msgid "The estimated direction changes too much when activities are resampled."
 msgstr "重新抽样活动后，估算方向变化过大。"
 
-#: src/components/trail-course-review/copy.tsx:390
+#: src/components/trail-course-review/copy.tsx:397
 msgid "The event is inside a period without an accepted taper policy."
 msgstr "比赛已进入尚无获批减量策略的阶段。"
 
@@ -10909,11 +11043,11 @@ msgstr "无法刷新反馈汇总。"
 msgid "The goal response and capability response no longer agree. Refresh before creating a proposal."
 msgstr "目标响应与能力响应已不一致。创建提案前请刷新。"
 
-#: src/components/TrailCourseReview.tsx:690
+#: src/components/TrailCourseReview.tsx:908
 msgid "The inactive Trail API reported no Trail draft to delete. Your Praxys account was not deleted."
 msgstr "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
 
-#: src/components/TrailCourseReview.tsx:686
+#: src/components/TrailCourseReview.tsx:904
 msgid "The inactive Trail API reported the Trail draft deleted. Your Praxys account was not deleted."
 msgstr "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
 
@@ -10952,11 +11086,11 @@ msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设�
 #~ msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it.\" \"最近一次 HRV 读数过旧，无法用于当日恢复分类。请同步设备以刷新数据。"
 #~ msgstr ""
 
-#: src/components/TrailCourseReview.tsx:379
+#: src/components/TrailCourseReview.tsx:488
 msgid "The latest server version is ready to compare. Pending changes were not overwritten."
 msgstr "最新服务端版本已可对照。待保存更改未被覆盖。"
 
-#: src/components/TrailCourseReview.tsx:384
+#: src/components/TrailCourseReview.tsx:501
 msgid "The latest version could not be loaded."
 msgstr "无法加载最新版本。"
 
@@ -10987,6 +11121,12 @@ msgstr "托管窗口已更新。请先查看刷新后的预览，再启用托管
 #: src/pages/admin/AdminOps.tsx:1108
 msgid "The managed-plan operator queue could not be loaded."
 msgstr "无法加载托管计划运维队列。"
+
+#: src/components/FeedbackDialog.tsx:299
+#: src/components/FeedbackDialog.tsx:314
+#: src/components/FeedbackDialog.tsx:439
+msgid "The most recent feedback status is no longer available."
+msgstr "最近一次反馈状态已不可用。"
 
 #. placeholder {0}: praxysWorkouts.length
 #: src/components/ManagedPlanSettingsCard.tsx:1080
@@ -11070,28 +11210,28 @@ msgstr "快速检查发现一项需要处理的数据要求。"
 msgid "The range you want Praxys to plan around—not a finish-time prediction."
 msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
 
-#: src/pages/admin/AdminFeedback.tsx:221
+#: src/pages/admin/AdminFeedback.tsx:246
 msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
 msgstr "就绪判断已更新。请查看刷新后的判断，再记录结论。"
 
-#: src/components/TrailCourseReview.tsx:616
+#: src/components/TrailCourseReview.tsx:811
 msgid "The readiness response did not match the accepted inactive Trail contract. No result was applied."
 msgstr "准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。"
 
-#: src/components/TrailCourseReview.tsx:2224
+#: src/components/TrailCourseReview.tsx:2666
 msgid "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
 msgstr "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
 
-#: src/components/TrailCourseReview.tsx:659
-#: src/components/TrailCourseReview.tsx:702
+#: src/components/TrailCourseReview.tsx:874
+#: src/components/TrailCourseReview.tsx:926
 msgid "The requested Trail data action did not complete."
 msgstr "请求的越野数据操作未完成。"
 
-#: src/components/trail-course-review/copy.tsx:128
+#: src/components/trail-course-review/copy.tsx:129
 msgid "The requested weekly and single-session limits are shown beside the server-observed history. This comparison does not increase the accepted history envelope."
 msgstr "请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。"
 
-#: src/components/TrailCourseReview.tsx:667
+#: src/components/TrailCourseReview.tsx:883
 msgid "The reset response was not recognized."
 msgstr "无法识别重置响应。"
 
@@ -11120,23 +11260,44 @@ msgstr "已达到滚动重新计算上限，请稍后重试。"
 msgid "The same comparable-power range is not represented across enough environmental conditions."
 msgstr "同一可比功率范围未覆盖足够多的环境条件。"
 
+#: src/components/TrailCourseReview.tsx:653
+msgid "The save result is uncertain. Review the latest server version before restoring pending changes."
+msgstr "保存结果尚不确定。恢复待保存更改前，请先查看最新服务端版本。"
+
 #: src/components/HeatAdaptationPanel.tsx:439
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
 msgstr "所选日期的活动会说明每次训练为何被纳入估算，或为何仍未纳入。"
 
-#: src/components/TrailCourseReview.tsx:673
+#: src/components/TrailCourseReview.tsx:736
+msgid "The server could not be reached. No confirmation was applied."
+msgstr "无法连接服务器。未应用任何确认。"
+
+#: src/components/TrailCourseReview.tsx:825
+msgid "The server could not be reached. No readiness result was applied."
+msgstr "无法连接服务器。未应用任何准备情况结果。"
+
+#: src/components/TrailCourseReview.tsx:922
+msgid "The server could not be reached. No Trail data action was repeated."
+msgstr "无法连接服务器。未重复执行越野数据操作。"
+
+#: src/components/TrailCourseReview.tsx:497
+#: src/components/TrailCourseReview.tsx:637
+msgid "The server could not be reached. Your pending changes remain only on this page."
+msgstr "无法连接服务器。待保存更改仍仅保留在本页面。"
+
+#: src/components/TrailCourseReview.tsx:890
 msgid "The server reset editable answers to unknown and invalidated confirmations. Source activities and retained proposals were not erased."
 msgstr "服务端已把可编辑回答重置为未知并使确认失效。来源活动和已保留提案未被删除。"
 
-#: src/components/TrailCourseReview.tsx:550
+#: src/components/TrailCourseReview.tsx:722
 msgid "The server returned an unsupported confirmation response."
 msgstr "服务端返回了不受支持的确认响应。"
 
-#: src/components/TrailCourseReview.tsx:477
+#: src/components/TrailCourseReview.tsx:622
 msgid "The server returned an unsupported Trail draft."
 msgstr "服务端返回了不受支持的越野草稿。"
 
-#: src/components/TrailCourseReview.tsx:430
+#: src/components/TrailCourseReview.tsx:573
 msgid "The server revision changed. Review the latest version before choosing whether to reapply pending changes."
 msgstr "服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。"
 
@@ -11156,12 +11317,12 @@ msgstr "目标平台版本不可用。"
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
 msgstr "这些阈值是 Praxys 基于热适应研究设定的操作性估计，并非直接的生理测量。"
 
-#: src/components/trail-course-review/copy.tsx:216
+#: src/components/trail-course-review/copy.tsx:223
 msgid "The Trail course review changed"
 msgstr "越野赛道核对已更改"
 
-#: src/components/TrailCourseReview.tsx:471
-#: src/components/TrailCourseReview.tsx:489
+#: src/components/TrailCourseReview.tsx:614
+#: src/components/TrailCourseReview.tsx:641
 msgid "The Trail course review could not be saved."
 msgstr "无法保存越野赛道核对。"
 
@@ -11205,7 +11366,7 @@ msgstr "按时间顺序的数据不足，无法评估该关系在后续活动中
 #~ msgid "This activity is not supported by the provider."
 #~ msgstr "该平台不支持此活动类型。"
 
-#: src/components/TrailCourseReview.tsx:2056
+#: src/components/TrailCourseReview.tsx:2510
 msgid "This answer is non-diagnostic and does not prescribe an intake quantity."
 msgstr "此回答不用于诊断，也不提供摄入量处方。"
 
@@ -11253,11 +11414,11 @@ msgstr "此温湿度组合超出 Praxys 采用的保守 Stull 方法范围。"
 msgid "This connects the official Praxys Coach plugin to your account. Personal plan context stays unavailable until you approve a separate, short-lived request."
 msgstr "这会将官方 Praxys Coach 插件连接到你的账号。在你另行批准一项短期请求之前，插件仍无法访问计划个性化信息。"
 
-#: src/components/trail-course-review/states.tsx:168
+#: src/components/trail-course-review/states.tsx:191
 msgid "This course review uses an unsupported version"
 msgstr "此赛道核对使用了不受支持的版本"
 
-#: src/components/trail-course-review/copy.tsx:357
+#: src/components/trail-course-review/copy.tsx:364
 msgid "This course review was created with an unsupported version."
 msgstr "此赛道核对使用了不受支持的版本。"
 
@@ -11286,7 +11447,7 @@ msgstr "这类信息会进入安全流程，暂停常规训练优化。Praxys �
 msgid "This evaluates past training only; it does not assess today's weather or conditions."
 msgstr "这仅评估过往训练，不评估今天的天气或环境条件。"
 
-#: src/components/trail-course-review/copy.tsx:402
+#: src/components/trail-course-review/copy.tsx:409
 msgid "This event is ultra-distance or multiday."
 msgstr "此赛事属于超长距离或多日赛。"
 
@@ -11294,7 +11455,7 @@ msgstr "此赛事属于超长距离或多日赛。"
 msgid "This exact proposal was already adopted. Delivery remains disabled until you explicitly enable it."
 msgstr "此精确提案已被采纳。在你明确启用前，投递仍处于禁用状态。"
 
-#: src/components/TrailCourseReview.tsx:556
+#: src/components/TrailCourseReview.tsx:729
 msgid "This exact section revision is confirmed. Confirmation does not attest safety or eligibility."
 msgstr "已确认本节的确切版本。确认不代表安全或符合生成条件。"
 
@@ -11394,11 +11555,11 @@ msgstr "此链接无效或已过期。请尝试登录以申请新链接。"
 msgid "This link is invalid, expired, or belongs to another account. Start a new request from the plugin."
 msgstr "此链接无效、已过期或属于其他账号。请从插件发起新请求。"
 
-#: src/components/trail-course-review/copy.tsx:240
+#: src/components/trail-course-review/copy.tsx:247
 msgid "This module has not been evaluated for the current revision."
 msgstr "尚未针对当前版本评估此模块。"
 
-#: src/components/trail-course-review/copy.tsx:232
+#: src/components/trail-course-review/copy.tsx:239
 msgid "This module would be omitted from generation unless its linked reason is resolved."
 msgstr "如未解决所链接原因，生成时将省略此模块。"
 
@@ -11434,11 +11595,11 @@ msgstr "此计划路径使用了一项当前客户端尚不识别的已接受政
 #~ msgid "This plan-start pilot is available only for the supported outdoor road 5K performance goal."
 #~ msgstr "此计划起点试点仅适用于受支持的户外公路 5 公里表现目标。"
 
-#: src/components/trail-course-review/copy.tsx:531
+#: src/components/trail-course-review/copy.tsx:538
 msgid "This policy cannot be applied yet."
 msgstr "暂时无法应用此策略。"
 
-#: src/components/trail-course-review/copy.tsx:394
+#: src/components/trail-course-review/copy.tsx:401
 msgid "This policy cannot organize the event-near period."
 msgstr "此策略无法安排临赛阶段。"
 
@@ -11450,7 +11611,7 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 #~ msgid "This portable structure can be represented without flattening."
 #~ msgstr "此便携结构可以不压扁地表达。"
 
-#: src/components/trail-course-review/states.tsx:71
+#: src/components/trail-course-review/states.tsx:72
 msgid "This private Trail course review was not found"
 msgstr "未找到此私密越野赛道核对"
 
@@ -11485,7 +11646,7 @@ msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "这会从 Praxys 主计划中删除该训练。外部训练不会受到影响。"
 
-#: src/components/trail-course-review/copy.tsx:184
+#: src/components/trail-course-review/copy.tsx:185
 msgid "This request is taking longer than usual. Do not close this page."
 msgstr "此请求用时较长，请勿关闭本页面。"
 
@@ -11505,12 +11666,12 @@ msgstr "这个经过审查的 10K 表现能力使用成人确认、直接 10K �
 #~ msgid "This revokes access immediately and pauses managed delivery when Garmin is your target."
 #~ msgstr "这会立即撤销权限；如果 Garmin 是当前下发目标，托管下发也会暂停。"
 
-#: src/components/TrailCourseReview.tsx:544
-#: src/components/TrailCourseReview.tsx:561
+#: src/components/TrailCourseReview.tsx:714
+#: src/components/TrailCourseReview.tsx:740
 msgid "This section could not be confirmed."
 msgstr "无法确认本节。"
 
-#: src/components/TrailCourseReview.tsx:521
+#: src/components/TrailCourseReview.tsx:686
 msgid "This section has no safe revision to confirm. Reload and review it again."
 msgstr "本节没有可安全确认的版本。请重新加载并再次核对。"
 
@@ -11521,7 +11682,7 @@ msgstr "本节没有可安全确认的版本。请重新加载并再次核对。
 msgid "This section is unavailable. Other management workflows remain available."
 msgstr "此部分暂不可用，其他管理流程仍可使用。"
 
-#: src/components/TrailCourseReview.tsx:1623
+#: src/components/TrailCourseReview.tsx:2004
 msgid "This server-derived receipt is read-only. Correct source activities from Activities; plan start does not accept replacement attestations."
 msgstr "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
 
@@ -11550,7 +11711,7 @@ msgstr "此来源使用了较新版本的训练结构；为避免丢失细节，
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "此结构是权威内容。请编辑其步骤，而非更改扁平摘要。"
 
-#: src/components/trail-course-review/copy.tsx:380
+#: src/components/trail-course-review/copy.tsx:387
 msgid "This Trail policy is not active."
 msgstr "此越野策略尚未启用。"
 
@@ -11558,7 +11719,7 @@ msgstr "此越野策略尚未启用。"
 #~ msgid "This typed target cannot be represented safely."
 #~ msgstr "无法安全表达此带类型的目标。"
 
-#: src/components/trail-course-review/copy.tsx:189
+#: src/components/trail-course-review/copy.tsx:190
 msgid "This value is missing, outside the accepted range, or conflicts with another answer."
 msgstr "此值缺失、超出允许范围，或与另一项回答冲突。"
 
@@ -11587,7 +11748,7 @@ msgstr "此训练使用了当前编辑器尚无法安全修改的较新便携结
 #~ msgid "This workout was imported from Stryd."
 #~ msgstr "此训练由 Stryd 导入。"
 
-#: src/components/trail-course-review/copy.tsx:429
+#: src/components/trail-course-review/copy.tsx:436
 msgid "Those technical features are outside v2."
 msgstr "这些技术特征超出 v2 范围。"
 
@@ -11615,7 +11776,7 @@ msgstr "阈值"
 msgid "Thu"
 msgstr "周四"
 
-#: src/components/trail-course-review/copy.tsx:285
+#: src/components/trail-course-review/copy.tsx:292
 msgid "Thursday"
 msgstr "星期四"
 
@@ -11752,15 +11913,15 @@ msgstr "跟踪"
 msgid "Trail"
 msgstr "越野"
 
-#: src/components/TrailCourseReview.tsx:954
+#: src/components/TrailCourseReview.tsx:1281
 msgid "Trail action did not complete"
 msgstr "越野操作未完成"
 
-#: src/components/trail-course-review/states.tsx:74
+#: src/components/trail-course-review/states.tsx:75
 msgid "Trail course review could not be loaded"
 msgstr "暂时无法加载越野赛道核对"
 
-#: src/components/TrailCourseReview.tsx:777
+#: src/components/TrailCourseReview.tsx:1041
 msgid "Trail planning isn't available for this case"
 msgstr "此情况暂不支持越野计划"
 
@@ -11832,8 +11993,8 @@ msgstr "跑步机"
 msgid "Trend"
 msgstr "趋势"
 
-#: src/pages/admin/AdminFeedback.tsx:90
-#: src/pages/admin/AdminFeedback.tsx:359
+#: src/pages/admin/AdminFeedback.tsx:91
+#: src/pages/admin/AdminFeedback.tsx:389
 msgid "Triaged"
 msgstr "已分类"
 
@@ -11857,7 +12018,7 @@ msgstr "试试上方更长的时间窗口。"
 msgid "Try again"
 msgstr "重试"
 
-#: src/pages/admin/AdminFeedback.tsx:382
+#: src/pages/admin/AdminFeedback.tsx:415
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "试试其他筛选条件，或等有新报告后再同步。"
 
@@ -11877,7 +12038,7 @@ msgstr "TSB（负荷平衡）"
 msgid "Tue"
 msgstr "周二"
 
-#: src/components/trail-course-review/copy.tsx:283
+#: src/components/trail-course-review/copy.tsx:290
 msgid "Tuesday"
 msgstr "星期二"
 
@@ -11910,7 +12071,7 @@ msgstr "正在关闭…"
 msgid "Turning on…"
 msgstr "正在启用…"
 
-#: src/components/trail-course-review/copy.tsx:572
+#: src/components/trail-course-review/copy.tsx:579
 msgid "Two otherwise valid answers conflict."
 msgstr "两项各自有效的回答彼此冲突。"
 
@@ -11918,8 +12079,7 @@ msgstr "两项各自有效的回答彼此冲突。"
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler 热适应荟萃分析"
 
-#: src/components/FeedbackDialog.tsx:215
-#: src/pages/admin/AdminFeedback.tsx:389
+#: src/pages/admin/AdminFeedback.tsx:422
 msgid "Type"
 msgstr "类型"
 
@@ -11935,7 +12095,7 @@ msgstr "请使用当前显示的单位输入精确上下界。"
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
 msgstr "50K 及以上超长距离的功率比例为估算值，目前研究支持有限。Riegel 指数仅验证到马拉松距离。超过马拉松的预测不确定性会明显升高，因为补给、地形、高温和配速策略等因素对超马表现影响更大，而这些并未被功率/配速模型纳入。"
 
-#: src/components/trail-course-review/copy.tsx:266
+#: src/components/trail-course-review/copy.tsx:273
 msgid "Ultra-distance Trail"
 msgstr "超长距离越野"
 
@@ -11947,8 +12107,8 @@ msgstr "无法连接状态服务"
 msgid "Unassisted"
 msgstr "无辅助"
 
-#: src/pages/admin/AdminFeedback.tsx:466
-#: src/pages/admin/AdminFeedback.tsx:493
+#: src/pages/admin/AdminFeedback.tsx:512
+#: src/pages/admin/AdminFeedback.tsx:539
 #: src/pages/admin/AdminOps.tsx:191
 #: src/pages/LabsEnvironment.tsx:165
 msgid "Unavailable"
@@ -12006,7 +12166,7 @@ msgstr "单位"
 #~ msgid "unknown"
 #~ msgstr "未知"
 
-#: src/components/trail-course-review/copy.tsx:257
+#: src/components/trail-course-review/copy.tsx:264
 #: src/components/WorkoutStructureEditor.tsx:813
 #: src/components/WorkoutStructureEditor.tsx:823
 #: src/components/WorkoutStructureEditor.tsx:830
@@ -12091,13 +12251,13 @@ msgid "Updated {0}"
 msgstr "更新于{0}"
 
 #. placeholder {0}: result.updated
-#: src/pages/admin/AdminFeedback.tsx:285
+#: src/pages/admin/AdminFeedback.tsx:310
 msgid "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
 msgstr "已更新 {0} 个关联议题。另有 {repositoryMismatches} 个因其记录的仓库与当前反馈仓库配置不一致而跳过。"
 
 #. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:287
+#: src/pages/admin/AdminFeedback.tsx:312
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "已更新 {1} 个关联工单中的 {0} 个。"
 
@@ -12117,7 +12277,7 @@ msgstr "5 公里基线已更新。"
 msgid "Updating…"
 msgstr "更新中…"
 
-#: src/components/trail-course-review/copy.tsx:338
+#: src/components/trail-course-review/copy.tsx:345
 msgid "Uphill (3% to below 10%)"
 msgstr "上坡（3% 至低于 10%）"
 
@@ -12218,7 +12378,7 @@ msgstr "仅用于已确认的用途和有效期"
 msgid "User"
 msgstr "用户"
 
-#: src/pages/admin/AdminFeedback.tsx:331
+#: src/pages/admin/AdminFeedback.tsx:356
 msgid "User feedback"
 msgstr "用户反馈"
 
@@ -12256,7 +12416,7 @@ msgstr "验证邮件已发送。请查看收件箱。"
 msgid "Verification failed"
 msgstr "验证失败"
 
-#: src/components/trail-course-review/copy.tsx:250
+#: src/components/trail-course-review/copy.tsx:257
 msgid "Verified course information"
 msgstr "已核实的赛道信息"
 
@@ -12281,6 +12441,10 @@ msgstr "验证中…"
 #: src/pages/Science.tsx:532
 msgid "view"
 msgstr "查看"
+
+#: src/components/FeedbackDialog.tsx:589
+msgid "View public GitHub issue"
+msgstr "查看公开 GitHub issue"
 
 #: src/components/StatusBanner.tsx:65
 msgid "View status"
@@ -12364,11 +12528,11 @@ msgstr "这是否是一次距离准确的完整 5 公里？"
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
-#: src/components/trail-course-review/copy.tsx:154
+#: src/components/trail-course-review/copy.tsx:155
 msgid "Water availability"
 msgstr "饮水供应"
 
-#: src/components/trail-course-review/copy.tsx:279
+#: src/components/trail-course-review/copy.tsx:286
 msgid "Water crossings"
 msgstr "涉水路段"
 
@@ -12381,15 +12545,15 @@ msgstr "WAU"
 #~ msgid "We attach basic diagnostics (page, app version, browser) and automatically remove personal details before sharing with our issue tracker."
 #~ msgstr "会附带基础诊断信息（页面、应用版本、浏览器），并在发送到问题追踪系统前自动移除个人信息。"
 
-#: src/components/FeedbackDialog.tsx:252
+#: src/components/FeedbackDialog.tsx:657
 msgid "We attach basic diagnostics (page, app version, browser) for private handling and remove personal details from any text you choose to publish."
 msgstr "我们会附带基础诊断信息（页面、应用版本、浏览器）用于私下处理，并从你选择发布的任何文字中移除个人信息。"
 
-#: src/components/TrailCourseReview.tsx:775
+#: src/components/TrailCourseReview.tsx:1039
 msgid "We couldn't check this information"
 msgstr "暂时无法检查这些信息"
 
-#: src/components/trail-course-review/copy.tsx:202
+#: src/components/trail-course-review/copy.tsx:203
 msgid "We couldn't export your data. Try again."
 msgstr "暂时无法导出数据，请重试。"
 
@@ -12398,8 +12562,8 @@ msgid "We're inviting runners in waves while we tighten the science. Drop your e
 msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮箱，有名额时我们会联系你。"
 
 #: src/components/FeedbackDialog.tsx:205
-msgid "We've logged it and will take a look."
-msgstr "我们已记录，会尽快查看。"
+#~ msgid "We've logged it and will take a look."
+#~ msgstr "我们已记录，会尽快查看。"
 
 #: src/components/PersonalContextPanel.tsx:228
 msgid "Weather"
@@ -12409,7 +12573,7 @@ msgstr "天气影响"
 msgid "Weather evidence"
 msgstr "天气证据"
 
-#: src/components/trail-course-review/copy.tsx:318
+#: src/components/trail-course-review/copy.tsx:325
 msgid "Weather shell"
 msgstr "防风雨外套"
 
@@ -12433,7 +12597,7 @@ msgstr "微信小程序二维码"
 msgid "Wed"
 msgstr "周三"
 
-#: src/components/trail-course-review/copy.tsx:284
+#: src/components/trail-course-review/copy.tsx:291
 msgid "Wednesday"
 msgstr "星期三"
 
@@ -12514,7 +12678,7 @@ msgstr "这次训练变了什么？"
 #~ msgid "What does not count"
 #~ msgstr "未计入内容"
 
-#: src/components/FeedbackDialog.tsx:242
+#: src/components/FeedbackDialog.tsx:647
 msgid "What happened, or what would you like to see?"
 msgstr "遇到了什么问题，或希望我们做些什么？"
 
@@ -12581,7 +12745,7 @@ msgstr "为什么它仍属于实验"
 msgid "Will sync:"
 msgstr "将同步以下内容："
 
-#: src/components/trail-course-review/copy.tsx:143
+#: src/components/trail-course-review/copy.tsx:144
 msgid "Wind exposure"
 msgstr "风力暴露"
 
@@ -12630,7 +12794,7 @@ msgstr "处于参考区间内"
 msgid "Work"
 msgstr "训练"
 
-#: src/components/trail-course-review/states.tsx:225
+#: src/components/trail-course-review/states.tsx:251
 #: src/components/UpcomingPlanCard.tsx:325
 msgid "Working…"
 msgstr "处理中…"
@@ -12722,7 +12886,7 @@ msgstr "你"
 msgid "You already have usable current 10K evidence."
 msgstr "你已经有可用且当前的 10K 证据。"
 
-#: src/components/FeedbackDialog.tsx:108
+#: src/components/FeedbackDialog.tsx:351
 msgid "You can attach up to 3 images."
 msgstr "最多可添加 3 张图片。"
 
@@ -12742,7 +12906,7 @@ msgstr "仍可将此训练保存到 Praxys；但在修改标记的细节前，�
 #~ msgid "You can withdraw before any later request. Withdrawal cannot recall a request the provider already processed. Deleting the item removes local provider-use receipts and dependent private explanations."
 #~ msgstr "你可以在后续请求前撤回。撤回无法收回 AI 服务已处理的请求。删除该项会移除本地 AI 使用记录和关联的私密说明。"
 
-#: src/components/trail-course-review/copy.tsx:483
+#: src/components/trail-course-review/copy.tsx:490
 msgid "You confirmed a current symptom that should stop performance planning."
 msgstr "你确认目前有应停止竞速计划的症状。"
 
@@ -12750,7 +12914,7 @@ msgstr "你确认目前有应停止竞速计划的症状。"
 msgid "You control this experiment"
 msgstr "此实验由你掌控"
 
-#: src/components/trail-course-review/copy.tsx:249
+#: src/components/trail-course-review/copy.tsx:256
 msgid "You entered this"
 msgstr "由你填写"
 
@@ -12766,7 +12930,7 @@ msgstr "已有较早的 5 公里证据。Praxys 会保留它，也可以选择�
 msgid "You must accept the Terms of Service to register."
 msgstr "注册前须接受服务条款。"
 
-#: src/components/FeedbackDialog.tsx:168
+#: src/components/FeedbackDialog.tsx:502
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
 msgstr "你最近已提交多条反馈——请过几分钟再提交。"
 
@@ -12780,11 +12944,11 @@ msgstr "you@example.com"
 msgid "Your account is active. You can now sign in."
 msgstr "账号已激活，现在可以登录了。"
 
-#: src/components/trail-course-review/copy.tsx:146
+#: src/components/trail-course-review/copy.tsx:147
 msgid "Your assumption requires confirmation at this exact section revision."
 msgstr "你的假设需要按本节的确切版本确认。"
 
-#: src/components/trail-course-review/copy.tsx:254
+#: src/components/trail-course-review/copy.tsx:261
 msgid "Your assumption—confirmation required"
 msgstr "你的假设—需要确认"
 
@@ -12800,6 +12964,7 @@ msgstr "个人可比范围"
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
 msgstr "当前计划基于之前的目标。可以查看后续草案、将当前计划保留为独立计划，或稍后决定。"
 
+#: src/components/trail-course-review/copy.tsx:201
 #: src/pages/Settings.tsx:640
 msgid "Your data export is downloading."
 msgstr "正在下载数据导出文件。"
@@ -12819,6 +12984,26 @@ msgstr "数据导出文件是 Praxys 中所存数据的便携式快照。"
 #: src/components/ManagedPlanSettingsCard.tsx:529
 msgid "Your external planner remains in control."
 msgstr "计划仍由外部工具管理。"
+
+#: src/components/FeedbackDialog.tsx:67
+msgid "Your feedback was received, but Praxys cannot confirm whether a public GitHub issue was created. Do not submit it again yet. Check again later."
+msgstr "你的反馈已收到，但 Praxys 无法确认是否已创建公开 GitHub issue。请暂勿重复提交，稍后再确认。"
+
+#: src/components/FeedbackDialog.tsx:62
+msgid "Your feedback was saved privately and needs manual review. No public GitHub issue has been created yet."
+msgstr "你的反馈已私下保存，且需要人工审核。目前尚未创建公开 GitHub issue。"
+
+#: src/components/FeedbackDialog.tsx:53
+msgid "Your feedback was saved privately. No public GitHub issue will be created from this submission."
+msgstr "你的反馈已私下保存。本次提交不会创建公开 GitHub issue。"
+
+#: src/components/FeedbackDialog.tsx:74
+msgid "Your feedback was saved privately. Public GitHub publishing is currently unavailable, so no public issue was created."
+msgstr "你的反馈已私下保存。公开发布到 GitHub 目前不可用，因此未创建公开 issue。"
+
+#: src/components/FeedbackDialog.tsx:56
+msgid "Your feedback was saved. Its scrubbed text summary is queued for review. No public GitHub issue has been created yet, and publication is not guaranteed. Screenshots remain private."
+msgstr "你的反馈已保存。去除个人信息后的文字摘要已进入审核队列。目前尚未创建公开 GitHub issue，且不保证一定发布。截图保持私密。"
 
 #: src/pages/Settings.tsx:1071
 #: src/pages/Setup.tsx:925
@@ -12895,7 +13080,7 @@ msgstr "你的 Strava API 客户端 ID"
 msgid "Your Strava API Client Secret"
 msgstr "你的 Strava API 客户端密钥"
 
-#: src/components/TrailCourseReview.tsx:780
+#: src/components/TrailCourseReview.tsx:1044
 msgid "Your symptoms, schedule, history, or terrain access blocks a proposal for now"
 msgstr "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
 
@@ -12955,27 +13140,27 @@ msgstr "基于乳酸阈值心率的区间与负荷"
 msgid "Zones & load from Threshold Pace"
 msgstr "基于阈值配速的区间与负荷"
 
-#: src/components/trail-course-review/copy.tsx:346
+#: src/components/trail-course-review/copy.tsx:353
 msgid "一项或多项数据不符合格式或范围要求。"
 msgstr "一项或多项数据不符合格式或范围要求。"
 
-#: src/components/trail-course-review/copy.tsx:517
+#: src/components/trail-course-review/copy.tsx:524
 msgid "一项赛道或环境假设尚未确认。"
 msgstr "一项赛道或环境假设尚未确认。"
 
-#: src/components/trail-course-review/copy.tsx:338
+#: src/components/trail-course-review/copy.tsx:345
 msgid "上坡（3% 至低于 10%）"
 msgstr "上坡（3% 至低于 10%）"
 
-#: src/components/trail-course-review/copy.tsx:227
+#: src/components/trail-course-review/copy.tsx:234
 msgid "下一步"
 msgstr "下一步"
 
-#: src/components/trail-course-review/copy.tsx:336
+#: src/components/trail-course-review/copy.tsx:343
 msgid "下坡（−10% 至低于 −3%）"
 msgstr "下坡（−10% 至低于 −3%）"
 
-#: src/components/trail-course-review/copy.tsx:197
+#: src/components/trail-course-review/copy.tsx:198
 msgid "下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。"
 msgstr "下载 Praxys 账号数据导出文件，其中包含当前已保存的越野赛道核对中的值与未知项、来源信息、版本和确认状态，以及已保留的越野提案快照、审计记录和回执（如有）。本页面尚未保存的更改不会包含在内。"
 
@@ -12983,11 +13168,11 @@ msgstr "下载 Praxys 账号数据导出文件，其中包含当前已保存的�
 msgid "不确定"
 msgstr "不确定"
 
-#: src/components/trail-course-review/copy.tsx:152
+#: src/components/trail-course-review/copy.tsx:153
 msgid "不适用"
 msgstr "不适用"
 
-#: src/components/trail-course-review/copy.tsx:572
+#: src/components/trail-course-review/copy.tsx:579
 msgid "两项各自有效的回答彼此冲突。"
 msgstr "两项各自有效的回答彼此冲突。"
 
@@ -12995,27 +13180,27 @@ msgstr "两项各自有效的回答彼此冲突。"
 msgid "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
 msgstr "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
 
-#: src/components/trail-course-review/copy.tsx:278
+#: src/components/trail-course-review/copy.tsx:285
 msgid "人工台阶"
 msgstr "人工台阶"
 
-#: src/components/trail-course-review/copy.tsx:325
+#: src/components/trail-course-review/copy.tsx:332
 msgid "仅液体"
 msgstr "仅液体"
 
-#: src/components/trail-course-review/copy.tsx:506
+#: src/components/trail-course-review/copy.tsx:513
 msgid "仍有核心赛道信息未知。"
 msgstr "仍有核心赛道信息未知。"
 
-#: src/components/trail-course-review/copy.tsx:291
+#: src/components/trail-course-review/copy.tsx:298
 msgid "低"
 msgstr "低"
 
-#: src/components/trail-course-review/copy.tsx:255
+#: src/components/trail-course-review/copy.tsx:262
 msgid "你的假设—需要确认"
 msgstr "你的假设—需要确认"
 
-#: src/components/trail-course-review/copy.tsx:147
+#: src/components/trail-course-review/copy.tsx:148
 msgid "你的假设需要按本节的确切版本确认。"
 msgstr "你的假设需要按本节的确切版本确认。"
 
@@ -13023,7 +13208,7 @@ msgstr "你的假设需要按本节的确切版本确认。"
 msgid "你目前是否有应停止竞速计划的症状？"
 msgstr "你目前是否有应停止竞速计划的症状？"
 
-#: src/components/trail-course-review/copy.tsx:484
+#: src/components/trail-course-review/copy.tsx:491
 msgid "你确认目前有应停止竞速计划的症状。"
 msgstr "你确认目前有应停止竞速计划的症状。"
 
@@ -13035,43 +13220,52 @@ msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线
 msgid "你能使用适合受控下坡训练的路线吗？"
 msgstr "你能使用适合受控下坡训练的路线吗？"
 
-#: src/components/TrailCourseReview.tsx:453
+#: src/components/TrailCourseReview.tsx:594
 msgid "保存前请检查已链接的字段。"
 msgstr "保存前请检查已链接的字段。"
 
-#: src/components/trail-course-review/copy.tsx:174
+#: src/components/trail-course-review/copy.tsx:175
 msgid "保存并稍后继续"
 msgstr "保存并稍后继续"
 
-#: src/components/trail-course-review/copy.tsx:175
+#: src/components/trail-course-review/copy.tsx:176
 msgid "保存更改"
 msgstr "保存更改"
 
-#: src/components/trail-course-review/copy.tsx:321
+#: src/components/TrailCourseReview.tsx:654
+msgid "保存结果尚不确定。恢复待保存更改前，请先查看最新服务端版本。"
+msgstr "保存结果尚不确定。恢复待保存更改前，请先查看最新服务端版本。"
+
+#: src/components/trail-course-review/states.tsx:220
+#: src/components/TrailCourseReview.tsx:2680
+msgid "关闭"
+msgstr "关闭"
+
+#: src/components/trail-course-review/copy.tsx:328
 msgid "其他必需装备"
 msgstr "其他必需装备"
 
-#: src/components/trail-course-review/copy.tsx:137
+#: src/components/trail-course-review/copy.tsx:138
 msgid "最低气温"
 msgstr "最低气温"
 
-#: src/components/trail-course-review/copy.tsx:140
+#: src/components/trail-course-review/copy.tsx:141
 msgid "最低湿度"
 msgstr "最低湿度"
 
-#: src/components/TrailCourseReview.tsx:1427
+#: src/components/TrailCourseReview.tsx:1799
 msgid "最多选择显示的 14 天范围内的 14 个日期。"
 msgstr "最多选择显示的 14 天范围内的 14 个日期。"
 
-#: src/components/TrailCourseReview.tsx:380
+#: src/components/TrailCourseReview.tsx:489
 msgid "最新服务端版本已可对照。待保存更改未被覆盖。"
 msgstr "最新服务端版本已可对照。待保存更改未被覆盖。"
 
-#: src/components/trail-course-review/copy.tsx:151
+#: src/components/trail-course-review/copy.tsx:152
 msgid "最长补给站间距"
 msgstr "最长补给站间距"
 
-#: src/components/trail-course-review/copy.tsx:158
+#: src/components/trail-course-review/copy.tsx:159
 msgid "最长补给练习时长"
 msgstr "最长补给练习时长"
 
@@ -13079,23 +13273,23 @@ msgstr "最长补给练习时长"
 msgid "最长轻松训练的首选星期"
 msgstr "最长轻松训练的首选星期"
 
-#: src/components/trail-course-review/copy.tsx:138
+#: src/components/trail-course-review/copy.tsx:139
 msgid "最高气温"
 msgstr "最高气温"
 
-#: src/components/trail-course-review/copy.tsx:141
+#: src/components/trail-course-review/copy.tsx:142
 msgid "最高湿度"
 msgstr "最高湿度"
 
-#: src/components/TrailCourseReview.tsx:617
+#: src/components/TrailCourseReview.tsx:812
 msgid "准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。"
 msgstr "准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。"
 
-#: src/components/trail-course-review/copy.tsx:172
+#: src/components/trail-course-review/copy.tsx:173
 msgid "准备情况回执"
 msgstr "准备情况回执"
 
-#: src/components/trail-course-review/copy.tsx:566
+#: src/components/trail-course-review/copy.tsx:573
 msgid "准备情况已过期，不能静默重新绑定。"
 msgstr "准备情况已过期，不能静默重新绑定。"
 
@@ -13103,25 +13297,25 @@ msgstr "准备情况已过期，不能静默重新绑定。"
 msgid "分钟"
 msgstr "分钟"
 
-#: src/components/trail-course-review/copy.tsx:199
-#: src/components/trail-course-review/states.tsx:189
+#: src/components/trail-course-review/copy.tsx:206
+#: src/components/trail-course-review/states.tsx:212
 msgid "删除越野目标"
 msgstr "删除越野目标"
 
-#: src/components/trail-course-review/copy.tsx:205
-#: src/components/trail-course-review/states.tsx:201
+#: src/components/trail-course-review/copy.tsx:212
+#: src/components/trail-course-review/states.tsx:227
 msgid "删除越野目标？"
 msgstr "删除越野目标？"
 
-#: src/components/trail-course-review/copy.tsx:208
+#: src/components/trail-course-review/copy.tsx:215
 msgid "删除越野目标不同于删除账号。此操作请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存。Praxys 只依据服务端响应报告完成；回滚或清理待处理状态必须保持可见。"
 msgstr "删除越野目标不同于删除账号。此操作请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存。Praxys 只依据服务端响应报告完成；回滚或清理待处理状态必须保持可见。"
 
-#: src/components/trail-course-review/states.tsx:209
+#: src/components/trail-course-review/states.tsx:235
 msgid "删除越野目标不同于删除账号。系统会请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存；只有服务端确认的结果才会显示为完成。"
 msgstr "删除越野目标不同于删除账号。系统会请求移除该目标拥有的草稿、快照、提案、审计、索引和缓存；只有服务端确认的结果才会显示为完成。"
 
-#: src/components/trail-course-review/copy.tsx:261
+#: src/components/trail-course-review/copy.tsx:268
 msgid "单日赛事"
 msgstr "单日赛事"
 
@@ -13129,28 +13323,28 @@ msgstr "单日赛事"
 msgid "单次最长可训练时间"
 msgstr "单次最长可训练时间"
 
-#: src/components/trail-course-review/copy.tsx:225
+#: src/components/trail-course-review/copy.tsx:232
 msgid "发现"
 msgstr "发现"
 
-#: src/components/trail-course-review/copy.tsx:210
-#: src/components/trail-course-review/states.tsx:215
+#: src/components/trail-course-review/copy.tsx:217
+#: src/components/trail-course-review/states.tsx:241
 msgid "取消"
 msgstr "取消"
 
-#: src/components/trail-course-review/copy.tsx:230
+#: src/components/trail-course-review/copy.tsx:237
 msgid "受限"
 msgstr "受限"
 
-#: src/components/TrailCourseReview.tsx:789
+#: src/components/TrailCourseReview.tsx:1053
 msgid "可以查看 14 天计划提案"
 msgstr "可以查看 14 天计划提案"
 
-#: src/components/trail-course-review/copy.tsx:448
+#: src/components/trail-course-review/copy.tsx:455
 msgid "可比的越野、爬升或路面训练历史不足。"
 msgstr "可比的越野、爬升或路面训练历史不足。"
 
-#: src/components/trail-course-review/copy.tsx:229
+#: src/components/trail-course-review/copy.tsx:236
 msgid "可用于生成"
 msgstr "可用于生成"
 
@@ -13174,15 +13368,15 @@ msgstr "合计"
 msgid "否"
 msgstr "否"
 
-#: src/components/TrailCourseReview.tsx:2225
+#: src/components/TrailCourseReview.tsx:2667
 msgid "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
 msgstr "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
 
-#: src/components/trail-course-review/copy.tsx:177
+#: src/components/trail-course-review/copy.tsx:178
 msgid "在线 · 已保存"
 msgstr "在线 · 已保存"
 
-#: src/components/trail-course-review/copy.tsx:274
+#: src/components/trail-course-review/copy.tsx:281
 msgid "坚实平整路面"
 msgstr "坚实平整路面"
 
@@ -13190,7 +13384,7 @@ msgstr "坚实平整路面"
 msgid "坡度与路面"
 msgstr "坡度与路面"
 
-#: src/components/trail-course-review/copy.tsx:583
+#: src/components/trail-course-review/copy.tsx:590
 msgid "坡度专项训练"
 msgstr "坡度专项训练"
 
@@ -13198,43 +13392,43 @@ msgstr "坡度专项训练"
 msgid "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
 msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
 
-#: src/components/trail-course-review/copy.tsx:578
+#: src/components/trail-course-review/copy.tsx:585
 msgid "处理首个冲突"
 msgstr "处理首个冲突"
 
-#: src/components/trail-course-review/copy.tsx:262
+#: src/components/trail-course-review/copy.tsx:269
 msgid "多日赛事"
 msgstr "多日赛事"
 
-#: src/components/trail-course-review/copy.tsx:233
+#: src/components/trail-course-review/copy.tsx:240
 msgid "如未解决所链接原因，生成时将省略此模块。"
 msgstr "如未解决所链接原因，生成时将省略此模块。"
 
-#: src/components/trail-course-review/copy.tsx:302
+#: src/components/trail-course-review/copy.tsx:309
 msgid "季节预期"
 msgstr "季节预期"
 
-#: src/components/trail-course-review/copy.tsx:407
+#: src/components/trail-course-review/copy.tsx:414
 msgid "它超出非超长距离单日策略范围。"
 msgstr "它超出非超长距离单日策略范围。"
 
-#: src/components/trail-course-review/copy.tsx:270
+#: src/components/trail-course-review/copy.tsx:277
 msgid "完成赛事"
 msgstr "完成赛事"
 
-#: src/components/trail-course-review/copy.tsx:557
+#: src/components/trail-course-review/copy.tsx:564
 msgid "对照近期历史查看请求"
 msgstr "对照近期历史查看请求"
 
-#: src/components/trail-course-review/copy.tsx:194
+#: src/components/trail-course-review/copy.tsx:195
 msgid "导出我的越野计划数据"
 msgstr "导出我的越野计划数据"
 
-#: src/components/trail-course-review/copy.tsx:320
+#: src/components/trail-course-review/copy.tsx:327
 msgid "导航设备"
 msgstr "导航设备"
 
-#: src/components/trail-course-review/copy.tsx:134
+#: src/components/trail-course-review/copy.tsx:135
 msgid "将本组设为未知"
 msgstr "将本组设为未知"
 
@@ -13242,11 +13436,11 @@ msgstr "将本组设为未知"
 msgid "小时"
 msgstr "小时"
 
-#: src/components/trail-course-review/copy.tsx:178
+#: src/components/trail-course-review/copy.tsx:179
 msgid "尚未保存赛道核对"
 msgstr "尚未保存赛道核对"
 
-#: src/components/trail-course-review/copy.tsx:529
+#: src/components/trail-course-review/copy.tsx:536
 msgid "尚未确认成人、非医疗的竞速适用范围。"
 msgstr "尚未确认成人、非医疗的竞速适用范围。"
 
@@ -13254,100 +13448,100 @@ msgstr "尚未确认成人、非医疗的竞速适用范围。"
 msgid "尚未评估"
 msgstr "尚未评估"
 
-#: src/components/trail-course-review/copy.tsx:241
+#: src/components/trail-course-review/copy.tsx:248
 msgid "尚未针对当前版本评估此模块。"
 msgstr "尚未针对当前版本评估此模块。"
 
-#: src/components/trail-course-review/copy.tsx:277
+#: src/components/trail-course-review/copy.tsx:284
 msgid "岩石或树根"
 msgstr "岩石或树根"
 
-#: src/components/TrailCourseReview.tsx:623
+#: src/components/TrailCourseReview.tsx:819
 msgid "已按当前确认版本更新准备情况。"
 msgstr "已按当前确认版本更新准备情况。"
 
-#: src/components/TrailCourseReview.tsx:748
+#: src/components/TrailCourseReview.tsx:1012
 msgid "已放弃待保存更改。"
 msgstr "已放弃待保存更改。"
 
-#: src/components/TrailCourseReview.tsx:287
+#: src/components/TrailCourseReview.tsx:390
 msgid "已更改，保存后请重新确认本节。"
 msgstr "已更改，保存后请重新确认本节。"
 
-#: src/components/trail-course-review/copy.tsx:170
+#: src/components/trail-course-review/copy.tsx:171
 msgid "已更改，请重新确认"
 msgstr "已更改，请重新确认"
 
-#: src/components/trail-course-review/copy.tsx:250
+#: src/components/trail-course-review/copy.tsx:257
 msgid "已核实的赛道信息"
 msgstr "已核实的赛道信息"
 
-#: src/components/TrailCourseReview.tsx:557
+#: src/components/TrailCourseReview.tsx:730
 msgid "已确认本节的确切版本。确认不代表安全或符合生成条件。"
 msgstr "已确认本节的确切版本。确认不代表安全或符合生成条件。"
 
-#: src/components/trail-course-review/copy.tsx:169
+#: src/components/trail-course-review/copy.tsx:170
 msgid "已确认版本"
 msgstr "已确认版本"
 
-#: src/components/trail-course-review/copy.tsx:562
+#: src/components/trail-course-review/copy.tsx:569
 msgid "已确认的分段或来源在核对后发生变化。"
 msgstr "已确认的分段或来源在核对后发生变化。"
 
-#: src/components/trail-course-review/copy.tsx:415
+#: src/components/trail-course-review/copy.tsx:422
 msgid "已确认的适用场景或目标不在此竞速策略范围内。"
 msgstr "已确认的适用场景或目标不在此竞速策略范围内。"
 
-#: src/components/trail-course-review/copy.tsx:163
+#: src/components/trail-course-review/copy.tsx:164
 msgid "已练习的摄入形式"
 msgstr "已练习的摄入形式"
 
-#: src/components/trail-course-review/copy.tsx:156
+#: src/components/trail-course-review/copy.tsx:157
 msgid "强制装备"
 msgstr "强制装备"
 
-#: src/components/TrailCourseReview.tsx:781
+#: src/components/TrailCourseReview.tsx:1045
 msgid "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
 msgstr "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
 
-#: src/components/trail-course-review/copy.tsx:181
-#: src/components/TrailCourseReview.tsx:444
+#: src/components/trail-course-review/copy.tsx:182
+#: src/components/TrailCourseReview.tsx:585
 msgid "当前离线。更改仅保留在此页面，尚未保存。"
 msgstr "当前离线。更改仅保留在此页面，尚未保存。"
 
 #: src/components/trail-course-review/copy.tsx:197
-msgid "当前私密预览暂不支持导出。"
-msgstr "当前私密预览暂不支持导出。"
+#~ msgid "当前私密预览暂不支持导出。"
+#~ msgstr "当前私密预览暂不支持导出。"
 
 #: src/components/trail-course-review/copy.tsx:51
 msgid "当前越野赛事目标"
 msgstr "当前越野赛事目标"
 
-#: src/components/trail-course-review/copy.tsx:226
+#: src/components/trail-course-review/copy.tsx:233
 msgid "影响"
 msgstr "影响"
 
-#: src/components/TrailCourseReview.tsx:738
+#: src/components/TrailCourseReview.tsx:990
 msgid "待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。"
 msgstr "待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。"
 
-#: src/components/trail-course-review/copy.tsx:176
+#: src/components/trail-course-review/copy.tsx:177
 msgid "待保存更改"
 msgstr "待保存更改"
 
-#: src/components/trail-course-review/copy.tsx:219
+#: src/components/trail-course-review/copy.tsx:226
 msgid "待保存编辑仅保留在本页面。请对照最新服务端版本，再重新应用或放弃。重新应用不会保存或确认。"
 msgstr "待保存编辑仅保留在本页面。请对照最新服务端版本，再重新应用或放弃。重新应用不会保存或确认。"
 
-#: src/components/trail-course-review/copy.tsx:214
+#: src/components/trail-course-review/copy.tsx:221
 msgid "恢复待保存更改"
 msgstr "恢复待保存更改"
 
-#: src/components/trail-course-review/copy.tsx:271
+#: src/components/trail-course-review/copy.tsx:278
 msgid "恢复训练规律"
 msgstr "恢复训练规律"
 
-#: src/components/trail-course-review/copy.tsx:303
+#: src/components/trail-course-review/copy.tsx:310
 msgid "我的假设"
 msgstr "我的假设"
 
@@ -13359,41 +13553,45 @@ msgstr "我确认本人已满 18 岁，且这不是医疗或重返运动计划�
 msgid "我确认目标是提升比赛表现。"
 msgstr "我确认目标是提升比赛表现。"
 
-#: src/components/trail-course-review/copy.tsx:584
+#: src/components/trail-course-review/copy.tsx:591
 msgid "技术路面训练"
 msgstr "技术路面训练"
 
-#: src/components/trail-course-review/copy.tsx:269
+#: src/components/trail-course-review/copy.tsx:276
 msgid "提升比赛表现"
 msgstr "提升比赛表现"
 
-#: src/components/trail-course-review/copy.tsx:317
+#: src/components/trail-course-review/copy.tsx:324
 msgid "携带食物"
 msgstr "携带食物"
 
-#: src/components/trail-course-review/copy.tsx:316
+#: src/components/trail-course-review/copy.tsx:323
 msgid "携水"
 msgstr "携水"
 
-#: src/components/trail-course-review/states.tsx:153
+#: src/components/trail-course-review/states.tsx:173
 msgid "操作未完成。"
 msgstr "操作未完成。"
 
-#: src/components/trail-course-review/copy.tsx:132
+#: src/components/trail-course-review/copy.tsx:133
 msgid "支持"
 msgstr "支持"
 
-#: src/components/trail-course-review/copy.tsx:215
+#: src/components/trail-course-review/copy.tsx:222
 msgid "放弃待保存更改"
 msgstr "放弃待保存更改"
+
+#: src/components/TrailCourseReview.tsx:939
+msgid "数据操作结果尚不确定。再次操作前，请先查看最新服务端版本。"
+msgstr "数据操作结果尚不确定。再次操作前，请先查看最新服务端版本。"
 
 #: src/components/trail-course-review/copy.tsx:119
 msgid "新鲜度"
 msgstr "新鲜度"
 
 #: src/components/trail-course-review/copy.tsx:85
-#: src/components/trail-course-review/copy.tsx:311
-#: src/components/trail-course-review/copy.tsx:324
+#: src/components/trail-course-review/copy.tsx:318
+#: src/components/trail-course-review/copy.tsx:331
 msgid "无"
 msgstr "无"
 
@@ -13401,29 +13599,29 @@ msgstr "无"
 msgid "无偏好"
 msgstr "无偏好"
 
-#: src/components/trail-course-review/copy.tsx:464
+#: src/components/trail-course-review/copy.tsx:471
 msgid "无法依据已观察历史约束下坡训练。"
 msgstr "无法依据已观察历史约束下坡训练。"
 
-#: src/components/trail-course-review/copy.tsx:452
+#: src/components/trail-course-review/copy.tsx:459
 msgid "无法依据已观察经历约束赛道专项训练。"
 msgstr "无法依据已观察经历约束赛道专项训练。"
 
-#: src/components/TrailCourseReview.tsx:472
-#: src/components/TrailCourseReview.tsx:490
+#: src/components/TrailCourseReview.tsx:615
+#: src/components/TrailCourseReview.tsx:642
 msgid "无法保存越野赛道核对。"
 msgstr "无法保存越野赛道核对。"
 
-#: src/components/trail-course-review/copy.tsx:374
+#: src/components/trail-course-review/copy.tsx:381
 msgid "无法信任基于此结果生成的提案。"
 msgstr "无法信任基于此结果生成的提案。"
 
-#: src/components/TrailCourseReview.tsx:385
+#: src/components/TrailCourseReview.tsx:502
 msgid "无法加载最新版本。"
 msgstr "无法加载最新版本。"
 
-#: src/components/TrailCourseReview.tsx:545
-#: src/components/TrailCourseReview.tsx:562
+#: src/components/TrailCourseReview.tsx:715
+#: src/components/TrailCourseReview.tsx:741
 msgid "无法确认本节。"
 msgstr "无法确认本节。"
 
@@ -13431,43 +13629,60 @@ msgstr "无法确认本节。"
 msgid "无法训练的日期"
 msgstr "无法训练的日期"
 
-#: src/components/TrailCourseReview.tsx:681
+#: src/components/TrailCourseReview.tsx:898
 msgid "无法识别删除响应。"
 msgstr "无法识别删除响应。"
 
-#: src/components/TrailCourseReview.tsx:668
+#: src/components/TrailCourseReview.tsx:884
 msgid "无法识别重置响应。"
 msgstr "无法识别重置响应。"
 
-#: src/components/trail-course-review/copy.tsx:142
+#: src/components/TrailCourseReview.tsx:498
+#: src/components/TrailCourseReview.tsx:638
+msgid "无法连接服务器。待保存更改仍仅保留在本页面。"
+msgstr "无法连接服务器。待保存更改仍仅保留在本页面。"
+
+#: src/components/TrailCourseReview.tsx:826
+msgid "无法连接服务器。未应用任何准备情况结果。"
+msgstr "无法连接服务器。未应用任何准备情况结果。"
+
+#: src/components/TrailCourseReview.tsx:737
+msgid "无法连接服务器。未应用任何确认。"
+msgstr "无法连接服务器。未应用任何确认。"
+
+#: src/components/TrailCourseReview.tsx:923
+msgid "无法连接服务器。未重复执行越野数据操作。"
+msgstr "无法连接服务器。未重复执行越野数据操作。"
+
+#: src/components/trail-course-review/copy.tsx:143
 msgid "日晒暴露"
 msgstr "日晒暴露"
 
-#: src/components/trail-course-review/copy.tsx:282
+#: src/components/trail-course-review/copy.tsx:289
 msgid "星期一"
 msgstr "星期一"
 
-#: src/components/trail-course-review/copy.tsx:284
+#: src/components/trail-course-review/copy.tsx:291
 msgid "星期三"
 msgstr "星期三"
 
-#: src/components/trail-course-review/copy.tsx:283
+#: src/components/trail-course-review/copy.tsx:290
 msgid "星期二"
 msgstr "星期二"
 
-#: src/components/trail-course-review/copy.tsx:286
+#: src/components/trail-course-review/copy.tsx:293
 msgid "星期五"
 msgstr "星期五"
 
-#: src/components/trail-course-review/copy.tsx:287
+#: src/components/trail-course-review/copy.tsx:294
 msgid "星期六"
 msgstr "星期六"
 
-#: src/components/trail-course-review/copy.tsx:285
+#: src/components/trail-course-review/copy.tsx:292
 msgid "星期四"
 msgstr "星期四"
 
-#: src/components/trail-course-review/copy.tsx:288
+#: src/components/trail-course-review/copy.tsx:295
 msgid "星期日"
 msgstr "星期日"
 
@@ -13483,40 +13698,40 @@ msgstr "是否有路段需要使用固定绳索？"
 msgid "是否有路段需要用手辅助通过？"
 msgstr "是否有路段需要用手辅助通过？"
 
-#: src/components/trail-course-review/states.tsx:73
+#: src/components/trail-course-review/states.tsx:74
 msgid "暂时无法加载越野赛道核对"
 msgstr "暂时无法加载越野赛道核对"
 
-#: src/components/trail-course-review/copy.tsx:203
+#: src/components/trail-course-review/copy.tsx:204
 msgid "暂时无法导出数据，请重试。"
 msgstr "暂时无法导出数据，请重试。"
 
-#: src/components/trail-course-review/copy.tsx:531
+#: src/components/trail-course-review/copy.tsx:538
 msgid "暂时无法应用此策略。"
 msgstr "暂时无法应用此策略。"
 
-#: src/components/TrailCourseReview.tsx:607
-#: src/components/TrailCourseReview.tsx:628
+#: src/components/TrailCourseReview.tsx:800
+#: src/components/TrailCourseReview.tsx:830
 msgid "暂时无法检查准备情况。"
 msgstr "暂时无法检查准备情况。"
 
-#: src/components/TrailCourseReview.tsx:775
+#: src/components/TrailCourseReview.tsx:1039
 msgid "暂时无法检查这些信息"
 msgstr "暂时无法检查这些信息"
 
-#: src/components/trail-course-review/copy.tsx:298
+#: src/components/trail-course-review/copy.tsx:305
 msgid "暴露"
 msgstr "暴露"
 
-#: src/components/trail-course-review/copy.tsx:192
+#: src/components/trail-course-review/copy.tsx:193
 msgid "更多操作"
 msgstr "更多操作"
 
-#: src/components/trail-course-review/copy.tsx:331
+#: src/components/trail-course-review/copy.tsx:338
 msgid "曾影响计划"
 msgstr "曾影响计划"
 
-#: src/components/TrailCourseReview.tsx:674
+#: src/components/TrailCourseReview.tsx:891
 msgid "服务端已把可编辑回答重置为未知并使确认失效。来源活动和已保留提案未被删除。"
 msgstr "服务端已把可编辑回答重置为未知并使确认失效。来源活动和已保留提案未被删除。"
 
@@ -13524,51 +13739,51 @@ msgstr "服务端已把可编辑回答重置为未知并使确认失效。来源
 msgid "服务端来源"
 msgstr "服务端来源"
 
-#: src/components/TrailCourseReview.tsx:431
+#: src/components/TrailCourseReview.tsx:574
 msgid "服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。"
 msgstr "服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。"
 
-#: src/components/TrailCourseReview.tsx:551
+#: src/components/TrailCourseReview.tsx:723
 msgid "服务端返回了不受支持的确认响应。"
 msgstr "服务端返回了不受支持的确认响应。"
 
-#: src/components/TrailCourseReview.tsx:478
+#: src/components/TrailCourseReview.tsx:623
 msgid "服务端返回了不受支持的越野草稿。"
 msgstr "服务端返回了不受支持的越野草稿。"
 
-#: src/components/trail-course-review/copy.tsx:157
+#: src/components/trail-course-review/copy.tsx:158
 msgid "未列出强制装备"
 msgstr "未列出强制装备"
 
-#: src/components/TrailCourseReview.tsx:687
+#: src/components/TrailCourseReview.tsx:905
 msgid "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
 msgstr "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
 
-#: src/components/TrailCourseReview.tsx:691
+#: src/components/TrailCourseReview.tsx:909
 msgid "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
 msgstr "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
 
-#: src/components/trail-course-review/copy.tsx:330
+#: src/components/trail-course-review/copy.tsx:337
 msgid "未影响计划"
 msgstr "未影响计划"
 
-#: src/components/trail-course-review/states.tsx:70
+#: src/components/trail-course-review/states.tsx:71
 msgid "未找到此私密越野赛道核对"
 msgstr "未找到此私密越野赛道核对"
 
-#: src/components/trail-course-review/copy.tsx:257
+#: src/components/trail-course-review/copy.tsx:264
 msgid "未知"
 msgstr "未知"
 
-#: src/components/TrailCourseReview.tsx:1672
+#: src/components/TrailCourseReview.tsx:2053
 msgid "未观察到符合条件的路面"
 msgstr "未观察到符合条件的路面"
 
-#: src/components/TrailCourseReview.tsx:522
+#: src/components/TrailCourseReview.tsx:687
 msgid "本节没有可安全确认的版本。请重新加载并再次核对。"
 msgstr "本节没有可安全确认的版本。请重新加载并再次核对。"
 
-#: src/components/trail-course-review/copy.tsx:228
+#: src/components/trail-course-review/copy.tsx:235
 msgid "权威准备情况模块"
 msgstr "权威准备情况模块"
 
@@ -13576,69 +13791,69 @@ msgstr "权威准备情况模块"
 msgid "来源版本"
 msgstr "来源版本"
 
-#: src/components/trail-course-review/copy.tsx:244
 #: src/components/trail-course-review/copy.tsx:251
+#: src/components/trail-course-review/copy.tsx:258
 msgid "来自你的活动历史"
 msgstr "来自你的活动历史"
 
-#: src/components/trail-course-review/copy.tsx:275
+#: src/components/trail-course-review/copy.tsx:282
 msgid "松散碎石"
 msgstr "松散碎石"
 
-#: src/components/trail-course-review/copy.tsx:467
+#: src/components/trail-course-review/copy.tsx:474
 msgid "查看下降训练经历"
 msgstr "查看下降训练经历"
 
-#: src/components/trail-course-review/copy.tsx:491
+#: src/components/trail-course-review/copy.tsx:498
 msgid "查看你的回答"
 msgstr "查看你的回答"
 
-#: src/components/trail-course-review/copy.tsx:213
-#: src/components/trail-course-review/copy.tsx:569
+#: src/components/trail-course-review/copy.tsx:220
+#: src/components/trail-course-review/copy.tsx:576
 msgid "查看最新版本"
 msgstr "查看最新版本"
 
-#: src/components/trail-course-review/copy.tsx:455
+#: src/components/trail-course-review/copy.tsx:462
 msgid "查看可比训练经历"
 msgstr "查看可比训练经历"
 
-#: src/components/trail-course-review/copy.tsx:431
+#: src/components/trail-course-review/copy.tsx:438
 msgid "查看技术特征"
 msgstr "查看技术特征"
 
-#: src/components/trail-course-review/copy.tsx:398
+#: src/components/trail-course-review/copy.tsx:405
 msgid "查看比赛日期"
 msgstr "查看比赛日期"
 
-#: src/components/trail-course-review/copy.tsx:386
+#: src/components/trail-course-review/copy.tsx:393
 msgid "查看策略状态"
 msgstr "查看策略状态"
 
-#: src/components/trail-course-review/copy.tsx:422
+#: src/components/trail-course-review/copy.tsx:429
 msgid "查看计划适用范围"
 msgstr "查看计划适用范围"
 
-#: src/components/trail-course-review/copy.tsx:479
+#: src/components/trail-course-review/copy.tsx:486
 msgid "查看训练场地条件"
 msgstr "查看训练场地条件"
 
-#: src/components/trail-course-review/copy.tsx:503
+#: src/components/trail-course-review/copy.tsx:510
 msgid "查看训练时间安排"
 msgstr "查看训练时间安排"
 
-#: src/components/trail-course-review/copy.tsx:524
+#: src/components/trail-course-review/copy.tsx:531
 msgid "查看该假设"
 msgstr "查看该假设"
 
-#: src/components/trail-course-review/copy.tsx:410
+#: src/components/trail-course-review/copy.tsx:417
 msgid "查看赛事范围"
 msgstr "查看赛事范围"
 
-#: src/components/trail-course-review/copy.tsx:443
+#: src/components/trail-course-review/copy.tsx:450
 msgid "查看近期跑步记录"
 msgstr "查看近期跑步记录"
 
-#: src/components/trail-course-review/copy.tsx:353
+#: src/components/trail-course-review/copy.tsx:360
 msgid "查看首个无效值"
 msgstr "查看首个无效值"
 
@@ -13646,75 +13861,75 @@ msgstr "查看首个无效值"
 msgid "核对越野赛事"
 msgstr "核对越野赛事"
 
-#: src/components/trail-course-review/copy.tsx:173
+#: src/components/trail-course-review/copy.tsx:174
 msgid "检查准备情况"
 msgstr "检查准备情况"
 
-#: src/components/trail-course-review/copy.tsx:245
+#: src/components/trail-course-review/copy.tsx:252
 msgid "模型版本"
 msgstr "模型版本"
 
-#: src/components/trail-course-review/copy.tsx:200
+#: src/components/trail-course-review/copy.tsx:201
 msgid "正在下载数据导出文件。"
 msgstr "正在下载数据导出文件。"
 
-#: src/components/trail-course-review/copy.tsx:199
+#: src/components/trail-course-review/copy.tsx:200
 msgid "正在准备导出…"
 msgstr "正在准备导出…"
 
-#: src/components/trail-course-review/states.tsx:28
+#: src/components/trail-course-review/states.tsx:29
 msgid "正在加载越野赛道核对"
 msgstr "正在加载越野赛道核对"
 
-#: src/components/trail-course-review/states.tsx:225
+#: src/components/trail-course-review/states.tsx:251
 msgid "正在处理…"
 msgstr "正在处理…"
 
-#: src/components/trail-course-review/copy.tsx:190
+#: src/components/trail-course-review/copy.tsx:191
 msgid "此值缺失、超出允许范围，或与另一项回答冲突。"
 msgstr "此值缺失、超出允许范围，或与另一项回答冲突。"
 
-#: src/components/TrailCourseReview.tsx:2057
+#: src/components/TrailCourseReview.tsx:2511
 msgid "此回答不用于诊断，也不提供摄入量处方。"
 msgstr "此回答不用于诊断，也不提供摄入量处方。"
 
-#: src/components/TrailCourseReview.tsx:777
+#: src/components/TrailCourseReview.tsx:1041
 msgid "此情况暂不支持越野计划"
 msgstr "此情况暂不支持越野计划"
 
-#: src/components/TrailCourseReview.tsx:1624
+#: src/components/TrailCourseReview.tsx:2005
 msgid "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
 msgstr "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
 
-#: src/components/trail-course-review/copy.tsx:383
+#: src/components/trail-course-review/copy.tsx:390
 msgid "此未启用切片不能生成提案。"
 msgstr "此未启用切片不能生成提案。"
 
-#: src/components/trail-course-review/copy.tsx:395
+#: src/components/trail-course-review/copy.tsx:402
 msgid "此策略无法安排临赛阶段。"
 msgstr "此策略无法安排临赛阶段。"
 
-#: src/components/trail-course-review/copy.tsx:185
+#: src/components/trail-course-review/copy.tsx:186
 msgid "此请求用时较长，请勿关闭本页面。"
 msgstr "此请求用时较长，请勿关闭本页面。"
 
-#: src/components/trail-course-review/copy.tsx:403
+#: src/components/trail-course-review/copy.tsx:410
 msgid "此赛事属于超长距离或多日赛。"
 msgstr "此赛事属于超长距离或多日赛。"
 
-#: src/components/trail-course-review/states.tsx:167
+#: src/components/trail-course-review/states.tsx:190
 msgid "此赛道核对使用了不受支持的版本"
 msgstr "此赛道核对使用了不受支持的版本"
 
-#: src/components/trail-course-review/copy.tsx:358
+#: src/components/trail-course-review/copy.tsx:365
 msgid "此赛道核对使用了不受支持的版本。"
 msgstr "此赛道核对使用了不受支持的版本。"
 
-#: src/components/trail-course-review/copy.tsx:380
+#: src/components/trail-course-review/copy.tsx:387
 msgid "此越野策略尚未启用。"
 msgstr "此越野策略尚未启用。"
 
-#: src/components/trail-course-review/copy.tsx:313
+#: src/components/trail-course-review/copy.tsx:320
 msgid "每个站点"
 msgstr "每个站点"
 
@@ -13722,7 +13937,7 @@ msgstr "每个站点"
 msgid "每周可训练时间"
 msgstr "每周可训练时间"
 
-#: src/components/trail-course-review/copy.tsx:391
+#: src/components/trail-course-review/copy.tsx:398
 msgid "比赛已进入尚无获批减量策略的阶段。"
 msgstr "比赛已进入尚无获批减量策略的阶段。"
 
@@ -13738,21 +13953,21 @@ msgstr "比赛日期"
 msgid "比赛距离"
 msgstr "比赛距离"
 
-#: src/components/trail-course-review/copy.tsx:496
+#: src/components/trail-course-review/copy.tsx:503
 msgid "没有 14 天安排能同时满足已确认时间和已接受限制。"
 msgstr "没有 14 天安排能同时满足已确认时间和已接受限制。"
 
-#: src/components/trail-course-review/copy.tsx:276
+#: src/components/trail-course-review/copy.tsx:283
 msgid "泥地"
 msgstr "泥地"
 
-#: src/components/trail-course-review/copy.tsx:279
+#: src/components/trail-course-review/copy.tsx:286
 msgid "涉水路段"
 msgstr "涉水路段"
 
-#: src/components/trail-course-review/copy.tsx:292
-#: src/components/trail-course-review/copy.tsx:297
-#: src/components/trail-course-review/copy.tsx:307
+#: src/components/trail-course-review/copy.tsx:299
+#: src/components/trail-course-review/copy.tsx:304
+#: src/components/trail-course-review/copy.tsx:314
 msgid "混合"
 msgstr "混合"
 
@@ -13760,11 +13975,11 @@ msgstr "混合"
 msgid "添加日期"
 msgstr "添加日期"
 
-#: src/components/trail-course-review/copy.tsx:319
+#: src/components/trail-course-review/copy.tsx:326
 msgid "照明"
 msgstr "照明"
 
-#: src/components/trail-course-review/copy.tsx:131
+#: src/components/trail-course-review/copy.tsx:132
 msgid "环境"
 msgstr "环境"
 
@@ -13772,23 +13987,23 @@ msgstr "环境"
 msgid "环境、支持与补给"
 msgstr "环境、支持与补给"
 
-#: src/components/trail-course-review/copy.tsx:585
+#: src/components/trail-course-review/copy.tsx:592
 msgid "环境与海拔适应"
 msgstr "环境与海拔适应"
 
-#: src/components/trail-course-review/copy.tsx:144
+#: src/components/trail-course-review/copy.tsx:145
 msgid "环境信息依据"
 msgstr "环境信息依据"
 
-#: src/components/trail-course-review/copy.tsx:237
+#: src/components/trail-course-review/copy.tsx:244
 msgid "生成时可考虑此模块；它尚未包含在任何提案中。"
 msgstr "生成时可考虑此模块；它尚未包含在任何提案中。"
 
-#: src/components/trail-course-review/copy.tsx:252
+#: src/components/trail-course-review/copy.tsx:259
 msgid "由 Praxys 推断"
 msgstr "由 Praxys 推断"
 
-#: src/components/trail-course-review/copy.tsx:249
+#: src/components/trail-course-review/copy.tsx:256
 msgid "由你填写"
 msgstr "由你填写"
 
@@ -13796,37 +14011,41 @@ msgstr "由你填写"
 msgid "目前不确定"
 msgstr "目前不确定"
 
-#: src/components/trail-course-review/copy.tsx:212
-#: src/components/trail-course-review/states.tsx:228
+#: src/components/trail-course-review/copy.tsx:219
+#: src/components/trail-course-review/states.tsx:254
 msgid "确认删除"
 msgstr "确认删除"
 
-#: src/components/trail-course-review/copy.tsx:171
+#: src/components/trail-course-review/copy.tsx:172
 msgid "确认前请先保存本节"
 msgstr "确认前请先保存本节"
 
-#: src/components/TrailCourseReview.tsx:2079
+#: src/components/TrailCourseReview.tsx:2533
 msgid "确认前请先打开本节"
 msgstr "确认前请先打开本节"
 
-#: src/components/TrailCourseReview.tsx:1734
+#: src/components/TrailCourseReview.tsx:2139
 msgid "确认前请打开并核对本节。每组都可设为未知，不会虚构默认值。"
 msgstr "确认前请打开并核对本节。每组都可设为未知，不会虚构默认值。"
 
-#: src/components/trail-course-review/copy.tsx:168
+#: src/components/trail-course-review/copy.tsx:169
 msgid "确认本节"
 msgstr "确认本节"
 
-#: src/components/trail-course-review/copy.tsx:533
+#: src/components/TrailCourseReview.tsx:753
+msgid "确认结果尚不确定。再次操作前，请先查看最新服务端版本。"
+msgstr "确认结果尚不确定。再次操作前，请先查看最新服务端版本。"
+
+#: src/components/trail-course-review/copy.tsx:540
 msgid "确认计划适用范围"
 msgstr "确认计划适用范围"
 
-#: src/components/trail-course-review/copy.tsx:211
-#: src/components/trail-course-review/states.tsx:227
+#: src/components/trail-course-review/copy.tsx:218
+#: src/components/trail-course-review/states.tsx:253
 msgid "确认重置"
 msgstr "确认重置"
 
-#: src/components/trail-course-review/copy.tsx:326
+#: src/components/trail-course-review/copy.tsx:333
 msgid "碳水饮料"
 msgstr "碳水饮料"
 
@@ -13834,7 +14053,7 @@ msgstr "碳水饮料"
 msgid "移除日期"
 msgstr "移除日期"
 
-#: src/components/trail-course-review/copy.tsx:488
+#: src/components/trail-course-review/copy.tsx:495
 msgid "竞速计划将停止；Praxys 不作诊断。"
 msgstr "竞速计划将停止；Praxys 不作诊断。"
 
@@ -13850,47 +14069,47 @@ msgstr "累计爬升"
 msgid "编辑目标"
 msgstr "编辑目标"
 
-#: src/components/trail-course-review/copy.tsx:538
+#: src/components/trail-course-review/copy.tsx:545
 msgid "缺少必填的时间、场地或症状回答。"
 msgstr "缺少必填的时间、场地或症状回答。"
 
-#: src/components/trail-course-review/copy.tsx:472
+#: src/components/trail-course-review/copy.tsx:479
 msgid "缺少所需的上坡、下坡或路面训练条件。"
 msgstr "缺少所需的上坡、下坡或路面训练条件。"
 
-#: src/components/trail-course-review/copy.tsx:509
+#: src/components/trail-course-review/copy.tsx:516
 msgid "缺少该信息时无法判断准备情况。"
 msgstr "缺少该信息时无法判断准备情况。"
 
-#: src/components/trail-course-review/copy.tsx:166
+#: src/components/trail-course-review/copy.tsx:167
 msgid "胃肠不适是否曾让你改变计划？"
 msgstr "胃肠不适是否曾让你改变计划？"
 
-#: src/components/trail-course-review/copy.tsx:308
+#: src/components/trail-course-review/copy.tsx:315
 msgid "自助"
 msgstr "自助"
 
-#: src/components/trail-course-review/copy.tsx:545
+#: src/components/trail-course-review/copy.tsx:552
 msgid "补充下一项训练信息"
 msgstr "补充下一项训练信息"
 
-#: src/components/trail-course-review/copy.tsx:512
+#: src/components/trail-course-review/copy.tsx:519
 msgid "补充下一项赛道信息"
 msgstr "补充下一项赛道信息"
 
-#: src/components/trail-course-review/copy.tsx:133
+#: src/components/trail-course-review/copy.tsx:134
 msgid "补给"
 msgstr "补给"
 
-#: src/components/trail-course-review/copy.tsx:149
+#: src/components/trail-course-review/copy.tsx:150
 msgid "补给支持方式"
 msgstr "补给支持方式"
 
-#: src/components/trail-course-review/copy.tsx:150
+#: src/components/trail-course-review/copy.tsx:151
 msgid "补给站数量"
 msgstr "补给站数量"
 
-#: src/components/trail-course-review/copy.tsx:586
+#: src/components/trail-course-review/copy.tsx:593
 msgid "补给练习"
 msgstr "补给练习"
 
@@ -13910,11 +14129,11 @@ msgstr "计划用时下限"
 msgid "计划目标"
 msgstr "计划目标"
 
-#: src/components/TrailCourseReview.tsx:405
+#: src/components/TrailCourseReview.tsx:538
 msgid "请先保存并确认当前版本，再重新检查准备情况。"
 msgstr "请先保存并确认当前版本，再重新检查准备情况。"
 
-#: src/components/trail-course-review/copy.tsx:187
+#: src/components/trail-course-review/copy.tsx:188
 msgid "请检查以下字段"
 msgstr "请检查以下字段"
 
@@ -13922,24 +14141,28 @@ msgstr "请检查以下字段"
 msgid "请求与已观察情况对照"
 msgstr "请求与已观察情况对照"
 
-#: src/components/trail-course-review/copy.tsx:129
+#: src/components/trail-course-review/copy.tsx:127
+msgid "请求值"
+msgstr "请求值"
+
+#: src/components/trail-course-review/copy.tsx:130
 msgid "请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。"
 msgstr "请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。"
 
-#: src/components/trail-course-review/copy.tsx:550
+#: src/components/trail-course-review/copy.tsx:557
 msgid "请求的训练量或编辑超出近期已观察历史。"
 msgstr "请求的训练量或编辑超出近期已观察历史。"
 
-#: src/components/TrailCourseReview.tsx:660
-#: src/components/TrailCourseReview.tsx:703
+#: src/components/TrailCourseReview.tsx:875
+#: src/components/TrailCourseReview.tsx:927
 msgid "请求的越野数据操作未完成。"
 msgstr "请求的越野数据操作未完成。"
 
-#: src/components/trail-course-review/states.tsx:77
+#: src/components/trail-course-review/states.tsx:78
 msgid "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
 msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
 
-#: src/components/trail-course-review/copy.tsx:223
+#: src/components/trail-course-review/copy.tsx:230
 msgid "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
 msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
 
@@ -13947,7 +14170,7 @@ msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示
 msgid "请选择"
 msgstr "请选择"
 
-#: src/components/trail-course-review/states.tsx:80
+#: src/components/trail-course-review/states.tsx:81
 msgid "请重试。未加载的数据不会被猜测或替换。"
 msgstr "请重试。未加载的数据不会被猜测或替换。"
 
@@ -13959,15 +14182,15 @@ msgstr "赛事"
 msgid "赛事与计划用时"
 msgstr "赛事与计划用时"
 
-#: src/components/trail-course-review/copy.tsx:301
+#: src/components/trail-course-review/copy.tsx:308
 msgid "赛事方信息"
 msgstr "赛事方信息"
 
-#: src/components/trail-course-review/copy.tsx:306
+#: src/components/trail-course-review/copy.tsx:313
 msgid "赛事补给"
 msgstr "赛事补给"
 
-#: src/components/trail-course-review/copy.tsx:135
+#: src/components/trail-course-review/copy.tsx:136
 msgid "赛道最高海拔"
 msgstr "赛道最高海拔"
 
@@ -13975,7 +14198,7 @@ msgstr "赛道最高海拔"
 msgid "赛道坡度分布"
 msgstr "赛道坡度分布"
 
-#: src/components/TrailCourseReview.tsx:484
+#: src/components/TrailCourseReview.tsx:630
 msgid "赛道核对已保存。请按当前版本逐节确认。"
 msgstr "赛道核对已保存。请按当前版本逐节确认。"
 
@@ -13983,19 +14206,19 @@ msgstr "赛道核对已保存。请按当前版本逐节确认。"
 msgid "赛道路面"
 msgstr "赛道路面"
 
-#: src/components/trail-course-review/copy.tsx:427
+#: src/components/trail-course-review/copy.tsx:434
 msgid "赛道需要用手辅助或使用固定绳索。"
 msgstr "赛道需要用手辅助或使用固定绳索。"
 
-#: src/components/trail-course-review/copy.tsx:266
+#: src/components/trail-course-review/copy.tsx:273
 msgid "超长距离越野"
 msgstr "超长距离越野"
 
-#: src/components/TrailCourseReview.tsx:954
+#: src/components/TrailCourseReview.tsx:1281
 msgid "越野操作未完成"
 msgstr "越野操作未完成"
 
-#: src/components/trail-course-review/copy.tsx:216
+#: src/components/trail-course-review/copy.tsx:223
 msgid "越野赛道核对已更改"
 msgstr "越野赛道核对已更改"
 
@@ -14003,15 +14226,15 @@ msgstr "越野赛道核对已更改"
 msgid "距离类别"
 msgstr "距离类别"
 
-#: src/components/trail-course-review/copy.tsx:153
+#: src/components/trail-course-review/copy.tsx:154
 msgid "输入距离"
 msgstr "输入距离"
 
-#: src/components/trail-course-review/copy.tsx:161
+#: src/components/trail-course-review/copy.tsx:162
 msgid "过去 42 天的补给练习次数"
 msgstr "过去 42 天的补给练习次数"
 
-#: src/components/trail-course-review/copy.tsx:337
+#: src/components/trail-course-review/copy.tsx:344
 msgid "近似平缓（−3% 至低于 3%）"
 msgstr "近似平缓（−3% 至低于 3%）"
 
@@ -14019,7 +14242,7 @@ msgstr "近似平缓（−3% 至低于 3%）"
 msgid "近期下降训练"
 msgstr "近期下降训练"
 
-#: src/components/trail-course-review/copy.tsx:460
+#: src/components/trail-course-review/copy.tsx:467
 msgid "近期下降训练经历不足。"
 msgstr "近期下降训练经历不足。"
 
@@ -14039,15 +14262,15 @@ msgstr "近期记录到的路面"
 msgid "近期跑步连续性"
 msgstr "近期跑步连续性"
 
-#: src/components/trail-course-review/copy.tsx:436
+#: src/components/trail-course-review/copy.tsx:443
 msgid "近期跑步连续性未达到已接受的历史门槛。"
 msgstr "近期跑步连续性未达到已接受的历史门槛。"
 
-#: src/components/TrailCourseReview.tsx:786
+#: src/components/TrailCourseReview.tsx:1050
 msgid "还需补充少量信息，Praxys 才能检查准备情况"
 msgstr "还需补充少量信息，Praxys 才能检查准备情况"
 
-#: src/components/trail-course-review/copy.tsx:429
+#: src/components/trail-course-review/copy.tsx:436
 msgid "这些技术特征超出 v2 范围。"
 msgstr "这些技术特征超出 v2 范围。"
 
@@ -14055,87 +14278,87 @@ msgstr "这些技术特征超出 v2 范围。"
 msgid "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
 msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
 
-#: src/components/TrailCourseReview.tsx:252
+#: src/components/TrailCourseReview.tsx:308
 msgid "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
 msgstr "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
 
-#: src/components/trail-course-review/copy.tsx:296
+#: src/components/trail-course-review/copy.tsx:303
 msgid "遮蔽"
 msgstr "遮蔽"
 
-#: src/components/trail-course-review/copy.tsx:312
+#: src/components/trail-course-review/copy.tsx:319
 msgid "部分站点"
 msgstr "部分站点"
 
-#: src/components/trail-course-review/copy.tsx:365
-#: src/components/trail-course-review/states.tsx:183
+#: src/components/trail-course-review/copy.tsx:372
+#: src/components/trail-course-review/states.tsx:206
 msgid "重新加载受支持版本"
 msgstr "重新加载受支持版本"
 
-#: src/components/trail-course-review/copy.tsx:377
+#: src/components/trail-course-review/copy.tsx:384
 msgid "重新检查准备情况"
 msgstr "重新检查准备情况"
 
-#: src/components/trail-course-review/copy.tsx:203
-#: src/components/trail-course-review/states.tsx:206
+#: src/components/trail-course-review/copy.tsx:210
+#: src/components/trail-course-review/states.tsx:232
 msgid "重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。"
 msgstr "重置会把当前可编辑回答改为未知；不会删除来源活动或已保留的提案记录。"
 
-#: src/components/trail-course-review/copy.tsx:193
-#: src/components/trail-course-review/states.tsx:186
+#: src/components/trail-course-review/copy.tsx:194
+#: src/components/trail-course-review/states.tsx:209
 msgid "重置赛道核对"
 msgstr "重置赛道核对"
 
-#: src/components/trail-course-review/copy.tsx:200
-#: src/components/trail-course-review/states.tsx:200
+#: src/components/trail-course-review/copy.tsx:207
+#: src/components/trail-course-review/states.tsx:226
 msgid "重置赛道核对？"
 msgstr "重置赛道核对？"
 
-#: src/components/trail-course-review/copy.tsx:243
-#: src/components/trail-course-review/states.tsx:95
+#: src/components/trail-course-review/copy.tsx:250
+#: src/components/trail-course-review/states.tsx:96
 msgid "重试"
 msgstr "重试"
 
-#: src/components/trail-course-review/copy.tsx:318
+#: src/components/trail-course-review/copy.tsx:325
 msgid "防风雨外套"
 msgstr "防风雨外套"
 
-#: src/components/trail-course-review/copy.tsx:339
+#: src/components/trail-course-review/copy.tsx:346
 msgid "陡上坡（10% 及以上）"
 msgstr "陡上坡（10% 及以上）"
 
-#: src/components/trail-course-review/copy.tsx:335
+#: src/components/trail-course-review/copy.tsx:342
 msgid "陡下坡（低于 −10%）"
 msgstr "陡下坡（低于 −10%）"
 
-#: src/components/trail-course-review/copy.tsx:265
+#: src/components/trail-course-review/copy.tsx:272
 msgid "非超长距离越野"
 msgstr "非超长距离越野"
 
-#: src/components/trail-course-review/copy.tsx:136
+#: src/components/trail-course-review/copy.tsx:137
 msgid "预计气温范围"
 msgstr "预计气温范围"
 
-#: src/components/trail-course-review/copy.tsx:139
+#: src/components/trail-course-review/copy.tsx:140
 msgid "预计湿度范围"
 msgstr "预计湿度范围"
 
-#: src/components/trail-course-review/copy.tsx:143
+#: src/components/trail-course-review/copy.tsx:144
 msgid "风力暴露"
 msgstr "风力暴露"
 
-#: src/components/trail-course-review/copy.tsx:327
+#: src/components/trail-course-review/copy.tsx:334
 msgid "食物与饮品混合"
 msgstr "食物与饮品混合"
 
-#: src/components/trail-course-review/copy.tsx:155
+#: src/components/trail-course-review/copy.tsx:156
 msgid "食物供应"
 msgstr "食物供应"
 
-#: src/components/trail-course-review/copy.tsx:154
+#: src/components/trail-course-review/copy.tsx:155
 msgid "饮水供应"
 msgstr "饮水供应"
 
-#: src/components/trail-course-review/copy.tsx:293
+#: src/components/trail-course-review/copy.tsx:300
 msgid "高"
 msgstr "高"

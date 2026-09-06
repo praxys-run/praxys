@@ -165,6 +165,9 @@ jobs:
 
       - name: Capture state preserved by deployment
         id: preserved
+        env:
+          SYNC_CONFIG: ${{ steps.mode.outputs.sync_config }}
+          CONFIGURED_FEEDBACK_PUBLICATION: ${{ vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -196,10 +199,39 @@ jobs:
               ;;
           esac
           ai_disabled="$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)"
+          feedback_publication_positive_values="$(jq -c '[.[] | select(
+            .name == "PRAXYS_ENABLE_FEEDBACK_PUBLICATION") | .value]' \
+            <<< "${settings}")"
+          case "$(jq length <<< "${feedback_publication_positive_values}")" in
+            0)
+              feedback_publication_positive=false
+              ;;
+            1)
+              feedback_publication_positive="$(jq -er '.[0]' \
+                <<< "${feedback_publication_positive_values}")"
+              ;;
+            *)
+              echo "::error::PRAXYS_ENABLE_FEEDBACK_PUBLICATION is duplicated."
+              exit 1
+              ;;
+          esac
+          feedback_publication_disabled="$(
+            read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION
+          )"
           [[ "${cn_disabled}" == "true" || "${cn_disabled}" == "false" ]]
           [[ "${miniapp_disabled}" == "true" \
             || "${miniapp_disabled}" == "false" ]]
           [[ "${ai_disabled}" == "true" || "${ai_disabled}" == "false" ]]
+          [[ "${feedback_publication_positive}" == "true" \
+            || "${feedback_publication_positive}" == "false" ]]
+          [[ "${feedback_publication_disabled}" == "true" \
+            || "${feedback_publication_disabled}" == "false" ]]
+          [[ "${CONFIGURED_FEEDBACK_PUBLICATION}" == "true" \
+            || "${CONFIGURED_FEEDBACK_PUBLICATION}" == "false" ]]
+          feedback_publication_restore="${feedback_publication_positive}"
+          if [[ "${SYNC_CONFIG}" == "true" ]]; then
+            feedback_publication_restore="${CONFIGURED_FEEDBACK_PUBLICATION}"
+          fi
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -210,14 +242,58 @@ jobs:
             echo "miniapp_disabled=${miniapp_disabled}"
             echo "miniapp_configured=${miniapp_configured}"
             echo "ai_disabled=${ai_disabled}"
+            echo "feedback_publication_restore=${feedback_publication_restore}"
             echo "cors=$(jq -c sort <<< "${cors}")"
           } >> "${GITHUB_OUTPUT}"
+
+      - name: Quiesce feedback publication before deployment
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false" \
+            --output none
+          settings="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+          read_setting() {
+            jq -er --arg name "$1" \
+              '[.[] | select(.name == $name) | .value]
+               | if length == 1 then .[0] else error("setting not singular") end' \
+              <<< "${settings}"
+          }
+          test "$(read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION)" = false
+          kill_switch="$(read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION)"
+          [[ "${kill_switch}" == "true" || "${kill_switch}" == "false" ]]
+          quiesced=false
+          for _ in {1..36}; do
+            ready_payload="$(curl -fsS --max-time 8 \
+              -H 'Cache-Control: no-cache' \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            if jq -e \
+              '.status == "ready"
+               and .optional_processing.feedback_publication_positive_enable
+                 == false
+               and (.optional_processing.feedback_publication_kill_switch
+                 | type == "boolean")
+               and .optional_processing.feedback_publication_enabled == false' \
+              <<< "${ready_payload}" >/dev/null 2>&1; then
+              quiesced=true
+              break
+            fi
+            sleep 5
+          done
+          test "${quiesced}" = true
 
       - name: Validate production deployment settings
         if: steps.mode.outputs.sync_config == 'true'
         env:
           PRAXYS_LABS_EXECUTION_MODE: ${{ vars.PRAXYS_LABS_EXECUTION_MODE || 'inline' }}
           PRAXYS_LABS_WORKER_DEPLOY_ENABLED: ${{ vars.PRAXYS_LABS_WORKER_DEPLOY_ENABLED || 'false' }}
+          PRAXYS_ENABLE_FEEDBACK_PUBLICATION: ${{ vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION || 'false' }}
           WECHAT_MINIAPP_APPID: ${{ secrets.WECHAT_MINIAPP_APPID }}
           WECHAT_MINIAPP_SECRET: ${{ secrets.WECHAT_MINIAPP_SECRET }}
         shell: bash
@@ -238,6 +314,8 @@ jobs:
           [[ "${PRAXYS_LABS_EXECUTION_MODE}" == "inline" ||
              "${PRAXYS_LABS_EXECUTION_MODE}" == "service_bus" ||
              "${PRAXYS_LABS_EXECUTION_MODE}" == "disabled" ]]
+          [[ "${PRAXYS_ENABLE_FEEDBACK_PUBLICATION}" == "true" \
+            || "${PRAXYS_ENABLE_FEEDBACK_PUBLICATION}" == "false" ]]
 
       - name: Enforce backend telemetry trust boundary
         if: steps.mode.outputs.sync_config == 'true'
@@ -266,7 +344,6 @@ jobs:
           PRAXYS_FEEDBACK_GITHUB_REPO: ${{ vars.PRAXYS_FEEDBACK_GITHUB_REPO }}
           PRAXYS_FEEDBACK_GITHUB_LABELS: ${{ vars.PRAXYS_FEEDBACK_GITHUB_LABELS }}
           PRAXYS_FEEDBACK_GITHUB_ASSIGNEES: ${{ vars.PRAXYS_FEEDBACK_GITHUB_ASSIGNEES }}
-          PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI: ${{ vars.PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI }}
           PRAXYS_AGENT_READY_SHADOW: ${{ vars.PRAXYS_AGENT_READY_SHADOW }}
           PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION: ${{ vars.PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION }}
           PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL: ${{ vars.PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL }}
@@ -309,8 +386,6 @@ jobs:
           fi
           app_settings=(
             "AZURE_AI_ENDPOINT=${AZURE_AI_ENDPOINT}"
-            "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false"
-            "PRAXYS_DISABLE_FEEDBACK_PUBLICATION=true"
             "KEY_VAULT_URL=${KEY_VAULT_URL}"
             "KEY_VAULT_KEY_NAME=${KEY_VAULT_KEY_NAME}"
             "PRAXYS_JWT_SECRET=${PRAXYS_JWT_SECRET}"
@@ -329,7 +404,7 @@ jobs:
             "PRAXYS_FEEDBACK_GITHUB_REPO=${PRAXYS_FEEDBACK_GITHUB_REPO}"
             "PRAXYS_FEEDBACK_GITHUB_LABELS=${PRAXYS_FEEDBACK_GITHUB_LABELS}"
             "PRAXYS_FEEDBACK_GITHUB_ASSIGNEES=${PRAXYS_FEEDBACK_GITHUB_ASSIGNEES}"
-            "PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=${PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI}"
+            "PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI=false"
             "PRAXYS_AGENT_READY_SHADOW=${PRAXYS_AGENT_READY_SHADOW}"
             "PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION=${PRAXYS_AGENT_READY_CHALLENGER_PROMPT_VERSION}"
             "PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL=${PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL}"
@@ -385,6 +460,12 @@ jobs:
           [[ "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
             == "true" || "$(read_setting PRAXYS_DISABLE_MINIAPP_PROCESSING)" \
             == "false" ]]
+          feedback_publication_kill="$(
+            read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION
+          )"
+          [[ "${feedback_publication_kill}" == "true" \
+            || "${feedback_publication_kill}" == "false" ]]
+          test "$(read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION)" = false
 
       - name: Cut over backend telemetry and alerts
         if: steps.mode.outputs.sync_config == 'true'
@@ -460,7 +541,13 @@ jobs:
                    == ($expectedAiDisabled | not)
                  and (.optional_processing.background_ai_enabled
                    == (.optional_processing.background_ai_kill_switch
-                     | not))' \
+                     | not))
+                 and .optional_processing.feedback_publication_positive_enable
+                   == false
+                 and (.optional_processing.feedback_publication_kill_switch
+                   | type == "boolean")
+                 and .optional_processing.feedback_publication_enabled
+                   == false' \
                 <<< "${ready_payload}" >/dev/null 2>&1
           }
           ready=false
@@ -498,6 +585,12 @@ jobs:
             = "${EXPECTED_CN_DISABLED}"
           test "$(read_setting PRAXYS_DISABLE_BACKGROUND_AI)" \
             = "${EXPECTED_AI_DISABLED}"
+          publication_kill="$(
+            read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION
+          )"
+          [[ "${publication_kill}" == "true" \
+            || "${publication_kill}" == "false" ]]
+          test "$(read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION)" = false
           cors="$(az webapp cors show \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -515,6 +608,104 @@ jobs:
             echo "ai_kill_switch=$(jq -r \
               .optional_processing.background_ai_kill_switch \
               <<< "${ready_payload}")"
+            echo "feedback_publication_positive=false"
+            echo "feedback_publication_kill_switch=${publication_kill}"
+            echo "feedback_publication_enabled=false"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Restore reviewed feedback publication after verified cutover
+        id: publication
+        timeout-minutes: 8
+        env:
+          DESIRED_FEEDBACK_PUBLICATION: ${{ steps.preserved.outputs.feedback_publication_restore }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${DESIRED_FEEDBACK_PUBLICATION}" == "true" \
+            || "${DESIRED_FEEDBACK_PUBLICATION}" == "false" ]]
+          restoration_verified=false
+          leave_disabled_on_failure() {
+            if [[ "${restoration_verified}" != "true" ]]; then
+              az webapp config appsettings set \
+                --name "${AZURE_BACKEND_APP_NAME}" \
+                --resource-group "${AZURE_RESOURCE_GROUP}" \
+                --settings "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false" \
+                --output none || true
+            fi
+          }
+          trap leave_disabled_on_failure EXIT
+          az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings \
+              "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=${DESIRED_FEEDBACK_PUBLICATION}" \
+            --output none
+          ready=false
+          publication_kill=""
+          publication_enabled=""
+          for _ in {1..36}; do
+            version_payload="$(curl -fsS --max-time 8 \
+              -H 'Cache-Control: no-cache' \
+              https://api.praxys.run/api/version 2>/dev/null || true)"
+            ready_payload="$(curl -fsS --max-time 8 \
+              -H 'Cache-Control: no-cache' \
+              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            settings="$(az webapp config appsettings list \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+            read_setting() {
+              jq -er --arg name "$1" \
+                '[.[] | select(.name == $name) | .value]
+                 | if length == 1 then .[0] else error("setting not singular") end' \
+                <<< "${settings}"
+            }
+            publication_positive="$(
+              read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION
+            )"
+            publication_kill="$(
+              read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION
+            )"
+            if [[ "${publication_kill}" != "true" \
+                  && "${publication_kill}" != "false" ]]; then
+              sleep 5
+              continue
+            fi
+            publication_enabled=false
+            if [[ "${DESIRED_FEEDBACK_PUBLICATION}" == "true" \
+                  && "${publication_kill}" == "false" ]]; then
+              publication_enabled=true
+            fi
+            if [[ "${publication_positive}" \
+                  == "${DESIRED_FEEDBACK_PUBLICATION}" ]] \
+              && jq -e \
+                --arg version "${PRAXYS_EXPECTED_API_VERSION}" \
+                --arg sha "${PRAXYS_EXPECTED_API_SOURCE_SHA}" \
+                '.version == $version and .source_sha == $sha' \
+                <<< "${version_payload}" >/dev/null 2>&1 \
+              && jq -e \
+                --argjson positive "${DESIRED_FEEDBACK_PUBLICATION}" \
+                --argjson kill "${publication_kill}" \
+                --argjson effective "${publication_enabled}" \
+                '.status == "ready"
+                 and .optional_processing.feedback_publication_positive_enable
+                   == $positive
+                 and .optional_processing.feedback_publication_kill_switch
+                   == $kill
+                 and .optional_processing.feedback_publication_enabled
+                   == $effective' \
+                <<< "${ready_payload}" >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 5
+          done
+          test "${ready}" = true
+          restoration_verified=true
+          trap - EXIT
+          {
+            echo "positive=${DESIRED_FEEDBACK_PUBLICATION}"
+            echo "kill_switch=${publication_kill}"
+            echo "enabled=${publication_enabled}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Summarize backend deployment
@@ -526,6 +717,10 @@ jobs:
           LIVE_MINIAPP_ENABLED: ${{ steps.live.outputs.miniapp_enabled }}
           LIVE_AI_ENABLED: ${{ steps.live.outputs.ai_enabled }}
           LIVE_AI_KILL_SWITCH: ${{ steps.live.outputs.ai_kill_switch }}
+          LIVE_FEEDBACK_PUBLICATION_RESULT: ${{ steps.publication.outcome }}
+          LIVE_FEEDBACK_PUBLICATION_POSITIVE: ${{ steps.publication.outputs.positive || steps.live.outputs.feedback_publication_positive }}
+          LIVE_FEEDBACK_PUBLICATION_KILL: ${{ steps.publication.outputs.kill_switch || steps.live.outputs.feedback_publication_kill_switch }}
+          LIVE_FEEDBACK_PUBLICATION_ENABLED: ${{ steps.publication.outputs.enabled || steps.live.outputs.feedback_publication_enabled }}
         shell: bash
         run: |
           {
@@ -539,4 +734,8 @@ jobs:
             echo "- Miniapp processing enabled: ${LIVE_MINIAPP_ENABLED:-unavailable}"
             echo "- Azure AI enabled: ${LIVE_AI_ENABLED:-unavailable}"
             echo "- Azure AI emergency stop: ${LIVE_AI_KILL_SWITCH:-unavailable}"
+            echo "- Feedback publication restoration: ${LIVE_FEEDBACK_PUBLICATION_RESULT:-not-run}"
+            echo "- Feedback publication positive enable: ${LIVE_FEEDBACK_PUBLICATION_POSITIVE:-unavailable}"
+            echo "- Feedback publication emergency stop: ${LIVE_FEEDBACK_PUBLICATION_KILL:-unavailable}"
+            echo "- Feedback publication effective: ${LIVE_FEEDBACK_PUBLICATION_ENABLED:-unavailable}"
           } >> "${GITHUB_STEP_SUMMARY}"

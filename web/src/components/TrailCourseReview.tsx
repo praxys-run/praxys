@@ -31,7 +31,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { apiFetch, extractErrorMessage, getAuthHeaders } from '@/hooks/useApi';
+import {
+  apiFetch,
+  extractErrorMessage,
+  getAuthCacheScope,
+  getAuthHeaders,
+} from '@/hooks/useApi';
 import {
   TRAIL_API_ENDPOINTS,
   TRAIL_EDITABLE_SECTION_KEYS,
@@ -68,6 +73,8 @@ import {
   REVISION_PATTERN,
   SECTION_ELEMENT_IDS,
   buildValidatedRequest,
+  clearOptionalGroupNumericInputs,
+  clearPlanningDurationNumericInputs,
   currentDraftFromResponse,
   formatIsoDate,
   known,
@@ -76,6 +83,7 @@ import {
   parseGradeBasisPoints,
   provenanceMeta,
   reasonCodeOf,
+  reapplyPendingTrailEdits,
   replaceConstraintField,
   replaceCourseField,
   replaceOptionalField,
@@ -98,9 +106,16 @@ import {
   TrailUnknownVersion,
 } from './trail-course-review/states';
 import {
+  TrailOperationCancelledError,
   TrailMutationResponseError,
-  preservesPendingTrailEdits,
+  TrailTransportError,
+  classifyTrailMutationFailure,
+  requestTrailMutation,
 } from './trail-course-review/mutation-error';
+import {
+  isCurrentTrailOperation,
+  type TrailOperationStamp,
+} from './trail-course-review/operation-fence';
 import { usePrivateTrailDraft } from './trail-course-review/use-private-draft';
 import {
   createTrailOwnerExportAction,
@@ -110,6 +125,12 @@ import {
   parseTrailDeleteResponse,
   parseTrailReadinessResponse,
 } from './trail-course-review/validation';
+
+interface ActiveTrailOperation extends TrailOperationStamp {
+  action: string;
+  controller: AbortController;
+  slowTimer: number;
+}
 
 export default function TrailCourseReview() {
   const {
@@ -175,6 +196,10 @@ function TrailCourseReviewWorkbench({
   const receiptErrorRef = useRef<HTMLDivElement>(null);
   const remoteRevisionRef = useRef(remoteDraft.composite_revision);
   const pendingRef = useRef(false);
+  const lifetimeRef = useRef(1);
+  const operationSequenceRef = useRef(0);
+  const editGenerationRef = useRef(0);
+  const activeOperationRef = useRef<ActiveTrailOperation | null>(null);
   const [serverDraft, setServerDraft] = useState(remoteDraft);
   const [request, setRequest] = useState(() => requestFromDraft(remoteDraft));
   const [numericInputs, setNumericInputs] = useState(() => numericInputsFromDraft(remoteDraft));
@@ -227,6 +252,12 @@ function TrailCourseReviewWorkbench({
 
   const pending = dirtySections.size > 0;
 
+  useEffect(() => () => {
+    lifetimeRef.current += 1;
+    activeOperationRef.current?.controller.abort();
+    activeOperationRef.current = null;
+  }, []);
+
   useEffect(() => {
     pendingRef.current = pending;
   }, [pending]);
@@ -242,12 +273,14 @@ function TrailCourseReviewWorkbench({
     setLatestDraft(null);
     setStaleConflict(false);
     setUnavailableDateInput('');
+    pendingRef.current = false;
+    editGenerationRef.current += 1;
     remoteRevisionRef.current = draft.composite_revision;
   }, []);
 
   useEffect(() => {
     if (remoteDraft.composite_revision === remoteRevisionRef.current) return;
-    remoteRevisionRef.current = remoteDraft.composite_revision;
+    activeOperationRef.current?.controller.abort();
     if (pendingRef.current) {
       setLatestDraft(remoteDraft);
       setStaleConflict(true);
@@ -285,19 +318,66 @@ function TrailCourseReviewWorkbench({
     };
   }, [l, t]);
 
-  const beginBusy = useCallback((action: string) => {
+  const beginBusy = useCallback((
+    action: string,
+    revision: string,
+  ): ActiveTrailOperation | null => {
+    if (activeOperationRef.current) return null;
+    const operation: ActiveTrailOperation = {
+      action,
+      controller: new AbortController(),
+      lifetime: lifetimeRef.current,
+      ownerScope: getAuthCacheScope(),
+      requestId: operationSequenceRef.current + 1,
+      revision,
+      editGeneration: editGenerationRef.current,
+      slowTimer: 0,
+    };
+    operationSequenceRef.current = operation.requestId;
+    activeOperationRef.current = operation;
     setBusyAction(action);
     setSlowAction(false);
-    return window.setTimeout(() => setSlowAction(true), 8_000);
+    operation.slowTimer = window.setTimeout(() => {
+      if (activeOperationRef.current?.requestId === operation.requestId) {
+        setSlowAction(true);
+      }
+    }, 8_000);
+    return operation;
   }, []);
 
-  const endBusy = useCallback((timer: number) => {
-    window.clearTimeout(timer);
+  const operationIsCurrent = useCallback((operation: ActiveTrailOperation) => {
+    const active = activeOperationRef.current;
+    if (!active || active.requestId !== operation.requestId) return false;
+    if (operation.lifetime !== lifetimeRef.current) return false;
+    if (operation.ownerScope !== getAuthCacheScope()) {
+      pendingRef.current = false;
+      active.controller.abort();
+      activeOperationRef.current = null;
+      onClearRemote();
+      return false;
+    }
+    return isCurrentTrailOperation(operation, {
+      lifetime: lifetimeRef.current,
+      ownerScope: getAuthCacheScope(),
+      requestId: active.requestId,
+      revision: remoteRevisionRef.current,
+      editGeneration: editGenerationRef.current,
+    });
+  }, [onClearRemote]);
+
+  const endBusy = useCallback((operation: ActiveTrailOperation) => {
+    const active = activeOperationRef.current;
+    if (!active || active.requestId !== operation.requestId) return;
+    window.clearTimeout(active.slowTimer);
+    activeOperationRef.current = null;
     setBusyAction(null);
     setSlowAction(false);
   }, []);
 
   const invalidateReadiness = useCallback((section: TrailEditableSectionKey) => {
+    if (activeOperationRef.current) return;
+    editGenerationRef.current += 1;
+    pendingRef.current = true;
     setDirtySections((current) => {
       const next = new Set(current);
       next.add(section);
@@ -316,6 +396,7 @@ function TrailCourseReviewWorkbench({
     value: string,
     section: TrailEditableSectionKey,
   ) => {
+    if (activeOperationRef.current) return;
     setNumericInputs((current) => ({ ...current, [key]: value }));
     invalidateReadiness(section);
   }, [invalidateReadiness]);
@@ -325,6 +406,7 @@ function TrailCourseReviewWorkbench({
     value: CourseFields[K],
     section: TrailEditableSectionKey,
   ) => {
+    if (activeOperationRef.current) return;
     setRequest((current) => replaceCourseField(current, key, value));
     invalidateReadiness(section);
   }, [invalidateReadiness]);
@@ -333,6 +415,7 @@ function TrailCourseReviewWorkbench({
     key: K,
     value: ConstraintFields[K],
   ) => {
+    if (activeOperationRef.current) return;
     setRequest((current) => replaceConstraintField(current, key, value));
     invalidateReadiness('section.training-access');
   }, [invalidateReadiness]);
@@ -342,6 +425,7 @@ function TrailCourseReviewWorkbench({
     key: string,
     value: TrailClientEnvelope<unknown>,
   ) => {
+    if (activeOperationRef.current) return;
     setRequest((current) => replaceOptionalField(current, group, key, value));
     invalidateReadiness('section.optional-context');
   }, [invalidateReadiness]);
@@ -388,10 +472,12 @@ function TrailCourseReviewWorkbench({
   }, [l, openSection, t]);
 
   const reviewLatest = useCallback(async () => {
-    const timer = beginBusy('reload');
+    const operation = beginBusy('reload', serverDraft.composite_revision);
+    if (!operation) return;
     setOperationError(null);
     try {
       const latest = await onFetchLatest();
+      if (!operationIsCurrent(operation)) return;
       if (latest.state === 'unknown_schema') {
         onReplaceRemote(latest);
         return;
@@ -403,14 +489,38 @@ function TrailCourseReviewWorkbench({
         t`最新服务端版本已可对照。待保存更改未被覆盖。`,
       ));
     } catch (error) {
-      setOperationError(error instanceof Error ? error.message : l(
-        t`The latest version could not be loaded.`,
-        t`无法加载最新版本。`,
-      ));
+      if (!operationIsCurrent(operation)) return;
+      const disposition = classifyTrailMutationFailure(error);
+      if (disposition === 'cancelled') return;
+      const failure = error instanceof TrailTransportError
+        ? l(
+          t`The server could not be reached. Your pending changes remain only on this page.`,
+          t`无法连接服务器。待保存更改仍仅保留在本页面。`,
+        )
+        : error instanceof Error ? error.message : l(
+          t`The latest version could not be loaded.`,
+          t`无法加载最新版本。`,
+        );
+      if (disposition === 'retryable' || disposition === 'stale') {
+        setOperationError(failure);
+      } else {
+        pendingRef.current = false;
+        onRejectRemote(failure);
+      }
     } finally {
-      endBusy(timer);
+      endBusy(operation);
     }
-  }, [beginBusy, endBusy, l, onFetchLatest, onReplaceRemote, t]);
+  }, [
+    beginBusy,
+    endBusy,
+    l,
+    onFetchLatest,
+    onRejectRemote,
+    onReplaceRemote,
+    operationIsCurrent,
+    serverDraft.composite_revision,
+    t,
+  ]);
 
   const handleSpecialTarget = useCallback(async (target: TrailFocusTarget) => {
     if (target === 'action.reload-supported-version') {
@@ -430,7 +540,11 @@ function TrailCourseReviewWorkbench({
         requestAnimationFrame(() => receiptErrorRef.current?.focus());
         return;
       }
-      const readinessAction = document.getElementById('trail-readiness-action');
+      const readinessAction = document.getElementById(
+        window.matchMedia('(min-width: 1024px)').matches
+          ? 'trail-readiness-action-desktop'
+          : 'trail-readiness-action-mobile',
+      );
       readinessAction?.focus();
       readinessAction?.click();
       return;
@@ -446,21 +560,25 @@ function TrailCourseReviewWorkbench({
   const handleResponseError = useCallback(async (
     response: Response,
     fallback: string,
+    operation: ActiveTrailOperation,
   ) => {
-    if (response.status === 412) {
+    const status = response.status;
+    const message = await extractErrorMessage(response, fallback);
+    if (!operationIsCurrent(operation)) {
+      throw new TrailOperationCancelledError();
+    }
+    if (status === 412) {
       setStaleConflict(true);
       setNotice(l(
         t`The server revision changed. Review the latest version before choosing whether to reapply pending changes.`,
         t`服务端版本已更改。请查看最新版本，再决定是否重新应用待保存更改。`,
       ));
     }
-    throw new TrailMutationResponseError(
-      await extractErrorMessage(response, fallback),
-      response.status,
-    );
-  }, [l, t]);
+    throw new TrailMutationResponseError(message, status);
+  }, [l, operationIsCurrent, t]);
 
   const saveDraft = useCallback(async (leaveAfterSave = false) => {
+    if (activeOperationRef.current) return;
     if (!online) {
       setOperationError(l(
         t`Offline. Changes are kept only on this page and have not been saved.`,
@@ -478,28 +596,33 @@ function TrailCourseReviewWorkbench({
       requestAnimationFrame(() => errorSummaryRef.current?.focus());
       return;
     }
-    const timer = beginBusy('save');
+    const operation = beginBusy('save', serverDraft.composite_revision);
+    if (!operation) return;
     setOperationError(null);
     try {
-      const response = await apiFetch(TRAIL_API_ENDPOINTS.draft, {
+      const response = await requestTrailMutation(apiFetch, TRAIL_API_ENDPOINTS.draft, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'If-Match': serverDraft.composite_revision,
         },
         body: JSON.stringify(validated.request),
-      });
+      }, operation.controller.signal);
+      if (!operationIsCurrent(operation)) return;
       if (!response.ok) {
         await handleResponseError(response, l(
           t`The Trail course review could not be saved.`,
           t`无法保存越野赛道核对。`,
-        ));
+        ), operation);
       }
-      const next = currentDraftFromResponse(await response.json());
+      const payload = await response.json() as unknown;
+      if (!operationIsCurrent(operation)) return;
+      const next = currentDraftFromResponse(payload);
       if (!next) throw new Error(l(
         t`The server returned an unsupported Trail draft.`,
         t`服务端返回了不受支持的越野草稿。`,
       ));
+      if (!operationIsCurrent(operation)) return;
       onReplaceRemote(next);
       replaceWithServer(next);
       setNotice(l(
@@ -508,18 +631,35 @@ function TrailCourseReviewWorkbench({
       ));
       if (leaveAfterSave) window.location.assign('/training');
     } catch (error) {
-      const failure = error instanceof Error ? error.message : l(
-        t`The Trail course review could not be saved.`,
-        t`无法保存越野赛道核对。`,
-      );
-      if (preservesPendingTrailEdits(error)) {
+      if (!operationIsCurrent(operation)) return;
+      const failure = error instanceof TrailTransportError
+        ? l(
+          t`The server could not be reached. Your pending changes remain only on this page.`,
+          t`无法连接服务器。待保存更改仍仅保留在本页面。`,
+        )
+        : error instanceof Error ? error.message : l(
+          t`The Trail course review could not be saved.`,
+          t`无法保存越野赛道核对。`,
+        );
+      const disposition = classifyTrailMutationFailure(error);
+      if (disposition === 'cancelled') return;
+      if (disposition === 'stale') {
         setOperationError(null);
+      } else if (disposition === 'retryable') {
+        setLatestDraft(null);
+        setStaleConflict(true);
+        setOperationError(failure);
+        setNotice(l(
+          t`The save result is uncertain. Review the latest server version before restoring pending changes.`,
+          t`保存结果尚不确定。恢复待保存更改前，请先查看最新服务端版本。`,
+        ));
       } else {
+        pendingRef.current = false;
         setOperationError(failure);
         onRejectRemote(failure);
       }
     } finally {
-      endBusy(timer);
+      endBusy(operation);
     }
   }, [
     beginBusy,
@@ -528,6 +668,7 @@ function TrailCourseReviewWorkbench({
     l,
     numericInputs,
     online,
+    operationIsCurrent,
     onReplaceRemote,
     onRejectRemote,
     replaceWithServer,
@@ -537,6 +678,7 @@ function TrailCourseReviewWorkbench({
   ]);
 
   const confirmSection = useCallback(async (sectionKey: TrailEditableSectionKey) => {
+    if (activeOperationRef.current) return;
     if (serverDraft.state !== 'current' || dirtySections.has(sectionKey)) return;
     const confirmation = sectionConfirmation(serverDraft, sectionKey);
     if (!confirmation || !REVISION_PATTERN.test(confirmation.current_revision)) {
@@ -548,10 +690,14 @@ function TrailCourseReviewWorkbench({
       onRejectRemote(failure);
       return;
     }
-    const timer = beginBusy(`confirm:${sectionKey}`);
+    const operation = beginBusy(
+      `confirm:${sectionKey}`,
+      serverDraft.composite_revision,
+    );
+    if (!operation) return;
     setOperationError(null);
     try {
-      const response = await apiFetch(TRAIL_API_ENDPOINTS.confirm, {
+      const response = await requestTrailMutation(apiFetch, TRAIL_API_ENDPOINTS.confirm, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -561,18 +707,22 @@ function TrailCourseReviewWorkbench({
           section_key: sectionKey,
           section_revision: confirmation.current_revision,
         }),
-      });
+      }, operation.controller.signal);
+      if (!operationIsCurrent(operation)) return;
       if (!response.ok) {
         await handleResponseError(response, l(
           t`This section could not be confirmed.`,
           t`无法确认本节。`,
-        ));
+        ), operation);
       }
-      const next = currentDraftFromResponse(await response.json());
+      const payload = await response.json() as unknown;
+      if (!operationIsCurrent(operation)) return;
+      const next = currentDraftFromResponse(payload);
       if (!next) throw new Error(l(
         t`The server returned an unsupported confirmation response.`,
         t`服务端返回了不受支持的确认响应。`,
       ));
+      if (!operationIsCurrent(operation)) return;
       onReplaceRemote(next);
       replaceWithServer(next);
       setNotice(l(
@@ -580,18 +730,35 @@ function TrailCourseReviewWorkbench({
         t`已确认本节的确切版本。确认不代表安全或符合生成条件。`,
       ));
     } catch (error) {
-      const failure = error instanceof Error ? error.message : l(
-        t`This section could not be confirmed.`,
-        t`无法确认本节。`,
-      );
-      if (preservesPendingTrailEdits(error)) {
+      if (!operationIsCurrent(operation)) return;
+      const failure = error instanceof TrailTransportError
+        ? l(
+          t`The server could not be reached. No confirmation was applied.`,
+          t`无法连接服务器。未应用任何确认。`,
+        )
+        : error instanceof Error ? error.message : l(
+          t`This section could not be confirmed.`,
+          t`无法确认本节。`,
+        );
+      const disposition = classifyTrailMutationFailure(error);
+      if (disposition === 'cancelled') return;
+      if (disposition === 'stale') {
         setOperationError(null);
+      } else if (disposition === 'retryable') {
+        setLatestDraft(null);
+        setStaleConflict(true);
+        setOperationError(failure);
+        setNotice(l(
+          t`The confirmation result is uncertain. Review the latest server version before trying again.`,
+          t`确认结果尚不确定。再次操作前，请先查看最新服务端版本。`,
+        ));
       } else {
+        pendingRef.current = false;
         setOperationError(failure);
         onRejectRemote(failure);
       }
     } finally {
-      endBusy(timer);
+      endBusy(operation);
     }
   }, [
     beginBusy,
@@ -603,6 +770,7 @@ function TrailCourseReviewWorkbench({
     onRejectRemote,
     replaceWithServer,
     serverDraft,
+    operationIsCurrent,
     t,
   ]);
 
@@ -615,23 +783,27 @@ function TrailCourseReviewWorkbench({
     });
 
   const checkReadiness = useCallback(async () => {
-    if (!allConfirmed || pending || busyAction) return;
-    const timer = beginBusy('readiness');
+    if (!allConfirmed || pending || busyAction || activeOperationRef.current) return;
+    const operation = beginBusy('readiness', serverDraft.composite_revision);
+    if (!operation) return;
     setOperationError(null);
     setReceiptTargetError(null);
     setReadiness(null);
     try {
-      const response = await apiFetch(TRAIL_API_ENDPOINTS.readiness, {
+      const response = await requestTrailMutation(apiFetch, TRAIL_API_ENDPOINTS.readiness, {
         method: 'POST',
-      });
+      }, operation.controller.signal);
+      if (!operationIsCurrent(operation)) return;
       if (!response.ok) {
         await handleResponseError(response, l(
           t`Readiness could not be checked.`,
           t`暂时无法检查准备情况。`,
-        ));
+        ), operation);
       }
+      const raw = await response.json() as unknown;
+      if (!operationIsCurrent(operation)) return;
       const payload = parseTrailReadinessResponse(
-        await response.json() as unknown,
+        raw,
         serverDraft.composite_revision,
       );
       if (!payload) {
@@ -640,19 +812,33 @@ function TrailCourseReviewWorkbench({
           t`准备情况响应与已接受的未启用越野合同不一致。未应用任何结果。`,
         ));
       }
+      if (!operationIsCurrent(operation)) return;
       setReadiness(payload.readiness);
       setNotice(l(
         t`Readiness updated for the current confirmed revision.`,
         t`已按当前确认版本更新准备情况。`,
       ));
     } catch (error) {
-      const failure = error instanceof Error ? error.message : l(
-        t`Readiness could not be checked.`,
-        t`暂时无法检查准备情况。`,
-      );
-      setOperationError(preservesPendingTrailEdits(error) ? null : failure);
+      if (!operationIsCurrent(operation)) return;
+      const failure = error instanceof TrailTransportError
+        ? l(
+          t`The server could not be reached. No readiness result was applied.`,
+          t`无法连接服务器。未应用任何准备情况结果。`,
+        )
+        : error instanceof Error ? error.message : l(
+          t`Readiness could not be checked.`,
+          t`暂时无法检查准备情况。`,
+        );
+      const disposition = classifyTrailMutationFailure(error);
+      if (disposition === 'cancelled') return;
+      if (disposition === 'retryable' || disposition === 'stale') {
+        setOperationError(failure);
+      } else {
+        pendingRef.current = false;
+        onRejectRemote(failure);
+      }
     } finally {
-      endBusy(timer);
+      endBusy(operation);
     }
   }, [
     allConfirmed,
@@ -662,34 +848,42 @@ function TrailCourseReviewWorkbench({
     handleResponseError,
     l,
     pending,
+    onRejectRemote,
+    operationIsCurrent,
     serverDraft.composite_revision,
     t,
   ]);
 
   const resetOrDelete = useCallback(async (kind: 'reset' | 'delete') => {
-    const timer = beginBusy(kind);
+    const operation = beginBusy(kind, serverDraft.composite_revision);
+    if (!operation) return;
     setOperationError(null);
     try {
-      const response = await apiFetch(
+      const response = await requestTrailMutation(
+        apiFetch,
         kind === 'reset' ? TRAIL_API_ENDPOINTS.reset : TRAIL_API_ENDPOINTS.draft,
         {
           method: kind === 'reset' ? 'POST' : 'DELETE',
           headers: { 'If-Match': serverDraft.composite_revision },
         },
+        operation.controller.signal,
       );
+      if (!operationIsCurrent(operation)) return;
       if (!response.ok) {
         await handleResponseError(response, l(
           t`The requested Trail data action did not complete.`,
           t`请求的越野数据操作未完成。`,
-        ));
+        ), operation);
       }
       const payload = await response.json() as unknown;
+      if (!operationIsCurrent(operation)) return;
       if (kind === 'reset') {
         const next = currentDraftFromResponse(payload);
         if (!next || next.reset_is_erasure !== false) throw new Error(l(
           t`The reset response was not recognized.`,
           t`无法识别重置响应。`,
         ));
+        if (!operationIsCurrent(operation)) return;
         onReplaceRemote(next);
         replaceWithServer(next);
         setNotice(l(
@@ -704,6 +898,7 @@ function TrailCourseReviewWorkbench({
             t`无法识别删除响应。`,
           ));
         }
+        if (!operationIsCurrent(operation)) return;
         setNotice(deletion.status === 'deleted'
           ? l(
             t`The inactive Trail API reported the Trail draft deleted. Your Praxys account was not deleted.`,
@@ -721,18 +916,35 @@ function TrailCourseReviewWorkbench({
       }
       setDialogAction(null);
     } catch (error) {
-      const failure = error instanceof Error ? error.message : l(
-        t`The requested Trail data action did not complete.`,
-        t`请求的越野数据操作未完成。`,
-      );
-      if (preservesPendingTrailEdits(error)) {
+      if (!operationIsCurrent(operation)) return;
+      const failure = error instanceof TrailTransportError
+        ? l(
+          t`The server could not be reached. No Trail data action was repeated.`,
+          t`无法连接服务器。未重复执行越野数据操作。`,
+        )
+        : error instanceof Error ? error.message : l(
+          t`The requested Trail data action did not complete.`,
+          t`请求的越野数据操作未完成。`,
+        );
+      const disposition = classifyTrailMutationFailure(error);
+      if (disposition === 'cancelled') return;
+      if (disposition === 'stale') {
         setOperationError(null);
+      } else if (disposition === 'retryable') {
+        setLatestDraft(null);
+        setStaleConflict(true);
+        setOperationError(failure);
+        setNotice(l(
+          t`The data action result is uncertain. Review the latest server version before trying another action.`,
+          t`数据操作结果尚不确定。再次操作前，请先查看最新服务端版本。`,
+        ));
       } else {
+        pendingRef.current = false;
         setOperationError(failure);
         onRejectRemote(failure);
       }
     } finally {
-      endBusy(timer);
+      endBusy(operation);
     }
   }, [
     beginBusy,
@@ -743,16 +955,33 @@ function TrailCourseReviewWorkbench({
     onReplaceRemote,
     onClearRemote,
     onRejectRemote,
+    operationIsCurrent,
     replaceWithServer,
     serverDraft.composite_revision,
     t,
   ]);
 
   const restoreAgainstLatest = useCallback(() => {
-    if (!latestDraft || latestDraft.state === 'unknown_schema') return;
+    if (
+      activeOperationRef.current
+      || !latestDraft
+      || latestDraft.state === 'unknown_schema'
+    ) return;
+    const restored = reapplyPendingTrailEdits(
+      serverDraft,
+      request,
+      numericInputs,
+      latestDraft,
+    );
     onReplaceRemote(latestDraft);
     setServerDraft(latestDraft);
+    setRequest(restored.request);
+    setNumericInputs(restored.numericInputs);
+    setDirtySections(restored.dirtySections);
+    setValidationIssues([]);
     remoteRevisionRef.current = latestDraft.composite_revision;
+    editGenerationRef.current += 1;
+    pendingRef.current = restored.dirtySections.size > 0;
     setLatestDraft(null);
     setStaleConflict(false);
     setReadiness(null);
@@ -760,10 +989,22 @@ function TrailCourseReviewWorkbench({
       t`Pending values were reapplied in memory to the latest revision. They have not been saved or confirmed.`,
       t`待保存值已在页面内存中重新应用到最新版本；尚未保存或确认。`,
     ));
-  }, [l, latestDraft, onReplaceRemote, t]);
+  }, [
+    l,
+    latestDraft,
+    numericInputs,
+    onReplaceRemote,
+    request,
+    serverDraft,
+    t,
+  ]);
 
   const discardPending = useCallback(() => {
-    if (!latestDraft || latestDraft.state === 'unknown_schema') return;
+    if (
+      activeOperationRef.current
+      || !latestDraft
+      || latestDraft.state === 'unknown_schema'
+    ) return;
     onReplaceRemote(latestDraft);
     replaceWithServer(latestDraft);
     setNotice(l(
@@ -892,6 +1133,17 @@ function TrailCourseReviewWorkbench({
     };
     return names[issue.id] ?? sectionTitle[issue.section];
   };
+  const validationMessageFor = (controlId: string) => (
+    validationIssues.some((issue) => issue.controlId === controlId)
+      ? copy.fieldError
+      : undefined
+  );
+  const focusValidationIssue = (issue: ValidationIssue) => {
+    openSection(issue.section);
+    requestAnimationFrame(() => {
+      document.getElementById(issue.controlId)?.focus();
+    });
+  };
   const confirmationProps = (sectionKey: TrailEditableSectionKey) => {
     const confirmation = sectionConfirmation(serverDraft, sectionKey);
     return {
@@ -905,6 +1157,34 @@ function TrailCourseReviewWorkbench({
         && (sectionKey !== 'section.optional-context' || optionalOpened),
     };
   };
+  const readinessSummary = (
+    suffix: 'mobile' | 'desktop',
+    className: string,
+  ) => (
+    <section
+      aria-labelledby={`trail-readiness-heading-${suffix}`}
+      className={className}
+    >
+      <h2
+        id={`trail-readiness-heading-${suffix}`}
+        className="text-base font-semibold text-accent-cobalt"
+      >
+        {copy.readinessTitle}
+      </h2>
+      <p className="mt-2 break-words text-sm font-semibold leading-6" aria-live="polite">
+        {readinessHeadline}
+      </p>
+      <Button
+        id={`trail-readiness-action-${suffix}`}
+        type="button"
+        className="mt-4 min-h-11 w-full whitespace-normal motion-reduce:transition-none"
+        disabled={!allConfirmed || pending || busyAction !== null}
+        onClick={() => { void checkReadiness(); }}
+      >
+        {copy.checkReadiness}
+      </Button>
+    </section>
+  );
 
   return (
     <main
@@ -1005,9 +1285,15 @@ function TrailCourseReviewWorkbench({
               type="button"
               variant="outline"
               className="min-h-11"
-              onClick={() => { void onRefetch().catch(() => undefined); }}
+              onClick={() => {
+                if (pendingRef.current || staleConflict) {
+                  void reviewLatest();
+                } else {
+                  void onRefetch().catch(() => undefined);
+                }
+              }}
             >
-              {copy.retry}
+              {pending || staleConflict ? copy.reviewLatest : copy.retry}
             </Button>
           </AlertDescription>
         </Alert>
@@ -1026,7 +1312,7 @@ function TrailCourseReviewWorkbench({
                     type="button"
                     variant="link"
                     className="h-auto min-h-11 max-w-full justify-start whitespace-normal px-0 text-left text-destructive"
-                    onClick={() => { void handleSpecialTarget(issue.target); }}
+                    onClick={() => focusValidationIssue(issue)}
                   >
                     {validationLabel(issue)} — {copy.fieldError}
                   </Button>
@@ -1070,7 +1356,16 @@ function TrailCourseReviewWorkbench({
       ) : null}
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:items-start">
-        <div className="order-2 min-w-0 lg:order-1">
+        {readinessSummary(
+          'mobile',
+          'min-w-0 border border-border bg-card p-4 lg:hidden',
+        )}
+        <div className="min-w-0">
+          <fieldset
+            disabled={busyAction !== null}
+            aria-busy={busyAction !== null}
+            className="contents"
+          >
           <SectionShell
             sectionKey="section.event-duration"
             title={copy.eventSection}
@@ -1094,6 +1389,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-event-date"
               label={copy.eventDate}
+              invalidMessage={validationMessageFor('trail-event-date')}
               meta={provenanceMeta(
                 currentFields?.event_date as TrailServerEnvelope<unknown> | null,
                 provenanceLabels,
@@ -1126,6 +1422,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-race-distance"
               label={copy.raceDistance}
+              invalidMessage={validationMessageFor('trail-race-distance')}
               meta={provenanceMeta(
                 currentFields?.distance_meters as TrailServerEnvelope<unknown> | null,
                 provenanceLabels,
@@ -1149,6 +1446,7 @@ function TrailCourseReviewWorkbench({
               <FieldShell
                 id="trail-total-ascent"
                 label={copy.totalAscent}
+                invalidMessage={validationMessageFor('trail-total-ascent')}
                 meta={provenanceMeta(
                   currentFields?.total_ascent_m as TrailServerEnvelope<unknown> | null,
                   provenanceLabels,
@@ -1171,6 +1469,7 @@ function TrailCourseReviewWorkbench({
               <FieldShell
                 id="trail-total-descent"
                 label={copy.totalDescent}
+                invalidMessage={validationMessageFor('trail-total-descent')}
                 meta={provenanceMeta(
                   currentFields?.total_descent_m as TrailServerEnvelope<unknown> | null,
                   provenanceLabels,
@@ -1194,6 +1493,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-planning-minimum"
               label={copy.planningMinimum}
+              invalidMessage={validationMessageFor('trail-planning-minimum')}
               description={copy.planningHelp}
               meta={provenanceMeta(
                 currentFields?.planning_duration_range as TrailServerEnvelope<unknown> | null,
@@ -1212,7 +1512,14 @@ function TrailCourseReviewWorkbench({
                 onHoursChange={(value) => updateNumeric('planningMinimumHours', value, 'section.event-duration')}
                 onMinutesChange={(value) => updateNumeric('planningMinimumMinutes', value, 'section.event-duration')}
                 onUnknownChange={(value) => {
-                  if (value) updateCourse('planning_duration_range', unknown(), 'section.event-duration');
+                  if (!value || activeOperationRef.current) return;
+                  setNumericInputs(clearPlanningDurationNumericInputs);
+                  setRequest((current) => replaceCourseField(
+                    current,
+                    'planning_duration_range',
+                    unknown(),
+                  ));
+                  invalidateReadiness('section.event-duration');
                 }}
               />
             </FieldShell>
@@ -1228,7 +1535,14 @@ function TrailCourseReviewWorkbench({
                 onHoursChange={(value) => updateNumeric('planningMaximumHours', value, 'section.event-duration')}
                 onMinutesChange={(value) => updateNumeric('planningMaximumMinutes', value, 'section.event-duration')}
                 onUnknownChange={(value) => {
-                  if (value) updateCourse('planning_duration_range', unknown(), 'section.event-duration');
+                  if (!value || activeOperationRef.current) return;
+                  setNumericInputs(clearPlanningDurationNumericInputs);
+                  setRequest((current) => replaceCourseField(
+                    current,
+                    'planning_duration_range',
+                    unknown(),
+                  ));
+                  invalidateReadiness('section.event-duration');
                 }}
               />
             </FieldShell>
@@ -1293,6 +1607,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-grade-below-neg-10"
               label={copy.gradeDistribution}
+              invalidMessage={validationMessageFor('trail-grade-below_neg_10')}
               description={copy.gradeExplanation}
               meta={provenanceMeta(
                 currentFields?.grade_distribution as TrailServerEnvelope<unknown> | null,
@@ -1363,6 +1678,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-course-footing"
               label={copy.footing}
+              invalidMessage={validationMessageFor('trail-course-footing')}
               meta={provenanceMeta(
                 currentFields?.course_footing as TrailServerEnvelope<unknown> | null,
                 provenanceLabels,
@@ -1420,6 +1736,7 @@ function TrailCourseReviewWorkbench({
             <FieldShell
               id="trail-available-days"
               label={copy.availableDays}
+              invalidMessage={validationMessageFor('trail-available-days')}
               meta={provenanceMeta(
                 currentConstraints?.available_weekdays as TrailServerEnvelope<unknown> | null,
                 provenanceLabels,
@@ -1434,7 +1751,11 @@ function TrailCourseReviewWorkbench({
                 onChange={(value) => updateConstraint('available_weekdays', value)}
               />
             </FieldShell>
-            <FieldShell id="trail-weekly-time" label={copy.weeklyTime}>
+            <FieldShell
+              id="trail-weekly-time"
+              label={copy.weeklyTime}
+              invalidMessage={validationMessageFor('trail-weekly-time')}
+            >
               <DurationEditor
                 id="trail-weekly-time"
                 unknown={request.constraints.weekly_time_limit_min.state === 'unknown'}
@@ -1450,7 +1771,11 @@ function TrailCourseReviewWorkbench({
                 }}
               />
             </FieldShell>
-            <FieldShell id="trail-session-time" label={copy.longestSession}>
+            <FieldShell
+              id="trail-session-time"
+              label={copy.longestSession}
+              invalidMessage={validationMessageFor('trail-session-time')}
+            >
               <DurationEditor
                 id="trail-session-time"
                 unknown={request.constraints.maximum_session_duration_min.state === 'unknown'}
@@ -1562,12 +1887,17 @@ function TrailCourseReviewWorkbench({
                 </div>
               </div>
             </FieldShell>
-            <FieldShell id="trail-preferred-day" label={copy.preferredDay}>
+            <FieldShell
+              id="trail-preferred-day"
+              label={copy.preferredDay}
+              invalidMessage={validationMessageFor('trail-preferred-day')}
+            >
               <Select
                 value={request.constraints.preferred_longest_weekday === undefined
                   ? 'none'
                   : String(request.constraints.preferred_longest_weekday)}
                 onValueChange={(value) => {
+                  if (activeOperationRef.current) return;
                   setRequest((current) => {
                     const next = { ...current, constraints: { ...current.constraints } };
                     if (value === 'none' || value === null) {
@@ -1613,7 +1943,11 @@ function TrailCourseReviewWorkbench({
                 onChange={(value) => updateConstraint('controlled_downhill_access', value)}
               />
             </FieldShell>
-            <FieldShell id="trail-training-footing" label={copy.trainingFooting}>
+            <FieldShell
+              id="trail-training-footing"
+              label={copy.trainingFooting}
+              invalidMessage={validationMessageFor('trail-training-footing')}
+            >
               <MultiSelectEditor
                 id="trail-training-footing"
                 envelope={request.constraints.accessible_footing}
@@ -1754,7 +2088,9 @@ function TrailCourseReviewWorkbench({
                 <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{copy.historyComparisonHelp}</p>
                 <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <dt className="text-xs text-muted-foreground">{copy.weeklyTime}</dt>
+                    <dt className="text-xs text-muted-foreground">
+                      {copy.requested}: {copy.weeklyTime}
+                    </dt>
                     <dd className="font-data text-sm">
                       {request.constraints.weekly_time_limit_min.state === 'known'
                         ? `${numericInputs.weeklyHours} h ${numericInputs.weeklyMinutes} min`
@@ -1762,11 +2098,33 @@ function TrailCourseReviewWorkbench({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">{copy.longestSession}</dt>
+                    <dt className="text-xs text-muted-foreground">
+                      {copy.fromHistory}: {copy.weeklyTime}
+                    </dt>
+                    <dd className="font-data text-sm">
+                      {history
+                        ? `${history.recent_median_usable_weekly_minutes}–${history.recent_maximum_usable_weekly_minutes} min`
+                        : copy.notEvaluated}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      {copy.requested}: {copy.longestSession}
+                    </dt>
                     <dd className="font-data text-sm">
                       {request.constraints.maximum_session_duration_min.state === 'known'
                         ? `${numericInputs.sessionHours} h ${numericInputs.sessionMinutes} min`
                         : copy.unknown}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      {copy.fromHistory}: {copy.longestSession}
+                    </dt>
+                    <dd className="font-data text-sm">
+                      {history
+                        ? `${history.recent_maximum_session_minutes} min`
+                        : copy.notEvaluated}
                     </dd>
                   </div>
                 </dl>
@@ -1797,14 +2155,23 @@ function TrailCourseReviewWorkbench({
                   variant="outline"
                   className="min-h-11 whitespace-normal"
                   onClick={() => {
+                    if (activeOperationRef.current) return;
                     setRequest((current) => setOptionalGroupUnknown(current, 'environment'));
+                    setNumericInputs((current) => clearOptionalGroupNumericInputs(
+                      current,
+                      'environment',
+                    ));
                     invalidateReadiness('section.optional-context');
                   }}
                 >
                   {copy.setGroupUnknown}
                 </Button>
               </div>
-              <FieldShell id="trail-maximum-altitude" label={copy.maximumAltitude}>
+              <FieldShell
+                id="trail-maximum-altitude"
+                label={copy.maximumAltitude}
+                invalidMessage={validationMessageFor('trail-maximum-altitude')}
+              >
                 <NumberEditor
                   id="trail-maximum-altitude"
                   value={numericInputs.maximumAltitudeM}
@@ -1818,7 +2185,14 @@ function TrailCourseReviewWorkbench({
                   }}
                 />
               </FieldShell>
-              <FieldShell id="trail-temperature-minimum" label={copy.temperatureRange}>
+              <FieldShell
+                id="trail-temperature-minimum"
+                label={copy.temperatureRange}
+                invalidMessage={
+                  validationMessageFor('trail-temperature-minimum')
+                  ?? validationMessageFor('trail-temperature-maximum')
+                }
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="trail-temperature-minimum">{copy.minimumTemperature}</Label>
@@ -1852,7 +2226,14 @@ function TrailCourseReviewWorkbench({
                   </div>
                 </div>
               </FieldShell>
-              <FieldShell id="trail-humidity-minimum" label={copy.humidityRange}>
+              <FieldShell
+                id="trail-humidity-minimum"
+                label={copy.humidityRange}
+                invalidMessage={
+                  validationMessageFor('trail-humidity-minimum')
+                  ?? validationMessageFor('trail-humidity-maximum')
+                }
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="trail-humidity-minimum">{copy.minimumHumidity}</Label>
@@ -1933,7 +2314,12 @@ function TrailCourseReviewWorkbench({
                   variant="outline"
                   className="min-h-11 whitespace-normal"
                   onClick={() => {
+                    if (activeOperationRef.current) return;
                     setRequest((current) => setOptionalGroupUnknown(current, 'support'));
+                    setNumericInputs((current) => clearOptionalGroupNumericInputs(
+                      current,
+                      'support',
+                    ));
                     invalidateReadiness('section.optional-context');
                   }}
                 >
@@ -1950,7 +2336,11 @@ function TrailCourseReviewWorkbench({
                   onChange={(value) => updateOptional('support', 'aid_support_mode', value)}
                 />
               </FieldShell>
-              <FieldShell id="trail-aid-count" label={copy.aidCount}>
+              <FieldShell
+                id="trail-aid-count"
+                label={copy.aidCount}
+                invalidMessage={validationMessageFor('trail-aid-count')}
+              >
                 <NumberEditor
                   id="trail-aid-count"
                   value={numericInputs.aidStationCount}
@@ -1963,7 +2353,11 @@ function TrailCourseReviewWorkbench({
                   }}
                 />
               </FieldShell>
-              <FieldShell id="trail-aid-gap" label={copy.aidGap}>
+              <FieldShell
+                id="trail-aid-gap"
+                label={copy.aidGap}
+                invalidMessage={validationMessageFor('trail-aid-gap')}
+              >
                 <div className="space-y-2">
                   <div className="flex max-w-sm items-center gap-2">
                     <Input
@@ -2050,14 +2444,23 @@ function TrailCourseReviewWorkbench({
                   variant="outline"
                   className="min-h-11 whitespace-normal"
                   onClick={() => {
+                    if (activeOperationRef.current) return;
                     setRequest((current) => setOptionalGroupUnknown(current, 'fueling'));
+                    setNumericInputs((current) => clearOptionalGroupNumericInputs(
+                      current,
+                      'fueling',
+                    ));
                     invalidateReadiness('section.optional-context');
                   }}
                 >
                   {copy.setGroupUnknown}
                 </Button>
               </div>
-              <FieldShell id="trail-fueling-duration" label={copy.fuelingDuration}>
+              <FieldShell
+                id="trail-fueling-duration"
+                label={copy.fuelingDuration}
+                invalidMessage={validationMessageFor('trail-fueling-duration')}
+              >
                 <DurationEditor
                   id="trail-fueling-duration"
                   unknown={request.course_demand.fields.optional_context.fueling.longest_practiced_duration_min.state === 'unknown'}
@@ -2073,7 +2476,11 @@ function TrailCourseReviewWorkbench({
                   }}
                 />
               </FieldShell>
-              <FieldShell id="trail-fueling-sessions" label={copy.fuelingSessions}>
+              <FieldShell
+                id="trail-fueling-sessions"
+                label={copy.fuelingSessions}
+                invalidMessage={validationMessageFor('trail-fueling-sessions')}
+              >
                 <NumberEditor
                   id="trail-fueling-sessions"
                   value={numericInputs.fuelingSessions}
@@ -2148,31 +2555,19 @@ function TrailCourseReviewWorkbench({
               {copy.saveLeave}
             </Button>
           </div>
+          </fieldset>
         </div>
 
         <aside
           id="trail-policy-receipt"
           tabIndex={-1}
-          aria-labelledby="trail-readiness-heading"
-          className="order-1 min-w-0 border border-border bg-card p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring lg:order-2 lg:sticky lg:top-6 lg:self-start"
+          aria-label={copy.readinessTitle}
+          className="min-w-0 border border-border bg-card p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring lg:sticky lg:top-6 lg:self-start"
         >
-          <div className="border-b border-border pb-4">
-            <h2 id="trail-readiness-heading" className="text-base font-semibold text-accent-cobalt">
-              {copy.readinessTitle}
-            </h2>
-            <p className="mt-2 break-words text-sm font-semibold leading-6" aria-live="polite">
-              {readinessHeadline}
-            </p>
-            <Button
-              id="trail-readiness-action"
-              type="button"
-              className="mt-4 min-h-11 w-full whitespace-normal motion-reduce:transition-none"
-              disabled={!allConfirmed || pending || busyAction !== null}
-              onClick={() => { void checkReadiness(); }}
-            >
-              {copy.checkReadiness}
-            </Button>
-          </div>
+          {readinessSummary(
+            'desktop',
+            'hidden border-b border-border pb-4 lg:block',
+          )}
 
           <section aria-labelledby="trail-modules-heading" className="border-b border-border py-4">
             <h3 id="trail-modules-heading" className="text-sm font-semibold text-accent-cobalt">
@@ -2281,7 +2676,10 @@ function TrailCourseReviewWorkbench({
         open={dialogAction !== null}
         onOpenChange={(open) => { if (!open) setDialogAction(null); }}
       >
-        <DialogContent className="motion-reduce:animate-none sm:max-w-lg">
+        <DialogContent
+          closeLabel={isZh ? t`关闭` : t`Close`}
+          className="motion-reduce:animate-none sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle>
               {dialogAction === 'reset' ? copy.resetTitle : copy.deleteTitle}

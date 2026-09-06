@@ -5,9 +5,9 @@
 export interface LegalText { en: string; zh: string; }
 export interface LegalSection { id: string; title: LegalText; body: LegalText[]; }
 
-export const TERMS_VERSION = "2026.08.5";
-export const TERMS_CONTENT_DIGEST = "sha256:57cca8f824f6e803a3df9b1de45d76cfc21fb750483e61281e7c4ff495ae218e";
-export const EFFECTIVE_DATE = "2026-08-31";
+export const TERMS_VERSION = "2026.09.1";
+export const TERMS_CONTENT_DIGEST = "sha256:0fc1448a81e97b5ea0d1fdc9ed831b72d49e0dfae851ff731cfdbe12a8b11805";
+export const EFFECTIVE_DATE = "2026-09-04";
 export const SUPPORT_EMAIL = "support@praxys.run";
 export const OPERATOR_NAME = "Fei Tao";
 export const JURISDICTION = "the People’s Republic of China";
@@ -191,8 +191,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         "zh": "我们不出售个人信息，不将其用于广告，也不会把计划个性化信息放入浏览器分析、公开问题追踪、评估语料或跨用户模型训练。praxys.cn 使用经最小化的 Application Insights 性能与请求遥测及白名单产品事件；URL 查询参数和片段会被移除，浏览器异常采集会被关闭，且不会有意发送邮箱、原始账号标识、训练内容、计划个性化信息或反馈原文。浏览器 Statsig 仍保持关闭。"
       },
       {
-        "en": "Azure AI may privately classify support feedback text and screenshots under this Agreement. Publishing feedback to an external issue tracker is separate and occurs only when you give the exact per-submission publication permission shown with the feedback form. Accepting these Terms does not grant publication permission, and screenshots remain private.",
-        "zh": "Azure AI 可依据本协议对支持反馈文本和截图进行私密分类。将反馈发布到外部问题追踪器属于独立处理，只有在您通过反馈表单针对该次提交明确授权时才会发生。接受本条款不构成发布授权，截图始终保持私密。"
+        "en": "Azure AI may privately classify support feedback text and screenshots under this Agreement. Public feedback publication is separate and occurs only when you give the exact per-submission permission shown with the feedback form and the server's safety controls allow it. Praxys may then publish only a scrubbed text summary as a public issue in github.com/praxys-run/praxys. Anyone may view that summary; GitHub is outside mainland China, and public issues may be retained long term. Screenshots are never published. Accepting these Terms or an admin action does not grant publication permission.",
+        "zh": "Azure AI 可依据本协议对支持反馈文本和截图进行私密分类。公开发布反馈属于独立处理，只有在您通过反馈表单针对该次提交作出明确授权，且服务端安全控制允许时才会发生。届时，Praxys 仅可将去除个人信息后的文字摘要作为公开 issue 发布到 github.com/praxys-run/praxys。任何人都可查看该摘要；GitHub 位于中国大陆境外，公开 issue 可能被长期保留。截图绝不会发布。接受本条款或管理员操作均不构成发布授权。"
       }
     ]
   },
@@ -226,6 +226,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       {
         "en": "Mainland processors: Tencent Cloud EdgeOne serves the static praxys.cn frontend; WeChat processes login codes and identifiers used for mini-program authentication; and Tencent Exmail processes destination addresses and message content for requested verification or service email. These services do not receive the authenticated training dataset from Praxys except for the minimum information needed for their stated function.",
         "zh": "境内受托处理方：腾讯云 EdgeOne 提供 praxys.cn 静态前端；微信处理小程序认证所需的登录码和标识；腾讯企业邮箱处理所请求验证或服务邮件的收件地址与邮件内容。除完成各自明确功能所需的最少信息外，这些服务不从 Praxys 接收已认证训练数据集。"
+      },
+      {
+        "en": "Optional public feedback recipient: GitHub, Inc. and its published service providers process the scrubbed text summary outside mainland China only after the exact per-submission publication permission. The destination is the public repository github.com/praxys-run/praxys, where anyone may view and copy the issue. Public issues may be retained long term and may remain in forks, caches, or third-party copies after an account or private feedback record is deleted. Screenshots, raw feedback, diagnostics, and account identity are not published.",
+        "zh": "可选的公开反馈接收方：仅在取得针对该次提交的明确发布授权后，GitHub, Inc. 及其公开列明的服务提供商才会在中国大陆境外处理去除个人信息后的文字摘要。发布目的地为公开仓库 github.com/praxys-run/praxys，任何人均可查看和复制该 issue。公开 issue 可能被长期保留；即使删除账号或私密反馈记录，相关内容仍可能留存在 fork、缓存或第三方副本中。截图、反馈原文、诊断信息和账号身份均不会发布。"
       },
       {
         "en": "Legal basis and necessity for mainland China users: Praxys determines that this core overseas processing is strictly necessary to enter into and perform the service contract requested by the individual. It relies on Article 13(1)(2) of the Personal Information Protection Law and the contract-necessity exemption in Article 5(1) of the 2024 Provisions on Promoting and Regulating Cross-Border Data Flows, rather than consent, for the core path. You may stop future core processing by disconnecting providers and deleting the account, but Praxys cannot provide the corresponding account, sync, or training features without the necessary data.",
@@ -279,8 +283,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     },
     "body": [
       {
-        "en": "Core account and training data is kept while the account is active and deleted from active systems when you delete the account. Encrypted PostgreSQL point-in-time recovery backups may retain a recoverable copy for up to 14 days; a restore may require operator reconciliation before traffic reopens. Deletion records, security logs, and legally required records may remain for their bounded purpose. Optional private-context notes follow the shorter periods shown in the product. Browser and backend Application Insights data is retained for 30 days. Praxys keeps the personal-information protection impact assessment and processing record for at least three years.",
-        "zh": "核心账号和训练数据在账号有效期间保存，并在您删除账号时从活动系统中清除。加密的 PostgreSQL 时间点恢复备份可能在最长 14 天内保留可恢复副本；发生恢复时，运营者可能需要在重新开放流量前执行删除对账。删除记录、安全日志及依法必须保存的记录可在限定用途和期限内保留。可选计划个性化备注遵循产品中显示的更短期限。浏览器与后端 Application Insights 数据保留 30 天。Praxys 对个人信息保护影响评估和处理情况记录至少保存三年。"
+        "en": "Core account and training data is kept while the account is active and deleted from active systems when you delete the account. Encrypted PostgreSQL point-in-time recovery backups may retain a recoverable copy for up to 14 days; a restore may require operator reconciliation before traffic reopens. Deletion records, security logs, and legally required records may remain for their bounded purpose. Optional private-context notes follow the shorter periods shown in the product. Browser and backend Application Insights data is retained for 30 days. Praxys keeps the personal-information protection impact assessment and processing record for at least three years. A public GitHub issue authorized for one feedback submission may be retained long term and is outside Praxys's private-data deletion path.",
+        "zh": "核心账号和训练数据在账号有效期间保存，并在您删除账号时从活动系统中清除。加密的 PostgreSQL 时间点恢复备份可能在最长 14 天内保留可恢复副本；发生恢复时，运营者可能需要在重新开放流量前执行删除对账。删除记录、安全日志及依法必须保存的记录可在限定用途和期限内保留。可选计划个性化备注遵循产品中显示的更短期限。浏览器与后端 Application Insights 数据保留 30 天。Praxys 对个人信息保护影响评估和处理情况记录至少保存三年。针对某次反馈授权创建的公开 GitHub issue 可能被长期保留，且不属于 Praxys 私密数据删除链路。"
       }
     ]
   },

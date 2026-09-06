@@ -12,16 +12,22 @@ Non-obvious traps this codebase has hit in production. The severe, always-releva
 - The Settings page shows region read-only. To change region, the user disconnects and reconnects with the other account's credentials.
 - If these two values drift (old bug: an editable region toggle in Settings updated `source_options` but not `is_cn`), the sync client hits the wrong SSO domain and Garmin rate-limits the account with 429s.
 
-### ConnectIQ field 10 is Stryd's convention, not a standard
+### ConnectIQ field numbers require an app identity
 
-Garmin lap DTOs expose a `connectIQMeasurement` array. Each entry has `developerFieldNumber`, `developerFieldName`, and `value`. **Field number 10 is Stryd's convention for power** — but any CIQ app can register a field with number 10 for anything (e.g., Leg Spring Stiffness). `parse_splits` in `sync/garmin_sync.py` checks `developerFieldName` before accepting a field-10 value as power.
+Garmin's JSON identifies ConnectIQ data with `appID` and an app-scoped
+`developerFieldNumber`; real split/detail payloads do not reliably include a
+developer field name. Praxys accepts only the observed Stryd identities:
 
-Priority order in `parse_splits`:
-1. Native `lap.averagePower` — present on modern Garmin watches (Fenix 6+, FR 255+/955+/965, Epix) and when HRM-Pro / Stryd pod is paired via ANT+.
-2. ConnectIQ field 10 with a name that contains "power" (or no name — Stryd's historical payload).
-3. Otherwise empty.
+- legacy Stryd app `660a581e-5301-460c-8f2f-034c8b6dc90f`: record field 0 is
+  power; lap payloads have no power aggregate;
+- Stryd Power Zone `18fb2cf0-1a4b-430d-ad66-988c847421f4`: record field 0 is
+  power and lap field 10 is Lap Power.
 
-Same priority applies to activity-level `averagePower` / `maxPower` in `parse_activities`.
+`parse_splits` prefers native `lap.averagePower`, then the exact Power Zone lap
+field, then averages recognized record power within the lap's GMT boundary.
+An unknown app using field 10 (or claiming a Stryd-like display name) is not
+power evidence. Activity-list native power is `avgPower` / `maxPower`;
+`averagePower` remains a compatibility fallback for detailed summaries.
 
 ### Garmin CN still needs one workaround in the 0.3.x library
 

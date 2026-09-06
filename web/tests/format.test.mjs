@@ -35,5 +35,8 @@ test('feedback decision records wrap within their table cell', async () => {
     'utf8',
   );
 
-  assert.match(source, /<TableCell className="min-w-\[290px\] whitespace-normal">/);
+  assert.match(
+    source,
+    /<TableCell className="min-w-\[290px\] align-top whitespace-normal">/,
+  );
 });

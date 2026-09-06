@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   parseTrailDeleteResponse,
   parseTrailDraftResponse,
 } from './validation';
+import { requestTrailMutation } from './mutation-error';
 
 export function TrailCourseReviewSkeleton() {
   const { i18n, t } = useLingui();
@@ -117,22 +118,40 @@ export function TrailUnknownVersion({
   const [dialog, setDialog] = useState<'reset' | 'delete' | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestRef.current?.abort();
+      requestRef.current = null;
+    };
+  }, []);
 
   const mutate = async (kind: 'reset' | 'delete') => {
+    if (requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setBusy(true);
     setMessage(null);
     try {
-      const response = await apiFetch(
+      const response = await requestTrailMutation(
+        apiFetch,
         kind === 'reset' ? TRAIL_API_ENDPOINTS.reset : TRAIL_API_ENDPOINTS.draft,
         {
           method: kind === 'reset' ? 'POST' : 'DELETE',
           headers: { 'If-Match': draft.composite_revision },
         },
+        controller.signal,
       );
+      if (!mountedRef.current || requestRef.current !== controller) return;
       if (!response.ok) {
         throw new Error(await extractErrorMessage(response, 'Request failed.'));
       }
       const payload = await response.json() as unknown;
+      if (!mountedRef.current || requestRef.current !== controller) return;
       if (kind === 'delete') {
         if (!parseTrailDeleteResponse(payload)) {
           throw new Error('The Trail deletion response was not recognized.');
@@ -147,6 +166,7 @@ export function TrailUnknownVersion({
       onClearData();
       await onReload();
     } catch (error) {
+      if (!mountedRef.current || requestRef.current !== controller) return;
       const failure = error instanceof Error
         ? error.message
         : isZh
@@ -155,7 +175,10 @@ export function TrailUnknownVersion({
       setMessage(failure);
       onRejectData(failure);
     } finally {
-      setBusy(false);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        if (mountedRef.current) setBusy(false);
+      }
     }
   };
 
@@ -193,7 +216,10 @@ export function TrailUnknownVersion({
         {message}
       </p>
       <Dialog open={dialog !== null} onOpenChange={(open) => { if (!open) setDialog(null); }}>
-        <DialogContent className="motion-reduce:animate-none sm:max-w-lg">
+        <DialogContent
+          closeLabel={isZh ? t`关闭` : t`Close`}
+          className="motion-reduce:animate-none sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle>
               {dialog === 'reset'

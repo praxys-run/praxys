@@ -4,6 +4,7 @@ The on-disk SQLite filename is still `trainsight.db` — we keep the legacy
 filename to avoid user-data migration risk. Only the codebase-level brand
 references have been renamed.
 """
+import secrets
 from datetime import date, datetime
 from uuid import uuid4
 
@@ -25,6 +26,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     event,
+    inspect as sa_inspect,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -280,8 +282,9 @@ class ActivitySample(Base):
 
     One row per second per activity. Columns cover the union of all connector
     field sets; connector-specific fields are NULL for other sources. The
-    unique constraint on (user_id, activity_id, t_sec) makes re-syncs idempotent —
-    duplicate writes are silently ignored via INSERT OR IGNORE.
+    unique constraint on (user_id, activity_id, t_sec) makes re-syncs idempotent.
+    Conflicts fill power and its source only when stored power is NULL;
+    existing watts remain authoritative.
 
     Storage estimate: ~3,600 rows/hour of running. At SQLite scale for
     personal use this is negligible; multi-user growth is managed by the
@@ -2439,12 +2442,11 @@ class Feedback(Base):
 
     Canonical store for the in-app "Send feedback" entrance (web + mini
     program). The raw ``message`` is kept here (private, server-side only) so
-    a human/admin can always see exactly what the user wrote. A background
-    triage step (:mod:`api.feedback_triage`) then PII-scrubs + classifies the
-    submission and — when GitHub is configured — opens an issue in the
-    operator-chosen triage repo so an agent can pick it up. The scrubbed
-    title/body that actually left the system are stored in ``ai_title`` /
-    ``ai_body`` for auditability (what did we publish about this user?).
+    a human/admin can review what the user wrote while the account exists. A
+    background triage step (:mod:`api.feedback_triage`) PII-scrubs and
+    classifies the submission, then atomically enqueues an eligible v2 grant
+    for the fixed public repository. The scrubbed candidate title/body stay on
+    this private row and are erased with the account.
 
     Mirrors the WaitlistSignup pattern: store locally first so a lead/report
     survives even if the downstream (GitHub, support inbox) is unavailable.
@@ -2453,9 +2455,9 @@ class Feedback(Base):
     __tablename__ = "feedback"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # Nullable + SET NULL on delete: a deleted user shouldn't cascade-delete
-    # the feedback (it's operationally useful history), but we also don't want
-    # a dangling FK. The submitter is always set at creation time.
+    # Nullable + SET NULL is a database safety net. The account-deletion flow
+    # explicitly deletes this private content and detaches any metadata-only
+    # publication evidence before deleting the user.
     user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     # bug | feature | other — validated at the route layer (Literal), stored
     # as a stable English string the frontend maps to a localized label.
@@ -2469,8 +2471,8 @@ class Feedback(Base):
     context_json = Column(JSON, nullable=True)
     locale = Column(String(10), nullable=True)
     # Explicit, purpose-specific submitter grant for publishing this one
-    # scrubbed submission to the configured external issue tracker. Legacy
-    # rows and ordinary private feedback leave both fields NULL.
+    # scrubbed submission to the fixed public GitHub repository. Legacy rows
+    # and ordinary private feedback leave both fields NULL.
     publication_consent_version = Column(String(64), nullable=True)
     publication_consented_at = Column(DateTime, nullable=True)
     # new | triaged | needs_review | issue_created | resolved | failed | rejected
@@ -2488,6 +2490,12 @@ class Feedback(Base):
     priority = Column(String(10), nullable=True)
     github_issue_number = Column(Integer, nullable=True)
     github_issue_url = Column(String(500), nullable=True)
+    # Server-authoritative public-delivery result for this submission. This is
+    # independent from ``status`` (private triage / issue lifecycle) so clients
+    # never infer publication from a background-task or transport response.
+    publication_status = Column(
+        String(24), nullable=False, default="private", index=True
+    )
     # Last triage/publish error (truncated) so admins can see why a row is
     # stuck in "failed" without digging through server logs.
     error = Column(String(500), nullable=True)
@@ -2497,17 +2505,287 @@ class Feedback(Base):
     # only the key lives here (Azure Blob now, Tencent COS later). See
     # api/feedback_storage.py. A list of 0-3 keys, or NULL when none attached.
     image_keys = Column(JSON, nullable=True)
+    # Versioned, non-secret write-time storage namespace for ``image_keys``.
+    # Existing rows may be NULL; when keys are present a missing or mismatched
+    # provenance fails closed for reads and account deletion rather than
+    # guessing from the process's current storage configuration.
+    image_storage_provenance = Column(JSON, nullable=True)
     # Vision-LLM-derived, PII-scrubbed textual description of the screenshot(s)
-    # (UI state, visible error text). This is the ONLY image-derived text that
-    # may be published to a (public) issue — never the image itself.
+    # (UI state, visible error text). It remains private/admin-only and is never
+    # copied into a public issue.
     image_description = Column(Text, nullable=True)
     # Vision sensitivity verdict feeding the same gate as the text path: True =
     # the model saw faces / emails / names / health-or-performance data. NULL =
-    # not yet analysed (or no vision model), which the gate treats as "unsafe
-    # to auto-publish" and parks for admin review.
+    # not yet analysed (or no vision model), which parks screenshot-bearing
+    # feedback for admin review even though image-derived text stays private.
     image_sensitive = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class FeedbackPublicationOutbox(Base):
+    """Metadata-only durable delivery state for one feedback publication.
+
+    The private title/body, diagnostics, screenshot keys/descriptions, and
+    submitter identity deliberately remain on :class:`Feedback` only while the
+    account exists. Account deletion removes that private row and detaches this
+    marker/digest evidence. A worker reconstructs and re-scrubs the payload
+    immediately before delivery and proves that its digest still matches this
+    row.
+    """
+
+    __tablename__ = "feedback_publication_outbox"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('pending', 'sending', 'retry_wait', 'reconciling', "
+            "'published', 'manual_review', 'held', 'cancelled')",
+            name="ck_feedback_publication_outbox_state",
+        ),
+        CheckConstraint(
+            "delivery_evidence IN ('not_sent', 'ambiguous', 'published')",
+            name="ck_feedback_publication_outbox_delivery_evidence",
+        ),
+        CheckConstraint(
+            "((marker_version = 'legacy' AND state = 'published' AND "
+            "delivery_evidence = 'published' AND consent_version IS NULL AND "
+            "consented_at IS NULL AND payload_sha256 IS NULL AND "
+            "public_content_sha256 IS NULL) OR "
+            "(marker_version = 'v2' AND consent_version IS NOT NULL AND "
+            "consented_at IS NOT NULL AND payload_sha256 LIKE 'sha256:%' AND "
+            "public_content_sha256 LIKE 'sha256:%') OR "
+            "(marker_version = 'v1' AND state IN ('manual_review', "
+            "'cancelled', 'published') AND consent_version IS NOT NULL AND "
+            "consented_at IS NOT NULL AND payload_sha256 LIKE 'sha256:%' AND "
+            "public_content_sha256 IS NULL))",
+            name="ck_feedback_publication_outbox_binding_shape",
+        ),
+        CheckConstraint(
+            "((state = 'published' AND delivery_evidence = 'published') OR "
+            "(state != 'published' AND delivery_evidence != 'published'))",
+            name="ck_feedback_publication_outbox_published_evidence",
+        ),
+        Index(
+            "uq_feedback_publication_repo_issue_current",
+            "target_repo",
+            "github_issue_number",
+            unique=True,
+            sqlite_where=text(
+                "marker_version != 'legacy' AND github_issue_number IS NOT NULL"
+            ),
+            postgresql_where=text(
+                "marker_version != 'legacy' AND github_issue_number IS NOT NULL"
+            ),
+        ),
+        Index(
+            "ix_feedback_publication_claim",
+            "state",
+            "available_at",
+        ),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    feedback_id = Column(
+        Integer,
+        ForeignKey("feedback.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    # Opaque CSPRNG publication identifier. It is intentionally unrelated to
+    # the feedback id, submitter, timestamps, or content.
+    public_id = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        default=lambda: secrets.token_hex(16),
+    )
+    marker_version = Column(String(12), nullable=False, default="v2")
+    target_repo = Column(String(200), nullable=False)
+    # These four fields are required for current v2 delivery rows. A migrated
+    # legacy issue is tracking-only and deliberately carries no synthetic
+    # consent or payload/content digest; the binding-shape constraint enforces
+    # that split at the database boundary.
+    consent_version = Column(String(64), nullable=True)
+    consented_at = Column(DateTime, nullable=True)
+    payload_sha256 = Column(String(71), nullable=True)
+    public_content_sha256 = Column(String(71), nullable=True)
+    state = Column(String(24), nullable=False, default="pending")
+    # Aggregate external-delivery evidence. It is set to ``ambiguous`` before
+    # provider I/O and may return to ``not_sent`` only when the exact attempt is
+    # conclusively known not to have sent; published evidence is terminal.
+    delivery_evidence = Column(String(16), nullable=False, default="not_sent")
+    attempt_count = Column(Integer, nullable=False, default=0)
+    reconcile_count = Column(Integer, nullable=False, default=0)
+    available_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    lease_token = Column(String(36), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    github_issue_number = Column(Integer, nullable=True)
+    github_issue_url = Column(String(500), nullable=True)
+    last_error_code = Column(String(80), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    published_at = Column(DateTime, nullable=True)
+
+
+class FeedbackPublicationAttempt(Base):
+    """Metadata-only, fenced record of one outbox delivery attempt."""
+
+    __tablename__ = "feedback_publication_attempts"
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('in_flight', 'created', 'not_sent', 'rejected', "
+            "'unknown', 'reconciled')",
+            name="ck_feedback_publication_attempt_outcome",
+        ),
+        UniqueConstraint(
+            "outbox_id",
+            "attempt_no",
+            name="uq_feedback_publication_attempt_no",
+        ),
+        Index(
+            "ix_feedback_publication_attempt_outbox",
+            "outbox_id",
+            "started_at",
+        ),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    outbox_id = Column(
+        String(36),
+        ForeignKey("feedback_publication_outbox.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    attempt_no = Column(Integer, nullable=False)
+    lease_token = Column(String(36), nullable=False)
+    target_repo = Column(String(200), nullable=False)
+    payload_sha256 = Column(String(71), nullable=False)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+    outcome = Column(String(20), nullable=False, default="in_flight")
+    http_status = Column(Integer, nullable=True)
+    error_code = Column(String(80), nullable=True)
+
+
+_FEEDBACK_PUBLICATION_OUTBOX_BOUND_FIELDS = (
+    "feedback_id",
+    "public_id",
+    "marker_version",
+    "target_repo",
+    "consent_version",
+    "consented_at",
+    "payload_sha256",
+    "public_content_sha256",
+)
+_FEEDBACK_PUBLICATION_ATTEMPT_BOUND_FIELDS = (
+    "outbox_id",
+    "attempt_no",
+    "lease_token",
+    "target_repo",
+    "payload_sha256",
+    "started_at",
+)
+
+
+@event.listens_for(FeedbackPublicationOutbox, "before_update")
+def _reject_feedback_publication_binding_update(
+    _mapper: object,
+    _connection: object,
+    target: FeedbackPublicationOutbox,
+) -> None:
+    state = sa_inspect(target)
+    feedback_history = state.attrs.feedback_id.history
+    feedback_changed = feedback_history.has_changes()
+    detach_only = (
+        feedback_changed
+        and tuple(feedback_history.added) == (None,)
+        and len(feedback_history.deleted) == 1
+        and feedback_history.deleted[0] is not None
+    )
+    if (feedback_changed and not detach_only) or any(
+        state.attrs[field].history.has_changes()
+        for field in _FEEDBACK_PUBLICATION_OUTBOX_BOUND_FIELDS
+        if field != "feedback_id"
+    ):
+        raise ValueError("feedback publication binding is immutable")
+    evidence_history = state.attrs.delivery_evidence.history
+    if (
+        evidence_history.has_changes()
+        and "published" in evidence_history.deleted
+        and tuple(evidence_history.added) != ("published",)
+    ):
+        raise ValueError("published feedback evidence is terminal")
+
+
+@event.listens_for(FeedbackPublicationAttempt, "before_update")
+def _reject_feedback_publication_attempt_binding_update(
+    _mapper: object,
+    _connection: object,
+    target: FeedbackPublicationAttempt,
+) -> None:
+    state = sa_inspect(target)
+    if any(
+        state.attrs[field].history.has_changes()
+        for field in _FEEDBACK_PUBLICATION_ATTEMPT_BOUND_FIELDS
+    ):
+        raise ValueError("feedback publication attempt binding is immutable")
+
+
+event.listen(
+    FeedbackPublicationOutbox.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_feedback_publication_outbox_binding_immutable "
+        "BEFORE UPDATE OF feedback_id, public_id, marker_version, "
+        "target_repo, consent_version, consented_at, payload_sha256, "
+        "public_content_sha256 "
+        "ON feedback_publication_outbox WHEN NOT ("
+        "(OLD.feedback_id IS NEW.feedback_id OR "
+        "(OLD.feedback_id IS NOT NULL AND NEW.feedback_id IS NULL)) AND "
+        "OLD.public_id IS NEW.public_id AND "
+        "OLD.marker_version IS NEW.marker_version AND "
+        "OLD.target_repo IS NEW.target_repo AND "
+        "OLD.consent_version IS NEW.consent_version AND "
+        "OLD.consented_at IS NEW.consented_at AND "
+        "OLD.payload_sha256 IS NEW.payload_sha256 AND "
+        "OLD.public_content_sha256 IS NEW.public_content_sha256) BEGIN "
+        "SELECT RAISE(ABORT, 'feedback publication binding is immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    FeedbackPublicationAttempt.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_feedback_publication_attempt_binding_immutable "
+        "BEFORE UPDATE OF outbox_id, attempt_no, lease_token, target_repo, "
+        "payload_sha256, started_at ON feedback_publication_attempts BEGIN "
+        "SELECT RAISE(ABORT, 'feedback publication attempt binding is immutable'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
+
+
+event.listen(
+    FeedbackPublicationOutbox.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS "
+        "trg_feedback_publication_evidence_published_terminal "
+        "BEFORE UPDATE OF delivery_evidence ON feedback_publication_outbox "
+        "WHEN OLD.delivery_evidence = 'published' AND "
+        "NEW.delivery_evidence != 'published' BEGIN "
+        "SELECT RAISE(ABORT, 'published feedback evidence is terminal'); "
+        "END"
+    ).execute_if(dialect="sqlite"),
+)
 
 
 class AgentDecision(Base):

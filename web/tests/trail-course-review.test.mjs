@@ -32,8 +32,23 @@ import {
 } from '../src/components/trail-course-review/private-draft-state.ts';
 import {
   TrailMutationResponseError,
+  TrailTransportError,
+  classifyTrailMutationFailure,
   preservesPendingTrailEdits,
+  requestTrailMutation,
 } from '../src/components/trail-course-review/mutation-error.ts';
+import {
+  EMPTY_NUMERIC_INPUTS,
+  clearOptionalGroupNumericInputs,
+  clearPlanningDurationNumericInputs,
+  numericInputsFromDraft,
+  reapplyPendingTrailEdits,
+  requestFromDraft,
+} from '../src/components/trail-course-review/model.ts';
+import {
+  isCurrentTrailOperation,
+} from '../src/components/trail-course-review/operation-fence.ts';
+import { ApiTimeoutError } from '../src/lib/request-timeout.ts';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
@@ -41,8 +56,9 @@ const TRAIL_IMPLEMENTATION_PATHS = [
   '../src/components/TrailCourseReview.tsx',
   '../src/components/trail-course-review/controls.tsx',
   '../src/components/trail-course-review/copy.tsx',
-  '../src/components/trail-course-review/model.tsx',
+  '../src/components/trail-course-review/model.ts',
   '../src/components/trail-course-review/mutation-error.ts',
+  '../src/components/trail-course-review/operation-fence.ts',
   '../src/components/trail-course-review/owner-export.ts',
   '../src/components/trail-course-review/private-draft-state.ts',
   '../src/components/trail-course-review/states.tsx',
@@ -412,7 +428,7 @@ test('private draft state drops prior values on begin, failure, replacement, and
   assert.equal(reducePrivateTrailDraftState(loaded, { type: 'clear' }).data, null);
 });
 
-test('HTTP 412 preserves pending state while other mutation failures clear it', () => {
+test('mutation failures preserve pending intent only for stale, typed transport, and actual 5xx', () => {
   const pending = reducePrivateTrailDraftState(
     INITIAL_PRIVATE_TRAIL_DRAFT_STATE,
     { type: 'success', data: { state: 'absent', composite_revision: SHA_A } },
@@ -428,21 +444,205 @@ test('HTTP 412 preserves pending state while other mutation failures clear it', 
   assert.strictEqual(afterStale.data, pending.data);
 
   const unavailable = new TrailMutationResponseError('unavailable', 503);
-  assert.equal(preservesPendingTrailEdits(unavailable), false);
+  assert.equal(preservesPendingTrailEdits(unavailable), true);
   const afterUnavailable = preservesPendingTrailEdits(unavailable)
     ? pending
     : reducePrivateTrailDraftState(pending, {
         type: 'failure', message: unavailable.message, status: unavailable.status,
       });
-  assert.equal(afterUnavailable.data, null);
+  assert.strictEqual(afterUnavailable.data, pending.data);
+
+  assert.equal(classifyTrailMutationFailure(stale), 'stale');
+  assert.equal(classifyTrailMutationFailure(unavailable), 'retryable');
+  assert.equal(classifyTrailMutationFailure(new TrailTransportError()), 'retryable');
+  for (const status of [401, 403, 404, 428, 400, 409, 422]) {
+    const failure = new TrailMutationResponseError('closed', status);
+    assert.equal(classifyTrailMutationFailure(failure), 'hard');
+    assert.equal(preservesPendingTrailEdits(failure), false);
+  }
+  for (const unclassified of [
+    new Error('generic'),
+    new TypeError('not proof of transport'),
+    new ApiTimeoutError(),
+    { status: 503 },
+    { message: 'Failed to fetch' },
+    null,
+  ]) {
+    assert.equal(classifyTrailMutationFailure(unclassified), 'hard');
+    assert.equal(preservesPendingTrailEdits(unclassified), false);
+  }
 });
 
-test('HTTP 412 renders stale recovery with intentional discard but no generic retry', async () => {
+test('only rejection at the exact transport boundary becomes a typed transport failure', async () => {
+  const controller = new AbortController();
+  await assert.rejects(
+    requestTrailMutation(
+      async () => { throw new Error('private transport detail'); },
+      '/api/plan/trail/draft',
+      { method: 'PUT' },
+      controller.signal,
+    ),
+    TrailTransportError,
+  );
+  controller.abort();
+  await assert.rejects(
+    requestTrailMutation(
+      async () => { throw new Error('abort detail'); },
+      '/api/plan/trail/draft',
+      { method: 'PUT' },
+      controller.signal,
+    ),
+    { name: 'TrailOperationCancelledError' },
+  );
+});
+
+test('unknown duration and optional-group actions clear every related numeric buffer', () => {
+  const populated = Object.fromEntries(
+    Object.keys(EMPTY_NUMERIC_INPUTS).map((key) => [key, '9']),
+  );
+  const planning = clearPlanningDurationNumericInputs(populated);
+  for (const key of [
+    'planningMinimumHours',
+    'planningMinimumMinutes',
+    'planningMaximumHours',
+    'planningMaximumMinutes',
+  ]) {
+    assert.equal(planning[key], '');
+  }
+  assert.equal(planning.distanceKm, '9');
+
+  const environment = clearOptionalGroupNumericInputs(populated, 'environment');
+  for (const key of [
+    'maximumAltitudeM',
+    'temperatureMinimumC',
+    'temperatureMaximumC',
+    'humidityMinimumPct',
+    'humidityMaximumPct',
+  ]) {
+    assert.equal(environment[key], '');
+  }
+  assert.equal(environment.aidStationCount, '9');
+
+  const support = clearOptionalGroupNumericInputs(populated, 'support');
+  assert.equal(support.aidStationCount, '');
+  assert.equal(support.aidStationGapKm, '');
+  assert.equal(support.fuelingHours, '9');
+
+  const fueling = clearOptionalGroupNumericInputs(populated, 'fueling');
+  assert.equal(fueling.fuelingHours, '');
+  assert.equal(fueling.fuelingMinutes, '');
+  assert.equal(fueling.fuelingSessions, '');
+  assert.equal(fueling.maximumAltitudeM, '9');
+});
+
+test('stale restore reapplies only intentional field edits onto the validated latest draft', () => {
+  const base = structuredClone(inactiveReadinessResponse().draft);
+  base.course_demand.fields.optional_context.environment.sun_exposure = {
+    state: 'known',
+    value: 'low',
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  base.course_demand.fields.optional_context.environment.wind_exposure = {
+    state: 'known',
+    value: 'sheltered',
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  base.course_demand.fields.planning_duration_range = {
+    state: 'known',
+    value: { minimum_min: 120, maximum_min: 180 },
+    provenance: 'athlete_stated',
+    source_revision: SHA_A,
+  };
+  const parsedBase = parseTrailDraftResponse(base);
+  assert.equal(parsedBase?.state, 'current');
+
+  const latest = structuredClone(base);
+  latest.composite_revision = SHA_C;
+  latest.revision_bindings.composite_revision = SHA_C;
+  latest.course_demand.fields.optional_context.environment.wind_exposure = {
+    state: 'known',
+    value: 'exposed',
+    provenance: 'course_verified',
+    source_revision: SHA_B,
+  };
+  const parsedLatest = parseTrailDraftResponse(latest);
+  assert.equal(parsedLatest?.state, 'current');
+
+  const pendingRequest = requestFromDraft(parsedBase);
+  pendingRequest.course_demand.fields.optional_context.environment.sun_exposure = unknown();
+  const pendingInputs = {
+    ...numericInputsFromDraft(parsedBase),
+    planningMinimumHours: '',
+    planningMinimumMinutes: '',
+    planningMaximumHours: '',
+    planningMaximumMinutes: '',
+  };
+  pendingRequest.course_demand.fields.planning_duration_range = unknown();
+
+  const restored = reapplyPendingTrailEdits(
+    parsedBase,
+    pendingRequest,
+    pendingInputs,
+    parsedLatest,
+  );
+  assert.equal(
+    restored.request.course_demand.fields.optional_context.environment.sun_exposure.state,
+    'unknown',
+  );
+  assert.equal(
+    restored.request.course_demand.fields.optional_context.environment.wind_exposure.value,
+    'exposed',
+    'an unrelated same-group server edit must survive restore',
+  );
+  assert.equal(
+    restored.request.course_demand.fields.planning_duration_range.state,
+    'unknown',
+  );
+  assert.deepEqual(
+    [
+      restored.numericInputs.planningMinimumHours,
+      restored.numericInputs.planningMinimumMinutes,
+      restored.numericInputs.planningMaximumHours,
+      restored.numericInputs.planningMaximumMinutes,
+    ],
+    ['', '', '', ''],
+  );
+  assert.deepEqual(
+    [...restored.dirtySections].sort(),
+    ['section.event-duration', 'section.optional-context'],
+  );
+});
+
+test('operation fences reject every stale owner, request, revision, edit, and lifetime callback', () => {
+  const started = {
+    lifetime: 3,
+    ownerScope: 'owner-a',
+    requestId: 7,
+    revision: SHA_A,
+    editGeneration: 11,
+  };
+  assert.equal(isCurrentTrailOperation(started, { ...started }), true);
+  for (const changed of [
+    { lifetime: 4 },
+    { ownerScope: 'owner-b' },
+    { requestId: 8 },
+    { revision: SHA_B },
+    { editGeneration: 12 },
+  ]) {
+    assert.equal(isCurrentTrailOperation(started, { ...started, ...changed }), false);
+  }
+});
+
+test('stale and ambiguous writes preserve explicit recovery without generic retry', async () => {
   const [component, copy] = await Promise.all([
     read('../src/components/TrailCourseReview.tsx'),
     read('../src/components/trail-course-review/copy.tsx'),
   ]);
-  assert.match(component, /if \(preservesPendingTrailEdits\(error\)\) \{\s*setOperationError\(null\)/);
+  assert.match(component, /classifyTrailMutationFailure\(error\)/);
+  assert.match(component, /disposition === 'stale'/);
+  assert.match(component, /disposition === 'retryable'/);
   assert.match(component, /staleConflict/);
   assert.match(component, /copy\.reviewLatest/);
   assert.match(component, /copy\.restorePending/);
@@ -451,8 +651,8 @@ test('HTTP 412 renders stale recovery with intentional discard but no generic re
   assert.match(component, /copy\.discardPending/);
   assert.match(copy, /t`Discard pending changes`/);
   assert.match(copy, /t`放弃待保存更改`/);
-  assert.match(component, /if \(!latestDraft \|\| latestDraft\.state === 'unknown_schema'\) return;/);
-  assert.doesNotMatch(component, /preservesPendingTrailEdits\(error\)[\s\S]{0,160}onRefetch/);
+  assert.match(component, /!latestDraft[\s\S]{0,80}latestDraft\.state === 'unknown_schema'/);
+  assert.doesNotMatch(component, /disposition === 'retryable'[\s\S]{0,220}onRefetch/);
   assert.match(component, /onClick=\{\(\) => \{ void ownerExport\.run\(\); \}\}/);
   assert.doesNotMatch(`${component}\n${copy}`, /exportUnavailable/);
 });
@@ -813,8 +1013,16 @@ test('state, accessibility, and responsive markers cover the approved workbench 
   ]) {
     assert.match(component, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-  assert.match(component, /response\.status === 412/);
+  assert.match(component, /status === 412/);
   assert.match(component, /requestAnimationFrame\(\(\) => errorSummaryRef\.current\?\.focus\(\)\)/);
+  assert.match(component, /aria-describedby=\{invalidMessage \? `\$\{id\}-error` : undefined\}/);
+  assert.match(component, /<Label htmlFor=\{id\}[^>]*>\{hoursLabel\}<\/Label>/);
+  assert.match(component, /<Label htmlFor=\{`\$\{id\}-minutes`\}[^>]*>\{minutesLabel\}<\/Label>/);
+  assert.match(component, /closeLabel=\{isZh \? t`关闭` : t`Close`\}/);
+  assert.match(component, /recent_maximum_usable_weekly_minutes/);
+  assert.match(component, /recent_maximum_session_minutes/);
+  assert.doesNotMatch(component, /className="order-2 min-w-0 lg:order-1"/);
+  assert.doesNotMatch(component, /className="order-1 min-w-0 border/);
   assert.match(component, /requestAnimationFrame\(\(\) => receiptErrorRef\.current\?\.focus\(\)\)/);
   assert.doesNotMatch(component, /<(?:button|input|select)\b/);
   assert.doesNotMatch(component, /shadow-(?:sm|md|lg|xl|2xl)|bg-gradient|border-l-[2-9]/);

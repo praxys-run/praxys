@@ -24,7 +24,10 @@ The workflow:
 1. Optionally relies on the required pre-merge suite or runs it again.
 2. Stamps the API version and full source SHA.
 3. Logs in with protected-main OIDC.
-5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS, and
+4. Quiesces `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false` before old code can
+   observe any new publication configuration.
+5. Leaves `PRAXYS_DISABLE_CN_PROCESSING`, CORS,
+   `PRAXYS_DISABLE_FEEDBACK_PUBLICATION`, and
    `PRAXYS_DISABLE_BACKGROUND_AI` untouched.
 6. Preserves telemetry, database, Labs, secrets, Always On, and other ordinary
    configuration behavior when `sync_config=true`.
@@ -32,7 +35,9 @@ The workflow:
    credentials when both GitHub secrets are absent; on the first rollout, an
    absent Miniapp switch is initialized enabled. Supplying exactly one
    WeChat secret fails before any configuration mutation.
-8. Deploys and verifies exact API version/source SHA, readiness, either
+8. Deploys and verifies exact API version/source SHA and readiness while
+   feedback publication remains quiesced, then restores and verifies the
+   reviewed positive value. It also verifies either
    preserved China/Miniapp state and the reported Azure
    AI emergency state.
 9. Writes a concise run summary. It performs no EdgeOne probe or restoration.
@@ -64,6 +69,49 @@ Azure package before running `npm run build:edgeone` as validation. It then:
 The EdgeOne native Git project separately runs `web/edgeone.json`. Its static
 build contains `healthz`, `deployed_sha.txt`, ICP markup, and security
 configuration without a checksum manifest or release-preflight ceremony.
+
+### Service-worker cache contract
+
+Both frontend providers must serve the exact `/sw.js` path with:
+
+```text
+Cache-Control: no-cache, max-age=0, must-revalidate
+```
+
+For `.run`, `frontend_server/main.py` sets this at the Azure origin and
+Cloudflare must preserve it. For `.cn`, `web/edgeone.json` sets the same value
+at EdgeOne. The exact rule precedes generic JavaScript/static rules. Only
+content-addressed `/assets/*` files receive
+`public, max-age=31536000, immutable`; never apply that policy to `sw.js`.
+
+After both provider releases report the expected protected-main SHA, read back
+the final response at all four public origins:
+
+```bash
+for url in \
+  https://praxys.run/sw.js \
+  https://www.praxys.run/sw.js \
+  https://praxys.cn/sw.js \
+  https://www.praxys.cn/sw.js; do
+  curl -fsSIL --max-time 15 "${url}" \
+    | grep -Ei '^(HTTP/|cache-control:|etag:|last-modified:)'
+done
+```
+
+If a previously cacheable worker is still present during this correction,
+purge **only those four exact `/sw.js` URLs** in Cloudflare and EdgeOne after
+the matching deployment is live. Do not wildcard-purge `/`, HTML, or
+`/assets/*`. Repeat the readback and verify a normal reload reaches the current
+Terms bundle while keeping its acceptance checkbox initially clear.
+
+Rollback application code through protected `main`, then repeat the SHA and
+header readback. Preserve this `sw.js` header contract during rollback: restoring
+the old cacheable-worker policy recreates the incident. The client recovery is
+bounded to one automatic reload per tab episode. It reloads only after a
+same-origin replacement worker reaches `activated` and takes control of the
+current page; activation or controller-handoff timeout remains gated. Recovery
+also remains gated when offline, storage is unavailable, no same-origin worker
+exists, or the update fails.
 
 ## China public web launch
 
@@ -143,4 +191,4 @@ protection, PIPIA acceptance, and provider topology separately.
 - [labs-analysis-worker.md](./labs-analysis-worker.md)
 
 ---
-_Last reviewed: 2026-08-29 · Owner: Operations_
+_Last reviewed: 2026-09-06 · Owner: Operations_

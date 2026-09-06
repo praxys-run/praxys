@@ -157,6 +157,351 @@ def test_existing_sqlite_gets_additive_compatibility_columns(dbs, tmp_path):
         engine.dispose()
 
 
+def test_existing_sqlite_feedback_gets_publication_compatibility(dbs, tmp_path):
+    """Legacy feedback stays readable and gains the exact public-state index."""
+    from sqlalchemy import create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy-feedback.db'}")
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE feedback ("
+                "id INTEGER PRIMARY KEY, message TEXT NOT NULL)"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback (id, message) VALUES (1, 'private')"
+            )
+
+        # Startup schema compatibility must be repeatable, including indexes.
+        dbs._ensure_schema(engine, "sqlite")
+        dbs._ensure_schema(engine, "sqlite")
+
+        with engine.connect() as conn:
+            columns = {
+                row[1]: {
+                    "type": row[2],
+                    "not_null": row[3],
+                    "default": row[4],
+                }
+                for row in conn.exec_driver_sql('PRAGMA table_info("feedback")')
+            }
+            indexes = [
+                row
+                for row in conn.exec_driver_sql('PRAGMA index_list("feedback")')
+                if row[1] == "ix_feedback_publication_status"
+            ]
+            publication_status = conn.exec_driver_sql(
+                "SELECT publication_status FROM feedback WHERE id = 1"
+            ).scalar_one()
+
+        assert columns["publication_consent_version"]["type"] == "VARCHAR(64)"
+        assert columns["publication_consented_at"]["type"] == "DATETIME"
+        assert columns["publication_status"] == {
+            "type": "VARCHAR(24)",
+            "not_null": 1,
+            "default": "'private'",
+        }
+        assert publication_status == "private"
+        assert len(indexes) == 1
+        assert indexes[0][2] == 0  # non-unique
+    finally:
+        engine.dispose()
+
+
+def test_existing_sqlite_backfills_only_already_public_legacy_feedback(
+    dbs,
+    tmp_path,
+):
+    """Legacy issue locators survive; a v1 grant alone never becomes queued."""
+    from sqlalchemy import create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy-publication.db'}")
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE feedback ("
+                "id INTEGER PRIMARY KEY, message TEXT NOT NULL, "
+                "status VARCHAR(20) NOT NULL, "
+                "publication_consent_version VARCHAR(64), "
+                "publication_consented_at DATETIME, "
+                "github_issue_number INTEGER, github_issue_url VARCHAR(500), "
+                "created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback VALUES ("
+                "1, 'already public', 'issue_created', "
+                "'feedback-publication-v1', '2026-01-01 00:00:00', 42, "
+                "'https://github.com/legacy-owner/legacy-repo/issues/42', "
+                "'2026-01-01 00:00:00', '2026-01-02 00:00:00')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback VALUES ("
+                "2, 'never public', 'needs_review', "
+                "'feedback-publication-v1', '2026-01-01 00:00:00', NULL, "
+                "NULL, '2026-01-01 00:00:00', '2026-01-02 00:00:00')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback VALUES ("
+                "3, 'public with unsafe URL', 'rejected', NULL, NULL, 77, "
+                "'https://untrusted.invalid/issues/77', "
+                "'2026-01-01 00:00:00', '2026-01-02 00:00:00')"
+            )
+
+        dbs._ensure_schema(engine, "sqlite")
+        dbs._ensure_schema(engine, "sqlite")
+
+        with engine.connect() as conn:
+            feedback = conn.exec_driver_sql(
+                "SELECT id, publication_status, "
+                "publication_consent_version, image_storage_provenance "
+                "FROM feedback ORDER BY id"
+            ).all()
+            outboxes = conn.exec_driver_sql(
+                "SELECT feedback_id, marker_version, target_repo, "
+                "consent_version, payload_sha256, public_content_sha256, "
+                "state, delivery_evidence, github_issue_number, "
+                "github_issue_url FROM feedback_publication_outbox "
+                "ORDER BY feedback_id"
+            ).all()
+            attempts = conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM feedback_publication_attempts"
+            ).scalar_one()
+
+        assert feedback == [
+            (1, "published", "feedback-publication-v1", None),
+            (2, "private", "feedback-publication-v1", None),
+            (3, "published", None, None),
+        ]
+        assert outboxes == [
+            (
+                1,
+                "legacy",
+                "legacy-owner/legacy-repo",
+                None,
+                None,
+                None,
+                "published",
+                "published",
+                42,
+                "https://github.com/legacy-owner/legacy-repo/issues/42",
+            ),
+            (
+                3,
+                "legacy",
+                "legacy-unresolved/3",
+                None,
+                None,
+                None,
+                "published",
+                "published",
+                77,
+                "https://untrusted.invalid/issues/77",
+            ),
+        ]
+        assert attempts == 0
+    finally:
+        engine.dispose()
+
+
+def test_existing_sqlite_old_f2_shape_is_rebuilt_without_losing_evidence(
+    dbs,
+    tmp_path,
+):
+    """An unshipped old-f2 local DB upgrades without synthetic legacy grants."""
+    from uuid import NAMESPACE_URL, uuid5
+
+    from sqlalchemy import create_engine, event, inspect
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'old-f2.db'}")
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE feedback ("
+                "id INTEGER PRIMARY KEY, message TEXT NOT NULL, "
+                "status VARCHAR(20) NOT NULL, github_issue_number INTEGER, "
+                "github_issue_url VARCHAR(500), created_at DATETIME NOT NULL, "
+                "updated_at DATETIME NOT NULL, "
+                "publication_status VARCHAR(24) NOT NULL DEFAULT 'private')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback VALUES ("
+                "1, 'legacy linked', 'issue_created', 42, "
+                "'https://github.com/legacy-owner/legacy-repo/issues/42', "
+                "'2026-01-01 00:00:00', '2026-01-02 00:00:00', 'private')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback VALUES ("
+                "2, 'old f2 unknown', 'needs_review', NULL, NULL, "
+                "'2026-01-01 00:00:00', '2026-01-02 00:00:00', 'unknown')"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE feedback_publication_outbox ("
+                "id VARCHAR(36) PRIMARY KEY NOT NULL, "
+                "feedback_id INTEGER UNIQUE, public_id VARCHAR(36) NOT NULL UNIQUE, "
+                "marker_version VARCHAR(12) NOT NULL, "
+                "target_repo VARCHAR(200) NOT NULL, "
+                "consent_version VARCHAR(64) NOT NULL, "
+                "consented_at DATETIME NOT NULL, "
+                "payload_sha256 VARCHAR(71) NOT NULL, "
+                "state VARCHAR(24) NOT NULL, attempt_count INTEGER NOT NULL, "
+                "reconcile_count INTEGER NOT NULL, available_at DATETIME NOT NULL, "
+                "lease_token VARCHAR(36), lease_expires_at DATETIME, "
+                "github_issue_number INTEGER, github_issue_url VARCHAR(500), "
+                "last_error_code VARCHAR(80), created_at DATETIME NOT NULL, "
+                "updated_at DATETIME NOT NULL, published_at DATETIME, "
+                "CONSTRAINT ck_feedback_publication_outbox_digest "
+                "CHECK (payload_sha256 LIKE 'sha256:%'), "
+                "CONSTRAINT ck_feedback_publication_outbox_state CHECK ("
+                "state IN ('pending','sending','retry_wait','reconciling',"
+                "'published','manual_review','held','cancelled')), "
+                "CONSTRAINT uq_feedback_publication_repo_issue UNIQUE ("
+                "target_repo, github_issue_number), "
+                "FOREIGN KEY(feedback_id) REFERENCES feedback(id) ON DELETE SET NULL)"
+            )
+            conn.exec_driver_sql(
+                "CREATE INDEX ix_feedback_publication_claim ON "
+                "feedback_publication_outbox (state, available_at)"
+            )
+            conn.exec_driver_sql(
+                "CREATE TRIGGER "
+                "trg_feedback_publication_outbox_binding_immutable "
+                "BEFORE UPDATE OF public_id ON feedback_publication_outbox "
+                "BEGIN SELECT RAISE(ABORT, 'old outbox immutable'); END"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE feedback_publication_attempts ("
+                "id VARCHAR(36) PRIMARY KEY NOT NULL, outbox_id VARCHAR(36) NOT NULL, "
+                "attempt_no INTEGER NOT NULL, lease_token VARCHAR(36) NOT NULL, "
+                "target_repo VARCHAR(200) NOT NULL, "
+                "payload_sha256 VARCHAR(71) NOT NULL, started_at DATETIME NOT NULL, "
+                "finished_at DATETIME, outcome VARCHAR(20) NOT NULL, "
+                "http_status INTEGER, error_code VARCHAR(80), "
+                "UNIQUE(outbox_id, attempt_no), FOREIGN KEY(outbox_id) "
+                "REFERENCES feedback_publication_outbox(id) ON DELETE RESTRICT)"
+            )
+            conn.exec_driver_sql(
+                "CREATE TRIGGER "
+                "trg_feedback_publication_attempt_binding_immutable "
+                "BEFORE UPDATE OF outbox_id ON feedback_publication_attempts "
+                "BEGIN SELECT RAISE(ABORT, 'old attempt immutable'); END"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback_publication_outbox VALUES ("
+                "'old-outbox', 2, '22222222222222222222222222222222', 'v1', "
+                "'praxys-run/praxys', 'feedback-publication-v2-public-github', "
+                "'2026-01-01 00:00:00', 'sha256:" + "2" * 64 + "', "
+                "'reconciling', 1, 1, '2026-01-02 00:00:00', NULL, NULL, "
+                "NULL, NULL, 'network_unknown', '2026-01-01 00:00:00', "
+                "'2026-01-02 00:00:00', NULL)"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO feedback_publication_attempts VALUES ("
+                "'old-attempt', 'old-outbox', 1, 'old-lease', "
+                "'praxys-run/praxys', 'sha256:" + "2" * 64 + "', "
+                "'2026-01-01 00:00:00', '2026-01-02 00:00:00', "
+                "'unknown', NULL, 'network_unknown')"
+            )
+
+        dbs._ensure_schema(engine, "sqlite")
+        dbs._ensure_schema(engine, "sqlite")
+
+        columns = {
+            column["name"]: column for column in inspect(engine).get_columns(
+                "feedback_publication_outbox"
+            )
+        }
+        with engine.connect() as conn:
+            outboxes = conn.exec_driver_sql(
+                "SELECT id, feedback_id, marker_version, consent_version, "
+                "payload_sha256, public_content_sha256, state, "
+                "delivery_evidence, github_issue_number FROM "
+                "feedback_publication_outbox ORDER BY feedback_id"
+            ).all()
+            attempts = conn.exec_driver_sql(
+                "SELECT id, outbox_id, outcome, error_code FROM "
+                "feedback_publication_attempts"
+            ).all()
+            foreign_key_violations = conn.exec_driver_sql(
+                "PRAGMA foreign_key_check"
+            ).all()
+            trigger_names = {
+                row[0]
+                for row in conn.exec_driver_sql(
+                    "SELECT name FROM sqlite_master WHERE type = 'trigger' "
+                    "AND name LIKE 'trg_feedback_publication_%'"
+                )
+            }
+            index_names = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    "PRAGMA index_list('feedback_publication_outbox')"
+                )
+            }
+
+        assert columns["consent_version"]["nullable"] is True
+        assert columns["consented_at"]["nullable"] is True
+        assert columns["payload_sha256"]["nullable"] is True
+        legacy_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                "praxys-feedback-legacy-outbox:feedback:1:"
+                "repo:legacy-owner/legacy-repo:issue:42",
+            )
+        )
+        assert outboxes == [
+            (
+                legacy_id,
+                1,
+                "legacy",
+                None,
+                None,
+                None,
+                "published",
+                "published",
+                42,
+            ),
+            (
+                "old-outbox",
+                2,
+                "v1",
+                "feedback-publication-v2-public-github",
+                "sha256:" + "2" * 64,
+                None,
+                "manual_review",
+                "ambiguous",
+                None,
+            ),
+        ]
+        assert attempts == [
+            ("old-attempt", "old-outbox", "unknown", "network_unknown")
+        ]
+        assert foreign_key_violations == []
+        assert {
+            "trg_feedback_publication_outbox_binding_immutable",
+            "trg_feedback_publication_evidence_published_terminal",
+            "trg_feedback_publication_attempt_binding_immutable",
+        } <= trigger_names
+        assert {
+            "ix_feedback_publication_claim",
+            "uq_feedback_publication_repo_issue_current",
+        } <= index_names
+        assert "uq_feedback_publication_repo_issue" not in {
+            constraint.get("name")
+            for constraint in inspect(engine).get_unique_constraints(
+                "feedback_publication_outbox"
+            )
+        }
+    finally:
+        engine.dispose()
+
+
 def test_existing_sqlite_plan_proposals_get_idempotency_fingerprint(
     dbs,
     tmp_path,

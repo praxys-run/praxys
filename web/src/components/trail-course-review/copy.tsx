@@ -124,6 +124,7 @@ export function useTrailCourseReviewCopy() {
       t`Requested versus observed comparison`,
       t`请求与已观察情况对照`,
     ),
+    requested: l(t`Requested`, t`请求值`),
     historyComparisonHelp: l(
       t`The requested weekly and single-session limits are shown beside the server-observed history. This comparison does not increase the accepted history envelope.`,
       t`请求的每周和单次训练上限与服务端观察历史并列显示。此对照不会提高已接受的历史边界。`,

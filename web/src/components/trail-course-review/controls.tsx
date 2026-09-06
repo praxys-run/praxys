@@ -36,6 +36,7 @@ interface FieldShellProps {
   label: ReactNode;
   description?: ReactNode;
   meta?: ReactNode;
+  invalidMessage?: ReactNode;
   children: ReactNode;
 }
 interface SectionShellProps {
@@ -127,7 +128,14 @@ interface ConfirmBarProps {
 }
 
 
-export function FieldShell({ id, label, description, meta, children }: FieldShellProps) {
+export function FieldShell({
+  id,
+  label,
+  description,
+  meta,
+  invalidMessage,
+  children,
+}: FieldShellProps) {
   return (
     <div className="min-w-0 space-y-2 border-t border-border/70 pt-4 first:border-t-0 first:pt-0">
       <Label id={`${id}-label`} htmlFor={id} className="block whitespace-normal text-sm leading-5">
@@ -138,7 +146,20 @@ export function FieldShell({ id, label, description, meta, children }: FieldShel
           {description}
         </p>
       ) : null}
-      <div className="min-w-0">{children}</div>
+      <div
+        className="min-w-0"
+        role="group"
+        aria-labelledby={`${id}-label`}
+        aria-describedby={invalidMessage ? `${id}-error` : undefined}
+        aria-invalid={invalidMessage ? true : undefined}
+      >
+        {children}
+      </div>
+      {invalidMessage ? (
+        <p id={`${id}-error`} className="text-sm leading-5 text-destructive">
+          {invalidMessage}
+        </p>
+      ) : null}
       {meta ? <div className="text-xs leading-5 text-muted-foreground">{meta}</div> : null}
     </div>
   );
@@ -372,24 +393,28 @@ export function DurationEditor({
   return (
     <div className="space-y-2">
       <div className="grid min-w-0 grid-cols-2 gap-2 sm:max-w-sm">
-        <Input
-          id={id}
-          inputMode="numeric"
-          value={hours}
-          disabled={disabled}
-          aria-label={hoursLabel}
-          onChange={(event) => onHoursChange(event.target.value)}
-          className="h-11 font-data"
-        />
-        <Input
-          id={`${id}-minutes`}
-          inputMode="numeric"
-          value={minutes}
-          disabled={disabled}
-          aria-label={minutesLabel}
-          onChange={(event) => onMinutesChange(event.target.value)}
-          className="h-11 font-data"
-        />
+        <div className="space-y-1.5">
+          <Label htmlFor={id} className="text-xs text-muted-foreground">{hoursLabel}</Label>
+          <Input
+            id={id}
+            inputMode="numeric"
+            value={hours}
+            disabled={disabled}
+            onChange={(event) => onHoursChange(event.target.value)}
+            className="h-11 font-data"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-minutes`} className="text-xs text-muted-foreground">{minutesLabel}</Label>
+          <Input
+            id={`${id}-minutes`}
+            inputMode="numeric"
+            value={minutes}
+            disabled={disabled}
+            onChange={(event) => onMinutesChange(event.target.value)}
+            className="h-11 font-data"
+          />
+        </div>
       </div>
       <UnknownButton
         unknown={visuallyUnknown}

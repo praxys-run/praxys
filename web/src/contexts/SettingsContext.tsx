@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { DisplayConfig, GoalPlanImpact, PlanDeliveryOption, SettingsConfig, SettingsResponse, SettingsUpdate, SettingsUpdateResponse, TrainingBase, ThresholdValue, DetectedThreshold } from '../types/api';
-import { API_BASE, getAuthHeaders } from '../hooks/useApi';
+import { apiFetch, getAuthHeaders } from '../hooks/useApi';
 
 interface SettingsContextValue {
   config: SettingsConfig | null;
@@ -119,12 +119,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     // Only show loading skeleton on initial fetch, not on refetches,
     // to avoid unmounting/remounting the Settings page.
     if (fetchKey === 0) setLoading(true);
-    fetch(`${API_BASE}/api/settings`, { headers: getAuthHeaders() })
+    apiFetch('/api/settings', { headers: getAuthHeaders() })
       .then((r) => {
-        if (r.status === 401) {
-          window.location.href = '/login';
-          throw new Error('Unauthorized');
-        }
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json() as Promise<SettingsResponse>;
       })
@@ -162,15 +158,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateSettings = async (update: SettingsUpdate) => {
-    const res = await fetch(`${API_BASE}/api/settings`, {
+    const res = await apiFetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(update),
     });
-    if (res.status === 401) {
-      window.location.href = '/login';
-      throw new Error('Unauthorized');
-    }
     if (!res.ok) {
       let detail = '';
       try {

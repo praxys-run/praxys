@@ -1104,7 +1104,7 @@ def test_stale_terms_user_can_read_only_owned_feedback_image(
     monkeypatch.setattr(
         feedback_storage,
         "load_image",
-        lambda key: (
+        lambda key, *, provenance: (
             (b"owned-image", "image/png")
             if key == "feedback/owned/0.png"
             else None

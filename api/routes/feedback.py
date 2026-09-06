@@ -1,6 +1,7 @@
 """Feedback endpoints — in-app bug reports / feature requests / general feedback.
 
 POST   /api/feedback               — any authenticated user; stores + triages
+POST   /api/me/feedback/status     — authenticated owner publication status
 GET    /api/admin/feedback         — admin only; list submissions (status filter)
 POST   /api/admin/feedback/sync    — admin only; sync status from linked issues
 PATCH  /api/admin/feedback/{id}    — admin only; retry triage / reject / approve
@@ -14,19 +15,21 @@ so the user gets an instant 200. See that module for the pipeline.
 """
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool, StrictInt
 from sqlalchemy.orm import Session
 
-from api import feedback_storage, telemetry
+from api import feedback_publication, feedback_storage, github_issues, telemetry
 from api.auth import get_current_user_id
-from api.feedback_triage import triage_and_publish
+from api.feedback_triage import triage_and_wake_publication
 from api.optional_processing import (
     FEEDBACK_PUBLICATION_CONSENT_VERSION,
+    background_ai_authorized,
     feedback_has_publication_consent,
     feedback_publication_authorized,
 )
@@ -46,6 +49,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_PUBLICATION_STATUSES = {
+    "private",
+    "queued",
+    "published",
+    "manual_required",
+    "unknown",
+    "unavailable",
+}
 
 # Lightweight anti-spam: cap submissions per user in a sliding window. The
 # auth-rate-limit middleware guards the unauthenticated surface; this guards an
@@ -87,7 +99,10 @@ def get_own_feedback_image(
     keys = list(row.image_keys or [])
     if index < 0 or index >= len(keys):
         raise HTTPException(404, "Image not found")
-    got = feedback_storage.load_image(keys[index])
+    got = feedback_storage.load_image(
+        keys[index],
+        provenance=row.image_storage_provenance,
+    )
     if got is None:
         raise HTTPException(404, "Image not found")
     data, content_type = got
@@ -155,7 +170,7 @@ class FeedbackRequest(BaseModel):
     locale: str = Field(default="", max_length=10)
     # Explicit grant for publishing this submission's scrubbed text to the
     # configured external issue tracker. False/missing remains private.
-    external_publication_consent: bool = False
+    external_publication_consent: StrictBool = False
     external_publication_consent_version: str = Field(
         default="",
         max_length=64,
@@ -165,6 +180,12 @@ class FeedbackRequest(BaseModel):
     # stored privately — only a reference (blob key) is kept and the raw image
     # never reaches a public issue. Capped at MAX_IMAGE_COUNT.
     images: list[str] | None = Field(default=None, max_length=feedback_storage.MAX_IMAGE_COUNT)
+
+
+class FeedbackStatusRequest(BaseModel):
+    """Fixed-path owner lookup with a strict browser-safe integer body ID."""
+
+    feedback_id: StrictInt = Field(gt=0, le=9_007_199_254_740_991)
 
 
 def _decode_and_validate_images(images: Optional[list[str]]) -> list[bytes]:
@@ -191,6 +212,48 @@ def _decode_and_validate_images(images: Optional[list[str]]) -> list[bytes]:
             raise HTTPException(415, detail="FEEDBACK_IMAGE_UNSUPPORTED_TYPE")
         out.append(data)
     return out
+
+
+def _safe_publication_result(row: Feedback) -> dict[str, Any]:
+    """Serialize only a server-authoritative status and allowlisted issue URL."""
+    status = (
+        row.publication_status
+        if row.publication_status in _PUBLICATION_STATUSES
+        else "unknown"
+    )
+    issue_url = None
+    if (
+        status == "published"
+        and row.github_issue_number is not None
+        and github_issues.issue_url_allowed(
+            row.github_issue_number, row.github_issue_url
+        )
+    ):
+        issue_url = row.github_issue_url
+    elif status == "published":
+        status = "unknown"
+    return {"status": status, "issue_url": issue_url}
+
+
+@router.get("/feedback/publication-readiness")
+def feedback_publication_readiness(
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return user-bound, non-secret readiness for the optional checkbox."""
+    response.headers["Cache-Control"] = "private, no-store"
+    readiness = github_issues.publication_readiness()
+    if readiness["effective"] and not feedback_publication_authorized(
+        db,
+        user_id=user_id,
+        submission_authorized=True,
+    ):
+        return {"available": False, "reason": "auth_missing"}
+    return {
+        "available": bool(readiness["effective"]),
+        "reason": readiness["reason"],
+    }
 
 
 @router.post("/feedback")
@@ -249,6 +312,19 @@ def submit_feedback(
     feedback_id: int | None = None
     keys: list[str] = []
     try:
+        publication_granted = (
+            body.external_publication_consent and not user.is_demo
+        )
+        if not body.external_publication_consent:
+            initial_publication_status = "private"
+        elif user.is_demo:
+            initial_publication_status = "unavailable"
+        elif not github_issues.is_configured():
+            initial_publication_status = "unavailable"
+        elif not background_ai_authorized(db, user_id=user_id):
+            initial_publication_status = "manual_required"
+        else:
+            initial_publication_status = "queued"
         row = Feedback(
             user_id=user_id,
             kind=body.kind,
@@ -257,33 +333,55 @@ def submit_feedback(
             locale=body.locale or None,
             publication_consent_version=(
                 FEEDBACK_PUBLICATION_CONSENT_VERSION
-                if body.external_publication_consent
+                if publication_granted
                 else None
             ),
             publication_consented_at=(
                 datetime.utcnow()
-                if body.external_publication_consent
+                if publication_granted
                 else None
             ),
             status="new",
+            publication_status=initial_publication_status,
         )
         db.add(row)
         db.flush()
         feedback_id = int(row.id)
+        storage_provenance = (
+            feedback_storage.current_storage_provenance()
+            if decoded_images
+            else None
+        )
         # Commit deterministic deletion locators before external storage I/O.
-        keys = [
-            feedback_storage.image_storage_key(
-                data,
-                feedback_id=feedback_id,
-                index=i,
+        # If the namespace itself cannot be identified, ``store_image`` is
+        # guaranteed to reject before any external write. Do not persist a
+        # locator that can never correspond to stored bytes and would later
+        # block account deletion; the text feedback remains available.
+        keys = (
+            [
+                feedback_storage.image_storage_key(
+                    data,
+                    feedback_id=feedback_id,
+                    index=i,
+                )
+                for i, data in enumerate(decoded_images)
+            ]
+            if storage_provenance is not None
+            else []
+        )
+        if decoded_images and storage_provenance is None:
+            logger.warning(
+                "feedback image attachment skipped because storage "
+                "provenance is unavailable"
             )
-            for i, data in enumerate(decoded_images)
-        ]
         row.image_keys = keys or None
+        row.image_storage_provenance = (
+            storage_provenance if keys else None
+        )
         db.commit()
     except Exception:
         db.rollback()
-        logger.exception("feedback save failed for user %s", user_id)
+        logger.error("feedback save failed")
         raise HTTPException(500, detail="FEEDBACK_SAVE_FAILED")
 
     if keys:
@@ -317,19 +415,18 @@ def submit_feedback(
                 data,
                 feedback_id=feedback_id,
                 index=i,
+                provenance=row.image_storage_provenance,
             )
             if stored_key != expected_key:
                 logger.error(
-                    "feedback image upload unverified for durable key %s",
-                    expected_key,
+                    "feedback image upload key verification failed",
                 )
         try:
             db.commit()
         except Exception:
             db.rollback()
-            logger.exception(
-                "feedback image upload finalization failed for %s",
-                feedback_id,
+            logger.error(
+                "feedback image upload finalization failed",
             )
             raise HTTPException(
                 503,
@@ -337,9 +434,36 @@ def submit_feedback(
             )
 
     telemetry.record_feedback(kind=body.kind, status="new")
-    background_tasks.add_task(triage_and_publish, feedback_id)
-    logger.info("feedback submitted: id=%s kind=%s", feedback_id, body.kind)
-    return {"ok": True, "id": feedback_id, "status": "received"}
+    background_tasks.add_task(triage_and_wake_publication, feedback_id)
+    logger.info("feedback submitted: kind=%s", body.kind)
+    return {
+        "ok": True,
+        "id": feedback_id,
+        "status": "received",
+        "publication": _safe_publication_result(row),
+    }
+
+
+@router.post("/me/feedback/status")
+def get_own_feedback_status(
+    body: FeedbackStatusRequest,
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return the current safe publication result for one owned submission."""
+    from db.models import Feedback
+
+    response.headers["Cache-Control"] = "private, no-store"
+    feedback_id = body.feedback_id
+    row = (
+        db.query(Feedback)
+        .filter(Feedback.id == feedback_id, Feedback.user_id == user_id)
+        .first()
+    )
+    if row is None:
+        raise HTTPException(404, "Feedback not found")
+    return {"id": row.id, "publication": _safe_publication_result(row)}
 
 
 # ---------------------------------------------------------------------------
@@ -417,9 +541,13 @@ def _serialize_admin(
         "ai_title": row.ai_title,
         "ai_body": row.ai_body,
         "ai_labels": row.ai_labels or [],
+        "publication_review_token": (
+            feedback_publication.publication_review_token(row)
+        ),
         "priority": row.priority,
         "github_issue_number": row.github_issue_number,
-        "github_issue_url": row.github_issue_url,
+        "github_issue_url": _safe_publication_result(row)["issue_url"],
+        "publication_status": _safe_publication_result(row)["status"],
         "error": row.error,
         "external_publication_consent": feedback_has_publication_consent(row),
         # Screenshot attachment (issue #337): count + scrubbed vision outputs.
@@ -508,6 +636,81 @@ def feedback_summary(
     }
 
 
+@router.get("/admin/feedback/publication-queue")
+def feedback_publication_queue(
+    response: Response,
+    limit: int = 100,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return readiness and metadata-only durable publication state."""
+    require_admin(user_id, db)
+    from db.models import Feedback, FeedbackPublicationOutbox
+
+    response.headers["Cache-Control"] = "private, no-store"
+    rows = (
+        db.query(FeedbackPublicationOutbox, Feedback)
+        .outerjoin(
+            Feedback, Feedback.id == FeedbackPublicationOutbox.feedback_id
+        )
+        .order_by(FeedbackPublicationOutbox.created_at.desc())
+        .limit(min(max(limit, 1), 500))
+        .all()
+    )
+
+    def _status(
+        outbox: FeedbackPublicationOutbox,
+        feedback: Feedback | None,
+    ) -> str:
+        if feedback is not None:
+            return feedback.publication_status
+        if outbox.state == "published":
+            return "published"
+        if outbox.state in ("sending", "reconciling"):
+            return "unknown"
+        if outbox.state in ("pending", "retry_wait"):
+            return "queued"
+        if outbox.state == "manual_review":
+            return "manual_required"
+        return "private" if outbox.state == "cancelled" else "unavailable"
+
+    return {
+        "readiness": github_issues.publication_readiness(),
+        "items": [
+            {
+                "id": feedback.id if feedback is not None else None,
+                "detached": feedback is None,
+                "created_at": utc_isoformat(outbox.created_at),
+                "status": _status(outbox, feedback),
+                "outbox_state": outbox.state,
+                "consent_valid": (
+                    feedback is not None
+                    and feedback_has_publication_consent(feedback)
+                    and outbox.consent_version
+                    == FEEDBACK_PUBLICATION_CONSENT_VERSION
+                ),
+                "issue_link_present": bool(
+                    outbox.github_issue_number
+                    and github_issues.issue_url_allowed(
+                        outbox.github_issue_number,
+                        outbox.github_issue_url,
+                    )
+                ),
+                "triage_output_present": bool(
+                    feedback is not None
+                    and feedback.ai_title
+                    and feedback.ai_body
+                ),
+                "attempt_count": outbox.attempt_count,
+                "reconcile_count": outbox.reconcile_count,
+                "delivery_evidence": outbox.delivery_evidence,
+                "error_code": outbox.last_error_code,
+            }
+            for outbox, feedback in rows
+        ],
+    }
+
+
 @router.post("/admin/feedback/sync")
 def sync_feedback_status(
     limit: int = 200,
@@ -557,9 +760,8 @@ def sync_feedback_status(
         ):
             repository_mismatches += 1
             logger.warning(
-                "feedback sync skipped issue %s: stored URL does not match "
-                "the configured repository",
-                row.github_issue_number,
+                "feedback sync skipped linked issue: stored repository "
+                "metadata mismatch"
             )
             continue
         outcome = github_issues.get_issue_outcome(row.github_issue_number)
@@ -699,7 +901,10 @@ def get_feedback_image(
     keys = list(row.image_keys or [])
     if index < 0 or index >= len(keys):
         raise HTTPException(404, "Image not found")
-    got = feedback_storage.load_image(keys[index])
+    got = feedback_storage.load_image(
+        keys[index],
+        provenance=row.image_storage_provenance,
+    )
     if got is None:
         raise HTTPException(404, "Image not found")
     data, content_type = got
@@ -715,6 +920,12 @@ class FeedbackAction(BaseModel):
     """Admin action on a feedback row."""
 
     action: Literal["retry", "reject", "approve"]
+    review_token: str | None = Field(
+        default=None,
+        min_length=71,
+        max_length=71,
+        pattern=r"^sha256:[0-9a-f]{64}$",
+    )
 
 
 class AgentReadyAdjudication(BaseModel):
@@ -850,14 +1061,60 @@ def update_feedback(
 ) -> dict:
     """Retry triage (re-publish) or reject a feedback row. Admin only."""
     require_admin(user_id, db)
-    from db.models import Feedback
 
-    row = db.query(Feedback).filter(Feedback.id == feedback_id).first()
-    if not row:
+    # Admin review competes with background workers and other submissions.
+    # Upgrade SQLite to its serialized writer transaction before the row read;
+    # PostgreSQL uses row locks plus enqueue's submitter lock.
+    dialect_name = db.get_bind().dialect.name
+    if dialect_name == "sqlite":
+        db.rollback()
+        begin_serialized_write(db)
+
+    owner_id = feedback_publication.feedback_owner_id(db, feedback_id)
+    if owner_id is None:
+        db.rollback()
         raise HTTPException(404, "Feedback not found")
+    owner = feedback_publication.lock_feedback_user(db, owner_id)
+    if owner is None or not owner.is_active:
+        db.rollback()
+        raise HTTPException(409, "Feedback account is unavailable")
+
+    outbox = None
+    if payload.action == "reject":
+        # U serializes every creator/admin path for this account. Lock the
+        # existing O next, then F; no post-F O recheck is safe or necessary.
+        outbox = feedback_publication.lock_feedback_outbox(db, feedback_id)
+        if outbox is not None and (
+            outbox.state in ("sending", "reconciling")
+            or outbox.delivery_evidence != "not_sent"
+        ):
+            db.rollback()
+            raise HTTPException(
+                409,
+                "Publication outcome is unresolved; reconcile before rejecting",
+            )
+
+    row = feedback_publication.lock_feedback(db, feedback_id)
+    if not row:
+        db.rollback()
+        raise HTTPException(404, "Feedback not found")
+    if str(row.user_id) != owner_id:
+        db.rollback()
+        raise HTTPException(409, "Feedback account changed")
 
     if payload.action == "reject":
+        if outbox is not None and outbox.state in (
+            "pending",
+            "retry_wait",
+            "held",
+            "manual_review",
+        ) and outbox.delivery_evidence == "not_sent":
+            outbox.state = "cancelled"
+            outbox.lease_token = None
+            outbox.lease_expires_at = None
         row.status = "rejected"
+        if row.publication_status != "published":
+            row.publication_status = "private"
         row.error = None
         _record_feedback_outcome(
             db,
@@ -870,15 +1127,24 @@ def update_feedback(
         return _serialize_admin(row)
 
     if payload.action == "approve":
-        # Human override of the sensitivity gate: publish the already-scrubbed,
-        # admin-reviewed title/body to GitHub. Used to release a needs_review row.
-        # Guard on a linked issue (issue_created OR resolved) — not one status —
-        # so an already-filed row can't be re-published as a duplicate.
+        # Human review may release only an already-consented safe draft into the
+        # durable outbox. Admin authority never substitutes for v2 consent and
+        # never calls GitHub directly.
         if row.github_issue_number is not None:
             raise HTTPException(409, "Already published to GitHub")
         if not row.ai_title or not row.ai_body:
             raise HTTPException(409, "Nothing to publish yet — run triage first")
-        from api import github_issues
+        current_review_token = feedback_publication.publication_review_token(row)
+        if (
+            payload.review_token is None
+            or current_review_token is None
+            or not hmac.compare_digest(payload.review_token, current_review_token)
+        ):
+            db.rollback()
+            raise HTTPException(
+                409,
+                "Feedback changed; review the current public draft before approving",
+            )
         if (
             not github_issues.is_configured()
             or not feedback_publication_authorized(
@@ -894,40 +1160,42 @@ def update_feedback(
                 400,
                 "Feedback publication is unavailable or unauthorized",
             )
-        issue = github_issues.create_issue(
-            title=row.ai_title,
-            body=row.ai_body,
-            labels=list(row.ai_labels or []),
-            publication_authorized=True,
+        outbox = feedback_publication.enqueue_publication(
+            db,
+            row.id,
+            locked_user=owner,
+            locked_feedback=row,
+            human_review_approved=True,
         )
-        if not issue or not issue.get("number"):
-            row.status = "failed"
-            row.error = "github_publish_failed"
-            _record_feedback_outcome(
-                db,
-                row.id,
-                outcome_type="human_approve_publish_failed",
-                source="admin",
-                payload={"status": row.status},
-            )
+        if outbox is None:
             db.commit()
-            raise HTTPException(502, "GitHub publish failed")
-        row.github_issue_number = issue["number"]
-        row.github_issue_url = issue.get("url")
-        row.status = "issue_created"
-        row.error = None
+            raise HTTPException(
+                409,
+                "Feedback could not enter the publication queue",
+            )
+        if (
+            outbox.feedback_id != row.id
+            or outbox.state not in ("pending", "retry_wait")
+            or row.publication_status != "queued"
+        ):
+            db.rollback()
+            raise HTTPException(
+                409,
+                "Publication outcome is unresolved; reconcile before approving",
+            )
+        row.status = "triaged"
         _record_feedback_outcome(
             db,
             row.id,
-            outcome_type="human_approved",
+            outcome_type="human_approved_for_publication_queue",
             source="admin",
-            payload={
-                "status": row.status,
-                "issue_number": row.github_issue_number,
-                "issue_url": row.github_issue_url,
-            },
+            payload={"status": row.status},
         )
         db.commit()
+        background_tasks.add_task(
+            feedback_publication.safe_wake_publication_queue,
+            limit=1,
+        )
         return _serialize_admin(row)
 
     # retry: reset to a re-triageable state and re-schedule. Guarded on a linked
@@ -945,5 +1213,5 @@ def update_feedback(
         payload={"status": row.status},
     )
     db.commit()
-    background_tasks.add_task(triage_and_publish, row.id)
+    background_tasks.add_task(triage_and_wake_publication, row.id)
     return _serialize_admin(row)

@@ -2,7 +2,7 @@ import type React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
-import { API_BASE, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
+import { apiFetch, getAuthHeaders, extractErrorMessage } from '@/hooks/useApi';
 import type { ConnectionResponse, GarminConnectionResponse, TrainingBase, SyncStatusResponse, VersionResponse } from '@/types/api';
 import {
   buildStravaReturnTo,
@@ -248,7 +248,7 @@ export default function Settings() {
     const anySyncing = Object.values(syncStatus).some((s) => s.status === 'syncing');
     if (anySyncing && !pollRef.current) {
       pollRef.current = setInterval(() => {
-        fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+        apiFetch('/api/sync/status', { headers: getAuthHeaders() })
           .then((r) => r.json())
           .then((data: SyncStatusResponse) => {
             setSyncStatus(data);
@@ -268,7 +268,7 @@ export default function Settings() {
   }, [syncStatus, refetch]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+    apiFetch('/api/sync/status', { headers: getAuthHeaders() })
       .then((r) => r.json())
       .then((data: SyncStatusResponse) => setSyncStatus(data))
       .catch(() => {});
@@ -278,7 +278,7 @@ export default function Settings() {
   // mount so the footer shows the live API build alongside WEB_VERSION.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/version`)
+    apiFetch('/api/version')
       .then((r) => (r.ok ? (r.json() as Promise<VersionResponse>) : null))
       .then((data) => {
         if (!cancelled && data?.version) setApiVersion(data.version);
@@ -300,7 +300,7 @@ export default function Settings() {
       setConnectError('');
       setStravaNotice(getStravaOAuthMessage(oauthResult));
       refetch();
-      fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+      apiFetch('/api/sync/status', { headers: getAuthHeaders() })
         .then((r) => r.json())
         .then((data: SyncStatusResponse) => setSyncStatus(data))
         .catch(() => {});
@@ -389,12 +389,12 @@ export default function Settings() {
   };
 
   const handleSync = async (source?: string) => {
-    const url = source ? `${API_BASE}/api/sync/${source}` : `${API_BASE}/api/sync`;
+    const url = source ? `/api/sync/${source}` : '/api/sync';
     const body = backfillDate ? JSON.stringify({ from_date: backfillDate }) : undefined;
     const headers: Record<string, string> = { ...getAuthHeaders() as Record<string, string> };
     if (body) headers['Content-Type'] = 'application/json';
     try {
-      const kickoff = await fetch(url, { method: 'POST', headers, body });
+      const kickoff = await apiFetch(url, { method: 'POST', headers, body });
       if (!kickoff.ok) {
         flash(await extractErrorMessage(kickoff, `Failed to start sync (HTTP ${kickoff.status})`));
         return;
@@ -415,7 +415,7 @@ export default function Settings() {
         flash('No connected sources to sync. Connect a platform first.');
         return;
       }
-      const res = await fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() });
+      const res = await apiFetch('/api/sync/status', { headers: getAuthHeaders() });
       setSyncStatus(await res.json());
     } catch (err) {
       flash(err instanceof Error && err.message ? err.message : 'Network error');
@@ -481,9 +481,9 @@ export default function Settings() {
       // credentials up front so an MFA-protected account can be prompted for
       // its code; the generic endpoint just stores credentials.
       const endpoint = connectPlatform === 'garmin'
-        ? `${API_BASE}/api/settings/connections/garmin/login`
-        : `${API_BASE}/api/settings/connections/${connectPlatform}`;
-      const res = await fetch(endpoint, {
+        ? '/api/settings/connections/garmin/login'
+        : `/api/settings/connections/${connectPlatform}`;
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -528,7 +528,7 @@ export default function Settings() {
     setMfaCode('');
     setGarminLoginAttemptId('');
     refetch();
-    fetch(`${API_BASE}/api/sync/status`, { headers: getAuthHeaders() })
+    apiFetch('/api/sync/status', { headers: getAuthHeaders() })
       .then((r) => r.json())
       .then((d: SyncStatusResponse) => setSyncStatus(d))
       .catch(() => {});
@@ -540,7 +540,7 @@ export default function Settings() {
     setConnecting(true);
     setConnectError('');
     try {
-      const res = await fetch(`${API_BASE}/api/settings/connections/garmin/mfa`, {
+      const res = await apiFetch('/api/settings/connections/garmin/mfa', {
         method: 'POST',
         headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -584,7 +584,7 @@ export default function Settings() {
 
   const handleDisconnect = async (platform: string) => {
     try {
-      await fetch(`${API_BASE}/api/settings/connections/${platform}`, {
+      await apiFetch(`/api/settings/connections/${platform}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -597,7 +597,7 @@ export default function Settings() {
     setDeletingAccount(true);
     setDeleteError('');
     try {
-      const res = await fetch(`${API_BASE}/api/me`, {
+      const res = await apiFetch('/api/me', {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -622,7 +622,7 @@ export default function Settings() {
     setDataExportError('');
     setDataExportSuccess('');
     try {
-      const res = await fetch(`${API_BASE}/api/me/export`, {
+      const res = await apiFetch('/api/me/export', {
         headers: getAuthHeaders(),
       });
       if (!res.ok) {

@@ -28,18 +28,24 @@ returns ``None`` on failure (the text report is still captured), and
 :func:`load_image` returns ``None`` when the key is missing or unreadable. The
 caller persists the deterministic key before upload so an ambiguous storage
 result can never create an image with no deletion locator.
-Deletion is intentionally fail-closed so account deletion cannot discard the
-database locator while a stored screenshot remains. A configured Blob backend
-never writes new screenshots to local fallback storage.
+Every locator is bound to a non-secret write-time namespace fingerprint.
+Reads and deletion never cross storage backends, and deletion is intentionally
+fail-closed so account deletion cannot discard the database locator while a
+stored screenshot may remain. A configured Blob backend never writes new
+screenshots to local fallback storage.
 """
 from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
+import hmac
+import json
 import logging
 import os
 import re
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +74,8 @@ MAX_IMAGE_COUNT = 3
 _KEY_RE = re.compile(
     r"^feedback/(?P<feedback_id>\d+)/\d+\.(png|jpg|jpeg|webp)$"
 )
+_SCOPE_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_PROVENANCE_VERSION = 1
 
 
 class FeedbackStorageDeletionError(RuntimeError):
@@ -162,10 +170,8 @@ def _warn_local_once() -> None:
     if not _local_warned:
         _local_warned = True
         logger.warning(
-            "feedback screenshots use the LOCAL filesystem backend (%s). On "
-            "ephemeral hosts (Azure App Service) set PRAXYS_FEEDBACK_BLOB_* for "
-            "durable, restart-safe storage.",
-            _local_dir(),
+            "feedback screenshots use the local filesystem backend; ephemeral "
+            "hosts require configured Blob storage for restart-safe durability"
         )
 
 
@@ -206,7 +212,7 @@ def _blob_container_client():
             pass
         return client
     except Exception:
-        logger.warning("Azure Blob initialization failed", exc_info=True)
+        logger.warning("Azure Blob initialization failed")
         return None
 
 
@@ -225,6 +231,152 @@ def private_container_client():
     return _blob_container_client()
 
 
+def _canonical_account_endpoint(value: str | None) -> str | None:
+    """Normalize a non-secret Blob account endpoint for scope comparison."""
+    if not value:
+        return None
+    parsed = urlsplit(value.strip())
+    if (
+        parsed.scheme.casefold() not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    hostname = parsed.hostname.casefold()
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    if port is not None:
+        hostname = f"{hostname}:{port}"
+    path = parsed.path.rstrip("/")
+    return f"{parsed.scheme.casefold()}://{hostname}{path}"
+
+
+def _connection_string_account_endpoint(value: str | None) -> str | None:
+    """Extract only account identity from a connection string, never secrets."""
+    if not value:
+        return None
+    fields: dict[str, str] = {}
+    for part in value.split(";"):
+        key, separator, field_value = part.partition("=")
+        if not separator:
+            continue
+        fields[key.strip().casefold()] = field_value.strip()
+    explicit = _canonical_account_endpoint(fields.get("blobendpoint"))
+    if explicit is not None:
+        return explicit
+    account = fields.get("accountname", "").strip().casefold()
+    suffix = fields.get("endpointsuffix", "core.windows.net").strip().casefold()
+    protocol = fields.get("defaultendpointsprotocol", "https").strip().casefold()
+    if (
+        not account
+        or not account.isascii()
+        or not account.isalnum()
+        or not suffix
+        or any(char.isspace() for char in suffix)
+        or protocol not in {"http", "https"}
+    ):
+        return None
+    return _canonical_account_endpoint(
+        f"{protocol}://{account}.blob.{suffix}"
+    )
+
+
+def _scope_digest(payload: dict[str, str | int]) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def current_storage_provenance() -> dict[str, str | int] | None:
+    """Return a non-secret fingerprint of the current screenshot namespace."""
+    if _use_blob():
+        container = (_blob_container() or "").strip().casefold()
+        endpoint = (
+            _connection_string_account_endpoint(_blob_connection_string())
+            if _blob_connection_string()
+            else _canonical_account_endpoint(_blob_account_url())
+        )
+        if not container or endpoint is None:
+            return None
+        scope = {
+            "version": _PROVENANCE_VERSION,
+            "backend": "blob",
+            "endpoint": endpoint,
+            "container": container,
+        }
+        return {
+            "version": _PROVENANCE_VERSION,
+            "backend": "blob",
+            "scope_sha256": _scope_digest(scope),
+        }
+    scope = {
+        "version": _PROVENANCE_VERSION,
+        "backend": "local",
+        "root": os.path.realpath(_local_dir()),
+    }
+    return {
+        "version": _PROVENANCE_VERSION,
+        "backend": "local",
+        "scope_sha256": _scope_digest(scope),
+    }
+
+
+def _validated_provenance(
+    provenance: object,
+) -> dict[str, str | int] | None:
+    if not isinstance(provenance, dict) or set(provenance) != {
+        "version",
+        "backend",
+        "scope_sha256",
+    }:
+        return None
+    version = provenance.get("version")
+    backend = provenance.get("backend")
+    digest = provenance.get("scope_sha256")
+    if (
+        type(version) is not int
+        or version != _PROVENANCE_VERSION
+        or backend not in {"blob", "local"}
+        or not isinstance(digest, str)
+        or _SCOPE_DIGEST_RE.fullmatch(digest) is None
+    ):
+        return None
+    return {
+        "version": version,
+        "backend": str(backend),
+        "scope_sha256": digest,
+    }
+
+
+def _provenance_matches_current(
+    provenance: object,
+) -> dict[str, str | int] | None:
+    expected = _validated_provenance(provenance)
+    current = current_storage_provenance()
+    if expected is None or current is None:
+        return None
+    if (
+        expected["version"] != current["version"]
+        or expected["backend"] != current["backend"]
+    ):
+        return None
+    if not hmac.compare_digest(
+        str(expected["scope_sha256"]),
+        str(current["scope_sha256"]),
+    ):
+        return None
+    return expected
+
+
 # ---------------------------------------------------------------------------
 # Store / load
 # ---------------------------------------------------------------------------
@@ -239,7 +391,13 @@ def image_storage_key(data: bytes, *, feedback_id: int, index: int) -> str:
     return f"feedback/{feedback_id}/{index}.{ext}"
 
 
-def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
+def store_image(
+    data: bytes,
+    *,
+    feedback_id: int,
+    index: int,
+    provenance: object,
+) -> str | None:
     """Persist one screenshot and return its storage key, or ``None`` on failure.
 
     The key is ``feedback/<feedback_id>/<index>.<ext>`` where ext derives from
@@ -257,13 +415,15 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
         logger.warning("store_image: refusing to store non-image bytes")
         return None
 
-    if _use_blob():
+    storage = _provenance_matches_current(provenance)
+    if storage is None:
+        logger.warning("store_image: storage provenance is unavailable")
+        return None
+
+    if storage["backend"] == "blob":
         client = _blob_container_client()
         if client is None:
-            logger.warning(
-                "store_image: configured Blob storage is unavailable for %s",
-                key,
-            )
+            logger.warning("store_image: configured Blob storage is unavailable")
             return None
         try:
             client.upload_blob(
@@ -274,11 +434,7 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
             )
             return key
         except Exception:
-            logger.warning(
-                "store_image: blob upload failed for %s",
-                key,
-                exc_info=True,
-            )
+            logger.warning("store_image: Blob upload failed")
             return None
 
     _warn_local_once()
@@ -289,11 +445,15 @@ def store_image(data: bytes, *, feedback_id: int, index: int) -> str | None:
             fh.write(data)
         return key
     except OSError:
-        logger.warning("store_image: local write failed for %s", key, exc_info=True)
+        logger.warning("store_image: local write failed")
         return None
 
 
-def load_image(key: str) -> tuple[bytes, str] | None:
+def load_image(
+    key: str,
+    *,
+    provenance: object,
+) -> tuple[bytes, str] | None:
     """Return ``(bytes, content_type)`` for a stored key, or ``None`` if absent.
 
     The key is validated against the server-generated shape so a tampered value
@@ -304,15 +464,20 @@ def load_image(key: str) -> tuple[bytes, str] | None:
     ext = key.rsplit(".", 1)[-1]
     content_type = EXT_TO_CONTENT_TYPE.get(ext, "application/octet-stream")
 
-    if _use_blob():
+    storage = _provenance_matches_current(provenance)
+    if storage is None:
+        return None
+
+    if storage["backend"] == "blob":
         client = _blob_container_client()
-        if client is not None:
-            try:
-                data = client.download_blob(key).readall()
-                return data, content_type
-            except Exception:
-                logger.info("load_image: blob %s not found or unreadable", key)
-                # fall through to local in case it predates blob config
+        if client is None:
+            return None
+        try:
+            data = client.download_blob(key).readall()
+            return data, content_type
+        except Exception:
+            logger.info("load_image: Blob object not found or unreadable")
+            return None
 
     try:
         path = os.path.join(_local_dir(), *key.split("/"))
@@ -353,13 +518,18 @@ def _delete_local_image(key: str) -> None:
         ) from exc
 
 
-def delete_image(key: str, *, feedback_id: int) -> None:
-    """Delete one exact row-bound screenshot key from the selected backend.
+def delete_image(
+    key: str,
+    *,
+    feedback_id: int,
+    provenance: object,
+) -> None:
+    """Delete one exact row-bound screenshot key from its recorded backend.
 
     Missing blobs/files are already deleted and therefore succeed. Other
     backend errors are normalized so callers cannot report account deletion
-    success while a screenshot may remain. When Blob is configured, an exact
-    legacy local copy is also removed after the Blob result is known.
+    success while a screenshot may remain. Missing, malformed, or drifted
+    provenance is an error; deletion never guesses another backend.
     """
     match = _KEY_RE.fullmatch(key) if isinstance(key, str) else None
     if match is None or int(match.group("feedback_id")) != feedback_id:
@@ -367,7 +537,13 @@ def delete_image(key: str, *, feedback_id: int) -> None:
             "Feedback image key is invalid or belongs to another row"
         )
 
-    if _use_blob():
+    storage = _provenance_matches_current(provenance)
+    if storage is None:
+        raise FeedbackStorageDeletionError(
+            "Feedback image storage provenance is missing or mismatched"
+        )
+
+    if storage["backend"] == "blob":
         client = _blob_container_client()
         if client is None:
             raise FeedbackStorageDeletionError(
@@ -386,6 +562,7 @@ def delete_image(key: str, *, feedback_id: int) -> None:
             raise FeedbackStorageDeletionError(
                 "Feedback Blob deletion failed"
             ) from exc
+        return
 
     _delete_local_image(key)
 

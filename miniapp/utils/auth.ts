@@ -5,6 +5,7 @@ import {
   TERMS_CONTENT_DIGEST,
   TERMS_VERSION,
 } from './legal';
+import { removeRecentFeedbackId } from './feedback';
 
 /**
  * Three-endpoint WeChat auth flow, mirroring api/routes/wechat.py:
@@ -28,11 +29,13 @@ export interface WeChatAuthResponse {
 }
 
 export function saveToken(token: string): void {
+  removeRecentFeedbackId();
   wx.setStorageSync(TOKEN_KEY, token);
   void recordProductEvent('app_opened');
 }
 
 export function clearToken(): void {
+  removeRecentFeedbackId();
   wx.removeStorageSync(TOKEN_KEY);
 }
 

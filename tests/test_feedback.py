@@ -358,12 +358,63 @@ def db_with_users(monkeypatch):
 # Submit endpoint
 # ---------------------------------------------------------------------------
 
+_PRIVACY_LOG_SENTINELS = (
+    "feedback-id=918273645",
+    "user-id=private-user-564738291",
+    "key=feedback/918273645/0.png",
+    "path=/tmp/private-user-564738291/feedback.png",
+    f"hash={'ab' * 32}",
+    "url=https://storage.invalid/private/feedback/918273645/0.png",
+    "content=private feedback content sentinel",
+    "consent=feedback-publication-v2-public-github",
+)
 
-def test_submit_stores_row_and_schedules_triage(db_with_users):
+
+def _privacy_log_exception_text() -> str:
+    return ";".join(_PRIVACY_LOG_SENTINELS)
+
+
+def _assert_privacy_sentinels_absent(rendered_log: str) -> None:
+    for sentinel in _PRIVACY_LOG_SENTINELS:
+        assert sentinel not in rendered_log
+
+
+def test_submit_save_exception_log_omits_exception_privacy_data(
+    db_with_users,
+    monkeypatch,
+    caplog,
+):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+
+    db, _, _, user_id = db_with_users
+    caplog.set_level("ERROR", logger="api.routes.feedback")
+    monkeypatch.setattr(
+        db,
+        "commit",
+        lambda: (_ for _ in ()).throw(
+            RuntimeError(_privacy_log_exception_text())
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(kind="bug", message="private feedback content sentinel"),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 500
+    assert "feedback save failed" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
+
+
+def test_submit_stores_row_and_schedules_triage(db_with_users, caplog):
     from api.routes.feedback import submit_feedback, FeedbackRequest
     from db.models import Feedback
 
     db, _, _, user_id = db_with_users
+    caplog.set_level("INFO", logger="api.routes.feedback")
     bg = BackgroundTasks()
     resp = submit_feedback(
         FeedbackRequest(kind="bug", message="Charts fail to load", context={"page": "/training"}),
@@ -381,6 +432,14 @@ def test_submit_stores_row_and_schedules_triage(db_with_users):
     assert row.user_id == user_id
     assert row.publication_consent_version is None
     assert row.publication_consented_at is None
+    route_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "api.routes.feedback"
+    ]
+    assert any("feedback submitted" in message for message in route_messages)
+    assert all(str(resp["id"]) not in message for message in route_messages)
+    assert all(user_id not in message for message in route_messages)
 
 
 def test_submit_persists_explicit_publication_consent(db_with_users):
@@ -409,6 +468,158 @@ def test_submit_persists_explicit_publication_consent(db_with_users):
         == FEEDBACK_PUBLICATION_CONSENT_VERSION
     )
     assert row.publication_consented_at is not None
+
+
+@pytest.mark.parametrize(
+    "invalid_consent",
+    ["true", "false", 1, 0, None, [], {}],
+    ids=["true-string", "false-string", "one", "zero", "null", "array", "object"],
+)
+def test_feedback_http_rejects_non_boolean_publication_consent(invalid_consent):
+    """The HTTP contract must not coerce JSON scalars or containers to bool."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.auth import get_current_user_id
+    from api.routes.feedback import router
+    from db.session import get_db
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api")
+    app.dependency_overrides[get_current_user_id] = lambda: "strict-bool-user"
+    app.dependency_overrides[get_db] = lambda: None
+
+    response = TestClient(app).post(
+        "/api/feedback",
+        json={
+            "kind": "bug",
+            "message": "Strict consent boundary",
+            "external_publication_consent": invalid_consent,
+        },
+    )
+
+    assert response.status_code == 422
+    assert any(
+        error["loc"][-1] == "external_publication_consent"
+        for error in response.json()["detail"]
+    )
+
+
+def test_demo_feedback_stays_private_across_readiness_enqueue_and_admin(
+    db_with_users,
+    monkeypatch,
+):
+    from fastapi import Response
+
+    from api.feedback_publication import enqueue_publication
+    from api.feedback_triage import triage_and_publish
+    from api.optional_processing import FEEDBACK_PUBLICATION_CONSENT_VERSION
+    from api.routes.feedback import (
+        FeedbackAction,
+        FeedbackRequest,
+        feedback_publication_readiness,
+        submit_feedback,
+        update_feedback,
+    )
+    from db.models import FeedbackPublicationOutbox, User
+
+    db, _, admin_id, user_id = db_with_users
+    demo = db.get(User, user_id)
+    demo.is_demo = True
+    demo.demo_of = admin_id
+    db.commit()
+    monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "1")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "2")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", "synthetic-key")
+
+    readiness = feedback_publication_readiness(
+        Response(), user_id=user_id, db=db
+    )
+    assert readiness["available"] is False
+
+    submitted = submit_feedback(
+        FeedbackRequest(
+            kind="bug",
+            message="Demo feedback remains private",
+            external_publication_consent=True,
+            external_publication_consent_version=(
+                FEEDBACK_PUBLICATION_CONSENT_VERSION
+            ),
+        ),
+        BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+    row = db.get(__import__("db.models", fromlist=["Feedback"]).Feedback, submitted["id"])
+    assert submitted["publication"]["status"] == "unavailable"
+    assert row.publication_consent_version is None
+    assert row.publication_consented_at is None
+
+    triage_and_publish(row.id, _session=db)
+    db.refresh(row)
+    assert row.publication_status == "unavailable"
+
+    row.publication_consent_version = FEEDBACK_PUBLICATION_CONSENT_VERSION
+    row.publication_consented_at = datetime.utcnow()
+    row.publication_status = "manual_required"
+    row.status = "needs_review"
+    row.ai_title = "Reviewed demo feedback"
+    row.ai_body = "A scrubbed demo report."
+    row.ai_labels = ["bug"]
+    db.commit()
+
+    assert enqueue_publication(db, row.id) is None
+    assert row.publication_status == "unavailable"
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+
+    with pytest.raises(HTTPException) as exc:
+        update_feedback(
+            row.id,
+            _approve_action(row),
+            BackgroundTasks(),
+            user_id=admin_id,
+            db=db,
+        )
+    assert exc.value.status_code == 400
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+
+
+@pytest.mark.parametrize(
+    ("publication_consent", "expected_status"),
+    [(True, "unavailable"), (False, "private")],
+)
+def test_demo_triage_exception_recovery_never_requires_publication_review(
+    db_with_users,
+    monkeypatch,
+    publication_consent,
+    expected_status,
+):
+    from api import feedback_triage
+    from api.feedback_triage import triage_and_publish
+    from db.models import User
+
+    db, _, admin_id, user_id = db_with_users
+    demo = db.get(User, user_id)
+    demo.is_demo = True
+    demo.demo_of = admin_id
+    row = _new_row(
+        db,
+        user_id,
+        "Demo triage exception",
+        publication_consent=publication_consent,
+    )
+    monkeypatch.setattr(
+        feedback_triage,
+        "_rule_based",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    assert triage_and_publish(row.id, _session=db)["status"] == "failed"
+    db.refresh(row)
+    assert row.publication_status == expected_status
 
 
 def test_submit_rejects_stale_publication_consent_version(db_with_users):
@@ -490,11 +701,12 @@ def test_submit_rate_limited(db_with_users):
 # ---------------------------------------------------------------------------
 
 
-def test_triage_without_github_marks_triaged_and_scrubs(db_with_users):
+def test_triage_without_github_marks_triaged_and_scrubs(db_with_users, caplog):
     from api.feedback_triage import triage_and_publish
     from db.models import Feedback
 
     db, _, _, user_id = db_with_users
+    caplog.set_level("INFO", logger="api.feedback_triage")
     row = Feedback(
         user_id=user_id,
         kind="bug",
@@ -518,6 +730,35 @@ def test_triage_without_github_marks_triaged_and_scrubs(db_with_users):
     assert "[redacted-email]" in row.ai_body
     assert "bug" in (row.ai_labels or [])
     assert "feedback" in (row.ai_labels or [])
+    triage_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "api.feedback_triage"
+    ]
+    assert any("agent-ready decision" in message for message in triage_messages)
+    assert all(str(row.id) not in message for message in triage_messages)
+
+
+def test_triage_not_found_log_omits_requested_feedback_id(
+    db_with_users,
+    caplog,
+):
+    from api.feedback_triage import triage_and_publish
+
+    db, _, _, _ = db_with_users
+    missing_id = 987_654_321
+    caplog.set_level("WARNING", logger="api.feedback_triage")
+
+    result = triage_and_publish(missing_id, _session=db)
+
+    assert result == {"status": "error", "reason": "not_found"}
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "api.feedback_triage"
+    ]
+    assert any("not found" in message for message in messages)
+    assert all(str(missing_id) not in message for message in messages)
 
 
 def test_triage_is_idempotent_on_published_row(db_with_users):
@@ -540,19 +781,58 @@ def test_triage_is_idempotent_on_published_row(db_with_users):
 
 
 def _stub_github(monkeypatch, calls):
-    from api import feedback_triage as ft
+    from api import feedback_triage as ft, github_issues
 
     monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
     monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "1")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "2")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", "synthetic")
     monkeypatch.setattr(ft.github_issues, "is_configured", lambda: True)
+    monkeypatch.setattr(
+        github_issues,
+        "reconcile_issue_marker",
+        lambda marker, **_kwargs: {
+            "outcome": "unknown",
+            "number": None,
+            "url": None,
+            "http_status": 200,
+            "error_code": "not_indexed_or_absent",
+        },
+    )
+
     def _create(**kwargs):
         calls.append(kwargs)
-        return {"number": 101, "url": "https://github.com/x/y/issues/101"}
+        return {
+            "outcome": "created",
+            "number": 101,
+            "url": "https://github.com/praxys-run/praxys/issues/101",
+            "http_status": 201,
+            "error_code": None,
+        }
 
-    monkeypatch.setattr(ft.github_issues, "create_issue", _create)
+    monkeypatch.setattr(github_issues, "create_issue_outcome", _create)
 
 
-def _stub_llm(monkeypatch, *, sensitive, priority=None, kind="bug", agent_eligible=True):
+def _publish_queued(db):
+    """Run the separately owned durable worker for one queued test row."""
+    from api.feedback_publication import claim_next_send, send_claim
+
+    claim = claim_next_send(db)
+    assert claim is not None
+    return send_claim(db, *claim)
+
+
+def _stub_llm(
+    monkeypatch,
+    *,
+    sensitive,
+    priority=None,
+    kind="bug",
+    agent_eligible=True,
+    privacy_safe=True,
+):
     from api import feedback_triage as ft
 
     payload = {
@@ -564,8 +844,14 @@ def _stub_llm(monkeypatch, *, sensitive, priority=None, kind="bug", agent_eligib
     }
     if priority is not None:
         payload["priority"] = priority
+
+    def _chat_json(*_args, **kwargs):
+        if kwargs.get("insight_type") == "feedback_publication_privacy_review":
+            return {"safe_to_publish": privacy_safe}
+        return payload
+
     monkeypatch.setattr(ft.llm, "get_client", lambda: object())
-    monkeypatch.setattr(ft.llm, "chat_json", lambda *a, **k: payload)
+    monkeypatch.setattr(ft.llm, "chat_json", _chat_json)
     monkeypatch.setattr(
         ft,
         "background_ai_authorized",
@@ -604,6 +890,15 @@ def _new_row(
     return row
 
 
+def _approve_action(row):
+    from api.feedback_publication import publication_review_token
+    from api.routes.feedback import FeedbackAction
+
+    token = publication_review_token(row)
+    assert token is not None
+    return FeedbackAction(action="approve", review_token=token)
+
+
 def test_gate_holds_when_no_ai_and_public_repo(db_with_users, monkeypatch):
     """GitHub configured but no AI to judge sensitivity → park for admin."""
     from api.feedback_triage import triage_and_publish
@@ -634,7 +929,9 @@ def test_gate_autofiles_without_ai_when_opted_in(db_with_users, monkeypatch):
     )
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "needs_review"
+    assert result["status"] == "triaged"
+    db.refresh(row)
+    assert row.publication_status == "private"
     assert calls == []
 
 
@@ -653,6 +950,35 @@ def test_gate_holds_when_secret_present_even_if_opted_in(db_with_users, monkeypa
     assert calls == []
 
 
+def test_pre_model_redaction_cannot_be_erased_by_clean_llm_output(
+    db_with_users, monkeypatch
+):
+    """A model omitting the scrub marker cannot reopen the public gate."""
+    from api.feedback_triage import triage_and_publish
+    from db.models import FeedbackPublicationOutbox
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False)
+    row = _new_row(
+        db,
+        user_id,
+        "Token ghp_abcdefghijklmnopqrstuvwx1234567890 broke sync",
+    )
+
+    result = triage_and_publish(row.id, _session=db)
+
+    assert result["status"] == "needs_review"
+    assert calls == []
+    assert (
+        db.query(FeedbackPublicationOutbox)
+        .filter(FeedbackPublicationOutbox.feedback_id == row.id)
+        .count()
+        == 0
+    )
+
+
 def test_gate_holds_when_llm_flags_sensitive(db_with_users, monkeypatch):
     from api.feedback_triage import triage_and_publish
 
@@ -666,6 +992,39 @@ def test_gate_holds_when_llm_flags_sensitive(db_with_users, monkeypatch):
     assert result["status"] == "needs_review"
     assert result["used_llm"] is True
     assert calls == []
+
+
+@pytest.mark.parametrize("malformed", (0, "", None, [], {}))
+def test_text_malformed_falsy_sensitivity_never_enqueues_or_posts(
+    db_with_users,
+    monkeypatch,
+    malformed,
+):
+    from api.feedback_publication import claim_next_send, send_claim
+    from api.feedback_triage import triage_and_publish
+    from db.models import FeedbackPublicationOutbox
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=malformed)
+    row = _new_row(db, user_id, "Charts fail to load on the training page")
+
+    result = triage_and_publish(row.id, _session=db)
+    claim = claim_next_send(db)
+    if claim is not None:
+        send_claim(db, *claim)
+
+    assert result["status"] == "needs_review"
+    assert result["used_llm"] is False
+    assert claim is None
+    assert calls == []
+    assert (
+        db.query(FeedbackPublicationOutbox)
+        .filter(FeedbackPublicationOutbox.feedback_id == row.id)
+        .count()
+        == 0
+    )
 
 
 def test_background_ai_kill_switch_uses_rule_based_review(
@@ -687,8 +1046,10 @@ def test_background_ai_kill_switch_uses_rule_based_review(
 
     result = triage_and_publish(row.id, _session=db)
 
-    assert result["status"] == "triaged"
+    assert result["status"] == "needs_review"
     assert result["used_llm"] is False
+    db.refresh(row)
+    assert row.publication_status == "manual_required"
 
 
 def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
@@ -701,7 +1062,9 @@ def test_gate_publishes_when_llm_says_clean(db_with_users, monkeypatch):
     row = _new_row(db, user_id, "Charts fail to load on the training page")
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
+    assert calls == []
+    assert _publish_queued(db) == "published"
     assert len(calls) == 1
     db.refresh(row)
     assert row.github_issue_number == 101
@@ -726,10 +1089,22 @@ def test_admin_approve_publishes_parked_row(db_with_users, monkeypatch):
         if item["id"] == row.id
     )
     assert listed["external_publication_consent"] is True
+    assert listed["publication_review_token"] == _approve_action(row).review_token
 
-    out = update_feedback(row.id, FeedbackAction(action="approve"), BackgroundTasks(), user_id=admin_id, db=db)
-    assert out["status"] == "issue_created"
-    assert out["github_issue_number"] == 101
+    bg = BackgroundTasks()
+    out = update_feedback(
+        row.id,
+        _approve_action(row),
+        bg,
+        user_id=admin_id,
+        db=db,
+    )
+    assert out["status"] == "triaged"
+    assert out["publication_status"] == "queued"
+    assert out["github_issue_number"] is None
+    assert len(bg.tasks) == 1
+    assert calls == []
+    assert _publish_queued(db) == "published"
     assert len(calls) == 1
 
 
@@ -760,7 +1135,7 @@ def test_admin_approve_cannot_substitute_for_submitter_consent(
     with pytest.raises(HTTPException) as exc:
         update_feedback(
             row.id,
-            FeedbackAction(action="approve"),
+            _approve_action(row),
             BackgroundTasks(),
             user_id=admin_id,
             db=db,
@@ -799,7 +1174,7 @@ def test_admin_approve_rejects_legacy_or_stale_publication_consent(
         with pytest.raises(HTTPException) as exc:
             update_feedback(
                 row.id,
-                FeedbackAction(action="approve"),
+                _approve_action(row),
                 BackgroundTasks(),
                 user_id=admin_id,
                 db=db,
@@ -829,13 +1204,47 @@ def test_admin_approve_cannot_publish_after_submitter_terms_go_stale(
     with pytest.raises(HTTPException) as exc:
         update_feedback(
             row.id,
-            FeedbackAction(action="approve"),
+            _approve_action(row),
             BackgroundTasks(),
             user_id=admin_id,
             db=db,
         )
 
     assert exc.value.status_code == 400
+    assert calls == []
+
+
+def test_admin_approve_is_bound_to_the_reviewed_public_draft(
+    db_with_users,
+    monkeypatch,
+):
+    from api.feedback_triage import triage_and_publish
+    from api.routes.feedback import update_feedback
+    from db.models import FeedbackPublicationOutbox
+
+    db, _, admin_id, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    row = _new_row(db, user_id, "Calendar text clips its card")
+    triage_and_publish(row.id, _session=db)
+    db.refresh(row)
+    stale_approval = _approve_action(row)
+
+    row.ai_body = "Alice Chen's resting heart rate is 42 bpm."
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        update_feedback(
+            row.id,
+            stale_approval,
+            BackgroundTasks(),
+            user_id=admin_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 409
+    assert "review the current public draft" in str(exc.value.detail)
+    assert db.query(FeedbackPublicationOutbox).count() == 0
     assert calls == []
 
 
@@ -1261,20 +1670,27 @@ def test_empty_llm_output_does_not_drop_user_report(db_with_users, monkeypatch):
     row = _new_row(db, user_id, "Charts crash when I open Training")
 
     result = triage_and_publish(row.id, _session=db)
-    # Empty model output is not trusted; the real message survives.
+    # Empty model output is not trusted; the real message survives privately.
     assert result["used_llm"] is False
-    assert len(calls) == 1
-    assert "Charts crash" in calls[0]["body"]
+    assert result["status"] == "needs_review"
+    assert calls == []
+    db.refresh(row)
+    assert "Charts crash" in row.ai_body
+    assert row.publication_status == "manual_required"
 
 
-def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monkeypatch):
-    """If the post-create commit fails, the row still ends issue_created (with
-    the issue number) and the outcome remains attached to the attempted decision."""
+def test_triage_commit_failure_cannot_reach_external_publication(
+    db_with_users,
+    monkeypatch,
+    caplog,
+):
+    """A failed atomic enqueue commit must happen before any external POST."""
     from api.feedback_triage import triage_and_publish
     from db.agent_loop import record_decision
     from db.models import AgentDecision, AgentOutcome, Feedback
 
     db, _, _, user_id = db_with_users
+    caplog.set_level("ERROR", logger="api.feedback_triage")
     monkeypatch.setenv("PRAXYS_FEEDBACK_AUTOFILE_WITHOUT_AI", "true")
     calls: list = []
     _stub_github(monkeypatch, calls)
@@ -1302,17 +1718,20 @@ def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monk
     def flaky_commit():
         state["n"] += 1
         if state["n"] == 1:
-            raise RuntimeError("commit boom")
+            raise RuntimeError(_privacy_log_exception_text())
         return real_commit()
 
     monkeypatch.setattr(db, "commit", flaky_commit)
     result = triage_and_publish(fid, _session=db)
 
-    assert result["status"] == "issue_created"
-    assert len(calls) == 1  # issue created exactly once — no duplicate
+    assert result["status"] == "failed"
+    assert calls == []
     fresh = db.query(Feedback).filter(Feedback.id == fid).first()
-    assert fresh.status == "issue_created"
-    assert fresh.github_issue_number == 101
+    assert fresh.status == "failed"
+    assert fresh.github_issue_number is None
+    from db.models import FeedbackPublicationOutbox
+
+    assert db.query(FeedbackPublicationOutbox).count() == 0
     decisions = (
         db.query(AgentDecision)
         .filter(
@@ -1325,6 +1744,176 @@ def test_commit_failure_after_publish_recovers_issue_created(db_with_users, monk
     current = next(item for item in decisions if item.id != older_id)
     outcome = db.query(AgentOutcome).one()
     assert outcome.decision_id == current.id
+    assert "triage_and_publish failed" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
+
+
+def test_triage_storage_exception_log_omits_exception_privacy_data(
+    db_with_users,
+    monkeypatch,
+    caplog,
+):
+    from api import feedback_triage
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    caplog.set_level("ERROR", logger="api.feedback_triage")
+    row = _new_row(db, user_id, "private feedback content sentinel")
+    row.image_keys = ["feedback/918273645/0.png"]
+    db.commit()
+    feedback_id = row.id
+    monkeypatch.setattr(
+        feedback_triage.feedback_storage,
+        "load_image",
+        lambda _key, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError(_privacy_log_exception_text())
+        ),
+    )
+
+    result = feedback_triage.triage_and_publish(feedback_id, _session=db)
+
+    assert result["status"] == "failed"
+    recovered = db.get(Feedback, feedback_id)
+    assert recovered is not None and recovered.status == "failed"
+    assert "triage_and_publish failed" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
+
+
+def test_feedback_privacy_loggers_never_emit_exception_tracebacks():
+    import ast
+    import inspect
+
+    from api import (
+        account_deletion,
+        feedback_publication,
+        feedback_storage,
+        feedback_triage,
+        github_issues,
+        main,
+        telemetry,
+    )
+    from api.routes import feedback as feedback_routes
+
+    for module in (
+        feedback_routes,
+        feedback_triage,
+        feedback_storage,
+        account_deletion,
+        feedback_publication,
+        github_issues,
+    ):
+        tree = ast.parse(inspect.getsource(module))
+        logger_calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "logger"
+        ]
+        assert logger_calls, module.__name__
+        assert all(call.func.attr != "exception" for call in logger_calls), (
+            module.__name__
+        )
+        assert all(
+            not any(
+                keyword.arg == "exc_info"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is True
+                for keyword in call.keywords
+            )
+            for call in logger_calls
+        ), module.__name__
+
+    github_tree = ast.parse(inspect.getsource(github_issues))
+    github_logger_calls = [
+        node
+        for node in ast.walk(github_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logger"
+    ]
+    assert all(len(call.args) == 1 for call in github_logger_calls)
+    assert all(
+        isinstance(call.args[0], ast.Constant)
+        and isinstance(call.args[0].value, str)
+        for call in github_logger_calls
+    )
+    assert all(
+        not any(
+            isinstance(node, ast.Name) and node.id in {"exc", "exception"}
+            for node in ast.walk(call)
+        )
+        for call in github_logger_calls
+    )
+
+    main_tree = ast.parse(inspect.getsource(main))
+    main_feedback_stop_calls = [
+        node
+        for node in ast.walk(main_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logger"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and "feedback publication reconciler" in str(node.args[0].value)
+    ]
+    assert len(main_feedback_stop_calls) == 1
+    assert main_feedback_stop_calls[0].func.attr == "error"
+    assert len(main_feedback_stop_calls[0].args) == 1
+    assert not main_feedback_stop_calls[0].keywords
+
+    telemetry_tree = ast.parse(inspect.getsource(telemetry))
+    telemetry_functions = {
+        node.name: node
+        for node in telemetry_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    for function_name in ("_emit_event_or_count",):
+        function = telemetry_functions[function_name]
+        calls = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "logger"
+        ]
+        assert calls, function_name
+        assert all(call.func.attr != "exception" for call in calls)
+        assert all(len(call.args) == 1 for call in calls)
+        assert all(
+            isinstance(call.args[0], ast.Constant)
+            and isinstance(call.args[0].value, str)
+            for call in calls
+        )
+        assert all(
+            not any(
+                keyword.arg == "exc_info"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is True
+                for keyword in call.keywords
+            )
+            for call in calls
+        )
+
+    record_feedback_source = inspect.getsource(telemetry.record_feedback)
+    assert "_emit_event_or_count(" in record_feedback_source
+    assert "_track_event(" not in record_feedback_source
+    assert "_counter(" not in record_feedback_source
+
+    triage_wake_source = inspect.getsource(
+        feedback_triage.triage_and_wake_publication
+    )
+    reconciler_source = inspect.getsource(feedback_publication._reconciler_loop)
+    update_source = inspect.getsource(feedback_routes.update_feedback)
+    for source in (triage_wake_source, reconciler_source):
+        assert "safe_wake_publication_queue" in source
+        assert "process_publication_queue(" not in source
+    assert "feedback_publication.safe_wake_publication_queue" in update_source
+    assert "feedback_publication.process_publication_queue" not in update_source
 
 # ---------------------------------------------------------------------------
 # GitHub App auth (no-rotation alternative to the PAT)
@@ -1356,7 +1945,7 @@ class _FakeResp:
 def test_github_app_mints_and_caches_installation_token(monkeypatch):
     from api import github_issues as gi
 
-    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "owner/repo")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
     monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
     monkeypatch.setenv("PRAXYS_GITHUB_APP_INSTALLATION_ID", "456")
     # single-line PEM with literal \n — the App Service storage shape
@@ -1371,7 +1960,13 @@ def test_github_app_mints_and_caches_installation_token(monkeypatch):
             assert kw["headers"]["Authorization"].startswith("Bearer ")
             return _FakeResp(201, {"token": "ghs_tok", "expires_at": "2999-01-01T00:00:00Z"})
         calls["issue"] += 1
-        return _FakeResp(201, {"number": 9, "html_url": "https://x/9"})
+        return _FakeResp(
+            201,
+            {
+                "number": 9,
+                "html_url": "https://github.com/praxys-run/praxys/issues/9",
+            },
+        )
 
     monkeypatch.setattr(gi.httpx, "post", fake_post)
 
@@ -1384,7 +1979,302 @@ def test_github_app_mints_and_caches_installation_token(monkeypatch):
         body="b",
         labels=["bug"],
         publication_authorized=True,
-    ) == {"number": 9, "url": "https://x/9"}
+    ) == {
+        "number": 9,
+        "url": "https://github.com/praxys-run/praxys/issues/9",
+    }
+
+
+@pytest.mark.parametrize(
+    ("performed_via", "expected"),
+    (
+        ({"id": 123}, "reconciled"),
+        (None, "unknown"),
+        ({"id": "123"}, "unknown"),
+        ({"id": True}, "unknown"),
+        ({"id": 124}, "unknown"),
+    ),
+)
+def test_marker_reconciliation_requires_exact_github_app_provenance(
+    monkeypatch,
+    performed_via,
+    expected,
+):
+    from api import github_issues as gi
+
+    marker = "<!-- praxys-feedback-publication:v2 id=opaque payload=sha256:x -->"
+    title = "Public issue"
+    body = f"Public issue\n\n{marker}"
+    content_digest = gi.public_issue_content_sha256(title=title, body=body)
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(
+        gi.httpx,
+        "get",
+        lambda *_args, **_kwargs: _FakeResp(
+            200,
+            {
+                "items": [
+                        {
+                            "number": 9,
+                        "html_url": (
+                            "https://github.com/praxys-run/praxys/issues/9"
+                        ),
+                            "title": title,
+                            "body": body,
+                        "performed_via_github_app": performed_via,
+                    }
+                ]
+            },
+        ),
+    )
+
+    assert (
+        gi.reconcile_issue_marker(
+            marker,
+            public_content_sha256=content_digest,
+        )["outcome"]
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("candidate_kind", "expected", "expected_number"),
+    (
+        ("replay_only", "unknown", None),
+        ("original_and_replay", "reconciled", 9),
+        ("modified_terminal", "unknown", None),
+    ),
+)
+def test_marker_reconciliation_rejects_copied_or_modified_content(
+    monkeypatch,
+    candidate_kind,
+    expected,
+    expected_number,
+):
+    from api import github_issues as gi
+
+    marker = (
+        "<!-- praxys-feedback-publication:v2 id=original "
+        f"payload=sha256:{'a' * 64} -->"
+    )
+    own_marker = (
+        "<!-- praxys-feedback-publication:v2 id=replay "
+        f"payload=sha256:{'b' * 64} -->"
+    )
+    title = "Original public title"
+    body = f"Original public body\n\n{marker}"
+    expected_digest = gi.public_issue_content_sha256(title=title, body=body)
+    original = {
+        "number": 9,
+        "html_url": "https://github.com/praxys-run/praxys/issues/9",
+        "title": title,
+        "body": body,
+        "performed_via_github_app": {"id": 123},
+    }
+    replay = {
+        "number": 10,
+        "html_url": "https://github.com/praxys-run/praxys/issues/10",
+        "title": "Copied marker",
+        "body": f"Copied marker payload\n\n{marker}\n\n{own_marker}",
+        "performed_via_github_app": {"id": 123},
+    }
+    modified_terminal = {
+        "number": 11,
+        "html_url": "https://github.com/praxys-run/praxys/issues/11",
+        "title": title,
+        "body": f"Modified public body\n\n{marker}",
+        "performed_via_github_app": {"id": 123},
+    }
+    items = {
+        "replay_only": [replay],
+        "original_and_replay": [replay, original],
+        "modified_terminal": [modified_terminal],
+    }[candidate_kind]
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(
+        gi.httpx,
+        "get",
+        lambda *_args, **_kwargs: _FakeResp(200, {"items": items}),
+    )
+
+    outcome = gi.reconcile_issue_marker(
+        marker,
+        public_content_sha256=expected_digest,
+    )
+
+    assert outcome["outcome"] == expected
+    assert outcome["number"] == expected_number
+
+
+@pytest.mark.parametrize(
+    ("completeness", "expected"),
+    (
+        ({"incomplete_results": True, "total_count": 1}, "provider_failure"),
+        ({"incomplete_results": False, "total_count": 2}, "provider_failure"),
+        ({"incomplete_results": False, "total_count": 1}, "reconciled"),
+    ),
+)
+def test_marker_reconciliation_requires_complete_search_results(
+    monkeypatch,
+    completeness,
+    expected,
+):
+    from api import github_issues as gi
+
+    marker = (
+        "<!-- praxys-feedback-publication:v2 id=complete "
+        f"payload=sha256:{'c' * 64} -->"
+    )
+    title = "Complete search"
+    body = f"Complete search body\n\n{marker}"
+    content_digest = gi.public_issue_content_sha256(title=title, body=body)
+    search_params: dict = {}
+
+    def _search(*_args, **kwargs):
+        search_params.update(kwargs["params"])
+        return _FakeResp(
+            200,
+            {
+                **completeness,
+                "items": [
+                    {
+                        "number": 12,
+                        "html_url": (
+                            "https://github.com/praxys-run/praxys/issues/12"
+                        ),
+                        "title": title,
+                        "body": body,
+                        "performed_via_github_app": {"id": 123},
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "ghs_token")
+    monkeypatch.setattr(gi.httpx, "get", _search)
+
+    outcome = gi.reconcile_issue_marker(
+        marker,
+        public_content_sha256=content_digest,
+    )
+
+    assert outcome["outcome"] == expected
+    assert search_params["per_page"] == 100
+    if expected == "provider_failure":
+        assert outcome["error_code"] == "incomplete_search_results"
+
+
+@pytest.mark.parametrize("app_id", ("", "0", "01", "-1", " 123", "true"))
+def test_github_app_id_must_be_canonical_positive_decimal(
+    monkeypatch,
+    app_id,
+):
+    from api import github_issues as gi
+
+    if app_id:
+        monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", app_id)
+    else:
+        monkeypatch.delenv("PRAXYS_GITHUB_APP_ID", raising=False)
+    assert gi._configured_app_id() is None
+
+
+def test_github_jwt_failure_log_omits_sensitive_exception(
+    monkeypatch,
+    caplog,
+):
+    import sys
+    from types import SimpleNamespace
+
+    from api import github_issues as gi
+
+    caplog.set_level("WARNING", logger="api.github_issues")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_PRIVATE_KEY", "private-key-sentinel")
+    monkeypatch.setitem(
+        sys.modules,
+        "jwt",
+        SimpleNamespace(
+            encode=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                RuntimeError(_privacy_log_exception_text())
+            )
+        ),
+    )
+
+    assert gi._app_jwt() is None
+    assert "JWT signing failed" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    (
+        ("mint", None),
+        ("create", "unknown"),
+        ("reconcile", "provider_failure"),
+        ("label", False),
+        ("state", None),
+        ("outcome", None),
+    ),
+)
+def test_github_network_logs_omit_sensitive_exception(
+    monkeypatch,
+    caplog,
+    operation,
+    expected,
+):
+    import httpx
+
+    from api import github_issues as gi
+
+    caplog.set_level("WARNING", logger="api.github_issues")
+    monkeypatch.setenv("PRAXYS_ENABLE_FEEDBACK_PUBLICATION", "true")
+    monkeypatch.setenv("PRAXYS_DISABLE_FEEDBACK_PUBLICATION", "false")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_GITHUB_REPO", "praxys-run/praxys")
+    monkeypatch.setenv("PRAXYS_GITHUB_APP_ID", "123")
+    monkeypatch.setattr(gi, "_bearer_token", lambda: "synthetic-token")
+    monkeypatch.setattr(gi, "_repo", lambda: "praxys-run/praxys")
+
+    def network_failure(*_args, **_kwargs):
+        raise httpx.ConnectError(_privacy_log_exception_text())
+
+    if operation == "mint":
+        monkeypatch.setattr(gi, "_app_jwt", lambda: "synthetic-jwt")
+        monkeypatch.setattr(gi, "_app_installation_id", lambda: "123")
+        monkeypatch.setattr(gi.httpx, "post", network_failure)
+        result = gi._mint_installation_token()
+    elif operation == "create":
+        monkeypatch.setattr(gi.httpx, "post", network_failure)
+        result = gi.create_issue_outcome(
+            title="private feedback content sentinel",
+            body="private feedback content sentinel",
+            publication_authorized=True,
+        )["outcome"]
+    elif operation == "reconcile":
+        monkeypatch.setattr(gi.httpx, "get", network_failure)
+        result = gi.reconcile_issue_marker(
+            "ab" * 32,
+            public_content_sha256="sha256:" + "0" * 64,
+        )["outcome"]
+    elif operation == "label":
+        monkeypatch.setattr(gi.httpx, "post", network_failure)
+        result = gi.set_issue_label(918273645, "private-label", present=True)
+    elif operation == "state":
+        monkeypatch.setattr(gi.httpx, "get", network_failure)
+        result = gi.get_issue_state(918273645)
+    else:
+        monkeypatch.setattr(gi.httpx, "post", network_failure)
+        monkeypatch.setattr(gi, "_state_only_outcome", lambda _number: None)
+        result = gi.get_issue_outcome(918273645)
+
+    assert result == expected
+    assert "failed" in caplog.text or "unknown" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
 
 
 def test_feedback_publication_kill_switch_overrides_github_configuration(
@@ -1442,10 +2332,10 @@ def test_github_issue_label_sync_adds_and_removes(monkeypatch):
 def test_github_issue_repo_identity_is_bound_to_stored_url(monkeypatch):
     from api import github_issues as gi
 
-    monkeypatch.setattr(gi, "_repo", lambda: "owner/repo")
+    monkeypatch.setattr(gi, "_repo", lambda: "praxys-run/praxys")
     assert gi.issue_matches_configured_repo(
         42,
-        "https://github.com/owner/repo/issues/42",
+        "https://github.com/praxys-run/praxys/issues/42",
     )
     assert not gi.issue_matches_configured_repo(
         42,
@@ -1453,7 +2343,7 @@ def test_github_issue_repo_identity_is_bound_to_stored_url(monkeypatch):
     )
     assert not gi.issue_matches_configured_repo(
         42,
-        "https://github.com/owner/repo/issues/41",
+        "https://github.com/praxys-run/praxys/issues/41",
     )
     assert not gi.issue_matches_configured_repo(
         42,
@@ -1615,6 +2505,75 @@ def test_system_prompt_defaults_sensitive_to_false():
     assert "always include the contains_sensitive" in p.lower()
 
 
+def test_final_privacy_review_blocks_sensitive_model_output(
+    db_with_users,
+    monkeypatch,
+):
+    """The authoring model cannot approve the public prose it generated."""
+    from api import feedback_triage as ft
+    from api.feedback_triage import triage_and_publish
+    from db.models import AgentDecision, FeedbackPublicationOutbox
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+    monkeypatch.setattr(
+        ft,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
+
+    def fake_chat_json(_client, **kwargs):
+        if kwargs["insight_type"] == "feedback_publication_privacy_review":
+            return {"safe_to_publish": False}
+        return {
+            "kind": "bug",
+            "title": "Alice Chen's recovery chart is wrong",
+            "body": "Alice Chen's resting heart rate is 42 bpm.",
+            "contains_sensitive": False,
+            "priority": "medium",
+            "agent_eligible": True,
+        }
+
+    monkeypatch.setattr(ft.llm, "chat_json", fake_chat_json)
+    row = _new_row(db, user_id, "The recovery chart is wrong")
+
+    result = triage_and_publish(row.id, _session=db)
+
+    assert result["status"] == "needs_review"
+    assert calls == []
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+    decision = db.query(AgentDecision).filter(
+        AgentDecision.subject_ref == str(row.id)
+    ).one()
+    assert decision.output_json["publication_privacy_review_attempted"] is True
+    assert decision.output_json["publication_privacy_review_safe"] is False
+    assert "Alice" not in json.dumps(decision.output_json)
+
+
+@pytest.mark.parametrize("malformed", (None, 0, "true", [], {}))
+def test_malformed_final_privacy_review_fails_closed(
+    db_with_users,
+    monkeypatch,
+    malformed,
+):
+    from api.feedback_triage import triage_and_publish
+    from db.models import FeedbackPublicationOutbox
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    _stub_llm(monkeypatch, sensitive=False, privacy_safe=malformed)
+    row = _new_row(db, user_id, "The calendar status clips its card")
+
+    result = triage_and_publish(row.id, _session=db)
+
+    assert result["status"] == "needs_review"
+    assert calls == []
+    assert db.query(FeedbackPublicationOutbox).count() == 0
+
+
 def test_triage_uses_deterministic_temperature(db_with_users, monkeypatch):
     """Triage must call the model at temperature 0 so the sensitivity verdict
     doesn't vary run-to-run and rarely flip a benign report to sensitive."""
@@ -1649,6 +2608,10 @@ def test_triage_uses_deterministic_temperature(db_with_users, monkeypatch):
 _PNG_1PX = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
 )
+_TEST_BLOB_CONNECTION_STRING = (
+    "DefaultEndpointsProtocol=https;AccountName=syntheticstorage;"
+    "AccountKey=private-test-key;EndpointSuffix=core.windows.net"
+)
 
 
 def test_storage_sniff_validate_decode():
@@ -1682,45 +2645,166 @@ def test_storage_roundtrip_and_key_safety(db_with_users):
             index=0,
         )
 
-    key = fs.store_image(_PNG_1PX, feedback_id=42, index=0)
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    key = fs.store_image(
+        _PNG_1PX,
+        feedback_id=42,
+        index=0,
+        provenance=provenance,
+    )
     assert key == "feedback/42/0.png"
-    got = fs.load_image(key)
+    got = fs.load_image(key, provenance=provenance)
     assert got is not None and got[0] == _PNG_1PX and got[1] == "image/png"
     # A tampered / traversal key is rejected outright.
-    assert fs.load_image("feedback/../../secret") is None
-    assert fs.load_image("feedback/42/0.exe") is None
+    assert fs.load_image("feedback/../../secret", provenance=provenance) is None
+    assert fs.load_image("feedback/42/0.exe", provenance=provenance) is None
     # Non-image bytes are never stored.
-    assert fs.store_image(b"not an image", feedback_id=42, index=1) is None
+    assert (
+        fs.store_image(
+            b"not an image",
+            feedback_id=42,
+            index=1,
+            provenance=provenance,
+        )
+        is None
+    )
+
+
+def test_storage_failure_logs_omit_screenshot_key_and_local_path(
+    monkeypatch,
+    caplog,
+):
+    import errno
+
+    from api import feedback_storage as fs
+
+    feedback_id = 987654321
+    key = f"feedback/{feedback_id}/0.png"
+    local_root = "/tmp/private-athlete-feedback-path-sentinel"
+    storage_url = f"https://storage.invalid/private/{key}"
+    caplog.set_level("INFO", logger="api.feedback_storage")
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
+    blob_provenance = fs.current_storage_provenance()
+    assert blob_provenance is not None
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
+
+    assert (
+        fs.store_image(
+            _PNG_1PX,
+            feedback_id=feedback_id,
+            index=0,
+            provenance=blob_provenance,
+        )
+        is None
+    )
+
+    class BrokenUploadClient:
+        def upload_blob(self, **_kwargs):
+            raise OSError(errno.EIO, "upload unavailable", storage_url)
+
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: BrokenUploadClient())
+    assert (
+        fs.store_image(
+            _PNG_1PX,
+            feedback_id=feedback_id,
+            index=0,
+            provenance=blob_provenance,
+        )
+        is None
+    )
+
+    class BrokenDownload:
+        def readall(self):
+            raise OSError(errno.EIO, "download unavailable", storage_url)
+
+    class BrokenBlobClient:
+        def download_blob(self, _key):
+            return BrokenDownload()
+
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: BrokenBlobClient())
+    monkeypatch.setattr(fs, "_local_dir", lambda: local_root)
+    assert fs.load_image(key, provenance=blob_provenance) is None
+
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONTAINER")
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING")
+    monkeypatch.setattr(
+        fs.os,
+        "makedirs",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError(errno.EACCES, "directory unavailable", local_root)
+        ),
+    )
+    monkeypatch.setattr(fs, "_local_warned", False)
+    local_provenance = fs.current_storage_provenance()
+    assert local_provenance is not None
+    assert (
+        fs.store_image(
+            _PNG_1PX,
+            feedback_id=feedback_id,
+            index=0,
+            provenance=local_provenance,
+        )
+        is None
+    )
+
+    rendered = caplog.text
+    assert key not in rendered
+    assert str(feedback_id) not in rendered
+    assert local_root not in rendered
+    assert storage_url not in rendered
 
 
 def test_storage_delete_is_idempotent_exact_and_row_bound(db_with_users):
     from api import feedback_storage as fs
 
-    key = fs.store_image(_PNG_1PX, feedback_id=42, index=0)
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    key = fs.store_image(
+        _PNG_1PX,
+        feedback_id=42,
+        index=0,
+        provenance=provenance,
+    )
     assert key == "feedback/42/0.png"
 
     with pytest.raises(fs.FeedbackStorageDeletionError):
-        fs.delete_image(key, feedback_id=43)
-    assert fs.load_image(key) is not None
+        fs.delete_image(key, feedback_id=43, provenance=provenance)
+    assert fs.load_image(key, provenance=provenance) is not None
 
-    fs.delete_image(key, feedback_id=42)
-    assert fs.load_image(key) is None
-    fs.delete_image(key, feedback_id=42)
+    fs.delete_image(key, feedback_id=42, provenance=provenance)
+    assert fs.load_image(key, provenance=provenance) is None
+    fs.delete_image(key, feedback_id=42, provenance=provenance)
 
     with pytest.raises(fs.FeedbackStorageDeletionError):
-        fs.delete_image("feedback/../../secret", feedback_id=42)
+        fs.delete_image(
+            "feedback/../../secret",
+            feedback_id=42,
+            provenance=provenance,
+        )
     with pytest.raises(fs.FeedbackStorageDeletionError):
-        fs.delete_image("feedback/42/0.png\n", feedback_id=42)
+        fs.delete_image(
+            "feedback/42/0.png\n",
+            feedback_id=42,
+            provenance=provenance,
+        )
 
 
-def test_storage_delete_uses_exact_blob_and_removes_legacy_local_copy(
+def test_storage_delete_uses_only_the_recorded_blob_namespace(
     monkeypatch, tmp_path
 ):
     from azure.core.exceptions import ResourceNotFoundError
     from api import feedback_storage as fs
 
     monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
     monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL", raising=False)
 
     class MissingBlobClient:
@@ -1740,10 +2824,16 @@ def test_storage_delete_uses_exact_blob_and_removes_legacy_local_copy(
     local_path.parent.mkdir(parents=True)
     local_path.write_bytes(_PNG_1PX)
 
-    fs.delete_image("feedback/42/0.png", feedback_id=42)
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    fs.delete_image(
+        "feedback/42/0.png",
+        feedback_id=42,
+        provenance=provenance,
+    )
 
     assert client.deleted == ["feedback/42/0.png"]
-    assert not local_path.exists()
+    assert local_path.exists()
 
 
 def test_storage_delete_rejects_missing_container(monkeypatch, tmp_path):
@@ -1751,7 +2841,10 @@ def test_storage_delete_rejects_missing_container(monkeypatch, tmp_path):
     from api import feedback_storage as fs
 
     monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
     monkeypatch.setattr(fs, "_local_dir", lambda: str(tmp_path))
 
     class MissingContainerClient:
@@ -1765,8 +2858,14 @@ def test_storage_delete_rejects_missing_container(monkeypatch, tmp_path):
         "_blob_container_client",
         lambda: MissingContainerClient(),
     )
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
     with pytest.raises(fs.FeedbackStorageDeletionError):
-        fs.delete_image("feedback/42/0.png", feedback_id=42)
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
 
 
 def test_storage_delete_fails_closed_when_configured_blob_is_unavailable(
@@ -1775,30 +2874,48 @@ def test_storage_delete_fails_closed_when_configured_blob_is_unavailable(
     from api import feedback_storage as fs
 
     monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
     monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
     monkeypatch.setattr(
         fs,
         "_local_dir",
         lambda: pytest.fail("configured Azure deletion must not use local storage"),
     )
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
     with pytest.raises(fs.FeedbackStorageDeletionError):
-        fs.delete_image("feedback/42/0.png", feedback_id=42)
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
 
 
 def test_storage_delete_wraps_non_not_found_blob_failure(monkeypatch):
     from api import feedback_storage as fs
 
     monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
 
     class FailingBlobClient:
         def delete_blob(self, name: str) -> None:
             raise RuntimeError(f"failed to delete {name}")
 
     monkeypatch.setattr(fs, "_blob_container_client", lambda: FailingBlobClient())
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
     with pytest.raises(fs.FeedbackStorageDeletionError) as exc:
-        fs.delete_image("feedback/42/0.png", feedback_id=42)
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
     assert isinstance(exc.value.__cause__, RuntimeError)
 
 
@@ -1817,10 +2934,113 @@ def test_storage_delete_wraps_local_io_failure(monkeypatch, tmp_path):
         "unlink",
         lambda _path: (_ for _ in ()).throw(PermissionError("denied")),
     )
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
 
     with pytest.raises(fs.FeedbackStorageDeletionError) as exc:
-        fs.delete_image("feedback/42/0.png", feedback_id=42)
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
     assert isinstance(exc.value.__cause__, PermissionError)
+
+
+def test_storage_provenance_fails_closed_after_local_root_drift(
+    monkeypatch,
+    tmp_path,
+):
+    from api import feedback_storage as fs
+
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", raising=False)
+    monkeypatch.delenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        raising=False,
+    )
+    monkeypatch.delenv("PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL", raising=False)
+    roots = [tmp_path / "first"]
+    monkeypatch.setattr(fs, "_local_dir", lambda: str(roots[0]))
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    key = fs.store_image(
+        _PNG_1PX,
+        feedback_id=42,
+        index=0,
+        provenance=provenance,
+    )
+    assert key is not None
+    original_path = roots[0] / "feedback" / "42" / "0.png"
+    assert original_path.exists()
+
+    roots[0] = tmp_path / "second"
+    assert fs.load_image(key, provenance=provenance) is None
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image(key, feedback_id=42, provenance=provenance)
+    assert original_path.exists()
+
+
+def test_blob_provenance_allows_key_rotation_but_rejects_scope_drift(
+    monkeypatch,
+):
+    import json
+
+    from api import feedback_storage as fs
+
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    assert "private-test-key" not in json.dumps(provenance)
+    rotated = _TEST_BLOB_CONNECTION_STRING.replace(
+        "private-test-key",
+        "rotated-private-test-key",
+    )
+    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", rotated)
+    assert fs.current_storage_provenance() == provenance
+
+    deleted: list[str] = []
+
+    class BlobClient:
+        def delete_blob(self, key: str) -> None:
+            deleted.append(key)
+
+    monkeypatch.setattr(fs, "_blob_container_client", lambda: BlobClient())
+    fs.delete_image(
+        "feedback/42/0.png",
+        feedback_id=42,
+        provenance=provenance,
+    )
+    assert deleted == ["feedback/42/0.png"]
+
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        rotated.replace("syntheticstorage", "differentstorage"),
+    )
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
+    assert deleted == ["feedback/42/0.png"]
+
+
+@pytest.mark.parametrize("provenance", (None, {}, {"version": 1}))
+def test_storage_delete_rejects_missing_or_malformed_provenance(
+    db_with_users,
+    provenance,
+):
+    from api import feedback_storage as fs
+
+    with pytest.raises(fs.FeedbackStorageDeletionError):
+        fs.delete_image(
+            "feedback/42/0.png",
+            feedback_id=42,
+            provenance=provenance,
+        )
 
 
 def test_configured_blob_upload_never_falls_back_to_local(
@@ -1829,7 +3049,10 @@ def test_configured_blob_upload_never_falls_back_to_local(
     from api import feedback_storage as fs
 
     monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONTAINER", "private")
-    monkeypatch.setenv("PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING", "configured")
+    monkeypatch.setenv(
+        "PRAXYS_FEEDBACK_BLOB_CONNECTION_STRING",
+        _TEST_BLOB_CONNECTION_STRING,
+    )
     monkeypatch.setattr(fs, "_blob_container_client", lambda: None)
     monkeypatch.setattr(
         fs,
@@ -1837,7 +3060,24 @@ def test_configured_blob_upload_never_falls_back_to_local(
         lambda: pytest.fail("configured Blob upload must not write locally"),
     )
 
-    assert fs.store_image(_PNG_1PX, feedback_id=42, index=0) is None
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    assert (
+        fs.store_image(
+            _PNG_1PX,
+            feedback_id=42,
+            index=0,
+            provenance=provenance,
+        )
+        is None
+    )
+    assert (
+        fs.load_image(
+            "feedback/42/0.png",
+            provenance=provenance,
+        )
+        is None
+    )
 
 
 def _row_with_image(db, user_id, message="broken chart on training page"):
@@ -1845,8 +3085,16 @@ def _row_with_image(db, user_id, message="broken chart on training page"):
     from api import feedback_storage as fs
 
     row = _new_row(db, user_id, message)
-    key = fs.store_image(_PNG_1PX, feedback_id=row.id, index=0)
+    provenance = fs.current_storage_provenance()
+    assert provenance is not None
+    key = fs.store_image(
+        _PNG_1PX,
+        feedback_id=row.id,
+        index=0,
+        provenance=provenance,
+    )
     row.image_keys = [key]
+    row.image_storage_provenance = provenance
     db.commit()
     db.refresh(row)
     return row
@@ -1896,19 +3144,24 @@ def test_submit_stores_image_and_sets_keys(db_with_users):
     )
     row = db.query(Feedback).filter(Feedback.id == resp["id"]).first()
     assert row.image_keys == ["feedback/%d/0.png" % row.id]
-    got = fs.load_image(row.image_keys[0])
+    got = fs.load_image(
+        row.image_keys[0],
+        provenance=row.image_storage_provenance,
+    )
     assert got is not None and got[0] == _PNG_1PX
 
 
 def test_submit_retains_durable_locator_when_storage_is_unavailable(
     db_with_users,
     monkeypatch,
+    caplog,
 ):
     from api.routes.feedback import submit_feedback, FeedbackRequest
     from api import feedback_storage as fs
     from db.models import Feedback
 
     db, _, _, user_id = db_with_users
+    caplog.set_level("ERROR", logger="api.routes.feedback")
     monkeypatch.setattr(fs, "store_image", lambda *_args, **_kwargs: None)
     b64 = base64.b64encode(_PNG_1PX).decode()
 
@@ -1922,6 +3175,90 @@ def test_submit_retains_durable_locator_when_storage_is_unavailable(
     row = db.get(Feedback, resp["id"])
     assert row is not None
     assert row.image_keys == [f"feedback/{row.id}/0.png"]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "api.routes.feedback"
+    ]
+    assert any("image upload" in message for message in messages)
+    assert all(str(row.id) not in message for message in messages)
+    assert all(row.image_keys[0] not in message for message in messages)
+
+
+def test_submit_skips_unwritable_locator_without_storage_provenance(
+    db_with_users,
+    monkeypatch,
+    caplog,
+):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from api import feedback_storage as fs
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    caplog.set_level("WARNING", logger="api.routes.feedback")
+    monkeypatch.setattr(fs, "current_storage_provenance", lambda: None)
+    monkeypatch.setattr(
+        fs,
+        "store_image",
+        lambda *_args, **_kwargs: pytest.fail(
+            "an unidentified storage namespace must never be written"
+        ),
+    )
+    b64 = base64.b64encode(_PNG_1PX).decode()
+
+    resp = submit_feedback(
+        FeedbackRequest(kind="bug", message="broken chart", images=[b64]),
+        background_tasks=BackgroundTasks(),
+        user_id=user_id,
+        db=db,
+    )
+
+    row = db.get(Feedback, resp["id"])
+    assert row is not None
+    assert row.message == "broken chart"
+    assert row.image_keys is None
+    assert row.image_storage_provenance is None
+    assert "storage provenance is unavailable" in caplog.text
+    assert str(row.id) not in caplog.text
+
+
+def test_image_finalization_exception_log_omits_feedback_locator(
+    db_with_users,
+    monkeypatch,
+    caplog,
+):
+    from api.routes.feedback import FeedbackRequest, submit_feedback
+    from db.models import Feedback
+
+    db, _, _, user_id = db_with_users
+    caplog.set_level("ERROR", logger="api.routes.feedback")
+    real_commit = db.commit
+    commit_calls = 0
+
+    def fail_finalization_commit():
+        nonlocal commit_calls
+        commit_calls += 1
+        if commit_calls == 2:
+            raise RuntimeError(_privacy_log_exception_text())
+        return real_commit()
+
+    monkeypatch.setattr(db, "commit", fail_finalization_commit)
+    b64 = base64.b64encode(_PNG_1PX).decode()
+
+    with pytest.raises(HTTPException) as exc:
+        submit_feedback(
+            FeedbackRequest(kind="bug", message="broken chart", images=[b64]),
+            background_tasks=BackgroundTasks(),
+            user_id=user_id,
+            db=db,
+        )
+
+    assert exc.value.status_code == 503
+    row = db.query(Feedback).order_by(Feedback.id.desc()).first()
+    assert row is not None
+    assert row.image_keys
+    assert "finalization failed" in caplog.text
+    _assert_privacy_sentinels_absent(caplog.text)
 
 
 def test_submit_rejects_non_image_before_persisting(db_with_users):
@@ -1971,7 +3308,10 @@ def test_feedback_request_caps_image_count():
 # --- Triage: vision fold + gate --------------------------------------------
 
 
-def test_triage_folds_scrubbed_vision_description_and_publishes(db_with_users, monkeypatch):
+def test_triage_keeps_vision_description_out_of_public_payload(
+    db_with_users,
+    monkeypatch,
+):
     from api.feedback_triage import triage_and_publish
 
     db, _, _, user_id = db_with_users
@@ -1980,27 +3320,24 @@ def test_triage_folds_scrubbed_vision_description_and_publishes(db_with_users, m
     _stub_llm(monkeypatch, sensitive=False)  # text path is clean
     _stub_vision(
         monkeypatch,
-        description="The Training page shows a broken chart. Email shown: bob@example.com",
+        description="Mara Qin's resting heart rate is 42 bpm beside a broken chart.",
         sensitive=False,
     )
     row = _row_with_image(db, user_id)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     assert result["used_vision"] is True
-    assert len(calls) == 1
-    body = calls[0]["body"]
-    # The scrubbed description is folded in with the admin-console reference...
-    assert "## Screenshot" in body
-    assert "admin console" in body
-    assert "not published here" in body
-    # ...and the vision text is re-scrubbed, so no raw PII reaches the issue.
-    assert "bob@example.com" not in body
-    assert "[redacted-email]" in body
     db.refresh(row)
     assert row.image_sensitive is False
-    assert "[redacted-email]" in (row.image_description or "")
+    assert "Mara Qin" in (row.image_description or "")
+    assert "Mara Qin" not in (row.ai_body or "")
     assert "screenshot" in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
+    assert len(calls) == 1
+    assert "Mara Qin" not in calls[0]["body"]
+    assert "42 bpm" not in calls[0]["body"]
+    assert "Screenshot context" not in calls[0]["body"]
 
 
 def test_triage_gate_holds_on_sensitive_image(db_with_users, monkeypatch):
@@ -2023,6 +3360,63 @@ def test_triage_gate_holds_on_sensitive_image(db_with_users, monkeypatch):
     assert calls == []  # the image is never published to a public issue
     db.refresh(row)
     assert row.image_sensitive is True
+
+
+@pytest.mark.parametrize("malformed", (0, "", None, [], {}))
+def test_vision_malformed_falsy_sensitivity_never_enqueues_or_posts(
+    db_with_users,
+    monkeypatch,
+    malformed,
+):
+    from api import feedback_triage as ft
+    from api.feedback_publication import claim_next_send, send_claim
+    from api.feedback_triage import triage_and_publish
+    from db.models import FeedbackPublicationOutbox
+
+    db, _, _, user_id = db_with_users
+    calls: list = []
+    _stub_github(monkeypatch, calls)
+    monkeypatch.setattr(ft.llm, "get_client", lambda: object())
+    monkeypatch.setattr(
+        ft,
+        "background_ai_authorized",
+        lambda *_args, **_kwargs: True,
+    )
+
+    def _model_result(*_args, **kwargs):
+        if kwargs.get("images"):
+            return {
+                "description": "The Training page shows a generic broken chart.",
+                "contains_sensitive": malformed,
+            }
+        return {
+            "kind": "bug",
+            "title": "Charts crash on Training",
+            "body": "The training charts fail to render.",
+            "contains_sensitive": False,
+            "agent_eligible": True,
+        }
+
+    monkeypatch.setattr(ft.llm, "chat_json", _model_result)
+    row = _row_with_image(db, user_id)
+
+    result = triage_and_publish(row.id, _session=db)
+    claim = claim_next_send(db)
+    if claim is not None:
+        send_claim(db, *claim)
+
+    db.refresh(row)
+    assert result["status"] == "needs_review"
+    assert result["used_vision"] is False
+    assert row.image_sensitive is None
+    assert claim is None
+    assert calls == []
+    assert (
+        db.query(FeedbackPublicationOutbox)
+        .filter(FeedbackPublicationOutbox.feedback_id == row.id)
+        .count()
+        == 0
+    )
 
 
 def test_triage_gate_holds_on_unverified_image_even_with_autofile(db_with_users, monkeypatch):
@@ -2096,10 +3490,11 @@ def test_triage_assigns_priority_from_llm(db_with_users, monkeypatch):
     row = _new_row(db, user_id, "Charts fail to load on the training page")
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     db.refresh(row)
     assert row.priority == "high"
     assert "priority: high" in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "priority: high" in calls[0]["labels"]
 
 
@@ -2150,11 +3545,18 @@ def test_triage_tags_agent_ready_for_qualifying_bug(db_with_users, monkeypatch):
     row = _new_row(db, user_id, _DETAILED_BUG)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
-    assert result["agent_ready"] is True
+    assert result["status"] == "triaged"
+    assert result["agent_ready"] is False
     db.refresh(row)
     assert "agent-ready" in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" in calls[0]["labels"]
+    from db.models import AgentDecision
+
+    decision = db.query(AgentDecision).filter(
+        AgentDecision.subject_ref == str(row.id)
+    ).one()
+    assert decision.output_json["agent_ready_applied"] is True
 
 
 def test_triage_persists_privacy_minimized_decision_and_outcome(
@@ -2189,15 +3591,15 @@ def test_triage_persists_privacy_minimized_decision_and_outcome(
     assert decision.input_json["locale"] == "other"
     assert decision.policy_name == "change.agent_ready"
     assert decision.mode == "active"
-    assert decision.output_json["agent_ready_candidate"] is True
-    assert decision.output_json["agent_ready_applied"] is True
+    assert decision.output_json["agent_ready_candidate"] is False
+    assert decision.output_json["agent_ready_applied"] is False
     outcomes = (
         db.query(AgentOutcome)
         .filter(AgentOutcome.decision_id == decision.id)
         .all()
     )
     assert [outcome.outcome_type for outcome in outcomes] == [
-        "github_issue_created"
+        "held_for_review"
     ]
 
 
@@ -2292,10 +3694,11 @@ def test_triage_tags_agent_ready_for_detailed_cjk_bug(db_with_users, monkeypatch
     row = _new_row(db, user_id, _DETAILED_CJK_BUG)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
-    assert result["agent_ready"] is True
+    assert result["status"] == "triaged"
+    assert result["agent_ready"] is False
     db.refresh(row)
     assert "agent-ready" in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" in calls[0]["labels"]
 
 
@@ -2312,9 +3715,10 @@ def test_triage_no_agent_ready_for_feature(db_with_users, monkeypatch):
     )
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     db.refresh(row)
     assert "agent-ready" not in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" not in calls[0]["labels"]
 
 
@@ -2348,9 +3752,11 @@ def test_triage_no_agent_ready_for_low_detail_bug(db_with_users, monkeypatch, me
     row = _new_row(db, user_id, message)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     db.refresh(row)
     assert "agent-ready" not in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
+    assert "agent-ready" not in calls[0]["labels"]
 
 
 def test_triage_no_agent_ready_without_ai_gate(db_with_users, monkeypatch):
@@ -2381,10 +3787,11 @@ def test_triage_no_agent_ready_when_not_actionable_bug(db_with_users, monkeypatc
     row = _new_row(db, user_id, _DETAILED_BUG)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     assert result["agent_ready"] is False
     db.refresh(row)
     assert "agent-ready" not in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" not in calls[0]["labels"]
 
 
@@ -2401,10 +3808,11 @@ def test_triage_shadow_mode_withholds_agent_ready(db_with_users, monkeypatch):
     row = _new_row(db, user_id, _DETAILED_BUG)
 
     result = triage_and_publish(row.id, _session=db)
-    assert result["status"] == "issue_created"
+    assert result["status"] == "triaged"
     assert result["agent_ready"] is False
     db.refresh(row)
     assert "agent-ready" not in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" not in calls[0]["labels"]
     from db.models import AgentDecision
 
@@ -2438,6 +3846,8 @@ def test_challenger_prompt_is_recorded_but_never_acts(
     )
 
     def fake_chat_json(client, **kwargs):
+        if kwargs["insight_type"] == "feedback_publication_privacy_review":
+            return {"safe_to_publish": True}
         eligible = kwargs["insight_type"] == "feedback_triage_challenger"
         return {
             "kind": "bug",
@@ -2453,6 +3863,9 @@ def test_challenger_prompt_is_recorded_but_never_acts(
     result = triage_and_publish(row.id, _session=db)
 
     assert result["agent_ready"] is False
+    db.refresh(row)
+    assert "agent-ready" not in (row.ai_labels or [])
+    assert _publish_queued(db) == "published"
     assert "agent-ready" not in calls[0]["labels"]
     decision = db.query(AgentDecision).filter(
         AgentDecision.subject_ref == str(row.id)
@@ -2529,19 +3942,22 @@ def test_sync_marks_resolved_when_issue_closed(db_with_users, monkeypatch):
 def test_sync_skips_issue_from_different_configured_repo(
     db_with_users,
     monkeypatch,
+    caplog,
 ):
     from api import github_issues
     from api.routes.feedback import sync_feedback_status
     from db.models import Feedback
 
     db, _, admin_id, user_id = db_with_users
+    issue_number = 908172635
+    issue_url = f"https://github.com/old/repo/issues/{issue_number}"
     row = Feedback(
         user_id=user_id,
         kind="bug",
         message="x",
         status="issue_created",
-        github_issue_number=101,
-        github_issue_url="https://github.com/old/repo/issues/101",
+        github_issue_number=issue_number,
+        github_issue_url=issue_url,
     )
     db.add(row)
     db.commit()
@@ -2556,6 +3972,7 @@ def test_sync_skips_issue_from_different_configured_repo(
         "get_issue_outcome",
         lambda number: pytest.fail("mismatched issue must not be read"),
     )
+    caplog.set_level("WARNING", logger="api.routes.feedback")
 
     assert sync_feedback_status(user_id=admin_id, db=db) == {
         "configured": True,
@@ -2563,6 +3980,8 @@ def test_sync_skips_issue_from_different_configured_repo(
         "updated": 0,
         "repository_mismatches": 1,
     }
+    assert str(issue_number) not in caplog.text
+    assert issue_url not in caplog.text
 
 
 def test_sync_records_external_label_and_merged_pull_outcomes(

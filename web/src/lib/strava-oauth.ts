@@ -1,4 +1,4 @@
-import { API_BASE, getAuthHeaders } from '@/hooks/useApi';
+import { apiFetch, getAuthHeaders } from '@/hooks/useApi';
 import type {
   StravaOAuthResult,
   StravaOAuthStartRequest,
@@ -65,16 +65,11 @@ export async function startStravaOAuth(
     ...clientCreds,
   };
 
-  const res = await fetch(`${API_BASE}/api/settings/connections/strava/start`, {
+  const res = await apiFetch('/api/settings/connections/strava/start', {
     method: 'POST',
     headers: { ...getAuthHeaders() as Record<string, string>, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-
-  if (res.status === 401) {
-    window.location.href = '/login';
-    return new Promise<never>(() => {});
-  }
 
   const data = await res.json().catch(() => null) as StravaOAuthStartResponse | { detail?: string } | null;
   if (!res.ok || !data || typeof data !== 'object' || !('authorize_url' in data)) {
