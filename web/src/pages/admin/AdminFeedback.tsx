@@ -20,6 +20,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { apiFetch, extractErrorMessage, useApi } from '@/hooks/useApi';
+import {
+  adminFeedbackConsentGuidance,
+  type AdminFeedbackConsentGuidance,
+} from '@/lib/admin-feedback';
 import { Trans, useLingui } from '@lingui/react/macro';
 import type {
   AdminAgentReadyAdjudicationRequest,
@@ -29,6 +33,7 @@ import type {
   AgentReadyAdjudicationReason,
   AgentReadyDecisionReason,
   FeedbackPriority,
+  FeedbackPublicationConsentReceipt,
   FeedbackPublicationStatus,
   FeedbackStatus,
 } from '@/types/api';
@@ -65,6 +70,67 @@ function feedbackStatusVariant(status: FeedbackStatus): 'default' | 'destructive
   if (status === 'failed') return 'destructive';
   if (status === 'resolved') return 'outline';
   return 'secondary';
+}
+
+function FeedbackConsentExplanation({
+  guidance,
+}: {
+  guidance: AdminFeedbackConsentGuidance;
+}) {
+  let explanation;
+  switch (guidance) {
+    case 'legacy':
+      explanation = (
+        <Trans>
+          This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue.
+        </Trans>
+      );
+      break;
+    case 'not_granted':
+      explanation = (
+        <Trans>
+          No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue.
+        </Trans>
+      );
+      break;
+    case 'invalid':
+      explanation = (
+        <Trans>
+          This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue.
+        </Trans>
+      );
+      break;
+  }
+
+  return (
+    <span className="flex max-w-sm items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+      <LockKeyhole aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+      <span>{explanation}</span>
+    </span>
+  );
+}
+
+function FeedbackIssue({ item }: { item: AdminFeedbackItem }) {
+  if (item.github_issue_url) {
+    return (
+      <a
+        href={item.github_issue_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+      >
+        <span className="font-data">#{item.github_issue_number}</span>
+        <ExternalLink className="h-3 w-3" />
+      </a>
+    );
+  }
+
+  const guidance = adminFeedbackConsentGuidance(item);
+  return guidance ? (
+    <FeedbackConsentExplanation guidance={guidance} />
+  ) : (
+    <span className="text-sm text-muted-foreground">—</span>
+  );
 }
 
 export default function AdminFeedback() {
@@ -129,6 +195,21 @@ export default function AdminFeedback() {
         return t`Publication unknown`;
       case 'unavailable':
         return t`Publication unavailable`;
+    }
+  };
+
+  const feedbackConsentReceiptLabel = (
+    receipt: FeedbackPublicationConsentReceipt,
+  ): string => {
+    switch (receipt) {
+      case 'current':
+        return t`Consent receipt: current`;
+      case 'legacy':
+        return t`Consent receipt: legacy`;
+      case 'not_granted':
+        return t`Consent receipt: no grant recorded`;
+      case 'invalid':
+        return t`Consent receipt: invalid`;
     }
   };
 
@@ -367,14 +448,14 @@ export default function AdminFeedback() {
                 </CardDescription>
                 <CardDescription className="mt-1">
                   <Trans>
-                    Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates.
+                    Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Consent receipt status is diagnostic: current does not mean eligible, queued, or guaranteed to publish; all existing review and publication gates still apply.
                   </Trans>
                 </CardDescription>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={feedbackFilter} onValueChange={(value) => setFeedbackFilter(value as AdminFeedbackFilter)}>
-                <SelectTrigger size="sm" className="w-[160px]">
+                <SelectTrigger size="sm" className="w-[160px]" aria-label={t`Feedback status`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -444,6 +525,9 @@ export default function AdminFeedback() {
                         <Badge variant="outline">
                           {feedbackPublicationLabel(item.publication_status)}
                         </Badge>
+                        <Badge variant="outline">
+                          {feedbackConsentReceiptLabel(item.publication_consent_receipt)}
+                        </Badge>
                         {item.priority ? (
                           <Badge variant="outline" className={FEEDBACK_PRIORITY_CLASS[item.priority]}>
                             {feedbackPriorityLabel(item.priority)}
@@ -456,7 +540,7 @@ export default function AdminFeedback() {
                       {item.ai_body ? (
                         <details className="mt-2 text-xs">
                           <summary className="min-h-11 cursor-pointer py-3 text-muted-foreground hover:text-foreground">
-                            <Trans>Review exact public issue text</Trans>
+                            <Trans>Saved draft</Trans>
                           </summary>
                           <p className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-3 leading-relaxed text-foreground">
                             {item.ai_body}
@@ -480,20 +564,8 @@ export default function AdminFeedback() {
                         </>
                       ) : null}
                     </TableCell>
-                    <TableCell className="align-top">
-                      {item.github_issue_url ? (
-                        <a
-                          href={item.github_issue_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                          <span className="font-data">#{item.github_issue_number}</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                    <TableCell className="min-w-[280px] align-top whitespace-normal">
+                      <FeedbackIssue item={item} />
                     </TableCell>
                     <TableCell className="min-w-[290px] align-top whitespace-normal">
                       {item.agent_readiness ? (

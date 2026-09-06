@@ -473,13 +473,13 @@ test('admin retry copy names triage-only behavior without changing publication a
   assert.match(admin, /refreshes analysis and routing/);
   assert.match(admin, /grants no publication permission/);
   assert.match(admin, /does not directly create a GitHub issue/);
-  assert.match(admin, /already has current publication authorization/);
-  assert.match(admin, /normal review and publication gates/);
+  assert.match(admin, /current does not mean eligible, queued, or guaranteed to publish/);
+  assert.match(admin, /all existing review and publication gates still apply/);
   assert.doesNotMatch(admin, /Publication permission and GitHub issue state were unchanged/);
   assert.doesNotMatch(admin, /does not grant publication permission or create a GitHub issue/);
   assert.match(admin, /Agent-ready applies only to feedback already linked to a public GitHub issue/);
   assert.match(admin, /handleFeedbackAction\(item, 'retry'\)/);
   assert.match(admin, /external_publication_consent/);
-  assert.match(zhCatalog, /此操作不会授予发布权限，也不会直接创建 GitHub Issue/);
-  assert.match(zhCatalog, /已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁/);
+  assert.match(zhCatalog, /但不会授予发布权限，也不会直接创建 GitHub Issue/);
+  assert.match(zhCatalog, /“当前版本”不代表反馈符合发布条件、已进入队列或一定会发布/);
 });

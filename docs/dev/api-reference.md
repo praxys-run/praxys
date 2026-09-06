@@ -261,8 +261,12 @@ bundles during backend-first rolling deployments.
 
 List feedback rows, optionally filtered by `status`. Each row includes the
 admin-only raw message, scrubbed publication fields, linked GitHub issue,
-`external_publication_consent`, and a privacy-safe `agent_readiness` object.
-Admin clients must not offer external filing when
+`external_publication_consent`, a bounded `publication_consent_receipt`
+classification (`current`, `legacy`, `not_granted`, or `invalid`), and a
+privacy-safe `agent_readiness` object. The receipt classification is derived by
+the server; raw receipt version and timestamp fields are not returned. `current`
+describes only the receipt and does not guarantee eligibility, queueing, or
+publication. Admin clients must not offer external filing when
 `external_publication_consent` is false; the write endpoint rechecks the grant
 and the current legal bundle before publishing:
 

@@ -650,7 +650,7 @@ msgstr "Access denied"
 msgid "Action"
 msgstr "Action"
 
-#: src/pages/admin/AdminFeedback.tsx:427
+#: src/pages/admin/AdminFeedback.tsx:508
 #: src/pages/admin/AdminUsers.tsx:580
 #: src/pages/admin/AdminUsers.tsx:737
 msgid "Actions"
@@ -667,7 +667,7 @@ msgstr "Activate managed plan"
 #: src/components/ManagedPlanSettingsCard.tsx:490
 #: src/components/PersonalContextPanel.tsx:721
 #: src/components/PersonalContextPanel.tsx:1250
-#: src/pages/admin/AdminFeedback.tsx:381
+#: src/pages/admin/AdminFeedback.tsx:462
 #: src/pages/admin/AdminOps.tsx:1584
 #: src/pages/Science.tsx:405
 #: src/pages/Science.tsx:433
@@ -892,11 +892,11 @@ msgstr "After a sync, Praxys may replace today's single Praxys-generated hard wo
 msgid "Agent learning"
 msgstr "Agent learning"
 
-#: src/pages/admin/AdminFeedback.tsx:426
+#: src/pages/admin/AdminFeedback.tsx:507
 msgid "Agent readiness"
 msgstr "Agent readiness"
 
-#: src/pages/admin/AdminFeedback.tsx:594
+#: src/pages/admin/AdminFeedback.tsx:666
 msgid "Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 msgstr "Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
 
@@ -955,13 +955,13 @@ msgid "Align the activity and threshold power sources before Praxys uses these s
 msgstr "Align the activity and threshold power sources before Praxys uses these sessions in the estimate."
 
 #: src/components/charts/CpTrendChart.tsx:56
-#: src/pages/admin/AdminFeedback.tsx:382
+#: src/pages/admin/AdminFeedback.tsx:463
 #: src/pages/Setup.tsx:1029
 msgid "All"
 msgstr "All"
 
 #. placeholder {0}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:313
+#: src/pages/admin/AdminFeedback.tsx:394
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "All {0} linked ticket(s) already up to date."
 
@@ -1047,7 +1047,7 @@ msgstr "Analysis"
 #~ msgid "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
 #~ msgstr "Analysis and routing refreshed. Publication permission and GitHub issue state were unchanged."
 
-#: src/pages/admin/AdminFeedback.tsx:213
+#: src/pages/admin/AdminFeedback.tsx:294
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 msgstr "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
@@ -1100,7 +1100,7 @@ msgstr "Applying…"
 #~ msgid "Approve & file"
 #~ msgstr "Approve & file"
 
-#: src/pages/admin/AdminFeedback.tsx:617
+#: src/pages/admin/AdminFeedback.tsx:689
 msgid "Approve & queue"
 msgstr "Approve & queue"
 
@@ -1259,7 +1259,7 @@ msgstr "Avg Work {intensityLabel}"
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 msgstr "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
 
-#: src/pages/admin/AdminFeedback.tsx:601
+#: src/pages/admin/AdminFeedback.tsx:673
 msgid "Awaiting triage decision"
 msgstr "Awaiting triage decision"
 
@@ -1424,7 +1424,7 @@ msgstr "Both thresholds must be met. The bars describe model evidence, not a bio
 msgid "Browse plan dates"
 msgstr "Browse plan dates"
 
-#: src/pages/admin/AdminFeedback.tsx:138
+#: src/pages/admin/AdminFeedback.tsx:219
 msgid "Bug"
 msgstr "Bug"
 
@@ -1440,7 +1440,7 @@ msgstr "Bug report"
 #~ msgid "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 #~ msgstr "Bug reports and feature requests submitted from the app. Auto-triaged to GitHub when configured."
 
-#: src/pages/admin/AdminFeedback.tsx:364
+#: src/pages/admin/AdminFeedback.tsx:445
 msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
 msgstr "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
 
@@ -1522,8 +1522,8 @@ msgstr "Cancel and withdraw"
 msgid "Cancel preview"
 msgstr "Cancel preview"
 
-#: src/pages/admin/AdminFeedback.tsx:514
-#: src/pages/admin/AdminFeedback.tsx:537
+#: src/pages/admin/AdminFeedback.tsx:586
+#: src/pages/admin/AdminFeedback.tsx:609
 msgid "Candidate"
 msgstr "Candidate"
 
@@ -1563,7 +1563,7 @@ msgstr "Category"
 msgid "CAUTION"
 msgstr "CAUTION"
 
-#: src/pages/admin/AdminFeedback.tsx:532
+#: src/pages/admin/AdminFeedback.tsx:604
 #: src/pages/admin/AdminOps.tsx:1591
 msgid "Challenger"
 msgstr "Challenger"
@@ -2036,6 +2036,22 @@ msgstr "Connection funnel"
 #~ msgid "Connector-provided activity summary"
 #~ msgstr "Connector-provided activity summary"
 
+#: src/pages/admin/AdminFeedback.tsx:206
+msgid "Consent receipt: current"
+msgstr "Consent receipt: current"
+
+#: src/pages/admin/AdminFeedback.tsx:212
+msgid "Consent receipt: invalid"
+msgstr "Consent receipt: invalid"
+
+#: src/pages/admin/AdminFeedback.tsx:208
+msgid "Consent receipt: legacy"
+msgstr "Consent receipt: legacy"
+
+#: src/pages/admin/AdminFeedback.tsx:210
+msgid "Consent receipt: no grant recorded"
+msgstr "Consent receipt: no grant recorded"
+
 #: src/pages/LabsEnvironment.tsx:957
 msgid "Consent text version"
 msgstr "Consent text version"
@@ -2327,7 +2343,7 @@ msgstr "Couldn't check feedback status. Try again."
 msgid "Couldn't load announcements"
 msgstr "Couldn't load announcements"
 
-#: src/pages/admin/AdminFeedback.tsx:330
+#: src/pages/admin/AdminFeedback.tsx:411
 msgid "Couldn't load feedback queue"
 msgstr "Couldn't load feedback queue"
 
@@ -2339,7 +2355,7 @@ msgstr "Couldn't load incidents"
 msgid "Couldn't load operations summary"
 msgstr "Couldn't load operations summary"
 
-#: src/pages/admin/AdminFeedback.tsx:252
+#: src/pages/admin/AdminFeedback.tsx:333
 msgid "Couldn't record the readiness judgment."
 msgstr "Couldn't record the readiness judgment."
 
@@ -2361,7 +2377,7 @@ msgstr "Couldn't send feedback. Try again."
 msgid "Couldn't send your feedback. Please try again."
 msgstr "Couldn't send your feedback. Please try again."
 
-#: src/pages/admin/AdminFeedback.tsx:209
+#: src/pages/admin/AdminFeedback.tsx:290
 msgid "Couldn't update feedback."
 msgstr "Couldn't update feedback."
 
@@ -2445,7 +2461,7 @@ msgstr "Creating proposal…"
 msgid "Creating…"
 msgstr "Creating…"
 
-#: src/pages/admin/AdminFeedback.tsx:108
+#: src/pages/admin/AdminFeedback.tsx:174
 #: src/pages/admin/AdminIncidents.tsx:31
 #: src/pages/admin/AdminIncidents.tsx:186
 #: src/pages/Status.tsx:102
@@ -3220,7 +3236,7 @@ msgstr "Elev"
 msgid "Eligibility check could not load"
 msgstr "Eligibility check could not load"
 
-#: src/pages/admin/AdminFeedback.tsx:149
+#: src/pages/admin/AdminFeedback.tsx:230
 msgid "Eligible"
 msgstr "Eligible"
 
@@ -3517,8 +3533,8 @@ msgstr "External, manual, and other-coach workouts are never changed. Uncertain 
 msgid "Fading"
 msgstr "Fading"
 
-#: src/pages/admin/AdminFeedback.tsx:99
-#: src/pages/admin/AdminFeedback.tsx:385
+#: src/pages/admin/AdminFeedback.tsx:165
+#: src/pages/admin/AdminFeedback.tsx:466
 #: src/pages/LabsEnvironment.tsx:166
 msgid "Failed"
 msgstr "Failed"
@@ -3668,7 +3684,7 @@ msgstr "Fatigue"
 #~ msgid "Fatigued"
 #~ msgstr "Fatigued"
 
-#: src/pages/admin/AdminFeedback.tsx:140
+#: src/pages/admin/AdminFeedback.tsx:221
 msgid "Feature"
 msgstr "Feature"
 
@@ -3698,10 +3714,11 @@ msgid "Feedback state unavailable"
 msgstr "Feedback state unavailable"
 
 #: src/components/FeedbackDialog.tsx:571
+#: src/pages/admin/AdminFeedback.tsx:458
 msgid "Feedback status"
 msgstr "Feedback status"
 
-#: src/pages/admin/AdminFeedback.tsx:342
+#: src/pages/admin/AdminFeedback.tsx:423
 msgid "Feedback triage"
 msgstr "Feedback triage"
 
@@ -3929,7 +3946,7 @@ msgstr "Get started with Praxys"
 #~ msgid "GitHub isn't configured — nothing to sync."
 #~ msgstr "GitHub isn't configured — nothing to sync."
 
-#: src/pages/admin/AdminFeedback.tsx:308
+#: src/pages/admin/AdminFeedback.tsx:389
 msgid "GitHub isn't configured. Nothing to sync."
 msgstr "GitHub isn't configured. Nothing to sync."
 
@@ -4098,7 +4115,7 @@ msgstr "Hide methodology details"
 msgid "Hide other providers"
 msgstr "Hide other providers"
 
-#: src/pages/admin/AdminFeedback.tsx:110
+#: src/pages/admin/AdminFeedback.tsx:176
 msgid "High"
 msgstr "High"
 
@@ -4447,7 +4464,7 @@ msgstr "Insufficient current HRV data for comparison"
 msgid "Insufficient data"
 msgstr "Insufficient data"
 
-#: src/pages/admin/AdminFeedback.tsx:157
+#: src/pages/admin/AdminFeedback.tsx:238
 msgid "Insufficient detail"
 msgstr "Insufficient detail"
 
@@ -4544,12 +4561,12 @@ msgstr "Invite"
 msgid "Invited"
 msgstr "Invited"
 
-#: src/pages/admin/AdminFeedback.tsx:425
+#: src/pages/admin/AdminFeedback.tsx:506
 msgid "Issue"
 msgstr "Issue"
 
-#: src/pages/admin/AdminFeedback.tsx:95
-#: src/pages/admin/AdminFeedback.tsx:386
+#: src/pages/admin/AdminFeedback.tsx:161
+#: src/pages/admin/AdminFeedback.tsx:467
 msgid "Issue created"
 msgstr "Issue created"
 
@@ -4576,27 +4593,27 @@ msgstr "Join this personal experiment"
 msgid "Joined"
 msgstr "Joined"
 
-#: src/pages/admin/AdminFeedback.tsx:279
+#: src/pages/admin/AdminFeedback.tsx:360
 msgid "Judgment recorded and agent-ready removed."
 msgstr "Judgment recorded and agent-ready removed."
 
-#: src/pages/admin/AdminFeedback.tsx:278
+#: src/pages/admin/AdminFeedback.tsx:359
 msgid "Judgment recorded and agent-ready synchronized."
 msgstr "Judgment recorded and agent-ready synchronized."
 
-#: src/pages/admin/AdminFeedback.tsx:259
+#: src/pages/admin/AdminFeedback.tsx:340
 msgid "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
 msgstr "Judgment recorded, but the GitHub agent-ready label could not be synchronized."
 
-#: src/pages/admin/AdminFeedback.tsx:272
+#: src/pages/admin/AdminFeedback.tsx:353
 msgid "Judgment recorded, but the linked issue belongs to a different repository configuration."
 msgstr "Judgment recorded, but the linked issue belongs to a different repository configuration."
 
-#: src/pages/admin/AdminFeedback.tsx:264
+#: src/pages/admin/AdminFeedback.tsx:345
 msgid "Judgment recorded. The linked issue is not open, so no label was added."
 msgstr "Judgment recorded. The linked issue is not open, so no label was added."
 
-#: src/pages/admin/AdminFeedback.tsx:268
+#: src/pages/admin/AdminFeedback.tsx:349
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 
@@ -4995,7 +5012,7 @@ msgstr "Long-term modeled load is above recent modeled load."
 #~ msgid "low"
 #~ msgstr "low"
 
-#: src/pages/admin/AdminFeedback.tsx:114
+#: src/pages/admin/AdminFeedback.tsx:180
 msgid "Low"
 msgstr "Low"
 
@@ -5019,7 +5036,7 @@ msgstr "LTHR Trend"
 msgid "Main"
 msgstr "Main"
 
-#: src/pages/admin/AdminFeedback.tsx:550
+#: src/pages/admin/AdminFeedback.tsx:622
 msgid "Maintainer verdict:"
 msgstr "Maintainer verdict:"
 
@@ -5155,7 +5172,7 @@ msgstr "Manual and other-coach workouts stay untouched. Delivery remains paused 
 msgid "Manual lap"
 msgstr "Manual lap"
 
-#: src/pages/admin/AdminFeedback.tsx:127
+#: src/pages/admin/AdminFeedback.tsx:193
 msgid "Manual publication review"
 msgstr "Manual publication review"
 
@@ -5203,7 +5220,7 @@ msgstr "Measured 5K race"
 msgid "Measured race"
 msgstr "Measured race"
 
-#: src/pages/admin/AdminFeedback.tsx:112
+#: src/pages/admin/AdminFeedback.tsx:178
 msgid "Medium"
 msgstr "Medium"
 
@@ -5468,8 +5485,8 @@ msgstr "Needs retry"
 
 #: src/components/GoalBaselinePanel.tsx:106
 #: src/components/GoalBaselinePanel.tsx:502
-#: src/pages/admin/AdminFeedback.tsx:93
-#: src/pages/admin/AdminFeedback.tsx:384
+#: src/pages/admin/AdminFeedback.tsx:159
+#: src/pages/admin/AdminFeedback.tsx:465
 msgid "Needs review"
 msgstr "Needs review"
 
@@ -5498,9 +5515,9 @@ msgstr "Network error"
 #: src/pages/admin/AdminCommunications.tsx:77
 #: src/pages/admin/AdminCommunications.tsx:98
 #: src/pages/admin/AdminCommunications.tsx:117
-#: src/pages/admin/AdminFeedback.tsx:218
-#: src/pages/admin/AdminFeedback.tsx:285
-#: src/pages/admin/AdminFeedback.tsx:317
+#: src/pages/admin/AdminFeedback.tsx:299
+#: src/pages/admin/AdminFeedback.tsx:366
+#: src/pages/admin/AdminFeedback.tsx:398
 #: src/pages/admin/AdminIncidents.tsx:67
 #: src/pages/admin/AdminIncidents.tsx:91
 #: src/pages/admin/AdminIncidents.tsx:110
@@ -5526,8 +5543,8 @@ msgstr "Network error. Refresh the queue and try again."
 msgid "Network error. Try again."
 msgstr "Network error. Try again."
 
-#: src/pages/admin/AdminFeedback.tsx:89
-#: src/pages/admin/AdminFeedback.tsx:383
+#: src/pages/admin/AdminFeedback.tsx:155
+#: src/pages/admin/AdminFeedback.tsx:464
 msgid "New"
 msgstr "New"
 
@@ -5551,7 +5568,7 @@ msgstr "New to Praxys?"
 msgid "Newer workout structure"
 msgstr "Newer workout structure"
 
-#: src/pages/admin/AdminFeedback.tsx:414
+#: src/pages/admin/AdminFeedback.tsx:495
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "Newly triaged work will appear here when admin action is needed."
 
@@ -5596,7 +5613,7 @@ msgstr "No active automatic policy matches this intent and distance yet."
 msgid "No active service incidents"
 msgstr "No active service incidents"
 
-#: src/pages/admin/AdminFeedback.tsx:411
+#: src/pages/admin/AdminFeedback.tsx:492
 msgid "No active tickets"
 msgstr "No active tickets"
 
@@ -5673,7 +5690,7 @@ msgstr "no data"
 #~ msgid "No Data"
 #~ msgstr "No Data"
 
-#: src/pages/admin/AdminFeedback.tsx:159
+#: src/pages/admin/AdminFeedback.tsx:240
 msgid "No decision"
 msgstr "No decision"
 
@@ -5775,9 +5792,13 @@ msgstr "No preference"
 msgid "No private context saved"
 msgstr "No private context saved"
 
-#: src/pages/admin/AdminFeedback.tsx:528
+#: src/pages/admin/AdminFeedback.tsx:600
 msgid "No prompt"
 msgstr "No prompt"
+
+#: src/pages/admin/AdminFeedback.tsx:91
+msgid "No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -5871,7 +5892,7 @@ msgstr "No target"
 msgid "No target selected"
 msgstr "No target selected"
 
-#: src/pages/admin/AdminFeedback.tsx:411
+#: src/pages/admin/AdminFeedback.tsx:492
 msgid "No tickets to show"
 msgstr "No tickets to show"
 
@@ -5949,7 +5970,7 @@ msgstr "None in the active window"
 #~ msgid "Normal"
 #~ msgstr "Normal"
 
-#: src/pages/admin/AdminFeedback.tsx:151
+#: src/pages/admin/AdminFeedback.tsx:232
 msgid "Not a bug"
 msgstr "Not a bug"
 
@@ -5961,7 +5982,7 @@ msgstr "Not a bug"
 msgid "Not a direct 10K baseline"
 msgstr "Not a direct 10K baseline"
 
-#: src/pages/admin/AdminFeedback.tsx:155
+#: src/pages/admin/AdminFeedback.tsx:236
 msgid "Not actionable"
 msgstr "Not actionable"
 
@@ -6365,7 +6386,7 @@ msgstr "Organized outdoor road 10K race"
 #: src/components/UpcomingPlanCard.tsx:574
 #: src/components/WorkoutPlanEditor.tsx:452
 #: src/components/WorkoutStructureEditor.tsx:328
-#: src/pages/admin/AdminFeedback.tsx:142
+#: src/pages/admin/AdminFeedback.tsx:223
 msgid "Other"
 msgstr "Other"
 
@@ -7103,7 +7124,7 @@ msgstr "Priority is excluded from readiness evaluation."
 #~ msgid "Privacy Policy"
 #~ msgstr "Privacy Policy"
 
-#: src/pages/admin/AdminFeedback.tsx:121
+#: src/pages/admin/AdminFeedback.tsx:187
 msgid "Private"
 msgstr "Private"
 
@@ -7140,7 +7161,7 @@ msgstr "Private note"
 msgid "Private note (optional)"
 msgstr "Private note (optional)"
 
-#: src/pages/admin/AdminFeedback.tsx:622
+#: src/pages/admin/AdminFeedback.tsx:694
 msgid "Private submission"
 msgstr "Private submission"
 
@@ -7248,15 +7269,15 @@ msgstr "Public status"
 msgid "publication overrides"
 msgstr "publication overrides"
 
-#: src/pages/admin/AdminFeedback.tsx:123
+#: src/pages/admin/AdminFeedback.tsx:189
 msgid "Publication queued"
 msgstr "Publication queued"
 
-#: src/pages/admin/AdminFeedback.tsx:131
+#: src/pages/admin/AdminFeedback.tsx:197
 msgid "Publication unavailable"
 msgstr "Publication unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:129
+#: src/pages/admin/AdminFeedback.tsx:195
 msgid "Publication unknown"
 msgstr "Publication unknown"
 
@@ -7272,7 +7293,7 @@ msgstr "Publish a banner above to communicate maintenance windows, launches, or 
 msgid "Publish service updates on the <0>public status page</0>."
 msgstr "Publish service updates on the <0>public status page</0>."
 
-#: src/pages/admin/AdminFeedback.tsx:125
+#: src/pages/admin/AdminFeedback.tsx:191
 msgid "Published"
 msgstr "Published"
 
@@ -7420,7 +7441,7 @@ msgstr "Re-invite"
 #~ msgid "Re-push to Stryd"
 #~ msgstr "Re-push to Stryd"
 
-#: src/pages/admin/AdminFeedback.tsx:635
+#: src/pages/admin/AdminFeedback.tsx:707
 msgid "Re-run triage"
 msgstr "Re-run triage"
 
@@ -7428,9 +7449,13 @@ msgstr "Re-run triage"
 #~ msgid "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
 #~ msgstr "Re-run triage refreshes analysis and routing only. It does not grant publication permission or create a GitHub issue."
 
+#: src/pages/admin/AdminFeedback.tsx:450
+msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Consent receipt status is diagnostic: current does not mean eligible, queued, or guaranteed to publish; all existing review and publication gates still apply."
+msgstr "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Consent receipt status is diagnostic: current does not mean eligible, queued, or guaranteed to publish; all existing review and publication gates still apply."
+
 #: src/pages/admin/AdminFeedback.tsx:369
-msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
-msgstr "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+#~ msgid "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
+#~ msgstr "Re-run triage refreshes analysis and routing. It grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
 #: src/pages/admin/AdminFeedback.tsx:636
 #~ msgid "Re-running triage…"
@@ -7720,11 +7745,11 @@ msgstr "Reconnect {targetLabel} above before managed delivery can continue."
 #~ msgid "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 #~ msgstr "Reconnecting Garmin or changing its account region revokes this permission and pauses delivery until you opt in again."
 
-#: src/pages/admin/AdminFeedback.tsx:590
+#: src/pages/admin/AdminFeedback.tsx:662
 msgid "Record judgment"
 msgstr "Record judgment"
 
-#: src/pages/admin/AdminFeedback.tsx:565
+#: src/pages/admin/AdminFeedback.tsx:637
 msgid "Record maintainer judgment"
 msgstr "Record maintainer judgment"
 
@@ -7946,7 +7971,7 @@ msgstr "Registration date"
 msgid "Registration settings unavailable"
 msgstr "Registration settings unavailable"
 
-#: src/pages/admin/AdminFeedback.tsx:646
+#: src/pages/admin/AdminFeedback.tsx:718
 msgid "Reject"
 msgstr "Reject"
 
@@ -7955,8 +7980,8 @@ msgstr "Reject"
 msgid "Reject or defer"
 msgstr "Reject or defer"
 
-#: src/pages/admin/AdminFeedback.tsx:101
-#: src/pages/admin/AdminFeedback.tsx:388
+#: src/pages/admin/AdminFeedback.tsx:167
+#: src/pages/admin/AdminFeedback.tsx:469
 msgid "Rejected"
 msgstr "Rejected"
 
@@ -8064,7 +8089,7 @@ msgstr "Repetitions"
 msgid "Replay blocked by safety policy"
 msgstr "Replay blocked by safety policy"
 
-#: src/pages/admin/AdminFeedback.tsx:424
+#: src/pages/admin/AdminFeedback.tsx:505
 msgid "Report"
 msgstr "Report"
 
@@ -8117,8 +8142,8 @@ msgstr "Resolve"
 msgid "Resolve workout conflict"
 msgstr "Resolve workout conflict"
 
-#: src/pages/admin/AdminFeedback.tsx:97
-#: src/pages/admin/AdminFeedback.tsx:387
+#: src/pages/admin/AdminFeedback.tsx:163
+#: src/pages/admin/AdminFeedback.tsx:468
 #: src/pages/admin/AdminIncidents.tsx:44
 #: src/pages/Status.tsx:94
 #: src/pages/Status.tsx:265
@@ -8274,7 +8299,7 @@ msgstr "Retry to load public communication banners."
 #~ msgid "Retry to load seats, users, invitations, and waitlist activity."
 #~ msgstr "Retry to load seats, users, invitations, and waitlist activity."
 
-#: src/pages/admin/AdminFeedback.tsx:331
+#: src/pages/admin/AdminFeedback.tsx:412
 msgid "Retry to load submitted reports and GitHub sync state."
 msgstr "Retry to load submitted reports and GitHub sync state."
 
@@ -8343,8 +8368,8 @@ msgid "Review delivery queue"
 msgstr "Review delivery queue"
 
 #: src/pages/admin/AdminFeedback.tsx:459
-msgid "Review exact public issue text"
-msgstr "Review exact public issue text"
+#~ msgid "Review exact public issue text"
+#~ msgstr "Review exact public issue text"
 
 #: src/components/PlanStart.tsx:1486
 msgid "Review existing draft"
@@ -8386,12 +8411,12 @@ msgstr "Review purpose and expiry"
 msgid "Review readiness"
 msgstr "Review readiness"
 
-#: src/pages/admin/AdminFeedback.tsx:345
+#: src/pages/admin/AdminFeedback.tsx:426
 msgid "Review reports, manage screenshots, and sync linked GitHub issues."
 msgstr "Review reports, manage screenshots, and sync linked GitHub issues."
 
-#: src/pages/admin/AdminFeedback.tsx:515
-#: src/pages/admin/AdminFeedback.tsx:538
+#: src/pages/admin/AdminFeedback.tsx:587
+#: src/pages/admin/AdminFeedback.tsx:610
 #: src/pages/admin/AdminOps.tsx:1518
 msgid "Review required"
 msgstr "Review required"
@@ -8501,7 +8526,7 @@ msgstr "Route or venue identifier"
 msgid "RPE · 0–10"
 msgstr "RPE · 0–10"
 
-#: src/pages/admin/AdminFeedback.tsx:525
+#: src/pages/admin/AdminFeedback.tsx:597
 msgid "Rule based"
 msgstr "Rule based"
 
@@ -8631,6 +8656,10 @@ msgstr "Save workout"
 msgid "Saved"
 msgstr "Saved"
 
+#: src/pages/admin/AdminFeedback.tsx:543
+msgid "Saved draft"
+msgstr "Saved draft"
+
 #: src/components/PersonalContextPanel.tsx:471
 msgid "Saved without guessing a reason. The cause remains unknown."
 msgstr "Saved without guessing a reason. The cause remains unknown."
@@ -8707,7 +8736,7 @@ msgstr "Scientific models"
 msgid "Scope and guardrails"
 msgstr "Scope and guardrails"
 
-#: src/pages/admin/AdminFeedback.tsx:471
+#: src/pages/admin/AdminFeedback.tsx:555
 msgid "Screenshot flagged sensitive"
 msgstr "Screenshot flagged sensitive"
 
@@ -8809,7 +8838,7 @@ msgstr "Sending..."
 msgid "Sending…"
 msgstr "Sending…"
 
-#: src/pages/admin/AdminFeedback.tsx:153
+#: src/pages/admin/AdminFeedback.tsx:234
 msgid "Sensitivity gate"
 msgstr "Sensitivity gate"
 
@@ -8953,7 +8982,7 @@ msgstr "Shorten the session if fatigue develops"
 #~ msgid "Should be agent-ready"
 #~ msgstr "Should be agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:166
+#: src/pages/admin/AdminFeedback.tsx:247
 msgid "Should be agent-ready — bounded actionable defect"
 msgstr "Should be agent-ready — bounded actionable defect"
 
@@ -8961,19 +8990,19 @@ msgstr "Should be agent-ready — bounded actionable defect"
 #~ msgid "Should not be agent-ready"
 #~ msgstr "Should not be agent-ready"
 
-#: src/pages/admin/AdminFeedback.tsx:170
+#: src/pages/admin/AdminFeedback.tsx:251
 msgid "Should not be agent-ready — insufficient detail"
 msgstr "Should not be agent-ready — insufficient detail"
 
-#: src/pages/admin/AdminFeedback.tsx:172
+#: src/pages/admin/AdminFeedback.tsx:253
 msgid "Should not be agent-ready — needs product judgment"
 msgstr "Should not be agent-ready — needs product judgment"
 
-#: src/pages/admin/AdminFeedback.tsx:168
+#: src/pages/admin/AdminFeedback.tsx:249
 msgid "Should not be agent-ready — not a defect"
 msgstr "Should not be agent-ready — not a defect"
 
-#: src/pages/admin/AdminFeedback.tsx:176
+#: src/pages/admin/AdminFeedback.tsx:257
 msgid "Should not be agent-ready — other"
 msgstr "Should not be agent-ready — other"
 
@@ -8981,7 +9010,7 @@ msgstr "Should not be agent-ready — other"
 #~ msgid "Should not be agent-ready — sensitive or high risk"
 #~ msgstr "Should not be agent-ready — sensitive or high risk"
 
-#: src/pages/admin/AdminFeedback.tsx:174
+#: src/pages/admin/AdminFeedback.tsx:255
 msgid "Should not be agent-ready — sensitivity or privacy gate"
 msgstr "Should not be agent-ready — sensitivity or privacy gate"
 
@@ -9181,7 +9210,7 @@ msgstr "Starts"
 
 #: src/components/GoalBaselinePanel.tsx:122
 #: src/components/PersonalContextPanel.tsx:1248
-#: src/pages/admin/AdminFeedback.tsx:423
+#: src/pages/admin/AdminFeedback.tsx:504
 #: src/pages/admin/AdminUsers.tsx:734
 #: src/pages/admin/AdminUsers.tsx:873
 msgid "Status"
@@ -9437,11 +9466,11 @@ msgstr "Sync All"
 msgid "Sync complete! Your data is ready."
 msgstr "Sync complete! Your data is ready."
 
-#: src/pages/admin/AdminFeedback.tsx:301
+#: src/pages/admin/AdminFeedback.tsx:382
 msgid "Sync failed."
 msgstr "Sync failed."
 
-#: src/pages/admin/AdminFeedback.tsx:394
+#: src/pages/admin/AdminFeedback.tsx:475
 msgid "Sync from GitHub"
 msgstr "Sync from GitHub"
 
@@ -9999,7 +10028,7 @@ msgstr "The public status feed has no unresolved incidents."
 msgid "The quick check found a data requirement that needs attention."
 msgstr "The quick check found a data requirement that needs attention."
 
-#: src/pages/admin/AdminFeedback.tsx:246
+#: src/pages/admin/AdminFeedback.tsx:327
 msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
 msgstr "The readiness decision changed. Review the refreshed decision before recording a judgment."
 
@@ -10376,6 +10405,14 @@ msgstr "This source uses a newer workout structure and cannot be duplicated with
 msgid "This structure is authoritative. Edit its steps instead of changing its flat summary."
 msgstr "This structure is authoritative. Edit its steps instead of changing its flat summary."
 
+#: src/pages/admin/AdminFeedback.tsx:84
+msgid "This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+
+#: src/pages/admin/AdminFeedback.tsx:98
+msgid "This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+msgstr "This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
+
 #: src/components/WorkoutStructureEditor.tsx:187
 #~ msgid "This typed target cannot be represented safely."
 #~ msgstr "This typed target cannot be represented safely."
@@ -10618,8 +10655,8 @@ msgstr "Treadmill"
 msgid "Trend"
 msgstr "Trend"
 
-#: src/pages/admin/AdminFeedback.tsx:91
-#: src/pages/admin/AdminFeedback.tsx:389
+#: src/pages/admin/AdminFeedback.tsx:157
+#: src/pages/admin/AdminFeedback.tsx:470
 msgid "Triaged"
 msgstr "Triaged"
 
@@ -10643,7 +10680,7 @@ msgstr "Try a longer window above."
 msgid "Try again"
 msgstr "Try again"
 
-#: src/pages/admin/AdminFeedback.tsx:415
+#: src/pages/admin/AdminFeedback.tsx:496
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "Try another filter or sync again after new reports arrive."
 
@@ -10700,7 +10737,7 @@ msgstr "Turning on…"
 #~ msgid "Tyler heat-acclimation meta-analysis"
 #~ msgstr "Tyler heat-acclimation meta-analysis"
 
-#: src/pages/admin/AdminFeedback.tsx:422
+#: src/pages/admin/AdminFeedback.tsx:503
 msgid "Type"
 msgstr "Type"
 
@@ -10724,8 +10761,8 @@ msgstr "Unable to reach the status service"
 msgid "Unassisted"
 msgstr "Unassisted"
 
-#: src/pages/admin/AdminFeedback.tsx:512
-#: src/pages/admin/AdminFeedback.tsx:539
+#: src/pages/admin/AdminFeedback.tsx:584
+#: src/pages/admin/AdminFeedback.tsx:611
 #: src/pages/admin/AdminOps.tsx:191
 #: src/pages/LabsEnvironment.tsx:165
 msgid "Unavailable"
@@ -10867,13 +10904,13 @@ msgid "Updated {0}"
 msgstr "Updated {0}"
 
 #. placeholder {0}: result.updated
-#: src/pages/admin/AdminFeedback.tsx:310
+#: src/pages/admin/AdminFeedback.tsx:391
 msgid "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
 msgstr "Updated {0} linked ticket(s). Skipped {repositoryMismatches} because their stored repository no longer matches the configured feedback repository."
 
 #. placeholder {0}: result.updated
 #. placeholder {1}: result.checked
-#: src/pages/admin/AdminFeedback.tsx:312
+#: src/pages/admin/AdminFeedback.tsx:393
 msgid "Updated {0} of {1} linked ticket(s)."
 msgstr "Updated {0} of {1} linked ticket(s)."
 
@@ -10990,7 +11027,7 @@ msgstr "Used only for the confirmed purpose and active period"
 msgid "User"
 msgstr "User"
 
-#: src/pages/admin/AdminFeedback.tsx:356
+#: src/pages/admin/AdminFeedback.tsx:437
 msgid "User feedback"
 msgstr "User feedback"
 
