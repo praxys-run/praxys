@@ -82,7 +82,7 @@ export function TrailCourseReviewLoadError({
       : t`Retry the request. Unavailable data will not be guessed or replaced.`;
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-      <Alert variant="destructive">
+      <Alert variant="destructive" className="dark:*:data-[slot=alert-title]:text-foreground dark:*:data-[slot=alert-description]:text-foreground">
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription className="space-y-3">
           <p>{description}</p>
@@ -184,7 +184,7 @@ export function TrailUnknownVersion({
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
-      <Alert variant="destructive">
+      <Alert variant="destructive" className="dark:*:data-[slot=alert-title]:text-foreground dark:*:data-[slot=alert-description]:text-foreground">
         <AlertTitle>
           {isZh
             ? t`此赛道核对使用了不受支持的版本`

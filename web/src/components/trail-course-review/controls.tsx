@@ -169,7 +169,7 @@ export function FieldShell({
         {children}
       </div>
       {invalidMessage ? (
-        <p id={`${id}-error`} className="text-sm leading-5 text-destructive">
+        <p id={`${id}-error`} className="text-sm leading-5 text-destructive dark:text-foreground">
           {invalidMessage}
         </p>
       ) : null}

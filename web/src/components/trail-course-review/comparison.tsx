@@ -147,7 +147,7 @@ export function TrailPendingComparison({ baseDraft, pendingRequest, pendingInput
                   <dd className="mt-1 break-words text-sm text-foreground">
                     <ComparisonValue fieldKey={row.key} snapshot={side.snapshot} labels={labels} locale={i18n.locale} />
                     {side.issues.some((issue) => field.issues?.includes(issue.id)) ? (
-                      <p className="mt-1 break-words text-sm text-destructive">{copy.fieldError}</p>
+                      <p className="mt-1 break-words text-sm text-destructive dark:text-foreground">{copy.fieldError}</p>
                     ) : null}
                   </dd>
                 </div>

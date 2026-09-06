@@ -155,7 +155,12 @@ export function accessibleName(root, node) {
   return labels.length ? labels.map(textContent).join(' ') : textContent(node);
 }
 
-export function createWorkbenchHarness(draft, { locale = 'en', latest = draft, online = true } = {}) {
+export function createWorkbenchHarness(draft, {
+  locale = 'en',
+  latest = draft,
+  online = true,
+  respond = () => new Response(JSON.stringify({ detail: 'Changed' }), { status: 412 }),
+} = {}) {
   let cursor = 0;
   let tree;
   let markup;
@@ -188,7 +193,7 @@ export function createWorkbenchHarness(draft, { locale = 'en', latest = draft, o
     },
     apiFetch: async (url, init) => {
       calls.push({ kind: 'api', url, init });
-      return new Response(JSON.stringify({ detail: 'Changed' }), { status: 412 });
+      return respond(url, init);
     },
   });
   const { TrailCourseReviewWorkbench: Workbench } = load('components/TrailCourseReview.tsx');

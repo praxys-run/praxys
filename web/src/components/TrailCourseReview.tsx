@@ -1325,13 +1325,13 @@ function TrailCourseReviewWorkbench({
         ) : null}
       </div>
       {exportStatus === 'error' ? (
-        <Alert role="alert" variant="destructive" className="mb-5">
+        <Alert role="alert" variant="destructive" className="mb-5 dark:*:data-[slot=alert-title]:text-foreground dark:*:data-[slot=alert-description]:text-foreground">
           <AlertDescription className="break-words">{copy.exportError}</AlertDescription>
         </Alert>
       ) : null}
 
       {operationError ? (
-        <Alert variant="destructive" className="mb-5">
+        <Alert variant="destructive" className="mb-5 dark:*:data-[slot=alert-title]:text-foreground dark:*:data-[slot=alert-description]:text-foreground">
           <AlertTitle>{l(t`Trail action did not complete`, t`越野操作未完成`)}</AlertTitle>
           <AlertDescription className="space-y-3">
             <p className="break-words">{operationError}</p>
@@ -1354,7 +1354,7 @@ function TrailCourseReviewWorkbench({
       ) : null}
 
       {validationIssues.length > 0 ? (
-        <Alert variant="destructive" className="mb-5">
+        <Alert variant="destructive" className="mb-5 dark:*:data-[slot=alert-title]:text-foreground dark:*:data-[slot=alert-description]:text-foreground">
           <AlertTitle>
             <h2 ref={errorSummaryRef} tabIndex={-1}>{copy.errorSummary}</h2>
           </AlertTitle>
@@ -1365,7 +1365,7 @@ function TrailCourseReviewWorkbench({
                   <Button
                     type="button"
                     variant="link"
-                    className="h-auto min-h-11 max-w-full justify-start whitespace-normal px-0 text-left text-destructive"
+                    className="h-auto min-h-11 max-w-full justify-start whitespace-normal px-0 text-left text-destructive dark:text-foreground"
                     onClick={() => focusValidationIssue(issue)}
                   >
                     {validationLabel(issue)} — {copy.fieldError}
@@ -2730,7 +2730,7 @@ function TrailCourseReviewWorkbench({
               id="trail-receipt-error"
               tabIndex={-1}
               role={receiptTargetError || hasUnknownReason ? 'alert' : undefined}
-              className="mt-3 break-words text-xs leading-5 text-destructive outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-3 break-words text-xs leading-5 text-destructive dark:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {receiptTargetError
                 ?? (hasUnknownReason
