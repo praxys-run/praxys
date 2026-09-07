@@ -377,7 +377,7 @@ msgstr "<0>今日信号</0> · 按计划训练、调整，或休息。"
 
 #: src/pages/Login.tsx:508
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
-msgstr "<0>你已进入候补名单。</0> 有名额时，我们会通过 <1>{SUPPORT_EMAIL}</1> 联系你。"
+msgstr "<0>你已加入候补名单。</0> 有名额时，我们会通过 <1>{SUPPORT_EMAIL}</1> 联系你。"
 
 #: src/pages/Setup.tsx:706
 msgid "~{estimatedActivities} activities, ~{estimatedMinutes} min"
@@ -1118,7 +1118,7 @@ msgstr "亚洲/中国"
 #: src/components/GoalBaselinePanel.tsx:126
 #: src/components/GoalBaselinePanel.tsx:167
 msgid "Assistance status"
-msgstr "辅助情况"
+msgstr "辅助状态"
 
 #: src/components/GoalBaselinePanel.tsx:143
 msgid "Assisted"
@@ -1690,7 +1690,7 @@ msgstr "请先选择已接受的计划用途。"
 
 #: src/components/GoalBaselinePanel.tsx:156
 msgid "Choose an optional 10K benchmark date"
-msgstr "选择一个可选的 10K 基准测试日期"
+msgstr "选择可选 10K 基准测试日期"
 
 #: src/components/GoalBaselinePanel.tsx:134
 msgid "Choose and date an optional benchmark in the Training plan preview if you want one. Praxys never auto-schedules it."
@@ -1698,7 +1698,7 @@ msgstr "如果你需要，可在训练计划预览里选择并标注一个可选
 
 #: src/components/PlanStart.tsx:1636
 msgid "Choose and date an optional benchmark only if you want one. Praxys never auto-schedules it, and a target-time gap never raises load on its own."
-msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys 不会自动安排，目标完赛时间差距本身也不会提高训练负荷。"
+msgstr "如果想做基准测试，再选择日期。Praxys 不会自动安排；目标完赛时间差距本身也不会单独提高训练负荷。"
 
 #: src/components/PlanStart.tsx:393
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
@@ -1808,7 +1808,7 @@ msgstr "已关闭"
 
 #: src/pages/admin/AdminUsers.tsx:392
 msgid "Closed · cap reached"
-msgstr "已关闭 · 已达上限"
+msgstr "已关闭 · 名额已满"
 
 #: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
@@ -2947,7 +2947,7 @@ msgstr "请先关闭其他计划工具的下发功能。多个计划工具可能
 
 #: src/pages/admin/AdminUsers.tsx:427
 msgid "Disabled. Click to open"
-msgstr "已关闭，点击开启"
+msgstr "已停用，点击启用"
 
 #: src/components/PersonalContextPanel.tsx:230
 #: src/components/PersonalContextPanel.tsx:234
@@ -3056,7 +3056,7 @@ msgstr "拖动区间，或输入精确值。"
 
 #: src/pages/Settings.tsx:1468
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
-msgstr "用于区间计算和训练负荷。数值来自已连接的数据来源；有多个时，选择要使用的来源。"
+msgstr "用于计算训练区间和训练负荷。数值来自已连接的数据来源；如果有多个，可选择使用哪个来源。"
 
 #: src/pages/Today.tsx:303
 msgid "Drop intensity by one zone"
@@ -3275,7 +3275,7 @@ msgstr "请输入邮箱和密码。"
 
 #: src/pages/admin/AdminUsers.tsx:407
 msgid "Email is not configured. Open sign-ups will not be email-verified, and invitation codes can't be emailed automatically. Copy them manually until SMTP is configured."
-msgstr "邮箱未配置。开放注册将不做邮箱验证，邀请码也无法自动发送。配置 SMTP 前请手动复制。"
+msgstr "未配置邮箱。开放注册将不做邮箱验证，也无法自动发送邀请码。配置 SMTP 前请手动复制邀请码。"
 
 #: src/pages/Login.tsx:160
 msgid "Email is required."
@@ -3554,7 +3554,7 @@ msgstr "失败"
 #. placeholder {0}: managedHealth.states.failed
 #: src/pages/admin/AdminOps.tsx:999
 msgid "Failed <0>{0}</0>"
-msgstr "<0>{0}</0>未完成"
+msgstr "失败：<0>{0}</0>"
 
 #: src/pages/admin/AdminCommunications.tsx:64
 msgid "Failed to create announcement."
@@ -4180,7 +4180,7 @@ msgstr "历史同步可能需要几分钟"
 #: src/components/GoalBaselinePanel.tsx:127
 #: src/components/GoalBaselinePanel.tsx:523
 msgid "History candidates"
-msgstr "历史候选活动"
+msgstr "历史候选项"
 
 #: src/components/PlanStart.tsx:1827
 msgid "History cutoff"
@@ -4445,7 +4445,7 @@ msgstr "事件状态不可用"
 
 #: src/pages/admin/AdminLayout.tsx:25
 msgid "Incidents"
-msgstr "事件"
+msgstr "故障事件"
 
 #: src/components/HeatAdaptationPanel.tsx:323
 #: src/components/HeatAdaptationPanel.tsx:375
@@ -5200,7 +5200,7 @@ msgstr "无法刷新托管计划诊断信息。"
 
 #: src/pages/admin/AdminLayout.tsx:41
 msgid "Management routes for access, communications, and service status."
-msgstr "用于访问权限、通知和服务状态的管理入口。"
+msgstr "管理访问权限、通知和服务状态的入口。"
 
 #: src/pages/admin/AdminOps.tsx:343
 msgid "Management routes remain available. Retry the aggregate health snapshot."
@@ -5363,7 +5363,7 @@ msgstr "数据来源混合"
 #: src/components/UpcomingPlanCard.tsx:571
 #: src/components/WorkoutPlanEditor.tsx:449
 msgid "Mobility"
-msgstr "灵活性训练"
+msgstr "灵活性"
 
 #: src/pages/Settings.tsx:1410
 msgid "Mode"
@@ -5853,7 +5853,7 @@ msgstr "未使用提示词"
 
 #: src/pages/admin/AdminFeedback.tsx:91
 msgid "No publication grant is recorded for this submission, so it cannot be published. This does not mean the submitter declined. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交未记录发布授权，因此无法发布。这并不表示提交者曾主动拒绝。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交没有记录发布授权，因此无法发布。这不代表提交者曾拒绝。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/components/HeatAdaptationPanel.tsx:541
 #~ msgid "No qualifying condition range yet"
@@ -6127,7 +6127,7 @@ msgstr "未请求"
 #: src/components/GoalBaselinePanel.tsx:108
 #: src/components/GoalBaselinePanel.tsx:504
 msgid "Not required"
-msgstr "当前目标无需基线"
+msgstr "无需基线"
 
 #: src/components/WorkoutStructureEditor.tsx:2013
 msgid "Not safely representable"
@@ -6407,7 +6407,7 @@ msgstr "此选项可选，默认不勾选。如果发布到 praxys-run/praxys，
 
 #: src/components/PlanStart.tsx:1624
 msgid "Optional benchmark date"
-msgstr "可选基准测试日期"
+msgstr "选填基准测试日期"
 
 #: src/components/WorkoutStructureEditor.tsx:1257
 msgid "Optional coaching cue"
@@ -8416,7 +8416,7 @@ msgstr "请重试加载公共通知横幅。"
 
 #: src/pages/admin/AdminFeedback.tsx:412
 msgid "Retry to load submitted reports and GitHub sync state."
-msgstr "请重试加载已提交报告和 GitHub 同步状态。"
+msgstr "重试加载已提交的报告和 GitHub 同步状态。"
 
 #: src/pages/admin/AdminIncidents.tsx:124
 msgid "Retry to load the public status incidents feed."
@@ -8538,7 +8538,7 @@ msgstr "需要审核"
 
 #: src/components/PlanStart.tsx:917
 msgid "Review the constraints and try again."
-msgstr "请复核限制条件后重试。"
+msgstr "请检查限制条件后重试。"
 
 #: src/pages/McpAuthorization.tsx:38
 msgid "Review the current goal"
@@ -8615,7 +8615,7 @@ msgstr "只有在人群、目标和安全边界完成审核并版本化后，公
 #: src/components/UpcomingPlanCard.tsx:565
 #: src/components/WorkoutPlanEditor.tsx:443
 msgid "Road running"
-msgstr "公路跑"
+msgstr "路跑"
 
 #: src/pages/admin/AdminUsers.tsx:578
 msgid "Role"
@@ -8623,7 +8623,7 @@ msgstr "角色"
 
 #: src/pages/admin/AdminOps.tsx:211
 msgid "Rolling 1 / 7 / 30 days"
-msgstr "滚动 1 / 7 / 30 天"
+msgstr "近 1 / 7 / 30 天"
 
 #: src/pages/LabsEnvironment.tsx:318
 msgid "Rolling recompute limit reached"
@@ -8713,7 +8713,7 @@ msgstr "安全策略"
 
 #: src/components/PlanStart.tsx:1679
 msgid "Safety stop"
-msgstr "安全停止"
+msgstr "安全停止条件"
 
 #: src/components/PlanStart.tsx:1693
 msgid "Safety stop applies"
@@ -9143,7 +9143,7 @@ msgstr "不应标记为 agent-ready：其他原因"
 
 #: src/pages/admin/AdminFeedback.tsx:255
 msgid "Should not be agent-ready — sensitivity or privacy gate"
-msgstr "不应标记为 agent-ready：触发敏感或隐私限制"
+msgstr "不应标记为 agent-ready：触发敏感或隐私策略门禁"
 
 #: src/components/UpcomingPlanCard.tsx:319
 #~ msgid "Show {0} more workouts"
@@ -9317,7 +9317,7 @@ msgstr "稳定分段"
 #: src/components/GoalBaselinePanel.tsx:501
 #: src/pages/admin/AdminOps.tsx:189
 msgid "Stale"
-msgstr "数据已过期"
+msgstr "已过期"
 
 #: src/pages/admin/AdminOps.tsx:420
 msgid "Standard"
@@ -9997,7 +9997,7 @@ msgstr "当前目标不在本次 5 公里基线试点范围内。"
 
 #: src/components/GoalBaselinePanel.tsx:115
 msgid "The current goal is outside this direct 10K baseline flow."
-msgstr "当前目标不在这个直接 10K 基线流程内。"
+msgstr "当前目标不适用直接 10K 基线流程。"
 
 #: src/components/PlanStart.tsx:1393
 msgid "The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged."
@@ -10565,11 +10565,11 @@ msgstr "此结构是权威内容。请编辑其步骤，而非更改扁平摘要
 
 #: src/pages/admin/AdminFeedback.tsx:84
 msgid "This submission has a legacy consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交使用旧版授权凭据，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交使用的是旧版同意回执，因此无法发布。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/pages/admin/AdminFeedback.tsx:98
 msgid "This submission has an invalid consent receipt, so it cannot be published. Only the original submitter can choose to submit new feedback through the current form and explicitly opt in to publication as a public GitHub issue."
-msgstr "此提交的授权凭据无效，因此无法发布。只有原提交者可以选择通过当前版本的反馈表单提交一份新的反馈，并明确同意将其发布为公开的 GitHub Issue。"
+msgstr "这条提交的同意回执无效，因此无法发布。只有原提交者才能通过当前表单重新提交反馈，并明确同意将其作为公开的 GitHub Issue 发布。"
 
 #: src/components/WorkoutStructureEditor.tsx:187
 #~ msgid "This typed target cannot be represented safely."
