@@ -80,7 +80,7 @@ msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 #. placeholder {1}: history.recent_maximum_session_descent_meters
 #: src/components/TrailCourseReview.tsx:2106
 msgid "{0} comparable sessions · {1} m maximum observed descent"
-msgstr "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
+msgstr "{0} 次可比训练 · 单次最大下降 {1} 米"
 
 #. placeholder {0}: history.usable_completed_weeks
 #. placeholder {1}: history.recent_modal_running_frequency
@@ -209,13 +209,13 @@ msgstr "{0} 个完整周 · 每周 {1} 次跑步"
 #. placeholder {1}: history.recent_maximum_session_descent_meters
 #: src/components/TrailCourseReview.tsx:2107
 msgid "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
-msgstr "{0} 次可比训练 · 单次已观察最大下降 {1} 米"
+msgstr "{0} 次可比训练 · 单次最大下降 {1} 米"
 
 #. placeholder {0}: history.comparable_ascent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_ascent_meters
 #: src/components/TrailCourseReview.tsx:2096
 msgid "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
-msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
+msgstr "{0} 次可比训练 · 单次最大爬升 {1} 米"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Analysis.tsx:307
@@ -560,7 +560,7 @@ msgstr "另一项计划用途已有草稿"
 
 #: src/components/TrailCourseReview.tsx:1111
 msgid "A few answers are needed before Praxys can check readiness"
-msgstr "还需补充少量信息，Praxys 才能检查准备情况"
+msgstr "还需要补充一些信息，Praxys 才能检查准备度"
 
 #: src/components/GoalBaselinePanel.tsx:518
 msgid "A non-diagnostic safety stop is active; Praxys does not diagnose, treat, or clear return to running."
@@ -1818,7 +1818,7 @@ msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys �
 
 #: src/components/TrailCourseReview.tsx:1856
 msgid "Choose at most 14 dates inside the displayed 14-day horizon."
-msgstr "最多选择显示的 14 天范围内的 14 个日期。"
+msgstr "最多可在当前显示的 14 天内选择 14 个日期。"
 
 #: src/components/PlanStart.tsx:393
 msgid "Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence."
@@ -3467,7 +3467,7 @@ msgstr "编辑"
 
 #: src/components/trail-course-review/copy.tsx:52
 msgid "Edit Goal"
-msgstr "编辑目标"
+msgstr "调整目标"
 
 #: src/components/WorkoutPlanEditor.tsx:641
 msgid "Edit workout"
@@ -3638,7 +3638,7 @@ msgstr "以分:秒/英里输入配速。"
 
 #: src/components/trail-course-review/copy.tsx:68
 msgid "Enter percentages for the five fixed grade bands. The total must be exactly 100.00%."
-msgstr "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
+msgstr "请填写 5 个固定坡度区间的占比，总和必须正好为 100.00%。"
 
 #: src/components/PersonalContextPanel.tsx:228
 #: src/components/PersonalContextPanel.tsx:229
@@ -4139,7 +4139,7 @@ msgstr "按计划训练"
 
 #: src/components/trail-course-review/copy.tsx:156
 msgid "Food availability"
-msgstr "食物供应"
+msgstr "能量补给"
 
 #: src/components/trail-course-review/copy.tsx:101
 msgid "Footing available for training"
@@ -4221,7 +4221,7 @@ msgstr "来自活动"
 #: src/components/trail-course-review/copy.tsx:255
 #: src/components/trail-course-review/copy.tsx:262
 msgid "From your activity history"
-msgstr "来自你的活动历史"
+msgstr "来自活动历史"
 
 #: src/components/trail-course-review/copy.tsx:134
 msgid "Fueling"
@@ -5312,7 +5312,7 @@ msgstr "可能已适应近期类似环境。"
 
 #: src/components/trail-course-review/copy.tsx:241
 msgid "Limited"
-msgstr "受限"
+msgstr "部分适应可能仍然存在"
 
 #: src/components/HeatAdaptationPanel.tsx:49
 #~ msgid "Limited data coverage"
@@ -6405,7 +6405,7 @@ msgstr "此提交未记录发布授权，因此无法发布。这并不表示提
 
 #: src/components/TrailCourseReview.tsx:2118
 msgid "No qualifying footing observed"
-msgstr "未观察到符合条件的路面"
+msgstr "未观察到符合条件的地面类型"
 
 #: src/components/HeatAdaptationPanel.tsx:247
 #~ msgid "No recent activities are available to inspect."
@@ -6791,7 +6791,7 @@ msgstr "关"
 #: src/components/trail-course-review/copy.tsx:181
 #: src/components/TrailCourseReview.tsx:633
 msgid "Offline. Changes are kept only on this page and have not been saved."
-msgstr "当前离线。更改仅保留在此页面，尚未保存。"
+msgstr "离线。更改仅保留在当前页面，尚未保存。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:896
 msgid "On"
@@ -7069,7 +7069,7 @@ msgstr "其他"
 
 #: src/components/trail-course-review/copy.tsx:332
 msgid "Other required"
-msgstr "其他必需装备"
+msgstr "其他必备装备"
 
 #: src/components/RecoveryPanel.tsx:185
 msgid "Other Signals"
@@ -7549,7 +7549,7 @@ msgstr "功率数据源匹配"
 
 #: src/components/trail-course-review/copy.tsx:164
 msgid "Practiced intake"
-msgstr "已练习的摄入形式"
+msgstr "已练习的补给形式"
 
 #: src/components/RecoveryPanel.tsx:227
 #~ msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact Fresh, Normal, and Fatigued cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
@@ -8460,7 +8460,7 @@ msgstr "最近的自动调整"
 
 #: src/components/trail-course-review/copy.tsx:116
 msgid "Recent descent exposure"
-msgstr "近期下降训练"
+msgstr "近期下坡暴露"
 
 #: src/components/trail-course-review/copy.tsx:470
 msgid "Recent descent exposure is insufficient."
@@ -8484,7 +8484,7 @@ msgstr "近期下降训练经历不足。"
 
 #: src/components/trail-course-review/copy.tsx:41
 msgid "Recent experience"
-msgstr "近期训练经历"
+msgstr "近期情况"
 
 #: src/components/HeatAdaptationPanel.tsx:201
 #~ msgid "Recent heat cadence"
@@ -9393,7 +9393,7 @@ msgstr "复核目标"
 
 #: src/components/trail-course-review/copy.tsx:220
 msgid "Review latest version"
-msgstr "查看最新版本"
+msgstr "查看最新版"
 
 #: src/pages/Analysis.tsx:353
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
@@ -11253,7 +11253,7 @@ msgstr "快速检查发现一项需要处理的数据要求。"
 
 #: src/components/trail-course-review/copy.tsx:60
 msgid "The range you want Praxys to plan around—not a finish-time prediction."
-msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
+msgstr "这是你希望 Praxys 据此制定计划的时间范围，不是完赛时间预测。"
 
 #: src/pages/admin/AdminFeedback.tsx:327
 msgid "The readiness decision changed. Review the refreshed decision before recording a judgment."
@@ -11328,7 +11328,7 @@ msgstr "无法连接服务器。未重复执行越野数据操作。"
 #: src/components/TrailCourseReview.tsx:546
 #: src/components/TrailCourseReview.tsx:686
 msgid "The server could not be reached. Your pending changes remain only on this page."
-msgstr "无法连接服务器。待保存更改仍仅保留在本页面。"
+msgstr "无法连接服务器。待保存更改仍只保留在当前页面。"
 
 #: src/components/TrailCourseReview.tsx:952
 msgid "The server reset editable answers to unknown and invalidated confirmations. Source activities and retained proposals were not erased."
@@ -11340,7 +11340,7 @@ msgstr "服务端返回了不受支持的确认响应。"
 
 #: src/components/TrailCourseReview.tsx:671
 msgid "The server returned an unsupported Trail draft."
-msgstr "服务端返回了不受支持的越野草稿。"
+msgstr "服务端返回了不受支持的越野赛道草稿。"
 
 #: src/components/TrailCourseReview.tsx:622
 msgid "The server revision changed. Review the latest version before choosing whether to reapply pending changes."
@@ -11658,7 +11658,7 @@ msgstr "此政策仅支持户外公路跑。地形、跑步机、越野和装备
 
 #: src/components/trail-course-review/states.tsx:72
 msgid "This private Trail course review was not found"
-msgstr "未找到此私密越野赛道核对"
+msgstr "未找到这份私密越野赛道核对"
 
 #. placeholder {0}: proposalStateLabel(displayedProposal.state)
 #: src/components/PlanStart.tsx:1994
@@ -11729,7 +11729,7 @@ msgstr "此部分暂不可用，其他管理流程仍可使用。"
 
 #: src/components/TrailCourseReview.tsx:2069
 msgid "This server-derived receipt is read-only. Correct source activities from Activities; plan start does not accept replacement attestations."
-msgstr "此服务端推导回执为只读。请在活动记录中更正来源活动；计划开始流程不接受替代证明。"
+msgstr "此回执由服务器生成，不可编辑。请到活动中更正来源活动；计划开始不接受替代证明。"
 
 #: src/pages/LabsEnvironment.tsx:820
 msgid "This sits inside your displayed historical range and is marked on the curve."
@@ -13231,7 +13231,7 @@ msgstr "两项各自有效的回答彼此冲突。"
 
 #: src/components/trail-course-review/copy.tsx:69
 msgid "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
-msgstr "为五个固定坡度区间输入百分比，合计必须正好为 100.00%。"
+msgstr "请填写 5 个固定坡度区间的占比，总和必须正好为 100.00%。"
 
 #: src/components/trail-course-review/copy.tsx:289
 msgid "人工台阶"
@@ -13316,7 +13316,7 @@ msgstr "最新保存值"
 
 #: src/components/TrailCourseReview.tsx:538
 msgid "最新服务端版本已可对照。待保存更改未被覆盖。"
-msgstr "最新服务端版本已可对照。待保存更改未被覆盖。"
+msgstr "已可对照最新服务端版本。待保存更改未被覆盖。"
 
 #: src/components/trail-course-review/copy.tsx:152
 msgid "最长补给站间距"
@@ -13451,7 +13451,7 @@ msgstr "坡度专项训练"
 
 #: src/components/trail-course-review/copy.tsx:36
 msgid "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
-msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
+msgstr "填写赛道情况和可训练条件。暂时不清楚的内容，Praxys 会保留为未知。"
 
 #: src/components/trail-course-review/copy.tsx:589
 msgid "处理首个冲突"
@@ -13705,7 +13705,7 @@ msgstr "无法识别重置响应。"
 #: src/components/TrailCourseReview.tsx:547
 #: src/components/TrailCourseReview.tsx:687
 msgid "无法连接服务器。待保存更改仍仅保留在本页面。"
-msgstr "无法连接服务器。待保存更改仍仅保留在本页面。"
+msgstr "无法连接服务器。待保存更改仍只保留在当前页面。"
 
 #: src/components/TrailCourseReview.tsx:888
 msgid "无法连接服务器。未应用任何准备情况结果。"
@@ -14136,7 +14136,7 @@ msgstr "累计爬升"
 
 #: src/components/trail-course-review/copy.tsx:52
 msgid "编辑目标"
-msgstr "编辑目标"
+msgstr "调整目标"
 
 #: src/components/trail-course-review/copy.tsx:549
 msgid "缺少必填的时间、场地或症状回答。"
@@ -14293,7 +14293,7 @@ msgstr "越野赛道核对已更改"
 
 #: src/components/trail-course-review/copy.tsx:64
 msgid "距离类别"
-msgstr "距离类别"
+msgstr "距离组别"
 
 #: src/components/trail-course-review/copy.tsx:154
 msgid "输入距离"
@@ -14337,7 +14337,7 @@ msgstr "近期跑步连续性未达到已接受的历史门槛。"
 
 #: src/components/TrailCourseReview.tsx:1112
 msgid "还需补充少量信息，Praxys 才能检查准备情况"
-msgstr "还需补充少量信息，Praxys 才能检查准备情况"
+msgstr "还需要补充一些信息，Praxys 才能检查准备度"
 
 #: src/components/trail-course-review/copy.tsx:440
 msgid "这些技术特征超出 v2 范围。"
@@ -14345,7 +14345,7 @@ msgstr "这些技术特征超出 v2 范围。"
 
 #: src/components/trail-course-review/copy.tsx:61
 msgid "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
-msgstr "这是你希望 Praxys 用于制定计划的时长范围，并非完赛时间预测。"
+msgstr "这是你希望 Praxys 据此制定计划的时间范围，不是完赛时间预测。"
 
 #: src/components/TrailCourseReview.tsx:360
 msgid "连接已恢复。请先查看当前服务端版本，再恢复待保存更改。"
