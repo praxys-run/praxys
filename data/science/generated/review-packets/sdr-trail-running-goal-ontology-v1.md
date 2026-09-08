@@ -3,11 +3,11 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-trail-running-goal-ontology-v1`
-- **Lifecycle:** `accepted`
+- **Lifecycle:** `superseded`
 - **Model version:** `trail-course-demand-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:cb53936289927d0f5f73268b5b6468e17a5b771532e2eaeee5c5c8781e541774`
-- **Contract digest:** `sha256:5bf6b47ede65af84af85fb364d148bffa38c1ea330272a3e71553d091a8695dc`
+- **Contract digest:** `sha256:e341c379d8f60a27ee5919beab4800721c96b79458c861237d6e14800cdcd752`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** `github:dddtc2005` on `2026-09-03` ([source](https://github.com/praxys-run/praxys/pull/759#issuecomment-5527639012))
 - **Required activation role:** `implementation_reviewer`
@@ -514,9 +514,9 @@ Generated assumptions cannot replace athlete confirmation or a verified course s
     "trail_course_demand_v1 ontology",
     "trail capability matching contract"
   ],
-  "contract_digest": "sha256:5bf6b47ede65af84af85fb364d148bffa38c1ea330272a3e71553d091a8695dc",
+  "contract_digest": "sha256:e341c379d8f60a27ee5919beab4800721c96b79458c861237d6e14800cdcd752",
   "decision_id": "sdr-trail-running-goal-ontology-v1",
-  "decision_status": "accepted",
+  "decision_status": "superseded",
   "decision_version": 1,
   "evidence_claim_ids": [
     "trail-ontology.course-demand-is-multidimensional",

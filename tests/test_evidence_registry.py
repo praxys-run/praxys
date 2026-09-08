@@ -87,7 +87,9 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-road-half-marathon-plan-generation-policy-v1",
         "sdr-road-marathon-plan-generation-policy-v1",
         "sdr-trail-running-goal-ontology-v1",
+        "sdr-trail-running-goal-ontology-v2",
         "sdr-non-ultra-trail-plan-generation-policy-v1",
+        "sdr-non-ultra-trail-plan-generation-policy-v2",
     }
 
     trail_ontology_review = registry.evidence_reviews[
@@ -107,10 +109,36 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         assert review.approval_mode == ApprovalMode.ARTIFACT
         assert review.human_reviewers == []
         assert review.reviewed_on == date(2026, 9, 3)
-        assert review.supersedes == []
-        assert review.superseded_by is None
         _assert_exact_verification_notes(review)
     for decision in (trail_ontology_decision, trail_policy_decision):
+        assert decision.status == RecordStatus.SUPERSEDED
+        assert decision.approval_mode == ApprovalMode.ARTIFACT
+        assert decision.artifact_policy is not None
+        assert (
+            decision.artifact_policy.runtime_state
+            == ArtifactRuntimeState.INACTIVE
+        )
+        assert decision.human_reviewers == []
+        assert decision.supersedes == []
+    assert trail_policy_decision.evidence_review_ids[:2] == [
+        trail_ontology_review.id,
+        trail_policy_review.id,
+    ]
+    assert trail_ontology_decision.model_parameters[0].value[
+        "schema_id"
+    ] == "trail_course_demand_v1"
+
+    trail_ontology_v2 = registry.decisions[
+        "sdr-trail-running-goal-ontology-v2"
+    ]
+    trail_policy_v2 = registry.decisions[
+        "sdr-non-ultra-trail-plan-generation-policy-v2"
+    ]
+    assert trail_ontology_decision.superseded_by == trail_ontology_v2.id
+    assert trail_policy_decision.superseded_by == trail_policy_v2.id
+    assert trail_ontology_v2.supersedes == [trail_ontology_decision.id]
+    assert trail_policy_v2.supersedes == [trail_policy_decision.id]
+    for decision in (trail_ontology_v2, trail_policy_v2):
         assert decision.status == RecordStatus.ACCEPTED
         assert decision.approval_mode == ApprovalMode.ARTIFACT
         assert decision.artifact_policy is not None
@@ -119,16 +147,218 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
             == ArtifactRuntimeState.INACTIVE
         )
         assert decision.human_reviewers == []
-        assert decision.decision_date == date(2026, 9, 1)
-        assert decision.supersedes == []
         assert decision.superseded_by is None
-    assert trail_policy_decision.evidence_review_ids[:2] == [
-        trail_ontology_review.id,
-        trail_policy_review.id,
-    ]
-    assert trail_ontology_decision.model_parameters[0].value[
+        assert decision.decision_review is not None
+        assert len(decision.decision_review.items) == 6
+        assert "inactive implementation" in (
+            decision.decision_review.approval_statement
+        )
+        assert "runtime activation" in (
+            decision.decision_review.approval_statement
+        )
+
+    ontology_v2_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_ontology_v2.model_parameters
+    }
+    assert ontology_v2_parameters["trail_course_demand_schema"][
         "schema_id"
-    ] == "trail_course_demand_v1"
+    ] == "trail_course_demand_v2"
+    assert ontology_v2_parameters["trail_training_constraints_schema"][
+        "schema_id"
+    ] == "non_ultra_trail_constraints_v2"
+    course_fields = ontology_v2_parameters["trail_course_demand_schema"][
+        "fields"
+    ]
+    assert (
+        course_fields["distance_meters"]["minimum"],
+        course_fields["distance_meters"]["maximum"],
+    ) == (1, 49999)
+    assert (
+        course_fields["total_ascent_m"]["minimum"],
+        course_fields["total_ascent_m"]["maximum"],
+    ) == (0, 20000)
+    assert (
+        course_fields["total_descent_m"]["minimum"],
+        course_fields["total_descent_m"]["maximum"],
+    ) == (0, 20000)
+    assert course_fields["event_format"]["recognized"] == [
+        "single_day",
+        "multi_day",
+    ]
+    assert course_fields["distance_family"]["recognized"] == [
+        "non_ultra",
+        "ultra",
+    ]
+    assert course_fields["planning_intent"]["recognized"] == [
+        "performance",
+        "first_completion",
+        "return_to_consistency",
+    ]
+    for hazard in ("hands_assist", "fixed_rope"):
+        assert course_fields[hazard] == {
+            "type": "strict_boolean",
+            "envelope": "known_or_unknown",
+            "materiality": "core",
+        }
+    constraints = ontology_v2_parameters[
+        "trail_training_constraints_schema"
+    ]["client_reviewable_fields"]
+    assert (
+        constraints["weekly_time_limit_min"]["minimum"],
+        constraints["weekly_time_limit_min"]["maximum"],
+    ) == (1, 10080)
+    assert (
+        constraints["maximum_session_duration_min"]["minimum"],
+        constraints["maximum_session_duration_min"]["maximum"],
+    ) == (1, 1440)
+    assert constraints["maximum_session_duration_min"][
+        "not_greater_than"
+    ] == "weekly_time_limit_min"
+    assert constraints["unavailable_dates"]["maximum_members"] == 14
+    optional_context = ontology_v2_parameters[
+        "trail_optional_context_shapes"
+    ]
+    assert optional_context["exact_groups"] == [
+        "environment",
+        "support",
+        "fueling",
+    ]
+    assert optional_context["group_envelope_allowed"] is False
+    assert optional_context["enum_unknown_literals_allowed"] is False
+    aid_gap = optional_context["support"]["max_aid_station_gap_m"]
+    assert aid_gap == {
+        "envelope": "known_or_unknown",
+        "known_value_type": "integer_or_explicit_null",
+        "integer_minimum": 100,
+        "integer_maximum": 50000,
+        "known_null_meaning": "not_applicable",
+        "kilometer_wire_or_storage_field_allowed": False,
+    }
+    assert "max_aid_station_gap_km" not in yaml.safe_dump(
+        optional_context
+    )
+    revisions = ontology_v2_parameters[
+        "trail_revision_and_confirmation"
+    ]
+    assert revisions["prior_draft_value_retained"] is False
+    assert revisions["prior_revision_token_retained"] is False
+    assert revisions["immutable_snapshot_begins_only_with_proposal"] is True
+    assert ontology_v2_parameters["trail_grade_distribution"][
+        "exact_sum"
+    ] == 10000
+    assert ontology_v2_parameters["trail_footing_and_hazard_contract"][
+        "ordinary_footing"
+    ]["allowed"] == [
+        "firm_smooth",
+        "loose_gravel",
+        "mud",
+        "rocks_or_roots",
+        "built_steps",
+        "water_crossing",
+    ]
+
+    policy_v1_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_policy_decision.model_parameters
+    }
+    policy_v2_parameters = {
+        parameter.name: parameter.value
+        for parameter in trail_policy_v2.model_parameters
+    }
+    assert set(policy_v2_parameters) == set(policy_v1_parameters)
+    changed_policy_groups = {
+        name
+        for name in policy_v1_parameters
+        if policy_v1_parameters[name] != policy_v2_parameters[name]
+    }
+    assert changed_policy_groups == {
+        "trail_policy_scope_and_dependencies",
+        "trail_policy_required_inputs",
+        "trail_policy_history_guardrails",
+        "trail_policy_schedule_construction",
+        "trail_policy_course_exposure_caps",
+        "trail_policy_event_and_taper",
+        "trail_policy_typed_outcomes",
+        "trail_policy_modular_structure",
+        "trail_policy_evidence_use",
+        "trail_policy_non_science_authority",
+    }
+    outcomes = policy_v2_parameters["trail_policy_typed_outcomes"]
+    assert outcomes["status_precedence"] == [
+        "validation_failed",
+        "policy_unavailable",
+        "readiness_blocked",
+        "clarification_required",
+        "eligible_proposal",
+    ]
+    assert outcomes["limited_modules"]["allowed_sorted_order"] == [
+        "environment_altitude",
+        "fueling",
+        "grade_specificity",
+        "technical_terrain",
+    ]
+    assert outcomes["module_availability"][
+        "required_keys_in_fixed_order"
+    ] == [
+        "grade_specificity",
+        "technical_terrain",
+        "environment_altitude",
+        "fueling",
+    ]
+    assert outcomes["module_availability"]["allowed_states"] == [
+        "not_evaluated",
+        "available",
+        "limited",
+    ]
+    not_evaluated = outcomes["module_availability"]["state_rules"][
+        "not_evaluated"
+    ]
+    assert not_evaluated == {
+        "when": "top_level_status_is_not_eligible_proposal",
+        "reason_target": "top_level_primary_namespaced_reason",
+        "all_four_modules_use_same_reason_target": True,
+    }
+    catalog_pairs = {
+        (status, detail_reason)
+        for status, detail_reasons in outcomes[
+            "detail_reason_catalog"
+        ].items()
+        for detail_reason in detail_reasons
+    }
+    mapped_pairs = {
+        (item["result"]["status"], item["result"]["detail_reason"])
+        for item in outcomes["condition_reason_mapping"]
+        if item["result"]["detail_reason"] is not None
+    }
+    assert mapped_pairs == catalog_pairs
+    assert policy_v2_parameters["trail_policy_modular_structure"][
+        "disabled_deferred_modules"
+    ] == {
+        module: {
+            "state": "not_accepted",
+            "reason": "no_accepted_v2_input_and_dose_contract",
+        }
+        for module in ("hiking", "strength", "taper")
+    }
+    assert policy_v2_parameters["trail_policy_history_guardrails"][
+        "insufficient_recent_running_result"
+    ] == {
+        "status": "readiness_blocked",
+        "detail_reason": "insufficient_recent_running_history",
+    }
+    assert policy_v2_parameters["trail_policy_schedule_construction"][
+        "no_schedule_result"
+    ] == {
+        "status": "readiness_blocked",
+        "detail_reason": "no_schedule_within_envelope",
+    }
+    assert policy_v2_parameters["trail_policy_event_and_taper"][
+        "target_within_14_days_of_start_result"
+    ] == {
+        "status": "policy_unavailable",
+        "detail_reason": "event_inside_unapproved_taper_window",
+    }
     assert registry.evidence_reviews[
         "evidence-personal-environment-response-v1"
     ].status == "accepted"

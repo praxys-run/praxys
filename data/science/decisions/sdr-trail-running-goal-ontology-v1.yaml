@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-trail-running-goal-ontology-v1
 version: 1
 title: "Represent trail goals with an explicit course-demand vector"
-status: accepted
+status: superseded
 approval_mode: artifact
 decision_date: 2026-09-01
 owners:
@@ -347,7 +347,7 @@ affected_surfaces:
 artifact_policy:
   runtime_state: inactive
 supersedes: []
-superseded_by:
+superseded_by: sdr-trail-running-goal-ontology-v2
 decision_notes:
   - "This artifact-mode decision addresses issue #690 and remains draft and inactive."
   - "Work Contract classification digest: sha256:55c4da66e7f504dd0d40c681c2a006fdbe7079c0cd06de43cb95802e679f78f5."

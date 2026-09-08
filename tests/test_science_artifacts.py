@@ -1124,3 +1124,30 @@ def test_marathon_packet_contains_exact_accepted_inactive_contract() -> None:
 def test_repository_generated_science_artifacts_are_current() -> None:
     registry = load_science_registry()
     assert sync_science_artifacts(registry, check=True) == []
+
+
+def test_trail_v2_successor_contracts_are_exact_and_inactive() -> None:
+    expected = {
+        "sdr-trail-running-goal-ontology-v1": (
+            "superseded",
+            "sha256:e341c379d8f60a27ee5919beab4800721c96b79458c861237d6e14800cdcd752",
+        ),
+        "sdr-trail-running-goal-ontology-v2": (
+            "accepted",
+            "sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c",
+        ),
+        "sdr-non-ultra-trail-plan-generation-policy-v1": (
+            "superseded",
+            "sha256:2035f855cea2c1c117bd092796615148e98e59f1536013f86fb2bba1cab73ce2",
+        ),
+        "sdr-non-ultra-trail-plan-generation-policy-v2": (
+            "accepted",
+            "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+        ),
+    }
+
+    for decision_id, (status, digest) in expected.items():
+        contract = load_policy_contract(decision_id, require_active=False)
+        assert str(contract.decision_status) == status
+        assert str(contract.runtime_state) == "inactive"
+        assert contract.contract_digest == digest

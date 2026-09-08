@@ -248,7 +248,22 @@ def _seed_account_rows(db_session, user_id: str = "delete-me") -> None:
                 channel="web",
             )
         )
-        db.add(UserConfig(user_id=user_id, display_name="Delete Me"))
+        db.add(UserConfig(
+            user_id=user_id,
+            display_name="Delete Me",
+            goal={
+                "goal_kind": "race",
+                "trail_plan": {
+                    "namespace_version": 1,
+                    "course_demand": {
+                        "schema_id": "trail_course_demand_v2",
+                    },
+                    "last_revision_bindings": {
+                        "composite_revision": "sha256:" + ("a" * 64),
+                    },
+                },
+            },
+        ))
         db.add(UserConnection(user_id=user_id, platform="garmin", encrypted_credentials=b"secret"))
         db.add(Activity(user_id=user_id, activity_id="a1", date=date(2026, 6, 1)))
         db.add(ActivitySplit(user_id=user_id, activity_id="a1", split_num=1))
@@ -747,6 +762,11 @@ def test_delete_me_removes_user_and_owned_rows(account_client):
     """DELETE /api/me hard-deletes account data, credentials, demo, and invitation links."""
     client, db_session = account_client
     _seed_account_rows(db_session)
+
+    from db.models import UserConfig as _UserConfig
+
+    with db_session.SessionLocal() as seeded_db:
+        assert "trail_plan" in seeded_db.get(_UserConfig, "delete-me").goal
 
     res = client.delete("/api/me")
     assert res.status_code == 200, res.text

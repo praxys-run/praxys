@@ -68,7 +68,29 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
                 user_id=owner_id,
                 display_name="Owner",
                 preferences={"activities": "garmin"},
-                goal={"distance": "marathon", "target_label": "owner-goal"},
+                goal={
+                    "distance": "marathon",
+                    "target_label": "owner-goal",
+                    "trail_plan": {
+                        "namespace_version": 1,
+                        "course_demand": {
+                            "schema_id": "trail_course_demand_v2",
+                            "fields": {
+                                "event_date": {
+                                    "state": "unknown",
+                                    "provenance": "unknown",
+                                    "source_revision": "sha256:" + ("a" * 64),
+                                },
+                            },
+                        },
+                        "confirmations": {
+                            "section.event-duration": None,
+                        },
+                        "last_revision_bindings": {
+                            "composite_revision": "sha256:" + ("b" * 64),
+                        },
+                    },
+                },
                 source_options={
                     "athlete_timezone": "UTC",
                     "oauth_token": "config-raw-token",
@@ -576,6 +598,23 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         }
     ]
     assert payload["user_config"]["goal"]["target_label"] == "owner-goal"
+    assert payload["user_config"]["goal"]["trail_plan"] == {
+        "namespace_version": 1,
+        "course_demand": {
+            "schema_id": "trail_course_demand_v2",
+            "fields": {
+                "event_date": {
+                    "state": "unknown",
+                    "provenance": "unknown",
+                    "source_revision": "sha256:" + ("a" * 64),
+                },
+            },
+        },
+        "confirmations": {"section.event-duration": None},
+        "last_revision_bindings": {
+            "composite_revision": "sha256:" + ("b" * 64),
+        },
+    }
     assert [row["activity_id"] for row in payload["activities"]] == ["owner-activity"]
     assert [row["activity_id"] for row in payload["activity_splits"]] == ["owner-activity"]
     assert payload["activity_samples"] == [
