@@ -1573,25 +1573,24 @@ export default function PlanStart({
 
   return (
     <section id="plan-start" aria-label={t`Training plan`} tabIndex={-1} className="scroll-mt-6 space-y-5">
-      {hasManagedPlan && (
-        <ManagedPlanSettingsCard
-          compact
-          config={config}
-          planDeliveryOptions={planDeliveryOptions}
-          updateSettings={updateSettings}
-        >
-          {isAdopted && (
-            <AdoptedPlanDetails
-              proposal={displayedProposal}
-              distanceLabel={typeof proposalDistance === 'string' ? distanceName(proposalDistance) : undefined}
-              onReviewInputs={!proposalPurposeConflict ? () => {
-                if (purposeSelection) confirmPurpose(purposeSelection);
-                else openSetup('purpose');
-              } : undefined}
-            />
-          )}
-        </ManagedPlanSettingsCard>
-      )}
+      <ManagedPlanSettingsCard
+        compact
+        showSummary={hasManagedPlan}
+        config={config}
+        planDeliveryOptions={planDeliveryOptions}
+        updateSettings={updateSettings}
+      >
+        {isAdopted && (
+          <AdoptedPlanDetails
+            proposal={displayedProposal}
+            distanceLabel={typeof proposalDistance === 'string' ? distanceName(proposalDistance) : undefined}
+            onReviewInputs={!proposalPurposeConflict ? () => {
+              if (purposeSelection) confirmPurpose(purposeSelection);
+              else openSetup('purpose');
+            } : undefined}
+          />
+        )}
+      </ManagedPlanSettingsCard>
 
       {!setupOpen && !displayedProposal && (
         <div className="flex flex-col gap-4 border-y border-border py-5 sm:flex-row sm:items-center sm:justify-between">

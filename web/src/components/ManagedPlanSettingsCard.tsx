@@ -75,6 +75,8 @@ type LeaveChoice = 'keep' | 'remove';
 
 interface ManagedPlanSettingsCardProps {
   compact?: boolean;
+  /** Hide the summary without interrupting cleanup or its recovery dialogs. */
+  showSummary?: boolean;
   children?: ReactNode;
   config: SettingsConfig;
   planDeliveryOptions: PlanDeliveryOption[];
@@ -108,6 +110,7 @@ function browserTimeZone(): string | null {
 
 export default function ManagedPlanSettingsCard({
   compact = false,
+  showSummary = true,
   children,
   config,
   planDeliveryOptions,
@@ -121,14 +124,14 @@ export default function ManagedPlanSettingsCard({
     loading: planLoading,
     error: planError,
     refetch: refetchPlan,
-  } = useApi<PlanResponse>(planUrl);
+  } = useApi<PlanResponse>(planUrl, { enabled: showSummary });
   const {
     data: adjustmentHistory,
     error: adjustmentHistoryError,
     refetch: refetchAdjustmentHistory,
   } = useApi<PlanAdjustmentHistoryResponse>(
     '/api/plan/adjustments?limit=20',
-    { enabled: plan?.adjustments !== undefined },
+    { enabled: showSummary && plan?.adjustments !== undefined },
   );
   const management = config.plan_management;
   const state = managedPlanState(management);
@@ -597,7 +600,7 @@ export default function ManagedPlanSettingsCard({
 
   return (
     <>
-        {compact ? (
+        {showSummary && (compact ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground">
@@ -1119,7 +1122,7 @@ export default function ManagedPlanSettingsCard({
           )}
         </CardContent>
       </Card>
-        )}
+        ))}
 
       <Dialog
         open={confirmMode != null}

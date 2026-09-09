@@ -210,7 +210,7 @@ test('active plan workouts stay first without remounting the setup or hiding man
   assert.match(training, /key="upcoming"/);
   assert.match(training, /hasManagedPlan \? \[upcoming, planStart\] : \[planStart, upcoming\]/);
   assert.match(web, /const hasManagedPlan = isAdopted\s*\|\| config\.plan_management\.mode === 'praxys'\s*\|\| capabilityDiscovery\?\.active_plan_goal\?\.lifecycle === 'active'/);
-  assert.match(web, /\{hasManagedPlan && \(\s*<ManagedPlanSettingsCard/);
+  assert.match(web, /<ManagedPlanSettingsCard\s+compact\s+showSummary=\{hasManagedPlan\}/);
 });
 
 test('one explicit scope checkbox controls the same four required facts', async () => {

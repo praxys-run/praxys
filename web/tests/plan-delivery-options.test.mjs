@@ -114,7 +114,7 @@ test('Training keeps status and recovery while routine controls live in Settings
   assert.match(web, /compact = false/);
   assert.doesNotMatch(web, /Collapsible|settingsExpanded|Delivery and adjustments/);
   assert.match(web, /compact \? \([\s\S]*?<Link to="\/settings#plan-management"/);
-  const summary = web.slice(web.indexOf('{compact ? ('), web.indexOf('<Card className="mb-8">'));
+  const summary = web.slice(web.indexOf('{showSummary && (compact ? ('), web.indexOf('<Card className="mb-8">'));
   assert.match(summary, /Delivery to \{targetLabel\} is enabled/);
   assert.doesNotMatch(summary, /Sending workouts to/);
   assert.match(summary, /gap-x-4 gap-y-1 text-xs text-foreground/);
