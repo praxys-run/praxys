@@ -30,12 +30,33 @@ from i18n_semantics import (
     is_fuzzy,
     validate_semantic_rules,
 )
-from translate_missing import _placeholders_match, parse_po
+from translate_missing import _XML_TAG_RE, _placeholders_match, parse_po
 
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
 _ASCII_WORD_RE = re.compile(r"[A-Za-z]{2,}")
 _URL_OR_EMAIL_RE = re.compile(r"(?:https?://|www\.|@|\.[a-z]{2,}(?:/|$))", re.I)
+# Strip syntax only, never the prose inside markup or a whole mixed sentence.
+_IDENTITY_SYNTAX_RE = re.compile(
+    r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*?)?\s*/?>"
+    r"|(?:https?://|www\.)[^\s<>\"'\u3000-\u303f\uff00-\uffef]+"
+    r"|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\.[A-Za-z]{2,}",
+    re.I,
+)
+_CJK_IDENTITY_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9_])(?:Praxys|API|v2)(?![A-Za-z0-9_])"
+)
+# Named/numeric arguments match the miniapp placeholder convention; formatted
+# arguments and choices use Lingui's ICU syntax.
+_ICU_ARGUMENT = r"(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)"
+_ICU_VALUE_RE = re.compile(
+    rf"\s*{_ICU_ARGUMENT}\s*(?:,\s*(?:number|date|time)(?:\s*,[^{{}}]+)?)?\s*"
+)
+_ICU_CHOICE_RE = re.compile(
+    rf"\s*{_ICU_ARGUMENT}\s*,\s*(plural|select|selectordinal)\s*,\s*"
+)
+# Match Lingui's ICU apostrophe quoting before counting or stripping braces.
+_ICU_BODY_TOKEN_RE = re.compile(r"''|'[{}#](?:[^']|'')*'(?!')|[{}]")
 
 
 @dataclass(frozen=True)
@@ -65,7 +86,77 @@ def _contains_token(text: str, token: str) -> bool:
     return re.search(pattern, text, flags=re.IGNORECASE) is not None
 
 
+def _closing_brace(text: str, start: int) -> int | None:
+    depth = 0
+    for token in _ICU_BODY_TOKEN_RE.finditer(text, start):
+        if token[0] == "{":
+            depth += 1
+        elif token[0] == "}":
+            depth -= 1
+            if depth == 0:
+                return token.start()
+    return None
+
+
+def _identity_choice_text(body: str) -> str | None:
+    match = _ICU_CHOICE_RE.match(body)
+    if match is None:
+        return None
+    tail = body[match.end():]
+    selector = r"[A-Za-z0-9_-]+"
+    if match[1] != "select":
+        tail = re.sub(r"^offset\s*:\s*[0-9]+\s*", "", tail)
+        selector = r"(?:zero|one|two|few|many|other|=-?[0-9]+(?:\.[0-9]+)?)"
+    branches: list[str] = []
+    has_other = False
+    while tail.strip():
+        branch = re.match(rf"\s*({selector})\s*\{{", tail)
+        if branch is None:
+            return None
+        end = _closing_brace(tail, branch.end() - 1)
+        if end is None:
+            return None
+        has_other = has_other or branch[1] == "other"
+        branches.append(_strip_identity_placeholders(tail[branch.end():end]))
+        tail = tail[end + 1:]
+    return " ".join(branches) if has_other else None
+
+
+def _strip_identity_placeholders(text: str) -> str:
+    """Strip recognized ICU syntax while retaining every choice branch's prose."""
+    parts: list[str] = []
+    cursor = 0
+    while (token := _ICU_BODY_TOKEN_RE.search(text, cursor)) is not None:
+        start = token.start()
+        parts.append(text[cursor:start])
+        if token[0] != "{":
+            parts.append(token[0])
+            cursor = token.end()
+            continue
+        end = _closing_brace(text, start)
+        if end is None:
+            parts.append(text[start:])
+            return "".join(parts)
+        body = text[start + 1:end]
+        if _ICU_VALUE_RE.fullmatch(body):
+            parts.append(" ")
+        else:
+            choice = _identity_choice_text(body)
+            # Malformed/unrecognized syntax remains visible to the letter test.
+            parts.append(f" {choice} " if choice is not None else text[start:end + 1])
+        cursor = end + 1
+    parts.append(text[cursor:])
+    return "".join(parts)
+
+
 def _same_as_source_allowed(source: str, allowed: set[str]) -> bool:
+    if _CJK_RE.search(source):
+        remainder = _strip_identity_placeholders(source)
+        remainder = _IDENTITY_SYNTAX_RE.sub(" ", _XML_TAG_RE.sub(" ", remainder))
+        remainder = _CJK_IDENTITY_TOKEN_RE.sub(" ", remainder)
+        # This decision is final: no general allowlist, URL, short-word, or
+        # acronym fallback may admit unlisted Latin text in a CJK source.
+        return re.search(r"[A-Za-z]", remainder) is None
     if source in allowed:
         return True
     if not _ASCII_WORD_RE.search(source):

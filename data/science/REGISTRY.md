@@ -38,14 +38,14 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
 | [sdr-heat-adaptation-v1](decisions/sdr-heat-adaptation-v1.yaml) — Interpret recent heat exposure as qualitative adaptation evidence | 1 | heat-adaptation-v8 | 2026-07-26 |
-| [sdr-non-ultra-trail-plan-generation-policy-v1](decisions/sdr-non-ultra-trail-plan-generation-policy-v1.yaml) — Use a history-anchored 14-day non-ultra trail performance block | 1 | non-ultra-trail-plan-generation-policy-v1 | 2026-09-01 |
+| [sdr-non-ultra-trail-plan-generation-policy-v2](decisions/sdr-non-ultra-trail-plan-generation-policy-v2.yaml) — Bind the non-ultra Trail policy to the strict v2 readiness receipt | 2 | non-ultra-trail-plan-generation-policy-v2 | 2026-09-04 |
 | [sdr-outdoor-5k-plan-generation-policy-v1](decisions/sdr-outdoor-5k-plan-generation-policy-v1.yaml) — Use a history-anchored 28-day outdoor 5 km plan block | 1 | outdoor-5k-plan-generation-policy-v1 | 2026-08-13 |
 | [sdr-plan-generation-eligibility-safety-v1](decisions/sdr-plan-generation-eligibility-safety-v1.yaml) — Match plan generation by capability, history, and non-medical safety state | 1 | plan-generation-eligibility-safety-v1 | 2026-08-14 |
 | [sdr-preplan-baseline-policy-v1](decisions/sdr-preplan-baseline-policy-v1.yaml) — Use qualified 5 km history before offering an opt-in same-protocol baseline | 1 | preplan-baseline-policy-v1 | 2026-08-10 |
 | [sdr-road-10k-plan-generation-policy-v2](decisions/sdr-road-10k-plan-generation-policy-v2.yaml) — Generator-ready adult outdoor road 10 km performance policy | 2 | road-10k-plan-generation-policy-v2 | 2026-08-18 |
 | [sdr-road-half-marathon-plan-generation-policy-v1](decisions/sdr-road-half-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road half-marathon performance policy | 1 | road-half-marathon-plan-generation-policy-v1 | 2026-08-14 |
 | [sdr-road-marathon-plan-generation-policy-v1](decisions/sdr-road-marathon-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road-marathon performance policy | 1 | road-marathon-plan-generation-policy-v1 | 2026-08-15 |
-| [sdr-trail-running-goal-ontology-v1](decisions/sdr-trail-running-goal-ontology-v1.yaml) — Represent trail goals with an explicit course-demand vector | 1 | trail-course-demand-v1 | 2026-09-01 |
+| [sdr-trail-running-goal-ontology-v2](decisions/sdr-trail-running-goal-ontology-v2.yaml) — Define the strict v2 Trail course-demand and constraint envelope | 2 | trail-course-demand-v2 | 2026-09-04 |
 
 ## Pending
 
@@ -70,7 +70,9 @@ _None._
 | [sdr-environmental-performance-v1](decisions/sdr-environmental-performance-v1.yaml) — Present environmental conditions as bounded performance context | 1 | environmental-performance-context-v1 | 2026-07-26 |
 | [sdr-environmental-performance-v2](decisions/sdr-environmental-performance-v2.yaml) — Present a private historical environmental-response experiment | 2 | environmental-performance-context-v2 | 2026-08-08 |
 | [sdr-environmental-performance-v3](decisions/sdr-environmental-performance-v3.yaml) — Display supported environmental-response subdomains without bridging gaps | 3 | environmental-performance-context-v3 | 2026-08-09 |
+| [sdr-non-ultra-trail-plan-generation-policy-v1](decisions/sdr-non-ultra-trail-plan-generation-policy-v1.yaml) — Use a history-anchored 14-day non-ultra trail performance block | 1 | non-ultra-trail-plan-generation-policy-v1 | 2026-09-01 |
 | [sdr-road-10k-plan-generation-policy-v1](decisions/sdr-road-10k-plan-generation-policy-v1.yaml) — History-anchored adult outdoor road 10 km performance policy | 1 | road-10k-plan-generation-policy-v1 | 2026-08-14 |
+| [sdr-trail-running-goal-ontology-v1](decisions/sdr-trail-running-goal-ontology-v1.yaml) — Represent trail goals with an explicit course-demand vector | 1 | trail-course-demand-v1 | 2026-09-01 |
 
 ## Retired
 

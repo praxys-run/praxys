@@ -1,0 +1,977 @@
+schema_version: 1
+id: sdr-trail-running-goal-ontology-v2
+version: 2
+title: "Define the strict v2 Trail course-demand and constraint envelope"
+status: accepted
+approval_mode: artifact
+decision_date: 2026-09-04
+owners:
+  - team:praxys
+human_reviewers: []
+model_version: trail-course-demand-v2
+evidence_review_ids:
+  - evidence-trail-running-goal-ontology-v1
+evidence_claim_ids:
+  - trail-ontology.course-demand-is-multidimensional
+  - trail-ontology.uphill-downhill-demands-differ
+  - trail-ontology.technicality-and-downhill-vary-performance
+  - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+  - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+  - trail-ontology.environment-and-altitude-are-distinct-context
+  - trail-ontology.duration-and-fueling-practice-are-context
+accepted_interpretation: >
+  If separately accepted by the decision approver, this successor would keep
+  every accepted v1 science and safety boundary while defining
+  trail_course_demand_v2 and non_ultra_trail_constraints_v2 as strict,
+  provider-neutral, revision-bound data contracts. Reviewable fields carry an
+  explicit known value or explicit unknown state; the server, never the
+  client, stamps provenance and source revisions. Core course, scope, hazard,
+  schedule, terrain-access, symptom, and recent-history gates fail closed.
+  Unknown grade, ordinary course footing, environment, support, or fueling
+  context can limit only their named module after all core gates pass. Five
+  signed-grade basis-point buckets, six unordered footing flags, known-or-
+  unknown boolean hazard fields, exact footing set containment, bounded
+  schedule capacity, and bounded optional context are reversible Praxys
+  operational guardrails, not validated difficulty scores, training doses,
+  equivalence formulas, predictions, or safety thresholds. No route, GPS,
+  free-text planning, provider payload, activity-average power, road fallback,
+  personal performance prediction, or runtime behavior is accepted.
+decision_review:
+  reviewer_task: >
+    Decide whether the six proposed v2 ontology actions preserve the accepted
+    v1 evidence, uncertainty, safety, and privacy boundaries while making the
+    inactive input contract deterministic enough to implement. Approve the
+    sheet as a unit or request changes by item ID.
+  approval_statement: >
+    I approve trail_course_demand_v2 and non_ultra_trail_constraints_v2 as
+    strict revision-bound Trail planning envelopes: explicit known or unknown
+    fields, server-owned provenance, separate ascent and descent, descriptive
+    signed-grade shares, closed footing and known-or-unknown boolean hazard
+    fields, exact footing containment, bounded schedule and optional context,
+    and fail-closed core materiality. I
+    approve the exact DTO values only as reversible Praxys operational
+    guardrails, not as published biological findings, difficulty or safety
+    scores, doses, equivalences, or predictions. This approval authorizes only
+    preparation and review of a separately reviewed inactive implementation
+    bound to this exact decision and contract. It does not approve lifecycle
+    supersession, merge, deployment, production data use, dogfood, catalog
+    visibility, provider behavior, delivery, or runtime activation.
+  items:
+    - id: strict-value-provenance-envelope
+      title: Adopt explicit field states and server-owned provenance
+      disposition: approve
+      question: >
+        Should every reviewable v2 field use an exact known-or-unknown envelope
+        while provenance, source metadata, and history hashes remain
+        server-owned and revision-bound?
+      proposed_decision: >
+        Accept the closed envelope, provenance categories, field-specific
+        provenance restrictions, replaceable current revision tokens,
+        proposal-time immutable snapshots, and confirmation invalidation rules
+        as operational guardrails.
+      approval_effect:
+        - Missing values cannot be represented as zero, empty text, or a client-selected source.
+        - Readiness and proposals can bind the exact confirmed source revisions used.
+      does_not_authorize:
+        - Source scraping, route inference, model truth claims, or automatic confirmation.
+      parameter_names:
+        - trail_field_provenance
+        - trail_revision_and_confirmation
+      evidence_claim_ids:
+        - trail-ontology.course-demand-is-multidimensional
+    - id: core-course-and-planning-context
+      title: Adopt the v2 core course tuple and planning-duration range
+      disposition: approve
+      question: >
+        Should event identity, date, distance, ascent, descent, scope, intent,
+        hazard gates, and a confirmed planning-duration range be core inputs?
+      proposed_decision: >
+        Require those typed fields and treat planning duration only as
+        athlete-confirmed planning context, never as a finish-time prediction.
+      approval_effect:
+        - Distance and ascent alone cannot select a Trail policy.
+        - A material core unknown prevents an eligible proposal.
+      does_not_authorize:
+        - A finish-time estimate, feasibility verdict, performance promise, or course equivalence.
+      parameter_names:
+        - trail_course_demand_schema
+        - trail_planning_duration_range
+      evidence_claim_ids:
+        - trail-ontology.course-demand-is-multidimensional
+        - trail-ontology.uphill-downhill-demands-differ
+        - trail-ontology.duration-and-fueling-practice-are-context
+    - id: descriptive-course-and-access-vocabularies
+      title: Adopt descriptive grade, footing, hazard, and terrain-access DTOs
+      disposition: approve
+      question: >
+        Should v2 use the exact five signed-grade share buckets, six unordered
+        footing flags, two known-or-unknown boolean hazard fields, and bounded
+        schedule plus uphill/downhill/footing access fields?
+      proposed_decision: >
+        Accept these closed DTOs and exact set-containment rules as
+        deterministic descriptions, not as technicality scores or doses.
+      approval_effect:
+        - Grade boundaries and footing matching replay identically.
+        - Course footing cannot be approximated by synonyms or a road category.
+      does_not_authorize:
+        - Route-derived grade, a technical score, downhill dose, or terrain equivalence.
+      parameter_names:
+        - trail_grade_distribution
+        - trail_footing_and_hazard_contract
+        - trail_training_constraints_schema
+      evidence_claim_ids:
+        - trail-ontology.uphill-downhill-demands-differ
+        - trail-ontology.technicality-and-downhill-vary-performance
+    - id: bounded-context-and-materiality
+      title: Adopt bounded optional context and exact block-versus-limit rules
+      disposition: approve
+      question: >
+        Should environment, altitude, aid, equipment, fueling, and
+        gastrointestinal context use closed bounded shapes, with only named
+        non-core unknowns limiting dependent modules?
+      proposed_decision: >
+        Accept the bounded shapes, exact core/limited mapping, sorted module
+        vocabulary, and course-footing containment against access and observed
+        history.
+      approval_effect:
+        - Optional unknowns remain visible without becoming hidden defaults.
+        - A known mismatch still blocks the affected core access or history gate.
+      does_not_authorize:
+        - An environment, altitude, equipment, fueling, gastrointestinal, or safety prescription.
+      parameter_names:
+        - trail_optional_context_shapes
+        - trail_unknown_and_materiality_policy
+        - trail_distinct_demand_invariants
+      evidence_claim_ids:
+        - trail-ontology.course-demand-is-multidimensional
+        - trail-ontology.environment-and-altitude-are-distinct-context
+        - trail-ontology.duration-and-fueling-practice-are-context
+    - id: science-safety-and-privacy-boundary
+      title: Preserve the accepted nonclinical, intensity, claim, and privacy limits
+      disposition: approve
+      question: >
+        Should v2 preserve the adult nonclinical scope, symptom stop,
+        split/sample intensity provenance, minimum normalized storage, and all
+        prohibitions on personal guarantees and sensitive planning payloads?
+      proposed_decision: >
+        Carry the accepted v1 boundaries forward unchanged and apply them to
+        every v2 field, receipt, and later implementation surface.
+      approval_effect:
+        - Activity-average power cannot satisfy intensity provenance.
+        - Route, GPS, free-text, diagnosis, and provider payloads remain outside the contract.
+      does_not_authorize:
+        - Diagnosis, clearance, treatment, injury prevention, safety assurance, or personal performance prediction.
+      parameter_names:
+        - trail_science_safety_and_privacy_boundary
+      evidence_claim_ids:
+        - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+        - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    - id: unresolved-values-and-authority-deferred
+      title: Keep dose, scoring, equivalence, provider, and activation decisions deferred
+      disposition: defer
+      question: >
+        Should every technicality score, route inference, dose, progression,
+        equivalence, prediction, provider, rollout, and activation behavior
+        remain unaccepted?
+      proposed_decision: >
+        Preserve literal not_accepted values and the inactive role boundary
+        until separate specialist and human review authorizes a successor.
+      approval_effect:
+        - Exact DTO validation cannot silently become scientific prescription or runtime authority.
+      does_not_authorize:
+        - Any behavior listed as not_accepted or any lifecycle transition for v1.
+      parameter_names:
+        - trail_exact_values
+        - trail_non_science_authority_boundary
+      evidence_claim_ids:
+        - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+rejected_alternatives:
+  - alternative: "Keep the ambiguous v1 object fields and let each caller interpret them"
+    rationale: >
+      Caller-specific interpretation would make missingness, provenance,
+      materiality, and replay nondeterministic.
+  - alternative: "Infer grade, footing, or technical demand from a route or provider payload"
+    rationale: >
+      v2 does not collect those payloads, and the evidence does not validate a
+      universal inference or technicality score.
+  - alternative: "Require every optional course descriptor before any proposal"
+    rationale: >
+      Core-versus-limited materiality can preserve uncertainty without hiding
+      it or inventing a dependent module.
+  - alternative: "Treat an unknown or inaccessible Trail field as ordinary road running"
+    rationale: >
+      That would erase course-specific demand and violate the accepted no-road-
+      fallback boundary.
+model_parameters:
+  - name: trail_course_demand_schema
+    value:
+      schema_id: trail_course_demand_v2
+      strict_unknown_fields_rejected: true
+      event_identity:
+        field: event_id
+        type: server_owned_identifier
+        client_writable: false
+        materiality: core
+      fields:
+        event_date:
+          type: iso_date
+          envelope: known_or_unknown
+          materiality: core
+        distance_meters:
+          type: integer
+          unit: meters
+          minimum: 1
+          maximum: 49999
+          envelope: known_or_unknown
+          materiality: core
+        total_ascent_m:
+          type: integer
+          unit: meters
+          minimum: 0
+          maximum: 20000
+          envelope: known_or_unknown
+          materiality: core
+        total_descent_m:
+          type: integer
+          unit: meters
+          minimum: 0
+          maximum: 20000
+          envelope: known_or_unknown
+          materiality: core
+        planning_duration_range:
+          type: integer_range
+          unit: minutes
+          envelope: known_or_unknown
+          materiality: core
+        event_format:
+          type: closed_enum
+          recognized: [single_day, multi_day]
+          supported_value: single_day
+          envelope: known_or_unknown
+          materiality: core
+        distance_family:
+          type: closed_enum
+          recognized: [non_ultra, ultra]
+          supported_value: non_ultra
+          envelope: known_or_unknown
+          materiality: core
+        planning_intent:
+          type: closed_enum
+          recognized:
+            - performance
+            - first_completion
+            - return_to_consistency
+          supported_value: performance
+          envelope: known_or_unknown
+          materiality: core
+        grade_distribution:
+          type: five_bucket_basis_point_object
+          envelope: known_or_unknown
+          materiality: limited
+          limited_module: grade_specificity
+        course_footing:
+          type: nonempty_unordered_closed_set
+          envelope: known_or_unknown
+          materiality: limited_with_core_matching_when_known
+          limited_module: technical_terrain
+        hands_assist:
+          type: strict_boolean
+          envelope: known_or_unknown
+          materiality: core
+        fixed_rope:
+          type: strict_boolean
+          envelope: known_or_unknown
+          materiality: core
+        optional_context:
+          type: strict_fixed_key_object
+          exact_groups: [environment, support, fueling]
+          group_envelope_allowed: false
+          every_declared_leaf_required: true
+          every_leaf_envelope: known_or_unknown
+          materiality: limited_by_leaf
+      scope_enum_results:
+        unknown_recognized_scope:
+          status: clarification_required
+          detail_reason: adult_scope_or_constraints_unconfirmed
+        recognized_multi_day_or_ultra:
+          status: policy_unavailable
+          detail_reason: unsupported_ultra_or_multiday
+        recognized_non_performance_intent:
+          status: policy_unavailable
+          detail_reason: unsupported_population_or_intent
+        unrecognized_literal:
+          status: validation_failed
+          detail_reason: invalid_field_value
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+      - trail-ontology.uphill-downhill-demands-differ
+    rationale: >
+      The evidence supports explicit distinct dimensions; field names, types,
+      units, and the core/limited representation are reversible Praxys DTO
+      choices selected to make missingness and replay unambiguous.
+    applies_to: trail_course_demand_v2
+  - name: trail_field_provenance
+    value:
+      request_envelope:
+        known:
+          exact_keys: [state, value]
+          state_literal: known
+          schema_valid_value_required: true
+        unknown:
+          exact_keys: [state]
+          state_literal: unknown
+          value_forbidden: true
+        missing_state_invalid: true
+        empty_string_invalid: true
+        sentinel_number_invalid: true
+        guessed_zero_invalid: true
+        arbitrary_object_invalid: true
+        null_invalid_except_explicit_aid_gap_case: true
+        numeric_values_must_be_finite: true
+      server_stamped_provenance_allowed:
+        - athlete_stated
+        - course_verified
+        - history_observed
+        - model_inferred
+        - explicit_assumption
+        - unknown
+      client_may_submit_provenance: false
+      client_may_submit_source_revision: false
+      client_may_submit_model_version: false
+      client_may_submit_source_timestamp: false
+      client_may_submit_history_hash: false
+      field_restrictions:
+        event_id: server_owned
+        grade_distribution: [athlete_stated, course_verified, unknown]
+        recent_history: [history_observed]
+        athlete_assumption_conditions: [explicit_assumption]
+      inferred_requires_server_model_version: true
+      assumption_requires_revision_bound_confirmation: true
+      unknown_is_preserved: true
+    classification: guardrail
+    rationale: >
+      A strict server-owned provenance envelope prevents client-selected trust,
+      hidden defaults, and stale source metadata. These are operational
+      integrity controls, not published scientific values.
+    applies_to: every reviewable v2 course, constraint, and history field
+  - name: trail_planning_duration_range
+    value:
+      field: planning_duration_range
+      unit: integer_minutes
+      minimum_and_maximum_each:
+        minimum: 1
+        maximum: 1440
+      minimum_strictly_less_than_maximum: true
+      athlete_confirmed: true
+      purpose: planning_context
+      finish_time_prediction: false
+      feasibility_verdict: false
+      performance_promise: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.duration-and-fueling-practice-are-context
+    rationale: >
+      Expected duration is relevant context, while the exact range shape is a
+      reversible Product DTO and cannot be presented as a prediction.
+    applies_to: trail_course_demand_v2 core confirmation
+  - name: trail_grade_distribution
+    value:
+      unit: basis_points_of_course_distance
+      known_value_exact_keys:
+        - below_neg_10
+        - neg_10_to_below_neg_3
+        - neg_3_to_below_pos_3
+        - pos_3_to_below_pos_10
+        - pos_10_and_above
+      buckets:
+        below_neg_10:
+          interval: "g < -10%"
+          upper_bound_percent: -10
+          upper_inclusive: false
+        neg_10_to_below_neg_3:
+          interval: "-10% <= g < -3%"
+          lower_bound_percent: -10
+          lower_inclusive: true
+          upper_bound_percent: -3
+          upper_inclusive: false
+        neg_3_to_below_pos_3:
+          interval: "-3% <= g < 3%"
+          lower_bound_percent: -3
+          lower_inclusive: true
+          upper_bound_percent: 3
+          upper_inclusive: false
+        pos_3_to_below_pos_10:
+          interval: "3% <= g < 10%"
+          lower_bound_percent: 3
+          lower_inclusive: true
+          upper_bound_percent: 10
+          upper_inclusive: false
+        pos_10_and_above:
+          interval: "g >= 10%"
+          lower_bound_percent: 10
+          lower_inclusive: true
+      each_share_type: integer
+      each_share_minimum: 0
+      exact_sum: 10000
+      ordering_semantic: false
+      descriptive_only: true
+      difficulty_score: false
+      equivalence_or_prediction_input: false
+      workout_dose_input: false
+      safety_threshold: false
+      allowed_provenance: [athlete_stated, course_verified]
+      route_or_model_inference: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.uphill-downhill-demands-differ
+    rationale: >
+      Literature supports keeping signed grade demand explicit but does not
+      validate these exact bins. The half-open intervals and basis-point sum are
+      reversible deterministic description guardrails only.
+    applies_to: known grade_distribution in trail_course_demand_v2
+  - name: trail_footing_and_hazard_contract
+    value:
+      ordinary_footing:
+        type: nonempty_unordered_set
+        allowed:
+          - firm_smooth
+          - loose_gravel
+          - mud
+          - rocks_or_roots
+          - built_steps
+          - water_crossing
+        duplicates_invalid: true
+        unknown_members_invalid: true
+        other_value_allowed: false
+        free_text_allowed: false
+        difficulty_score: false
+      hazard_gates:
+        hands_assist:
+          envelope: known_or_unknown
+          known_value_type: strict_boolean
+          unknown_result: clarification_required.material_course_demand_unknown
+          known_true_result: policy_unavailable.technical_features_outside_v2
+          eligible_value: known_false
+        fixed_rope:
+          envelope: known_or_unknown
+          known_value_type: strict_boolean
+          unknown_result: clarification_required.material_course_demand_unknown
+          known_true_result: policy_unavailable.technical_features_outside_v2
+          eligible_value: known_false
+        reducible_to_ordinary_footing: false
+        technical_skill_or_safety_score: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.technicality-and-downhill-vary-performance
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      Footing and hazards must remain explicit, but the exact vocabulary and
+      gates are Product-selected operational categories rather than validated
+      technicality or safety scores.
+    applies_to: course, access, and observed-history footing plus v2 hazard gates
+  - name: trail_training_constraints_schema
+    value:
+      schema_id: non_ultra_trail_constraints_v2
+      client_reviewable_fields:
+        available_weekdays:
+          type: unique_unordered_set
+          allowed_iso_weekdays: [1, 2, 3, 4, 5, 6, 7]
+          minimum_members: 1
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        weekly_time_limit_min:
+          type: integer
+          minimum: 1
+          maximum: 10080
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        maximum_session_duration_min:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          not_greater_than: weekly_time_limit_min
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        unavailable_dates:
+          type: sorted_unique_iso_date_set
+          maximum_members: 14
+          all_dates_within_requested_14_day_horizon: true
+          empty_known_set_allowed: true
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+        preferred_longest_weekday:
+          type: optional_iso_weekday
+          allowed: [1, 2, 3, 4, 5, 6, 7]
+          omitted_means_no_preference: true
+          when_present_must_be_in: available_weekdays
+          conflict_result: clarification_required.contradictory_input
+        nontechnical_three_minute_uphill_access:
+          type: strict_boolean
+          envelope: known_or_unknown
+          materiality: core
+          unknown_result: clarification_required.training_constraints_missing
+          false_result: readiness_blocked.insufficient_terrain_access
+        controlled_downhill_access:
+          type: strict_boolean
+          envelope: known_or_unknown
+          materiality: core
+          duration_distance_grade_speed_or_repeat_fields_allowed: false
+          unknown_result: clarification_required.training_constraints_missing
+          false_result: readiness_blocked.insufficient_terrain_access
+        accessible_footing:
+          type: nonempty_unordered_closed_set
+          vocabulary: trail_footing_and_hazard_contract.ordinary_footing.allowed
+          envelope: known_or_unknown
+          materiality: core_when_course_footing_known
+          missing_required_member_result: readiness_blocked.insufficient_terrain_access
+        adult_nonclinical_scope_confirmed:
+          type: strict_boolean
+          envelope: known_or_unknown
+          required_value_for_eligibility: true
+          materiality: core
+          unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          false_result: policy_unavailable.unsupported_population_or_intent
+        performance_intent_confirmed:
+          type: strict_boolean
+          envelope: known_or_unknown
+          required_value_for_eligibility: true
+          materiality: core
+          unknown_result: clarification_required.adult_scope_or_constraints_unconfirmed
+          false_result: policy_unavailable.unsupported_population_or_intent
+        current_symptom_stop:
+          type: strict_boolean
+          envelope: known_or_unknown
+          stop_value: true
+          materiality: core
+          true_result: readiness_blocked.current_symptom_stop
+          unknown_result: clarification_required.training_constraints_missing
+      server_derived_history_fields:
+        - recent_running_continuity
+        - recent_ascent_exposure
+        - recent_descent_exposure
+        - recently_observed_footing
+      client_may_submit_or_attest_history: false
+      history_provenance: history_observed
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+      - trail-ontology.uphill-downhill-demands-differ
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      Schedule and terrain access must be explicit and recent history must
+      remain server-derived. The exact closed DTO is an operational guardrail;
+      it does not establish a safe terrain dose.
+    applies_to: non_ultra_trail_constraints_v2 and owner-scoped readiness
+  - name: trail_optional_context_shapes
+    value:
+      type: strict_fixed_key_object
+      exact_groups: [environment, support, fueling]
+      group_envelope_allowed: false
+      every_declared_leaf_required: true
+      common_leaf_envelope: known_or_unknown
+      group_unknown_control_is_leaf_batch_action_only: true
+      enum_unknown_literals_allowed: false
+      environment:
+        maximum_altitude_m:
+          envelope: known_or_unknown
+          type: integer
+          minimum: -500
+          maximum: 9000
+        temperature_min_c:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: -30
+          maximum: 55
+        temperature_max_c:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: -30
+          maximum: 55
+        humidity_min_pct:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: 0
+          maximum: 100
+        humidity_max_pct:
+          envelope: known_or_unknown
+          type: finite_number
+          minimum: 0
+          maximum: 100
+        sun_exposure:
+          envelope: known_or_unknown
+          known_allowed: [low, mixed, high]
+        wind_exposure:
+          envelope: known_or_unknown
+          known_allowed: [sheltered, mixed, exposed]
+        conditions_basis:
+          envelope: known_or_unknown
+          known_allowed:
+            - organizer_information
+            - seasonal_expectation
+            - athlete_assumption
+          athlete_assumption_provenance: explicit_assumption
+          athlete_assumption_requires_confirmation: true
+        cross_field_rules:
+          temperature_order_when_both_known: temperature_min_c_lte_temperature_max_c
+          humidity_order_when_both_known: humidity_min_pct_lte_humidity_max_pct
+          one_unknown_leaf_remains_unknown_without_inventing_other_bound: true
+      support:
+        aid_support_mode:
+          envelope: known_or_unknown
+          known_allowed: [organized_aid, mixed, self_supported]
+        aid_station_count:
+          envelope: known_or_unknown
+          type: integer
+          minimum: 0
+          maximum: 50
+        max_aid_station_gap_m:
+          envelope: known_or_unknown
+          known_value_type: integer_or_explicit_null
+          integer_minimum: 100
+          integer_maximum: 50000
+          known_null_meaning: not_applicable
+          kilometer_wire_or_storage_field_allowed: false
+        water_availability:
+          envelope: known_or_unknown
+          known_allowed: [none, some_stations, all_stations]
+        food_availability:
+          envelope: known_or_unknown
+          known_allowed: [none, some_stations, all_stations]
+        mandatory_gear:
+          envelope: known_or_unknown
+          type: unordered_closed_set
+          allowed:
+            - water_carry
+            - food_carry
+            - weather_shell
+            - lighting
+            - navigation_device
+            - other_required
+          other_required_has_no_label_or_free_text: true
+      fueling:
+        longest_practiced_duration_min:
+          envelope: known_or_unknown
+          type: integer
+          minimum: 0
+          maximum: 1440
+        practice_sessions_last_42_days:
+          envelope: known_or_unknown
+          type: integer
+          minimum: 0
+          maximum: 84
+        intake_form:
+          envelope: known_or_unknown
+          known_allowed:
+            - none
+            - fluids_only
+            - carbohydrate_drink
+            - mixed_food_and_drink
+        gastrointestinal_experience:
+          envelope: known_or_unknown
+          known_allowed:
+            - no_plan_altering_issue
+            - plan_altering_issue
+          non_diagnostic: true
+      notes_labels_urls_provider_ids_or_embedded_unit_strings_allowed: false
+      fixed_prescription_from_known_context: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.environment-and-altitude-are-distinct-context
+      - trail-ontology.duration-and-fueling-practice-are-context
+    rationale: >
+      Environment and fueling are relevant context, while every exact bound and
+      enum is a reversible minimization and validation choice. None establishes
+      an exposure, equipment, fueling, gastrointestinal, or safety prescription.
+    applies_to: optional v2 course context only
+  - name: trail_unknown_and_materiality_policy
+    value:
+      core_fields:
+        - event_id
+        - event_date
+        - distance_meters
+        - total_ascent_m
+        - total_descent_m
+        - planning_duration_range
+        - event_format
+        - distance_family
+        - planning_intent
+        - hands_assist
+        - fixed_rope
+        - adult_nonclinical_scope_confirmed
+        - performance_intent_confirmed
+        - current_symptom_stop
+        - available_weekdays
+        - weekly_time_limit_min
+        - maximum_session_duration_min
+        - unavailable_dates
+        - preferred_longest_weekday_consistency_when_present
+        - nontechnical_three_minute_uphill_access
+        - controlled_downhill_access
+        - accessible_footing_when_course_footing_known
+        - recent_running_continuity
+        - recent_ascent_exposure
+        - recent_descent_exposure
+        - recently_observed_footing_when_course_footing_known
+      limited_unknown_mapping:
+        grade_distribution: grade_specificity
+        course_footing: technical_terrain
+        "optional_context.environment.*": environment_altitude
+        "optional_context.support.*": fueling
+        "optional_context.fueling.*": fueling
+      limited_modules_sorted_allowed:
+        - environment_altitude
+        - fueling
+        - grade_specificity
+        - technical_terrain
+      material_unknown_result:
+        - clarification_required
+        - policy_unavailable
+      bounded_alternative_requires_separate_review: true
+      unknown_defaults_to_zero: false
+      unknown_defaults_to_easy: false
+      unknown_defaults_to_nontechnical: false
+      unknown_defaults_to_road: false
+      limited_module_may_substitute_generic_or_road_behavior: false
+      known_value_automatically_enables_module: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.course-demand-is-multidimensional
+      - trail-ontology.technicality-and-downhill-vary-performance
+    rationale: >
+      This exact Product-selected block-versus-limit mapping keeps material
+      missingness visible without manufacturing certainty or broadening the
+      accepted Science scope.
+    applies_to: v2 capability matching and readiness receipts
+  - name: trail_distinct_demand_invariants
+    value:
+      ascent_and_descent_separate: true
+      grade_distribution_descriptive_only: true
+      technicality_score_allowed: false
+      downhill_history_required_when_descent_material: true
+      heart_rate_alone_sufficient_for_hilly_intensity: false
+      level_pace_alone_sufficient_for_hilly_intensity: false
+      activity_average_power_allowed: false
+      universal_distance_vertical_equivalence: false
+      footing_set_containment:
+        course_set_symbol: C
+        accessible_set_symbol: A
+        observed_history_set_symbol: H
+        access_requirement: "C subset_of A"
+        access_failure_reason: readiness_blocked.insufficient_terrain_access
+        history_requirement: "C subset_of H"
+        history_failure_reason: readiness_blocked.insufficient_comparable_trail_history
+        similarity_synonyms_or_model_inference_allowed: false
+        applies_only_when_course_footing_known: true
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.uphill-downhill-demands-differ
+      - trail-ontology.technicality-and-downhill-vary-performance
+      - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+    rationale: >
+      Distinct demands follow the evidence; exact set containment is a
+      deterministic conservative matching guardrail, not a validated safety or
+      similarity model.
+    applies_to: v2 course, access, history, and intensity boundaries
+  - name: trail_revision_and_confirmation
+    value:
+      current_unproposed_draft_revision_is_mutable_state: true
+      successful_edit_atomically_overwrites:
+        - current_draft_value
+        - current_revision_token
+        - invalidated_confirmation_state
+      prior_draft_value_retained: false
+      prior_revision_token_retained: false
+      pre_proposal_immutable_edit_or_confirmation_history: false
+      immutable_snapshot_begins_only_with_proposal: true
+      confirmation_scope: exact_visible_field_or_section_revision
+      confirm_all_allowed: false
+      confirmation_invalidated_by:
+        - value_change
+        - known_unknown_state_change
+        - server_stamped_source_change
+        - source_revision_change
+      readiness_binds_exact_revisions:
+        - goal
+        - course
+        - constraints
+        - history_snapshot
+        - policy
+        - generator
+      proposal_binds_same_exact_revisions: true
+      stale_confirmation_rebound_allowed: false
+      stale_source_revision_rebound_allowed: false
+      confirmation_is_truth_safety_or_eligibility_attestation: false
+    classification: guardrail
+    rationale: >
+      Exact revisions prevent stale confirmation from silently acquiring new
+      meaning. This is an operational replay and user-control guardrail.
+    applies_to: every v2 mutation, readiness receipt, and later proposal
+  - name: trail_science_safety_and_privacy_boundary
+    value:
+      minimum_age_years: 18
+      nonclinical_only: true
+      suggestion_only: true
+      symptom_stop_required: true
+      diagnosis_treatment_clearance_or_return_to_sport: false
+      personal_finish_probability: false
+      performance_injury_or_safety_guarantee: false
+      activity_average_power_valid_for_intensity: false
+      valid_intensity_sources: [activity_splits, activity_samples]
+      minimum_normalized_storage_only: true
+      permitted_persisted_categories:
+        - canonical_field_values_and_unknown_states
+        - server_stamped_provenance
+        - current_source_and_field_or_section_revisions
+        - current_confirmations
+        - owner_scoped_history_snapshot_reference_and_hash
+        - readiness_and_proposal_binding_digests
+        - immutable_snapshot_only_after_proposal_creation
+      forbidden_collection_or_persistence:
+        - gps_points
+        - route_files
+        - polylines
+        - maps
+        - inferred_course_geometry
+        - course_source_urls
+        - scraped_course_content
+        - provider_request_or_response_payloads
+        - provider_account_activity_or_workout_ids
+        - device_identifiers
+        - free_text_health_symptom_fueling_surface_or_course_narratives
+        - diagnoses_or_medical_clearance
+        - injury_probability
+        - activity_average_power
+        - road_equivalent_distance_pace_or_load
+      authenticated_owner_scoped_reset_export_and_deletion_required: true
+      inferred_and_athlete_stated_fields_correctable_and_deletable: true
+      generic_audit_or_telemetry_may_copy_sensitive_payloads: false
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.heart-rate-and-road-pace-are-insufficient-alone
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      These preserve the accepted v1 nonclinical, intensity, claim, and
+      minimization boundaries while making the v2 storage exclusion explicit.
+    applies_to: all v2 science, storage, API, client, audit, and deletion surfaces
+  - name: trail_exact_values
+    value:
+      signed_grade_buckets: descriptive_operational_guardrail_only
+      footing_vocabulary: descriptive_operational_guardrail_only
+      core_and_limited_materiality: operational_guardrail_only
+      planning_duration_range_shape: operational_guardrail_only
+      course_domain_bounds: product_scope_and_operability_guardrail_only
+      schedule_capacity_bounds: product_scope_and_operability_guardrail_only
+      optional_context_bounds: operational_guardrail_only
+      technicality_score: not_accepted
+      route_or_provider_inference: not_accepted
+      distance_vertical_conversion: not_accepted
+      road_trail_equivalence: not_accepted
+      finish_time_prediction: not_accepted
+      downhill_progression: not_accepted
+      vertical_progression: not_accepted
+      technical_terrain_dose: not_accepted
+      fueling_amount_or_frequency: not_accepted
+      environment_or_altitude_dose: not_accepted
+    classification: guardrail
+    evidence_claim_ids:
+      - trail-ontology.uphill-downhill-demands-differ
+      - trail-ontology.training-and-injury-evidence-does-not-set-safe-dose
+    rationale: >
+      The accepted evidence supports explicit dimensions but not universal
+      scoring, inference, equivalence, prediction, progression, or dose. Only
+      the closed validation DTO is proposed here.
+    applies_to: unresolved ontology and prescription values
+  - name: trail_non_science_authority_boundary
+    value:
+      science_authority:
+        - evidence
+        - applicability
+        - uncertainty
+        - claim_limits
+        - safety_scope
+      product_and_experience_dependency: human_acceptance_required
+      implementation_review: required
+      lifecycle_supersession: not_accepted
+      owner_only_dogfood: not_accepted
+      provider_mapping_or_delivery: not_accepted
+      product_visibility_or_catalog: not_accepted
+      production_data_use: not_accepted
+      deployment: not_accepted
+      runtime_activation: not_accepted
+    classification: guardrail
+    rationale: >
+      A Science successor cannot originate or widen Product, Design,
+      Engineering, Trust, Operations, provider, rollout, or activation authority.
+    applies_to: all work outside the Science role
+applicability:
+  - Adult nonclinical single-day non-ultra Trail performance goal representation
+  - Strict provider-neutral course and athlete-constraint capture before capability matching
+  - Server-derived owner-scoped recent-history context
+  - Evidence, uncertainty, claim limits, safety, and privacy boundaries only
+user_facing_claim_limits:
+  - Do not claim the exact v2 DTO, bins, footing vocabulary, bounds, or materiality map is scientifically optimal or validated as a safety rule.
+  - Do not claim planning duration is a finish-time prediction, feasibility verdict, or performance promise.
+  - Do not claim distance and ascent alone describe Trail demand or present a universal road-equivalent distance, grade, ascent, or descent conversion.
+  - Do not present unknown footing, hazard, environment, support, fueling, or gastrointestinal context as known, easy, safe, or average.
+  - Do not present a technicality score, personal finish probability, performance guarantee, injury-prevention guarantee, diagnosis, treatment, or clearance.
+safety_implications:
+  - Every core unknown or failed gate prevents an eligible proposal; only named non-core unknowns can limit a dependent module.
+  - Uphill, downhill, ordinary footing, hazards, altitude, heat, support, and fueling context remain distinct when applicable.
+  - Hands-assist or fixed-rope use stays outside v2; unknown hazard gates require clarification.
+  - Current symptoms stop performance optimization without creating a diagnosis.
+  - Intensity provenance uses activity splits or samples, never activity-average power.
+privacy_implications:
+  - Collect and persist only normalized typed values, explicit unknown states, server provenance, revisions, confirmations, and owner-scoped replay references.
+  - Do not ingest GPS, routes, maps, source URLs, scraped content, provider payloads or identifiers, device identifiers, or free-text planning narratives.
+  - Reset invalidates confirmation and creates a new revision; export and deletion include the current owner-scoped v2 state under existing data-rights controls.
+  - No public sharing, cross-user aggregate, administrator planning access, or value telemetry is authorized.
+validation_plan:
+  - Validate every closed enum, set, integer, finite number, range relation, explicit unknown state, and field-specific provenance rule deterministically.
+  - Boundary-test all five signed-grade intervals and require nonnegative integer shares summing exactly to 10000.
+  - Replay reordered footing and weekday sets and verify one canonical digest; reject duplicates, unknown members, synonyms, and free text.
+  - Verify exact course-footing containment against both accessible and observed-history sets and preserve the distinct access and history failures.
+  - Mutate every field value, state, and server source revision and verify the prior confirmation and readiness binding becomes stale.
+  - Exercise every core unknown and limited unknown and verify no road policy, hidden default, provider behavior, or success-shaped plan is selected.
+  - Generate the matching review packet and inactive machine contract and bind any later approval to their exact digests.
+falsification_conditions:
+  - A malformed or stale v2 value is treated as confirmed, or client-provided provenance or history is accepted.
+  - A grade share falls into two buckets, the five shares do not total 10000, or grade becomes a difficulty, dose, equivalence, or prediction input.
+  - Footing comparison uses order, similarity, synonyms, inference, or a road category instead of exact set containment.
+  - A core unknown yields eligible_proposal, or a limited unknown silently enables or substitutes a module.
+  - Ascent and descent collapse, route or provider data enters the contract, free text is retained, or activity-average power drives intensity.
+  - A personal safety, finish, or performance claim appears, or the generated contract becomes active without separate implementation review and activation authority.
+affected_surfaces:
+  models:
+    - trail_course_demand_v2 ontology
+    - non_ultra_trail_constraints_v2 input and confirmation envelope
+    - future v2 Trail capability matching contract
+  apis:
+    - future inactive Trail course, constraint, confirmation, and readiness contracts
+  clients:
+    - future inactive Praxys Web Trail course-ledger experience
+    - future unavailable miniapp Trail setup handoff
+  science_notes:
+    - Why Trail demand needs more than distance and ascent
+    - Why grade shares and footing flags are descriptive operational guardrails
+    - Why planning duration is context rather than a prediction
+artifact_policy:
+  runtime_state: inactive
+supersedes:
+  - sdr-trail-running-goal-ontology-v1
+superseded_by:
+decision_notes:
+  - "Decision Proposal mode; this record is draft and inactive and adds no Evidence Review or scientific claim."
+  - "Proposed predecessor transition: after separate digest-bound human approval and coordinated lifecycle review, this record may replace sdr-trail-running-goal-ontology-v1; no supersession link is active in this draft."
+  - "The accepted evidence remains sufficient only because every new exact value is classified as a reversible operational guardrail rather than a published biological rule."
+  - "Product dependency: docs/dev/trail-running-plan-product-amendment-v2.md."
+  - "Experience dependency: docs/dev/trail-running-plan-experience-amendment-v2.md."
+  - "Architecture dependency: docs/dev/trail-running-plan-architecture-decision-v2.md."
+  - "Trust dependency: docs/dev/trail-running-plan-trust-decision-v2.md."
+  - "This revision incorporates the frozen Product wire semantics at repository commit f9678d64 and Architecture boundary at a52d23ce; it does not approve either role-owned artifact."
+  - "Work Contract classification digest: sha256:d0a83117e8cd681435229fb7fb2c8ddddf4ac8ad8acaba24590079ba1e200607."
+  - "Work Contract route digest: sha256:6a022077cd4d910007c63241ee7c4b98773cd587c92450c6acecc778943fe168."
