@@ -1,0 +1,561 @@
+schema_version: 1
+id: sdr-trail-running-goal-ontology-v3
+version: 3
+title: Add resource context and explicit missingness for Trail v3
+status: draft
+approval_mode: artifact
+decision_date: '2026-09-08'
+owners:
+- team:praxys
+human_reviewers: []
+model_version: trail-course-demand-v3
+evidence_review_ids:
+- evidence-trail-training-resource-adaptation-v1
+- evidence-trail-running-goal-ontology-v1
+- evidence-non-ultra-trail-plan-generation-policy-v1
+- evidence-plan-generation-eligibility-safety-v1
+evidence_claim_ids:
+- trail-resource.strength-support-not-short-block-promise
+- trail-resource.introductory-dose-is-a-guardrail
+- trail-resource.strength-does-not-guarantee-injury-prevention
+- trail-resource.treadmill-is-context-not-terrain-equivalence
+- trail-resource.uphill-downhill-specific-and-dose-uncertain
+- trail-resource.downhill-adaptation-not-clearance
+- trail-resource.concurrent-scheduling-requires-context
+- trail-resource.subjective-effort-is-not-a-universal-zone
+- trail-resource.resource-frequency-does-not-prove-capacity
+- trail-ontology.course-demand-is-multidimensional
+- non-ultra-trail.course-specific-policy-required
+- eligibility.recent-history-anchor-without-universal-threshold
+accepted_interpretation: 'Proposed interpretation, not accepted: Allow a new bounded resource context
+  and basic-mode materiality while preserving distinct course demand, observed history, structured workout
+  input and inactive authority. Exact behavior-driving numbers are new Praxys guardrails unless explicitly
+  classified as published study context. The currently accepted v2 decisions and contracts remain unchanged
+  and inactive. This draft permits review-only candidate validation and does not return runtime eligibility
+  or authorize production execution.'
+decision_review:
+  reviewer_task: Review each action and deferral against the linked verified sources, uncertainty and
+    exact inactive contract. The decision sheet is a proposal; no human approval is recorded.
+  approval_statement: I approve the scientific interpretation and exact parameters in sdr-trail-running-goal-ontology-v3
+    for preparation and review of an inactive v3 implementation. I understand that the proposed exercise,
+    calendar and history values are guardrails rather than proven individual safe doses or performance
+    guarantees. I do not approve runtime activation, production use, pilot, deployment, provider behavior
+    or predecessor supersession.
+  items:
+  - id: v3-inherited-course-boundary
+    title: V3 inherited course boundary
+    disposition: approve
+    question: Allow a new bounded resource context and basic-mode materiality while preserving distinct
+      course demand, observed history, structured workout input and inactive authority.
+    proposed_decision: Preserve the accepted course vocabulary and provenance without copying the v2 all-or-nothing
+      materiality into the new basic mode.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_inherited_course_boundary
+    evidence_claim_ids:
+    - trail-resource.resource-frequency-does-not-prove-capacity
+    - trail-ontology.course-demand-is-multidimensional
+    - non-ultra-trail.course-specific-policy-required
+    - eligibility.recent-history-anchor-without-universal-threshold
+  - id: v3-course-materiality
+    title: V3 course materiality
+    disposition: approve
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: A basic proposal organizes general running and bounded gym work while explicitly
+      withholding unsupported race-specific coverage. Unknown race descent is distinct from absent descent
+      history.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_course_materiality
+    evidence_claim_ids:
+    - trail-resource.uphill-downhill-specific-and-dose-uncertain
+    - trail-resource.resource-frequency-does-not-prove-capacity
+  - id: v3-resource-context-schema
+    title: V3 resource context schema
+    disposition: approve
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: These limits implement the proposed Architecture/Trust resource calendar and data-minimization
+      boundary. Dates, payload limits and machine capabilities are structural constraints, not exercise
+      dose or proof of access quality.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_resource_context_schema
+    evidence_claim_ids:
+    - trail-resource.resource-frequency-does-not-prove-capacity
+  - id: v3-untrusted-input-boundary
+    title: V3 untrusted input boundary
+    disposition: approve
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: Bound the new review input and preserve per-owner/server authority. This is a structural
+      proposal; no Trust or production authority is originated by Science.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_untrusted_input_boundary
+    evidence_claim_ids: []
+  - id: v3-history-provenance
+    title: V3 history provenance
+    disposition: approve
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: The current table lacks descent/footing; a numeric aggregate zero must not manufacture
+      a measurement. Separate unknown, absence of records, athlete statements and observations.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_history_provenance
+    evidence_claim_ids:
+    - trail-resource.downhill-adaptation-not-clearance
+    - trail-resource.resource-frequency-does-not-prove-capacity
+  - id: v3-candidate-wire-boundary
+    title: V3 candidate wire boundary
+    disposition: approve
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: A review-only structured workout carries machine-readable steps and exercise prescription,
+      without kilograms, free text or runtime adoption. The single-workout/day limit reflects present
+      service scope.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group for a separately reviewed inactive
+      implementation.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_candidate_wire_boundary
+    evidence_claim_ids: []
+  - id: v3-ontology-authority-deferrals
+    title: V3 ontology authority deferrals
+    disposition: defer
+    question: Should this exact parameter group and its stated limits be adopted as the proposed v3 boundary?
+    proposed_decision: Draft ontology validation neither accepts scientific policy nor originates another
+      role’s review or runtime authority.
+    approval_effect:
+    - Keep every literal not_accepted behavior unavailable.
+    does_not_authorize:
+    - Runtime activation, production data use, owner pilot, provider delivery, deployment, self-approval
+      or lifecycle transition.
+    parameter_names:
+    - v3_ontology_authority_deferrals
+    evidence_claim_ids: []
+rejected_alternatives:
+- alternative: Reuse the accepted v2 approval for new strength, treadmill and low-trail-history prescriptions
+  rationale: V2 explicitly deferred these modules and assumed history-rich terrain access; its decision
+    does not authorize the new scope.
+- alternative: Block all training when trail exposure is missing, or silently replace missing specialty
+    with equivalent road/gym dose
+  rationale: A distinct basic mode can provide bounded general running and gym value while retaining uncertainty
+    and unsupported course-specific coverage.
+- alternative: Treat missing descent as zero or fix sparse history by taking a positive-weeks-only median
+  rationale: Both erase provenance or exposure frequency and can manufacture unsupported capacity or dose.
+model_parameters:
+- name: v3_inherited_course_boundary
+  value:
+    decision_id: sdr-trail-running-goal-ontology-v2
+    contract_digest: sha256:0d3e4056e081e07bb52cbda15fc161ff9584a50f25f97f39fd513e1dad404c9c
+    source_decision_digest: sha256:363d5970c2ad6f7d4a18ced426d4a2996aef3ff116e6a6b112232c9eccaeeca1
+    course_schema: trail_course_demand_v2
+    retain_typed_field_domains_and_provenance: true
+    v2_runtime_readiness_not_reused_as_basic_gate: true
+    materiality_defined_by: v3_course_materiality
+    new_context_schema: trail_training_context_v1
+    new_candidate_schema: trail_workout_candidate_v1
+    new_receipt_schema: trail_review_validation_receipt_v1
+  classification: guardrail
+  evidence_claim_ids:
+  - trail-resource.resource-frequency-does-not-prove-capacity
+  - trail-ontology.course-demand-is-multidimensional
+  - non-ultra-trail.course-specific-policy-required
+  - eligibility.recent-history-anchor-without-universal-threshold
+  rationale: Preserve the accepted course vocabulary and provenance without copying the v2 all-or-nothing
+    materiality into the new basic mode.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_course_materiality
+  value:
+    basic_required_known:
+    - event_identity
+    - event_date
+    - distance_meters
+    - event_format
+    - distance_family
+    - intent
+    - adult_nonclinical_confirmation
+    - current_symptom_stop
+    supported:
+      minimum_age_years: 18
+      event_format: single_day
+      distance_family: non_ultra
+      intent: performance
+      current_symptom_stop: false
+    known_hands_assist_or_fixed_rope_true: whole_candidate_policy_unavailable
+    basic_unknowns_limit_course_specific:
+    - total_ascent_m
+    - total_descent_m
+    - planning_duration_range
+    - grade_distribution
+    - course_footing
+    - hands_assist
+    - fixed_rope
+    course_specific_requires_known:
+    - total_ascent_m
+    - total_descent_m
+    - planning_duration_range
+    - hands_assist
+    - fixed_rope
+    course_specific_hazard_values_must_be_false: true
+    unknown_optional_context_limits_dependent_module: true
+    unknown_course_descent_default: null
+    unknown_history_descent_default: null
+    malformed_known_values: validation_failed_not_missing
+    course_date_remains_event_window_input: true
+  classification: guardrail
+  evidence_claim_ids:
+  - trail-resource.uphill-downhill-specific-and-dose-uncertain
+  - trail-resource.resource-frequency-does-not-prove-capacity
+  rationale: A basic proposal organizes general running and bounded gym work while explicitly withholding
+    unsupported race-specific coverage. Unknown race descent is distinct from absent descent history.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_resource_context_schema
+  value:
+    schema_version: trail_training_context_v1
+    exact_keys:
+    - schema_version
+    - preset
+    - resources
+    - gym_familiarity
+    - equipment
+    - treadmill_incline_capability
+    preset_values:
+    - frequent_trail
+    - city_occasional_trail
+    - road_gym
+    preset_is_resource_context_not_ability_class: true
+    preset_does_not_supply_missing_resources: true
+    resource_catalog:
+    - flat_running
+    - nontechnical_uphill
+    - controlled_downhill
+    - technical_terrain
+    - stairs
+    - treadmill
+    - gym_strength
+    resource_rules_maximum: 8
+    duplicate_resources_allowed: false
+    resource_rule_exact_keys:
+    - kind
+    - effective_from
+    - effective_until
+    - weekly_pattern
+    - date_overrides
+    resource_states:
+    - confirmed
+    - tentative
+    - unavailable
+    dependency_satisfying_state: confirmed
+    weekly_exact_count: 7
+    weekday_values:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    weekly_item_exact_keys:
+    - weekday
+    - availability
+    weekly_unique_and_sorted: true
+    override_maximum_per_resource: 14
+    override_exact_keys:
+    - date
+    - availability
+    overrides_unique_sorted_dates: true
+    override_replaces_weekly_state_in_full: true
+    unknown_override_overrides_confirmed_weekly: true
+    validity_start_minimum: server_today
+    validity_end_maximum_days_after_server_today: 365
+    validity_end_inclusive: true
+    validity_end_not_after_event_date: true
+    validity_start_not_after_end: true
+    review_expansion_days: 56
+    proposal_expansion_days: 14
+    known_envelope_exact_keys:
+    - state
+    - value
+    unknown_envelope_exact_keys:
+    - state
+    known_state: known
+    unknown_state: unknown
+    gym_familiarity_values:
+    - not_practiced
+    - practiced_before
+    equipment_maximum_count: 8
+    equipment_unique_sorted: true
+    equipment_catalog:
+    - bodyweight_space
+    - stable_support
+    - bench
+    - mat
+    - dumbbells
+    - resistance_band
+    - resistance_machine
+    - treadmill
+    treadmill_capability_exact_keys:
+    - minimum_pct
+    - maximum_pct
+    treadmill_capability_structural_minimum_pct: -30
+    treadmill_capability_structural_maximum_pct: 40
+    treadmill_capability_minimum_not_above_maximum: true
+    incline_maximum_decimal_places: 2
+    structural_range_is_not_prescription_range: true
+    client_observed_history_kg_or_1rm_allowed: false
+    weekday_convention: ISO_8601_Monday_1_Sunday_7
+    availability_uses_known_unknown_envelope: true
+  classification: guardrail
+  evidence_claim_ids:
+  - trail-resource.resource-frequency-does-not-prove-capacity
+  rationale: These limits implement the proposed Architecture/Trust resource calendar and data-minimization
+    boundary. Dates, payload limits and machine capabilities are structural constraints, not exercise
+    dose or proof of access quality.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_untrusted_input_boundary
+  value:
+    maximum_utf8_bytes: 32768
+    maximum_nesting_depth: 8
+    maximum_object_fields: 64
+    maximum_array_items: 32
+    maximum_string_codepoints: 128
+    string_normalization: NFC
+    reject_unknown_fields: true
+    reject_duplicate_json_keys: true
+    reject_boolean_numeric: true
+    reject_nonfinite_numbers: true
+    reject_exponent_numeric_tokens: true
+    free_text_routes_gps_provider_ids_raw_activities_allowed: false
+    server_owns_identity_confirmation_revision_history: true
+    client_may_set_history_provenance: false
+    maximum_numeric_token_ascii_characters: 16
+    integer_minimum: -2147483648
+    integer_maximum: 2147483647
+    decimal_maximum_absolute_value: 1000000
+    decimal_maximum_fractional_digits: 2
+    reject_nfc_duplicate_json_keys: true
+    reject_unicode_surrogates: true
+  classification: guardrail
+  evidence_claim_ids: []
+  rationale: Bound the new review input and preserve per-owner/server authority. This is a structural
+    proposal; no Trust or production authority is originated by Science.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_history_provenance
+  value:
+    states:
+    - unknown
+    - no_recorded_exposure
+    - athlete_stated
+    - observed
+    only_observed_can_supply_numeric_exposure_caps: true
+    no_recorded_exposure_means: no_qualifying_record_in_snapshot_not_proven_zero_activity
+    athlete_stated_is_not_measured_history: true
+    observed_zero_requires_explicit_measured_zero: true
+    missing_quantity_value: null
+    missing_as_zero_allowed: false
+    descent_from_ascent_inference_allowed: false
+    gym_or_treadmill_satisfies_outdoor_descent_history: false
+    history_input_is_server_owned: true
+    current_activity_table_descent_absence_must_remain_unknown: true
+  classification: guardrail
+  evidence_claim_ids:
+  - trail-resource.downhill-adaptation-not-clearance
+  - trail-resource.resource-frequency-does-not-prove-capacity
+  rationale: The current table lacks descent/footing; a numeric aggregate zero must not manufacture a
+    measurement. Separate unknown, absence of records, athlete statements and observations.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_candidate_wire_boundary
+  value:
+    workout_schema: trail_workout_candidate_v1
+    workout_exact_keys:
+    - schema_version
+    - date
+    - module
+    - resource
+    - duration_min
+    - template_id
+    - steps
+    - exercise_blocks
+    - goal_activity_type
+    - actual_activity_type
+    module_values:
+    - basic_running
+    - gym_strength
+    - treadmill_intro
+    - observed_outdoor_trail
+    maximum_workouts_per_day: 1
+    duration_unit: minutes
+    date_format: YYYY-MM-DD
+    step_exact_keys:
+    - duration_min
+    - incline_pct
+    - effort_label
+    exercise_block_exact_keys:
+    - exercise_id
+    - sets
+    - repetitions
+    - per_side
+    - rest_seconds
+    - load_choice
+    - selection_rule_id
+    load_choice_values:
+    - bodyweight
+    - athlete_selected_resistance
+    load_kg_or_1rm_fields_allowed: false
+    candidate_numeric_parameters_source: sdr-non-ultra-trail-plan-generation-policy-v3
+    receipt_schema: trail_review_validation_receipt_v1
+    receipt_exact_keys:
+    - schema_version
+    - review_state
+    - reasons
+    - limitations
+    - decision_id
+    - contract_digest
+    review_state_values:
+    - review_valid
+    - review_limited
+    - review_invalid
+    - review_unavailable
+    receipt_is_runtime_eligibility: false
+    receipt_is_adopted_plan: false
+    receipt_reason_paths_must_be_first_party_cataloged: true
+    goal_activity_type: trail_running
+    actual_activity_type_by_module:
+      basic_running: running
+      gym_strength: strength
+      treadmill_intro: running
+      observed_outdoor_trail: trail_running
+    resource_values_by_module:
+      basic_running:
+      - flat_running
+      - treadmill
+      gym_strength:
+      - gym_strength
+      treadmill_intro:
+      - treadmill
+      observed_outdoor_trail:
+      - nontechnical_uphill
+      - controlled_downhill
+      - technical_terrain
+  classification: guardrail
+  evidence_claim_ids: []
+  rationale: A review-only structured workout carries machine-readable steps and exercise prescription,
+    without kilograms, free text or runtime adoption. The single-workout/day limit reflects present service
+    scope.
+  applies_to: offline v3 review candidates only; runtime inactive
+- name: v3_ontology_authority_deferrals
+  value:
+    runtime_activation: not_accepted
+    production_use: not_accepted
+    owner_pilot: not_accepted
+    provider_delivery: not_accepted
+    lifecycle_supersession: not_accepted
+    public_catalog_rollout: not_accepted
+  classification: guardrail
+  evidence_claim_ids: []
+  rationale: Draft ontology validation neither accepts scientific policy nor originates another role’s
+    review or runtime authority.
+  applies_to: offline v3 review candidates only; runtime inactive
+applicability:
+- Nonclinical adults with sufficient recent general running, single-day non-ultra performance goals
+- Three resource contexts with explicit availability and complete known core inputs
+- Basic proposals with clear specialty gaps; course-specific modules only when their independent inputs
+  and history qualify
+- Draft/offline review candidates only
+user_facing_claim_limits:
+- Do not call any count, window, set, repetition, rest, RIR, gradient or duration a validated safe dose
+  or optimum.
+- Do not promise a fourteen-day performance change, injury prevention, descent readiness, finish probability
+  or equivalence between treadmill, gym, stairs and outdoor trail.
+- A basic proposal with specialty limits is not a complete race-preparation or race-readiness verdict.
+- Gym familiarity is an athlete statement, not observed dose history; resource presets are not athlete
+  ability categories.
+safety_implications:
+- Current symptoms stop performance optimization without diagnosis or clearance.
+- Absence of observed descent does not block supported basic work but cannot authorize new descent exposure.
+- New strength and incline exposure remain separately bounded; no catch-up, failure training or target-gap
+  escalation.
+- Unsupported event scope and unapproved taper windows remain explicit.
+privacy_implications:
+- Use only closed context values, resource dates and owner-scoped source revisions; reject client observed-history
+  assertions.
+- Do not collect kilograms, 1RM, raw activity/GPS/provider payloads, free text or unnecessary clinical/profile
+  details.
+- Preserve unknown quantities and server-derived provenance.
+validation_plan:
+- Validate evidence/SDR schemas, citation identity reuse, per-source verification notes and complete decision-item
+  coverage.
+- Validate generated inactive JSON and review packets; candidate checks must reject every numeric, enum,
+  provenance and date boundary escape.
+- Replay all three presets; monthly clustered versus evenly spaced dates; zero-week median with genuine
+  observations; unknown versus observed zero descent; unknown race descent; and cancelled/tentative access.
+- Check three-running-plus-two-gym and limited three-plus-one feasibility, single-session days, rest spacing,
+  weekly time and running-only intensity denominators.
+- Reject runtime adoption/generation from any draft or inactive contract; review_valid must never be treated
+  as eligible_proposal.
+falsification_conditions:
+- Any basic candidate requires positive weekly vertical or mandatory uphill quality despite this contract.
+- Missing course/history descent becomes zero, or resource/athlete-stated context supplies observed exposure.
+- Gym/treadmill is counted as outdoor descent or unapproved strength/vertical progression appears.
+- A gym requirement is silently omitted, time/day constraints are exceeded, rest is compressed, or missed
+  work is added later.
+- Dose/gradient/RIR claims become guarantees or a draft review receipt authorizes live behavior.
+affected_surfaces:
+  models:
+  - Inactive trail-course-demand-v3
+  - trail_training_context_v1
+  - trail_workout_candidate_v1
+  - trail_review_validation_receipt_v1
+  apis:
+  - Future owner-scoped Trail context and candidate-validation boundaries; no active route change in this
+    decision
+  clients:
+  - Future Web resource-aware base/gym experience
+  - Miniapp parity state must remain explicit until separately implemented
+  science_notes:
+  - Why a useful basic plan can retain trail-specific gaps
+  - Why gym and treadmill are supported modules without terrain equivalence
+  - Why a fourteen-day candidate is not an efficacy or safety guarantee
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by: null
+decision_notes:
+- Decision proposal mode; draft only. No approval, predecessor lifecycle change or runtime activation
+  has occurred.
+- Incremental successor candidate; retain accepted v2 records byte-for-byte.
+- 'Exact Work Contract classification digest: sha256:d2b15692d6d8db1b897b750ce30d6418e9a62e1acf683a4e88fce8f4a7851668.'
+- 'Exact Work Contract route digest: sha256:172191b42862f63e1368bb23496cb773b1fb7a8e8cd5e1ed2c413b080a5adb72.'
+- Requires the corresponding Product/Design and Architecture/Trust review-package decisions before implementation;
+  Science does not approve their boundaries.
+- The generated packet is a human review subject, not an approval artifact.
+- Previously accepted reviews supply inherited course/history boundaries; their entire bibliographies
+  were not reverified in this incremental review. Only the new Evidence Review lists sources actually
+  rechecked.

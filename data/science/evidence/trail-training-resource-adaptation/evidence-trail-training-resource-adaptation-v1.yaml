@@ -1,0 +1,503 @@
+schema_version: 1
+id: evidence-trail-training-resource-adaptation-v1
+version: 1
+title: 'Resource-aware trail preparation: bounded strength and treadmill modules'
+research_question: For nonclinical adults with sufficient recent general running but variable trail, descent
+  and strength experience, what supports bounded strength and treadmill modules in a fourteen-day resource-aware
+  base proposal, and what prevents claiming terrain equivalence, descent readiness, safe progression or
+  short-block efficacy?
+topic: trail-training-resource-adaptation
+status: draft
+approval_mode: artifact
+authors:
+- agent:codex
+human_reviewers: []
+created_on: '2026-09-08'
+reviewed_on: null
+intended_product_purpose: Support a reviewable v3 choice among three resource presets and a useful basic
+  proposal with explicit specialty gaps. This review does not approve any dose, replace accepted history,
+  activate a contract, or authorize production use.
+scope:
+  population:
+  - Adults aged 18 or older, nonclinical, with stable recent running
+  - Strength novices and familiar trainees considered separately
+  - Frequent-trail, city-with-occasional-trail, and road-plus-gym access contexts
+  intervention_or_exposure:
+  - Low-volume strength introduction or bounded familiar training
+  - Level/positive-incline treadmill running
+  - Outdoor trail exposure where observed history supports it
+  comparator:
+  - Running-only
+  - Other resistance prescriptions
+  - Level versus graded and treadmill versus overground running
+  outcomes:
+  - Muscle function and running performance
+  - Fatigue/soreness and applicability
+  - Limits of dose and transfer claims
+method:
+  review_type: rigorous
+  search_date: '2026-09-08'
+  sources:
+  - name: Europe PMC (PubMed/MED indexed records) — acsm-update
+    search_string: TITLE_ABS:(resistance training) AND TITLE_ABS:(prescription OR position stand) AND
+      FIRST_PDATE:[2025-01-01 TO 2026-09-08]
+  - name: Europe PMC (PubMed/MED indexed records) — concurrent-discovery
+    search_string: TITLE_ABS:(concurrent training) AND TITLE_ABS:(systematic review OR meta-analysis)
+      AND TITLE_ABS:(interference OR recovery) AND FIRST_PDATE:[2021-01-01 TO 2026-09-08]
+  - name: Europe PMC (PubMed/MED indexed records) — downhill-review
+    search_string: TITLE_ABS:(downhill running) AND TITLE_ABS:(review OR repeated bout OR adaptation)
+  - name: Europe PMC (PubMed/MED indexed records) — exact-verification-second
+    search_string: EXT_ID:31642726 OR EXT_ID:29249083 OR EXT_ID:28462571 OR EXT_ID:41209300 OR EXT_ID:35507232
+      OR EXT_ID:25010379
+  - name: Europe PMC (PubMed/MED indexed records) — minimal-dose-runner
+    search_string: TITLE:(Effects of minimal dose of strength training on running performance)
+  - name: Europe PMC (PubMed/MED indexed records) — running-strength-practical
+    search_string: TITLE:(Effects of Strength Training on the Physiological Determinants of Middle- and
+      Long-Distance Running Performance)
+  - name: Europe PMC (PubMed/MED indexed records) — strength-review-2024
+    search_string: EXT_ID:38627351
+  - name: Europe PMC (PubMed/MED indexed records) — talk-test-discovery
+    search_string: TITLE_ABS:(talk test) AND TITLE_ABS:(exercise intensity) AND TITLE_ABS:(review) AND
+      FIRST_PDATE:[1900-01-01 TO 2026-09-08]
+  - name: Europe PMC (PubMed/MED indexed records) — targeted-metadata
+    search_string: EXT_ID:41843416 OR EXT_ID:31802395 OR EXT_ID:30847825 OR EXT_ID:42536523 OR EXT_ID:41762427
+      OR EXT_ID:34878640 OR EXT_ID:38921863 OR EXT_ID:39992182 OR EXT_ID:34098176
+  - name: Europe PMC (PubMed/MED indexed records) — treadmill-meta-discovery
+    search_string: TITLE_ABS:(treadmill) AND TITLE_ABS:(overground OR outdoors) AND TITLE_ABS:(systematic
+      review OR meta-analysis) AND TITLE_ABS:(running) AND FIRST_PDATE:[1900-01-01 TO 2026-09-08]
+  - name: Europe PMC (PubMed/MED indexed records) — treadmill-transfer
+    search_string: TITLE_ABS:(trail running) AND TITLE_ABS:(treadmill OR incline OR uphill) AND TITLE_ABS:(training
+      OR intervention)
+  inclusion_criteria:
+  - Prefer a current authoritative synthesis for healthy-adult strength plus direct runner evidence.
+  - Use direct treadmill/graded comparisons for modality limits, and contrasting downhill studies for
+    soreness/fatigue interpretation.
+  - Peer-reviewed adult human studies/reviews with verified stable metadata; strong conclusions bounded
+    to relevant accessible text.
+  exclusion_criteria:
+  - Clinical/rehabilitation, pediatric, animal, supplement and preprint evidence used as direct training-policy
+    support.
+  - Acute or population-average effects converted into a personal guarantee, universal transfer ratio
+    or safe dose.
+  - Inaccessible methods or full text presented as read.
+  quality_appraisal: Targeted rigorous appraisal assessed source design, adult/runner directness, intervention
+    length, comparator, supervision, sample size/representation, bias and outcome specificity. ACSM uses
+    registered overview methods and AMSTAR with overlap analysis for strength; Llanos-Lagos uses PEDro/GRADE;
+    most trail/treadmill outcomes are indirect and small-study evidence. Direct downhill studies contrast
+    soreness with neuromuscular fatigue. Exact Praxys template and calendar values remain guardrails.
+    Detailed query counts, actual access and selection limits are in the adjacent search manifest.
+  method_limitations:
+  - Wide discovery queries were limited to the first 20 returned records; all remaining hits are explicitly
+    unretrieved, not screened exclusions.
+  - No independent SPORTDiscus, Scopus, Embase, Web of Science or publication-bias analysis was performed.
+  - No new pooled effect or calibrated dose-response model was calculated.
+  - Single-agent targeted selection of authoritative review evidence and contrasting direct studies; no
+    duplicate independent screening/extraction was performed.
+  - The protocol was documented during this bounded review, not prospectively registered externally.
+  - Three selected sources were abstract-only; full-text sources were read in the relevant sections identified
+    in the manifest.
+claims:
+- id: trail-resource.strength-support-not-short-block-promise
+  statement: Resistance training can improve muscle function in healthy adults, including inexperienced
+    trainees. Some runner strength protocols improve running performance, but these findings do not validate
+    a fourteen-day trail plan or guarantee a personal performance gain.
+  source_ids:
+  - currier-2026-resistance-position-stand
+  - llanos-lagos-2024
+  evidence_strength: moderate
+  applicable_population:
+  - Healthy adults; trained middle- and long-distance runners represented in the reviews
+  domain:
+  - Strength inclusion
+  - Claim limits
+  limitations:
+  - ACSM included interventions lasting 6–52 weeks, predominantly inexperienced trainees; runner review
+    interventions lasted 6–40 weeks.
+  - Runner review certainty ranged from very low to moderate; high-load and combined effects do not establish
+    efficacy of this low-load introductory template.
+  - The runner review included participants over 16; Praxys remains adult-only.
+- id: trail-resource.introductory-dose-is-a-guardrail
+  statement: A low-volume introduction and avoiding repetition failure are evidence-consistent options.
+    Published studies and guidance permit multiple useful prescriptions; they do not establish exact personal
+    starting sets, repetitions, load, rest or repetitions-in-reserve thresholds.
+  source_ids:
+  - currier-2026-resistance-position-stand
+  - blagrove-2018-running-strength
+  - stohanzl-2018-minimal-strength
+  evidence_strength: moderate
+  applicable_population:
+  - Healthy resistance-training novices and experienced adults
+  - Recreational runners in source-specific protocols
+  domain:
+  - Introductory strength
+  - Frequency and load selection
+  limitations:
+  - ACSM describes benefits with a single set and greater gains with additional sets; its primary recommendation
+    is at least twice weekly, not proof of one optimum.
+  - Blagrove reports studies often starting at 1–2 sets, typical 2–3 minute rests, and predominantly 2–3
+    weekly sessions. These are study descriptions/reviewer recommendations.
+  - The 41-woman 10-week trial compared one or two 30-minute strength sessions with running-only while
+    reallocating a fixed three-hour weekly budget; abstract reports improvement within concurrent groups,
+    not proof of superiority or a fourteen-day effect.
+  - ACSM discusses 2–3 RIR but explicitly notes insufficient evidence to quantify exact RIR targets; Praxys
+    targets remain guardrails.
+- id: trail-resource.strength-does-not-guarantee-injury-prevention
+  statement: One self-directed strength programme in first-time marathon runners did not significantly
+    reduce overuse injuries causing noncompletion or improve mean finishing time; strength inclusion cannot
+    be presented as an injury-prevention guarantee.
+  source_ids:
+  - toresdahl-2020
+  evidence_strength: moderate
+  applicable_population:
+  - 720 initially randomized adult first-time marathon runners
+  domain:
+  - Injury claim limits
+  limitations:
+  - One 12-week, three-times-weekly programme; observation participants could also perform strength training.
+  - Self-reported adherence/injury and no direct technique observation limit interpretation; this does
+    not establish that all strength training lacks benefit.
+- id: trail-resource.treadmill-is-context-not-terrain-equivalence
+  statement: Motorized treadmill running provides a running training context with many biomechanical similarities
+    to overground running, alongside meaningful differences. It does not establish equivalent outdoor
+    trail ascent, descent, footing or performance exposure.
+  source_ids:
+  - van-hooren-2020-treadmill-biomechanics
+  - miller-2019-treadmill-physiology
+  evidence_strength: moderate
+  applicable_population:
+  - Healthy adults in acute treadmill/overground crossover studies
+  domain:
+  - Indoor running
+  - Transfer and provenance
+  limitations:
+  - Biomechanics review covered non-inclined, quasi-constant-speed motorized running, not technical trails;
+    outcome certainty was mostly low/very low.
+  - Physiological/perceptual differences can depend on speed; no universal 1% incline correction is established
+    for this policy.
+  - These are acute comparisons, not longitudinal evidence for replacing outdoor trail training.
+- id: trail-resource.uphill-downhill-specific-and-dose-uncertain
+  statement: Uphill and downhill running impose different mechanical and physiological demands. Uphill
+    training is a plausible optional module, but heterogeneous training evidence does not choose a universal
+    gradient, session dose or superiority over conventional training.
+  source_ids:
+  - lu-2025-graded-running
+  - tham-2026-uphill-training
+  evidence_strength: low
+  applicable_population:
+  - Healthy athletes and recreational adults represented by graded-running studies
+  domain:
+  - Graded training
+  - Separate ascent/descent
+  limitations:
+  - Lu is a narrative synthesis; inaccessible and non-English evidence was excluded and no formal risk-of-bias
+    synthesis is reported.
+  - Tham included 13 small trials, predominantly athletes/males; only seven entered quantitative analyses
+    and pooled outcomes did not show significant superiority for strength, jumping or aerobic capacity.
+  - Many interventions were high-intensity sprints at substantially steeper grades, not the proposed easy
+    2% familiarization template.
+  - The proposed gradient, duration and frequency are Praxys guardrails, not validated safe or effective
+    individual doses.
+- id: trail-resource.downhill-adaptation-not-clearance
+  statement: Repeated downhill exposure may attenuate soreness in source-specific protocols, but soreness
+    and neuromuscular fatigue can adapt differently. Running fitness, strength work or absence of soreness
+    cannot establish descent readiness or an initial safe downhill dose.
+  source_ids:
+  - bontemps-2025-downhill-fatigue
+  - tallis-2024-downhill-female
+  evidence_strength: low
+  applicable_population:
+  - 12 healthy recreationally active adults without prior downhill conditioning
+  - 10 trained female distance runners naive to prolonged downhill running
+  domain:
+  - Descent exposure
+  - Feedback limits
+  limitations:
+  - Small supervised laboratory studies with specific grades, speeds and prior familiarization.
+  - Bontemps found reduced quadriceps soreness after ten sessions without attenuation of neuromuscular
+    fatigue to a standardized bout; Tallis did not measure neuromuscular recovery directly.
+  - Neither study validates outdoor descent dose, a 42/56-day readiness cutoff, a monthly exposure budget
+    or equivalence with gym training.
+- id: trail-resource.concurrent-scheduling-requires-context
+  statement: Running and strength can be combined within a programme. Acute fatigue and available time
+    should be considered, but the reviewed evidence does not establish a universal recovery interval or
+    a minutes-to-minutes physiological load equivalence.
+  source_ids:
+  - blagrove-2018-running-strength
+  - currier-2026-resistance-position-stand
+  - stohanzl-2018-minimal-strength
+  evidence_strength: low
+  applicable_population:
+  - Adult runners and healthy adults in source-specific concurrent/strength programmes
+  domain:
+  - Joint scheduling
+  - Recovery and time accounting
+  limitations:
+  - Blagrove discusses separate days, more than three hours within-day, and at least 24 hours before intensive
+    running as practical recommendations, not individual safety laws.
+  - A fixed available-time budget is a scheduling constraint; reallocating time does not prove equal physiological
+    exposure.
+  - The current single-session-per-day candidate limit is a software scope decision, not a biological
+    rule.
+- id: trail-resource.subjective-effort-is-not-a-universal-zone
+  statement: Comfortable speech and perceived effort can support practical aerobic intensity adjustment,
+    but exact subjective thresholds and strength RIR values cannot be treated as universal physiological
+    or safety thresholds.
+  source_ids:
+  - bok-2022-subjective-intensity
+  - currier-2026-resistance-position-stand
+  evidence_strength: low
+  applicable_population:
+  - Healthy/active adults represented by subjective-intensity literature; healthy adults in resistance
+    training syntheses
+  domain:
+  - Effort cues
+  - No sole safety controller
+  limitations:
+  - Talk-test review was verified at indexed abstract level only; no individual threshold or test equivalence
+    is asserted.
+  - Speed, gradient, symptoms, form and mode remain relevant; comfortable speech does not measure downhill
+    mechanical load.
+- id: trail-resource.resource-frequency-does-not-prove-capacity
+  statement: Resource availability and training exposure are different constructs. Sparse records or zero
+    calendar-week aggregates cannot establish zero biological capacity, and resource calendars do not
+    themselves prove comparable terrain exposure.
+  source_ids:
+  - lu-2025-graded-running
+  - bontemps-2025-downhill-fatigue
+  - van-hooren-2020-treadmill-biomechanics
+  evidence_strength: low
+  applicable_population:
+  - Adults in the reviewed terrain-specific studies; indirect applicability to resource-aware planning
+  domain:
+  - Missingness
+  - History interpretation
+  limitations:
+  - No reviewed source prospectively validates the proposed resource presets, exposure-count thresholds,
+    calendar budgets or automated plan generator.
+  - Unknown, no recorded exposure, athlete statements and measured exposure must retain their distinct
+    provenance.
+citations:
+- id: currier-2026-resistance-position-stand
+  title: 'American College of Sports Medicine Position Stand. Resistance Training Prescription for Muscle
+    Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews'
+  authors:
+  - Currier BS
+  - D'Souza AC
+  - Singh MAF
+  - Lowisz CV
+  - Rawson ES
+  - Schoenfeld BJ
+  - Smith-Ryan AE
+  - Steen JP
+  - Thomas GA
+  - Triplett NT
+  - Washington TA
+  - Werner TJ
+  - Phillips SM.
+  year: 2026
+  journal: Medicine and science in sports and exercise
+  doi: 10.1249/mss.0000000000003897
+  pmid: '41843416'
+- id: llanos-lagos-2024
+  title: 'The Effect of Strength Training Methods on Middle-Distance and Long-Distance Runners'' Athletic
+    Performance: A Systematic Review with Meta-analysis'
+  authors:
+  - C. Llanos-Lagos
+  - R. Ramirez-Campillo
+  - J. Moran
+  - E. Saez de Villarreal
+  year: 2024
+  journal: Sports Medicine
+  doi: 10.1007/s40279-024-02018-z
+  pmid: '38627351'
+- id: blagrove-2018-running-strength
+  title: 'Effects of Strength Training on the Physiological Determinants of Middle- and Long-Distance
+    Running Performance: A Systematic Review'
+  authors:
+  - Blagrove RC
+  - Howatson G
+  - Hayes PR.
+  year: 2018
+  journal: Sports medicine (Auckland, N.Z.)
+  doi: 10.1007/s40279-017-0835-7
+  pmid: '29249083'
+- id: stohanzl-2018-minimal-strength
+  title: Effects of minimal dose of strength training on running performance in female recreational runners
+  authors:
+  - Štohanzl M
+  - Baláš J
+  - Draper N.
+  year: 2018
+  journal: The Journal of sports medicine and physical fitness
+  doi: 10.23736/s0022-4707.17.07124-9
+  pmid: '28462571'
+- id: toresdahl-2020
+  title: A Randomized Study of a Strength Training Program to Prevent Injuries in Runners of the New York
+    City Marathon
+  authors:
+  - B. G. Toresdahl
+  - K. McElheny
+  - J. Metzl
+  - B. Ammerman
+  - B. Chang
+  - J. Kinderknecht
+  year: 2020
+  journal: Sports Health
+  doi: 10.1177/1941738119877180
+  pmid: '31642726'
+- id: van-hooren-2020-treadmill-biomechanics
+  title: Is Motorized Treadmill Running Biomechanically Comparable to Overground Running? A Systematic
+    Review and Meta-Analysis of Cross-Over Studies
+  authors:
+  - Van Hooren B
+  - Fuller JT
+  - Buckley JD
+  - Miller JR
+  - Sewell K
+  - Rao G
+  - Barton C
+  - Bishop C
+  - Willy RW.
+  year: 2020
+  journal: Sports medicine (Auckland, N.Z.)
+  doi: 10.1007/s40279-019-01237-z
+  pmid: '31802395'
+- id: miller-2019-treadmill-physiology
+  title: A Systematic Review and Meta-Analysis of Crossover Studies Comparing Physiological, Perceptual
+    and Performance Measures Between Treadmill and Overground Running
+  authors:
+  - Miller JR
+  - Van Hooren B
+  - Bishop C
+  - Buckley JD
+  - Willy RW
+  - Fuller JT.
+  year: 2019
+  journal: Sports medicine (Auckland, N.Z.)
+  doi: 10.1007/s40279-019-01087-9
+  pmid: '30847825'
+- id: lu-2025-graded-running
+  title: 'A review of uphill and downhill running: biomechanics, physiology and modulating factors'
+  authors:
+  - Lu Z
+  - Suo B
+  - Deng L
+  - Wang J
+  - Fu W
+  - Zhong Y
+  - Jin J.
+  year: 2025
+  journal: Frontiers in bioengineering and biotechnology
+  doi: 10.3389/fbioe.2025.1690023
+  pmid: '41209300'
+- id: tham-2026-uphill-training
+  title: 'Effects of uphill running on muscle strength, jumping performance, running time, and aerobic
+    capacity outcomes in athletes and recreational adults: A systematic review and meta-analysis'
+  authors:
+  - Tham SK
+  - Shager K
+  - Murugiah M
+  - Nguyen M
+  - Wibawa JC
+  - Ahmad MA.
+  year: 2026
+  journal: Medicine
+  doi: 10.1097/md.0000000000049977
+  pmid: '42536523'
+- id: bontemps-2025-downhill-fatigue
+  title: Muscle soreness but not neuromuscular fatigue responses following downhill running differ according
+    to the number of exercise bouts
+  authors:
+  - Bontemps B
+  - Louis J
+  - Owens DJ
+  - Miríc S
+  - Vercruyssen F
+  - Gruet M
+  - Erskine RM.
+  year: 2025
+  journal: European journal of sport science
+  doi: 10.1002/ejsc.12240
+  pmid: '39992182'
+- id: tallis-2024-downhill-female
+  title: Repeated Bout Effect of Downhill Running on Physiological Markers of Effort and Post Exercise
+    Perception of Soreness in Trained Female Distance Runners
+  authors:
+  - Tallis J
+  - McMorrow C
+  - Shelley SP
+  - Eustace SJ.
+  year: 2024
+  journal: Sports (Basel, Switzerland)
+  doi: 10.3390/sports12060169
+  pmid: '38921863'
+- id: bok-2022-subjective-intensity
+  title: 'An Examination and Critique of Subjective Methods to Determine Exercise Intensity: The Talk
+    Test, Feeling Scale, and Rating of Perceived Exertion'
+  authors:
+  - Bok D
+  - Rakovac M
+  - Foster C.
+  year: 2022
+  journal: Sports medicine (Auckland, N.Z.)
+  doi: 10.1007/s40279-022-01690-3
+  pmid: '35507232'
+known_gaps:
+- No validation of the full fourteen-day v3 generator or a first-block efficacy/safety guarantee.
+- No validated personal introductory strength dose or precise RIR cutoff.
+- No equivalence of treadmill, stairs, gym, ascent, descent or technical trail exposure.
+- No supported automatic downhill initiation for absent/unmeasured descent exposure.
+- No biological interpretation for a zero sparse-week median or the proposed 56/28-day budgets.
+- No trail-specific taper, outdoor hiking dose, strength progression, fixed fueling or recovery guarantee.
+conflicting_findings:
+- Some strength protocols improve running performance while a self-directed marathon strength programme
+  did not improve mean finish time or prevent noncompletion injuries.
+- Many treadmill biomechanics are similar to overground, but important outcomes and physiological comparisons
+  differ.
+- Downhill soreness attenuation can coexist with persistent neuromuscular fatigue; uphill pooled outcomes
+  do not prove superiority.
+follow_up_questions:
+- Does the owner find the structured base-plus-gym proposal feasible without interpreting it as complete
+  race preparation?
+- Do calendar-aware history budgets reduce false all-plan blocks without silently increasing exposure?
+- Do session completion, adjustment reasons and symptom feedback falsify the proposed guardrails?
+supersedes: []
+superseded_by: null
+review_notes:
+- 'Verification: currier-2026-resistance-position-stand - full-text; Europe PMC PMID 41843416 DOI/title/year
+  metadata and https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/ relevant sections: Methods, Table 6,
+  Discussion, prescription details and limitations; 2026-09-08.'
+- 'Verification: llanos-lagos-2024 - full-text; Europe PMC PMID 38627351 DOI/title/year metadata and https://pmc.ncbi.nlm.nih.gov/articles/PMC11258194/
+  relevant sections: Abstract, eligibility, training classification, methods, discussion and limitations;
+  2026-09-08.'
+- 'Verification: blagrove-2018-running-strength - full-text; Europe PMC PMID 29249083 DOI/title/year metadata
+  and https://pmc.ncbi.nlm.nih.gov/articles/PMC5889786/ relevant sections: Strength-Training Prescription:
+  modality, intra-session and inter-session variables; included study protocols; 2026-09-08.'
+- 'Verification: stohanzl-2018-minimal-strength - abstract; Europe PMC PMID 28462571 DOI/title/year metadata
+  and Indexed abstract only; publisher full text was not accessed; 2026-09-08.'
+- 'Verification: toresdahl-2020 - full-text; Europe PMC PMID 31642726 DOI/title/year metadata and https://pmc.ncbi.nlm.nih.gov/articles/PMC6931177/
+  relevant sections: Methods, participant flow, Results, Discussion and limitations; 2026-09-08.'
+- 'Verification: van-hooren-2020-treadmill-biomechanics - full-text; Europe PMC PMID 31802395 DOI/title/year
+  metadata and https://pmc.ncbi.nlm.nih.gov/articles/PMC7069922/ relevant sections: Abstract, inclusion
+  criteria and methodological/contextual limitations; 2026-09-08.'
+- 'Verification: miller-2019-treadmill-physiology - abstract; Europe PMC PMID 30847825 DOI/title/year
+  metadata and Indexed abstract only; publisher full text was not accessed; 2026-09-08.'
+- 'Verification: lu-2025-graded-running - full-text; Europe PMC PMID 41209300 DOI/title/year metadata
+  and https://pmc.ncbi.nlm.nih.gov/articles/PMC12592170/ relevant sections: Search method, graded biomechanics,
+  physiology and downhill fatigue sections; 2026-09-08.'
+- 'Verification: tham-2026-uphill-training - full-text; Europe PMC PMID 42536523 DOI/title/year metadata
+  and https://pmc.ncbi.nlm.nih.gov/articles/PMC13433027/ relevant sections: Methods, intervention table,
+  pooled results, Discussion and limitations; 2026-09-08.'
+- 'Verification: bontemps-2025-downhill-fatigue - full-text; Europe PMC PMID 39992182 DOI/title/year metadata
+  and https://pmc.ncbi.nlm.nih.gov/articles/PMC11849091/ relevant sections: Participants, experimental
+  design, exercise programme, Discussion and limitations; 2026-09-08.'
+- 'Verification: tallis-2024-downhill-female - full-text; Europe PMC PMID 38921863 DOI/title/year metadata
+  and https://pmc.ncbi.nlm.nih.gov/articles/PMC11209549/ relevant sections: Participants, protocol, limitations
+  and Conclusions; 2026-09-08.'
+- 'Verification: bok-2022-subjective-intensity - abstract; Europe PMC PMID 35507232 DOI/title/year metadata
+  and Indexed abstract only; no full-text numeric protocol is claimed; 2026-09-08.'
+- 'Search manifest: data/science/evidence/trail-training-resource-adaptation/search-manifest-trail-training-resource-adaptation-v1.json.'
+- Decision proposal mode. This new topic adds evidence; accepted predecessor reviews and their SDRs remain
+  unchanged.
+- All source verification above was performed on public sources in an isolated headless Chrome DevTools
+  MCP 1.6.0 session; no personal browser, login, API key or new dependency was used.

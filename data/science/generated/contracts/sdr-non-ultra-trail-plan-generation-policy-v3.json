@@ -1,0 +1,457 @@
+{
+  "affected_models": [
+    "Inactive non-ultra-trail-plan-generation-policy-v3",
+    "trail_training_context_v1",
+    "trail_workout_candidate_v1",
+    "trail_review_validation_receipt_v1"
+  ],
+  "contract_digest": "sha256:9a2c669727ed5f5338f6fe63c99aa786cfd5ef547a12726f6f4c9cf7da3667c1",
+  "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v3",
+  "decision_status": "draft",
+  "decision_version": 3,
+  "evidence_claim_ids": [
+    "trail-resource.strength-support-not-short-block-promise",
+    "trail-resource.introductory-dose-is-a-guardrail",
+    "trail-resource.strength-does-not-guarantee-injury-prevention",
+    "trail-resource.treadmill-is-context-not-terrain-equivalence",
+    "trail-resource.uphill-downhill-specific-and-dose-uncertain",
+    "trail-resource.downhill-adaptation-not-clearance",
+    "trail-resource.concurrent-scheduling-requires-context",
+    "trail-resource.subjective-effort-is-not-a-universal-zone",
+    "trail-resource.resource-frequency-does-not-prove-capacity",
+    "trail-ontology.course-demand-is-multidimensional",
+    "non-ultra-trail.course-specific-policy-required",
+    "eligibility.recent-history-anchor-without-universal-threshold"
+  ],
+  "evidence_review_ids": [
+    "evidence-trail-training-resource-adaptation-v1",
+    "evidence-trail-running-goal-ontology-v1",
+    "evidence-non-ultra-trail-plan-generation-policy-v1",
+    "evidence-plan-generation-eligibility-safety-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-non-ultra-trail-plan-generation-policy-v1": "sha256:51e9349704d969b6524b947311a04e585477cffd7071254a9d2859690d87d78e",
+    "evidence-plan-generation-eligibility-safety-v1": "sha256:e884907d33783edc6cdb16fd5504f7f10b6d68f968bfe7cf87e3f024b5bda773",
+    "evidence-trail-running-goal-ontology-v1": "sha256:60f0e785e4fc2b4226fed3bb30750191195cffbb0236b4a81d34431c0002c87a",
+    "evidence-trail-training-resource-adaptation-v1": "sha256:021e84168d4500ed80edb8f667731afc15eb5a036338ce4393ac33a7f9ea9aa1"
+  },
+  "model_version": "non-ultra-trail-plan-generation-policy-v3",
+  "parameters": {
+    "v3_basic_history_and_running_envelope": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.treadmill-is-context-not-terrain-equivalence",
+        "trail-resource.resource-frequency-does-not-prove-capacity"
+      ],
+      "value": {
+        "accepted_general_running_sources": [
+          "qualified_outdoor_running",
+          "qualified_trail_running",
+          "qualified_treadmill_running"
+        ],
+        "automatic_longest_run_increase": false,
+        "automatic_running_progression": false,
+        "basic_default_quality_sessions_per_7_days": 0,
+        "basic_default_running_effort": "easy_conversational",
+        "history_completed_weeks": 8,
+        "history_limits_are_unchanged_observability_guardrails": true,
+        "insufficient_trail_or_descent_history_blocks_basic": false,
+        "latest_run_within_completed_days": 10,
+        "low_intensity_denominator": "running_minutes_only",
+        "mandatory_uphill_template": false,
+        "minimum_basic_running_session_minutes": 20,
+        "minimum_low_intensity_running_fraction": 0.75,
+        "minimum_running_sessions_per_usable_week": 3,
+        "minimum_usable_completed_weeks": 4,
+        "quality_sessions_maximum_per_7_days": 1,
+        "quality_sessions_minimum_per_7_days": 0,
+        "running_days_maximum": 6,
+        "running_days_minimum_for_this_candidate": 3,
+        "running_days_target_per_7_days": 3,
+        "running_minutes_exclude_gym_and_walking": true,
+        "running_minutes_weekly_cap": "minimum_of_recent_median_usable_running_minutes_and_available_minutes_after_gym",
+        "session_duration_cap": "minimum_of_recent_maximum_completed_run_and_athlete_session_limit",
+        "treadmill_history_requires_explicit_modality_and_positive_duration": true,
+        "weekly_ascent_or_descent_median_must_be_positive": false
+      }
+    },
+    "v3_blockers_and_module_limits": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.strength-support-not-short-block-promise",
+        "trail-resource.downhill-adaptation-not-clearance"
+      ],
+      "value": {
+        "avg_power_used_for_intensity": false,
+        "basic_can_have_course_specific_limits": true,
+        "event_day_is_training_workout": false,
+        "event_within_days_of_block_start_blocks": 14,
+        "intensity_provenance": [
+          "activity_splits",
+          "activity_samples"
+        ],
+        "missing_essential_gym_input": "review_limited_incomplete_required_gym_not_complete_base_plus_gym",
+        "module_only_limits": [
+          "unknown_course_ascent_or_descent_or_planning_duration",
+          "unknown_course_hazards_or_footing",
+          "unknown_no_recorded_or_inadequate_descent_history",
+          "unknown_or_unavailable_or_tentative_resource_on_date",
+          "unknown_gym_familiarity_or_required_equipment",
+          "unknown_incompatible_treadmill_capability",
+          "outdoor_exposure_budget_not_available",
+          "only_one_gym_session_fits"
+        ],
+        "no_performance_safety_injury_or_finish_probability_claims": true,
+        "pain_symptoms_or_form_loss": "stop_affected_session_and_reassess; current_symptom_stop blocks performance optimization",
+        "review_after_completed_days": 7,
+        "review_does_not_auto_progress_or_adopt": true,
+        "review_signals": [
+          "completed_or_skipped_session",
+          "form_or_tolerance_adjustment",
+          "current_symptom_stop",
+          "changed_resource_dates",
+          "new_valid_server_history_revision"
+        ],
+        "schedule_capacity_failure": "review_limited_with_unplaced_content_no_complete_schedule",
+        "whole_candidate_blocks": [
+          "malformed_or_stale_input",
+          "unsupported_adult_nonclinical_scope",
+          "insufficient_general_running_history",
+          "current_symptom_stop",
+          "known_hands_assist_or_fixed_rope",
+          "unsupported_ultra_or_multiday_or_nonperformance_intent",
+          "event_inside_unapproved_taper_window"
+        ]
+      }
+    },
+    "v3_deferred_policy_and_authority": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "automatic_descent_initiation_without_observed_history": "not_accepted",
+        "deployment": "not_accepted",
+        "fueling_amount_or_frequency": "not_accepted",
+        "garmin_export_or_delivery": "not_accepted",
+        "lifecycle_supersession": "not_accepted",
+        "outdoor_hiking_dose": "not_accepted",
+        "owner_pilot_or_statsig_enablement": "not_accepted",
+        "personal_performance_or_safety_prediction": "not_accepted",
+        "runtime_activation": "not_accepted",
+        "stairs_training_dose_or_equivalence": "not_accepted",
+        "strength_or_vertical_progression_above_this_block": "not_accepted",
+        "taper_duration_or_reduction": "not_accepted"
+      }
+    },
+    "v3_gym_templates": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.introductory-dose-is-a-guardrail",
+        "trail-resource.strength-does-not-guarantee-injury-prevention"
+      ],
+      "value": {
+        "allowed_load_choices": {
+          "not_practiced": [
+            "bodyweight"
+          ],
+          "practiced_before": [
+            "bodyweight",
+            "athlete_selected_resistance"
+          ]
+        },
+        "automatic_load_set_repetition_or_frequency_progression_in_first_14_days": false,
+        "compress_rest_or_make_up_omitted_sets": false,
+        "exercises": [
+          {
+            "exercise_id": "squat_to_bench",
+            "per_side": false
+          },
+          {
+            "exercise_id": "glute_bridge",
+            "per_side": false
+          },
+          {
+            "exercise_id": "supported_split_squat",
+            "per_side": true
+          },
+          {
+            "exercise_id": "standing_calf_raise",
+            "per_side": false
+          }
+        ],
+        "load_selection_rule": "Use no external resistance for introduction; a familiar trainee selects only a comfortably controlled resistance. Reduce or stop if the reserve/form cue cannot be maintained; no 1RM test, kilograms, failure or load escalation is prescribed.",
+        "minimum_repetitions_in_reserve": {
+          "not_practiced": 4,
+          "practiced_before": 3
+        },
+        "new_gym_introduction_and_new_positive_incline_template_in_same_block": false,
+        "omit_remaining_sets_when_time_or_form_limit_reached": true,
+        "partial_or_missing_gym_marks_limitation": true,
+        "plyometrics_maximal_lifts_eccentric_overload_or_unfamiliar_heavy_lifts": false,
+        "practiced_before_is_not_verified_dose_history": true,
+        "repetitions_per_set": 8,
+        "required_equipment": [
+          "bodyweight_space",
+          "stable_support",
+          "bench"
+        ],
+        "required_resources": [
+          "gym_strength"
+        ],
+        "reserved_minutes_are_cap_not_proven_stimulus": true,
+        "reserved_session_minutes": {
+          "not_practiced": 25,
+          "practiced_before": 35
+        },
+        "rest_between_sets_or_exercises_seconds": 120,
+        "rir_is_subjective_cue_not_calibrated_threshold": true,
+        "selection_rule_ids": {
+          "not_practiced": "controlled-form-at-least-four-repetitions-in-reserve-v1",
+          "practiced_before": "controlled-form-at-least-three-repetitions-in-reserve-v1"
+        },
+        "sets_per_exercise": {
+          "not_practiced": 1,
+          "practiced_before": 2
+        },
+        "template_ids": {
+          "not_practiced": "trail-gym-introduction-v1",
+          "practiced_before": "trail-gym-bounded-familiar-v1"
+        },
+        "unilateral_repetitions_are_per_side": true,
+        "unknown_familiarity": "gym_limited_clarification_required_not_assumed_novice",
+        "warmup_minutes": 5,
+        "whole_body_guideline_compliance_or_trail_descent_equivalence_claim": false
+      }
+    },
+    "v3_joint_schedule_and_recovery": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.concurrent-scheduling-requires-context",
+        "trail-resource.downhill-adaptation-not-clearance"
+      ],
+      "value": {
+        "catch_up_for_missed_session": false,
+        "demanding_run_includes": [
+          "quality_running",
+          "longest_running_session",
+          "observed_outdoor_trail"
+        ],
+        "easy_running_may_be_on_intervening_day": true,
+        "gym_counts_as_running_minutes_or_low_intensity_minutes": false,
+        "maximum_sessions_per_day": 1,
+        "minimum_calendar_days_between_strength_sessions": 2,
+        "minimum_complete_intervening_days_between_gym_and_demanding_run_or_outdoor_trail": 1,
+        "reduce_optional_modules_before_adding_days": true,
+        "resource_shortage_order": [
+          "omit_optional_uphill_or_outdoor_specialty",
+          "reduce_two_gym_sessions_to_one_and_mark_limited",
+          "reduce_easy_running_minutes_within_minimum_and_history_caps",
+          "return_no_schedule_within_candidate_if_three_runs_plus_one_gym_still_cannot_fit"
+        ],
+        "same_day_run_plus_gym_allowed": false,
+        "silently_drop_required_gym_or_add_dates": false,
+        "soreness_resolution_is_recovery_clearance": false,
+        "strength_sessions_maximum_per_7_days": 2,
+        "strength_sessions_minimum_per_7_days": 1,
+        "strength_sessions_target_per_7_days": 2,
+        "weekly_available_minutes_include_all_modules_and_reserved_gym_time": true
+      }
+    },
+    "v3_outdoor_exposure_budget": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.resource-frequency-does-not-prove-capacity",
+        "trail-resource.downhill-adaptation-not-clearance"
+      ],
+      "value": {
+        "budget_counts_actual_prior_exposure_and_non_cancelled_adopted_exposure_and_current_candidates_without_double_counting": true,
+        "budget_window_days": 28,
+        "cannot_move_missed_exposure_to_make_up": true,
+        "evaluate_all_overlapping_28_day_windows_touched_by_candidate": true,
+        "history_lookback_completed_days": 56,
+        "latest_observed_comparable_session_maximum_completed_days": 42,
+        "maximum_ascent_in_any_28_day_window": "floor(observed_comparable_ascent_total_last_56_completed_days / 2)",
+        "maximum_descent_in_any_28_day_window": "floor(observed_comparable_descent_total_last_56_completed_days / 2)",
+        "maximum_sessions_in_any_28_day_window": "floor(observed_comparable_session_count_last_56_completed_days / 2)",
+        "minimum_observed_comparable_sessions": 2,
+        "new_descent_dose_or_high_speed_descent": false,
+        "no_recorded_or_zero_budget": "dependent_outdoor_module_limited_not_zero_biological_capacity",
+        "only_confirmed_resource_dates_can_host_session": true,
+        "outdoor_descent_and_footing_must_be_observed_and_compatible": true,
+        "reference_window_bound_to_proposal_start_revision": true,
+        "session_ascent_cap": "maximum_observed_comparable_session_ascent_in_reference_window",
+        "session_descent_cap": "maximum_observed_comparable_session_descent_in_reference_window",
+        "session_duration_cap": "minimum_of_recent_maximum_comparable_duration_and_athlete_session_limit",
+        "stairs_gym_treadmill_supply_outdoor_budget": false,
+        "unknown_or_incomplete_required_quantity_coverage": "dependent_outdoor_module_limited_no_numeric_budget",
+        "weekly_vertical_median_used_as_eligibility_gate": false,
+        "zero_calendar_weeks_removed_before_weekly_median": false
+      }
+    },
+    "v3_published_reference_context": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "published",
+      "evidence_claim_ids": [
+        "trail-resource.strength-support-not-short-block-promise"
+      ],
+      "value": {
+        "acsm_review_intervention_weeks": [
+          6,
+          52
+        ],
+        "runner_strength_review_intervention_weeks": [
+          6,
+          40
+        ],
+        "runner_strength_review_sessions_per_week": [
+          1,
+          4
+        ]
+      }
+    },
+    "v3_review_scope": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.strength-support-not-short-block-promise",
+        "trail-resource.resource-frequency-does-not-prove-capacity",
+        "trail-ontology.course-demand-is-multidimensional",
+        "non-ultra-trail.course-specific-policy-required",
+        "eligibility.recent-history-anchor-without-universal-threshold"
+      ],
+      "value": {
+        "advisory_review_completed_days": 7,
+        "all_three_resource_presets_supported": true,
+        "allowed_review_modes": [
+          "basic",
+          "course_specific"
+        ],
+        "automatic_successor_adoption": false,
+        "basic_and_observed_outdoor_templates": "duration_only_easy_conversational; empty_steps_and_exercise_blocks; apply_running_and_separate_outdoor_caps",
+        "candidate_template_bindings": {
+          "basic_running": [
+            "trail-basic-easy-v1"
+          ],
+          "gym_strength": [
+            "trail-gym-introduction-v1",
+            "trail-gym-bounded-familiar-v1"
+          ],
+          "observed_outdoor_trail": [
+            "trail-observed-outdoor-v1"
+          ],
+          "treadmill_intro": [
+            "trail-treadmill-easy-incline-introduction-v1"
+          ]
+        },
+        "explicit_athlete_adoption_required": true,
+        "first_delivery_priority": "city_occasional_trail_with_gym",
+        "fresh_source_revisions_for_successor": true,
+        "offline_draft_contract_validation_allowed": true,
+        "offline_validation_is_runtime_authorization": false,
+        "proposal_days": 14,
+        "requires_evidence_review": "evidence-trail-training-resource-adaptation-v1",
+        "requires_ontology_decision": "sdr-trail-running-goal-ontology-v3",
+        "runtime_state": "inactive",
+        "standalone_quality_template_in_this_v3_review_candidate": false,
+        "unlisted_workout_template_allowed": false,
+        "v2_fixed_quality_and_positive_weekly_vertical_gates_inherited": false,
+        "v2_policy_reference": {
+          "contract_digest": "sha256:1952421299cb59ddfea00115b6824d3116bd6e5f9175741916aa6f1015f8f9f9",
+          "decision_id": "sdr-non-ultra-trail-plan-generation-policy-v2",
+          "source_decision_digest": "sha256:9e4eef184a94d3f646b9483b569a4751ab2a9939ac509e55b888af6548c888fe"
+        }
+      }
+    },
+    "v3_schedule_capacity_tradeoff": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "athlete_running_basis_alone_guarantees_plan_availability": false,
+        "derived_from": {
+          "maximum_sessions_per_day": 1,
+          "minimum_gym_sessions": 1,
+          "minimum_running_sessions": 3,
+          "target_gym_sessions": 2
+        },
+        "fewer_than_four_days": "review_limited_schedule_constraint_with_unplaced_module_content_and_reasons",
+        "may_claim_complete_base_plus_gym_when_fewer_days": false,
+        "minimum_distinct_available_days_per_7_day_unit": 4,
+        "necessary_not_sufficient_for_schedule": true,
+        "origin": "first_version_product_and_service_scope_not_physiological_eligibility",
+        "preserve_reviewable_basic_module_content": true,
+        "silently_remove_gym_reduce_running_day_floor_or_add_same_day_session": false,
+        "target_distinct_available_days_per_7_day_unit": 5
+      }
+    },
+    "v3_treadmill_template": {
+      "applies_to": "offline v3 review candidates only; runtime inactive",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "trail-resource.treadmill-is-context-not-terrain-equivalence",
+        "trail-resource.uphill-downhill-specific-and-dose-uncertain",
+        "trail-resource.subjective-effort-is-not-a-universal-zone"
+      ],
+      "value": {
+        "adds_a_running_day_or_quality_session": false,
+        "counts_inside_existing_running_day_and_minutes": true,
+        "credit_as_outdoor_ascent_descent_or_footing": false,
+        "level_treadmill_easy_running_separately_allowed": true,
+        "maximum_sessions_per_7_days": 1,
+        "negative_incline": false,
+        "new_gym_introduction_excludes_this_optional_template": true,
+        "numeric_speed_hr_power_or_running_rpe_target": false,
+        "one_percent_equivalence_default": false,
+        "prescribed_incline_maximum_pct": 2,
+        "prescribed_incline_minimum_pct": 0,
+        "prescribed_locomotion": "running",
+        "repeat_or_increase_work_bouts_in_first_block": false,
+        "resource": "treadmill",
+        "speed_selection": "Athlete selects an easy speed allowing comfortable speech and stable unsupported running; reduce speed/grade or stop if that cannot be maintained.",
+        "steps": [
+          {
+            "duration_min": 5,
+            "effort_label": "easy_conversational",
+            "incline_pct": 0
+          },
+          {
+            "duration_min": 3,
+            "effort_label": "easy_conversational",
+            "incline_pct": 2
+          },
+          {
+            "duration_min": 2,
+            "effort_label": "easy_conversational",
+            "incline_pct": 0
+          },
+          {
+            "duration_min": 3,
+            "effort_label": "easy_conversational",
+            "incline_pct": 2
+          },
+          {
+            "duration_min": 2,
+            "effort_label": "easy_conversational",
+            "incline_pct": 0
+          },
+          {
+            "duration_min": 5,
+            "effort_label": "easy_conversational",
+            "incline_pct": 0
+          }
+        ],
+        "template_id": "trail-treadmill-easy-incline-introduction-v1",
+        "total_minutes": 20,
+        "unknown_or_incompatible_incline_capability": "omit_positive_incline_module_and_mark_limited"
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:38e62a7634c4a174ec7d1af50e20ee403b65f790da9f7da31cc0f48c6a222d06"
+}

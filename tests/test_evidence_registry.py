@@ -69,6 +69,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
         "evidence-trail-running-goal-ontology-v1",
+        "evidence-trail-training-resource-adaptation-v1",
         "evidence-non-ultra-trail-plan-generation-policy-v1",
     }
     assert set(registry.decisions) == {
@@ -88,8 +89,10 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-road-marathon-plan-generation-policy-v1",
         "sdr-trail-running-goal-ontology-v1",
         "sdr-trail-running-goal-ontology-v2",
+        "sdr-trail-running-goal-ontology-v3",
         "sdr-non-ultra-trail-plan-generation-policy-v1",
         "sdr-non-ultra-trail-plan-generation-policy-v2",
+        "sdr-non-ultra-trail-plan-generation-policy-v3",
     }
 
     trail_ontology_review = registry.evidence_reviews[
@@ -3383,6 +3386,47 @@ def test_registry_index_is_generated_from_current_records() -> None:
     assert (root / "data" / "science" / "REGISTRY.md").read_text(
         encoding="utf-8",
     ) == render_registry_index(registry)
+
+
+def test_trail_v3_incremental_evidence_has_exact_source_manifest_and_inactive_drafts() -> None:
+    registry = load_science_registry()
+    review_id = "evidence-trail-training-resource-adaptation-v1"
+    review = registry.evidence_reviews[review_id]
+    _assert_exact_verification_notes(review)
+    assert review.status == RecordStatus.DRAFT
+    assert review.human_reviewers == []
+    assert review.supersedes == []
+    manifest_path = (
+        Path(__file__).resolve().parents[1] / "data/science/evidence"
+        / "trail-training-resource-adaptation"
+        / "search-manifest-trail-training-resource-adaptation-v1.json"
+    )
+    manifest = json.loads(manifest_path.read_text())
+    sources = manifest["selected_sources"]
+    assert len(sources) == len(review.citations) == 12
+    assert sum(source["verification_level"] == "full-text" for source in sources) == 9
+    assert sum(source["verification_level"] == "abstract" for source in sources) == 3
+    assert len(manifest["queries"]) == 11
+    assert {source["citation_id"] for source in sources} == {citation.id for citation in review.citations}
+    assert manifest["claim_source_mapping"] == {claim.id: claim.source_ids for claim in review.claims}
+    for source in sources:
+        assert any(note.startswith(f"Verification: {source['citation_id']} - {source['verification_level']};") for note in review.review_notes)
+        citation = next(item for item in review.citations if item.id == source["citation_id"])
+        assert (source["doi"].lower(), source["pmid"]) == (citation.doi.lower(), citation.pmid)
+        assert source["public_extraction_sha256"].startswith("sha256:")
+        assert len(source["public_extraction_sha256"]) == 71
+    for query in manifest["queries"]:
+        assert query["retrieved_count"] == len(query["retrieved_ids"])
+        assert query["total_hits"] == query["retrieved_count"] + query["unretrieved_count"]
+        assert set(query["selected_ids"]) <= set(query["retrieved_ids"])
+    for decision_id in ("sdr-trail-running-goal-ontology-v3", "sdr-non-ultra-trail-plan-generation-policy-v3"):
+        decision = registry.decisions[decision_id]
+        assert decision.status == RecordStatus.DRAFT
+        assert decision.artifact_policy.runtime_state == ArtifactRuntimeState.INACTIVE
+        assert decision.supersedes == []
+        assert decision.superseded_by is None
+        assert decision.human_reviewers == []
+        assert review_id in decision.evidence_review_ids
 
 
 def test_metric_science_links_match_the_registry() -> None:
