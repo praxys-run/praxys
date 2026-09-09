@@ -620,6 +620,7 @@ export default function PlanStart({
     updateSettings,
   } = useSettings();
   const navigate = useNavigate();
+  const planStartRegion = useRef<HTMLElement>(null);
   const [setupOpen, setSetupOpen] = useState(Boolean(initialPurpose));
   const [setupStarted, setSetupStarted] = useState(Boolean(initialPurpose));
   const [setupStep, setSetupStep] = useState<SetupStep>(initialPurpose ? 'constraints' : 'intent');
@@ -1572,10 +1573,11 @@ export default function PlanStart({
   );
 
   return (
-    <section id="plan-start" aria-label={t`Training plan`} tabIndex={-1} className="scroll-mt-6 space-y-5">
+    <section id="plan-start" aria-label={t`Training plan`} tabIndex={-1} ref={planStartRegion} className="scroll-mt-6 space-y-5">
       <ManagedPlanSettingsCard
         compact
         showSummary={hasManagedPlan}
+        cleanupReturnFocusRef={planStartRegion}
         config={config}
         planDeliveryOptions={planDeliveryOptions}
         updateSettings={updateSettings}

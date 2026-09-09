@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import {
@@ -77,6 +77,7 @@ interface ManagedPlanSettingsCardProps {
   compact?: boolean;
   /** Hide the summary without interrupting cleanup or its recovery dialogs. */
   showSummary?: boolean;
+  cleanupReturnFocusRef?: RefObject<HTMLElement | null>;
   children?: ReactNode;
   config: SettingsConfig;
   planDeliveryOptions: PlanDeliveryOption[];
@@ -111,6 +112,7 @@ function browserTimeZone(): string | null {
 export default function ManagedPlanSettingsCard({
   compact = false,
   showSummary = true,
+  cleanupReturnFocusRef,
   children,
   config,
   planDeliveryOptions,
@@ -147,6 +149,7 @@ export default function ManagedPlanSettingsCard({
   );
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const cleanupDialogRef = useRef<HTMLDivElement>(null);
   const [leaveChoice, setLeaveChoice] = useState<LeaveChoice>('keep');
   const [action, setAction] = useState<
     'adopt' | 'pause' | 'resume' | 'target' | 'leave' | 'cleanup' | null
@@ -381,6 +384,8 @@ export default function ManagedPlanSettingsCard({
   };
 
   const leaveManagedMode = async () => {
+    // Disabling the focused action would otherwise move focus to the document.
+    cleanupDialogRef.current?.focus({ preventScroll: true });
     setAction('leave');
     setActionError(null);
     setCleanupResult(null);
@@ -409,6 +414,7 @@ export default function ManagedPlanSettingsCard({
   };
 
   const retryCleanup = async () => {
+    cleanupDialogRef.current?.focus({ preventScroll: true });
     setAction('cleanup');
     setActionError(null);
     try {
@@ -1387,7 +1393,11 @@ export default function ManagedPlanSettingsCard({
           resetLeaveDialog(open);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          ref={cleanupDialogRef}
+          finalFocus={!showSummary ? cleanupReturnFocusRef : undefined}
+          className="sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle>
               {state === 'external'
