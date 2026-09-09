@@ -523,7 +523,7 @@ export default function ManagedPlanSettingsCard({
           <AlertDescription className="text-xs text-foreground">
             {configuredTargetOption
               ? deliveryOptionReason(configuredTargetOption)
-              : <Trans>Reconnect {targetLabel} in Settings before managed delivery can continue.</Trans>}
+              : <Trans>Reconnect {targetLabel} in Settings before workout delivery can continue.</Trans>}
           </AlertDescription>
         </Alert>
       )}

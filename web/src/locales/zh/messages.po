@@ -8986,7 +8986,7 @@ msgstr "重新连接 {target} 后可继续下发。仍以 Praxys 计划为准。
 #~ msgstr "请先在上方重新连接 {targetLabel}，再继续托管下发。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:526
-msgid "Reconnect {targetLabel} in Settings before managed delivery can continue."
+msgid "Reconnect {targetLabel} in Settings before workout delivery can continue."
 msgstr "请在设置中重新连接{targetLabel}，再继续发送训练。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:540

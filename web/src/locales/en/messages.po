@@ -8899,8 +8899,8 @@ msgstr "Reconnect {target} to continue delivery. The Praxys plan remains canonic
 #~ msgstr "Reconnect {targetLabel} above before managed delivery can continue."
 
 #: src/components/ManagedPlanSettingsCard.tsx:526
-msgid "Reconnect {targetLabel} in Settings before managed delivery can continue."
-msgstr "Reconnect {targetLabel} in Settings before managed delivery can continue."
+msgid "Reconnect {targetLabel} in Settings before workout delivery can continue."
+msgstr "Reconnect {targetLabel} in Settings before workout delivery can continue."
 
 #: src/components/ManagedPlanSettingsCard.tsx:540
 #~ msgid "Reconnect Garmin to renew experimental access. Managed delivery remains paused."
