@@ -1,5 +1,10 @@
 # 通用越野训练：八个交付项与会话交接
 
+> **2026-09-14 后继评审进展：** 新的 [P1 评审入口与决定单](trail-running-program-review-sheet.md)
+> 已形成独立的新 Evidence / SDR、inactive 契约及具体角色草案。独立 Science 修订复核完成，
+> 无未解决审查发现；完整 50 公里处方、必要内容接受与 P1 验收仍未完成。
+> 下文保留 2026-09-09 的历史交接语境，不把旧 v3 验证扩展到新范围。
+
 **状态：当前为 P1 的部分进展，所有后续运行能力未完成。** Owner: Engineering。
 本页记录 Product 与各专家交接的实现影响和依赖，不是自行接受决定或独立验证。
 产品范围见 [Product 交接](trail-running-program-scope.md)，科学及接口未决项见
