@@ -69,6 +69,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "evidence-running-field-tests-v1",
         "evidence-short-interruption-detraining-v1",
         "evidence-trail-running-goal-ontology-v1",
+        "evidence-trail-running-program-v1",
         "evidence-trail-training-resource-adaptation-v1",
         "evidence-non-ultra-trail-plan-generation-policy-v1",
     }
@@ -90,6 +91,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
         "sdr-trail-running-goal-ontology-v1",
         "sdr-trail-running-goal-ontology-v2",
         "sdr-trail-running-goal-ontology-v3",
+        "sdr-trail-running-program-policy-v1",
         "sdr-non-ultra-trail-plan-generation-policy-v1",
         "sdr-non-ultra-trail-plan-generation-policy-v2",
         "sdr-non-ultra-trail-plan-generation-policy-v3",
