@@ -160,7 +160,7 @@ def test_legacy_activity_page_reuses_analysis_history() -> None:
 
 
 def test_goal_keeps_secondary_plan_entry() -> None:
-    """Goal remains independent while retaining its supported plan-start handoff."""
+    """Goal links to Training, which owns the supported plan-purpose chooser."""
     goal = _source("web/src/pages/Goal.tsx")
     mini_goal = _source("miniapp/pages/goal/index.ts")
 
@@ -169,6 +169,11 @@ def test_goal_keeps_secondary_plan_entry() -> None:
     assert "const hasSelectablePurpose = Boolean(" in plan_start
     assert "item.purpose.allows_capability_goal" in plan_start
     assert "item.purpose.allows_unlinked" in plan_start
-    assert "navigate('/training#plan-start', {" in plan_start
-    assert "planPurpose: routedPurpose" in plan_start
+    goal_entry = plan_start.split("export function PlanStartGoalEntry()", 1)[1]
+    goal_entry = goal_entry.split("function PlanIntentChooser", 1)[0]
+    assert 'render={<Link to="/training#plan-start" />}' in goal_entry
+    assert "PlanIntentChooser" not in goal_entry
+    assert goal.index("<GoalBaselinePanel") < goal.index("<PlanStartGoalEntry")
+    assert "<PlanIntentChooser" in plan_start
+    assert "onSelect={confirmPurpose}" in plan_start
     assert "wx.switchTab({ url: '/pages/training/index' })" in mini_goal

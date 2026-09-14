@@ -243,6 +243,26 @@ export default function Settings() {
   // still render the web version so the footer never blanks out.
   const [apiVersion, setApiVersion] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const planManagementAnchor = useRef<HTMLElement>(null);
+  const focusedPlanLocation = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      location.hash !== '#plan-management'
+      || focusedPlanLocation.current === location.key
+      || loading
+      || !config
+      || error
+    ) return;
+    const frame = requestAnimationFrame(() => {
+      const target = planManagementAnchor.current;
+      if (!target) return;
+      target.scrollIntoView({ block: 'start' });
+      target.focus({ preventScroll: true });
+      focusedPlanLocation.current = location.key;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash, location.key, loading, config, error]);
 
   useEffect(() => {
     const anySyncing = Object.values(syncStatus).some((s) => s.status === 'syncing');
@@ -1225,11 +1245,13 @@ export default function Settings() {
       </Dialog>
 
       {/* ===== SECTION 2: Plan Management ===== */}
-      <ManagedPlanSettingsCard
-        config={config}
-        planDeliveryOptions={planDeliveryOptions}
-        updateSettings={updateSettings}
-      />
+      <section id="plan-management" ref={planManagementAnchor} tabIndex={-1} aria-label={t`Plan settings`} className="scroll-mt-16 lg:scroll-mt-6">
+        <ManagedPlanSettingsCard
+          config={config}
+          planDeliveryOptions={planDeliveryOptions}
+          updateSettings={updateSettings}
+        />
+      </section>
 
       {/* ===== SECTION 3: Training Base ===== */}
       <Card className="mb-8">

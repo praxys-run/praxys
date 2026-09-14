@@ -494,8 +494,6 @@ export default function Goal() {
         />
       )}
 
-      {data && <PlanStartGoalEntry />}
-
       {data && (
         data.goal_kind === 'performance_5k'
         || (enablePerformance10k && data.goal_kind === 'performance_10k')
@@ -509,6 +507,8 @@ export default function Goal() {
       ) : data ? (
         <TrajectoryGoal data={data} onFeedbackStale={refetch} />
       ) : null}
+
+      {data && <PlanStartGoalEntry />}
     </div>
   );
 }
