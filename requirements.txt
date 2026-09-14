@@ -13,7 +13,7 @@
 # scripts/garmin_diagnose.py before loosening this bound.
 garminconnect>=0.3.10,<0.4.0
 requests>=2.34.2
-python-dotenv>=1.2.2
+python-dotenv>=1.2.3
 pandas>=3.0.5
 pytest>=9.1.1
 fastapi>=0.141.1
