@@ -1,5 +1,10 @@
 # 通用越野训练：分角色评审交接
 
+> **2026-09-14 后继评审进展：** 新的 [P1 评审入口与决定单](trail-running-program-review-sheet.md)
+> 已形成独立的新 Evidence / SDR、inactive 契约及具体角色草案。独立 Science 修订复核完成，
+> 无未解决审查发现；完整 50 公里处方、必要内容接受与 P1 验收仍未完成。
+> 下文保留 2026-09-09 的历史交接语境，不把旧 v3 验证扩展到新范围。
+
 **状态：draft specialist handoffs，2026-09-09。** Engineering 原样保留各角色的
 责任和不确定性；本页没有新增已接受处方、正式 Science registry artifact 或审批凭据。
 产品方向见 [产品范围](trail-running-program-scope.md)，交付依赖见

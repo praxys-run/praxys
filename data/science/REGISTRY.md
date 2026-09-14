@@ -53,6 +53,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
+| [evidence-trail-running-program-v1](evidence/trail-running-program/evidence-trail-running-program-v1.yaml) — Universal trail-running preparation: exact candidate modules and unresolved race coverage | 1 | trail-running-program | 2026-09-14 |
 | [evidence-trail-training-resource-adaptation-v1](evidence/trail-training-resource-adaptation/evidence-trail-training-resource-adaptation-v1.yaml) — Resource-aware trail preparation: bounded strength and treadmill modules | 1 | trail-training-resource-adaptation | 2026-09-08 |
 
 ### Science decisions
@@ -61,6 +62,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 |---|---:|---|---|
 | [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
 | [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
+| [sdr-trail-running-program-policy-v1](decisions/sdr-trail-running-program-policy-v1.yaml) — Universal trail-running programme: inactive candidate modules through inclusive 50-km goal context | 1 | trail-running-program-policy-v1 | 2026-09-14 |
 
 ## Superseded
 
