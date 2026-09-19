@@ -1,0 +1,1190 @@
+{
+  "schema_version": 1,
+  "evidence_review_id": "evidence-trail-training-resource-adaptation-v1",
+  "executed_on": "2026-09-08",
+  "protocol": {
+    "population": "Nonclinical adults with sufficient general running history, across frequent trail, city/occasional trail, and road/gym resource contexts; strength novices are a distinct module population.",
+    "interventions": [
+      "Low-volume strength introduction or bounded familiar training",
+      "Level/positive-incline treadmill running",
+      "Outdoor trail exposure where observed history supports it"
+    ],
+    "comparators": [
+      "Running-only",
+      "Other resistance prescriptions",
+      "Level versus graded and treadmill versus overground running"
+    ],
+    "outcomes": [
+      "Muscle function and running performance",
+      "Fatigue/soreness and applicability",
+      "Limits of dose and transfer claims"
+    ],
+    "review_design": "Rigorous targeted source appraisal and evidence-to-decision mapping; not a de novo exhaustive systematic review or meta-analysis.",
+    "screening": "Single-agent targeted selection of authoritative review evidence and contrasting direct studies; no duplicate independent screening/extraction was performed.",
+    "selection_rules": [
+      "Prefer a current authoritative synthesis for healthy-adult strength plus direct runner evidence.",
+      "Use direct treadmill/graded comparisons for modality limits, and contrasting downhill studies for soreness/fatigue interpretation.",
+      "Exclude clinical, pediatric, animal, supplementation and preprint findings from treatment-effect claims.",
+      "Do not use article snippets or inaccessible full text to invent effects."
+    ],
+    "scope_limits": [
+      "Wide discovery queries were limited to the first 20 returned records; all remaining hits are explicitly unretrieved, not screened exclusions.",
+      "No independent SPORTDiscus, Scopus, Embase, Web of Science or publication-bias analysis was performed.",
+      "No new pooled effect or calibrated dose-response model was calculated."
+    ]
+  },
+  "queries": [
+    {
+      "id": "acsm-update",
+      "query": "TITLE_ABS:(resistance training) AND TITLE_ABS:(prescription OR position stand) AND FIRST_PDATE:[2025-01-01 TO 2026-09-08]",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 169,
+      "retrieved_count": 20,
+      "unretrieved_count": 149,
+      "retrieved_ids": [
+        "41843416",
+        "42297625",
+        "42698552",
+        "42468010",
+        "PPR1311639",
+        "41298153",
+        "42317086",
+        "42644343",
+        "42443739",
+        "PPR1304101",
+        "42461496",
+        "41755584",
+        "42291726",
+        "42304276",
+        "41204573",
+        "41565628",
+        "42162434",
+        "41270793",
+        "42440096",
+        "41042313"
+      ],
+      "selected_ids": [
+        "41843416"
+      ],
+      "other_retrieved": [
+        {
+          "id": "42297625",
+          "title": "A Comparison of Fixed Percentage of One-Repetition Maximum, Rating of Perceived Exertion, and Last Repetition Velocity-Based Training Load Prescription on Muscular Adaptations in Older Adults.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42698552",
+          "title": "Effects of elastic-band resistance training on glycemic control, muscle strength, and functional outcomes in patients with type 2 diabetes mellitus: a systematic review and meta-analysis of randomized controlled trials.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42468010",
+          "title": "Comparative Effectiveness of Unstable Versus Stable Resistance Training on Lower Limb Strength, Mobility, and Fear of Falling in Older Adults: A Systematic Review and Meta-analysis of Randomized Controlled Trials.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1311639",
+          "title": "Effects of Elastic Band Resistance Training Combined with Nutritional Guidance in Older Adults with Sarcopenia",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41298153",
+          "title": "Exercise training for the management of dyslipidaemia. A position statement from Exercise and Sports Science Australia (ESSA).",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42317086",
+          "title": "Impact of 6-Week Progressive Resistance Training Program on Functional Strength and Quality of Life in Breast Cancer Survivors: Retrospective Analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42644343",
+          "title": "Reliability, accuracy, and responsiveness of the five-repetition sit-to-stand estimated power for detecting menopausal status and monitoring intervention effects in women.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42443739",
+          "title": "Effects of two versus three weekly sessions of low-load elastic band resistance training on functional fitness and metabolic biomarkers in older adults: a randomized controlled trial.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1304101",
+          "title": "Ambient PM  <sub>2.5</sub>  Concentration and the Cardiovascular Response to Exercise Training: A Systematic Review and Meta-Analysis Across Global Pollution Gradients",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42461496",
+          "title": "High-velocity resistance training improves the force-velocity profile in middle-aged and older adults.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41755584",
+          "title": "Effects of a 12-week time-of-day-specific concurrent resistance-aerobic training on muscle strength, bone mass and functional performance in elderly women.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42291726",
+          "title": "Co-Contraction Training Induces Muscle Hypertrophy but Not Strength Gains in Older Adults: A Controlled Intervention Study.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42304276",
+          "title": "The intervention effects of resistance exercise on sarcopenia in older adults: a systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41204573",
+          "title": "Evaluating the effectiveness of different prescriptions of sit-to-stand training in post-stroke rehabilitation: A systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41565628",
+          "title": "5 weeks of online resistance training with blood flow restriction increases sit-to-stand oxygen consumption in healthy older adults.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42162434",
+          "title": "Spinal neuromotor rehabilitation using a portable isokinetic training robot.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41270793",
+          "title": "Resistance Training Improves Hemodynamics Involving Autonomic and Immune Responses.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42440096",
+          "title": "Sustained and attenuated effects of transitioning from supervised to self-managed resistance training in older adults with type 2 diabetes and sarcopenia: a randomized controlled trial.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41042313",
+          "title": "Assessing muscle fitness changes to resistance training in healthy young adults using the 1-min sit-to-stand test: insights from a mobile app analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:80f5f58770989765af8776c38f7815698bb2ba5f92afab5368e3a284cad3a326"
+    },
+    {
+      "id": "concurrent-discovery",
+      "query": "TITLE_ABS:(concurrent training) AND TITLE_ABS:(systematic review OR meta-analysis) AND TITLE_ABS:(interference OR recovery) AND FIRST_PDATE:[2021-01-01 TO 2026-09-08]",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 27,
+      "retrieved_count": 20,
+      "unretrieved_count": 7,
+      "retrieved_ids": [
+        "42038220",
+        "41734815",
+        "41919960",
+        "42539642",
+        "42527160",
+        "41669271",
+        "41900900",
+        "PPR1150319",
+        "41762427",
+        "39060741",
+        "37847373",
+        "42394842",
+        "PPR1160152",
+        "37948036",
+        "PPR1268068",
+        "40455651",
+        "36429528",
+        "35476184",
+        "35113389",
+        "34878640"
+      ],
+      "selected_ids": [],
+      "other_retrieved": [
+        {
+          "id": "42038220",
+          "title": "The effects of concurrent training on physical fitness in children and adolescents: a systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41734815",
+          "title": "Does Sprint Interval Training Cause Interference in Concurrent Training? A Meta-Analysis Study.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41919960",
+          "title": "Efficacy of combined vagus nerve stimulation and exercise training for upper limb recovery in people with stroke: a systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42539642",
+          "title": "Assessing efficacy and safety of dynamic scalp acupuncture for post-stroke rehabilitation: systematic review and meta-analysis protocol.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42527160",
+          "title": "Exercise-based prehabilitation programs reduces hospital stay and postoperative complications in surgical patients with cancer: a systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41669271",
+          "title": "The effects, mechanisms, and influencing factors of concurrent strength and endurance training with different sequences: a semi-systematic review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41900900",
+          "title": "Concurrent HIIT and Resistance Training for Musculoskeletal Function: A Systematic Review of Neuromuscular, Morphological, and Performance Adaptations.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1150319",
+          "title": "Concurrent HIIT and Resistance Training for Musculoskeletal Function: A Systematic Review of Neuromuscular, Morphological, and Performance Adaptations",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41762427",
+          "title": "Maximizing Adaptations in Concurrent Training: An Umbrella Review of Meta-analyses.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39060741",
+          "title": "Impact of Collagen Peptide Supplementation in Combination with Long-Term Physical Training on Strength, Musculotendinous Remodeling, Functional Recovery, and Body Composition in Healthy Adults: A Systematic Review with Meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37847373",
+          "title": "Concurrent Strength and Endurance Training: A Systematic Review and Meta-Analysis on the Impact of Sex and Training Status.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42394842",
+          "title": "Physiological load and breath-holding in artistic swimming: a scoping review establishing historical baselines and evidence gaps in the context of the 2022-2025 rule changes.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1160152",
+          "title": "Collaborative Machine Learning for Risk Ranking Under Concurrent Class Imbalance and Distribution Shift",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37948036",
+          "title": "Perspectives on Concurrent Strength and Endurance Training in Healthy Adult Females: A Systematic Review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1268068",
+          "title": "The long-term impact and effectiveness of rotavirus vaccination in Malawi: an interrupted time-series and case-control analysis",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "40455651",
+          "title": "Neuroplastic periodization in tendinopathy.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "36429528",
+          "title": "Effects of Concurrent Strength and HIIT-Based Endurance Training on Physical Fitness in Trained Team Sports Players: A Systematic Review and Meta-Analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35476184",
+          "title": "The Effects of Concurrent Aerobic and Strength Training on Muscle Fiber Hypertrophy: A Systematic Review and Meta-Analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35113389",
+          "title": "The Effects of Dietary Protein Supplementation on Acute Changes in Muscle Protein Synthesis and Longer-Term Changes in Muscle Mass, Strength, and Aerobic Capacity in Response to Concurrent Resistance and Endurance Exercise in Healthy Adults: A Systematic Review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34878640",
+          "title": "Acute Effects of Aerobic Exercise on Muscle Strength and Power in Trained Male Individuals: A Systematic Review with Meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:e3541b24e51e75d67f1690d9e974a8ddc90c3970c4605952e57022ffc45c418b"
+    },
+    {
+      "id": "downhill-review",
+      "query": "TITLE_ABS:(downhill running) AND TITLE_ABS:(review OR repeated bout OR adaptation)",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 185,
+      "retrieved_count": 20,
+      "unretrieved_count": 165,
+      "retrieved_ids": [
+        "41244004",
+        "42596082",
+        "41590954",
+        "41630123",
+        "41209300",
+        "38921863",
+        "39992182",
+        "42536523",
+        "41028099",
+        "40400783",
+        "41079051",
+        "39599025",
+        "35225166",
+        "41984535",
+        "41003600",
+        "39485258",
+        "42483104",
+        "34098176",
+        "41975791",
+        "40757568"
+      ],
+      "selected_ids": [
+        "41209300",
+        "38921863",
+        "39992182",
+        "42536523"
+      ],
+      "other_retrieved": [
+        {
+          "id": "41244004",
+          "title": "Metabolic Reprogramming for Body Adaptation and Inflammatory Control in Eccentric Damaging Exercise: Comprehensive Molecular Insights From Repeated Downhill Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42596082",
+          "title": "Acute effects of a submaximal 5-km downhill running bout upon uphill walking economy and lower-limb strength in trail runners.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41590954",
+          "title": "Downhill Running-Induced Muscle Damage in Trail Runners: An Exploratory Study Regarding Training Background and Running Gait.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41630123",
+          "title": "Downhill Running Blocks the Mitophagic Flux and Autophagosome-Lysosome Fusion in Rat Soleus Muscle.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41028099",
+          "title": "Biomechanical strategies to achieve faster running speeds on level ground, uphill and downhill grades.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "40400783",
+          "title": "Beneficial effects of reduced soft tissue vibrations with compression garments on delayed neuromuscular impairments induced by an exhaustive downhill run.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41079051",
+          "title": "Footwear technology and biomechanical adaptations in ultramarathon running: a PRISMA-Guided narrative review integrating direct and laboratory evidence.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39599025",
+          "title": "Running Gait Complexity During an Overground, Mass-Participation Five-Kilometre Run.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35225166",
+          "title": "The repeated bout effect influences lower-extremity biomechanics during a 30-min downhill run.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41984535",
+          "title": "Effects of exercise on bone health parameters in ovariectomized rats: A systematic review and meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41003600",
+          "title": "Mechanical Running Power and Energy Expenditure in Uphill and Downhill Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39485258",
+          "title": "Effects of Vegan and Omnivore Diet on Post-Downhill Running Economy and Muscle Function.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42483104",
+          "title": "A Time-Efficient and Reproducible Rat Model of Myofascial Pain Syndrome-Like Phenotypes Induced by Repeated Mechanical Impact and Eccentric Exercise.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34098176",
+          "title": "Neuromuscular, biomechanical, and energetic adjustments following repeated bouts of downhill running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41975791",
+          "title": "Context-Dependent Differences in Muscle Architecture Following Fatigue in Ultramarathon Athletes: A Comparison Between Laboratory and Real Race Settings.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "40757568",
+          "title": "MSM Supplementation Is Associated with Reduced Inflammation and Improved Innate Immune Response following In Vitro LPS-Stimulation in Humans after a Bout of Downhill Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:cf3e7d01c4b19e1b20c3c09ce3ea620ea622a682e342d9323f47516ee0e69b1f"
+    },
+    {
+      "id": "exact-verification-second",
+      "query": "EXT_ID:31642726 OR EXT_ID:29249083 OR EXT_ID:28462571 OR EXT_ID:41209300 OR EXT_ID:35507232 OR EXT_ID:25010379",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 6,
+      "retrieved_count": 6,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "41209300",
+        "35507232",
+        "31642726",
+        "29249083",
+        "28462571",
+        "25010379"
+      ],
+      "selected_ids": [
+        "41209300",
+        "35507232",
+        "31642726",
+        "29249083",
+        "28462571"
+      ],
+      "other_retrieved": [
+        {
+          "id": "25010379",
+          "title": "The talk test: a useful tool for prescribing and monitoring exercise intensity.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:b50495a20ae449299c1fc7eea614a00401d25008b7ac127b73131ed021d43679"
+    },
+    {
+      "id": "minimal-dose-runner",
+      "query": "TITLE:(Effects of minimal dose of strength training on running performance)",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 1,
+      "retrieved_count": 1,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "28462571"
+      ],
+      "selected_ids": [
+        "28462571"
+      ],
+      "other_retrieved": [],
+      "query_response_sha256": "sha256:2b8ed1c4b6553f1e23de280efd93bca7a94e898e2dae5fc1c66266c0e3a7f646"
+    },
+    {
+      "id": "running-strength-practical",
+      "query": "TITLE:(Effects of Strength Training on the Physiological Determinants of Middle- and Long-Distance Running Performance)",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 1,
+      "retrieved_count": 1,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "29249083"
+      ],
+      "selected_ids": [
+        "29249083"
+      ],
+      "other_retrieved": [],
+      "query_response_sha256": "sha256:af38731886776de358df988d27c74a9e9aa84eff9ea9f4150582395280065ff9"
+    },
+    {
+      "id": "strength-review-2024",
+      "query": "EXT_ID:38627351",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 1,
+      "retrieved_count": 1,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "38627351"
+      ],
+      "selected_ids": [
+        "38627351"
+      ],
+      "other_retrieved": [],
+      "query_response_sha256": "sha256:3aa675774fda1558bd50da417e52348e5a090d961e03453471ab06a0f61edd29"
+    },
+    {
+      "id": "talk-test-discovery",
+      "query": "TITLE_ABS:(talk test) AND TITLE_ABS:(exercise intensity) AND TITLE_ABS:(review) AND FIRST_PDATE:[1900-01-01 TO 2026-09-08]",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 9,
+      "retrieved_count": 9,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "42041776",
+        "39257844",
+        "35507232",
+        "39076925",
+        "30595308",
+        "25010379",
+        "30511333",
+        "25259472",
+        "22145810"
+      ],
+      "selected_ids": [
+        "35507232"
+      ],
+      "other_retrieved": [
+        {
+          "id": "42041776",
+          "title": "Exercise as Medicine: Quantifying the Effects of Physical Activity on Fibromyalgia Pain-A Systematic Review and Meta-Analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39257844",
+          "title": "Exercise intensity prescription in cardiovascular rehabilitation: bridging the gap between best evidence and clinical practice.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39076925",
+          "title": "Application and Measurement Properties of the Talk Test in Cardiopulmonary Patients: A Systematic Review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "30595308",
+          "title": "The talk test-A costless tool for exercise prescription in Indian cardiac rehabilitation.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "25010379",
+          "title": "The talk test: a useful tool for prescribing and monitoring exercise intensity.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "30511333",
+          "title": "Guidelines for exercise during normal pregnancy and gestational diabetes: a review of international recommendations.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "25259472",
+          "title": "Talk test as a practical method to estimate exercise intensity in highly trained competitive male cyclists.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "22145810",
+          "title": "Endurance exercise intensity determination in the rehabilitation of coronary artery disease patients: a critical re-appraisal of current evidence.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:ea646ce9ee5a310b37e3630b6163ee6fa24897c851084cefdf50e41cbe1ac926"
+    },
+    {
+      "id": "targeted-metadata",
+      "query": "EXT_ID:41843416 OR EXT_ID:31802395 OR EXT_ID:30847825 OR EXT_ID:42536523 OR EXT_ID:41762427 OR EXT_ID:34878640 OR EXT_ID:38921863 OR EXT_ID:39992182 OR EXT_ID:34098176",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 9,
+      "retrieved_count": 9,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "42536523",
+        "41843416",
+        "41762427",
+        "39992182",
+        "38921863",
+        "34878640",
+        "34098176",
+        "31802395",
+        "30847825"
+      ],
+      "selected_ids": [
+        "42536523",
+        "41843416",
+        "39992182",
+        "38921863",
+        "31802395",
+        "30847825"
+      ],
+      "other_retrieved": [
+        {
+          "id": "41762427",
+          "title": "Maximizing Adaptations in Concurrent Training: An Umbrella Review of Meta-analyses.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34878640",
+          "title": "Acute Effects of Aerobic Exercise on Muscle Strength and Power in Trained Male Individuals: A Systematic Review with Meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34098176",
+          "title": "Neuromuscular, biomechanical, and energetic adjustments following repeated bouts of downhill running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:b6f11aba797f5bc2d7996bc7c571c52d4c60e4733f067240da701579e71b1fb4"
+    },
+    {
+      "id": "treadmill-meta-discovery",
+      "query": "TITLE_ABS:(treadmill) AND TITLE_ABS:(overground OR outdoors) AND TITLE_ABS:(systematic review OR meta-analysis) AND TITLE_ABS:(running) AND FIRST_PDATE:[1900-01-01 TO 2026-09-08]",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 18,
+      "retrieved_count": 18,
+      "unretrieved_count": 0,
+      "retrieved_ids": [
+        "42546477",
+        "42426697",
+        "36983289",
+        "32524456",
+        "35708887",
+        "32524455",
+        "36166957",
+        "37028119",
+        "31802395",
+        "30847825",
+        "32507448",
+        "35161530",
+        "30707139",
+        "34365285",
+        "24790690",
+        "24732724",
+        "9839841",
+        "7898346"
+      ],
+      "selected_ids": [
+        "31802395",
+        "30847825"
+      ],
+      "other_retrieved": [
+        {
+          "id": "42546477",
+          "title": "Differences in running kinematics and stride-to-stride variability between self-paced treadmill and overground running on two surfaces.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42426697",
+          "title": "Electromyography patterns during running in injured versus healthy runners: a systematic review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "36983289",
+          "title": "The Effect of High-Intensity Interval Training Type on Body Fat Percentage, Fat and Fat-Free Mass: A Systematic Review and Meta-Analysis of Randomized Clinical Trials.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "32524456",
+          "title": "Comment on: \"Is Motorized Treadmill Running Biomechanically Comparable to Overground Running? A Systematic Review and Meta-Analysis of Cross-Over Studies\".",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35708887",
+          "title": "Acute Effects of Gait Interventions on Tibial Loads During Running: A Systematic Review and Meta-analysis.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "32524455",
+          "title": "Authors' Reply to Dewolf et al.: \"Is Motorized Treadmill Running Biomechanically Comparable to Overground Running? A Systematic Review and Meta-Analysis of Cross-Over Studies\".",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "36166957",
+          "title": "Are impact accelerations during treadmill running representative of those produced overground?",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37028119",
+          "title": "Running gait produces long range correlations: A systematic review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "32507448",
+          "title": "Biomechanics of starting, sprinting and submaximal running in athletes with brain impairment: A systematic review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35161530",
+          "title": "A Single Sacral-Mounted Inertial Measurement Unit to Estimate Peak Vertical Ground Reaction Force, Contact Time, and Flight Time in Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "30707139",
+          "title": "Validation of the Cosmed K4b2 Portable Metabolic System During Running Outdoors.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34365285",
+          "title": "Estimating effective contact and flight times using a sacral-mounted inertial measurement unit.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "24790690",
+          "title": "Influence of stride frequency and length on running mechanics: a systematic review.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "24732724",
+          "title": "Torsion and antero-posterior bending in the in vivo human tibia loading regimes during walking and running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "9839841",
+          "title": "Kinematics and electromyography of lower limb muscles in overground and treadmill running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "7898346",
+          "title": "A kinematic comparison of overground and treadmill running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:58ff4efc6b7706f58ec6ac1722fd2debda308ff9a7c86f784cdbc962f45f5d68"
+    },
+    {
+      "id": "treadmill-transfer",
+      "query": "TITLE_ABS:(trail running) AND TITLE_ABS:(treadmill OR incline OR uphill) AND TITLE_ABS:(training OR intervention)",
+      "database": "Europe PMC (PubMed/MED indexed records)",
+      "interface": "REST core JSON read through isolated Chrome DevTools MCP 1.6.0",
+      "search_date": "2026-09-08",
+      "total_hits": 33,
+      "retrieved_count": 20,
+      "unretrieved_count": 13,
+      "retrieved_ids": [
+        "42287392",
+        "41697200",
+        "42479880",
+        "41493537",
+        "41713453",
+        "PPR1058179",
+        "41003600",
+        "42608016",
+        "41295769",
+        "39846642",
+        "37955262",
+        "42539940",
+        "37883404",
+        "37347946",
+        "37514705",
+        "36515604",
+        "39058080",
+        "34853187",
+        "34400998",
+        "35084165"
+      ],
+      "selected_ids": [],
+      "other_retrieved": [
+        {
+          "id": "42287392",
+          "title": "Oxygen uptake on-kinetics during horizontal and uphill treadmill running in moderate- and severe-intensity domains.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41697200",
+          "title": "Reliability of a trail running submaximal treadmill test and its relationship with flat surface running economy.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42479880",
+          "title": "Comparative Effects of Circuit Training, High-Intensity Interval Training, and Combined Training on Performance and Neuromuscular Function in Masters Trail Runners.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41493537",
+          "title": "Correlations Between the Metabolic Costs of Level and Graded Running: A Secondary Analysis of the Literature.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41713453",
+          "title": "Greater Ankle Plantar Flexor Work Is Predictive of Better Running Economy on Steep Uphill Grades.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "PPR1058179",
+          "title": "Mechanical Running Power and Energy Expenditure in Uphill and Downhill Running",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41003600",
+          "title": "Mechanical Running Power and Energy Expenditure in Uphill and Downhill Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42608016",
+          "title": "Running Participation in People With Multiple Sclerosis: A Prospective Observational Cohort Study.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "41295769",
+          "title": "Real-Time Performance Prediction in Long-Distance Trail Running: A Practical Model Based on Terrain Difficulty and Pacing Variability.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39846642",
+          "title": "The Trail Runners' Tendon-How Do Weekly Mileage and Elevation Gain Affect Achilles and Patellar Tendon Morphology?",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37955262",
+          "title": "Effect of surface inclination on vertical loading rate and footstrike pattern in trail and road runners.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "42539940",
+          "title": "Sagittal plane joint mechanics during downhill running in female distance runners.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37883404",
+          "title": "Power Is More Relevant Than Ascensional Speed to Determine Metabolic Demand at Different Gradient Slopes During Running.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37347946",
+          "title": "Elite vs. Experienced Male and Female Trail Runners: Comparing Running Economy, Biomechanics, Strength, and Power.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "37514705",
+          "title": "Training Specificity in Trail Running: A Single-Arm Trial on the Influence of Weighted Vest on Power and Kinematics in Trained Trail Runners.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "36515604",
+          "title": "Elite Road vs. Trail Runners: Comparing Economy, Biomechanics, Strength, and Power.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "39058080",
+          "title": "Physiological Responses in Trail Runners during a Maximal Test with Different Weighted-Vest Loads.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34853187",
+          "title": "Energy Cost of Running in Well-Trained Athletes: Toward Slope-Dependent Factors.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "34400998",
+          "title": "Effects of Plyometric Training on Soft and Hard Surfaces for Improving Running Economy.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        },
+        {
+          "id": "35084165",
+          "title": "Running biomechanical alterations during a 40-km mountain race.",
+          "disposition": "not_selected_for_claim_extraction",
+          "reason": "Outside the bounded claim/source priority or redundant discovery; title-level triage only, not an adverse quality finding."
+        }
+      ],
+      "query_response_sha256": "sha256:29ecdb5fc944451fa96b9dc4ed9a3e40866f7eabf4c81144e037cca80c315893"
+    }
+  ],
+  "selected_sources": [
+    {
+      "citation_id": "currier-2026-resistance-position-stand",
+      "pmid": "41843416",
+      "doi": "10.1249/mss.0000000000003897",
+      "title": "American College of Sports Medicine Position Stand. Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Methods, Table 6, Discussion, prescription details and limitations",
+      "public_extraction_sha256": "sha256:eb2ece338c5c4ae3eac7c2e5e42cb91e95b34e9518cabeae7a373f5d034990a8",
+      "limitations": []
+    },
+    {
+      "citation_id": "llanos-lagos-2024",
+      "pmid": "38627351",
+      "doi": "10.1007/s40279-024-02018-z",
+      "title": "The Effect of Strength Training Methods on Middle-Distance and Long-Distance Runners' Athletic Performance: A Systematic Review with Meta-analysis",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11258194/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Abstract, eligibility, training classification, methods, discussion and limitations",
+      "public_extraction_sha256": "sha256:cd3085f7d44dc6925231c0d12eedba42bdefc60c3caaf1525db1852534810d43",
+      "limitations": []
+    },
+    {
+      "citation_id": "blagrove-2018-running-strength",
+      "pmid": "29249083",
+      "doi": "10.1007/s40279-017-0835-7",
+      "title": "Effects of Strength Training on the Physiological Determinants of Middle- and Long-Distance Running Performance: A Systematic Review",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5889786/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Strength-Training Prescription: modality, intra-session and inter-session variables; included study protocols",
+      "public_extraction_sha256": "sha256:a0bd20a57e37ecb3ec583bcd3fe10e6fa6148dbcbcfda963193bbb5443bdedf7",
+      "limitations": []
+    },
+    {
+      "citation_id": "stohanzl-2018-minimal-strength",
+      "pmid": "28462571",
+      "doi": "10.23736/s0022-4707.17.07124-9",
+      "title": "Effects of minimal dose of strength training on running performance in female recreational runners",
+      "verification_level": "abstract",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://europepmc.org/article/MED/28462571",
+      "verified_on": "2026-09-08",
+      "read_sections": "Indexed abstract only; publisher full text was not accessed",
+      "public_extraction_sha256": "sha256:1bdbbc8bfac95a386d42ecddb23caec3cfd8d3528476957932269f3a7dd9848a",
+      "limitations": [
+        "Full text not accessed; conclusions bounded to indexed abstract."
+      ]
+    },
+    {
+      "citation_id": "toresdahl-2020",
+      "pmid": "31642726",
+      "doi": "10.1177/1941738119877180",
+      "title": "A Randomized Study of a Strength Training Program to Prevent Injuries in Runners of the New York City Marathon",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6931177/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Methods, participant flow, Results, Discussion and limitations",
+      "public_extraction_sha256": "sha256:46f0ccaba1e53c401e043d9874646d8f11a07dd1de3e248978cf62e798618f4d",
+      "limitations": []
+    },
+    {
+      "citation_id": "van-hooren-2020-treadmill-biomechanics",
+      "pmid": "31802395",
+      "doi": "10.1007/s40279-019-01237-z",
+      "title": "Is Motorized Treadmill Running Biomechanically Comparable to Overground Running? A Systematic Review and Meta-Analysis of Cross-Over Studies",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7069922/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Abstract, inclusion criteria and methodological/contextual limitations",
+      "public_extraction_sha256": "sha256:8067efe664ed2b1b0a71002aebc946a7fcca3153cb4de41450682206ed3336d6",
+      "limitations": []
+    },
+    {
+      "citation_id": "miller-2019-treadmill-physiology",
+      "pmid": "30847825",
+      "doi": "10.1007/s40279-019-01087-9",
+      "title": "A Systematic Review and Meta-Analysis of Crossover Studies Comparing Physiological, Perceptual and Performance Measures Between Treadmill and Overground Running",
+      "verification_level": "abstract",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://europepmc.org/article/MED/30847825",
+      "verified_on": "2026-09-08",
+      "read_sections": "Indexed abstract only; publisher full text was not accessed",
+      "public_extraction_sha256": "sha256:4c69b57d4adbad4c96bea7ff298bb155e611858ca1c1782dda15d65baad8a13c",
+      "limitations": [
+        "Full text not accessed; conclusions bounded to indexed abstract."
+      ]
+    },
+    {
+      "citation_id": "lu-2025-graded-running",
+      "pmid": "41209300",
+      "doi": "10.3389/fbioe.2025.1690023",
+      "title": "A review of uphill and downhill running: biomechanics, physiology and modulating factors",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12592170/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Search method, graded biomechanics, physiology and downhill fatigue sections",
+      "public_extraction_sha256": "sha256:bd57fcb63f1dc1ec9e655ffa45e4886618c81352e5e39703e0155388cc5f5018",
+      "limitations": []
+    },
+    {
+      "citation_id": "tham-2026-uphill-training",
+      "pmid": "42536523",
+      "doi": "10.1097/md.0000000000049977",
+      "title": "Effects of uphill running on muscle strength, jumping performance, running time, and aerobic capacity outcomes in athletes and recreational adults: A systematic review and meta-analysis",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13433027/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Methods, intervention table, pooled results, Discussion and limitations",
+      "public_extraction_sha256": "sha256:bcc3276f112e565190b69273da88be5a0a62d3293cd62b1680acdf116d12863e",
+      "limitations": []
+    },
+    {
+      "citation_id": "bontemps-2025-downhill-fatigue",
+      "pmid": "39992182",
+      "doi": "10.1002/ejsc.12240",
+      "title": "Muscle soreness but not neuromuscular fatigue responses following downhill running differ according to the number of exercise bouts",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11849091/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Participants, experimental design, exercise programme, Discussion and limitations",
+      "public_extraction_sha256": "sha256:aad7c298f673d0bb10e391a6be991c4fa9a59fa7543a5d7a4b2a1d40e5cf1e50",
+      "limitations": []
+    },
+    {
+      "citation_id": "tallis-2024-downhill-female",
+      "pmid": "38921863",
+      "doi": "10.3390/sports12060169",
+      "title": "Repeated Bout Effect of Downhill Running on Physiological Markers of Effort and Post Exercise Perception of Soreness in Trained Female Distance Runners",
+      "verification_level": "full-text",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11209549/",
+      "verified_on": "2026-09-08",
+      "read_sections": "Participants, protocol, limitations and Conclusions",
+      "public_extraction_sha256": "sha256:6b8388df2cef2abb81d2c6bea7a81a4f3b8053d3f7552029d8ce88ad7d5304f9",
+      "limitations": []
+    },
+    {
+      "citation_id": "bok-2022-subjective-intensity",
+      "pmid": "35507232",
+      "doi": "10.1007/s40279-022-01690-3",
+      "title": "An Examination and Critique of Subjective Methods to Determine Exercise Intensity: The Talk Test, Feeling Scale, and Rating of Perceived Exertion",
+      "verification_level": "abstract",
+      "metadata_source": "Europe PMC core indexed record",
+      "source_url": "https://europepmc.org/article/MED/35507232",
+      "verified_on": "2026-09-08",
+      "read_sections": "Indexed abstract only; no full-text numeric protocol is claimed",
+      "public_extraction_sha256": "sha256:8d56450b4ee1387b9c110a2f6982b5dd757e00e62706fa2f7278d150ee6befe6",
+      "limitations": [
+        "Full text not accessed; conclusions bounded to indexed abstract."
+      ]
+    }
+  ],
+  "claim_source_mapping": {
+    "trail-resource.strength-support-not-short-block-promise": [
+      "currier-2026-resistance-position-stand",
+      "llanos-lagos-2024"
+    ],
+    "trail-resource.introductory-dose-is-a-guardrail": [
+      "currier-2026-resistance-position-stand",
+      "blagrove-2018-running-strength",
+      "stohanzl-2018-minimal-strength"
+    ],
+    "trail-resource.strength-does-not-guarantee-injury-prevention": [
+      "toresdahl-2020"
+    ],
+    "trail-resource.treadmill-is-context-not-terrain-equivalence": [
+      "van-hooren-2020-treadmill-biomechanics",
+      "miller-2019-treadmill-physiology"
+    ],
+    "trail-resource.uphill-downhill-specific-and-dose-uncertain": [
+      "lu-2025-graded-running",
+      "tham-2026-uphill-training"
+    ],
+    "trail-resource.downhill-adaptation-not-clearance": [
+      "bontemps-2025-downhill-fatigue",
+      "tallis-2024-downhill-female"
+    ],
+    "trail-resource.concurrent-scheduling-requires-context": [
+      "blagrove-2018-running-strength",
+      "currier-2026-resistance-position-stand",
+      "stohanzl-2018-minimal-strength"
+    ],
+    "trail-resource.subjective-effort-is-not-a-universal-zone": [
+      "bok-2022-subjective-intensity",
+      "currier-2026-resistance-position-stand"
+    ],
+    "trail-resource.resource-frequency-does-not-prove-capacity": [
+      "lu-2025-graded-running",
+      "bontemps-2025-downhill-fatigue",
+      "van-hooren-2020-treadmill-biomechanics"
+    ]
+  },
+  "source_reuse": "Existing citation IDs and metadata are reused unchanged when the same DOI/PMID is already registered; verification was repeated for the selected sources."
+}

@@ -51,11 +51,16 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 ### Evidence reviews
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [evidence-trail-training-resource-adaptation-v1](evidence/trail-training-resource-adaptation/evidence-trail-training-resource-adaptation-v1.yaml) — Resource-aware trail preparation: bounded strength and treadmill modules | 1 | trail-training-resource-adaptation | 2026-09-08 |
 
 ### Science decisions
 
-_None._
+| Record | Version | Topic/model | Reviewed/decided |
+|---|---:|---|---|
+| [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
+| [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
 
 ## Superseded
 
