@@ -13,3 +13,18 @@ test('shared Select opens beside its trigger rather than aligning an item over i
   assert.match(source, /<SelectPrimitive\.List>/);
   assert.match(source, /<SelectPrimitive\.ItemIndicator/);
 });
+
+test('shared Select respects reduced motion for its positioned popup', async () => {
+  const source = await readFile(new URL('../src/components/ui/select.tsx', import.meta.url), 'utf8');
+  const popupClasses = source.match(/<SelectPrimitive\.Popup\b[\s\S]*?className=\{cn\("([^"]+)"/)?.[1];
+  assert.ok(popupClasses, 'Select popup classes must be present');
+  for (const className of [
+    'data-open:animate-in',
+    'data-closed:animate-out',
+    'motion-reduce:animate-none!',
+    'motion-reduce:transition-none!',
+    'motion-reduce:duration-0!',
+  ]) {
+    assert.ok(popupClasses.split(/\s+/).includes(className), `Missing popup class: ${className}`);
+  }
+});

@@ -87,6 +87,8 @@ the trigger while the list is open. Base UI still owns collision-driven
 flipping, scrolling the selected item into view, keyboard selection, and focus
 return. Keep the popup within the available viewport; do not force it below a
 trigger near the bottom edge. Native miniapp pickers keep their platform behavior.
+When `prefers-reduced-motion: reduce` is active, disable popup animation and
+transitions without changing positioning, keyboard selection, or focus return.
 
 ### Training-plan language and hierarchy
 
