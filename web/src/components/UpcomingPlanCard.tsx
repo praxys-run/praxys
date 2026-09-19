@@ -963,7 +963,7 @@ async function requestPlanMutation<T>(
   return response.json() as Promise<T>;
 }
 
-export default function UpcomingPlanCard() {
+export default function UpcomingPlanCard({ hasCurrentPlan = false }: { hasCurrentPlan?: boolean }) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { config: settings, connectionStatuses } = useSettings();
@@ -1452,9 +1452,9 @@ export default function UpcomingPlanCard() {
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-[10px] font-data uppercase tracking-[0.14em] text-muted-foreground">
-            <Trans>Upcoming Plan</Trans>
-          </p>
+          <h2 className={hasCurrentPlan ? 'text-base font-semibold' : 'text-[10px] font-data uppercase tracking-[0.14em] text-muted-foreground'}>
+            {hasCurrentPlan ? <Trans>Current training plan</Trans> : <Trans>Upcoming Plan</Trans>}
+          </h2>
           <WindowPills active={windowId} onChange={handleWindowChange} />
           <div
             className="inline-flex items-center rounded-full border border-border"
@@ -1516,11 +1516,13 @@ export default function UpcomingPlanCard() {
           )}
         </div>
       </div>
-      <ManagementStrip
-        state={managementState}
-        target={targetLabel}
-        targetConnected={targetConnected}
-      />
+      {(!hasCurrentPlan || (managementState === 'active' && !targetConnected)) && (
+        <ManagementStrip
+          state={managementState}
+          target={targetLabel}
+          targetConnected={targetConnected}
+        />
+      )}
       {mutationNotice && (
         <Alert className="mb-4 border-accent-cobalt/25 bg-accent-cobalt/5">
           <RefreshCw className="text-accent-cobalt" aria-hidden="true" />

@@ -72,6 +72,10 @@ const DISPLAY_LABEL_MAP: Record<string, MessageDescriptor> = {
   '100K': msg`100K`,
   '100 Mile': msg`100 Mile`,
   Race: msg`Race`,
+  'Easy Run': msg`Easy run`,
+  'Long Run': msg`Long run`,
+  'Long Easy Run': msg`Long easy run`,
+  Rest: msg`Rest`,
 };
 
 export function tDisplay(label: string | undefined | null, i18n: I18n): string {

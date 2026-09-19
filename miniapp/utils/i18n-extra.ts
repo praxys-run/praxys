@@ -162,6 +162,7 @@ const EN_AUTH = {
 };
 
 const EN_GOAL = {
+  'Manage workouts': 'Manage workouts',
   'Hide routing explanation': 'Hide routing explanation',
   'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
     'This client does not recognize the selected policy input contract and will not guess how to create a plan.',
@@ -673,6 +674,7 @@ const ZH_AUTH = {
 };
 
 const ZH_GOAL = {
+  'Manage workouts': '管理训练',
   'Hide routing explanation': '收起路径说明',
   'This client does not recognize the selected policy input contract and will not guess how to create a plan.':
     '此客户端无法识别所选政策的输入约定，因此不会猜测如何创建计划。',
@@ -1122,7 +1124,81 @@ const ZH_PRIVATE_CONTEXT = {
   'Private context JSON copied': '计划个性化信息 JSON 已复制',
 };
 
+// Preserve the native flow's existing copy while the web draft is reviewed.
 const EN_PLAN_START = {
+  'Start a training plan': 'Start a training plan',
+  'Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence.':
+    'Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence.',
+  'Plan candidate': 'Plan candidate',
+  'An active policy matches this intent and distance.': 'An active policy matches this intent and distance.',
+  'This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.':
+    'This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.',
+  'This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.':
+    'This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.',
+  'An active policy matches, but current evidence is not sufficient or fresh enough for a proposal.':
+    'An active policy matches, but current evidence is not sufficient or fresh enough for a proposal.',
+  'Review the existing history-first readiness path before asking Praxys to create a proposal.':
+    'Review the existing history-first readiness path before asking Praxys to create a proposal.',
+  'Open the readiness path for this separate plan purpose. Your current Goal remains unchanged.':
+    'Open the readiness path for this separate plan purpose. Your current Goal remains unchanged.',
+  'Policy unavailable': 'Policy unavailable',
+  'No active automatic policy matches this intent and distance yet.':
+    'No active automatic policy matches this intent and distance yet.',
+  'Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population.':
+    'Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population.',
+  'Choose intent': 'Choose intent',
+  'Goal distance alone does not tell Praxys which outcome matters.':
+    'Goal distance alone does not tell Praxys which outcome matters.',
+  'Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time.':
+    'Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time.',
+  'Could not load the accepted plan-generation policies.': 'Could not load the accepted plan-generation policies.',
+  'Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone.':
+    'Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone.',
+  'This plan route uses an accepted policy that this client does not recognize yet.':
+    'This plan route uses an accepted policy that this client does not recognize yet.',
+  'Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs.':
+    'Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs.',
+  'Policy check failed': 'Policy check failed',
+  'Open plan preview': 'Open plan preview',
+  'Retry policy check': 'Retry policy check',
+  'Why these routes stay separate': 'Why these routes stay separate',
+  'First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule.':
+    'First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule.',
+  'Plan management': 'Plan management',
+  'Praxys is your active planner.': 'Praxys is your active planner.',
+  'Praxys owns the plan; delivery is paused.': 'Praxys owns the plan; delivery is paused.',
+  'Your external planner remains in control.': 'Your external planner remains in control.',
+  'Praxys can analyze this schedule, but it will not create, replace, or remove target workouts.':
+    'Praxys can analyze this schedule, but it will not create, replace, or remove target workouts.',
+  'Review and activate': 'Review and activate',
+  'Let Praxys manage this plan?': 'Let Praxys manage this plan?',
+  'Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.':
+    'Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.',
+  'Start, review, and adjust the plan Praxys manages for you.':
+    'Start, review, and adjust the plan Praxys manages for you.',
+  'Plan preview': 'Plan preview',
+  'Safety stop': 'Safety stop',
+  'No safety stop': 'No safety stop',
+  'Safety stop applies': 'Safety stop applies',
+  'No symptom stop': 'No symptom stop',
+  'Symptom stop applies': 'Symptom stop applies',
+  'Per-day limits are unsupported': 'Per-day limits are unsupported',
+  'The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.':
+    'The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.',
+  'Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
+    'Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.',
+  'Enter one whole-minute limit for every selected day.': 'Enter one whole-minute limit for every selected day.',
+  'Plan purpose': 'Plan purpose',
+  'The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged.':
+    'The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged.',
+  'Choose an accepted plan purpose': 'Choose an accepted plan purpose',
+  'Choose an accepted plan purpose first.': 'Choose an accepted plan purpose first.',
+  'Separate plan purpose': 'Separate plan purpose',
+  'Scope and guardrails': 'Scope and guardrails',
+  'I am 18 or older.': 'I am 18 or older.',
+  'I can currently complete 5 km.': 'I can currently complete 5 km.',
+  'My goal is an outdoor road 5K.': 'My goal is an outdoor road 5K.',
+  'Confirm the supported athlete and goal scope first.': 'Confirm the supported athlete and goal scope first.',
   'Current Goal': 'Current Goal',
   'Unlinked base plan': 'Unlinked base plan',
   'The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.':
@@ -1187,6 +1263,76 @@ const EN_PLAN_START = {
 };
 
 const ZH_PLAN_START = {
+  'Start a training plan': '开始训练计划',
+  'Choose explicitly. Praxys combines that intent with the current distance, active policies, and available evidence.':
+    '请明确选择。Praxys 会结合计划方向、当前距离、生效政策和已有证据来决定下一步。',
+  'Plan candidate': '计划候选',
+  'An active policy matches this intent and distance.': '当前已有与该计划方向和距离匹配的生效政策。',
+  'This candidate uses the intent already stated by your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.':
+    '此候选沿用当前目标中已明确的计划方向。Praxys 创建提案前，仍需确认适用范围与安全条件。',
+  'This candidate uses a separate plan purpose and does not change your current Goal. Scope and safety still need confirmation before Praxys creates a proposal.':
+    '此候选使用独立的计划用途，不会更改当前目标。Praxys 创建提案前，仍需确认适用范围与安全条件。',
+  'An active policy matches, but current evidence is not sufficient or fresh enough for a proposal.':
+    '当前已有匹配的生效政策，但现有证据不足或已不够新，暂时无法生成提案。',
+  'Review the existing history-first readiness path before asking Praxys to create a proposal.':
+    '请先查看现有的历史优先准备度流程，再让 Praxys 创建提案。',
+  'Open the readiness path for this separate plan purpose. Your current Goal remains unchanged.':
+    '打开这项独立计划用途的准备度流程。当前目标保持不变。',
+  'Policy unavailable': '政策暂不可用',
+  'No active automatic policy matches this intent and distance yet.': '暂无与该计划方向和距离匹配的生效自动政策。',
+  'Keep the Goal, choose another intent, or manage workouts manually. Praxys will not borrow a policy from another distance or population.':
+    '保留当前目标、改选其他计划方向，或手动管理训练。Praxys 不会借用其他距离或人群的政策。',
+  'Choose intent': '选择计划方向',
+  'Goal distance alone does not tell Praxys which outcome matters.': '只看距离，Praxys 无法判断你更看重哪种结果。',
+  'Choose whether this plan should support completion, performance, or a return to consistency. You can correct the choice at any time.':
+    '请选择这份计划是为了完成距离、提升表现，还是恢复规律训练。之后可随时更改。',
+  'Could not load the accepted plan-generation policies.': '无法加载已接受的计划生成政策。',
+  'Retry the policy check before choosing a route. Praxys will not infer availability from the current Goal alone.':
+    '请重试政策检查后再选择路径。Praxys 不会只根据当前目标推断可用性。',
+  'This plan route uses an accepted policy that this client does not recognize yet.':
+    '此计划路径使用了一项当前客户端尚不识别的已接受政策。',
+  'Update the client before opening a preview. Praxys will not guess how to collect or submit policy inputs.':
+    '请先更新客户端再打开预览。Praxys 不会猜测如何收集或提交政策输入。',
+  'Policy check failed': '政策检查失败',
+  'Open plan preview': '打开计划预览',
+  'Retry policy check': '重试政策检查',
+  'Why these routes stay separate': '为什么这些路径要分开',
+  'First completion, performance improvement, and return to consistency use different evidence boundaries. Praxys does not treat missing records as proof of detraining or use one universal beginner or restart schedule.':
+    '首次完赛、提升表现和恢复规律训练适用不同的证据边界。Praxys 不会把记录缺失当作体能下降的证明，也不会套用统一的新手或重启训练安排。',
+  'Plan management': '计划托管',
+  'Praxys is your active planner.': 'Praxys 正在负责制定训练计划。',
+  'Praxys owns the plan; delivery is paused.': '计划仍由 Praxys 管理，下发已暂停。',
+  'Your external planner remains in control.': '计划仍由外部工具管理。',
+  'Praxys can analyze this schedule, but it will not create, replace, or remove target workouts.':
+    'Praxys 可以分析此日程，但不会在目标平台创建、替换或移除训练。',
+  'Review and activate': '查看并启用',
+  'Let Praxys manage this plan?': '让 Praxys 托管此计划？',
+  'Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.':
+    '将 Praxys 设为计划方后，才能启用自动调整。目前仍仅提供建议。',
+  'Start, review, and adjust the plan Praxys manages for you.': '开始、查看并调整由 Praxys 管理的训练计划。',
+  'Plan preview': '计划预览',
+  'Safety stop': '安全停止',
+  'No safety stop': '没有安全停止条件',
+  'Safety stop applies': '存在安全停止条件',
+  'No symptom stop': '无症状停止',
+  'Symptom stop applies': '存在症状停止',
+  'Per-day limits are unsupported': '不支持按日设置上限',
+  'The accepted deterministic policy has one shared maximum-session field. Praxys will not invent a per-day rule or silently reduce your schedule; use one limit for all selected days.':
+    '已接受的确定性政策只有一个共享的单次训练上限字段。Praxys 不会臆造按日规则，也不会悄悄缩减你的安排；请为所有选定日期使用同一个上限。',
+  'Delivery remains disabled. Review the existing 14-day managed-delivery preview and explicitly consent only if you want Praxys to deliver this canonical plan.':
+    '下发仍处于禁用状态。请查看现有的 14 天托管下发预览；只有在希望 Praxys 下发此主计划时，才明确同意。',
+  'Enter one whole-minute limit for every selected day.': '请为每个选定日期输入相同的整分钟上限。',
+  'Plan purpose': '计划用途',
+  'The current Goal is the default when an accepted policy matches it. A separate purpose keeps that Goal unchanged.':
+    '如果当前目标匹配已接受政策，系统会默认选择它。选择独立计划用途不会更改当前目标。',
+  'Choose an accepted plan purpose': '选择已接受的计划用途',
+  'Choose an accepted plan purpose first.': '请先选择已接受的计划用途。',
+  'Separate plan purpose': '独立计划用途',
+  'Scope and guardrails': '范围与护栏',
+  'I am 18 or older.': '我已满 18 周岁。',
+  'I can currently complete 5 km.': '我目前可以完成 5 公里。',
+  'My goal is an outdoor road 5K.': '我的目标是户外公路 5 公里。',
+  'Confirm the supported athlete and goal scope first.': '请先确认受支持的运动员和目标范围。',
   'Current Goal': '当前目标',
   'Unlinked base plan': '未关联基础计划',
   'The current Goal has no accepted automatic policy. Keep it unchanged, or choose an accepted separate purpose.':
