@@ -27,8 +27,9 @@ const queryClient = new QueryClient({
 
 // Pick the locale for first paint the same way LocaleProvider will, so
 // returning zh users never see an EN flash before their stored preference
-// kicks in. localStorage is authoritative; then navigator.language; then
-// DEFAULT_LOCALE. The server-preference case (user changed language on
+// kicks in. localStorage is authoritative; without a saved preference, CN
+// deployments use Chinese before checking navigator.language and DEFAULT_LOCALE.
+// The server-preference case (user changed language on
 // another device) still falls back to LocaleSync after settings load —
 // that's an unavoidable round-trip.
 function _initialLocale(): SupportedLocale {
