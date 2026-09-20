@@ -192,3 +192,30 @@ protection, PIPIA acceptance, and provider topology separately.
 
 ---
 _Last reviewed: 2026-09-06 · Owner: Operations_
+
+### Public documents and application fallback
+
+The frontend build emits prerendered public route documents and a separate
+`app-shell.html` for application navigation. Public prerendering runs at build
+time, before PWA cache revisions are computed. No rendering service is deployed.
+Azure's SPA fallback, EdgeOne's fallback rewrite, and the Service Worker's
+navigation fallback must all use the application shell, so refreshing a signed-in
+route cannot briefly display a marketing page. Public route documents remain
+indexable; application routes retain `noindex, nofollow` and revalidation. The static
+server serves canonical public paths directly without a directory redirect.
+Service Worker public navigation tries the network first, preserving edge
+redirects and query parameters, and uses precached `index.html` files only when
+the network fails. Precache directory-index aliases and query normalization are
+disabled, and generated-worker checks reject canonical or clean-URL aliases that
+could intercept public URLs before that handler. The redirecting `.run`
+canonical URLs themselves are not precached.
+Public application entrances (`/login`, `/terms`, `/privacy`, `/status`, `/verify`)
+have separate non-indexable loading documents with a visible regional filing,
+including without JavaScript; private routes retain the hidden-footer app shell.
+
+The public entry hydrates the same components used to generate the static HTML.
+Its module graph is checked by `web/scripts/check-public-build.mjs` to exclude
+application entry, charts, and full application catalogs. A fresh public session
+does not download the full PWA precache; registration on app entry preserves
+application offline caching. Recheck both cold public navigation and controlled
+application refresh after changes to the build or Service Worker.

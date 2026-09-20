@@ -1091,8 +1091,8 @@ msgstr "All four statements apply to me."
 #~ msgstr "All synced"
 
 #: src/components/StatusIndicator.tsx:27
-msgid "All systems operational"
-msgstr "All systems operational"
+#~ msgid "All systems operational"
+#~ msgstr "All systems operational"
 
 #: src/pages/Status.tsx:72
 msgid "All Systems Operational"
@@ -3083,8 +3083,8 @@ msgid "Degraded"
 msgstr "Degraded"
 
 #: src/components/StatusIndicator.tsx:28
-msgid "Degraded performance"
-msgstr "Degraded performance"
+#~ msgid "Degraded performance"
+#~ msgstr "Degraded performance"
 
 #: src/pages/Status.tsx:73
 msgid "Degraded Performance"
@@ -5366,7 +5366,7 @@ msgstr "Labs action failed"
 msgid "Labs could not load"
 msgstr "Labs could not load"
 
-#: src/App.tsx:112
+#: src/App.tsx:113
 msgid "Labs page update required"
 msgstr "Labs page update required"
 
@@ -5775,7 +5775,6 @@ msgstr "Major"
 msgid "Major Outage"
 msgstr "Major Outage"
 
-#: src/components/StatusIndicator.tsx:30
 #: src/pages/admin/AdminOps.tsx:708
 msgid "Major service outage"
 msgstr "Major service outage"
@@ -7414,7 +7413,6 @@ msgstr "Partial outage"
 msgid "Partial Outage"
 msgstr "Partial Outage"
 
-#: src/components/StatusIndicator.tsx:29
 #: src/pages/admin/AdminOps.tsx:706
 msgid "Partial service outage"
 msgstr "Partial service outage"
@@ -7892,7 +7890,7 @@ msgstr "Praxys could not determine your time zone. Check your device settings an
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 
-#: src/App.tsx:115
+#: src/App.tsx:116
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 
@@ -9176,7 +9174,7 @@ msgstr "Relative modeled HR"
 msgid "Relative modeled HR (bpm)"
 msgstr "Relative modeled HR (bpm)"
 
-#: src/App.tsx:124
+#: src/App.tsx:125
 msgid "Reload Labs"
 msgstr "Reload Labs"
 
@@ -10271,8 +10269,6 @@ msgstr "Service incidents"
 msgid "Service performance degraded"
 msgstr "Service performance degraded"
 
-#: src/components/StatusIndicator.tsx:31
-#: src/components/StatusIndicator.tsx:39
 #: src/pages/Login.tsx:677
 msgid "Service status"
 msgstr "Service status"
@@ -10290,7 +10286,7 @@ msgstr "Service Status"
 #~ msgid "Session evidence · latest {0}"
 #~ msgstr "Session evidence · latest {0}"
 
-#: src/App.tsx:162
+#: src/App.tsx:163
 msgid "Session verification is temporarily unavailable"
 msgstr "Session verification is temporarily unavailable"
 
@@ -12412,7 +12408,7 @@ msgstr "Trusted sync and connection outcomes from the backend telemetry boundary
 msgid "Try a longer window above."
 msgstr "Try a longer window above."
 
-#: src/App.tsx:174
+#: src/App.tsx:175
 msgid "Try again"
 msgstr "Try again"
 
@@ -13513,7 +13509,7 @@ msgstr "Your result is not pooled with other users and is not donated to cohort 
 msgid "Your result needs recomputing"
 msgstr "Your result needs recomputing"
 
-#: src/App.tsx:165
+#: src/App.tsx:166
 msgid "Your session is still saved. Check your connection and try again."
 msgstr "Your session is still saved. Check your connection and try again."
 

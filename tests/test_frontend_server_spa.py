@@ -71,6 +71,49 @@ def test_explicit_index_returns_index_html(client):
     assert "SPA" in res.text
 
 
+def test_application_refresh_uses_its_shell_not_the_public_home(fake_dist):
+    (fake_dist / "app-shell.html").write_text(
+        '<html><body><main aria-busy="true">APP-SHELL</main></body></html>',
+        encoding="utf-8",
+    )
+    with TestClient(create_app(dist_dir=fake_dist)) as client:
+        for path in ("/today", "/training", "/settings", "/login", "/admin/users"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert "APP-SHELL" in response.text
+            assert "SPA" not in response.text
+            assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+        assert "SPA" in client.get("/").text
+        assert "Product" in client.get("/product/").text
+        assert client.get("/assets/missing.js").status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/product", "/faq", "/zh", "/zh/product", "/zh/faq"])
+def test_public_documents_do_not_add_a_directory_redirect(client, path):
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    # These are also the exact files cached by the public navigation handler.
+    document = client.get(path + "/index.html")
+    assert document.status_code == 200
+    assert "X-Robots-Tag" not in document.headers
+
+
+@pytest.mark.parametrize("route", ["login", "terms", "privacy", "status", "verify"])
+def test_public_application_document_keeps_static_filing_and_noindex(fake_dist, route):
+    directory = fake_dist / route
+    directory.mkdir()
+    (directory / "index.html").write_text(
+        '<html><body>APP-LOADING<footer>FILING</footer></body></html>', encoding="utf-8",
+    )
+    with TestClient(create_app(dist_dir=fake_dist)) as client:
+        for suffix in ("", "/", "?source=test", "/index.html"):
+            response = client.get(f"/{route}{suffix}", follow_redirects=False)
+            assert response.status_code == 200
+            assert "FILING" in response.text
+            assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+
 def test_spa_route_falls_back_to_index_html(client):
     """A client navigating to /today directly must get index.html so the
     router can take over. Same for /training, /goal, deep routes, etc.

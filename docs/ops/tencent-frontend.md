@@ -80,6 +80,33 @@ It uploads no EdgeOne artifact, does not deploy to EdgeOne, and holds no
 EdgeOne credential.
 
 The native Git project separately runs the same checked-in regional build.
+
+The build prerenders the real public React pages into static HTML before the
+service-worker manifest is generated. Regional compliance stamping also runs
+before those cache revisions are computed. This adds no runtime SSR, function, or
+API proxy. The regional build fixes `VITE_DEPLOYMENT_REGION=cn`: `/` starts in
+Chinese; `/en` is the explicit English home and `/zh` remains supported. Public
+page language follows the route, while application language retains the user's
+stored preference. Domestic distribution links should use `.cn` directly to
+avoid the initial `.run` connection and geographic redirect.
+
+Unknown/application navigation rewrites to `/app-shell.html`, not the public
+homepage. Login, terms, privacy, status, and verification have dedicated static
+loading documents so the filing remains visible if JavaScript cannot start.
+Public navigations use the network before their offline document cache, including
+query strings and trailing slashes, so Service Workers preserve geographic 302s.
+The private-route shell retains the China deployment marker and an initially
+hidden filing footer; the router updates visibility during SPA navigation.
+The Azure static server and Service Worker use the same
+application-shell contract. Verify direct and Service Worker-controlled
+refreshes of `/today`, `/training`, and `/settings` never show marketing HTML.
+
+Cold public visits do not install the application's full offline precache.
+Application entry still registers it; existing controlled public sessions check
+for updates. The application catalog and app-only modules load on application
+entry, while public pages hydrate their existing HTML using their lightweight
+entry. `prepare-edgeone-artifact` rejects a current-format global English home;
+use `npm run build:edgeone` rather than relabelling a global prerendered build.
 The output contains:
 
 - exact `deployed_sha.txt`;

@@ -19,7 +19,7 @@ Why a separate site instead of mounting StaticFiles inside ``api/main.py``:
   the static shell, which then shows a clear error state if the API is
   unreachable).
 
-A SPA fallback (404 → index.html) is implemented by subclassing
+A SPA fallback (404 → app-shell.html) is implemented by subclassing
 ``StaticFiles`` rather than adding a separate catchall route, because the
 mount-based approach preserves Starlette's automatic MIME-type handling
 for static assets — a custom catchall would re-derive types by hand.
@@ -40,11 +40,15 @@ _DEFAULT_DEPLOYED_SHA_FILE = Path(__file__).resolve().with_name("_deployed_sha.t
 _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 _INDEXABLE_PUBLIC_PATHS = {
     "/",
+    "/en",
     "/product",
     "/faq",
     "/zh",
     "/zh/product",
     "/zh/faq",
+}
+_STATIC_DOCUMENT_PATHS = _INDEXABLE_PUBLIC_PATHS | {
+    "/login", "/terms", "/privacy", "/status", "/verify",
 }
 
 
@@ -68,7 +72,7 @@ def _read_deployed_sha(path: Path) -> str | None:
 
 
 class SPAStaticFiles(StaticFiles):
-    """``StaticFiles`` that falls back to ``index.html`` on 404.
+    """``StaticFiles`` that falls back to the application shell on 404.
 
     React Router (and any client-side router) needs every non-asset URL
     to return the SPA shell so the router can take over on the client.
@@ -82,6 +86,11 @@ class SPAStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):
         try:
+            public_path = "/" + path.strip("/")
+            if public_path != "/" and public_path in _STATIC_DOCUMENT_PATHS:
+                # Serve canonical public URLs directly instead of adding a
+                # directory-slash redirect (which can inherit an origin scheme).
+                return await super().get_response(path.rstrip("/") + "/index.html", scope)
             return await super().get_response(path, scope)
         except HTTPException as exc:
             if exc.status_code != 404:
@@ -90,7 +99,16 @@ class SPAStaticFiles(StaticFiles):
             # genuinely 404 — don't paper over them.
             if path.startswith("assets/") or _looks_like_asset(path):
                 raise
-            return await super().get_response("index.html", scope)
+            # Public documents have their own prerendered HTML. Application
+            # routes must never receive the marketing homepage while booting.
+            shell = "app-shell.html"
+            try:
+                return await super().get_response(shell, scope)
+            except HTTPException as shell_exc:
+                if shell_exc.status_code != 404:
+                    raise
+                # Supports an older artifact during a rolling deployment.
+                return await super().get_response("index.html", scope)
 
 
 def create_app(
@@ -155,7 +173,8 @@ def create_app(
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         normalized_path = path.rstrip("/") or "/"
-        if normalized_path not in _INDEXABLE_PUBLIC_PATHS and not _looks_like_asset(path):
+        document_path = normalized_path.removesuffix("/index.html") or "/"
+        if document_path not in _INDEXABLE_PUBLIC_PATHS and not _looks_like_asset(path):
             response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 

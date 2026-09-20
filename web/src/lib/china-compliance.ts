@@ -1,6 +1,6 @@
 // Display policy only; this does not grant access or change processing consent.
 const PUBLIC_FILING_PATHS = new Set([
-  '/', '/zh', '/product', '/faq', '/zh/product', '/zh/faq',
+  '/', '/en', '/zh', '/product', '/faq', '/zh/product', '/zh/faq',
   '/login', '/terms', '/privacy', '/status', '/verify',
 ]);
 
