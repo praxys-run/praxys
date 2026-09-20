@@ -85,7 +85,9 @@ The output contains:
 - exact `deployed_sha.txt`;
 - JSON `healthz`;
 - ICP footer and China deployment marker; after public-security approval, the
-  separately reviewed exact public-security filing markup;
+  exact public-security filing markup (`沪公网安备31011802006255号`) on
+  public pages, with the official icon before its number; authenticated app
+  routes hide the filing footer;
 - SPA rewrites and checked-in security headers.
 
 There is no checksum-manifest, release-floor, registry, or repeated preflight

@@ -37,6 +37,7 @@ import Verify from './pages/Verify';
 import Status from './pages/Status';
 import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatus';
 import ChinaProcessingNoticeGate from './components/ChinaProcessingNoticeGate';
+import ChinaComplianceVisibility from './components/ChinaComplianceVisibility';
 import {
   acknowledgeChinaProcessingNotice,
   hasAcknowledgedChinaProcessingNotice,
@@ -292,6 +293,7 @@ export default function App() {
             </StatsigProvider>
           </AuthProvider>
         </ChinaProcessingBoundary>
+        <ChinaComplianceVisibility />
       </BrowserRouter>
     </LocaleProvider>
   );

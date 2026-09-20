@@ -5413,7 +5413,7 @@ msgstr "Labs 操作失败"
 msgid "Labs could not load"
 msgstr "无法加载 Labs"
 
-#: src/App.tsx:111
+#: src/App.tsx:112
 msgid "Labs page update required"
 msgstr "需要更新 Labs 页面"
 
@@ -7967,7 +7967,7 @@ msgstr "Praxys 无法确定所在时区。请检查设备设置后重试。"
 msgid "Praxys could not finish delivery. Retrying keeps the Praxys version canonical."
 msgstr "Praxys 未能完成下发。重试后仍以 Praxys 版本为准。"
 
-#: src/App.tsx:114
+#: src/App.tsx:115
 msgid "Praxys could not finish loading this page after an app update. Reload once to use the current version."
 msgstr "应用更新后，此页面未能完成加载。重新加载一次即可使用最新版本。"
 
@@ -9279,7 +9279,7 @@ msgstr "相对模型心率"
 msgid "Relative modeled HR (bpm)"
 msgstr "相对模型心率（bpm）"
 
-#: src/App.tsx:123
+#: src/App.tsx:124
 msgid "Reload Labs"
 msgstr "重新加载 Labs"
 
@@ -10417,7 +10417,7 @@ msgstr "服务状态"
 #~ msgid "Session evidence · latest {0}"
 #~ msgstr "训练记录证据 · 最近 {0} 条"
 
-#: src/App.tsx:161
+#: src/App.tsx:162
 msgid "Session verification is temporarily unavailable"
 msgstr "暂时无法验证登录状态"
 
@@ -12570,7 +12570,7 @@ msgstr "来自后端可信遥测边界的同步与连接结果。"
 msgid "Try a longer window above."
 msgstr "试试上方更长的时间窗口。"
 
-#: src/App.tsx:173
+#: src/App.tsx:174
 msgid "Try again"
 msgstr "重试"
 
@@ -13671,7 +13671,7 @@ msgstr "你的结果不会与其他用户合并，也不会捐赠给群体研究
 msgid "Your result needs recomputing"
 msgstr "结果需要重新计算"
 
-#: src/App.tsx:164
+#: src/App.tsx:165
 msgid "Your session is still saved. Check your connection and try again."
 msgstr "登录状态仍已保留。请检查网络连接后重试。"
 
