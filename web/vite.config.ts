@@ -100,6 +100,9 @@ export default defineConfig({
     },
   },
   build: {
+    // Avoid immutable HTML responses cached at old asset URLs during the
+    // 2026-09-20 EdgeOne wildcard-rewrite incident. Keep future assets here.
+    assetsDir: 'assets/client',
     manifest: true,
     // Keep shared utilities out of the chart chunk. Pulling dependencies into a
     // manual Recharts group makes even clsx consumers download the whole chart library.
