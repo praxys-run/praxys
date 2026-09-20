@@ -20,21 +20,23 @@ future behavior; no component, user-facing copy or runtime flow is changed here.
 
 ## 1. Goal and conditions
 
-Entry offers **Daily trail training / 日常越野训练** and **Prepare for a race /
-越野备赛**. Race intent is **First finish / 首次完赛** or **Improve performance /
-提升表现**. Daily has no event date. Race captures date, distance including
+The English labels below define the intended meaning. Future zh localization
+must preserve each distinction and consistently use the standard localized term
+for treadmill, separately from training incline. Exact Chinese copy can be
+discussed in the session or temporary review material; this document stays English.
+
+Entry offers **Daily trail training** and **Prepare for a race**. Race intent is **First finish** or **Improve performance**. Daily has no event date. Race captures date, distance including
 50,000 m, expected duration, ascent / descent, terrain and environment, with
 unknown choices. Distance alone never establishes eligibility.
 
-Editable presets are **Regular mountain access / 经常进山**, **City with
-occasional mountain access / 城市偶尔进山**, and **Road running and gym /
-路跑加健身房**. Preview replacements and preserve explicit answers unless each
+Editable presets are **Regular mountain access**, **City with occasional mountain
+access**, and **Road running and gym**. Preview replacements and preserve explicit answers unless each
 is selected for replacement. A preset gives neither ability nor confirmation;
 gym access is optional. Separate location / resources, equipment capabilities,
 movement familiarity, history and dates.
 
-Keep **Unknown / 未知**, **No connected records / 未连接训练记录**, **Reported by
-you / 你提供的经历**, **Confirmed no experience / 已确认没有经历**, and observed
+Keep **Unknown**, **No connected records**, **Reported by you**,
+**Confirmed no experience**, and observed
 real zero distinct. Monthly mountain frequency never creates dates. Reported
 history uses only the applicable Science bridge and retains its source label.
 
@@ -51,15 +53,15 @@ invalidates it; day-seven review never extends validity or confirmation.
 Show a plain verdict, next action and five rows: basic running, uphill,
 downhill-related strength, stability / control and real terrain. Each row shows
 provenance, applicability, limits and an actionable link to the relevant field.
-Distinguish **Supported under these conditions / 按当前条件可支持**, **Included
-in this proposal / 本提案已包含**, and **Scheduled / 已安排**. A qualified module
+Distinguish **Supported under these conditions**, **Included in this proposal**,
+and **Scheduled**. A qualified module
 omitted from the proposal needs a scheduling reason. Purpose tags never imply
 acquired capability or duplicate workload.
 
 Keep exact blockers visible: first-50-km admission, long-run / back-to-back,
 vertical / descent progression, novel descent, technical terrain, negative
 treadmill, performance / race pace, complete event nutrition and environment.
-Show **Race preparation remains incomplete / 备赛内容仍不完整**, never a
+Show **Race preparation remains incomplete**, never a
 ready-to-finish verdict. A local gap can leave independent qualified modules
 available; global eligibility / stop conditions still apply.
 
@@ -84,7 +86,7 @@ familiar 2-set template. Acquired per-pattern dose persists, first two weeks sta
 once weekly, and any later frequency increase uses the sole approved transition
 at that review. Explain that increased frequency increases weekly exposure.
 
-Separate **Treadmill / 跑步机** capability from **Training incline / 训练坡度**.
+Separate **Treadmill** capability from **Training incline**.
 The inactive example is 5 minutes at 0%, three repetitions of 2 minutes at 2%
 plus 2 minutes at 0%, then 3 minutes at 0% cooldown. Device levels are not
 percentages. Stairs show ascent, flat recovery, return path and extra transit.
@@ -98,7 +100,7 @@ neighboring dates and proposals, with the largest applicable interval. Show tota
 time and separate running / mechanical budgets; no universal four-training-day
 minimum. A new proposal cannot reset scientific baseline or progression state.
 
-**Adopt this proposal / 采用此提案** previews the exact replacement set. Show
+**Adopt this proposal** previews the exact replacement set. Show
 “scheduled” only on server success. Revalidate edits; preserve completed courses
 and siblings. Collect per-course and next-day feedback. Day-seven review offers
 maintain / progress / regress / hold only from accepted policy; no catch-up load.
@@ -116,7 +118,7 @@ maintain / progress / regress / hold only from accepted policy; no catch-up load
 | Retention capacity | At 128 unexpired bundles, explain capacity, export / delete and expiry dates; do not silently evict |
 | Retention expiry | Explain 30 / 180 days from proposal creation or earlier source deadline, and Trust's current-context purge rules |
 | Cleanup pending | Never report successful deletion while affected copies remain |
-| Reset | **Reset answers; retained proposals and activities remain / 重置回答；保留的提案和活动仍在** |
+| Reset | **Reset answers; retained proposals and activities remain** |
 | Withdrawal / scoped deletion | Preview affected context / rationale cascade and independent facts preserved; distinguish from reset |
 | Unknown schema / gate-off | Preserve raw read / export / delete; explain unsupported edit / generation / adoption |
 | Session / account change | Clear private local draft state |

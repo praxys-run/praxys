@@ -1,68 +1,151 @@
-# #798 通用越野训练：P1 评审入口与决定单
+# #798 Universal trail training: P1 review entry and decision sheet
 
-2026-09-14 · **draft / inactive；P1 尚未完成，#798 保持打开。**
+2026-09-14 candidate; English presentation updated 2026-09-20.
+**Draft / inactive; P1 is incomplete and #798 remains open.**
 
-本轮已形成可审阅的通用核心候选、精确科学契约及 Product / Design / Architecture /
-Trust 草案。独立 Science 已完成修订版复核，没有未解决的审查发现；首次 50 公里
-完整处方等科学缺口和必要内容接受仍未完成。合并本次评审准备不能启用功能、
-授权 P2–P8 运行实现或满足 #798 的全部验收。
+The reviewable core candidate, exact Science contract and Product / Design /
+Architecture / Trust drafts are prepared. Independent Science re-review found no
+unresolved findings in the revised scientific artifacts. Complete first-50-km
+prescriptions and other scientific gaps, as well as required content acceptance,
+remain outstanding. Merging this review preparation does not activate features,
+authorize P2–P8 runtime implementation or meet all #798 acceptance criteria.
 
-## 从这里审阅
+## One decision now: the Evidence Review
 
-| 对象 | 审阅入口 |
+The bounded human decision is whether to accept
+`evidence-trail-running-program-v1` in the existing `evidence_reviewer` role for
+its search method, claims, citation verification, limitations and gaps.
+
+**Review the complete bounded decision explanation presented by the agent in the
+session or temporary review material. You do not need to read the full generated
+packet or open every link.** That explanation must bind the exact evidence digest
+below and cover all 12 material claims, evidence strength and studied populations,
+search / selection method, source-access limits, counterevidence, uncertainty,
+gaps and the effects of acceptance. It must preserve the subject's conditions and
+limits; a short orientation alone cannot support blanket acceptance.
+
+The [generated Evidence Review packet](../../data/science/generated/review-packets/evidence-trail-running-program-v1.md)
+and its source records remain available for audit on demand. Use them to inspect
+a particular claim, method or binding; they do not add a separate mandatory reading
+step when the complete bounded explanation has been presented. This page and that
+presentation neither change the approval scope nor record a human decision.
+
+The exact canonical evidence digest is:
+
+`sha256:8525f2aaf5b608d746564fbf0dbcd54e4a2fc981fcfc28b4fe78ee6360e567eb`
+
+The independent Router's recommendation is to accept the bounded Evidence Review
+while retaining its source-access and applicability limits: 24 sources, including
+11 with relevant full-text review and 13 reviewed at abstract level. The
+alternative is to request specific corrections or additional evidence and leave
+acceptance pending. Acceptance establishes the evidence basis for a separate
+Science decision; it does not accept a personal dose, Product tradeoff, retention
+period, implementation or runtime change. No human identity or acceptance is
+inferred from this page. See the [routing record](trail-running-program-decision-review.md)
+for the dated allocation and its refresh after the English subject translations.
+
+## Later decisions, presented separately
+
+After the evidence decision, a human `decision_approver` separately reviews the
+[Science decision sheet](../../data/science/generated/review-packets/sdr-trail-running-program-policy-v1.md)
+as a unit, including affirmative guardrails and explicit deferrals. Its canonical
+decision digest is
+`sha256:b9fd88e07f0bafc6b063a9934ebf9799fd56006f02277f0b28e489cd51962255`.
+The generated inactive contract digest is
+`sha256:813b0a5bfbc1ba672b2fafaca2d31706be40e2860331b9ac813b6fcb01afe776`.
+Read the decision sheet first and consult its parameter appendix as needed.
+Approval must bind the displayed immutable subject digest; this page is neither
+an approval statement nor an acceptance record.
+
+Product, Design, Experience, Architecture and Trust content decisions then remain
+separate decisions before their dependent implementation. Each will be presented
+with its practical alternatives and current file binding. Evidence acceptance
+cannot accept those decisions. Implementation review, independent Quality and
+applicable Operations / release review remain additional gates.
+
+## Optional audit and downstream references
+
+| Question to investigate | Reference |
 | --- | --- |
-| Evidence Review | [完整证据审阅包](../../data/science/generated/review-packets/evidence-trail-running-program-v1.md)、[原始 Evidence](../../data/science/evidence/trail-running-program/evidence-trail-running-program-v1.yaml)、[检索清单](../../data/science/evidence/trail-running-program/search-manifest-trail-running-program-v1.json) |
-| Science Decision | [决定单与精确参数附录](../../data/science/generated/review-packets/sdr-trail-running-program-policy-v1.md)、[SDR 原件](../../data/science/decisions/sdr-trail-running-program-policy-v1.yaml)、[inactive 机器契约](../../data/science/generated/contracts/sdr-trail-running-program-policy-v1.json) |
-| 产品与体验 | [Product](trail-running-program-product-draft.md)、[Design](trail-running-program-design-draft.md)、[Experience Specification](trail-running-program-experience-draft.md) |
-| 系统与数据权利 | [Architecture](trail-running-program-architecture-draft.md)、[Trust](trail-running-program-trust-draft.md) |
-| 绑定与评审 | [精确文件及模型摘要](trail-running-program-review-bindings.md)、[Work Contract](trail-running-program-work-contract.json)、[独立 Science 初审与复核](trail-running-program-independent-science-review.md)、[Decision Review 路由](trail-running-program-decision-review.md) |
-| 实施与验收 | [Implementation Impact Map / 阻断矩阵](trail-running-program-implementation-impact.md)、[P1–P8 跟踪](trail-running-program-delivery.md) |
+| Evidence source and retrieval details | [Evidence source](../../data/science/evidence/trail-running-program/evidence-trail-running-program-v1.yaml), [search manifest](../../data/science/evidence/trail-running-program/search-manifest-trail-running-program-v1.json) |
+| Exact scientific policy and machine projection | [SDR source](../../data/science/decisions/sdr-trail-running-program-policy-v1.yaml), [inactive machine contract](../../data/science/generated/contracts/sdr-trail-running-program-policy-v1.json) |
+| Product and experience proposals | [Product](trail-running-program-product-draft.md), [Design](trail-running-program-design-draft.md), [Experience Specification](trail-running-program-experience-draft.md) |
+| System and data-rights proposals | [Architecture](trail-running-program-architecture-draft.md), [Trust](trail-running-program-trust-draft.md) |
+| Exact bindings and independent review | [File and model digests](trail-running-program-review-bindings.md), [Work Contract](trail-running-program-work-contract.json), [initial Science review and re-review](trail-running-program-independent-science-review.md), [Decision Review route](trail-running-program-decision-review.md) |
+| Implementation and acceptance dependencies | [Implementation Impact Map / blocker matrix](trail-running-program-implementation-impact.md), [P1–P8 tracking](trail-running-program-delivery.md) |
 
-请先读生成包的决定单，再按问题查看附录。批准对象必须是其中显示的不可变摘要，
-本中文摘要不代替完整包，也不构成审批语句或接受记录。
+## Affirmative candidates submitted in this round
 
-## 本轮提交哪些肯定决定
+The evidence contains 24 stable sources, 12 claims and 16 parameter groups.
+Independent review checked all metadata / abstracts, read relevant full text for
+11 sources, and retained abstract-level coverage for the other 13. This is a
+bounded evidence assessment, not an exhaustive systematic review. Actual queries
+and retrieval limitations are in the search manifest.
 
-证据包含 24 个稳定来源、12 项主张和 16 组参数。独立审查核对全部元数据 / 摘要，
-其中 11 个读取相关全文，其余 13 个保持摘要级。检索是有边界的证据评估，
-并非穷尽系统综述；实际查询和取回限制见检索清单。
+- **Reported-history baseline path.** People with sparse device records can use
+  two 20-minute easy / run-walk candidates per week under explicit admission
+  rules. Reported history does not become observed history, and a general running
+  base does not establish complete trail preparation.
+- **Strength and control without a gym.** Squat, calf raise, hip extension and
+  stability / control have home exercises and alternatives. Introductory dynamic
+  work uses 1 × 6, a 3-second lowering phase and 120-second rest; see the exact
+  groups for load, spacing and regression. The bodyweight combination is a
+  candidate guardrail; ACSM does not directly validate arbitrary bodyweight
+  combinations as equivalent to equipment-based training.
+- **Controlled uphill work.** Treadmill introduction is 20 minutes at 0% / 2%;
+  stair-ascent introduction is 15 minutes plus actual return transit. Check
+  equipment capability, incline and return path separately. Indoor training does
+  not add outdoor descent metres.
+- **Independent dual sessions.** At most one running-type and one strength
+  session on the same day, completed independently. The first candidate pairs
+  short easy running with strength that has passed current-dose tolerance checks,
+  at least 4 hours from end to start. The 48 / 72-hour rules likewise measure
+  earlier end to later start, apply in both orders, use the largest matching
+  interval and do not reset across dates or proposals.
+- **Progression without bypassing review.** At most one upward change per rolling
+  7 days, including strength frequency. Introductory strength stays once weekly
+  for the first two weeks. From day 14, two tolerated exposures at the current
+  dose permit review of a second weekly session, without simultaneous exercise
+  dose increases. Doubling frequency increases weekly exposure; acquired
+  familiarity does not automatically select 2 sets for every exercise.
+- **Two running budgets.** Check total run / walk and actual running separately.
+  Original 150 / 120-minute ceilings become 155 / 125 after one +5 transition,
+  still constrained by availability and single-session caps. Positive changes
+  total at most +10 per rolling 14 days and +20 in the original lineage. New
+  proposals, restarts and history refreshes do not reset references or increments.
+- **Bounded cycle candidates.** Run / walk starts at 4:1 with reductions to 2:1 /
+  1:1. Fuel practice begins at 30 g/h and, after tolerance review, is considered
+  only up to 40 g/h. The 14-day taper candidate retains 60% / 40% of reference
+  running volume in its first / second weeks. These exact values are guardrails,
+  not research-proven personal safe doses.
+- **Daily and race goals remain distinct.** Daily training invents no event date
+  and uses 14 / 7 rolling review. First-finish and performance goals include
+  exactly 50,000 metres. Future stages express review obligations, not an already
+  generated complete preparation plan.
 
-- **本人陈述的基础路径。** 少设备记录者可在明确资格下使用每周两次 20 分钟的
-  跑走 / 轻松候选。陈述不变成测得历史，普通跑步基础不证明完整越野准备。
-- **无健身房的力量与控制。** 深蹲、提踵、髋伸和稳定控制有居家动作及替代。
-  入门动态动作 1 × 6、下放 3 秒、休息 120 秒；负荷、间隔和退阶见精确组。
-  徒手组合是候选 guardrail，ACSM 并未直接验证任意徒手组合等同器械训练。
-- **受控上坡。** 跑步机 20 分钟、0% / 2% 入门；楼梯上行 15 分钟入门加实际
-  返回通行时间。器械能力、坡度和返回路径分别检查；室内训练不增加户外下降米数。
-- **独立双课。** 同日最多一节跑步类加一节力量，分别完成。首版是短轻松跑后
-  经过当前剂量耐受检查的力量，结束至开始至少 4 小时。48 / 72 小时规则同样
-  按较早课结束至较晚课开始、两个顺序适用，多规则取最长，跨日 / 提案不清零。
-- **不绕过复核的进阶。** 每滚动 7 天只允许一个向上调整，含力量频次。入门前
-  两周各一次；第 14 天起，两次当前剂量耐受复核后才可选择增加第二次，且不同时
-  加动作剂量。频次翻倍会增加每周暴露，取得熟悉度也不会自动切到每动作 2 组。
-- **两项跑步预算。** 总跑走和实际跑步分别检查；原始 150 / 120 分钟经一次 +5
-  后为 155 / 125，仍受实际可用时间和单课上限约束。每滚动 14 天最多 +10，
-  原始训练线累计最多 +20；新提案、恢复和历史刷新均不重置基线及累计量。
-- **有边界的周期候选。** 跑走初始 4:1，可降至 2:1 / 1:1；补给练习从 30 g/h
-  开始，耐受后仅评审至 40 g/h；减量候选 14 天，前后周保留参考跑量 60% / 40%。
-  具体值都是 guardrail，不是研究证明的个人安全剂量。
-- **日常与赛事分开。** 日常不虚构赛事日期，使用 14 / 7 滚动。首次完赛和表现
-  目标含恰好 50,000 米；未来阶段只表示复核义务，不能称已生成完整备赛。
+Only `published_reference_context` records published context; the other 15 groups
+are guardrails. Group-level values do not directly become personal targets.
+There is no promise of adaptation in two weeks, injury prevention, finish
+probability or medical clearance.
 
-仅 `published_reference_context` 组记录文献语境，其余 15 组为 guardrail。
-群体值不能直接生成个人目标；不承诺两周适应、防伤、完赛概率或医疗许可。
+## Decisions that remain unavailable
 
-## 尚不能作出的决定
+Complete first-50-km admission, long-run / back-to-back doses, vertical / descent
+progression, new outdoor descent without comparable experience, negative
+incline treadmill, technical-terrain progression, performance quality / pace,
+complete race-day nutrition / fluid / electrolytes and special-environment
+policies still block their modules and the complete-race-preparation promise.
+These gaps do not remove independently qualified daily, basic or strength
+candidates; global eligibility and stop conditions still take precedence.
 
-完整首次 50 公里准入、长课 / 连续长课剂量、垂直 / 下坡进阶、无相近经历的
-新户外下降、负坡跑步机、技术路面进阶、表现型质量课 / 配速、完整比赛日补给水盐
-和特殊环境政策仍阻断相应专项及“完整赛事准备”。这些缺口不一并取消独立合格的
-日常、基础和力量候选；全局资格和停止条件仍优先。
+The original Science proposer corrected the two rule contradictions found in the
+initial review; the same independent reviewer confirmed resolution against the
+new file digest. Source / rule review does not substitute for machine-contract
+verification, Quality, human acceptance or runtime approval. Generated packets
+still show acceptance pending; no v2 / v3 approval is inherited.
 
-独立 Science 初审发现的两项规则矛盾已由原 Science 提案者修订，并经同一独立
-审查者按新文件摘要复核解决。其来源 / 规则检查不等于机器契约验证、Quality、
-人类接受或运行批准。生成包仍显示待接受；不继承旧 v2 / v3 的任何批准。
-
-Product / Design / Experience / Architecture / Trust 使用现有逻辑交接字段，
-没有创建新的治理、审批或生产 schema。相关专业内容接受后才进入下游实现。
-本次没有 Web / 小程序代码、渲染证据、个人数据、迁移、provider、配置或部署变更。
+Product / Design / Experience / Architecture / Trust use existing logical
+handoff fields, without a new governance, approval or production schema.
+Dependent implementation waits for the relevant specialist content acceptance.
+This change contains no Web / miniapp code, rendered evidence, personal-data,
+migration, provider, configuration or deployment change.

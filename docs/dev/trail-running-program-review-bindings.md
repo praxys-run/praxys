@@ -3,6 +3,15 @@
 2026-09-14. **Draft / inactive; no approval or activation.** This is a human-readable
 binding table for the existing logical handoffs, not a new approval schema.
 
+**2026-09-20 presentation refresh:** Product and Experience were translated to
+English without changing their proposed boundaries. Their current file hashes
+below replace the historical 2026-09-14 bindings. All Science subjects, model /
+contract digests and other bound files remain unchanged. The separate English
+correction contract is recorded in the [current handoff](trail-running-program-review-handoff.md);
+it does not replace the parent P1 contract. The [independent routing refresh](trail-running-program-decision-review.md)
+of 2026-09-20 binds the translated subjects. The 2026-09-14 receipt remains
+explicitly historical and is not evidence of review of the new file tuple.
+
 ## Canonical Science subjects
 
 These digests are emitted by the existing `analysis.science_artifacts` helpers
@@ -48,9 +57,9 @@ renewing any dependent review; do not reuse an earlier binding.
 | [data/science/generated/review-packets/evidence-trail-running-program-v1.md](../../data/science/generated/review-packets/evidence-trail-running-program-v1.md) | `b75e82116b3e6291e5d6b1a1803298c1fa5cc72fc3ac21370049c8a634ad2898` |
 | [data/science/generated/review-packets/sdr-trail-running-program-policy-v1.md](../../data/science/generated/review-packets/sdr-trail-running-program-policy-v1.md) | `598e2c8cef0b54438732369e71ff28c1b7dbc079465d00fe1d90b6c2e63b273f` |
 | [data/science/generated/contracts/sdr-trail-running-program-policy-v1.json](../../data/science/generated/contracts/sdr-trail-running-program-policy-v1.json) | `a70c7aa1261b70e3535459b85874ef8851805c2d6523ba2e8a19c7f429189e7c` |
-| [docs/dev/trail-running-program-product-draft.md](trail-running-program-product-draft.md) | `69173c82d959cd31561baec76b39c07ef194a4d2d37eb77bafe7b905a7f5aa9f` |
+| [docs/dev/trail-running-program-product-draft.md](trail-running-program-product-draft.md) | `2a3f0237d126b5b06454f7fa995a529ee41af0b44cda098e1c5fea7efefceac9` |
 | [docs/dev/trail-running-program-design-draft.md](trail-running-program-design-draft.md) | `58b180125c47251d475d2bcb0b5bbeabe23f136a82cb590f578927678d2a6daa` |
-| [docs/dev/trail-running-program-experience-draft.md](trail-running-program-experience-draft.md) | `c1abd558d65b1f9156241dbfc936541e7de3741bf524a583bd941f7277e88b9b` |
+| [docs/dev/trail-running-program-experience-draft.md](trail-running-program-experience-draft.md) | `f7ec2e2e4900ba9f193714d2f23cfc1a5e0dbdae59e2c26b89c36072d1774526` |
 | [docs/dev/trail-running-program-architecture-draft.md](trail-running-program-architecture-draft.md) | `dc394d211faf5b0162a26ee76a0f1a8d14f730e956dea00c18798f5193ad054c` |
 | [docs/dev/trail-running-program-trust-draft.md](trail-running-program-trust-draft.md) | `d8ba182665585943d55180bff436b68d4f06561a978be2cfc72feebd329e0e22` |
 | [docs/dev/trail-running-program-independent-science-review.md](trail-running-program-independent-science-review.md) | `1ecfce1c3830e0df53592f615b8fe40f677fa3a2d50b4d7681685cffdb999b39` |
@@ -63,7 +72,7 @@ and revised `e959776834ade0c7ff7fac225a1975ec62501cdb1a913273544061765f4f0827`.
 The same reviewer found the initial two blockers and spacing clarification resolved
 at the revised hash. That record does not approve generated files or runtime work.
 
-Required next records: independent [Decision Review routing](trail-running-program-decision-review.md),
-human content acceptance where allocated, and independent Quality against the
-immutable implementation commit. No old approval, test total or rendered claim
+The independent [Decision Review routing](trail-running-program-decision-review.md)
+refresh is recorded. Human content acceptance where allocated and independent
+Quality against the final immutable implementation commit remain required. No old approval, test total or rendered claim
 is imported into this new scope.

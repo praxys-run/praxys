@@ -1,124 +1,160 @@
-# 通用越野训练：八个交付项与会话交接
+# Universal trail training: eight deliverables and session handoff
 
-> **2026-09-14 后继评审进展：** 新的 [P1 评审入口与决定单](trail-running-program-review-sheet.md)
-> 已形成独立的新 Evidence / SDR、inactive 契约及具体角色草案。独立 Science 修订复核完成，
-> 无未解决审查发现；完整 50 公里处方、必要内容接受与 P1 验收仍未完成。
-> 下文保留 2026-09-09 的历史交接语境，不把旧 v3 验证扩展到新范围。
+> **2026-09-14 successor review progress:** The new [P1 review entry and decision
+> sheet](trail-running-program-review-sheet.md) contains separate new Evidence /
+> SDR records, an inactive contract and concrete role drafts. Independent Science
+> re-review is complete with no unresolved findings; complete 50 km prescriptions,
+> required content acceptance and P1 acceptance remain incomplete.
+> The text below retains the historical 2026-09-09 handoff context and does not
+> extend old v3 verification to the new scope.
 
-**状态：当前为 P1 的部分进展，所有后续运行能力未完成。** Owner: Engineering。
-本页记录 Product 与各专家交接的实现影响和依赖，不是自行接受决定或独立验证。
-产品范围见 [Product 交接](trail-running-program-scope.md)，科学及接口未决项见
-[分角色评审交接](trail-running-program-review-handoff.md)。
+**Status: partial P1 progress; all downstream runtime capabilities remain
+incomplete.** Owner: Engineering. This page records implementation impacts and
+dependencies from Product and specialist handoffs; it is not self-acceptance or
+independent verification. See the [Product handoff](trail-running-program-scope.md)
+for scope and the [role review handoff](trail-running-program-review-handoff.md)
+for open scientific and interface decisions.
 
-## 跟踪结构与现有成果
+## Tracking structure and existing work
 
-已创建“通用越野训练：日常与单日至 50 公里备赛”子 Epic
-[#797](https://github.com/praxys-run/praxys/issues/797)，父项为
-[#582](https://github.com/praxys-run/praxys/issues/582)。P1–P8 对应 #798–#805，作为八个 issue／PR 的默认边界；
-可在一个 issue 中产出多个独立科学决定。每个 issue 关闭均以其验收条件为准。
+The child Epic “Universal trail training: daily training and single-day race
+preparation through 50 km” is [#797](https://github.com/praxys-run/praxys/issues/797),
+under [#582](https://github.com/praxys-run/praxys/issues/582). P1–P8 map to
+#798–#805 as the default eight issue / PR boundaries. One issue can produce
+several independent scientific decisions. Each issue closes only when its own
+acceptance criteria are met.
 
-截至 2026-09-09 只读核对：
+Read-only status check as of 2026-09-09:
 
-- [#690](https://github.com/praxys-run/praxys/issues/690)／[#692](https://github.com/praxys-run/praxys/issues/692)
-  仍打开；已合并 [#759](https://github.com/praxys-run/praxys/pull/759) 的受治理政策草案和
-  [#776](https://github.com/praxys-run/praxys/pull/776) 的 inactive non-ultra core。
-  这些是已有基础，不等于新范围上线。
-- [#691](https://github.com/praxys-run/praxys/issues/691) 关联本次 50 公里研究；保留更长距离、
-  100 英里和多日需求，不因关联或本 Epic 完成而关闭。
-- [#663](https://github.com/praxys-run/praxys/issues/663)、[#662](https://github.com/praxys-run/praxys/issues/662)、
-  [#664](https://github.com/praxys-run/praxys/issues/664) 作为共享生命周期依赖，保持其范围和状态。
-- [#730](https://github.com/praxys-run/praxys/issues/730) 中 Road 10K 仍 inactive/default-hidden，
-  #735 是原已选受控运行评估规划。2026-09-09 用户另外选定 Trail 范围／评审准备，
-  这是对旧文“#735 为唯一 active planning slice”的后续规划扩展；不表示 #735 完成或
-  已产生运行评估结论，不改写 Road 10K 状态、运行次序或 Trail 运行权限。
+- [#690](https://github.com/praxys-run/praxys/issues/690) /
+  [#692](https://github.com/praxys-run/praxys/issues/692) remain open. The governed
+  policy draft in [#759](https://github.com/praxys-run/praxys/pull/759) and inactive
+  non-ultra core in [#776](https://github.com/praxys-run/praxys/pull/776) are merged.
+  They are foundations, not a release of the new scope.
+- [#691](https://github.com/praxys-run/praxys/issues/691) is linked to this 50 km
+  research. Its longer-distance, 100-mile and multi-day requirements remain; the
+  link or completion of this Epic does not close it.
+- [#663](https://github.com/praxys-run/praxys/issues/663),
+  [#662](https://github.com/praxys-run/praxys/issues/662) and
+  [#664](https://github.com/praxys-run/praxys/issues/664) remain shared-lifecycle
+  dependencies with their existing scopes and states.
+- Road 10K in [#730](https://github.com/praxys-run/praxys/issues/730) remains
+  inactive / default-hidden; #735 was the selected controlled runtime evaluation
+  plan. On 2026-09-09 the user also selected Trail scope / review preparation.
+  This extends the earlier planning statement that “#735 is the only active
+  planning slice”. It does not complete #735, produce runtime evaluation
+  findings, or change Road 10K status, runtime ordering or Trail runtime authority.
 
-GitHub 已完成一个原生子 Epic 加八个原生子 issue 关联。#582/#730/#690/#692/#691
-仅追加可识别的跟踪区块，原正文逐字节保留。所有新对象保持 open、指定标签及空指派，
-没有 `agent-ready`、审查请求或自动合并。发布已先查重并逐次回读，编号绑定自真实写入结果。
+GitHub tracking established one native child Epic and eight native child issues.
+Only identifiable tracking blocks were appended to #582/#730/#690/#692/#691;
+their original bodies were preserved byte for byte. All new objects remained
+open with designated labels and no assignees, `agent-ready`, review requests or
+automatic merge. Publication checked for duplicates and read back each write;
+identifiers came from actual creation results.
 
-## P1–P8：范围、依赖与关闭条件
+## P1–P8: scope, dependencies and closure conditions
 
-| 交付项 | 内容与依赖 | 必须同批满足的验收 |
+| Deliverable | Scope and dependencies | Acceptance required in the same delivery |
 | --- | --- | --- |
-| **P1 产品与科学规则** [#798](https://github.com/praxys-run/praxys/issues/798) | 本次范围持久化及后继 Product／Evidence／SDR／Experience／Architecture／Trust 决定；复用 #690/#692，关联 #691 的 50 公里研究 | 日常、首次完赛、50 公里、无健身房、双课及完整周期有精确可审查规则；Science 逐模块给出准入、剂量、恢复、进阶和反馈依据；所有必需决定经独立路由接受并绑定交接版本后才关闭 |
-| **P2 多课日历与课程结构** [#799](https://github.com/praxys-run/praxys/issues/799) | 依赖 P1 已接受表达／架构边界；对齐 #663/#662/#664；同日一跑步类＋一力量，结构化动作、组次、负荷、休息、器械和跑步机步骤 | 稳定身份与独立完成、跳过、实际活动关联；读写、采用、修改、快照、修订、导出／删除、必要客户端兼容一起落地；旧课表不丢，新未知版本不执行；provider 零投递 |
-| **P3 条件、历史与数据权利** [#800](https://github.com/praxys-run/praxys/issues/800) | 依赖 P1 接受的数据、Science／Trust／Architecture 规则；与 P2 对齐版本；资源、器械、熟悉度、日期和来源分离 | 常规及具体例外；日常资源有有效期；无设备与无经历不混淆；真实下降／路面来源不从 gym 推导；所有新增当前值、快照、缓存、保留副本满足隔离、读取、撤回、导出和删除 |
-| **P4 五模块联合排程** [#801](https://github.com/praxys-run/praxys/issues/801) | 依赖 P1 精确处方／预算及 P2/P3；复用适用基础跑逻辑，保持纯规划 | 城市、无山、无 gym、新手／熟悉者有合法内容或明确限制；统一时间恢复、分别核算跑步和机械负荷；稀疏进山不因周垂直中位数零拒绝全部基础训练；不猜资源、不堆量，旧路跑回归 |
-| **P5 日常与完整备赛周期** [#802](https://github.com/praxys-run/praxys/issues/802) | 依赖 P4 及 P1 接受的日常／50 公里／阶段规则；对齐共享生命周期；保持纯规划 | 14 天滚动、第 7 天复核；无赛事不造日期；首次完赛／表现分支；支持适用进阶、跑走、补给练习和减量；含恰好 50 公里及不同赛事需求；变更目标和跳过课不自动补做或采用 |
-| **P6 生成与采用 API** [#803](https://github.com/praxys-run/praxys/issues/803) | 依赖 P2–P5 及接受的 Trust／Architecture；使用已有计划、提案和修订系统 | 认证、精确条件／目标／历史／科学／课结构版本、事务与重复请求；资源变化后旧稿不可采用；只替换未来未完成课；全部权利、gate-off、未知版本和 provider 零调用；保持 AI 可用性与标注语义 |
-| **P7 Web 完整体验** [#804](https://github.com/praxys-run/praxys/issues/804) | 依赖 P6 及接受的 Experience；UI Quality／Impeccable | 设置→支持→生成→审阅修改→采用→分课反馈→复核完整；可执行课细节及缺口语义；EN/zh、桌面／移动、键盘、读屏、明暗、长内容、离线／版本冲突渲染验收；小程序兼容读及 Web 编辑引导 |
-| **P8 验收与逐步开放** [#805](https://github.com/praxys-run/praxys/issues/805) | 依赖 P1–P7；发布阶段另行 Work Contract、独立审查及 Operations | 通用矩阵逐项验证，前端部署与回滚证据、Statsig 首先本人再按结果扩大，gate-off 权利；宁海真实完整流程；Product Outcome 区分可用性与效果证据；Epic/#730 与生产状态一致 |
+| **P1 Product and scientific rules** [#798](https://github.com/praxys-run/praxys/issues/798) | Persist this scope and successor Product / Evidence / SDR / Experience / Architecture / Trust decisions; reuse #690/#692 and link #691's 50 km research | Exact reviewable rules for daily use, first finish, 50 km, no gym, dual sessions and a complete cycle. Science supplies module-specific admission, dose, recovery, progression and feedback rationale. Close only after all required decisions undergo independent routing and acceptance with bound handoff versions |
+| **P2 Multi-session calendar and workout structure** [#799](https://github.com/praxys-run/praxys/issues/799) | Depends on accepted P1 representation / architecture boundaries; align with #663/#662/#664. Same-day one running-type plus one strength session; structured exercises, sets / repetitions, load, rest, equipment and treadmill steps | Stable identities and independent completion, skipping and activity links. Ship read / write, adoption, modification, snapshots, revisions, export / delete and necessary client compatibility together. Preserve old schedules; never execute unknown new versions; zero provider delivery |
+| **P3 Conditions, history and data rights** [#800](https://github.com/praxys-run/praxys/issues/800) | Depends on accepted P1 data, Science / Trust / Architecture rules; align versions with P2. Separate resources, equipment, familiarity, dates and provenance | Recurring rules and exact exceptions; daily resources have expiry. Do not confuse no device with no experience or infer actual descent / terrain from gym work. All new current values, snapshots, caches and retained copies support isolation, read, withdrawal, export and deletion |
+| **P4 Joint scheduling across five modules** [#801](https://github.com/praxys-run/praxys/issues/801) | Depends on exact P1 prescriptions / budgets and P2/P3; reuse applicable basic-running logic and keep planning pure | Valid content or explicit limits for city, no mountain, no gym, beginner and familiar cases. Shared time / recovery, separate running and mechanical budgets. A zero median weekly vertical total from occasional mountain access must not reject all basic training. No guessed resources or stacked load; preserve road-running regressions |
+| **P5 Daily and complete race-preparation cycles** [#802](https://github.com/praxys-run/praxys/issues/802) | Depends on P4 and accepted P1 daily / 50 km / stage rules; align with shared lifecycle and keep planning pure | Rolling 14 days, day-7 review, no invented event date, first-finish / performance branches, applicable progression, run / walk, fueling practice and taper. Include exactly 50 km and varied event demands. Goal changes and skipped sessions trigger neither automatic catch-up nor adoption |
+| **P6 Generation and adoption API** [#803](https://github.com/praxys-run/praxys/issues/803) | Depends on P2–P5 and accepted Trust / Architecture; use existing plans, proposals and revisions | Authentication, exact condition / goal / history / Science / workout-structure versions, transactions and duplicate-request handling. Reject stale proposals after resource changes; replace only future uncompleted sessions. Complete rights, gate-off, unknown versions and zero provider calls; preserve AI availability and labeling semantics |
+| **P7 Complete Web experience** [#804](https://github.com/praxys-run/praxys/issues/804) | Depends on P6 and accepted Experience; UI Quality / Impeccable | Complete setup → support → generation → review / edit → adoption → per-session feedback → review. Executable detail and gap semantics. Rendered EN/zh, desktop / mobile, keyboard, screen-reader, theme, long-content, offline / version-conflict acceptance. Compatible miniapp reads and Web editing guidance |
+| **P8 Acceptance and gradual availability** [#805](https://github.com/praxys-run/praxys/issues/805) | Depends on P1–P7; release requires a separate Work Contract, independent review and Operations | Verify every universal-matrix case, frontend deployment / rollback evidence, Statsig rollout first to the user's account then wider based on results, and gate-off rights. Complete real Ninghai flow. Product Outcome distinguishes usability from efficacy evidence; Epic/#730 agree with production state |
 
-默认依赖顺序为 **P1 → P2/P3 → P4 → P5 → P6 → P7 → P8**。
-P2/P3 中不依赖训练剂量的基础设施，可在其相关接受边界齐备后细分实现；
-这不放开 P4/P5 的处方或任何运行入口。研究和只读检查可并行，代码写入串行协调。
+Default dependency order: **P1 → P2/P3 → P4 → P5 → P6 → P7 → P8**.
+P2/P3 infrastructure independent of training dose may be split into implementation
+slices after its relevant acceptance boundaries are complete. This does not open
+P4/P5 prescriptions or runtime entry points. Research and read-only checks may
+run in parallel; code writes are serialized by the coordinator.
 
-当前 draft PR 包含旧 v3 评审基础、离线校验器及本次通用范围交接；没有新的通用训练生成器。
-Science 未决项直接阻断依赖它们的模块实施。不得使用 `Closes P1`，不得将合并此 PR
-当作 P1 完成或某个 50 公里方案已获接受。
+In this historical handoff, the draft PR contained the old v3 review foundation,
+offline validator and universal-scope handoff, with no new universal training
+generator. Open Science decisions block their dependent modules. Do not use
+`Closes P1` or treat merging that PR as P1 completion or acceptance of a 50 km plan.
 
-## 实现影响图
+## Implementation Impact Map
 
-| 层 | 当前 PR 已有／新增 | 下游职责 |
+| Layer | Existing / added in the historical PR | Downstream responsibility |
 | --- | --- | --- |
-| 科学 | 原 v3 draft/inactive Evidence／SDR、生成合同及离线校验；新增本轮研究交接，不更改其参数 | P1 新范围 Evidence/SDR、明确接受和契约，历史版本保留 |
-| Analysis | 保留 `analysis/trail_training_context.py` 的原离线范围，本轮不改代码 | P4/P5 纯规划及真实历史、专项预算、联合排程；强度用 splits/samples，不用 `avg_power` |
-| Data／sync | 本轮无持久化、历史或迁移改动 | P2 稳定课程身份和版本兼容；P3 来源及权利；sync 写入复用 `db/sync_writer.py` |
-| API／计划系统 | 本轮无路由、生成、采用或日历写入 | P6 薄路由、认证 deps、统一提案及事务；拒绝客户端自报权威，不新建平行生命周期 |
-| Web／小程序 | 本轮只有体验交接，无组件／文案改动或渲染声明 | P2 必要读取兼容；P7 `useApi<T>`、严格类型、UI Quality 和实际渲染；原生编辑后续 |
-| Trust／权利 | 本轮无个人数据访问、日志／遥测或授权变化 | P2/P3/P6 各自新增数据同期完整读／导出／删除和隔离；不可推迟到 P8 |
-| Operations／provider | 本轮无 Statsig、凭据、投递、发布或运行修改 | P8 现有 gate、零投递验证、发布／回滚及同 PR `docs/ops/` 更新 |
-| 验证 | 旧 v3 验证仅适用旧范围；本次新增文档与发布 payload 另行独立检查 | 每 PR 对当前 diff 验证；P8 运行完整矩阵，不以早期 3601 测试替代 |
+| Science | Original v3 draft / inactive Evidence / SDR, generated contracts and offline validation; new research handoff without changing those parameters | P1 new-scope Evidence / SDR, explicit acceptance and contracts; preserve historical versions |
+| Analysis | Preserve `analysis/trail_training_context.py` within its original offline scope; no code change in this handoff | P4/P5 pure planning with actual history, module budgets and joint scheduling; intensity uses splits / samples, not `avg_power` |
+| Data / sync | No persistence, history or migration changes in this handoff | P2 stable session identities and version compatibility; P3 provenance and rights; reuse `db/sync_writer.py` for sync writes |
+| API / plan system | No route, generation, adoption or calendar writes in this handoff | P6 thin routes, authenticated deps, shared proposals and transactions; reject client-asserted authority and avoid a parallel lifecycle |
+| Web / miniapp | Experience handoff only, without component / copy changes or rendered claims | P2 necessary reader compatibility; P7 `useApi<T>`, strict types, UI Quality and actual rendering; native editing later |
+| Trust / rights | No personal-data access, logging / telemetry or authorization changes in this handoff | P2/P3/P6 ship complete read / export / delete and isolation with their new data, never postponed to P8 |
+| Operations / provider | No Statsig, credentials, delivery, release or runtime changes in this handoff | P8 existing gate, zero-delivery verification, release / rollback and same-PR `docs/ops/` updates |
+| Verification | Old v3 results cover only the old scope; new documents and publication payload need separate independent checks | Verify each PR's exact diff; P8 runs the full matrix rather than relying on the earlier 3601 tests |
 
-## 通用验收矩阵
+## Universal acceptance matrix
 
-| 用户／资源／目标场景 | 预期结果 | 主要交付项 |
+| User / resource / goal scenario | Expected result | Main deliverable |
 | --- | --- | --- |
-| 每周进山、有越野经历 | 确认日期及真实历史参与排程，资源丰富不能放宽预算 | P3/P4 |
-| 每月两次进山 | 只排明确日期，不能从月频推定日期 | P3/P4 |
-| 14 天无山、基础足够 | 城市可执行训练与真实户外专项缺口 | P4/P7 |
-| 无健身房／专用器械 | 接受模板或逐模块限制；gym 不是默认入场券 | P4 |
-| 跑步基础足够、下降历史缺失 | 不伪造下降剂量，适用基础和力量仍可用 | P3/P4 |
-| 无设备记录、有自述经历 | 保留来源并进入接受的补充／受限路径，不写成从未跑步 | P3/P4 |
-| 力量新手／有经验 | 实际准入、剂量、动作和说明有区分 | P4 |
-| 跑步机能力未知／不兼容 | 补充或限制，不默认 10% 或将档位换成百分比 | P3/P4/P7 |
-| 同日跑步与力量 | 独立身份及完成、统一时间恢复，一课完成不影响另一课 | P2/P4/P6 |
-| 无赛事日常 | 无虚构赛期，持续滚动和复核；资源过期后不得自动延用，按规则重确认 | P3/P5/P7 |
-| 首次完赛／表现目标 | 各自解释与接受规则，不沿用 performance-only 限制 | P5 |
-| 恰好 50 公里及不同爬升／路面／时长 | 新支持边界按需求和历史判断；旧 49,999 米上限不能假装支持 | P1/P5 |
-| 临赛窗口 | 接受的减量及赛前安排，不用旧临赛全部阻断冒充完整周期 | P5 |
-| 取消进山或健身房 | 草稿重验；已采用标影响，后继明确采用再改未来课 | P6/P7 |
-| 重复请求、并发采用、资源变化 | 不重复写课、不采用旧版、不丢完成训练、失败无半份计划 | P6 |
-| 其他账号／非试用／未知版本／关闭 gate | 服务端授权一致；本人已有内容的数据权利继续可用 | P6/P8 |
-| 采用及后续任务 | 全部 provider 零调用证据 | P2/P6/P8 |
-| 桌面／移动、EN/zh、离线／冲突 | 真实渲染及交互验证，不能只检查源码 | P7/P8 |
+| Weekly mountain access with trail experience | Use confirmed dates and actual history; abundant resources cannot relax budgets | P3/P4 |
+| Mountain access twice a month | Schedule only explicit dates, never infer them from monthly frequency | P3/P4 |
+| No mountain access for 14 days, sufficient base | Executable city training and explicit actual-outdoor gaps | P4/P7 |
+| No gym / specialized equipment | Accepted templates or module limits; gym is not a default admission requirement | P4 |
+| Sufficient running base, missing descent history | No fabricated descent dose; applicable basic and strength work remains available | P3/P4 |
+| No device records, reported experience | Preserve provenance and use an accepted supplementary / limited path; do not label the person as having never run | P3/P4 |
+| Strength beginner / experienced | Distinct admission, dose, exercises and explanation | P4 |
+| Unknown / incompatible treadmill capability | Request input or limit the module; do not default to 10% or convert machine levels to percentages | P3/P4/P7 |
+| Same-day running and strength | Independent identity and completion, shared time / recovery; completing one does not complete the other | P2/P4/P6 |
+| Daily training without an event | No invented event date; rolling review, no automatic extension of expired resources, reconfirmation under policy | P3/P5/P7 |
+| First-finish / performance goal | Separate interpretation and accepted rules; do not retain the performance-only restriction | P5 |
+| Exactly 50 km with varied ascent / terrain / duration | Assess new support boundaries using demands and history; the old 49,999 m cap cannot be presented as support | P1/P5 |
+| Pre-race window | Accepted taper and pre-race arrangements; the old blanket pre-race block is not a complete cycle | P5 |
+| Canceled mountain or gym access | Revalidate drafts, flag adopted affected sessions and replace future sessions only through explicit successor adoption | P6/P7 |
+| Duplicate requests, concurrent adoption, resource changes | No duplicate sessions, stale adoption, completed-training loss or partial plan on failure | P6 |
+| Other account / outside trial / unknown version / gate off | Consistent server authorization; existing owner content retains data rights | P6/P8 |
+| Adoption and later tasks | Evidence of zero calls to every provider | P2/P6/P8 |
+| Desktop / mobile, EN/zh, offline / conflicts | Actual rendering and interaction verification, not source inspection alone | P7/P8 |
 
-这些是产品与工程验收，不是适用性实验、效果或安全证明。
-Epic 完成要求 P1–P8 全部满足、声明支持矩阵完整、所需决定接受、独立验证与发布证据齐全。
-宁海是中间验证路径，不代替其他人群和条件的验收。
+These are product and engineering acceptance criteria, not applicability trials or
+proof of efficacy or safety. Epic completion requires P1–P8, the full claimed
+support matrix, required decision acceptance, independent verification and release
+evidence. Ninghai is an intermediate validation path, not a substitute for other
+populations and conditions.
 
-## 会话与版本交接
+## Session and version handoff
 
-主会话负责 Epic 的目标、接受决定、依赖与进度；每个 PR 默认独立执行会话／分支或 worktree，
-该 PR 的修复留在原会话。独立高风险验证启动不继承执行者历史的只读线程。
-所有角色由协调器按当次 Work Contract 分派，不能借上一 PR 的调用或批准继续扩大范围。
+The main session owns Epic goals, accepted decisions, dependencies and progress.
+By default each PR has an independent execution session / branch or worktree;
+fixes for that PR stay in its original session. Independent high-risk verification
+starts in a read-only thread without executor history. Coordinators dispatch
+roles under the current Work Contract; a previous PR's invocation or approval
+does not expand authority.
 
-每次交接留下：
+Every handoff records:
 
-1. Epic／issue／PR URL、精确范围、完成条件和状态；不以聊天记忆替代材料。
-2. 已接受决定的版本／摘要与未决项；标明阻断哪个模块和责任角色。
-3. 起点 commit、分支、worktree、实际 diff；既有未提交变更和必须保留的文件。
-4. 输入输出契约、依赖完成状态、迁移／兼容及数据权利要求。
-5. 实际执行的测试、独立评审结果、精确验证 head、日志和未覆盖项。
-6. 下一项允许执行的动作及发布边界；子任务准备不代表运行或人类审批权限。
+1. Epic / issue / PR URLs, exact scope, completion criteria and status; chat
+   memory does not replace artifacts.
+2. Accepted decision versions / digests and open questions, including the blocked
+   module and responsible role.
+3. Starting commit, branch, worktree and actual diff; existing uncommitted changes
+   and files that must be preserved.
+4. Input / output contracts, dependency completion, migration / compatibility and
+   data-rights requirements.
+5. Tests actually run, independent review findings, exact verified head, logs and
+   uncovered areas.
+6. The next authorized action and publication boundary; subtask preparation does
+   not confer runtime or human approval authority.
 
-本次已授权的动作是持久化交接、创建／更新 Epic 和八个 issue、准备并发布 draft PR。
-文档及外部载荷已完成独立 Decision Review 的有界一致性审查和 Quality 检查，
-经协调器交接完成上述 GitHub 跟踪写入；本次提交承接 P1 的评审基础与交接。
-这不接受新科学参数。PR2–P8 实施、Science 接受、自动任务指派和部署不在本次动作内。
+The historical authorization covered persisting handoffs, creating / updating the
+Epic and eight issues, and preparing / publishing a draft PR. Documents and
+external payloads received bounded independent Decision Review consistency
+review and Quality checks; the coordinator completed those GitHub tracking
+writes. That delivery carried P1 review foundations and handoffs forward without
+accepting new scientific parameters. PR2–P8 implementation, Science acceptance,
+automatic task assignment and deployment were outside that action.
 
-旧 [v3 验证记录](trail-running-plan-v3-verification.md) 的 3601 passed／1 skipped 是历史
-独立副本结果；其临时日志可能已不存在，不能当作本轮精确提交的结果。
-新 PR 必须针对干净隔离 checkout 的精确 commit 执行
-`python scripts/agent_preflight.py --base origin/main`，保留该次完整日志与 Preflight head。
-源工作区的 `paseo.json` 是无关文件，不能提交、隐藏、移动或删除来通过清洁检查。
+The old [v3 verification record](trail-running-plan-v3-verification.md), with
+3601 passed / 1 skipped, describes a historical independent checkout. Its
+temporary logs may no longer exist; it cannot establish the current exact
+commit's result. Each new PR must run
+`python scripts/agent_preflight.py --base origin/main` against the exact commit
+in a clean isolated checkout and preserve that run's full log and Preflight head.
+The source worktree's `paseo.json` is unrelated and must not be committed, hidden,
+moved or deleted to satisfy the clean-worktree check.

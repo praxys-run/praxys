@@ -1,85 +1,122 @@
-# 通用越野训练：产品范围交接
+# Universal trail training: product scope handoff
 
-> **2026-09-14 后继评审进展：** 新的 [P1 评审入口与决定单](trail-running-program-review-sheet.md)
-> 已形成独立的新 Evidence / SDR、inactive 契约及具体角色草案。独立 Science 修订复核完成，
-> 无未解决审查发现；完整 50 公里处方、必要内容接受与 P1 验收仍未完成。
-> 下文保留 2026-09-09 的历史交接语境，不把旧 v3 验证扩展到新范围。
+> **2026-09-14 successor review progress:** The new [P1 review entry and decision
+> sheet](trail-running-program-review-sheet.md) contains separate new Evidence /
+> SDR records, an inactive contract and concrete role drafts. Independent Science
+> re-review is complete with no unresolved findings; complete 50 km prescriptions,
+> required content acceptance and P1 acceptance remain incomplete.
+> The text below retains the historical 2026-09-09 handoff context and does not
+> extend old v3 verification to the new scope.
 
-**状态：Product 后继提案，draft。** 本页由 Engineering 持久化 Product
-角色的只读交接，记录用户在 2026-09-09 会话中确认的产品方向。它不是新科学参数、
-架构或体验决定的接受记录，不授予运行启用或部署权限。
+**Status: Product successor proposal, draft.** Engineering persisted Product's
+read-only handoff, recording the product direction the user confirmed in the
+2026-09-09 session. It is not an acceptance record for new scientific parameters,
+architecture or experience decisions, and grants no runtime activation or
+deployment authority.
 
-这是 [v3 宁海资源适配评审包](trail-running-plan-v3-review-sheet.md) 的后继范围。
-旧 v3 的精确科学文件、离线校验器和测试继续保留原范围；本页不替换其历史，
-也不把原来的验证结果扩展到通用产品。
+This scope succeeds the [v3 Ninghai resource-adaptation review
+package](trail-running-plan-v3-review-sheet.md). The exact v3 scientific files,
+offline validator and tests retain their original scope. This page neither
+replaces their history nor extends their verification to the universal product.
 
-## 问题、选择与承诺
+## Problem, choices and promise
 
-用户需要城市及偶尔进山可执行的训练，重视上下坡相关力量和稳定控制，
-希望复用普通跑步基础并支持同日跑步与力量。产品面向具有不同经历、资源和目标的
-Praxys 用户；宁海是其中一条真实测试路径。
+The user needs executable training for city life and occasional mountain access,
+with uphill / downhill-related strength and stability / control. They want to
+reuse a general running base and support same-day running and strength. The
+product serves Praxys users with different experience, resources and goals;
+Ninghai is one real validation path.
 
-Product 比较了宁海专用闭环、通用模块且分阶段开放、一次覆盖所有越野人群和距离。
-本次确认采用第二种方向：优先共同模型与明确支持范围，避免把个人场地条件固化为公共规则。
-这仍是产品假设；目前没有代表性用户调查、依从性、训练效果或安全性观察。
+Product compared a Ninghai-specific end-to-end flow, universal modules with
+staged availability, and covering all trail populations and distances at once.
+The confirmed direction is the second: prioritize a shared model and explicit
+support boundaries without turning one person's venue constraints into public
+rules. This remains a product hypothesis; there are no representative user
+surveys or observations of adherence, training effects or safety yet.
 
-| 维度 | 用户确认的产品方向 | 仍需接受的专业规则 |
+| Dimension | User-confirmed product direction | Specialist rules still requiring acceptance |
 | --- | --- | --- |
-| 人群 | 有跑步基础的成年非医疗场景，包含越野新手和力量新手 | 基础历史、用户陈述、少设备记录的适用性和受限路径 |
-| 目标 | 无赛事日常越野；比赛首次完赛或表现提升 | 目标匹配、结果解释和各目标的具体政策 |
-| 赛事 | 常见短距离至 **50 公里（包含恰好 50 公里）** 的单日越野 | 结合预计时长、爬升、技术路面、环境和经历判断；距离内不等于自动合格 |
-| 资源 | 经常进山、城市偶尔进山、路跑加健身房三个可编辑预设；可无健身房或专用器械 | 可用动作与替代、器械要求和具体资源限制 |
-| 模块 | 基础跑步、上坡、下坡相关力量、稳定控制、真实地形五类可组合内容 | 具体准入、动作、训练量、恢复、进阶和反馈规则 |
-| 同日课程 | 最多一节跑步类课与一节力量课，独立完成 | 组合、先后与间隔、总时间和跨课负荷；不再沿用一日一课推导的至少四天限制 |
-| 节奏 | 每次生成 14 天，第 7 天复核；日常持续滚动 | 无赛事资源有效期、复核和周期状态规则 |
-| 完整备赛 | 公开能力覆盖到比赛日，包含适用的进阶、跑走、补给练习与临赛减量 | 各阶段触发、剂量、禁用及重新评估规则 |
-| 变更 | 资源改变后重验；明确采用后继才替换未来未完成课程 | 精确版本、快照与事务处理；已完成训练保留，不自动补课或堆量 |
+| Population | Adults with a running base in nonclinical settings, including trail and strength beginners | Baseline history, reported experience, sparse-device-record applicability and limited paths |
+| Goals | Daily trail training without a race; first race finish or improved performance | Goal matching, outcome interpretation and specific policies for each goal |
+| Events | Single-day trail events from common short distances through **50 km, including exactly 50 km** | Assess expected duration, ascent, technical terrain, environment and experience; being within the distance range does not confer eligibility |
+| Resources | Three editable presets: regular mountain access, city with occasional mountain access, road running and gym; no gym or specialized equipment required | Exercises and substitutions, equipment requirements and specific resource limits |
+| Modules | Five combinable modules: basic running, uphill, downhill-related strength, stability / control and real terrain | Exact admission, exercises, dose, recovery, progression and feedback rules |
+| Same-day sessions | At most one running-type session and one strength session, completed independently | Pairing, order / spacing, total time and cross-session load; remove the at-least-four-day restriction derived from one session per day |
+| Rhythm | Generate 14 days at a time, review on day 7, and continue rolling daily training | Resource validity without a race, review and cycle-state rules |
+| Complete race preparation | The publicly stated capability covers through race day, including applicable progression, run / walk, fueling practice and taper | Stage triggers, doses, exclusions and reassessment rules |
+| Changes | Revalidate after resource changes; replace future uncompleted sessions only after explicit successor adoption | Exact versions, snapshots and transactions; preserve completed training, with no automatic catch-up or stacked load |
 
-资源、器械、熟悉度、实际日期和训练经历分别填写。预设不表示能力，不补齐未知值；
-“每月两次进山”不能推定具体日期。缺少设备记录、确认未练过、用户陈述和有效观察
-必须分开，不能将未连接设备直接解释为没有跑步基础。
+Resources, equipment, familiarity, actual dates and training history are entered
+separately. Presets do not establish ability or fill unknown values. “Twice a
+month in the mountains” cannot establish dates. Missing device records, confirmed
+no experience, reported history and valid observations remain distinct;
+disconnection does not mean the person has no running base.
 
-课程可服务多个模块，但不重复累计负荷或实际暴露。专项参与整份计划的时间与恢复取舍，
-不将完整路跑计划简单叠加力量或爬坡。健身房和跑步机训练不能增加真实户外下降或技术地形经历。
-资源不足时保留有依据的训练，逐模块说明缺口，不将基础计划称为完整赛事准备。
+A session may serve several modules without duplicating load or actual exposure.
+Specialized work shares the whole plan's time and recovery tradeoffs; it is not
+strength or climbing stacked onto a complete road plan. Gym and treadmill work
+cannot add actual outdoor descent or technical-terrain history. Limited resources
+preserve supported training with explicit module gaps; a basic plan is not
+complete race preparation.
 
-最小完整价值是：**设置条件 → 理解支持与缺口 → 生成可执行课程 → 审阅并采用 →
-按课完成反馈 → 复核调整**。模板展示或校验器通过不构成这个闭环。
+The minimum complete value is **set conditions → understand support and gaps →
+generate executable sessions → review and adopt → complete and give feedback per
+session → review and adjust**. A template display or passing validator does not
+complete that flow.
 
-## 首版与发布边界
+## First release and rollout boundaries
 
-Web 先完成完整编辑和采用；小程序保留兼容读取及清楚的 Web 编辑引导。
-同日两课不能在旧客户端丢失。原生小程序编辑和 Garmin、Stryd 等设备投递另行交付。
-超过 50 公里、多日赛事、零跑步基础、未成年人及医疗康复不在本次产品范围。
+Web first provides the complete editing and adoption flow. Miniapp retains
+compatible reading and clear guidance to edit on Web. Older clients must not lose
+one of two same-day sessions. Native miniapp editing and delivery to devices such
+as Garmin or Stryd are separate deliverables. Distances over 50 km, multi-day
+races, no running base, minors and clinical rehabilitation are outside this scope.
 
-使用现有服务端 Statsig 包装逐步开放。账号所有权始终表示每位用户只访问自己的数据；
-宁海个人账号仅是首次开放批次，不能写成公共算法的唯一用户。
-关闭功能后，已有内容的读取、导出与删除仍须可用。
+Use the existing server-side Statsig wrapper for gradual availability. Account
+ownership always means each user can access only their own data. The personal
+Ninghai account is only the first rollout cohort, not the public algorithm's sole
+user. Existing read, export and delete rights remain available when the feature
+is off.
 
-宁海个人路径沿用用户此前提供的 2026-11-15、24.7 km、爬升 618 m，试用时仍需本人核对。
-实际器械、力量经历、可用时间和进山日期未获取，不能预填成已知。
+The Ninghai personal path retains the user's previously supplied 2026-11-15,
+24.7 km and 618 m ascent, still requiring personal confirmation for a trial.
+Actual equipment, strength experience, available time and mountain dates have not
+been obtained and must not be prefilled as known.
 
-## 成功条件与观察
+## Success and observation
 
-- 声明支持的每条路径产生符合确认日期、时间、器械及接受政策的课程，或明确可处理的限制。
-- 用户能分清生成前可支持、提案实际包含、采用后已安排，以及仍未覆盖的专项。
-- 完成生成、采用、分课反馈、复核与资源变化后的调整；记录不可执行课程和原因。
-- 无虚构历史或日期、错误的全覆盖承诺、跨用户访问、已完成课丢失、重复写课和 provider 投递。
-- 宁海一次成功只说明该路径的产品可用性，不证明其他用户适用、训练有效或安全。
+- Each claimed supported path produces sessions matching confirmed dates, time,
+  equipment and accepted policy, or an explicit actionable limitation.
+- Users distinguish support before generation, actual proposal inclusion,
+  scheduling after adoption and specialized demands still uncovered.
+- Complete generation, adoption, per-session feedback, review and adjustments
+  after resource changes; record unexecutable sessions and their reasons.
+- No invented history or dates, false full-coverage promise, cross-owner access,
+  completed-session loss, duplicate sessions or provider delivery.
+- One successful Ninghai path demonstrates usability for that path, not
+  applicability to other users, efficacy or safety.
 
-若常见城市条件反复无法排出可执行方案，或用户把基础训练理解为专项准备充分，
-Product 应修订承诺与体验。当前不新增训练值遥测或跨用户学习授权。
+If common city conditions repeatedly cannot produce executable schedules, or
+users mistake basic training for complete specialized preparation, Product
+should revise the promise and experience. No new training-value telemetry or
+cross-user learning authority is added.
 
-## 交付状态与决策依赖
+## Delivery status and decision dependencies
 
-后续工作由 [Epic #797](https://github.com/praxys-run/praxys/issues/797) 及
-[八个交付项与会话交接](trail-running-program-delivery.md) 管理；
-各专业角色边界和 Science 未决项见 [评审交接](trail-running-program-review-handoff.md)。
-当前只是 P1 的范围与评审基础进展。P1 关闭前必须补齐所需后继科学、体验、架构和信任决定，
-经独立路由完成必要接受并绑定精确版本。当前 draft PR 不关闭 P1，不启用新处方。
+Follow-up work is tracked by [Epic #797](https://github.com/praxys-run/praxys/issues/797)
+and the [eight deliverables and session handoff](trail-running-program-delivery.md).
+Role boundaries and open Science questions are in the [review
+handoff](trail-running-program-review-handoff.md). Current progress covers P1
+scope and review foundations only. Before P1 closes, the required successor
+Science, Experience, Architecture and Trust decisions need independent routing,
+required acceptance and exact version bindings. The current draft PR does not
+close P1 or activate new prescriptions.
 
-治理沿用 [精确 Work Contract](trail-running-plan-v3-exact-work-contract.json) 的已枚举角色组合：
-classification `sha256:d2b15692d6d8db1b897b750ce30d6418e9a62e1acf683a4e88fce8f4a7851668`；
-route `sha256:172191b42862f63e1368bb23496cb773b1fb7a8e8cd5e1ed2c413b080a5adb72`。
-同一分类摘要不表示旧范围的批准已扩展。Product 提案、Science 判断、Engineering 实施和
-独立 Quality 验证保持分离；具体 Decision Review 路由由独立 Router 分配。
+Governance retains the enumerated role composition in the [exact Work
+Contract](trail-running-plan-v3-exact-work-contract.json):
+classification `sha256:d2b15692d6d8db1b897b750ce30d6418e9a62e1acf683a4e88fce8f4a7851668`;
+route `sha256:172191b42862f63e1368bb23496cb773b1fb7a8e8cd5e1ed2c413b080a5adb72`.
+An identical classification digest does not extend approval of the old scope.
+Product proposals, Science judgment, Engineering implementation and independent
+Quality verification remain separate; the independent Router allocates the
+specific Decision Review route.
