@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { activateLocale, isSupportedLocale, type SupportedLocale } from '../i18n/init';
 import { detectBrowserLocale } from '../lib/locale-detect';
 import { KEYS, getCompatItem, setCompatItem, removeCompatItem } from '../lib/storage-compat';
+import { isChinaFrontendDeployment } from '../lib/runtime-region';
+import { LocaleContext } from './locale-context';
 
 function readStoredLocale(): SupportedLocale | null {
   const stored = getCompatItem(KEYS.locale.new, KEYS.locale.legacy);
@@ -15,18 +17,9 @@ function writeStoredLocale(locale: SupportedLocale | null) {
   else setCompatItem(KEYS.locale.new, KEYS.locale.legacy, locale);
 }
 
-interface LocaleContextValue {
-  locale: SupportedLocale;
-  setLocale: (locale: SupportedLocale) => Promise<void>;
-}
-
-const LocaleContext = createContext<LocaleContextValue>({
-  locale: 'en',
-  setLocale: async () => {},
-});
 
 function initialLocale(): SupportedLocale {
-  return readStoredLocale() ?? detectBrowserLocale();
+  return readStoredLocale() ?? (isChinaFrontendDeployment() ? 'zh' : detectBrowserLocale());
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
@@ -56,8 +49,4 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ locale, setLocale }), [locale, setLocale]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-}
-
-export function useLocale() {
-  return useContext(LocaleContext);
 }

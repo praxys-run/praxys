@@ -99,3 +99,13 @@ test('filing visibility follows public routes, including trailing slashes', () =
     assert.equal(isChinaFilingPublicPath(route), false, route);
   }
 });
+
+test('regional app shell has the deployment marker but its filing footer starts hidden', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'praxys-app-shell-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'app-shell.html'), '<html><head></head><body>App loading</body></html>');
+  await stampChinaCompliance(root);
+  const html = await readFile(path.join(root, 'app-shell.html'), 'utf8');
+  assert.match(html, /name="praxys-deployment-region" content="cn"/);
+  assert.match(html, /data-praxys-cn-compliance="icp" hidden/);
+});

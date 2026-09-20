@@ -373,7 +373,7 @@ def test_edgeone_config_keeps_static_security_boundary() -> None:
     assert config["buildCommand"] == "npm run build:edgeone"
     assert config["outputDirectory"] == "./dist"
     assert config["nodeVersion"] == "24.11.0"
-    assert config["rewrites"] == [{"source": "/*", "destination": "/index.html"}]
+    assert config["rewrites"] == [{"source": "/*", "destination": "/app-shell.html"}]
     headers = {
         rule["source"]: {
             header["key"]: header["value"] for header in rule["headers"]

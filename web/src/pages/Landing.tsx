@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { useLocale } from '@/contexts/LocaleContext';
+import { useLocale } from '@/contexts/locale-context';
 import { useAuth } from '@/hooks/useAuth';
 import ChinaProcessingNoticeGate from '@/components/ChinaProcessingNoticeGate';
 import { PraxysFlag } from '@/components/PraxysFlag';
@@ -215,6 +215,8 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
   const { locale, setLocale } = useLocale();
   const { login, logout, isDemo } = useAuth();
   const navigate = useNavigate();
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
   const [demoState, setDemoState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [showChinaNotice, setShowChinaNotice] = useState(false);
   const [restoreDemoFocus, setRestoreDemoFocus] = useState(false);
@@ -341,7 +343,7 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
               type="button"
               className="landing-btn-primary"
               onClick={() => void handleDemo('hero')}
-              disabled={demoState === 'loading'}
+              disabled={!interactive || demoState === 'loading'}
             >
               {demoState === 'loading' ? t.demoLoading : ctaPrimaryLabel}
               {demoState !== 'loading' && <ArrowUpRight className="h-[15px] w-[15px]" strokeWidth={2.2} />}
@@ -402,10 +404,10 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
         {/* ─── PLATFORMS (quieter) ─── */}
         <section className="landing-platforms-band">
           <span className="label">{t.platformsLabel}</span>
-          <img src="/logos/garmin.png" alt="Garmin" className="plogo plogo-garmin" onError={handleLogoError} />
-          <img src="/logos/strava.svg" alt="Strava" className="plogo plogo-strava" onError={handleLogoError} />
-          <img src="/logos/coros.png" alt="COROS" className="plogo plogo-coros" onError={handleLogoError} />
-          <img src="/logos/oura.svg" alt="Oura" className="plogo plogo-oura" onError={handleLogoError} />
+          <img loading="lazy" decoding="async" src="/logos/garmin.png" alt="Garmin" className="plogo plogo-garmin" onError={handleLogoError} />
+          <img loading="lazy" decoding="async" src="/logos/strava.svg" alt="Strava" className="plogo plogo-strava" onError={handleLogoError} />
+          <img loading="lazy" decoding="async" src="/logos/coros.png" alt="COROS" className="plogo plogo-coros" onError={handleLogoError} />
+          <img loading="lazy" decoding="async" src="/logos/oura.svg" alt="Oura" className="plogo plogo-oura" onError={handleLogoError} />
         </section>
 
         {/* ─── CLOSE ─── */}
@@ -417,7 +419,7 @@ export default function Landing({ publicLocale }: { publicLocale?: SupportedLoca
               type="button"
               className="landing-btn-primary"
               onClick={() => void handleDemo('close')}
-              disabled={demoState === 'loading'}
+              disabled={!interactive || demoState === 'loading'}
             >
               {demoState === 'loading' ? t.demoLoading : closeCtaPrimaryLabel}
               {demoState !== 'loading' && <ArrowUpRight className="h-[15px] w-[15px]" strokeWidth={2.2} />}
@@ -501,27 +503,9 @@ function VizGoal({ t }: { t: Copy }) {
 
 function LanguageToggle({ locale }: { locale: SupportedLocale }) {
   return (
-    <div className="landing-lang-toggle" role="group" aria-label="Language">
-      <button
-        type="button"
-        className={locale === 'en' ? 'active' : ''}
-        onClick={() => {
-          window.location.assign('/?lang=en');
-        }}
-        aria-pressed={locale === 'en'}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        className={locale === 'zh' ? 'active' : ''}
-        onClick={() => {
-          window.location.assign('/zh');
-        }}
-        aria-pressed={locale === 'zh'}
-      >
-        中
-      </button>
-    </div>
+    <nav className="landing-lang-toggle" aria-label="Language">
+      <a href="/en" className={locale === 'en' ? 'active' : ''} aria-current={locale === 'en' ? 'page' : undefined}>EN</a>
+      <a href="/zh" className={locale === 'zh' ? 'active' : ''} aria-current={locale === 'zh' ? 'page' : undefined}>中</a>
+    </nav>
   );
 }

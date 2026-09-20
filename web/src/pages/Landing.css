@@ -165,7 +165,7 @@ html[lang="zh"] .landing-root {
   letter-spacing: 0.06em;
   background: var(--l-card);
 }
-.landing-lang-toggle button {
+.landing-lang-toggle a {
   padding: 6px 10px;
   background: transparent;
   color: var(--l-ink-soft);
@@ -175,11 +175,15 @@ html[lang="zh"] .landing-root {
   letter-spacing: inherit;
   transition: background 160ms ease, color 160ms ease;
 }
-.landing-lang-toggle button + button { border-left: 1px solid var(--l-rule); }
-.landing-lang-toggle button:hover:not(.active) { color: var(--l-ink); }
-.landing-lang-toggle button.active {
+.landing-lang-toggle a + a { border-left: 1px solid var(--l-rule); }
+.landing-lang-toggle a:hover:not(.active) { color: var(--l-ink); }
+.landing-lang-toggle a.active {
   background: var(--l-ink);
   color: var(--l-paper);
+}
+.landing-lang-toggle a:focus-visible {
+  outline: 2px solid var(--l-primary);
+  outline-offset: -2px;
 }
 
 /* ─── HERO ──────────────────────────────────────────────── */
