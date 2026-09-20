@@ -164,6 +164,94 @@ The redirect is not a precondition for initial `.cn` enable. Record the exact
 provider rule and before-state outside the repository, then verify representative
 public paths from mainland and non-mainland probes.
 
+### Mainland public-page rule
+
+Use a zone-level Single Redirect in `http_request_dynamic_redirect` on
+`praxys.run`, with reference `praxys_mainland_public_to_cn`. The `.run`
+frontend hostnames must remain proxied through Cloudflare. Match only:
+
+```text
+(http.host in {"praxys.run" "www.praxys.run"})
+and (ip.src.country eq "CN")
+and (http.request.method in {"GET" "HEAD"})
+and (http.request.uri.path in {"/" "/zh" "/zh/" "/product" "/product/" "/faq" "/faq/" "/zh/product" "/zh/product/" "/zh/faq" "/zh/faq/"})
+and not (
+  lower(http.user_agent) contains "bot" or lower(http.user_agent) contains "spider" or lower(http.user_agent) contains "crawl" or
+  lower(http.user_agent) contains "slurp" or lower(http.user_agent) contains "google" or lower(http.user_agent) contains "bing" or
+  lower(http.user_agent) contains "yandex" or lower(http.user_agent) contains "sogou" or lower(http.user_agent) contains "chatgpt" or
+  lower(http.user_agent) contains "claude" or lower(http.user_agent) contains "perplexity" or lower(http.user_agent) contains "facebookexternalhit" or
+  lower(http.user_agent) contains "preview" or lower(http.user_agent) contains "headless" or lower(http.user_agent) contains "monitor" or
+  lower(http.user_agent) contains "lighthouse"
+)
+```
+
+Set the status to **302**, disable **Preserve query string**, and use this
+dynamic target expression:
+
+```text
+concat("https://www.praxys.cn", http.request.uri.path, "#")
+```
+
+The explicit empty fragment prevents a browser from inheriting the source
+fragment. Fragments are not sent to the edge server. Do not replace this with
+`http.request.full_uri`, which would carry query values into the destination.
+
+The allowlist excludes login, verification, authenticated application, legal and
+data-rights routes, static assets, service workers, health endpoints, and API
+hosts. It also excludes user agents containing the listed crawler/automation markers,
+case-insensitively. Cloudflare rejects `cf.client.bot` and
+`cf.verified_bot_category` in this redirect phase, so this is **not**
+Cloudflare-verified bot detection. An unrecognized or disguised crawler may
+still receive the temporary redirect; no universal crawler exclusion is claimed.
+Hong Kong, Macao, Taiwan, and other non-`CN` locations do not match. This is a route policy, not a test of the
+visitor's login state; `.run` sessions are not transferred to `.cn`.
+
+Before enable, save the existing phase entrypoint (or its absence), validate a
+disabled candidate, and read it back. Preserve any existing rules and stop if
+the saved rule content or identity changes unexpectedly. Keep provider IDs and
+before/after responses outside the repository; never store a token in the PR.
+A token scoped to this zone needs `Zone Read` for discovery and
+`Single Redirect Edit` for managing the rule.
+
+Verify mainland requests to both `.run` frontend hosts return 302 with the
+same destination path, no query, and an empty fragment; follow representative
+redirects to a 200 `.cn` page. Verify public pages remain on `.run` from
+non-mainland probes and excluded paths receive no geographic redirect. Use
+`/cdn-cgi/trace` to confirm a probe's Cloudflare geolocation when available;
+do not infer geography from a request header supplied by the client.
+
+To roll back, disable only `praxys_mainland_public_to_cn` in Cloudflare and
+read back `enabled: false`. Reprobe both source hosts. Preserve other rules,
+DNS, the API, and the `.cn` deployment. Once verification and the operations
+handoff are complete, remove any temporary local credential file.
+
+### Activation evidence — 2026-09-20
+
+The rule was enabled after both `.cn` hosts reported deployed commit
+`8635992460bb97245cdbcd72470fbc5869a3ad13`, healthy responses, and the approved
+ICP/public-security filings. The prior Single Redirect phase had no entrypoint.
+Cloudflare accepted the disabled candidate before enable; final readback showed
+one enabled rule. No existing Single Redirect rules were replaced.
+
+- Mainland source confirmed `loc=CN` through Cloudflare trace. All 53 HTTP
+  cases passed: 16 public GET/HEAD redirects and 37 exclusions. Excluded cases
+  retained the same status and Location responses as the disabled baseline.
+- US and Hong Kong probes returned 200 with no Location from both `.run`
+  homepages, before and after enable.
+- Desktop 1440x900 and mobile 390x844 Chromium navigations each observed
+  exactly one 302 followed by a 200 `.cn` page. Synthetic query and fragment
+  values were absent at the destination; no page errors or reverse loop were
+  observed. These were public, anonymous checks, not real account sessions.
+- The disable operation was exercised: both source homepages returned 200
+  without Location. Re-enabling restored their 302 responses. Final provider
+  readback is enabled.
+
+Provider identities, before/after JSON, and probe results are held outside the
+repository in the operator's private
+`~/.local/state/praxys/cn-redirect/2026-09-20/` record. Verification covers the
+sampled mainland, US, and Hong Kong sources, not every ISP or crawler identity.
+The User-Agent exclusion is the documented limitation above.
+
 ## Verify
 
 Run `launch-cn.yml` `status`, then independently verify:
@@ -212,4 +300,4 @@ mitigation, verification, recurrence, and durable follow-ups.
 - [monitoring-and-alerts.md](./monitoring-and-alerts.md)
 
 ---
-_Last reviewed: 2026-09-06 · Owner: Operations_
+_Last reviewed: 2026-09-20 · Owner: Operations_
