@@ -4,9 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { checkNavigationWorker } from './check-navigation-worker.mjs';
+import { checkEdgeOneRouting } from './check-edgeone-routing.mjs';
 
 const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
+await checkEdgeOneRouting(dist);
 const visited = new Set();
 function visit(key) {
   if (visited.has(key)) return;

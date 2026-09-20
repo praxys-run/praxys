@@ -90,8 +90,14 @@ page language follows the route, while application language retains the user's
 stored preference. Domestic distribution links should use `.cn` directly to
 avoid the initial `.run` connection and geographic redirect.
 
-Unknown/application navigation rewrites to `/app-shell.html`, not the public
-homepage. Login, terms, privacy, status, and verification have dedicated static
+EdgeOne rewrites run before static-file lookup. Use only the explicit page
+allowlist in `web/edgeone.json`: public paths map to their own `index.html`, and
+known application paths map to `/app-shell.html`. Never add `/*` to the rewrite
+list: it also replaces JavaScript, stylesheets, workers, and health metadata with
+HTML. Unknown paths and missing assets remain real 404s. Add new client routes to
+the allowlist and the generated-artifact routing check together.
+
+Login, terms, privacy, status, and verification have dedicated static
 loading documents so the filing remains visible if JavaScript cannot start.
 Public navigations use the network before their offline document cache, including
 query strings and trailing slashes, so Service Workers preserve geographic 302s.
@@ -100,6 +106,28 @@ hidden filing footer; the router updates visibility during SPA navigation.
 The Azure static server and Service Worker use the same
 application-shell contract. Verify direct and Service Worker-controlled
 refreshes of `/today`, `/training`, and `/settings` never show marketing HTML.
+
+### 2026-09-20 rewrite outage and cache recovery
+
+Release `1f2045f3` used `/* -> /app-shell.html`. Both `.cn` hosts returned the
+same HTML for `/`, `/sw.js`, `/healthz`, and `/assets/*.js`/`*.css`; users saw only
+the Praxys loading brand. Azure was unaffected. Asset responses also inherited
+`public, max-age=31536000, immutable`, so correcting the origin alone would not
+repair every browser's cached responses.
+
+The correction restricts rewrites to page routes and moves generated bundles to
+`/assets/client/`, preserving content hashing and the existing immutable header.
+Do not move back to the old asset paths as part of rollback. The build check now
+applies rewrite rules before file lookup to every emitted file and rejects any
+rule that shadows a static resource. Prior local verification exercised Azure's
+file-first server, which did not model EdgeOne's rewrite precedence.
+
+After deployment, check **both hosts**: `/` contains Chinese public markup,
+`/en` contains English public markup, `/today` contains the neutral app shell,
+`/sw.js` has a JavaScript MIME type, and every script/stylesheet referenced by
+`/` returns its expected MIME type rather than HTML. `healthz` must be JSON and
+`deployed_sha.txt` must contain the expected full commit; a generic HTTP 200 is
+not sufficient. Finish with a fresh browser and a previously controlled browser.
 
 Cold public visits do not install the application's full offline precache.
 Application entry still registers it; existing controlled public sessions check

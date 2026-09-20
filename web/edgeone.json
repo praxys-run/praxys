@@ -5,7 +5,191 @@
   "nodeVersion": "24.11.0",
   "rewrites": [
     {
-      "source": "/*",
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/en",
+      "destination": "/en/index.html"
+    },
+    {
+      "source": "/en/",
+      "destination": "/en/index.html"
+    },
+    {
+      "source": "/zh",
+      "destination": "/zh/index.html"
+    },
+    {
+      "source": "/zh/",
+      "destination": "/zh/index.html"
+    },
+    {
+      "source": "/product",
+      "destination": "/product/index.html"
+    },
+    {
+      "source": "/product/",
+      "destination": "/product/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/faq/",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/zh/product",
+      "destination": "/zh/product/index.html"
+    },
+    {
+      "source": "/zh/product/",
+      "destination": "/zh/product/index.html"
+    },
+    {
+      "source": "/zh/faq",
+      "destination": "/zh/faq/index.html"
+    },
+    {
+      "source": "/zh/faq/",
+      "destination": "/zh/faq/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login/index.html"
+    },
+    {
+      "source": "/login/",
+      "destination": "/login/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/terms/",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/privacy/",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/status",
+      "destination": "/status/index.html"
+    },
+    {
+      "source": "/status/",
+      "destination": "/status/index.html"
+    },
+    {
+      "source": "/verify",
+      "destination": "/verify/index.html"
+    },
+    {
+      "source": "/verify/",
+      "destination": "/verify/index.html"
+    },
+    {
+      "source": "/today",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/today/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/setup",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/setup/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/training",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/training/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/analysis",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/analysis/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/goal",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/goal/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/history",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/history/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/science",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/science/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/labs",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/labs/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/settings/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/mcp/authorize",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/mcp/authorize/",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/labs/*",
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/admin/*",
       "destination": "/app-shell.html"
     }
   ],

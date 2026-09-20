@@ -198,11 +198,14 @@ _Last reviewed: 2026-09-06 · Owner: Operations_
 The frontend build emits prerendered public route documents and a separate
 `app-shell.html` for application navigation. Public prerendering runs at build
 time, before PWA cache revisions are computed. No rendering service is deployed.
-Azure's SPA fallback, EdgeOne's fallback rewrite, and the Service Worker's
+Azure's SPA fallback, EdgeOne's explicit application-route rewrites, and the Service Worker's
 navigation fallback must all use the application shell, so refreshing a signed-in
 route cannot briefly display a marketing page. Public route documents remain
 indexable; application routes retain `noindex, nofollow` and revalidation. The static
 server serves canonical public paths directly without a directory redirect.
+EdgeOne applies rewrites before static-file lookup: its config must never use
+an all-path rewrite. The regional build verifies that every emitted resource
+passes through unchanged and that page routes select their intended document.
 Service Worker public navigation tries the network first, preserving edge
 redirects and query parameters, and uses precached `index.html` files only when
 the network fails. Precache directory-index aliases and query normalization are
