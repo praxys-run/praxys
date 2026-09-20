@@ -91,9 +91,13 @@ stored preference. Domestic distribution links should use `.cn` directly to
 avoid the initial `.run` connection and geographic redirect.
 
 Unknown/application navigation rewrites to `/app-shell.html`, not the public
-homepage. That shell retains the China deployment marker and an initially
-hidden filing footer; the router shows the footer only on eligible public
-legal/login routes. The Azure static server and Service Worker use the same
+homepage. Login, terms, privacy, status, and verification have dedicated static
+loading documents so the filing remains visible if JavaScript cannot start.
+Public navigations use the network before their offline document cache, including
+query strings and trailing slashes, so Service Workers preserve geographic 302s.
+The private-route shell retains the China deployment marker and an initially
+hidden filing footer; the router updates visibility during SPA navigation.
+The Azure static server and Service Worker use the same
 application-shell contract. Verify direct and Service Worker-controlled
 refreshes of `/today`, `/training`, and `/settings` never show marketing HTML.
 

@@ -203,9 +203,15 @@ navigation fallback must all use the application shell, so refreshing a signed-i
 route cannot briefly display a marketing page. Public route documents remain
 indexable; application routes retain `noindex, nofollow` and revalidation. The static
 server serves canonical public paths directly without a directory redirect.
-Service Worker public navigation maps canonical URLs to their precached
-`index.html` files, including offline navigation; it does not precache the
-redirecting `.run` canonical URLs themselves.
+Service Worker public navigation tries the network first, preserving edge
+redirects and query parameters, and uses precached `index.html` files only when
+the network fails. Precache directory-index aliases and query normalization are
+disabled, and generated-worker checks reject canonical or clean-URL aliases that
+could intercept public URLs before that handler. The redirecting `.run`
+canonical URLs themselves are not precached.
+Public application entrances (`/login`, `/terms`, `/privacy`, `/status`, `/verify`)
+have separate non-indexable loading documents with a visible regional filing,
+including without JavaScript; private routes retain the hidden-footer app shell.
 
 The public entry hydrates the same components used to generate the static HTML.
 Its module graph is checked by `web/scripts/check-public-build.mjs` to exclude

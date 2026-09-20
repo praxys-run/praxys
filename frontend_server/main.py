@@ -47,6 +47,9 @@ _INDEXABLE_PUBLIC_PATHS = {
     "/zh/product",
     "/zh/faq",
 }
+_STATIC_DOCUMENT_PATHS = _INDEXABLE_PUBLIC_PATHS | {
+    "/login", "/terms", "/privacy", "/status", "/verify",
+}
 
 
 _ASSET_SUFFIXES = (
@@ -84,7 +87,7 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
             public_path = "/" + path.strip("/")
-            if public_path != "/" and public_path in _INDEXABLE_PUBLIC_PATHS:
+            if public_path != "/" and public_path in _STATIC_DOCUMENT_PATHS:
                 # Serve canonical public URLs directly instead of adding a
                 # directory-slash redirect (which can inherit an origin scheme).
                 return await super().get_response(path.rstrip("/") + "/index.html", scope)

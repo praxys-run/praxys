@@ -59,19 +59,30 @@ export default defineConfig({
         // rendered, so precaching the full set would bloat the install
         // phase + use disk that most users never touch.
         globPatterns: ['**/*.{js,css,html,ico,svg}', ...(process.env.VITE_DEPLOYMENT_REGION === 'cn' ? ['compliance/*.png'] : [])],
-        navigateFallbackDenylist: [/^\/api\//, /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq)?\/?$/],
+        // Canonical navigations must reach the network, including / and /faq/.
+        // Otherwise precache routing wins before the network-first route below.
+        directoryIndex: null,
+        ignoreURLParametersMatching: [],
+        navigateFallbackDenylist: [/^\/api\//, /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq|login|terms|privacy|status|verify)?\/?(?:\?.*)?$/],
         runtimeCaching: [{
           urlPattern: ({ request, url }) => request.mode === 'navigate'
-            && /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq)?\/?$/.test(url.pathname),
+            && /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq|login|terms|privacy|status|verify)?\/?$/.test(url.pathname),
           handler: async ({ request, url }) => {
-            // Canonical public paths map to their precached HTML documents.
-            // Do not precache /product itself: mainland .run fetches redirect
-            // across origins. Its /product/index.html file remains same-origin.
-            const storage = globalThis as unknown as {
-              caches: { match(url: string, options: { ignoreSearch: boolean }): Promise<Response | undefined> }
+            // Preserve edge redirects and query semantics while online.
+            try {
+              return await fetch(request)
+            } catch (error) {
+              // Canonical public paths map to their precached HTML documents.
+              // Do not precache /product itself: mainland .run fetches redirect
+              // across origins. Its /product/index.html file remains same-origin.
+              const storage = globalThis as unknown as {
+                caches: { match(url: string, options: { ignoreSearch: boolean }): Promise<Response | undefined> }
+              }
+              const file = `${url.origin}${url.pathname.replace(/\/+$/, '')}/index.html`
+              const cached = await storage.caches.match(file, { ignoreSearch: true })
+              if (cached) return cached
+              throw error
             }
-            const file = `${url.origin}${url.pathname.replace(/\/+$/, '')}/index.html`
-            return await storage.caches.match(file, { ignoreSearch: true }) ?? fetch(request)
           },
         }],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

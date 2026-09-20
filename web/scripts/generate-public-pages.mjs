@@ -109,6 +109,12 @@ try {
     .replace('<div id="root"></div>', `<div id="root">${renderAppShell()}</div>`)
     .replace('</head>', '<meta name="robots" content="noindex, nofollow" /></head>');
   await writeFile(path.join(distRoot, 'app-shell.html'), appShell, 'utf8');
+  // Public application entrances need a visible static regional filing even
+  // without JavaScript. Private routes keep the separate hidden-footer shell.
+  for (const route of ['login', 'terms', 'privacy', 'status', 'verify']) {
+    await mkdir(path.join(distRoot, route), { recursive: true });
+    await writeFile(path.join(distRoot, route, 'index.html'), appShell, 'utf8');
+  }
   for (const [locale, localeContent] of Object.entries(content.locales)) {
     for (const pageKey of ['home', 'product', 'faq']) {
       const page = localeContent[pageKey];

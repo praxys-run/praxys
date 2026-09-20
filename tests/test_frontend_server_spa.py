@@ -99,6 +99,21 @@ def test_public_documents_do_not_add_a_directory_redirect(client, path):
     assert "X-Robots-Tag" not in document.headers
 
 
+@pytest.mark.parametrize("route", ["login", "terms", "privacy", "status", "verify"])
+def test_public_application_document_keeps_static_filing_and_noindex(fake_dist, route):
+    directory = fake_dist / route
+    directory.mkdir()
+    (directory / "index.html").write_text(
+        '<html><body>APP-LOADING<footer>FILING</footer></body></html>', encoding="utf-8",
+    )
+    with TestClient(create_app(dist_dir=fake_dist)) as client:
+        for suffix in ("", "/", "?source=test", "/index.html"):
+            response = client.get(f"/{route}{suffix}", follow_redirects=False)
+            assert response.status_code == 200
+            assert "FILING" in response.text
+            assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+
 def test_spa_route_falls_back_to_index_html(client):
     """A client navigating to /today directly must get index.html so the
     router can take over. Same for /training, /goal, deep routes, etc.

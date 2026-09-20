@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { checkNavigationWorker } from './check-navigation-worker.mjs';
 
 const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
@@ -35,8 +36,17 @@ assert.match(shell, /class="app-loading-shell"/);
 assert.doesNotMatch(shell, /class="landing-root|seo-fallback|data-praxys-public-page/);
 assert.match(shell, /name="robots" content="noindex, nofollow"/);
 const worker = await readFile(path.join(dist, 'sw.js'), 'utf8');
+await checkNavigationWorker(worker);
 assert.match(worker, /app-shell\.html/, 'Offline navigation must have the application shell');
-for (const name of ['index.html', 'app-shell.html']) {
+for (const name of ['index.html', 'app-shell.html', ...['login', 'terms', 'privacy', 'status', 'verify'].map(route => `${route}/index.html`)]) {
+  const html = await readFile(path.join(dist, name), 'utf8');
+  if (name !== 'index.html') {
+    assert.match(html, /class="app-loading-shell"/);
+    assert.match(html, /name="robots" content="noindex, nofollow"/);
+    if (html.includes('praxys-deployment-region') && name !== 'app-shell.html') {
+      assert.match(html, /data-praxys-cn-compliance="icp" aria-label=/);
+    }
+  }
   const revision = createHash('md5').update(await readFile(path.join(dist, name))).digest('hex');
   assert.ok(worker.includes(`url:"${name}",revision:"${revision}"`), `Service worker revision must include final ${name} content`);
 }
