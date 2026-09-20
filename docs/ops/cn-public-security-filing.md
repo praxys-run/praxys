@@ -49,11 +49,36 @@ Platform](https://beian.mps.gov.cn/).
    and copy the exact issued HTML, query URL, and `沪公网安备…号`. Create a
    separate reviewed frontend change; never invent a placeholder value.
 
+## Issued footer (2026-09-20)
+
+The operator confirmed `沪公网安备31011802006255号` and ICP number
+`沪ICP备2025109616号-2`. The police link is
+`https://beian.mps.gov.cn/#/query/webSearch?code=31011802006255`, using the
+query format linked by the official platform itself.
+
+The unchanged official icon is checked in at
+`web/scripts/assets/public-security-filing.png`, downloaded from the platform's
+public download center at
+`https://beian.mps.gov.cn/static/national%20emblem.png`.
+SHA-256: `a20583c81805fe64f7fa210851ce29754af9d25fd6aa5a3225a9557529602513`.
+Only the regional stamping step copies it into the served artifact.
+
+Display both links in the public-page footer, with the police icon before its
+number. Homepage, product/FAQ (English and Chinese), login, legal, status, and
+verification pages show it; authenticated application routes do not. This is
+a display policy, independent of authentication and processing authorization.
+Static HTML retains the footer for public access without JavaScript; React
+synchronizes visibility when the application router mounts or changes route.
+The ICP homepage requirement is also described in the
+[Tencent filing FAQ](https://cloud.tencent.com/document/product/243/76865).
+This implementation record does not assert production deployment.
+
 ## Verify
 
 - The platform shows the filing as approved for the exact domain and subject.
-- Every EdgeOne `.cn` route footer contains the platform-issued icon, number,
-  and query link exactly once.
+- Both EdgeOne `.cn` hosts show the official icon, number, and query link
+  exactly once on public pages. Public-to-app navigation hides the footer;
+  returning to a public page restores it, including browser back/forward.
 - The `.run` build contains no `.cn` public-security filing markup.
 - Outside-in probes confirm both `.cn` hosts serve the issued footer.
 
@@ -78,4 +103,4 @@ Platform](https://beian.mps.gov.cn/).
 - [China public web launch](./cn-web-private-alpha.md)
 
 ---
-_Last reviewed: 2026-08-30 · Owner: Operations / human filing subject_
+_Last reviewed: 2026-09-20 · Owner: Operations / human filing subject_
