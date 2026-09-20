@@ -2,6 +2,7 @@ import './index.css'
 import './pages/Landing.css'
 import { resolvePublicRoute } from './lib/public-route'
 import { isChinaFrontendDeployment } from './lib/runtime-region'
+import { KEYS, getCompatItem } from './lib/storage-compat'
 import {
   CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
 } from './lib/china-processing'
@@ -83,9 +84,13 @@ window.addEventListener('load', () => {
 
 const root = document.getElementById('root')!
 function showBootFailure() {
-  const zh = document.documentElement.lang.startsWith('zh')
+  // Public copy follows the URL; application failures follow the saved locale
+  // even when the application entry could not load to activate that locale.
+  const stored = publicRoute ? null : getCompatItem(KEYS.locale.new, KEYS.locale.legacy)
+  const zh = stored === 'zh' || (stored !== 'en' && document.documentElement.lang.startsWith('zh'))
   const notice = document.createElement('div')
   notice.className = 'boot-error'
+  notice.lang = zh ? 'zh-CN' : 'en'
   notice.setAttribute('role', 'alert')
   const message = document.createElement('p')
   message.textContent = zh ? '页面未能加载完成，请刷新重试。' : 'The page could not finish loading. Please refresh to try again.'

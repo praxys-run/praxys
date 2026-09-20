@@ -12,12 +12,15 @@ function visit(key) {
   visited.add(key);
   for (const dependency of manifest[key].imports ?? []) visit(dependency);
 }
+// Every document loads the bootstrap before its dynamic public/application entry.
+visit('index.html');
 visit('src/public-main.tsx');
 assert.ok(!visited.has('src/app-main.tsx'), 'Public boot must not import the application entry');
 for (const key of visited) {
   assert.doesNotMatch(manifest[key].file, /recharts-|messages-/, `App-only dependency in public boot: ${key}`);
 }
 visited.clear();
+visit('index.html');
 visit('src/app-main.tsx');
 for (const key of visited) assert.doesNotMatch(manifest[key].file, /recharts-/, 'Initial application boot must not import chart code');
 for (const route of ['', 'en', 'zh', 'product', 'faq', 'zh/product', 'zh/faq']) {
