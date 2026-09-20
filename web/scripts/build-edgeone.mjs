@@ -62,6 +62,7 @@ for (const name of [
   }
 }
 Object.assign(environment, {
+  VITE_DEPLOYMENT_REGION: "cn",
   VITE_API_URL: "https://api.praxys.run",
   VITE_APP_VERSION: sourceSha.slice(0, 12),
   VITE_SOURCE_SHA: sourceSha,

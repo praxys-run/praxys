@@ -21,15 +21,15 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-export function complianceFooterHtml() {
-  return `    <footer class="cn-compliance-footer" ${COMPLIANCE_MARKER} aria-label="网站备案信息">
+export function complianceFooterHtml(hidden = false) {
+  return `    <footer class="cn-compliance-footer" ${COMPLIANCE_MARKER}${hidden ? ' hidden' : ''} aria-label="网站备案信息">
       <a href="${escapeHtml(MIIT_FILING_URL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ICP_FILING_NUMBER)}</a>
       <a href="${escapeHtml(PUBLIC_SECURITY_FILING_URL)}" target="_blank" rel="noopener noreferrer"><img src="${PUBLIC_SECURITY_ICON_PATH}" width="20" height="20" alt="" />${escapeHtml(PUBLIC_SECURITY_FILING_NUMBER)}</a>
     </footer>
 `;
 }
 
-export function stampHtml(html) {
+export function stampHtml(html, footerHidden = false) {
   let stamped = html;
   if (!stamped.includes(DEPLOYMENT_MARKER)) {
     if (!stamped.includes('</head>')) {
@@ -46,7 +46,7 @@ export function stampHtml(html) {
     }
     stamped = stamped.replace(
       '</body>',
-      `${complianceFooterHtml()}  </body>`,
+      `${complianceFooterHtml(footerHidden)}  </body>`,
     );
   }
   return stamped;
@@ -57,7 +57,7 @@ async function findHtmlFiles(directory) {
   const nested = await Promise.all(entries.map(async (entry) => {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return findHtmlFiles(entryPath);
-    return entry.isFile() && entry.name === 'index.html' ? [entryPath] : [];
+    return entry.isFile() && ['index.html', 'app-shell.html'].includes(entry.name) ? [entryPath] : [];
   }));
   return nested.flat();
 }
@@ -76,7 +76,7 @@ export async function stampChinaCompliance(directory) {
 
   await Promise.all(htmlFiles.map(async (htmlPath) => {
     const html = await readFile(htmlPath, 'utf8');
-    await writeFile(htmlPath, stampHtml(html), 'utf8');
+    await writeFile(htmlPath, stampHtml(html, path.basename(htmlPath) === 'app-shell.html'), 'utf8');
   }));
   return htmlFiles;
 }

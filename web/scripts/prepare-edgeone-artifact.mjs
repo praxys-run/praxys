@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import {
+  readFile,
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -37,6 +38,10 @@ export async function prepareEdgeOneArtifact(directory, requestedSha) {
   const sourceSha = validateSourceSha(
     requestedSha ?? await resolveSourceSha(),
   );
+  const home = await readFile(path.join(target, 'index.html'), 'utf8');
+  if (home.includes('data-praxys-public-page="home"') && home.includes('data-praxys-public-locale="en"')) {
+    throw new Error('China artifacts require the regional public-page build; use npm run build:edgeone.');
+  }
   const stampedFiles = await stampChinaCompliance(target);
 
   await writeFile(

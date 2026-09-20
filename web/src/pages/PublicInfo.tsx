@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PraxysFlag } from '@/components/PraxysFlag';
-import { useLocale } from '@/contexts/LocaleContext';
+import { useLocale } from '@/contexts/locale-context';
 import { usePublicSeo } from '@/hooks/usePublicSeo';
 import type { SupportedLocale } from '@/i18n/init';
 import { getPublicPage, publicContent, type PublicPageKey } from '@/lib/public-content';
@@ -29,7 +29,7 @@ export default function PublicInfo({
     <div className="landing-root public-info-root">
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link to={localeContent.home.path} className="landing-brand">
+          <Link to={locale === 'en' ? '/en' : '/zh'} className="landing-brand">
             <PraxysFlag className="h-6 w-6 shrink-0" strokeWidth={3} />
             <span className="name">Praxys</span>
           </Link>
@@ -84,7 +84,7 @@ export default function PublicInfo({
 
         <section className="landing-close">
           <h2>{locale === 'zh' ? '看看 Praxys 如何解释真实训练数据。' : 'See how Praxys interprets real training data.'}</h2>
-          <Link className="landing-btn-primary" to="/">
+          <Link className="landing-btn-primary" to={locale === 'en' ? '/en' : '/zh'}>
             {localeContent.nav.tryDemo}
             <ArrowUpRight className="h-[15px] w-[15px]" strokeWidth={2.2} />
           </Link>

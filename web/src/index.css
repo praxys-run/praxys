@@ -1349,3 +1349,48 @@
     gap: 4px;
   }
 }
+
+/* The prerendered first frame is already the finished public page. */
+#root[data-praxys-public-page] .landing-rise {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+.app-loading-shell {
+  min-height: 100svh;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: 2rem 1.5rem;
+}
+.app-loading-brand {
+  font-size: 1.125rem;
+  font-weight: 600;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.app-loading-lines {
+  display: grid;
+  gap: 1rem;
+  padding-top: 2rem;
+}
+.app-loading-lines span {
+  display: block;
+  height: 1rem;
+  max-width: 36rem;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+.app-loading-lines span:first-child { max-width: 18rem; height: 2rem; }
+.app-loading-lines span:last-child { max-width: 28rem; }
+
+.boot-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}

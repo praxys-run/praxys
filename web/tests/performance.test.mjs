@@ -57,15 +57,12 @@ test('daily pages use the app freshness policy instead of forced focus fetches',
 });
 
 test('keeps chart code off the initial Today preload path', async () => {
-  const [appSource, viteSource] = await Promise.all([
-    readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../vite.config.ts', import.meta.url), 'utf8'),
-  ]);
+  const appSource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 
   assert.match(appSource, /const loadTraining = \(\) => import\('\.\/pages\/Training'\)/);
   assert.match(appSource, /const loadAnalysis = \(\) => import\('\.\/pages\/Analysis'\)/);
   assert.match(appSource, /requestIdleCallback\(/);
   assert.match(appSource, /cancelIdleCallback\(idleCallbackId\)/);
-  assert.match(viteSource, /context\.hostType !== 'html'/);
-  assert.match(viteSource, /!dependency\.includes\('recharts-'\)/);
+  // check-public-build.mjs validates the actual public and app entry graphs,
+  // including shared dependencies; preload-tag filtering alone is insufficient.
 });

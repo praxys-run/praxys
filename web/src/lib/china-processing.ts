@@ -10,6 +10,7 @@ export const CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT =
 const PUBLIC_PATHS = new Set([
   "/",
   "/zh",
+  "/en",
   "/product",
   "/faq",
   "/zh/product",
