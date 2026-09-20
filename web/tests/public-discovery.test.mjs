@@ -84,6 +84,6 @@ test('robots and sitemap expose only the canonical public surface', () => {
 
 test('public language switching uses explicit locale routes', () => {
   assert.match(appSource, /get\('lang'\) === 'en'/);
-  assert.match(landingSource, /window\.location\.assign\('\/\?lang=en'\)/);
-  assert.match(landingSource, /window\.location\.assign\('\/zh'\)/);
+  assert.match(landingSource, /href="\/en"/);
+  assert.match(landingSource, /href="\/zh"/);
 });

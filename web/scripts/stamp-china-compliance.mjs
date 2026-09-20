@@ -1,9 +1,12 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ICP_FILING_NUMBER = '沪ICP备2025109616号-2';
 export const MIIT_FILING_URL = 'https://beian.miit.gov.cn/';
+export const PUBLIC_SECURITY_FILING_NUMBER = '沪公网安备31011802006255号';
+export const PUBLIC_SECURITY_FILING_URL = 'https://beian.mps.gov.cn/#/query/webSearch?code=31011802006255';
+export const PUBLIC_SECURITY_ICON_PATH = '/compliance/public-security-filing.png';
 export const CHINA_DEPLOYMENT_REGION = 'cn';
 
 const COMPLIANCE_MARKER = 'data-praxys-cn-compliance="icp"';
@@ -18,14 +21,15 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-export function complianceFooterHtml() {
-  return `    <footer class="cn-compliance-footer" ${COMPLIANCE_MARKER} aria-label="ICP备案信息">
+export function complianceFooterHtml(hidden = false) {
+  return `    <footer class="cn-compliance-footer" ${COMPLIANCE_MARKER}${hidden ? ' hidden' : ''} aria-label="网站备案信息">
       <a href="${escapeHtml(MIIT_FILING_URL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ICP_FILING_NUMBER)}</a>
+      <a href="${escapeHtml(PUBLIC_SECURITY_FILING_URL)}" target="_blank" rel="noopener noreferrer"><img src="${PUBLIC_SECURITY_ICON_PATH}" width="20" height="20" alt="" />${escapeHtml(PUBLIC_SECURITY_FILING_NUMBER)}</a>
     </footer>
 `;
 }
 
-export function stampHtml(html) {
+export function stampHtml(html, footerHidden = false) {
   let stamped = html;
   if (!stamped.includes(DEPLOYMENT_MARKER)) {
     if (!stamped.includes('</head>')) {
@@ -42,7 +46,7 @@ export function stampHtml(html) {
     }
     stamped = stamped.replace(
       '</body>',
-      `${complianceFooterHtml()}  </body>`,
+      `${complianceFooterHtml(footerHidden)}  </body>`,
     );
   }
   return stamped;
@@ -53,7 +57,7 @@ async function findHtmlFiles(directory) {
   const nested = await Promise.all(entries.map(async (entry) => {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return findHtmlFiles(entryPath);
-    return entry.isFile() && entry.name === 'index.html' ? [entryPath] : [];
+    return entry.isFile() && ['index.html', 'app-shell.html'].includes(entry.name) ? [entryPath] : [];
   }));
   return nested.flat();
 }
@@ -66,9 +70,13 @@ export async function stampChinaCompliance(directory) {
     );
   }
 
+  const iconDestination = path.join(directory, PUBLIC_SECURITY_ICON_PATH.slice(1));
+  await mkdir(path.dirname(iconDestination), { recursive: true });
+  await copyFile(new URL('./assets/public-security-filing.png', import.meta.url), iconDestination);
+
   await Promise.all(htmlFiles.map(async (htmlPath) => {
     const html = await readFile(htmlPath, 'utf8');
-    await writeFile(htmlPath, stampHtml(html), 'utf8');
+    await writeFile(htmlPath, stampHtml(html, path.basename(htmlPath) === 'app-shell.html'), 'utf8');
   }));
   return htmlFiles;
 }
@@ -80,5 +88,5 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
     throw new Error('Usage: node web/scripts/stamp-china-compliance.mjs <dist-directory>');
   }
   const stamped = await stampChinaCompliance(path.resolve(target));
-  console.log(`Stamped ICP filing footer into ${stamped.length} HTML files.`);
+  console.log(`Stamped ICP and public-security filing footer into ${stamped.length} HTML files.`);
 }

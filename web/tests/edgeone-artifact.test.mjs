@@ -85,3 +85,9 @@ test('EdgeOne artifact rejects non-canonical source SHAs', async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+test('regional preparation rejects a prerendered global English home', async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'praxys-wrong-region-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(path.join(directory, 'index.html'), '<div id="root" data-praxys-public-page="home" data-praxys-public-locale="en">English</div>');
+  await assert.rejects(prepareEdgeOneArtifact(directory, 'a'.repeat(40)), /regional public-page build/);
+});

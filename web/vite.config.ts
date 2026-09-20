@@ -1,4 +1,5 @@
 import path from 'path'
+import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
@@ -12,6 +13,26 @@ export default defineConfig({
     }),
     tailwindcss(),
     lingui(),
+    {
+      name: 'prerender-public-documents',
+      apply: 'build',
+      // Complete HTML before the PWA closeBundle hook records its revisions.
+      writeBundle() {
+        execFileSync(process.execPath, ['scripts/generate-public-pages.mjs'], {
+          cwd: import.meta.dirname,
+          // ssrLoadModule uses the development JSX transform, in this child only.
+          env: { ...process.env, NODE_ENV: 'development' },
+          stdio: 'inherit',
+        })
+        if (process.env.VITE_DEPLOYMENT_REGION === 'cn') {
+          execFileSync(process.execPath, ['scripts/stamp-china-compliance.mjs', 'dist'], {
+            cwd: import.meta.dirname,
+            env: process.env,
+            stdio: 'inherit',
+          })
+        }
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -28,6 +49,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        navigateFallback: '/app-shell.html',
         // Precache the app shell (JS, CSS, HTML, main icon) so repeat
         // visits load instantly from the service worker cache. API
         // requests intentionally excluded — fresh data matters.
@@ -36,8 +58,33 @@ export default defineConfig({
         // browsers fetch them lazily via unicode-range as glyphs are
         // rendered, so precaching the full set would bloat the install
         // phase + use disk that most users never touch.
-        globPatterns: ['**/*.{js,css,html,ico,svg}'],
-        navigateFallbackDenylist: [/^\/api\//],
+        globPatterns: ['**/*.{js,css,html,ico,svg}', ...(process.env.VITE_DEPLOYMENT_REGION === 'cn' ? ['compliance/*.png'] : [])],
+        // Canonical navigations must reach the network, including / and /faq/.
+        // Otherwise precache routing wins before the network-first route below.
+        directoryIndex: null,
+        ignoreURLParametersMatching: [],
+        navigateFallbackDenylist: [/^\/api\//, /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq|login|terms|privacy|status|verify)?\/?(?:\?.*)?$/],
+        runtimeCaching: [{
+          urlPattern: ({ request, url }) => request.mode === 'navigate'
+            && /^\/(?:en|zh(?:\/(?:product|faq))?|product|faq|login|terms|privacy|status|verify)?\/?$/.test(url.pathname),
+          handler: async ({ request, url }) => {
+            // Preserve edge redirects and query semantics while online.
+            try {
+              return await fetch(request)
+            } catch (error) {
+              // Canonical public paths map to their precached HTML documents.
+              // Do not precache /product itself: mainland .run fetches redirect
+              // across origins. Its /product/index.html file remains same-origin.
+              const storage = globalThis as unknown as {
+                caches: { match(url: string, options: { ignoreSearch: boolean }): Promise<Response | undefined> }
+              }
+              const file = `${url.origin}${url.pathname.replace(/\/+$/, '')}/index.html`
+              const cached = await storage.caches.match(file, { ignoreSearch: true })
+              if (cached) return cached
+              throw error
+            }
+          },
+        }],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
@@ -53,31 +100,23 @@ export default defineConfig({
     },
   },
   build: {
-    modulePreload: {
-      resolveDependencies(_filename, dependencies, context) {
-        if (context.hostType !== 'html') return dependencies
-
-        // Recharts is only used by lazy dashboard routes. Vite otherwise adds
-        // the shared vendor chunk to index.html, making every cold visit pay
-        // ~113 kB gzip before Today can render. Dynamic route imports retain
-        // their own dependency preload list, so charts still load normally
-        // when Training or Goal is requested.
-        return dependencies.filter((dependency) => !dependency.includes('recharts-'))
-      },
-    },
-    // Vendor chunks that get their own cacheable file. Splitting helps
-    // returning visitors: the app-code chunk changes every deploy (its
-    // hash rotates) but recharts / react-markdown / @tanstack/react-query
-    // rarely change, so their hashed filenames stay stable across
-    // deploys and the browser keeps them cached.
-    rollupOptions: {
+    // Avoid immutable HTML responses cached at old asset URLs during the
+    // 2026-09-20 EdgeOne wildcard-rewrite incident. Keep future assets here.
+    assetsDir: 'assets/client',
+    manifest: true,
+    // Keep shared utilities out of the chart chunk. Pulling dependencies into a
+    // manual Recharts group makes even clsx consumers download the whole chart library.
+    rolldownOptions: {
+      preserveEntrySignatures: false,
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          if (/node_modules[\\/](react-router-dom|react-dom|react)[\\/]/.test(id)) return 'react-vendor'
-          if (/node_modules[\\/]recharts[\\/]/.test(id)) return 'recharts'
-          if (/node_modules[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) return 'query'
-          return undefined
+        strictExecutionOrder: true,
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: 'react-vendor', test: /node_modules[\\/](react-router-dom|react-router|react-dom|react)[\\/]/ },
+            { name: 'recharts', test: /node_modules[\\/]recharts[\\/]/ },
+            { name: 'query', test: /node_modules[\\/]@tanstack[\\/](react-query|query-core)[\\/]/ },
+          ],
         },
       },
     },

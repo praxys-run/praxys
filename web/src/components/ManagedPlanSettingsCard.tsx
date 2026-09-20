@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Link } from 'react-router-dom';
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import {
   ArrowRight,
   CalendarSync,
   Check,
   CirclePause,
+  Ellipsis,
   HeartPulse,
   RotateCcw,
   ShieldCheck,
@@ -15,6 +17,12 @@ import ScienceNote from '@/components/ScienceNote';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Card,
   CardContent,
@@ -66,6 +74,11 @@ type ConfirmMode = 'adopt' | 'resume' | null;
 type LeaveChoice = 'keep' | 'remove';
 
 interface ManagedPlanSettingsCardProps {
+  compact?: boolean;
+  /** Hide the summary without interrupting cleanup or its recovery dialogs. */
+  showSummary?: boolean;
+  cleanupReturnFocusRef?: RefObject<HTMLElement | null>;
+  children?: ReactNode;
   config: SettingsConfig;
   planDeliveryOptions: PlanDeliveryOption[];
   updateSettings: (
@@ -97,6 +110,10 @@ function browserTimeZone(): string | null {
 }
 
 export default function ManagedPlanSettingsCard({
+  compact = false,
+  showSummary = true,
+  cleanupReturnFocusRef,
+  children,
   config,
   planDeliveryOptions,
   updateSettings,
@@ -109,14 +126,14 @@ export default function ManagedPlanSettingsCard({
     loading: planLoading,
     error: planError,
     refetch: refetchPlan,
-  } = useApi<PlanResponse>(planUrl);
+  } = useApi<PlanResponse>(planUrl, { enabled: showSummary });
   const {
     data: adjustmentHistory,
     error: adjustmentHistoryError,
     refetch: refetchAdjustmentHistory,
   } = useApi<PlanAdjustmentHistoryResponse>(
     '/api/plan/adjustments?limit=20',
-    { enabled: plan?.adjustments !== undefined },
+    { enabled: showSummary && plan?.adjustments !== undefined },
   );
   const management = config.plan_management;
   const state = managedPlanState(management);
@@ -132,6 +149,7 @@ export default function ManagedPlanSettingsCard({
   );
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const cleanupDialogRef = useRef<HTMLDivElement>(null);
   const [leaveChoice, setLeaveChoice] = useState<LeaveChoice>('keep');
   const [action, setAction] = useState<
     'adopt' | 'pause' | 'resume' | 'target' | 'leave' | 'cleanup' | null
@@ -366,6 +384,8 @@ export default function ManagedPlanSettingsCard({
   };
 
   const leaveManagedMode = async () => {
+    // Disabling the focused action would otherwise move focus to the document.
+    cleanupDialogRef.current?.focus({ preventScroll: true });
     setAction('leave');
     setActionError(null);
     setCleanupResult(null);
@@ -394,6 +414,7 @@ export default function ManagedPlanSettingsCard({
   };
 
   const retryCleanup = async () => {
+    cleanupDialogRef.current?.focus({ preventScroll: true });
     setAction('cleanup');
     setActionError(null);
     try {
@@ -487,20 +508,170 @@ export default function ManagedPlanSettingsCard({
   const stateBadge = state === 'active'
     ? (
       <Badge className="bg-primary/12 text-primary hover:bg-primary/12">
-        <Trans>Active</Trans>
+        <Trans>Delivery on</Trans>
       </Badge>
     )
     : state === 'paused'
       ? (
         <Badge className="bg-accent-amber/12 text-accent-amber hover:bg-accent-amber/12">
-          <Trans>Paused</Trans>
+          <Trans>Delivery paused</Trans>
         </Badge>
       )
-      : <Badge variant="secondary"><Trans>External</Trans></Badge>;
+      : <Badge variant="secondary"><Trans>Delivery off</Trans></Badge>;
   const leaveOptionsDisabled = action != null || cleanupResult != null;
+  const actionAlerts = (
+    <>
+      {actionError && !confirmMode && !leaveOpen && !targetSwitchOpen && (
+        <Alert variant="destructive">
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+      {state !== 'external' && !configuredTargetAvailable && (
+        <Alert className="border-accent-amber/30 bg-accent-amber/8">
+          <TriangleAlert className="text-accent-amber" aria-hidden="true" />
+          <AlertDescription className="text-xs text-foreground">
+            {configuredTargetOption
+              ? deliveryOptionReason(configuredTargetOption)
+              : <Trans>Reconnect {targetLabel} in Settings before workout delivery can continue.</Trans>}
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+  const adjustmentAlerts = (
+    <>
+      {adjustmentHistoryError && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs"><Trans>Could not load automatic change history.</Trans></span>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={() => refetchAdjustmentHistory()}>
+              <Trans>Retry</Trans>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {adjustmentError && (
+        <Alert variant="destructive">
+          <AlertDescription>{adjustmentError}</AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+  const renderAdjustment = (adjustment: PlanAdjustmentHistoryResponse['items'][number]) => (
+    <div
+      key={adjustment.id}
+      className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-data text-muted-foreground">
+            {adjustment.workout_date
+              ? formatDate(adjustment.workout_date, locale)
+              : <Trans>Unknown date</Trans>}
+          </span>
+          <span className="font-medium text-foreground">
+            {formatWorkoutType(adjustment.before.workout_type ?? t`Workout`)}
+            {' \u2192 '}
+            {formatWorkoutType(adjustment.after.workout_type ?? t`Rest`)}
+          </span>
+          <span className="text-muted-foreground">
+            {adjustment.status === 'active' && <Trans>Applied</Trans>}
+            {adjustment.status === 'undone' && <Trans>Restored</Trans>}
+            {adjustment.status === 'superseded' && <Trans>Changed later</Trans>}
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          <Trans>Current HRV crossed your personal caution band.</Trans>
+        </p>
+      </div>
+      {adjustment.can_undo && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="min-h-11"
+          disabled={undoingAdjustment != null}
+          onClick={() => void undoAdjustment(adjustment.id)}
+        >
+          <RotateCcw aria-hidden="true" />
+          {undoingAdjustment === adjustment.id
+            ? <Trans>Restoring…</Trans>
+            : <Trans>Restore workout</Trans>}
+        </Button>
+      )}
+    </div>
+  );
+  const actionableAdjustments = adjustments.filter(
+    (adjustment) => adjustment.status === 'active' && adjustment.can_undo,
+  );
 
   return (
     <>
+        {showSummary && (compact ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground">
+                  <p>
+                    {state === 'active'
+                      ? <Trans>Delivery to {targetLabel} is enabled</Trans>
+                      : state === 'paused'
+                        ? <Trans>Delivery to {targetLabel} is paused</Trans>
+                        : <Trans>Workout delivery is not enabled</Trans>}
+                  </p>
+                  {adjustmentSupported && (
+                    <p>
+                      {state !== 'external' && adjustmentEnabled
+                        ? <Trans>Conservative adjustments on</Trans>
+                        : <Trans>Adjustments are suggestion-only</Trans>}
+                    </p>
+                  )}
+                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {state === 'active' && (
+                  <Button variant="outline" className="min-h-11" disabled={action != null} onClick={pauseDelivery}>
+                    <CirclePause aria-hidden="true" />
+                    {action === 'pause' ? <Trans>Pausing…</Trans> : <Trans>Pause delivery</Trans>}
+                  </Button>
+                )}
+                {children}
+                <Button variant="ghost" className="min-h-11" nativeButton={false} render={<Link to="/settings#plan-management" />}>
+                  <Trans>Plan settings</Trans>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-11" aria-label={t`More plan actions`} disabled={action != null} />}>
+                    <Ellipsis aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {state === 'external' ? (
+                      <DropdownMenuItem onClick={openCleanupRecovery}>
+                        <Trans>Remove future Praxys deliveries</Trans>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => resetLeaveDialog(true)}>
+                        <Trans>Stop Praxys management</Trans>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            {planError && (
+              <Alert variant="destructive">
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span><Trans>Could not load the managed-window preview.</Trans></span>
+                  <Button variant="outline" size="sm" className="min-h-11" onClick={() => refetchPlan()}><Trans>Retry</Trans></Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {actionAlerts}
+            {adjustmentAlerts}
+            {actionableAdjustments.length > 0 && (
+              <div className="mt-3 divide-y divide-border border-t border-border">
+                <p className="pt-3 text-xs font-semibold"><Trans>Recent automatic changes</Trans></p>
+                {actionableAdjustments.slice(0, 5).map(renderAdjustment)}
+              </div>
+            )}
+          </div>
+        ) : (
       <Card className="mb-8">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -510,10 +681,10 @@ export default function ManagedPlanSettingsCard({
               </div>
               <div>
                 <CardTitle className="text-sm font-semibold text-foreground">
-                  <Trans>Plan management</Trans>
+                  <Trans>Plan settings</Trans>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  <Trans>Choose who controls the plan and where Praxys delivers it</Trans>
+                  <Trans>Control workout delivery and automatic adjustments</Trans>
                 </CardDescription>
               </div>
             </div>
@@ -524,9 +695,9 @@ export default function ManagedPlanSettingsCard({
         <CardContent className="space-y-5">
           <div>
             <p className="text-sm font-medium text-foreground">
-              {state === 'active' && <Trans>Praxys is your active planner.</Trans>}
-              {state === 'paused' && <Trans>Praxys owns the plan; delivery is paused.</Trans>}
-              {state === 'external' && <Trans>Your external planner remains in control.</Trans>}
+              {state === 'active' && <Trans>Workout delivery is enabled.</Trans>}
+              {state === 'paused' && <Trans>Workout delivery is paused.</Trans>}
+              {state === 'external' && <Trans>Workout delivery is not enabled.</Trans>}
             </p>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">
               {state === 'active' && (
@@ -541,7 +712,7 @@ export default function ManagedPlanSettingsCard({
               )}
               {state === 'external' && (
                 <Trans>
-                  Praxys can analyze this schedule, but it will not create, replace, or remove target workouts.
+                  Enabling delivery is separate from adopting a plan. Review the window and target before allowing Praxys to deliver workouts.
                 </Trans>
               )}
             </p>
@@ -800,7 +971,7 @@ export default function ManagedPlanSettingsCard({
                         setConfirmMode('adopt');
                       }}
                     >
-                      <Trans>Review and activate</Trans>
+                      <Trans>Review workout delivery</Trans>
                     </Button>
                     <Button
                       variant="outline"
@@ -846,31 +1017,13 @@ export default function ManagedPlanSettingsCard({
                   disabled={action != null}
                   onClick={() => resetLeaveDialog(true)}
                 >
-                  <Trans>Leave managed mode</Trans>
+                  <Trans>Stop Praxys management</Trans>
                 </Button>
               )}
             </div>
           </div>
 
-          {actionError && !confirmMode && !leaveOpen && !targetSwitchOpen && (
-            <Alert variant="destructive">
-              <AlertDescription>{actionError}</AlertDescription>
-            </Alert>
-          )}
-          {state !== 'external' && !configuredTargetAvailable && (
-            <Alert className="border-accent-amber/30 bg-accent-amber/8">
-              <TriangleAlert className="text-accent-amber" aria-hidden="true" />
-              <AlertDescription className="text-xs text-foreground">
-                {configuredTargetOption ? (
-                  deliveryOptionReason(configuredTargetOption)
-                ) : (
-                  <Trans>
-                    Reconnect {targetLabel} above before managed delivery can continue.
-                  </Trans>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
+          {actionAlerts}
 
           {adjustmentSupported && (
             <div className="border-t border-border pt-5">
@@ -899,7 +1052,7 @@ export default function ManagedPlanSettingsCard({
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {state === 'external' ? (
                       <Trans>
-                        Adopt Praxys as your planner before enabling automatic changes. Coaching remains suggestion-only.
+                        Praxys is suggestion-only. Complete the management authorization above, then review automatic changes separately.
                       </Trans>
                     ) : adjustmentEnabled ? (
                       <Trans>
@@ -965,82 +1118,17 @@ export default function ManagedPlanSettingsCard({
                   <Trans>Recent automatic changes</Trans>
                 </p>
                 <div className="mt-2 divide-y divide-border">
-                  {adjustments.slice(0, 5).map((adjustment) => (
-                    <div
-                      key={adjustment.id}
-                      className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-data text-muted-foreground">
-                            {adjustment.workout_date
-                              ? formatDate(adjustment.workout_date, locale)
-                              : <Trans>Unknown date</Trans>}
-                          </span>
-                          <span className="font-medium text-foreground">
-                            {formatWorkoutType(
-                              adjustment.before.workout_type ?? t`Workout`,
-                            )}
-                            {' \u2192 '}
-                            {formatWorkoutType(
-                              adjustment.after.workout_type ?? t`Rest`,
-                            )}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {adjustment.status === 'active' && <Trans>Applied</Trans>}
-                            {adjustment.status === 'undone' && <Trans>Restored</Trans>}
-                            {adjustment.status === 'superseded' && <Trans>Changed later</Trans>}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                          <Trans>Current HRV crossed your personal caution band.</Trans>
-                        </p>
-                      </div>
-                      {adjustment.can_undo && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={undoingAdjustment != null}
-                          onClick={() => void undoAdjustment(adjustment.id)}
-                        >
-                          <RotateCcw aria-hidden="true" />
-                          {undoingAdjustment === adjustment.id
-                            ? <Trans>Restoring…</Trans>
-                            : <Trans>Restore workout</Trans>}
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                  {adjustments.slice(0, 5).map(renderAdjustment)}
                 </div>
               </div>
             )}
 
-              {adjustmentHistoryError && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-xs">
-                      <Trans>Could not load automatic change history.</Trans>
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => refetchAdjustmentHistory()}
-                    >
-                      <Trans>Retry</Trans>
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {adjustmentError && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertDescription>{adjustmentError}</AlertDescription>
-                </Alert>
-              )}
+              <div className="mt-4 space-y-3">{adjustmentAlerts}</div>
             </div>
           )}
         </CardContent>
       </Card>
+        ))}
 
       <Dialog
         open={confirmMode != null}
@@ -1056,7 +1144,7 @@ export default function ManagedPlanSettingsCard({
             <DialogTitle>
               {confirmMode === 'resume'
                 ? <Trans>Resume managed delivery?</Trans>
-                : <Trans>Let Praxys manage this plan?</Trans>}
+                : <Trans>Enable workout delivery?</Trans>}
             </DialogTitle>
             <DialogDescription>
               <Trans>
@@ -1131,7 +1219,7 @@ export default function ManagedPlanSettingsCard({
                 ? <Trans>Enabling…</Trans>
                 : confirmMode === 'resume'
                   ? <Trans>Resume delivery</Trans>
-                  : <Trans>Activate managed plan</Trans>}
+                  : <Trans>Enable workout delivery</Trans>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1305,7 +1393,11 @@ export default function ManagedPlanSettingsCard({
           resetLeaveDialog(open);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          ref={cleanupDialogRef}
+          finalFocus={!showSummary ? cleanupReturnFocusRef : undefined}
+          className="sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle>
               {state === 'external'

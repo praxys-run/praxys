@@ -84,10 +84,19 @@ def test_settings_owns_explicit_managed_plan_lifecycle() -> None:
     # Older backends omit the additive capability field. Neither client may
     # call the history endpoint or expose controls until it is present.
     assert "if (response.adjustments !== undefined)" in source
-    assert "{ enabled: plan?.adjustments !== undefined }" in web_source
+    assert (
+        "{ enabled: showSummary && plan?.adjustments !== undefined }"
+        in web_source
+    )
     assert "{adjustmentSupported && (" in web_source
     assert "if (apiError.status === 409) await this.refetch()" in source
     assert "if (response.status === 409)" in web_source
+
+    # Hidden Training summaries do not subscribe; Settings stays visible by default.
+    assert "showSummary = true" in web_source
+    assert (
+        "useApi<PlanResponse>(planUrl, { enabled: showSummary })" in web_source
+    )
 
     assert "{{tr.planManagement}}" in markup
     assert "response.plan_delivery_options" in source

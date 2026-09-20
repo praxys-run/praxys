@@ -1,6 +1,9 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import { lingui } from '@lingui/vite-plugin';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = path.join(webRoot, 'dist');
@@ -58,31 +61,8 @@ function structuredData(pageKey, page, canonical) {
   };
 }
 
-function fallbackHtml(locale, pageKey, page) {
-  const nav = content.locales[locale].nav;
-  const sections = page.sections?.map((section) => `
-    <section><h2>${escapeHtml(section.heading)}</h2><p>${escapeHtml(section.body)}</p></section>`).join('') ?? '';
-  const summary = page.summaryPoints?.map((point) => `<li>${escapeHtml(point)}</li>`).join('') ?? '';
-  const questions = page.questions?.map((item) => `
-    <section><h2>${escapeHtml(item.question)}</h2><p>${escapeHtml(item.answer)}</p></section>`).join('') ?? '';
-  const extra = pageKey === 'product'
-    ? `<section><h2>${escapeHtml(page.dataHeading)}</h2><p>${escapeHtml(page.dataBody)}</p></section>
-       <section><h2>${escapeHtml(page.boundaryHeading)}</h2><ul>${page.boundaries.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul></section>`
-    : '';
-  return `<div id="root">
-    <div class="seo-fallback">
-      <header><a href="${content.locales[locale].home.path}">Praxys</a>
-        <nav><a href="${content.locales[locale].product.path}">${escapeHtml(nav.product)}</a>
-        <a href="${content.locales[locale].faq.path}">${escapeHtml(nav.faq)}</a></nav>
-      </header>
-      <main><h1>${escapeHtml(page.heading)}</h1><p class="seo-lead">${escapeHtml(page.lead)}</p>
-        ${summary ? `<ul>${summary}</ul>` : ''}${sections}${extra}${questions}
-      </main>
-    </div>
-  </div>`;
-}
 
-function render(locale, pageKey, page) {
+function render(locale, pageKey, page, pathname, renderPublicDocument) {
   const localeContent = content.locales[locale];
   const canonical = `${content.site.baseUrl}${page.path}`;
   const alternate = `${content.site.baseUrl}${page.alternatePath}`;
@@ -104,17 +84,54 @@ function render(locale, pageKey, page) {
     ${pageKey === 'home' ? `<link rel="alternate" hreflang="x-default" href="${content.site.baseUrl}/" />` : ''}
     <script id="praxys-structured-data" type="application/ld+json">${JSON.stringify(structuredData(pageKey, page, canonical)).replaceAll('<', '\\u003c')}</script>
   </head>`)
-    .replace('<div id="root"></div>', fallbackHtml(locale, pageKey, page));
+    .replace('<div id="root"></div>', `<div id="root" data-praxys-public-page="${pageKey}" data-praxys-public-locale="${locale}">${renderPublicDocument(pathname, china)}</div>`);
   return html;
 }
 
-for (const [locale, localeContent] of Object.entries(content.locales)) {
-  for (const pageKey of ['home', 'product', 'faq']) {
-    const page = localeContent[pageKey];
-    const output = page.path === '/'
-      ? path.join(distRoot, 'index.html')
-      : path.join(distRoot, page.path.slice(1), 'index.html');
-    await mkdir(path.dirname(output), { recursive: true });
-    await writeFile(output, render(locale, pageKey, page), 'utf8');
+const china = process.env.VITE_DEPLOYMENT_REGION === 'cn';
+// ssrLoadModule uses Vite's development JSX transform in this build-only child.
+process.env.NODE_ENV = 'development';
+// Rendering happens only during the build. Nothing is deployed as a server function.
+const server = await createServer({
+  configFile: false,
+  root: webRoot,
+  plugins: [react({ plugins: [['@lingui/swc-plugin', {}]] }), lingui()],
+  resolve: { alias: { '@': path.join(webRoot, 'src') } },
+  server: { middlewareMode: true },
+  appType: 'custom',
+  optimizeDeps: { noDiscovery: true, entries: [] },
+});
+try {
+  const { renderPublicDocument, renderAppShell } = await server.ssrLoadModule('/src/public-render.tsx');
+  const appShell = shell
+    .replace(/<html lang="[^"]*">/i, `<html lang="${china ? 'zh-CN' : 'en'}">`)
+    .replace(/<title>.*?<\/title>/is, '<title>Praxys</title>')
+    .replace('<div id="root"></div>', `<div id="root">${renderAppShell()}</div>`)
+    .replace('</head>', '<meta name="robots" content="noindex, nofollow" /></head>');
+  await writeFile(path.join(distRoot, 'app-shell.html'), appShell, 'utf8');
+  // Public application entrances need a visible static regional filing even
+  // without JavaScript. Private routes keep the separate hidden-footer shell.
+  for (const route of ['login', 'terms', 'privacy', 'status', 'verify']) {
+    await mkdir(path.join(distRoot, route), { recursive: true });
+    await writeFile(path.join(distRoot, route, 'index.html'), appShell, 'utf8');
   }
+  for (const [locale, localeContent] of Object.entries(content.locales)) {
+    for (const pageKey of ['home', 'product', 'faq']) {
+      const page = localeContent[pageKey];
+      const actualLocale = page.path === '/' && china ? 'zh' : locale;
+      const actualPage = content.locales[actualLocale][pageKey];
+      const output = page.path === '/' ? path.join(distRoot, 'index.html') : path.join(distRoot, page.path.slice(1), 'index.html');
+      await mkdir(path.dirname(output), { recursive: true });
+      let html = render(actualLocale, pageKey, actualPage, page.path, renderPublicDocument);
+      if (page.path === '/') {
+        // Compatibility for old explicit-English links. New language links use /en.
+        html = html.replace('</head>', `<script>if(new URLSearchParams(location.search).get('lang')==='en'){document.documentElement.setAttribute('data-public-language-redirect','');location.replace('/en'+location.search+location.hash)}</script><style>html[data-public-language-redirect] #root{visibility:hidden}</style></head>`);
+      }
+      await writeFile(output, html, 'utf8');
+    }
+  }
+  await mkdir(path.join(distRoot, 'en'), { recursive: true });
+  await writeFile(path.join(distRoot, 'en', 'index.html'), render('en', 'home', content.locales.en.home, '/en', renderPublicDocument), 'utf8');
+} finally {
+  await server.close();
 }

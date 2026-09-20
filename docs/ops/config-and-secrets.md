@@ -145,7 +145,10 @@ The approved service filing for `praxys.cn` and `www.praxys.cn` is
 of truth is `web/scripts/stamp-china-compliance.mjs`; the frontend workflow
 executes the regional build only as validation, while the EdgeOne Git
 integration runs the same checked-in build for delivery. This is public
-regulatory metadata, not a secret or mutable Actions variable. Update it only
+regulatory metadata, not a secret or mutable Actions variable. The public-page
+footer also displays `沪公网安备31011802006255号`, linked to
+`https://beian.mps.gov.cn/#/query/webSearch?code=31011802006255`, with the
+official icon documented in `cn-public-security-filing.md`. Update it only
 after an approved filing change, together with
 `docs/ops/tencent-frontend.md` and deployment verification.
 

@@ -73,10 +73,48 @@ Detection: `LocaleContext` + `detectBrowserLocale`. Stored preference overrides 
 | Dropdowns | `Select` (never raw `<select>`) |
 | Buttons | `Button` with variants (never raw `<button>`) |
 | Form fields | `Input` + `Label` (never raw `<input>`) |
+| Explicit confirmations | `Checkbox` + `Label`; unchecked by default, with the complete statement visible |
 | Bounded numeric ranges | `RangeSlider` paired with exact `Input` fields |
 | Status indicators | `Badge` with severity-based variants |
 | Progress bars | `Progress` |
 | Navigation | Web: `Sidebar` (collapsible, sheet drawer on mobile). Miniapp: five-tab Skyline bar (`Today / Training / Analysis / Goal / Me`) with flat in-page switches for sibling views. |
+
+### Select positioning
+
+Shared `SelectContent` opens below the trigger, start-aligned with a 4px gap.
+Keep `alignItemWithTrigger` off: the selected option must not replace or cover
+the trigger while the list is open. Base UI still owns collision-driven
+flipping, scrolling the selected item into view, keyboard selection, and focus
+return. Keep the popup within the available viewport; do not force it below a
+trigger near the bottom edge. Native miniapp pickers keep their platform behavior.
+When `prefers-reduced-motion: reduce` is active, disable popup animation and
+transitions without changing positioning, keyboard selection, or focus return.
+
+### Training-plan language and hierarchy
+
+- Name the athlete's task, such as "5K training plan", not the internal
+  "plan purpose" or source enum. Explain Goal linkage only when relevant;
+  distinguish linked and unlinked alternatives when their distances match.
+- Applicability facts stay visible under "Before you start". One explicit
+  checkbox can confirm the existing all-required set; it does not confirm a
+  safety stop, adoption, delivery, or automatic-adjustment authorization.
+- An adopted plan has one primary calendar. Training shows its status, pending
+  proposals and necessary actions; routine delivery and automatic-adjustment
+  configuration lives in Settings (`/settings#plan-management`). Keep errors,
+  retry, pause and cleanup recovery discoverable. The fixed 14-day authorization
+  preview remains inspectable there, separate from calendar date browsing.
+- Open the original adopted proposal through a plan-details action, not another
+  Training section. Clearly distinguish the saved snapshot from current
+  workouts; technical identifiers are not default athlete-facing content.
+- A missing proposal, external management mode, failed fetch or empty date
+  range does not establish that an athlete has no plan. Use neutral invitations
+  and date-range-specific empty states unless absence is genuinely known.
+- Collect the 5K shared session-time limit once, initially empty, not once per
+  weekday. Do not infer availability or change the backend's scalar contract.
+- Explain applicability in the product, with concise, qualified prose and
+  claim-linked references. Internal YAML is not a required reading destination.
+  Keep safety-input feedback distinct from an actual server result: a local
+  flag neither pauses delivery nor updates a saved proposal's adoption inputs.
 
 ### Bounded numeric ranges
 

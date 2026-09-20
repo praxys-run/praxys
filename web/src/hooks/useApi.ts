@@ -41,6 +41,8 @@ interface UseApiOptions {
   refetchOnWindowFocus?: boolean | 'always';
   /** Bound one request when an unfinished result would block the user. */
   timeoutMs?: number;
+  /** Override retry classification for an endpoint's expected outcomes. */
+  retry?: (failureCount: number, error: Error) => boolean;
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -179,7 +181,11 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
     ...(options?.refetchOnWindowFocus !== undefined
       ? { refetchOnWindowFocus: options.refetchOnWindowFocus }
       : {}),
-    ...(options?.timeoutMs ? { retry: shouldRetryApiRequest } : {}),
+    ...(options?.retry
+      ? { retry: options.retry }
+      : options?.timeoutMs
+        ? { retry: shouldRetryApiRequest }
+        : {}),
   });
   const responseError = error instanceof ApiResponseError ? error : null;
 

@@ -1,13 +1,8 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { I18nProvider } from '@lingui/react'
 import './index.css'
-import App from './App'
-import { i18n, activateLocale, DEFAULT_LOCALE, isSupportedLocale, type SupportedLocale } from './i18n/init'
-import { detectLocaleFromTag } from './lib/locale-detect'
+import './pages/Landing.css'
+import { resolvePublicRoute } from './lib/public-route'
+import { isChinaFrontendDeployment } from './lib/runtime-region'
 import { KEYS, getCompatItem } from './lib/storage-compat'
-import { initAppInsights } from './lib/appinsights'
 import {
   CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
 } from './lib/china-processing'
@@ -20,9 +15,12 @@ import {
   type PreloadReloadMarker,
 } from './lib/preload-recovery'
 
-// Fire before render so the SDK captures the first page view + web vitals
-// from the initial paint. No-op when VITE_APPINSIGHTS_CONNECTION_STRING
-// is unset at build time.
+function initAppInsights() {
+  void import('./lib/appinsights').then((telemetry) => telemetry.initAppInsights())
+}
+
+// Start telemetry independently of rendering. The SDK retains its regional
+// consent checks and is a no-op when the public connection string is unset.
 initAppInsights()
 window.addEventListener(
   CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
@@ -35,7 +33,10 @@ window.addEventListener(
 // every open tab closes. onNeedRefresh / onOfflineReady are left as the
 // default no-ops — we auto-update silently and don't prompt the user
 // (matches registerType: 'autoUpdate' in vite.config.ts).
-registerSW({ immediate: true })
+const publicRoute = resolvePublicRoute(window.location.pathname, isChinaFrontendDeployment())
+// New marketing visitors do not need the offline application precache. Existing
+// installations still check for updates; app entry keeps the complete offline cache.
+if (!publicRoute || navigator.serviceWorker?.controller) registerSW({ immediate: true })
 
 function preloadReloadMarker(): PreloadReloadMarker | null {
   const raw = sessionStorage.getItem(PRELOAD_RELOAD_KEY)
@@ -81,46 +82,29 @@ window.addEventListener('load', () => {
   }, remaining)
 }, { once: true })
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-      retry: 2,
-      // Disabled because CN users on spotty mobile network were burning
-      // seconds of round-trips every time they tabbed back from WeChat
-      // or another app. Stale data is refetched lazily via staleTime
-      // expiration + manual refetch() calls already wired where it matters
-      // (sync status polling, etc.). Leaving this on made the app feel
-      // like it "reloaded for no reason" after an app switch.
-      refetchOnWindowFocus: false,
-    },
-  },
-})
-
-// Pick the locale for first paint the same way LocaleProvider will, so
-// returning zh users never see an EN flash before their stored preference
-// kicks in. localStorage is authoritative; then navigator.language; then
-// DEFAULT_LOCALE. The server-preference case (user changed language on
-// another device) still falls back to LocaleSync after settings load —
-// that's an unavoidable round-trip.
-function _initialLocale(): SupportedLocale {
-  const stored = getCompatItem(KEYS.locale.new, KEYS.locale.legacy)
-  if (isSupportedLocale(stored)) return stored
-  if (typeof navigator !== 'undefined') {
-    return detectLocaleFromTag(navigator.language)
-  }
-  return DEFAULT_LOCALE
+const root = document.getElementById('root')!
+function showBootFailure() {
+  // Public copy follows the URL; application failures follow the saved locale
+  // even when the application entry could not load to activate that locale.
+  const stored = publicRoute ? null : getCompatItem(KEYS.locale.new, KEYS.locale.legacy)
+  const zh = stored === 'zh' || (stored !== 'en' && document.documentElement.lang.startsWith('zh'))
+  const notice = document.createElement('div')
+  notice.className = 'boot-error'
+  notice.lang = zh ? 'zh-CN' : 'en'
+  notice.setAttribute('role', 'alert')
+  const message = document.createElement('p')
+  message.textContent = zh ? '页面未能加载完成，请刷新重试。' : 'The page could not finish loading. Please refresh to try again.'
+  const retry = document.createElement('button')
+  retry.type = 'button'
+  retry.className = 'landing-btn-primary'
+  retry.textContent = zh ? '重新加载' : 'Reload page'
+  retry.addEventListener('click', () => window.location.reload())
+  notice.append(message, retry)
+  root.prepend(notice)
+  root.querySelector('[aria-busy]')?.setAttribute('aria-busy', 'false')
 }
-
-activateLocale(_initialLocale())
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <I18nProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </I18nProvider>
-  </StrictMode>,
-)
+if (publicRoute) {
+  void import('./public-main').then(({ mountPublic }) => mountPublic(root, publicRoute)).catch(showBootFailure)
+} else {
+  void import('./app-main').then(({ mountApp }) => mountApp(root)).catch(showBootFailure)
+}

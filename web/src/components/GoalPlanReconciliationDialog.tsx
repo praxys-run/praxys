@@ -46,7 +46,7 @@ export default function GoalPlanReconciliationDialog() {
       ]);
     } finally {
       const target = goalPlanImpact?.can_generate_successor
-        ? '/goal#plan-routing'
+        ? '/training#plan-start'
         : '/training';
       dismissGoalPlanImpact();
       setAction(null);

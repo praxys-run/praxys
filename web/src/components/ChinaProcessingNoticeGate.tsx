@@ -7,7 +7,7 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
-import { useLocale } from "@/contexts/LocaleContext";
+import { useLocale } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import {
   CHINA_PROCESSING_NOTICE_VERSION,

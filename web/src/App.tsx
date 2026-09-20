@@ -37,6 +37,8 @@ import Verify from './pages/Verify';
 import Status from './pages/Status';
 import { hasSkippedSetupForSession, useSetupStatus } from './hooks/useSetupStatus';
 import ChinaProcessingNoticeGate from './components/ChinaProcessingNoticeGate';
+import ChinaComplianceVisibility from './components/ChinaComplianceVisibility';
+import AppLoadingShell from './components/AppLoadingShell';
 import {
   acknowledgeChinaProcessingNotice,
   hasAcknowledgedChinaProcessingNotice,
@@ -147,7 +149,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     // Show nothing while checking auth state to avoid flash.
-    return null;
+    return <AppLoadingShell />;
   }
 
   if (!isAuthenticated) {
@@ -240,6 +242,7 @@ export default function App() {
               <Routes>
               <Route path="/" element={<LandingOrApp />} />
               <Route path="/zh" element={<Landing publicLocale="zh" />} />
+              <Route path="/en" element={<Landing publicLocale="en" />} />
               <Route path="/product" element={<PublicInfo locale="en" pageKey="product" />} />
               <Route path="/faq" element={<PublicInfo locale="en" pageKey="faq" />} />
               <Route path="/zh/product" element={<PublicInfo locale="zh" pageKey="product" />} />
@@ -292,6 +295,7 @@ export default function App() {
             </StatsigProvider>
           </AuthProvider>
         </ChinaProcessingBoundary>
+        <ChinaComplianceVisibility />
       </BrowserRouter>
     </LocaleProvider>
   );
@@ -344,7 +348,7 @@ function LandingOrApp() {
   const location = useLocation();
   const forceEnglish = new URLSearchParams(location.search).get('lang') === 'en';
 
-  if (isLoading) return null;
+  if (isLoading) return <AppLoadingShell />;
   if (isAuthenticated && !isDemo) return <Navigate to="/today" replace />;
   if (locale === 'zh' && !forceEnglish) return <Navigate to="/zh" replace />;
   return <Landing publicLocale="en" />;
@@ -354,7 +358,7 @@ function LandingOrApp() {
 function LoginGuard() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) return null;
+  if (isLoading) return <AppLoadingShell />;
 
   if (isAuthenticated) return <Navigate to="/today" replace />;
 
