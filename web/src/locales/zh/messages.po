@@ -1589,7 +1589,7 @@ msgstr "问题反馈"
 
 #: src/pages/admin/AdminFeedback.tsx:445
 msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
-msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，绝不决定是否为 agent-ready。"
+msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，不决定是否为智能体就绪。"
 
 #: src/components/GoalEditor.tsx:116
 #~ msgid "Build fitness over time"
@@ -2066,7 +2066,7 @@ msgstr "当前仅提供建议。Praxys 不会根据恢复信号修改训练。"
 
 #: src/pages/admin/AdminUsers.tsx:732
 msgid "Code"
-msgstr "代码"
+msgstr "邀请码"
 
 #. placeholder {0}: r.code
 #. placeholder {1}: r.email
@@ -3914,7 +3914,7 @@ msgstr "估算的湿球温度代理值"
 
 #: src/pages/Science.tsx:29
 msgid "Estimates acclimatization from recent qualifying conditions."
-msgstr "根据近期符合条件的环境估算热适应。"
+msgstr "根据近期达标环境估算热适应。"
 
 #: src/pages/Science.tsx:27
 msgid "Estimates race performance from current fitness."
@@ -4481,7 +4481,7 @@ msgstr "仅限完整活动"
 
 #: src/pages/LabsEnvironment.tsx:398
 msgid "Full analysis must confirm eligibility"
-msgstr "需要完整分析确认是否符合条件"
+msgstr "是否符合条件还需完整分析确认"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1428
 msgid "Future delivered workouts"
@@ -5277,7 +5277,7 @@ msgstr "工单"
 #: src/pages/admin/AdminFeedback.tsx:161
 #: src/pages/admin/AdminFeedback.tsx:467
 msgid "Issue created"
-msgstr "已创建 Issue"
+msgstr "已创建 GitHub Issue"
 
 #: src/components/trail-course-review/copy.tsx:417
 msgid "It is outside the non-ultra, one-day policy."
@@ -6225,7 +6225,7 @@ msgstr "更多计划操作"
 
 #: src/components/PersonalContextPanel.tsx:224
 msgid "Motivation"
-msgstr "训练动力不足"
+msgstr "动力"
 
 #: src/components/WorkoutStructureEditor.tsx:1761
 msgid "Move down"
@@ -6507,7 +6507,7 @@ msgstr "尚未用于任何评估或计划调整。"
 
 #: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
-msgstr "未触发 Azure 警报"
+msgstr "Azure 无告警"
 
 #: src/pages/admin/AdminOps.tsx:1526
 msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
@@ -7102,7 +7102,7 @@ msgstr "开"
 
 #: src/pages/LabsEnvironment.tsx:1194
 msgid "One or more research diagnostics did not support predictive interpretation. Read the curve only as a pattern in eligible past runs."
-msgstr "一项或多项研究诊断不支持预测性解读。请仅将曲线视为合格历史跑步中的关联模式。"
+msgstr "一项或多项研究诊断不支持按预测来解读。请仅将这条曲线视为符合条件的历史跑步中呈现的模式。"
 
 #: src/components/trail-course-review/copy.tsx:356
 msgid "One or more values is outside the accepted format or range."
@@ -7937,7 +7937,7 @@ msgstr "Praxys 无法安全解释当前版本。"
 
 #: src/pages/LabsEnvironment.tsx:359
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
-msgstr "Praxys 会在显示参与同意或开始分析前，检查所需的环境、Stryd 功率、心率和临界功率覆盖情况。"
+msgstr "Praxys 会在显示参与同意内容或开始分析前，检查所需环境，以及 Stryd 功率、心率和阈值功率的数据覆盖情况。"
 
 #: src/components/AiInsightsCard.tsx:239
 msgid "Praxys Coach"
@@ -8036,7 +8036,7 @@ msgstr "Praxys 当前服务性能下降。"
 
 #: src/pages/Login.tsx:328
 msgid "Praxys is in private alpha."
-msgstr "Praxys 目前处于私测 alpha 阶段。"
+msgstr "Praxys 目前处于内测阶段。"
 
 #: src/components/UpcomingPlanCard.tsx:252
 msgid "Praxys is read-only and leaves every target workout untouched."
@@ -8452,7 +8452,7 @@ msgstr "已进入发布队列"
 
 #: src/pages/admin/AdminFeedback.tsx:197
 msgid "Publication unavailable"
-msgstr "发布不可用"
+msgstr "无法发布"
 
 #: src/pages/admin/AdminFeedback.tsx:195
 msgid "Publication unknown"
@@ -8787,7 +8787,7 @@ msgstr "近期活动需要包含受支持的温度和湿度数据，才能估算
 
 #: src/components/trail-course-review/copy.tsx:115
 msgid "Recent ascent exposure"
-msgstr "近期爬升训练"
+msgstr "近期爬升适应"
 
 #: src/components/ManagedPlanSettingsCard.tsx:669
 #: src/components/ManagedPlanSettingsCard.tsx:1118
@@ -9216,7 +9216,7 @@ msgstr "地区"
 #: src/pages/admin/AdminOps.tsx:1387
 #: src/pages/admin/AdminUsers.tsx:456
 msgid "Registered"
-msgstr "已注册"
+msgstr "注册用户"
 
 #: src/pages/Admin.tsx:625
 #~ msgid "Registered accounts"
@@ -9392,7 +9392,7 @@ msgstr "请求和可用性遥测数据暂不可用。"
 
 #: src/pages/McpAuthorization.tsx:244
 msgid "Request expires"
-msgstr "请求到期时间"
+msgstr "请求失效时间"
 
 #: src/components/GoalBaselinePanel.tsx:173
 #: src/components/GoalBaselinePanel.tsx:597
@@ -10156,7 +10156,7 @@ msgstr "保存仅代表同意用于上述用途，不代表同意其他用途、
 
 #: src/pages/McpAuthorization.tsx:311
 msgid "Saving decision…"
-msgstr "正在保存决定…"
+msgstr "正在保存选择…"
 
 #: src/components/ManagedPlanSettingsCard.tsx:926
 msgid "Saving target…"
@@ -10346,7 +10346,7 @@ msgstr "发送中…"
 
 #: src/pages/admin/AdminFeedback.tsx:234
 msgid "Sensitivity gate"
-msgstr "敏感信息门槛"
+msgstr "敏感信息门禁"
 
 #: src/components/AiInsightsCard.tsx:326
 msgid "Sent"
@@ -10521,15 +10521,15 @@ msgstr "不应标记为 agent-ready：信息不足"
 
 #: src/pages/admin/AdminFeedback.tsx:253
 msgid "Should not be agent-ready — needs product judgment"
-msgstr "不应标记为 agent-ready：需要产品判断"
+msgstr "不应标记为智能体就绪：需要产品判断"
 
 #: src/pages/admin/AdminFeedback.tsx:249
 msgid "Should not be agent-ready — not a defect"
-msgstr "不应标记为 agent-ready：不是缺陷"
+msgstr "不应标记为智能体就绪：不是缺陷"
 
 #: src/pages/admin/AdminFeedback.tsx:257
 msgid "Should not be agent-ready — other"
-msgstr "不应标记为 agent-ready：其他原因"
+msgstr "不应标记为智能体就绪：其他"
 
 #: src/pages/admin/AdminFeedback.tsx:155
 #~ msgid "Should not be agent-ready — sensitive or high risk"
@@ -13043,7 +13043,7 @@ msgstr "里程"
 
 #: src/pages/LabsEnvironment.tsx:1142
 msgid "Voluntary experiments that help you inspect your own training history without turning early research into advice."
-msgstr "自愿参与的实验，帮助理解个人训练历史，同时不把早期研究包装成建议。"
+msgstr "可自愿参与的实验，帮你查看自己的训练历史，不会把早期研究当作建议。"
 
 #. placeholder {0}: data.diagnosis.theory_name
 #: src/pages/Analysis.tsx:258
@@ -13611,7 +13611,7 @@ msgstr "你的反馈已保存。去除个人信息后的文字摘要已进入审
 #: src/pages/Settings.tsx:1091
 #: src/pages/Setup.tsx:925
 msgid "Your Garmin account has multi-factor authentication enabled. Enter the verification code Garmin sent you to finish connecting."
-msgstr "你的 Garmin 账号已启用多重验证。输入 Garmin 发送的验证码，完成连接。"
+msgstr "你的 Garmin 账号已启用 MFA。输入 Garmin 发送的验证码即可完成连接。"
 
 #: src/components/GoalPlanReconciliationDialog.tsx:121
 msgid "Your Goal changed. Should your plan change too?"
