@@ -728,3 +728,52 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
             user_id=user_id,
         ),
     }
+
+
+def stream_user_data_export(user_id: str, db: Session):
+    """Stream the complete JSON document, including lazy Connect IQ versions."""
+    # Bound transport chunks too: many tiny scalar yields are expensive over ASGI.
+    pending: list[str] = []
+    size = 0
+    for piece in stream_export_json(build_user_data_export(user_id, db)):
+        pending.append(piece)
+        size += len(piece)
+        if size >= 64 * 1024:
+            yield "".join(pending)
+            pending.clear()
+            size = 0
+    if pending:
+        yield "".join(pending)
+
+
+class ExportJSONValue(dict):
+    """One bounded, already JSON-safe value from a lazy archive iterator."""
+
+
+def stream_export_json(value):
+    """Serialize nested export iterators without collecting their values."""
+    import json
+    from collections.abc import Iterator, Mapping
+    from fastapi.encoders import jsonable_encoder
+
+    if isinstance(value, ExportJSONValue):
+        yield json.dumps(value, ensure_ascii=False, allow_nan=False)
+    elif isinstance(value, Mapping):
+        yield "{"
+        for index, (key, item) in enumerate(value.items()):
+            if index:
+                yield ","
+            yield json.dumps(str(key), ensure_ascii=False) + ":"
+            yield from stream_export_json(item)
+        yield "}"
+    elif isinstance(value, (list, tuple, Iterator)):
+        yield "["
+        first = True
+        for item in value:
+            if not first:
+                yield ","
+            first = False
+            yield from stream_export_json(item)
+        yield "]"
+    else:
+        yield json.dumps(jsonable_encoder(value), ensure_ascii=False, allow_nan=False)

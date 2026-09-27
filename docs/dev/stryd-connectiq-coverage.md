@@ -119,3 +119,45 @@ client can POST `{"from_date":"2025-01-01","to_date":"2025-12-31"}` to create a
 year backfill, poll its returned job ID, and page through `/items` to identify
 missing originals. Use a returned `parse_id` for every subsequent messages or
 export request to keep pagination fixed even after reparse.
+
+## Independent review and repair record
+
+Independent Quality and Trust reviewed candidate
+`bab693defc42f664e19ada3fd111fe0a67adb256`. They found four defects, which this
+revision repairs; this record does not assert approval of the revised patch:
+
+- Quality: whole-account export eagerly loaded every FIT frame and parse
+  version. It now streams the complete JSON document through lazy snapshot,
+  version and 128-frame-chunk iterators. Every value/version remains included;
+  the output is not replaced by a link manifest. Tests exercise lazy chunk
+  loads, multiple complete versions and byte-for-byte reconstruction.
+- Quality: transient original-download failures lacked activity checkpoints.
+  A fenced attempt count and sanitized `download_failed` code now commit before
+  job retry/backoff. The item remains queued for automatic retry; successful
+  retry clears its error. A timeout-to-success scheduler test checks both states.
+- Trust: the upstream request wrapper consumed/logged error bodies before the
+  archive size limit applied. The bounded original adapter now uses the client's
+  authenticated session/header/refresh primitives, never reads HTTP error bodies,
+  closes every response and retains a single 401 refresh retry. Tests cover
+  large error responses, redirects, 401/404/410/429/503 and refresh success.
+- Trust: cancellation during login was checked only after the next profile
+  request. Fresh authority checks now precede that request and discovery, with
+  transaction locks released before network calls. The regression asserts no
+  profile request occurs after a login-time cancellation.
+
+Root's isolated PostgreSQL 16.15 environment exercised additive migration
+upgrade/downgrade and 15 existing archive, API, deletion, lease, generation,
+Terms, and reparse scenarios successfully. Engineering also reran those 15
+scenario functions against the repaired code. This is local scratch-database
+evidence, not a production migration or deployment claim. The revised candidate
+still requires the same independent reviewers to verify its new commit.
+
+Repair validation: 244 focused/regression tests passed, followed by 34 focused
+export/repair tests after the final frame-serialization optimization. The
+isolated PostgreSQL rerun passed 18 scenarios, including the three new lazy
+export, transient-retry, and login-cancellation cases. A local `tracemalloc`
+measurement streamed the real 333,889-byte Power Zone fixture's complete
+42,159,220-byte JSON archive with 9,512,778 peak tracked Python bytes in 5.91
+seconds. This is a single-fixture implementation measurement, not a production
+capacity guarantee; the existing non-Connect-IQ export builders retain their
+prior memory behavior.

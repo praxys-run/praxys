@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 import time
 from datetime import date, datetime, timedelta
 from uuid import uuid4
@@ -161,14 +161,26 @@ def messages(user_id: str, activity_id: str, parse_id: str, offset: int, limit: 
         "total": parsed.frame_count}
 
 
-def account_export(user_id: str, db: Session) -> list[dict]:
-    """Export caller-owned archive values and authenticated original links."""
-    return [{"activity_id": s.activity_id, **snapshot_view(s, db),
-        "parses": [{"parse_id": p.id, "status": p.status, "parser_version": p.parser_version,
-            "error_code": p.error_code, "fields": p.catalog,
-            "frames": [f for c in db.query(Chunk).filter_by(user_id=user_id, parse_id=p.id).order_by(Chunk.chunk_index) for f in c.frames]}
-            for p in db.query(Parse).filter_by(user_id=user_id, snapshot_id=s.id).order_by(Parse.created_at)]}
-        for s in db.query(Snapshot).options(defer(Snapshot.raw_fit)).filter_by(user_id=user_id).order_by(Snapshot.created_at, Snapshot.id)]
+def account_export(user_id: str, db: Session) -> Iterator[dict]:
+    """Lazily export every owner snapshot/version while holding one SQL chunk."""
+    def frames(parse_id: str) -> Iterator[dict]:
+        from api.data_export import ExportJSONValue
+        chunks = db.query(Chunk).filter_by(user_id=user_id, parse_id=parse_id).order_by(Chunk.chunk_index)
+        for chunk in chunks.yield_per(1):
+            for frame in chunk.frames:
+                yield ExportJSONValue(frame)
+
+    def parses(snapshot_id: str) -> Iterator[dict]:
+        query = db.query(Parse).filter_by(user_id=user_id, snapshot_id=snapshot_id).order_by(Parse.created_at, Parse.id)
+        for parsed in query.yield_per(1):
+            yield {"parse_id": parsed.id, "status": parsed.status,
+                "parser_version": parsed.parser_version, "error_code": parsed.error_code,
+                "fields": parsed.catalog, "frames": frames(parsed.id)}
+
+    snapshots = db.query(Snapshot).options(defer(Snapshot.raw_fit)).filter_by(user_id=user_id).order_by(Snapshot.created_at, Snapshot.id)
+    for snapshot in snapshots.yield_per(1):
+        yield {"activity_id": snapshot.activity_id, **snapshot_view(snapshot, db),
+               "parses": parses(snapshot.id)}
 
 
 def _fence(db: Session, job_id: str, token: str) -> Job:
@@ -249,6 +261,7 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
         job.status = "retry"; job.next_retry_at = connection.next_retry_at; db.commit(); return
     user_id, region = job.user_id, job.region
     client = (client_factory or _client)(db, job)
+    _fence(db, job_id, token)
     db.rollback()
     account_id = garmin_profile_account_id(user_id=user_id, is_cn=region == "cn", garmin_user_profile_id=garmin_user_profile_id(client))
     job = _fence(db, job_id, token)
@@ -259,6 +272,7 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
         stage_garmin_tokens(db, user_id=user_id, serialized_tokens=_serialize_garmin_tokens(client),
             expected_generation=job.credential_generation, allowed_statuses=("connected", "error"))
     db.commit()
+    job = _fence(db, job_id, token)
     if not job.discovery_complete:
         # Bounded page checkpoints over the inclusive range; empty days need no requests.
         start, end, offset = job.from_date, job.to_date, job.discovery_offset
@@ -296,6 +310,12 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
                 from sync.garmin_errors import garmin_http_status
                 from sync.garmin_fit import FitArchiveError
                 if garmin_http_status(exc) not in (404, 410) and not isinstance(exc, FitArchiveError):
+                    _fence(db, job_id, token)
+                    item = db.get(Item, item_id)
+                    item.attempts += 1
+                    item.error_code = "download_failed"
+                    # Queued means eligible for automatic retry, not never attempted.
+                    db.commit()
                     raise
                 job = _fence(db, job_id, token)
                 item = db.get(Item, item_id)

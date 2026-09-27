@@ -68,3 +68,22 @@ and parsed-version counts after restore. For rollback, stop the existing
 scheduler and roll back application code while retaining the additive tables;
 do not downgrade/drop archive tables unless permanent data loss is intended
 and separately authorized.
+
+## Complete account exports
+
+The account export endpoint streams the complete document, including all FIT
+parse versions and actual frame values. It reads one archive JSON chunk at a
+time instead of constructing the full archive history in application memory.
+Long histories can still produce large downloads and hold a read transaction
+for the duration of the stream; plan bandwidth and database connection capacity
+accordingly. The original-file links are additional conveniences, not substitutes
+for the exported frame values.
+
+Transient original-download failures leave their activity queued for retry,
+with a nonzero attempt count and sanitized `download_failed` error. Successful
+retry clears the error. `/items` distinguishes never-attempted entries from
+these retrying entries. The original transport bypasses upstream error-body
+rendering, reads no error JSON/text, closes failed responses, and performs the
+normal single 401 token-refresh retry using the authenticated Garmin session.
+The adapter depends on the pinned-range client's authentication primitives;
+revalidate its transport tests before changing garminconnect versions.

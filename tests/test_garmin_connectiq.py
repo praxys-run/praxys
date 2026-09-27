@@ -278,20 +278,65 @@ def test_api_owner_only_pagination_and_raw_download(db):
         assert client.get('/api/activities/123/connectiq').status_code==404
 
 
-def test_streaming_original_enforces_length_and_closes(monkeypatch):
+def original_transport(responses):
+    from threading import Lock
     from sync.garmin_original import GarminOriginalClient
+    client = GarminOriginalClient("test@example.test", "test-only")
+    client.garmin_connect_fit_download = '/download-service/files/activity'
+    state = SimpleNamespace(refreshes=0, responses=iter(responses))
+    def refresh():
+        state.refreshes += 1
+    def request(*args, **kwargs):
+        assert kwargs['stream'] is True and kwargs['allow_redirects'] is False
+        return next(state.responses)
+    client.client = SimpleNamespace(_token_lock=Lock(), is_authenticated=True,
+        _token_expires_soon=lambda: False, _refresh_session=refresh,
+        _connectapi='https://connectapi.garmin.test', get_api_headers=lambda: {'Authorization':'test'},
+        _api_session=SimpleNamespace(request=request))
+    return client, state
+
+
+class TransportResponse:
+    def __init__(self, status=200, chunks=(b'123', b'456'), headers=None):
+        self.status_code=status;self.chunks=chunks;self.headers=headers or {};self.closed=False
+    def iter_content(self, chunk_size):
+        assert self.status_code == 200
+        yield from self.chunks
+    def close(self):self.closed=True
+    def json(self):raise AssertionError('error JSON must not be read')
+    @property
+    def text(self):raise AssertionError('error text must not be read')
+    @property
+    def content(self):raise AssertionError('unbounded content must not be read')
+
+
+def test_streaming_original_enforces_length_and_closes(monkeypatch):
     from sync import garmin_original
-    class Response:
-        headers={}
-        closed=False
-        def iter_content(self,chunk_size):yield b'123';yield b'456'
-        def close(self):self.closed=True
-    response=Response()
-    fake=SimpleNamespace(client=SimpleNamespace(request=lambda *a,**k:response))
+    response=TransportResponse()
+    client,_=original_transport([response])
     monkeypatch.setattr(garmin_original,'MAX_ORIGINAL_BYTES',5)
     with pytest.raises(FitArchiveError,match='original_too_large'):
-        GarminOriginalClient.download(fake,'/download')
+        client.download_activity('123',dl_fmt=client.ActivityDownloadFormat.ORIGINAL)
     assert response.closed
+
+
+@pytest.mark.parametrize('status',[302,401,404,410,429,503])
+def test_original_error_bodies_are_never_consumed_and_all_responses_close(status):
+    from sync.garmin_errors import garmin_http_status
+    responses=[TransportResponse(status,headers={'Content-Length':str(65*1024*1024)}) for _ in range(2 if status==401 else 1)]
+    client,state=original_transport(responses)
+    with pytest.raises(Exception) as error:
+        client.download_activity('123',dl_fmt=client.ActivityDownloadFormat.ORIGINAL)
+    assert garmin_http_status(error.value)==status
+    assert all(response.closed for response in responses)
+    assert state.refreshes==(1 if status==401 else 0)
+
+
+def test_original_401_refresh_then_success_closes_both_responses():
+    responses=[TransportResponse(401),TransportResponse(200)]
+    client,state=original_transport(responses)
+    assert client.download_activity('123',dl_fmt=client.ActivityDownloadFormat.ORIGINAL)==b'123456'
+    assert state.refreshes==1 and all(response.closed for response in responses)
 
 
 def test_cn_region_fence_uses_legacy_credentials_fallback(db,monkeypatch):
@@ -314,7 +359,9 @@ def test_account_export_and_explicit_deletion_cover_archive(db):
     other=sync_writer.write_garmin_fit_snapshot('other','a','123',raw,db)
     sync_writer.write_garmin_fit_parse(owner,db);sync_writer.write_garmin_fit_parse(other,db)
     make_job(db);db.commit()
-    exported=connectiq.account_export('owner',db)
+    import json
+    from api.data_export import stream_export_json
+    exported=json.loads(''.join(stream_export_json(connectiq.account_export('owner',db))))
     assert len(exported)==1 and exported[0]['snapshot_id']==owner.id
     assert exported[0]['parses'][0]['frames']
     _delete_user_owned_rows(db,'owner',feedback_ids=[],publication_outboxes_by_feedback_id={},publication_attempts_by_outbox_id={})
@@ -392,3 +439,85 @@ def test_job_items_failure_visibility_is_bounded_and_owned(db):
     assert page['next_offset']==2 and page['total']==3
     assert page['items'][0]['status']=='unavailable'
     with pytest.raises(HTTPException):connectiq.job_items('other',job.id,0,2,db)
+
+
+def test_account_export_streams_all_versions_with_lazy_bounded_chunks(db):
+    import json
+    from sqlalchemy import event
+    from api.data_export import stream_export_json
+    raw=sample_fit()
+    snapshots=[]
+    for aid in ('123','124'):
+        snapshot=sync_writer.write_garmin_fit_snapshot('owner','a',aid,raw,db)
+        for _ in range(2):sync_writer.write_garmin_fit_parse(snapshot,db)
+        snapshots.append(snapshot.id)
+    db.commit();db.expunge_all()
+    loaded=[]
+    def chunk_loaded(target, context):loaded.append(target.id)
+    event.listen(Chunk,'load',chunk_loaded)
+    try:
+        archive=connectiq.account_export('owner',db)
+        assert loaded==[]
+        snapshot=next(archive)
+        assert loaded==[]
+        parsed=next(snapshot['parses'])
+        assert loaded==[]
+        first=next(parsed['frames'])
+        assert first['index']==0 and len(loaded)==1
+        archive.close()
+        # Full streaming preserves both complete parse versions and original bytes.
+        decoded=json.loads(''.join(stream_export_json(connectiq.account_export('owner',db))))
+        assert [item['snapshot_id'] for item in decoded]==snapshots
+        for item in decoded:
+            assert len(item['parses'])==2
+            for parse in item['parses']:
+                assert b''.join(base64.b64decode(frame['raw']['value']) for frame in parse['frames'])==raw
+    finally:
+        event.remove(Chunk,'load',chunk_loaded)
+
+
+def test_run_tick_transient_download_failure_records_item_then_retries(db,monkeypatch):
+    from contextlib import nullcontext
+    from sqlalchemy.orm import sessionmaker
+    job=make_job(db)
+    factory=sessionmaker(bind=db.get_bind(),expire_on_commit=False)
+    client=FakeClient()
+    original=client.download_activity
+    calls=[]
+    def flaky(aid,dl_fmt):
+        calls.append(aid)
+        if len(calls)==1:raise TimeoutError('private provider failure details')
+        return original(aid,dl_fmt)
+    client.download_activity=flaky
+    monkeypatch.setattr(connectiq,'_client',lambda db,job:client)
+    monkeypatch.setattr('api.routes.sync._garmin_tokenstore_lease',lambda user_id:nullcontext())
+    monkeypatch.setattr('api.routes.sync._serialize_garmin_tokens',lambda client:'not-persisted')
+    monkeypatch.setattr('db.garmin_tokens.stage_garmin_tokens',lambda *a,**kw:None)
+    connectiq.run_tick(factory)
+    db.expire_all();db.refresh(job)
+    item=db.query(Item).filter_by(job_id=job.id).one()
+    assert job.status=='retry' and job.attempts==1
+    assert item.status=='queued' and item.attempts==1 and item.error_code=='download_failed'
+    assert connectiq.job_items('owner',job.id,0,10,db)['items'][0]['attempts']==1
+    job.next_retry_at=None;db.query(UserConnection).one().next_retry_at=None;db.commit()
+    connectiq.run_tick(factory)
+    db.expire_all();db.refresh(job);db.refresh(item)
+    assert job.status=='complete' and item.status=='complete'
+    assert item.attempts==2 and item.error_code is None
+    assert calls==['123','123']
+
+
+def test_cancel_during_login_prevents_profile_network_request(db):
+    job=make_job(db)
+    client=FakeClient()
+    del client._praxys_user_profile_id
+    profile_calls=[]
+    def profile(path):profile_calls.append(path);return {'userProfileId':77}
+    client.connectapi=profile
+    def login(db,job):
+        job.status='cancelled';job.lease_token=None;db.commit()
+        return client
+    with pytest.raises(RuntimeError,match='lease_lost'):
+        connectiq.run_job(db,*connectiq._claim(db),client_factory=login)
+    assert profile_calls==[]
+    assert db.query(Snapshot).count()==0
