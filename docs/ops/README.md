@@ -83,3 +83,5 @@ tooling; no value is guessed. Runbooks stay repository-owned rather than being
 duplicated into `plugins/praxys` until the contract has at least two autonomous
 consumers. Add new runbooks against [`_TEMPLATE.md`](./_TEMPLATE.md) and link
 them from the index above.
+
+- [Garmin Connect IQ archives](connectiq-archives.md): private SQL originals, durable backfill recovery, storage and backup considerations.

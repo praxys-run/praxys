@@ -583,7 +583,7 @@ def test_data_export_is_downloadable_and_isolated_to_the_authenticated_user(api_
         'attachment; filename="praxys-data-export-'
     )
     payload = response.json()
-    assert payload["schema_version"] == 6
+    assert payload["schema_version"] == 7
     assert payload["account"]["email"] == "settings-api@test.local"
     assert payload["connections"] == [
         {

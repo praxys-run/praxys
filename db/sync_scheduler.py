@@ -377,6 +377,11 @@ def _scheduler_loop():
             logger.exception("Scheduler tick failed")
         _run_personal_context_retention_tick()
         _run_managed_delivery_tick()
+        try:
+            from api.connectiq import run_tick
+            run_tick()
+        except Exception:
+            logger.exception("Connect IQ scheduler tick failed")
         _stop_event.wait(CHECK_INTERVAL_SEC)
 
 

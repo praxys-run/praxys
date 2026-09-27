@@ -485,11 +485,13 @@ def _serialize_rows(
 def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     """Return the requested user's portable training data without credentials."""
     from api.personal_context import build_personal_context_export
+    from api.connectiq import account_export
 
     user = db.query(User).filter(User.id == user_id).one()
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
-        "schema_version": 6,
+        "schema_version": 7,
+        "connectiq": account_export(user_id, db),
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "account": {
             field: _without_credentials(getattr(user, field))

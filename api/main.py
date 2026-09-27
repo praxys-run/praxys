@@ -340,10 +340,12 @@ app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
+from api.routes import connectiq
 
 from api.plan_generation_capabilities import PLAN_GENERATION_CAPABILITIES
 
 router_modules = [
+    connectiq,
     today,
     training,
     goal,
