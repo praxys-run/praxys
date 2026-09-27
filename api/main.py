@@ -340,10 +340,12 @@ app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
+from api.routes import connectiq
 
 from api.plan_generation_capabilities import PLAN_GENERATION_CAPABILITIES
 
 router_modules = [
+    connectiq,
     today,
     training,
     goal,
@@ -523,19 +525,19 @@ def delete_me(
 
 @app.get("/api/me/export")
 def export_my_data(
-    response: Response,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
-    """Download a JSON export containing only the authenticated user's data."""
-    from api.data_export import build_user_data_export
+):
+    """Stream a complete JSON export containing only the caller's data."""
+    from fastapi.responses import StreamingResponse
+    from api.data_export import stream_user_data_export
 
     filename_date = datetime.now(timezone.utc).date().isoformat()
-    response.headers["Content-Disposition"] = (
-        f'attachment; filename="praxys-data-export-{filename_date}.json"'
-    )
-    response.headers["Cache-Control"] = "private, no-store"
-    return build_user_data_export(user_id, db)
+    return StreamingResponse(stream_user_data_export(user_id, db),
+        media_type="application/json", headers={
+            "Content-Disposition": f'attachment; filename="praxys-data-export-{filename_date}.json"',
+            "Cache-Control": "private, no-store",
+        })
 
 
 @app.post("/api/me/accept-terms")

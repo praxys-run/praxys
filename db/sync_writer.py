@@ -16,6 +16,9 @@ from db.models import (
     ActivitySample,
     ActivitySplit,
     FitnessData,
+    GarminConnectIQJob,
+    GarminFitSnapshot,
+    GarminFitParse,
     RecoveryData,
     TrainingPlan,
 )
@@ -955,3 +958,80 @@ def prune_training_plan_window(
     if stale_rows:
         bump_revisions(db, user_id, ["plans"])
     return len(stale_rows)
+
+
+def enqueue_connectiq_activities(user_id: str, account_id: str, generation: str,
+                                 region: str, activity_ids: list[str], db: Session) -> GarminConnectIQJob | None:
+    """Idempotently queue newly discovered originals in the sync transaction."""
+    from db.models import GarminConnectIQJob, GarminConnectIQItem, GarminFitSnapshot
+    pending = []
+    for aid in dict.fromkeys(str(a) for a in activity_ids):
+        if not aid.isdecimal():
+            continue
+        existing = db.query(GarminFitSnapshot.id).filter_by(user_id=user_id, account_id=account_id, activity_id=aid).first()
+        queued = db.query(GarminConnectIQItem.id).join(GarminConnectIQJob).filter(
+            GarminConnectIQJob.user_id == user_id, GarminConnectIQJob.account_id == account_id,
+            GarminConnectIQJob.credential_generation == generation,
+            GarminConnectIQJob.status.in_(("queued", "running", "retry")),
+            GarminConnectIQItem.activity_id == aid).first()
+        if not existing and not queued:
+            pending.append(aid)
+    if not pending:
+        return None
+    job = GarminConnectIQJob(user_id=user_id, account_id=account_id,
+        credential_generation=generation, region=region, kind="daily", discovery_complete=True)
+    db.add(job); db.flush()
+    write_connectiq_items(job, pending, db)
+    return job
+
+
+def write_connectiq_items(job: GarminConnectIQJob, activity_ids: list[str], db: Session) -> None:
+    """Insert missing activity checkpoints in the owning job transaction."""
+    from db.models import GarminConnectIQItem
+    for aid in dict.fromkeys(str(a) for a in activity_ids):
+        if not aid.isdecimal():
+            raise ValueError("invalid_activity_id")
+        if not db.query(GarminConnectIQItem.id).filter_by(job_id=job.id, activity_id=aid).first():
+            db.add(GarminConnectIQItem(user_id=job.user_id, job_id=job.id, activity_id=aid))
+    db.flush()
+
+
+def write_garmin_fit_snapshot(user_id: str, account_id: str, activity_id: str,
+                             raw: bytes, db: Session) -> GarminFitSnapshot:
+    """Upsert immutable original bytes within one owner/account/activity."""
+    import hashlib
+    from db.models import GarminFitSnapshot
+    digest = hashlib.sha256(raw).hexdigest()
+    snapshot = db.query(GarminFitSnapshot).filter_by(user_id=user_id,
+        account_id=account_id, activity_id=activity_id, sha256=digest).first()
+    if snapshot is None:
+        snapshot = GarminFitSnapshot(user_id=user_id, account_id=account_id,
+            activity_id=activity_id, sha256=digest, raw_fit=raw)
+        db.add(snapshot); db.flush()
+    return snapshot
+
+
+def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session) -> GarminFitParse:
+    """Atomic projection; failed versions never displace the last good parse."""
+    from db.models import GarminFitChunk, GarminFitParse
+    from sync.garmin_fit import FitProjection, PARSER_VERSION, FitArchiveError
+    parsed = GarminFitParse(user_id=snapshot.user_id, snapshot_id=snapshot.id, parser_version=PARSER_VERSION)
+    db.add(parsed); db.flush()
+    projection = FitProjection()
+    try:
+        with db.begin_nested():
+            for index, frames in enumerate(projection.chunks(snapshot.raw_fit)):
+                db.add(GarminFitChunk(user_id=snapshot.user_id, parse_id=parsed.id,
+                    chunk_index=index, frames=frames))
+                db.flush()
+    except Exception as exc:
+        parsed.status = "parse_failed"
+        parsed.error_code = str(exc) if isinstance(exc, FitArchiveError) else "invalid_fit"
+    else:
+        parsed.status = "complete"
+        parsed.catalog = projection.catalog
+        parsed.frame_count = projection.frame_count
+        parsed.developer_field_count = projection.developer_field_count
+        snapshot.active_parse_id = parsed.id
+    db.flush()
+    return parsed

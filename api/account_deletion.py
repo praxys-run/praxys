@@ -164,6 +164,12 @@ def _delete_user_owned_rows(
     * ``feedback_publication_outbox.feedback_id`` (nullable) — private feedback
       is deleted, while marker/digest delivery evidence is detached and retained.
     """
+    from db.models import (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
+                           GarminConnectIQJob, GarminFitSnapshot)
+    for model in (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
+                  GarminConnectIQJob, GarminFitSnapshot):
+        db.query(model).filter_by(user_id=user_id).delete(synchronize_session=False)
+
     feedback_refs = [str(feedback_id) for feedback_id in feedback_ids]
     _detach_feedback_publication_evidence(
         db,
