@@ -79,3 +79,28 @@ observation is performed against the frozen fix revision.
 - Science evidence/decision/implementation signatures, runtime activation and
   deployment remain unperformed. No accepted/active status or human approval was
   fabricated. Retained raw FIT and additive tables remain available for rollback.
+
+## Narrow review confirmation and delayed manufacturer correction
+
+At `9e0c2a785765a084fde95e549ce79071b6b6b01d`, the independent Quality
+confirmation supplied through the Delivery Loop reported all its earlier findings
+resolved:74 DFA tests with actual PostgreSQL,9 actual client/fixture tests, client
+types, and the exact timing probes passed. Trust confirmed the export and native
+field fixes, then identified one remaining case in the original source boundary:
+`(unknown manufacturer, OH1) → (unknown manufacturer, H10) → (Polar, no name)`.
+
+The source reader now retains every normalized nonempty native model name for each
+recording-local handle. Once Polar manufacturer123 is established, incompatible
+names cause rejection even when they preceded the manufacturer metadata. The H10 /
+Polar H10 aliases remain one identity; missing fields enrich rather than erase
+history. An unrelated watch's optical capability or model names do not establish
+RR source and do not reject an otherwise eligible H10.
+
+Engineering's narrow regression command:
+`python3 -m pytest tests/test_activity_dfa.py -k 'polar or watch_native or source_identity' -q`
+with the existing local fitdecode PYTHONPATH: **15 passed,67 deselected**. Both
+transition directions, delayed manufacturer, alias/missing-field enrichment and
+unrelated watch metadata were exercised through synthetic native FIT messages.
+No UI or UI/native fixture file changed in this correction. Trust's narrow final
+confirmation and original Science final verification are still independent
+obligations; this evidence is not a release or runtime activation claim.

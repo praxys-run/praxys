@@ -826,3 +826,32 @@ def test_native_compressed_record_header_timestamp_remains_an_anchor():
     fit.body.append(0x80 | (1 << 5) | ((stamp+1)&31))
     records=[m for m in decode(fit.finish()) if m['message']==20]
     assert [m['values']['timestamp'] for m in records]==[stamp,stamp+1]
+
+
+@pytest.mark.parametrize('names', [
+    ['Polar OH1','H10'], ['H10','Polar OH1'],
+    ['Polar OH1','','Polar H10'], ['Polar H10','','Polar OH1'],
+])
+def test_delayed_polar_manufacturer_preserves_earlier_native_model_conflicts(names):
+    descriptors=[(None,name) for name in names]+[(123,'')]
+    with pytest.raises(core.DFAError,match='source_contradiction'):
+        core.sensor_evidence(polar_messages(descriptors))
+
+
+@pytest.mark.parametrize('descriptors', [
+    [(None,'H10'),(None,'Polar H10'),(123,'')],
+    [(None,' Polar H10 '),(None,''),(None,'h10'),(123,'')],
+    [(None,''),(None,'H10'),(123,''),(None,'')],
+])
+def test_delayed_polar_manufacturer_keeps_aliases_and_missing_metadata_eligible(descriptors):
+    sensors,_=core.sensor_evidence(polar_messages(descriptors))
+    assert len(sensors)==1 and sensors[0]['label']=='Polar H10'
+
+
+def test_watch_native_model_names_do_not_establish_optical_rr_provenance():
+    fit=Fit();fit.definition(0,23,[(0,1,2),(2,2,132),(27,16,7)])
+    for name in ('Optical watch','Watch model'):
+        fit.data(0,struct.pack('<BH',0,1)+name.encode().ljust(16,b'\0'))
+    fit.data(0,struct.pack('<BH',1,123)+b'H10'.ljust(16,b'\0'))
+    sensors,_=core.sensor_evidence(list(decode(fit.finish())))
+    assert len(sensors)==1 and sensors[0]['label']=='Polar H10'

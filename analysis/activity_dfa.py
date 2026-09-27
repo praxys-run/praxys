@@ -81,6 +81,7 @@ def sensor_evidence(messages: list[dict]) -> tuple[list[dict], str]:
     """Only native exact ECG identities; no serial/address is retained."""
     sensors: dict[str, dict] = {}
     seen: dict[int, tuple] = {}
+    model_names: dict[int, set[str]] = {}
     for entry in messages:
         d = entry["values"]
         if entry["message"] != 23:
@@ -95,11 +96,17 @@ def sensor_evidence(messages: list[dict]) -> tuple[list[dict], str]:
         identity = (manufacturer, product, name)
         if isinstance(index, int):
             old = seen.get(index, (None, None, ""))
+            names = model_names.setdefault(index, set())
+            if name:
+                names.add(name)
             for position in (0, 1):
                 if old[position] is not None and identity[position] is not None and old[position] != identity[position]:
                     raise DFAError("source_contradiction")
             effective_manufacturer = manufacturer if manufacturer is not None else old[0]
-            if effective_manufacturer == 123 and old[2] and name and old[2] != name:
+            # Manufacturer may arrive after several partial descriptors. Keep
+            # all nonempty native model names so delayed provenance cannot
+            # erase an earlier optical/ECG identity contradiction.
+            if effective_manufacturer == 123 and len(names) > 1:
                 raise DFAError("source_contradiction")
             manufacturer, product, name = tuple(new if new not in (None, "") else prior
                                                 for new, prior in zip(identity, old))
