@@ -24,7 +24,7 @@ function elapsed(ms: number, start = 0): string {
 export default function ActivityDFA({ activityId, activityDate, onClose }: { activityId: string; activityDate?: string; onClose: () => void }) {
   const { t, i18n } = useLingui();
   return <MetricDetailSheet open onOpenChange={(open) => { if (!open) onClose(); }} size="wide"
-    title="DFA α1" description={<>{t`Post-run analysis from ECG chest-strap beat intervals.`}{activityDate && <span className="mt-1 block font-data">{new Date(activityDate).toLocaleDateString(i18n.locale)}</span>}</>}>
+    title="DFA α1" description={<span className="dark:text-foreground">{t`Post-run analysis from ECG chest-strap beat intervals.`}{activityDate && <span className="mt-1 block font-data">{new Date(activityDate).toLocaleDateString(i18n.locale)}</span>}</span>}>
     <DFAContent activityId={activityId} />
   </MetricDetailSheet>;
 }

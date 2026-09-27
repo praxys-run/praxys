@@ -69,8 +69,11 @@ observation at `ccd354e19b0f74d702116004ffeca05fedf4d041`.
 
 ## Remaining review and runtime boundaries
 
-- Independent Quality, Trust and Science confirmations and the bounded final
-  desktop/mobile/EN/zh/theme browser pass are complete, as recorded below.
+- The earlier Quality, Trust and Science confirmations and bounded
+  desktop/mobile/EN/zh/theme browser pass are recorded below. A subsequent named
+  Quality audit identified the header contrast defect described in the final
+  section. Its local correction and Root's rendered confirmation are recorded
+  there; independent repair confirmation follows the committed preflight.
 - [Native fixture instructions](../../tests/fixtures/dfa/README.md) and registered
   automator function sources are prepared from installed WeChat skill0.3.11.
   No simulator/foreground call or Windows mirror was created in this preparation.
@@ -127,7 +130,7 @@ All scientific records and their generated contract remain **draft/inactive**.
 No deployment, runtime activation, human signature or real-device physiological
 validation is claimed.
 
-## Final rendered browser evidence
+## Initial rendered browser evidence
 
 Root coordinated a real Paseo browser pass using only the synthetic API fixture.
 This was an available runtime browser extension; the portable Chrome DevTools MCP
@@ -149,8 +152,9 @@ for that fixture correction. The final browser pass checked:
   ArrowRight moved120→125s; PageDown selected725s and Enter committed the page jump.
   Gaps remained visible, alpha axis values used two decimals, and no horizontal
   overflow appeared at the tested viewports.
-- Previously failing dark explanatory text and chart-axis contrast measured15.26:1
-  after the local token fix. Stale results exposed Recalculate with zero charts;
+- Dark body explanatory text and chart-axis contrast measured15.26:1 after the
+  local token fix. That measurement did not cover the header description/date;
+  the later audit found their contrast insufficient. Stale results exposed Recalculate with zero charts;
   inactive processing exposed zero charts; unsupported providers had clear copy.
 - Delete/revoke invoked the actual DOM handlers with the exact DELETE and metadata
   GET requests only; focus/reopen did not issue a recreating POST. Footer controls
@@ -168,8 +172,9 @@ uploaded or published.
 
 ## UI quality
 
-- Impeccable: accepted DFA experience specification, existing Field Lab extension,
-  craft-floor checks and bounded rendered review.
+- Impeccable: `audit web/src/components/ActivityDFA.tsx` performed by independent
+  Quality; `polish web/src/components/ActivityDFA.tsx` used for the local header
+  contrast correction, preserving the existing Field Lab design.
 - Visual review: desktop1440×900; mobile390×844; EN/zh; light/dark.
 - Primary journey: Activity → DFA preparation → source confirmation → window review
   → delete/revoke, with synthetic data only.
@@ -183,6 +188,43 @@ uploaded or published.
   passed; registered native fixture prepared, foreground simulator pass pending.
 - Exceptions: Chrome DevTools MCP unavailable (Paseo browser used); native WeChat
   rendering awaits the explicit foreground permission required by its skill.
+
+## Named audit and header contrast correction
+
+At `688b33636e4c8602699c0556031b2230cdb41cc7`, independent Quality performed
+`Impeccable audit web/src/components/ActivityDFA.tsx` using the five final gallery
+PNGs, current source and recorded interactions. Its sole blocking finding was
+normal14px header description/date text atRGB(109,114,125) onRGB(14,17,26),
+contrast **3.909:1**, visible in `final-result-mobile-dark-zh.png`.
+
+The earlier15.26:1 measurement applied to body explanatory text and chart axes,
+not this header. The DFA-owned description now wraps both text and date in the
+existing `dark:text-foreground` semantic utility. Shared `MetricDetailSheet`
+defaults, global tokens, light styling, text, date formatting and backend behavior
+are unchanged. No test asserting a CSS class string was added; rendered computed
+colors and contrast are the relevant regression evidence.
+
+The narrow execution checks passed: targeted ESLint, Web291tests plus TypeScript/
+Vite/public build, miniapp type/navigation/i18n/legal generation and TypeScript,
+UI detector with `--skip-evidence`, and diff checks. Two Lingui extractions were
+byte-identical and produced no catalog changes.
+
+Root completed the bounded header confirmation in the actual Paseo browser at
+CSS390×844 and1440×900, Chinese dark theme. Description and date both remained14px;
+their computedRGB(228,232,239) against dialogRGB(13,18,27) yielded WCAG contrast
+**15.26433276563108:1**. Neither viewport had horizontal overflow. Desktop light
+preserved the same inherited `oklch(0.45 0.02 264)` on parent, description and date.
+No application console errors appeared; Vite/React information and a diagnostic
+canvas-readback performance hint were not application errors.
+
+Original-resolution captures are `final-header-mobile-dark-zh.png` (488×1055) and
+`final-header-desktop-dark-zh.png` (1800×1125) in the same local gallery. It links
+both and labels the earlier result captures as before the header correction.
+This confirmation covers the header fix only; it is not another full journey or
+native WeChat pass. Backend, scientific, source, privacy and miniapp application
+trees were unchanged by this correction. The existing isolated PostgreSQL
+service was restored for the final full preflight; its evidence is reported in
+the immutable-head handoff.
 
 The required full committed-head preflight is the next verification step. Its
 immutable HEAD, command and output will be reported in the handoff after execution,
