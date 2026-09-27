@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `dfa-alpha1-raw120-v1`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:3314d72d25488efbab007f1237d22fcfde2aa4babaa272debd25d67c2a12c00b`
-- **Contract digest:** `sha256:9920745c4442d00776d875662530957bfc70a57955007aa1028fbd538ed5dc00`
+- **Decision digest:** `sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2`
+- **Contract digest:** `sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -61,12 +61,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-activity-dfa-alpha1-v1`
-- Digest: `sha256:3314d72d25488efbab007f1237d22fcfde2aa4babaa272debd25d67c2a12c00b`
+- Digest: `sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2`
 
 > Approve only the named science decision and displayed digest; this does not activate runtime.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:3314d72d25488efbab007f1237d22fcfde2aa4babaa272debd25d67c2a12c00b","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
 -->
 ```
 
@@ -165,7 +165,7 @@ Agreement between HRV-derived and physiological thresholds is protocol-dependent
   "local_offset": "clamped_median_packet_midpoint_minus_cumulative_rr",
   "max_anchor_width_ms": 30000,
   "max_local_offset_width_ms": 5000,
-  "window_membership": "complete_intervals_only"
+  "window_membership": "complete_intervals_from_exact_gathered_packets_only"
 }
 ```
 
@@ -346,6 +346,7 @@ Unsupported transfer and processing differences would widen the approved claim.
 
 - Approved implementation plan is contextually adopted; formal evidence, decision and implementation signatures are absent.
 - Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.
+- Window membership is limited to complete unchanged RR intervals in the exact gathered packets used for local offset bounds; it never borrows intervals from other packets in the same chain. Actual selected-RR support remains the reported union.
 
 </details>
 
@@ -357,7 +358,7 @@ Unsupported transfer and processing differences would widen the approved claim.
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:9920745c4442d00776d875662530957bfc70a57955007aa1028fbd538ed5dc00",
+  "contract_digest": "sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821",
   "decision_id": "sdr-activity-dfa-alpha1-v1",
   "decision_status": "draft",
   "decision_version": 1,
@@ -370,7 +371,7 @@ Unsupported transfer and processing differences would widen the approved claim.
     "evidence-activity-dfa-alpha1-v1"
   ],
   "linked_evidence_digests": {
-    "evidence-activity-dfa-alpha1-v1": "sha256:53ae04215d46cb5e3af9767e03b2a73c0eb6b09909c13ab824cba5416d29be77"
+    "evidence-activity-dfa-alpha1-v1": "sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f"
   },
   "model_version": "dfa-alpha1-raw120-v1",
   "parameters": {
@@ -540,7 +541,7 @@ Unsupported transfer and processing differences would widen the approved claim.
         "local_offset": "clamped_median_packet_midpoint_minus_cumulative_rr",
         "max_anchor_width_ms": 30000,
         "max_local_offset_width_ms": 5000,
-        "window_membership": "complete_intervals_only"
+        "window_membership": "complete_intervals_from_exact_gathered_packets_only"
       }
     },
     "window": {
@@ -562,7 +563,7 @@ Unsupported transfer and processing differences would widen the approved claim.
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:3314d72d25488efbab007f1237d22fcfde2aa4babaa272debd25d67c2a12c00b"
+  "source_decision_digest": "sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2"
 }
 ```
 
@@ -606,7 +607,8 @@ Runtime activation remains fail-closed until implementation approval can bind bo
   "decision_date": "2026-09-27",
   "decision_notes": [
     "Approved implementation plan is contextually adopted; formal evidence, decision and implementation signatures are absent.",
-    "Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md."
+    "Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.",
+    "Window membership is limited to complete unchanged RR intervals in the exact gathered packets used for local offset bounds; it never borrows intervals from other packets in the same chain. Actual selected-RR support remains the reported union."
   ],
   "decision_review": {
     "approval_statement": "Approve only the named science decision and displayed digest; this does not activate runtime.",
@@ -720,7 +722,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
         "local_offset": "clamped_median_packet_midpoint_minus_cumulative_rr",
         "max_anchor_width_ms": 30000,
         "max_local_offset_width_ms": 5000,
-        "window_membership": "complete_intervals_only"
+        "window_membership": "complete_intervals_from_exact_gathered_packets_only"
       }
     },
     {

@@ -27,7 +27,23 @@ method:
   review_type: rapid
   search_date: *id001
   sources:
-  - name: Approved Science planning handoff; DOI landing pages and Crossref metadata
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: (TITLE_ABS:DFA OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:"heart
+      rate" OR TITLE_ABS:"RR intervals") AND (TITLE_ABS:exercise OR TITLE_ABS:running
+      OR TITLE_ABS:cycling OR TITLE_ABS:threshold) FIRST_PDATE:[2020-01-01 TO 2026-09-27]
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: '"heart rate variability threshold"'
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: ("Polar H10" OR "ECG chest") AND (DFA OR RR OR exercise)
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: ("DFA alpha1" OR "DFA a1" OR "DFA α1" OR "detrended fluctuation
+      analysis") AND (exercise OR threshold OR cycling OR running) FIRST_PDATE:[2020-01-01
+      TO 2026-09-27]
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: (TITLE_ABS:"DFA alpha1" OR TITLE_ABS:"DFA a1" OR TITLE_ABS:"DFA
+      α1" OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:exercise OR TITLE_ABS:threshold
+      OR TITLE_ABS:cycling OR TITLE_ABS:running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]
+  - name: Crossref DOI bibliography verification
     search_string: 10.3390/s21030821; 10.3390/s22176536; 10.1007/s00421-024-05592-2;
       10.14814/phy2.70777
   inclusion_criteria:
@@ -39,10 +55,13 @@ method:
   quality_appraisal: Separate device validation, numerical method, physiological interpretation
     and engineering guardrails.
   method_limitations:
-  - Bounded rapid review inherited from the approved planning session, not an exhaustive
-    systematic search.
-  - Crossref metadata rechecked2026-09-27; full-text verification levels below refer
-    to the preceding Science handoff.
+  - Bounded rapid review, not an exhaustive systematic search. Original Science planning
+    search/access date2026-09-27; all81 returned titles from the focused query were
+    screened.
+  - The last exploratory query returned113 records; the first100 were retrieved before
+    narrowing to the focused81-record search.
+  - Running study was reviewed at abstract level only. Crossref bibliography metadata
+    was verified separately; that verification does not imply full-text access.
 claims:
 - id: dfa.recording-artifacts
   statement: DFA alpha1 is sensitive to RR artifacts and recording/processing choices;
@@ -131,6 +150,7 @@ citations:
   journal: European Journal of Applied Physiology
   doi: 10.1007/s00421-024-05592-2
   url: https://doi.org/10.1007/s00421-024-05592-2
+  pmid: '39235602'
 - id: olieslagers-cycling-2026
   title: Agreement between heart rate variability-derived and lactate/ventilatory
     thresholds during a 4-min stepwise incremental cycling test in male adults
@@ -155,14 +175,19 @@ follow_up_questions:
 - How often do real archived running files pass source, time and quality checks across
   devices?
 review_notes:
-- 'Verification: rogers-artifacts-2021 - full-text; approved Science planning handoff,
-  DOI source; 2026-09-27.'
-- 'Verification: schaffarczyk-h10-2022 - full-text; approved Science planning handoff,
-  DOI source; 2026-09-27.'
-- 'Verification: van-rassel-running-2024 - abstract; approved Science planning handoff,
-  DOI source; 2026-09-27.'
-- 'Verification: olieslagers-cycling-2026 - full-text; approved Science planning handoff,
-  DOI source; 2026-09-27.'
+- 'Verification: rogers-artifacts-2021 - full-text; Europe PMC PMC7865269, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Verification: schaffarczyk-h10-2022 - full-text; Europe PMC PMC9459793, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Verification: van-rassel-running-2024 - abstract; Europe PMC/PubMed PMID 39235602;
+  2026-09-27.'
+- 'Verification: olieslagers-cycling-2026 - full-text; Europe PMC PMC12910119, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Full text endpoint: https://www.ebi.ac.uk/europepmc/webservices/rest/{PMCID}/fullTextXML
+  . These levels and exact search strings restore the original Science handoff; Engineering
+  did not perform a new literature review.'
 - Bibliography independently checked against Crossref DOI metadata2026-09-27.
+- 'Native sensor modality provenance: Garmin FIT SDK profile21.217.0, https://raw.githubusercontent.com/garmin/fit-python-sdk/main/garmin_fit_sdk/profile.py
+  . Sensor-type compatibility is not model-specific DFA accuracy certification.'
 - Mechanical materialization by Engineering preserves Science ownership; no signed
   evidence review or acceptance is claimed.

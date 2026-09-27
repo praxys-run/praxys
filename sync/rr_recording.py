@@ -14,9 +14,61 @@ from db.models import Activity, GarminFitSnapshot as Snapshot, GarminFitParse as
 
 MAX_FIT_BYTES = 64 * 1024 * 1024
 MAX_FRAMES = 250_000
-NATIVE_MESSAGES = {12, 18, 20, 21, 23, 78}
-NATIVE_FIELDS = {"timestamp", "event", "event_type", "event_group", "sport", "sub_sport",
-                 "time", "manufacturer", "product", "product_name", "device_index"}
+# FIT global message/field IDs and native base types, independent of rendered
+# profile/subfield/developer names. Tuple: normalized name, base ID, scalar bytes.
+NATIVE_FIELDS = {
+    12: {0: ("sport", 0, 1), 1: ("sub_sport", 0, 1)},
+    18: {5: ("sport", 0, 1), 6: ("sub_sport", 0, 1), 253: ("timestamp", 134, 4)},
+    20: {253: ("timestamp", 134, 4)},
+    21: {0: ("event", 0, 1), 1: ("event_type", 0, 1),
+         4: ("event_group", 2, 1), 253: ("timestamp", 134, 4)},
+    23: {0: ("device_index", 2, 1), 2: ("manufacturer", 132, 2),
+         4: ("product", 132, 2), 27: ("product_name", 7, None)},
+    78: {0: ("time", 132, None)},
+}
+NATIVE_MESSAGES = set(NATIVE_FIELDS)
+
+
+def _validate_definition(frame) -> None:
+    fields = NATIVE_FIELDS[frame.global_mesg_num]
+    seen: set[int] = set()
+    for field in frame.field_defs:
+        if field.def_num not in fields:
+            continue
+        _, base_type, scalar_size = fields[field.def_num]
+        if field.def_num in seen or field.base_type.identifier != base_type:
+            raise DFAError("fit_invalid")
+        seen.add(field.def_num)
+        if scalar_size is not None:
+            valid_size = field.size == scalar_size
+        elif frame.global_mesg_num == 78:
+            valid_size = field.size >= 2 and field.size % 2 == 0
+        else:
+            valid_size = field.size >= 1  # native string, not a numeric array
+        if not valid_size:
+            raise DFAError("fit_invalid")
+
+
+def _native_values(frame) -> dict:
+    fields = NATIVE_FIELDS[frame.global_mesg_num]
+    values = {}
+    for field in frame.fields:
+        definition = field.field_def
+        if definition is None:
+            # This is the parser's native compressed record-header timestamp,
+            # not a developer or profile component expansion.
+            if (frame.time_offset is not None and 253 in fields
+                    and field.field is fitdecode.profile.FIELD_TYPE_TIMESTAMP
+                    and field.base_type.identifier == 134):
+                values["timestamp"] = field.raw_value
+            continue
+        if definition.is_dev or definition.def_num not in fields:
+            continue
+        name, _, _ = fields[definition.def_num]
+        values[name] = field.raw_value
+    return values
+
+
 # Native session.sport remains authoritative for new/unknown running subtypes.
 # Stored metadata only excludes positively known contradictions.
 NON_RUNNING_TYPES = {"cycling", "road_biking", "mountain_biking", "indoor_cycling",
@@ -95,11 +147,11 @@ def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dic
                 check()
                 if index >= MAX_FRAMES:
                     raise DFAError("frame_limit")
+                if frame.frame_type == fitdecode.FIT_FRAME_DEFINITION and frame.global_mesg_num in NATIVE_MESSAGES:
+                    _validate_definition(frame)
                 if frame.frame_type != fitdecode.FIT_FRAME_DATA or frame.global_mesg_num not in NATIVE_MESSAGES:
                     continue
-                values = {("product" if frame.global_mesg_num == 23 and f.def_num == 4 else f.name): f.raw_value for f in frame.fields
-                          if not f.is_expanded and not (f.field_def and f.field_def.is_dev)
-                          and (f.name in NATIVE_FIELDS or (frame.global_mesg_num == 23 and f.def_num == 4))}
+                values = _native_values(frame)
                 if frame.global_mesg_num == 78:
                     rr = values.get("time", [])
                     rr = list(rr) if isinstance(rr, (tuple, list)) else [rr]

@@ -54,7 +54,7 @@ Let C be cumulative RR at packet end; its unexpanded offset interval is
 For each window [w0,w1], gather packets where b>=w0 and a<=w1. Reject no packets
 or multiple chains. Set L=max(a-C-1000), U=min(b-C+1000); reject L>U or U-L>5000.
 Offset is median((a+b)/2-C) clamped to [L,U]. It only determines complete interval
-membership; retain unchanged RR and original interval references. Save offset
+membership in the exact gathered packets only; retain unchanged RR and original interval references. Save offset
 diagnostics, not a claimed precise permanent beat timeline. Label alignment as
 estimated, and bounds as consistency guardrails, not physiological confidence.
 
@@ -270,7 +270,10 @@ synthetic native FIT and API/lifecycle suites; existing ConnectIQ/export regress
 SQLite and actual PostgreSQL16 migration; both client typechecks and translations.
 The private local full pipeline probe (no private fixture/output copied) produced
 3timer blocks,812scheduled,650valid,18alignment and144QC exclusions in1.457s; actual
-selected-interval support0.9817064. These are implementation feasibility observations,
+selected-interval support0.9817064 before the gathered-packet membership correction.
+The corrected implementation retains812scheduled/650valid, with actual selected-RR
+support0.9811266144 (2514ms less union support across8narrowed valid windows).
+These are implementation feasibility observations,
 not physiological accuracy or production latency guarantees.
 
 Design system impact: none — existing Field Lab tokens, responsive metric sheet,

@@ -20,7 +20,7 @@ STATEMENT_VERSION = "dfa-source-attestation-v1"
 SOURCE_VERSION = "ecg-native-attestation-v1"
 SDR_ID = "sdr-activity-dfa-alpha1-v1"
 # Entire fixed recipe mapping; activation may change signed state, never this math.
-POLICY_PARAMETER_DIGEST = "b8364474d6c04976cab9d4b6779e2c287db59ecd3a2843de61f8fd65aec76559"
+POLICY_PARAMETER_DIGEST = "c9db9df13212d152c5a34ff4ddfb8f08ea5cb32dd98d14207ddbd0ef86386438"
 WINDOW_MS = 120_000
 STEP_MS = 5_000
 MIN_BEATS = 200
@@ -87,20 +87,23 @@ def sensor_evidence(messages: list[dict]) -> tuple[list[dict], str]:
             continue
         manufacturer, product = d.get("manufacturer"), d.get("product")
         name = str(d.get("product_name") or "").strip(" \t\n\r\v\f").lower()
+        # Polar's native H10 spelling variants identify one model; other native
+        # names on the same recording-local handle are conflicting evidence.
+        if name in {"h10", "polar h10"}:
+            name = "h10"
         index = d.get("device_index")
         identity = (manufacturer, product, name)
-        if isinstance(index, int) and index in seen and seen[index] != identity:
-            # Repeated descriptors may add a name later. Changed manufacturer or
-            # product is a real recording-local sensor identity discontinuity.
-            old = seen[index]
-            if old[0] is not None and manufacturer is not None and old[0] != manufacturer:
-                raise DFAError("source_contradiction")
-            if old[1] is not None and product is not None and old[1] != product:
-                raise DFAError("source_contradiction")
         if isinstance(index, int):
             old = seen.get(index, (None, None, ""))
-            seen[index] = tuple(new if new not in (None, "") else prior
-                                for new, prior in zip(identity, old))
+            for position in (0, 1):
+                if old[position] is not None and identity[position] is not None and old[position] != identity[position]:
+                    raise DFAError("source_contradiction")
+            effective_manufacturer = manufacturer if manufacturer is not None else old[0]
+            if effective_manufacturer == 123 and old[2] and name and old[2] != name:
+                raise DFAError("source_contradiction")
+            manufacturer, product, name = tuple(new if new not in (None, "") else prior
+                                                for new, prior in zip(identity, old))
+            seen[index] = (manufacturer, product, name)
         label = GARMIN_ECG.get(product) if manufacturer == 1 else None
         rule: object = [SOURCE_VERSION, manufacturer, product]
         if manufacturer == 123 and name in {"h10", "polar h10"}:
@@ -300,8 +303,9 @@ def compute(recording: Recording, check: Callable[[], None] = lambda: None) -> d
     chains: dict[int, dict] = {}
     for block in recording.blocks:
         for p in block.packets:
-            chain = chains.setdefault(p.chain, {"values": [], "indices": []})
+            chain = chains.setdefault(p.chain, {"values": [], "indices": [], "packet_frames": []})
             chain["values"].extend(p.values)
+            chain["packet_frames"].extend([p.frame] * len(p.values))
             chain["indices"].extend(range(p.first_index, p.first_index + len(p.values)))
     for chain in chains.values():
         check()
@@ -335,12 +339,14 @@ def compute(recording: Recording, check: Callable[[], None] = lambda: None) -> d
             chain = chains[packets[0].chain]
             first = bisect_left(chain["starts"], start-offset)
             last = bisect_right(chain["ends"], end-offset)
-            values = chain["values"][first:last]
+            gathered_frames = {p.frame for p in packets}
+            selected = [i for i in range(first, last) if chain["packet_frames"][i] in gathered_frames]
+            values = [chain["values"][i] for i in selected]
             window.update(offset_ms=offset, offset_width_ms=high-low,
                           beat_count=len(values), coverage_ms=sum(values))
             if values:
-                window.update(rr_index_start=chain["indices"][first], rr_index_end=chain["indices"][last-1])
-            reasons = sorted({r for r in chain["qc"][first:last] if r})
+                window.update(rr_index_start=chain["indices"][selected[0]], rr_index_end=chain["indices"][selected[-1]])
+            reasons = sorted({chain["qc"][i] for i in selected if chain["qc"][i]})
             if len(values) < MIN_BEATS:
                 reasons.append("insufficient_beats")
             if sum(values) < MIN_SUPPORT_MS:
@@ -356,7 +362,15 @@ def compute(recording: Recording, check: Callable[[], None] = lambda: None) -> d
             window.update(alpha1=alpha, r2=r2, hr_bpm=60000/(sum(values)/len(values)))
             if alpha < 0 or alpha > 2:
                 window["flags"].append("atypical_value")
-            support.append((chain["starts"][first]+offset, chain["ends"][last-1]+offset))
+            # Coalesce only adjacent selected intervals. Do not allocate one
+            # support tuple per beat per overlapping window or bridge exclusions.
+            segment = previous = selected[0]
+            for i in selected[1:]:
+                if i != previous + 1:
+                    support.append((chain["starts"][segment]+offset, chain["ends"][previous]+offset))
+                    segment = i
+                previous = i
+            support.append((chain["starts"][segment]+offset, chain["ends"][previous]+offset))
     union = union_support(support)
     valid = sum(w["alpha1"] is not None for w in windows)
     timer = sum(b.end-b.start for b in recording.blocks)

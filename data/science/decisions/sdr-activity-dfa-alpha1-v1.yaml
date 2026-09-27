@@ -74,7 +74,7 @@ model_parameters:
     expansion_ms: 1000
     max_local_offset_width_ms: 5000
     local_offset: clamped_median_packet_midpoint_minus_cumulative_rr
-    window_membership: complete_intervals_only
+    window_membership: complete_intervals_from_exact_gathered_packets_only
     audit: original_nonpadding_interval_indices_and_local_offset
   classification: guardrail
   rationale: User-approved conservative Praxys method contract; published support
@@ -245,6 +245,9 @@ decision_notes:
 - Approved implementation plan is contextually adopted; formal evidence, decision
   and implementation signatures are absent.
 - 'Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.'
+- Window membership is limited to complete unchanged RR intervals in the exact gathered
+  packets used for local offset bounds; it never borrows intervals from other packets
+  in the same chain. Actual selected-RR support remains the reported union.
 decision_review:
   reviewer_task: Review the fixed raw method, source applicability, conservative guardrails
     and deferred physiology claims.

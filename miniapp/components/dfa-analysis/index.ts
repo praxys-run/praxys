@@ -99,7 +99,7 @@ Component({
     },
     async refresh() {
       stop(this); const state = local(this); const ticket = state.epoch;
-      this.setData({loading:true, busy:false, error:'', run:null, hasResult:false, proof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
+      this.setData({loading:true, busy:false, error:'', run:null, active:false, stale:false, hasResult:false, rows:[], comparatorSeries:[], proof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
       try {
         const catalog = await this.call<DFACatalog>('');
         if (ticket !== state.epoch || !state.visible) return;
@@ -108,7 +108,7 @@ Component({
         this.setData({catalog, selected, canAnalyse:catalog.policy_active && catalog.processing_authorized, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
           comparators:[copy().heart,copy().power,copy().pace]});
         if (catalog.latest_run && catalog.inputs.length === 1) await this.loadRun(catalog.latest_run.id);
-        else if (initialEntry && catalog.policy_active && catalog.processing_authorized && catalog.inputs.length === 1) { await this.launch(); }
+        else if (initialEntry && catalog.policy_active && catalog.processing_authorized && catalog.inputs.length === 1 && !catalog.source_confirmations.some(p => p.snapshot_id === catalog.inputs[0].input.snapshot_id && p.parse_id === catalog.inputs[0].input.parse_id)) { await this.launch(); }
       } catch { if (ticket === state.epoch) this.setData({loading:false,error:t('The request failed. Try again.')}); }
     },
     async loadRun(id: string) {
@@ -184,7 +184,7 @@ Component({
         ...nav.support.map(([a,b]) => ({kind:'supported',style:`left:${100*(a-nav.start_ms)/duration}%;width:${100*(b-a)/duration}%;`})),
       ];
       let context: DFAContext|null = null;
-      this.setData({contextError:''});
+      this.setData({contextError:'', rows:[], comparatorSeries:[]});
       if (this.data.comparator !== 0) {
         try { context = await this.call<DFAContext>(`/runs/${run.id}/context?offset=${this.data.offset}&limit=120&result_revision=${run.result_revision}`); }
         catch { if (ticket===local(this).epoch) this.setData({contextError:t('Context changed or is unavailable. Refresh to reload it.')}); }
@@ -227,7 +227,7 @@ Component({
       stop(this); this.setData({offset:Number(e.detail.value)*120,hasResult:false}); await this.loadRun(run.id);
     },
     async onComparator(e: WechatMiniprogram.PickerChange) {
-      stop(this); this.setData({comparator:Number(e.detail.value)}); if (this.data.run) await this.showResult(this.data.run);
+      stop(this); this.setData({comparator:Number(e.detail.value),rows:[],comparatorSeries:[],contextError:''}); if (this.data.run) await this.showResult(this.data.run);
     },
     details() { this.setData({showDetails:!this.data.showDetails}); },
     science() { this.setData({showScience:!this.data.showScience}); },

@@ -147,6 +147,11 @@ def _current(db: Session, run: Run) -> bool:
             return False
     except HTTPException:
         return False
+    return _source_current(db, run)
+
+
+def _source_current(db: Session, run: Run) -> bool:
+    """Source proof/current archive facts, independent of processing or math."""
     try:
         candidates = _inputs(db, run.user_id, run.activity_id)
     except HTTPException:
@@ -159,15 +164,19 @@ def _current(db: Session, run: Run) -> bool:
     return True
 
 
-def view(run: Run, db: Session, offset: int = 0, limit: int = 120, include_result: bool = True) -> dict:
-    current = _current(db, run)
-    base = {"id": run.id, "phase": run.phase, "status": run.status, "generation": run.generation,
+def _run_metadata(run: Run, current: bool) -> dict:
+    return {"id": run.id, "phase": run.phase, "status": run.status, "generation": run.generation,
             "freshness": "current" if current else "stale", "progress": run.progress,
             "error_code": run.error_code, "created_at": run.created_at, "completed_at": run.completed_at,
             "expires_at": run.expires_at, "method_version": run.method_version,
             "science_contract_digest": run.science_contract_digest,
             "snapshot_id": run.snapshot_id, "parse_id": run.parse_id, "source_confirmation_id": run.confirmation_id,
             "result_revision": run.result_revision if current else None}
+
+
+def view(run: Run, db: Session, offset: int = 0, limit: int = 120, include_result: bool = True) -> dict:
+    current = _current(db, run)
+    base = _run_metadata(run, current)
     if include_result and current and run.result:
         value = run.result
         base.update({k: v for k, v in value.items() if k != "windows"})
@@ -415,8 +424,20 @@ def export(db: Session, owner: str) -> dict:
         query = db.query(Run).filter(Run.user_id == owner,
             or_(Run.expires_at.is_(None), Run.expires_at > datetime.utcnow())).order_by(Run.created_at, Run.id)
         for run in query.yield_per(1):
-            yield ExportJSONValue(jsonable_encoder({**view(run, db, include_result=False),
-                "recording_ref": run.recording_ref, "result": run.result if _current(db, run) else None}))
+            source_valid = _source_current(db, run)
+            method_current = False
+            try:
+                method_current = (run.freshness == "current" and run.method_version == METHOD_VERSION
+                                  and require_policy() == run.science_contract_digest)
+            except HTTPException:
+                pass
+            # Export is a rights operation: retained data remains portable after
+            # processing withdrawal, stale Terms or ordinary numerical updates.
+            # Source revocation/reparse/erasure still removes or withholds it.
+            metadata = _run_metadata(run, source_valid and method_current)
+            metadata["result_revision"] = run.result_revision if source_valid else None
+            yield ExportJSONValue(jsonable_encoder({**metadata,
+                "recording_ref": run.recording_ref, "result": run.result if source_valid else None}))
     return {"schema_version": 1,
             "confirmations": [{**proof_view(p), "recording_ref": p.recording_ref, "evidence_digest": p.evidence_digest,
                                "rule_fingerprint": p.rule_fingerprint}

@@ -66,7 +66,8 @@ function DFAContent({ activityId }: { activityId: string }) {
     refetchOnWindowFocus: false, refetchOnMount: 'always', retry: () => false, timeoutMs: 30000,
   });
   const mayAnalyse = catalog.data?.policy_active === true && catalog.data?.processing_authorized === true;
-  const current = mayAnalyse && !catalog.error && verified && run.data?.id === runId && run.data.snapshot_id === chosenSnapshot && run.data.freshness === 'current' ? run.data : null;
+  const ownedRun = !catalog.error && verified && run.data?.id === runId && run.data.snapshot_id === chosenSnapshot ? run.data : null;
+  const current = mayAnalyse && ownedRun?.freshness === 'current' ? ownedRun : null;
   const context = useApi<DFAContext>(`${base}/runs/${runId}/context?offset=${offset}&limit=120&result_revision=${current?.result_revision ?? ''}${samplesRevision ? `&expected_samples_revision=${samplesRevision}` : ''}`, {
     enabled: verified && visible && current?.status === 'complete' && comparator !== 'hr_bpm',
     refetchOnWindowFocus: false, retry: () => false, timeoutMs: 30000,
@@ -81,11 +82,12 @@ function DFAContent({ activityId }: { activityId: string }) {
     if (initialEntry && !fresh.latest_run && fresh.inputs.length === 1 && fresh.policy_active && fresh.processing_authorized) {
       const input = fresh.inputs[0].input;
       const proof = fresh.source_confirmations.find(p => p.snapshot_id === input.snapshot_id && p.parse_id === input.parse_id);
+      if (proof) return; // An expired cache never authorizes automatic recomputation.
       setBusy(true);
       try {
         const response = await apiFetch(base, {method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({input:{provider:input.provider,snapshot_id:input.snapshot_id,parse_id:input.parse_id},
-            catalog_revision:fresh.catalog_revision,source_confirmation_id:proof?.id})});
+            catalog_revision:fresh.catalog_revision})});
         const wait = retryAfterSeconds(response.headers.get('Retry-After'));
         if (wait) setCooldownUntil(Date.now()+wait*1000);
         if (!response.ok) throw new Error('request_failed');
@@ -166,11 +168,12 @@ function DFAContent({ activityId }: { activityId: string }) {
   const chosen = catalog.data?.inputs.find(v => v.input.snapshot_id === chosenSnapshot)?.input;
   const selectedSensor = sensor || (current?.sensors?.length === 1 ? current.sensors[0].sensor_ref : '');
   const proof = savedProof ?? catalog.data?.source_confirmations.find(p => p.snapshot_id === chosen?.snapshot_id && p.parse_id === chosen?.parse_id);
-  const active = current && ['queued','running'].includes(current.status);
+  const active = ownedRun && ['queued','running'].includes(ownedRun.status) ? ownedRun : null;
   const runAction = async (action: 'retry' | 'cancel') => {
-    if (!current) return;
+    const actionable = action === 'cancel' ? ownedRun : current;
+    if (!actionable) return;
     setBusy(true);
-    try { await request(`/runs/${current.id}/${action}`, action === 'retry' ? { expected_generation: current.generation } : undefined); await refresh(); }
+    try { await request(`/runs/${actionable.id}/${action}`, action === 'retry' ? { expected_generation: actionable.generation } : undefined); await refresh(); }
     catch { setFailure(t`The request failed. Try again.`); } finally { setBusy(false); }
   };
   const confirm = async () => {
@@ -233,12 +236,12 @@ function DFAContent({ activityId }: { activityId: string }) {
     {data && data.inputs.length > 1 && <div className="space-y-2"><Label htmlFor="dfa-recording"><Trans>Recording version</Trans></Label>
       <Select value={selected || null} onValueChange={v => { setSelected(v ?? ''); setSavedProof(null); setChecked(false); setSensor(''); setOffset(0); setRunId(data.latest_run?.snapshot_id === v ? data.latest_run.id : ''); }}>
         <SelectTrigger id="dfa-recording" aria-label={t`Recording version`} className="min-h-11 w-full"><SelectValue>{data.inputs.find(v => v.input.snapshot_id === selected)?.created_at.replace('T',' ').slice(0,19) ?? t`Choose a recording`}</SelectValue></SelectTrigger><SelectContent>
-          {data.inputs.map((v,i) => <SelectItem key={v.input.snapshot_id} value={v.input.snapshot_id}><span className="font-data">{i+1} · {new Date(v.created_at+'Z').toLocaleString()}</span></SelectItem>)}
+          {data.inputs.map((v,i) => <SelectItem className="min-h-11" key={v.input.snapshot_id} value={v.input.snapshot_id}><span className="font-data">{i+1} · {new Date(v.created_at+'Z').toLocaleString()}</span></SelectItem>)}
         </SelectContent></Select></div>}
     {chosen && !catalog.error && !active && (!current || staleResult) &&
-      <Button className="min-h-11" disabled={busy || cooling || !mayAnalyse} onClick={() => void launch(chosen, proof?.id)}>{staleResult ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
+      <Button className="min-h-11" disabled={busy || cooling || !mayAnalyse} onClick={() => void launch(chosen, proof?.id)}>{staleResult || proof ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
     {run.data?.freshness === 'stale' && <p><Trans>The recording or method has changed. Recalculate to see current results.</Trans></p>}
-    {active && <div role="status" className="space-y-3"><p>{current.status === 'queued' ? t`Waiting to analyse this recording…` : current.phase === 'prepare' ? t`Checking beat intervals and chest-strap evidence…` : t`Calculating valid windows…`}</p>
+    {active && <div role="status" className="space-y-3"><p>{active.status === 'queued' ? t`Waiting to analyse this recording…` : active.phase === 'prepare' ? t`Checking beat intervals and chest-strap evidence…` : t`Calculating valid windows…`}</p>
       <p className="text-sm text-muted-foreground"><Trans>You can close this panel. Analysis will continue.</Trans></p>
       <Button className="min-h-11" variant="outline" disabled={busy} onClick={() => void runAction('cancel')}><Trans>Cancel analysis</Trans></Button></div>}
     {current?.status === 'awaiting_source_confirmation' && <div className="space-y-4">
@@ -246,7 +249,7 @@ function DFAContent({ activityId }: { activityId: string }) {
       <p className="text-sm text-muted-foreground"><Trans>The file records a compatible chest strap, but does not directly identify the source of its beat intervals.</Trans></p>
       <Select value={selectedSensor || null} onValueChange={v => { setSensor(v ?? ''); setChecked(false); setSavedProof(null); }}>
         <SelectTrigger aria-label={t`Choose the chest strap`} className="min-h-11 w-full"><SelectValue>{current.sensors?.find(s => s.sensor_ref === selectedSensor)?.label ?? t`Choose the chest strap`}</SelectValue></SelectTrigger><SelectContent>
-          {current.sensors?.map(s => <SelectItem key={s.sensor_ref} value={s.sensor_ref}>{s.label}</SelectItem>)}
+          {current.sensors?.map(s => <SelectItem className="min-h-11" key={s.sensor_ref} value={s.sensor_ref}>{s.label}</SelectItem>)}
         </SelectContent></Select>
       <Label className="flex min-h-11 items-start gap-3 leading-relaxed" htmlFor="dfa-source-confirm">
         <Checkbox id="dfa-source-confirm" checked={checked} onCheckedChange={setChecked} className="mt-1 shrink-0" />
@@ -292,10 +295,10 @@ function DFAContent({ activityId }: { activityId: string }) {
       </div>
       <div className="flex flex-wrap gap-3"><Select value={String(offset)} onValueChange={v => { setOffset(Number(v)); setSamplesRevision(null); }}>
         <SelectTrigger aria-label={t`Jump to time`} className="min-h-11"><SelectValue>{elapsed(nav.page_anchors.find(p => p.offset === offset)?.time_ms ?? start,start)}</SelectValue></SelectTrigger><SelectContent>
-          {nav.page_anchors.map(p => <SelectItem key={p.offset} value={String(p.offset)}><span className="font-data">{elapsed(p.time_ms,start)}</span></SelectItem>)}
+          {nav.page_anchors.map(p => <SelectItem className="min-h-11" key={p.offset} value={String(p.offset)}><span className="font-data">{elapsed(p.time_ms,start)}</span></SelectItem>)}
         </SelectContent></Select><Select value={comparator} onValueChange={v => { setComparator(v ?? 'hr_bpm'); setSamplesRevision(null); }}>
         <SelectTrigger aria-label={t`Compare with`} className="min-h-11"><SelectValue>{comparatorLabel}</SelectValue></SelectTrigger><SelectContent>
-          <SelectItem value="hr_bpm"><Trans>RR heart rate (bpm)</Trans></SelectItem><SelectItem value="power_watts"><Trans>Power (W)</Trans></SelectItem><SelectItem value="pace_sec_km"><Trans>Pace (s/km)</Trans></SelectItem>
+          <SelectItem className="min-h-11" value="hr_bpm"><Trans>RR heart rate (bpm)</Trans></SelectItem><SelectItem className="min-h-11" value="power_watts"><Trans>Power (W)</Trans></SelectItem><SelectItem className="min-h-11" value="pace_sec_km"><Trans>Pace (s/km)</Trans></SelectItem>
         </SelectContent></Select></div>
       {context.error && comparator !== 'hr_bpm' && <p role="status"><Trans>Context changed or is unavailable. Refresh to reload it.</Trans></p>}
       <div className="flex flex-wrap gap-5 text-sm" aria-hidden="true"><span className="text-accent-cobalt">DFA α1</span><span className="text-muted-foreground">{comparatorLabel}</span></div>

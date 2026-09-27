@@ -22,10 +22,14 @@ class Fit:
     def __init__(self):
         self.body = bytearray()
 
-    def definition(self, local, message, fields):
-        self.body.extend(struct.pack('<BBBHB', 0x40 | local, 0, 0, message, len(fields)))
+    def definition(self, local, message, fields, dev=()):
+        self.body.extend(struct.pack('<BBBHB', 0x40 | local | (0x20 if dev else 0), 0, 0, message, len(fields)))
         for field in fields:
             self.body.extend(bytes(field))
+        if dev:
+            self.body.append(len(dev))
+            for field in dev:
+                self.body.extend(bytes(field))
 
     def data(self, local, raw):
         self.body.append(local)
@@ -628,3 +632,197 @@ def test_catalog_distinguishes_unsupported_provider_and_known_nonrunning(store):
         assert service.catalog(db,owner,'123')['availability']=='provider_unsupported'
         activity.source='garmin';activity.activity_type='cycling';db.commit()
         assert service.catalog(db,owner,'123')['availability']=='activity_type_unsupported'
+
+
+@pytest.mark.parametrize('fields,payload', [
+    ([(0,4,134)], struct.pack('<I',500)),
+    ([(0,2,131)], struct.pack('<h',500)),
+    ([(0,4,133)], struct.pack('<i',500)),
+    ([(0,4,136)], struct.pack('<f',500)),
+    ([(0,3,132)], b'\xf4\x01\x00'),
+    ([(0,0,132)], b''),
+    ([(0,2,132),(0,2,132)], struct.pack('<HH',500,500)),
+])
+def test_native_rr_rejects_wrong_base_shape_and_duplicate_definitions(fields,payload):
+    fit=Fit();fit.definition(0,78,fields);fit.data(0,payload)
+    with pytest.raises(core.DFAError,match='fit_invalid'):
+        list(decode(fit.finish()))
+
+
+@pytest.mark.parametrize('number,fields,payload', [
+    (23,[(2,4,134)],struct.pack('<I',1)),
+    (23,[(4,4,134)],struct.pack('<I',4130)),
+    (23,[(27,2,132)],struct.pack('<H',500)),
+    (23,[(0,2,132)],struct.pack('<H',1)),
+    (23,[(2,4,132)],struct.pack('<HH',1,1)),
+    (18,[(5,1,2)],bytes([1])),
+    (21,[(253,4,133)],struct.pack('<i',1000000)),
+])
+def test_native_provenance_fields_reject_wrong_types_or_arrays(number,fields,payload):
+    fit=Fit();fit.definition(0,number,fields);fit.data(0,payload)
+    with pytest.raises(core.DFAError,match='fit_invalid'):
+        list(decode(fit.finish()))
+
+
+def add_developer_field(fit,name,base_type):
+    fit.definition(5,207,[(3,1,2),(1,16,13)])
+    fit.data(5,b'\0'+bytes(range(16)))
+    fit.definition(6,206,[(0,1,2),(1,1,2),(2,1,2),(3,32,7)])
+    fit.data(6,bytes([0,8,base_type])+name.encode().ljust(32,b'\0'))
+
+
+@pytest.mark.parametrize('name', ['time','manufacturer','product','product_name'])
+def test_developer_display_names_never_supply_native_rr_or_sensor_provenance(name):
+    fit=Fit()
+    add_developer_field(fit,name,7 if name=='product_name' else 132)
+    if name=='time':
+        fit.definition(0,78,[(0,4,132)],[(8,4,0)])
+        fit.data(0,struct.pack('<HHHH',500,510,300,320))
+        message=next(m for m in decode(fit.finish()) if m['message']==78)
+        assert message['values']=={'time':(500,510)}
+    else:
+        native_fields=[(0,1,2),(2,2,132),(27,16,7)]
+        fake=b'Polar OH1'.ljust(16,b'\0') if name=='product_name' else struct.pack('<H',1 if name=='manufacturer' else 999)
+        fit.definition(0,23,native_fields,[(8,len(fake),0)])
+        fit.data(0,struct.pack('<BH',1,123)+b'H10'.ljust(16,b'\0')+fake)
+        messages=list(decode(fit.finish()))
+        device=next(m for m in messages if m['message']==23)
+        assert device['values']['manufacturer']==123 and device['values']['product_name']=='H10'
+        assert 'product' not in device['values']
+        assert core.sensor_evidence(messages)[0][0]['label']=='Polar H10'
+
+
+def polar_messages(descriptors):
+    fit=Fit();fit.definition(0,23,[(0,1,2),(2,2,132),(27,16,7)])
+    for manufacturer,name in descriptors:
+        fit.data(0,struct.pack('<BH',1,manufacturer if manufacturer is not None else 65535)+(name or '').encode().ljust(16,b'\0'))
+    return list(decode(fit.finish()))
+
+
+@pytest.mark.parametrize('names',[['H10','Polar OH1'],['Polar OH1','H10'],['H10','','Polar OH1']])
+def test_native_polar_recording_handle_cannot_change_sensor_model(names):
+    with pytest.raises(core.DFAError,match='source_contradiction'):
+        core.sensor_evidence(polar_messages([(123,name) for name in names]))
+
+
+@pytest.mark.parametrize('descriptors',[
+    [(123,'H10'),(None,''),(123,' Polar H10 ')],
+    [(None,'H10'),(123,'')],
+    [(123,''),(None,'Polar H10')],
+])
+def test_native_polar_aliases_and_missing_fields_enrich_one_identity(descriptors):
+    sensors,_=core.sensor_evidence(polar_messages(descriptors))
+    assert len(sensors)==1 and sensors[0]['label']=='Polar H10'
+
+
+def isolated_window(count=200,total=117600,anchor_width=0):
+    base,remainder=divmod(total,count)
+    values=[base+(i<remainder)+(1 if i%2==0 else -1) for i in range(count)]
+    values[-1]+=total-sum(values)
+    a=118000 if anchor_width else total
+    packet=core.Packet(1,values,a,a+anchor_width,chain=0,cumulative=total)
+    return core.Recording([core.Block(0,120000,[packet])],[],"synthetic",count,1)
+
+
+@pytest.mark.parametrize('count,total,width,reason',[
+    (199,117600,0,'insufficient_beats'),(200,117600,0,None),
+    (200,117599,0,'insufficient_coverage'),(200,117600,3000,None),
+    (200,117600,3001,'alignment_uncertain'),
+])
+def test_exact_beat_support_and_alignment_width_boundaries(count,total,width,reason):
+    window=core.compute(isolated_window(count,total,width))['windows'][0]
+    if reason:
+        assert window['alpha1'] is None and reason in window['reasons']
+    else:
+        assert window['alpha1'] is not None and window['coverage_ms']==total
+        if width: assert window['offset_width_ms']==5000
+
+
+def test_rights_export_preserves_retained_numbers_after_processing_and_math_changes(store,monkeypatch):
+    factory,owner=store
+    proof,run=confirmed(factory,owner)
+    with factory() as db: claimed=service.claim(db)
+    service.execute(factory,*claimed)
+    with factory() as db:
+        record=db.get(Run,run['id'])
+        expected=record.result
+        monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized',lambda db,owner:False)
+        # Fail loudly if rights export attempts any computational-authority check.
+        monkeypatch.setattr(service,'require_authority',lambda *args: (_ for _ in ()).throw(AssertionError('compute authority on rights export')))
+        exported=next(item for item in service.export(db,owner)['runs'] if item['id']==run['id'])
+        assert exported['result']==expected and exported['result_revision']==record.result_revision
+        monkeypatch.setattr(service,'METHOD_VERSION','future-numerical-method')
+        exported=next(item for item in service.export(db,owner)['runs'] if item['id']==run['id'])
+        assert exported['result']==expected and exported['freshness']=='stale'
+        assert exported['method_version']==core.METHOD_VERSION
+        service.erase(db,owner,'123',proof['id'])
+        assert not any(item['id']==run['id'] for item in service.export(db,owner)['runs'])
+
+
+def reviewed_projection(step=1,factor=1.0,jump_ms=0):
+    """Exact Science review fixture: two RR per packet, file-order anchors."""
+    frames=[]
+    stamp=1_000_000
+    rr=np.random.default_rng(733).integers(480,521,3600)
+    def add(number,**values):
+        frames.append({'frame':len(frames),'message':number,'values':values})
+    add(23,manufacturer=1,product=4130,device_index=1)
+    add(21,timestamp=stamp,event=0,event_type=0,event_group=0)
+    add(20,timestamp=stamp)
+    elapsed=last=0
+    for i in range(0,len(rr),2):
+        values=rr[i:i+2].tolist()
+        elapsed+=sum(values)
+        wall=elapsed*factor+(jump_ms if i>=1800 else 0)
+        add(78,time=values)
+        sampled=int(wall//(step*1000))*step
+        if sampled>last:
+            add(20,timestamp=stamp+sampled)
+            last=sampled
+    add(21,timestamp=stamp+int(np.ceil(wall/1000)),event=0,event_type=4,event_group=0)
+    add(18,sport=1)
+    return frames
+
+
+@pytest.mark.parametrize('step',[1,10])
+def test_reviewed_slow_drift_and_smart_recording_remain_usable(step):
+    recording=core.build_recording(reviewed_projection(step=step,factor=1+4/3600))
+    result=core.compute(recording)
+    assert result['summary']['scheduled_windows']==337
+    assert result['summary']['valid_windows']==337
+
+
+def test_gathered_packet_membership_removes_clock_gap_false_windows():
+    recording=core.build_recording(reviewed_projection(jump_ms=10000))
+    result=core.compute(recording)
+    assert result['summary']['scheduled_windows']==339
+    assert result['summary']['valid_windows']==314
+    crossing=[w for w in result['windows'] if w['alpha1'] is not None and w['rr_index_start']<1800<=w['rr_index_end']]
+    assert crossing==[]
+    for w in result['windows']:
+        if w['rr_index_start'] is None:
+            continue
+        gathered={index for p in recording.blocks[w['block']].packets
+                  if p.b>=w['start_ms'] and p.a<=w['end_ms']
+                  for index in range(p.first_index,p.first_index+len(p.values))}
+        assert set(range(w['rr_index_start'],w['rr_index_end']+1)) <= gathered
+    origin=recording.blocks[0].start
+    for start,end in [(785,905),(790,910),(905,1025)]:
+        window=next(w for w in result['windows'] if w['start_ms']==origin+start*1000 and w['end_ms']==origin+end*1000)
+        assert window['alpha1'] is None
+
+
+def test_detectable_large_clock_gap_breaks_chain_without_bridging():
+    recording=core.build_recording(reviewed_projection(jump_ms=40000))
+    result=core.compute(recording)
+    assert len({p.chain for b in recording.blocks for p in b.packets})>1
+    assert not any(w['alpha1'] is not None and w['rr_index_start']<1800<=w['rr_index_end'] for w in result['windows'])
+
+
+def test_native_compressed_record_header_timestamp_remains_an_anchor():
+    fit=Fit();stamp=1_000_000
+    fit.definition(0,20,[(253,4,134)]);fit.data(0,struct.pack('<I',stamp))
+    fit.definition(1,20,[])
+    fit.body.append(0x80 | (1 << 5) | ((stamp+1)&31))
+    records=[m for m in decode(fit.finish()) if m['message']==20]
+    assert [m['values']['timestamp'] for m in records]==[stamp,stamp+1]

@@ -5,7 +5,7 @@
 - **Record:** `evidence-activity-dfa-alpha1-v1`
 - **Lifecycle:** `draft`
 - **Review mode:** `artifact`
-- **Reviewed content digest:** `sha256:53ae04215d46cb5e3af9767e03b2a73c0eb6b09909c13ab824cba5416d29be77`
+- **Reviewed content digest:** `sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f`
 - **Required role:** `evidence_reviewer`
 - **Approval:** _Pending_
 
@@ -18,12 +18,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `evidence_reviewer`
 - Subject: `evidence-activity-dfa-alpha1-v1`
-- Digest: `sha256:53ae04215d46cb5e3af9767e03b2a73c0eb6b09909c13ab824cba5416d29be77`
+- Digest: `sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f`
 
 > I approve this Evidence Review's search method, evidence claims, citation verification, limitations, and gaps for the displayed digest.
 
 <!-- praxys-science-approval:v1
-{"role":"evidence_reviewer","subject_digest":"sha256:53ae04215d46cb5e3af9767e03b2a73c0eb6b09909c13ab824cba5416d29be77","subject_id":"evidence-activity-dfa-alpha1-v1","subject_kind":"evidence_review"}
+{"role":"evidence_reviewer","subject_digest":"sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f","subject_id":"evidence-activity-dfa-alpha1-v1","subject_kind":"evidence_review"}
 -->
 ```
 
@@ -58,7 +58,17 @@ Inspect valid running windows and the uncertainty of post-run beat-interval anal
 
 ### Exact searches
 
-- **Approved Science planning handoff; DOI landing pages and Crossref metadata**
+- **Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text**
+  - `(TITLE_ABS:DFA OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:"heart rate" OR TITLE_ABS:"RR intervals") AND (TITLE_ABS:exercise OR TITLE_ABS:running OR TITLE_ABS:cycling OR TITLE_ABS:threshold) FIRST_PDATE:[2020-01-01 TO 2026-09-27]`
+- **Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text**
+  - `"heart rate variability threshold"`
+- **Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text**
+  - `("Polar H10" OR "ECG chest") AND (DFA OR RR OR exercise)`
+- **Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text**
+  - `("DFA alpha1" OR "DFA a1" OR "DFA α1" OR "detrended fluctuation analysis") AND (exercise OR threshold OR cycling OR running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]`
+- **Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text**
+  - `(TITLE_ABS:"DFA alpha1" OR TITLE_ABS:"DFA a1" OR TITLE_ABS:"DFA α1" OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:exercise OR TITLE_ABS:threshold OR TITLE_ABS:cycling OR TITLE_ABS:running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]`
+- **Crossref DOI bibliography verification**
   - `10.3390/s21030821; 10.3390/s22176536; 10.1007/s00421-024-05592-2; 10.14814/phy2.70777`
 
 ## Inclusion criteria
@@ -72,8 +82,9 @@ Inspect valid running windows and the uncertainty of post-run beat-interval anal
 
 ## Method limitations
 
-- Bounded rapid review inherited from the approved planning session, not an exhaustive systematic search.
-- Crossref metadata rechecked2026-09-27; full-text verification levels below refer to the preceding Science handoff.
+- Bounded rapid review, not an exhaustive systematic search. Original Science planning search/access date2026-09-27; all81 returned titles from the focused query were screened.
+- The last exploratory query returned113 records; the first100 were retrieved before narrowing to the focused81-record search.
+- Running study was reviewed at abstract level only. Crossref bibliography metadata was verified separately; that verification does not imply full-text access.
 
 ### Quality appraisal
 
@@ -189,7 +200,7 @@ Agreement between HRV-derived and physiological thresholds is protocol-dependent
       "doi": "10.1007/s00421-024-05592-2",
       "id": "van-rassel-running-2024",
       "journal": "European Journal of Applied Physiology",
-      "pmid": null,
+      "pmid": "39235602",
       "title": "Quantifying exercise intensity with fractal correlation properties of heart rate variability: a study on incremental and constant-speed running",
       "url": "https://doi.org/10.1007/s00421-024-05592-2",
       "year": 2024
@@ -297,26 +308,49 @@ Agreement between HRV-derived and physiological thresholds is protocol-dependent
       "Primary exercise DFA or ECG chest-strap validation research from the approved planning evidence packet"
     ],
     "method_limitations": [
-      "Bounded rapid review inherited from the approved planning session, not an exhaustive systematic search.",
-      "Crossref metadata rechecked2026-09-27; full-text verification levels below refer to the preceding Science handoff."
+      "Bounded rapid review, not an exhaustive systematic search. Original Science planning search/access date2026-09-27; all81 returned titles from the focused query were screened.",
+      "The last exploratory query returned113 records; the first100 were retrieved before narrowing to the focused81-record search.",
+      "Running study was reviewed at abstract level only. Crossref bibliography metadata was verified separately; that verification does not imply full-text access."
     ],
     "quality_appraisal": "Separate device validation, numerical method, physiological interpretation and engineering guardrails.",
     "review_type": "rapid",
     "search_date": "2026-09-27",
     "sources": [
       {
-        "name": "Approved Science planning handoff; DOI landing pages and Crossref metadata",
+        "name": "Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text",
+        "search_string": "(TITLE_ABS:DFA OR TITLE_ABS:\"detrended fluctuation\") AND (TITLE_ABS:\"heart rate\" OR TITLE_ABS:\"RR intervals\") AND (TITLE_ABS:exercise OR TITLE_ABS:running OR TITLE_ABS:cycling OR TITLE_ABS:threshold) FIRST_PDATE:[2020-01-01 TO 2026-09-27]"
+      },
+      {
+        "name": "Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text",
+        "search_string": "\"heart rate variability threshold\""
+      },
+      {
+        "name": "Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text",
+        "search_string": "(\"Polar H10\" OR \"ECG chest\") AND (DFA OR RR OR exercise)"
+      },
+      {
+        "name": "Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text",
+        "search_string": "(\"DFA alpha1\" OR \"DFA a1\" OR \"DFA α1\" OR \"detrended fluctuation analysis\") AND (exercise OR threshold OR cycling OR running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]"
+      },
+      {
+        "name": "Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text",
+        "search_string": "(TITLE_ABS:\"DFA alpha1\" OR TITLE_ABS:\"DFA a1\" OR TITLE_ABS:\"DFA α1\" OR TITLE_ABS:\"detrended fluctuation\") AND (TITLE_ABS:exercise OR TITLE_ABS:threshold OR TITLE_ABS:cycling OR TITLE_ABS:running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]"
+      },
+      {
+        "name": "Crossref DOI bibliography verification",
         "search_string": "10.3390/s21030821; 10.3390/s22176536; 10.1007/s00421-024-05592-2; 10.14814/phy2.70777"
       }
     ]
   },
   "research_question": "Can existing archived running FIT RR support bounded post-run DFA alpha1 without threshold or training claims?",
   "review_notes": [
-    "Verification: rogers-artifacts-2021 - full-text; approved Science planning handoff, DOI source; 2026-09-27.",
-    "Verification: schaffarczyk-h10-2022 - full-text; approved Science planning handoff, DOI source; 2026-09-27.",
-    "Verification: van-rassel-running-2024 - abstract; approved Science planning handoff, DOI source; 2026-09-27.",
-    "Verification: olieslagers-cycling-2026 - full-text; approved Science planning handoff, DOI source; 2026-09-27.",
+    "Verification: rogers-artifacts-2021 - full-text; Europe PMC PMC7865269, relevant methods/results/limitations; 2026-09-27.",
+    "Verification: schaffarczyk-h10-2022 - full-text; Europe PMC PMC9459793, relevant methods/results/limitations; 2026-09-27.",
+    "Verification: van-rassel-running-2024 - abstract; Europe PMC/PubMed PMID 39235602; 2026-09-27.",
+    "Verification: olieslagers-cycling-2026 - full-text; Europe PMC PMC12910119, relevant methods/results/limitations; 2026-09-27.",
+    "Full text endpoint: https://www.ebi.ac.uk/europepmc/webservices/rest/{PMCID}/fullTextXML . These levels and exact search strings restore the original Science handoff; Engineering did not perform a new literature review.",
     "Bibliography independently checked against Crossref DOI metadata2026-09-27.",
+    "Native sensor modality provenance: Garmin FIT SDK profile21.217.0, https://raw.githubusercontent.com/garmin/fit-python-sdk/main/garmin_fit_sdk/profile.py . Sensor-type compatibility is not model-specific DFA accuracy certification.",
     "Mechanical materialization by Engineering preserves Science ownership; no signed evidence review or acceptance is claimed."
   ],
   "schema_version": 1,
