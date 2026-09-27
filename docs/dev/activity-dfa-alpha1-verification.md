@@ -64,13 +64,13 @@ support. Eight still-valid windows had narrower interval membership after the
 fix; the support union decreased2514ms. The earlier whole-window-support value
 0.9824723247 is not the shipped support definition. These observations demonstrate
 input/numerical feasibility, not physiological accuracy, cross-device validation
-or a production latency guarantee. Independent Science confirmation of the final
-observation is performed against the frozen fix revision.
+or a production latency guarantee. Independent Science confirmed this final
+observation at `ccd354e19b0f74d702116004ffeca05fedf4d041`.
 
 ## Remaining review and runtime boundaries
 
-- Independent reviewers confirm their findings against the next immutable commit.
-  Root's bounded final desktop/mobile/EN/zh/theme browser pass follows those fixes.
+- Independent Quality, Trust and Science confirmations and the bounded final
+  desktop/mobile/EN/zh/theme browser pass are complete, as recorded below.
 - [Native fixture instructions](../../tests/fixtures/dfa/README.md) and registered
   automator function sources are prepared from installed WeChat skill0.3.11.
   No simulator/foreground call or Windows mirror was created in this preparation.
@@ -102,5 +102,88 @@ with the existing local fitdecode PYTHONPATH: **15 passed,67 deselected**. Both
 transition directions, delayed manufacturer, alias/missing-field enrichment and
 unrelated watch metadata were exercised through synthetic native FIT messages.
 No UI or UI/native fixture file changed in this correction. Trust's narrow final
-confirmation and original Science final verification are still independent
-obligations; this evidence is not a release or runtime activation claim.
+confirmation and original Science final verification subsequently passed at the
+revision recorded below; this evidence is not a release or runtime activation claim.
+
+
+## Final specialist confirmations
+
+- **Quality**, at `9e0c2a785765a084fde95e549ce79071b6b6b01d`: all earlier
+  findings resolved;74 DFA tests with actual PostgreSQL,9 actual client/component
+  tests, both-client types and exact timing probes passed. The subsequent change
+  was limited to Polar source-name history, backend tests and this evidence.
+- **Trust**, at `ccd354e19b0f74d702116004ffeca05fedf4d041`: all three findings
+  resolved (strict native provenance, retained rights export, delayed Polar model
+  history);14 focused verification checks passed.
+- **Science**, at `ccd354e19b0f74d702116004ffeca05fedf4d041`: exact numerical/
+  timing fixtures, gathered-packet membership, beat counts, actual support union,
+  original-index provenance, source interpretation and contract digest checks
+  passed. The private file retained812 scheduled/650 valid windows and actual
+  support0.9811266143911439; the2514ms reduction involved8 narrower valid windows.
+  Exact Europe PMC/PMCID/PMID provenance was confirmed. This independent agent
+  review does not replace the formal evidence/decision/implementation signatures.
+
+All scientific records and their generated contract remain **draft/inactive**.
+No deployment, runtime activation, human signature or real-device physiological
+validation is claimed.
+
+## Final rendered browser evidence
+
+Root coordinated a real Paseo browser pass using only the synthetic API fixture.
+This was an available runtime browser extension; the portable Chrome DevTools MCP
+was unavailable. CSS viewports were1440×900 desktop and390×844 mobile, with English
+and Chinese in light/dark themes. The application and native fixture trees were
+unchanged from the Quality-reviewed9e0c2a7 revision through ccd354e1:
+
+- `web/src`: `20f89790c69e4d98af4d6c87f6d5f30105364b62`
+- `miniapp`: `cf0d53340ff4df69b5af956fd6f2f625881ca85f`
+- `tests/fixtures/dfa`: `5e51f7b474a810bbcbd3bfe9a58d33b385f24e33`
+
+The ignored browser fixture was corrected to use separate preparation/computation
+run IDs, matching the real immutable API rows. No tracked application code changed
+for that fixture correction. The final browser pass checked:
+
+- Prepare → unchecked source confirmation → calculation; source/date/model labels,
+  localized pickers and explicit selection when multiple inputs exist.
+- The real range control measured760×44px desktop and335.2×44px mobile. Keyboard
+  ArrowRight moved120→125s; PageDown selected725s and Enter committed the page jump.
+  Gaps remained visible, alpha axis values used two decimals, and no horizontal
+  overflow appeared at the tested viewports.
+- Previously failing dark explanatory text and chart-axis contrast measured15.26:1
+  after the local token fix. Stale results exposed Recalculate with zero charts;
+  inactive processing exposed zero charts; unsupported providers had clear copy.
+- Delete/revoke invoked the actual DOM handlers with the exact DELETE and metadata
+  GET requests only; focus/reopen did not issue a recreating POST. Footer controls
+  used DOM clicks when the browser's text snapshot was truncated.
+- No application console errors remained after the synthetic fixture stabilized.
+  Native browser keyboard behavior and element focus were exercised. No physical
+  touchscreen, screen-reader device or WeChat simulator pass is claimed.
+
+Reviewer handoff is **local-only**: [original-resolution gallery](../../test-screenshots/ui-quality/dfa-alpha1/index.html).
+Final captures in that ignored directory are `final-confirmation-desktop-zh.png`,
+`final-result-desktop-zh.png`, `final-result-mobile-dark-zh.png`,
+`final-chart-mobile-dark-zh.png`, and `final-deleted-mobile-en.png`. The gallery
+links to the originals and distinguishes `first-*` pre-fix captures. Nothing was
+uploaded or published.
+
+## UI quality
+
+- Impeccable: accepted DFA experience specification, existing Field Lab extension,
+  craft-floor checks and bounded rendered review.
+- Visual review: desktop1440×900; mobile390×844; EN/zh; light/dark.
+- Primary journey: Activity → DFA preparation → source confirmation → window review
+  → delete/revoke, with synthetic data only.
+- Reviewer handoff: local-only — `test-screenshots/ui-quality/dfa-alpha1/index.html`.
+- States checked: preparation, confirmation, calculation, complete, gaps, missing/
+  unsupported input, multiple versions, stale/inactive result and deletion.
+- Accessibility: native browser keyboard/focus,44px control targets, measured dark
+  text/axis contrast and no overflow; device screen-reader/touch testing unperformed.
+- Design system impact: none — existing tokens, sheet, inputs and chart patterns.
+- Miniapp parity: implementation, types, i18n and actual component lifecycle tests
+  passed; registered native fixture prepared, foreground simulator pass pending.
+- Exceptions: Chrome DevTools MCP unavailable (Paseo browser used); native WeChat
+  rendering awaits the explicit foreground permission required by its skill.
+
+The required full committed-head preflight is the next verification step. Its
+immutable HEAD, command and output will be reported in the handoff after execution,
+without rewriting this file merely to insert a self-referential commit hash.
