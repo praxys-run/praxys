@@ -1,6 +1,6 @@
 <view class="dfa-overlay" catchtouchmove="block" aria-role="dialog" aria-modal="true" aria-label="{{tr.alpha}}">
   <view class="dfa-sheet">
-    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button class="dfa-button" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
+    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
     <scroll-view scroll-y class="dfa-scroll">
       <view class="dfa-body">
         <state-card wx:if="{{loading}}" type="loading" />
@@ -15,7 +15,7 @@
           <picker wx:if="{{catalog.inputs.length > 1}}" range="{{inputLabels}}" value="{{selected}}" bindchange="onRecording"><view class="dfa-button">{{selected >= 0 ? inputLabels[selected] : tr.recording}}</view></picker>
           <button wx:if="{{selected >= 0 && !active && (!run || stale)}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{stale ? tr.recalculate : tr.analyse}}</button>
           <view wx:if="{{active}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><text class="dfa-hint">{{tr.continuing}}</text><button class="dfa-button" data-action="cancel" bindtap="action" disabled="{{busy}}">{{tr.cancel}}</button></view>
-          <text wx:if="{{stale}}" class="dfa-copy">{{status}}</text>
+          <text wx:if="{{stale && !active}}" class="dfa-copy">{{status}}</text>
           <view wx:if="{{run.status === 'awaiting_source_confirmation' && !stale}}" class="dfa-section">
             <text class="dfa-heading">{{tr.confirmTitle}}</text><text class="dfa-hint">{{tr.sourceHint}}</text>
             <picker range="{{sensorLabels}}" value="{{sensorIndex}}" bindchange="onSensor"><view class="dfa-button">{{sensorIndex >= 0 ? sensorLabels[sensorIndex] : tr.sensor}}</view></picker>

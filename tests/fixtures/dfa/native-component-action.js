@@ -1,7 +1,7 @@
 function actOnDFAFixture(action, value) {
   const page = getCurrentPages().slice(-1)[0];
   if (!page || page.route !== 'pages/analysis/index') throw new Error('expected_existing_analysis_page');
-  const component = page.selectComponent('dfa-analysis');
+  const component = page.selectComponent('#analysis-dfa');
   if (!component || component.properties.activityId !== 'dfa-synthetic-running') throw new Error('synthetic_dfa_component_required');
   if (action === 'comparator') return component.onComparator({detail: {value: String(value)}});
   if (action === 'source-check') return component.onCheck({detail: {value: value ? ['confirmed'] : []}});

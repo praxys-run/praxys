@@ -18,18 +18,19 @@ type TabBarInstance = { setData: (d: Record<string, unknown>) => void };
  */
 function callTabBar(
   page: { getTabBar?: unknown },
-  data: Record<string, unknown>,
+  data: Record<string, unknown> | (() => Record<string, unknown>),
 ): void {
   if (typeof page.getTabBar !== 'function') return;
+  const apply = (tabBar: TabBarInstance | null) => {
+    tabBar?.setData(typeof data === 'function' ? data() : data);
+  };
   try {
     const result = (page.getTabBar as Function)(
-      (tabBar: TabBarInstance | null) => {
-        tabBar?.setData(data);
-      },
+      apply,
     );
     // WebView sync fallback: getTabBar() returned the instance
     if (result && typeof (result as { setData?: unknown }).setData === 'function') {
-      (result as TabBarInstance).setData(data);
+      apply(result as TabBarInstance);
     }
   } catch {
     // not available on sub-pages (science, login, etc.)
@@ -53,9 +54,10 @@ export function setTabBarTheme(
 /** Hide the custom tab bar while a page-level modal owns the viewport. */
 export function setTabBarHidden(
   page: { getTabBar?: unknown },
-  hidden: boolean,
+  hidden: boolean | (() => boolean),
 ): void {
-  callTabBar(page, { hidden });
+  // A page lifecycle may change before Skyline supplies its tab-bar instance.
+  callTabBar(page, () => ({ hidden: typeof hidden === 'function' ? hidden() : hidden }));
 }
 
 /** Rebuild tab bar labels after a live language change. */

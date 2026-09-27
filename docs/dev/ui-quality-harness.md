@@ -123,11 +123,13 @@ synchronizes `miniapp/` to a generated Windows-side mirror before project
 operations; the WSL repository remains authoritative. Stable WeChat DevTools
 remains separate and is not selected by default.
 
-Tencent provides no headless or no-focus simulator mode. The wrapper blocks
-Windows CLI launch by default; after explicit user approval, prefix each
-required invocation with `WECHATIDE_ALLOW_FOREGROUND=1`. Do not export the
-permission globally. For uninterrupted local work, schedule the rendered pass
-or use a separate Windows session/VM.
+Tencent provides no headless or no-focus simulator mode. Authorized miniapp
+work may visibly launch registered DevTools through the wrapper without a
+separate foreground question or environment opt-in. Honor explicit user
+restrictions and Tencent readiness, login, client/token, pending-task and
+sensitive-action confirmations. Reuse one project window and close only
+task-owned windows, preserving pre-existing and unrelated windows. Guaranteed
+desktop isolation still requires a separate Windows session/VM.
 Direct Windows focus, cursor, mouse-event, or coordinate automation is not an
 acceptable substitute for the registered `wechatide` tools.
 

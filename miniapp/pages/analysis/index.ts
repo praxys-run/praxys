@@ -1,4 +1,4 @@
-import { setTabBarSelected } from '../../utils/tabbar';
+import { setTabBarHidden, setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
@@ -810,6 +810,7 @@ function consumeHeatHistoryScrollRequest(): boolean {
 }
 
 interface PageMethods extends WechatMiniprogram.IAnyObject {
+  syncDFATabBar(): void;
   onObservedSectionChange(
     event: WechatMiniprogram.TouchEvent,
   ): void;
@@ -837,8 +838,16 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
 
   onOpenDFA(event: WechatMiniprogram.CustomEvent<{ activityId: string; activityDate: string }>) {
     this.setData({ dfaActivityId: event.detail.activityId, dfaActivityDate:event.detail.activityDate });
+    this.syncDFATabBar();
   },
-  onCloseDFA() { this.setData({ dfaActivityId: '' }); },
+  onCloseDFA() {
+    this.setData({ dfaActivityId: '' });
+    this.syncDFATabBar();
+  },
+  syncDFATabBar() {
+    setTabBarHidden(this, () =>
+      (this as unknown as Record<string, unknown>)._dfaVisible !== false && this.data.dfaActivityId !== '');
+  },
 
   onLoad() {
     const tc = themeClassName();
@@ -860,6 +869,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
     }
     const curLocale = getApp<IAppOption>().globalData.locale;
     const pgMut = this as unknown as Record<string, unknown>;
+    pgMut._dfaVisible = true;
     const returningToTab = pgMut._hasShownOnce === true;
     pgMut._hasShownOnce = true;
     let localeChanged = false;
@@ -880,6 +890,17 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
     }
     applyThemeChrome();
     setTabBarSelected(this, 2);
+    this.syncDFATabBar();
+  },
+
+  onHide() {
+    (this as unknown as Record<string, unknown>)._dfaVisible = false;
+    this.syncDFATabBar();
+  },
+
+  onUnload() {
+    (this as unknown as Record<string, unknown>)._dfaVisible = false;
+    this.syncDFATabBar();
   },
 
   onShareAppMessage() {

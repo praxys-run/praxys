@@ -1,8 +1,9 @@
 # Activity DFA α1 implementation verification
 
-Owner: Engineering execution evidence, supplied to independent Quality, Trust and
-Science. This document records performed checks and review findings; it does not
-approve implementation, activate science or claim deployment/native rendering.
+Owner: Engineering execution evidence with separately identified Root native
+observations, supplied to independent Quality, Trust and Science. This document
+records performed checks and findings; it does not approve implementation,
+activate science, claim deployment or establish complete native acceptance.
 Approved contextual specification: [implementation contract](activity-dfa-alpha1-implementation.md).
 First reviewed implementation: `9b0ddf7dc6fe3b7816e70f2ce9b4902ff959f865`.
 
@@ -77,8 +78,9 @@ observation at `ccd354e19b0f74d702116004ffeca05fedf4d041`.
 - [Native fixture instructions](../../tests/fixtures/dfa/README.md) and registered
   automator function sources are prepared from installed WeChat skill0.3.11.
   No simulator/foreground call or Windows mirror was created in this preparation.
-  Native rendering requires the separately approved foreground pass; Node
-  component/fixture tests do not replace that evidence.
+  The later bounded native pass is recorded below. Authorized miniapp work may
+  launch registered DevTools without a separate foreground question; Node
+  component/fixture tests do not replace rendered evidence.
 - Science evidence/decision/implementation signatures, runtime activation and
   deployment remain unperformed. No accepted/active status or human approval was
   fabricated. Retained raw FIT and additive tables remain available for rollback.
@@ -185,9 +187,9 @@ uploaded or published.
   text/axis contrast and no overflow; device screen-reader/touch testing unperformed.
 - Design system impact: none — existing tokens, sheet, inputs and chart patterns.
 - Miniapp parity: implementation, types, i18n and actual component lifecycle tests
-  passed; registered native fixture prepared, foreground simulator pass pending.
-- Exceptions: Chrome DevTools MCP unavailable (Paseo browser used); native WeChat
-  rendering awaits the explicit foreground permission required by its skill.
+  passed; the subsequent registered native pass and its limits are recorded below.
+- Exceptions: Chrome DevTools MCP unavailable (Paseo browser used); native canvas,
+  physical gesture and screen-reader-device coverage remain incomplete.
 
 ## Named audit and header contrast correction
 
@@ -229,3 +231,119 @@ the immutable-head handoff.
 The required full committed-head preflight is the next verification step. Its
 immutable HEAD, command and output will be reported in the handoff after execution,
 without rewriting this file merely to insert a self-referential commit hash.
+
+
+## Registered native verification and foreground authorization
+
+The user explicitly authorized miniapp use and removal of the extra foreground
+permission gate. The wrapper and canonical instructions now treat authorized
+miniapp work as sufficient for visible DevTools. Tencent readiness, login,
+client/token, pending-task and sensitive-action confirmations remain intact.
+The bounded policy record is
+[wechat-foreground-task-authorization-v1](wechat-foreground-task-authorization-v1.md).
+Independent wrapper verification passed 10 tests plus 17 bridge/real-rsync
+scenarios; the fixture formatter passed 20 focused tests, including output-path
+alias protection. Independent modal lifecycle review passed 24 focused checks
+plus callback/page-ownership probes.
+
+Root used installed Tencent skill 0.3.11 through `scripts/wechatide`, one
+task-owned window and a dedicated generated mirror. Request and storage mocks
+served synthetic data only, with no forwarding fallback, real credentials,
+provider request, upload or production debug route. Native WXML compilation
+succeeded. Logical viewport was 390×844; the original tool-produced PNGs are
+192×413 or 149×321 display captures, not native-size phone screenshots. They
+support coarse layout inspection, not native-size readability or contrast claims.
+
+The native pass found and fixed three local layout/lifecycle defects: unsupported
+`inset` sizing became explicit edges with the incumbent 88vh sheet, Close now has
+a 44px target below the native capsule, and the panel hides/restores its owning
+custom tab bar using current state even after delayed callbacks. Measured overlay
+was 390×844; sheet top 101.3 / height 742.8; Chinese Close 49×44 at (324.5,126.3),
+below capsule bottom 83. An actual tap at the former tab-bar position stayed on
+Analysis; actual Close restored the bar and preserved the single synthetic
+activity. Reopening preserved the existing activity flow.
+
+Performed checks, with native taps distinguished from fixture setup:
+
+- Actual checkbox and Confirm taps: unchecked preparation became a complete
+  result with 120 planned windows. Context handler setup switched RR heart rate,
+  power 250 and pace. An actual Next tap after official ScrollViewContext setup
+  selected offset 120 / pageIndex 1, 120 rows, first window ID 120 and retained power.
+- Actual Delete All taps: scope stated that FIT remains; result/rows/job cleared,
+  and explicit refresh made zero additional POSTs.
+- Matching initial-state captures: complete/en/dark; withdrawn/en/dark;
+  expired/en/light; multiple/zh/light; no_valid/zh/dark. Expired retained one
+  confirmation with no run and no POST. Multiple inputs remained unselected
+  with no POST. No-valid completed with 120 null-window rows and the explicit
+  “没有窗口通过分析检查。” explanation.
+- Withdrawn processing hid results while preserving the active owner job.
+  An actual Cancel tap issued exactly one cancellation POST, then status became
+  cancelled, active=false and rows 0. The post-cancel PNG retained an earlier
+  frame and is excluded from passing visual evidence.
+- Actual source-revocation taps showed the confirmation/dependent-result scope
+  while retaining original activity records. Confirm sent one DELETE, followed
+  by metadata GET; confirmation/run/results cleared. Explicit refresh was GET
+  only with total POST 0. This native fixture had null alpha windows; populated
+  numerical revocation is covered by the separate Web, component and SQL tests.
+
+Same-page fixture resets and some post-action screenshots retained old frames
+although runtime data and geometry changed. Those images are excluded from
+passing visual evidence. `simulator_open_page` also reported success without
+proving the runtime login route; registered `automation_navigate reLaunch` and
+a route guard were used for cleanup and the final narrow confirmation. No
+application defect was inferred from these adapter mismatches. Official
+ScrollViewContext positioned the viewport; physical/gesture scrolling was not
+verified. Native taps establish handler/request behavior, separately from PNGs.
+
+The native console explicitly reported:
+
+> [Component] <canvas>: 开发者工具暂未支持 Skyline 下的 canvas 组件调试，请先到真机上预览调试。
+
+The shared line-chart already documents this platform limitation. Both canvas
+plots remain unverified on a real device. No renderer change was made to evade
+it. Physical gestures, screen-reader behavior, focus and larger text remain
+unverified. Science stays draft/inactive; no deployment or full native acceptance
+is implied.
+
+Independent native Quality checked image/source hashes and identified one P2:
+active+stale rendered the same status paragraph twice. The separate stale notice
+now renders only when `!active`; cancellation and wording are unchanged.
+Existing 13 focused client tests passed. The narrow registered compile and
+actual open/capture showed processing=false, active=true, hidden results, two
+copy elements (one processing notice plus one status) and no duplicate paragraph.
+The final screenshot is `native-withdrawn-fixed-en-dark.png`, 149×321; SHA256
+`d18550e1c0451e28a7691b0cf1ebfbf17265a7e90aeae24e4a67e19b2af44e75`.
+
+Detailed local evidence: `test-screenshots/ui-quality/dfa-alpha1/index.html`,
+`native-cold-evidence.json`, `cold-*-capture.png`, and the final withdrawn PNG.
+The gallery labels earlier geometry/list evidence and excluded stale captures.
+No evidence image was committed or published. Mocks were restored after returning
+to the guarded login route; only the task-owned window was closed.
+
+Independent native Quality subsequently confirmed this P2 resolved against the
+exact WXML SHA256 `58be926f9dad60b4e627c0683cecb91430da81b7e9f1c828ae2825692a021230`
+and final image hash above. The reviewer inspected source and the frozen PNG; it
+did not rerun native tools or certify complete native acceptance. Final teardown
+confirmed login, removed the synthetic fixture, restored both mocks and closed
+only task window `s0`.
+
+## Runtime admission limitation in final cleanup
+
+After native Quality supplied the single duplicated-status finding, resuming the
+existing Engineering thread returned `agent thread limit reached`. Completed
+leaf cleanup and retry did not restore admission. The Delivery coordinator
+queued that continuation and remained read-only. Root applied the already
+specified one-condition UI correction and factual fixture/evidence updates,
+then performed the final execution checks. Independent review remains separate.
+This fallback is recorded as incomplete role separation under the native-thread
+profile; it is not an approved policy exception or a runtime parity claim.
+The foreground permission change has its own prior user authorization and
+independent policy review; it does not authorize this runtime substitution.
+
+
+Before final commit, Web extraction was unchanged and the production build
+passed 306 tests, TypeScript, Vite and public-output validation. Miniapp generated
+types/navigation/i18n/legal checks and TypeScript passed. Science artifact and
+registry generators, static adapter conformance and diff checks passed. The
+required committed-head full preflight is reported with its exact head and
+counts in the PR handoff; these preparatory checks do not replace it.

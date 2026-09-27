@@ -173,7 +173,7 @@
     </view>
   </scroll-view>
 
-  <dfa-analysis wx:if="{{dfaActivityId}}" activity-id="{{dfaActivityId}}" activity-date="{{dfaActivityDate}}" bindclose="onCloseDFA" />
+  <dfa-analysis id="analysis-dfa" wx:if="{{dfaActivityId}}" activity-id="{{dfaActivityId}}" activity-date="{{dfaActivityDate}}" bindclose="onCloseDFA" />
 
   <view
     wx:if="{{activeSection === 'analysis' && activeMetric}}"

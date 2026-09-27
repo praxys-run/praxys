@@ -36,10 +36,12 @@ it does not authorize one implementation agent to collapse those roles.
    Chrome DevTools MCP; built-in Cloud Playwright is optional rather than a
    required alternate path. Praxys MCP may supply synthetic data semantics but
    never replaces rendered review. For WeChat on Windows + WSL2,
-   use the repository skill only after the user approves foreground
-   interruption; Tencent has no headless/no-focus simulator mode. Never replace
-   registered tools with raw desktop focus, cursor, keyboard, mouse, or
-   coordinate automation. Use keyboard navigation and inspect console errors.
+   use the repository skill for authorized miniapp work without a separate
+   foreground question or environment opt-in. Honor explicit user restrictions
+   and Tencent readiness, login, client/token and sensitive-action gates.
+   Tencent has no headless/no-focus simulator mode. Reuse one project window
+   and close only task-owned windows. Never replace registered tools with raw
+   desktop focus, cursor, keyboard, mouse, or coordinate automation. Use keyboard navigation and inspect console errors.
    Fix the batch of findings, then perform at most one confirmation pass.
 8. Store detailed captures locally under the gitignored
    `test-screenshots/ui-quality/<branch-or-pr>/` directory. Use
