@@ -1781,7 +1781,8 @@ def test_run_sync_rolls_back_if_user_deactivated_before_commit(account_client, m
         assert conn.consecutive_failures == 0
     finally:
         db.close()
-def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
+def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
     """Deletion commits under enforced FKs (Postgres-like) with zero orphans.
 
     Regression for #366: SQLite shipped FK enforcement off, so account deletion
@@ -1830,7 +1831,7 @@ def test_delete_user_account_no_dangling_fk_under_enforcement(monkeypatch):
     Session = sessionmaker(bind=engine, autoflush=False)
 
     # delete_user_account commits before touching disk tokenstores; stub that
-    # step so the test stays DB-only (no DATA_DIR / filesystem dependency).
+    # step; new restore manifests remain isolated in this test’s temporary DATA_DIR.
     monkeypatch.setattr(account_deletion, "_clear_tokenstore", lambda uid: None)
 
     db = Session()

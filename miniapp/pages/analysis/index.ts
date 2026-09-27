@@ -832,8 +832,13 @@ interface ActivityHistoryComponent {
   loadMore(): void;
 }
 
-Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr> }, PageMethods>({
-  data: { ...initialData, tr: buildTrainingTr() },
+Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: string; dfaActivityDate: string }, PageMethods>({
+  data: { ...initialData, tr: buildTrainingTr(), dfaActivityId: '', dfaActivityDate: '' },
+
+  onOpenDFA(event: WechatMiniprogram.CustomEvent<{ activityId: string; activityDate: string }>) {
+    this.setData({ dfaActivityId: event.detail.activityId, dfaActivityDate:event.detail.activityDate });
+  },
+  onCloseDFA() { this.setData({ dfaActivityId: '' }); },
 
   onLoad() {
     const tc = themeClassName();

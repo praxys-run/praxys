@@ -44,6 +44,8 @@ Component({
     canvasId: { type: String as StringConstructor, value: 'line-chart' },
     series: { type: Array as ArrayConstructor, value: [] as LineSeries[] },
     dates: { type: Array as ArrayConstructor, value: [] as string[] },
+    /** Optional numeric time positions. Existing consumers retain ordinal spacing. */
+    xValues: { type: Array as ArrayConstructor, value: [] as number[] },
     height: { type: Number as NumberConstructor, value: 240 },
     yMin: { type: Number as NumberConstructor, optionalTypes: [null], value: null as number | null },
     yMax: { type: Number as NumberConstructor, optionalTypes: [null], value: null as number | null },
@@ -100,7 +102,7 @@ Component({
   },
 
   observers: {
-    'series, dates, yMin, yMax, showZeroLine, showAxes, referenceY, theme': function () {
+    'series, dates, xValues, yMin, yMax, showZeroLine, showAxes, referenceY, theme': function () {
       if (!this.data.ready) return;
       wx.nextTick(() => this.drawChart());
       // Hide stale tooltip — its index may no longer be valid.
@@ -130,8 +132,12 @@ Component({
 
       const relX = pageX - rect.left;
       const ratio = (relX - plotLeft) / plotWidth;
-      const idx = Math.max(0, Math.min(n - 1, Math.round(ratio * (n - 1))));
-      const snappedX = plotLeft + (idx / (n - 1)) * plotWidth;
+      const positions = xPositions(this.data.xValues as number[], n);
+      let idx = 0;
+      for (let i = 1; i < positions.length; i++) {
+        if (Math.abs(positions[i]-ratio) < Math.abs(positions[idx]-ratio)) idx = i;
+      }
+      const snappedX = plotLeft + positions[idx] * plotWidth;
 
       const dates = this.data.dates as string[];
       const date = dates && dates.length > idx ? dates[idx] : '';
@@ -290,6 +296,7 @@ Component({
           referenceY,
           chartColors(themePref === 'light' ? 'light' : 'dark'),
           this.data.yUnit as string,
+          this.data.xValues as number[],
         );
         },
       );
@@ -313,6 +320,7 @@ function renderChart(
   referenceY: number | null,
   colors: { axis: string; grid: string; tick: string; zero: string; reference: string },
   yUnit: string,
+  xValues: number[] = [],
 ) {
   const { yMin, yMax, n } = bounds;
   ctx.clearRect(0, 0, width, height);
@@ -332,7 +340,8 @@ function renderChart(
   const plotWidth = plotRight - plotLeft;
   const plotHeight = plotBottom - plotTop;
 
-  const xScale = (i: number) => plotLeft + (i / (n - 1)) * plotWidth;
+  const positions = xPositions(xValues, n);
+  const xScale = (i: number) => plotLeft + positions[i] * plotWidth;
   const yScale = (v: number) => plotBottom - ((v - yMin) / (yMax - yMin)) * plotHeight;
 
   ctx.strokeStyle = colors.grid;
@@ -474,4 +483,9 @@ function shortDate(iso: string): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const month = months[parseInt(m[2], 10) - 1] ?? m[2];
   return `${month} ${parseInt(m[3], 10)}`;
+}
+
+export function xPositions(values: number[], n: number): number[] {
+  const numeric = values.length === n && values.every((v, i) => Number.isFinite(v) && (!i || v >= values[i-1])) && values[n-1] > values[0];
+  return Array.from({length:n}, (_,i) => numeric ? (values[i]-values[0])/(values[n-1]-values[0]) : i/Math.max(1,n-1));
 }

@@ -1,0 +1,279 @@
+schema_version: 1
+id: sdr-activity-dfa-alpha1-v1
+version: 1
+title: Bounded raw RR DFA alpha1 for a single running activity
+status: draft
+approval_mode: artifact
+decision_date: 2026-09-27
+owners:
+- agent:science
+human_reviewers: []
+model_version: dfa-alpha1-raw120-v1
+evidence_review_ids:
+- evidence-activity-dfa-alpha1-v1
+evidence_claim_ids:
+- dfa.recording-artifacts
+- dfa.short-scale-method
+- dfa.threshold-transfer-limited
+accepted_interpretation: 'Proposed scientific boundary: native ECG chest-strap RR
+  can support descriptive post-run short-scale DFA when source, timer alignment and
+  conservative uncorrected-RR QC pass. Results characterize supported windows only;
+  no personal threshold, fatigue diagnosis or training prescription is inferred. This
+  draft does not activate runtime.'
+rejected_alternatives:
+- alternative: Infer RR from sampled BPM or AlphaHRV developer alpha fields.
+  rationale: Neither supplies the required raw beat sequence.
+- alternative: Apply universal0.75/0.5 physiological thresholds or silently correct
+    artifacts.
+  rationale: Unsupported transfer and processing differences would widen the approved
+    claim.
+model_parameters:
+- name: window
+  value:
+    seconds: 120
+    step_seconds: 5
+    min_complete_rr: 200
+    min_rr_coverage_ms: 117600
+    short_block: report_without_windows
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: rr_quality
+  value:
+    trim: trailing_invalid_only
+    invalid_raw: 65535
+    zero_or_interior_invalid: break_chain
+    range_ms:
+    - 250
+    - 2000
+    neighbor_each_side: 5
+    minimum_neighbors: 5
+    relative_median_deviation: 0.2
+    correction: none
+    resampling: none
+    reject: any_suspect_or_incomplete
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: time_alignment
+  value:
+    epoch: '1989-12-31T00:00:00Z'
+    anchors: file_order_record_or_primary_timer_boundary
+    max_anchor_width_ms: 30000
+    adjacent_offset_gap_ms: 2000
+    expansion_ms: 1000
+    max_local_offset_width_ms: 5000
+    local_offset: clamped_median_packet_midpoint_minus_cumulative_rr
+    window_membership: complete_intervals_only
+    audit: original_nonpadding_interval_indices_and_local_offset
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: dfa
+  value:
+    scales:
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    profile: cumulative_demeaned_rr_float64
+    boxes: forward_backward_nonoverlapping_keep_duplicates
+    detrend: linear_OLS_with_intercept
+    fluctuation: sqrt_mean_all_residual_squares
+    slope: equal_weight_OLS_log_F_log_n
+    minimum_fluctuation_ms: 1.0e-12
+    clip: false
+    atypical_bounds:
+    - 0
+    - 2
+    r2: audit_only_null_zero_variance
+    display_decimals: 2
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: source
+  value:
+    required: native_RR_and_recorded_ECG_and_activity_confirmation
+    garmin_manufacturer: 1
+    garmin_products:
+    - 1743
+    - 1752
+    - 2327
+    - 3299
+    - 3300
+    - 4130
+    - 4446
+    - 4606
+    polar_manufacturer: 123
+    polar_native_names:
+    - H10
+    - Polar H10
+    statement_version: dfa-source-attestation-v1
+    optical_or_contradictory: ineligible
+    identity_change: ineligible
+    direct_native_rr_source_reference: false
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: context
+  value:
+    heart_rate: 60000/mean_RR_ms
+    sample_clock: Unix_seconds
+    max_forward_hold_seconds: 2
+    min_field_support_seconds: 96
+    power: time_weighted_mean_stored_precedence
+    pace: 1000/time_weighted_mean_speed_m_s
+    negative_or_nonfinite: missing
+    zero: retained
+    gates_alpha: false
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: claim_limits
+  value:
+    overall_score: false
+    threshold_lines: false
+    individual_thresholds: false
+    training_changes: false
+    diagnosis: false
+    kubios_equivalence: false
+    time_alignment: estimated
+    coverage: availability_not_accuracy
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: activation
+  value:
+    contract: signed_active_only
+    method_version: dfa-alpha1-raw120-v1
+    source_scope: single_native_running_session_exact_owner_recording
+    automatic_background_admission: false
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support
+    does not validate these complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+applicability:
+- Exactly one native running FIT session with retained raw RR and compatible ECG metadata.
+- Per-activity factual owner confirmation; no automatic source assurance in native
+  v1.
+- Existing Garmin-platform archive adapter, device-neutral pure core.
+user_facing_claim_limits:
+- Label estimated time alignment and source confirmed by you.
+- No accuracy percentage, zero-artifact claim, physiological threshold, whole-activity
+  score or medical inference.
+- At least200 complete intervals excludes some low-heart-rate windows without implying
+  sensor failure.
+safety_implications:
+- Descriptive post-run analysis does not clear exercise safety or change training.
+privacy_implications:
+- Owner-only results and activity confirmations; no serials, raw RR duplication or
+  numeric telemetry.
+- Revocation, source deletion, reparse, retention, export and restore manifests follow
+  the approved Trust contract.
+validation_plan:
+- Independent numerical reference absolute error<=1e-9.
+- Synthetic native FIT, timing/QC boundaries, source attestations, deletion races
+  and both-client accessibility.
+- Cross-device physiological claims require new prospective evidence and review.
+falsification_conditions:
+- Any optical or known contradictory source accepted.
+- Numerical implementation disagrees with the fixed double-direction method.
+- Users interpret availability or alpha as accuracy, fatigue diagnosis or an individual
+  threshold.
+affected_surfaces:
+  models:
+  - analysis/activity_dfa.py
+  - sync/rr_recording.py
+  apis:
+  - /api/activities/{activity_id}/dfa-alpha1
+  clients:
+  - web History
+  - miniapp Analysis activities
+  science_notes:
+  - Post-run DFA method and guardrails
+artifact_policy:
+  runtime_state: inactive
+decision_notes:
+- Approved implementation plan is contextually adopted; formal evidence, decision
+  and implementation signatures are absent.
+- 'Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.'
+decision_review:
+  reviewer_task: Review the fixed raw method, source applicability, conservative guardrails
+    and deferred physiology claims.
+  approval_statement: Approve only the named science decision and displayed digest;
+    this does not activate runtime.
+  items:
+  - id: raw-method
+    title: Raw ECG RR method and claim boundaries
+    disposition: approve
+    question: Is the bounded descriptive method acceptable within its stated limitations?
+    proposed_decision: Adopt the specified uncorrected120-second double-direction
+      DFA recipe with the listed source/time/QC guardrails and defer physiological
+      threshold claims.
+    approval_effect:
+    - Accept the specified scientific interpretation and parameters after authenticated
+      digest-bound approval.
+    does_not_authorize:
+    - Runtime activation, deployment, device accuracy certification, training or medical
+      decisions.
+    parameter_names:
+    - window
+    - rr_quality
+    - time_alignment
+    - dfa
+    - source
+    - context
+    - claim_limits
+    - activation
+    evidence_claim_ids:
+    - dfa.recording-artifacts
+    - dfa.short-scale-method
+    - dfa.threshold-transfer-limited

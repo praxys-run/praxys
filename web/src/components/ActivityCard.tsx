@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Activity } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,9 @@ import SplitBreakdown from '@/components/SplitBreakdown';
 import { Trans } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
 import { formatStoredPace } from '@/lib/format';
+import { Button } from '@/components/ui/button';
+
+const ActivityDFA = lazy(() => import('@/components/ActivityDFA'));
 
 interface Props {
   activity: Activity;
@@ -40,6 +43,7 @@ function formatActivityType(type: string): string {
 
 export default function ActivityCard({ activity }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [dfaOpen, setDfaOpen] = useState(false);
   const { locale } = useLocale();
 
   const hasSplits = activity.splits.length > 0;
@@ -160,6 +164,8 @@ export default function ActivityCard({ activity }: Props) {
           </div>
         </CollapsibleContent>
       </Collapsible>
+      <div className="px-6 pb-4"><Button variant="outline" className="min-h-11" onClick={() => setDfaOpen(true)}><Trans>DFA α1</Trans></Button></div>
+      {dfaOpen && <Suspense fallback={null}><ActivityDFA activityId={activity.activity_id} activityDate={activity.date} onClose={() => setDfaOpen(false)} /></Suspense>}
     </Card>
   );
 }

@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { retryAfterSeconds } from '../lib/dfa-navigation';
 import { KEYS, getCompatItem, removeCompatItem } from '../lib/storage-compat';
 import { initialDashboardUrl } from '../lib/dashboard-prefetch';
 import { tokenCacheScope } from '../lib/auth-cache-scope';
@@ -28,11 +30,13 @@ interface UseApiResult<T> {
   errorCode: string | null;
   errorStatus: number | null;
   refetch: () => Promise<void>;
+  /** Freshness-critical flows can distinguish a failed refresh from cached data. */
+  refreshData: () => Promise<T | null>;
 }
 
 interface UseApiOptions {
   /** Poll interval in ms (e.g. 3000 for sync status). 0 = disabled. */
-  refetchInterval?: number;
+  refetchInterval?: number | ((query: { state: { data: unknown; error: unknown } }) => number | false);
   /** When false, the query is not run (e.g. admin-only endpoints for non-admins). */
   enabled?: boolean;
   /** Override the app-wide mount policy for freshness-critical queries. */
@@ -66,7 +70,17 @@ function getAuthCacheScope(): string {
 async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
   const headers = new Headers(init.headers);
-  new Headers(getAuthHeaders()).forEach((value, key) => {
+  const rightsPath = new URL(fullUrl, window.location.origin).pathname;
+  const rightsMethod = (init.method ?? 'GET').toUpperCase();
+  const dfaRights = (rightsMethod === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/source-confirmations\/[^/]+)?$/.test(rightsPath))
+    || (rightsMethod === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/runs\/[^/]+\/cancel$/.test(rightsPath));
+  const authHeaders = new Headers(getAuthHeaders());
+  if (dfaRights) {
+    const token = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
+    if (token) authHeaders.set('Authorization', `Bearer ${token}`);
+    new Headers(getChinaClientHeaders()).forEach((value,key) => authHeaders.set(key,value));
+  }
+  authHeaders.forEach((value, key) => {
     if (!headers.has(key)) headers.set(key, value);
   });
   const res = await fetch(fullUrl, { ...init, headers });
@@ -136,7 +150,11 @@ async function apiFetcher<T>(
       if (!res.ok) {
         throw await apiResponseError(res, `HTTP ${res.status}`);
       }
-      return res.json();
+      const body = await res.json();
+      if (url.includes('/dfa-alpha1') && body && typeof body === 'object') {
+        body.retry_after_seconds = retryAfterSeconds(res.headers.get('Retry-After'));
+      }
+      return body;
     },
     signal,
     timeoutMs,
@@ -188,6 +206,10 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
         : {}),
   });
   const responseError = error instanceof ApiResponseError ? error : null;
+  const refreshData = useCallback(async () => {
+    const result = await refetch();
+    return result.error ? null : result.data ?? null;
+  }, [refetch]);
 
   return {
     data: data ?? null,
@@ -197,5 +219,6 @@ export function useApi<T>(url: string, options?: UseApiOptions): UseApiResult<T>
     errorCode: responseError?.code ?? null,
     errorStatus: responseError?.status ?? null,
     refetch: async () => { await refetch(); },
+    refreshData,
   };
 }

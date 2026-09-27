@@ -297,6 +297,10 @@ def _service_unavailable_response(channel: str) -> JSONResponse:
 
 
 def _is_rights_route(method: str, path: str) -> bool:
+    from api.auth import is_dfa_rights_route
+
+    if is_dfa_rights_route(method, path):
+        return True
     if (method, path) in _RIGHTS_API_ROUTES:
         return True
     return (

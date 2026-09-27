@@ -34,3 +34,8 @@ function main() {
 }
 
 main();
+
+// Device-neutral DFA time navigation is the same protocol on both clients.
+const navigationSource = path.resolve(__dirname, '..', '..', 'web', 'src', 'lib', 'dfa-navigation.ts');
+const navigationTarget = path.resolve(__dirname, '..', 'utils', 'dfa-navigation.ts');
+fs.writeFileSync(navigationTarget, '// AUTO-SYNCED from web/src/lib/dfa-navigation.ts.\n' + fs.readFileSync(navigationSource, 'utf8'), 'utf8');

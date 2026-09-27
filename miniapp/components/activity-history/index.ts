@@ -6,6 +6,7 @@ import { detectLocale, t, tFmt } from '../../utils/i18n';
 
 function translations() {
   return {
+    dfa: t('DFA α1'),
     failedToLoad: t('Failed to load'),
     loadingMore: t('Loading more…'),
     endOfActivities: t('End of activities'),
@@ -147,6 +148,9 @@ Component({
   },
 
   methods: {
+    onDFA(event: WechatMiniprogram.TouchEvent) {
+      this.triggerEvent('dfa', { activityId: String(event.currentTarget.dataset.id), activityDate:String(event.currentTarget.dataset.date) });
+    },
     refresh(): Promise<void> {
       return this.fetchPage(0, true);
     },

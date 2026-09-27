@@ -22,6 +22,7 @@ import {
 } from './version';
 import { TERMS_CONTENT_DIGEST } from './legal';
 import { removeRecentFeedbackId } from './feedback';
+import { retryAfterSeconds } from './dfa-navigation';
 
 export const API_BASE: string = 'https://api.praxys.run';
 
@@ -30,6 +31,7 @@ export const CN_PRIVACY_CONTRACT_VERSION = 'cn-privacy-v2';
 
 export interface ApiError {
   status: number;
+  retryAfterSeconds?: number;
   /** FastAPI's `detail` field if present; otherwise a generic message. */
   detail: string;
   /**
@@ -139,7 +141,9 @@ function wxRequest(
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  if (!hasAcknowledgedChinaProcessingNotice()) {
+  const dfaRights = (options.method === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/source-confirmations\/[^/]+)?$/.test(path))
+    || (options.method === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/runs\/[^/]+\/cancel$/.test(path));
+  if (!dfaRights && !hasAcknowledgedChinaProcessingNotice()) {
     redirectToProcessingNotice();
     throw {
       status: 0,
@@ -184,6 +188,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   const status = response.statusCode;
+  const retryHeader = Object.entries(response.header ?? {}).find(([key])=>key.toLowerCase()==='retry-after')?.[1];
+  const cooldown = retryAfterSeconds(typeof retryHeader==='string' ? retryHeader : null);
   const rawDetail = (
     response.data as { detail?: unknown } | null | undefined
   )?.detail;
@@ -216,6 +222,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (status >= 200 && status < 300) {
+    if (path.includes('/dfa-alpha1') && response.data && typeof response.data==='object') {
+      return {...response.data, retry_after_seconds:cooldown} as T;
+    }
     return response.data as T;
   }
 
@@ -231,7 +240,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       : rawDetail != null
         ? JSON.stringify(rawDetail)
         : `HTTP ${status}`;
-  throw { status, detail, code, data: rawDetail } as ApiError;
+  throw { status, detail, code, data: rawDetail, retryAfterSeconds:cooldown } as ApiError;
 }
 
 export const apiGet = <T>(

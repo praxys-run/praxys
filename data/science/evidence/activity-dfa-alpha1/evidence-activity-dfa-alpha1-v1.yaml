@@ -1,0 +1,168 @@
+schema_version: 1
+id: evidence-activity-dfa-alpha1-v1
+version: 1
+title: Post-run short-scale DFA from ECG chest-strap RR
+research_question: Can existing archived running FIT RR support bounded post-run DFA
+  alpha1 without threshold or training claims?
+topic: activity-dfa-alpha1
+status: draft
+approval_mode: artifact
+authors:
+- agent:science
+human_reviewers: []
+created_on: &id001 2026-09-27
+intended_product_purpose: Inspect valid running windows and the uncertainty of post-run
+  beat-interval analysis.
+scope:
+  population:
+  - Runners with archived ECG chest-strap RR
+  intervention_or_exposure:
+  - Post-run raw RR DFA alpha1
+  comparator:
+  - Published exercise DFA/device methods; independent numerical implementation
+  outcomes:
+  - RR fidelity, numerical reproducibility, timing and quality availability; interpretation
+    limits
+method:
+  review_type: rapid
+  search_date: *id001
+  sources:
+  - name: Approved Science planning handoff; DOI landing pages and Crossref metadata
+    search_string: 10.3390/s21030821; 10.3390/s22176536; 10.1007/s00421-024-05592-2;
+      10.14814/phy2.70777
+  inclusion_criteria:
+  - Primary exercise DFA or ECG chest-strap validation research from the approved
+    planning evidence packet
+  exclusion_criteria:
+  - Vendor claims as independent validation
+  - Threshold equivalence inferred across populations or protocols
+  quality_appraisal: Separate device validation, numerical method, physiological interpretation
+    and engineering guardrails.
+  method_limitations:
+  - Bounded rapid review inherited from the approved planning session, not an exhaustive
+    systematic search.
+  - Crossref metadata rechecked2026-09-27; full-text verification levels below refer
+    to the preceding Science handoff.
+claims:
+- id: dfa.recording-artifacts
+  statement: DFA alpha1 is sensitive to RR artifacts and recording/processing choices;
+    raw ECG-derived intervals require explicit quality checks.
+  source_ids:
+  - rogers-artifacts-2021
+  - schaffarczyk-h10-2022
+  evidence_strength: moderate
+  applicable_population:
+  - Studied exercising adults with the tested recording devices and protocols
+  domain:
+  - exercise RR quality
+  limitations:
+  - Neither source validates every registered sensor or the complete Praxys pipeline.
+  - Passing these checks does not prove absence of artifacts.
+- id: dfa.short-scale-method
+  statement: Short-scale DFA over beat intervals is used in exercise research, including
+    running; a 120-second window and scales4–16 are a research-informed analysis recipe.
+  source_ids:
+  - rogers-artifacts-2021
+  - van-rassel-running-2024
+  evidence_strength: low
+  applicable_population:
+  - Adults in the cited exercise protocols
+  domain:
+  - short-scale DFA
+  limitations:
+  - The running paper was examined at abstract level only.
+  - Praxys uses raw intervals without correction; it does not claim equivalence to
+    Kubios or another application.
+  - Window timing, minimum beats and quality cutoffs are engineering guardrails.
+- id: dfa.threshold-transfer-limited
+  statement: Agreement between HRV-derived and physiological thresholds is protocol-dependent;
+    this observational running feature cannot identify individual training thresholds
+    from fixed alpha1 cutoffs.
+  source_ids:
+  - van-rassel-running-2024
+  - olieslagers-cycling-2026
+  evidence_strength: low
+  applicable_population:
+  - Adults in the cited running and incremental cycling protocols
+  domain:
+  - exercise threshold interpretation
+  limitations:
+  - Cycling findings do not automatically transfer to continuous running.
+  - No prospective individual threshold or training-prescription validation of the
+    Praxys method exists.
+citations:
+- id: rogers-artifacts-2021
+  title: Influence of Artefact Correction and Recording Device Type on the Practical
+    Application of a Non-Linear Heart Rate Variability Biomarker for Aerobic Threshold
+    Determination
+  authors:
+  - Bruce Rogers
+  - David Giles
+  - Nick Draper
+  - Laurent Mourot
+  - Thomas Gronwald
+  year: 2021
+  journal: Sensors
+  doi: 10.3390/s21030821
+  url: https://doi.org/10.3390/s21030821
+- id: schaffarczyk-h10-2022
+  title: Validity of the Polar H10 Sensor for Heart Rate Variability Analysis during
+    Resting State and Incremental Exercise in Recreational Men and Women
+  authors:
+  - Marcelle Schaffarczyk
+  - Bruce Rogers
+  - Rüdiger Reer
+  - Thomas Gronwald
+  year: 2022
+  journal: Sensors
+  doi: 10.3390/s22176536
+  url: https://doi.org/10.3390/s22176536
+- id: van-rassel-running-2024
+  title: 'Quantifying exercise intensity with fractal correlation properties of heart
+    rate variability: a study on incremental and constant-speed running'
+  authors:
+  - C. R. van Rassel
+  - O. O. Ajayi
+  - K. M. Sales
+  - C. A. Clermont
+  - M. Rummel
+  - M. J. MacInnis
+  year: 2024
+  journal: European Journal of Applied Physiology
+  doi: 10.1007/s00421-024-05592-2
+  url: https://doi.org/10.1007/s00421-024-05592-2
+- id: olieslagers-cycling-2026
+  title: Agreement between heart rate variability-derived and lactate/ventilatory
+    thresholds during a 4-min stepwise incremental cycling test in male adults
+  authors:
+  - Anton Olieslagers
+  - Yoram Müller-Jabusch
+  - Margot Vancoillie
+  - Emma Delen
+  - Toon de Beukelaar
+  year: 2026
+  journal: Physiological Reports
+  doi: 10.14814/phy2.70777
+  url: https://doi.org/10.14814/phy2.70777
+known_gaps:
+- No across-device physiological validation of this complete pipeline.
+- Native HRV messages lack direct sensor attribution; factual owner confirmation cannot
+  establish device accuracy.
+- A real recording with AlphaHRV disabled remains unverified.
+conflicting_findings:
+- Protocol and preprocessing differences limit transfer of threshold agreement.
+follow_up_questions:
+- How often do real archived running files pass source, time and quality checks across
+  devices?
+review_notes:
+- 'Verification: rogers-artifacts-2021 - full-text; approved Science planning handoff,
+  DOI source; 2026-09-27.'
+- 'Verification: schaffarczyk-h10-2022 - full-text; approved Science planning handoff,
+  DOI source; 2026-09-27.'
+- 'Verification: van-rassel-running-2024 - abstract; approved Science planning handoff,
+  DOI source; 2026-09-27.'
+- 'Verification: olieslagers-cycling-2026 - full-text; approved Science planning handoff,
+  DOI source; 2026-09-27.'
+- Bibliography independently checked against Crossref DOI metadata2026-09-27.
+- Mechanical materialization by Engineering preserves Science ownership; no signed
+  evidence review or acceptance is claimed.
