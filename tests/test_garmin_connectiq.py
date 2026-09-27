@@ -557,8 +557,8 @@ def test_real_requests_session_never_drains_original_error_body(status):
             response.status_code=status
             response.url=request.url
             response.request=request
-            response.headers={'Location':'https://unexpected.example/redirect',
-                              'Content-Length':'4096'}
+            response.headers.update({'Location':'https://unexpected.example/redirect',
+                                     'Content-Length':'4096'})
             response.raw=CountingBody(b'sensitive error body'.ljust(4096,b'x'))
             bodies.append(response.raw)
             return response
