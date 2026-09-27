@@ -161,3 +161,18 @@ measurement streamed the real 333,889-byte Power Zone fixture's complete
 seconds. This is a single-fixture implementation measurement, not a production
 capacity guarantee; the existing non-Connect-IQ export builders retain their
 prior memory behavior.
+
+## PR review follow-up
+
+Fresh independent PR reviewers identified two additional issues after the
+initial implementation review: Requests can consume a redirect response body
+before returning even when redirects are disabled, and recovered/resumed jobs
+retained obsolete job-level errors. Redirect rejection now closes and raises
+from a response hook before Requests redirect resolution. Tests use an actual
+Requests Session with a stub HTTPAdapter, not only a mock session, and count
+body bytes for redirects and authentication/error responses. Job state now
+clears errors after recovery when no actual pending item error remains, and
+clears obsolete retry deadlines after successful batches or explicit resume.
+Tests distinguish clean pending work from pending failed items. The operations
+runbook now describes cooperative elapsed checks accurately, without claiming
+a hard wall-clock bound. Independent approval of this follow-up is pending.

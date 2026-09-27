@@ -8,6 +8,7 @@ closed under our byte/status controls. Revalidate this adapter on client bumps.
 import time
 
 from garminconnect import Garmin
+from requests import Response
 from garminconnect.exceptions import (
     GarminConnectAuthenticationError,
     GarminConnectConnectionError,
@@ -15,6 +16,14 @@ from garminconnect.exceptions import (
 )
 
 from sync.garmin_fit import FitArchiveError, MAX_ORIGINAL_BYTES
+
+
+def _reject_redirect_response(response: Response, **_kwargs: object) -> Response:
+    """Stop Requests before it drains a redirect body to prepare Response.next."""
+    if 300 <= response.status_code < 400:
+        response.close()
+        raise GarminConnectConnectionError(f"HTTP {response.status_code}")
+    return response
 
 
 class GarminOriginalClient(Garmin):
@@ -34,7 +43,8 @@ class GarminOriginalClient(Garmin):
             headers = client.get_api_headers()
             headers["Accept"] = "*/*"
             response = client._api_session.request("GET", url, headers=headers,
-                stream=True, timeout=(15, 60), allow_redirects=False)
+                stream=True, timeout=(15, 60), allow_redirects=False,
+                hooks={"response": _reject_redirect_response})
             retry_authentication = False
             try:
                 status = response.status_code
@@ -59,6 +69,8 @@ class GarminOriginalClient(Garmin):
                         if advertised_bytes < 0 or advertised_bytes > MAX_ORIGINAL_BYTES:
                             raise FitArchiveError("original_too_large")
                     result = bytearray()
+                    # Cooperative elapsed check, not a hard wall-clock deadline:
+                    # Requests may wait for a chunk while traffic keeps arriving.
                     for chunk in response.iter_content(chunk_size=64 * 1024):
                         if time.monotonic() - started > 120:
                             raise FitArchiveError("download_time_limit")

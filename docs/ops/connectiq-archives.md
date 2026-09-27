@@ -43,8 +43,12 @@ download. Retrying an already retained original reuses its bytes.
 ## Capacity and diagnostics
 
 Guardrails are 64 MiB downloaded/decompressed originals, 128 ZIP entries,
-2,000,000 FIT frames, 16,384 descriptor generations, 120 seconds parsing and
-120 seconds streamed download. ZIP paths are never extracted to disk. Large or
+2,000,000 FIT frames and 16,384 descriptor generations. Parsing and download
+use cooperative 120-second elapsed checks between frames and 64 KiB body
+chunks respectively; these are not hard wall-clock deadlines. Transport
+timeouts are 15 seconds to connect and 60 seconds of read inactivity. A
+continuously trickling response can delay completion of a body chunk beyond
+the elapsed threshold before the next check runs. ZIP paths are never extracted to disk. Large or
 malformed inputs fail explicitly and require operator investigation; they are
 not silently truncated. Parsing stores batches of 128 frames. Original and
 JSON projection storage can differ greatly; budget backup/database capacity
@@ -87,3 +91,12 @@ rendering, reads no error JSON/text, closes failed responses, and performs the
 normal single 401 token-refresh retry using the authenticated Garmin session.
 The adapter depends on the pinned-range client's authentication primitives;
 revalidate its transport tests before changing garminconnect versions.
+
+PR review follow-up: redirect rejection runs in a Requests response hook before
+Requests prepares `Response.next` (which can otherwise consume a redirect body
+even with `allow_redirects=False`). Real Session/HTTPAdapter regressions verify
+zero error-body bytes consumed and closure on redirects and other error statuses.
+A recovered batch clears obsolete job errors when no actual activity error
+remains, even if clean queued work is unfinished. Resume clears current job
+errors; successful batches and resume clear obsolete retry deadlines. Pending
+activity error diagnostics remain visible until recovery or explicit resume.

@@ -102,6 +102,7 @@ def change_job(user_id: str, job_id: str, action: str, db: Session) -> dict:
         if current_region(user_id, db, creds) != job.region:
             raise HTTPException(409, "GARMIN_ACCOUNT_REGION_CHANGED")
         job.status = "queued"
+        job.error_code = None
         job.next_retry_at = None
         for item in db.query(Item).filter(Item.job_id == job.id, Item.status != "complete"):
             item.status = "queued"; item.error_code = None
@@ -346,6 +347,13 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
     remaining = db.query(Item.id).filter_by(job_id=job.id, status="queued").first()
     failed = db.query(Item.id).filter(Item.job_id == job.id, Item.status != "complete").first()
     job.status = ("completed_with_errors" if failed else "complete") if job.discovery_complete and not remaining else "queued"
+    # A successful batch has consumed its retry deadline. Preserve unresolved
+    # activity diagnostics, but clear the job error once those failures recover.
+    job.next_retry_at = None
+    unresolved_error = db.query(Item.id).filter(
+        Item.job_id == job.id, Item.error_code.is_not(None)).first()
+    if unresolved_error is None:
+        job.error_code = None
     job.lease_token = None; job.lease_until = None; job.updated_at = datetime.utcnow(); db.commit()
 
 

@@ -418,7 +418,10 @@ def test_backfill_resume_cancel_and_paginated_discovery(db,monkeypatch):
     assert calls[0]['startDate']=='2024-01-01' and calls[0]['endDate']=='2024-12-31'
     db.refresh(job);assert job.status=='complete'
     assert connectiq.change_job('owner',job.id,'cancel',db)['status']=='cancelled'
-    assert connectiq.change_job('owner',job.id,'resume',db)['status']=='queued'
+    job.error_code='download_failed';job.next_retry_at=datetime.utcnow()+timedelta(hours=1);db.commit()
+    resumed=connectiq.change_job('owner',job.id,'resume',db)
+    assert resumed['status']=='queued'
+    assert resumed['error_code'] is None and resumed['next_retry_at'] is None
     with pytest.raises(HTTPException):connectiq.change_job('other',job.id,'cancel',db)
 
 
@@ -497,12 +500,15 @@ def test_run_tick_transient_download_failure_records_item_then_retries(db,monkey
     db.expire_all();db.refresh(job)
     item=db.query(Item).filter_by(job_id=job.id).one()
     assert job.status=='retry' and job.attempts==1
+    assert job.error_code=='download_failed' and job.next_retry_at is not None
     assert item.status=='queued' and item.attempts==1 and item.error_code=='download_failed'
     assert connectiq.job_items('owner',job.id,0,10,db)['items'][0]['attempts']==1
-    job.next_retry_at=None;db.query(UserConnection).one().next_retry_at=None;db.commit()
+    expired=datetime.utcnow()-timedelta(seconds=1)
+    job.next_retry_at=expired;db.query(UserConnection).one().next_retry_at=expired;db.commit()
     connectiq.run_tick(factory)
     db.expire_all();db.refresh(job);db.refresh(item)
     assert job.status=='complete' and item.status=='complete'
+    assert job.error_code is None and job.next_retry_at is None
     assert item.attempts==2 and item.error_code is None
     assert calls==['123','123']
 
@@ -521,3 +527,70 @@ def test_cancel_during_login_prevents_profile_network_request(db):
         connectiq.run_job(db,*connectiq._claim(db),client_factory=login)
     assert profile_calls==[]
     assert db.query(Snapshot).count()==0
+
+
+@pytest.mark.parametrize('status',[301,302,303,307,308,401,404,410,429,503])
+def test_real_requests_session_never_drains_original_error_body(status):
+    """allow_redirects=False alone still drains 3xx bodies for Response.next."""
+    import requests
+    from requests.adapters import HTTPAdapter
+    from sync.garmin_errors import garmin_http_status
+
+    class CountingBody(io.BytesIO):
+        consumed=0
+        def read(self, size=-1):
+            chunk=super().read(size)
+            self.consumed+=len(chunk)
+            return chunk
+        def stream(self, amt, decode_content=True):
+            while chunk:=self.read(amt):
+                yield chunk
+        def release_conn(self):
+            pass
+
+    bodies=[]
+    class Adapter(HTTPAdapter):
+        def send(self, request, **kwargs):
+            assert kwargs['stream'] is True
+            assert request.headers['Authorization']=='test'
+            response=requests.Response()
+            response.status_code=status
+            response.url=request.url
+            response.request=request
+            response.headers={'Location':'https://unexpected.example/redirect',
+                              'Content-Length':'4096'}
+            response.raw=CountingBody(b'sensitive error body'.ljust(4096,b'x'))
+            bodies.append(response.raw)
+            return response
+
+    client,state=original_transport([])
+    with requests.Session() as session:
+        session.mount('https://',Adapter())
+        client.client._api_session=session
+        with pytest.raises(Exception) as error:
+            client.download_activity('123',dl_fmt=client.ActivityDownloadFormat.ORIGINAL)
+    assert garmin_http_status(error.value)==status
+    assert len(bodies)==(2 if status==401 else 1)
+    assert all(body.consumed==0 and body.closed for body in bodies)
+    assert state.refreshes==(1 if status==401 else 0)
+
+
+@pytest.mark.parametrize('other_failure',[False,True])
+def test_recovered_batch_clears_job_error_only_without_pending_failures(db,monkeypatch,other_failure):
+    job=make_job(db)
+    sync_writer.write_connectiq_items(job,['124'],db)
+    first=db.query(Item).filter_by(job_id=job.id,activity_id='123').one()
+    first.error_code='download_failed';first.attempts=1
+    if other_failure:
+        other=db.query(Item).filter_by(job_id=job.id,activity_id='124').one()
+        other.error_code='download_failed';other.attempts=1
+    job.error_code='download_failed'
+    job.next_retry_at=datetime.utcnow()-timedelta(seconds=1)
+    db.commit()
+    monkeypatch.setattr(connectiq,'BATCH_SIZE',1)
+    client=FakeClient()
+    connectiq.run_job(db,*connectiq._claim(db),client_factory=lambda db,job:client)
+    db.refresh(job);db.refresh(first)
+    assert first.status=='complete' and first.error_code is None
+    assert job.status=='queued' and job.next_retry_at is None
+    assert job.error_code==('download_failed' if other_failure else None)
