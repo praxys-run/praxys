@@ -375,3 +375,12 @@ def test_decision_card_requires_current_human_review_and_complete_fields() -> No
                 if key != "main_tradeoff"
             }
         )
+    for field_name in (
+        "question", "recommendation", "main_tradeoff", "human_authority",
+        "why_human", "if_declined", "deferred", "dissent",
+    ):
+        with pytest.raises(ValidationError, match="blank decision-card field"):
+            DecisionCard.model_validate({**card.model_dump(), field_name: " \t "})
+    for references in (("",), ("docs/dev/agentic-operating-model.md", "  ")):
+        with pytest.raises(ValidationError, match="blank evidence reference"):
+            DecisionCard.model_validate({**card.model_dump(), "evidence_refs": references})

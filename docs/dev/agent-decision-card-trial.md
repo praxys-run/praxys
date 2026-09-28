@@ -6,12 +6,15 @@ losing quality. It does not reduce roles, contracts, tests, reviewer
 independence, or human authority. No old PRs or tasks are rerun.
 
 The task's Work Contract remains the source of routing and is produced **before**
-any future trial admission. Work Contract classification:
-`sha256:2ea0e925956704589023b3868ec7b648ede83d94d84a0af7420c85e2983a475a`;
-route:
-`sha256:7cb28e6ee81cd71602f74307f571d4bdd82268fc4876a68700b5f204b9b11b6a`.
-These bind this *implementation task*, not an enrolled future task or an
-approval. The trial manifest lives in `config/agent-decision-card-trial.json`.
+any future trial admission. This *disabled implementation task* has Work
+Contract classification
+`sha256:b8d54c328ddbe16925d05bdee8fe1f948d87834bccb568aad42076a167ff08d5`
+and route
+`sha256:331cc2010c522a3d0277a002d6e9b0f8b38fbcc629a827b37bbe4b203fb5394e`.
+It does not include `production-operation`: no runtime entry or rollout is
+changed. These digests do not bind an enrolled future task or grant approval;
+live activation must be classified and routed separately. The trial manifest
+lives in `config/agent-decision-card-trial.json`.
 
 ## What this change actually delivers
 

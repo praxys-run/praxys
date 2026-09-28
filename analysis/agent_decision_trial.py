@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from analysis.agentic_task_routing import (
     TaskRoute,
@@ -322,6 +322,23 @@ class DecisionCard(TrialRecord):
     deferred: str = Field(min_length=1)
     dissent: str | None = None
     evidence_refs: tuple[str, ...] = Field(min_length=1)
+
+    @field_validator(
+        "question", "recommendation", "main_tradeoff", "human_authority",
+        "why_human", "if_declined", "deferred", "dissent",
+    )
+    @classmethod
+    def require_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("blank decision-card field")
+        return value
+
+    @field_validator("evidence_refs")
+    @classmethod
+    def require_evidence_refs(cls, references: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not reference.strip() for reference in references):
+            raise ValueError("blank evidence reference")
+        return references
 
 
 def render_decision_card(
