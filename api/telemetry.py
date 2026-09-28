@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 import os
 import re
 from functools import lru_cache
@@ -23,6 +24,53 @@ logger = logging.getLogger(__name__)
 
 _SAFE_TELEMETRY_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _SCIENCE_PILLARS = frozenset({"load", "recovery", "prediction", "zones"})
+
+_READINESS_STAGES = frozenset({
+    "dispatch_queue", "db_init", "db_acquire", "db_select", "shared_authority",
+    "db_close", "controls", "dfa_policy", "handler_total",
+})
+_readiness_histogram: Any | None = None
+
+
+def init_readiness_timing() -> None:
+    """Create the local instrument at startup, never on a probe's hot path."""
+    global _readiness_histogram
+    try:
+        _readiness_histogram = _histogram(
+            "praxys.readiness.stage_duration", "Bounded readiness stage durations", "ms",
+        )
+    except Exception:
+        _readiness_histogram = None
+
+
+def record_readiness_timing(
+    samples: list[tuple[str, str, float, str]], *, parser: str = "unknown",
+) -> None:
+    """Record at most eleven local observations; never initialize or flush an exporter.
+
+    No identifiers, request metadata, exception text or payloads are accepted.
+    Recording failures must not affect readiness. The SDK exports asynchronously.
+    """
+    instrument = _readiness_histogram
+    if instrument is None or parser not in {"c_safe", "python_safe", "unknown"}:
+        return
+    seen: set[tuple[str, str]] = set()
+    for stage, clock, value, outcome in samples[:11]:
+        if (stage not in _READINESS_STAGES
+                or clock not in {"wall", "thread_cpu"}
+                or (clock == "thread_cpu" and stage not in {"dfa_policy", "handler_total"})
+                or outcome not in {"completed", "failed", "denied_or_error"}
+                or (stage, clock) in seen):
+            continue
+        seen.add((stage, clock))
+        try:
+            if not math.isfinite(value) or value < 0:
+                continue
+            instrument.record(value, {"stage": stage, "clock": clock,
+                                      "outcome": outcome, "parser": parser})
+        except Exception:
+            # No logging of the exception or retries on the request path.
+            pass
 
 
 def _telemetry_enabled() -> bool:
