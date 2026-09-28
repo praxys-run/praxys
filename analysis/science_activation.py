@@ -162,8 +162,19 @@ def directory_tree(root: Path, template: Mapping[str, tuple[str, str]], *, repos
             mode = '100755' if candidate.stat().st_mode & 0o111 else '100644'
         else:
             continue
-        oid = subprocess.run(['git', '-C', str(repository), 'hash-object', '--stdin'], input=content,
-                             check=True, capture_output=True).stdout.decode().strip()
+        # Match Git's reviewed source representation, including the checkout's
+        # declared CRLF/LF normalization. Never execute configured clean filters.
+        filters = subprocess.run(
+            ['git', '-C', str(repository), 'config', '--name-only', '--get-regexp',
+             r'^filter\..*\.(clean|process|required)$'], capture_output=True, text=True,
+        )
+        overrides = []
+        for key in filters.stdout.splitlines():
+            overrides += ['-c', key + ('=false' if key.endswith('.required') else '=')]
+        command = ['git', '-C', str(repository), *overrides, 'hash-object',
+                   '--path=' + path, '--stdin']
+        oid = subprocess.run(command, input=content, check=True,
+                             capture_output=True).stdout.decode().strip()
         result[path] = (mode, oid)
     return result
 

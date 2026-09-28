@@ -2,6 +2,7 @@
   "schema_version": 1,
   "contracts": {
     "sdr-activity-dfa-alpha1-v1": [
+      ".gitattributes",
       ".github/workflows/deploy-backend.yml",
       ".github/workflows/deploy-frontend-appservice.yml",
       ".github/workflows/deploy-labs-worker.yml",

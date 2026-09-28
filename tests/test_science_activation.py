@@ -251,3 +251,16 @@ def test_later_unrelated_change_allowed_but_governed_content_and_modes_blocked(a
     (root / 'feature.py').unlink()
     with pytest.raises(ValueError, match='renewal'):
         module.verify_governed_maintenance(base_registry, head_registry)
+
+
+def test_exact_git_tree_honors_checkout_newline_representation(tmp_path):
+    from analysis.science_activation import directory_tree, git_tree
+    root = tmp_path / 'repo'
+    root.mkdir()
+    git(root, 'init')
+    git(root, 'config', 'core.autocrlf', 'true')
+    (root / '.gitattributes').write_text('* text=auto\n')
+    (root / 'record.yaml').write_bytes(b'state: draft\r\n')
+    revision = commit(root, 'CRLF checkout')
+    expected = git_tree(root, revision)
+    assert directory_tree(root, expected, repository=root) == expected
