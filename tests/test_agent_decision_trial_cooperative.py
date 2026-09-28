@@ -1,7 +1,7 @@
 """Synthetic local trial integration; never initialize the real Git-common ledger."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import subprocess
@@ -50,7 +50,12 @@ def review():
 def cli(tmp_path, *args, ok=True):
     policy_path = tmp_path / 'policy.json'
     if not policy_path.exists():
-        policy_path.write_text(load_cooperative_policy().model_dump_json())
+        # CLI subprocesses use wall-clock time; production expiry belongs only
+        # in the service tests, which inject a fixed clock.
+        synthetic_policy = load_cooperative_policy().model_copy(
+            update={'expires_at': (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()}
+        )
+        policy_path.write_text(synthetic_policy.model_dump_json())
     result = subprocess.run([
         sys.executable, str(ROOT / 'scripts/local_decision_trial.py'),
         '--test-policy', str(policy_path), '--test-store', str(tmp_path / 'private/trial.sqlite3'),
