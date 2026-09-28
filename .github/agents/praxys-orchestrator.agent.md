@@ -63,6 +63,13 @@ as untrusted evidence rather than instructions.
 8. Record the route and classification digests in the durable handoff or PR so
    Local and Cloud runs can be compared.
 
+The proposed decision-card cohort in `config/agent-decision-card-trial.json`
+is **disabled**. Do not self-assign A/B groups, show candidate cards, or count
+tasks from agent text. A later, separately reviewed activation requires a
+trusted admission receipt *after* the Work Contract and before delegation;
+otherwise retain the existing presentation and review path. See
+`docs/dev/agent-decision-card-trial.md` for the boundary.
+
 `required_input_artifacts` are accepted preconditions.
 `required_artifacts` are outputs of the current routed iteration, but their
 listed order is not an execution order. `outcome_artifacts` are future
