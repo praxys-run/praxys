@@ -173,7 +173,7 @@ The canonical limitations are machine-readable in
 | Model nondeterminism | Compare classification and route digests; do not require identical prose or hidden reasoning. |
 | Cloud settings are external state | Run live drift checks and block a loop when a required MCP server is missing. |
 | Production credentials and mutations | Portable Cloud agents use only synthetic read-only product context. |
-| WeChat desktop simulator | Keep the PR draft until a user-approved local foreground simulator pass is complete. |
+| WeChat desktop simulator | Keep the PR draft until required local simulator evidence is complete; authorized miniapp work needs no separate foreground permission. |
 | Local user tool extensions | Portable agents ignore local-only Azure, Statsig, dev-test, credential, or personal tools. |
 | Automatic Cloud triggers | `agent-ready` is automatic; other Cloud task types require explicit orchestrator selection. |
 | Default-branch activation | Custom agents and setup changes require a disposable Cloud smoke task after merge. |

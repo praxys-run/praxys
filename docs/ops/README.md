@@ -19,6 +19,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [environment.md](./environment.md) | You need the canonical Azure resource names / IDs / hostnames. |
 | [config-and-secrets.md](./config-and-secrets.md) | You're adding, changing, or rotating an env var / secret / variable, and need to know **where** it's set. |
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
+| [activity-dfa-alpha1.md](./activity-dfa-alpha1.md) | Diagnosing post-run DFA jobs, source confirmations, retention or restore-safe erasure. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
 | [tencent-frontend.md](./tencent-frontend.md) | Operating EdgeOne for `.cn`, Cloudflare for `.run`, or their DNS/certificate cutovers. |
 | [cn-public-security-filing.md](./cn-public-security-filing.md) | Preparing and submitting the post-launch public-security website filing, then publishing the exact issued footer. |

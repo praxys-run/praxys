@@ -1,0 +1,212 @@
+{
+  "affected_models": [
+    "analysis/activity_dfa.py",
+    "sync/rr_recording.py"
+  ],
+  "contract_digest": "sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821",
+  "decision_id": "sdr-activity-dfa-alpha1-v1",
+  "decision_status": "draft",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "dfa.recording-artifacts",
+    "dfa.short-scale-method",
+    "dfa.threshold-transfer-limited"
+  ],
+  "evidence_review_ids": [
+    "evidence-activity-dfa-alpha1-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-activity-dfa-alpha1-v1": "sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f"
+  },
+  "model_version": "dfa-alpha1-raw120-v1",
+  "parameters": {
+    "activation": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "automatic_background_admission": false,
+        "contract": "signed_active_only",
+        "method_version": "dfa-alpha1-raw120-v1",
+        "source_scope": "single_native_running_session_exact_owner_recording"
+      }
+    },
+    "claim_limits": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "coverage": "availability_not_accuracy",
+        "diagnosis": false,
+        "individual_thresholds": false,
+        "kubios_equivalence": false,
+        "overall_score": false,
+        "threshold_lines": false,
+        "time_alignment": "estimated",
+        "training_changes": false
+      }
+    },
+    "context": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "gates_alpha": false,
+        "heart_rate": "60000/mean_RR_ms",
+        "max_forward_hold_seconds": 2,
+        "min_field_support_seconds": 96,
+        "negative_or_nonfinite": "missing",
+        "pace": "1000/time_weighted_mean_speed_m_s",
+        "power": "time_weighted_mean_stored_precedence",
+        "sample_clock": "Unix_seconds",
+        "zero": "retained"
+      }
+    },
+    "dfa": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "atypical_bounds": [
+          0,
+          2
+        ],
+        "boxes": "forward_backward_nonoverlapping_keep_duplicates",
+        "clip": false,
+        "detrend": "linear_OLS_with_intercept",
+        "display_decimals": 2,
+        "fluctuation": "sqrt_mean_all_residual_squares",
+        "minimum_fluctuation_ms": 1e-12,
+        "profile": "cumulative_demeaned_rr_float64",
+        "r2": "audit_only_null_zero_variance",
+        "scales": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "slope": "equal_weight_OLS_log_F_log_n"
+      }
+    },
+    "rr_quality": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "correction": "none",
+        "invalid_raw": 65535,
+        "minimum_neighbors": 5,
+        "neighbor_each_side": 5,
+        "range_ms": [
+          250,
+          2000
+        ],
+        "reject": "any_suspect_or_incomplete",
+        "relative_median_deviation": 0.2,
+        "resampling": "none",
+        "trim": "trailing_invalid_only",
+        "zero_or_interior_invalid": "break_chain"
+      }
+    },
+    "source": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "direct_native_rr_source_reference": false,
+        "garmin_manufacturer": 1,
+        "garmin_products": [
+          1743,
+          1752,
+          2327,
+          3299,
+          3300,
+          4130,
+          4446,
+          4606
+        ],
+        "identity_change": "ineligible",
+        "optical_or_contradictory": "ineligible",
+        "polar_manufacturer": 123,
+        "polar_native_names": [
+          "H10",
+          "Polar H10"
+        ],
+        "required": "native_RR_and_recorded_ECG_and_activity_confirmation",
+        "statement_version": "dfa-source-attestation-v1"
+      }
+    },
+    "time_alignment": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "adjacent_offset_gap_ms": 2000,
+        "anchors": "file_order_record_or_primary_timer_boundary",
+        "audit": "original_nonpadding_interval_indices_and_local_offset",
+        "epoch": "1989-12-31T00:00:00Z",
+        "expansion_ms": 1000,
+        "local_offset": "clamped_median_packet_midpoint_minus_cumulative_rr",
+        "max_anchor_width_ms": 30000,
+        "max_local_offset_width_ms": 5000,
+        "window_membership": "complete_intervals_from_exact_gathered_packets_only"
+      }
+    },
+    "window": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "min_complete_rr": 200,
+        "min_rr_coverage_ms": 117600,
+        "seconds": 120,
+        "short_block": "report_without_windows",
+        "step_seconds": 5
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2"
+}

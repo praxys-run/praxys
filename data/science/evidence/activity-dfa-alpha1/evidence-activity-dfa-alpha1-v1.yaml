@@ -1,0 +1,193 @@
+schema_version: 1
+id: evidence-activity-dfa-alpha1-v1
+version: 1
+title: Post-run short-scale DFA from ECG chest-strap RR
+research_question: Can existing archived running FIT RR support bounded post-run DFA
+  alpha1 without threshold or training claims?
+topic: activity-dfa-alpha1
+status: draft
+approval_mode: artifact
+authors:
+- agent:science
+human_reviewers: []
+created_on: &id001 2026-09-27
+intended_product_purpose: Inspect valid running windows and the uncertainty of post-run
+  beat-interval analysis.
+scope:
+  population:
+  - Runners with archived ECG chest-strap RR
+  intervention_or_exposure:
+  - Post-run raw RR DFA alpha1
+  comparator:
+  - Published exercise DFA/device methods; independent numerical implementation
+  outcomes:
+  - RR fidelity, numerical reproducibility, timing and quality availability; interpretation
+    limits
+method:
+  review_type: rapid
+  search_date: *id001
+  sources:
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: (TITLE_ABS:DFA OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:"heart
+      rate" OR TITLE_ABS:"RR intervals") AND (TITLE_ABS:exercise OR TITLE_ABS:running
+      OR TITLE_ABS:cycling OR TITLE_ABS:threshold) FIRST_PDATE:[2020-01-01 TO 2026-09-27]
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: '"heart rate variability threshold"'
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: ("Polar H10" OR "ECG chest") AND (DFA OR RR OR exercise)
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: ("DFA alpha1" OR "DFA a1" OR "DFA α1" OR "detrended fluctuation
+      analysis") AND (exercise OR threshold OR cycling OR running) FIRST_PDATE:[2020-01-01
+      TO 2026-09-27]
+  - name: 'Europe PMC REST: PubMed-indexed metadata/abstracts and PMC full text'
+    search_string: (TITLE_ABS:"DFA alpha1" OR TITLE_ABS:"DFA a1" OR TITLE_ABS:"DFA
+      α1" OR TITLE_ABS:"detrended fluctuation") AND (TITLE_ABS:exercise OR TITLE_ABS:threshold
+      OR TITLE_ABS:cycling OR TITLE_ABS:running) FIRST_PDATE:[2020-01-01 TO 2026-09-27]
+  - name: Crossref DOI bibliography verification
+    search_string: 10.3390/s21030821; 10.3390/s22176536; 10.1007/s00421-024-05592-2;
+      10.14814/phy2.70777
+  inclusion_criteria:
+  - Primary exercise DFA or ECG chest-strap validation research from the approved
+    planning evidence packet
+  exclusion_criteria:
+  - Vendor claims as independent validation
+  - Threshold equivalence inferred across populations or protocols
+  quality_appraisal: Separate device validation, numerical method, physiological interpretation
+    and engineering guardrails.
+  method_limitations:
+  - Bounded rapid review, not an exhaustive systematic search. Original Science planning
+    search/access date2026-09-27; all81 returned titles from the focused query were
+    screened.
+  - The last exploratory query returned113 records; the first100 were retrieved before
+    narrowing to the focused81-record search.
+  - Running study was reviewed at abstract level only. Crossref bibliography metadata
+    was verified separately; that verification does not imply full-text access.
+claims:
+- id: dfa.recording-artifacts
+  statement: DFA alpha1 is sensitive to RR artifacts and recording/processing choices;
+    raw ECG-derived intervals require explicit quality checks.
+  source_ids:
+  - rogers-artifacts-2021
+  - schaffarczyk-h10-2022
+  evidence_strength: moderate
+  applicable_population:
+  - Studied exercising adults with the tested recording devices and protocols
+  domain:
+  - exercise RR quality
+  limitations:
+  - Neither source validates every registered sensor or the complete Praxys pipeline.
+  - Passing these checks does not prove absence of artifacts.
+- id: dfa.short-scale-method
+  statement: Short-scale DFA over beat intervals is used in exercise research, including
+    running; a 120-second window and scales4–16 are a research-informed analysis recipe.
+  source_ids:
+  - rogers-artifacts-2021
+  - van-rassel-running-2024
+  evidence_strength: low
+  applicable_population:
+  - Adults in the cited exercise protocols
+  domain:
+  - short-scale DFA
+  limitations:
+  - The running paper was examined at abstract level only.
+  - Praxys uses raw intervals without correction; it does not claim equivalence to
+    Kubios or another application.
+  - Window timing, minimum beats and quality cutoffs are engineering guardrails.
+- id: dfa.threshold-transfer-limited
+  statement: Agreement between HRV-derived and physiological thresholds is protocol-dependent;
+    this observational running feature cannot identify individual training thresholds
+    from fixed alpha1 cutoffs.
+  source_ids:
+  - van-rassel-running-2024
+  - olieslagers-cycling-2026
+  evidence_strength: low
+  applicable_population:
+  - Adults in the cited running and incremental cycling protocols
+  domain:
+  - exercise threshold interpretation
+  limitations:
+  - Cycling findings do not automatically transfer to continuous running.
+  - No prospective individual threshold or training-prescription validation of the
+    Praxys method exists.
+citations:
+- id: rogers-artifacts-2021
+  title: Influence of Artefact Correction and Recording Device Type on the Practical
+    Application of a Non-Linear Heart Rate Variability Biomarker for Aerobic Threshold
+    Determination
+  authors:
+  - Bruce Rogers
+  - David Giles
+  - Nick Draper
+  - Laurent Mourot
+  - Thomas Gronwald
+  year: 2021
+  journal: Sensors
+  doi: 10.3390/s21030821
+  url: https://doi.org/10.3390/s21030821
+- id: schaffarczyk-h10-2022
+  title: Validity of the Polar H10 Sensor for Heart Rate Variability Analysis during
+    Resting State and Incremental Exercise in Recreational Men and Women
+  authors:
+  - Marcelle Schaffarczyk
+  - Bruce Rogers
+  - Rüdiger Reer
+  - Thomas Gronwald
+  year: 2022
+  journal: Sensors
+  doi: 10.3390/s22176536
+  url: https://doi.org/10.3390/s22176536
+- id: van-rassel-running-2024
+  title: 'Quantifying exercise intensity with fractal correlation properties of heart
+    rate variability: a study on incremental and constant-speed running'
+  authors:
+  - C. R. van Rassel
+  - O. O. Ajayi
+  - K. M. Sales
+  - C. A. Clermont
+  - M. Rummel
+  - M. J. MacInnis
+  year: 2024
+  journal: European Journal of Applied Physiology
+  doi: 10.1007/s00421-024-05592-2
+  url: https://doi.org/10.1007/s00421-024-05592-2
+  pmid: '39235602'
+- id: olieslagers-cycling-2026
+  title: Agreement between heart rate variability-derived and lactate/ventilatory
+    thresholds during a 4-min stepwise incremental cycling test in male adults
+  authors:
+  - Anton Olieslagers
+  - Yoram Müller-Jabusch
+  - Margot Vancoillie
+  - Emma Delen
+  - Toon de Beukelaar
+  year: 2026
+  journal: Physiological Reports
+  doi: 10.14814/phy2.70777
+  url: https://doi.org/10.14814/phy2.70777
+known_gaps:
+- No across-device physiological validation of this complete pipeline.
+- Native HRV messages lack direct sensor attribution; factual owner confirmation cannot
+  establish device accuracy.
+- A real recording with AlphaHRV disabled remains unverified.
+conflicting_findings:
+- Protocol and preprocessing differences limit transfer of threshold agreement.
+follow_up_questions:
+- How often do real archived running files pass source, time and quality checks across
+  devices?
+review_notes:
+- 'Verification: rogers-artifacts-2021 - full-text; Europe PMC PMC7865269, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Verification: schaffarczyk-h10-2022 - full-text; Europe PMC PMC9459793, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Verification: van-rassel-running-2024 - abstract; Europe PMC/PubMed PMID 39235602;
+  2026-09-27.'
+- 'Verification: olieslagers-cycling-2026 - full-text; Europe PMC PMC12910119, relevant
+  methods/results/limitations; 2026-09-27.'
+- 'Full text endpoint: https://www.ebi.ac.uk/europepmc/webservices/rest/{PMCID}/fullTextXML
+  . These levels and exact search strings restore the original Science handoff; Engineering
+  did not perform a new literature review.'
+- Bibliography independently checked against Crossref DOI metadata2026-09-27.
+- 'Native sensor modality provenance: Garmin FIT SDK profile21.217.0, https://raw.githubusercontent.com/garmin/fit-python-sdk/main/garmin_fit_sdk/profile.py
+  . Sensor-type compatibility is not model-specific DFA accuracy certification.'
+- Mechanical materialization by Engineering preserves Science ownership; no signed
+  evidence review or acceptance is claimed.

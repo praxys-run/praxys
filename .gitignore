@@ -89,3 +89,6 @@ docs/perf-baselines/**/*.ico
 docs/perf-baselines/*/*/css/
 docs/perf-baselines/*/*/js/
 docs/perf-baselines/*/*/img/
+
+# Private restore-safe DFA erasure requests; never publish owner references.
+/data/activity_dfa_deletion_manifests/

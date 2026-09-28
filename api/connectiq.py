@@ -410,6 +410,12 @@ def run_tick(session_factory: Callable | None = None) -> None:
 
 def reparse_snapshot(user_id: str, activity_id: str, snapshot_id: str, db: Session) -> dict:
     """Reproject retained bytes without a provider request or live connection."""
+    from api.activity_dfa import owner_write
+    with owner_write(db, user_id):
+        return _reparse_snapshot(user_id, activity_id, snapshot_id, db)
+
+
+def _reparse_snapshot(user_id: str, activity_id: str, snapshot_id: str, db: Session) -> dict:
     from api.legal_receipts import user_background_processing_authorized
     user = db.query(User).filter_by(id=user_id, is_active=True).with_for_update().first()
     if user is None or not user_background_processing_authorized(db, user_id):

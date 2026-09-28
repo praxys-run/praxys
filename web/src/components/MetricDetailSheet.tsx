@@ -57,7 +57,7 @@ export default function MetricDetailSheet({
               ref={closeButtonRef}
               variant="ghost"
               size="icon-sm"
-              className="absolute right-3 top-3 z-10"
+              className="absolute right-3 top-3 z-10 min-h-11 min-w-11"
             />
           )}
         >

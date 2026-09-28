@@ -1,29 +1,29 @@
 <view class="train-root {{themeClass}} {{languageClass}}">
-  <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" aria-hidden="{{activeMetric !== ''}}" />
+  <nav-bar title="{{tr.navTitle}}" theme-class="{{themeClass}}" aria-hidden="{{activeMetric !== '' || dfaActivityId !== ''}}" />
 
   <view
     class="observed-switch"
     role="tablist"
     aria-label="{{tr.observedTraining}}"
-    aria-hidden="{{activeMetric !== ''}}"
+    aria-hidden="{{activeMetric !== '' || dfaActivityId !== ''}}"
   >
     <view
-      class="observed-switch__item {{activeSection === 'analysis' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' ? 'observed-switch__item--disabled' : ''}}"
+      class="observed-switch__item {{activeSection === 'analysis' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' || dfaActivityId !== '' ? 'observed-switch__item--disabled' : ''}}"
       data-value="analysis"
       bindtap="onObservedSectionChange"
       role="tab"
       aria-selected="{{activeSection === 'analysis'}}"
-      aria-disabled="{{activeMetric !== ''}}"
+      aria-disabled="{{activeMetric !== '' || dfaActivityId !== ''}}"
     >
       <text>{{tr.analysisTab}}</text>
     </view>
     <view
-      class="observed-switch__item {{activeSection === 'activities' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' ? 'observed-switch__item--disabled' : ''}}"
+      class="observed-switch__item {{activeSection === 'activities' ? 'observed-switch__item--active' : ''}} {{activeMetric !== '' || dfaActivityId !== '' ? 'observed-switch__item--disabled' : ''}}"
       data-value="activities"
       bindtap="onObservedSectionChange"
       role="tab"
       aria-selected="{{activeSection === 'activities'}}"
-      aria-disabled="{{activeMetric !== ''}}"
+      aria-disabled="{{activeMetric !== '' || dfaActivityId !== ''}}"
     >
       <text>{{tr.activitiesTab}}</text>
     </view>
@@ -38,7 +38,7 @@
     lower-threshold="180"
     scroll-into-view="{{scrollIntoView}}"
     class="train-scroll"
-    aria-hidden="{{activeMetric !== ''}}"
+    aria-hidden="{{activeMetric !== '' || dfaActivityId !== ''}}"
   >
     <view
       wx:if="{{activeSection === 'analysis'}}"
@@ -168,9 +168,12 @@
       <activity-history
         id="analysis-activity-history"
         tabbed="{{true}}"
+        binddfa="onOpenDFA"
       />
     </view>
   </scroll-view>
+
+  <dfa-analysis id="analysis-dfa" wx:if="{{dfaActivityId}}" activity-id="{{dfaActivityId}}" activity-date="{{dfaActivityDate}}" bindclose="onCloseDFA" />
 
   <view
     wx:if="{{activeSection === 'analysis' && activeMetric}}"

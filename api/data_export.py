@@ -486,12 +486,14 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     """Return the requested user's portable training data without credentials."""
     from api.personal_context import build_personal_context_export
     from api.connectiq import account_export
+    from api.activity_dfa import export as dfa_export
 
     user = db.query(User).filter(User.id == user_id).one()
     config = _without_credentials(asdict(load_config_from_db(user_id, db)))
     return {
         "schema_version": 7,
         "connectiq": account_export(user_id, db),
+        "activity_dfa_alpha1": dfa_export(db, user_id),
         "exported_at": utc_isoformat(datetime.now(timezone.utc)),
         "account": {
             field: _without_credentials(getattr(user, field))
@@ -730,12 +732,12 @@ def build_user_data_export(user_id: str, db: Session) -> dict[str, Any]:
     }
 
 
-def stream_user_data_export(user_id: str, db: Session):
+def stream_user_data_export(user_id: str, db: Session, prepared: dict | None = None):
     """Stream the complete JSON document, including lazy Connect IQ versions."""
     # Bound transport chunks too: many tiny scalar yields are expensive over ASGI.
     pending: list[str] = []
     size = 0
-    for piece in stream_export_json(build_user_data_export(user_id, db)):
+    for piece in stream_export_json(prepared if prepared is not None else build_user_data_export(user_id, db)):
         pending.append(piece)
         size += len(piece)
         if size >= 64 * 1024:

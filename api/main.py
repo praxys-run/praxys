@@ -115,6 +115,36 @@ def _is_feedback_owner_status_path(path: str) -> bool:
     return path == _FEEDBACK_OWNER_STATUS_PATH
 
 
+class DFAResponsePrivacyMiddleware:
+    """Protect the complete DFA route family, including authorization errors."""
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = str(scope.get("path", ""))
+        parts = path.split("/")
+        private = (scope.get("type") == "http" and len(parts) >= 5
+                   and parts[1:3] == ["api", "activities"] and parts[4] == "dfa-alpha1")
+        started = False
+        async def send_private(message: Message) -> None:
+            nonlocal started
+            if private and message["type"] == "http.response.start":
+                started = True
+                headers = MutableHeaders(scope=message)
+                headers["Cache-Control"] = _PRIVATE_NO_STORE
+                if "ETag" in headers:
+                    del headers["ETag"]
+            await send(message)
+        try:
+            await self.app(scope, receive, send_private)
+        except Exception:
+            if not private or started:
+                raise
+            from fastapi.responses import JSONResponse
+            logging.getLogger(__name__).error("DFA request failed")
+            await JSONResponse({"detail": "DFA_REQUEST_FAILED"}, status_code=500)(scope, receive, send_private)
+
+
 class FeedbackOwnerStatusPrivacyMiddleware:
     """Force private no-store on every owner-status response, including errors."""
 
@@ -199,12 +229,16 @@ async def lifespan(app: FastAPI):
 
         start_dispatcher()
         start_publication_reconciler()
+        from api.activity_dfa_dispatch import start as start_dfa_dispatcher
+        start_dfa_dispatcher()
         if scheduler_enabled:
             from db.sync_scheduler import start_scheduler
 
             start_scheduler()
         yield
     finally:
+        from api.activity_dfa_dispatch import stop as stop_dfa_dispatcher
+        stop_dfa_dispatcher()
         try:
             from api.feedback_publication import stop_publication_reconciler
 
@@ -256,6 +290,7 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
 app.add_middleware(FeedbackOwnerStatusPrivacyMiddleware)
 app.add_middleware(ChinaClientBoundaryMiddleware)
+app.add_middleware(DFAResponsePrivacyMiddleware)
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -341,10 +376,12 @@ from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
 from api.routes import connectiq
+from api.routes import activity_dfa
 
 from api.plan_generation_capabilities import PLAN_GENERATION_CAPABILITIES
 
 router_modules = [
+    activity_dfa,
     connectiq,
     today,
     training,
@@ -530,10 +567,12 @@ def export_my_data(
 ):
     """Stream a complete JSON export containing only the caller's data."""
     from fastapi.responses import StreamingResponse
-    from api.data_export import stream_user_data_export
+    from api.data_export import build_user_data_export, stream_user_data_export
 
     filename_date = datetime.now(timezone.utc).date().isoformat()
-    return StreamingResponse(stream_user_data_export(user_id, db),
+    # Validate restore erasures before sending a successful streaming header.
+    prepared = build_user_data_export(user_id, db)
+    return StreamingResponse(stream_user_data_export(user_id, db, prepared),
         media_type="application/json", headers={
             "Content-Disposition": f'attachment; filename="praxys-data-export-{filename_date}.json"',
             "Cache-Control": "private, no-store",

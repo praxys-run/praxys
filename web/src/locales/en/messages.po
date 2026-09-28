@@ -822,6 +822,10 @@ msgstr "Activity is the schedule lane (for example road or trail), not the sessi
 #~ msgid "Activity not counted"
 #~ msgstr "Activity not counted"
 
+#: src/components/ActivityDFA.tsx:234
+msgid "Activity processing is unavailable. You can still delete this analysis."
+msgstr "Activity processing is unavailable. You can still delete this analysis."
+
 #: src/components/HeatAdaptationPanel.tsx:109
 msgid "Activity splits"
 msgstr "Activity splits"
@@ -1151,6 +1155,10 @@ msgstr "An external planner overlaps the Praxys plan. Use one planner at a time 
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
+#: src/components/ActivityDFA.tsx:242
+msgid "Analyse recording"
+msgstr "Analyse recording"
+
 #: src/components/AppSidebar.tsx:126
 #: src/pages/Analysis.tsx:350
 msgid "Analysis"
@@ -1164,6 +1172,10 @@ msgstr "Analysis"
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 msgstr "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
+#: src/components/ActivityDFA.tsx:166
+msgid "Analysis is unavailable. Refresh the recording or try again."
+msgstr "Analysis is unavailable. Refresh the recording or try again."
+
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
 msgstr "Analysis needs a manual retry"
@@ -1171,6 +1183,10 @@ msgstr "Analysis needs a manual retry"
 #: src/pages/LabsEnvironment.tsx:268
 msgid "Analysis request saved"
 msgstr "Analysis request saved"
+
+#: src/components/ActivityDFA.tsx:260
+msgid "Analysis was cancelled."
+msgstr "Analysis was cancelled."
 
 #: src/pages/LabsEnvironment.tsx:265
 msgid "Analysis worker is running"
@@ -1229,6 +1245,10 @@ msgstr "Approve access"
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 
+#: src/components/ActivityDFA.tsx:327
+msgid "Artefacts and recording devices"
+msgstr "Artefacts and recording devices"
+
 #: src/pages/Settings.tsx:1164
 msgid "Asia/CN"
 msgstr "Asia/CN"
@@ -1271,6 +1291,10 @@ msgstr "attempts"
 #: src/pages/admin/AdminOps.tsx:1156
 msgid "Attempts {0}"
 msgstr "Attempts {0}"
+
+#: src/components/ActivityDFA.tsx:163
+msgid "Atypical value; no physiological conclusion."
+msgstr "Atypical value; no physiological conclusion."
 
 #: src/pages/Login.tsx:335
 msgid "Authentication mode"
@@ -1378,11 +1402,11 @@ msgstr "Available terrain"
 msgid "Available training plans could not be loaded."
 msgstr "Available training plans could not be loaded."
 
-#: src/components/ActivityCard.tsx:108
+#: src/components/ActivityCard.tsx:112
 msgid "Avg HR"
 msgstr "Avg HR"
 
-#: src/components/ActivityCard.tsx:97
+#: src/components/ActivityCard.tsx:101
 msgid "Avg Power"
 msgstr "Avg Power"
 
@@ -1518,6 +1542,10 @@ msgstr "Baseline ready"
 msgid "Baseline source"
 msgstr "Baseline source"
 
+#: src/components/ActivityDFA.tsx:160
+msgid "Beat intervals outside the supported range."
+msgstr "Beat intervals outside the supported range."
+
 #: src/components/PlanStart.tsx:1784
 #: src/components/PlanStart.tsx:1914
 msgid "Before you start"
@@ -1637,6 +1665,10 @@ msgstr "by"
 msgid "Calculate proxy"
 msgstr "Calculate proxy"
 
+#: src/components/ActivityDFA.tsx:244
+msgid "Calculating valid windows…"
+msgstr "Calculating valid windows…"
+
 #: src/pages/LabsEnvironment.tsx:551
 msgid "Calculator"
 msgstr "Calculator"
@@ -1675,6 +1707,10 @@ msgstr "Can you access terrain for controlled downhill training?"
 #: src/pages/Setup.tsx:1091
 msgid "Cancel"
 msgstr "Cancel"
+
+#: src/components/ActivityDFA.tsx:246
+msgid "Cancel analysis"
+msgstr "Cancel analysis"
 
 #: src/pages/LabsEnvironment.tsx:290
 msgid "Cancel and withdraw"
@@ -1812,6 +1848,10 @@ msgstr "Check the current inputs again before generating a new proposal."
 msgid "Check your credentials in the connection step, then try again."
 msgstr "Check your credentials in the connection step, then try again."
 
+#: src/components/ActivityDFA.tsx:244
+msgid "Checking beat intervals and chest-strap evidence…"
+msgstr "Checking beat intervals and chest-strap evidence…"
+
 #: src/pages/LabsEnvironment.tsx:357
 msgid "Checking data requirements"
 msgstr "Checking data requirements"
@@ -1875,6 +1915,10 @@ msgstr "Choose a race target, track continuous progress, or use the 5K baseline 
 msgid "Choose a recent workout"
 msgstr "Choose a recent workout"
 
+#: src/components/ActivityDFA.tsx:238
+msgid "Choose a recording"
+msgstr "Choose a recording"
+
 #: src/components/PlanStart.tsx:1686
 #: src/components/PlanStart.tsx:1713
 msgid "Choose a training plan"
@@ -1893,6 +1937,10 @@ msgstr "Choose a training plan first."
 #: src/components/PlanStart.tsx:860
 #~ msgid "Choose an accepted plan purpose first."
 #~ msgstr "Choose an accepted plan purpose first."
+
+#: src/components/ActivityDFA.tsx:279
+msgid "Choose an activity time"
+msgstr "Choose an activity time"
 
 #: src/components/GoalBaselinePanel.tsx:156
 msgid "Choose an optional 10K benchmark date"
@@ -1960,6 +2008,11 @@ msgstr "Choose primary source"
 #: src/components/PlanStart.tsx:273
 #~ msgid "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 #~ msgstr "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
+
+#: src/components/ActivityDFA.tsx:251
+#: src/components/ActivityDFA.tsx:251
+msgid "Choose the chest strap"
+msgstr "Choose the chest strap"
 
 #: src/components/PlanStart.tsx:913
 #: src/components/PlanStart.tsx:926
@@ -2065,6 +2118,10 @@ msgstr "Coach useful-vote rate"
 msgid "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 msgstr "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 
+#: src/components/ActivityDFA.tsx:294
+msgid "Cobalt: supported · dark: unsupported · pale: paused"
+msgstr "Cobalt: supported · dark: unsupported · pale: paused"
+
 #: src/pages/admin/AdminUsers.tsx:732
 msgid "Code"
 msgstr "Code"
@@ -2118,6 +2175,10 @@ msgstr "Compare other providers ({0})"
 #: src/components/trail-course-review/copy.tsx:568
 msgid "Compare the request with recent history"
 msgstr "Compare the request with recent history"
+
+#: src/components/ActivityDFA.tsx:300
+msgid "Compare with"
+msgstr "Compare with"
 
 #: src/components/WorkoutPlanEditor.tsx:401
 msgid "Compatibility preview is unavailable. Check your connection and try again."
@@ -2188,10 +2249,16 @@ msgstr "Conditions, support, and fueling"
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
+#: src/components/ActivityDFA.tsx:258
+msgid "Confirm and analyse"
+msgstr "Confirm and analyse"
+
 #: src/components/PlanStart.tsx:354
 msgid "Confirm applicability and availability before generating a proposal."
 msgstr "Confirm applicability and availability before generating a proposal."
 
+#: src/components/ActivityDFA.tsx:332
+#: src/components/ActivityDFA.tsx:333
 #: src/components/trail-course-review/copy.tsx:219
 #: src/components/trail-course-review/states.tsx:254
 msgid "Confirm deletion"
@@ -2234,6 +2301,10 @@ msgstr "Confirm the boundary before Praxys writes to {targetLabel}."
 msgid "Confirm the reviewed adult scope first."
 msgstr "Confirm the reviewed adult scope first."
 
+#: src/components/ActivityDFA.tsx:248
+msgid "Confirm the source for this activity"
+msgstr "Confirm the source for this activity"
+
 #: src/components/PlanStart.tsx:862
 #~ msgid "Confirm the supported athlete and goal scope first."
 #~ msgstr "Confirm the supported athlete and goal scope first."
@@ -2262,6 +2333,10 @@ msgstr "Conflict <0>{0}</0>"
 #: src/components/UpcomingPlanCard.tsx:375
 msgid "Conflict retained"
 msgstr "Conflict retained"
+
+#: src/components/ActivityDFA.tsx:157
+msgid "Conflicting sensor evidence prevents analysis."
+msgstr "Conflicting sensor evidence prevents analysis."
 
 #: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
@@ -2371,6 +2446,10 @@ msgstr "Conservative adjustments on"
 #: src/components/PersonalContextPanel.tsx:562
 msgid "Context and dependent private traces deleted."
 msgstr "Context and dependent private traces deleted."
+
+#: src/components/ActivityDFA.tsx:303
+msgid "Context changed or is unavailable. Refresh to reload it."
+msgstr "Context changed or is unavailable. Refresh to reload it."
 
 #: src/components/PersonalContextPanel.tsx:534
 msgid "Context excluded from future assessments."
@@ -2758,6 +2837,10 @@ msgstr "Course review saved. Confirm each reviewed section at this revision."
 msgid "Course-specific work cannot be bounded from observed experience."
 msgstr "Course-specific work cannot be bounded from observed experience."
 
+#: src/components/ActivityDFA.tsx:267
+msgid "Coverage describes which data could be analysed, not measurement accuracy."
+msgstr "Coverage describes which data could be analysed, not measurement accuracy."
+
 #: src/components/charts/CpTrendChart.tsx:59
 #: src/lib/display-labels.ts:62
 msgid "CP Trend"
@@ -3100,6 +3183,10 @@ msgstr "Delete"
 msgid "Delete account"
 msgstr "Delete account"
 
+#: src/components/ActivityDFA.tsx:331
+msgid "Delete DFA analysis"
+msgstr "Delete DFA analysis"
+
 #: src/pages/Settings.tsx:1642
 msgid "Delete my account"
 msgstr "Delete my account"
@@ -3116,6 +3203,10 @@ msgstr "Delete permanently"
 #: src/components/PersonalContextPanel.tsx:1448
 msgid "Delete retained history"
 msgstr "Delete retained history"
+
+#: src/components/ActivityDFA.tsx:332
+msgid "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
+msgstr "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
 
 #: src/components/PersonalContextPanel.tsx:1363
 msgid "Delete this context permanently?"
@@ -3314,6 +3405,30 @@ msgstr "Deterministic training summary"
 msgid "Developing"
 msgstr "Developing"
 
+#: src/components/ActivityDFA.tsx:230
+msgid "DFA analysis is awaiting scientific activation."
+msgstr "DFA analysis is awaiting scientific activation."
+
+#: src/components/ActivityDFA.tsx:232
+msgid "DFA analysis is not yet available for this activity’s connected platform."
+msgstr "DFA analysis is not yet available for this activity’s connected platform."
+
+#: src/components/ActivityDFA.tsx:163
+msgid "DFA cannot be estimated in this window."
+msgstr "DFA cannot be estimated in this window."
+
+#: src/components/ActivityCard.tsx:167
+msgid "DFA α1"
+msgstr "DFA α1"
+
+#: src/components/ActivityDFA.tsx:305
+msgid "DFA α1 by window end time"
+msgstr "DFA α1 by window end time"
+
+#: src/components/ActivityDFA.tsx:328
+msgid "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
+msgstr "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
+
 #: src/pages/admin/AdminOps.tsx:940
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
@@ -3419,7 +3534,7 @@ msgstr "Display preferences"
 msgid "Dist"
 msgstr "Dist"
 
-#: src/components/ActivityCard.tsx:76
+#: src/components/ActivityCard.tsx:80
 #: src/components/AdoptedPlanDetails.tsx:57
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
@@ -3551,7 +3666,7 @@ msgstr "Duplicate workout"
 msgid "Durable preference"
 msgstr "Durable preference"
 
-#: src/components/ActivityCard.tsx:87
+#: src/components/ActivityCard.tsx:91
 #: src/components/SplitBreakdown.tsx:48
 #: src/components/WorkoutStructureEditor.tsx:810
 msgid "Duration"
@@ -3634,6 +3749,10 @@ msgstr "Each image must be under 5 MB."
 #~ msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 #~ msgstr "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 
+#: src/components/ActivityDFA.tsx:319
+msgid "Each row represents a 120-second window."
+msgstr "Each row represents a 120-second window."
+
 #: src/components/charts/WeeklyVolumeChart.tsx:111
 msgid "Each value is a non-overlapping seven-day bucket ending on the shown date. Weeks with no recorded distance remain in the series and average. Trend labels use a Praxys estimate: the newer half must differ from the older half by more than 10%; this is not a readiness score."
 msgstr "Each value is a non-overlapping seven-day bucket ending on the shown date. Weeks with no recorded distance remain in the series and average. Trend labels use a Praxys estimate: the newer half must differ from the older half by more than 10%; this is not a readiness score."
@@ -3659,6 +3778,10 @@ msgstr "Easy run"
 #: src/lib/phase-label.ts:11
 msgid "Easy Run"
 msgstr "Easy Run"
+
+#: src/components/ActivityDFA.tsx:327
+msgid "ECG chest-strap validation"
+msgstr "ECG chest-strap validation"
 
 #: src/components/UpcomingPlanCard.tsx:692
 #: src/pages/Settings.tsx:1424
@@ -3703,7 +3826,7 @@ msgstr "Effective heat: {0} of {thresholdMinutes} minutes"
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 #~ msgstr "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 
-#: src/components/ActivityCard.tsx:130
+#: src/components/ActivityCard.tsx:134
 msgid "Elev"
 msgstr "Elev"
 
@@ -3904,6 +4027,10 @@ msgstr "Estimated from targets"
 #: src/pages/LabsEnvironment.tsx:816
 msgid "Estimated psychrometric wet-bulb proxy"
 msgstr "Estimated psychrometric wet-bulb proxy"
+
+#: src/components/ActivityDFA.tsx:264
+msgid "Estimated time alignment"
+msgstr "Estimated time alignment"
 
 #: src/pages/Science.tsx:29
 msgid "Estimates acclimatization from recent qualifying conditions."
@@ -4580,6 +4707,10 @@ msgstr "Go Easy"
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
+#: src/components/ActivityDFA.tsx:293
+msgid "Go to selected time"
+msgstr "Go to selected time"
+
 #: src/pages/Verify.tsx:61
 msgid "Go to sign in"
 msgstr "Go to sign in"
@@ -5175,6 +5306,10 @@ msgstr "Interpret one workout without guessing a cause"
 msgid "Interpret this workout without guessing a cause"
 msgstr "Interpret this workout without guessing a cause"
 
+#: src/components/ActivityDFA.tsx:162
+msgid "Interrupted beat sequence."
+msgstr "Interrupted beat sequence."
+
 #: src/components/UpcomingPlanCard.tsx:582
 #: src/components/WorkoutPlanEditor.tsx:437
 msgid "Intervals"
@@ -5287,6 +5422,10 @@ msgstr "Judgment recorded. The linked issue is not open, so no label was added."
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 
+#: src/components/ActivityDFA.tsx:297
+msgid "Jump to time"
+msgstr "Jump to time"
+
 #: src/pages/Today.tsx:291
 msgid "Keep any optional movement easy and short"
 msgstr "Keep any optional movement easy and short"
@@ -5294,6 +5433,10 @@ msgstr "Keep any optional movement easy and short"
 #: src/components/GoalPlanReconciliationDialog.tsx:171
 msgid "Keep current plan"
 msgstr "Keep current plan"
+
+#: src/components/ActivityDFA.tsx:334
+msgid "Keep data"
+msgstr "Keep data"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1447
 msgid "Keep future workouts on {targetLabel}"
@@ -6372,6 +6515,7 @@ msgstr "Newer workout structure"
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "Newly triaged work will appear here when admin action is needed."
 
+#: src/components/ActivityDFA.tsx:317
 #: src/pages/History.tsx:96
 msgid "Next"
 msgstr "Next"
@@ -6465,6 +6609,10 @@ msgstr "No Coach votes were recorded in this window."
 #: src/pages/Login.tsx:658
 msgid "No code yet?"
 msgstr "No code yet?"
+
+#: src/components/ActivityDFA.tsx:156
+msgid "No compatible ECG chest strap was found."
+msgstr "No compatible ECG chest strap was found."
 
 #: src/pages/admin/AdminOps.tsx:1759
 msgid "No connection attempts were recorded in this window."
@@ -6575,6 +6723,10 @@ msgstr "No incidents yet"
 #: src/pages/admin/AdminUsers.tsx:744
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "No invitation codes yet. Generate one to invite a user."
+
+#: src/components/ActivityDFA.tsx:323
+msgid "No issues detected by these checks."
+msgstr "No issues detected by these checks."
 
 #: src/pages/admin/AdminOps.tsx:1241
 msgid "No managed deliveries need operator action."
@@ -6766,6 +6918,10 @@ msgstr "No waitlist signups yet."
 msgid "No weekly distance history yet"
 msgstr "No weekly distance history yet"
 
+#: src/components/ActivityDFA.tsx:263
+msgid "No windows passed the analysis checks."
+msgstr "No windows passed the analysis checks."
+
 #: src/components/WorkoutCard.tsx:40
 msgid "No Workout"
 msgstr "No Workout"
@@ -6850,6 +7006,10 @@ msgstr "Not applicable"
 msgid "Not connected"
 msgstr "Not connected"
 
+#: src/components/ActivityDFA.tsx:158
+msgid "Not enough complete beats."
+msgstr "Not enough complete beats."
+
 #: src/pages/Analysis.tsx:268
 msgid "Not enough complete intensity data for zone comparison"
 msgstr "Not enough complete intensity data for zone comparison"
@@ -6882,9 +7042,17 @@ msgstr "Not enough data yet for stable load tracking"
 msgid "Not enough data yet for weekly load comparison"
 msgstr "Not enough data yet for weekly load comparison"
 
+#: src/components/ActivityDFA.tsx:159
+msgid "Not enough interval coverage."
+msgstr "Not enough interval coverage."
+
 #: src/pages/Today.tsx:424
 msgid "not enough load history"
 msgstr "not enough load history"
+
+#: src/components/ActivityDFA.tsx:160
+msgid "Not enough neighbouring beats to check quality."
+msgstr "Not enough neighbouring beats to check quality."
 
 #: src/pages/LabsEnvironment.tsx:396
 msgid "Not enough suitable data to start yet"
@@ -7060,6 +7228,10 @@ msgstr "One-time codes for new user registration."
 #: src/components/trail-course-review/copy.tsx:178
 msgid "Online · saved"
 msgstr "Online · saved"
+
+#: src/components/ActivityDFA.tsx:157
+msgid "Only a single running session can be analysed."
+msgstr "Only a single running session can be analysed."
 
 #. placeholder {0}: baseline.guardrails.baseline_current_through_completed_days
 #: src/components/GoalBaselinePanel.tsx:332
@@ -7356,7 +7528,7 @@ msgstr "overnight score"
 msgid "Ownership conflict"
 msgstr "Ownership conflict"
 
-#: src/components/ActivityCard.tsx:122
+#: src/components/ActivityCard.tsx:126
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
 #: src/pages/Settings.tsx:92
@@ -7388,6 +7560,11 @@ msgstr "Pace · threshold delta in sec/km"
 msgid "Pace · threshold delta in sec/mi"
 msgstr "Pace · threshold delta in sec/mi"
 
+#: src/components/ActivityDFA.tsx:226
+#: src/components/ActivityDFA.tsx:301
+msgid "Pace (s/km)"
+msgstr "Pace (s/km)"
+
 #: src/components/WorkoutPlanEditor.tsx:1051
 msgid "Pace maximum (min/km)"
 msgstr "Pace maximum (min/km)"
@@ -7395,6 +7572,10 @@ msgstr "Pace maximum (min/km)"
 #: src/components/WorkoutPlanEditor.tsx:1034
 msgid "Pace minimum (min/km)"
 msgstr "Pace minimum (min/km)"
+
+#: src/components/ActivityDFA.tsx:292
+msgid "Page"
+msgstr "Page"
 
 #: src/components/PersonalContextPanel.tsx:226
 msgid "Pain or injury"
@@ -7457,6 +7638,7 @@ msgstr "Pause delivery"
 msgid "Pause delivery to change the target."
 msgstr "Pause delivery to change the target."
 
+#: src/components/ActivityDFA.tsx:217
 #: src/components/UpcomingPlanCard.tsx:392
 #: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
@@ -7690,6 +7872,10 @@ msgstr "Please check your email format and try again."
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "Please verify your email before signing in. Check your inbox for the link."
 
+#: src/components/ActivityDFA.tsx:235
+msgid "Please wait before trying again."
+msgstr "Please wait before trying again."
+
 #: src/components/PlanStart.tsx:580
 #: src/components/PlanStart.tsx:2243
 msgid "Policy"
@@ -7733,6 +7919,14 @@ msgstr "Pool"
 msgid "positive balance"
 msgstr "positive balance"
 
+#: src/components/ActivityDFA.tsx:159
+msgid "Possible irregular or missed beats."
+msgstr "Possible irregular or missed beats."
+
+#: src/components/ActivityDFA.tsx:27
+msgid "Post-run analysis from ECG chest-strap beat intervals."
+msgstr "Post-run analysis from ECG chest-strap beat intervals."
+
 #: src/pages/admin/AdminOps.tsx:1303
 msgid "PostgreSQL connections"
 msgstr "PostgreSQL connections"
@@ -7751,6 +7945,11 @@ msgstr "Power · %CP"
 #: src/components/WorkoutStructureEditor.tsx:332
 msgid "Power · watts"
 msgstr "Power · watts"
+
+#: src/components/ActivityDFA.tsx:226
+#: src/components/ActivityDFA.tsx:301
+msgid "Power (W)"
+msgstr "Power (W)"
 
 #. placeholder {0}: session.power_provider ?? i18n._(msg`unknown`)
 #. placeholder {1}: session.cp_power_provider ?? i18n._(msg`unknown`)
@@ -8185,6 +8384,7 @@ msgstr "Preparing export…"
 msgid "Previewing"
 msgstr "Previewing"
 
+#: src/components/ActivityDFA.tsx:315
 #: src/pages/History.tsx:80
 msgid "Previous"
 msgstr "Previous"
@@ -8464,6 +8664,10 @@ msgstr "Qualifying days: {0} of {thresholdDays}"
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 
+#: src/components/ActivityDFA.tsx:320
+msgid "Quality"
+msgstr "Quality"
+
 #: src/components/UpcomingPlanCard.tsx:502
 #: src/components/UpcomingPlanCard.tsx:522
 #: src/pages/LabsEnvironment.tsx:151
@@ -8683,6 +8887,10 @@ msgstr "Rebuilding"
 #: src/components/HeatAdaptationPanel.tsx:455
 #~ msgid "Rebuilding heat-adaptation evidence"
 #~ msgstr "Rebuilding heat-adaptation evidence"
+
+#: src/components/ActivityDFA.tsx:242
+msgid "Recalculate analysis"
+msgstr "Recalculate analysis"
 
 #: src/components/HeatAdaptationPanel.tsx:538
 #~ msgid "Recency"
@@ -8928,6 +9136,11 @@ msgstr "Record the test result"
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 
+#: src/components/ActivityDFA.tsx:236
+#: src/components/ActivityDFA.tsx:238
+msgid "Recording version"
+msgstr "Recording version"
+
 #. placeholder {0}: managedHealth.recoverable
 #. placeholder {1}: managedHealth.retry_exhausted
 #. placeholder {2}: managedHealth.stuck_inflight
@@ -9046,6 +9259,7 @@ msgstr "Referenced by {0} plan change record(s)."
 msgid "References"
 msgstr "References"
 
+#: src/components/ActivityDFA.tsx:229
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
@@ -9475,6 +9689,11 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 msgid "Retry"
 msgstr "Retry"
 
+#: src/components/ActivityDFA.tsx:258
+#: src/components/ActivityDFA.tsx:261
+msgid "Retry analysis"
+msgstr "Retry analysis"
+
 #: src/components/PlanStart.tsx:336
 msgid "Retry before choosing a training plan."
 msgstr "Retry before choosing a training plan."
@@ -9801,6 +10020,14 @@ msgstr "Review your schedule"
 msgid "Revoke"
 msgstr "Revoke"
 
+#: src/components/ActivityDFA.tsx:330
+msgid "Revoke source confirmation"
+msgstr "Revoke source confirmation"
+
+#: src/components/ActivityDFA.tsx:332
+msgid "Revoke this source confirmation and remove its analysis results? The original recording will remain."
+msgstr "Revoke this source confirmation and remove its analysis results? The original recording will remain."
+
 #: src/pages/admin/AdminUsers.tsx:772
 msgid "Revoked"
 msgstr "Revoked"
@@ -9862,6 +10089,11 @@ msgstr "Route or venue identifier"
 #: src/components/WorkoutStructureEditor.tsx:342
 msgid "RPE · 0–10"
 msgstr "RPE · 0–10"
+
+#: src/components/ActivityDFA.tsx:226
+#: src/components/ActivityDFA.tsx:301
+msgid "RR heart rate (bpm)"
+msgstr "RR heart rate (bpm)"
 
 #: src/pages/admin/AdminFeedback.tsx:597
 msgid "Rule based"
@@ -10531,6 +10763,10 @@ msgstr "Some stations"
 msgid "Source"
 msgstr "Source"
 
+#: src/components/ActivityDFA.tsx:264
+msgid "Source confirmed by you"
+msgstr "Source confirmed by you"
+
 #: src/components/trail-course-review/copy.tsx:121
 msgid "Source revision"
 msgstr "Source revision"
@@ -10834,9 +11070,18 @@ msgstr "Support ID"
 msgid "Support setup"
 msgstr "Support setup"
 
+#: src/components/ActivityDFA.tsx:217
 #: src/pages/LabsEnvironment.tsx:642
 msgid "Supported"
 msgstr "Supported"
+
+#: src/components/ActivityDFA.tsx:238
+#~ msgid "Supported periods, unsupported periods and timer pauses"
+#~ msgstr "Supported periods, unsupported periods and timer pauses"
+
+#: src/components/ActivityDFA.tsx:266
+msgid "Supported recording time"
+msgstr "Supported recording time"
 
 #: src/pages/Today.tsx:301
 msgid "Swap {workout} for easy run"
@@ -11221,6 +11466,10 @@ msgstr "The action did not complete."
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 
+#: src/components/ActivityDFA.tsx:158
+msgid "The activity timer cannot be reconstructed."
+msgstr "The activity timer cannot be reconstructed."
+
 #: src/pages/admin/AdminOps.tsx:1527
 msgid "The agent decision and outcome aggregate could not be refreshed."
 msgstr "The agent decision and outcome aggregate could not be refreshed."
@@ -11370,6 +11619,10 @@ msgstr "The existing draft uses its saved inputs"
 msgid "The feedback aggregate could not be refreshed."
 msgstr "The feedback aggregate could not be refreshed."
 
+#: src/components/ActivityDFA.tsx:249
+msgid "The file records a compatible chest strap, but does not directly identify the source of its beat intervals."
+msgstr "The file records a compatible chest strap, but does not directly identify the source of its beat intervals."
+
 #: src/components/PlanStart.tsx:1474
 msgid "The goal response and capability response no longer agree. Refresh before creating a proposal."
 msgstr "The goal response and capability response no longer agree. Refresh before creating a proposal."
@@ -11477,6 +11730,10 @@ msgstr "The optional 5K pilot test is in progress."
 msgid "The ordered steps and target ranges can be delivered without flattening."
 msgstr "The ordered steps and target ranges can be delivered without flattening."
 
+#: src/components/ActivityDFA.tsx:231
+msgid "The original recording is not available yet. Sync this activity from your connected platform."
+msgstr "The original recording is not available yet. Sync this activity from your connected platform."
+
 #: src/components/GoalPlanReconciliationDialog.tsx:87
 msgid "The plan decision returned an unexpected state. Reload and try again."
 msgstr "The plan decision returned an unexpected state. Reload and try again."
@@ -11553,6 +11810,19 @@ msgstr "The readiness response did not match the accepted inactive Trail contrac
 #: src/components/TrailCourseReview.tsx:2738
 msgid "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
 msgstr "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
+
+#: src/components/ActivityDFA.tsx:243
+msgid "The recording or method has changed. Recalculate to see current results."
+msgstr "The recording or method has changed. Recalculate to see current results."
+
+#: src/components/ActivityDFA.tsx:130
+#: src/components/ActivityDFA.tsx:150
+#: src/components/ActivityDFA.tsx:177
+#: src/components/ActivityDFA.tsx:191
+#: src/components/ActivityDFA.tsx:206
+#: src/components/ActivityDFA.tsx:211
+msgid "The request failed. Try again."
+msgstr "The request failed. Try again."
 
 #: src/components/TrailCourseReview.tsx:936
 #: src/components/TrailCourseReview.tsx:988
@@ -12011,6 +12281,14 @@ msgstr "This queue item no longer exists. Refresh the queue."
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 
+#: src/components/ActivityDFA.tsx:165
+msgid "This recording exceeds the analysis limit."
+msgstr "This recording exceeds the analysis limit."
+
+#: src/components/ActivityDFA.tsx:156
+msgid "This recording has no beat intervals."
+msgstr "This recording has no beat intervals."
+
 #: src/components/WorkoutPlanEditor.tsx:595
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
 msgstr "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
@@ -12157,6 +12435,10 @@ msgstr "Threshold Pace Trend"
 msgid "Thresholds"
 msgstr "Thresholds"
 
+#: src/components/ActivityDFA.tsx:256
+msgid "Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate."
+msgstr "Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate."
+
 #: src/components/PersonalContextPanel.tsx:241
 msgid "Thu"
 msgstr "Thu"
@@ -12165,10 +12447,23 @@ msgstr "Thu"
 msgid "Thursday"
 msgstr "Thursday"
 
+#: src/components/ActivityDFA.tsx:320
 #: src/components/WorkoutStructureEditor.tsx:1436
 #: src/components/WorkoutStructureEditor.tsx:1485
 msgid "Time"
 msgstr "Time"
+
+#: src/components/ActivityDFA.tsx:161
+msgid "Time alignment is inconsistent."
+msgstr "Time alignment is inconsistent."
+
+#: src/components/ActivityDFA.tsx:162
+msgid "Time alignment is too uncertain."
+msgstr "Time alignment is too uncertain."
+
+#: src/components/ActivityDFA.tsx:161
+msgid "Time alignment is unavailable."
+msgstr "Time alignment is unavailable."
 
 #: src/components/PlanStart.tsx:1971
 msgid "Time available per run (maximum minutes)"
@@ -12595,6 +12890,10 @@ msgstr "Unlinked plan"
 msgid "Unmarked on this page, not yet submitted. A new proposal still needs another check. This is not medical clearance and has not resumed training or workout delivery."
 msgstr "Unmarked on this page, not yet submitted. A new proposal still needs another check. This is not medical clearance and has not resumed training or workout delivery."
 
+#: src/components/ActivityDFA.tsx:217
+msgid "Unsupported"
+msgstr "Unsupported"
+
 #. placeholder {0}: formatDate(item.expires_at)
 #: src/components/PersonalContextPanel.tsx:733
 msgid "until {0}"
@@ -12692,6 +12991,10 @@ msgstr "US"
 msgid "usable completed weeks; latest run"
 msgstr "usable completed weeks; latest run"
 
+#: src/components/ActivityDFA.tsx:263
+msgid "Usable windows are ready to inspect."
+msgstr "Usable windows are ready to inspect."
+
 #: src/pages/admin/AdminOps.tsx:1397
 msgid "Usage aggregates are unavailable."
 msgstr "Usage aggregates are unavailable."
@@ -12711,6 +13014,10 @@ msgstr "Use {target}:"
 #: src/components/GoalBaselinePanel.tsx:582
 msgid "Use a completion or consistency goal"
 msgstr "Use a completion or consistency goal"
+
+#: src/components/ActivityDFA.tsx:291
+msgid "Use arrow keys for one window, Page Up or Down for a page, then Enter to jump."
+msgstr "Use arrow keys for one window, Page Up or Down for a page, then Enter to jump."
 
 #: src/pages/McpAuthorization.tsx:35
 msgid "Use confirmed context for plan generation"
@@ -12805,6 +13112,10 @@ msgstr "Users and access"
 #: src/pages/admin/AdminUsers.tsx:348
 msgid "Users unavailable"
 msgstr "Users unavailable"
+
+#: src/components/ActivityDFA.tsx:265
+msgid "Valid windows"
+msgstr "Valid windows"
 
 #: src/pages/Settings.tsx:1094
 #: src/pages/Setup.tsx:928
@@ -12904,6 +13215,10 @@ msgstr "vs {theoryName}"
 #: src/pages/Analysis.tsx:259
 msgid "vs target zones"
 msgstr "vs target zones"
+
+#: src/components/ActivityDFA.tsx:244
+msgid "Waiting to analyse this recording…"
+msgstr "Waiting to analyse this recording…"
 
 #: src/pages/admin/AdminUsers.tsx:813
 msgid "Waitlist"
@@ -13146,6 +13461,10 @@ msgstr "When you continue, Praxys sends the authentication details needed for th
 msgid "Which accepted surface or protocol matched this effort?"
 msgstr "Which accepted surface or protocol matched this effort?"
 
+#: src/components/ActivityDFA.tsx:269
+msgid "Whole activity coverage"
+msgstr "Whole activity coverage"
+
 #: src/components/PlanStart.tsx:482
 #~ msgid "Why these routes stay separate"
 #~ msgstr "Why these routes stay separate"
@@ -13165,6 +13484,10 @@ msgstr "Will sync:"
 #: src/components/trail-course-review/copy.tsx:144
 msgid "Wind exposure"
 msgstr "Wind exposure"
+
+#: src/components/ActivityDFA.tsx:318
+msgid "Window values and quality details"
+msgstr "Window values and quality details"
 
 #: src/pages/LabsEnvironment.tsx:1239
 msgid "Withdraw"
@@ -13326,6 +13649,10 @@ msgstr "You already have usable current 10K evidence."
 #: src/components/FeedbackDialog.tsx:351
 msgid "You can attach up to 3 images."
 msgstr "You can attach up to 3 images."
+
+#: src/components/ActivityDFA.tsx:245
+msgid "You can close this panel. Analysis will continue."
+msgstr "You can close this panel. Analysis will continue."
 
 #: src/components/PlanStart.tsx:277
 #~ msgid "You can keep this goal and manage workouts manually while separate road and trail policies go through science review."

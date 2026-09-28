@@ -44,25 +44,23 @@ repository remains the only source of truth; never edit the mirror.
 
 Tencent exposes no headless, background, or no-focus mode for simulator work.
 Even `liteMode` opens a visible simulator, and the first call for a client name
-may open an authorization window. The wrapper therefore refuses to launch the
-Windows CLI by default. After the user explicitly approves foreground
-interruption, scope permission to each required command:
+may open an authorization window. Authorized miniapp work may launch visible
+DevTools through the wrapper without a separate foreground question or
+`WECHATIDE_ALLOW_FOREGROUND`. Honor explicit user restrictions, including a
+prohibition on visible tools. Task authorization does not replace Tencent's
+readiness, login, client/token authorization, pending-task protocol, or
+sensitive-action confirmations.
 
-```bash
-WECHATIDE_ALLOW_FOREGROUND=1 scripts/wechatide ...
-```
-
-Do not export `WECHATIDE_ALLOW_FOREGROUND` for the shell, put it in `.env`, or
-enable it merely to satisfy rendered evidence. The local-only
-`--print-skill-root`, `--sync-project`, and `--print-project-root` operations do
-not launch DevTools and remain available without permission.
+Reuse one project window. Close only windows opened for this task when the
+bounded pass ends; preserve pre-existing and unrelated user windows. The
+local-only `--print-skill-root`, `--sync-project`, and `--print-project-root`
+operations do not launch DevTools.
 
 Never bypass the installed skill with direct Windows desktop automation such
 as `SetForegroundWindow`, `SwitchToThisWindow`, cursor positioning, synthetic
 mouse events, or coordinate clicks outside the registered `wechatide` tools.
-If an interaction cannot be completed through the upstream automation scene
-without taking over the desktop, either schedule a user-approved session or
-leave rendered verification incomplete. For guaranteed isolation, use a
+If an interaction cannot be completed through the registered upstream tools
+within the user's restrictions, leave rendered verification incomplete. For guaranteed isolation, use a
 dedicated Windows session or VM; WSL2 alone shares the user's Windows desktop.
 
 Use `miniprogram-ci` for supported GUI-free build, preview, and upload work.

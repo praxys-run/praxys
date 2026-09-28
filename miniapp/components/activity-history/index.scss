@@ -2,6 +2,9 @@
   padding: 32rpx 32rpx 96rpx;
 }
 
+.activity-history__dfa { min-height: 44px; display: flex; align-items: center; justify-content: center; margin: 20rpx 0 0; padding: 12rpx 24rpx; background: var(--surface); color: var(--text); font-size: 26rpx; border: 1rpx solid var(--border); border-radius: 6px; }
+.activity-history__dfa::after { border: 0; }
+
 .activity-history--tabbed {
   padding-bottom: 200rpx;
 }

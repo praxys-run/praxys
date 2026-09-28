@@ -76,6 +76,7 @@
           + {{item.moreSplitsCount}} {{tr.more}}
         </text>
       </view>
+      <button class="activity-history__dfa" data-id="{{item.id}}" data-date="{{item.date}}" catchtap="onDFA">{{tr.dfa}}</button>
     </view>
 
     <text wx:if="{{loadingMore}}" class="activity-history__footer ts-muted">{{tr.loadingMore}}</text>

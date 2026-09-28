@@ -136,7 +136,7 @@
       "environments": [
         "cloud"
       ],
-      "behavior": "Leave the PR draft and require a user-approved local foreground WeChat DevTools pass.",
+      "behavior": "Leave the PR draft until required local WeChat DevTools rendering evidence is complete; authorized miniapp work needs no separate foreground permission.",
       "rationale": "Tencent provides no supported headless or no-focus simulator mode."
     },
     {

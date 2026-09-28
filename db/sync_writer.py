@@ -1032,6 +1032,9 @@ def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session) -> GarminFi
         parsed.catalog = projection.catalog
         parsed.frame_count = projection.frame_count
         parsed.developer_field_count = projection.developer_field_count
+        if snapshot.active_parse_id is not None:
+            from api.activity_dfa import invalidate_snapshot
+            invalidate_snapshot(db, snapshot.user_id, snapshot.id)
         snapshot.active_parse_id = parsed.id
     db.flush()
     return parsed
