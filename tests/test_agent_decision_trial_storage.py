@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
-from threading import Lock
+from threading import Barrier, Lock
 from types import SimpleNamespace
 
 from azure.core import MatchConditions
@@ -122,17 +122,47 @@ def test_blob_conflicts_cannot_overwrite_new_assignments() -> None:
     assert len(store.read()[1].assignments) == 2
 
 
-def test_blob_parallel_admissions_pause_at_eight() -> None:
+def test_blob_checkpoint_pauses_after_eight() -> None:
     policy = _policy()
     store = AzureBlobCohortStore(FakeBlob(new_cohort(policy)), policy)
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        results = list(pool.map(lambda number: admit_with_cas(store, policy, _request(number)), range(8)))
+    results = [admit_with_cas(store, policy, _request(number)) for number in range(8)]
     assert len(store.read()[1].assignments) == 8
     assert {result.reason for result in results} == {"assigned"}
     assert admit_with_cas(store, policy, _request(9)).reason == "checkpoint_due"
     revision, state = store.read()
     assert store.compare_and_swap(revision, record_checkpoint(state, "sha256:" + "a" * 64))
     assert admit_with_cas(store, policy, _request(9)).reason == "assigned"
+
+
+def test_concurrent_blob_preconditions_fail_closed() -> None:
+    policy = _policy()
+
+    class RacingBlob(FakeBlob):
+        def __init__(self, state: CohortState) -> None:
+            super().__init__(state)
+            self._ready = Barrier(2)
+
+        def upload_blob(self, data: bytes, **kwargs: object) -> None:
+            self._ready.wait(timeout=5)
+            super().upload_blob(data, **kwargs)
+
+    store = AzureBlobCohortStore(RacingBlob(new_cohort(policy)), policy)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [
+            pool.submit(admit_with_cas, store, policy, _request(number))
+            for number in (1, 2)
+        ]
+        assigned = 0
+        blocked = 0
+        for future in results:
+            try:
+                assert future.result().reason == "assigned"
+                assigned += 1
+            except TrialUnavailable as error:
+                assert "ambiguous" in str(error)
+                blocked += 1
+    assert (assigned, blocked) == (1, 1)
+    assert len(store.read()[1].assignments) == 1
 
 
 def test_blob_rejects_ambiguous_writes_without_candidate_receipts() -> None:
