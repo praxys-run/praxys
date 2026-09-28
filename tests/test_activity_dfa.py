@@ -182,23 +182,41 @@ def test_overlays_unix_time_independent_support_zeros_and_gaps():
 
 
 @pytest.fixture
-def store(tmp_path, monkeypatch):
+def store(tmp_path, monkeypatch, request):
+    import os
+    backend = getattr(request, "param", "sqlite")
+    url = os.environ.get("DFA_TEST_DATABASE_URL") if backend == "postgresql" else "sqlite:///"+str(tmp_path/"dfa.db")
+    if not url:
+        pytest.skip("DFA_TEST_DATABASE_URL selects the isolated migrated PostgreSQL test database")
     monkeypatch.setenv('DATA_DIR', str(tmp_path))
-    engine = create_engine('sqlite:///'+str(tmp_path/'dfa.db'))
-    Base.metadata.create_all(engine)
+    engine = create_engine(url)
+    if backend == 'sqlite':
+        Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)
     monkeypatch.setattr(service, 'require_policy', lambda: 'sha256:'+'a'*64)
     monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized', lambda db, owner: True)
     with factory() as db:
         owner = str(uuid4())
-        db.add(User(id=owner, email='dfa@example.invalid', hashed_password='x', is_active=True))
+        db.add(User(id=owner, email=owner+'@example.invalid', hashed_password='x', is_active=True))
+        db.flush()
         db.add(Activity(user_id=owner, activity_id='123', date=date.today(), source='garmin', activity_type='new_running_subtype'))
         db.flush()
         snapshot = sync_writer.write_garmin_fit_snapshot(user_id=owner, account_id='account', activity_id='123', raw=synthetic_fit(), db=db)
         sync_writer.write_garmin_fit_parse(snapshot, db)
         db.commit()
-    yield factory, owner
-    engine.dispose()
+    try:
+        yield factory, owner
+    finally:
+        if backend == 'postgresql':
+            from db.models import GarminFitSnapshot, GarminFitParse, GarminFitChunk
+            with factory() as db:
+                service._erase(db, {'user_id': owner, 'scope': 'owner', 'target_id': owner,
+                                    'requested_at': datetime.utcnow().isoformat()})
+                for model in [GarminFitChunk, GarminFitParse, GarminFitSnapshot, Activity]:
+                    db.query(model).filter_by(user_id=owner).delete(synchronize_session=False)
+                db.query(User).filter_by(id=owner).delete(synchronize_session=False)
+                db.commit()
+        engine.dispose()
 
 
 def prepare(factory, owner):
@@ -284,7 +302,7 @@ def test_manifest_pending_never_expires_and_replay_failure_closed(store, monkeyp
     value['requested_at'] = (datetime.utcnow()-timedelta(days=100)).isoformat()
     storage.store(value)
     assert list(storage.iter_active())
-    monkeypatch.setattr(storage, 'iter_active', lambda: (_ for _ in ()).throw(storage.StorageError('unavailable')))
+    monkeypatch.setattr(storage, 'iter_active', lambda owner=None: (_ for _ in ()).throw(storage.StorageError('unavailable')))
     with factory() as db:
         with pytest.raises(HTTPException) as exc:
             service.catalog(db, owner, '123')
@@ -855,3 +873,238 @@ def test_watch_native_model_names_do_not_establish_optical_rr_provenance():
     fit.data(0,struct.pack('<BH',1,123)+b'H10'.ljust(16,b'\0'))
     sensors,_=core.sensor_evidence(list(decode(fit.finish())))
     assert len(sensors)==1 and sensors[0]['label']=='Polar H10'
+
+
+def test_dispatcher_recovers_after_exceptional_future_and_bounds_replay(store, monkeypatch, caplog):
+    from concurrent.futures import Future
+    from types import SimpleNamespace
+    from api import activity_dfa_dispatch as dispatch
+    from db import session
+    factory, owner = store
+    claims, submissions, replayed = [], [], []
+    records = [{'n': n} for n in range(100)]
+    monkeypatch.setattr(session, 'SessionLocal', factory)
+    monkeypatch.setattr(storage, 'iter_manifests', lambda: iter(records))
+    monkeypatch.setattr(service, 'replay_manifest', lambda db, value: replayed.append(value['n']))
+    monkeypatch.setattr(service, 'claim', lambda db: claims.append(1) or ('run', 1, 'token'))
+    def submit(*args):
+        submissions.append(args)
+        result = Future()
+        if len(submissions) == 1:
+            result.set_exception(RuntimeError('synthetic execution failure'))
+        else:
+            result.set_result(None)
+        return result
+    ticks = []
+    def wait(seconds):
+        ticks.append(len(replayed))
+        if len(ticks) == 4:
+            dispatch._stop.set()
+    monkeypatch.setattr(dispatch, '_pool', SimpleNamespace(submit=submit))
+    monkeypatch.setattr(dispatch, '_wake', SimpleNamespace(wait=wait, clear=lambda: None))
+    dispatch._stop.clear()
+    try:
+        dispatch._loop()
+    finally:
+        dispatch._stop.clear()
+    assert len(claims) == len(submissions) == 3
+    assert ticks == [20, 20, 40, 60]
+    assert replayed == list(range(60))  # cursor advances rather than rescanning
+    assert sum('reconciliation unavailable' in r.message for r in caplog.records) == 1
+
+
+@pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)
+def test_cancel_is_metadata_only_for_completed_pending_erasure_and_storage_outage(store, monkeypatch):
+    from sqlalchemy import event
+    factory, owner = store
+    proof, run = confirmed(factory, owner)
+    with factory() as db:
+        claimed = service.claim(db)
+    service.execute(factory, *claimed)
+    manifest = storage.request(owner, 'activity', '123', 'withdrawal')
+    queries = []
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        queries.append(statement)
+    engine = factory.kw['bind']
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        with factory() as db:
+            value = service.change_run(db, owner, '123', run['id'], 'cancel')
+        assert value['status'] == 'complete' and value['result_revision'] is None
+        assert not {'windows', 'summary', 'navigation', 'page', 'sensors'} & value.keys()
+        assert not any('activity_dfa_runs.result ' in q for q in queries)
+        with monkeypatch.context() as patch:
+            patch.setattr(storage, 'iter_active', lambda owner=None: (_ for _ in ()).throw(storage.StorageError('offline')))
+            with factory() as db:
+                assert service.change_run(db, owner, '123', run['id'], 'cancel')['status'] == 'complete'
+        with factory() as db:
+            assert service.catalog(db, owner, '123')['latest_run'] is None
+            assert db.get(Confirmation, proof['id']) is None
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert next(storage.iter_active(owner))['id'] == manifest['id']
+
+
+@pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)
+def test_retry_replays_pending_erasure_before_reusing_cancelled_run(store):
+    factory, owner = store
+    _, run = confirmed(factory, owner)
+    with factory() as db:
+        cancelled = service.change_run(db, owner, '123', run['id'], 'cancel')
+    storage.request(owner, 'activity', '123', 'withdrawal')
+    with factory() as db:
+        with pytest.raises(HTTPException) as exc:
+            service.change_run(db, owner, '123', run['id'], 'retry', cancelled['generation'])
+        assert exc.value.status_code == 404
+        assert db.get(Run, run['id']) is None
+
+
+@pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)
+def test_deletion_noops_are_bounded_and_new_work_gets_a_new_cutoff(store):
+    factory, owner = store
+    with factory() as db:
+        for n in range(12):
+            assert service.erase(db, owner, f'unknown-{n}') == {'deleted': True}
+            assert service.erase(db, owner, '123', f'unknown-{n}') == {'deleted': True}
+        assert list(storage.iter_active(owner)) == []
+        # An owned activity still needs restore protection when current SQL
+        # contains no DFA rows. Repeated requests reuse the retained cutoff.
+        for _ in range(12):
+            service.erase(db, owner, '123')
+        before = list(storage.iter_active(owner))
+        assert len(before) == 1 and before[0]['completed_at'] is not None
+    proof, run = confirmed(factory, owner)
+    with factory() as db:
+        assert db.get(Run, run['id']) is not None
+        assert db.get(Confirmation, proof['id']) is not None
+        service.erase(db, owner, '123')
+        for _ in range(12):
+            service.erase(db, owner, '123')
+        assert db.get(Run, run['id']) is None
+        assert db.get(Confirmation, proof['id']) is None
+    after = list(storage.iter_active(owner))
+    assert len(after) == 2
+    assert max(v['requested_at'] for v in after) > before[0]['requested_at']
+
+
+@pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)
+def test_pending_noop_request_survives_absent_sql_and_later_restore(store):
+    factory, owner = store
+    proof, run = confirmed(factory, owner)
+    with factory() as db:
+        # Save an old database row as a stand-in for restoring a SQL backup.
+        record = db.get(Confirmation, proof['id'])
+        restored = {column.name: getattr(record, column.name) for column in Confirmation.__table__.columns}
+        service._delete_runs(db, db.query(Run).filter_by(user_id=owner))
+        db.query(Confirmation).filter_by(user_id=owner).delete()
+        db.commit()
+    manifest = storage.request(owner, 'confirmation', proof['id'], 'withdrawal')
+    manifest['requested_at'] = (datetime.utcnow() - timedelta(days=100)).isoformat()
+    restored['created_at'] = datetime.utcnow() - timedelta(days=101)
+    storage.store(manifest)
+    with factory() as db:
+        service.erase(db, owner, '123', proof['id'])
+    retained = list(storage.iter_active(owner))
+    assert retained == [manifest] and retained[0]['completed_at'] is None
+    with factory() as db:
+        db.add(Confirmation(**restored))
+        db.commit()
+        assert service.catalog(db, owner, '123')['source_confirmations'] == []
+        assert db.get(Confirmation, proof['id']) is None
+    assert next(storage.iter_active(owner))['completed_at'] is not None
+
+
+def test_owner_replay_never_reads_other_owners_history(store):
+    factory, owner = store
+    # Invalid unrelated storage must neither be downloaded nor block this owner.
+    other = storage.request('unrelated-owner', 'activity', '123', 'withdrawal')
+    path = storage._root() / storage._key(other).removeprefix(storage.PREFIX + '/')
+    path.write_text('invalid unrelated history')
+    with factory() as db:
+        assert service.catalog(db, owner, '123')['activity_id'] == '123'
+        assert service.export(db, owner)['confirmations'] == []
+    with pytest.raises(storage.StorageError):
+        list(storage.iter_active('unrelated-owner'))
+
+
+def test_completed_manifest_retention_does_not_prune_pending_requests(store):
+    _, owner = store
+    old = storage.request(owner, 'activity', 'old', 'withdrawal')
+    old['completed_at'] = (datetime.utcnow() - timedelta(days=15)).isoformat()
+    storage.store(old)
+    pending = storage.request(owner, 'activity', 'pending', 'withdrawal')
+    pending['requested_at'] = (datetime.utcnow() - timedelta(days=100)).isoformat()
+    storage.store(pending)
+    assert len(list(storage.iter_manifests(owner))) == 2
+    assert list(storage.iter_active(owner)) == [pending]
+    storage.discard(pending)
+    assert list(storage.iter_manifests(owner)) == [pending]
+
+
+def test_cancel_route_never_returns_numbers_through_notice_or_processing_exemption(store, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.auth import require_write_access, require_dfa_rights_access
+    from api.china_client_boundary import (ChinaClientBoundaryMiddleware, MINIAPP_CLIENT,
+        MINIMUM_MINIAPP_VERSION, DISABLE_MINIAPP_PROCESSING_ENV)
+    from api.routes.activity_dfa import router
+    from db.session import get_db
+    factory, owner = store
+    _, run = confirmed(factory, owner)
+    with factory() as db:
+        claimed = service.claim(db)
+    service.execute(factory, *claimed)
+    app = FastAPI()
+    app.include_router(router, prefix='/api')
+    app.add_middleware(ChinaClientBoundaryMiddleware)
+    def database():
+        with factory() as db:
+            yield db
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[require_write_access] = lambda: owner
+    app.dependency_overrides[require_dfa_rights_access] = lambda: owner
+    headers = {'Referer': 'https://servicewechat.com/test-appid/1/page-frame.html',
+               'X-Praxys-Client': MINIAPP_CLIENT, 'X-Praxys-Client-Version': MINIMUM_MINIAPP_VERSION}
+    client = TestClient(app)
+    root = '/api/activities/123/dfa-alpha1/runs/' + run['id']
+    for disabled, status in [('false', 428), ('true', 503)]:
+        monkeypatch.setenv(DISABLE_MINIAPP_PROCESSING_ENV, disabled)
+        assert client.get(root, headers=headers).status_code == status
+        response = client.post(root+'/cancel', headers=headers)
+        assert response.status_code == 200
+        assert response.headers['cache-control'] == 'private, no-store'
+        assert response.json()['status'] == 'complete'
+        assert not {'windows', 'summary', 'navigation', 'page'} & response.json().keys()
+
+
+def test_delete_requires_durable_request_before_sql_and_reuses_pending_on_completion_failure(store, monkeypatch):
+    factory, owner = store
+    proof, run = confirmed(factory, owner)
+    original_store = storage.store
+    def unavailable(value):
+        raise storage.StorageError('offline')
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, 'store', unavailable)
+        with factory() as db:
+            with pytest.raises(HTTPException) as exc:
+                service.erase(db, owner, '123')
+            assert exc.value.detail == 'DFA_DELETE_STORAGE_UNAVAILABLE'
+            assert db.get(Run, run['id']) is not None
+            assert db.get(Confirmation, proof['id']) is not None
+            assert service.change_run(db, owner, '123', run['id'], 'cancel')['status'] == 'cancelled'
+    def pending_only(value):
+        if value['completed_at'] is not None:
+            raise storage.StorageError('completion offline')
+        original_store(value)
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, 'store', pending_only)
+        with factory() as db:
+            for _ in range(12):
+                assert service.erase(db, owner, '123') == {'deleted': True}
+            assert db.get(Run, run['id']) is None
+            assert db.get(Confirmation, proof['id']) is None
+        manifests = list(storage.iter_active(owner))
+        assert len(manifests) == 1 and manifests[0]['completed_at'] is None
+    with factory() as db:
+        service.ensure_replayed(db, owner)
+    assert next(storage.iter_active(owner))['completed_at'] is not None

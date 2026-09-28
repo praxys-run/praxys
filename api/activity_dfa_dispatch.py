@@ -21,14 +21,29 @@ def _loop():
     from api import activity_dfa as service
     pending = None
     last_cleanup = 0.
+    manifests = None
     while not _stop.is_set():
         try:
             if pending is None or pending.done():
                 if pending is not None:
-                    pending.result()
-                    pending = None
+                    finished, pending = pending, None
+                    finished.result()
                 with session.SessionLocal() as db:
-                    service.ensure_replayed(db)
+                    try:
+                        if manifests is None:
+                            manifests = iter(service.storage.iter_manifests())
+                        # Retain the cursor across ticks; expired records count
+                        # toward the budget too. Owner preflights remain complete.
+                        for _ in range(20):
+                            value = next(manifests, None)
+                            if value is None:
+                                manifests = None
+                                break
+                            service.replay_manifest(db, value)
+                    except Exception:
+                        db.rollback()
+                        manifests = None
+                        logger.warning("DFA dispatcher erasure replay unavailable")
                     if time.monotonic()-last_cleanup > 3600:
                         owners = [r[0] for r in db.query(service.Run.user_id).distinct().all()]
                         for owner in owners:

@@ -347,3 +347,61 @@ types/navigation/i18n/legal checks and TypeScript passed. Science artifact and
 registry generators, static adapter conformance and diff checks passed. The
 required committed-head full preflight is reported with its exact head and
 counts in the PR handoff; these preparatory checks do not replace it.
+
+## PR #839 merge repair review — 2026-09-28
+
+The independent whole-patch review of `5b8148a93a1def57589d7a38ee3e8ac8f889c509`
+confirmed four findings. The fresh coordinator reused Work Contract
+`wc-dfa-merge-20260928`; one Engineering writer repaired them. Independent Quality
+and Trust reviewed the frozen repair patch with SHA256
+`ca5eb7ed3fe0170c9bbca3947e95ea103f714bbbb91277c4ed5b44b26c24d223` before this
+factual evidence addition and final preparation.
+
+- Quality closed Q1: an exceptional completed Future is detached before its
+  result is consumed; subsequent ticks resume claiming work. Background erasure
+  replay advances a cursor with at most 20 stored records per tick.
+- Quality closed Q2: registered native taps revoked retained proof after result
+  expiry and while processing/science was inactive. Each sequence issued DELETE
+  then GET, cleared the proof and issued no POST. Multiple recordings started
+  unselected; invoking the actual picker handler selected the matching proof.
+  This handler check does not establish a physical picker gesture.
+- Trust closed T1: cancellation returned metadata only across all seven run
+  states with authority/currentness/storage checks forced unavailable. Actual
+  middleware tests confirmed ordinary GET blocked with 428 or 503 while cancel
+  returned 200 without numerical payloads. Retry replays pending deletion first.
+- Trust closed T2: eight concurrent DELETE requests produced one manifest; eight
+  concurrent replay/deletion operations after new work produced two distinct
+  cutoffs. Cross-owner reads returned 404 and no-op erasure created no manifest.
+  Fake-Blob checks verified owner-prefix listing and wrong-owner rejection;
+  live Blob was not exercised. Pending restore requests, request-before-SQL
+  ordering, later-created work and 14-day completed retention remain covered.
+
+Engineering's consolidated synthetic checks passed 168 tests, including the
+actual PostgreSQL 16 lifecycle/recovery cases, ConnectIQ, export and China
+boundary regressions. Independent Quality passed 95 backend tests with no skips
+and the isolated PostgreSQL database enabled, 12 actual-component client tests,
+miniapp typecheck and native WXML compilation. Operations found no additional
+blocker and confirmed the updated rollback/recovery documentation. These scoped
+reviews do not substitute for final immutable-head checks or Decision Review.
+
+Quality's original tool PNGs are 149×321 for a logical 390×844 viewport and support
+coarse layout inspection only. The local gallery is
+`test-screenshots/ui-quality/dfa-alpha1/quality-repair/index.html`; the detailed
+review is `/tmp/dfa-pr839-merge-review/quality-repair/verification.json`.
+Source stayed unchanged during native verification. Quality removed the synthetic
+fixture, restored request/storage mocks and closed only task window `s0`.
+Real-phone canvas drawing, gesture scrolling, screen readers and larger text
+remain unverified. Science remains draft/inactive, without fabricated signatures.
+Design system impact: none — existing tokens and components cover this repair.
+
+The prior Engineering continuation target was subsequently confirmed unavailable
+(`not_found`). The old coordinator admitted one non-chaining replacement, but
+native spawn failed at the thread limit without returning a target or executing
+any repair. A fresh managed workspace-write coordinator restored capacity and
+admitted the sole Engineering writer for this batch, with independent read-only
+Quality and Trust. This continuation does not retroactively make the earlier
+runtime substitution conformant; no Full Access switch or policy exception is
+claimed. Existing user authorization covers merge and ordinary main-triggered
+rollout, while scientific activation and manual provider publication remain
+separate. Final commit/check/Decision Review evidence belongs in the immutable
+handoff rather than a self-referential hash in this document.

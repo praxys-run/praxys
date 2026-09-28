@@ -89,28 +89,57 @@ def complete(value: dict) -> None:
     store({**value, "completed_at": datetime.utcnow().isoformat()})
 
 
-def iter_active():
-    cutoff = datetime.utcnow() - timedelta(days=14)
+def expired(value: dict) -> bool:
+    return (value["completed_at"] is not None and
+            datetime.fromisoformat(value["completed_at"]) < datetime.utcnow() - timedelta(days=14))
+
+
+def discard(value: dict) -> None:
+    """Only completed manifests beyond backup retention may be removed."""
+    if not expired(value):
+        return
     try:
         if feedback_storage.private_blob_enabled():
             client = feedback_storage.private_container_client()
             if client is None:
                 raise StorageError("dfa_storage_unavailable")
-            for item in client.list_blobs(name_starts_with=PREFIX + "/"):
-                blob = client.get_blob_client(item.name)
-                value = _validate(json.loads(blob.download_blob().readall()))
-                if value["completed_at"] is None or datetime.fromisoformat(value["completed_at"]) >= cutoff:
-                    yield value
-                else:
-                    blob.delete_blob()
+            client.get_blob_client(_key(value)).delete_blob()
         else:
-            for path in _root().glob("*/*.json"):
+            (_root() / _key(value).removeprefix(PREFIX + "/")).unlink(missing_ok=True)
+    except Exception as exc:
+        raise StorageError("dfa_storage_unavailable") from exc
+
+
+def iter_manifests(user_id: str | None = None):
+    """Stream stored records, including expired ones so background work is bounded."""
+    owner = hashlib.sha256(user_id.encode()).hexdigest() if user_id is not None else None
+    prefix = PREFIX + "/" + (owner + "/" if owner else "")
+    try:
+        if feedback_storage.private_blob_enabled():
+            client = feedback_storage.private_container_client()
+            if client is None:
+                raise StorageError("dfa_storage_unavailable")
+            for item in client.list_blobs(name_starts_with=prefix):
+                value = _validate(json.loads(client.get_blob_client(item.name).download_blob().readall()))
+                if _key(value) != item.name or (user_id is not None and value["user_id"] != user_id):
+                    raise StorageError("dfa_manifest_invalid")
+                yield value
+        else:
+            paths = (_root() / owner).glob("*.json") if owner else _root().glob("*/*.json")
+            for path in paths:
                 value = _validate(json.loads(path.read_bytes()))
-                if value["completed_at"] is None or datetime.fromisoformat(value["completed_at"]) >= cutoff:
-                    yield value
-                else:
-                    path.unlink(missing_ok=True)
+                if path != _root() / _key(value).removeprefix(PREFIX + "/") or (user_id is not None and value["user_id"] != user_id):
+                    raise StorageError("dfa_manifest_invalid")
+                yield value
     except StorageError:
         raise
     except Exception as exc:
         raise StorageError("dfa_storage_unavailable") from exc
+
+
+def iter_active(user_id: str | None = None):
+    for value in iter_manifests(user_id):
+        if expired(value):
+            discard(value)
+        else:
+            yield value

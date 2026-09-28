@@ -57,7 +57,12 @@ deletions are written first to the private Blob container configured by
   owner/item/job identifiers, cleanup operation, timestamps, and completion
   state; never context payload, category, or narrative.
 
-Startup replays both marker sets before serving traffic and retains them for
+- Activity DFA α1 manifests use `activity-dfa-deletions/` (local
+  `DATA_DIR/activity_dfa_deletion_manifests`). These payload-free owner/target
+  requests must be restored alongside SQL; see [DFA recovery](activity-dfa-alpha1.md).
+  Pending requests never expire, and completed requests remain for 14 days.
+
+Startup replays the Labs and personal-context marker sets before serving traffic and retains them for
 the same 14-day PITR window. Labs consent/results whose timestamps predate a
 withdrawal are deleted again while a newer re-consent is preserved.
 Personal-context replay reapplies owner, lineage, version, and narrative
@@ -67,8 +72,13 @@ recorded request. Account-deletion markers remove all restored context for the
 owner, including context created during the live deletion window. Startup fails
 closed if configured private Blob storage cannot be read or an overdue privacy
 deletion cannot complete.
-Before cutover, verify that withdrawn Labs experiments and deleted personal
-context remain absent.
+DFA reconciliation runs asynchronously after startup. Its owner-scoped read,
+compute and complete-export preflights fail closed if the current manifest store
+cannot be replayed; public health/readiness does not establish completion of all
+DFA replay. Before cutover, verify that withdrawn Labs experiments, deleted
+personal context and the exact erased DFA owners/targets remain absent. Retain
+DFA migration `b4d5f6a70819` in the rollback revision graph, its tables and originals,
+and the current manifest store; do not restore an older manifest store with SQL.
 
 **Portable / off-Azure copy** (optional long-retention archive, or a future
 Tencent COS move) uses a logical dump - run it from inside the trust boundary

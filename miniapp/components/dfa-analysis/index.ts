@@ -64,6 +64,7 @@ Component({
     tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, error:'',
     timeMax:0, cursorSeconds:0, timeStatus:'', selectedOffset:0, pageOutline:'', catalog:null as DFACatalog|null,
     run:null as DFARun|null, selected:-1, sensorIndex:-1, checked:false, proof:null as DFASourceConfirmation|null,
+    retainedProof:null as DFASourceConfirmation|null,
     offset:0, status:'', active:false, stale:false, hasResult:false, headline:'', valid:'', support:'',
     inputLabels:[] as string[], sensorLabels:[] as string[], times:[] as number[], dates:[] as string[], series:[] as LineSeries[],
     comparatorSeries:[] as LineSeries[], comparator:0, comparators:[] as string[],
@@ -99,13 +100,14 @@ Component({
     },
     async refresh() {
       stop(this); const state = local(this); const ticket = state.epoch;
-      this.setData({loading:true, busy:false, error:'', run:null, active:false, stale:false, hasResult:false, rows:[], comparatorSeries:[], proof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
+      this.setData({loading:true, busy:false, error:'', run:null, active:false, stale:false, hasResult:false, rows:[], comparatorSeries:[], proof:null, retainedProof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
       try {
         const catalog = await this.call<DFACatalog>('');
         if (ticket !== state.epoch || !state.visible) return;
         const initialEntry = state.auto; state.auto = false;
         const selected = catalog.inputs.length === 1 ? 0 : -1;
-        this.setData({catalog, selected, canAnalyse:catalog.policy_active && catalog.processing_authorized, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
+        const retainedProof = selected >= 0 ? catalog.source_confirmations.find(p => p.snapshot_id === catalog.inputs[selected].input.snapshot_id && p.parse_id === catalog.inputs[selected].input.parse_id) ?? null : null;
+        this.setData({catalog, selected, retainedProof, canAnalyse:catalog.policy_active && catalog.processing_authorized, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
           comparators:[copy().heart,copy().power,copy().pace]});
         if (catalog.latest_run && catalog.inputs.length === 1) await this.loadRun(catalog.latest_run.id);
         else if (initialEntry && catalog.policy_active && catalog.processing_authorized && catalog.inputs.length === 1 && !catalog.source_confirmations.some(p => p.snapshot_id === catalog.inputs[0].input.snapshot_id && p.parse_id === catalog.inputs[0].input.parse_id)) { await this.launch(); }
@@ -148,7 +150,12 @@ Component({
       return this.call<DFARun>('', 'POST', {input:{provider:input.provider,snapshot_id:input.snapshot_id,parse_id:input.parse_id},
         catalog_revision:this.data.catalog?.catalog_revision,source_confirmation_id:proof});
     },
-    onRecording(e: WechatMiniprogram.PickerChange) { stop(this); this.setData({selected:Number(e.detail.value),proof:null,checked:false,run:null,hasResult:false,active:false,offset:0,busy:false}); },
+    onRecording(e: WechatMiniprogram.PickerChange) {
+      stop(this);
+      const selected = Number(e.detail.value), input = this.data.catalog?.inputs[selected]?.input;
+      const retainedProof = this.data.catalog?.source_confirmations.find(p => p.snapshot_id === input?.snapshot_id && p.parse_id === input?.parse_id) ?? null;
+      this.setData({selected,retainedProof,proof:null,checked:false,run:null,hasResult:false,active:false,offset:0,busy:false});
+    },
     onSensor(e: WechatMiniprogram.PickerChange) { this.setData({sensorIndex:Number(e.detail.value),proof:null,checked:false}); },
     onCheck(e: WechatMiniprogram.CheckboxGroupChange) { this.setData({checked:e.detail.value.includes('confirmed')}); },
     async confirm() {
@@ -238,12 +245,12 @@ Component({
     keep() { this.setData({deletion:''}); },
     async erase() {
       stop(this); local(this).auto=false;
-      const proof=this.data.proof?.id??this.data.run?.source_confirmation_id;
+      const proof=this.data.proof?.id??this.data.retainedProof?.id??this.data.run?.source_confirmation_id;
       if (this.data.deletion==='proof'&&!proof) return;
       this.setData({busy:true});
       try {
         await this.call(this.data.deletion==='proof'?`/source-confirmations/${proof}`:'','DELETE');
-        this.setData({run:null,proof:null,checked:false,hasResult:false,deletion:'',offset:0}); await this.refresh();
+        this.setData({run:null,proof:null,retainedProof:null,checked:false,hasResult:false,deletion:'',offset:0}); await this.refresh();
       } catch { this.setData({error:t('The request failed. Try again.')}); }
       finally { this.setData({busy:false}); }
     },

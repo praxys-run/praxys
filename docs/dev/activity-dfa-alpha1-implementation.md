@@ -261,7 +261,7 @@ remove authenticated data-rights endpoint authority.
 
 ## Implementation evidence and release state
 
-Release Evidence: **not deployed; science contract inactive**. No runtime activation
+Historical premerge Release Evidence (2026-09-27): **not deployed; science contract inactive**. No runtime activation
 or signed human approval was materialized. New Evidence Review/SDR and generated
 review packets preserve Science ownership and explicit missing approval stages.
 
@@ -282,3 +282,33 @@ pause widths without changing existing chart consumers. Existing Analysis fitnes
 series literal-color hook findings predate this patch; no new literal series colors
 were introduced. Native controls use min-height44px, retaining the approved minimum on narrow viewports.
 Rendered evidence and independent specialist verification are recorded separately.
+
+
+## PR #839 merge repair impact map — 2026-09-28
+
+The `wc-dfa-merge-20260928` Delivery contract repairs four independently confirmed
+findings while retaining the accepted decisions above:
+
+- Dispatcher: detach a completed Future before consuming its exception so later
+  ticks can replay, reconcile and claim work; bound background erasure replay to
+  20 stored records per tick with a cursor retained across ticks.
+- API and rights: cancellation returns metadata only for every run state and
+  needs no private-storage read; retry replays owner erasure requests first.
+- Storage and lifecycle: isolate replay to the current owner's hashed prefix,
+  reject creation for arbitrary nonexistent targets, reuse covering retained
+  deletion requests, and give later-created work a new cutoff. Legacy UUID
+  manifests, indefinitely pending requests, request-before-SQL ordering and
+  14-day completed retention remain supported. No schema or datastore changes.
+- Miniapp: retain the selected snapshot/parse confirmation for revocation after
+  result expiry, separately from a saved attestation awaiting compute submission.
+  Multiple recordings still require selection and no automatic POST is added.
+  Rights controls remain usable when science or processing is inactive.
+- Operations: document ordinary merge-triggered rollout, asynchronous DFA replay,
+  owner recovery checks and the migration graph required by rollback builds.
+
+Focused regressions cover these boundaries with synthetic data. Full committed-head
+preflight, independent Quality/Trust review, native retained-proof evidence and
+Decision Review disposition are separate coordinator-owned evidence. These edits
+neither activate the science contract nor claim phone drawing, gesture,
+screen-reader or larger-text acceptance. Design system impact: none — existing
+components and tokens cover this local implementation repair.

@@ -148,3 +148,68 @@ test('registered native fixture is synthetic, fails closed, and follows the actu
   request({url,method:'DELETE'});assert.equal(request({url}).data.latest_run,null);
   assert.ok(!JSON.stringify(app.__dfaVerification).includes('never-forward'));
 });
+
+test('expired miniapp proof remains revocable with science or processing inactive', async () => {
+  for (const disabled of ['policy_active', 'processing_authorized']) {
+    const calls = [];
+    let proofs = [retainedProof];
+    const c = miniComponent(async (path, options) => {
+      calls.push({ path, ...options });
+      if (options.method === 'DELETE') { proofs = []; return { deleted: true }; }
+      return { ...catalog({ proofs }), [disabled]: false };
+    });
+    await c.refresh();
+    assert.equal(c.data.proof, null); // successful confirmation awaiting compute is separate
+    assert.equal(c.data.retainedProof.id, 'proof');
+    assert.equal(c.data.run, null);
+    assert.equal(c.data.canAnalyse, false);
+    c.deletePrompt({ currentTarget: { dataset: { scope: 'proof' } } });
+    await c.erase();
+    assert.deepEqual(calls.filter(v => v.method === 'DELETE').map(v => v.path), ['/api/activities/activity/dfa-alpha1/source-confirmations/proof']);
+    assert.equal(c.data.retainedProof, null);
+    assert.equal(calls.filter(v => v.method === 'POST').length, 0);
+  }
+});
+
+test('multiple miniapp recordings require explicit choice for retained proof rights', async () => {
+  const secondInput = { ...input, snapshot_id: 'second', parse_id: 'second-parse' };
+  const secondProof = { ...retainedProof, id: 'second-proof', snapshot_id: 'second', parse_id: 'second-parse' };
+  const calls = [];
+  const c = miniComponent(async (path, options) => {
+    calls.push({ path, ...options });
+    return { ...catalog({ proofs: [retainedProof, secondProof], processing: false }), inputs: [
+      { input, created_at: '2026-09-27T00:00:00' }, { input: secondInput, created_at: '2026-09-27T00:00:01' },
+    ] };
+  });
+  await c.refresh();
+  assert.equal(c.data.selected, -1);
+  assert.equal(c.data.retainedProof, null);
+  c.onRecording({ detail: { value: '1' } });
+  assert.equal(c.data.retainedProof.id, 'second-proof');
+  c.deletePrompt({ currentTarget: { dataset: { scope: 'proof' } } });
+  await c.erase();
+  assert.ok(calls.some(v => v.method === 'DELETE' && v.path.endsWith('/source-confirmations/second-proof')));
+  c.deletePrompt({ currentTarget: { dataset: { scope: 'all' } } });
+  await c.erase();
+  assert.ok(calls.some(v => v.method === 'DELETE' && v.path === '/api/activities/activity/dfa-alpha1'));
+  assert.equal(calls.filter(v => v.method === 'POST').length, 0);
+});
+
+test('miniapp failed compute submission retries saved confirmation without another attestation', async () => {
+  const prepared = { ...baseRun, phase: 'prepare', status: 'awaiting_source_confirmation', source_confirmation_id: null,
+    sensors: [{ sensor_ref: 'sensor', label: 'Polar H10' }], evidence_digest: 'evidence', statement_version: 'dfa-source-attestation-v1' };
+  const calls = [];
+  let fail = true;
+  const c = miniComponent(async (path, options) => {
+    calls.push({ path, ...options });
+    if (path.endsWith('/source-confirmations')) return retainedProof;
+    if (options.method === 'POST' && fail) { fail = false; throw new Error('temporary submission failure'); }
+    return baseRun;
+  });
+  c.setData({ catalog: catalog(), selected: 0, run: prepared, checked: true, sensorIndex: 0, canAnalyse: true });
+  await c.confirm();
+  assert.equal(c.data.proof.id, 'proof');
+  await c.confirm();
+  assert.equal(calls.filter(v => v.path.endsWith('/source-confirmations')).length, 1);
+  assert.equal(calls.filter(v => v.method === 'POST' && v.body.source_confirmation_id === 'proof').length, 2);
+});

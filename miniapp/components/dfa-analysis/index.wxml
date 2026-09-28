@@ -13,7 +13,7 @@
           <text wx:if="{{cooling}}" class="dfa-copy" role="status">{{tr.cooldown}}</text>
           <text wx:if="{{catalog.availability === 'original_unavailable'}}" class="dfa-copy">{{tr.missing}}</text>
           <picker wx:if="{{catalog.inputs.length > 1}}" range="{{inputLabels}}" value="{{selected}}" bindchange="onRecording"><view class="dfa-button">{{selected >= 0 ? inputLabels[selected] : tr.recording}}</view></picker>
-          <button wx:if="{{selected >= 0 && !active && (!run || stale)}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{stale ? tr.recalculate : tr.analyse}}</button>
+          <button wx:if="{{selected >= 0 && !active && (!run || stale)}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{stale || retainedProof ? tr.recalculate : tr.analyse}}</button>
           <view wx:if="{{active}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><text class="dfa-hint">{{tr.continuing}}</text><button class="dfa-button" data-action="cancel" bindtap="action" disabled="{{busy}}">{{tr.cancel}}</button></view>
           <text wx:if="{{stale && !active}}" class="dfa-copy">{{status}}</text>
           <view wx:if="{{run.status === 'awaiting_source_confirmation' && !stale}}" class="dfa-section">
@@ -40,7 +40,7 @@
             <text wx:for="{{exclusions}}" wx:key="*this" class="dfa-hint">{{item}}</text>
           </view>
           <button class="dfa-button dfa-science" bindtap="science" aria-expanded="{{showScience}}">{{tr.method}}</button><view wx:if="{{showScience}}" class="dfa-section"><text class="dfa-copy">{{tr.science}}</text><text class="dfa-hint" selectable>{{tr.sources}}</text></view>
-          <view wx:if="{{run || proof}}" class="dfa-section"><button wx:if="{{proof || run.source_confirmation_id}}" class="dfa-button" data-scope="proof" bindtap="deletePrompt">{{tr.revoke}}</button><button class="dfa-button" data-scope="all" bindtap="deletePrompt">{{tr.erase}}</button></view>
+          <view wx:if="{{run || proof || catalog.source_confirmations.length}}" class="dfa-section"><button wx:if="{{proof || retainedProof || run.source_confirmation_id}}" class="dfa-button" data-scope="proof" bindtap="deletePrompt">{{tr.revoke}}</button><button class="dfa-button" data-scope="all" bindtap="deletePrompt">{{tr.erase}}</button></view>
           <view wx:if="{{deletion}}" class="dfa-section"><text class="dfa-copy">{{deletionText}}</text><button class="dfa-button" bindtap="erase" disabled="{{busy}}">{{tr.confirmDelete}}</button><button class="dfa-button" bindtap="keep">{{tr.keep}}</button></view>
         </block>
       </view>

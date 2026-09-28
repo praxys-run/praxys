@@ -99,7 +99,7 @@ def proof_view(proof: Confirmation) -> dict:
 
 
 def catalog(db: Session, owner: str, activity: str) -> dict:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     availability = "ready"
     try:
         candidates = _inputs(db, owner, activity)
@@ -129,9 +129,10 @@ def catalog(db: Session, owner: str, activity: str) -> dict:
             "processing_authorized": processing_authorized, "statement_version": STATEMENT_VERSION}
 
 
-def _owned(db: Session, owner: str, activity: str, run_id: str) -> Run:
+def _owned(db: Session, owner: str, activity: str, run_id: str, *, metadata_only: bool = False) -> Run:
     read_timeout(db)
-    run = db.query(Run).filter_by(id=run_id, user_id=owner, activity_id=activity).first()
+    query = db.query(Run).filter_by(id=run_id, user_id=owner, activity_id=activity)
+    run = (query.options(defer(Run.result)) if metadata_only else query).first()
     if run is None:
         raise HTTPException(404, "DFA_RUN_NOT_FOUND")
     if run.expires_at and run.expires_at <= datetime.utcnow():
@@ -188,7 +189,7 @@ def view(run: Run, db: Session, offset: int = 0, limit: int = 120, include_resul
 
 
 def read_run(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int) -> dict:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     return view(_owned(db, owner, activity, run_id), db, offset, limit)
 
 
@@ -242,7 +243,7 @@ def _reserve(db: Session, owner: str, retry_run: Run | None = None) -> None:
 
 
 def submit(db: Session, owner: str, activity: str, selected: dict, revision: str, confirmation_id: str | None) -> tuple[dict, int]:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     with owner_write(db, owner):
         policy_digest = require_authority(db, owner)
         candidates = _inputs(db, owner, activity)
@@ -281,7 +282,7 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
 
 
 def confirm(db: Session, owner: str, activity: str, payload: dict) -> dict:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     manifest = None
     with owner_write(db, owner):
         require_authority(db, owner)
@@ -313,8 +314,10 @@ def confirm(db: Session, owner: str, activity: str, payload: dict) -> dict:
 
 
 def change_run(db: Session, owner: str, activity: str, run_id: str, action: str, expected_generation: int | None = None) -> dict:
+    if action == "retry":
+        ensure_replayed(db, owner)
     with owner_write(db, owner):
-        run = _owned(db, owner, activity, run_id)
+        run = _owned(db, owner, activity, run_id, metadata_only=action == "cancel")
         if action == "retry":
             require_authority(db, owner)
             if expected_generation != run.generation or run.status not in ("failed", "cancelled", "unavailable") or not _current(db, run):
@@ -333,7 +336,9 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
         run.lease_until = run.lease_token = None
         db.query(Slot).filter_by(run_id=run.id).update({Slot.run_id: None, Slot.lease_token: None, Slot.lease_until: None}, synchronize_session=False)
         run.updated_at = datetime.utcnow()
-        result = view(run, db)
+        # Cancellation is an exempt rights operation: never read or return
+        # result payloads, even for terminal rows or unavailable private storage.
+        result = _run_metadata(run, False) if action == "cancel" else view(run, db)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()
@@ -365,26 +370,54 @@ def _complete_manifest(value: dict) -> None:
 
 def erase(db: Session, owner: str, activity: str, confirmation_id: str | None = None) -> dict:
     with owner_write(db, owner):
-        if confirmation_id and not db.query(Confirmation.id).filter_by(id=confirmation_id, user_id=owner, activity_id=activity).first():
-            raise HTTPException(404, "DFA_CONFIRMATION_NOT_FOUND")
+        scope, target = ("confirmation", confirmation_id) if confirmation_id else ("activity", activity)
+        runs = db.query(Run.created_at).filter_by(user_id=owner, activity_id=activity)
+        proofs = db.query(Confirmation.created_at).filter_by(user_id=owner, activity_id=activity)
+        if confirmation_id:
+            runs = runs.filter(Run.confirmation_id == confirmation_id)
+            proofs = proofs.filter(Confirmation.id == confirmation_id)
+        created = [r[0] for r in runs.all()] + [r[0] for r in proofs.all()]
+        eligible = bool(created) or (not confirmation_id and db.query(Activity.id).filter_by(
+            user_id=owner, activity_id=activity).first() is not None)
+        if not eligible:
+            # No new arbitrary targets. Existing durable requests remain intact,
+            # even when restored SQL has no corresponding rows yet.
+            return {"deleted": True}
         try:
-            value = storage.request(owner, "confirmation" if confirmation_id else "activity", confirmation_id or activity, "withdrawal")
-        except storage.StorageError as exc:
-            raise HTTPException(503, "DFA_DELETE_STORAGE_UNAVAILABLE") from exc
+            previous = [v for v in storage.iter_active(owner)
+                        if v["scope"] == scope and v["target_id"] == target]
+        except storage.StorageError:
+            # Rights writes do not depend on successful restore replay/listing.
+            # A successful durable request is still mandatory before SQL erase.
+            previous = []
+        value = max(previous, key=lambda v: v["requested_at"], default=None)
+        if value is None or (created and max(created) > datetime.fromisoformat(value["requested_at"])):
+            try:
+                value = storage.request(owner, scope, target, "withdrawal")
+            except storage.StorageError as exc:
+                raise HTTPException(503, "DFA_DELETE_STORAGE_UNAVAILABLE") from exc
         _erase(db, value)
         db.commit()
-    _complete_manifest(value)
+        if value["completed_at"] is None:
+            _complete_manifest(value)
     return {"deleted": True}
 
 
-def ensure_replayed(db: Session) -> None:
+def replay_manifest(db: Session, value: dict) -> None:
+    if storage.expired(value):
+        storage.discard(value)
+        return
+    with owner_write(db, value["user_id"]):
+        _erase(db, value)
+        db.commit()
+        if value["completed_at"] is None:
+            storage.complete(value)
+
+
+def ensure_replayed(db: Session, owner: str) -> None:
     try:
-        for value in storage.iter_active():
-            with owner_write(db, value["user_id"]):
-                _erase(db, value)
-                db.commit()
-            if value["completed_at"] is None:
-                storage.complete(value)
+        for value in storage.iter_active(owner):
+            replay_manifest(db, value)
     except Exception as exc:
         db.rollback()
         raise HTTPException(503, "DFA_RESTORE_REPLAY_UNAVAILABLE") from exc
@@ -416,7 +449,7 @@ def invalidate_snapshot(db: Session, owner: str, snapshot_id: str) -> None:
 
 
 def export(db: Session, owner: str) -> dict:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     def runs():
         from api.data_export import ExportJSONValue
         from fastapi.encoders import jsonable_encoder
@@ -447,7 +480,7 @@ def export(db: Session, owner: str) -> dict:
 
 def context(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int,
             result_revision: str, expected_samples_revision: str | None) -> dict:
-    ensure_replayed(db)
+    ensure_replayed(db, owner)
     run = _owned(db, owner, activity, run_id)
     if not _current(db, run) or run.status != "complete" or run.result_revision != result_revision:
         raise HTTPException(409, "DFA_RESULT_CHANGED")
@@ -481,6 +514,7 @@ def claim(db: Session) -> tuple[str, int, str] | None:
     db.rollback()
     if candidate is None:
         return None
+    ensure_replayed(db, candidate.user_id)
     with owner_write(db, candidate.user_id):
         slot = _slot(db)
         if slot.lease_until and slot.lease_until >= now:
@@ -516,6 +550,7 @@ def execute(session_factory, run_id: str, generation: int, token: str) -> None:
             return
         owner, ref, phase = initial.user_id, RecordingRef(**initial.recording_ref), initial.phase
         db.rollback()
+        ensure_replayed(db, owner)
 
         def fence(progress: str | None = None) -> Run:
             require_authority(db, owner)
