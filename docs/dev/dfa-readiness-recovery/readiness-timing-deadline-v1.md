@@ -82,8 +82,8 @@ SIGKILL/runner loss can still interrupt cleanup: absent proof means unknown.
 
 `recover_readiness_timing_00577` is a distinct default-false option. Before any
 quiescence mutation it requires workflow_dispatch, main, attempt 1, sync_config,
-configured and originally captured positive intent=true, and currently serving
-exact source `00577ce859ff90bbdf50a90e8ba00c4822243ec4`. Selecting it with the old
+configured positive intent=true, authenticated original intent from the failed
+automatic producer, current positive=false, and currently serving exact source `00577ce859ff90bbdf50a90e8ba00c4822243ec4`. Selecting it with the old
 PR842 option is rejected. Predeployment transport alone permits two sequential
 210-second complete requests, one five-second gap and a nine-minute step.
 Normal postdeployment eight-second gates remain unchanged.
@@ -109,14 +109,15 @@ no merge, dispatch, deployment, recovery or activation authority.
   watchdog cases; readiness concurrency/cancellation/closure/privacy coverage.
 - Operations: signal interpretation, incident chronology and release limits.
 
-**Whole-file maintenance consequence:** adding `api/telemetry.py` and
-`tests/test_telemetry.py` to the DFA implementation coverage manifest binds the
-whole files, including unrelated telemetry edits. After activation, governed
+**Whole-file maintenance consequence:** adding `api/telemetry.py`,
+`tests/test_telemetry.py`, `scripts/readiness_quiescence_proof.py` and its test
+to the DFA implementation coverage manifest binds the whole files, including
+unrelated telemetry or proof-helper edits. After activation, governed
 maintenance therefore requires the supported terminal STOP before those edits
 (or another explicitly supported reviewed path). This is not semantic isolation
-or a claim that complete dependency closure has been solved. The isolated science
-validation adds only `tests/test_telemetry.py`; authority and producer rules do not
-change.
+or a claim that complete dependency closure has been solved. The isolated science validation adds the telemetry and proof-helper tests.
+The artifact producer/admission change below is explicit; scientific approval
+authority and invocation control do not change.
 
 ## Verification status
 
@@ -127,3 +128,63 @@ follow closure of their findings. No executor test is independent approval.
 The earlier `proposal-checksums.sha256` remains the historical PR845 proposal
 record at base 00577. The new exact-head external freeze receipt binds this revision;
 prior source evidence is not relabelled.
+
+## Architecture P2 correction: authenticated cross-run intent
+
+Frozen head `d991e01501be6409c26b3e60da6d9111ea78719f` had an unreachable delivery
+path: mandatory ordinary automatic deployment quiesces positive enable to false,
+then failure before package deployment skips restoration. A later requirement for
+current original=true therefore rejects the motivating case. Its independent
+Quality/Trust results and open Architecture P2 remain old-head evidence. The
+following correction requires fresh independent closure.
+
+The automatic protected-main PUSH producer records only this finite JSON schema:
+`schema_version=1`, `purpose=readiness-quiescence-00577`, repository, workflow path,
+target SHA, producer run ID/attempt1, serving source00577, protected_main=true,
+sync_config=true, original_positive=true, configured_positive=true,
+disable_acknowledged=true and readback_positive=false. It creates the record only
+after a successful disable command and complete false configuration readback.
+Failed/ambiguous writes or missing source/identity evidence produce no proof.
+`actions/upload-artifact` publishes the one file even if subsequent quiescence
+readiness fails. It does not overwrite artifacts or replace proof with snapshots.
+
+Final Decision Review chose **only the nonsecret original-ZIP relay**. Operations
+may obtain the exact ZIP bytes under its existing read authority and provide
+canonical base64 as a workflow environment input, never shell source. The helper
+uses anonymous HTTPS metadata from fixed repository `praxys-run/praxys`; it does
+not read or forward GITHUB_TOKEN/GH_TOKEN, use ambient credentialed proxies,
+follow metadata redirects, download artifacts or fall back to credentials.
+**No job-token permission changes are made.** An earlier authenticated-download
+proposal would have required repository-level Actions read (not artifact-scoped
+permission); that proposal was not implemented. No new human assertion or
+credential/mode change is represented by this source preparation.
+
+The helper authenticates the protected current main target, same-repository PUSH
+producer/path/attempt, terminal failed deploy job, failed quiescence and successful
+proof upload. All actual post-quiescence configuration/package/deployment stages
+must be skipped. Source stamping and private-wheel preparation before quiescence
+are harmless build preparation and may have succeeded. It requires one matching
+nonexpired artifact and its immutable ID/digest, then binds original ZIP bytes to
+GitHub's SHA256 **before** parsing. Limits:10924 encoded characters,8192 archive
+bytes,2048 decompressed JSON bytes, exactly one regular unencrypted expected
+member,256KiB metadata responses and bounded requests/overall deadline. No file
+extraction or artifact execution occurs. Duplicate, ambiguous, partial,
+substituted, changed or missing evidence fails closed. Run, artifact and current
+protected main are freshly rechecked; anonymous rate limits deny with no fallback.
+
+The later diagnostic requires current captured and freshly read positive=false,
+configured=true and exact serving00577 before mutation. The historical true value
+supplies only the restoration target; the current kill switch and all normal
+runtime/source/transport predicates remain authoritative. The original ZIP data
+and producer-run reference are required only with the default-false new option;
+old-option conflict and attempt1/main/sync_config guards remain.
+
+**The receipt is not a single-use capability.** It is technically reusable across
+distinct dispatches while its exact identity/target/current-state prerequisites
+remain valid. There is no history scan, new24h TTL or global consumption ledger.
+Tests reject substitution, producer reruns, stale identity and changed state;
+they explicitly do not claim universal distinct-dispatch replay prevention.
+Operations must consume the one separately reviewed allowance BEFORE attempting
+dispatch, then immediately record the run ID or unresolved identity. Failure or
+ambiguity consumes the allowance; no second attempt/rerun/redispatch is implicit.
+This draft source grants no such allowance and does not establish latency recovery.

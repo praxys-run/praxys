@@ -120,3 +120,22 @@ The new exact 00577/default-false predeployment option is source preparation onl
 final delivery review must separately authorize any dispatch after ordinary
 pre-package automatic failure and terminal queues. The consumed 842 allowance is
 not additive. No recovery, activation, rollout or incident closure is claimed.
+
+### Open Architecture P2 on diagnostic draft d991e015
+
+The mandatory automatic attempt captures positive=true, disables publication,
+and can fail before package deployment without restoring it. The initial new
+option's current-original=true requirement therefore made its intended later
+path unreachable. Independent Quality/Trust results on d991e015 do not close
+this Architecture finding or authorize deployment.
+
+The draft correction carries finite original intent in an immutable same-run
+producer artifact created only after acknowledged disable/readbackfalse. The
+consumer uses the original nonsecret ZIP as bounded base64 data and authenticates
+it against anonymous GitHub run/jobs/artifact metadata. No Actions read grant or
+credential fallback is added. Current false state/exact00577 and current kill
+switch remain authoritative; no source/runtime/transport predicate is relaxed.
+The artifact is technically reusable, so Operations must preconsume and receipt
+its separately reviewed single dispatch allowance. No history scan/new24hTTL or
+global technical one-use is claimed. The incident remains Open, and source
+preparation is not a merge, dispatch, rollout, latency recovery or activation.

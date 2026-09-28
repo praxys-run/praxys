@@ -23,6 +23,17 @@ on:
         required: true
         default: false
         type: boolean
+      quiescence_producer_run:
+        description: Failed automatic producer run ID for the exact target revision
+        required: false
+        default: ''
+        type: string
+      quiescence_proof_zip:
+        description: Canonical base64 of the original nonsecret producer ZIP; data only
+        required: false
+        default: ''
+        type: string
+
   push:
     branches: [main]
     paths:
@@ -258,10 +269,13 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Quiesce feedback publication before deployment
+        id: quiesce
         timeout-minutes: ${{ (inputs.recover_dfa_cutover_842 == true || inputs.recover_readiness_timing_00577 == true) && 9 || 5 }}
         env:
           RECOVER_DFA_CUTOVER_842: ${{ inputs.recover_dfa_cutover_842 == true && 'true' || 'false' }}
           RECOVER_READINESS_TIMING_00577: ${{ inputs.recover_readiness_timing_00577 == true && 'true' || 'false' }}
+          QUIESCENCE_PRODUCER_RUN: ${{ inputs.quiescence_producer_run || '' }}
+          QUIESCENCE_PROOF_ZIP: ${{ inputs.quiescence_proof_zip || '' }}
           ORIGINAL_FEEDBACK_PUBLICATION: ${{ steps.preserved.outputs.feedback_publication_original }}
           SYNC_CONFIG: ${{ steps.mode.outputs.sync_config }}
           CONFIGURED_FEEDBACK_PUBLICATION: ${{ vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION || 'false' }}
@@ -274,7 +288,12 @@ jobs:
           if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" && "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
             exit 1
           fi
+          if [[ "${RECOVER_READINESS_TIMING_00577}" != "true" ]]; then
+            test -z "${QUIESCENCE_PRODUCER_RUN}"
+            test -z "${QUIESCENCE_PROOF_ZIP}"
+          fi
           recovery=false
+          producer_source_verified=false
           if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" || "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
             recovery=true
             [[ "${GITHUB_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
@@ -291,7 +310,14 @@ jobs:
             test "${CONFIGURED_FEEDBACK_PUBLICATION}" = true
             incident_source=bafd1714df108747758bd58273578be3613b7bd0
             if [[ "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
-              test "${ORIGINAL_FEEDBACK_PUBLICATION}" = true
+              # The failed automatic run already disabled publication. Historical
+              # intent comes only from its authenticated immutable archive.
+              test "${ORIGINAL_FEEDBACK_PUBLICATION}" = false
+              proof="$(timeout --signal=TERM --kill-after=2s 60s python3 \
+                "$GITHUB_WORKSPACE/scripts/readiness_quiescence_proof.py" verify)"
+              jq -e '.restore_positive == true' <<< "${proof}" >/dev/null
+              echo "recovery_restore=true" >> "$GITHUB_OUTPUT"
+              echo "Authenticated automatic producer: $(jq -c . <<< "${proof}")" >> "$GITHUB_STEP_SUMMARY"
               incident_source=00577ce859ff90bbdf50a90e8ba00c4822243ec4
             fi
             incident_version="$(curl -fsS --connect-timeout 5 --max-time 8 \
@@ -301,6 +327,27 @@ jobs:
             attempts=2
           else
             test "${RECOVER_DFA_CUTOVER_842}" = false
+          fi
+          if [[ "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
+            # Fresh current state is independent of historical restoration intent.
+            current_settings="$(az webapp config appsettings list \
+              --name "${AZURE_BACKEND_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
+            jq -e '
+              ([.[] | select(.name == "PRAXYS_ENABLE_FEEDBACK_PUBLICATION") | .value] == ["false"])
+              and ([.[] | select(.name == "PRAXYS_DISABLE_FEEDBACK_PUBLICATION") | .value]
+                | length == 1 and (.[0] == "true" or .[0] == "false"))' \
+              <<< "${current_settings}" >/dev/null
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/heads/main \
+                  && "${GITHUB_RUN_ATTEMPT}" == 1 && "${GITHUB_REF_PROTECTED:-false}" == true \
+                  && "${SYNC_CONFIG}" == true && "${CONFIGURED_FEEDBACK_PUBLICATION}" == true \
+                  && "${ORIGINAL_FEEDBACK_PUBLICATION}" == true ]]; then
+            if producer_version="$(curl -fsS --connect-timeout 5 --max-time 8 \
+              -H 'Cache-Control: no-cache' https://api.praxys.run/api/version 2>/dev/null)" \
+              && jq -e '.source_sha == "00577ce859ff90bbdf50a90e8ba00c4822243ec4"' \
+                <<< "${producer_version}" >/dev/null 2>&1; then
+              producer_source_verified=true
+            fi
           fi
           az webapp config appsettings set \
             --name "${AZURE_BACKEND_APP_NAME}" \
@@ -319,6 +366,12 @@ jobs:
           test "$(read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION)" = false
           kill_switch="$(read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION)"
           [[ "${kill_switch}" == "true" || "${kill_switch}" == "false" ]]
+          if [[ "${producer_source_verified}" == true ]]; then
+            DISABLE_ACKNOWLEDGED=true READBACK_POSITIVE=false \
+              PRODUCER_SOURCE_SHA=00577ce859ff90bbdf50a90e8ba00c4822243ec4 \
+              python3 "$GITHUB_WORKSPACE/scripts/readiness_quiescence_proof.py" create
+            echo "producer_proof_ready=true" >> "$GITHUB_OUTPUT"
+          fi
           quiesced=false
           for ((attempt=1; attempt<=attempts; attempt++)); do
             if [[ "${recovery}" == "true" ]]; then
@@ -351,6 +404,15 @@ jobs:
             fi
           done
           test "${quiesced}" = true
+
+      - name: Publish acknowledged pre-quiescence intent proof
+        if: always() && github.event_name == 'push' && steps.quiesce.outputs.producer_proof_ready == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: readiness-quiescence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quiescence-proof.json
+          if-no-files-found: error
+          overwrite: false
 
       - name: Validate production deployment settings
         if: steps.mode.outputs.sync_config == 'true'
@@ -681,7 +743,7 @@ jobs:
         id: publication
         timeout-minutes: 8
         env:
-          DESIRED_FEEDBACK_PUBLICATION: ${{ steps.preserved.outputs.feedback_publication_restore }}
+          DESIRED_FEEDBACK_PUBLICATION: ${{ steps.quiesce.outputs.recovery_restore || steps.preserved.outputs.feedback_publication_restore }}
         shell: bash
         run: |
           set -euo pipefail

@@ -318,7 +318,8 @@ The distinct default-false `recover_readiness_timing_00577` option is preparatio
 for separately reviewed diagnostic delivery, not a latency remedy or an issued
 dispatch allowance. It rejects simultaneous use with the consumed PR842 option.
 Before any mutation it checks exact serving 00577, main workflow_dispatch attempt 1,
-sync_config=true, configured positive=true and originally captured positive=true.
+sync_config=true, configured positive=true, authenticated automatic-producer
+original intent=true and current captured/fresh positive=false.
 Its predeployment-only transport is two complete 210s requests with one 5s gap
 inside 9min; all postdeployment probes retain 8s. First allow ordinary automatic
 deployment. Only a final reviewed delivery decision may permit one distinct
@@ -331,3 +332,36 @@ The [implementation boundary record](../dev/dfa-readiness-recovery/readiness-tim
 discloses the whole-file coverage consequence for future unrelated telemetry
 edits. After activation, changing either newly bound telemetry file requires the
 supported terminal STOP before maintenance or another explicitly supported route.
+
+### Cross-run proof relay and the consumed-attempt boundary
+
+The first diagnostic draft's current-original=true gate was unreachable after
+ordinary automatic quiescence disabled publication. The corrected producer
+publishes `readiness-quiescence-<run>-1`, containing only
+`quiescence-proof.json`, after acknowledged disable and false readback. It can be
+uploaded even when later readiness fails, but absent/ambiguous proof denies the
+option. Do not substitute a manual snapshot or a historical release's archive.
+
+For a separately authorized dispatch, obtain the ORIGINAL nonsecret ZIP under
+existing read authority, preserve its bytes/digest, and put canonical base64 in
+`quiescence_proof_zip` with numeric `quiescence_producer_run`. Supply input as data
+through the structured workflow request; never interpolate it as shell code.
+The helper uses public anonymous GitHub metadata only; rate limiting, unavailable
+metadata or partial reads deny. No token fallback or new Actions permission exists.
+The deploy job retains only its existing contents:read and id-token:write grants.
+
+Admission binds exact protected main/target, repository, PUSH workflow/attempt1,
+terminal failure at quiescence, successful immutable proof upload, and skipped
+actual post-quiescence configuration/package/deployment steps. Stamp/private-wheel
+preparation before quiescence is allowed. Artifact identity, expiry and SHA256 are
+verified before bounded one-member JSON parsing, with fresh metadata rechecks.
+The consumer checks exact serving00577/configuredtrue/currentfalse before mutation.
+Only historical restoration intent is reused; current kill-switch authority and
+normal8s runtime acceptance remain unchanged.
+
+A valid receipt is TECHNICALLY REUSABLE across distinct dispatches. It carries no
+global one-use enforcement or new24h age rule. Operations owns the one-attempt
+boundary: record consumption BEFORE the dispatch attempt, then its immediate
+run ID or unresolved identity. Failure/ambiguity consumes it; no second attempt.
+Current source preparation is not that final delivery authorization. Preserve
+producer/consumer receipts and the older consumed842/error history separately.

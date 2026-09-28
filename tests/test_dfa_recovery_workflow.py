@@ -61,10 +61,13 @@ elif name=='curl':
     body=response['body']
     print(body if isinstance(body,str) else json.dumps(body))
     raise SystemExit(response.get('exit',0))
+elif name=='python3':
+    print(json.dumps({'restore_positive':True,'producer_run_id':101,'artifact_id':202,'artifact_digest':'sha256:'+'a'*64}))
+    raise SystemExit(int(os.environ.get('FAKE_PROOF_EXIT','0')))
 elif name!='sleep':
     raise SystemExit(98)
 '''
-    for name in ('az','curl','sleep'):
+    for name in ('az','curl','sleep','python3'):
         path=bin_dir/name
         path.write_text(program)
         path.chmod(0o755)
@@ -76,6 +79,8 @@ elif name!='sleep':
             FAKE_RESPONSES=json.dumps(responses or [{'body':ready_payload()}]),
             RECOVER_DFA_CUTOVER_842='true' if recovery else 'false',
             RECOVER_READINESS_TIMING_00577='false', ORIGINAL_FEEDBACK_PUBLICATION='true',
+            QUIESCENCE_PRODUCER_RUN='', QUIESCENCE_PROOF_ZIP='', GITHUB_WORKSPACE=str(ROOT),
+            GITHUB_OUTPUT=str(tmp_path/'outputs'), RUNNER_TEMP=str(tmp_path),
             GITHUB_EVENT_NAME='workflow_dispatch' if recovery else 'push',
             GITHUB_REF='refs/heads/main', GITHUB_RUN_ID='12345', GITHUB_RUN_ATTEMPT='1',
             GITHUB_STEP_SUMMARY=str(tmp_path/'summary'), SYNC_CONFIG='true',
@@ -204,6 +209,7 @@ def test_new_delivery_is_distinct_default_false_and_exactly_guarded(execute_quie
     assert option['type'] == 'boolean' and option['default'] == 'false'
     result, calls, _ = execute_quiescence(overrides={
         'RECOVER_DFA_CUTOVER_842': 'false', 'RECOVER_READINESS_TIMING_00577': 'true',
+        'ORIGINAL_FEEDBACK_PUBLICATION':'false', 'QUIESCENCE_PRODUCER_RUN':'101', 'QUIESCENCE_PROOF_ZIP':'synthetic-unit-proof',
         'FAKE_VERSION': json.dumps({'source_sha': TIMING_SOURCE})})
     assert result.returncode == 0, result.stderr
     assert len(readiness_calls(calls)) == 1
@@ -211,7 +217,7 @@ def test_new_delivery_is_distinct_default_false_and_exactly_guarded(execute_quie
 
 
 @pytest.mark.parametrize('override', [
-    {'RECOVER_DFA_CUTOVER_842': 'true'}, {'ORIGINAL_FEEDBACK_PUBLICATION': 'false'},
+    {'RECOVER_DFA_CUTOVER_842': 'true'}, {'ORIGINAL_FEEDBACK_PUBLICATION': 'true'},
     {'ORIGINAL_FEEDBACK_PUBLICATION': ''}, {'CONFIGURED_FEEDBACK_PUBLICATION': 'false'},
     {'GITHUB_EVENT_NAME': 'push'}, {'GITHUB_REF': 'refs/heads/other'},
     {'GITHUB_RUN_ATTEMPT': '2'}, {'SYNC_CONFIG': 'false'},
@@ -220,6 +226,7 @@ def test_new_delivery_is_distinct_default_false_and_exactly_guarded(execute_quie
 ])
 def test_new_delivery_guard_failures_never_mutate(execute_quiescence, override):
     options = {'RECOVER_DFA_CUTOVER_842': 'false', 'RECOVER_READINESS_TIMING_00577': 'true',
+               'ORIGINAL_FEEDBACK_PUBLICATION':'false', 'QUIESCENCE_PRODUCER_RUN':'101', 'QUIESCENCE_PROOF_ZIP':'synthetic-unit-proof',
                'FAKE_VERSION': json.dumps({'source_sha': TIMING_SOURCE})}
     options.update(override)
     result, calls, _ = execute_quiescence(overrides=options)
