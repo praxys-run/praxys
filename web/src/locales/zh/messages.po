@@ -1156,7 +1156,7 @@ msgstr "发生了意外错误。"
 
 #: src/components/ActivityDFA.tsx:242
 msgid "Analyse recording"
-msgstr "分析活动记录"
+msgstr "分析记录"
 
 #: src/components/AppSidebar.tsx:126
 #: src/pages/Analysis.tsx:350
@@ -1916,7 +1916,7 @@ msgstr "选择近期训练"
 
 #: src/components/ActivityDFA.tsx:238
 msgid "Choose a recording"
-msgstr "选择活动记录"
+msgstr "选择记录"
 
 #: src/components/PlanStart.tsx:1686
 #: src/components/PlanStart.tsx:1713
@@ -2177,7 +2177,7 @@ msgstr "对照近期历史查看请求"
 
 #: src/components/ActivityDFA.tsx:300
 msgid "Compare with"
-msgstr "对照指标"
+msgstr "对比指标"
 
 #: src/components/WorkoutPlanEditor.tsx:401
 msgid "Compatibility preview is unavailable. Check your connection and try again."
@@ -2335,7 +2335,7 @@ msgstr "冲突已保留"
 
 #: src/components/ActivityDFA.tsx:157
 msgid "Conflicting sensor evidence prevents analysis."
-msgstr "传感器来源证据存在矛盾，无法分析。"
+msgstr "传感器数据相互矛盾，无法分析。"
 
 #: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
@@ -3205,7 +3205,7 @@ msgstr "删除保留历史记录"
 
 #: src/components/ActivityDFA.tsx:332
 msgid "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
-msgstr "删除本次活动的 DFA 结果及来源确认？原始 FIT 文件会保留。"
+msgstr "删除本次活动的 DFA 结果和来源确认？原始 FIT 文件会保留。"
 
 #: src/components/PersonalContextPanel.tsx:1363
 msgid "Delete this context permanently?"
@@ -4037,7 +4037,7 @@ msgstr "估算的湿球温度代理值"
 
 #: src/components/ActivityDFA.tsx:264
 msgid "Estimated time alignment"
-msgstr "时间对齐为估计"
+msgstr "时间对齐为估算值"
 
 #: src/pages/Science.tsx:29
 msgid "Estimates acclimatization from recent qualifying conditions."
@@ -4716,7 +4716,7 @@ msgstr "前往主页"
 
 #: src/components/ActivityDFA.tsx:293
 msgid "Go to selected time"
-msgstr "查看所选时段"
+msgstr "跳转到所选时间"
 
 #: src/pages/Verify.tsx:61
 msgid "Go to sign in"
@@ -6667,7 +6667,7 @@ msgstr "还没有邀请码？"
 
 #: src/components/ActivityDFA.tsx:156
 msgid "No compatible ECG chest strap was found."
-msgstr "未找到兼容的 ECG 心率胸带。"
+msgstr "未找到兼容的 ECG 胸带。"
 
 #: src/pages/admin/AdminOps.tsx:1759
 msgid "No connection attempts were recorded in this window."
@@ -7111,7 +7111,7 @@ msgstr "数据不足，暂无法对比每周负荷"
 
 #: src/components/ActivityDFA.tsx:159
 msgid "Not enough interval coverage."
-msgstr "逐搏间期的时间覆盖不足。"
+msgstr "逐搏间期覆盖不足。"
 
 #: src/pages/Today.tsx:424
 msgid "not enough load history"
@@ -7119,7 +7119,7 @@ msgstr "负荷历史不足"
 
 #: src/components/ActivityDFA.tsx:160
 msgid "Not enough neighbouring beats to check quality."
-msgstr "相邻搏动不足，无法完成质量检查。"
+msgstr "相邻搏动不足，无法检查质量。"
 
 #: src/pages/LabsEnvironment.tsx:396
 msgid "Not enough suitable data to start yet"
@@ -7298,7 +7298,7 @@ msgstr "在线 · 已保存"
 
 #: src/components/ActivityDFA.tsx:157
 msgid "Only a single running session can be analysed."
-msgstr "只支持包含单次跑步的活动记录。"
+msgstr "只支持分析单次跑步活动。"
 
 #. placeholder {0}: baseline.guardrails.baseline_current_through_completed_days
 #: src/components/GoalBaselinePanel.tsx:332
@@ -7630,7 +7630,7 @@ msgstr "配速 · 阈值差（秒/英里）"
 #: src/components/ActivityDFA.tsx:226
 #: src/components/ActivityDFA.tsx:301
 msgid "Pace (s/km)"
-msgstr "配速（秒/公里）"
+msgstr "配速（s/km）"
 
 #: src/components/WorkoutPlanEditor.tsx:1051
 msgid "Pace maximum (min/km)"
@@ -7992,7 +7992,7 @@ msgstr "正平衡"
 
 #: src/components/ActivityDFA.tsx:159
 msgid "Possible irregular or missed beats."
-msgstr "可能存在异常或遗漏搏动。"
+msgstr "可能有异常心搏或漏搏。"
 
 #: src/components/ActivityDFA.tsx:27
 msgid "Post-run analysis from ECG chest-strap beat intervals."
@@ -8020,7 +8020,7 @@ msgstr "功率 · 瓦"
 #: src/components/ActivityDFA.tsx:226
 #: src/components/ActivityDFA.tsx:301
 msgid "Power (W)"
-msgstr "功率（瓦）"
+msgstr "功率（W）"
 
 #. placeholder {0}: session.power_provider ?? i18n._(msg`unknown`)
 #. placeholder {1}: session.cp_power_provider ?? i18n._(msg`unknown`)
@@ -8753,7 +8753,7 @@ msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。
 
 #: src/components/ActivityDFA.tsx:320
 msgid "Quality"
-msgstr "数据质量"
+msgstr "质量"
 
 #: src/components/UpcomingPlanCard.tsx:502
 #: src/components/UpcomingPlanCard.tsx:522
@@ -8977,7 +8977,7 @@ msgstr "重建中"
 
 #: src/components/ActivityDFA.tsx:242
 msgid "Recalculate analysis"
-msgstr "重新计算分析"
+msgstr "重新分析"
 
 #: src/components/HeatAdaptationPanel.tsx:538
 #~ msgid "Recency"
@@ -9226,7 +9226,7 @@ msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记
 #: src/components/ActivityDFA.tsx:236
 #: src/components/ActivityDFA.tsx:238
 msgid "Recording version"
-msgstr "活动记录版本"
+msgstr "记录版本"
 
 #. placeholder {0}: managedHealth.recoverable
 #. placeholder {1}: managedHealth.retry_exhausted
@@ -10208,7 +10208,7 @@ msgstr "主观用力程度（RPE）· 0–10"
 #: src/components/ActivityDFA.tsx:226
 #: src/components/ActivityDFA.tsx:301
 msgid "RR heart rate (bpm)"
-msgstr "RR 心率（次/分）"
+msgstr "RR 心率（bpm）"
 
 #: src/pages/admin/AdminFeedback.tsx:597
 msgid "Rule based"
@@ -11228,7 +11228,7 @@ msgstr "可分析"
 
 #: src/components/ActivityDFA.tsx:266
 msgid "Supported recording time"
-msgstr "可分析时段覆盖率"
+msgstr "可分析记录时段"
 
 #: src/pages/Today.tsx:301
 msgid "Swap {workout} for easy run"
@@ -11619,7 +11619,7 @@ msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，
 
 #: src/components/ActivityDFA.tsx:158
 msgid "The activity timer cannot be reconstructed."
-msgstr "无法重建活动计时时段。"
+msgstr "无法还原活动计时。"
 
 #: src/pages/admin/AdminOps.tsx:1527
 msgid "The agent decision and outcome aggregate could not be refreshed."
@@ -11967,7 +11967,7 @@ msgstr "回执包含不受支持的原因。Praxys 不会猜测其含义或跳�
 
 #: src/components/ActivityDFA.tsx:243
 msgid "The recording or method has changed. Recalculate to see current results."
-msgstr "活动记录或计算方法已变化，请重新计算以查看当前结果。"
+msgstr "记录或计算方法已变更。重新计算以查看当前结果。"
 
 #: src/components/ActivityDFA.tsx:130
 #: src/components/ActivityDFA.tsx:150
@@ -12437,11 +12437,11 @@ msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回
 
 #: src/components/ActivityDFA.tsx:165
 msgid "This recording exceeds the analysis limit."
-msgstr "这份活动记录超出了分析上限。"
+msgstr "这份记录超出分析上限。"
 
 #: src/components/ActivityDFA.tsx:156
 msgid "This recording has no beat intervals."
-msgstr "这份活动记录中没有逐搏间期。"
+msgstr "这份记录没有逐搏间期。"
 
 #: src/components/WorkoutPlanEditor.tsx:595
 msgid "This removes the Praxys workout from the canonical plan. Any external workout stays untouched."
@@ -13050,7 +13050,7 @@ msgstr "已在本页取消标记，尚未提交。新方案仍需重新检查；
 
 #: src/components/ActivityDFA.tsx:217
 msgid "Unsupported"
-msgstr "不可分析"
+msgstr "不支持"
 
 #. placeholder {0}: formatDate(item.expires_at)
 #: src/components/PersonalContextPanel.tsx:733
@@ -13621,7 +13621,7 @@ msgstr "这次训练符合哪种已接受的场地或协议？"
 
 #: src/components/ActivityDFA.tsx:269
 msgid "Whole activity coverage"
-msgstr "整次活动的覆盖情况"
+msgstr "整次活动覆盖率"
 
 #: src/components/PlanStart.tsx:482
 #~ msgid "Why these routes stay separate"
