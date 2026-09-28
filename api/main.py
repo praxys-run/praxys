@@ -427,6 +427,7 @@ def health_ready(response: Response):
     where nothing alerted). Suitable as the App Service health-check path and
     as a deploy / warmup gate.
     """
+    response.headers["Cache-Control"] = "no-store"
     from sqlalchemy import text as _text
     from api.optional_processing import optional_processing_status
     from db.session import SessionLocal, init_db, is_postgres
@@ -477,12 +478,23 @@ def health_ready(response: Response):
             "privacy_controls": "invalid",
         }
     china_processing = china_processing_status()
+    from api.activity_dfa import require_policy
+
+    try:
+        dfa_contract_digest = require_policy()
+    except Exception:
+        # Public observation contains no exception, athlete or result data.
+        dfa_contract_digest = None
     return {
         "status": "ready",
         "database": "ok",
         "optional_processing": processing,
         "china_processing": china_processing,
         "miniapp_processing": miniapp_processing_status(),
+        "dfa_policy": {
+            "policy_active": dfa_contract_digest is not None,
+            "contract_digest": dfa_contract_digest,
+        },
     }
 
 

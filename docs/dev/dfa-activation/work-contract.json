@@ -1,0 +1,80 @@
+{
+  "routing_version": "praxys-task-routing-v1",
+  "operating_model_version": "praxys-agentic-operating-model-v1",
+  "classification": {
+    "primary_object": "production-state",
+    "impacts": [
+      "scientific-evidence-or-claim",
+      "user-visible-experience",
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "safety-or-medical-boundary",
+      "sensitive-data-collection",
+      "security-or-privacy-boundary",
+      "scientific-uncertainty"
+    ]
+  },
+  "classification_digest": "sha256:9080fd995a24f7b13c57016c344a0eb0da390b3fa01a7e26787ea7eaa1f551d2",
+  "primary_loop": "runtime",
+  "nested_loops": [
+    "science",
+    "design",
+    "delivery",
+    "meta-eval"
+  ],
+  "loop_agents": {
+    "runtime": ".github/agents/operations.agent.md",
+    "science": ".github/agents/science.agent.md",
+    "design": ".github/agents/design.agent.md",
+    "delivery": ".github/agents/praxys-change-loop.agent.md",
+    "meta-eval": ".github/agents/meta-eval.agent.md"
+  },
+  "lead_role": "operations",
+  "contributor_roles": [
+    "science",
+    "design",
+    "meta-eval",
+    "architecture",
+    "trust"
+  ],
+  "executor_roles": [
+    "operations",
+    "engineering"
+  ],
+  "verifier_roles": [
+    "quality"
+  ],
+  "outcome_observer_roles": [],
+  "required_input_artifacts": [
+    "product-decision-record"
+  ],
+  "required_artifacts": [
+    "operations-decision-record",
+    "release-evidence",
+    "evidence-review",
+    "science-decision-record",
+    "design-decision-record",
+    "experience-specification",
+    "implementation-impact-map",
+    "implementation-change",
+    "verification-evidence",
+    "evaluation-report",
+    "policy-change-proposal",
+    "architecture-decision-record",
+    "trust-decision-record"
+  ],
+  "outcome_artifacts": [],
+  "risk_triggers": [
+    "safety-or-medical-boundary",
+    "sensitive-data-collection",
+    "security-or-privacy-boundary",
+    "scientific-uncertainty"
+  ],
+  "decision_review_agent": ".github/agents/decision-review-router.agent.md",
+  "decision_review_required": true,
+  "route_digest": "sha256:394bbc5e8698eb34b2cd5ed24da4b4cd574ecba4521954e5089a284a27d3f899"
+}

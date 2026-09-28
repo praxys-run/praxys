@@ -1,0 +1,82 @@
+{
+  "routing_version": "praxys-task-routing-v1",
+  "operating_model_version": "praxys-agentic-operating-model-v1",
+  "classification": {
+    "primary_object": "production-state",
+    "impacts": [
+      "scientific-evidence-or-claim",
+      "user-visible-experience",
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "safety-or-medical-boundary",
+      "sensitive-data-collection",
+      "security-or-privacy-boundary",
+      "irreversible-or-high-blast-radius-action",
+      "scientific-uncertainty"
+    ]
+  },
+  "classification_digest": "sha256:d83f7687f4346aa7e88f352929d20447d750fb119cbb98962144f138e9835976",
+  "primary_loop": "runtime",
+  "nested_loops": [
+    "science",
+    "design",
+    "delivery",
+    "meta-eval"
+  ],
+  "loop_agents": {
+    "runtime": ".github/agents/operations.agent.md",
+    "science": ".github/agents/science.agent.md",
+    "design": ".github/agents/design.agent.md",
+    "delivery": ".github/agents/praxys-change-loop.agent.md",
+    "meta-eval": ".github/agents/meta-eval.agent.md"
+  },
+  "lead_role": "operations",
+  "contributor_roles": [
+    "science",
+    "design",
+    "meta-eval",
+    "architecture",
+    "trust"
+  ],
+  "executor_roles": [
+    "operations",
+    "engineering"
+  ],
+  "verifier_roles": [
+    "quality"
+  ],
+  "outcome_observer_roles": [],
+  "required_input_artifacts": [
+    "product-decision-record"
+  ],
+  "required_artifacts": [
+    "operations-decision-record",
+    "release-evidence",
+    "evidence-review",
+    "science-decision-record",
+    "design-decision-record",
+    "experience-specification",
+    "implementation-impact-map",
+    "implementation-change",
+    "verification-evidence",
+    "evaluation-report",
+    "policy-change-proposal",
+    "architecture-decision-record",
+    "trust-decision-record"
+  ],
+  "outcome_artifacts": [],
+  "risk_triggers": [
+    "safety-or-medical-boundary",
+    "sensitive-data-collection",
+    "security-or-privacy-boundary",
+    "irreversible-or-high-blast-radius-action",
+    "scientific-uncertainty"
+  ],
+  "decision_review_agent": ".github/agents/decision-review-router.agent.md",
+  "decision_review_required": true,
+  "route_digest": "sha256:7ec2e25bfe445b976dd0b626def424af5861a3bd65d68ab17122421d4bb1c999"
+}

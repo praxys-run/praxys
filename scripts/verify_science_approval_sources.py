@@ -23,6 +23,8 @@ def main() -> int:
     parser.add_argument("--head-science-dir", type=Path, required=True)
     parser.add_argument("--github-comments", type=Path, required=True)
     parser.add_argument("--github-permissions", type=Path, required=True)
+    parser.add_argument("--repository")
+    parser.add_argument("--pull-request", type=int)
     args = parser.parse_args()
 
     comments = json.loads(
@@ -36,11 +38,28 @@ def main() -> int:
     if not isinstance(permissions, dict):
         parser.error("--github-permissions must contain a JSON object")
 
+    from analysis.science_activation_github import authenticated_context
+    context, comments, permissions = authenticated_context(
+        args.head_science_dir, comments, permissions,
+        repository=args.repository, pull_request=args.pull_request,
+    )
+
+    from analysis.science_stop_github import authenticated_stop_context
+    stop_context = authenticated_stop_context(args.base_science_dir, args.head_science_dir,
+        repository=args.repository, pull_request=args.pull_request)
+    if context is not None:
+        from analysis.science_activation import git
+        actual_base = git(args.base_science_dir.resolve().parent.parent, 'rev-parse', 'HEAD').decode().strip()
+        if actual_base != context.base_sha:
+            raise ValueError('Implementation approval trusted-base snapshot changed')
+
     verify_science_approval_changes(
         args.base_science_dir,
         args.head_science_dir,
         comments,
         permissions,
+        activation_context=context,
+        stop_context=stop_context,
     )
     print("Science approval sources and lifecycle transitions are verified.")
     return 0

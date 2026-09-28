@@ -12,6 +12,9 @@ on:
       - 'analysis/evidence_registry.py'
       - 'analysis/science_approval_workflow.py'
       - 'analysis/science_artifacts.py'
+      - 'analysis/science_activation.py'
+      - 'analysis/science_activation_github.py'
+      - 'analysis/science_yaml.py'
       - 'scripts/materialize_science_approvals.py'
       - 'scripts/verify_science_approval_sources.py'
   workflow_dispatch:
@@ -24,6 +27,7 @@ on:
 # This workflow writes only deterministic approval/lifecycle artifacts. It
 # never executes pull-request code: the trusted materializer comes from main.
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
@@ -235,33 +239,42 @@ jobs:
         if: steps.target.outputs.eligible == 'true'
         env:
           PYTHONPATH: ${{ github.workspace }}/trusted
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python trusted/scripts/verify_science_approval_sources.py
           --base-science-dir trusted/data/science
           --head-science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"
           --github-permissions "${{ steps.review-input.outputs.permissions }}"
+          --repository "${{ github.repository }}"
+          --pull-request "${{ matrix.pr_number }}"
 
       - name: Materialize authenticated approvals
         if: steps.target.outputs.eligible == 'true'
         env:
           PYTHONPATH: ${{ github.workspace }}/trusted
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python trusted/scripts/materialize_science_approvals.py
           --science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"
           --github-permissions "${{ steps.review-input.outputs.permissions }}"
+          --repository "${{ github.repository }}"
+          --pull-request "${{ matrix.pr_number }}"
 
       - name: Verify materialized approval sources and generated files
         if: steps.target.outputs.eligible == 'true'
         env:
           PYTHONPATH: ${{ github.workspace }}/trusted
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python trusted/scripts/verify_science_approval_sources.py
           --base-science-dir trusted/data/science
           --head-science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"
           --github-permissions "${{ steps.review-input.outputs.permissions }}"
+          --repository "${{ github.repository }}"
+          --pull-request "${{ matrix.pr_number }}"
 
       - name: Verify deterministic change boundary
         if: steps.target.outputs.eligible == 'true'
@@ -309,7 +322,7 @@ jobs:
           git -C candidate add data/science
           git -C candidate commit \
             -m "Record authenticated science approvals" \
-            -m "Materialize digest-bound human approvals from PR #${PR_NUMBER} without changing runtime activation." \
+            -m "Materialize digest-bound human approvals from PR #${PR_NUMBER} using exact authenticated statements and implementation replay when present." \
             -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
       - name: Push only onto the verified pull request head

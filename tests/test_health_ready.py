@@ -47,9 +47,11 @@ def test_health_ready_ok(ready_env):
     client, _ = ready_env
     r = client.get("/api/health/ready")
     assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
     assert r.json() == {
         "status": "ready",
         "database": "ok",
+        "dfa_policy": {"policy_active": False, "contract_digest": None},
         "optional_processing": {
             "background_ai_enabled": False,
             "background_ai_kill_switch": True,
@@ -141,3 +143,21 @@ def test_health_ready_503_when_db_unavailable(ready_env, monkeypatch):
     r = client.get("/api/health/ready")
     assert r.status_code == 503
     assert r.json() == {"status": "unavailable", "database": "error"}
+
+
+def test_health_ready_exposes_only_bounded_dfa_policy(ready_env, monkeypatch):
+    from api import activity_dfa
+    client, _ = ready_env
+    digest = 'sha256:' + 'a' * 64
+    monkeypatch.setattr(activity_dfa, 'require_policy', lambda: digest)
+    response = client.get('/api/health/ready')
+    assert response.status_code == 200
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json()['dfa_policy'] == {'policy_active': True, 'contract_digest': digest}
+    def broken_policy():
+        raise RuntimeError('private diagnostic must not leak')
+    monkeypatch.setattr(activity_dfa, 'require_policy', broken_policy)
+    response = client.get('/api/health/ready')
+    assert response.status_code == 200
+    assert response.json()['dfa_policy'] == {'policy_active': False, 'contract_digest': None}
+    assert 'private diagnostic' not in response.text
