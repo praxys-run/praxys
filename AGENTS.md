@@ -223,3 +223,12 @@ materialize human authority.
 - `python scripts/seed_sample_data.py` copies sample data for local testing.
 - `python scripts/generate_sample_data.py` regenerates fixtures after schema
   changes.
+
+## Cooperative local decision-card trial
+
+After deterministic routing, local orchestration follows
+`docs/dev/agent-decision-card-trial.md` and `scripts/local_decision_trial.py`.
+The separate cooperative cohort uses sticky task IDs, an independent checkpoint
+at 8 and a cap of 16. Its same-user-editable ledger confers no authority; missing
+coverage means baseline and unenrolled, never an A success. Existing review,
+Quality, CI and human authority remain unchanged. The protected trial stays off.
