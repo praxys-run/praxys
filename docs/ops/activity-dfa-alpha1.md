@@ -117,8 +117,9 @@ attempt, artifact identity and digest. The final activation tree must exactly
 replay from the approved preapproval tree; generated directories are not broad
 exclusions. `config/science-implementation-coverage.json` explicitly lists
 subsequently governed files. Editing a shared governed file, even for another
-feature, requires separately reviewed renewal before acceptance. This first
-capability does not implement renewal or revocation automation. Unrelated paths
+feature, is blocked while active. The terminal stop-only source change must land
+first; later maintenance requires fresh review and isolated actual-guard denial
+evidence. This capability does not implement subject renewal. Unrelated paths
 remain ordinary maintenance. Preserve the reviewed inactive PR839 build as the
 migration-compatible rollback option; never delete approval history.
 
@@ -148,3 +149,90 @@ eligibility and Quality verifies the old migration-compatible build against
 synthetic retained DFA state, including inactive policy and rights/erasure paths.
 No live rollback is claimed. The old readiness response does not contain
 `dfa_policy`; use its exact SHA, readiness and independent inactive-policy proof.
+
+## Supported terminal STOP and later maintenance
+
+A STOP requires a separate, explicit human statement for the exact repository,
+subject, active contract and implementation envelope. Never infer it from an
+outage or agent recommendation. Use a clean trusted-current-main checkout to run
+`scripts/materialize_science_stop.py` and an isolated candidate branch at the
+same current main revision. `--output /tmp/dfa-stop-statement.md` prepares only
+the canonical statement. After the human explicitly makes that assertion, the
+agent transcribes it to the **original bound activation PR**. The tool prints its
+PR number. It does not create a comment or assert consent itself.
+
+Then run the same trusted tool with `--comment-id ID` instead of `--output`.
+It re-fetches that immutable GitHub comment identity, body, repository, linked
+target and current human permission before writing only:
+
+- `data/science/stops/<subject>.yaml`;
+- `data/science/generated/implementation-stops/<subject>.md`.
+
+Commit exactly that diff on the isolated branch, push it, and open an ordinary
+protected stop-only PR with the existing maintainer identity. No new App grant,
+secret, setting or automated PR-creation permission is needed. The existing
+trusted source verifier independently re-fetches the source even when the comment
+is on the already merged activation PR. Any simultaneous implementation, workflow,
+science activation or historical-artifact change is rejected.
+
+The merged stop means **source-recorded**. Deploy that stopped source through the
+ordinary workflow, restore feedback publication, then observe exact stopped SHA,
+application readiness and false/null DFA policy metadata. The observation helper
+loads the signed terminal state, so a historically active contract does not make
+it expect true after STOP. Its small source-policy dependencies install only after
+feedback restoration. No athlete data is read for this observation.
+
+The current guard denies new computation and final publication. Existing workers
+notice at their next cooperative check; source commit, deployed stop and drained
+workers are distinct milestones. Retained proof, rights export, cancellation,
+delete and restore-manifest replay remain available. Never claim instant or global
+cessation from one metadata sample.
+
+Only a STOP already in **trusted base** unlocks a later maintenance PR. Run the
+trusted-main `Validate frozen science activation` workflow with
+`purpose=stopped-maintenance`, the exact candidate SHA/PR/subject and historical
+active contract digest. Its isolated candidate job executes the actual DFA guard
+and requires denial; a separate trusted collector binds current base/head, stop,
+workflow revision, run/attempt and successful required jobs. The privileged
+verifier consumes authenticated artifact evidence without executing candidate
+code. Missing, stale, failed, skipped or substituted evidence blocks maintenance.
+Fresh specialist review and ordinary protected checks remain required. This path
+permits future separately reviewed maintenance of the verifier itself without
+retaining the obsolete active implementation freeze. It does not authorize
+renewal or revival of the stopped subject.
+
+Whole shared files such as `api/main.py`, `api/deps.py`, requirements, client API
+types, global EN/zh catalogs and package locks are guarded while active, even for
+otherwise unrelated edits within a file. Subsequent maintenance checks protect
+enumerated source files only. Changes elsewhere in the application can affect DFA
+behavior, including through imports or shared process state. Such changes require
+ordinary impact review and renewed specialist review when they affect the
+approved implementation; the file guard does not determine semantic independence.
+
+After STOP, roll back only to a committed stopped release or the independently
+verified inactive PR839 fallback within its documented rerun eligibility. Never
+rerun an older active artifact for this subject. Coordinate queued deployments.
+An old active binary cannot discover a later repository stop by itself, and source
+terminality does not technically prevent all privileged historical deployments.
+Treat an older active deployment as a stop breach and restore a stopped/inactive
+release. No live STOP or rollback is claimed by this capability PR.
+
+Example operator commands (substitute the clean current-main and isolated branch
+paths; these preparation commands do not constitute human approval):
+
+```bash
+python /trusted-main/scripts/materialize_science_stop.py \
+  --candidate /isolated-stop-branch --repository praxys-run/praxys \
+  --output /tmp/dfa-stop-statement.md
+# After the explicit human assertion is transcribed to the original activation PR:
+python /trusted-main/scripts/materialize_science_stop.py \
+  --candidate /isolated-stop-branch --repository praxys-run/praxys \
+  --comment-id EXACT_SOURCE_COMMENT_ID
+```
+
+Both checkouts must still be clean at the exact current main revision when
+materialization begins. Commit only the printed two paths and use ordinary
+`git push` / `gh pr create`; no workflow is granted automatic stop-PR creation.
+The comment fetch uses the existing authenticated read capability and checks
+current write/maintain/admin permission. The historical activation validation
+artifact need not remain downloadable to honor a later explicit STOP.

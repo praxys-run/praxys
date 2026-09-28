@@ -113,7 +113,9 @@ Contracts contain only typed implementation data:
 
 Runtime code loads contracts through
 `analysis.science_artifacts.load_policy_contract()`. `require_active=True`
-rejects a draft, non-accepted, inactive, stale, or unapproved contract.
+rejects a draft, non-accepted, inactive, stale, unapproved, or terminally stopped
+contract. A stopped contract retains its historical accepted/active payload; the
+append-only stop controls effective runtime admission.
 
 ## Role-scoped approvals
 
@@ -157,7 +159,7 @@ Changing an SDR from inactive to active changes both its decision and contract
 digests, requiring renewed decision and implementation review.
 The implementation role requires schema version 2 and an implementation binding.
 Contract-only implementation attestations remain invalid. The binding includes
-repository/PR, frozen base/head, exact binary diff, final active contract and
+repository/PR, frozen base/head, exact Git tree delta, final active contract and
 independently produced validation workflow/run/attempt/artifact/content digest.
 
 ### What counts as approval
@@ -254,8 +256,10 @@ JSON/YAML keys and science symlinks fail instead of hiding ambiguous content.
 After activation, the trusted file manifest in
 `config/science-implementation-coverage.json` conservatively gates subsequent
 implementation maintenance. It includes shared dependency files in full; edits
-inside them need separately reviewed renewal, even for another feature. This
-capability does not implement renewal or revocation. No history is overwritten
+inside them cannot land while active, even for another feature. First record the
+authenticated terminal stop on trusted base, then use separately reviewed stopped
+maintenance with actual-guard denial evidence. This capability does not renew the
+subject. No history is overwritten
 and no science-version increment is fabricated for a code-only change.
 
 After the trusted validation run succeeds, prepare the concrete review package
@@ -273,3 +277,40 @@ statements, binding and authenticated validation manifest. Only after the human
 makes those displayed assertions may an agent transcribe them to GitHub. The
 existing general authorization to enable the feature does not invent an
 unseen exact-digest statement or assert personal literature review.
+
+### Atomic activation source and terminal stop
+
+The generated `approval.md` is **one canonical composite comment** containing all
+three role assertions and their exact digests. Obtain one explicit human response
+covering those displayed assertions, then transcribe that complete comment once.
+Do not split it into successive evidence/decision/implementation comments:
+independent v1 evidence acceptance could otherwise advance the reviewed head.
+Incomplete, conflicting, duplicate or extra composite assertions fail before any
+ledger publication. Existing independent v1 approvals remain supported.
+
+Whole shared files—including `api/main.py`, `api/deps.py`, requirements, client
+API types, global EN/zh catalogs and package locks—are guarded while active.
+Even unrelated edits within those files are blocked. The corrected manifest also
+checks enumerated import-name alternatives; it does not freeze all API additions.
+
+Subsequent maintenance checks protect enumerated source files only. Changes
+elsewhere in the application can affect DFA behavior, including through imports
+or shared process state. Such changes require ordinary impact review and renewed
+specialist review when they affect the approved implementation; the file guard
+does not determine semantic independence.
+
+A terminal STOP is a separate explicit human action against the original active
+contract and implementation envelope, recorded by trusted-main tooling beneath
+`data/science/stops/` with its generated audit. A stop-only PR cannot include code
+or other science changes. Only a stop already present in trusted base permits
+later governed maintenance, and that maintenance must supply authenticated
+isolated actual-candidate denial evidence. Old scientific and approval history
+cannot be erased, and another approval cannot revive the stopped subject.
+There is no renewal/enable switch in this capability. See the operational steps
+in [DFA operations](../ops/activity-dfa-alpha1.md).
+
+The diff digest uses canonical `praxys-git-tree-diff-v1`: sorted changed paths,
+before/after Git object identities and modes, and SHA-256 of every complete changed
+blob. Gitlinks retain their exact commit identities. This binds additions,
+removals, renames as delete/add, content and modes without depending on local diff
+algorithms, hunk context, display prefixes or text-conversion drivers.

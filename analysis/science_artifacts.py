@@ -415,6 +415,9 @@ def validate_registry_approvals(registry: ScienceRegistry) -> None:
                 "implementation_reviewer approval artifact"
             )
 
+    from analysis.science_implementation_stop import validate_registry_stops
+    validate_registry_stops(registry)
+
 
 def _approval_subject_digest(
     registry: ScienceRegistry,
@@ -886,6 +889,8 @@ def expected_science_artifacts(
         expected[_CONTRACT_DIR / f"{decision.id}.json"] = (
             render_policy_contract_json(contract)
         )
+    from analysis.science_implementation_stop import expected_stop_artifacts
+    expected.update(expected_stop_artifacts(registry))
     return expected
 
 
@@ -902,6 +907,7 @@ def sync_science_artifacts(
         for directory, suffix in (
             (science_dir / _REVIEW_PACKET_DIR, ".md"),
             (science_dir / _CONTRACT_DIR, ".json"),
+            (science_dir / "generated/implementation-stops", ".md"),
         )
         if directory.is_dir()
         for path in directory.glob(f"*{suffix}")
@@ -944,6 +950,8 @@ def load_policy_contract(
             f"Generated science contract {decision_id} is stale"
         )
     if require_active:
+        from analysis.science_implementation_stop import require_not_stopped
+        require_not_stopped(registry, decision_id)
         if contract.decision_status != RecordStatus.ACCEPTED:
             raise ValueError(
                 f"Science contract {decision_id} is not accepted"

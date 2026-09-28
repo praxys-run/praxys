@@ -8,16 +8,12 @@ import sys
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from analysis.evidence_registry import ApprovalMode, load_science_registry
+from analysis.evidence_registry import load_science_registry
 from analysis.science_activation import (
-    ActivationContext, diff_digest, git, project_active_registry, render_implementation_comment, strict_json,
+    ActivationContext, diff_digest, git, project_active_registry, render_activation_comment, strict_json,
 )
 from analysis.science_activation_github import GitHubReader, fetch_validation, verify_pr
-from analysis.science_artifacts import (
-    ImplementationBinding, ReviewRole, ReviewSubjectKind, approval_statement_for_subject,
-    build_policy_contract, digest_payload, evidence_review_digest, render_approval_comment_template,
-    science_decision_digest,
-)
+from analysis.science_artifacts import ImplementationBinding, build_policy_contract, digest_payload
 
 
 def main():
@@ -41,7 +37,6 @@ def main():
         raise ValueError('Candidate checkout differs from current PR head')
     registry = load_science_registry(root / 'data/science')
     projected = project_active_registry(registry, args.subject_id)
-    decision = projected.decisions[args.subject_id]
     contract = build_policy_contract(projected, args.subject_id)
     run = reader.read(f'actions/runs/{args.validation_run}')
     content = reader.read(f'actions/artifacts/{args.validation_artifact}/zip', binary=True)
@@ -59,27 +54,14 @@ def main():
                                 {binding.envelope_digest:verified})
     context.verify(binding, registry, args.subject_id)
     context.require_reviewed_tree(binding, root)
-    statements = {}
-    for evidence_id in decision.evidence_review_ids:
-        review = projected.evidence_reviews[evidence_id]
-        if review.approval_mode != ApprovalMode.ARTIFACT:
-            continue
-        role, kind = ReviewRole.EVIDENCE_REVIEWER, ReviewSubjectKind.EVIDENCE_REVIEW
-        statements[f'{evidence_id}--{role.value}.md'] = render_approval_comment_template(
-            subject_kind=kind, subject_id=evidence_id, subject_digest=evidence_review_digest(review), role=role,
-            approval_statement=approval_statement_for_subject(projected, subject_kind=kind, subject_id=evidence_id, role=role))
-    role, kind = ReviewRole.DECISION_APPROVER, ReviewSubjectKind.SCIENCE_DECISION
-    statements[f'{args.subject_id}--{role.value}.md'] = render_approval_comment_template(
-        subject_kind=kind, subject_id=args.subject_id, subject_digest=science_decision_digest(decision), role=role,
-        approval_statement=approval_statement_for_subject(projected, subject_kind=kind, subject_id=args.subject_id, role=role))
-    statements[f'{args.subject_id}--implementation_reviewer.md'] = render_implementation_comment(args.subject_id, binding)
+    statements = {'approval.md': render_activation_comment(projected, args.subject_id, binding)}
     verify_pr(reader.read(f'pulls/{args.pull_request}'), args.repository, args.pull_request, base, head)
     args.output_dir.mkdir(parents=True, exist_ok=False)
     for name, body in statements.items():
         (args.output_dir / name).write_text(body + '\n')
     (args.output_dir / 'binding.json').write_text(json.dumps(binding.model_dump(mode='json'), indent=2, sort_keys=True)+'\n')
     (args.output_dir / 'validation.json').write_text(json.dumps(verified, indent=2, sort_keys=True)+'\n')
-    print(f'Prepared {len(statements)} exact role statements. No approval was published or materialized.')
+    print('Prepared one atomic comment containing all three role assertions. No approval was published or materialized.')
     print(f'Envelope: {binding.envelope_digest}')
 
 

@@ -3,7 +3,8 @@
 Status: proposed logical specialist artifacts transcribed by Engineering from
 fresh routed role returns on 2026-09-28. These are prerequisites and implementation
 boundaries, **not human science signatures or independent verification**. The
-canonical [Work Contract](work-contract.json) owns role assignment. The accepted
+current [Work Contract](work-contract-terminal-stop.json) owns role assignment;
+the [initial contract](work-contract.json) is preserved as admission history. The accepted
 Product scope and existing experience specification remain
 [the implementation contract](../activity-dfa-alpha1-implementation.md).
 
@@ -11,7 +12,7 @@ Product scope and existing experience specification remain
 
 Owner: Architecture. Inactive capability must merge to trusted main first;
 activation is a separate PR. The implementation-only versioned binding identifies
-repository/PR, immutable base and reviewed head, canonical binary diff digest,
+repository/PR, immutable base and reviewed head, canonical complete Git tree-delta digest,
 final active contract digest, independent validation producer, workflow revision,
 run/attempt, artifact identity and content digest. The complete envelope digest
 is visible in the exact authenticated human statement.
@@ -39,8 +40,8 @@ lifecycle dependencies, clients/claims, science approval/validation machinery,
 workflows and dependency locks. Initial activation still compares the whole tree.
 Later unrelated files may change; governed changes require separately reviewed
 renewal, which this capability does not implement. Verified migration-compatible
-inactive PR839 rollback is the recovery boundary. Earlier possible revocation or
-successor automation is deferred and is not an implementation mandate.
+inactive PR839 rollback is the recovery boundary. This initial proposal was superseded by the terminal-stop correction below.
+Successor activation and subject renewal remain deferred.
 
 ## Trust decision — proposed
 
@@ -166,3 +167,106 @@ invalidation. Old readiness lacks the new `dfa_policy` field, so rollback eviden
 uses exact source SHA, readiness and independent inactive-policy checks. These
 are pending activation prerequisites, not completed checks or a block on the
 inactive mechanism PR.
+
+## Corrected capability review and terminal-stop Work Contract
+
+The initial candidate `73a4352cae7ff43f849221d49f751fd47b61ac4c` passed its full
+baseline preflight (3734 passed, 58 skipped), but independent Trust and Architecture
+blocked admission for missing initializer/validation coverage, import-shadowing
+alternatives and the posting-order race between three source comments. Quality
+confirmed these blockers and independently passed eight targeted checks. Those
+results apply only to that historical candidate and are not closure of the fixes.
+
+The current contract is [the terminal-stop variant](work-contract-terminal-stop.json):
+classification `sha256:d83f7687f4346aa7e88f352929d20447d750fb119cbb98962144f138e9835976`,
+route `sha256:7ec2e25bfe445b976dd0b626def424af5861a3bd65d68ab17122421d4bb1c999`.
+The additional risk is `irreversible-or-high-blast-radius-action` because stopping
+the named subject is terminal, not because this authorizes a broad deployment or
+an actual STOP. The original Work Contract remains preserved as admission history.
+Engineering remains the sole writer. Decision Review authorizes the dormant stop
+capability within existing preparation consent; no live stop/activation signature,
+comment or lifecycle mutation is authorized by this artifact.
+
+### Architecture and Trust corrections — proposed, independently reviewed boundaries
+
+Generate one canonical composite source comment containing all linked evidence,
+active-decision and implementation assertions. Authenticate the whole exact body;
+reject missing, conflicting, duplicate or extra assertions before any publication.
+Legacy v1 evidence and decision sources retain their independent semantics. The
+supported activation package must not depend on comment-posting order or temporary
+ledger failures.
+
+The trusted manifest includes direct package initializers, required test helpers
+and validation orchestration. A deterministic resolver-slot check also covers
+same-name package, bytecode and cross-runtime native-module alternatives, ancestor
+initializers, startup hooks and declared external dependency shadows. Unrelated
+new API files and documents are not broadly frozen.
+
+**Subsequent maintenance checks protect enumerated source files only. Changes
+elsewhere in the application can affect DFA behavior, including through imports
+or shared process state. Such changes require ordinary impact review and renewed
+specialist review when they affect the approved implementation; the file guard
+does not determine semantic independence.**
+
+This explicitly narrows earlier integrity language. For example, `api/main.py`
+imports other routes, and changes elsewhere in that shared Python process may
+affect service behavior. No Python isolation or permanent semantic immutability
+is claimed. Whole shared files such as `api/main.py`, `api/deps.py`, requirements,
+client API types, global EN/zh catalogs and package locks remain guarded while the
+implementation is active, even for otherwise unrelated edits within those files.
+
+### Terminal stop — Architecture proposal and Trust concurrence
+
+Add a schema-1, action-`stop` record binding repository, subject, active contract,
+implementation envelope, authenticated GitHub human identity, source URL and time.
+The exact canonical STOP statement must come from a currently permitted human;
+failure, silence, agent recommendation or ordinary activation consent cannot
+supply it. The supported source is a durable comment on the original bound
+activation PR, re-fetched by its immutable comment ID and checked against the
+repository, linked target, body, identity and fresh permission.
+
+Trusted-main preparation/materialization appends only that stop and its exact
+audit projection. The old Evidence Review, SDR, contracts, approvals and stops
+remain immutable; simultaneous code, workflow or activation changes fail. A new
+stop in the candidate cannot unlock its own PR. Only a valid stop already in
+trusted base releases the obsolete implementation file freeze for later
+maintenance. The actual runtime guard denies the stopped subject; malformed,
+contradictory or unverifiable state fails closed. Another reviewer, envelope,
+filename or same-contract repackaging cannot revive it.
+
+This resolves the maintenance self-lock: production rollback alone does not remove
+an active ledger from main. After the protected stop-only source change, later
+protected PRs may change implementation, verifier or stop-enforcement code with
+fresh Architecture/Trust/Decision Review/Quality and authenticated isolated
+actual-candidate guard-denial evidence. The old trusted verifier still checks
+source authorization, immutable history and that evidence. It never imports or
+executes candidate code with approval-write authority. A future renewal capability
+could be separately reviewed through this stopped maintenance path; no renewal,
+expiry, enable switch or successor activation is supplied here.
+
+No policy App grant, secret, repository setting or automatic PR creation is added.
+An authorized agent uses trusted-main CLI preparation/materialization and the
+maintainer's existing ordinary branch/PR workflow. The existing policy App retains
+its current capability; it is not assumed to have pull-request creation authority.
+
+### Operations addendum `odr-dfa-terminal-stop-20260928` — proposed
+
+An authenticated exact-target STOP followed by a protected stop-only commit means
+**source-recorded**, not deployed or drained. Ordinary main deployment restores
+feedback publication before the bounded public observation: exact stopped release
+SHA, ready application, and `dfa_policy` false/null. No athlete probes are added.
+The real guard denies new computation and final publication; an in-flight worker
+observes it at its next cooperative check, not instantaneously. Synthetic tests
+must prove the STOP/final-publication race publishes no result and that retained
+proof, export, cancellation, deletion and manifest replay remain available.
+
+Only a committed stopped release or the verified inactive PR839 source is a valid
+rollback for this stopped subject. The old inactive rerun window remains finite
+(run `36367840399`, deadline `2026-10-28T01:55:43Z`), and its independent synthetic
+PostgreSQL migration/rights check is still an activation prerequisite. Never rerun
+an older active artifact for a stopped subject; coordinate the deployment queue.
+An old active binary cannot discover a later repository stop by itself. Terminal
+source state does not technically prevent every privileged historical deployment;
+such a deployment is a stop breach requiring restoration of a stopped/inactive
+release. Source recording, deployment and worker drainage remain distinct.
+Operations performed no live stop, deployment or rollback test in proposing this.

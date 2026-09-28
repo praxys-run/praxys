@@ -5,7 +5,7 @@ Owner: Engineering. Status: implementation in progress; no independent approval.
 - Data/analysis: additive implementation-only approval schema and strict duplicate
   rejection. No RR numerical or science parameter change, database migration or
   athlete-data write.
-- Approval boundary: trusted projection, immutable binary diff and full-tree
+- Approval boundary: trusted projection, immutable complete Git tree delta and full-tree
   replay; source identity and independent workflow artifact verification.
   v1 evidence/decision approval still requires its existing exact statement.
 - API: existing readiness reports actual `require_policy()` acceptance with only
@@ -18,8 +18,9 @@ Owner: Engineering. Status: implementation in progress; no independent approval.
   does not change feedback recovery. No credential/service/setting added.
 - Maintenance: trusted explicit coverage binds file contents and modes. Shared
   files are conservatively gated in full, even when an edit appears unrelated
-  within the file. Non-covered files remain ordinary maintenance; renewal and
-  revocation automation are outside this change.
+  within the file. Non-covered files remain ordinary maintenance. A terminal stop must land
+  before subsequent governed maintenance with actual-guard denial evidence;
+  subject renewal is unsupported.
 - Tests: synthetic end-to-end approval/replay, stale/tampered/ambiguous source,
   wrong identity/PR/run, exact real projected DFA loader and public observation.
 - Release: mechanism must land on trusted main before any activation proposal can
@@ -34,3 +35,29 @@ packaging transforms do not become arbitrary source exclusions or a runtime drif
 allowlist. Runtime acceptance still checks the approved contract, method and
 parameter fingerprint. Deployment observation combines that result with source
 SHA and remains sampled evidence, not byte-identical package attestation.
+
+The corrected capability adds an append-only terminal STOP record and deterministic
+audit, with no scientific record or runtime activation in this PR. The stop-only
+source change must land before later governed maintenance; that later PR supplies
+authenticated evidence from a credential-isolated actual-candidate denial test.
+The privileged source verifier consumes its trusted collector artifact without
+executing candidate code. This provides a maintenance path without deleting
+history or assuming that deployment rollback unlocks main. Actual subject renewal
+is unsupported.
+
+Subsequent maintenance checks protect enumerated source files only. Changes
+elsewhere in the application can affect DFA behavior, including through imports
+or shared process state. Such changes require ordinary impact review and renewed
+specialist review when they affect the approved implementation; the file guard
+does not determine semantic independence.
+
+The authoritative stop-aware route is in
+`work-contract-terminal-stop.json`; the first route remains historical. New live
+trusted-main workflow execution is intentionally pending until the capability
+lands. No impossible premerge self-validation of the new workflow is required.
+The separate collector and admission logic are exercised with synthetic GitHub
+metadata/artifact fixtures; exact live run/artifact binding remains an activation
+prerequisite. Fresh hypothetical active-registry unit fixtures never override a
+repository stop: the unchanged stopped candidate receives its own actual-guard
+denial check, and the trusted collector rejects activation projection of a stopped
+subject.

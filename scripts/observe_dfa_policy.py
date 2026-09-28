@@ -5,7 +5,21 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import time
+import sys
 from urllib.request import Request, urlopen
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+def expected_policy(contract_path: Path):
+    from analysis.science_artifacts import load_policy_contract
+    from analysis.science_implementation_stop import load_implementation_stops
+    raw = json.loads(contract_path.read_text())
+    science = contract_path.resolve().parents[2]
+    contract = load_policy_contract(raw["decision_id"], science_dir=science)
+    stopped = any(stop.subject_id == contract.decision_id for stop in load_implementation_stops(science))
+    active = contract.runtime_state.value == "active" and contract.decision_status.value == "accepted" and not stopped
+    return active, contract.contract_digest if active else None
 
 
 def validate_observation(ready, version, *, expected_sha, expected_active, expected_digest):
@@ -25,9 +39,7 @@ def main():
     parser.add_argument('--base-url', default='https://api.praxys.run')
     parser.add_argument('--timeout-seconds', type=int, default=1200)
     args = parser.parse_args()
-    contract = json.loads(args.contract.read_text())
-    active = contract['runtime_state'] == 'active' and contract['decision_status'] == 'accepted'
-    digest = contract['contract_digest'] if active else None
+    active, digest = expected_policy(args.contract)
     deadline = time.monotonic() + min(max(args.timeout_seconds, 1), 1200)
     while True:
         try:

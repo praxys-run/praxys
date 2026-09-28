@@ -38,8 +38,27 @@ def main():
     jobs = reader.pages(f'actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
     verify_jobs(jobs, [VALIDATION_JOB])
     registry = load_science_registry(args.candidate / 'data/science')
-    projected = project_active_registry(registry, inputs['subject_id'])
-    contract = build_policy_contract(projected, inputs['subject_id'])
+    purpose = inputs.get('purpose', 'activation')
+    if purpose == 'activation':
+        projected = project_active_registry(registry, inputs['subject_id'])
+        contract = build_policy_contract(projected, inputs['subject_id'])
+        stop_fields = {}
+    elif purpose == 'stopped-maintenance':
+        from analysis.science_implementation_stop import load_implementation_stops
+        stops = [stop for stop in load_implementation_stops(registry.science_dir)
+                 if stop.subject_id == inputs['subject_id']]
+        if len(stops) != 1:
+            raise ValueError('Candidate does not preserve a terminal stop')
+        stop = stops[0]
+        # The stopped artifact must already exist, byte-identical, on trusted base.
+        relative = f'data/science/stops/{stop.subject_id}.yaml'
+        if git(args.candidate, 'show', base + ':' + relative) != git(args.candidate, 'show', head + ':' + relative):
+            raise ValueError('Candidate cannot supply its own maintenance-unlocking stop')
+        contract = build_policy_contract(registry, inputs['subject_id'])
+        stop_fields = {'purpose':'stopped-maintenance', 'stop_digest':stop.stop_digest,
+                       'candidate_guard_result':'denied'}
+    else:
+        raise ValueError('Unsupported validation purpose')
     if contract.contract_digest != inputs['active_contract_digest']:
         raise ValueError('Collector projected contract differs from dispatched exact digest')
     manifest = {
@@ -49,7 +68,7 @@ def main():
         'active_contract_digest': contract.contract_digest,
         'subject_id': inputs['subject_id'], 'workflow_path': WORKFLOW_PATH,
         'workflow_sha': workflow_sha, 'run_id': run_id, 'run_attempt': attempt,
-        'conclusion': 'success', 'required_jobs': [VALIDATION_JOB],
+        'conclusion': 'success', 'required_jobs': [VALIDATION_JOB], **stop_fields,
     }
     verify_pr(reader.read(f'pulls/{number}'), repository, number, base, head)
     args.output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')

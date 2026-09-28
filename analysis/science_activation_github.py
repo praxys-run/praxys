@@ -5,6 +5,7 @@ from hashlib import sha256
 import io
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -12,7 +13,7 @@ import zipfile
 
 from analysis.science_activation import (
     ActivationContext, COLLECTOR_JOB, VALIDATION_JOB, WORKFLOW_PATH,
-    git, implementation_payload, strict_json,
+    COMPOSITE_MARKER, git, implementation_envelope, strict_json,
 )
 from analysis.science_artifacts import ImplementationBinding, digest_payload
 
@@ -29,6 +30,8 @@ class _NoCredentialRedirect(HTTPRedirectHandler):
 
 class GitHubReader:
     def __init__(self, repository: str):
+        if re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository) is None:
+            raise ValueError('GitHub repository must be an exact owner/name')
         self.repository = repository
         self.token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
         if not self.token:
@@ -106,7 +109,10 @@ def fetch_validation(reader: GitHubReader, binding: ImplementationBinding, repos
 
 def authenticated_context(science_dir: Path, comments, permissions, *, repository: str | None, pull_request: int | None):
     """Refresh identity/source, validation and exact PR snapshot before writes."""
-    if not any('praxys-science-implementation:v1' in str(c.get('body', '')) for c in comments):
+    from analysis.science_approval_workflow import _reject_symlinks
+    _reject_symlinks(science_dir)
+    if not any(any(marker in str(c.get('body', '')) for marker in
+                   ('praxys-science-implementation:v1', COMPOSITE_MARKER)) for c in comments):
         return None, comments, permissions
     if not repository or not pull_request:
         raise ValueError('Activation requires explicit repository and pull request')
@@ -128,7 +134,7 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
     for comment in comments:
         if permissions.get(comment.get('user', {}).get('login')) not in {'write', 'maintain', 'admin'}:
             continue
-        payload = implementation_payload(str(comment.get('body', '')))
+        payload = implementation_envelope(str(comment.get('body', '')))
         if payload:
             binding = ImplementationBinding.model_validate(payload['implementation_binding'])
             if binding.repository != repository or binding.pull_request != pull_request:
@@ -146,7 +152,7 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
         for comment in original_comments:
             if original_permissions.get(comment.get('user', {}).get('login')) not in {'write', 'maintain', 'admin'}:
                 continue
-            payload = implementation_payload(str(comment.get('body', '')))
+            payload = implementation_envelope(str(comment.get('body', '')))
             if payload:
                 binding = ImplementationBinding.model_validate(payload['implementation_binding'])
                 if fetch_validation(reader, binding, root) != validations[binding.envelope_digest]:

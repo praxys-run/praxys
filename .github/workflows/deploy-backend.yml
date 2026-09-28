@@ -708,6 +708,16 @@ jobs:
             echo "enabled=${publication_enabled}"
           } >> "${GITHUB_OUTPUT}"
 
+      - name: Set up source-policy observation interpreter after restoration
+        if: success()
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install source-policy observation dependencies after restoration
+        if: success()
+        run: python -m pip install --quiet 'pydantic==2.13.4' 'pyyaml==6.0.3'
+
       - name: Observe exact DFA policy after normal publication restoration
         if: success()
         env:

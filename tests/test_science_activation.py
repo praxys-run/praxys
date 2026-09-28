@@ -161,9 +161,17 @@ def test_duplicate_json_and_canonical_statement_tamper_rejected(activation):
 def test_real_projected_dfa_policy(tmp_path):
     import os
     root = Path(__file__).resolve().parents[1]
-    projected = project_active_registry(load_science_registry(root / 'data/science'), 'sdr-activity-dfa-alpha1-v1')
-    expected = build_policy_contract(projected, 'sdr-activity-dfa-alpha1-v1').contract_digest
-    result = subprocess.run([sys.executable, str(root / 'scripts/check_projected_dfa_policy.py')],
+    from analysis.science_implementation_stop import load_implementation_stops
+    stops = [stop for stop in load_implementation_stops(root / 'data/science')
+             if stop.subject_id == 'sdr-activity-dfa-alpha1-v1']
+    if stops:
+        expected = stops[0].active_contract_digest
+        checker = 'check_stopped_dfa_policy.py'
+    else:
+        projected = project_active_registry(load_science_registry(root / 'data/science'), 'sdr-activity-dfa-alpha1-v1')
+        expected = build_policy_contract(projected, 'sdr-activity-dfa-alpha1-v1').contract_digest
+        checker = 'check_projected_dfa_policy.py'
+    result = subprocess.run([sys.executable, str(root / 'scripts' / checker)],
         env={**os.environ, 'CANDIDATE_ROOT':str(root), 'ACTIVATION_SUBJECT':'sdr-activity-dfa-alpha1-v1',
              'ACTIVATION_CONTRACT':expected}, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
@@ -264,3 +272,60 @@ def test_exact_git_tree_honors_checkout_newline_representation(tmp_path):
     revision = commit(root, 'CRLF checkout')
     expected = git_tree(root, revision)
     assert directory_tree(root, expected, repository=root) == expected
+
+
+def test_composite_approval_is_one_atomic_idempotent_source(activation):
+    from analysis.science_activation import render_activation_comment
+    root, science, base, context, binding, comments, subject = activation
+    combined = dict(comments[-1], body=render_activation_comment(load_science_registry(science), subject, binding))
+    approvals = approvals_from_github_comments(science, [combined], {'human':'admin'}, activation_context=context)
+    assert len(approvals) == 3
+    assert len({str(approval.source_ref) for approval in approvals}) == 1
+    materialize_science_approvals(science, approvals, activation_context=context)
+    verify_science_approval_changes(base, science, [combined], {'human':'admin'}, activation_context=context)
+    assert materialize_science_approvals(science, approvals, activation_context=context) == []
+
+
+@pytest.mark.parametrize('mutation', ['missing_evidence', 'conflicting_digest', 'extra_text', 'duplicate_marker'])
+def test_partial_or_conflicting_composite_never_publishes(activation, mutation):
+    from analysis.science_activation import COMPOSITE_MARKER, render_activation_comment
+    root, science, _, context, binding, comments, subject = activation
+    body = render_activation_comment(load_science_registry(science), subject, binding)
+    if mutation == 'missing_evidence':
+        start = body.index('### Role: `evidence_reviewer`')
+        end = body.index('### Role: `decision_approver`')
+        body = body[:start] + body[end:]
+    elif mutation == 'conflicting_digest':
+        body = body.replace(binding.active_contract_digest, 'sha256:'+'0'*64, 1)
+    elif mutation == 'extra_text':
+        body += '\nAlso approve another subject.'
+    else:
+        body += '\n' + body[body.index('<!-- '+COMPOSITE_MARKER):]
+    comment = dict(comments[-1], body=body)
+    with pytest.raises(ValueError):
+        approvals = approvals_from_github_comments(science, [comment], {'human':'admin'}, activation_context=context)
+        materialize_science_approvals(science, approvals, activation_context=context)
+    context.require_reviewed_tree(binding, root)
+
+
+def test_incremental_implementation_compatibility_never_partially_activates(activation):
+    root, science, _, context, binding, comments, _ = activation
+    for incomplete in ([comments[2]], [comments[2],comments[1]]):
+        approvals = approvals_from_github_comments(science, incomplete, {'human':'admin'}, activation_context=context)
+        with pytest.raises(ValueError):
+            materialize_science_approvals(science, approvals, activation_context=context)
+        context.require_reviewed_tree(binding, root)
+    approvals = approvals_from_github_comments(science, comments, {'human':'admin'}, activation_context=context)
+    materialize_science_approvals(science, approvals, activation_context=context)
+
+
+def test_diff_digest_binds_blobs_and_modes_without_local_diff_configuration(activation):
+    root, _, _, context, _, _, _ = activation
+    expected = diff_digest(root, context.base_sha, context.head_sha)
+    git(root, 'config', 'diff.context', '99')
+    git(root, 'config', 'diff.algorithm', 'histogram')
+    git(root, 'config', 'diff.noprefix', 'true')
+    assert diff_digest(root, context.base_sha, context.head_sha) == expected
+    (root / 'feature.py').chmod(0o755)
+    changed = commit(root, 'mode changed')
+    assert diff_digest(root, context.base_sha, changed) != expected

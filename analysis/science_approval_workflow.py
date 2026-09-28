@@ -67,7 +67,9 @@ def approvals_from_github_comments(
         science_dir,
         validate_approvals=False,
     )
-    from analysis.science_activation import implementation_payload
+    from analysis.science_activation import (
+        COMPOSITE_MARKER, composite_approval_payloads, implementation_envelope,
+    )
     from analysis.science_artifacts import ImplementationBinding
 
     implementation_payloads = {}
@@ -77,7 +79,7 @@ def approvals_from_github_comments(
                 or str(user.get("login", "")).endswith("[bot]")
                 or permissions.get(user.get("login"), "").lower() not in _AUTHORIZED_PERMISSIONS):
             continue
-        payload = implementation_payload(str(comment.get("body", "")))
+        payload = implementation_envelope(str(comment.get("body", "")))
         if payload is None:
             continue
         if activation_context is None:
@@ -91,7 +93,10 @@ def approvals_from_github_comments(
         if implementation_payloads:
             raise ValueError("One activation batch may contain exactly one implementation approval")
         registry = activation_context.verify(binding, registry, payload["subject_id"])
-        implementation_payloads[source] = payload
+        implementation_payloads[source] = (
+            composite_approval_payloads(str(comment["body"]), registry)
+            if COMPOSITE_MARKER in str(comment["body"]) else [payload]
+        )
 
     approvals: dict[
         tuple[ReviewSubjectKind, str, ReviewRole, str],
@@ -127,7 +132,7 @@ def approvals_from_github_comments(
         ):
             continue
 
-        payloads = ([implementation_payloads[source_ref]] if source_ref in implementation_payloads
+        payloads = (implementation_payloads[source_ref] if source_ref in implementation_payloads
                     else _structured_approval_payloads(body, registry))
         if not payloads:
             payloads = _legacy_approval_payloads(body, registry)
@@ -287,6 +292,7 @@ def verify_science_approval_changes(
     permissions: Mapping[str, str],
     *,
     activation_context=None,
+    stop_context=None,
 ) -> None:
     """Require every new approval to match an authenticated PR comment."""
     base_root = Path(base_science_dir)
@@ -296,7 +302,16 @@ def verify_science_approval_changes(
     base_registry = load_science_registry(base_root)
     head_registry = load_science_registry(head_root)
     from analysis.science_activation import verify_governed_maintenance
-    verify_governed_maintenance(base_registry, head_registry)
+    verify_governed_maintenance(base_registry, head_registry, stop_context=stop_context)
+
+    from analysis.science_implementation_stop import load_implementation_stops, verify_stop_changes
+    if load_implementation_stops(base_root) or load_implementation_stops(head_root):
+        if stop_context is None:
+            raise ValueError("STOP source/history verification requires authenticated context")
+        verify_stop_changes(base_registry, head_registry,
+                            repository_root=stop_context.repository_root,
+                            base_sha=stop_context.base_sha,
+                            authenticated=list(stop_context.authenticated_stops))
 
     base_approvals = load_science_approvals(base_root)
     head_approvals = load_science_approvals(head_root)
@@ -328,6 +343,8 @@ def verify_science_approval_changes(
         head_approvals,
     )
     _verify_generated_state(head_root, registry=head_registry)
+    if stop_context is not None and stop_context.recheck is not None:
+        stop_context.recheck()
     implementation = [a for a in head_approvals if a not in base_approvals
                       and a.role == ReviewRole.IMPLEMENTATION_REVIEWER]
     for approval in implementation:
