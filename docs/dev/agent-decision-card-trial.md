@@ -1,125 +1,172 @@
-# Decision-card trial v1 — default-off proposal
+# Cooperative local decision-card trial
 
-**Status: not authorized or active.** This is a temporary proposal to learn
-whether a shorter *human-facing* decision request saves attention without
-losing quality. It does not reduce roles, contracts, tests, reviewer
-independence, or human authority. No old PRs or tasks are rerun.
+## Policy Change Proposal — accepted bounded choice
 
-The task's Work Contract remains the source of routing and is produced **before**
-any future trial admission. This *disabled implementation task* has Work
-Contract classification
-`sha256:b8d54c328ddbe16925d05bdee8fe1f948d87834bccb568aad42076a167ff08d5`
-and route
-`sha256:331cc2010c522a3d0277a002d6e9b0f8b38fbcc629a827b37bbe4b203fb5394e`.
-It does not include `production-operation`: no runtime entry or rollout is
-changed. These digests do not bind an enrolled future task or grant approval;
-live activation must be classified and routed separately. The trial manifest
-lives in `config/agent-decision-card-trial.json`.
+Meta/Eval's accepted proposal is a local, cooperative presentation comparison.
+The user approved this bounded choice with “那就做吧”; the independent Decision
+Review route was `human-review-required`. This is a factual conversation record,
+not a signed or cryptographically authenticated approval artifact. Engineering
+implements the accepted boundary; independent Quality verifies the resulting
+change. Existing specialists, Quality, CI, Decision Review, and human authority
+remain unchanged. No new approval questions are manufactured for the experiment.
 
-## What this change actually delivers
+Work Contract `ctr_dc_local_2026_v1`:
 
-- A checked-in **disabled** policy; `python3 scripts/agent_decision_trial.py`
-  reports its digest and `can_enroll: false`. It cannot activate by changing
-  the JSON flag or passing a CLI option.
-- Pure transition logic for a single 16-task cohort, an eight-task checkpoint,
-  sticky A/B assignment, a monotonic stop, coded append-only outcomes, and a
-  candidate card renderer. A separate Azure Blob adapter implements ETag-based
-  whole-cohort writes and rejects history rollback. Unit tests use a fake Blob;
-  they are **not** evidence that a protected store exists or a runtime is enrolled.
-- No calls from an agent runtime, Copilot assignment workflow, Paseo launcher,
-  or PR workflow; no private storage, credentials, telemetry, protection-rule
-  changes, enrollment, or candidate decision cards in live work. Baseline
-  behavior stays unchanged. Existing Git-common-dir invocation control is not
-  a cross-checkout trial store.
+- Classification: `sha256:0ad9318cbabe89b8918297e022d356e47ca4d91510fdb983761ba44a53a0e8e5`.
+- Route: `sha256:02ae5b927772915aa703344217dd7092151f847719fe05a9d72d43dd6f92949b`.
+- Primary object: `agent-system`; impacts: `repository-change`,
+  `agent-policy-or-autonomy`; risk triggers: none.
+- This implementation task is excluded from its own cohort.
 
-These implementation slices do not compel future sessions to join. A native
-CLI/Paseo session that bypasses a trusted entrypoint cannot be covered by
-repository instructions alone.
+`config/agent-decision-card-cooperative.json` activates only the cooperative
+local mode, cohort `decision-card-local-2026-v1`, expiring absolutely at
+`2026-10-28T00:00:00Z`. All policy fields including expiry are digest-pinned;
+only emergency `status: disabled` preserves that digest. Editing expiry cannot
+extend an existing cohort. New cohorts require a separately reviewed decision.
+The earlier protected policy remains disabled and separately named.
 
-## Proposed protocol — not permission to run
+The SQLite ledger is private local bookkeeping **editable by the same user**.
+It does not authenticate identities, reviews, or Work Contracts, resist tampering,
+intercept native tools, or establish automatic coverage. No Paseo broker, hook,
+installer, Azure resource, protected receipt, new PR gate, or branch change is
+required. Only sessions cooperating with the documented local workflow count.
+A read-only adapter retains its permissions; unavailable authorized writes mean
+baseline rather than permission expansion or an alternate live ledger.
 
-| Boundary | Proposed rule |
-|---|---|
-| Unit | One new user task, keyed by a stable opaque ID, not a session, agent, or PR. Retries keep the original assignment; no candidate without an authenticated receipt. |
-| Eligibility | Only the versioned primary objects in the policy, with no risk triggers or excluded Science, Trust, incident, Operations, architecture, or autonomy impact. Excluded and bypassed tasks remain outside the trial, not counted A successes. |
-| A/B | Alternate the less-filled arm. A retains the existing presentation. B may render **one** compact card for a fully evidenced `human-review-required` decision; absent or blocked decisions cannot be turned into approval requests. |
-| Counting | One **trusted shared atomic** cohort record for all enrolled entries. Assignment 8 sets `checkpoint_due`, halting new admissions until an independently authenticated review is recorded. Assignment 16 closes admissions permanently and requires final evaluation. Unfinished and no-PR attempts still occupy a slot. |
-| Stop | Immediately halt B and new admissions on a critical omission, privacy exposure, authorization/review bypass, serious regression, or unreliable records. Preserve original assignments and outcomes, and send affected work through baseline human/Quality review. Never reset the counter to retry. |
+## Local workflow
 
-The renderer requires a matching subject/evidence digest and all material
-fields: question, recommendation, trade-off, authority scope, reason a human
-must decide, rejection consequence, deferred decisions, evidence references,
-and any known dissent. It renders a request, **not** approval. Its typed input
-and digest comparison check structure and freshness only; an executing agent
-could fabricate both values. Independent review must authenticate provenance
-before any real card is shown. No card is generated for tasks without an
-actual human decision.
+Use `python scripts/local_decision_trial.py` with the following subcommands.
+`status` never creates files. Explicit `init` provisions once under
+`git rev-parse --path-format=absolute --git-common-dir`, in
+`praxys-decision-trial/<cohort_id>.sqlite3`. All worktrees share this canonical
+path. Do not initialize or enroll a real cohort merely to test the implementation.
 
-## Evidence and privacy for a later activation
+1. After Work Router supplies the exact deterministic Work Contract and before
+   delegation, run `status`. Use authorized `init` only for the first explicit
+   setup covered by the existing cooperative authorization; do not ask again.
+   Never use initialization to repair missing, corrupt, expired, or reset state.
+2. For a genuinely new user task, run `new-task` once. It produces a random
+   `tsk_` key without enrolling. Keep the key in the private task handoff across
+   sessions. A second task gets a distinct key; a session is not the unit.
+3. Run `admit --task-key <key> --contract <contract.json>`. The contract file is
+   the complete `TaskRoute` JSON returned by the deterministic router. Each
+   resume uses the original key, current contract, and `--resume`. An unknown
+   resume cannot allocate a slot. Reroute changed scope through normal governance;
+   never mint a new key to evade a changed/excluded contract.
+4. A retains existing presentation. B is only a presentation option for an
+   **actual**, independently reviewed `human-review-required` decision. No
+   human decision means no card: record `no_human_decision`, and continue work.
+5. With actual independent evidence, invoke `card --task-key <key> --contract
+   <contract.json> --review <review.json>`. It checks current policy, original
+   contract, B assignment, expiry/stop, complete card fields, matching subject
+   and evidence digests, and separate reviewer identity. It issues at most one
+   card and records `card_issued` before returning the text. That is an attempt,
+   **not proof of display**. Record `card_displayed` only after actual display;
+   interruptions or missing observations remain unknown. No raw card is stored.
+6. Append `outcome --task-key <key> --event <event.json>` as facts become known,
+   including failures, abandonment, no-PR work, completion, and B fallback.
+   PR events require both PR number and exact head SHA. Missing outcomes remain
+   unknown and unfinished assignments retain their slot.
 
-Before enabling anything, Architecture and Operations must verify **one**
-controlled entrypoint and a restricted, atomic, durable cohort store with
-authenticated admissions, checkpoint reviewers, and a protected kill switch.
-Cloud, Local, and Paseo must not share a quota unless the same store and
-runtime dispatch have each been verified end to end. The Azure Blob adapter
-is not an installed or authorized resource. The broker
-must reject lost or ambiguous writes without B exposure, bind the frozen
-policy and Work Contract digests, and observe failed and abandoned no-PR runs.
+A review JSON object contains `card` (the existing `DecisionCard` schema),
+`subject_digest`, `evidence_digest`, `review_digest`, and opaque `reviewer`,
+`proposer`, `executor` IDs. The card includes question, recommendation, trade-off,
+human authority, why human judgment is required, rejection consequence, deferred
+choices, evidence references, and known dissent. Digests and distinct IDs are
+structural checks and references only: the coordinator must obtain real
+independent Decision Review evidence first. Do not fabricate it or persist the
+review input in public artifacts. The card is a request, never approval.
 
-Trust must approve a minimal, restricted record: opaque HMAC-derived task key,
-entrypoint, pinned policy and contract digests, original arm, and coded outcome
-events, with nullable PR/head references and measured effort only when real.
-Do not persist task content, prompts, feedback, screenshots, credentials,
-session URLs, or free-form logs; public reports contain only safe aggregates.
-Specify a verified deletion schedule for receipts, joins, logs, and backups
-before activation (proposed: final review plus a 30-day correction window,
-with a 90-day outer limit after closure). Set an absolute cohort expiry at
-activation so low task volume cannot leave it open indefinitely.
+An event JSON contains `event_key` (`evt_` plus 64 lowercase hexadecimal random
+characters), `kind`, and optional paired `pr_number`/`head_sha`. Supported kinds:
+`failed`, `abandoned`, `blocked`, `no_pr`, `pr_open`, `merged`, `completed`,
+`baseline_fallback`, `no_human_decision`, `card_displayed`; `card_issued` is
+service-generated only. Reuse event identity on retry; conflicting identity is
+rejected. No prompts, feedback, task prose, screenshots, credentials, session
+URLs, raw review text, or free-form logs belong in the ledger.
 
-For a managed PR, a **trusted, always-reporting, head-bound required check**
-must verify the protected enrollment and current validation evidence without
-running PR-head code. Ordinary unmanaged PRs need a trusted exemption. Check
-effective branch rules and obtain separate explicit authority before changing
-their required statuses. Today's Copilot-only readiness check, PR-body claims,
-and unprotected local SQLite do not establish that guarantee. No agent may
-auto-approve or merge this trial policy.
+A missing/unavailable/corrupt ledger or invalid input returns baseline and an
+unavailable result. The CLI's nonzero exit concerns bookkeeping, not permission
+to continue the underlying task. If state cannot be read, enrollment and original
+arm are unknown; never count this as an A success. A known assignment's original
+arm persists through stop, expiry, or contract drift. Drift falls back and records
+`baseline_fallback`; it cannot later obtain B by returning to the old contract.
+Do not reset, copy, or restore the ledger to overcome these limits.
 
-## What to measure and when
+## Bounds, checkpoint, and stop
 
-Meta/Eval owns prospective comparison by **original assignment**, retaining
-failures, fallback from B, no-PR tasks, and still-open outcomes. Both arms
-retain the same Quality, CI, preflight, specialists, and human decision paths.
-Record real human *active* reading/clarifying/approval minutes and whether a
-human can accurately restate the decision; mark missing data `unknown`, and
-no-decision tasks `not applicable`. Compare correction rounds, overrulings,
-missed escalations, regressions, incidents, checks, model/provider mix, and
-attributable cost only when observable.
+Only the policy's low-risk primary objects with no risk triggers or excluded
+impacts may enroll. Allocation alternates the less-filled arm, beginning with A.
+Retries keep the original assignment. Assignment eight pauses **new admissions**;
+independent review must examine safety, record completeness, and comparability
+before `checkpoint --review-digest <digest>`. This digest records a reference to
+completed review; it does not authenticate that review. Assignment sixteen closes
+new admissions permanently. Existing tasks can finish and issue their one eligible
+card until expiry or stop. Never extend the cap to make results look conclusive.
 
-At 8, independently review safety, record completeness, and comparability
-before resuming. At 16, close, verify outcomes, and recommend: retain A,
-adopt B, run one *new* single-factor trial, or insufficient evidence. The
-screening hopes are ≥25% lower median human active time, ≥90% accurate
-restatement, and **zero critical omissions**; 16 assignments cannot establish
-long-run quality equivalence. Insufficient evidence means retire the trial
-and keep the baseline, not add roles or stretch the cap.
+Use `stop` immediately for a critical omission, privacy exposure, authority/review
+bypass, serious regression, or unreliable records. Expiry and disabled policy
+also suppress admission/cards. Outcome recording continues after stop/expiry.
+Stopping is sticky through supported transitions, but same-user edits can bypass
+bookkeeping. Stop affects subsequent checks, cannot retract already-issued text,
+and is not a linearizable UI guarantee. Continue affected work through baseline
+human/Quality review while retaining B attribution.
 
-## Decision and release boundary
+## Evaluation Report — pretrial, zero efficacy observations
 
-Meta/Eval owns this **unapproved Policy Change Proposal** and the pretrial
-Evaluation Report (current evidence cannot establish the card's benefit).
-Architecture's proposed boundary is one authenticated, atomic store rather
-than the existing local invocation ledger. Trust's proposed boundary is
-privacy-minimal provenance and a trusted head-specific PR signal. Operations'
-proposed boundary is one verified entry with checkpoint recovery and rollback.
-Engineering owns this inert implementation; independent Quality must verify
-the exact committed head. The Operations Decision Record and Release Evidence
-for any *live* entry, and the eight-/sixteen-task Evaluation Reports, remain
-future obligations, not completed artifacts. There is no approval for
-activation or a protected-branch change in this document.
+Meta/Eval's pretrial conclusion is **insufficient evidence of benefit**: no real
+cohort has been provisioned or enrolled by this implementation and synthetic
+tests are not trial outcomes. No human effort, accuracy, quality equivalence,
+or savings claim follows from code checks.
 
-Ask the independent Decision Review Router again after the exact proposal,
-Architecture/Trust/Operations decisions, trusted-entry tests, and independent
-Quality evidence exist. Present the human only a bounded choice about the
-exact digest and PR head: merge inert mechanics, authorize a named single-entry
-trial after prerequisites, or keep the trial off. A later activation is a
-**separate decision** even if the inert code is merged.
+Compare by original assignment, retaining failed, abandoned, fallback, no-PR,
+and unfinished tasks. Unenrolled/bypassed tasks are outside the denominator,
+never successful A tasks. Report enrollment, actual display separately from
+issuance, outcome completeness, corrections, overrides, missed/unnecessary
+escalations, adverse outcomes, model/provider mix, observable latency and cost.
+Human active reading/clarifying/decision minutes and accurate restatement are
+reported only when actually supplied; absent data is `unknown`, and a task with
+no human decision is `not applicable`. The CLI reports coded observations and
+unknown uncollected measures, not zero-valued proxies. Preserve missingness when
+combining these counts with independently collected measurements.
+
+At eight, independently assess safety, completeness, and comparability. At
+sixteen or expiry, close and evaluate: retain baseline, propose adoption through
+a separate decision, propose one new single-factor trial, or report insufficient
+evidence and retire. Exploratory screening hopes are at least 25% lower median
+human active time, at least 90% accurate restatement, and zero critical omissions.
+A small alternating, self-recorded cohort cannot establish causality, long-term
+quality equivalence, or justify autonomy promotion. No extra roles, required
+prompts, stretched cap, or baseline-only successes may rescue an inconclusive run.
+
+## Implementation Impact Map and change
+
+- Analysis/tooling: reuse pure eligibility, A/B, CAS, monotonic histories,
+  checkpoint, cap, coded outcomes, and the existing card renderer. A separate
+  cooperative service adds expiry, sticky resume, one-card issuance, and reports.
+- Data: existing local SQLite adapter supplies atomic shared-worktree bookkeeping;
+  no application database, training data, migration, API, or client change.
+- Operations/config: one new local policy/CLI, canonical path, explicit setup,
+  stop/expiry and retirement procedure in `docs/ops/change-loop.md`.
+- Instructions: local orchestration points to this flow; Work Router taxonomy,
+  protected admission guard, Blob API, role boundaries, and native permissions
+  stay compatible.
+- Tests: focused existing trial/storage regressions and synthetic cooperative CLI,
+  expiry, corruption, policy pinning, worktree identity, card and concurrency tests.
+  Engineering's test execution is not independent Quality verification. Static
+  parity checks do not establish runtime parity or coverage.
+
+For tests only, paired CLI `--test-policy <synthetic.json> --test-store
+<temporary.sqlite3>` flags and service path/clock injection isolate all state.
+Never use those flags as live alternate-store recovery. No production resources
+or real cohort initialization are part of this change.
+
+## Archived protected mode — disabled
+
+`config/agent-decision-card-trial.json`, `load_trial_policy()`, the inspection
+CLI `scripts/agent_decision_trial.py`, and Azure Blob APIs retain the original
+protected, disabled boundary. The protected SQLite adapter remains available
+as groundwork. This cooperative trial does not activate that cohort or satisfy
+its former broker, authenticated review, receipt, required-check, or deployment
+prerequisites. A future protected deployment needs its own routed and reviewed
+proposal. See `docs/ops/change-loop.md` for local retention and retirement.
