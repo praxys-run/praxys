@@ -100,3 +100,21 @@ unchanged science records and canonical artifacts, and the same-batch incident/
 operations documentation. Independent reviewers then close findings before final
 preflight and required CI. Operations release and incident closure follow their
 separate predicates; a source handoff is not production recovery.
+
+
+## Independent review correction at frozen 5600f247
+
+Quality found a P2 on `5600f247abd313eb49b7f9806b7364a554e82cfd`: recovery could
+accept a valid-looking readiness body even when curl exited nonzero, because
+`|| true` discarded transport failure. The initial focused passing results and
+Operations conformity review remain historical; they do not close this finding.
+The coordinator authorized one bounded correction after readers finished.
+
+The recovery-only branch now advances to payload predicates only after successful
+curl completion. Failed transport consumes that attempt and retains the same
+single 5-second gap and two-attempt ceiling. The ordinary branch, serving-version
+admission and downstream gates remain unchanged. Actual-shell regressions cover
+valid JSON with timeout 28 or partial-transfer 18, exhausted failures and a later
+complete second response. Engineering ran 50 focused workflow/Operations checks
+successfully in 5.90s. Fresh Quality reproduction closure and specialist
+reviews are pending; no recovery or rollout success is inferred.

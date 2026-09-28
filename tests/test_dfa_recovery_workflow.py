@@ -176,3 +176,20 @@ def test_normal_push_keeps_original_transport_and_attempt_budget(execute_quiesce
     assert not any(call['name']=='curl' and call['args'][-1].endswith('/api/version') for call in calls)
     assert len([call for call in calls if call['name']=='sleep'])==36
     assert summary==''
+
+
+@pytest.mark.parametrize('curl_exit', [28, 18])
+def test_valid_body_with_failed_transport_never_satisfies_recovery(execute_quiescence, curl_exit):
+    result,calls,_=execute_quiescence(responses=[{'body':ready_payload(),'exit':curl_exit}])
+    assert result.returncode!=0
+    assert len(readiness_calls(calls))==2
+    assert [call['args'] for call in calls if call['name']=='sleep']==[['5']]
+
+
+@pytest.mark.parametrize('curl_exit', [28, 18])
+def test_failed_transport_valid_body_requires_second_complete_response(execute_quiescence, curl_exit):
+    result,calls,_=execute_quiescence(responses=[
+        {'body':ready_payload(),'exit':curl_exit}, {'body':ready_payload(),'exit':0}])
+    assert result.returncode==0,result.stderr
+    assert len(readiness_calls(calls))==2
+    assert [call['args'] for call in calls if call['name']=='sleep']==[['5']]

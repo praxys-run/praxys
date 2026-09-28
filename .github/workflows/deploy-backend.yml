@@ -301,9 +301,14 @@ jobs:
           quiesced=false
           for ((attempt=1; attempt<=attempts; attempt++)); do
             if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" ]]; then
-              ready_payload="$(curl -fsS --connect-timeout 5 --max-time 210 \
+              if ! ready_payload="$(curl -fsS --connect-timeout 5 --max-time 210 \
                 -H 'Cache-Control: no-cache' \
-                https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+                https://api.praxys.run/api/health/ready 2>/dev/null)"; then
+                if [[ "${attempt}" -lt "${attempts}" ]]; then
+                  sleep 5
+                fi
+                continue
+              fi
             else
               ready_payload="$(curl -fsS --max-time 8 \
                 -H 'Cache-Control: no-cache' \

@@ -1,8 +1,11 @@
 # Readiness recovery implementation impact
 
-Owner: Engineering. Status: focused implementation checks passed (48 parser/
-workflow cases, 60 existing policy/operations guards, and 3 additional parser
-cases). Independent verification, final preflight/CI and recovery remain pending.
+Owner: Engineering. Status: the original 5600f247 focused results (48 parser/
+workflow cases, 60 existing policy/operations guards and 3 additional parser cases)
+are historical. Quality subsequently found the recovery transport-completion P2;
+the bounded correction passed 50 focused workflow/Operations checks in 5.90s
+and still requires fresh independent closure.
+Final preflight/CI and recovery remain pending.
 
 - Analysis: select the available safe C YAML backend, retaining the existing
   duplicate constructor and all validation. No cache, fallback after rejection,
@@ -26,3 +29,8 @@ cases). Independent verification, final preflight/CI and recovery remain pending
   consume the one conditional incident dispatch. Recovery is not claimed until
   the reviewed repair SHA passes normal cutover, original feedback intent is
   restored respecting the kill switch, and actual inactive policy is observed.
+
+
+The correction rejects recovery responses whenever curl fails, even if stdout
+contains valid quiescence JSON. The normal transport branch and every downstream
+gate are unchanged. It adds no parser, science, service or dispatch scope.

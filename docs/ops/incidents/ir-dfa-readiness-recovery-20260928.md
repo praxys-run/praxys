@@ -12,10 +12,10 @@ The root cause remains unresolved; DB/pool waits are not excluded.
 | 08:23:12 | PR842 protected-squash merged as `bafd1714df108747758bd58273578be3613b7bd0`, from reviewed `233ab6ef`; no admin bypass. |
 | 08:23:42 | Backend run `36397049771`, job `108845823440`, completed feedback quiescence. |
 | 08:25:24 | Existing configuration reconciliation completed. |
-| 08:36:08–08:45:06 | Cutover verification exited 1. Feedback restoration and DFA observation were skipped. Sanitized failure log contains only the exit result. |
+| 08:36:08–08:45:06 | Cutover verification exited 1. Feedback restoration and DFA observation were skipped. The retained sanitized failure excerpt contains only the exit result; the recorded log hash covers the entire deployment job log. |
 | 08:41:50 | Version and liveness returned HTTP 200 with source `bafd1714`. |
 | 08:43:33 | Readiness exceeded a 10-second client deadline. |
-| 08:49:54 | Labs run `36397049795` reached its prerequisite step and later completed SUCCESS. Proposed cancellation was not executed after state advanced. |
+| 08:49:54 | Labs run `36397049795` passed its prerequisite step and later completed SUCCESS. Proposed cancellation was not executed after state advanced. |
 | 08:51:59 | Version returned 200 in 0.425s; readiness timed out in 8.363s, matching the workflow's 8-second budget. |
 
 Aggregate-only telemetry for 08:36–08:52:15 recorded 74 completed readiness
@@ -44,7 +44,8 @@ this record does not imply that operator/agent recovery executed another restart
   `848896b5255ca748bae8ccc6ab465a406c61e882daf4379babcc0cb70b1b1f7f`.
   Earlier failed receipt revisions remain historical evidence; do not overwrite
   their chronology with a recovery claim.
-- Sanitized failure log SHA256
+- Entire deployment job log SHA256 (only its sanitized failure line is retained
+  in the release receipt):
   `2f01448a935cc404e794d5beff8a91d26a8d436f87941a74654f04c548eb3191`.
 - Local timing `/tmp/dfa-readiness-local-timing.json`, SHA256
   `48ffa74e1dfb4d4a4c4f08e0fa4c00d981b56fe1048210a75b3cb33df7c93edc`:
