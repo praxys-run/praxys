@@ -70,6 +70,21 @@ orchestrator classifies the task, emits the deterministic Work Contract, and
 delegates repository implementation to
 `.github/agents/praxys-change-loop.agent.md`.
 
+### Pending decision-card trial (disabled)
+
+`config/agent-decision-card-trial.json` declares an **inactive** 8/16-task
+presentation trial. `python3 scripts/agent_decision_trial.py` reports
+`can_enroll: false`; it neither assigns tasks nor changes Cloud, Local, Codex,
+or Paseo execution. Do not manually change `status` or treat the in-memory CAS
+tests as a shared store. No enrollment, new required check, secret, or branch
+protection has been deployed. The existing `agent-ready` assignment remains
+unchanged. See [the trial proposal](../dev/agent-decision-card-trial.md) for
+entrypoint, privacy, checkpoint, trusted PR-gate, separate approval, and
+retirement prerequisites. To retire this inert slice, revert its code/config;
+there are no managed tasks or runtime records to migrate. A future live
+activation needs its own Operations decision, verified recovery/kill procedure,
+and release evidence before any task is admitted.
+
 Copilot PRs stay draft until the final preflight command and validated head SHA
 are recorded and the required branch checks pass.
 `.github/workflows/copilot-pr-readiness.yml` automatically

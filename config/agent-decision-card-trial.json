@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "cohort_id": "decision-card-2026-v1",
+  "candidate_version": "decision-card-v1",
+  "status": "disabled",
+  "max_assignments": 16,
+  "checkpoint_at": 8,
+  "permitted_entrypoints": [],
+  "eligible_primary_objects": [
+    "product-promise",
+    "user-experience",
+    "repository-behavior"
+  ],
+  "excluded_impacts": [
+    "agent-policy-or-autonomy",
+    "architecture-boundary",
+    "incident-response",
+    "production-operation",
+    "scientific-evidence-or-claim",
+    "trust-boundary"
+  ]
+}
