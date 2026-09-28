@@ -26,9 +26,34 @@ from tests.test_science_approval_workflow import _write_fixture_records
 
 
 def commit(root, message):
+    # Fixtures copy complete Git directories; keep object files stable for snapshots.
+    # Configure before add/commit can create objects or start automatic maintenance.
+    git(root, 'config', '--local', 'maintenance.auto', 'false')
+    git(root, 'config', '--local', 'gc.auto', '0')
     git(root, 'add', '.')
     git(root, '-c', 'user.name=synthetic', '-c', 'user.email=synthetic@example.invalid', 'commit', '-m', message)
     return git(root, 'rev-parse', 'HEAD').decode().strip()
+
+
+def test_synthetic_git_snapshot_retains_complete_history(tmp_path):
+    root = tmp_path / 'source'
+    root.mkdir()
+    git(root, 'init')
+    git(root, 'config', '--local', 'maintenance.auto', 'true')
+    git(root, 'config', '--local', 'gc.auto', '1')
+    (root / 'feature.py').write_text('version = 1\n')
+    first = commit(root, 'first')
+    (root / 'feature.py').write_text('version = 2\n')
+    second = commit(root, 'second')
+    snapshot = tmp_path / 'snapshot'
+    shutil.copytree(root, snapshot)
+    for repository in (root, snapshot):
+        assert git(repository, 'config', '--local', '--get', 'maintenance.auto').strip() == b'false'
+        assert git(repository, 'config', '--local', '--get', 'gc.auto').strip() == b'0'
+        assert git(repository, 'rev-list', 'HEAD').decode().splitlines() == [second, first]
+        assert git(repository, 'show', f'{first}:feature.py') == b'version = 1\n'
+        assert git(repository, 'show', f'{second}:feature.py') == b'version = 2\n'
+        git(repository, 'fsck', '--full', '--strict')
 
 
 @pytest.fixture

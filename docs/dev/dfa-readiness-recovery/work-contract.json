@@ -1,0 +1,58 @@
+{
+  "routing_version": "praxys-task-routing-v1",
+  "operating_model_version": "praxys-agentic-operating-model-v1",
+  "classification": {
+    "primary_object": "production-incident",
+    "impacts": [
+      "repository-change",
+      "production-operation",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary"
+    ]
+  },
+  "classification_digest": "sha256:f320f595646b4f824af4112cd2041986e3cfdc8d9e70942df2e098b7cae07f39",
+  "primary_loop": "incident",
+  "nested_loops": [
+    "delivery",
+    "runtime"
+  ],
+  "loop_agents": {
+    "incident": ".github/agents/operations.agent.md",
+    "delivery": ".github/agents/praxys-change-loop.agent.md",
+    "runtime": ".github/agents/operations.agent.md"
+  },
+  "lead_role": "operations",
+  "contributor_roles": [
+    "architecture",
+    "trust"
+  ],
+  "executor_roles": [
+    "operations",
+    "engineering"
+  ],
+  "verifier_roles": [
+    "quality"
+  ],
+  "outcome_observer_roles": [],
+  "required_input_artifacts": [],
+  "required_artifacts": [
+    "operations-decision-record",
+    "incident-record",
+    "implementation-impact-map",
+    "implementation-change",
+    "verification-evidence",
+    "release-evidence",
+    "architecture-decision-record",
+    "trust-decision-record"
+  ],
+  "outcome_artifacts": [],
+  "risk_triggers": [
+    "security-or-privacy-boundary"
+  ],
+  "decision_review_agent": ".github/agents/decision-review-router.agent.md",
+  "decision_review_required": true,
+  "route_digest": "sha256:5c9a4fe0850e0cf9861aa01fd8e74bd566d153474e24ad6a3097c3bf05f09f40"
+}

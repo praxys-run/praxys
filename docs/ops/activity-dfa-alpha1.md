@@ -246,3 +246,43 @@ materialization begins. Commit only the printed two paths and use ordinary
 The comment fetch uses the existing authenticated read capability and checks
 current write/maintain/admin permission. The historical activation validation
 artifact need not remain downloadable to honor a later explicit STOP.
+
+## PR842 readiness incident and bounded recovery
+
+The [open Incident Record](incidents/ir-dfa-readiness-recovery-20260928.md) retains
+the failed `bafd1714` rollout and interrupted feedback restoration. Root cause and
+production recovery are not yet established. A local strict-parser speedup is not
+proof of the production cause. No DFA activation is part of this repair.
+
+First allow the ordinary automatic deployment of the reviewed correction. The
+following is an **Operations-only, one-use incident procedure**, permitted only
+if that automatic run fails terminally **before package/App Service deployment**,
+all deployment/Labs queues are terminal, `/api/version.source_sha` is still exactly
+`bafd1714df108747758bd58273578be3613b7bd0`, and configured/original feedback-positive
+intent remains exactly true. Do not use it after an automatic success.
+
+```sh
+gh workflow run deploy-backend.yml --repo praxys-run/praxys --ref main \
+  -f sync_config=true -f run_tests=false -f recover_dfa_cutover_842=true
+```
+
+Record the created dispatch run ID in the Operations incident/release receipt.
+Failure or ambiguous completion consumes the one-use authority; do not rerun or
+create another dispatch. This is an authorization/receipt boundary, not technical
+prevention of every privileged distinct dispatch. The workflow rejects attempts
+other than 1 and requires the exact event/ref/config/intent/serving-source guards
+before quiescence mutation.
+
+Only predeployment quiescence gets the bounded transport window: connect 5s,
+request maximum 210s, at most 2 sequential complete attempts with a single 5s gap,
+inside a 9-minute step deadline. Every existing actual-readiness, false
+positive-enable, boolean kill-switch and false effective-publication predicate
+remains required. No nested retries or liveness substitution. Default/push
+transport and all post-repair 8-second gates stay unchanged.
+
+The normal repaired-source cutover must pass before the existing restoration of
+verified configured/original positive intent true, respecting the negative kill
+switch. Then verify no-store actual DFA false/null and the repair source SHA.
+Do not force feedback settings, bypass readiness, blindly rerun old PR839, or
+claim recovery from source merge alone. Preserve all original FIT/deletion state
+and the existing finite rollback limitations.
