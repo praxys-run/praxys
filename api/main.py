@@ -1,7 +1,8 @@
 """Praxys API — FastAPI application with SQLite backend and JWT auth."""
 import logging
 import os
-from contextlib import asynccontextmanager
+import time
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -78,6 +79,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.concurrency import run_in_threadpool
 
 from api.auth import (
     get_current_user_id,
@@ -178,6 +180,11 @@ async def lifespan(app: FastAPI):
     from api.optional_processing import validate_optional_processing_config
 
     validate_optional_processing_config()
+    from api.telemetry import init_readiness_timing
+    try:
+        init_readiness_timing()
+    except Exception:
+        pass
     init_db()
     from api.personal_context import (
         replay_deletion_manifests,
@@ -417,8 +424,80 @@ def health():
     return {"status": "ok"}
 
 
+def _readiness_clock(clock):
+    try:
+        return clock()
+    except Exception:
+        return None
+
+
+class _ReadinessTiming:
+    """Worker-owned, fixed-size timings, separate from readiness authority."""
+
+    def __init__(self, dispatched, started, cpu_started):
+        self.started, self.cpu_started = started, cpu_started
+        self.samples: list[tuple[str, str, float, str]] = []
+        self.outcome = "completed"
+        self._add("dispatch_queue", "wall", dispatched, started, "completed")
+
+    def _add(self, stage, clock, before, after, outcome):
+        if before is not None and after is not None:
+            self.samples.append((stage, clock, (after - before) / 1_000_000, outcome))
+
+    @contextmanager
+    def stage(self, name, *, cpu=False):
+        started = _readiness_clock(time.perf_counter_ns)
+        cpu_started = _readiness_clock(time.thread_time_ns) if cpu else None
+        outcome = ["completed"]
+        try:
+            yield outcome
+        except BaseException:
+            outcome[0] = "failed"
+            raise
+        finally:
+            self._add(name, "wall", started, _readiness_clock(time.perf_counter_ns), outcome[0])
+            if cpu:
+                self._add(name, "thread_cpu", cpu_started,
+                          _readiness_clock(time.thread_time_ns), outcome[0])
+
+    def finish(self):
+        self._add("handler_total", "wall", self.started,
+                  _readiness_clock(time.perf_counter_ns), self.outcome)
+        self._add("handler_total", "thread_cpu", self.cpu_started,
+                  _readiness_clock(time.thread_time_ns), self.outcome)
+        try:
+            import yaml
+            from analysis.science_yaml import UniqueKeyLoader
+            from api.telemetry import record_readiness_timing
+
+            c_loader = getattr(yaml, "CSafeLoader", None)
+            parser = "c_safe" if c_loader and issubclass(UniqueKeyLoader, c_loader) else "python_safe"
+            record_readiness_timing(self.samples, parser=parser)
+        except Exception:
+            pass
+
+
 @app.get("/api/health/ready")
-def health_ready(response: Response):
+async def health_ready(response: Response):
+    # Use Starlette's existing default limiter/cancellation behavior exactly once.
+    dispatched = _readiness_clock(time.perf_counter_ns)
+    return await run_in_threadpool(_health_ready_worker, response, dispatched)
+
+
+def _health_ready_worker(response: Response, dispatched):
+    started = _readiness_clock(time.perf_counter_ns)
+    cpu_started = _readiness_clock(time.thread_time_ns)
+    timing = _ReadinessTiming(dispatched, started, cpu_started)
+    try:
+        return _health_ready_sync(response, timing)
+    except BaseException:
+        timing.outcome = "failed"
+        raise
+    finally:
+        timing.finish()
+
+
+def _health_ready_sync(response: Response, timing: _ReadinessTiming):
     """Readiness probe (issue #350): verify the database is reachable.
 
     Runs a trivial ``SELECT 1`` so a corrupt / unavailable database reports
@@ -433,25 +512,34 @@ def health_ready(response: Response):
     from db.session import SessionLocal, init_db, is_postgres
 
     if SessionLocal is None:
-        init_db()
+        with timing.stage("db_init"):
+            init_db()
     try:
         db = SessionLocal()
         try:
-            db.execute(_text("SELECT 1"))
+            # This is the same lazy checkout previously done by execute(), not
+            # another connection/query. It includes pre-ping and reconnect work.
+            with timing.stage("db_acquire"):
+                db.connection()
+            with timing.stage("db_select"):
+                db.execute(_text("SELECT 1"))
             from api.channel_processing_authority import (
                 expected_channel_processing_status,
                 shared_channel_processing_snapshot,
             )
 
-            expected_authority = expected_channel_processing_status()
-            shared_authority = shared_channel_processing_snapshot(db)
-            if shared_authority != expected_authority:
-                raise RuntimeError(
-                    "shared China processing authority did not converge"
-                )
+            with timing.stage("shared_authority"):
+                expected_authority = expected_channel_processing_status()
+                shared_authority = shared_channel_processing_snapshot(db)
+                if shared_authority != expected_authority:
+                    raise RuntimeError(
+                        "shared China processing authority did not converge"
+                    )
         finally:
-            db.close()
+            with timing.stage("db_close"):
+                db.close()
     except Exception as exc:
+        timing.outcome = "failed"
         logging.getLogger(__name__).error("readiness probe DB check failed: %s", exc)
         try:
             from api.telemetry import record_db_health
@@ -465,8 +553,10 @@ def health_ready(response: Response):
         response.status_code = 503
         return {"status": "unavailable", "database": "error"}
     try:
-        processing = optional_processing_status()
+        with timing.stage("controls"):
+            processing = optional_processing_status()
     except ValueError as exc:
+        timing.outcome = "failed"
         logging.getLogger(__name__).error(
             "readiness privacy-control config failed: %s",
             exc,
@@ -480,11 +570,13 @@ def health_ready(response: Response):
     china_processing = china_processing_status()
     from api.activity_dfa import require_policy
 
-    try:
-        dfa_contract_digest = require_policy()
-    except Exception:
-        # Public observation contains no exception, athlete or result data.
-        dfa_contract_digest = None
+    with timing.stage("dfa_policy", cpu=True) as policy_outcome:
+        try:
+            dfa_contract_digest = require_policy()
+        except Exception:
+            # Public observation contains no exception, athlete or result data.
+            policy_outcome[0] = "denied_or_error"
+            dfa_contract_digest = None
     return {
         "status": "ready",
         "database": "ok",

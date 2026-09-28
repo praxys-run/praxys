@@ -18,6 +18,11 @@ on:
         required: true
         default: false
         type: boolean
+      recover_readiness_timing_00577:
+        description: One separately authorized diagnostic delivery from exact PR845 source
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -248,24 +253,35 @@ jobs:
             echo "miniapp_configured=${miniapp_configured}"
             echo "ai_disabled=${ai_disabled}"
             echo "feedback_publication_restore=${feedback_publication_restore}"
+            echo "feedback_publication_original=${feedback_publication_positive}"
             echo "cors=$(jq -c sort <<< "${cors}")"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Quiesce feedback publication before deployment
-        timeout-minutes: ${{ inputs.recover_dfa_cutover_842 == true && 9 || 5 }}
+        timeout-minutes: ${{ (inputs.recover_dfa_cutover_842 == true || inputs.recover_readiness_timing_00577 == true) && 9 || 5 }}
         env:
           RECOVER_DFA_CUTOVER_842: ${{ inputs.recover_dfa_cutover_842 == true && 'true' || 'false' }}
+          RECOVER_READINESS_TIMING_00577: ${{ inputs.recover_readiness_timing_00577 == true && 'true' || 'false' }}
+          ORIGINAL_FEEDBACK_PUBLICATION: ${{ steps.preserved.outputs.feedback_publication_original }}
           SYNC_CONFIG: ${{ steps.mode.outputs.sync_config }}
           CONFIGURED_FEEDBACK_PUBLICATION: ${{ vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
           attempts=36
-          if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" ]]; then
+          [[ "${RECOVER_DFA_CUTOVER_842}" == "true" || "${RECOVER_DFA_CUTOVER_842}" == "false" ]]
+          [[ "${RECOVER_READINESS_TIMING_00577}" == "true" || "${RECOVER_READINESS_TIMING_00577}" == "false" ]]
+          if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" && "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
+            exit 1
+          fi
+          recovery=false
+          if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" || "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
+            recovery=true
             [[ "${GITHUB_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
             {
               echo "### Incident recovery ir-dfa-readiness-recovery-20260928"
               echo "Dispatch run: ${GITHUB_RUN_ID}; attempt: ${GITHUB_RUN_ATTEMPT}"
+              echo "Selected option: PR842=${RECOVER_DFA_CUTOVER_842}; timing00577=${RECOVER_READINESS_TIMING_00577}"
               echo "This request consumes the one-off authorization even on failure or ambiguous completion."
             } >> "${GITHUB_STEP_SUMMARY}"
             test "${GITHUB_EVENT_NAME}" = workflow_dispatch
@@ -273,9 +289,14 @@ jobs:
             test "${GITHUB_RUN_ATTEMPT}" = 1
             test "${SYNC_CONFIG}" = true
             test "${CONFIGURED_FEEDBACK_PUBLICATION}" = true
+            incident_source=bafd1714df108747758bd58273578be3613b7bd0
+            if [[ "${RECOVER_READINESS_TIMING_00577}" == "true" ]]; then
+              test "${ORIGINAL_FEEDBACK_PUBLICATION}" = true
+              incident_source=00577ce859ff90bbdf50a90e8ba00c4822243ec4
+            fi
             incident_version="$(curl -fsS --connect-timeout 5 --max-time 8 \
               -H 'Cache-Control: no-cache' https://api.praxys.run/api/version)"
-            jq -e '.source_sha == "bafd1714df108747758bd58273578be3613b7bd0"' \
+            jq -e --arg source "${incident_source}" '.source_sha == $source' \
               <<< "${incident_version}" >/dev/null
             attempts=2
           else
@@ -300,7 +321,7 @@ jobs:
           [[ "${kill_switch}" == "true" || "${kill_switch}" == "false" ]]
           quiesced=false
           for ((attempt=1; attempt<=attempts; attempt++)); do
-            if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" ]]; then
+            if [[ "${recovery}" == "true" ]]; then
               if ! ready_payload="$(curl -fsS --connect-timeout 5 --max-time 210 \
                 -H 'Cache-Control: no-cache' \
                 https://api.praxys.run/api/health/ready 2>/dev/null)"; then
@@ -325,7 +346,7 @@ jobs:
               quiesced=true
               break
             fi
-            if [[ "${RECOVER_DFA_CUTOVER_842}" == "false" || "${attempt}" -lt "${attempts}" ]]; then
+            if [[ "${recovery}" == "false" || "${attempt}" -lt "${attempts}" ]]; then
               sleep 5
             fi
           done
@@ -664,92 +685,307 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${DESIRED_FEEDBACK_PUBLICATION}" == "true" \
-            || "${DESIRED_FEEDBACK_PUBLICATION}" == "false" ]]
-          restoration_verified=false
-          leave_disabled_on_failure() {
-            if [[ "${restoration_verified}" != "true" ]]; then
-              az webapp config appsettings set \
-                --name "${AZURE_BACKEND_APP_NAME}" \
-                --resource-group "${AZURE_RESOURCE_GROUP}" \
-                --settings "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=false" \
-                --output none || true
-            fi
-          }
-          trap leave_disabled_on_failure EXIT
-          az webapp config appsettings set \
-            --name "${AZURE_BACKEND_APP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings \
-              "PRAXYS_ENABLE_FEEDBACK_PUBLICATION=${DESIRED_FEEDBACK_PUBLICATION}" \
-            --output none
-          ready=false
-          publication_kill=""
-          publication_enabled=""
-          for _ in {1..36}; do
-            version_payload="$(curl -fsS --max-time 8 \
-              -H 'Cache-Control: no-cache' \
-              https://api.praxys.run/api/version 2>/dev/null || true)"
-            ready_payload="$(curl -fsS --max-time 8 \
-              -H 'Cache-Control: no-cache' \
-              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
-            settings="$(az webapp config appsettings list \
-              --name "${AZURE_BACKEND_APP_NAME}" \
-              --resource-group "${AZURE_RESOURCE_GROUP}" -o json)"
-            read_setting() {
-              jq -er --arg name "$1" \
-                '[.[] | select(.name == $name) | .value]
-                 | if length == 1 then .[0] else error("setting not singular") end' \
-                <<< "${settings}"
-            }
-            publication_positive="$(
-              read_setting PRAXYS_ENABLE_FEEDBACK_PUBLICATION
-            )"
-            publication_kill="$(
-              read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION
-            )"
-            if [[ "${publication_kill}" != "true" \
-                  && "${publication_kill}" != "false" ]]; then
-              sleep 5
-              continue
-            fi
-            publication_enabled=false
-            if [[ "${DESIRED_FEEDBACK_PUBLICATION}" == "true" \
-                  && "${publication_kill}" == "false" ]]; then
-              publication_enabled=true
-            fi
-            if [[ "${publication_positive}" \
-                  == "${DESIRED_FEEDBACK_PUBLICATION}" ]] \
-              && jq -e \
-                --arg version "${PRAXYS_EXPECTED_API_VERSION}" \
-                --arg sha "${PRAXYS_EXPECTED_API_SOURCE_SHA}" \
-                '.version == $version and .source_sha == $sha' \
-                <<< "${version_payload}" >/dev/null 2>&1 \
-              && jq -e \
-                --argjson positive "${DESIRED_FEEDBACK_PUBLICATION}" \
-                --argjson kill "${publication_kill}" \
-                --argjson effective "${publication_enabled}" \
-                '.status == "ready"
-                 and .optional_processing.feedback_publication_positive_enable
-                   == $positive
-                 and .optional_processing.feedback_publication_kill_switch
-                   == $kill
-                 and .optional_processing.feedback_publication_enabled
-                   == $effective' \
-                <<< "${ready_payload}" >/dev/null 2>&1; then
-              ready=true
-              break
-            fi
-            sleep 5
-          done
-          test "${ready}" = true
-          restoration_verified=true
-          trap - EXIT
-          {
-            echo "positive=${DESIRED_FEEDBACK_PUBLICATION}"
-            echo "kill_switch=${publication_kill}"
-            echo "enabled=${publication_enabled}"
-          } >> "${GITHUB_OUTPUT}"
+          read -r PRAXYS_RESTORE_STARTED _ < /proc/uptime
+          export PRAXYS_RESTORE_STARTED
+          # Independent watchdog includes interpreter startup; runner timeout is not cleanup.
+          exec timeout --signal=KILL 465s python3 - <<'PY'
+          """Bounded restoration; no remote write is made certain by a local timeout."""
+          import json
+          import os
+          import selectors
+          import signal
+          import subprocess
+          import tempfile
+          import time
+
+          WORK_SECONDS = 360
+          CLEANUP_SECONDS = 105
+          END_SECONDS = 465
+          GRACE_SECONDS = 2
+          LOCAL_RESERVE_SECONDS = 1
+          MAX_CAPTURE_BYTES = 262144
+          WRITE_SECONDS = 45
+          READ_SECONDS = 20
+          HTTP_SECONDS = 8
+          PREDICATE_SECONDS = 2
+          OUTPUT_SECONDS = 5
+          GAP_SECONDS = 5
+
+
+          class Failure(Exception):
+              def __init__(self, code=1):
+                  self.code = code
+
+
+          def now():
+              return time.clock_gettime(time.CLOCK_BOOTTIME)
+
+
+          started = float(os.environ['PRAXYS_RESTORE_STARTED'])
+          phase_deadline = started + WORK_SECONDS
+          hard_deadline = started + END_SECONDS
+          expired = False
+          conflicting_write = False
+          mutation_started = False
+          cleanup_started = False
+          verified = False
+          observation = 'unknown'
+          original_failure = 1
+
+
+          def emit(phase, *, outcome, elapsed_ms=0, exit_class=None):
+              # Bounded enum metadata only. Never print provider responses or exceptions.
+              payload = json.dumps({'phase': phase, 'outcome': outcome,
+                                    'elapsed_ms': max(0, int(elapsed_ms)),
+                                    'exit_class': exit_class}) + '\n'
+              try:
+                  os.set_blocking(1, False)
+                  os.write(1, payload.encode())
+              except (OSError, ValueError):
+                  pass
+
+
+          def interrupt(signum, _frame):
+              global expired
+              expired = signum == signal.SIGALRM
+              raise Failure(124 if expired else 128 + signum)
+
+
+          for signum in (signal.SIGALRM, signal.SIGTERM, signal.SIGINT):
+              signal.signal(signum, interrupt)
+
+
+          def arm(deadline):
+              signal.setitimer(signal.ITIMER_REAL, max(0.001, deadline - now()))
+
+
+          def stop_tree(process, *, immediate=False):
+              # Kill the whole owned process group, even after its leader exits: a
+              # descendant may still retain stdout. Never wait for pipe EOF during reap.
+              try:
+                  os.killpg(process.pid, signal.SIGKILL if immediate else signal.SIGTERM)
+              except ProcessLookupError:
+                  pass
+              try:
+                  if not immediate:
+                      try:
+                          process.wait(timeout=GRACE_SECONDS)
+                      except subprocess.TimeoutExpired:
+                          pass
+              finally:
+                  try:
+                      os.killpg(process.pid, signal.SIGKILL)
+                  except ProcessLookupError:
+                      pass
+                  process.stdout.close()
+                  try:
+                      process.wait(timeout=0.1)
+                  except subprocess.TimeoutExpired:
+                      pass
+
+
+          def command(phase, argv, seconds, *, payload=None, write=False):
+              """Cap startup, pipes and descendants; the phase watchdog also bounds reap."""
+              global conflicting_write, mutation_started
+              begin = now()
+              if begin + seconds + GRACE_SECONDS + LOCAL_RESERVE_SECONDS > phase_deadline:
+                  emit(phase, outcome='not_admitted', exit_class='deadline')
+                  raise Failure(124)
+              process = None
+              completed = False
+              result = bytearray()
+              arm(min(phase_deadline, begin + seconds + GRACE_SECONDS))
+              try:
+                  if write:
+                      mutation_started = True
+                  emit(phase, outcome='started')
+                  # A regular temporary stdin avoids blocking while feeding jq or output.
+                  with tempfile.TemporaryFile() as source:
+                      if payload is not None:
+                          source.write(payload)
+                          source.seek(0)
+                      process = subprocess.Popen(argv, stdin=source, stdout=subprocess.PIPE,
+                                                 stderr=subprocess.DEVNULL, start_new_session=True)
+                      os.set_blocking(process.stdout.fileno(), False)
+                      with selectors.DefaultSelector() as selector:
+                          selector.register(process.stdout, selectors.EVENT_READ)
+                          eof = False
+                          while not (eof and process.poll() is not None):
+                              remaining = begin + seconds - now()
+                              if remaining <= 0:
+                                  raise Failure(124)
+                              for key, _ in selector.select(min(remaining, 0.05)):
+                                  chunk = os.read(key.fd, 8192)
+                                  if not chunk:
+                                      selector.unregister(key.fileobj)
+                                      eof = True
+                                  else:
+                                      result.extend(chunk)
+                                      if len(result) > MAX_CAPTURE_BYTES:
+                                          raise Failure(1)
+                          if now() > begin + seconds:
+                              raise Failure(124)
+                          code = process.wait(timeout=0)
+                          if code:
+                              raise Failure(code if code > 0 else 128 - code)
+                          completed = True
+                          emit(phase, outcome='completed', elapsed_ms=(now() - begin) * 1000,
+                               exit_class='success')
+                          return bytes(result)
+              except Failure as failure:
+                  classification = ('deadline' if failure.code == 124 else
+                                    'signal' if failure.code in (130, 143) else 'nonzero')
+                  emit(phase, outcome='failed', elapsed_ms=(now() - begin) * 1000,
+                       exit_class=classification)
+                  raise
+              except BaseException:
+                  emit(phase, outcome='failed', elapsed_ms=(now() - begin) * 1000,
+                       exit_class='internal')
+                  raise
+              finally:
+                  if write and not completed:
+                      # A timed-out/failed control-plane write may still complete remotely.
+                      # Later samples cannot resolve an outstanding conflicting operation.
+                      conflicting_write = True
+                  if process is not None:
+                      stop_tree(process, immediate=expired or completed)
+                  if not expired and now() < phase_deadline:
+                      arm(phase_deadline)
+                  else:
+                      signal.setitimer(signal.ITIMER_REAL, 0)
+
+
+          def check(predicate, payload, *, args=()):
+              command('predicate', ['jq', '-e', *args, predicate], PREDICATE_SECONDS, payload=payload)
+
+
+          app = os.environ['AZURE_BACKEND_APP_NAME']
+          group = os.environ['AZURE_RESOURCE_GROUP']
+          az_base = ['az', 'webapp', 'config', 'appsettings']
+          az_target = ['--name', app, '--resource-group', group]
+
+
+          def set_positive(value, phase):
+              command(phase, [*az_base, 'set', *az_target, '--settings',
+                             'PRAXYS_ENABLE_FEEDBACK_PUBLICATION=' + value, '--output', 'none'],
+                      WRITE_SECONDS, write=True)
+
+
+          def settings():
+              payload = command('settings_read', [*az_base, 'list', *az_target, '-o', 'json'], READ_SECONDS)
+              # Only two booleans leave this process; no raw settings reach logs or outputs.
+              result = command('settings_parse', ['jq', '-ec', '''
+                def flag($name): [.[] | select(.name == $name) | .value]
+                  | if length == 1 and (.[0] == "true" or .[0] == "false")
+                    then .[0] == "true" else error("invalid flag") end;
+                {positive: flag("PRAXYS_ENABLE_FEEDBACK_PUBLICATION"),
+                 kill: flag("PRAXYS_DISABLE_FEEDBACK_PUBLICATION")}
+              '''], PREDICATE_SECONDS, payload=payload)
+              return json.loads(result)
+
+
+          def read_runtime(positive, kill):
+              version = command('version', ['curl', '-fsS', '--max-time', '8', '-H',
+                  'Cache-Control: no-cache', 'https://api.praxys.run/api/version'], HTTP_SECONDS)
+              ready = command('readiness', ['curl', '-fsS', '--max-time', '8', '-H',
+                  'Cache-Control: no-cache', 'https://api.praxys.run/api/health/ready'], HTTP_SECONDS)
+              check('.version == $version and .source_sha == $sha', version, args=(
+                  '--arg', 'version', os.environ['PRAXYS_EXPECTED_API_VERSION'],
+                  '--arg', 'sha', os.environ['PRAXYS_EXPECTED_API_SOURCE_SHA']))
+              check('''.status == "ready"
+                and .optional_processing.feedback_publication_positive_enable == $positive
+                and .optional_processing.feedback_publication_kill_switch == $kill
+                and .optional_processing.feedback_publication_enabled == $effective''', ready,
+                args=('--argjson', 'positive', json.dumps(positive), '--argjson', 'kill', json.dumps(kill),
+                      '--argjson', 'effective', json.dumps(positive and not kill)))
+
+
+          def outputs(state, *, positive='unknown', kill='unknown', effective='unknown'):
+              payload = (f'observation={state}\npositive={positive}\nkill_switch={kill}\n'
+                         f'enabled={effective}\n').encode()
+              command('outputs', ['bash', '-c', 'cat >> "$GITHUB_OUTPUT"'], OUTPUT_SECONDS, payload=payload)
+
+
+          def restore():
+              desired = os.environ['DESIRED_FEEDBACK_PUBLICATION']
+              if desired not in ('true', 'false'):
+                  raise Failure(1)
+              set_positive(desired, 'restore_write')
+              for attempt in range(36):
+                  current = settings()  # Current control plane, then fresh runtime observations.
+                  try:
+                      read_runtime(desired == 'true', current['kill'])
+                      if current['positive'] != (desired == 'true'):
+                          raise Failure(1)
+                  except Failure as failure:
+                      if failure.code in (130, 143) or expired:
+                          raise
+                  else:
+                      if conflicting_write:
+                          raise Failure(1)
+                      outputs('verified', positive=desired,
+                              kill=str(current['kill']).lower(),
+                              effective=str(current['positive'] and not current['kill']).lower())
+                      return
+                  if attempt < 35:
+                      # Sleep itself is bounded by the same independent phase watchdog.
+                      command('retry_gap', ['sleep', '5'], GAP_SECONDS + LOCAL_RESERVE_SECONDS)
+              raise Failure(1)
+
+
+          def cleanup():
+              global cleanup_started, phase_deadline, expired, observation
+              if cleanup_started or not mutation_started:
+                  return
+              cleanup_started = True
+              expired = False
+              phase_deadline = min(now() + CLEANUP_SECONDS, hard_deadline)
+              arm(phase_deadline)
+              emit('cleanup', outcome='started')
+              try:
+                  try:
+                      set_positive('false', 'disable_write')
+                  except Failure as failure:
+                      if failure.code in (130, 143) or expired:
+                          raise
+                  current = settings()
+                  if current['positive'] is False and not conflicting_write:
+                      observation = 'control_plane_only'
+                  try:
+                      read_runtime(False, current['kill'])
+                  except Failure as failure:
+                      if failure.code in (130, 143) or expired:
+                          raise
+                  else:
+                      if current['positive'] is False and not conflicting_write:
+                          observation = 'verified_disabled'
+                  if conflicting_write:
+                      observation = 'unknown'
+                  outputs(observation)
+              except BaseException:
+                  observation = 'unknown'
+              emit('cleanup', outcome=observation)
+
+
+          try:
+              arm(phase_deadline)
+              restore()
+              verified = True
+          except Failure as failure:
+              original_failure = failure.code
+          except BaseException:
+              original_failure = 1
+          finally:
+              if not verified:
+                  try:
+                      cleanup()
+                  except BaseException:
+                      observation = 'unknown'
+              emit('restoration', outcome='verified' if verified else observation)
+              # os._exit avoids blocking on buffered stdout during interpreter teardown.
+              # SIGKILL/runner loss can interrupt even cleanup; missing output means unknown.
+              os._exit(0 if verified else original_failure or 1)
+          PY
 
       - name: Set up source-policy observation interpreter after restoration
         if: success()
@@ -780,10 +1016,11 @@ jobs:
           LIVE_MINIAPP_ENABLED: ${{ steps.live.outputs.miniapp_enabled }}
           LIVE_AI_ENABLED: ${{ steps.live.outputs.ai_enabled }}
           LIVE_AI_KILL_SWITCH: ${{ steps.live.outputs.ai_kill_switch }}
+          LIVE_FEEDBACK_PUBLICATION_OBSERVATION: ${{ steps.publication.outcome == 'success' && steps.publication.outputs.observation || 'unknown' }}
           LIVE_FEEDBACK_PUBLICATION_RESULT: ${{ steps.publication.outcome }}
-          LIVE_FEEDBACK_PUBLICATION_POSITIVE: ${{ steps.publication.outputs.positive || steps.live.outputs.feedback_publication_positive }}
-          LIVE_FEEDBACK_PUBLICATION_KILL: ${{ steps.publication.outputs.kill_switch || steps.live.outputs.feedback_publication_kill_switch }}
-          LIVE_FEEDBACK_PUBLICATION_ENABLED: ${{ steps.publication.outputs.enabled || steps.live.outputs.feedback_publication_enabled }}
+          LIVE_FEEDBACK_PUBLICATION_POSITIVE: ${{ steps.publication.outcome == 'success' && steps.publication.outputs.positive || 'unknown' }}
+          LIVE_FEEDBACK_PUBLICATION_KILL: ${{ steps.publication.outcome == 'success' && steps.publication.outputs.kill_switch || 'unknown' }}
+          LIVE_FEEDBACK_PUBLICATION_ENABLED: ${{ steps.publication.outcome == 'success' && steps.publication.outputs.enabled || 'unknown' }}
         shell: bash
         run: |
           {
@@ -797,6 +1034,7 @@ jobs:
             echo "- Miniapp processing enabled: ${LIVE_MINIAPP_ENABLED:-unavailable}"
             echo "- Azure AI enabled: ${LIVE_AI_ENABLED:-unavailable}"
             echo "- Azure AI emergency stop: ${LIVE_AI_KILL_SWITCH:-unavailable}"
+            echo "- Feedback publication observation: ${LIVE_FEEDBACK_PUBLICATION_OBSERVATION:-unknown}"
             echo "- Feedback publication restoration: ${LIVE_FEEDBACK_PUBLICATION_RESULT:-not-run}"
             echo "- Feedback publication positive enable: ${LIVE_FEEDBACK_PUBLICATION_POSITIVE:-unavailable}"
             echo "- Feedback publication emergency stop: ${LIVE_FEEDBACK_PUBLICATION_KILL:-unavailable}"

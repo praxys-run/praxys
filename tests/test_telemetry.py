@@ -1190,3 +1190,52 @@ def test_record_managed_plan_event_falls_back_to_metrics(fake_meter):
     assert fake_meter.histograms[
         "praxys.managed_plan.delivery_latency"
     ].calls[0][0] == 450
+
+
+def test_readiness_instrument_creation_failure_is_optional(monkeypatch):
+    from api import telemetry
+    def fail(*args):
+        raise RuntimeError('synthetic unavailable SDK')
+    monkeypatch.setattr(telemetry, '_histogram', fail)
+    telemetry.init_readiness_timing()
+    assert telemetry._readiness_histogram is None
+    telemetry.record_readiness_timing([('handler_total', 'wall', 1., 'completed')])
+
+
+def test_readiness_histogram_is_local_bounded_and_private(monkeypatch):
+    import socket
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from api import telemetry
+    histogram = _FakeHistogram()
+    monkeypatch.setattr(telemetry, '_readiness_histogram', histogram)
+    def forbidden(*args, **kwargs):
+        raise AssertionError('request-path initialization, network or blocking')
+    monkeypatch.setattr(telemetry, '_histogram', forbidden)
+    monkeypatch.setattr(socket, 'create_connection', forbidden)
+    monkeypatch.setattr(time, 'sleep', forbidden)
+    samples = [(stage, 'wall', 1., 'completed') for stage in sorted(telemetry._READINESS_STAGES)]
+    samples += [('dfa_policy', 'thread_cpu', .5, 'denied_or_error'),
+                ('handler_total', 'thread_cpu', .5, 'completed')]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(lambda _: telemetry.record_readiness_timing(samples, parser='c_safe'), range(8)))
+    assert len(histogram.calls) == 8 * 11
+    assert all(set(labels) == {'stage', 'clock', 'outcome', 'parser'} for _, labels in histogram.calls)
+    before = len(histogram.calls)
+    telemetry.record_readiness_timing([
+        ('secret-canary', 'wall', 1., 'completed'),
+        ('handler_total', 'secret-canary', 1., 'completed'),
+        ('handler_total', 'wall', float('inf'), 'completed'),
+        ('handler_total', 'wall', -1., 'completed'),
+    ])
+    assert len(histogram.calls) == before
+    assert 'secret-canary' not in repr(histogram.calls)
+
+
+def test_readiness_record_failure_drops_measurements(monkeypatch):
+    from api import telemetry
+    class Broken:
+        def record(self, *args):
+            raise RuntimeError('private exporter failure')
+    monkeypatch.setattr(telemetry, '_readiness_histogram', Broken())
+    telemetry.record_readiness_timing([('handler_total', 'wall', 1., 'completed')])

@@ -66,6 +66,7 @@ custom signals in the table below belong to `appi-praxys-backend`.
 | `praxys.feedback` | `kind`, `status` | In-app feedback submissions + triage outcomes | `record_feedback` |
 | `praxys.feedback_publication` | `status`, `reason` | Metadata-only publication config/provider failures and aggregate queue-age thresholds; never content, feedback/user ids, marker, URL, token, or response body | `record_feedback_publication` |
 | `praxys.db_health` | `status`, `backend` | DB integrity/connectivity failures (startup check + readiness probe) | `record_db_health` |
+| `praxys.readiness.stage_duration` | `stage`, `clock`, `outcome`, `parser`; numeric milliseconds | Local histogram of bounded readiness work; no request/user identifiers or raw values | `record_readiness_timing` |
 | `praxys.sync` | `platform`, `outcome`, `failure_class`, `trigger`, `user_id_hash` | Per-platform sync attempt outcomes (success/failure + why) | `record_sync` |
 | `praxys.connection` | `platform`, `flow`, `stage`, `outcome`, `failure_class`, `region`, `user_id_hash` | Account-connect attempts; `flow` is the Garmin **mfa** vs **non_mfa** sub-category | `record_connection` |
 | `praxys.managed_plan` | `category`, `action`, `outcome`, `target`, `trigger`, `reason`, `failure_domain`, `user_id_hash`; `duration_ms`* | Managed-plan lifecycle, reconciliation, cleanup, delivery-run, item, and operator-recovery outcomes. `*` customEvent only; the metric fallback records latency separately as `praxys.managed_plan.delivery_latency`. | `record_managed_plan_event` |
@@ -1141,3 +1142,35 @@ quiescence, so a stale workflow variable snapshot is not the final authority.
 
 ---
 _Last reviewed: 2026-08-22 · Owner: @dddtc2005 · Alert inventory + cost model current as of this review._
+
+## Readiness stage timing
+
+`praxys.readiness.stage_duration` is emitted by `api/telemetry.py` into the trusted
+backend component through an instrument pre-created at startup. Existing
+asynchronous SDK export handles delivery. This change provisions no new alert,
+action group or telemetry component.
+
+The exact stage enum is `dispatch_queue`, `db_init`, `db_acquire`, `db_select`,
+`shared_authority`, `db_close`, `controls`, `dfa_policy`, `handler_total`.
+Every stage may have `clock=wall`; only policy and total also have
+`clock=thread_cpu`. Thus one probe emits at most 11 scalar observations, normally 10
+without lazy db_init, through one best-effort helper invocation. `outcome` is
+`completed`, `failed` or `denied_or_error`; `parser` is `c_safe`, `python_safe` or
+`unknown`. Missing instruments/clock/recording failures discard observations and
+never alter readiness. There are no headers, user hashes, SQL, paths, source
+contents, raw settings, errors or results in labels. Public responses gain no
+fields. Request handling performs no telemetry initialization, network I/O,
+flush, sleep or retry; local aggregation does not guarantee arbitrary broken SDK
+code cannot block.
+
+Dispatch measures immediately before the one Starlette thread dispatch to first
+worker entry, not event-loop lag or arrival-to-route time. Acquisition includes
+pool checkout, pre-ping and reconnect/token acquisition; it is not pure pool wait.
+SQL/authority/close timings separate their costs from policy validation, which
+runs only after the session is closed. Compare policy wall time with the same
+worker's CPU time; excess wall time suggests waiting/descheduling but does not
+identify filesystem versus CPU contention by itself. Use same-release intervals
+and existing trusted request/dependency aggregates; do not infer a process cause
+from plan-wide CPU or subtract unrelated percentile bins. Whole-file telemetry
+maintenance becomes DFA-governed after activation; see the
+[accepted boundary record](../dev/dfa-readiness-recovery/readiness-timing-deadline-v1.md).
