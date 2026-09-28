@@ -23,17 +23,18 @@ lives in `config/agent-decision-card-trial.json`.
   the JSON flag or passing a CLI option.
 - Pure transition logic for a single 16-task cohort, an eight-task checkpoint,
   sticky A/B assignment, a monotonic stop, coded append-only outcomes, and a
-  candidate card renderer. Unit tests simulate a protected atomic store; they
-  are **not** evidence that one exists or that any runtime was enrolled.
+  candidate card renderer. A separate Azure Blob adapter implements ETag-based
+  whole-cohort writes and rejects history rollback. Unit tests use a fake Blob;
+  they are **not** evidence that a protected store exists or a runtime is enrolled.
 - No calls from an agent runtime, Copilot assignment workflow, Paseo launcher,
   or PR workflow; no private storage, credentials, telemetry, protection-rule
   changes, enrollment, or candidate decision cards in live work. Baseline
   behavior stays unchanged. Existing Git-common-dir invocation control is not
   a cross-checkout trial store.
 
-This is a first implementation slice, not a claim that future sessions are
-already compelled to join. A native CLI/Paseo session that bypasses a trusted
-entrypoint cannot be covered by repository instructions alone.
+These implementation slices do not compel future sessions to join. A native
+CLI/Paseo session that bypasses a trusted entrypoint cannot be covered by
+repository instructions alone.
 
 ## Proposed protocol — not permission to run
 
@@ -60,8 +61,8 @@ Before enabling anything, Architecture and Operations must verify **one**
 controlled entrypoint and a restricted, atomic, durable cohort store with
 authenticated admissions, checkpoint reviewers, and a protected kill switch.
 Cloud, Local, and Paseo must not share a quota unless the same store and
-runtime dispatch have each been verified end to end. A possible private
-Azure-Blob/ETag design is not an installed or authorized resource. The broker
+runtime dispatch have each been verified end to end. The Azure Blob adapter
+is not an installed or authorized resource. The broker
 must reject lost or ambiguous writes without B exposure, bind the frozen
 policy and Work Contract digests, and observe failed and abandoned no-PR runs.
 

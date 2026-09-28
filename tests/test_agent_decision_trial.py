@@ -94,6 +94,23 @@ class MemoryStore:
             return True
 
 
+def test_cohort_assignments_are_immutable_and_serializable() -> None:
+    policy = _active_policy()
+    request = _request(1)
+    with pytest.raises(TypeError):
+        new_cohort(policy).assignments[request.task_key] = plan_admission(
+            policy, new_cohort(policy), request
+        ).state.assignments[request.task_key]
+    state = plan_admission(policy, new_cohort(policy), request).state
+    revision, snapshot = MemoryStore(state).read()
+
+    assert revision == "0"
+    with pytest.raises(TypeError):
+        snapshot.assignments[request.task_key] = snapshot.assignments[request.task_key]
+    assert state.assignments[request.task_key].arm == "A"
+    assert CohortState.model_validate_json(snapshot.model_dump_json()) == state
+
+
 def test_checked_in_policy_cannot_enroll_tasks_or_enable_via_cli() -> None:
     policy = load_trial_policy()
     assert policy.status == "disabled"

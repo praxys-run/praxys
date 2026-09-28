@@ -11,9 +11,17 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from typing import Literal, Protocol
+from types import MappingProxyType
+from typing import Literal, Mapping, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from analysis.agentic_task_routing import (
     TaskRoute,
@@ -126,9 +134,24 @@ class CohortState(TrialRecord):
     schema_version: Literal[1]
     cohort_id: str
     policy_digest: str = Field(pattern=_DIGEST_PATTERN)
-    assignments: dict[str, Admission] = Field(default_factory=dict)
+    assignments: Mapping[str, Admission] = Field(
+        default_factory=dict, validate_default=True
+    )
     checkpoint_review_digest: str | None = Field(default=None, pattern=_DIGEST_PATTERN)
     stopped: bool = False
+
+    @field_validator("assignments", mode="after")
+    @classmethod
+    def freeze_assignments(
+        cls, assignments: Mapping[str, Admission]
+    ) -> Mapping[str, Admission]:
+        return MappingProxyType(dict(assignments))
+
+    @field_serializer("assignments")
+    def serialize_assignments(
+        self, assignments: Mapping[str, Admission]
+    ) -> dict[str, Admission]:
+        return dict(assignments)
 
     @model_validator(mode="after")
     def validate_history(self) -> "CohortState":
