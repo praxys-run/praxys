@@ -155,9 +155,10 @@ Roles are intentionally distinct:
 Changing reviewed content changes its digest and makes the approval stale.
 Changing an SDR from inactive to active changes both its decision and contract
 digests, requiring renewed decision and implementation review.
-The implementation role is part of the schema, but automated materialization
-currently rejects it until the attestation can bind the exact code diff and
-validation evidence as well as the contract digest.
+The implementation role requires schema version 2 and an implementation binding.
+Contract-only implementation attestations remain invalid. The binding includes
+repository/PR, frozen base/head, exact binary diff, final active contract and
+independently produced validation workflow/run/attempt/artifact/content digest.
 
 ### What counts as approval
 
@@ -193,7 +194,8 @@ the trusted generated packets/contracts before merge.
 
 The materializer verifies the current digest, applies linked evidence and
 decision transitions atomically, regenerates packets/contracts/indexes, and
-leaves `runtime_state` unchanged. A stale digest, unverified artifact, tampered
+leaves `runtime_state` unchanged unless a separately source-verified implementation
+approval binds its projected accepted/active contract and exact implementation. A stale digest, unverified artifact, tampered
 packet, or accepted decision whose linked evidence remains draft fails without
 modifying the working tree.
 
@@ -204,9 +206,11 @@ requires an agent-prepared coordinated patch that marks predecessors
 that approved scientific content does not become stale when this explicit
 transition is applied; the ledger never guesses the predecessor.
 
-Implementation approval is intentionally not automated yet. A contract cannot
-be activated until that approval can also bind the exact reviewed code diff and
-validation evidence; a contract digest alone is insufficient.
+Implementation materialization is supported only with a complete authenticated
+code-and-validation binding and exact deterministic tree replay. The inactive
+capability must land on trusted main before a separate activation PR can use it.
+See [bounded activation preparation](dfa-activation/decisions.md). A contract
+digest alone remains insufficient; no default review authority changes.
 
 ## Review workflow
 
@@ -227,3 +231,45 @@ validation evidence; a contract digest alone is insufficient.
 
 Legacy records remain supported with `approval_mode: legacy`. New science
 decision work should use artifact mode.
+
+
+### Implementation validation and replay
+
+The trusted-main `science-activation-validation.yml` workflow takes one frozen
+same-repository PR revision and projected active contract digest. Its isolated
+candidate job has no approval-write credentials, production secrets or persisted
+checkout credentials. A separate trusted collector recomputes the code diff and
+contract and reads successful required-job metadata. Its bounded JSON artifact
+identifies repository/PR, base/head, contract, trusted workflow revision, run and
+attempt. The implementation statement displays every envelope field and its
+canonical SHA-256 digest. The workflow is validation evidence, not human approval.
+
+The ledger refreshes GitHub comments, reviewer permissions, PR/base/head and
+validation identity before writing. Its candidate tree must equal the reviewed
+preapproval tree, then equal exact replay of the three role approvals. No path
+class is broadly excluded from this initial comparison. Identical retries are
+idempotent; unexplained code, generated, mode or ledger changes fail. Duplicate
+JSON/YAML keys and science symlinks fail instead of hiding ambiguous content.
+
+After activation, the trusted file manifest in
+`config/science-implementation-coverage.json` conservatively gates subsequent
+implementation maintenance. It includes shared dependency files in full; edits
+inside them need separately reviewed renewal, even for another feature. This
+capability does not implement renewal or revocation. No history is overwritten
+and no science-version increment is fabricated for a code-only change.
+
+After the trusted validation run succeeds, prepare the concrete review package
+without writing approval comments or candidate files:
+
+```bash
+python scripts/prepare_science_activation.py \
+  --candidate /path/to/frozen-checkout --repository praxys-run/praxys \
+  --pull-request PR_NUMBER --validation-run RUN_ID \
+  --validation-artifact ARTIFACT_ID --output-dir /tmp/dfa-exact-review-package
+```
+
+The output contains the exact evidence, active-decision and implementation
+statements, binding and authenticated validation manifest. Only after the human
+makes those displayed assertions may an agent transcribe them to GitHub. The
+existing general authorization to enable the feature does not invent an
+unseen exact-digest statement or assert personal literature review.

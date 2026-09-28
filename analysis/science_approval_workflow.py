@@ -13,6 +13,8 @@ from typing import Any, Mapping, Sequence
 
 import yaml
 
+from analysis.science_yaml import load_science_yaml
+
 from analysis.evidence_registry import (
     ApprovalMode,
     ArtifactRuntimeState,
@@ -57,12 +59,40 @@ def approvals_from_github_comments(
     science_dir: str | Path,
     comments: Sequence[Mapping[str, Any]],
     permissions: Mapping[str, str],
+    *,
+    activation_context=None,
 ) -> list[ScienceApproval]:
     """Return digest-bound approvals from authorized human PR comments."""
     registry = load_science_registry(
         science_dir,
         validate_approvals=False,
     )
+    from analysis.science_activation import implementation_payload
+    from analysis.science_artifacts import ImplementationBinding
+
+    implementation_payloads = {}
+    for comment in comments:
+        user = comment.get("user", {})
+        if (not isinstance(user, Mapping) or user.get("type") != "User"
+                or str(user.get("login", "")).endswith("[bot]")
+                or permissions.get(user.get("login"), "").lower() not in _AUTHORIZED_PERMISSIONS):
+            continue
+        payload = implementation_payload(str(comment.get("body", "")))
+        if payload is None:
+            continue
+        if activation_context is None:
+            raise ValueError("Implementation approval requires authenticated repository context")
+        binding = ImplementationBinding.model_validate(payload["implementation_binding"])
+        source = str(comment.get("html_url", ""))
+        expected_source = f"https://github.com/{binding.repository}/issues/{binding.pull_request}#issuecomment-"
+        alternate = f"https://github.com/{binding.repository}/pull/{binding.pull_request}#issuecomment-"
+        if not (source.startswith(expected_source) or source.startswith(alternate)):
+            raise ValueError("Implementation approval source is not this repository/PR")
+        if implementation_payloads:
+            raise ValueError("One activation batch may contain exactly one implementation approval")
+        registry = activation_context.verify(binding, registry, payload["subject_id"])
+        implementation_payloads[source] = payload
+
     approvals: dict[
         tuple[ReviewSubjectKind, str, ReviewRole, str],
         ScienceApproval,
@@ -97,7 +127,8 @@ def approvals_from_github_comments(
         ):
             continue
 
-        payloads = _structured_approval_payloads(body, registry)
+        payloads = ([implementation_payloads[source_ref]] if source_ref in implementation_payloads
+                    else _structured_approval_payloads(body, registry))
         if not payloads:
             payloads = _legacy_approval_payloads(body, registry)
 
@@ -105,7 +136,8 @@ def approvals_from_github_comments(
         for payload in payloads:
             role = ReviewRole(payload["role"])
             approval = ScienceApproval.model_validate({
-                "schema_version": 1,
+                "schema_version": 2 if role == ReviewRole.IMPLEMENTATION_REVIEWER else 1,
+                "implementation_binding": payload.get("implementation_binding"),
                 "subject_kind": payload["subject_kind"],
                 "subject_id": payload["subject_id"],
                 "subject_digest": payload["subject_digest"],
@@ -139,32 +171,45 @@ def approvals_from_github_comments(
 def materialize_science_approvals(
     science_dir: str | Path,
     approvals: Sequence[ScienceApproval],
+    *,
+    activation_context=None,
 ) -> list[Path]:
     """Atomically record approvals and accepted lifecycle transitions."""
-    root = Path(science_dir).resolve()
+    unresolved_root = Path(science_dir)
+    if unresolved_root.is_symlink() or unresolved_root.parent.is_symlink():
+        raise ValueError("Science approval directory cannot be a symlink")
+    root = unresolved_root.resolve()
     if not root.is_dir():
         raise ValueError(f"Science directory does not exist: {root}")
     if not approvals:
         return []
-    if any(
-        approval.role == ReviewRole.IMPLEMENTATION_REVIEWER
-        for approval in approvals
-    ):
-        raise ValueError(
-            "Implementation approval is not materialized until it can bind "
-            "the exact reviewed code and validation evidence"
-        )
+    implementation = [a for a in approvals if a.role == ReviewRole.IMPLEMENTATION_REVIEWER]
+    if implementation:
+        if activation_context is None or len(implementation) != 1:
+            raise ValueError("Implementation approval requires one authenticated activation context")
+        binding = implementation[0].implementation_binding
+        activation_context.verify(binding, load_science_registry(root), implementation[0].subject_id)
+        # Identical retries need no writes; all other input must be the frozen head.
+        if all(a in load_science_approvals(root) for a in approvals):
+            activation_context.verify_replay(binding, approvals, root.parent.parent)
+            return []
+        activation_context.require_reviewed_tree(binding, root.parent.parent)
     _reject_symlinks(root)
     _require_unique_approval_batch(approvals)
     _verify_generated_state(root)
     root_snapshot = _snapshot_tree(root)
+    root_modes = {relative: (root / relative).stat().st_mode for relative in root_snapshot}
 
     with tempfile.TemporaryDirectory(prefix="praxys-science-approval-") as tmp:
         staged_root = Path(tmp) / "science"
         shutil.copytree(root, staged_root, symlinks=True)
         candidate_paths: set[Path] = set()
 
-        for approval in approvals:
+        ordered = sorted(approvals, key=lambda a: {
+            ReviewRole.EVIDENCE_REVIEWER: 0, ReviewRole.DECISION_APPROVER: 1,
+            ReviewRole.IMPLEMENTATION_REVIEWER: 2,
+        }[a.role])
+        for approval in ordered:
             record_path = _transition_subject(staged_root, approval)
             candidate_paths.add(record_path.relative_to(staged_root))
             approval_path = _write_approval_artifact(
@@ -208,8 +253,28 @@ def materialize_science_approvals(
                     f"Science file changed during approval materialization: "
                     f"{relative}"
                 )
-        for relative in changed:
-            _atomic_copy(staged_root / relative, root / relative)
+        if implementation:
+            activation_context.require_reviewed_tree(binding, root.parent.parent)
+            if activation_context.recheck is not None:
+                activation_context.recheck()
+        written = []
+        try:
+            for relative in changed:
+                written.append(relative)
+                _atomic_copy(staged_root / relative, root / relative)
+        except Exception:
+            # Roll back the completed part of this ledger batch; never leave a
+            # partially active record after a recoverable publication failure.
+            for relative in reversed(written):
+                original = root_snapshot.get(relative)
+                if original is None:
+                    (root / relative).unlink(missing_ok=True)
+                else:
+                    recovery = Path(tmp) / 'recovery'
+                    recovery.write_bytes(original)
+                    recovery.chmod(root_modes[relative])
+                    _atomic_copy(recovery, root / relative)
+            raise
 
     load_science_registry(root)
     return changed
@@ -220,12 +285,18 @@ def verify_science_approval_changes(
     head_science_dir: str | Path,
     comments: Sequence[Mapping[str, Any]],
     permissions: Mapping[str, str],
+    *,
+    activation_context=None,
 ) -> None:
     """Require every new approval to match an authenticated PR comment."""
     base_root = Path(base_science_dir)
     head_root = Path(head_science_dir)
+    _reject_symlinks(base_root)
+    _reject_symlinks(head_root)
     base_registry = load_science_registry(base_root)
     head_registry = load_science_registry(head_root)
+    from analysis.science_activation import verify_governed_maintenance
+    verify_governed_maintenance(base_registry, head_registry)
 
     base_approvals = load_science_approvals(base_root)
     head_approvals = load_science_approvals(head_root)
@@ -233,6 +304,7 @@ def verify_science_approval_changes(
         head_root,
         comments,
         permissions,
+        activation_context=activation_context,
     )
 
     for approval in base_approvals:
@@ -244,11 +316,6 @@ def verify_science_approval_changes(
     for approval in head_approvals:
         if approval in base_approvals:
             continue
-        if approval.role == ReviewRole.IMPLEMENTATION_REVIEWER:
-            raise ValueError(
-                "Implementation approval requires a code-bound review "
-                "mechanism that is not yet enabled"
-            )
         if approval not in verified:
             raise ValueError(
                 f"Science approval for {approval.subject_id} is not backed by "
@@ -261,6 +328,12 @@ def verify_science_approval_changes(
         head_approvals,
     )
     _verify_generated_state(head_root, registry=head_registry)
+    implementation = [a for a in head_approvals if a not in base_approvals
+                      and a.role == ReviewRole.IMPLEMENTATION_REVIEWER]
+    for approval in implementation:
+        if activation_context is None:
+            raise ValueError("Implementation replay requires authenticated repository context")
+        activation_context.verify_replay(approval.implementation_binding, verified, head_root.parent.parent)
 
 
 def _structured_approval_payloads(
@@ -456,6 +529,8 @@ def _require_unique_approval_batch(
 
 
 def _reject_symlinks(root: Path) -> None:
+    if root.is_symlink() or root.parent.is_symlink():
+        raise ValueError("Science approval directory cannot be a symlink")
     for path in root.rglob("*"):
         if path.is_symlink():
             raise ValueError(
@@ -533,11 +608,15 @@ def _transition_subject(
                 f"Science decision {approval.subject_id} cannot be accepted "
                 f"from status {status}"
             )
+    elif approval.role == ReviewRole.IMPLEMENTATION_REVIEWER:
+        if status != RecordStatus.ACCEPTED.value or approval.implementation_binding is None:
+            raise ValueError("Implementation activation requires accepted code-bound decision")
+        pattern = re.compile(r"(?m)^(  runtime_state:)[^\n]*$")
+        if len(pattern.findall(text)) != 1:
+            raise ValueError("Expected exactly one explicit artifact runtime state")
+        text = pattern.sub(r"\1 active", text)
     else:
-        raise ValueError(
-            "Implementation approval is not materialized until code binding "
-            "is implemented"
-        )
+        raise ValueError("Unknown science approval role")
 
     record_path.write_text(text, encoding="utf-8", newline="\n")
     return record_path
@@ -560,7 +639,7 @@ def _subject_path(root: Path, subject_id: str) -> Path:
 
 def _load_mapping(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle)
+        raw = load_science_yaml(handle)
     if not isinstance(raw, dict):
         raise ValueError(f"Science record must be a mapping: {path}")
     return raw
@@ -590,7 +669,7 @@ def _write_approval_artifact(
         f"{reviewer_slug}.yaml"
     )
     path = science_dir / "approvals" / filename
-    payload = approval.model_dump(mode="json")
+    payload = approval.model_dump(mode="json", exclude_none=True)
     content = yaml.safe_dump(payload, sort_keys=False)
     if path.exists():
         existing = ScienceApproval.model_validate(_load_mapping(path))
@@ -685,10 +764,11 @@ def _verify_lifecycle_transitions(
             and head_decision.artifact_policy.runtime_state
             == ArtifactRuntimeState.ACTIVE
         ):
-            raise ValueError(
-                "Runtime activation is blocked until implementation approval "
-                "is bound to the exact reviewed code and validation evidence"
-            )
+            if not _has_exact_role_approval(
+                head_approvals, ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
+                decision_id, ReviewRole.IMPLEMENTATION_REVIEWER,
+            ):
+                raise ValueError("Runtime activation requires code-bound implementation approval")
 
 
 def _has_exact_role_approval(

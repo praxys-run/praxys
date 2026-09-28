@@ -23,6 +23,8 @@ def main() -> int:
     parser.add_argument("--head-science-dir", type=Path, required=True)
     parser.add_argument("--github-comments", type=Path, required=True)
     parser.add_argument("--github-permissions", type=Path, required=True)
+    parser.add_argument("--repository")
+    parser.add_argument("--pull-request", type=int)
     args = parser.parse_args()
 
     comments = json.loads(
@@ -36,11 +38,18 @@ def main() -> int:
     if not isinstance(permissions, dict):
         parser.error("--github-permissions must contain a JSON object")
 
+    from analysis.science_activation_github import authenticated_context
+    context, comments, permissions = authenticated_context(
+        args.head_science_dir, comments, permissions,
+        repository=args.repository, pull_request=args.pull_request,
+    )
+
     verify_science_approval_changes(
         args.base_science_dir,
         args.head_science_dir,
         comments,
         permissions,
+        activation_context=context,
     )
     print("Science approval sources and lifecycle transitions are verified.")
     return 0

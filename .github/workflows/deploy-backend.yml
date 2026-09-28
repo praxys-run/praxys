@@ -708,6 +708,16 @@ jobs:
             echo "enabled=${publication_enabled}"
           } >> "${GITHUB_OUTPUT}"
 
+      - name: Observe exact DFA policy after normal publication restoration
+        if: success()
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: >-
+          python scripts/observe_dfa_policy.py
+          --source-sha "$EXPECTED_SOURCE_SHA"
+          --contract data/science/generated/contracts/sdr-activity-dfa-alpha1-v1.json
+          --timeout-seconds 1200
+
       - name: Summarize backend deployment
         if: always()
         env:

@@ -99,3 +99,52 @@ and independent Science/Trust/Quality review precede release.
 - [Connect IQ archives](connectiq-archives.md)
 - [Backup and restore](backup-and-restore.md)
 - [DFA implementation contract](../dev/activity-dfa-alpha1-implementation.md)
+
+## Implementation-bound activation staging
+
+The capability PR leaves the DFA Evidence Review and decision draft/inactive.
+After this mechanism is protected-merged to trusted main, a separate activation
+PR freezes a preapproval revision and projected accepted/active contract. The
+trusted-main `Validate frozen science activation` workflow runs synthetic checks
+without production credentials and a separate collector publishes immutable
+validation evidence. Fresh independent reviews and exact source-backed human
+role statements precede deterministic lifecycle materialization. Never interpret
+an inactive decision/contract digest as the final active digest.
+
+The ledger and required selective-review verifier authenticate GitHub identity,
+current repository permission, PR/base/head, validation workflow revision and
+attempt, artifact identity and digest. The final activation tree must exactly
+replay from the approved preapproval tree; generated directories are not broad
+exclusions. `config/science-implementation-coverage.json` explicitly lists
+subsequently governed files. Editing a shared governed file, even for another
+feature, requires separately reviewed renewal before acceptance. This first
+capability does not implement renewal or revocation automation. Unrelated paths
+remain ordinary maintenance. Preserve the reviewed inactive PR839 build as the
+migration-compatible rollback option; never delete approval history.
+
+After ordinary feedback publication restoration, deployment observes
+`/api/health/ready` `dfa_policy` and `/api/version` source SHA for at most 20
+minutes. `dfa_policy` contains exactly `policy_active` and `contract_digest`;
+actual `require_policy()` success returns true and its digest, otherwise false
+and null. The endpoint is no-store and does not query DFA owner data or compute.
+The existing readiness database and shared-authority checks still apply. Missing,
+malformed or mismatched metadata fails this observation without restarting or
+undoing feedback-publication restoration. Retain source SHA, state, contract
+digest, observation time and workflow URL only. This is a sampled acceptance
+check, not proof of all instances, user processing or global erasure replay.
+
+Miniapp robot5 upload previously failed at 2207 KB above its 2 MB limit (the
+preexisting baseline was 2134 KB). Packaging repair and manual upload are separate
+work. Physical Skyline, gesture, screen-reader and larger-text evidence gaps
+remain disclosed; simulator evidence does not close them.
+
+Rollback is time-bounded: rerun original successful backend main/push run
+`36367840399` at source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2` while GitHub's
+30-day/50-attempt eligibility remains (deadline `2026-10-28T01:55:43Z`). The old
+workflow rebuilds source; it has no retained byte-identical package or target-ref
+input. Original run configuration-sync and telemetry steps were skipped; ordinary
+feedback quiesce/restore remains. Before activation, Operations reconfirms
+eligibility and Quality verifies the old migration-compatible build against
+synthetic retained DFA state, including inactive policy and rights/erasure paths.
+No live rollback is claimed. The old readiness response does not contain
+`dfa_policy`; use its exact SHA, readiness and independent inactive-policy proof.

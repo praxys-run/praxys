@@ -1,0 +1,77 @@
+"""Synthetic-only projected activation check; never produces real approvals.
+
+Runs candidate imports without secrets on the disposable validation runner. The
+separate trusted collector authenticates job success and recomputes all digests.
+"""
+from datetime import date
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+
+candidate = Path(os.environ['CANDIDATE_ROOT']).resolve()
+sys.path.insert(0, str(candidate))
+from analysis import science_artifacts as artifacts
+from analysis.evidence_registry import load_science_registry, render_registry_index
+from analysis.science_activation import project_active_registry
+import yaml
+
+subject = os.environ['ACTIVATION_SUBJECT']
+expected = os.environ['ACTIVATION_CONTRACT']
+if subject != 'sdr-activity-dfa-alpha1-v1':
+    raise ValueError('This bounded producer validates descriptive activity DFA only')
+with tempfile.TemporaryDirectory(prefix='synthetic-dfa-policy-') as temporary:
+    root = Path(temporary) / 'science'
+    shutil.copytree(candidate / 'data/science', root)
+    registry = load_science_registry(root)
+    projected = project_active_registry(registry, subject)
+    contract = artifacts.build_policy_contract(projected, subject)
+    if contract.contract_digest != expected:
+        raise ValueError('Projected active contract mismatch')
+    decision = projected.decisions[subject]
+    subjects = []
+    for review_id in decision.evidence_review_ids:
+        review = projected.evidence_reviews[review_id]
+        if review.approval_mode.value != 'artifact':
+            continue
+        review = review.model_copy(update={'reviewed_on': date.today()})
+        projected.review_paths[review_id].write_text(yaml.safe_dump(review.model_dump(mode='json'), sort_keys=False))
+        subjects.append((artifacts.ReviewSubjectKind.EVIDENCE_REVIEW, review_id,
+                         artifacts.evidence_review_digest(review), artifacts.ReviewRole.EVIDENCE_REVIEWER))
+    projected.decision_paths[subject].write_text(yaml.safe_dump(decision.model_dump(mode='json'), sort_keys=False))
+    subjects.append((artifacts.ReviewSubjectKind.SCIENCE_DECISION, subject,
+                     artifacts.science_decision_digest(decision), artifacts.ReviewRole.DECISION_APPROVER))
+    subjects.append((artifacts.ReviewSubjectKind.IMPLEMENTATION_CONTRACT, subject,
+                     expected, artifacts.ReviewRole.IMPLEMENTATION_REVIEWER))
+    for kind, identity, digest, role in subjects:
+        payload = dict(schema_version=1, subject_kind=kind.value, subject_id=identity,
+                       subject_digest=digest, reviewer='github:synthetic-validation-only',
+                       role=role.value, reviewed_on=date.today().isoformat(),
+                       scopes=[s.value for s in artifacts.required_review_scopes(role)],
+                       source_ref='https://github.com/praxys-run/praxys/issues/1#issuecomment-1')
+        if role == artifacts.ReviewRole.IMPLEMENTATION_REVIEWER:
+            payload.update(schema_version=2, implementation_binding=dict(
+                version=1, repository='praxys-run/praxys', pull_request=1,
+                base_sha='0' * 40, reviewed_head_sha='1' * 40,
+                diff_digest='sha256:' + '0' * 64, active_contract_digest=expected,
+                validation_run_id=1, validation_run_attempt=1,
+                validation_workflow_sha='0' * 40, validation_artifact_id=1,
+                validation_digest='sha256:' + '1' * 64))
+        approval = artifacts.ScienceApproval.model_validate(payload)
+        path = root / 'approvals' / f'synthetic-{identity}-{role.value}.yaml'
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(yaml.safe_dump(approval.model_dump(mode='json', exclude_none=True)))
+    active = load_science_registry(root)
+    artifacts.sync_science_artifacts(active, check=False)
+    (root / 'REGISTRY.md').write_text(render_registry_index(active))
+    # Redirect the registry location only. Neither loader nor require_policy is mocked.
+    artifacts._SCIENCE_DIR = root
+    from api.activity_dfa import require_policy
+    from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST, digest
+    assert require_policy() == expected
+    assert contract.model_version == METHOD_VERSION
+    assert digest(contract.parameter_values) == POLICY_PARAMETER_DIGEST
+    print(json.dumps({'synthetic_only': True, 'contract_digest': expected,
+                      'method_version': METHOD_VERSION, 'parameter_digest': POLICY_PARAMETER_DIGEST}, sort_keys=True))

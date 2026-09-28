@@ -36,6 +36,8 @@ def main() -> int:
         required=True,
         help="JSON object mapping GitHub login to repository permission",
     )
+    parser.add_argument("--repository")
+    parser.add_argument("--pull-request", type=int)
     args = parser.parse_args()
 
     comments = json.loads(
@@ -48,10 +50,17 @@ def main() -> int:
         parser.error("--github-comments must contain a JSON array")
     if not isinstance(permissions, dict):
         parser.error("--github-permissions must contain a JSON object")
+    from analysis.science_activation_github import authenticated_context
+    context, comments, permissions = authenticated_context(
+        args.science_dir, comments, permissions,
+        repository=args.repository, pull_request=args.pull_request,
+    )
+
     approvals = approvals_from_github_comments(
         args.science_dir,
         comments,
         permissions,
+        activation_context=context,
     )
 
     if not approvals:
@@ -61,6 +70,7 @@ def main() -> int:
     changed = materialize_science_approvals(
         args.science_dir,
         approvals,
+        activation_context=context,
     )
     if not changed:
         print("Science approvals are already materialized.")

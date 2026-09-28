@@ -13,6 +13,8 @@ from typing import Annotated, Any, Literal
 from pydantic import AnyHttpUrl, Field, JsonValue, model_validator
 import yaml
 
+from analysis.science_yaml import load_science_yaml
+
 from analysis.evidence_registry import (
     ApprovalMode,
     ArtifactRuntimeState,
@@ -35,6 +37,28 @@ _CONTRACT_DIR = Path("generated") / "contracts"
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 Digest = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+GitRevision = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+
+
+class ImplementationBinding(RegistryModel):
+    """Immutable source and independently produced validation envelope."""
+
+    version: Literal[1]
+    repository: Annotated[str, Field(pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")]
+    pull_request: int = Field(gt=0)
+    base_sha: GitRevision
+    reviewed_head_sha: GitRevision
+    diff_digest: Digest
+    active_contract_digest: Digest
+    validation_run_id: int = Field(gt=0)
+    validation_run_attempt: int = Field(gt=0)
+    validation_workflow_sha: GitRevision
+    validation_artifact_id: int = Field(gt=0)
+    validation_digest: Digest
+
+    @property
+    def envelope_digest(self) -> str:
+        return digest_payload(self.model_dump(mode="json"))
 
 
 class ReviewSubjectKind(StrEnum):
@@ -103,7 +127,7 @@ _REQUIRED_SCOPES = {
 class ScienceApproval(RegistryModel):
     """One role-scoped human attestation bound to an immutable digest."""
 
-    schema_version: Literal[1]
+    schema_version: Literal[1, 2]
     subject_kind: ReviewSubjectKind
     subject_id: RecordId
     subject_digest: Digest
@@ -112,10 +136,18 @@ class ScienceApproval(RegistryModel):
     reviewed_on: date
     scopes: list[ReviewScope] = Field(min_length=1)
     source_ref: AnyHttpUrl
+    implementation_binding: ImplementationBinding | None = None
 
     @model_validator(mode="after")
     def validate_role_and_scope(self) -> "ScienceApproval":
         """Require the role's exact subject type and complete review scope."""
+        if self.role == ReviewRole.IMPLEMENTATION_REVIEWER:
+            if self.schema_version != 2 or self.implementation_binding is None:
+                raise ValueError("Implementation approval requires a code-bound review mechanism")
+            if self.subject_digest != self.implementation_binding.active_contract_digest:
+                raise ValueError("Implementation binding must match the active contract")
+        elif self.schema_version != 1 or self.implementation_binding is not None:
+            raise ValueError("Only implementation approvals may carry implementation binding")
         if not self.reviewer.startswith(("github:", "orcid:")):
             raise ValueError(
                 "science approvals require an identified human reviewer"
@@ -305,7 +337,7 @@ def load_science_approvals(
         key=lambda item: item.as_posix(),
     ):
         with path.open(encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle)
+            raw = load_science_yaml(handle)
         if not isinstance(raw, dict):
             raise ValueError(f"Science approval must be a mapping: {path}")
         approvals.append(ScienceApproval.model_validate(raw))

@@ -123,6 +123,7 @@ jobs:
         with:
           ref: ${{ steps.gate-status.outputs.head_sha }}
           path: approval-head
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Fetch science approval comments and reviewer permissions
@@ -159,12 +160,16 @@ jobs:
 
       - name: Verify authenticated science approvals
         if: steps.target.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python scripts/verify_science_approval_sources.py
           --base-science-dir approval-base/data/science
           --head-science-dir approval-head/data/science
           --github-comments "${{ steps.science-review-input.outputs.comments }}"
           --github-permissions "${{ steps.science-review-input.outputs.permissions }}"
+          --repository "${{ github.repository }}"
+          --pull-request "${{ steps.target.outputs.pr_number }}"
 
       - name: Evaluate deterministic review policy
         id: policy
