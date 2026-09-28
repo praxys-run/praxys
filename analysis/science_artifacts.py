@@ -16,6 +16,7 @@ import yaml
 from analysis.science_yaml import load_science_yaml
 
 from analysis.evidence_registry import (
+    _yaml_paths,
     ApprovalMode,
     ArtifactRuntimeState,
     ClaimId,
@@ -332,10 +333,7 @@ def load_science_approvals(
     if not approval_dir.is_dir():
         return []
     approvals: list[ScienceApproval] = []
-    for path in sorted(
-        [*approval_dir.rglob("*.yaml"), *approval_dir.rglob("*.yml")],
-        key=lambda item: item.as_posix(),
-    ):
+    for path in _yaml_paths(approval_dir):
         with path.open(encoding="utf-8") as handle:
             raw = load_science_yaml(handle)
         if not isinstance(raw, dict):

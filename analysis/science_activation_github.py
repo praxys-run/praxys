@@ -12,7 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
 
 from analysis.science_activation import (
-    ActivationContext, COLLECTOR_JOB, VALIDATION_JOB, WORKFLOW_PATH,
+    ActivationContext, COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH,
     COMPOSITE_MARKER, git, implementation_envelope, strict_json,
 )
 from analysis.science_artifacts import ImplementationBinding, digest_payload
@@ -87,7 +87,7 @@ def fetch_validation(reader: GitHubReader, binding: ImplementationBinding, repos
         raise ValueError('Validation workflow identity, revision, attempt or outcome mismatch')
     git(repository_root, 'merge-base', '--is-ancestor', binding.validation_workflow_sha, binding.base_sha)
     jobs = reader.pages(f'actions/runs/{binding.validation_run_id}/attempts/{binding.validation_run_attempt}/jobs', 'jobs')
-    verify_jobs(jobs, [VALIDATION_JOB, COLLECTOR_JOB])
+    verify_jobs(jobs, [VALIDATION_JOB, PROBE_JOB, COLLECTOR_JOB])
     artifact = reader.read(f'actions/artifacts/{binding.validation_artifact_id}')
     expected_name = f'science-activation-validation-{binding.validation_run_id}-{binding.validation_run_attempt}'
     if (artifact.get('name') != expected_name or artifact.get('expired') is not False

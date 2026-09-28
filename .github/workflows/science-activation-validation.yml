@@ -55,6 +55,29 @@ jobs:
           tests/test_science_activation.py tests/test_science_activation_github.py
           tests/test_science_stop_github.py tests/test_science_implementation_stop.py tests/test_science_implementation_coverage.py tests/test_science_approval_workflow.py
           tests/test_science_artifacts.py tests/test_health_ready.py
+  probe:
+    name: Isolated actual DFA policy probe
+    if: github.ref == 'refs/heads/main'
+    # GitHub-hosted jobs get fresh runners. Never reuse regression files,
+    # environment, caches or artifacts for the authoritative policy probe.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install trusted dependency set on fresh probe runner
+        run: pip install -r trusted/requirements.txt
       - name: Exercise real projected DFA policy in disposable synthetic registry
         if: inputs.purpose == 'activation'
         env:
@@ -71,7 +94,7 @@ jobs:
         run: python trusted/scripts/check_stopped_dfa_policy.py
   collect:
     name: Collect immutable activation validation
-    needs: validate
+    needs: [validate, probe]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10

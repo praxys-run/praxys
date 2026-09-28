@@ -6,7 +6,7 @@ import re
 from typing import Callable, Mapping
 from urllib.parse import quote
 
-from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, WORKFLOW_PATH, diff_digest, git
+from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git
 from analysis.science_activation_github import GitHubReader, verify_jobs, verify_pr
 from analysis.science_implementation_stop import (
     ImplementationStop, load_implementation_stops, stop_from_comment, validate_stop_target,
@@ -34,7 +34,7 @@ class StopContext:
             'diff_digest':diff_digest(self.repository_root, self.base_sha, self.head_sha),
             'active_contract_digest':stop.active_contract_digest, 'subject_id':stop.subject_id,
             'stop_digest':stop.stop_digest, 'candidate_guard_result':'denied',
-            'workflow_path':WORKFLOW_PATH, 'conclusion':'success', 'required_jobs':[VALIDATION_JOB],
+            'workflow_path':WORKFLOW_PATH, 'conclusion':'success', 'required_jobs':[VALIDATION_JOB, PROBE_JOB],
         }
         if (set(manifest) != set(required) | {'workflow_sha', 'run_id', 'run_attempt'}
                 or any(manifest.get(key) != value for key, value in required.items())):
@@ -104,7 +104,7 @@ def find_denial_evidence(reader, root: Path, base: str, head: str, number: int, 
                 raise ValueError('Stopped-maintenance producer or attempt mismatch')
             git(root, 'merge-base', '--is-ancestor', run['head_sha'], base)
             jobs = reader.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs')
-            verify_jobs(jobs, [VALIDATION_JOB, COLLECTOR_JOB])
+            verify_jobs(jobs, [VALIDATION_JOB, PROBE_JOB, COLLECTOR_JOB])
             return manifest
     raise ValueError('Run the trusted stopped-maintenance validation workflow for this exact PR head first')
 

@@ -7,7 +7,7 @@ import shutil
 import pytest
 
 from analysis.evidence_registry import load_science_registry
-from analysis.science_activation import (VALIDATION_JOB, WORKFLOW_PATH, diff_digest, git,
+from analysis.science_activation import (VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git,
                                        project_active_registry, verify_governed_maintenance)
 from analysis.science_artifacts import ReviewRole, load_science_approvals
 from analysis.science_implementation_stop import (
@@ -137,7 +137,7 @@ def test_prior_base_stop_unlocks_only_with_exact_isolated_denial(stop_case, tmp_
         diff_digest=diff_digest(root,stopped_base,maintained_head),
         active_contract_digest=stop.active_contract_digest, subject_id=SUBJECT, stop_digest=stop.stop_digest,
         candidate_guard_result='denied', workflow_path=WORKFLOW_PATH, conclusion='success',
-        required_jobs=[VALIDATION_JOB], workflow_sha=stopped_base, run_id=1, run_attempt=1)
+        required_jobs=[VALIDATION_JOB, PROBE_JOB], workflow_sha=stopped_base, run_id=1, run_attempt=1)
     context = StopContext(root,stop.repository,88,stopped_base,maintained_head,(),{SUBJECT:evidence})
     verify_governed_maintenance(base_registry, head_registry, stop_context=context)
     verify_stop_changes(base_registry, head_registry, repository_root=root, base_sha=stopped_base, authenticated=[])

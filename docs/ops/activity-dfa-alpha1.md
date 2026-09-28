@@ -191,9 +191,12 @@ cessation from one metadata sample.
 Only a STOP already in **trusted base** unlocks a later maintenance PR. Run the
 trusted-main `Validate frozen science activation` workflow with
 `purpose=stopped-maintenance`, the exact candidate SHA/PR/subject and historical
-active contract digest. Its isolated candidate job executes the actual DFA guard
-and requires denial; a separate trusted collector binds current base/head, stop,
-workflow revision, run/attempt and successful required jobs. The privileged
+active contract digest. Its authoritative probe executes the actual DFA guard
+and requires denial on a fresh hosted runner with pinned checkouts and trusted
+dependencies. It shares no regression workspace, environment, cache or artifact.
+A third trusted collector binds current base/head, stop, workflow revision and
+run/attempt, requiring both regression and probe success; source admission also
+requires both jobs and the collector. The privileged
 verifier consumes authenticated artifact evidence without executing candidate
 code. Missing, stale, failed, skipped or substituted evidence blocks maintenance.
 Fresh specialist review and ordinary protected checks remain required. This path

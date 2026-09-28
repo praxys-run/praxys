@@ -270,3 +270,29 @@ source state does not technically prevent every privileged historical deployment
 such a deployment is a stop breach requiring restoration of a stopped/inactive
 release. Source recording, deployment and worker drainage remain distinct.
 Operations performed no live stop, deployment or rollback test in proposing this.
+
+
+## Frozen-source structural correction batch
+
+Fresh Science accepted the dormant capability at
+`d70a87414207f59989b3ab60b4ee1d1e4bb89df4`; later activation wording, evidence and
+human assertions remain pending. Fresh Trust closed the earlier coverage and
+composite-source findings but found that post-STOP approval history inventoried
+only top-level `.yaml`, unlike the recursive `.yaml`/`.yml` loader. Trust requires
+one loader-equivalent inventory and full-verifier negatives for byte changes,
+removal, relocation and executable modes across both extensions and nested paths.
+
+Fresh Architecture closed the earlier shadowing and composite-source findings
+but found that candidate regression could mutate the sibling trusted probe or
+candidate files before the same runner executed the authoritative guard check.
+Architecture requires the probe on a separate fresh isolated runner with pinned
+checkouts and trusted dependencies, independent of regression workspace and
+environment. Collector and admission must require both distinct jobs. Synthetic
+regression must demonstrate that candidate test mutations cannot contaminate the
+fresh probe; live trusted-main workflow evidence remains a later activation gate.
+
+The parent authorized this single bounded correction batch after structural
+reviewers finished. These corrections preserve the existing route, scientific
+records and terminal-stop boundaries. Independent exact-patch closure and the
+corrected full preflight remain required; the historical full preflight is not
+claimed for these changes.

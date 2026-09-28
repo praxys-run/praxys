@@ -8,7 +8,7 @@ import zipfile
 
 import pytest
 
-from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, WORKFLOW_PATH
+from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH
 from analysis.science_activation_github import _NoCredentialRedirect, fetch_validation, verify_pr
 from tests.test_science_activation import activation
 
@@ -30,7 +30,7 @@ def github_evidence(activation):
                                 'workflow_run':{'id':5,'head_sha':binding.validation_workflow_sha},
                                 'size_in_bytes':len(content), 'digest':'sha256:'+sha256(content).hexdigest()},
         'actions/artifacts/6/zip': content,
-        'jobs':[{'name':VALIDATION_JOB,'conclusion':'success'}, {'name':COLLECTOR_JOB,'conclusion':'success'}],
+        'jobs':[{'name':VALIDATION_JOB,'conclusion':'success'}, {'name':PROBE_JOB,'conclusion':'success'}, {'name':COLLECTOR_JOB,'conclusion':'success'}],
     }
     class Reader:
         def read(self, path, **kwargs):
@@ -55,10 +55,11 @@ def test_wrong_or_rerun_producer_rejected(github_evidence, field, value):
         fetch_validation(reader, binding, root)
 
 
+@pytest.mark.parametrize('job_index', [0, 1, 2])
 @pytest.mark.parametrize('conclusion', ['failure','cancelled','skipped',None])
-def test_unsuccessful_required_job_rejected(github_evidence, conclusion):
+def test_unsuccessful_required_job_rejected(github_evidence, job_index, conclusion):
     root, binding, _, responses, reader = github_evidence
-    responses['jobs'][0]['conclusion'] = conclusion
+    responses['jobs'][job_index]['conclusion'] = conclusion
     with pytest.raises(ValueError, match='required job'):
         fetch_validation(reader, binding, root)
 
@@ -90,3 +91,52 @@ def test_pr_head_base_repository_races_rejected():
         changed[side][key] = value
         with pytest.raises(ValueError, match='changed'):
             verify_pr(changed, 'praxys-run/praxys', 42, 'base', 'head')
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'duplicate'])
+def test_probe_must_have_one_authenticated_job_result(github_evidence, mutation):
+    root, binding, _, responses, reader = github_evidence
+    if mutation == 'missing':
+        responses['jobs'].pop(1)
+    else:
+        responses['jobs'].append(dict(responses['jobs'][1]))
+    with pytest.raises(ValueError, match='required job'):
+        fetch_validation(reader, binding, root)
+
+
+@pytest.mark.parametrize('probe_result', ['success', 'failure', 'skipped', 'missing'])
+def test_collector_requires_distinct_probe_before_emitting_manifest(activation, monkeypatch, tmp_path, probe_result):
+    from scripts import collect_science_activation_validation as collector
+    root, _, _, _, binding, _, subject = activation
+    event = tmp_path / 'event.json'
+    event.write_text(json.dumps({'inputs':dict(candidate_sha=binding.reviewed_head_sha,
+        pull_request=str(binding.pull_request), subject_id=subject,
+        active_contract_digest=binding.active_contract_digest, purpose='activation')}))
+    output = tmp_path / 'validation.json'
+    pr = {'number':binding.pull_request,'state':'open',
+          'base':{'ref':'main','sha':binding.base_sha,'repo':{'full_name':binding.repository}},
+          'head':{'sha':binding.reviewed_head_sha,'repo':{'full_name':binding.repository}}}
+    jobs = [{'name':VALIDATION_JOB, 'conclusion':'success'}]
+    if probe_result != 'missing':
+        jobs.append({'name':PROBE_JOB, 'conclusion':probe_result})
+    class Reader:
+        def __init__(self, repository):
+            assert repository == binding.repository
+        def read(self, path):
+            assert path == f'pulls/{binding.pull_request}'
+            return pr
+        def pages(self, path, key):
+            assert path == 'actions/runs/5/attempts/1/jobs' and key == 'jobs'
+            return jobs
+    monkeypatch.setattr(collector, 'GitHubReader', Reader)
+    monkeypatch.setattr('sys.argv', ['collector', '--candidate', str(root), '--output', str(output)])
+    for key, value in dict(GITHUB_REPOSITORY=binding.repository, GITHUB_EVENT_PATH=str(event),
+                           GITHUB_SHA=binding.base_sha, GITHUB_RUN_ID='5', GITHUB_RUN_ATTEMPT='1').items():
+        monkeypatch.setenv(key, value)
+    if probe_result == 'success':
+        collector.main()
+        assert json.loads(output.read_text())['required_jobs'] == [VALIDATION_JOB, PROBE_JOB]
+    else:
+        with pytest.raises(ValueError, match='required job'):
+            collector.main()
+        assert not output.exists()

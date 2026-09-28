@@ -27,6 +27,7 @@ from analysis.science_artifacts import (
 
 WORKFLOW_PATH = '.github/workflows/science-activation-validation.yml'
 VALIDATION_JOB = 'Synthetic activation validation'
+PROBE_JOB = 'Isolated actual DFA policy probe'
 COLLECTOR_JOB = 'Collect immutable activation validation'
 IMPLEMENTATION_STATEMENT = (
     'I approve activation of the named implementation contract at the displayed '
@@ -322,7 +323,7 @@ class ActivationContext:
             'subject_id': subject_id, 'workflow_path': WORKFLOW_PATH,
             'workflow_sha': binding.validation_workflow_sha, 'run_id': binding.validation_run_id,
             'run_attempt': binding.validation_run_attempt, 'conclusion': 'success',
-            'required_jobs': [VALIDATION_JOB],
+            'required_jobs': [VALIDATION_JOB, PROBE_JOB],
         }
         if dict(validation) != expected:
             raise ValueError('Implementation validation producer, revision or outcome mismatch')

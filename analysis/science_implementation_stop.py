@@ -16,7 +16,7 @@ from typing import Any, Literal
 from pydantic import AnyHttpUrl, Field, model_validator
 import yaml
 
-from analysis.evidence_registry import ArtifactRuntimeState, Identity, RecordId, RegistryModel
+from analysis.evidence_registry import ArtifactRuntimeState, Identity, RecordId, RegistryModel, _yaml_paths
 from analysis.science_artifacts import Digest, ReviewRole, build_policy_contract, digest_payload, load_science_approvals
 from analysis.science_yaml import load_science_yaml
 
@@ -209,7 +209,7 @@ def verify_stop_changes(base_registry, head_registry, *, repository_root: Path,
                           for identity in decision.evidence_review_ids)
         historical.update(Path('generated/review-packets') / f'{identity}.md' for identity in subjects
                           if (base_registry.science_dir / 'generated/review-packets' / f'{identity}.md').exists())
-        for path in (base_registry.science_dir / 'approvals').glob('*.yaml'):
+        for path in _yaml_paths(base_registry.science_dir / 'approvals'):
             raw = load_science_yaml(path.read_text())
             if raw.get('subject_id') in subjects:
                 historical.add(path.relative_to(base_registry.science_dir))

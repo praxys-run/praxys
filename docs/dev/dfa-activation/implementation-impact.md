@@ -61,3 +61,12 @@ prerequisite. Fresh hypothetical active-registry unit fixtures never override a
 repository stop: the unchanged stopped candidate receives its own actual-guard
 denial check, and the trusted collector rejects activation projection of a stopped
 subject.
+
+
+Structural-review corrections preserve every recursively loaded YAML/YML approval
+at its original path, bytes and executable mode after STOP. The authoritative
+actual-policy probe now has a fresh hosted runner with pinned checkouts and trusted
+dependencies, independent of candidate regression workspace/environment; collector
+and admission require both regression and probe success. Full-verifier history
+negatives and hostile regression workspace/environment tests cover these reported
+bypasses. This is local synthetic evidence; no live trusted-main run is claimed.

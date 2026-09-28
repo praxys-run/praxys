@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analysis.evidence_registry import load_science_registry
 from analysis.science_activation import (
-    VALIDATION_JOB, WORKFLOW_PATH, diff_digest, git, project_active_registry,
+    VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git, project_active_registry,
 )
 from analysis.science_activation_github import GitHubReader, verify_jobs, verify_pr
 from analysis.science_artifacts import build_policy_contract
@@ -36,7 +36,7 @@ def main():
     git(args.candidate, 'merge-base', '--is-ancestor', workflow_sha, base)
     run_id, attempt = int(os.environ['GITHUB_RUN_ID']), int(os.environ['GITHUB_RUN_ATTEMPT'])
     jobs = reader.pages(f'actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
-    verify_jobs(jobs, [VALIDATION_JOB])
+    verify_jobs(jobs, [VALIDATION_JOB, PROBE_JOB])
     registry = load_science_registry(args.candidate / 'data/science')
     purpose = inputs.get('purpose', 'activation')
     if purpose == 'activation':
@@ -68,7 +68,7 @@ def main():
         'active_contract_digest': contract.contract_digest,
         'subject_id': inputs['subject_id'], 'workflow_path': WORKFLOW_PATH,
         'workflow_sha': workflow_sha, 'run_id': run_id, 'run_attempt': attempt,
-        'conclusion': 'success', 'required_jobs': [VALIDATION_JOB], **stop_fields,
+        'conclusion': 'success', 'required_jobs': [VALIDATION_JOB, PROBE_JOB], **stop_fields,
     }
     verify_pr(reader.read(f'pulls/{number}'), repository, number, base, head)
     args.output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')

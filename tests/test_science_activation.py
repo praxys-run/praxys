@@ -9,7 +9,7 @@ import pytest
 
 from analysis.evidence_registry import load_science_registry
 from analysis.science_activation import (
-    ActivationContext, VALIDATION_JOB, WORKFLOW_PATH, diff_digest, git,
+    ActivationContext, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git,
     implementation_payload, project_active_registry, render_implementation_comment,
     strict_json,
 )
@@ -50,7 +50,7 @@ def activation(tmp_path):
                       base_sha=base, reviewed_head_sha=head, diff_digest=diff_digest(root, base, head),
                       active_contract_digest=contract.contract_digest, subject_id=decision.id,
                       workflow_path=WORKFLOW_PATH, workflow_sha=base, run_id=5, run_attempt=1,
-                      conclusion='success', required_jobs=[VALIDATION_JOB])
+                      conclusion='success', required_jobs=[VALIDATION_JOB, PROBE_JOB])
     binding = ImplementationBinding(version=1, repository='praxys-run/praxys', pull_request=42,
         base_sha=base, reviewed_head_sha=head, diff_digest=validation['diff_digest'],
         active_contract_digest=contract.contract_digest, validation_run_id=5,

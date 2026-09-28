@@ -238,10 +238,15 @@ decision work should use artifact mode.
 ### Implementation validation and replay
 
 The trusted-main `science-activation-validation.yml` workflow takes one frozen
-same-repository PR revision and projected active contract digest. Its isolated
-candidate job has no approval-write credentials, production secrets or persisted
-checkout credentials. A separate trusted collector recomputes the code diff and
-contract and reads successful required-job metadata. Its bounded JSON artifact
+same-repository PR revision and projected active contract digest. Candidate
+regression and the authoritative actual-policy probe run in separate fresh
+GitHub-hosted jobs, each checking out the pinned trusted and candidate revisions
+and installing the trusted dependency set. The probe never consumes regression
+workspace files, environment, caches or artifacts. Neither job has approval-write
+credentials, production secrets or persisted checkout credentials. A third trusted
+collector recomputes the code diff and contract and requires successful metadata
+from both regression and probe jobs; admission independently requires both jobs
+and the collector. Its bounded JSON artifact
 identifies repository/PR, base/head, contract, trusted workflow revision, run and
 attempt. The implementation statement displays every envelope field and its
 canonical SHA-256 digest. The workflow is validation evidence, not human approval.
@@ -305,7 +310,9 @@ contract and implementation envelope, recorded by trusted-main tooling beneath
 or other science changes. Only a stop already present in trusted base permits
 later governed maintenance, and that maintenance must supply authenticated
 isolated actual-candidate denial evidence. Old scientific and approval history
-cannot be erased, and another approval cannot revive the stopped subject.
+remains byte-preserved at its original paths and executable modes, including
+recursively loaded `.yaml` and `.yml` approvals. Another approval cannot revive
+the stopped subject.
 There is no renewal/enable switch in this capability. See the operational steps
 in [DFA operations](../ops/activity-dfa-alpha1.md).
 
