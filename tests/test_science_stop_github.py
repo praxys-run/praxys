@@ -198,12 +198,11 @@ def test_fresh_policy_probe_ignores_candidate_regression_workspace_and_environme
     assert next(step for step in steps if step.get('uses') == 'actions/setup-python@v7')['with'] == {'python-version':'3.12'}
     assert [step['run'] for step in steps if 'run' in step] == [
         'pip install -r trusted/requirements.txt',
-        'python trusted/scripts/check_projected_dfa_policy.py',
-        'python trusted/scripts/check_stopped_dfa_policy.py']
+        'python trusted/scripts/run_science_policy_probe.py']
     assert not any('check_stopped_dfa_policy.py' in step.get('run', '')
                    or 'check_projected_dfa_policy.py' in step.get('run', '')
                    for step in jobs['validate']['steps'])
-    selected = next(step for step in steps if step.get('if') == "inputs.purpose == 'stopped-maintenance'")
+    selected = next(step for step in steps if step.get('run') == 'python trusted/scripts/run_science_policy_probe.py')
 
     def fresh_job(name):
         workspace = tmp_path / name
@@ -214,6 +213,7 @@ def test_fresh_policy_probe_ignores_candidate_regression_workspace_and_environme
         # Hosted jobs do not transfer GITHUB_ENV/GITHUB_PATH from other jobs.
         environment = dict(os.environ, CANDIDATE_ROOT=str(workspace / 'candidate'),
                            ACTIVATION_SUBJECT=stop.subject_id, ACTIVATION_CONTRACT=stop.active_contract_digest,
+                           PROBE_PURPOSE='stopped-maintenance',
                            PYTHONDONTWRITEBYTECODE='1', GITHUB_ENV=str(workspace / 'github-env'),
                            GITHUB_PATH=str(workspace / 'github-path'))
         return workspace, environment
@@ -224,7 +224,7 @@ def test_fresh_policy_probe_ignores_candidate_regression_workspace_and_environme
 import os
 
 def test_mutate_regression_runner():
-    Path('../trusted/scripts/check_stopped_dfa_policy.py').write_text("raise RuntimeError('regression contaminated probe')\\n")
+    Path('../trusted/scripts/observe_science_policy.py').write_text("raise RuntimeError('regression contaminated probe')\\n")
     Path('api/activity_dfa.py').write_text("raise RuntimeError('regression contaminated candidate')\\n")
     Path(os.environ['GITHUB_ENV']).write_text('CANDIDATE_ROOT=/poisoned\\nPYTHONPATH=/poisoned\\n')
     Path(os.environ['GITHUB_PATH']).write_text('/poisoned/bin\\n')
@@ -233,11 +233,12 @@ def test_mutate_regression_runner():
                    cwd=regression / 'candidate', env=regression_env, check=True, capture_output=True, text=True)
     command = [sys.executable, *selected['run'].split()[1:]]
     contaminated = subprocess.run(command, cwd=regression, env=regression_env, capture_output=True, text=True)
-    assert contaminated.returncode != 0 and 'regression contaminated probe' in contaminated.stderr
+    assert contaminated.returncode != 0 and 'Policy observer did not complete successfully' in contaminated.stderr
     assert '/poisoned' in Path(regression_env['GITHUB_ENV']).read_text()
     probe, probe_env = fresh_job('probe-runner')
     assert not Path(probe_env['GITHUB_ENV']).exists() and not Path(probe_env['GITHUB_PATH']).exists()
     assert git(probe / 'candidate', 'status', '--porcelain') == b''
     clean = subprocess.run(command, cwd=probe, env=probe_env, capture_output=True, text=True)
     assert clean.returncode == 0, clean.stderr
-    assert json.loads(clean.stdout)['candidate_guard_result'] == 'denied'
+    assert json.loads(clean.stdout)['controller_completed'] is True
+    assert json.loads(clean.stdout)['observation']['http_status'] == 503

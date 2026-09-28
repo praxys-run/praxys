@@ -246,7 +246,19 @@ workspace files, environment, caches or artifacts. Neither job has approval-writ
 credentials, production secrets or persisted checkout credentials. A third trusted
 collector recomputes the code diff and contract and requires successful metadata
 from both regression and probe jobs; admission independently requires both jobs
-and the collector. Its bounded JSON artifact
+and the collector. The probe invokes a trusted controller that computes expected
+values from static candidate data without importing candidate code. A fresh child
+imports the frozen candidate guard and dependencies; it observes the actual guard
+return plus method/parameter fingerprint, or the actual caught STOP exception
+status/detail. The controller accepts only exit zero and exactly one complete,
+strictly typed observation matching the expected tuple and module provenance.
+Empty, truncated, malformed, duplicate, extra or mismatched output fails. Output
+is bounded during capture, execution and cleanup are time-bounded, and the child
+receives only an explicit minimal environment without credentials, Python loader
+overrides or GitHub command files. No child success file or artifact is sent to
+the collector. These checks establish a completed validated observation; child
+stdout remains untrusted and cannot prove that arbitrary malicious code did not
+forge the tuple. Independent source review remains required. Its bounded JSON artifact
 identifies repository/PR, base/head, contract, trusted workflow revision, run and
 attempt. The implementation statement displays every envelope field and its
 canonical SHA-256 digest. The workflow is validation evidence, not human approval.

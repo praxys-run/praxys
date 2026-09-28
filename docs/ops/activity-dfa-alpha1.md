@@ -196,9 +196,16 @@ and requires denial on a fresh hosted runner with pinned checkouts and trusted
 dependencies. It shares no regression workspace, environment, cache or artifact.
 A third trusted collector binds current base/head, stop, workflow revision and
 run/attempt, requiring both regression and probe success; source admission also
-requires both jobs and the collector. The privileged
-verifier consumes authenticated artifact evidence without executing candidate
-code. Missing, stale, failed, skipped or substituted evidence blocks maintenance.
+requires both jobs and the collector. The probe controller requires a complete
+strict child observation of the actual caught STOP status/detail, not process exit
+success alone. The controller never imports candidate code; its bounded child
+uses candidate dependencies and an explicit environment without credentials,
+Python loader overrides or GitHub command-file variables. Timeout, excessive or
+missing output, nonzero exit and mismatched observations fail. No child artifacts
+reach the collector. This is a completed validated observation, not proof against
+arbitrary candidate code forging stdout; specialist source review remains needed.
+The privileged verifier consumes authenticated artifact evidence without executing
+candidate code. Missing, stale, failed, skipped or substituted evidence blocks maintenance.
 Fresh specialist review and ordinary protected checks remain required. This path
 permits future separately reviewed maintenance of the verifier itself without
 retaining the obsolete active implementation freeze. It does not authorize

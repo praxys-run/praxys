@@ -296,3 +296,28 @@ reviewers finished. These corrections preserve the existing route, scientific
 records and terminal-stop boundaries. Independent exact-patch closure and the
 corrected full preflight remain required; the historical full preflight is not
 claimed for these changes.
+
+
+## Probe completion correction after Quality review
+
+Fresh Quality on `39bf4ec43e5908dec5fadd904a6e6b3e185b0884` reproduced a new P1:
+an import could exit zero before the guard ran, while job success was treated as
+completed validation. Both activation and stopped-maintenance probes were affected.
+Architecture and Trust concurred with a bounded controller/child correction.
+The local full preflight on that head was explicitly cancelled (exit 130 at about
+67%); its external cancellation record preserves that it never passed. The prior
+fresh-runner and approval-history closures do not close this later finding.
+
+The authorized correction uses trusted static preparation and expected tuples,
+with no candidate imports in the controller. The observer starts with stdlib only
+and imports the frozen candidate guard and actual candidate dependencies in a
+fresh process. It emits only after guard execution: activation return/method/
+parameter values or STOP exception status/detail. Controller completion requires
+zero exit plus one exact strict observation including candidate module provenance.
+SystemExit/os._exit zero exits without observation fail; resource bounds apply
+during output capture and through cleanup. The child environment is explicitly
+whitelisted without credentials, Python loader overrides or GitHub command files.
+No child success artifact reaches the metadata collector. Candidate stdout remains
+untrusted: this establishes a completed validated observation, not semantic
+isolation against arbitrary forged tuples. Independent source review remains
+required. No numerical policy, actual science record, signature or stop changes.

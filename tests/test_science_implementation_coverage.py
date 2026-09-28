@@ -18,6 +18,7 @@ REQUIRED_FILES = [
     'tests/test_science_approval_workflow.py', 'tests/test_science_artifacts.py',
     'tests/test_health_ready.py', 'scripts/check_projected_dfa_policy.py',
     'scripts/collect_science_activation_validation.py', 'scripts/agent_preflight.py',
+    'scripts/run_science_policy_probe.py', 'scripts/observe_science_policy.py', 'tests/test_science_policy_probe.py',
     '.github/workflows/ci-premerge.yml', '.github/workflows/science-activation-validation.yml',
 ]
 
@@ -34,7 +35,7 @@ def accepted_active_baseline(tmp_path_factory):
     # Run the real synthetic projection script, retaining only its disposable
     # validated registry for maintenance tests. No production approval exists.
     from scripts.check_projected_dfa_policy import synthetic_active_registry
-    with synthetic_active_registry(ROOT, SUBJECT, None) as (science, contract):
+    with synthetic_active_registry(ROOT, SUBJECT, None, fresh_hypothetical=True) as (science, contract):
         expected = contract.contract_digest
         shutil.copytree(science, root / 'data/science')
     registry = load_science_registry(root / 'data/science')

@@ -1,21 +1,18 @@
 """Synthetic-only projected activation check; never produces real approvals.
 
-Runs candidate imports without secrets on the disposable validation runner. The
-separate trusted collector authenticates job success and recomputes all digests.
+Prepares candidate data with trusted code, never importing candidate modules.
+The CLI delegates candidate execution and completion to the bounded controller.
 """
 from contextlib import contextmanager
 from datetime import date
-import json
-import os
 from pathlib import Path
 import shutil
 import sys
 import tempfile
 
 @contextmanager
-def synthetic_active_registry(candidate: Path, subject: str, expected: str | None):
+def synthetic_active_registry(candidate: Path, subject: str, expected: str | None, *, fresh_hypothetical=False):
     """Yield a disposable, schema-valid synthetic registry for real guard tests."""
-    sys.path.insert(0, str(candidate))
     from analysis import science_artifacts as artifacts
     from analysis.evidence_registry import load_science_registry, render_registry_index
     from analysis.science_activation import project_active_registry
@@ -29,8 +26,9 @@ def synthetic_active_registry(candidate: Path, subject: str, expected: str | Non
         # This is a fresh hypothetical test lifecycle, never a continuation of
         # a repository stop. Actual stopped candidates are separately exercised
         # unmodified by check_stopped_dfa_policy.py and the trusted collector.
-        shutil.rmtree(root / 'stops', ignore_errors=True)
-        shutil.rmtree(root / 'generated/implementation-stops', ignore_errors=True)
+        if fresh_hypothetical:
+            shutil.rmtree(root / 'stops', ignore_errors=True)
+            shutil.rmtree(root / 'generated/implementation-stops', ignore_errors=True)
         registry = load_science_registry(root)
         projected = project_active_registry(registry, subject)
         contract = artifacts.build_policy_contract(projected, subject)
@@ -77,24 +75,10 @@ def synthetic_active_registry(candidate: Path, subject: str, expected: str | Non
 
 
 def main():
-    candidate = Path(os.environ['CANDIDATE_ROOT']).resolve()
-    subject, expected = os.environ['ACTIVATION_SUBJECT'], os.environ['ACTIVATION_CONTRACT']
-    with synthetic_active_registry(candidate, subject, expected) as (root, contract):
-        from analysis import science_artifacts as artifacts
-        # Redirect the registry location only; never replace the real guard.
-        original_root = artifacts._SCIENCE_DIR
-        artifacts._SCIENCE_DIR = root
-        try:
-            from api.activity_dfa import require_policy
-            from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST, digest
-            assert require_policy() == expected
-            assert contract.model_version == METHOD_VERSION
-            assert digest(contract.parameter_values) == POLICY_PARAMETER_DIGEST
-            print(json.dumps({'synthetic_only': True, 'contract_digest': expected,
-                              'method_version': METHOD_VERSION,
-                              'parameter_digest': POLICY_PARAMETER_DIGEST}, sort_keys=True))
-        finally:
-            artifacts._SCIENCE_DIR = original_root
+    # Backward-compatible CLI delegates completion to the trusted controller.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.run_science_policy_probe import main as controlled_probe
+    controlled_probe('activation')
 
 
 if __name__ == '__main__':

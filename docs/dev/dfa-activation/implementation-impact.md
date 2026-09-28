@@ -70,3 +70,15 @@ dependencies, independent of candidate regression workspace/environment; collect
 and admission require both regression and probe success. Full-verifier history
 negatives and hostile regression workspace/environment tests cover these reported
 bypasses. This is local synthetic evidence; no live trusted-main run is claimed.
+
+
+The later Quality early-zero-exit finding adds trusted completion control for
+both purposes. Trusted static preparation stays outside the candidate process;
+the stdlib-first observer uses candidate imports, and the controller requires one
+exact typed observation after guard execution plus exit zero. Execution, streaming
+output and cleanup are bounded; child environment is explicitly whitelisted.
+No child success artifact reaches the collector. Genuine candidate observations,
+import/guard SystemExit and os._exit, provenance, malformed output and resource
+bounds are exercised synthetically. The guarantee does not exclude malicious
+forged stdout and does not replace independent source review. The superseded
+39bf full preflight was cancelled, not passed.
