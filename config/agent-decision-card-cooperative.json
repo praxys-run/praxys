@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "cohort_id": "decision-card-local-2026-v1",
+  "candidate_version": "decision-card-v1",
+  "status": "active",
+  "max_assignments": 16,
+  "checkpoint_at": 8,
+  "permitted_entrypoints": [
+    "local"
+  ],
+  "eligible_primary_objects": [
+    "product-promise",
+    "user-experience",
+    "repository-behavior"
+  ],
+  "excluded_impacts": [
+    "agent-policy-or-autonomy",
+    "architecture-boundary",
+    "incident-response",
+    "production-operation",
+    "scientific-evidence-or-claim",
+    "trust-boundary"
+  ],
+  "mode": "cooperative-local",
+  "expires_at": "2026-10-28T00:00:00Z"
+}

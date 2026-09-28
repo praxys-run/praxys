@@ -70,20 +70,13 @@ orchestrator classifies the task, emits the deterministic Work Contract, and
 delegates repository implementation to
 `.github/agents/praxys-change-loop.agent.md`.
 
-### Pending decision-card trial (disabled)
+### Cooperative local decision-card trial
 
-`config/agent-decision-card-trial.json` declares an **inactive** 8/16-task
-presentation trial. `python3 scripts/agent_decision_trial.py` reports
-`can_enroll: false`; it neither assigns tasks nor changes Cloud, Local, Codex,
-or Paseo execution. Do not manually change `status` or treat the in-memory CAS
-tests as a shared store. No enrollment, new required check, secret, or branch
-protection has been deployed. The existing `agent-ready` assignment remains
-unchanged. See [the trial proposal](../dev/agent-decision-card-trial.md) for
-entrypoint, privacy, checkpoint, trusted PR-gate, separate approval, and
-retirement prerequisites. To retire this inert slice, revert its code/config;
-there are no managed tasks or runtime records to migrate. A future live
-activation needs its own Operations decision, verified recovery/kill procedure,
-and release evidence before any task is admitted.
+The local-only cooperative cohort is separate from this Cloud assignment path.
+It uses explicit local CLI bookkeeping, with no Azure resource, credential,
+hook, branch rule, or required status change. The protected trial remains off.
+See the operational procedure below and
+[the bounded protocol](../dev/agent-decision-card-trial.md).
 
 Copilot PRs stay draft until the final preflight command and validated head SHA
 are recorded and the required branch checks pass.
@@ -779,25 +772,51 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   reset requires separate incident authority and never cancels native work.
   Follow the claim-ownership ODR.
 
-## Decision-card trial: still disabled
+## Cooperative local decision-card operations
 
-The separately proposed decision-card A/B trial is **not part of this
-auto-assignment path**. `config/agent-decision-card-trial.json` stays disabled,
-and `scripts/agent_decision_trial.py` cannot admit tasks. The state transitions
-and `analysis/agent_decision_trial_storage.py` support a protected, atomic Blob
-record but have no provisioned trial container, runtime caller, or authority to
-show B. Storage unit tests use a fake Blob, not the live account.
+`config/agent-decision-card-cooperative.json` selects the active local cohort
+`decision-card-local-2026-v1`, expiring at `2026-10-28T00:00:00Z`.
+`scripts/local_decision_trial.py status` reads without provisioning. Authorized
+local setup (already covered by the approved cooperative choice) uses `init`
+once, creating a private `praxys-decision-trial` directory
+under the canonical Git common directory and one SQLite ledger shared by
+worktrees. Do not initialize this policy-changing task into its own trial.
+The CLI accepts synthetic `--test-policy` and `--test-store` together only for
+tests; they are never live recovery alternatives.
 
-`assign-copilot.yml` assigns issues **before** the Work Router returns a Work
-Contract; it cannot simply assign an A/B group in its existing form. To launch
-the first cohort, establish one separately reviewed entry that authenticates
-the contract *before* admission, uses a trial-only identity and private store,
-records failed and no-PR attempts, verifies review provenance before showing
-B, and stops new admissions and B after a protected kill. A managed PR also
-needs a trusted, head-bound required check; never trust a PR-body claim that
-it is unenrolled. Keep Local and Paseo out of the cohort until independently
-verified. See `docs/dev/agent-decision-card-trial.md` for the capped protocol,
-privacy retention, checkpoint, and independent release requirements.
+After routing, create and retain a random task key, admit the exact Work Contract,
+and use the same key with `--resume` thereafter. Record failed/abandoned/no-PR
+outcomes even without a PR. At eight, new admissions pause: independent review
+must assess safety, completeness and comparability before `checkpoint
+--review-digest <digest>`. The digest is a reference, not authentication.
+At sixteen, admissions close permanently; already enrolled work may finish
+before expiry/stop. Complete the final evaluation without extending the cohort.
+
+Run `stop` immediately on critical omission, privacy exposure, authorization or
+review bypass, serious regression, or unreliable records. Disable policy status
+for an additional emergency off switch. Both preserve the pinned policy digest;
+changing expiry or other rules makes the existing ledger unusable. Missing,
+corrupt, deleted, or rolled-back records mean baseline and unknown coverage:
+never reset, restore an older snapshot, or change cohort ID to evade the cap.
+Outcomes may still be appended after stop/expiry. Keep original B attribution
+when falling back. Stop affects subsequent checks; it cannot retract issued
+text or promise linearizable UI suppression.
+
+This ledger is editable by the same user and cannot protect against deletion or
+out-of-band changes. It supplies no authorization, authenticated provenance,
+or automatic runtime coverage. Read-only adapters retain their permissions;
+failed canonical writes continue the underlying task in baseline presentation.
+No real cohort was provisioned by implementation/testing. Retire via stop or
+expiry, complete the Meta/Eval report, then delete the local ledger after the
+final review plus a 30-day correction window (no later than 90 days after
+closure); include any operator-made copies in deletion. Never publish task
+keys, review input, or ledger contents; publish safe aggregate observations.
+
+The archived protected policy `config/agent-decision-card-trial.json` and its
+inspection CLI remain disabled. Its Blob adapter is unprovisioned. Any future
+protected broker, authenticated receipts, required PR gate, or infrastructure
+activation needs a separate routed decision. This cooperative trial introduces
+none of those controls.
 
 ## Related
 

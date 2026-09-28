@@ -100,7 +100,8 @@ class OutcomeEvent(TrialRecord):
 
     event_key: str = Field(pattern=_EVENT_PATTERN)
     kind: Literal[
-        "no_pr", "blocked", "abandoned", "failed", "pr_open", "merged", "baseline_fallback"
+        "no_pr", "blocked", "abandoned", "failed", "pr_open", "merged", "baseline_fallback",
+        "card_issued", "card_displayed", "no_human_decision", "completed"
     ]
     pr_number: int | None = Field(default=None, ge=1)
     head_sha: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
@@ -210,6 +211,34 @@ def _check_state(policy: TrialPolicy, state: CohortState) -> None:
         for assignment in state.assignments.values()
     ):
         raise TrialUnavailable("an assignment has a different candidate version")
+
+
+def _check_monotonic(previous: CohortState, updated: CohortState) -> None:
+    if previous.stopped and not updated.stopped:
+        raise TrialUnavailable("a stopped cohort cannot resume")
+    if previous.checkpoint_review_digest is not None and (
+        previous.checkpoint_review_digest != updated.checkpoint_review_digest
+    ):
+        raise TrialUnavailable("a checkpoint review cannot be changed")
+    if not previous.assignments.keys() <= updated.assignments.keys():
+        raise TrialUnavailable("an assignment cannot be removed")
+    if len(updated.assignments) > len(previous.assignments) + 1:
+        raise TrialUnavailable("only one task may be admitted at a time")
+    added_tasks = updated.assignments.keys() - previous.assignments.keys()
+    if added_tasks and (previous.stopped or updated.stopped):
+        raise TrialUnavailable("stopping cannot admit tasks")
+    if previous.checkpoint_review_digest != updated.checkpoint_review_digest and (
+        previous.assignments != updated.assignments or previous.stopped != updated.stopped
+    ):
+        raise TrialUnavailable("checkpoint review must be separate from other updates")
+    if previous.stopped != updated.stopped and previous.assignments != updated.assignments:
+        raise TrialUnavailable("stopping cannot include other updates")
+    for task_key, admission in previous.assignments.items():
+        replacement = updated.assignments[task_key]
+        if admission.model_copy(update={"events": replacement.events}) != replacement:
+            raise TrialUnavailable("an assignment cannot be changed")
+        if admission.events != replacement.events[:len(admission.events)]:
+            raise TrialUnavailable("outcome history cannot be changed")
 
 
 def plan_admission(
