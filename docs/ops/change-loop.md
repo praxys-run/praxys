@@ -779,6 +779,26 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   reset requires separate incident authority and never cancels native work.
   Follow the claim-ownership ODR.
 
+## Decision-card trial: still disabled
+
+The separately proposed decision-card A/B trial is **not part of this
+auto-assignment path**. `config/agent-decision-card-trial.json` stays disabled,
+and `scripts/agent_decision_trial.py` cannot admit tasks. The state transitions
+and `analysis/agent_decision_trial_storage.py` support a protected, atomic Blob
+record but have no provisioned trial container, runtime caller, or authority to
+show B. Storage unit tests use a fake Blob, not the live account.
+
+`assign-copilot.yml` assigns issues **before** the Work Router returns a Work
+Contract; it cannot simply assign an A/B group in its existing form. To launch
+the first cohort, establish one separately reviewed entry that authenticates
+the contract *before* admission, uses a trial-only identity and private store,
+records failed and no-PR attempts, verifies review provenance before showing
+B, and stops new admissions and B after a protected kill. A managed PR also
+needs a trusted, head-bound required check; never trust a PR-body claim that
+it is unenrolled. Keep Local and Paseo out of the cohort until independently
+verified. See `docs/dev/agent-decision-card-trial.md` for the capped protocol,
+privacy retention, checkpoint, and independent release requirements.
+
 ## Related
 
 - Trigger source: `api/feedback_triage.py` (`_qualifies_for_agent`, `_agent_ready_shadow`).
