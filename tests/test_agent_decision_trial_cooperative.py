@@ -178,17 +178,39 @@ def test_cards_require_b_review_and_one_issue_without_claiming_display(tmp_path)
 
 def test_concurrent_cap_checkpoint_and_existing_b_can_finish(tmp_path):
     service = trial(tmp_path)
+
+    def admit_once(key):
+        try:
+            return key, service.admit(key, contract())
+        except TrialUnavailable as error:
+            assert str(error) == 'cohort contention; use baseline'
+            return key, None
+
+    def concurrent_admissions(keys):
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            results = dict(pool.map(admit_once, keys))
+        assert set(results) == set(keys)
+        assignments = service.store.read()[1].assignments
+        for key, result in results.items():
+            if result is None:
+                assert key not in assignments
+            else:
+                assert result['task_key'] == key
+                assert result['enrolled'] == (key in assignments)
+                if not result['enrolled']:
+                    assert result['presentation'] == 'baseline'
+                    assert result['original_arm'] is None
+        return results
+
     keys = [new_task_key() for _ in range(25)]
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        results = list(pool.map(lambda key: service.admit(key, contract()), keys))
-    assert sum(result['enrolled'] for result in results) == 8
+    results = concurrent_admissions(keys)
+    assert sum(result is not None and result['enrolled'] for result in results.values()) == 8
     assert service.status()['reason'] == 'checkpoint_due'
     state = service.store.read()[1]
     b = next(key for key, item in state.assignments.items() if item.arm == 'B')
     assert service.card(b, contract(), review())['card']
     service.checkpoint(DIGEST)
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        list(pool.map(lambda _: service.admit(new_task_key(), contract()), range(20)))
+    concurrent_admissions([new_task_key() for _ in range(20)])
     assert len(service.store.read()[1].assignments) == 16
     assert service.status()['reason'] == 'closed'
     b = next(key for key, item in service.store.read()[1].assignments.items()
@@ -196,6 +218,54 @@ def test_concurrent_cap_checkpoint_and_existing_b_can_finish(tmp_path):
     assert service.card(b, contract(), review())['card']
     service.outcome(b, OutcomeEvent(event_key='evt_' + 'e' * 64, kind='completed'))
     assert service.admit(new_task_key(), contract())['reason'] == 'closed'
+
+
+@pytest.mark.parametrize('entrypoint', ['service', 'cli'])
+def test_eight_conflicts_leave_ledger_unchanged_and_no_candidate(tmp_path, monkeypatch, capsys, entrypoint):
+    from scripts import local_decision_trial as command
+
+    service = trial(tmp_path)
+    key = new_task_key()
+    before = service.store.read()
+    before_bytes = service.path.read_bytes()
+    conflicts = []
+
+    def conflict(revision, proposed):
+        assert revision == before[0]
+        assert key in proposed.assignments
+        conflicts.append(revision)
+        return False
+
+    monkeypatch.setattr(service.store, 'compare_and_swap', conflict)
+    if entrypoint == 'service':
+        with pytest.raises(TrialUnavailable) as unavailable:
+            service.admit(key, contract())
+        assert str(unavailable.value) == 'cohort contention; use baseline'
+    else:
+        policy_path = tmp_path / 'policy.json'
+        policy_path.write_text(service.policy.model_dump_json())
+        contract_path = tmp_path / 'contract.json'
+        contract_path.write_text(contract().model_dump_json())
+
+        def synthetic_service(path, policy):
+            assert path == service.path and policy == service.policy
+            return service
+
+        monkeypatch.setattr(command, 'CooperativeTrial', synthetic_service)
+        monkeypatch.setattr(sys, 'argv', [
+            'local_decision_trial.py', '--test-policy', str(policy_path),
+            '--test-store', str(service.path), 'admit', '--task-key', key,
+            '--contract', str(contract_path),
+        ])
+        assert command.main() == 1
+        output = json.loads(capsys.readouterr().out)
+        assert output['presentation'] == 'baseline'
+        assert output['enrolled'] == output['original_arm'] == 'unknown'
+        assert output['card'] is None
+    assert len(conflicts) == 8
+    assert service.store.read() == before
+    assert service.path.read_bytes() == before_bytes
+    assert key not in service.store.read()[1].assignments
 
 
 def test_worktrees_resolve_same_canonical_path_without_creation(tmp_path):
