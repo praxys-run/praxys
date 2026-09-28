@@ -579,7 +579,7 @@ test("feedback status copy is localized for web and Miniapp", async () => {
   const translations = [
     ['Check most recent feedback status', '查看最近一次反馈状态'],
     ['Check status', '查看状态'],
-    ['Checking public publishing availability…', '正在检查公开发布可用性…'],
+    ['Checking public publishing availability…', '正在检查能否公开发布…'],
     ['Checking status…', '正在查看状态…'],
     ["Couldn't check feedback status. Try again.", '无法查看反馈状态，请重试。'],
     ['Feedback status', '反馈状态'],
