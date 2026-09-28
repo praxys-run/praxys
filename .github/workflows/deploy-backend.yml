@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      recover_dfa_cutover_842:
+        description: One authorized incident recovery attempt for the pre-repair PR842 source
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -247,10 +252,35 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Quiesce feedback publication before deployment
-        timeout-minutes: 5
+        timeout-minutes: ${{ inputs.recover_dfa_cutover_842 == true && 9 || 5 }}
+        env:
+          RECOVER_DFA_CUTOVER_842: ${{ inputs.recover_dfa_cutover_842 == true && 'true' || 'false' }}
+          SYNC_CONFIG: ${{ steps.mode.outputs.sync_config }}
+          CONFIGURED_FEEDBACK_PUBLICATION: ${{ vars.PRAXYS_ENABLE_FEEDBACK_PUBLICATION || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
+          attempts=36
+          if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" ]]; then
+            [[ "${GITHUB_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+            {
+              echo "### Incident recovery ir-dfa-readiness-recovery-20260928"
+              echo "Dispatch run: ${GITHUB_RUN_ID}; attempt: ${GITHUB_RUN_ATTEMPT}"
+              echo "This request consumes the one-off authorization even on failure or ambiguous completion."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            test "${GITHUB_EVENT_NAME}" = workflow_dispatch
+            test "${GITHUB_REF}" = refs/heads/main
+            test "${GITHUB_RUN_ATTEMPT}" = 1
+            test "${SYNC_CONFIG}" = true
+            test "${CONFIGURED_FEEDBACK_PUBLICATION}" = true
+            incident_version="$(curl -fsS --connect-timeout 5 --max-time 8 \
+              -H 'Cache-Control: no-cache' https://api.praxys.run/api/version)"
+            jq -e '.source_sha == "bafd1714df108747758bd58273578be3613b7bd0"' \
+              <<< "${incident_version}" >/dev/null
+            attempts=2
+          else
+            test "${RECOVER_DFA_CUTOVER_842}" = false
+          fi
           az webapp config appsettings set \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -269,10 +299,16 @@ jobs:
           kill_switch="$(read_setting PRAXYS_DISABLE_FEEDBACK_PUBLICATION)"
           [[ "${kill_switch}" == "true" || "${kill_switch}" == "false" ]]
           quiesced=false
-          for _ in {1..36}; do
-            ready_payload="$(curl -fsS --max-time 8 \
-              -H 'Cache-Control: no-cache' \
-              https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+          for ((attempt=1; attempt<=attempts; attempt++)); do
+            if [[ "${RECOVER_DFA_CUTOVER_842}" == "true" ]]; then
+              ready_payload="$(curl -fsS --connect-timeout 5 --max-time 210 \
+                -H 'Cache-Control: no-cache' \
+                https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            else
+              ready_payload="$(curl -fsS --max-time 8 \
+                -H 'Cache-Control: no-cache' \
+                https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            fi
             if jq -e \
               '.status == "ready"
                and .optional_processing.feedback_publication_positive_enable
@@ -284,7 +320,9 @@ jobs:
               quiesced=true
               break
             fi
-            sleep 5
+            if [[ "${RECOVER_DFA_CUTOVER_842}" == "false" || "${attempt}" -lt "${attempts}" ]]; then
+              sleep 5
+            fi
           done
           test "${quiesced}" = true
 

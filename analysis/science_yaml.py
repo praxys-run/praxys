@@ -2,7 +2,11 @@
 import yaml
 
 
-class UniqueKeyLoader(yaml.SafeLoader):
+# Keep the same safe constructors and duplicate-key checks with either parser.
+_SAFE_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+class UniqueKeyLoader(_SAFE_LOADER):
     """Reject ambiguous mappings instead of accepting last-key-wins input."""
 
 
