@@ -220,7 +220,7 @@ msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Analysis.tsx:307
 msgid "{0}-week average"
-msgstr "{0}周平均"
+msgstr "近 {0} 周平均"
 
 #. placeholder {0}: formatDate(day.date, locale)
 #. placeholder {1}: day.counted_session_count
@@ -1301,7 +1301,7 @@ msgstr "登录方式"
 
 #: src/components/trail-course-review/copy.tsx:239
 msgid "Authoritative readiness modules"
-msgstr "权威准备情况模块"
+msgstr "权威准备度模块"
 
 #: src/pages/McpAuthorization.tsx:193
 msgid "Authorization link unavailable"
@@ -2135,7 +2135,7 @@ msgstr "代码"
 #. placeholder {1}: result.email
 #: src/pages/admin/AdminUsers.tsx:839
 msgid "Code {0} created for {1}. Email not sent. Copy it or use the link."
-msgstr "已为 {1} 创建代码 {0}。邮件未发送，请复制代码或使用链接。"
+msgstr "已为 {1} 创建邀请码 {0}。邮箱未发送，可复制邀请码或使用链接。"
 
 #: src/pages/LabsEnvironment.tsx:775
 msgid "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
@@ -2265,7 +2265,7 @@ msgstr "确认删除"
 
 #: src/components/trail-course-review/copy.tsx:233
 msgid "Confirm every visible editable section to check readiness. Confirmation is review, not proof of safety or eligibility."
-msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
+msgstr "请先确认所有可见的可编辑部分，再检查准备度。确认只表示已核对，不代表安全，也不代表符合生成条件。"
 
 #: src/pages/admin/AdminOps.tsx:1202
 msgid "Confirm one fenced replay. Praxys will refresh the provider calendar and stop if ownership or delivery state changed."
@@ -2318,7 +2318,7 @@ msgstr "已确认的全力活动"
 
 #: src/components/trail-course-review/copy.tsx:170
 msgid "Confirmed for revision"
-msgstr "已确认版本"
+msgstr "已确认修订版"
 
 #: src/components/TodayDecisionCheck.tsx:23
 msgid "Confirmed what I planned"
@@ -4082,7 +4082,7 @@ msgstr "每次调整都会记录在这里；只要该训练的当前版本未发
 
 #: src/components/trail-course-review/copy.tsx:324
 msgid "Every station"
-msgstr "每个站点"
+msgstr "所有补给站"
 
 #: src/components/HeatAdaptationPanel.tsx:531
 msgid "evidence"
@@ -4182,7 +4182,7 @@ msgstr "了解训练计划"
 
 #: src/pages/Labs.tsx:75
 msgid "Explore whether modeled heart rate varied with temperature and humidity at comparable recorded Stryd power in your eligible past runs."
-msgstr "探索在记录的 Stryd 功率相近时，符合条件的历史跑步中心率模型是否随温度和湿度变化。"
+msgstr "查看在你符合条件的历史跑步中，记录的 Stryd 功率接近时，模型心率是否会随温度和湿度变化。"
 
 #: src/components/PersonalContextPanel.tsx:761
 msgid "Export context"
@@ -4599,7 +4599,7 @@ msgstr "补给练习"
 
 #: src/components/trail-course-review/copy.tsx:161
 msgid "Fueling practice sessions in the past 42 days"
-msgstr "过去 42 天的补给练习次数"
+msgstr "过去42天的补给练习场次"
 
 #: src/components/GoalBaselinePanel.tsx:131
 #: src/components/GoalBaselinePanel.tsx:527
@@ -4875,7 +4875,7 @@ msgstr "收起详情"
 
 #: src/pages/Science.tsx:490
 msgid "Hide methodology details"
-msgstr "收起方法论详情"
+msgstr "收起方法详情"
 
 #: src/components/WorkoutStructureEditor.tsx:1928
 msgid "Hide other providers"
@@ -6256,7 +6256,7 @@ msgstr "混合"
 
 #: src/components/trail-course-review/copy.tsx:338
 msgid "Mixed food and drink"
-msgstr "食物与饮品混合"
+msgstr "食物和饮品混合"
 
 #: src/components/HeatAdaptationPanel.tsx:336
 #~ msgid "Mixed power sources"
@@ -6425,7 +6425,7 @@ msgstr "近似平缓（−3% 至低于 3%）"
 
 #: src/pages/Analysis.tsx:296
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
-msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还需 {daysToCompare} 天。"
+msgstr "需要先同步 2 周活动数据，才能对比计划与实际。还差 {daysToCompare} 天。"
 
 #: src/pages/Training.tsx:112
 #~ msgid "Need at least 3 activities with power data to plot a meaningful trend."
@@ -7216,7 +7216,7 @@ msgstr "已观测代理值范围"
 
 #: src/pages/Analysis.tsx:262
 msgid "Observed time in each intensity zone compared with the selected training theory."
-msgstr "将各强度分区的实际用时与所选训练理论进行比较。"
+msgstr "各强度区间的实际时长与所选训练理论对比。"
 
 #: src/components/HeatAdaptationPanel.tsx:206
 msgid "Observed, but not included because it stayed below {thresholdMinutes} effective heat minutes."
@@ -7411,7 +7411,7 @@ msgstr "确认前请先打开本节"
 
 #: src/pages/Labs.tsx:20
 msgid "Open to check"
-msgstr "打开以检查"
+msgstr "打开查看"
 
 #: src/components/PlanStart.tsx:239
 msgid "Open Training"
@@ -7874,7 +7874,7 @@ msgstr "计划配置和管理请前往「训练」。"
 
 #: src/components/UpcomingPlanCard.tsx:181
 msgid "Plan window"
-msgstr "计划范围"
+msgstr "计划周期"
 
 #: src/components/trail-course-review/copy.tsx:342
 msgid "Plan-altering issue"
@@ -8132,7 +8132,7 @@ msgstr "Praxys 无法评估完整计划边界。"
 
 #: src/components/trail-course-review/copy.tsx:360
 msgid "Praxys cannot interpret this revision safely."
-msgstr "Praxys 无法安全解释当前版本。"
+msgstr "Praxys 无法安全解析这次修改。"
 
 #: src/pages/LabsEnvironment.tsx:359
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
@@ -8170,7 +8170,7 @@ msgstr "应用更新后，此页面未能完成加载。重新加载一次即可
 
 #: src/components/trail-course-review/copy.tsx:380
 msgid "Praxys could not reproduce the same readiness receipt."
-msgstr "Praxys 无法复现同一份准备情况回执。"
+msgstr "Praxys 无法复现同一份准备度回执。"
 
 #: src/pages/admin/AdminOps.tsx:198
 msgid "Praxys database"
@@ -8929,7 +8929,7 @@ msgstr "尚未检查准备情况"
 
 #: src/components/trail-course-review/copy.tsx:173
 msgid "Readiness receipt"
-msgstr "准备情况回执"
+msgstr "准备度回执"
 
 #: src/components/PlanStart.tsx:2059
 msgid "Readiness result"
@@ -9758,7 +9758,7 @@ msgstr "正在恢复…"
 
 #: src/pages/Labs.tsx:17
 msgid "Result ready"
-msgstr "结果已就绪"
+msgstr "结果已生成"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1221
 msgid "Resume delivery"
@@ -9991,7 +9991,7 @@ msgstr "查看计划条件"
 
 #: src/pages/McpAuthorization.tsx:41
 msgid "Review plan outcomes"
-msgstr "回顾计划结果"
+msgstr "查看计划结果"
 
 #: src/components/trail-course-review/copy.tsx:433
 msgid "Review planning scope"
@@ -10050,7 +10050,7 @@ msgstr "请复核限制条件后重试。"
 
 #: src/pages/McpAuthorization.tsx:38
 msgid "Review the current goal"
-msgstr "回顾当前目标"
+msgstr "查看当前目标"
 
 #: src/components/trail-course-review/copy.tsx:409
 msgid "Review the event date"
@@ -10903,7 +10903,7 @@ msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据
 
 #: src/components/trail-course-review/copy.tsx:323
 msgid "Some stations"
-msgstr "部分站点"
+msgstr "部分补给站"
 
 #: src/components/ScienceNote.tsx:49
 #: src/pages/Goal.tsx:390
@@ -12180,7 +12180,7 @@ msgstr "此赛道核对使用了不受支持的版本"
 
 #: src/components/trail-course-review/copy.tsx:368
 msgid "This course review was created with an unsupported version."
-msgstr "此赛道核对使用了不受支持的版本。"
+msgstr "这份赛道核对创建时使用的版本暂不支持。"
 
 #: src/components/PersonalContextPanel.tsx:1580
 #~ msgid "This decision is separate from saving context and applies only to this exact version."
@@ -13506,7 +13506,7 @@ msgstr "每周图表暂时不可用"
 
 #: src/pages/Analysis.tsx:189
 msgid "Weekly diagnosis ready."
-msgstr "周度诊断已就绪。"
+msgstr "本周诊断已生成。"
 
 #: src/components/WeeklyLoadMini.tsx:30
 msgid "Weekly Load"
@@ -14226,7 +14226,7 @@ msgstr "准备情况响应与已接受的未启用越野合同不一致。未应
 
 #: src/components/trail-course-review/copy.tsx:173
 msgid "准备情况回执"
-msgstr "准备情况回执"
+msgstr "准备度回执"
 
 #: src/components/trail-course-review/copy.tsx:577
 msgid "准备情况已过期，不能静默重新绑定。"
@@ -14425,7 +14425,7 @@ msgstr "已确认本节的确切版本。确认不代表安全或符合生成条
 
 #: src/components/trail-course-review/copy.tsx:170
 msgid "已确认版本"
-msgstr "已确认版本"
+msgstr "已确认修订版"
 
 #: src/components/trail-course-review/copy.tsx:573
 msgid "已确认的分段或来源在核对后发生变化。"
@@ -14437,7 +14437,7 @@ msgstr "已确认的适用场景或目标不在此竞速策略范围内。"
 
 #: src/components/trail-course-review/copy.tsx:164
 msgid "已练习的摄入形式"
-msgstr "已练习的摄入形式"
+msgstr "已练习的补给形式"
 
 #: src/components/trail-course-review/copy.tsx:157
 msgid "强制装备"
@@ -14736,7 +14736,7 @@ msgstr "本节没有可安全确认的版本。请重新加载并再次核对。
 
 #: src/components/trail-course-review/copy.tsx:239
 msgid "权威准备情况模块"
-msgstr "权威准备情况模块"
+msgstr "权威准备度模块"
 
 #: src/components/trail-course-review/copy.tsx:121
 msgid "来源版本"
@@ -14814,7 +14814,7 @@ msgstr "核对越野赛事"
 
 #: src/components/trail-course-review/copy.tsx:174
 msgid "检查准备情况"
-msgstr "检查准备情况"
+msgstr "检查准备度"
 
 #: src/components/trail-course-review/copy.tsx:256
 msgid "模型版本"
@@ -15115,7 +15115,7 @@ msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露�
 
 #: src/components/trail-course-review/copy.tsx:234
 msgid "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
-msgstr "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
+msgstr "请先确认所有可见的可编辑部分，再检查准备度。确认只表示已核对，不代表安全，也不代表符合生成条件。"
 
 #: src/components/trail-course-review/copy.tsx:49
 msgid "请选择"
@@ -15183,7 +15183,7 @@ msgstr "输入距离"
 
 #: src/components/trail-course-review/copy.tsx:162
 msgid "过去 42 天的补给练习次数"
-msgstr "过去 42 天的补给练习次数"
+msgstr "过去42天的补给练习场次"
 
 #: src/components/trail-course-review/copy.tsx:348
 msgid "近似平缓（−3% 至低于 3%）"
@@ -15248,7 +15248,7 @@ msgstr "重新加载受支持版本"
 
 #: src/components/trail-course-review/copy.tsx:388
 msgid "重新检查准备情况"
-msgstr "重新检查准备情况"
+msgstr "重新检查准备度"
 
 #: src/components/trail-course-review/copy.tsx:210
 #: src/components/trail-course-review/states.tsx:232
