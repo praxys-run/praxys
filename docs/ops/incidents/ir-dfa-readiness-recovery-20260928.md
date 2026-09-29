@@ -94,3 +94,48 @@ respecting the negative kill switch, and no-store DFA `policy_active:false` /
 observation times, remaining limitations and the authorization outcome. A merged
 PR, local speedup, liveness 200, or readiness 200 without the complete required
 state does not close this incident.
+
+## PR845 deployment and diagnostic follow-up
+
+Status remains **Open**. PR845 was protected-squash merged at 2026-09-28 11:04:41 UTC
+as 00577ce859ff90bbdf50a90e8ba00c4822243ec4. Ordinary deployment 36413476542 failed
+pre-package quiescence; the conditionally authorized incident run 36414310829
+consumed its one dispatch. It passed prequiescence 11:13:37, deployed 11:26:41 and
+passed normal cutover 11:33:05, then timed out restoring feedback at 11:41:12.
+DFA policy observation was skipped. Job 108901663736 log SHA256:
+`236560126913ed25632e1d9521f589a812faa435bbc1ae15451cdf10c82da9d4`.
+
+Operations' later bounded diagnostic sample (11:47:41–11:48:03UTC) returned 200 in
+18.257s, no-store, ready, DFA false/null and feedback positive=true/kill=false/
+effective=true. This is point-in-time diagnostic evidence, not 8s acceptance or
+proof that the interrupted restoration trap completed. Plan CPU 71–100%, mostly
+96–100%, and memory 69–85% (max 86%) cover two apps/no slots; neither establishes a
+per-process cause. Completed readiness telemetry remains slow despite the parser
+mitigation. Database, filesystem, policy validation and contention costs remain
+unresolved.
+
+`readiness-timing-deadline-v1` adds bounded instrumentation and truthful restoration
+deadlines, without caching, pool changes, scientific changes or timeout expansion.
+The new exact 00577/default-false predeployment option is source preparation only;
+final delivery review must separately authorize any dispatch after ordinary
+pre-package automatic failure and terminal queues. The consumed 842 allowance is
+not additive. No recovery, activation, rollout or incident closure is claimed.
+
+### Open Architecture P2 on diagnostic draft d991e015
+
+The mandatory automatic attempt captures positive=true, disables publication,
+and can fail before package deployment without restoring it. The initial new
+option's current-original=true requirement therefore made its intended later
+path unreachable. Independent Quality/Trust results on d991e015 do not close
+this Architecture finding or authorize deployment.
+
+The draft correction carries finite original intent in an immutable same-run
+producer artifact created only after acknowledged disable/readbackfalse. The
+consumer uses the original nonsecret ZIP as bounded base64 data and authenticates
+it against anonymous GitHub run/jobs/artifact metadata. No Actions read grant or
+credential fallback is added. Current false state/exact00577 and current kill
+switch remain authoritative; no source/runtime/transport predicate is relaxed.
+The artifact is technically reusable, so Operations must preconsume and receipt
+its separately reviewed single dispatch allowance. No history scan/new24hTTL or
+global technical one-use is claimed. The incident remains Open, and source
+preparation is not a merge, dispatch, rollout, latency recovery or activation.

@@ -286,3 +286,82 @@ switch. Then verify no-store actual DFA false/null and the repair source SHA.
 Do not force feedback settings, bypass readiness, blindly rerun old PR839, or
 claim recovery from source merge alone. Preserve all original FIT/deletion state
 and the existing finite rollback limitations.
+
+## Readiness timing and restoration deadline follow-up
+
+PR845's repair source `00577ce859ff90bbdf50a90e8ba00c4822243ec4` reached normal
+cutover, but incident dispatch `36414310829` timed out during restoration. The
+PR842 recovery allowance is consumed and cannot be repeated. The incident remains
+open. A later 18.257-second diagnostic ready response with feedback enabled and
+DFA false/null does not meet the normal eight-second release gate.
+
+Readiness stage timing now distinguishes dispatch wait, database acquisition and
+queries, cleanup, controls and real DFA policy work. Use the bounded signal in
+[Monitoring & alerts](monitoring-and-alerts.md); plan CPU alone does not establish
+which process or stage is responsible. Public readiness shape and no-store remain
+unchanged, and no scientific guard is cached or bypassed.
+
+The restoration controller has a 360-second work deadline, at most 105 seconds
+for cleanup, and an absolute 465-second finish target inside the unchanged
+480-second step. Every command, parsing and output operation consumes the budget.
+The controller and command process groups have independent watchdogs. Transport
+must succeed before JSON can satisfy a predicate. A failed/timed-out Azure write
+can still complete remotely, so later matching samples cannot erase unresolved
+write ambiguity. Cleanup writes positive=false at most once and never changes
+the kill switch. Its observations are `verified_disabled`, `control_plane_only`
+or `unknown`; only the first proves all current configuration/runtime/source
+predicates with no ambiguous write. None turns the failed restoration into a
+successful deployment. Failed-step summary values are unknown, not cutover
+fallbacks. Runner loss/SIGKILL or missing/failed output leaves unknown state.
+
+The distinct default-false `recover_readiness_timing_00577` option is preparation
+for separately reviewed diagnostic delivery, not a latency remedy or an issued
+dispatch allowance. It rejects simultaneous use with the consumed PR842 option.
+Before any mutation it checks exact serving 00577, main workflow_dispatch attempt 1,
+sync_config=true, configured positive=true, authenticated automatic-producer
+original intent=true and current captured/fresh positive=false.
+Its predeployment-only transport is two complete 210s requests with one 5s gap
+inside 9min; all postdeployment probes retain 8s. First allow ordinary automatic
+deployment. Only a final reviewed delivery decision may permit one distinct
+receipted dispatch after terminal PRE-package automatic failure and clear queues.
+Failure or ambiguity consumes it; no rerun or redispatch. Quiescence may interrupt
+the currently sampled restored feedback. Single use is enforced by Operations
+receipts/authority, not a cross-run technical ledger.
+
+The [implementation boundary record](../dev/dfa-readiness-recovery/readiness-timing-deadline-v1.md)
+discloses the whole-file coverage consequence for future unrelated telemetry
+edits. After activation, changing either newly bound telemetry file requires the
+supported terminal STOP before maintenance or another explicitly supported route.
+
+### Cross-run proof relay and the consumed-attempt boundary
+
+The first diagnostic draft's current-original=true gate was unreachable after
+ordinary automatic quiescence disabled publication. The corrected producer
+publishes `readiness-quiescence-<run>-1`, containing only
+`quiescence-proof.json`, after acknowledged disable and false readback. It can be
+uploaded even when later readiness fails, but absent/ambiguous proof denies the
+option. Do not substitute a manual snapshot or a historical release's archive.
+
+For a separately authorized dispatch, obtain the ORIGINAL nonsecret ZIP under
+existing read authority, preserve its bytes/digest, and put canonical base64 in
+`quiescence_proof_zip` with numeric `quiescence_producer_run`. Supply input as data
+through the structured workflow request; never interpolate it as shell code.
+The helper uses public anonymous GitHub metadata only; rate limiting, unavailable
+metadata or partial reads deny. No token fallback or new Actions permission exists.
+The deploy job retains only its existing contents:read and id-token:write grants.
+
+Admission binds exact protected main/target, repository, PUSH workflow/attempt1,
+terminal failure at quiescence, successful immutable proof upload, and skipped
+actual post-quiescence configuration/package/deployment steps. Stamp/private-wheel
+preparation before quiescence is allowed. Artifact identity, expiry and SHA256 are
+verified before bounded one-member JSON parsing, with fresh metadata rechecks.
+The consumer checks exact serving00577/configuredtrue/currentfalse before mutation.
+Only historical restoration intent is reused; current kill-switch authority and
+normal8s runtime acceptance remain unchanged.
+
+A valid receipt is TECHNICALLY REUSABLE across distinct dispatches. It carries no
+global one-use enforcement or new24h age rule. Operations owns the one-attempt
+boundary: record consumption BEFORE the dispatch attempt, then its immediate
+run ID or unresolved identity. Failure/ambiguity consumes it; no second attempt.
+Current source preparation is not that final delivery authorization. Preserve
+producer/consumer receipts and the older consumed842/error history separately.
