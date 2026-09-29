@@ -466,7 +466,7 @@ def test_raw_dfa_omitted_review_date_fails_full_composite_without_publication(tm
 
 
 def test_raw_dfa_null_review_date_materializes_replays_and_real_guard_accepts(tmp_path, monkeypatch):
-    from datetime import date
+    from datetime import date, datetime, timezone
     from analysis import science_artifacts, science_approval_workflow as workflow
     from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST, digest
     from api.activity_dfa import require_policy
@@ -475,7 +475,26 @@ def test_raw_dfa_null_review_date_materializes_replays_and_real_guard_accepts(tm
         @classmethod
         def today(cls):
             return cls(2035, 1, 1)
+    class ExecutionDateTime(datetime):
+        # Keep authenticated source parsing real; only execution clocks differ.
+        fromisoformat = staticmethod(datetime.fromisoformat)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2035, 1, 1, tzinfo=tz)
+
+        @classmethod
+        def today(cls):
+            return cls.now()
+
+        @classmethod
+        def utcnow(cls):
+            return cls(2035, 1, 1)
     monkeypatch.setattr(workflow, 'date', ExecutionDate)
+    monkeypatch.setattr(workflow, 'datetime', ExecutionDateTime)
+    assert workflow.date.today() == date(2035, 1, 1)
+    assert workflow.datetime.now() == workflow.datetime.today() == workflow.datetime.utcnow() == datetime(2035, 1, 1)
+    assert workflow.datetime.now(timezone.utc) == datetime(2035, 1, 1, tzinfo=timezone.utc)
     case = _raw_dfa_activation(tmp_path)
     root, science, base, context, binding, comment, subject, review_id = case
     before = _raw_dfa_files(root)
@@ -490,6 +509,7 @@ def test_raw_dfa_null_review_date_materializes_replays_and_real_guard_accepts(tm
         require_policy()
     assert inactive.value.status_code == 503
     approvals = _raw_dfa_approvals(case)
+    assert workflow.datetime.fromisoformat(comment['created_at']).date() == date(2026, 9, 28)
     assert {a.reviewed_on for a in approvals} == {date(2026, 9, 28)}
     assert next(iter(approvals)).reviewed_on != ExecutionDate.today()
     changed = materialize_science_approvals(science, approvals, activation_context=context)
