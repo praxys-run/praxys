@@ -209,12 +209,14 @@ after the grants; it resolves the same effective identity as runtime and
 requires all three exact-scope assignments before continuing. The public GHCR
 image contains no deployment secret.
 
-After cutover, `deploy-backend.yml` waits up to 15 minutes for the Container
-Apps Job to report the exact `ghcr.io/praxys-run/praxys-labs-worker:<commit>`
-image before deploying that backend commit. The worker workflow mirrors every
-backend protected-`main` trigger, including science-only changes. A failed
-or delayed worker deployment therefore blocks the newer backend instead of
-letting an older worker cancel a future-model job.
+After cutover, the backend deploys and verifies its revision first. The worker
+workflow requires `/api/version` to report the same commit as its image and
+`/api/health/ready` to report `ready` before Azure login or worker reconciliation;
+the backend does not wait for the worker image. The worker workflow also matches
+`tests/**`, so a tests-only commit can publish an image while its worker deployment
+is stopped by this guard because that backend revision was not deployed. A guard
+failure leaves the existing pinned worker unchanged; it is not authorization to
+dispatch a backend deployment or change runtime flags.
 
 ### 3. Create the least-privilege PostgreSQL principal
 
@@ -369,8 +371,8 @@ The public China scope preserves `service_bus`. Set it only after the worker
 image for the exact backend commit, tagged namespace/queue, sender/receiver
 RBAC, database principal, shared live China/Miniapp processing authority, and
 alerts have passed this runbook. `deploy-backend.yml` rejects the cutover when
-the worker deployment gate is not enabled or its deployed image does not match
-the backend commit.
+the worker deployment gate is not enabled. The worker workflow independently
+requires the matching healthy backend revision before changing Azure resources.
 
 ```bash
 gh variable set PRAXYS_LABS_EXECUTION_MODE --body "service_bus"

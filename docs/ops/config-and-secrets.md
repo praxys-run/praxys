@@ -534,6 +534,18 @@ settings: it sets `appi-praxys-backend` local auth off, IP masking on
 configuration-sync backend deployment; portal edits are drift and will be
 overwritten.
 
+Both `backend-preflight` and `frontend-resolve` enforce workspace retention with
+the shared `enforce_workspace_retention` helper. It validates the resolved Log
+Analytics workspace ID against the configured resource group and workspace
+name (and `AZURE_SUBSCRIPTION_ID` when supplied), then uses `az resource patch`
+with API version `2025-02-01`. Its properties argument is exactly
+`{"retentionInDays":30}`; the generic ARM command serializes only
+`{"properties":{"retentionInDays":30}}`. This avoids the Azure CLI AAZ
+workspace-update path that failed during Python module loading. It does not
+replace the workspace object, tags, features, or associations, and adds no
+retry. Existing workspace/component retention readbacks, local-auth checks,
+IP masking, RBAC checks, and connection-string masking remain mandatory.
+
 The background-AI and feedback-publication negative controls are protected
 production policy, not mutable GitHub variables. The first blocks automatic
 post-sync insights and feedback AI/vision processing that lack current
