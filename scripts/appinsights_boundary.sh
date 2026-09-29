@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 readonly BACKEND_APP_SERVICE="trainsight-app"
 readonly BACKEND_RETENTION_DAYS=30
+readonly WORKSPACE_RESOURCE_API_VERSION="2025-02-01"
 readonly API_WEBTEST_NAME="wt-praxys-api-health"
 readonly SCHEDULED_QUERY_API_VERSION="2026-03-01"
 readonly MANAGED_PLAN_PROVIDER_ALERT="praxys-managed-plan-provider-failures"
@@ -122,6 +123,33 @@ verify_resource_context_access() {
     --query features.enableLogAccessUsingOnlyResourcePermissions -o tsv)"
   [[ "${resource_context_access,,}" == "true" ]] ||
     fail "${LOG_ANALYTICS_WORKSPACE} must allow resource-context log access for exact-resource Monitoring Reader"
+}
+
+enforce_workspace_retention() {
+  local workspace_id="${WORKSPACE_ID//$'\r'/}"
+  local id_pattern='^/subscriptions/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/resourcegroups/([^/?#[:space:]]+)/providers/microsoft[.]operationalinsights/workspaces/([^/?#[:space:]]+)$'
+  if [[ ! "${workspace_id,,}" =~ ${id_pattern} ]]; then
+    fail "workspace retention requires a valid Log Analytics workspace resource ID"
+    return 1
+  fi
+  local subscription_id="${BASH_REMATCH[1]}"
+  local resource_group="${BASH_REMATCH[2]}"
+  local workspace_name="${BASH_REMATCH[3]}"
+  if ! ids_equal "${resource_group}" "${AZURE_RESOURCE_GROUP}" ||
+     ! ids_equal "${workspace_name}" "${LOG_ANALYTICS_WORKSPACE}" ||
+     { [[ -n "${AZURE_SUBSCRIPTION_ID:-}" ]] &&
+       ! ids_equal "${subscription_id}" "${AZURE_SUBSCRIPTION_ID}"; }; then
+    fail "workspace retention target does not match the configured workspace"
+    return 1
+  fi
+
+  # Generic ARM PATCH avoids the AAZ workspace-update import worker and sends
+  # only this property; never replace the workspace object or its tags/features.
+  az resource patch \
+    --ids "${workspace_id}" \
+    --api-version "${WORKSPACE_RESOURCE_API_VERSION}" \
+    --properties "$(jq -cn --argjson days "${BACKEND_RETENTION_DAYS}" '{retentionInDays: $days}')" \
+    --output none
 }
 
 write_github_env() {
@@ -728,11 +756,7 @@ backend_preflight() {
   load_boundary_resources
   verify_resource_context_access
 
-  az monitor log-analytics workspace update \
-    --resource-group "${AZURE_RESOURCE_GROUP}" \
-    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
-    --retention-time "${BACKEND_RETENTION_DAYS}" \
-    --output none
+  enforce_workspace_retention
 
   az resource update \
     --ids "${BACKEND_AI_ID}" \
@@ -858,11 +882,7 @@ frontend_resolve() {
   [[ "${backend_local_auth,,}" == "true" ]] ||
     fail "backend Application Insights must reject instrumentation-key ingestion"
 
-  az monitor log-analytics workspace update \
-    --resource-group "${AZURE_RESOURCE_GROUP}" \
-    --workspace-name "${LOG_ANALYTICS_WORKSPACE}" \
-    --retention-time "${BACKEND_RETENTION_DAYS}" \
-    --output none
+  enforce_workspace_retention
 
   az resource update \
     --ids "${FRONTEND_AI_ID}" \
