@@ -321,7 +321,11 @@ if event.get('hang'):
     time.sleep(30)
 if os.environ.get('FAKE_SCALE','1')=='1':
     duration=event.get('duration',5 if operation=='retry_gap' else 0)
-    clock.write_text(str(float(clock.read_text())+duration))
+    # The controller reads concurrently: publish a complete clock value so it
+    # cannot observe a truncated file that a real monotonic clock never exposes.
+    next_clock=clock.with_name(f'{clock.name}.{os.getpid()}.tmp')
+    next_clock.write_text(str(float(clock.read_text())+duration))
+    next_clock.replace(clock)
 if operation=='settings_read':
     payload=event.get('body',[{'name':'PRAXYS_ENABLE_FEEDBACK_PUBLICATION','value':str(current['positive']).lower()},
           {'name':'PRAXYS_DISABLE_FEEDBACK_PUBLICATION','value':str(current['kill']).lower()},
