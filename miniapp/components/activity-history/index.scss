@@ -54,6 +54,21 @@
   margin-top: 8rpx;
 }
 
+.activity-history__detail-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 88rpx;
+  margin: 12rpx 0 0;
+  padding: 0 12rpx 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.activity-history__detail-link::after { border: 0; }
+
 .activity-history__metric {
   min-width: 100rpx;
 }

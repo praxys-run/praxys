@@ -156,6 +156,7 @@ Two patterns. Different jobs.
 - Grid lines use `chartColors.grid`; axis ticks use `chartColors.tick` with `font-data`.
 - All charts wrapped in a shadcn `Card`.
 - Gradient stops reference `chartColors.*` constants (not raw hex).
+- **Observed activity traces are metric identities, not verdicts.** Power, heart rate, and pace have stable, named light/dark trace colors in `web/src/lib/chart-theme.ts` and `miniapp/utils/theme.ts`, distinct from action green, reasoning cobalt, and status rust; do not reuse `fitness` / `fatigue` / `form`. A secondary trace is dashed, the primary is solid; both axes and units stay labeled, and gaps stay gaps. The implemented data and interaction boundaries are in `docs/design/activity-detail-experience-spec.md`; this is an activity-detail-specific stream, not a promise of charts for unsampled metrics.
 
 ## Mobile patterns
 
@@ -170,6 +171,7 @@ Two patterns. Different jobs.
 Tracked here so they don't get lost. When picking up any of these, update this section and mark the brand-target line in the relevant table.
 
 - [ ] Swap body font from DM Sans to Geist across `index.html` preconnects and `--font-sans`.
+- [ ] Add named, accessible light/dark activity-trace roles to `chart-theme.ts` when the activity-detail feature is implemented; never bind them to action or reasoning tokens.
 - [ ] Rename `--accent-red-val` → `--accent-rust-val` (and the semantic class) to match brand naming, or accept the rename as alias only.
 - [ ] Remove `--accent-blue-val` / `--accent-purple-val` usages: migrate TSB/form displays to cobalt (if reasoning) or primary (if positive), move sleep/recovery off purple.
 - [ ] Add the `.font-serif-sc` utility class for Chinese display/quote contexts.

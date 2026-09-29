@@ -123,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
       removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
       removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
+      queryClient.clear();
       setToken(null);
       setUserId(null);
       setEmail(null);
@@ -192,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRestoreStatus('retryable');
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback(async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
     if (!canStartPersonalDataRequests()) {
@@ -251,6 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await meResponse.json() as CurrentUserProfile;
 
       removeRecentFeedbackId();
+      queryClient.clear();
       setCompatItem(KEYS.authToken.new, KEYS.authToken.legacy, accessToken);
       setCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy, email);
       setCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy, String(me.is_superuser));
@@ -270,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return { ok: false, error: 'Network error. Is the server running?' };
     }
-  }, []);
+  }, [queryClient]);
 
   const register = useCallback(async (email: string, password: string, invitationCode?: string, acceptedTerms?: boolean, honeypot?: string): Promise<{ ok: boolean; error?: string; verificationRequired?: boolean }> => {
     try {
@@ -335,6 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     removeCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);
     removeCompatItem(KEYS.authEmail.new, KEYS.authEmail.legacy);
     removeCompatItem(KEYS.authAdmin.new, KEYS.authAdmin.legacy);
+    queryClient.clear();
     setToken(null);
     setUserId(null);
     setEmail(null);
@@ -344,7 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTermsAcceptanceStatus('ready');
     setRestoreStatus('idle');
     clearAppInsightsUser();
-  }, []);
+  }, [queryClient]);
 
   const acceptTerms = useCallback(async (
     onBundleMismatch?: () => void,

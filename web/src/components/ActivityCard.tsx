@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Activity } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +15,7 @@ const ActivityDFA = lazy(() => import('@/components/ActivityDFA'));
 
 interface Props {
   activity: Activity;
+  activityDetailAvailable: boolean;
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -41,7 +43,7 @@ function formatActivityType(type: string): string {
     .join(' ');
 }
 
-export default function ActivityCard({ activity }: Props) {
+export default function ActivityCard({ activity, activityDetailAvailable }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [dfaOpen, setDfaOpen] = useState(false);
   const { locale } = useLocale();
@@ -152,6 +154,15 @@ export default function ActivityCard({ activity }: Props) {
               </span>
             )}
           </div>
+          {activityDetailAvailable && (
+            <Link
+              to={`/history/${encodeURIComponent(activity.activity_id)}`}
+              className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Trans>View activity report</Trans>
+            </Link>
+          )}
         </CardContent>
 
         {/* Expandable splits */}

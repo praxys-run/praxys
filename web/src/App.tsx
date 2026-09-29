@@ -54,6 +54,7 @@ const loadAnalysis = () => import('./pages/Analysis');
 const Analysis = lazy(loadAnalysis);
 const Goal = lazy(() => import('./pages/Goal'));
 const History = lazy(() => import('./pages/History'));
+const ActivityDetail = lazy(() => import('./pages/ActivityDetail'));
 const Science = lazy(() => import('./pages/Science'));
 const Labs = lazy(() => import('./pages/Labs'));
 const LabsEnvironment = lazy(() => import('./pages/LabsEnvironment'));
@@ -277,6 +278,7 @@ export default function App() {
                 <Route path="analysis" element={<Suspense fallback={null}><Analysis /></Suspense>} />
                 <Route path="goal" element={<Suspense fallback={null}><Goal /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={null}><History /></Suspense>} />
+                <Route path="history/:activityId" element={<Suspense fallback={<RouteChunkSkeleton />}><ActivityDetail /></Suspense>} />
                 <Route path="science" element={<Suspense fallback={null}><Science /></Suspense>} />
                 <Route path="labs" element={<LabsRoute><Labs /></LabsRoute>} />
                 <Route path="labs/environment-response" element={<LabsRoute><LabsEnvironment /></LabsRoute>} />

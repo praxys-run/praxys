@@ -1,10 +1,16 @@
 """Praxys API — FastAPI application with SQLite backend and JWT auth."""
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+from api.activity_telemetry import configure_activity_access_logging, sanitize_activity_span
+
+
+configure_activity_access_logging()
 
 
 def _configure_httpx_logging_boundary() -> None:
@@ -52,9 +58,15 @@ if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
             if _mi_client_id
             else ManagedIdentityCredential()
         )
-        configure_azure_monitor(credential=_credential)
+        configure_azure_monitor(
+            credential=_credential,
+            instrumentation_options={"fastapi": {"enabled": False}},
+        )
     else:
-        configure_azure_monitor()
+        configure_azure_monitor(instrumentation_options={"fastapi": {"enabled": False}})
+
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FastAPIInstrumentor().instrument(server_request_hook=sanitize_activity_span)
 
     # configure_azure_monitor attaches a LoggingHandler to the root logger,
     # which means anything these libraries log at INFO gets shipped back into
@@ -109,6 +121,7 @@ from db.session import init_db
 
 
 _FEEDBACK_OWNER_STATUS_PATH = "/api/me/feedback/status"
+_ACTIVITY_DETAIL_PATH = re.compile(r"^/api/history/[^/]+/detail/?$")
 _PRIVATE_NO_STORE = "private, no-store"
 
 
@@ -172,6 +185,44 @@ class FeedbackOwnerStatusPrivacyMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_private)
+
+
+class ActivityDetailPrivacyMiddleware:
+    """Apply no-store to activity detail success and failure responses alike."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if (
+            scope.get("type") != "http"
+            or not _ACTIVITY_DETAIL_PATH.fullmatch(str(scope.get("path", "")))
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def send_private(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+                MutableHeaders(scope=message)["Cache-Control"] = _PRIVATE_NO_STORE
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_private)
+        except Exception:
+            if not response_started:
+                await Response(
+                    "Internal Server Error", status_code=500, media_type="text/plain",
+                )(scope, receive, send_private)
+            raise
 
 
 @asynccontextmanager
@@ -326,6 +377,8 @@ if is_rate_limit_disabled():
     )
 else:
     app.add_middleware(AuthRateLimitMiddleware)
+
+app.add_middleware(ActivityDetailPrivacyMiddleware)
 
 # Auth routes
 from api.users import fastapi_users, auth_backend

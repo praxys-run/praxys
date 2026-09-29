@@ -13,6 +13,7 @@ function translations() {
     noActivities: t('No activities found.'),
     splits: t('Splits'),
     more: t('more'),
+    viewReport: t('View activity report'),
   };
 }
 
@@ -30,6 +31,7 @@ interface SplitRow {
 
 interface ActivityRow {
   id: string;
+  detailAvailable: boolean;
   date: string;
   type: string;
   metrics: MetricRow[];
@@ -64,7 +66,7 @@ function formatActivityType(raw: string): string {
   return t(formatted);
 }
 
-function buildActivityRow(activity: Activity): ActivityRow {
+function buildActivityRow(activity: Activity, detailAvailable: boolean): ActivityRow {
   const metrics: MetricRow[] = [];
   if (activity.distance_km != null) {
     metrics.push({ label: t('km'), value: formatDistance(activity.distance_km) });
@@ -90,6 +92,7 @@ function buildActivityRow(activity: Activity): ActivityRow {
 
   return {
     id: activity.activity_id,
+    detailAvailable,
     date: activity.date,
     type: formatActivityType(activity.activity_type),
     metrics,
@@ -180,6 +183,14 @@ Component({
       this.setData({ activities });
     },
 
+    openDetail(event: WechatMiniprogram.TouchEvent) {
+      const id = String(event.currentTarget.dataset.id ?? '');
+      if (!id || !(this.data.activities as ActivityRow[]).some(
+        (activity) => activity.id === id && activity.detailAvailable,
+      )) return;
+      wx.navigateTo({ url: `/pages/activity-detail/index?id=${encodeURIComponent(id)}` });
+    },
+
     async fetchPage(nextOffset: number, replace: boolean): Promise<void> {
       this.setData(
         replace
@@ -190,7 +201,9 @@ Component({
         const response = await apiGet<HistoryResponse>(
           `/api/history?limit=${PAGE_SIZE}&offset=${nextOffset}`,
         );
-        const newRows = response.activities.map(buildActivityRow);
+        const newRows = response.activities.map((activity) =>
+          buildActivityRow(activity, response.activity_detail_available),
+        );
         const activities: ActivityRow[] = replace
           ? newRows
           : [...(this.data.activities as ActivityRow[]), ...newRows];

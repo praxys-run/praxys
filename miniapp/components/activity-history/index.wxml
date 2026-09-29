@@ -56,6 +56,10 @@
         </view>
       </view>
 
+      <button wx:if="{{item.detailAvailable}}" class="activity-history__detail-link" data-id="{{item.id}}" catchtap="openDetail">
+        {{tr.viewReport}}
+      </button>
+
       <view wx:if="{{item.hasSplits && item.expanded}}" class="activity-history__splits">
         <text class="ts-section-label ts-value">{{tr.splits}} ({{item.splitCount}})</text>
         <view
