@@ -11,6 +11,14 @@ on:
   bots: ["Copilot"]
   workflow_dispatch:
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')) }}
+observability:
+  otlp:
+    endpoint: ${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}
+    headers: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
+    if-missing: ignore
+steps:
+  - name: Verify configured telemetry credentials
+    run: bash "${RUNNER_TEMP}/gh-aw/actions/check_otlp_default_credentials.sh"
 engine: copilot
 model: gpt-5.4
 max-ai-credits: 1200
