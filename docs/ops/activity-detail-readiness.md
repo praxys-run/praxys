@@ -134,6 +134,13 @@ establish native rendering, promotion or publication.
 
 ### Local checks
 
+EdgeOne now scopes the activity-detail deep-link fallback to
+`/history/*` → `/app-shell.html`, so direct links and refreshes can load the
+application shell. Asset, font, service-worker, health and `/api` paths retain
+their existing routing; no global fallback is added. The shared routing helper
+has nested/encoded-link and resource-isolation regressions. Parent verifies
+the direct-link/refresh result after the actual EdgeOne rollout.
+
 1. Run the focused regression suite with the interpreter containing dependencies:
 
    ```bash
