@@ -260,6 +260,344 @@ def test_activity_analysis_requires_authentication(analysis_client) -> None:
     assert response.status_code == 401
 
 
+def test_activity_detail_is_owner_scoped_and_excludes_location(analysis_client) -> None:
+    from db import session as db_session
+    from db.models import ActivitySplit
+
+    db = db_session.SessionLocal()
+    db.add(ActivitySplit(
+        user_id=analysis_client["other_id"], activity_id="shared-activity",
+        split_num=1, duration_sec=300, avg_power=112, avg_hr=104,
+    ))
+    db.commit()
+    db.close()
+
+    client = analysis_client["client"]
+    owner = analysis_client["owner_headers"]
+    unauthenticated = client.get("/api/history/shared-activity/detail")
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.headers["cache-control"] == "private, no-store"
+    foreign = client.get(
+        "/api/history/private-other/detail", headers=owner,
+    )
+    assert foreign.status_code == 404
+    assert foreign.headers["cache-control"] == "private, no-store"
+    rejected_method = client.post("/api/history/shared-activity/detail", headers=owner)
+    assert rejected_method.status_code == 405
+    assert rejected_method.headers["cache-control"] == "private, no-store"
+
+    response = client.get("/api/history/shared-activity/detail", headers=owner)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+    detail = response.json()
+    assert detail["activity"]["distance_km"] == 10
+    assert detail["sample_count"] == 601
+    assert detail["activity"]["sample_coverage"]["sample_count"] == 601
+    assert detail["activity"]["splits"][0]["avg_power"] == 250
+    assert detail["samples"][0]["power_watts"] == 250
+    assert detail["kilometer_unavailable_reason"] == "distance_trace_unavailable"
+    assert detail["kilometer_splits"] == []
+    assert detail["privacy"] == {
+        "gps_included": False, "raw_distance_trace_included": False,
+    }
+    assert '"lat":' not in response.text
+    assert "distance_m" not in detail["samples"][0]
+    assert "start_offset_sec" not in detail["activity"]["splits"][0]
+
+    other = client.get(
+        "/api/history/shared-activity/detail",
+        headers=analysis_client["other_headers"],
+    ).json()
+    assert other["activity"]["distance_km"] == 999
+    assert other["activity"]["splits"][0]["avg_power"] == 112
+    assert other["activity"]["sample_coverage"]["sample_count"] == 0
+    assert other["samples"] == []
+
+
+def test_activity_detail_unhandled_error_is_not_cached(analysis_client, monkeypatch) -> None:
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    def fail_detail(_user_id, _db, _activity_id):
+        raise RuntimeError("synthetic activity detail failure")
+
+    monkeypatch.setattr("api.routes.history.get_activity_detail", fail_detail)
+    client = TestClient(app, raise_server_exceptions=False)
+    try:
+        response = client.get(
+            "/api/history/shared-activity/detail",
+            headers=analysis_client["owner_headers"],
+        )
+    finally:
+        client.close()
+
+    assert response.status_code == 500
+    assert response.headers["cache-control"] == "private, no-store"
+    assert "synthetic activity detail failure" not in response.text
+    with pytest.raises(RuntimeError, match="synthetic activity detail failure"):
+        analysis_client["client"].get(
+            "/api/history/shared-activity/detail",
+            headers=analysis_client["owner_headers"],
+        )
+
+
+def test_activity_detail_does_not_disclose_owner_streams_to_demo(
+    analysis_client, monkeypatch,
+) -> None:
+    from api.legal import TERMS_CONTENT_DIGEST, TERMS_VERSION
+    from db import session as db_session
+    from db.models import User
+
+    db = db_session.SessionLocal()
+    db.add(User(
+        id="analysis-demo", email="analysis-demo@example.com", hashed_password="x",
+        is_demo=True, demo_of=analysis_client["owner_id"],
+        terms_version=TERMS_VERSION, terms_digest=TERMS_CONTENT_DIGEST,
+    ))
+    db.commit()
+    db.close()
+
+    token = jwt.encode({
+        "sub": "analysis-demo", "aud": "fastapi-users:auth",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+    }, "activity-analysis-test-secret-with-adequate-length", algorithm="HS256")
+    demo_response = analysis_client["client"].get(
+        "/api/history/shared-activity/detail",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    foreign_response = analysis_client["client"].get(
+        "/api/history/private-other/detail",
+        headers=analysis_client["owner_headers"],
+    )
+    assert demo_response.status_code == 404
+    assert demo_response.headers["cache-control"] == "private, no-store"
+    assert demo_response.json() == foreign_response.json()
+    assert "power_watts" not in demo_response.text
+
+    monkeypatch.setattr(
+        "api.routes.history.stryd_connection_enabled",
+        lambda _db, user_id: False,
+    )
+    owner_history = analysis_client["client"].get(
+        "/api/history?limit=10", headers=analysis_client["owner_headers"],
+    )
+    demo_headers = {"Authorization": f"Bearer {token}"}
+    demo_history = analysis_client["client"].get(
+        "/api/history?limit=10",
+        headers={**demo_headers, "If-None-Match": owner_history.headers["etag"]},
+    )
+    assert owner_history.status_code == 200
+    assert owner_history.json()["activity_detail_available"] is True
+    assert demo_history.status_code == 200
+    assert demo_history.json()["activity_detail_available"] is False
+    assert demo_history.json()["activities"] == owner_history.json()["activities"]
+    assert demo_history.headers["etag"] != owner_history.headers["etag"]
+
+    cached_demo = analysis_client["client"].get(
+        "/api/history?limit=10",
+        headers={**demo_headers, "If-None-Match": demo_history.headers["etag"]},
+    )
+    owner_from_demo_cache = analysis_client["client"].get(
+        "/api/history?limit=10",
+        headers={**analysis_client["owner_headers"], "If-None-Match": demo_history.headers["etag"]},
+    )
+    assert cached_demo.status_code == 304
+    assert owner_from_demo_cache.status_code == 200
+
+    other_from_owner_cache = analysis_client["client"].get(
+        "/api/history?limit=10",
+        headers={**analysis_client["other_headers"], "If-None-Match": owner_history.headers["etag"]},
+    )
+    assert other_from_owner_cache.status_code == 200
+    assert other_from_owner_cache.json()["activity_detail_available"] is True
+    assert other_from_owner_cache.headers["etag"] != owner_history.headers["etag"]
+
+
+def test_activity_detail_keeps_missing_metric_segments_disconnected(analysis_client) -> None:
+    from db.models import ActivitySample
+    from db import session as db_session
+
+    db = db_session.SessionLocal()
+    target_epoch = int(datetime(2026, 7, 15, 6, tzinfo=timezone.utc).timestamp())
+    db.query(ActivitySample).filter(
+        ActivitySample.user_id == analysis_client["owner_id"],
+        ActivitySample.activity_id == "shared-activity",
+        ActivitySample.t_sec.between(target_epoch + 50, target_epoch + 52),
+    ).update({ActivitySample.hr_bpm: None}, synchronize_session=False)
+    db.commit()
+    db.close()
+
+    detail = analysis_client["client"].get(
+        "/api/history/shared-activity/detail",
+        headers=analysis_client["owner_headers"],
+    ).json()
+    points = {point["offset_sec"]: point for point in detail["samples"]}
+    assert points[50]["hr_bpm"] is None
+    assert points[51]["hr_bpm"] is None
+    assert points[52]["hr_bpm"] is None
+    assert points[53]["hr_bpm_break"] is True
+    assert points[53]["power_watts_break"] is False
+
+
+def test_activity_detail_includes_extended_samples_without_inventing_gaps(analysis_client) -> None:
+    from db.models import ActivitySample
+    from db import session as db_session
+
+    target_epoch = int(datetime(2026, 7, 15, 6, tzinfo=timezone.utc).timestamp())
+    db = db_session.SessionLocal()
+    recorded = {
+        ActivitySample.pace_sec_km: 335,
+        ActivitySample.cadence_spm: 174,
+        ActivitySample.speed_ms: 3.2,
+        ActivitySample.altitude_m: -12,
+        ActivitySample.grade_pct: -2.5,
+        ActivitySample.temperature_c: 0,
+        ActivitySample.ground_time_ms: 238,
+        ActivitySample.oscillation_mm: 70,
+        ActivitySample.vertical_ratio: 7.1,
+        ActivitySample.leg_spring_kn_m: 10.2,
+        ActivitySample.form_power_watts: 0,
+        ActivitySample.respiration_rate: 22,
+    }
+    db.query(ActivitySample).filter(
+        ActivitySample.user_id == analysis_client["owner_id"],
+        ActivitySample.activity_id == "shared-activity",
+        ActivitySample.t_sec.in_((target_epoch + 100, target_epoch + 102)),
+    ).update(recorded, synchronize_session=False)
+    db.commit()
+    db.close()
+
+    detail = analysis_client["client"].get(
+        "/api/history/shared-activity/detail",
+        headers=analysis_client["owner_headers"],
+    ).json()
+    points = {point["offset_sec"]: point for point in detail["samples"]}
+    for field, value in (
+        ("pace_sec_km", 335), ("cadence_spm", 174), ("speed_ms", 3.2),
+        ("altitude_m", -12), ("grade_pct", -2.5), ("temperature_c", 0),
+        ("ground_time_ms", 238), ("oscillation_mm", 70),
+        ("vertical_ratio", 7.1), ("leg_spring_kn_m", 10.2),
+        ("form_power_watts", 0), ("respiration_rate", 22),
+    ):
+        assert points[100][field] == value
+        assert points[101][field] is None
+        assert points[102][f"{field}_break"] is True
+    assert points[102]["power_watts_break"] is False
+    assert points[100]["source"] == "stryd"
+    assert "distance_m" not in points[100]
+
+
+def test_activity_detail_only_enables_kilometers_for_verified_distance_trace(analysis_client) -> None:
+    from db.models import Activity, ActivitySample, ActivitySplit
+    from db import session as db_session
+
+    owner_id = analysis_client["owner_id"]
+    target_epoch = int(datetime(2026, 7, 15, 6, tzinfo=timezone.utc).timestamp())
+    db = db_session.SessionLocal()
+    db.add(Activity(
+        user_id=owner_id, activity_id="verified-2k", date=analysis_client["target_date"],
+        start_time="2026-07-15T06:00:00Z", activity_type="running",
+        duration_sec=720, distance_km=2.15, source="garmin",
+    ))
+    db.add(ActivitySplit(
+        user_id=owner_id, activity_id="verified-2k", split_num=1,
+        distance_km=0.88, duration_sec=300, avg_hr=145,
+    ))
+    db.add_all([
+        ActivitySample(
+            user_id=owner_id, activity_id="verified-2k", source="garmin",
+            t_sec=target_epoch + second, distance_m=second * 2150 / 720,
+            pace_sec_km=335, hr_bpm=145,
+        )
+        for second in range(721)
+    ])
+    db.commit()
+    db.close()
+
+    url = "/api/history/verified-2k/detail"
+    client = analysis_client["client"]
+    headers = analysis_client["owner_headers"]
+    detail = client.get(url, headers=headers).json()
+    assert detail["kilometer_unavailable_reason"] is None
+    assert len(detail["kilometer_splits"]) == 3
+    assert [part["split_num"] for part in detail["kilometer_splits"]] == [1, 2, 3]
+    assert 0 < detail["kilometer_splits"][-1]["distance_km"] < 0.2
+    assert detail["kilometer_splits"][0]["start_offset_sec"] == 0
+    assert detail["kilometer_splits"][-1]["end_offset_sec"] == 720
+    assert "start_offset_sec" not in detail["activity"]["splits"][0]
+
+    db = db_session.SessionLocal()
+    db.query(ActivitySample).filter(
+        ActivitySample.user_id == owner_id,
+        ActivitySample.activity_id == "verified-2k",
+    ).update({ActivitySample.hr_bpm: None, ActivitySample.pace_sec_km: None}, synchronize_session=False)
+    db.commit()
+    db.close()
+    distance_only = client.get(url, headers=headers).json()
+    assert distance_only["sample_count"] == 721
+    assert len(distance_only["kilometer_splits"]) == 3
+    assert all(point["hr_bpm"] is None and point["pace_sec_km"] is None
+               for point in distance_only["samples"])
+
+    db = db_session.SessionLocal()
+    db.query(ActivitySample).filter(
+        ActivitySample.user_id == owner_id,
+        ActivitySample.activity_id == "verified-2k",
+        ActivitySample.t_sec == target_epoch + 300,
+    ).update({ActivitySample.distance_m: None}, synchronize_session=False)
+    db.commit()
+    db.close()
+    incomplete = client.get(url, headers=headers).json()
+    assert incomplete["kilometer_splits"] == []
+    assert incomplete["kilometer_unavailable_reason"] == "distance_trace_incomplete"
+
+
+def test_activity_detail_downsampling_keeps_recorded_extrema_and_breaks() -> None:
+    from api.activity_detail import _select_display_samples
+
+    points = [{
+        "offset_sec": second,
+        "power_watts": None if 2000 <= second <= 2010 else (880 if second == 1555 else 210),
+        "hr_bpm": 135,
+        "pace_sec_km": None,
+        "source": "garmin",
+    } for second in range(12000)]
+    displayed = _select_display_samples(points)
+    assert len(displayed) <= 6000
+    assert any(point["power_watts"] == 880 for point in displayed)
+    following = next(point for point in displayed if point["offset_sec"] > 2010 and point["power_watts"] is not None)
+    assert following["power_watts_break"] is True
+    assert following["hr_bpm_break"] is False
+
+
+def test_activity_detail_does_not_display_zero_distance_tail() -> None:
+    from types import SimpleNamespace
+    from api.activity_detail import _kilometer_splits
+
+    epoch = int(datetime(2026, 7, 15, 6, tzinfo=timezone.utc).timestamp())
+    rows = [SimpleNamespace(
+        t_sec=epoch + second,
+        distance_m=second * 2000 / 600 if second <= 600 else 2002,
+    ) for second in range(602)]
+    splits, reason = _kilometer_splits(
+        rows, start_epoch=epoch, verified_start=True,
+        distance_km=2.002, duration_sec=601,
+    )
+    assert reason is None
+    assert len(splits) == 2
+    assert splits[-1]["end_offset_sec"] == 601
+    assert splits[-1]["distance_km"] > 0
+
+    tiny_rows = [SimpleNamespace(t_sec=epoch, distance_m=0),
+                 SimpleNamespace(t_sec=epoch + 1, distance_m=2)]
+    tiny_splits, tiny_reason = _kilometer_splits(
+        tiny_rows, start_epoch=epoch, verified_start=True,
+        distance_km=0.002, duration_sec=1,
+    )
+    assert tiny_splits == []
+    assert tiny_reason == "distance_below_display_precision"
+
+
 def test_activity_analysis_is_owner_scoped(analysis_client) -> None:
     client = analysis_client["client"]
     owner_headers = analysis_client["owner_headers"]

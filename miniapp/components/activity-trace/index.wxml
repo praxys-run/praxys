@@ -1,0 +1,27 @@
+<view class="activity-trace">
+  <view class="activity-trace__legends">
+    <view class="activity-trace__reading">
+      <text class="activity-trace__caption" style="color: {{primaryColor}};">{{tr.leftAxis}} · {{primaryLabel}}</text>
+      <text class="activity-trace__value ts-value">{{primaryValue}}</text>
+    </view>
+    <view wx:if="{{secondary}}" class="activity-trace__reading">
+      <text class="activity-trace__caption activity-trace__caption--dashed" style="color: {{secondaryColor}};">{{tr.rightAxis}} · {{secondaryLabel}}</text>
+      <text class="activity-trace__value ts-value">{{secondaryValue}}</text>
+    </view>
+  </view>
+  <view class="activity-trace__plot" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd">
+    <canvas type="2d" id="activity-trace-canvas" class="activity-trace__canvas"></canvas>
+    <text wx:if="{{emptyWindow}}" class="activity-trace__empty">{{tr.emptyWindow}}</text>
+  </view>
+  <view class="activity-trace__ends ts-value"><text>{{leftTime}}</text><text>{{rightTime}}</text></view>
+  <view class="activity-trace__zoom">
+    <button disabled="{{!canZoom}}" title="{{canZoom ? tr.zoomIn : tr.minimumWindow}}" bindtap="onZoomIn">{{tr.zoomIn}}</button>
+    <button disabled="{{isFull}}" bindtap="onZoomOut">{{tr.zoomOut}}</button>
+    <button disabled="{{isFull}}" bindtap="onFullRun">{{tr.fullRun}}</button>
+  </view>
+  <view class="activity-trace__slider-wrap">
+    <view class="activity-trace__slider-label"><text>{{tr.cursor}}</text><text class="ts-value">{{cursorTime}}</text></view>
+    <slider min="{{rangeStart}}" max="{{rangeEnd}}" step="1" value="{{cursor}}" disabled="{{rangeStart === rangeEnd}}"
+      activeColor="{{primaryColor}}" bindchanging="onSliderChange" bindchange="onSliderChange" aria-label="{{tr.cursor}}" />
+  </view>
+</view>

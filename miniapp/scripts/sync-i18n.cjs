@@ -114,6 +114,14 @@ function serializeCatalog(catalogs) {
   return header + JSON.stringify(catalogs, null, 2) + ';\n';
 }
 
+function compactEnglishCatalog(catalog) {
+  return Object.fromEntries(
+    Object.entries(catalog).filter(([key, value]) => (
+      key !== value || key in Object.prototype
+    )),
+  );
+}
+
 function main() {
   const catalogs = {};
   for (const [locale, src] of Object.entries(SOURCES)) {
@@ -122,7 +130,8 @@ function main() {
       process.exit(1);
     }
     const text = fs.readFileSync(src, 'utf8');
-    catalogs[locale] = parsePo(text);
+    const catalog = parsePo(text);
+    catalogs[locale] = locale === 'en' ? compactEnglishCatalog(catalog) : catalog;
     console.log(
       `[sync-i18n] ${locale}: ${Object.keys(catalogs[locale]).length} translations`,
     );
@@ -133,4 +142,6 @@ function main() {
   console.log(`[sync-i18n] wrote ${OUT}`);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { parsePo, compactEnglishCatalog, serializeCatalog };

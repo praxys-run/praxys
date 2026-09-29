@@ -11,7 +11,14 @@
     "ignoreFiles": [
       ".github/skills/impeccable/**"
     ],
-    "ignoreValues": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "Geist",
+        "files": ["web/src/pages/ActivityDetail.css"],
+        "reason": "The approved Praxys Field Lab activity-detail specification explicitly chooses Geist for this page; keep the existing brand typography."
+      }
+    ],
     "extensions": [
       {
         "ext": ".wxml",

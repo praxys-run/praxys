@@ -1,0 +1,243 @@
+.report-theme--field-lab {
+  --lab-paper: oklch(0.975 0.008 85);
+  --lab-paper-warm: oklch(0.955 0.012 85);
+  --lab-card: oklch(0.99 0.004 85);
+  --lab-ink: oklch(0.18 0.02 260);
+  --lab-ink-soft: oklch(0.40 0.02 260);
+  --lab-rule: oklch(0.85 0.008 85);
+  --lab-rule-soft: oklch(0.92 0.006 85);
+  --lab-primary: oklch(0.52 0.17 155);
+  --lab-primary-ink: oklch(0.35 0.14 155);
+  --lab-primary-on: oklch(0.98 0.005 85);
+  --lab-cobalt: oklch(0.50 0.18 258);
+  --lab-trace-power: oklch(0.46 0.10 68);
+  --lab-trace-heart: oklch(0.48 0.13 340);
+  --lab-trace-pace: oklch(0.44 0.09 215);
+  --lab-trace-cadence: oklch(0.46 0.09 95);
+  --lab-trace-altitude: oklch(0.46 0.07 290);
+  --lab-trace-dynamics: oklch(0.48 0.08 275);
+  --lab-data-font: 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--lab-paper);
+  color: var(--lab-ink);
+  color-scheme: light;
+  font-family: 'Geist', 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.report-theme--field-lab.is-dark {
+  --lab-paper: oklch(0.17 0.013 260);
+  --lab-paper-warm: oklch(0.20 0.014 260);
+  --lab-card: oklch(0.22 0.014 260);
+  --lab-ink: oklch(0.96 0.006 260);
+  --lab-ink-soft: oklch(0.74 0.013 260);
+  --lab-rule: oklch(0.30 0.013 260);
+  --lab-rule-soft: oklch(0.25 0.013 260);
+  --lab-primary: oklch(0.82 0.18 155);
+  --lab-primary-ink: oklch(0.88 0.18 155);
+  --lab-primary-on: oklch(0.17 0.013 260);
+  --lab-cobalt: oklch(0.74 0.14 258);
+  --lab-trace-power: oklch(0.78 0.11 68);
+  --lab-trace-heart: oklch(0.77 0.11 340);
+  --lab-trace-pace: oklch(0.78 0.09 215);
+  --lab-trace-cadence: oklch(0.78 0.09 95);
+  --lab-trace-altitude: oklch(0.77 0.07 290);
+  --lab-trace-dynamics: oklch(0.80 0.07 275);
+  color-scheme: dark;
+}
+
+.report-preview-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 3px clamp(18px, 3vw, 48px);
+  background: oklch(0.94 0.008 85);
+  color: oklch(0.30 0.02 260);
+  font: 500 12px/1.35 'Geist', 'Noto Sans SC', sans-serif;
+}
+
+.report-preview-switch > div { display: flex; align-items: center; gap: 4px; }
+.report-preview-switch button { min-height: 38px; padding: 7px 11px; border: 0; border-radius: 4px; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; white-space: nowrap; }
+.report-preview-switch button:hover { background: oklch(0.99 0.004 85); }
+.report-preview-switch button[aria-pressed='true'] { background: oklch(0.99 0.004 85); color: oklch(0.35 0.14 155); font-weight: 650; }
+
+.report-theme--field-lab .report-preview-switch { background: var(--lab-paper); color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-preview-switch button:hover,
+.report-theme--field-lab .report-preview-switch button[aria-pressed='true'] { background: var(--lab-paper-warm); color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-preview-switch .report-preview-theme { color: var(--lab-ink-soft); }
+
+.report-theme--field-lab :focus-visible { outline-color: var(--lab-primary-ink); }
+.report-theme--field-lab .preview-bar { border-bottom: 1px solid var(--lab-rule-soft); background: var(--lab-paper); color: var(--lab-ink); }
+.report-theme--field-lab .preview-brand { color: var(--lab-ink); font-size: 21px; font-weight: 600; letter-spacing: -.045em; }
+.report-theme--field-lab .preview-brand .preview-wordmark { color: var(--lab-ink); font-size: inherit; font-weight: inherit; letter-spacing: inherit; opacity: 1; }
+.report-theme--field-lab .preview-wordmark span { color: var(--lab-primary-ink); font-size: inherit; font-weight: inherit; letter-spacing: inherit; opacity: 1; }
+.report-theme--field-lab .preview-brand .preview-brand-context { color: var(--lab-ink-soft); font-size: 11px; font-weight: 400; letter-spacing: 0; opacity: 1; }
+.report-theme--field-lab .preview-switch a { color: var(--lab-ink-soft); }
+.report-theme--field-lab .preview-switch a:hover,
+.report-theme--field-lab .preview-switch a.is-active { background: var(--lab-paper-warm); color: var(--lab-primary-ink); }
+.report-theme--field-lab .preview-sample { color: var(--lab-ink-soft); }
+.report-theme--field-lab .preview-sample select { border-color: var(--lab-rule); background: var(--lab-card); color: var(--lab-ink); }
+
+.report-theme--field-lab .report-page {
+  --foreground: var(--lab-ink);
+  --muted: var(--lab-ink-soft);
+  --grid: var(--lab-rule-soft);
+  --plot-bg: var(--lab-card);
+  --accent: var(--lab-primary-ink);
+  --crosshair: var(--lab-ink);
+  --line-power: var(--lab-trace-power);
+  --line-heart: var(--lab-trace-heart);
+  --line-pace: var(--lab-trace-pace);
+  --line-cadence: var(--lab-trace-cadence);
+  --line-altitude: var(--lab-trace-altitude);
+  --line-temperature: var(--lab-trace-altitude);
+  --line-dynamics: var(--lab-trace-dynamics);
+  max-width: 1220px;
+  padding: 0 clamp(20px, 4.5vw, 68px) 60px;
+}
+
+.report-theme--field-lab .font-data,
+.report-theme--field-lab .overview-stats dd,
+.report-theme--field-lab .trace-current,
+.report-theme--field-lab .trace-axis,
+.report-theme--field-lab .timeline-slider output,
+.report-theme--field-lab .axis-label,
+.report-theme--field-lab .record-row strong,
+.report-theme--field-lab .report-split-table td,
+.report-theme--field-lab .legend-item > strong { font-family: var(--lab-data-font); font-feature-settings: 'tnum' 1, 'zero' 1; font-variant-numeric: tabular-nums; }
+
+.report-theme--field-lab .report-masthead { min-height: 43px; color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-masthead > span { font: 500 11px/1.3 'Geist', 'Noto Sans SC', sans-serif; letter-spacing: .02em; }
+.report-theme--field-lab .report-title { padding: 13px 0 12px; }
+.report-theme--field-lab .report-title h1 { font-family: 'Geist', 'Noto Sans SC', system-ui, sans-serif; font-size: clamp(32px, 3.8vw, 46px); font-weight: 600; letter-spacing: -.035em; line-height: 1.14; }
+.report-theme--field-lab .report-title p { margin-top: 10px; color: var(--lab-ink-soft); font-size: 13px; }
+.report-theme--field-lab .report-title .synthetic-notice { border-color: var(--lab-rule); color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-title .synthetic-notice::before { background: var(--lab-ink-soft); }
+.report-theme--field-lab .report-lead { display: flex; align-items: baseline; justify-content: space-between; gap: 14px 30px; padding: 14px 20px; background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-lead p { max-width: 46ch; margin: 0; font-size: clamp(16px, 1.65vw, 20px); font-weight: 500; line-height: 1.55; }
+.report-theme--field-lab .report-lead strong { font-size: 1.2em; font-weight: 600; letter-spacing: -.035em; }
+.report-theme--field-lab .report-lead > span { max-width: 39ch; color: var(--lab-cobalt); font-size: 12px; line-height: 1.55; }
+.report-theme--field-lab .report-page > .overview-stats { gap: 16px; padding: 15px 0 13px; }
+.report-theme--field-lab .report-page > .overview-stats dt { color: var(--lab-ink-soft); font-size: 12px; }
+.report-theme--field-lab .report-page > .overview-stats dd { margin-top: 7px; color: var(--lab-ink); font-size: clamp(23px, 2.25vw, 29px); font-weight: 500; letter-spacing: -.035em; }
+.report-theme--field-lab .report-page > .overview-stats dd small { color: var(--lab-ink-soft); font-family: 'Geist', 'Noto Sans SC', sans-serif; font-size: 13px; }
+.report-theme--field-lab .report-primary { padding-top: 12px; }
+.report-theme--field-lab .report-section-title h2 { font-family: 'Geist', 'Noto Sans SC', system-ui, sans-serif; font-size: clamp(22px, 2.2vw, 28px); font-weight: 600; letter-spacing: -.03em; }
+.report-theme--field-lab .report-section-title p { color: var(--lab-ink-soft); font-size: 13px; }
+.report-theme--field-lab .report-page .metric-picker button { border-color: var(--lab-rule); border-radius: 5px; color: var(--lab-ink); font-size: 13px; }
+.report-theme--field-lab .report-page .metric-picker button:hover,
+.report-theme--field-lab .report-page .metric-picker button.is-active { border-color: var(--lab-primary); background: var(--lab-primary); color: var(--lab-primary-on); }
+.report-theme--field-lab .report-page .metric-drawer { border-color: var(--lab-rule-soft); background: var(--lab-card); }
+.report-theme--field-lab .report-page .drawer-choice { border-color: var(--lab-rule); color: var(--lab-ink); }
+.report-theme--field-lab .report-page .drawer-choice:hover,
+.report-theme--field-lab .report-page .drawer-choice.is-active { border-color: var(--lab-primary); background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-page .drawer-choice small { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-page .overlay-controls { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-page .overlay-controls label { color: var(--lab-ink); }
+.report-theme--field-lab .report-page .overlay-controls select { border-color: var(--lab-rule); background: var(--lab-card); color: var(--lab-ink); }
+.report-theme--field-lab .report-graph { border: 1px solid var(--lab-rule-soft); border-radius: 7px; background: var(--lab-card); }
+.report-theme--field-lab .report-page--summary .report-graph { padding: 0; border: 0; background: transparent; }
+.report-theme--field-lab .report-page .trace-heading { color: var(--lab-ink); }
+.report-theme--field-lab .report-page .trace-heading strong { font-family: 'Geist', 'Noto Sans SC', sans-serif; font-size: 17px; font-weight: 600; }
+.report-theme--field-lab .report-page .trace-heading span { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-page .legend-item { color: var(--lab-ink); }
+.report-theme--field-lab .report-page .legend-item > small { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-page .plot-interactive { background-image: none; }
+.report-theme--field-lab .report-page .chart-grid-line,
+.report-theme--field-lab .report-page .chart-split-line { stroke: var(--lab-rule-soft); }
+.report-theme--field-lab .report-page .chart-crosshair { opacity: .6; }
+.report-theme--field-lab .report-page .chart-area { opacity: .08; }
+.report-theme--field-lab .report-page .timeline-meta label { color: var(--lab-ink); font-size: 13px; }
+.report-theme--field-lab .report-page .timeline-slider input { accent-color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-page .timeline-slider output { color: var(--lab-ink); font-size: 13px; }
+.report-theme--field-lab .report-page .zoom-controls button { border-color: var(--lab-rule); border-radius: 5px; background: var(--lab-card); color: var(--lab-ink); }
+.report-theme--field-lab .report-page .zoom-controls button:hover:not(:disabled) { border-color: var(--lab-primary-ink); color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-axis-note { color: var(--lab-cobalt); font-size: 12px; }
+.report-theme--field-lab .report-sampling-note { color: var(--lab-ink-soft); font-size: 12px; }
+.report-theme--field-lab .report-selection { background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-selection strong,
+.report-theme--field-lab .report-selection button { color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-selection span { color: var(--lab-ink); }
+.report-theme--field-lab .report-empty { background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-empty strong { color: var(--lab-ink); font-family: 'Geist', 'Noto Sans SC', sans-serif; }
+.report-theme--field-lab .report-empty p { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-empty a { color: var(--lab-primary-ink); }
+
+.report-theme--field-lab .report-splits { padding-top: 66px; }
+.report-theme--field-lab .report-layout-switch { border-radius: 5px; background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-layout-switch button { border-radius: 4px; color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-layout-switch button:hover,
+.report-theme--field-lab .report-layout-switch button.is-active { background: var(--lab-card); color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-page .split-mode-switch button { border-color: var(--lab-rule); background: transparent; color: var(--lab-ink); }
+.report-theme--field-lab .report-page .split-mode-switch button:hover:not(:disabled),
+.report-theme--field-lab .report-page .split-mode-switch button.is-active { border-color: var(--lab-primary); background: var(--lab-primary); color: var(--lab-primary-on); }
+.report-theme--field-lab .report-page .split-mode-note,
+.report-theme--field-lab .report-page .split-table-note { color: var(--lab-ink-soft); font-size: 12px; }
+.report-theme--field-lab .report-split-table { border-collapse: collapse; border-spacing: 0; }
+.report-theme--field-lab .report-split-table thead { border-bottom: 1px solid var(--lab-rule); }
+.report-theme--field-lab .report-split-table thead th { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-split-table tbody tr { border-bottom: 1px solid var(--lab-rule-soft); background: transparent; }
+.report-theme--field-lab .report-split-table tbody tr:nth-child(even) { background: transparent; }
+.report-theme--field-lab .report-split-table tbody tr:hover,
+.report-theme--field-lab .report-split-table tbody tr:focus-within { background: var(--lab-paper-warm); }
+.report-theme--field-lab .report-split-table tbody tr.is-active { background: color-mix(in oklab, var(--lab-primary) 10%, var(--lab-paper)); }
+.report-theme--field-lab .report-split-table tbody th button { color: var(--lab-ink); }
+.report-theme--field-lab .report-split-table tbody td,
+.report-theme--field-lab .report-split-table tbody .split-table-pace { color: var(--lab-ink); }
+.report-theme--field-lab .report-split-table .split-table-subtitle,
+.report-theme--field-lab .report-split-table .split-table-mobile-detail { color: var(--lab-ink-soft); }
+.report-theme--field-lab .split-selector--report .split-option { background: var(--lab-card); color: var(--lab-ink); }
+.report-theme--field-lab .split-selector--report .split-option:hover,
+.report-theme--field-lab .split-selector--report .split-option.is-active { background: var(--lab-paper-warm); }
+.report-theme--field-lab .split-selector--report .split-option.is-active { box-shadow: inset 0 0 0 1px var(--lab-primary-ink); }
+.report-theme--field-lab .split-selector--report .split-number { color: var(--lab-primary-ink); }
+.report-theme--field-lab .split-selector--report .split-name small { color: var(--lab-ink-soft); }
+
+.report-theme--field-lab .report-records { padding-top: 65px; }
+.report-theme--field-lab .report-records .records summary { background: var(--lab-paper-warm); color: var(--lab-ink); }
+.report-theme--field-lab .report-records .records summary:hover { background: var(--lab-rule-soft); }
+.report-theme--field-lab .report-page .records summary small,
+.report-theme--field-lab .report-page .records-help,
+.report-theme--field-lab .report-page .record-row span small { color: var(--lab-ink-soft); }
+.report-theme--field-lab .report-page .record-row { color: var(--lab-ink); }
+.report-theme--field-lab .report-page .record-row--link:hover { color: var(--lab-primary-ink); }
+.report-theme--field-lab .report-page .record-row .record-description { color: var(--lab-ink); }
+.report-theme--field-lab .report-page .demo-foot { border-color: var(--lab-rule-soft); color: var(--lab-ink-soft); }
+
+@media (min-width: 761px) {
+  .report-theme--field-lab .report-primary > .metric-picker { display: inline-flex; margin: 0 18px 14px 0; vertical-align: middle; }
+  .report-theme--field-lab .report-primary > .overlay-controls { display: inline-flex; margin: 0 0 14px; vertical-align: middle; }
+}
+
+@media (max-width: 760px) {
+  .report-theme--field-lab .report-lead { align-items: flex-start; flex-direction: column; gap: 5px; }
+}
+
+@media (max-width: 620px) {
+  .report-theme--field-lab .preview-bar { min-height: 55px; }
+  .report-theme--field-lab .preview-brand { font-size: 16px; letter-spacing: -.045em; }
+  .report-theme--field-lab .report-preview-switch { min-height: 43px; padding: 2px 14px; font-size: 11px; }
+  .report-theme--field-lab .report-preview-switch button { min-height: 39px; padding: 7px 9px; }
+  .report-theme--field-lab .report-page { padding: 0 17px 32px; }
+  .report-theme--field-lab .report-title { padding: 10px 0 9px; }
+  .report-theme--field-lab .report-title h1 { font-size: 31px; }
+  .report-theme--field-lab .report-lead { padding: 10px 15px; }
+  .report-theme--field-lab .report-lead p { font-size: 15px; }
+  .report-theme--field-lab .report-lead strong { font-size: 18px; }
+  .report-theme--field-lab .report-lead > span { font-size: 12px; }
+  .report-theme--field-lab .report-page > .overview-stats { gap: 6px 12px; padding: 9px 0 9px; }
+  .report-theme--field-lab .report-page > .overview-stats dd { margin-top: 3px; font-size: 23px; }
+  .report-theme--field-lab .report-primary { padding-top: 7px; }
+  .report-theme--field-lab .report-page .report-section-title { margin-bottom: 12px; }
+  .report-theme--field-lab .report-section-title h2 { font-size: 23px; }
+  .report-theme--field-lab .report-graph { padding: 14px 13px 17px; }
+  .report-theme--field-lab .report-splits { padding-top: 48px; }
+  .report-theme--field-lab .report-records { padding-top: 50px; }
+  .report-theme--field-lab .report-split-table tbody td { font-size: 13px; }
+  .report-theme--field-lab .report-split-table tbody .split-table-pace { font-size: 14px; }
+}
+
+@media (max-width: 370px) {
+  .report-theme--field-lab .report-title h1 { font-size: 29px; }
+  .report-theme--field-lab .report-preview-switch button { padding: 6px 7px; font-size: 10px; }
+}

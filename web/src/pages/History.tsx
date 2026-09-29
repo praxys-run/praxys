@@ -64,7 +64,11 @@ export default function History() {
           ) : (
             <div className="space-y-3">
               {data.activities.map((activity) => (
-                <ActivityCard key={activity.activity_id} activity={activity} />
+                <ActivityCard
+                  key={activity.activity_id}
+                  activity={activity}
+                  activityDetailAvailable={data.activity_detail_available}
+                />
               ))}
             </div>
           )}

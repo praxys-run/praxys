@@ -22,6 +22,16 @@ interface ChartColorSet {
   tickLight: string;
   tooltipBg: string;
   tooltipBorder: string;
+  /** Recorded identities, never signals to act or inferred verdicts. */
+  activityPower: string;
+  activityHeart: string;
+  activityPace: string;
+  activityCadence: string;
+  activitySpeed: string;
+  activityTerrain: string;
+  activityWeather: string;
+  activityDynamics: string;
+  activityBreathing: string;
 }
 
 const darkColors: ChartColorSet = {
@@ -40,6 +50,15 @@ const darkColors: ChartColorSet = {
   tickLight: '#94a3b8',
   tooltipBg: '#1e293b',
   tooltipBorder: '#334155',
+  activityPower: '#d4ae7b',
+  activityHeart: '#d58db8',
+  activityPace: '#83c4c4',
+  activityCadence: '#c9be8c',
+  activitySpeed: '#8db6d7',
+  activityTerrain: '#afa7d3',
+  activityWeather: '#d4a4a1',
+  activityDynamics: '#b7acd1',
+  activityBreathing: '#90c8ab',
 } as const;
 
 const lightColors: ChartColorSet = {
@@ -58,6 +77,15 @@ const lightColors: ChartColorSet = {
   tickLight: '#4b5563',
   tooltipBg: '#ffffff',
   tooltipBorder: '#e5e7eb',
+  activityPower: '#88561e',
+  activityHeart: '#9c416e',
+  activityPace: '#306575',
+  activityCadence: '#64611e',
+  activitySpeed: '#315b89',
+  activityTerrain: '#635392',
+  activityWeather: '#975a51',
+  activityDynamics: '#685790',
+  activityBreathing: '#356a55',
 } as const;
 
 export type ChartColors = ChartColorSet;
@@ -66,4 +94,3 @@ export type ChartColors = ChartColorSet;
 export function getChartColors(isDark: boolean): ChartColors {
   return isDark ? darkColors : lightColors;
 }
-
