@@ -321,7 +321,9 @@ if event.get('hang'):
     time.sleep(30)
 if os.environ.get('FAKE_SCALE','1')=='1':
     duration=event.get('duration',5 if operation=='retry_gap' else 0)
-    clock.write_text(str(float(clock.read_text())+duration))
+    pending_clock=clock.with_name(clock.name+'.'+str(os.getpid())+'.tmp')
+    pending_clock.write_text(str(float(clock.read_text())+duration))
+    pending_clock.replace(clock)
 if operation=='settings_read':
     payload=event.get('body',[{'name':'PRAXYS_ENABLE_FEEDBACK_PUBLICATION','value':str(current['positive']).lower()},
           {'name':'PRAXYS_DISABLE_FEEDBACK_PUBLICATION','value':str(current['kill']).lower()},
@@ -375,6 +377,78 @@ raise SystemExit(event.get('exit',0))
         descendants = [int(line) for line in pids.read_text().splitlines()] if pids.exists() else []
         return result, calls, text, elapsed, descendants
     return run
+
+
+
+def test_fake_clock_publication_keeps_complete_value_for_actual_controller(execute_restoration, tmp_path):
+    # Pause the actual fake command after opening its publication target;
+    # the real controller clock reader releases it, preserving the interleaving.
+    writer_hook = r'''
+original_write_text=Path.write_text
+def observed_write_text(path, value, *args, **kwargs):
+    published=Path(os.environ['FAKE_CLOCK'])
+    marker=published.with_name('publication-paused')
+    release=published.with_name('publication-release')
+    trace=published.with_name('publication-trace.jsonl')
+    if (path==published or path.name.startswith(published.name+'.')) and not marker.exists():
+        with path.open('w') as output:
+            with trace.open('a') as log:
+                log.write(json.dumps({'event':'writer_opened','path':str(path),'published':str(published),'opened_size':path.stat().st_size})+'\n')
+            marker.touch()
+            deadline=time.monotonic()+4
+            while not release.exists():
+                if time.monotonic()>deadline:raise RuntimeError('publication reader barrier not reached')
+                time.sleep(.001)
+            return output.write(value)
+    return original_write_text(path,value,*args,**kwargs)
+Path.write_text=observed_write_text
+'''
+    reader_hook = r'''
+original_read_text=Path.read_text
+def observed_read_text(path,*args,**kwargs):
+    value=original_read_text(path,*args,**kwargs)
+    published=Path(os.environ['FAKE_CLOCK'])
+    marker=published.with_name('publication-paused')
+    release=published.with_name('publication-release')
+    if path==published and marker.exists() and not release.exists():
+        with published.with_name('publication-trace.jsonl').open('a') as log:
+            log.write(json.dumps({'event':'controller_read','path':str(path),'value':value})+'\n')
+        release.touch()
+    return value
+Path.read_text=observed_read_text
+original_clock_gettime=time.clock_gettime
+def observed_clock_gettime(clock_id):
+    try:return original_clock_gettime(clock_id)
+    except ValueError as error:
+        with Path(os.environ['FAKE_CLOCK']).with_name('publication-trace.jsonl').open('a') as log:
+            log.write(json.dumps({'event':'controller_clock_fault','type':type(error).__name__,'message':str(error)})+'\n')
+        raise
+time.clock_gettime=observed_clock_gettime
+'''
+    writer = tmp_path / 'restore-bin/az'
+    reader = tmp_path / 'restore-bin/python3'
+    source = writer.read_text()
+    writer.write_text(source.replace("name=Path(sys.argv[0]).name",
+                                     writer_hook+"\nname=Path(sys.argv[0]).name"))
+    source = reader.read_text()
+    reader.write_text(source.replace("exec(source,{'__name__':'__main__'})",
+                                     reader_hook+"\nexec(source,{'__name__':'__main__'})"))
+    result, calls, output, _, _ = execute_restoration(
+        plan={'restore_write': [{'duration': 1}]})
+    trace = [json.loads(line) for line in
+             (tmp_path / 'publication-trace.jsonl').read_text().splitlines()]
+    opened = next(event for event in trace if event['event'] == 'writer_opened')
+    assert Path(opened['path']).parent == tmp_path
+    assert opened['path'] != opened['published']
+    assert opened['opened_size'] == 0
+    reads = [event['value'] for event in trace if event['event'] == 'controller_read']
+    assert reads == ['0']
+    assert not any(event['event'] == 'controller_clock_fault' for event in trace)
+    assert (tmp_path / 'clock').read_text() == '1.0'
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert output == 'observation=verified\npositive=true\nkill_switch=false\nenabled=true\n'
+    assert [call['operation'] for call in calls] == [
+        'restore_write', 'settings_read', 'version', 'readiness']
 
 
 @pytest.mark.parametrize('desired,kill', [(True,False),(True,True),(False,False),(False,True)])

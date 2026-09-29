@@ -365,3 +365,60 @@ boundary: record consumption BEFORE the dispatch attempt, then its immediate
 run ID or unresolved identity. Failure/ambiguity consumes it; no second attempt.
 Current source preparation is not that final delivery authorization. Preserve
 producer/consumer receipts and the older consumed842/error history separately.
+
+## Unsigned activation preparation after accepted recovery
+
+Operations accepted the inactive baseline at source
+`8dcd9b4f2905e29376f9e17126ca3bd2b6720342`: automatic backend run
+[36445536979](https://github.com/praxys-run/praxys/actions/runs/36445536979)
+and Labs run
+[36445537386](https://github.com/praxys-run/praxys/actions/runs/36445537386)
+completed successfully. The 2026-09-28 16:05:35 UTC sample returned ready in
+1.583 seconds, no-store, DFA false/null, feedback publication enabled and current
+kill switch false. This is sampled acceptance, not all-worker or erasure proof.
+The sealed external [acceptance receipt](/tmp/readiness-pr846-accepted-20260928T160849Z.json)
+has SHA256 `0c43e147eaf93bf0f2a485bd01d3fe75f2c3f17d7fe8af996c3837b0d8fad833`;
+the external [stage-timing evidence](/tmp/readiness-pr846-stage-metrics-20260928T160423Z.json)
+has SHA256 `26a9caade04bc11d0c71604620b0a91152b0d4727a9335aba566ca213bd5d092`.
+These are retained local review artifacts, not repository-hosted downloads.
+The sampled slow DFA-policy stage remains an unresolved performance finding;
+the successful sample does not establish a permanent latency remedy.
+
+The activation candidate remains unsigned: Evidence Review and SDR draft,
+runtime inactive. Trusted validation must project the accepted/active contract
+and observe actual `require_policy()`, model `dfa-alpha1-raw120-v1` and complete
+parameter fingerprint
+`c9db9df13212d152c5a34ff4ddfb8f08ea5cb32dd98d14207ddbd0ef86386438`.
+Existing enablement consent does not invent an unseen exact three-role attestation.
+Only after real source-verified approvals, deterministic replay, required checks
+and protected merge may rollout establish the exact deployed SHA, normal
+eight-second checks, restored feedback subject to the current kill switch, and
+no-store `policy_active: true` with the exact approved active contract digest.
+Retain the existing 20-minute observation bound. No athlete catalog access,
+submission or computation is needed; legacy `/api/science` is not an activation
+proxy. No recovery dispatch allowance carries into this preparation or release.
+
+Prefer the verified inactive source above and backend run `36445536979` as the
+fallback candidate, ahead of historical PR839 source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`.
+Its candidate 30-day rerun deadline is `2026-10-28T15:41:49Z`. Before activation
+and again before rollback, Operations must reconfirm retention, attempt limits,
+dependencies, identity and migration compatibility. This rebuild is not a retained
+byte-identical package or a live rollback rehearsal. Existing readiness gates
+still apply; rollback does not guarantee recovery from broken readiness.
+Preserve Alembic head `b4d5f6a70819`, additive tables, retained FIT, deletion
+manifests and owner rights. Retain the older PR839 synthetic PostgreSQL proof
+under its original source and scope; it does not attest to a new build.
+
+Activation protects whole governed shared files: main/deps, requirements, client
+API types, global catalogs and package locks, plus telemetry/proof helpers and
+their tests. Even unrelated edits inside those files require a separately
+authenticated exact human terminal STOP first. Only STOP already in trusted base
+unlocks later reviewed maintenance; source recording, deployment and worker
+drainage remain distinct. There is no subject revival or renewal. Never deploy an
+old active release after STOP. Enumerated file protection is not semantic isolation.
+
+Candidate-linked synthetic EN/zh web desktop/mobile and miniapp light/dark
+rendering remains an independent acceptance obligation, separate from real guard
+evidence. Physical Skyline canvas, gestures, screen readers, larger text, native
+focus and contrast gaps remain disclosed. The robot5 package-size failure and
+packaging repair/manual upload remain outside this activation work.

@@ -15,11 +15,7 @@ evidence_claim_ids:
 - dfa.recording-artifacts
 - dfa.short-scale-method
 - dfa.threshold-transfer-limited
-accepted_interpretation: 'Proposed scientific boundary: native ECG chest-strap RR
-  can support descriptive post-run short-scale DFA when source, timer alignment and
-  conservative uncorrected-RR QC pass. Results characterize supported windows only;
-  no personal threshold, fatigue diagnosis or training prescription is inferred. This
-  draft does not activate runtime.'
+accepted_interpretation: "Native ECG chest-strap RR can support descriptive post-run short-scale DFA when source, timer alignment and conservative uncorrected-RR QC pass. Results characterize supported windows only; no personal threshold, fatigue diagnosis or training prescription is inferred. Runtime use requires an accepted decision and implementation approval bound to the active contract, reviewed code diff and validation evidence."
 rejected_alternatives:
 - alternative: Infer RR from sampled BPM or AlphaHRV developer alpha fields.
   rationale: Neither supplies the required raw beat sequence.
@@ -242,8 +238,7 @@ affected_surfaces:
 artifact_policy:
   runtime_state: inactive
 decision_notes:
-- Approved implementation plan is contextually adopted; formal evidence, decision
-  and implementation signatures are absent.
+- "The initial implementation adopted the user-approved plan contextually and remained draft/inactive without formal evidence, decision or implementation signatures. Activation requires separately recorded, source-verified approvals for the exact final reviewed artifacts."
 - 'Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.'
 - Window membership is limited to complete unchanged RR intervals in the exact gathered
   packets used for local offset bounds; it never borrows intervals from other packets
@@ -251,8 +246,7 @@ decision_notes:
 decision_review:
   reviewer_task: Review the fixed raw method, source applicability, conservative guardrails
     and deferred physiology claims.
-  approval_statement: Approve only the named science decision and displayed digest;
-    this does not activate runtime.
+  approval_statement: "Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation."
   items:
   - id: raw-method
     title: Raw ECG RR method and claim boundaries
