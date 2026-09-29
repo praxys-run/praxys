@@ -12835,7 +12835,7 @@ msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回
 
 #: src/pages/ActivityDetail.tsx:361
 msgid "This record is not available to this account."
-msgstr "当前账户无法查看此记录。"
+msgstr "当前账号无法查看此记录。"
 
 #: src/components/ActivityDFA.tsx:165
 msgid "This recording exceeds the analysis limit."

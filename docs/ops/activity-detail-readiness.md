@@ -119,6 +119,12 @@ unsupported messages, locale fallback and prototype-sensitive keys.
 coverage, structure, glossary and drift checks remain intact. The existing
 rendered experience and phone deferral above still apply.
 
+Full preflight also caught one task-owned Chinese message using `账户` where
+the existing shared glossary requires `账号`. The unavailable-record message
+now uses `当前账号无法查看此记录。` in the canonical PO file and regenerated
+Miniapp catalog. This is a glossary conformance correction, separate from the
+identity-entry compaction; the size figures above are unchanged.
+
 The final committed source SHA, complete preflight result and log location are
 bound in the release PR and Engineering handoff after isolated-worktree checks.
 Parent coordinates fresh independent Quality for this packaging delta and must

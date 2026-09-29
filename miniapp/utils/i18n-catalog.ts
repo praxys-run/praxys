@@ -2392,7 +2392,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent.": "此提案尚未成为你的计划。在明确采纳并单独同意投递前，它不能投递训练。",
     "This queue item no longer exists. Refresh the queue.": "这个队列项已不存在。请刷新队列。",
     "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion.": "快速检查只覆盖明确的前置条件。完整分析仍可能返回支持不足、关联不稳定或无法得出结论。",
-    "This record is not available to this account.": "当前账户无法查看此记录。",
+    "This record is not available to this account.": "当前账号无法查看此记录。",
     "This recording exceeds the analysis limit.": "这份活动记录超出了分析上限。",
     "This recording has no beat intervals.": "这份活动记录中没有逐搏间期。",
     "This removes the Praxys workout from the canonical plan. Any external workout stays untouched.": "这会从 Praxys 主计划中删除该训练。外部训练不会受到影响。",

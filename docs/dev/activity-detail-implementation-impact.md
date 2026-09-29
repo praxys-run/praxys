@@ -26,6 +26,8 @@
 既有中文检查原样通过；实际上传结果与新增打包增量的独立 Quality 由父协调者完成。
 完整 preflight 的最终 commit SHA 与日志在发布 PR／Engineering 交接中绑定，
 运维依据及上传限制见 `docs/ops/activity-detail-readiness.md`。
+完整检查另发现本任务新增的不可用记录文案违反既有词汇表；将“当前账户无法查看此记录。”
+改为“当前账号无法查看此记录。”并同步小程序，保留缺省状态含义及相同源文件字节大小。
 
 - 当前有界任务：`repository-behavior`；影响 `product-value`、`user-visible-experience`、`repository-change`、`production-operation`、`trust-boundary`；风险 `security-or-privacy-boundary`。
 - `/tmp/activity-detail-readiness-contract.json` 分类摘要 `sha256:33fd14793a56b7c047078175138ccd97a600a1bef7fd5b5c10a3832842c0a73e`；路由摘要 `sha256:2cf83f88e3cc213d3040ea35af808559830141aa77ce1c40ec161a5607c4792f`。主循环 Delivery，嵌套 Product、Design、Runtime；Engineering 执行此代码／测试／文档修正，Quality 独立验证，Trust 与 Operations 各自评估其边界。
