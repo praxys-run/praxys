@@ -19,6 +19,13 @@ on:
     # after rendered review, without requiring an empty source commit.
     types: [opened, synchronize, reopened, ready_for_review, edited]
   workflow_dispatch:
+    inputs:
+      test_mode:
+        description: Backend execution mode (serial remains the default pending measured review)
+        type: choice
+        options: [serial, sharded, compare]
+        default: serial
+        required: true
 
 # One in-flight run per PR; cancel the previous when new commits land.
 concurrency:
@@ -30,8 +37,12 @@ permissions:
 
 jobs:
   python-tests:
-    name: python-tests
+    name: python-tests (${{ matrix.label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.test_mode == 'compare' && '[{"label":"serial","count":1,"index":0},{"label":"shard-0","count":2,"index":0},{"label":"shard-1","count":2,"index":1}]' || inputs.test_mode == 'sharded' && '[{"label":"shard-0","count":2,"index":0},{"label":"shard-1","count":2,"index":1}]' || '[{"label":"serial","count":1,"index":0}]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -74,13 +85,15 @@ jobs:
           fi
 
       - name: Run backend tests
-        run: python scripts/ci_pytest.py --output-dir "$RUNNER_TEMP/pytest"
+        run: >-
+          python scripts/ci_pytest.py --output-dir "$RUNNER_TEMP/pytest"
+          --shard-count "${{ matrix.count }}" --shard-index "${{ matrix.index }}"
 
       - name: Retain backend test timing and completeness evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: backend-pytest-${{ github.run_id }}-${{ github.run_attempt }}
+          name: backend-pytest-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.label }}
           path: ${{ runner.temp }}/pytest/
           retention-days: 30
           if-no-files-found: error
@@ -135,6 +148,10 @@ jobs:
             types/api.ts \
             utils/i18n-catalog.ts \
             utils/legal.ts
+
+      - name: Check miniapp pages, components, and source size
+        working-directory: miniapp
+        run: bash ../scripts/check_miniapp_source.sh
 
   ui-quality:
     name: ui-quality
@@ -197,3 +214,30 @@ jobs:
         run: |
           set -euo pipefail
           test "$PYTHON_RESULT" = "success"
+
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Download only this run and attempt's backend evidence
+        uses: actions/download-artifact@v8
+        with:
+          pattern: backend-pytest-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/backend-evidence
+      - name: Require complete same-head backend execution evidence
+        env:
+          TEST_MODE: ${{ inputs.test_mode || 'serial' }}
+        run: >-
+          python scripts/verify_ci_pytest.py
+          --artifacts "$RUNNER_TEMP/backend-evidence" --mode "$TEST_MODE"
+          --expected-sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+          --output "$RUNNER_TEMP/backend-verification.json"
+      - name: Retain backend verification result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/backend-verification.json
+          retention-days: 30
+          if-no-files-found: warn

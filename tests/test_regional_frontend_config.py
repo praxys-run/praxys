@@ -506,8 +506,14 @@ def test_material_non_cn_invariants_remain_covered() -> None:
 
     miniapp_build = _text(".github/workflows/miniapp-build.yml")
     miniapp_publish = _text(".github/workflows/miniapp-publish.yml")
-    assert miniapp_build.count("web/src/lib/legal.ts") == 2
-    assert miniapp_build.count("web/src/types/api.ts") == 2
+    # Main retains standalone triggers; required PR checks run unconditionally
+    # in the unified workflow, including the same generated-source drift gates.
+    assert miniapp_build.count("web/src/lib/legal.ts") == 1
+    assert miniapp_build.count("web/src/types/api.ts") == 1
+    unified = _text(".github/workflows/ci-premerge.yml")
+    assert 'bash ../scripts/check_miniapp_source.sh' in miniapp_build
+    assert 'bash ../scripts/check_miniapp_source.sh' in unified
+    assert 'types/api.ts' in unified and 'utils/legal.ts' in unified
     assert "web/src/lib/legal" in miniapp_publish
     assert "pending-upload" in miniapp_publish
     assert "upload-failed" in miniapp_publish

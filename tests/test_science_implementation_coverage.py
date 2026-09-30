@@ -22,6 +22,8 @@ REQUIRED_FILES = [
     '.github/workflows/ci-premerge.yml', '.github/workflows/science-activation-validation.yml',
     'scripts/ci_pytest.py', 'scripts/ci_pytest_plugin.py', 'scripts/ci_metrics.py',
     'tests/test_ci_pytest.py', 'tests/test_ci_metrics.py',
+    'config/ci-test-weights.json', 'scripts/ci_shards.py', 'scripts/verify_ci_pytest.py',
+    'scripts/check_miniapp_source.sh', 'tests/test_ci_shards.py', 'tests/test_miniapp_source_check.py',
 ]
 
 

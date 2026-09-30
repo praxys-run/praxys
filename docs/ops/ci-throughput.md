@@ -1,6 +1,6 @@
 # CI timing and test completeness
 
-**Summary:** Retain serial full-suite evidence and remove repeated immutable test preparation before changing CI concurrency.
+**Summary:** Retain complete-suite evidence and compare two isolated whole-file shards before changing the serial CI default.
 
 **Use when:** Investigating slow PR feedback, runner usage, missing test execution, or comparing a proposed CI acceleration.
 
@@ -18,7 +18,7 @@
    python scripts/ci_pytest.py --output-dir /tmp/praxys-pytest
    ```
 
-   For a labelled local subset, add `-- tests/test_ci_pytest.py`. CI uses the full `tests/` default. The wrapper passes `-p scripts.ci_pytest_plugin` explicitly; it does not export pytest plugin options that could contaminate nested security-test subprocesses.
+   For a labelled local subset, add `-- tests/test_ci_pytest.py`. CI uses the full `tests/` default. The wrapper passes `-p scripts.ci_pytest_plugin` explicitly; it does not export pytest plugin options that could contaminate nested security-test subprocesses. Local shard inspection adds `--shard-count 2 --shard-index 0` (or `1`); each process collects the complete requested suite once and executes its assigned files sequentially.
 
 2. Read `result.json` for revision/environment identity, requested paths, elapsed time, real child exit status, wrapper status and reporting errors. Read `phases.json` for every collected and selected node ID, setup/call/teardown durations, skip/xfail reasons, strict XPASS and collection skips/errors. `junit.xml` remains available to ordinary test-report tooling.
 
@@ -30,12 +30,53 @@
 
    The collector reads all attempts and job pages. Summed job execution minutes are a runner-utilization proxy, **not exact billed minutes**. Cancelled jobs with complete timestamps count; absent/invalid/incomplete timing remains `null`, with the known partial total reported separately. First-attempt dispatch delay is creation to earliest job start, not per-job capacity queue. Rerun dispatch latency is unknown; time waiting for a human rerun is never classified as queue.
 
+### Compare the two-shard candidate
+
+PR events and ordinary manual runs remain **serial**. The manual `test_mode`
+input supports `serial`, `sharded` and `compare`. Compare runs launch one serial
+baseline plus exactly two isolated shard jobs at the same revision:
+
+```bash
+gh workflow run ci-premerge.yml --ref YOUR_REVIEWED_BRANCH -f test_mode=compare
+```
+
+`config/ci-test-weights.json` is checked in and versioned with the candidate.
+Its initial weights are approximate inter-completion gaps from historical run
+36607204135, not measured pytest phase timings; they predate the fixture
+optimization and are scheduling hints only. The planner assigns entire files
+using longest estimated duration first, stable ties and the median positive
+weight for new files. `test_pg_migration.py` and `test_activity_dfa.py` stay in one
+shard because they can share a scratch database. There is no within-runner test
+parallelism or selection filter; new tests automatically enter the full collection.
+
+Each job uploads a unique `backend-pytest-RUN_ID-RUN_ATTEMPT-LABEL` artifact. The
+existing `backend-tests` job requires matrix success, downloads only the current
+run/attempt, and executes `scripts/verify_ci_pytest.py`. It rejects missing,
+failed, cancelled, duplicate, all-skipped or incomplete executions. It checks
+matching immutable checkout/runtime/package/submodule identities, matching full
+node-ID sets, a disjoint complete two-shard union and actual phase execution for
+every selected test. The serial baseline is validated separately, not added to
+the two-shard union. Compare mode also requires equal runtime skips/xfails and
+common module-collection skips/reasons; module skips observed by both collectors
+are not counted as duplicate execution.
+
+After the entire run completes, collect its job timings with `ci_metrics.py`.
+Compare `python-tests (serial)` with the two `python-tests (shard-N)` jobs:
+the longest shard job must be faster than the serial job and the **sum** of both
+shard job execution seconds, including dependency installation and setup, must
+be at most **1.05 times** the serial job seconds. Also inspect total workflow
+runner usage and queue/dispatch delay. Missing or incomplete timing does not
+qualify. Repeat noisy comparisons before a separate reviewed change enables the
+default. The verifier emits coverage evidence only; no artifact or successful
+benchmark automatically enables sharding.
+
 ## Verify
 
-- The existing serial `python-tests` job and required downstream contexts stay in place; all tests still run on every code PR. No test selection, additional runners, xdist or dependency changes are introduced here.
+- The existing `python-tests` job ID and required `backend-tests`, `frontend-quality` and selective-review checks stay in place. All tests still run on every code PR; serial remains the default. The opt-in two-shard mode changes only which isolated runner executes each whole file. No xdist or dependency changes are introduced.
 - Success requires the real pytest exit code to be zero, complete collection and execution reports, no unexpected deselection, no failed phases, at least one passing call, and readable phase/JUnit evidence. Missing reports fail visibly; import/collection failures retain their actual pytest exit codes.
-- The workflow uploads `backend-pytest-RUN_ID-RUN_ATTEMPT` with `always()` and 30-day retention. A killed runner or SIGKILL can prevent final reports/upload; a partial or absent artifact is incomplete evidence, never a passing result.
-- Before future parallelization, demonstrate complete, disjoint test coverage at one immutable revision and environment, a shorter critical path, and no more than 5% increase in **summed complete CI job execution minutes**, including repeated setup. Repeat noisy comparisons. This change does not activate shards.
+- The workflow uploads execution evidence with `always()` and 30-day retention. A killed runner or SIGKILL can prevent final reports/upload; a partial or absent artifact is incomplete evidence, never a passing result.
+- Unified PR CI and standalone main/manual Miniapp validation both invoke `scripts/check_miniapp_source.sh` from `miniapp/`. It preserves all seven page checks, four component checks, source-size exclusions, the 1500 KB warning and 2000 KB failure thresholds. Typecheck and generated-source drift checks remain required. The standalone workflow no longer duplicates PR validation.
+- Translation automation dispatches the unified workflow once and waits for its exact generated head, including Miniapp validation. A failed or missing dispatch remains a failed translation-validation status; the separate selective-review-policy wait remains mandatory.
 
 ### Measured fixture change
 
@@ -46,7 +87,9 @@ The savings come from reusing real immutable STOP/layout preparation with indepe
 ## Rollback / Recovery
 
 - If evidence collection breaks, diagnose `result.json` errors and the pytest log; do not convert incomplete reporting to success or skip tests.
-- Revert the wrapper/upload workflow change and fixture optimization through a reviewed repository change to restore `python -m pytest tests/ -v`. Required checks and the full suite remain mandatory.
+- Use manual `test_mode=serial` to diagnose a shard problem. The PR default already remains serial; do not bypass the strict aggregator to accept missing or changed coverage.
+- Revert the shared Miniapp helper and its two callers together if necessary; preserve required page/component/size, typecheck and generated-source checks.
+- A reviewed rollback can restore `python -m pytest tests/ -v`; required checks and the full suite remain mandatory.
 
 ## Related
 
