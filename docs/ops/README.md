@@ -19,6 +19,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [environment.md](./environment.md) | You need the canonical Azure resource names / IDs / hostnames. |
 | [config-and-secrets.md](./config-and-secrets.md) | You're adding, changing, or rotating an env var / secret / variable, and need to know **where** it's set. |
 | [deploy.md](./deploy.md) | You're deploying the backend, frontend, or mini program — or need to roll back. |
+| [ci-throughput.md](./ci-throughput.md) | Investigating PR test duration, runner usage, or missing test-completion evidence. |
 | [activity-dfa-alpha1.md](./activity-dfa-alpha1.md) | Diagnosing post-run DFA jobs, source confirmations, retention or restore-safe erasure. |
 | [activity-detail-readiness.md](./activity-detail-readiness.md) | Assessing activity-detail streaming cost, telemetry minimization and remaining release evidence. |
 | [labs-analysis-worker.md](./labs-analysis-worker.md) | You're provisioning, enabling, or diagnosing isolated Labs analysis compute. |
