@@ -1256,3 +1256,132 @@ outgrown.
 
 ---
 _Last reviewed: 2026-08-27 · Owner: @dddtc2005_
+
+## Incident 36658804615: one-off publication restoration
+
+**Summary:** The manual `restore-feedback-publication-837.yml` controller can restore
+only publication paused by the failed PR #837 backend deployment. **Use when:**
+Operations, Trust, independent Quality and Decision Review have reviewed the exact
+controller revision and the human authority has explicitly authorized this incident
+attempt. Merging this implementation is not dispatch or runtime authorization.
+
+### Prerequisites
+
+The governing Operations proposal is
+`sha256:9856722d0efbebb90d7e0e8324272af0e96091a83fb16981496b16927045e310`,
+under contract `ctr_f5f4d88fa8d2e55aefbf42bb3ace0beeb7213a657f2c25506dd3398e11568415`.
+The coordinator freezes releases and manual provider writes for the recovery window.
+GitHub concurrency and provider audit reads are not an atomic global lock.
+
+The controller must run from the reviewed protected `main` SHA, attempt 1, with
+**no earlier invocation** of this workflow, even a failed precondition invocation.
+The dispatch input identifies the reviewed SHA; it does not create review or human
+authority. Deleted GitHub run history cannot be reconstructed by this controller;
+retain history and do not delete prior invocations to make the one-off gate pass.
+
+Existing Azure OIDC secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
+`AZURE_SUBSCRIPTION_ID`) are reused. No new credentials, variables or permissions
+are provisioned. The helper pins subscription
+`3ff02750-211c-4579-94a6-8c9af4e6d891`, resource group `rg-trainsight` and app
+`trainsight-app`. Only `PRAXYS_ENABLE_FEEDBACK_PUBLICATION` may change.
+
+### Steps
+
+1. Complete the exact-head reviews, required CI, human merge disposition and
+   separate execution disposition. Record their links with controller SHA.
+2. Account for natural triggers before considering manual dispatch. This PR's
+   four paths are the new manual workflow, its `scripts/` helper, its `tests/`
+   module, and this runbook section. None match the backend deploy push paths.
+   **The test file matches `tests/**` in `deploy-labs-worker.yml`: merging normally
+   builds/tests and publishes a Labs image**, including its `latest` tag. The
+   deploy job requires its own exact API SHA before Azure login/reconciliation;
+   the currently serving API has a different SHA. The new run must finish before
+   restoration admission. Do not cancel it or bypass its guard. Normal PR CI and
+   repository policy/advisory workflows also run according to their own triggers:
+   `ci-premerge.yml` on PR changes; `selective-review.yml` on PR changes/CI completion;
+   `science-approval-ledger.yml` on PR changes; Copilot readiness and Dependabot
+   auto-merge workflow events are received but their author gates exclude this
+   human-authored repair. Invariant review receives Pre-merge CI completion;
+   CI failure doctor receives failed/timed-out PR CI. `miniapp-publish.yml` also
+   starts on every main push, but its changed-path gate skips upload for these four
+   paths. Backend/frontend deploy, Miniapp build and i18n paths are not matched.
+3. Inspect complete workflow history and fresh operation metadata. The only active
+   Labs exception is run `36658804592`, attempt 1, deploy job `109709408253`, solely
+   at `Require matching backend migration and authority`, with later provider
+   stages unstarted. Terminal failure at that guard is also acceptable. No new
+   run or attempt receives that exception. Normal worker executions are not
+   deployment mutations and must not be cancelled.
+4. Only the authorized coordinator may dispatch the manual workflow at the reviewed
+   main revision. There is no automatic retry or ordinary backend rerun in this
+   recovery. Every invocation consumes the one-off attempt.
+
+### Verify
+
+The authenticated producer is backend run `36658804615`, attempt 1, deployment
+job `109708776965`, source `4ac9393ba12b41e591d18f2fba1816143b4b889b`, workflow
+blob `19aaa6ac50b90e6ca1762fc92f9322b0d7d2dfc8`. The archived log must be exactly
+58,978 bytes with SHA256
+`deff84b222c386426f1c1cd5f9f211bf9c1c62c5162242da91e06ea23f3e4301`; its sole
+original-intent environment line records `true`. Capture succeeded, quiescence
+failed, and deploy/cutover/restoration were skipped. There is no proof artifact.
+The producer's Azure correlation `c2a3967b-31be-4762-b9a1-a4a4dce5d734` must be
+terminal Succeeded. The precise stalled quiescence phase remains unproven.
+
+Serving API source must remain `38954c4a40dcc80cd3acd87400bcc9cf6a16ac46`, version
+`2026.09.29.310-38954c4`; readiness/database and publication positive/kill/effective
+must initially be `ready`/`ok` and false/false/false. The worker image remains
+`ghcr.io/praxys-run/praxys-labs-worker:38954c4a40dcc80cd3acd87400bcc9cf6a16ac46`,
+provisioning Succeeded, Event trigger, timeout 1800, retries 0, parallelism 1,
+completion count 1, min/max executions 0/1, CPU 1 and memory 2Gi.
+
+One true write is allowed. CLI exit zero alone is insufficient: a complete fresh
+Azure audit response must identify one unique new Started/Succeeded correlation,
+exact appsettings resource/operation, authenticated OIDC client claim, one caller,
+and timestamps inside the actual CLI launch-to-exit interval, with no tolerance
+widening. Competing/unresolved writes are checked before caller filtering. This
+is not a globally causal UUID receipt: delayed audit or same-principal out-of-band
+activity remains a residual risk controlled by the explicit writer freeze. Truncated, missing, delayed, ambiguous
+or unresolved evidence fails closed. Audit ingestion delay can therefore leave
+`unknown` despite a successful provider write. A later positive sample cannot
+clear that state. Provider bodies/settings and exception text are suppressed.
+
+The work clock starts before interpreter startup and all helper preflight reads:
+360 seconds work, at most 105 seconds cleanup within the absolute 465-second outer
+watchdog, and an 8-minute restoration step. Commands and capture are bounded.
+
+- `verified`: acknowledged true write, exact source ready/database OK, control
+  plane and runtime true/false/true, baseline worker and no overlap.
+- `verified_disabled`: acknowledged true followed by safely admitted, acknowledged
+  false compensation, exact source and false/false/false runtime evidence.
+- `control_plane_only`: acknowledged false compensation and false/kill-false
+  control plane; runtime unavailable. This does not mean restored service.
+- `prewrite_rejected`: no mutation started; no recovery success claimed.
+- `unknown`: unresolved write, drift, ambiguity, lost runner/watchdog or missing
+  output. No success inferred from later settings.
+
+### Rollback / Recovery
+
+At most one false compensation is permitted, only after definitive true-write
+acknowledgment and fresh no-overlap/source/worker/kill admission. An uncertain true
+write means **zero false writes**. Terminating the CLI does not cancel a remote
+operation. Do not rerun, restart the app, change kill switches, deploy source or
+images, change other settings, or use old incident switches. Escalate unknown or
+failed recovery to Operations/Trust/Decision Review with the bounded evidence.
+No further dependency merge follows until restoration and #837 release disposition
+are independently recorded. This implementation is not Release Evidence.
+
+### Implementation impact map
+
+Data, analysis, API, clients and migrations are unchanged. Operations gains one
+manual incident-specific controller and helper; tests cover admission, uncertain
+writes, provenance, correlation, bounded processes and output redaction. The
+existing deployment/restoration mechanism remains unchanged. The Labs image
+publication caused by the test path is an explicit merge effect requiring review.
+
+### Related
+
+- [Deploy runbook](deploy.md)
+- [Manual controller](../../.github/workflows/restore-feedback-publication-837.yml)
+- [Bounded helper](../../scripts/restore_feedback_publication_837.py)
+
+_Last reviewed: 2026-09-30 · Owner: Operations_

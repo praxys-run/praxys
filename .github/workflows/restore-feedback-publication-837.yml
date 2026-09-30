@@ -1,0 +1,46 @@
+name: Restore feedback publication for incident 36658804615
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_controller_sha:
+        description: Independently reviewed and explicitly authorized full controller SHA on main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: praxys-backend-deploy
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main' && github.ref_protected && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Restore only the authenticated incident publication intent
+        id: restoration
+        timeout-minutes: 8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          PRAXYS_REVIEWED_CONTROLLER_SHA: ${{ inputs.reviewed_controller_sha }}
+        run: |
+          set -euo pipefail
+          read -r PRAXYS_RESTORE_STARTED _ < /proc/uptime
+          export PRAXYS_RESTORE_STARTED
+          exec timeout --signal=KILL 465s python3 scripts/restore_feedback_publication_837.py
