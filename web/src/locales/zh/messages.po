@@ -1092,7 +1092,7 @@ msgstr "{0} 个关联工单均已是最新状态。"
 #: src/pages/ActivityDetail.tsx:163
 #: src/pages/ActivityDetail.tsx:357
 msgid "All activities"
-msgstr "返回全部活动"
+msgstr "全部活动"
 
 #: src/pages/admin/AdminOps.tsx:702
 msgid "All components operational"
@@ -1464,7 +1464,7 @@ msgstr "等待分诊判断"
 
 #: src/components/ActivityTraceChart.tsx:291
 msgid "Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude."
-msgstr "双轴单位不同；每公里秒数越少，配速曲线越高。曲线位置只用于比较走势，不比较数值大小。"
+msgstr "双轴单位各不相同；每公里用时越少，配速曲线越高。曲线位置只比较走势，不比较数值大小。"
 
 #: src/components/AiInsightsCard.tsx:218
 #: src/components/AiInsightsCard.tsx:248
@@ -1878,7 +1878,7 @@ msgstr "已更改，保存后请重新确认本节。"
 
 #: src/components/ActivityTraceChart.tsx:168
 msgid "Chart zoom controls"
-msgstr "图线缩放控制"
+msgstr "图表缩放控制"
 
 #: src/components/FeedbackDialog.tsx:775
 msgid "Check most recent feedback status"
@@ -2734,7 +2734,7 @@ msgstr "无法加载托管窗口预览。"
 
 #: src/pages/ActivityDetail.tsx:359
 msgid "Could not load this activity"
-msgstr "无法加载此活动"
+msgstr "加载活动失败"
 
 #: src/components/PersonalContextPanel.tsx:498
 #: src/components/PersonalContextPanel.tsx:505
@@ -3448,7 +3448,7 @@ msgstr "拒绝"
 
 #: src/pages/ActivityDetail.tsx:270
 msgid "Derived from continuous recorded distance. Boundaries use the first sample to reach each kilometer; not device laps."
-msgstr "据连续距离记录生成；每公里边界取首次达到该距离的采样点，不是设备圈。"
+msgstr "根据连续记录的距离生成。每公里边界以首次达到该公里数的采样点为准，不是设备分圈。"
 
 #: src/components/trail-course-review/copy.tsx:35
 msgid "Describe the course and where you can train. Praxys will keep unknowns visible."
@@ -5662,7 +5662,7 @@ msgstr "正在保留计划…"
 #: src/pages/ActivityDetail.tsx:237
 #: src/pages/ActivityDetail.tsx:242
 msgid "Kilometer"
-msgstr "公里段"
+msgstr "公里"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Training.tsx:308
@@ -5798,7 +5798,7 @@ msgstr "正在退出…"
 
 #: src/components/ActivityTraceChart.tsx:198
 msgid "Left axis"
-msgstr "左轴"
+msgstr "左侧纵轴"
 
 #: src/components/ActivityTraceChart.tsx:102
 #: src/pages/ActivityDetail.tsx:89
@@ -6806,7 +6806,7 @@ msgstr "暂无活动。"
 
 #: src/pages/ActivityDetail.tsx:331
 msgid "No additional saved values are available."
-msgstr "没有其他已保存的指标。"
+msgstr "暂无更多已保存的数值。"
 
 #: src/pages/admin/AdminUsers.tsx:540
 msgid "No admin configuration found"
@@ -7059,7 +7059,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 
 #: src/pages/ActivityDetail.tsx:95
 msgid "No recorded distance trace is stored."
-msgstr "没有保存逐时距离轨迹。"
+msgstr "未保存已记录的距离轨迹。"
 
 #: src/pages/ActivityDetail.tsx:247
 msgid "No recorded metric curves"
@@ -7091,7 +7091,7 @@ msgstr "未列出强制装备"
 
 #: src/pages/ActivityDetail.tsx:271
 msgid "No sampled metric curves are available; these kilometer rows are for summary comparison only."
-msgstr "没有可查看的逐时指标曲线；这些公里段只能在表格中对照。"
+msgstr "暂无采样指标曲线；这些公里分段仅用于汇总对比。"
 
 #: src/components/HeatAdaptationPanel.tsx:262
 #: src/components/HeatAdaptationPanel.tsx:309
@@ -7154,11 +7154,11 @@ msgstr "暂无可显示的工单"
 
 #: src/pages/ActivityDetail.tsx:94
 msgid "No time-series samples are stored."
-msgstr "这次活动没有保存逐时采样。"
+msgstr "未保存时间序列采样数据。"
 
 #: src/pages/ActivityDetail.tsx:249
 msgid "No time-series samples were stored. Any available summaries and laps are shown below."
-msgstr "未保存逐时采样；若有汇总值或设备圈，可在下方查看。"
+msgstr "未保存逐时采样数据。若有汇总值或分圈记录，可在下方查看。"
 
 #: src/pages/ActivityDetail.tsx:246
 #~ msgid "No time-series samples were stored. Available summaries and laps remain below."
@@ -7546,7 +7546,7 @@ msgstr "只有明确确认距离、计时、协议、路线或场地及训练意
 
 #: src/pages/ActivityDetail.tsx:231
 msgid "Only one recorded metric; overlay unavailable."
-msgstr "只有一条逐时曲线，无法叠加对照。"
+msgstr "只记录了一个指标，无法叠加显示。"
 
 #: src/components/FeedbackDialog.tsx:355
 msgid "Only PNG, JPG, or WebP images are supported."
@@ -7795,7 +7795,7 @@ msgstr "其他必需装备"
 
 #: src/pages/ActivityDetail.tsx:310
 msgid "Other saved values"
-msgstr "其余已存记录"
+msgstr "其他已保存的数值"
 
 #: src/components/RecoveryPanel.tsx:185
 msgid "Other Signals"
@@ -7828,7 +7828,7 @@ msgstr "叠加对照"
 
 #: src/pages/ActivityDetail.tsx:225
 msgid "Overlay recorded metric"
-msgstr "选择叠加的逐时指标"
+msgstr "叠加记录指标"
 
 #: src/pages/Today.tsx:414
 msgid "overnight score"
@@ -9152,7 +9152,7 @@ msgstr "查看每个模型背后的证据。存在备选模型时可预览并切
 
 #: src/pages/ActivityDetail.tsx:194
 msgid "Read the run over time"
-msgstr "沿着时间，读一遍"
+msgstr "按时间看这次跑步"
 
 #: src/pages/Admin.tsx:933
 #~ msgid "Read-only accounts that mirror your dashboard data"
@@ -9482,11 +9482,11 @@ msgstr "记录测试结果"
 
 #: src/pages/ActivityDetail.tsx:180
 msgid "Recorded activity · no lap comparison available"
-msgstr "已存活动记录 · 暂无可比较的分圈"
+msgstr "已记录活动，暂无分圈对比"
 
 #: src/pages/ActivityDetail.tsx:101
 msgid "Recorded and summary distances do not match."
-msgstr "逐时距离与整场距离不一致。"
+msgstr "记录距离与汇总距离不一致。"
 
 #: src/pages/ActivityDetail.tsx:234
 msgid "Recorded chart"
@@ -9494,7 +9494,7 @@ msgstr "逐时记录图"
 
 #: src/components/ActivityTraceChart.tsx:209
 msgid "Recorded chart. Arrow keys move the time cursor; drag to select a time range."
-msgstr "逐时图线。方向键移动时刻游标，拖选时间范围。"
+msgstr "记录图表。方向键可移动时刻游标；拖动可选择时间范围。"
 
 #: src/pages/ActivityDetail.tsx:313
 msgid "Recorded curves"
@@ -9522,11 +9522,11 @@ msgstr "逐时记录 · 查看曲线"
 
 #: src/components/ActivityTraceChart.tsx:187
 msgid "Recorded time · two independent axes"
-msgstr "逐时记录 · 双独立纵轴"
+msgstr "记录时间 · 双独立纵轴"
 
 #: src/pages/ActivityDetail.tsx:100
 msgid "Recorded time and activity duration do not align."
-msgstr "采样时钟与活动时长不一致。"
+msgstr "记录时间与活动时长不一致。"
 
 #: src/components/ActivityDFA.tsx:236
 #: src/components/ActivityDFA.tsx:238
@@ -10241,7 +10241,7 @@ msgstr "保存前确认"
 
 #: src/pages/ActivityDetail.tsx:259
 msgid "Review by split"
-msgstr "按段回看"
+msgstr "按分段查看"
 
 #: src/components/trail-course-review/copy.tsx:466
 msgid "Review comparable experience"
@@ -10472,7 +10472,7 @@ msgstr "静息心率"
 
 #: src/components/ActivityTraceChart.tsx:198
 msgid "Right axis"
-msgstr "右轴"
+msgstr "右侧纵轴"
 
 #: src/pages/Today.tsx:120
 msgid "rising"
@@ -11256,7 +11256,7 @@ msgstr "来源 CP 估计"
 
 #: src/pages/ActivityDetail.tsx:179
 msgid "Source laps only · not an overall trend"
-msgstr "仅比较来源分圈 · 不代表全程趋势"
+msgstr "仅显示来源分圈，不代表整体趋势"
 
 #: src/components/trail-course-review/copy.tsx:121
 msgid "Source revision"
@@ -11278,7 +11278,7 @@ msgstr "源端所有"
 
 #: src/pages/ActivityDetail.tsx:269
 msgid "Source-recorded laps may be manual or automatic. No reliable timeline boundaries were saved, so these rows cannot jump to the chart."
-msgstr "来源分圈可能是自动圈或手动圈。记录没有可信的时间边界，无法从这些行跳到图中定位。"
+msgstr "记录来源中的分圈可能是手动或自动生成的。由于未保存可靠的时间边界，这些行无法跳转到图表。"
 
 #: src/components/ActivityTraceChart.tsx:95
 #: src/pages/ActivityDetail.tsx:82
@@ -11299,7 +11299,7 @@ msgstr "分段"
 
 #: src/pages/ActivityDetail.tsx:260
 msgid "Split source"
-msgstr "选择分段依据"
+msgstr "分段依据"
 
 #: src/components/HeatAdaptationPanel.tsx:115
 msgid "Split-weighted weather"
@@ -12001,7 +12001,7 @@ msgstr "活动距离不足表格的 0.01 km 显示精度。"
 
 #: src/pages/ActivityDetail.tsx:99
 msgid "The activity start time cannot be verified."
-msgstr "活动开始时刻无法核实。"
+msgstr "无法核实活动开始时间。"
 
 #: src/components/ActivityDFA.tsx:158
 msgid "The activity timer cannot be reconstructed."
@@ -12357,7 +12357,7 @@ msgstr "距离记录出现回退。"
 
 #: src/pages/ActivityDetail.tsx:96
 msgid "The recorded distance trace has missing intervals."
-msgstr "距离轨迹有缺测区间。"
+msgstr "记录的距离轨迹有缺失区间。"
 
 #: src/components/ActivityDFA.tsx:243
 msgid "The recording or method has changed. Recalculate to see current results."
@@ -13031,7 +13031,7 @@ msgstr "每次跑步可用时长上限（分钟）"
 
 #: src/components/ActivityTraceChart.tsx:278
 msgid "Time cursor · recorded readings"
-msgstr "时刻游标 · 查看已记录读数"
+msgstr "时刻游标 · 记录读数"
 
 #: src/components/WorkoutStructureEditor.tsx:903
 #~ msgid "Time in seconds"
@@ -13775,7 +13775,7 @@ msgstr "查看公开 GitHub issue"
 
 #: src/pages/ActivityDetail.tsx:252
 msgid "View saved values"
-msgstr "查看已保存的指标"
+msgstr "查看已保存的数值"
 
 #: src/components/StatusBanner.tsx:65
 msgid "View status"
@@ -14071,11 +14071,11 @@ msgstr "整次活动的覆盖情况"
 
 #: src/pages/ActivityDetail.tsx:326
 msgid "Whole-activity summary"
-msgstr "仅整场汇总"
+msgstr "整场汇总"
 
 #: src/pages/ActivityDetail.tsx:323
 msgid "Whole-activity values"
-msgstr "整场汇总值"
+msgstr "整场数值"
 
 #: src/components/PlanStart.tsx:482
 #~ msgid "Why these routes stay separate"
