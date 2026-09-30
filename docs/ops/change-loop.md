@@ -376,13 +376,14 @@ gh api repos/praxys-run/praxys/branches/main/protection/required_status_checks
 
 ### 6. Operate the GitHub Agentic Workflows layer
 
-The coding agent still owns implementation. Three repository-level
+The coding agent still owns implementation. Four repository-level
 [GitHub Agentic Workflows](https://github.com/github/gh-aw) add bounded judgment
 around it:
 
 | Source workflow | Trigger | Safe output |
 |---|---|---|
 | `change-loop-outcomes.md` | Weekly or manual | Replaces the previous issue-first 30-day lifecycle/quality report, or no-op |
+| `change-loop-policy-tuner.md` | Weekly or manual | One bounded draft policy proposal, or no-op |
 | `ci-failure-doctor.md` | Failed/timed-out PR validation workflow, or manual | One deduplicated PR diagnosis comment, or no-op |
 | `praxys-invariant-review.md` | Successful `Pre-merge CI` run for a same-repo, open, non-draft PR; or manual dispatch | One Praxys-specific science, contract, parity, privacy, native-Chinese, or operations invariant comment; or no-op |
 
@@ -402,28 +403,117 @@ the short-lived `GITHUB_TOKEN` for repository operations and
 causes gh-aw to ignore the personal token. No Azure identity, endpoint variable,
 or model API key is required.
 
-The generated lock workflows currently stage a compatible runner-cached
-Copilot CLI at `/usr/local/bin/copilot` before entering the AWF sandbox. This is
-a temporary workaround for upstream gh-aw issue
-[`#50906`](https://github.com/github/gh-aw/issues/50906); remove it when a gh-aw
-release containing
-[`#50908`](https://github.com/github/gh-aw/pull/50908) is used to regenerate the
-locks.
+The four generated workflow locks and `.github/aw/actions-lock.json` use gh-aw
+`v0.89.21` and runtime actions
+`924af5fdc64061cfbf66fb584c8b07e2ac230c60`. Regenerate them together; a Dependabot
+change to only `uses:` pins can leave incompatible compiler/runtime interfaces.
+This runtime uses Copilot CLI 1.0.87, AWF 0.28.23, MCP gateway 0.4.25,
+GitHub MCP server 1.12.2, and threat-detect 0.5.2. Container images retain their
+compiler-provided digest pins. The configured inference model remains `gpt-5.4`.
+The compiler's model-alias inventory is runtime dependency data, not authorization
+to change the configured model, budgets, roles, or safe-output permissions.
 
-Install the authoring CLI, then compile and validate after editing a source file:
+Use the official `github/gh-aw` release's **Linux amd64** compiler (WSL is
+supported). Verify its SHA256 against the release asset metadata and
+`checksums.txt`: `1c74ff5fc28b1891d32b67f4348a9b7f750946b6d4a721e909187a848868016b`.
+The repository wrapper verifies those exact bytes before execution:
 
 ```bash
-gh extension install github/gh-aw
-gh aw compile --purge --no-check-update
-gh aw validate --no-check-update
+python scripts/compile_agentic_workflows.py --compiler /path/to/gh-aw-v0.89.21
+/path/to/gh-aw-v0.89.21 validate --no-check-update
 ```
 
-Use the full-repository compile rather than naming individual workflows so stale
-generated workflows are removed.
+The wrapper invokes the strict full-repository compile with purge and the
+`praxys-run/praxys` schedule seed. It then preserves `retention-days: 1` on
+exactly the activation job's `info` upload in each lock. Upstream v0.89.21 emits
+that duplicate of `aw_info.json` without a retention setting, although the
+existing `activation` artifact has a one-day limit. The wrapper validates all
+four exact upload actions and paths before applying any adjustment, accepts an
+existing one-day setting, and rejects other values or changed structure. It
+makes no other change to generated output. Run the wrapper twice and compare
+bytes when validating reproducibility. A future compiler update needs fresh
+provenance/interface review; do not bypass its digest or strict validation.
+Report unavailable linters or container validation separately from successful
+compilation. Do not run `gh aw init` over this repository: initialization must
+not replace the repository's Python/Node setup or canonical agent configuration.
 
-Do not run `gh aw init` over this repository without reviewing its changes: the
-repo already has a purpose-built `copilot-setup-steps.yml`, and generic
-initialization must not overwrite its Python/Node test environment.
+#### Telemetry and execution boundaries
+
+The four Markdown sources explicitly retain the existing telemetry destination:
+`vars.GH_AW_DEFAULT_OTLP_ENDPOINT`, authenticated with
+`secrets.GH_AW_DEFAULT_OTLP_HEADERS`. An identically named endpoint **secret**
+cannot override that variable. An empty endpoint disables export. The existing
+credential-check helper rejects a configured endpoint without headers and does
+not print credential values. Explicit OTLP configuration suppresses the
+compiler's automatic default check, so each source declares that same helper
+as a custom setup step. It now runs after checkout, GitHub Enterprise setup and
+cache setup, and before Git credential configuration, PR checkout, gateway
+startup and inference. GitHub Enterprise setup already receives its existing
+read-scoped GitHub token; this is not a claim that the check precedes every
+credential use. Earlier setup helpers are pinned runtime code and do not run
+checked-out workflow code or restored cache executables. Review this order if
+source setup steps change. Missing credentials fail the step and subsequent
+normal-success steps remain blocked.
+
+Gateway authentication uses a freshly randomized, log-masked
+`MCP_GATEWAY_AGENT_ID`, matching the generated `agentId` configuration and its
+output consumers. It remains excluded from the inference container environment.
+The upstream `gateway-api-key` output is a compatibility alias, not a second
+credential. Keep credential exclusions, network isolation, mount boundaries,
+read-only agent permissions, token steering and capped safe outputs intact.
+
+Threat-detect 0.5.2 is installed only after verifying the compiler-pinned SHA256
+for the selected architecture: amd64
+`b4ecda6a8f1ee09913c40b58e5e9d3337d2173618d41b1bfdef9207e4e7959b9`, arm64
+`f6260a0f9ad72bcb67c7af19c4ce262ca34e2c3d5ccbf912832a8bd277200904`.
+Detection execution requires installation success; the conclusion receives the
+installation outcome. Existing detector warning mode is retained. Installation
+failure prevents an unverified binary from running but produces a warning in
+that mode; this does **not** mean detector unavailability blocks every safe
+output. Never disable the detector, remove verification, or describe warning
+mode as a strict release gate.
+
+#### Daily credits and artifacts
+
+The runtime scans a complete rolling 24-hour workflow history, using authoritative
+run IDs, attempt IDs and timestamps. It counts AI credits, including supported
+legacy explicit credit records and model-priced token records. Raw per-response
+credit deltas take precedence over overlapping summaries/cumulative totals;
+matching request IDs are deduplicated and conflicting records reject. Component
+coverage includes agent, detection and evals; retained successful jobs from a
+failed-only rerun must still be covered by their original producer artifacts.
+New scan observations replace the old daily cache format: old cache records
+cannot authorize a new scan. History-listing or run-metadata failures, and
+per-run resolution errors carrying an HTTP status, fail activation instead of
+silently skipping the daily check. Numeric source budgets remain unchanged.
+
+These rules have explicit compatibility limits. Some all-missing failed-agent
+and failed-evals records retain upstream's zero-accounting assumption. That is
+not proof of zero spend, a known legacy version, or a positively established
+pre-inference failure. Positive recoverable historical usage must be counted.
+Separately, per-run accounting resolution errors without an HTTP status may
+charge the configured per-run maximum with a warning, even when a network or
+SDK exception originated in an API call. History-listing/metadata failures and
+HTTP-status errors do not use that fallback. Manual/command-driven bypass behavior is inherited from
+the earlier runtime; this upgrade does not grant additional dispatch authority.
+Do not describe all missing data as a blocking failure or all zero records as
+measured zero usage.
+
+| Artifact | Contents and disclosure | Retention/redaction boundary |
+|---|---|---|
+| `activation` and new `info` | `aw_info.json`: engine/model/runtime versions, workflow/repository/actor/ref/SHA, run/attempt IDs, allowed domains, feature flags and optional dispatch context; activation also includes the existing prompt/context files | Both explicitly one day. The metadata file is not made private or scrubbed by log masking; review any optional dispatch context before use. |
+| `aic-usage-scan-v2` | Version/coverage version, repository/workflow/run/attempt IDs, creation/update/observation timestamps and numeric credits; no prompt, response, token or header fields are emitted by the scan-entry constructor | Three days in Actions; observations older than 48 hours are ignored on read and must still match the live 24-hour listing. This is a field-limited record, not general-purpose redaction. |
+| `agent`, `agent-output-fallback`, `detection`, `usage` | Existing logs/safe outputs plus execution state and token-usage records; the fallback now carries additional accounting files | Existing artifact access/default retention applies unless the generated step says otherwise. Agent artifact upload follows existing secret-redaction steps; masking a log value does not scrub every artifact. Do not insert credentials or user feedback into metadata/accounting files. |
+
+Before rollout, validate generated contracts, both checksum pins, telemetry
+failure/disable behavior, artifact contents and retention, account for mixed old
+and new usage, and have independent Quality review the exact head. A safe-output
+workflow can create comments/issues or a bounded draft policy proposal; successful
+compilation alone is not live execution evidence or dispatch authorization.
+Operations records any separately authorized bounded smoke run or natural-run
+observations, including detector warnings and safe-output outcomes. Roll back the
+coherent source/lock/action-cache change together; changing only the runtime pin
+reintroduces interface skew.
 
 ## Tuning the agent (quality knobs)
 
