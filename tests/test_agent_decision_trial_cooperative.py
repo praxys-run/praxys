@@ -33,6 +33,21 @@ def trial(tmp_path):
     return result
 
 
+def admit_with_contention_baseline(service, task_key):
+    try:
+        return service.admit(task_key, contract())
+    except TrialUnavailable as error:
+        if str(error) != 'cohort contention; use baseline':
+            raise
+        # Only a readable store can prove this unique task was not enrolled.
+        assert task_key not in service.store.read()[1].assignments
+        assert service.status()['authority'] == 'none'
+        return {
+            'task_key': task_key, 'enrolled': False, 'presentation': 'baseline',
+            'reason': 'contention_baseline',
+        }
+
+
 def review():
     card = DecisionCard(
         review_route='human-review-required', subject_digest=DIGEST, evidence_digest=DIGEST,
@@ -178,39 +193,20 @@ def test_cards_require_b_review_and_one_issue_without_claiming_display(tmp_path)
 
 def test_concurrent_cap_checkpoint_and_existing_b_can_finish(tmp_path):
     service = trial(tmp_path)
-
-    def admit_once(key):
-        try:
-            return key, service.admit(key, contract())
-        except TrialUnavailable as error:
-            assert str(error) == 'cohort contention; use baseline'
-            return key, None
-
-    def concurrent_admissions(keys):
-        with ThreadPoolExecutor(max_workers=5) as pool:
-            results = dict(pool.map(admit_once, keys))
-        assert set(results) == set(keys)
-        assignments = service.store.read()[1].assignments
-        for key, result in results.items():
-            if result is None:
-                assert key not in assignments
-            else:
-                assert result['task_key'] == key
-                assert result['enrolled'] == (key in assignments)
-                if not result['enrolled']:
-                    assert result['presentation'] == 'baseline'
-                    assert result['original_arm'] is None
-        return results
-
     keys = [new_task_key() for _ in range(25)]
-    results = concurrent_admissions(keys)
-    assert sum(result is not None and result['enrolled'] for result in results.values()) == 8
+    assert len(set(keys)) == len(keys)
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        results = list(pool.map(lambda key: admit_with_contention_baseline(service, key), keys))
+    assert sum(result['enrolled'] for result in results) == 8
     assert service.status()['reason'] == 'checkpoint_due'
     state = service.store.read()[1]
     b = next(key for key, item in state.assignments.items() if item.arm == 'B')
     assert service.card(b, contract(), review())['card']
     service.checkpoint(DIGEST)
-    concurrent_admissions([new_task_key() for _ in range(20)])
+    additional_keys = [new_task_key() for _ in range(20)]
+    assert len(set(keys + additional_keys)) == len(keys) + len(additional_keys)
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        list(pool.map(lambda key: admit_with_contention_baseline(service, key), additional_keys))
     assert len(service.store.read()[1].assignments) == 16
     assert service.status()['reason'] == 'closed'
     b = next(key for key, item in service.store.read()[1].assignments.items()
@@ -218,6 +214,69 @@ def test_concurrent_cap_checkpoint_and_existing_b_can_finish(tmp_path):
     assert service.card(b, contract(), review())['card']
     service.outcome(b, OutcomeEvent(event_key='evt_' + 'e' * 64, kind='completed'))
     assert service.admit(new_task_key(), contract())['reason'] == 'closed'
+
+
+@pytest.mark.parametrize('use_harness', [False, True])
+def test_contention_is_bounded_and_never_enrolls_a_task(tmp_path, monkeypatch, use_harness):
+    service = trial(tmp_path)
+    before = service.store.read()
+    key = new_task_key()
+    attempts = []
+
+    def reject(revision, state):
+        attempts.append(revision)
+        return False
+
+    monkeypatch.setattr(service.store, 'compare_and_swap', reject)
+    if use_harness:
+        result = admit_with_contention_baseline(service, key)
+        assert result == {
+            'task_key': key, 'enrolled': False, 'presentation': 'baseline',
+            'reason': 'contention_baseline',
+        }
+    else:
+        with pytest.raises(TrialUnavailable, match='^cohort contention; use baseline$'):
+            service.admit(key, contract())
+    assert len(attempts) == 8
+    assert service.store.read() == before
+    assert key not in service.store.read()[1].assignments
+    assert service.status()['authority'] == 'none'
+
+
+def test_contention_harness_propagates_other_unavailability(tmp_path, monkeypatch):
+    service = trial(tmp_path)
+    error = TrialUnavailable('cohort write outcome is ambiguous; candidate withheld')
+
+    def reject(revision, state):
+        raise error
+
+    monkeypatch.setattr(service.store, 'compare_and_swap', reject)
+    with pytest.raises(TrialUnavailable) as caught:
+        admit_with_contention_baseline(service, new_task_key())
+    assert caught.value is error
+
+
+def test_contention_harness_never_classifies_an_unreadable_store(tmp_path, monkeypatch):
+    service = trial(tmp_path)
+    read = service.store.read
+    attempts = []
+    error = TrialUnavailable('cohort storage is unavailable; candidate withheld')
+
+    def reject(revision, state):
+        attempts.append(revision)
+        return False
+
+    def unavailable_after_contention():
+        if len(attempts) == 8:
+            raise error
+        return read()
+
+    monkeypatch.setattr(service.store, 'compare_and_swap', reject)
+    monkeypatch.setattr(service.store, 'read', unavailable_after_contention)
+    with pytest.raises(TrialUnavailable) as caught:
+        admit_with_contention_baseline(service, new_task_key())
+    assert caught.value is error
+    assert len(attempts) == 8
 
 
 @pytest.mark.parametrize('entrypoint', ['service', 'cli'])

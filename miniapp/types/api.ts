@@ -3523,6 +3523,71 @@ export interface Activity {
   splits: SplitData[];
 }
 
+export interface ActivityDetailSample {
+  offset_sec: number;
+  /** The stored sample row's source, not a per-field provider guarantee. */
+  source: string;
+  power_watts: number | null;
+  hr_bpm: number | null;
+  pace_sec_km: number | null;
+  cadence_spm: number | null;
+  speed_ms: number | null;
+  altitude_m: number | null;
+  grade_pct: number | null;
+  temperature_c: number | null;
+  ground_time_ms: number | null;
+  oscillation_mm: number | null;
+  vertical_ratio: number | null;
+  leg_spring_kn_m: number | null;
+  form_power_watts: number | null;
+  respiration_rate: number | null;
+  power_watts_break: boolean;
+  hr_bpm_break: boolean;
+  pace_sec_km_break: boolean;
+  cadence_spm_break: boolean;
+  speed_ms_break: boolean;
+  altitude_m_break: boolean;
+  grade_pct_break: boolean;
+  temperature_c_break: boolean;
+  ground_time_ms_break: boolean;
+  oscillation_mm_break: boolean;
+  vertical_ratio_break: boolean;
+  leg_spring_kn_m_break: boolean;
+  form_power_watts_break: boolean;
+  respiration_rate_break: boolean;
+}
+
+export interface ActivityKilometerSplit {
+  split_num: number;
+  start_offset_sec: number;
+  end_offset_sec: number;
+  distance_km: number;
+  duration_sec: number;
+  pace_sec_km: number | null;
+}
+
+export type KilometerUnavailableReason =
+  | 'samples_unavailable'
+  | 'distance_trace_unavailable'
+  | 'distance_trace_incomplete'
+  | 'distance_trace_non_monotonic'
+  | 'distance_below_display_precision'
+  | 'start_time_unverified'
+  | 'duration_alignment_unverified'
+  | 'activity_distance_mismatch';
+
+export interface ActivityDetailResponse {
+  activity: Activity;
+  training_base: TrainingBase;
+  samples: ActivityDetailSample[];
+  sample_count: number;
+  sample_sources: string[];
+  time_origin: 'activity_start' | 'sample_start' | 'none';
+  kilometer_splits: ActivityKilometerSplit[];
+  kilometer_unavailable_reason: KilometerUnavailableReason | null;
+  privacy: { gps_included: false; raw_distance_trace_included: false };
+}
+
 export interface StableActivitySegment {
   source: 'samples' | 'splits';
   stability_state: 'evaluated' | 'not_evaluable';
@@ -3773,6 +3838,7 @@ export type AiInsightsResponse = {
 
 export interface HistoryResponse {
   activities: Activity[];
+  activity_detail_available: boolean;
   total: number;
   limit: number;
   offset: number;

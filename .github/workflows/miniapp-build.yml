@@ -1,6 +1,7 @@
 name: Miniapp build
 
-# Native WeChat Mini Program build-validation gate, runs on PR + main push.
+# Native WeChat Mini Program validation for main pushes and manual runs.
+# PR validation uses the same checks in ci-premerge.yml.
 # Does NOT upload to WeChat — uploading is `miniapp-publish.yml`'s job. This
 # workflow exists so PRs get a typecheck signal: it runs the `pretypecheck`
 # chain (sync-types + sync-i18n + sync-legal) followed by `tsc --noEmit`, then
@@ -22,13 +23,7 @@ on:
       - 'web/src/types/api.ts'
       - 'web/src/lib/legal.ts'
       - '.github/workflows/miniapp-build.yml'
-  pull_request:
-    paths:
-      - 'miniapp/**'
-      - 'web/src/locales/**'
-      - 'web/src/types/api.ts'
-      - 'web/src/lib/legal.ts'
-      - '.github/workflows/miniapp-build.yml'
+      - 'scripts/check_miniapp_source.sh'
   workflow_dispatch:
 
 permissions:
@@ -61,47 +56,5 @@ jobs:
             echo "::error::Run 'npm run typecheck' in miniapp/ and commit the result."
             exit 1
           fi
-      - name: Verify expected pages exist
-        run: |
-          for p in login today training goal history settings science; do
-            if [ ! -f "pages/$p/index.ts" ] || [ ! -f "pages/$p/index.wxml" ]; then
-              echo "::error::Missing pages/$p/{index.ts,index.wxml}"
-              exit 1
-            fi
-          done
-          echo "All 7 page entries present."
-      - name: Verify shared components exist
-        run: |
-          for c in nav-bar line-chart bar-chart scatter-chart; do
-            if [ ! -f "components/$c/index.ts" ] || [ ! -f "components/$c/index.wxml" ]; then
-              echo "::error::Missing components/$c/{index.ts,index.wxml}"
-              exit 1
-            fi
-          done
-          echo "All 4 components present."
-      - name: Report source size
-        # Cheap proxy for the post-compile bundle size. The actual compile
-        # happens in `miniapp-publish.yml` (or DevTools); we don't run
-        # `miniprogram-ci` here to keep PR runs fast and free of the upload
-        # secret. WeChat's main-package limit is 2 MB after compile and the
-        # source is typically near 1:1 (no transpiled bundle to expand into).
-        run: |
-          # Measure file bytes rather than allocated filesystem blocks.
-          # Mirror project.config.json packOptions.ignore for development-only
-          # metadata, and exclude generated TypeScript source that DevTools
-          # replaces with its compiled output.
-          size=$(du --apparent-size -sk \
-            --exclude=node_modules \
-            --exclude='package-lock.json' \
-            --exclude='package.json' \
-            --exclude='tsconfig.json' \
-            --exclude='scripts' \
-            --exclude='utils/i18n-catalog.ts' \
-            . | cut -f1)
-          echo "miniapp/ packaged-source proxy size: ${size} KB"
-          if [ "$size" -gt 2000 ]; then
-            echo "::error::miniapp/ source size exceeds 2 MB WeChat main-package limit"
-            exit 1
-          elif [ "$size" -gt 1500 ]; then
-            echo "::warning::miniapp/ source is ${size} KB — closing in on the 2 MB cap"
-          fi
+      - name: Check miniapp pages, components, and source size
+        run: bash ../scripts/check_miniapp_source.sh

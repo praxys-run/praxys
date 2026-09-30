@@ -185,6 +185,10 @@
       "destination": "/app-shell.html"
     },
     {
+      "source": "/history/*",
+      "destination": "/app-shell.html"
+    },
+    {
       "source": "/labs/*",
       "destination": "/app-shell.html"
     },

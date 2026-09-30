@@ -84,6 +84,15 @@ export interface ChartColors {
   /** Translucent fill for "planned" bars in the compliance chart. */
   planned: string;
   plannedStroke: string;
+  activityPower: string;
+  activityHeart: string;
+  activityPace: string;
+  activityCadence: string;
+  activitySpeed: string;
+  activityTerrain: string;
+  activityWeather: string;
+  activityDynamics: string;
+  activityBreathing: string;
 }
 
 const DARK_CHART: ChartColors = {
@@ -95,6 +104,15 @@ const DARK_CHART: ChartColors = {
   reference: '#f59e0b',
   planned: 'rgba(139, 147, 167, 0.35)',
   plannedStroke: 'rgba(139, 147, 167, 0.6)',
+  activityPower: '#d4ae7b',
+  activityHeart: '#d58db8',
+  activityPace: '#83c4c4',
+  activityCadence: '#c9be8c',
+  activitySpeed: '#8db6d7',
+  activityTerrain: '#afa7d3',
+  activityWeather: '#d4a4a1',
+  activityDynamics: '#b7acd1',
+  activityBreathing: '#90c8ab',
 };
 
 const LIGHT_CHART: ChartColors = {
@@ -106,6 +124,15 @@ const LIGHT_CHART: ChartColors = {
   reference: '#b45309',
   planned: 'rgba(107, 107, 102, 0.18)',
   plannedStroke: 'rgba(107, 107, 102, 0.45)',
+  activityPower: '#88561e',
+  activityHeart: '#9c416e',
+  activityPace: '#306575',
+  activityCadence: '#64611e',
+  activitySpeed: '#315b89',
+  activityTerrain: '#635392',
+  activityWeather: '#975a51',
+  activityDynamics: '#685790',
+  activityBreathing: '#356a55',
 };
 
 export function chartColors(theme: ResolvedTheme = resolveTheme()): ChartColors {

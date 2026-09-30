@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
+from functools import lru_cache
 import os
 from pathlib import Path
 import subprocess
@@ -16,12 +18,30 @@ WORKFLOW = ROOT / '.github/workflows/deploy-backend.yml'
 pytestmark = pytest.mark.skipif(os.name == 'nt', reason='Deployment shell targets GitHub Linux runners')
 
 
+@lru_cache(maxsize=1)
+def _workflow_document():
+    return yaml.load(WORKFLOW.read_text(), Loader=getattr(yaml, 'CBaseLoader', yaml.BaseLoader))
+
+
 def workflow():
-    return yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    # Each caller owns its document; only immutable checked-in source is cached.
+    return deepcopy(_workflow_document())
 
 
 def steps():
     return {step.get('name'):step for job in workflow()['jobs'].values() for step in job['steps'] if 'name' in step}
+
+
+def test_workflow_parser_preserves_base_loader_semantics_and_caller_isolation():
+    expected = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    document = workflow()
+    assert document == expected
+    document['jobs'].clear()
+    selected = steps()['Quiesce feedback publication before deployment']
+    selected['run'] = 'must not reach another caller'
+    selected['env'].clear()
+    assert workflow() == expected
+    assert steps()['Quiesce feedback publication before deployment'] != selected
 
 
 def ready_payload():
@@ -321,9 +341,11 @@ if event.get('hang'):
     time.sleep(30)
 if os.environ.get('FAKE_SCALE','1')=='1':
     duration=event.get('duration',5 if operation=='retry_gap' else 0)
-    pending_clock=clock.with_name(clock.name+'.'+str(os.getpid())+'.tmp')
-    pending_clock.write_text(str(float(clock.read_text())+duration))
-    pending_clock.replace(clock)
+    # The controller reads concurrently: publish a complete clock value so it
+    # cannot observe a truncated file that a real monotonic clock never exposes.
+    next_clock=clock.with_name(f'{clock.name}.{os.getpid()}.tmp')
+    next_clock.write_text(str(float(clock.read_text())+duration))
+    next_clock.replace(clock)
 if operation=='settings_read':
     payload=event.get('body',[{'name':'PRAXYS_ENABLE_FEEDBACK_PUBLICATION','value':str(current['positive']).lower()},
           {'name':'PRAXYS_DISABLE_FEEDBACK_PUBLICATION','value':str(current['kill']).lower()},

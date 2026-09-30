@@ -1,7 +1,7 @@
 import { apiGet } from '../../utils/api-client';
 import type { ApiError } from '../../utils/api-client';
 import type { Activity, HistoryResponse } from '../../types/api';
-import { formatDistance, formatTime } from '../../utils/format';
+import { formatDistance, formatTime, formatStoredPace } from '../../utils/format';
 import { detectLocale, t, tFmt } from '../../utils/i18n';
 
 function translations() {
@@ -11,8 +11,9 @@ function translations() {
     loadingMore: t('Loading more…'),
     endOfActivities: t('End of activities'),
     noActivities: t('No activities found.'),
-    splits: t('Splits'),
+    splits: t('Recorded splits'),
     more: t('more'),
+    viewReport: t('View report'),
   };
 }
 
@@ -30,7 +31,12 @@ interface SplitRow {
 
 interface ActivityRow {
   id: string;
+  detailAvailable: boolean;
   date: string;
+  activityDate: string;
+  detailUrl: string;
+  glyph: string;
+  secondaryMetrics: MetricRow[];
   type: string;
   metrics: MetricRow[];
   hasSplits: boolean;
@@ -39,7 +45,6 @@ interface ActivityRow {
   hasMoreSplits: boolean;
   moreSplitsCount: number;
   expanded: boolean;
-  tapHint: string;
 }
 
 interface ActivityHistoryState {
@@ -57,14 +62,18 @@ interface ActivityHistoryState {
 }
 
 function formatActivityType(raw: string): string {
-  const formatted = raw
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-  return t(formatted);
+  switch (raw.toLowerCase()) {
+    case 'running': return t('Running');
+    case 'trail_running': return t('Trail running');
+    case 'walking': return t('Walking');
+    case 'hiking': return t('Hiking');
+    case 'cycling': return t('Cycling');
+    case 'swimming': return t('Swimming');
+    default: return raw.replace(/_/g, ' ');
+  }
 }
 
-function buildActivityRow(activity: Activity): ActivityRow {
+function buildActivityRow(activity: Activity, detailAvailable: boolean): ActivityRow {
   const metrics: MetricRow[] = [];
   if (activity.distance_km != null) {
     metrics.push({ label: t('km'), value: formatDistance(activity.distance_km) });
@@ -72,11 +81,15 @@ function buildActivityRow(activity: Activity): ActivityRow {
   if (activity.duration_sec != null) {
     metrics.push({ label: t('time'), value: formatTime(activity.duration_sec) });
   }
+  if (activity.avg_pace_min_km != null) {
+    metrics.push({ label: t('Pace'), value: formatStoredPace(activity.avg_pace_min_km) });
+  }
+  const secondaryMetrics: MetricRow[] = [];
   if (activity.avg_power != null) {
-    metrics.push({ label: t('avg W'), value: `${activity.avg_power.toFixed(0)}` });
+    secondaryMetrics.push({ label: t('avg W'), value: `${activity.avg_power.toFixed(0)}` });
   }
   if (activity.avg_hr != null) {
-    metrics.push({ label: t('avg HR'), value: `${activity.avg_hr.toFixed(0)}` });
+    secondaryMetrics.push({ label: t('avg HR'), value: `${activity.avg_hr.toFixed(0)}` });
   }
 
   const splits = activity.splits ?? [];
@@ -90,7 +103,14 @@ function buildActivityRow(activity: Activity): ActivityRow {
 
   return {
     id: activity.activity_id,
-    date: activity.date,
+    detailAvailable,
+    date: new Date(activity.date).toLocaleDateString(detectLocale() === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    activityDate: activity.date,
+    detailUrl: `/pages/activity-detail/index?id=${encodeURIComponent(activity.activity_id)}`,
+    glyph: activity.activity_type === 'cycling' ? 'bike' : activity.activity_type === 'swimming' ? 'waves'
+      : ['hiking', 'trail_running'].includes(activity.activity_type) ? 'mountain'
+        : ['running', 'walking'].includes(activity.activity_type) ? 'footprints' : 'activity',
+    secondaryMetrics,
     type: formatActivityType(activity.activity_type),
     metrics,
     hasSplits: splits.length > 0,
@@ -99,7 +119,6 @@ function buildActivityRow(activity: Activity): ActivityRow {
     hasMoreSplits: splits.length > 20,
     moreSplitsCount: Math.max(0, splits.length - 20),
     expanded: false,
-    tapHint: splits.length > 0 ? tFmt('Tap to view {0} splits', splits.length) : '',
   };
 }
 
@@ -180,6 +199,14 @@ Component({
       this.setData({ activities });
     },
 
+    openDetail(event: WechatMiniprogram.TouchEvent) {
+      const id = String(event.currentTarget.dataset.id ?? '');
+      if (!id || !(this.data.activities as ActivityRow[]).some(
+        (activity) => activity.id === id && activity.detailAvailable,
+      )) return;
+      wx.navigateTo({ url: `/pages/activity-detail/index?id=${encodeURIComponent(id)}` });
+    },
+
     async fetchPage(nextOffset: number, replace: boolean): Promise<void> {
       this.setData(
         replace
@@ -190,7 +217,9 @@ Component({
         const response = await apiGet<HistoryResponse>(
           `/api/history?limit=${PAGE_SIZE}&offset=${nextOffset}`,
         );
-        const newRows = response.activities.map(buildActivityRow);
+        const newRows = response.activities.map((activity) =>
+          buildActivityRow(activity, response.activity_detail_available),
+        );
         const activities: ActivityRow[] = replace
           ? newRows
           : [...(this.data.activities as ActivityRow[]), ...newRows];

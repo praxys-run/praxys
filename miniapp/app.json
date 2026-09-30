@@ -7,6 +7,7 @@
     "pages/goal/index",
     "pages/me/index",
     "pages/history/index",
+    "pages/activity-detail/index",
     "pages/settings/index",
     "pages/labs/index",
     "pages/labs/environment-response/index",

@@ -950,6 +950,7 @@ Paginated activity history.
   "total": 150,
   "limit": 20,
   "offset": 0,
+  "activity_detail_available": true,
   "source_filter": "stryd",
   "training_base": "power",
   "display": { "..." : "..." }
@@ -977,6 +978,51 @@ API iteration; the user-facing comparison work remains tracked by issue #444.
 subset governed by `sdr-environmental-performance-v2`; Labs-only personal-model
 and statistical-method sources belong to the separate Labs methodology
 surface. The abbreviated example above shows only the formula source.
+
+`activity_detail_available` reflects the authenticated **viewer**: `false` for
+demo accounts viewing mirrored summaries and `true` for ordinary owners. It
+controls whether clients offer a detail link; it does not grant access to the
+detail endpoint. This value is included in the history ETag variant so that
+owner and demo responses cannot cross-revalidate to a wrong `304`.
+
+### GET /api/history/{activity_id}/detail
+
+Return one activity owned by the authenticated token subject, its recorded
+non-location time series, recorded source splits, and verified kilometer
+splits. Demo accounts receive the same `404` as an unavailable activity,
+even when they can view that owner's history summaries. Anonymous requests
+receive `401`. Success and error responses use `Cache-Control: private,
+no-store` (including unexpected `500` responses).
+
+**Response shape** (abbreviated):
+
+```json
+{
+  "activity": { "activity_id": "stryd-123", "splits": [], "sample_coverage": { "sample_count": 3234 } },
+  "training_base": "power",
+  "samples": [
+    { "offset_sec": 0, "source": "stryd", "power_watts": 210, "hr_bpm": 140, "power_watts_break": true, "hr_bpm_break": true }
+  ],
+  "sample_count": 3234,
+  "sample_sources": ["stryd"],
+  "time_origin": "activity_start",
+  "kilometer_splits": [
+    { "split_num": 1, "start_offset_sec": 0, "end_offset_sec": 350, "distance_km": 1, "duration_sec": 350, "pace_sec_km": 350 }
+  ],
+  "kilometer_unavailable_reason": null,
+  "privacy": { "gps_included": false, "raw_distance_trace_included": false }
+}
+```
+
+`samples` contains up to 6,000 **recorded** display points, with separate
+gap indicators per available metric; `sample_count` counts all stored points.
+Missing values remain null rather than being interpolated from activity
+averages. The response excludes GPS coordinates and the raw cumulative
+distance trace. Kilometer rows are generated only when recorded distance,
+start time, elapsed duration, and summary distance are mutually verifiable;
+otherwise `kilometer_splits` is empty and
+`kilometer_unavailable_reason` explains why. Source splits lack reliable
+time boundaries and do not acquire invented ranges.
 
 ## Activity analysis
 
