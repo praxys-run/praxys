@@ -299,6 +299,11 @@ The full flow and maintenance instructions live in
 
 ## Testing
 
+CI runs the full backend suite serially through `python scripts/ci_pytest.py
+--output-dir /tmp/praxys-pytest`, retaining node IDs, phase timings, skip reasons
+and JUnit results. See [CI timing and completeness](../ops/ci-throughput.md) for
+measurement, failure handling and the runner-usage comparison requirement.
+
 ```bash
 # Run all tests
 python -m pytest tests/ -v

@@ -1,13 +1,103 @@
 """Fresh STOP source authentication is separate from candidate execution."""
 from dataclasses import replace
+import shutil
 
 import pytest
 
 from analysis.science_approval_workflow import verify_science_approval_changes
-from analysis.science_implementation_stop import materialize_stop
+from analysis.science_implementation_stop import load_implementation_stops, materialize_stop
 from analysis.science_stop_github import authenticated_stop_context, fetch_stop_source
 from tests.test_science_activation import commit
 from tests.test_science_implementation_stop import stop_case, accepted_active_baseline
+from tests.test_science_policy_probe import probe_candidates
+
+
+def _copy_repository(source, destination):
+    # Independent file contents and Git objects, retaining executable bits and
+    # symlinks. Hardlinks would let a mutation corrupt later cases' authority.
+    return shutil.copytree(source, destination, symlinks=True)
+
+
+@pytest.fixture(scope='module')
+def maintained_stop_template(probe_candidates, tmp_path_factory):
+    roots, _ = probe_candidates
+    root = tmp_path_factory.mktemp('maintained-stop-template') / 'candidate'
+    _copy_repository(roots['stopped-maintenance'], root)
+    stop, = load_implementation_stops(root / 'data/science')
+    base = commit(root, 'trusted stopped base')
+    path = root / 'api/activity_dfa.py'
+    path.write_bytes(path.read_bytes()+b'\n# reviewed stopped maintenance\n')
+    head = commit(root, 'maintained candidate')
+    return root, base, head, stop
+
+
+@pytest.fixture
+def maintained_stop_case(maintained_stop_template, tmp_path):
+    source, base, head, stop = maintained_stop_template
+    root = tmp_path / 'candidate'
+    _copy_repository(source, root)
+    return root, base, head, stop.model_copy(deep=True)
+
+
+@pytest.fixture(scope='module')
+def historical_stop_templates(probe_candidates, tmp_path_factory):
+    from analysis.evidence_registry import _yaml_paths
+    from analysis.science_activation import git
+    from analysis.science_artifacts import ReviewRole
+    from analysis.science_yaml import load_science_yaml
+    roots, _ = probe_candidates
+    stop, = load_implementation_stops(roots['stopped-maintenance'] / 'data/science')
+    templates = {}
+    for relative in ('implementation.yaml', 'implementation.yml',
+                     'archive/nested/implementation.yaml', 'archive/nested/implementation.yml'):
+        directory = tmp_path_factory.mktemp('historical-stop-template')
+        root = directory / 'candidate'
+        _copy_repository(roots['activation'], root)
+        git(root, 'init')
+        science = root / 'data/science'
+        original = next(path for path in _yaml_paths(science / 'approvals')
+                        if load_science_yaml(path.read_text())['role'] == ReviewRole.IMPLEMENTATION_REVIEWER.value)
+        historical = science / 'approvals' / relative
+        historical.parent.mkdir(parents=True, exist_ok=True)
+        original.rename(historical)
+        active_sha = commit(root, 'valid historical approval layout')
+        active = directory / 'active-layout'
+        _copy_repository(root, active)
+        materialize_stop(root, stop)
+        stopped_sha = commit(root, 'authorized stop preserving historical layout')
+        templates[relative] = root, active, active_sha, stopped_sha, stop
+    return templates
+
+
+def test_stop_template_copies_preserve_history_and_isolate_mutations(maintained_stop_template, tmp_path):
+    import os
+    from analysis.science_activation import git
+    template, base, head, _ = maintained_stop_template
+    source = tmp_path / 'source'
+    _copy_repository(template, source)
+    if os.name != 'nt':
+        (source / 'test-link').symlink_to('api/activity_dfa.py')
+    first, second = tmp_path / 'first', tmp_path / 'second'
+    _copy_repository(source, first)
+    _copy_repository(source, second)
+    relative = 'api/activity_dfa.py'
+    original = (source / relative).read_bytes()
+    original_mode = (source / relative).stat().st_mode
+    (first / relative).write_bytes(b'isolated mutation\n')
+    (first / relative).chmod(original_mode | 0o111)
+    (first / '.git/config').write_text('[test]\nmutation = true\n')
+    if os.name != 'nt':
+        assert (first / 'test-link').is_symlink()
+        (first / 'test-link').unlink()
+        assert (second / 'test-link').is_symlink()
+        assert (second / 'test-link').readlink() == (source / 'test-link').readlink()
+    for root in (template, source, second):
+        assert (root / relative).read_bytes() == original
+        assert (root / relative).stat().st_mode == original_mode
+        assert (root / '.git/config').read_bytes() == (template / '.git/config').read_bytes()
+        assert git(root, 'rev-parse', 'HEAD').decode().strip() == head
+        assert git(root, 'show', f'{base}:{relative}') != original
+    git(second, 'fsck', '--full', '--strict')
 
 
 def test_stop_source_refresh_and_whole_verifier(stop_case, monkeypatch):
@@ -60,19 +150,14 @@ def test_stop_comment_id_and_bot_substitution_rejected(stop_case):
 @pytest.mark.parametrize('mutation', [None, 'failed_job', 'skipped_collector', 'wrong_head',
     'wrong_base', 'wrong_repository', 'wrong_workflow', 'wrong_stop', 'rerun', 'expired',
     'tampered_archive', 'active_candidate', 'missing_probe', 'failed_probe', 'skipped_probe', 'duplicate_probe', 'missing_probe_manifest'])
-def test_authenticated_stopped_maintenance_artifact_admission(stop_case, mutation):
+def test_authenticated_stopped_maintenance_artifact_admission(maintained_stop_case, mutation):
     from hashlib import sha256
     import io
     import json
     import zipfile
     from analysis.science_activation import VALIDATION_JOB, PROBE_JOB, COLLECTOR_JOB, WORKFLOW_PATH, diff_digest
     from analysis.science_stop_github import StopContext, find_denial_evidence
-    root, _, _, stop, _ = stop_case
-    materialize_stop(root, stop)
-    base = commit(root, 'trusted stopped base')
-    path = root / 'api/activity_dfa.py'
-    path.write_bytes(path.read_bytes()+b'\n# reviewed stopped maintenance\n')
-    head = commit(root, 'maintained candidate')
+    root, base, head, stop = maintained_stop_case
     manifest = dict(schema_version=1, purpose='stopped-maintenance', repository=stop.repository,
         pull_request=88, base_sha=base, reviewed_head_sha=head, diff_digest=diff_digest(root,base,head),
         active_contract_digest=stop.active_contract_digest, subject_id=stop.subject_id,
@@ -128,29 +213,20 @@ def test_authenticated_stopped_maintenance_artifact_admission(stop_case, mutatio
 @pytest.mark.parametrize('relative', ['implementation.yaml', 'implementation.yml',
                                       'archive/nested/implementation.yaml', 'archive/nested/implementation.yml'])
 @pytest.mark.parametrize('mutation', ['bytes', 'remove', 'relocate', 'executable'])
-def test_whole_verifier_preserves_every_loaded_approval_path_after_stop(stop_case, relative, mutation, tmp_path):
+def test_whole_verifier_preserves_every_loaded_approval_path_after_stop(historical_stop_templates, relative, mutation, tmp_path):
     """Exercise the public verifier, including historically valid nested/YML layouts."""
-    import shutil
-    from analysis.evidence_registry import _yaml_paths
-    from analysis.science_artifacts import ReviewRole
     from analysis.science_stop_github import StopContext
-    from analysis.science_yaml import load_science_yaml
-    root, _, _, stop, _ = stop_case
+    template, active_template, active_sha, stopped_sha, stop = historical_stop_templates[relative]
+    root = tmp_path / 'candidate'
+    _copy_repository(template, root)
     science = root / 'data/science'
-    original = next(path for path in _yaml_paths(science / 'approvals')
-                    if load_science_yaml(path.read_text())['role'] == ReviewRole.IMPLEMENTATION_REVIEWER.value)
     historical = science / 'approvals' / relative
-    historical.parent.mkdir(parents=True, exist_ok=True)
-    original.rename(historical)
-    active_sha = commit(root, 'valid historical approval layout')
     active = tmp_path / 'active-layout'
-    shutil.copytree(root, active)
-    materialize_stop(root, stop)
-    stopped_sha = commit(root, 'authorized stop preserving historical layout')
+    _copy_repository(active_template, active)
     stop_context = StopContext(root, stop.repository, 88, active_sha, stopped_sha, (stop,), {})
     verify_science_approval_changes(active / 'data/science', science, [], {}, stop_context=stop_context)
     baseline = tmp_path / 'stopped-layout'
-    shutil.copytree(root, baseline)
+    _copy_repository(root, baseline)
     context = StopContext(root, stop.repository, 89, stopped_sha, stopped_sha, (), {})
     verify_science_approval_changes(baseline / 'data/science', science, [], {}, stop_context=context)
     if mutation == 'bytes':

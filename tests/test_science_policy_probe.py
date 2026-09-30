@@ -46,6 +46,22 @@ def candidate(probe_candidates, request, tmp_path):
     return root, purpose, contract
 
 
+@pytest.fixture(scope='module')
+def prepared_observations(probe_candidates):
+    """Prepare real expectations once; candidate-execution tests stay fresh."""
+    roots, contract = probe_candidates
+    observations = {}
+    for purpose, root in roots.items():
+        with prepared_probe(root, purpose, SUBJECT, contract) as (_, expected):
+            observations[purpose] = deepcopy(expected)
+    return observations
+
+
+@pytest.fixture
+def expected_observations(prepared_observations):
+    return deepcopy(prepared_observations)
+
+
 @pytest.mark.parametrize('candidate', ['activation', 'stopped-maintenance'], indirect=True)
 def test_genuine_guard_uses_candidate_modules_after_trusted_preparation(candidate):
     from analysis import science_artifacts as trusted_artifacts
@@ -99,23 +115,29 @@ def test_static_controller_does_not_import_candidate_dependency(candidate):
 @pytest.mark.parametrize('purpose', ['activation', 'stopped-maintenance'])
 @pytest.mark.parametrize('mutation', ['empty', 'truncated', 'malformed', 'duplicate', 'extra', 'extra_object',
                                       'mismatch', 'wrong_type', 'missing', 'provenance', 'nonzero'])
-def test_completion_requires_one_strict_exact_typed_observation(probe_candidates, purpose, mutation):
-    roots, contract = probe_candidates
-    with prepared_probe(roots[purpose], purpose, SUBJECT, contract) as (_, expected):
-        changed = deepcopy(expected)
-        if mutation == 'extra': changed['claimed_success'] = True
-        if mutation == 'mismatch': changed['contract_digest'] = 'sha256:' + '0'*64
-        if mutation == 'wrong_type': changed['schema_version'] = True
-        if mutation == 'missing': changed.pop('observation')
-        if mutation == 'provenance': changed['module_paths']['analysis.science_artifacts'] = '/trusted/analysis/science_artifacts.py'
-        encoded = json.dumps(changed).encode()
-        if mutation == 'empty': encoded = b''
-        if mutation == 'truncated': encoded = encoded[:-1]
-        if mutation == 'malformed': encoded = b'not JSON'
-        if mutation == 'duplicate': encoded = encoded[:-1] + b', "schema_version":1}'
-        if mutation == 'extra_object': encoded += b'\n{}'
-        with pytest.raises(ValueError):
-            validate_observation(encoded, 1 if mutation == 'nonzero' else 0, expected)
+def test_completion_requires_one_strict_exact_typed_observation(expected_observations, purpose, mutation):
+    expected = expected_observations[purpose]
+    changed = deepcopy(expected)
+    if mutation == 'extra': changed['claimed_success'] = True
+    if mutation == 'mismatch': changed['contract_digest'] = 'sha256:' + '0'*64
+    if mutation == 'wrong_type': changed['schema_version'] = True
+    if mutation == 'missing': changed.pop('observation')
+    if mutation == 'provenance': changed['module_paths']['analysis.science_artifacts'] = '/trusted/analysis/science_artifacts.py'
+    encoded = json.dumps(changed).encode()
+    if mutation == 'empty': encoded = b''
+    if mutation == 'truncated': encoded = encoded[:-1]
+    if mutation == 'malformed': encoded = b'not JSON'
+    if mutation == 'duplicate': encoded = encoded[:-1] + b', "schema_version":1}'
+    if mutation == 'extra_object': encoded += b'\n{}'
+    with pytest.raises(ValueError):
+        validate_observation(encoded, 1 if mutation == 'nonzero' else 0, expected)
+
+
+def test_expected_observations_do_not_share_nested_mutable_state(expected_observations, prepared_observations):
+    original = deepcopy(prepared_observations)
+    expected_observations['activation']['module_paths'].clear()
+    expected_observations['stopped-maintenance']['observation']['http_status'] = 200
+    assert prepared_observations == original
 
 
 def test_child_environment_is_explicit_and_excludes_parent_authority(tmp_path, monkeypatch):
