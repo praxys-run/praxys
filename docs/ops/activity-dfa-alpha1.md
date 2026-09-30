@@ -116,12 +116,16 @@ current repository permission, PR/base/head, validation workflow revision and
 attempt, artifact identity and digest. The final activation tree must exactly
 replay from the approved preapproval tree; generated directories are not broad
 exclusions. `config/science-implementation-coverage.json` explicitly lists
-subsequently governed files. Editing a shared governed file, even for another
+subsequently governed files. The 34-file current-main review is recorded in
+[DFA activation current-main drift impact](../dev/dfa-activation/current-main-drift-impact-20260930.md).
+Editing a shared governed file, even for another
 feature, is blocked while active. The terminal stop-only source change must land
 first; later maintenance requires fresh review and isolated actual-guard denial
 evidence. This capability does not implement subject renewal. Unrelated paths
-remain ordinary maintenance. Preserve the reviewed inactive PR839 build as the
-migration-compatible rollback option; never delete approval history.
+remain ordinary maintenance. Preserve the verified inactive
+`8dcd9b4f2905e29376f9e17126ca3bd2b6720342` build as the preferred
+migration-compatible rollback candidate; retain the older PR839 source and its
+synthetic proof as historical secondary evidence, and never delete approval history.
 
 After ordinary feedback publication restoration, deployment observes
 `/api/health/ready` `dfa_policy` and `/api/version` source SHA for at most 20
@@ -139,16 +143,22 @@ preexisting baseline was 2134 KB). Packaging repair and manual upload are separa
 work. Physical Skyline, gesture, screen-reader and larger-text evidence gaps
 remain disclosed; simulator evidence does not close them.
 
-Rollback is time-bounded: rerun original successful backend main/push run
-`36367840399` at source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2` while GitHub's
-30-day/50-attempt eligibility remains (deadline `2026-10-28T01:55:43Z`). The old
-workflow rebuilds source; it has no retained byte-identical package or target-ref
-input. Original run configuration-sync and telemetry steps were skipped; ordinary
-feedback quiesce/restore remains. Before activation, Operations reconfirms
-eligibility and Quality verifies the old migration-compatible build against
-synthetic retained DFA state, including inactive policy and rights/erasure paths.
-No live rollback is claimed. The old readiness response does not contain
-`dfa_policy`; use its exact SHA, readiness and independent inactive-policy proof.
+Rollback is time-bounded: the preferred candidate is a rerun of successful backend
+main/push run `36445536979`, attempt 1, at source
+`8dcd9b4f2905e29376f9e17126ca3bd2b6720342` while GitHub's 30-day/50-attempt
+eligibility remains (deadline `2026-10-28T15:41:49Z`). The workflow rebuilds the
+pinned source; it has no retained byte-identical package or target-ref input.
+That run used `sync_config=false`; its successful quiesce, restoration and exact
+inactive DFA observation do not authorize a future rerun when current/original
+feedback-positive intent cannot be independently established. Unresolved feedback
+intent is a rollback blocker, not permission to force a setting. Before activation
+and again before rollback, Operations must reconfirm retention, attempt limits,
+dependencies, identity, feedback intent and migration compatibility. Independent
+Quality must verify the rebuilt candidate against isolated synthetic PostgreSQL
+with retained representative DFA state, including inactive guard denial and
+rights/export/cancellation/deletion/manifest replay. No live rollback is claimed.
+The older PR839 source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`
+and its synthetic PostgreSQL proof remain historical secondary evidence only.
 
 ## Supported terminal STOP and later maintenance
 
@@ -398,13 +408,16 @@ Retain the existing 20-minute observation bound. No athlete catalog access,
 submission or computation is needed; legacy `/api/science` is not an activation
 proxy. No recovery dispatch allowance carries into this preparation or release.
 
-Prefer the verified inactive source above and backend run `36445536979` as the
-fallback candidate, ahead of historical PR839 source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`.
-Its candidate 30-day rerun deadline is `2026-10-28T15:41:49Z`. Before activation
-and again before rollback, Operations must reconfirm retention, attempt limits,
-dependencies, identity and migration compatibility. This rebuild is not a retained
-byte-identical package or a live rollback rehearsal. Existing readiness gates
-still apply; rollback does not guarantee recovery from broken readiness.
+Prefer the verified inactive source above and backend run `36445536979`, attempt 1,
+as the fallback candidate, ahead of historical PR839 source
+`9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`. Its candidate 30-day rerun deadline
+is `2026-10-28T15:41:49Z`. Before activation and again before rollback, Operations
+must reconfirm retention, attempt limits, dependencies, identity, migration
+compatibility and current/original feedback intent. Because the run used
+`sync_config=false`, the rerun cannot establish missing intent by itself; unresolved
+intent blocks rollback. This rebuild is not a retained byte-identical package or a
+live rollback rehearsal. Existing readiness gates still apply; rollback does not
+guarantee recovery from broken readiness.
 Preserve Alembic head `b4d5f6a70819`, additive tables, retained FIT, deletion
 manifests and owner rights. Retain the older PR839 synthetic PostgreSQL proof
 under its original source and scope; it does not attest to a new build.
