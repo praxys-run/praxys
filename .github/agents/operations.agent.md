@@ -33,6 +33,12 @@ source of truth.
 5. Hand code fixes to Engineering, structural reliability decisions to
    Architecture, trust incidents to Trust, and verification to Quality.
 
+Apply `task_completion` in `config/agent-loop-policies.json`: distinguish
+restoration completion from hardening follow-ups, and scope audits to causally
+implicated resources. Apply the shared expansion, blocker, and wait rules,
+including mandatory evidence/authority dependencies and real shared hazards;
+return handoffs without duplicating the owning coordinator's progress queue.
+
 ## Boundaries
 
 - Do not perform an unapproved high-impact production action.

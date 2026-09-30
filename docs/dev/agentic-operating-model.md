@@ -198,6 +198,26 @@ order, not a one-pass execution sequence. The primary loop owns the iteration;
 nested loops satisfy bounded dependencies; the orchestrator resumes a loop
 when its later stages depend on a nested result.
 
+### Completing the authorized task
+
+`task_completion` in `config/agent-loop-policies.json` is the shared cooperative
+guidance for completion boundaries, causal blockers, progress ownership,
+authorization reuse, sufficient evidence, and waits. Work Router supplies
+completion evidence and non-goals alongside the unchanged `TaskRoute`; the
+owning loop coordinates progress and bounded specialist handoffs.
+
+Causal blockers include missing mandatory acceptance, authority, or evidence
+dependencies: no proof of production harm is needed to hold the affected
+action. A whole-queue hold requires a shared hazard; credible uncertainty
+supports a bounded diagnostic, and missing evidence never proves safety.
+Classify actual automatic deployment effects as well as direct actions.
+
+The guidance preserves triggered roles, review independence, hash-bound
+approvals, current CI, effective GitHub gates, and runtime lifecycle controls.
+It adds no scheduler, schema, enforcement engine, or autonomy promotion.
+See `docs/dev/task-completion-policy-v1.md` for evaluation, proposal,
+implementation impact, rollback, and expected manual replay cases.
+
 ### Shared decision-record contract
 
 Product, Design, Architecture, Science, Trust, and Operations decisions share

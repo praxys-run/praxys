@@ -78,8 +78,8 @@ hook, branch rule, or required status change. The protected trial remains off.
 See the operational procedure below and
 [the bounded protocol](../dev/agent-decision-card-trial.md).
 
-Copilot PRs stay draft until the final preflight command and validated head SHA
-are recorded and the required branch checks pass.
+Agent-authored Copilot PRs stay draft until the final preflight command and
+validated head SHA are recorded and the required branch checks pass.
 `.github/workflows/copilot-pr-readiness.yml` automatically
 returns a ready PR to draft when either condition is missing, and any new commit
 also invalidates the prior ready handoff. Draft Copilot PRs may truthfully mark
@@ -87,6 +87,18 @@ rendered UI evidence pending; strict evidence validation resumes when the PR is
 marked ready. This is especially important for miniapp work when the cloud
 session lacks a WeChat DevTools/Skyline runtime: a human completes that rendered
 review, updates the PR body, waits for draft CI, and then marks the PR ready.
+
+For task coordination, follow `task_completion` in
+`config/agent-loop-policies.json`. The owning loop keeps one progress queue;
+holds name the action, evidence, causal hazard, scope, and unblock condition.
+Hold a whole queue only for a shared hazard, including actual deployment side
+effects. Credible uncertainty permits a bounded diagnostic hold with an owner.
+Missing mandatory acceptance, authority, or evidence dependencies block the
+affected action without proof of production harm; unrelated evidence debt
+cannot hold the queue.
+An unrelated incident stays with its own owner while authorized actions without
+that hazard continue. Active waits name their job/owner, completion signal, and
+next action; elapsed time does not authorize replacement or cancellation.
 
 ### Cooperative invocation lifecycle
 
@@ -534,6 +546,16 @@ reintroduces interface skew.
   selects backend, web, Lingui, miniapp, and UI checks from the actual PR diff
   and refuses a dirty worktree. Generated catalogs must be committed and the
   command rerun before review.
+  An unchanged native Dependabot dependency update may use the narrow CI-based
+  path in `task_completion.bot_dependency_ci_path`, with at most a reviewed
+  mechanical refresh against current main. Verify provider provenance and
+  history, dependency-only delta, current required CI, specialists, and
+  independent Quality. Only native dependency manifests/lockfiles and bot
+  action-reference bumps qualify; authored code/workflow/generated changes,
+  conflict repairs, and unknown provenance require final preflight. Record the
+  actual evidence and head/base, never an unrun local check. Effective GitHub
+  gates remain binding: this guidance changes no readiness script, required
+  check, branch rule, or merge authority.
 - **Environment:** `.github/workflows/copilot-setup-steps.yml` initializes the
   plugin submodule, preinstalls Python + backend/Praxys MCP deps and Node/web,
   verifies Chrome DevTools MCP, prepares the synthetic local Praxys sandbox,

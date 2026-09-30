@@ -184,7 +184,7 @@
       "material_judgment": true
     },
     "repository-change": {
-      "description": "The task edits repository code, configuration, tests, workflows, or durable documentation.",
+      "description": "The authorized action edits repository code, configuration, tests, workflows, or durable documentation; unrelated findings do not expand its scope.",
       "loop": "delivery",
       "required_roles": [
         "engineering",
@@ -205,7 +205,7 @@
       "material_judgment": false
     },
     "production-operation": {
-      "description": "The task changes or executes deployment, runtime configuration, monitoring, capacity, rollback, or recovery.",
+      "description": "The authorized action changes or executes deployment, runtime configuration, monitoring, capacity, rollback, or recovery, including actual automatic deployment side effects of a merge. Classify the causal effect of this action, not an unrelated production incident.",
       "loop": "runtime",
       "required_roles": [
         "operations",
@@ -225,7 +225,7 @@
       "material_judgment": true
     },
     "incident-response": {
-      "description": "The task responds to an active or recently mitigated production incident.",
+      "description": "The authorized action responds to an active or recently mitigated production incident; an unrelated incident is a separate task unless a causal safety dependency connects it.",
       "loop": "incident",
       "required_roles": [
         "operations",

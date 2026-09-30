@@ -129,13 +129,20 @@ When you (the GitHub Copilot coding agent) are assigned an issue labeled
   ready-for-review handoff, convert it back to draft before continuing and mark
   it ready again only after the new head stabilizes.
 - Do not request review while required GitHub checks are failing or pending.
-  Repair PR-caused failures and rerun preflight; if the session cannot finish,
-  leave the PR draft with the concrete blocker.
+  Repair PR-caused failures and rerun preflight for authored repairs; if the
+  session cannot finish, leave the PR draft with the concrete blocker.
 - **Run the deterministic final preflight after the implementation is
   committed:** `python scripts/agent_preflight.py --base origin/main`. It runs
   the backend suite and the relevant web build, Lingui extraction, miniapp
   typecheck, UI detector, diff check, and clean-worktree check. If it generates
   tracked files, commit them and rerun until clean.
+  The only CI-based alternative is the unchanged native bot dependency path in
+  `task_completion.bot_dependency_ci_path` of `config/agent-loop-policies.json`,
+  with at most a reviewed mechanical base refresh. Verify provenance and the
+  exact delta, current required CI, specialists, and independent Quality.
+  Agent-authored code/workflow/generated changes, conflict repairs, or unknown
+  provenance require final preflight. Record actual validation, never an unrun
+  preflight; effective GitHub gates remain binding in either path.
 - Use the standard PR template. Use the science template only when scientific
   files, formulas, constants, or claims changed. Never check a box or claim
   validation that was not actually performed.

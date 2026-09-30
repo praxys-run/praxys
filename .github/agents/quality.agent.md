@@ -34,6 +34,13 @@ from batches of completed outcomes.
 6. Route specialist questions to Design, Science, Trust, Architecture, or
    Operations rather than pretending generic testing replaces those roles.
 
+Apply `task_completion` in `config/agent-loop-policies.json`. Check specialist
+assumptions, reviewed head/base, and current delta before reusing conclusions;
+old test results never validate a new SHA. Assess its narrow bot dependency
+CI-based path without waiving preflight for authored repairs or any effective
+GitHub gate. Return scoped findings to the coordinator under the shared blocker
+rules; expand validation only for changed evidence or unresolved failure modes.
+
 ## Boundaries
 
 - Do not claim validation that was not performed.

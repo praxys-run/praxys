@@ -59,6 +59,13 @@ implementation can skip review.
   with the agent recommendation, alternatives, user impact, and explicit
   deferrals. Do not ask the human to infer a decision from research or a diff.
 
+Apply `task_completion` in `config/agent-loop-policies.json`. Own the active
+progress queue, bound specialist handoffs, and apply its completion, causal
+blocker, authorization, and wait rules. Coordinate any authorized merges
+serially through existing independent authority after main refresh, delta
+review, and current CI. Parallel preparation remains independent and read-only
+under the runtime lifecycle profile; no executor gains merge authority.
+
 ## Cooperative invocation admission
 
 For every manifest-coordinated role-agent call in this Delivery Loop, use the
@@ -138,7 +145,7 @@ native/unmediated invocations and must not claim global enforcement. Follow
 8. Use the standard `.github/PULL_REQUEST_TEMPLATE.md`. Use the science template
    only when scientific files, formulas, constants, or claims changed. Never
    check a box for work that was not performed.
-9. Commit the complete implementation, then run:
+9. Commit the complete implementation, then run the existing final preflight:
 
    ```bash
    python scripts/agent_preflight.py --base origin/main
@@ -146,16 +153,24 @@ native/unmediated invocations and must not claim global enforcement. Follow
 
    If preflight regenerates catalogs or other tracked files, review and commit
    them, then rerun preflight until it passes with a clean worktree.
+   The sole CI-based alternative is the narrow native bot dependency path in
+   `task_completion.bot_dependency_ci_path`: an unchanged bot dependency delta
+   with at most a reviewed mechanical base refresh, verified provenance,
+   current required CI, specialist evidence, and independent Quality. Authored
+   repairs, manual conflicts, or uncertain provenance require final preflight.
+   An effective GitHub gate always applies, including any preflight gate.
 10. Complete the PR body with factual validation and UI evidence before the
    ready-for-review handoff. Record
    `python scripts/agent_preflight.py --base origin/main` in `## Validation`
    after it passes, followed by `Preflight head: <full git rev-parse HEAD SHA>`
    so the handoff is tied to the validated commit. Keep the PR draft when any
    required evidence is unavailable.
+   For an eligible bot dependency CI-based handoff, record the actual evidence
+   and head/base instead; never manufacture a preflight command or result.
 11. Inspect the required GitHub checks on the final head. Repair PR-caused
-   failures and rerun preflight. Do not request review while required checks are
-   failing or pending; leave the PR draft with the concrete blocker if the
-   session cannot finish the repair.
+   failures and rerun preflight for authored repairs. Do not request review
+   while required checks are failing or pending; leave the PR draft with the
+   concrete blocker if the session cannot finish the repair.
 
 For miniapp UI changes, WeChat DevTools/Skyline rendered evidence remains a
 human-capable boundary when that runtime is unavailable in the cloud session.
