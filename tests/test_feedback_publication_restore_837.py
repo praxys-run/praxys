@@ -458,6 +458,8 @@ def test_active_run_from_before_incident_is_not_hidden(recovery, monkeypatch):
 def test_receipt_artifact_contains_only_curated_fields(recovery, monkeypatch, tmp_path):
     import json
     monkeypatch.setenv('RUNNER_TEMP', str(tmp_path))
+    monkeypatch.setenv('GITHUB_SHA', 'a' * 40)
+    monkeypatch.setenv('GITHUB_RUN_ATTEMPT', '1')
     monkeypatch.setenv('PRAXYS_REVIEWED_CONTROLLER_SHA', 'a' * 40)
     monkeypatch.setenv('GITHUB_RUN_ID', '123')
     monkeypatch.setenv('AZURE_CLIENT_SECRET', 'SECRET_CANARY')
@@ -678,3 +680,35 @@ def test_unhealthy_runtime_cannot_hide_affirmative_compensation_contradiction(tr
     assert state['writes'] == [True, False]
     assert state['artifacts'][-1]['observation'] == 'unknown'
     assert state['artifacts'][-1]['writes'][1]['outcome'] == 'terminal_success'
+
+
+@pytest.mark.parametrize('rejection', ['wrong_sha', 'attempt_2', 'malformed_sha', 'malformed_attempt', 'malformed_run'])
+def test_rejected_context_artifact_records_actual_identity_without_echoing_malformed_input(transport_run, monkeypatch, rejection):
+    r, state, _ = transport_run
+    if rejection == 'wrong_sha':
+        monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    elif rejection == 'attempt_2':
+        monkeypatch.setenv('GITHUB_RUN_ATTEMPT', '2')
+    elif rejection == 'malformed_sha':
+        monkeypatch.setenv('GITHUB_SHA', 'SECRET_CANARY')
+    elif rejection == 'malformed_attempt':
+        monkeypatch.setenv('GITHUB_RUN_ATTEMPT', 'SECRET_CANARY')
+    else:
+        monkeypatch.setenv('GITHUB_RUN_ID', 'SECRET_CANARY')
+    assert r.restore() == 'prewrite_rejected'
+    assert state['writes'] == []
+    artifact = state['artifacts'][-1]
+    assert artifact['requested_controller_sha'] == 'a' * 40
+    assert artifact['controller_sha'] == ('b' * 40 if rejection == 'wrong_sha' else None if rejection == 'malformed_sha' else 'a' * 40)
+    assert artifact['controller_attempt'] == (2 if rejection == 'attempt_2' else None if rejection == 'malformed_attempt' else 1)
+    assert artifact['controller_run'] == (None if rejection == 'malformed_run' else 123)
+    assert artifact['identity_encoding'] == ('missing_or_malformed' if rejection.startswith('malformed') else 'valid_values')
+
+
+def test_malformed_requested_revision_is_null_not_echoed(transport_run, monkeypatch):
+    r, state, _ = transport_run
+    monkeypatch.setenv('PRAXYS_REVIEWED_CONTROLLER_SHA', 'SECRET_CANARY')
+    assert r.restore() == 'prewrite_rejected'
+    assert state['writes'] == []
+    assert state['artifacts'][-1]['requested_controller_sha'] is None
+    assert state['artifacts'][-1]['controller_sha'] == 'a' * 40

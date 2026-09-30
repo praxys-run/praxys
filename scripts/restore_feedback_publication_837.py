@@ -603,18 +603,31 @@ def set_positive(value, before):
     return after, correlation
 
 
-def persist_evidence(state):
+def evidence_identity():
     import re
+
+    result = {}
+    for field, variable, pattern, numeric in (
+        ('controller_sha', 'GITHUB_SHA', '[0-9a-f]{40}', False),
+        ('requested_controller_sha', 'PRAXYS_REVIEWED_CONTROLLER_SHA', '[0-9a-f]{40}', False),
+        ('controller_run', 'GITHUB_RUN_ID', '[1-9][0-9]{0,19}', True),
+        ('controller_attempt', 'GITHUB_RUN_ATTEMPT', '[1-9][0-9]{0,9}', True),
+    ):
+        value = os.environ.get(variable, '')
+        result[field] = (int(value) if numeric else value) if re.fullmatch(pattern, value) else None
+    result['identity_encoding'] = ('valid_values' if all(value is not None for value in result.values())
+                                   else 'missing_or_malformed')
+    return result
+
+
+def persist_evidence(state):
     from uuid import UUID
-    require(re.fullmatch('[0-9a-f]{40}', os.environ['PRAXYS_REVIEWED_CONTROLLER_SHA']) is not None)
-    require(re.fullmatch('[1-9][0-9]{0,19}', os.environ['GITHUB_RUN_ID']) is not None)
     require(len(write_evidence) <= 2 and len(snapshots) <= 5)
     for value in receipts:
         require(str(UUID(value)) == value)
     record = {'schema': 1, 'observation': state, 'incident_run': PRODUCER,
               'incident_job': PRODUCER_JOB, 'incident_source': PRODUCER_SHA,
-              'controller_sha': os.environ['PRAXYS_REVIEWED_CONTROLLER_SHA'],
-              'controller_run': int(os.environ['GITHUB_RUN_ID']), 'controller_attempt': 1,
+              **evidence_identity(),
               'source_sha': SERVING_SHA, 'source_version': SERVING_VERSION,
               'uncertain_write': conflicting_write, 'snapshots': snapshots, 'writes': write_evidence}
     payload = json.dumps(record, sort_keys=True).encode()
