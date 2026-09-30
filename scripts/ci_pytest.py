@@ -43,9 +43,9 @@ def validate_evidence(data: dict) -> list[str]:
         return [*errors, 'missing collection lists']
     if not all(isinstance(node, str) for node in collected + selected):
         return [*errors, 'invalid node IDs']
-    if not collected or len(collected) != len(set(collected)):
+    if not collected or len(collected) != len(set(collected)) or len(selected) != len(set(selected)):
         errors.append('empty or duplicate collection')
-    if collected != selected or data.get('deselected') != []:
+    if set(collected) != set(selected) or data.get('deselected') != []:
         errors.append('serial run unexpectedly deselected tests')
     phases = data.get('phases')
     if not isinstance(phases, list):

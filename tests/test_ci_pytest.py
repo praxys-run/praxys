@@ -151,3 +151,24 @@ def test_reused_success_cannot_survive_initialization_failure(tmp_path, monkeypa
     assert current['completed'] and not current['evidence_complete']
     assert current['exit_code'] == 2 and current['child_exit_code'] is None
     assert current['errors'] == ['initialization failure: ValueError']
+
+
+def test_scoped_fixture_reordering_preserves_serial_coverage(tmp_path):
+    result, manifest, phases = run_case(tmp_path, '''import pytest
+@pytest.fixture(scope='module', params=[1, 2])
+def value(request): return request.param
+def test_first(value): assert value in (1, 2)
+def test_second(value): assert value in (1, 2)
+''')
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert manifest['evidence_complete'] and manifest['child_exit_code'] == 0
+    assert len(phases['full_collected']) == len(phases['selected']) == 4
+    assert phases['full_collected'] != phases['selected']
+    assert set(phases['full_collected']) == set(phases['selected'])
+
+
+@pytest.mark.parametrize('field', ['full_collected', 'selected'])
+def test_serial_collection_lists_reject_duplicates(successful_run, field):
+    evidence = deepcopy(successful_run[2])
+    evidence[field].append(evidence[field][0])
+    assert 'empty or duplicate collection' in validate_evidence(evidence)
