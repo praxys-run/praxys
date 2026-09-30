@@ -41,9 +41,10 @@ gh workflow run ci-premerge.yml --ref YOUR_REVIEWED_BRANCH -f test_mode=compare
 ```
 
 `config/ci-test-weights.json` is checked in and versioned with the candidate.
-Its initial weights are approximate inter-completion gaps from historical run
-36607204135, not measured pytest phase timings; they predate the fixture
-optimization and are scheduling hints only. The planner assigns entire files
+Its 175 file weights are measured setup, call and teardown durations from serial
+CI run 36660158527 at merge revision
+`4133d4345aefbebfb27d9f246e45f6d46350402f`. They are scheduling hints, not runner-cost
+or activation evidence. The planner assigns entire files
 using longest estimated duration first, stable ties and the median positive
 weight for new files. `test_pg_migration.py` and `test_activity_dfa.py` stay in one
 shard because they can share a scratch database. There is no within-runner test
