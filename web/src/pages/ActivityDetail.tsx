@@ -5,6 +5,9 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import ActivityDataInformation from '@/components/ActivityDataInformation';
+import { useRecordSourceName } from '@/hooks/useRecordSourceName';
+import { heroSummaryKeys } from '@/lib/activity-record';
 import ActivityTraceChart from '@/components/ActivityTraceChart';
 import { useApi } from '@/hooks/useApi';
 import { useLocale } from '@/contexts/LocaleContext';
@@ -28,6 +31,7 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const { activity } = detail;
+  const sourceName = useRecordSourceName();
   const metrics = useMemo(() => availableTraces(detail.samples), [detail.samples]);
   const preferred = detail.training_base === 'hr' ? 'hr_bpm' : detail.training_base === 'pace' ? 'pace_sec_km' : 'power_watts';
   const [chosenPrimary, setChosenPrimary] = useState<TraceKey | null>(null);
@@ -116,17 +120,18 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
       : { label: t`Average heart rate`, value: observed(activity.avg_hr), unit: 'bpm' },
   ];
   const saved = [
-    { label: t`Average power`, value: observed(activity.avg_power, ' W') },
-    { label: t`Average heart rate`, value: observed(activity.avg_hr, ' bpm') },
-    { label: t`Average pace`, value: recordedPace(activity.avg_pace_min_km) },
-    { label: t`Maximum power`, value: observed(activity.max_power, ' W') },
-    { label: t`Maximum heart rate`, value: observed(activity.max_hr, ' bpm') },
-    { label: t`Elevation gain`, value: observed(activity.elevation_gain_m, ' m') },
-    { label: t`Temperature`, value: activity.temperature_c == null ? '—' : `${activity.temperature_c} °C` },
-    { label: t`Relative humidity`, value: activity.relative_humidity_pct == null ? '—' : `${activity.relative_humidity_pct}%` },
-    { label: 'RSS', value: observed(activity.rss) },
-    { label: t`Source CP estimate`, value: observed(activity.cp_estimate, ' W') },
-  ].filter((record) => record.value !== '—');
+    { key: 'avg_power', label: t`Average power`, value: observed(activity.avg_power, ' W') },
+    { key: 'avg_hr', label: t`Average heart rate`, value: observed(activity.avg_hr, ' bpm') },
+    { key: 'avg_pace_min_km', label: t`Average pace`, value: recordedPace(activity.avg_pace_min_km) },
+    { key: 'max_power', label: t`Maximum power`, value: observed(activity.max_power, ' W') },
+    { key: 'max_hr', label: t`Maximum heart rate`, value: observed(activity.max_hr, ' bpm') },
+    { key: 'elevation_gain_m', label: t`Elevation gain`, value: observed(activity.elevation_gain_m, ' m') },
+    { key: 'temperature_c', label: t`Temperature`, value: activity.temperature_c == null ? '—' : `${activity.temperature_c} °C` },
+    { key: 'relative_humidity_pct', label: t`Relative humidity`, value: activity.relative_humidity_pct == null ? '—' : `${activity.relative_humidity_pct}%` },
+    { key: 'rss', label: 'RSS', value: observed(activity.rss) },
+    { key: 'cp_estimate', label: t`Source CP estimate`, value: observed(activity.cp_estimate, ' W') },
+  ].filter((record) => record.value !== '—' && !heroSummaryKeys(activity).includes(record.key));
+  const count = saved.length;
 
   const showGraph = metrics.length > 0 && Boolean(primary);
   const shownSplits = splitMode === 'recorded' ? activity.splits : detail.kilometer_splits;
@@ -147,15 +152,6 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
       splitRefs.current.get(selectedSplit.split_num)?.focus({ preventScroll: true });
     });
   }
-  function recordJump(metric: TraceKey) {
-    setChosenPrimary(metric);
-    setChosenSecondary(null);
-    setMetricsExpanded(true);
-    window.requestAnimationFrame(() => {
-      graphRef.current?.scrollIntoView({ block: 'start' });
-      graphRef.current?.focus({ preventScroll: true });
-    });
-  }
 
   return (
     <article className="activity-report">
@@ -165,21 +161,16 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
       </nav>
       <header className="activity-report__head">
         <h1>{typeName}</h1>
-        <p className="font-data">{date} · {activity.source || t`Source unavailable`}</p>
+        <p><span className="font-data">{date}</span> · {activity.source?.trim() ? <><Trans>Activity source</Trans>: {sourceName(activity.source)}</> : sourceName(null)}</p>
       </header>
 
-      <div className="activity-report__observation">
-        <p>
-          {hasLapComparison ? <span className="activity-report__lap-pair">
-            <span className="activity-report__lap"><Trans>First lap</Trans> <strong className="font-data">{recordedPace(firstLap.avg_pace_min_km)}</strong></span>
-            <span className="activity-report__lap"><Trans>Last lap</Trans> <strong className="font-data">{recordedPace(lastLap.avg_pace_min_km)}</strong></span>
-          </span> : <Trans>This activity's saved record is ready to inspect.</Trans>}
+      {hasLapComparison && <div className="activity-report__observation">
+        <p className="activity-report__lap-pair">
+          <span className="activity-report__lap"><Trans>First recorded split</Trans> <strong className="font-data">{recordedPace(firstLap.avg_pace_min_km)}</strong></span>
+          <span className="activity-report__lap"><Trans>Last recorded split</Trans> <strong className="font-data">{recordedPace(lastLap.avg_pace_min_km)}</strong></span>
         </p>
-        <span>{hasLapComparison
-          ? <Trans>Source laps only · not an overall trend</Trans>
-          : <Trans>Recorded activity · no lap comparison available</Trans>}
-          {' · '}{activity.source || t`Source unavailable`}</span>
-      </div>
+        <span><Trans>Not an overall trend</Trans></span>
+      </div>}
 
       <dl className="activity-report__overview">
         {summary.map((metric) => (
@@ -190,8 +181,7 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
         ))}
       </dl>
 
-      <section className="activity-report__section activity-report__timeline" aria-labelledby="activity-timeline-title">
-        <h2 id="activity-timeline-title"><Trans>Read the run over time</Trans></h2>
+      <section className="activity-report__section activity-report__timeline" aria-label={t`Recorded curves`}>
         {showGraph ? <>
           <div className="activity-report__metric-controls">
             <div className="activity-report__metric-tabs" role="group" aria-label={t`Primary recorded metric`}>
@@ -238,19 +228,17 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
               onViewportChange={(range) => { setRequestedRange(range); setRequestedCursor(Math.min(range[1], Math.max(range[0], cursor))); }}
               onCursorChange={setRequestedCursor} />
           </div>
-          {selectedSplit && <div className="activity-report__selection" aria-live="polite">
-            <strong><Trans>Kilometer</Trans> <span className="font-data">{selectedSplit.split_num}</span></strong>
-            <span className="font-data">{selectedSplit.distance_km.toFixed(2)} km · {formatElapsed(selectedSplit.duration_sec)} · {selectedSplit.pace_sec_km == null ? '—' : formatStoredPace(selectedSplit.pace_sec_km)}</span>
-            <Button variant="link" onClick={returnToSplit}><ArrowLeft aria-hidden="true" /><Trans>Back to split table</Trans></Button>
-          </div>}
         </> : <div className="activity-report__unavailable">
-          <strong><Trans>No recorded metric curves</Trans></strong>
-          <p>{detail.sample_count === 0
-            ? <Trans>No time-series samples were stored. Any available summaries and laps are shown below.</Trans>
-            : <Trans>This stream has no saved metric readings. Any available summaries and laps are shown below.</Trans>}</p>
-          {saved.length > 0 && <a href="#activity-records" onClick={() => { recordsRef.current!.open = true; }}>
-            <Trans>View saved values</Trans> <ArrowUpRight size={16} aria-hidden="true" />
+          <strong><Trans>No recorded curves</Trans></strong>
+          {saved.length > 0 && <a href="#activity-records" onClick={() => { if (recordsRef.current) recordsRef.current.open = true; }}>
+            <Trans>View summaries</Trans> <ArrowUpRight size={16} aria-hidden="true" />
           </a>}
+        </div>}
+        <ActivityDataInformation detail={detail} />
+        {selectedSplit && <div className="activity-report__selection" aria-live="polite">
+          <strong><Trans>Kilometer</Trans> <span className="font-data">{selectedSplit.split_num}</span></strong>
+          <span className="font-data">{selectedSplit.distance_km.toFixed(2)} km · {formatElapsed(selectedSplit.duration_sec)} · {selectedSplit.pace_sec_km == null ? '—' : formatStoredPace(selectedSplit.pace_sec_km)}</span>
+          <Button variant="link" onClick={returnToSplit}><ArrowLeft aria-hidden="true" /><Trans>Back to split table</Trans></Button>
         </div>}
       </section>
 
@@ -259,15 +247,15 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
           <h2 id="activity-splits-title"><Trans>Review by split</Trans></h2>
           <div className="activity-report__split-switch" role="group" aria-label={t`Split source`}>
             {activity.splits.length > 0 && <Button variant={splitMode === 'recorded' ? 'default' : 'outline'} size="lg"
-              aria-pressed={splitMode === 'recorded'} onClick={() => setSplitMode('recorded')}><Trans>Recorded laps</Trans></Button>}
+              aria-pressed={splitMode === 'recorded'} onClick={() => setSplitMode('recorded')}><Trans>Recorded splits</Trans></Button>}
             <Button variant={splitMode === 'kilometers' ? 'default' : 'outline'} size="lg"
               aria-pressed={splitMode === 'kilometers'} disabled={!detail.kilometer_splits.length}
               title={kilometerReason(detail.kilometer_unavailable_reason)}
               onClick={() => setSplitMode('kilometers')}><Trans>Each kilometer</Trans></Button>
           </div>
           <p className="activity-report__aside">{splitMode === 'recorded'
-            ? <Trans>Source-recorded laps may be manual or automatic. No reliable timeline boundaries were saved, so these rows cannot jump to the chart.</Trans>
-            : <Trans>Derived from continuous recorded distance. Boundaries use the first sample to reach each kilometer; not device laps.</Trans>}
+            ? <Trans>Split times unverified; chart jump unavailable.</Trans>
+            : <Trans>From recorded distance</Trans>}
             {splitMode === 'kilometers' && !showGraph && <> <Trans>No sampled metric curves are available; these kilometer rows are for summary comparison only.</Trans></>}
             {detail.kilometer_unavailable_reason && <> <Trans>Each kilometer unavailable:</Trans> {kilometerReason(detail.kilometer_unavailable_reason)}</>}
           </p>
@@ -306,39 +294,15 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
         </section>
       )}
 
-      <details id="activity-records" className="activity-report__records" ref={recordsRef}>
-        <summary><span><Trans>Other saved values</Trans> <span className="font-data">{saved.length + metrics.length}</span></span><ChevronDown size={18} aria-hidden="true" /></summary>
-        <div className="activity-report__record-list">
-          {metrics.length > 0 && <section className="activity-report__record-group">
-            <h3><Trans>Recorded curves</Trans></h3>
-            <div className="activity-report__record-grid">
-              {metrics.map((metric) => <button type="button" key={metric} className="activity-report__record-row"
-                onClick={() => recordJump(metric)}>
-                <span>{metricName(metric)}<small><Trans>Recorded stream · view chart</Trans></small></span>
-                <ArrowUpRight size={17} aria-hidden="true" />
-              </button>)}
-            </div>
-          </section>}
-          {saved.length > 0 && <section className="activity-report__record-group">
-            <h3><Trans>Whole-activity values</Trans></h3>
-            <div className="activity-report__record-grid">
-              {saved.map((record) => <div className="activity-report__record-row" key={record.label}>
-                <span>{record.label}<small><Trans>Whole-activity summary</Trans></small></span>
-                <strong className="font-data">{record.value}</strong>
-              </div>)}
-            </div>
-          </section>}
-          {!saved.length && !metrics.length && <p><Trans>No additional saved values are available.</Trans></p>}
-        </div>
-        {saved.length > 0 && <p className="activity-report__record-foot">
-          <Trans>Activity record source</Trans>: {activity.source || t`Source unavailable`}
-          {activity.environment_source && <> · <Trans>Environment record source</Trans>: {activity.environment_source}</>}
-          {' · '}<Trans>Field sources for summary values are not independently verified.</Trans>
-        </p>}
-        {(activity.rss != null || activity.cp_estimate != null) && <p className="activity-report__record-foot">
-          <Trans>RSS and the source CP estimate are activity-level references, not sampled curves or a Praxys training verdict.</Trans>
-        </p>}
-      </details>
+      {saved.length > 0 && <details id="activity-records" className="activity-report__records" ref={recordsRef}>
+        <summary aria-label={t`Additional summaries (${count})`}><span><Trans>Additional summaries (<span className="font-data">{count}</span>)</Trans></span><ChevronDown size={18} aria-hidden="true" /></summary>
+        <dl className="activity-report__record-grid">
+          {saved.map((record) => <div className="activity-report__record-row" key={record.key}>
+            <dt>{record.label}{(record.key === 'rss' || record.key === 'cp_estimate') && <small><Trans>Source reference; not a training assessment.</Trans></small>}</dt>
+            <dd className="font-data">{record.value}</dd>
+          </div>)}
+        </dl>
+      </details>}
     </article>
   );
 }

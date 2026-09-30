@@ -15,3 +15,4 @@
 .activity-trace__slider-wrap { padding: 18rpx 44px 0; }
 .activity-trace__slider-label { display: flex; justify-content: space-between; gap: 10rpx; color: var(--text-muted); font-size: 20rpx; }
 .activity-trace__slider-wrap slider { width: 100%; margin: 12rpx 0 0; }
+.activity-trace__notes { display: flex; flex-wrap: wrap; gap: 8rpx 18rpx; margin-bottom: 12rpx; color: var(--text-muted); font-size: 22rpx; line-height: 1.5; }
