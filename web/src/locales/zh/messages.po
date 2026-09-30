@@ -3144,7 +3144,7 @@ msgstr "数据覆盖情况"
 
 #: src/components/ActivityDataInformation.tsx:14
 msgid "Data information"
-msgstr "数据信息"
+msgstr "数据说明"
 
 #: src/pages/Settings.tsx:1325
 msgid "Data Preferences"
@@ -4115,7 +4115,7 @@ msgstr "环境与海拔适应"
 
 #: src/components/ActivityDataInformation.tsx:26
 msgid "Environment records"
-msgstr "环境记录"
+msgstr "环境数据来源"
 
 #: src/pages/Labs.tsx:69
 #: src/pages/LabsEnvironment.tsx:1140
@@ -4719,7 +4719,7 @@ msgstr "来自活动"
 
 #: src/pages/ActivityDetail.tsx:258
 msgid "From recorded distance"
-msgstr "根据已记录距离划分"
+msgstr "按已记录距离划分"
 
 #: src/components/UpcomingPlanCard.tsx:162
 #~ msgid "From Stryd"
@@ -4766,7 +4766,7 @@ msgstr "差距"
 
 #: src/components/ActivityTraceChart.tsx:297
 msgid "Gaps in recorded data"
-msgstr "记录有缺口"
+msgstr "记录数据有缺口"
 
 #: src/hooks/useRecordSourceName.ts:9
 msgid "Garmin activity weather"
@@ -5716,7 +5716,7 @@ msgstr "公里段"
 
 #: src/components/ActivityDataInformation.tsx:30
 msgid "Kilometer boundaries use the first recorded distance sample to reach each kilometer."
-msgstr "公里分段以已记录距离首次达到每公里的采样点为边界。"
+msgstr "每公里分段边界取已记录距离首次达到该公里数的采样点。"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Training.tsx:308
@@ -7097,7 +7097,7 @@ msgstr "未观察到符合条件的路面"
 
 #: src/components/ActivityTraceChart.tsx:276
 msgid "No readings in this interval; zoom out."
-msgstr "此区间无读数，请缩小视图"
+msgstr "当前区间暂无读数；请缩小时间范围"
 
 #: src/components/HeatAdaptationPanel.tsx:247
 #~ msgid "No recent activities are available to inspect."
@@ -7126,7 +7126,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 
 #: src/pages/ActivityDetail.tsx:232
 msgid "No recorded curves"
-msgstr "无记录曲线"
+msgstr "暂无记录曲线"
 
 #: src/pages/ActivityDetail.tsx:99
 msgid "No recorded distance trace is stored."
@@ -7349,7 +7349,7 @@ msgstr "不是 5 公里全力跑"
 
 #: src/pages/ActivityDetail.tsx:172
 msgid "Not an overall trend"
-msgstr "不代表全程趋势"
+msgstr "不代表整体趋势"
 
 #: src/components/trail-course-review/copy.tsx:153
 msgid "Not applicable"
@@ -9605,7 +9605,7 @@ msgstr "已保存采样点"
 
 #: src/components/ActivityDataInformation.tsx:29
 msgid "Recorded split boundaries and recording method are unverified."
-msgstr "记录分段的起止时间及记录方式未核实。"
+msgstr "记录分段的边界和记录方式未核实。"
 
 #: src/components/ActivityCard.tsx:69
 #: src/pages/ActivityDetail.tsx:250
@@ -10725,7 +10725,7 @@ msgstr "本次新方案检查：安全停止标记"
 
 #: src/components/ActivityDataInformation.tsx:12
 msgid "Same as activity record"
-msgstr "同活动记录"
+msgstr "与活动记录一致"
 
 #. placeholder {0}: Math.round(session.sample_coverage_ratio * 100)
 #: src/components/HeatAdaptationPanel.tsx:208
@@ -11414,7 +11414,7 @@ msgstr "选择分段依据"
 
 #: src/pages/ActivityDetail.tsx:257
 msgid "Split times unverified; chart jump unavailable."
-msgstr "分段起止时间未核实，无法定位图表。"
+msgstr "分段计时待确认，暂不支持跳转图表。"
 
 #: src/components/HeatAdaptationPanel.tsx:115
 msgid "Split-weighted weather"
@@ -13167,7 +13167,7 @@ msgstr "时间以首个已存采样点为起点；活动开始时刻尚未核实
 
 #: src/components/ActivityDataInformation.tsx:22
 msgid "Time is measured from the recorded activity start."
-msgstr "时间从已记录的活动开始时刻起算。"
+msgstr "时间从记录的活动开始时刻起算。"
 
 #: src/components/charts/CpTrendChart.tsx:68
 msgid "Time range"
@@ -13602,7 +13602,7 @@ msgstr "已在本页取消标记，尚未提交。新方案仍需重新检查；
 
 #: src/hooks/useRecordSourceName.ts:11
 msgid "Unrecognized source name"
-msgstr "来源名称未识别"
+msgstr "无法识别的数据来源名称"
 
 #: src/components/ActivityDFA.tsx:217
 msgid "Unsupported"
