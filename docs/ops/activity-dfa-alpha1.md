@@ -122,19 +122,26 @@ Editing a shared governed file, even for another
 feature, is blocked while active. The terminal stop-only source change must land
 first; later maintenance requires fresh review and isolated actual-guard denial
 evidence. This capability does not implement subject renewal. Unrelated paths
-remain ordinary maintenance. Preserve the verified inactive
-`8dcd9b4f2905e29376f9e17126ca3bd2b6720342` build as the preferred
-migration-compatible rollback candidate; retain the older PR839 source and its
-synthetic proof as historical secondary evidence, and never delete approval history.
+remain ordinary maintenance. Preserve the reviewed inactive PR839 source
+`9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2` as the default
+migration-compatible rollback candidate. Retain the newer
+`8dcd9b4f2905e29376f9e17126ca3bd2b6720342` source only as the separately
+authorized configuration-reconciling alternative described below, and never delete
+approval history.
 
-After ordinary feedback publication restoration, deployment observes
+After deployment restores the feedback-publication value selected by the workflow,
+deployment observes
 `/api/health/ready` `dfa_policy` and `/api/version` source SHA for at most 20
 minutes. `dfa_policy` contains exactly `policy_active` and `contract_digest`;
 actual `require_policy()` success returns true and its digest, otherwise false
 and null. The endpoint is no-store and does not query DFA owner data or compute.
 The existing readiness database and shared-authority checks still apply. Missing,
 malformed or mismatched metadata fails this observation without restarting or
-undoing feedback-publication restoration. Retain source SHA, state, contract
+undoing feedback-publication restoration. An ordinary activation-only push changes
+no deployment/configuration path, selects `sync_config=false`, captures the current
+feedback-publication value and restores it. With the current production value
+`false`, this can validly deploy DFA while preserving `false`; it neither proves an
+outage nor authorizes changing that setting. Retain source SHA, state, contract
 digest, observation time and workflow URL only. This is a sampled acceptance
 check, not proof of all instances, user processing or global erasure replay.
 
@@ -143,22 +150,42 @@ preexisting baseline was 2134 KB). Packaging repair and manual upload are separa
 work. Physical Skyline, gesture, screen-reader and larger-text evidence gaps
 remain disclosed; simulator evidence does not close them.
 
-Rollback is time-bounded: the preferred candidate is a rerun of successful backend
-main/push run `36445536979`, attempt 1, at source
-`8dcd9b4f2905e29376f9e17126ca3bd2b6720342` while GitHub's 30-day/50-attempt
-eligibility remains (deadline `2026-10-28T15:41:49Z`). The workflow rebuilds the
-pinned source; it has no retained byte-identical package or target-ref input.
-That run used `sync_config=false`; its successful quiesce, restoration and exact
-inactive DFA observation do not authorize a future rerun when current/original
-feedback-positive intent cannot be independently established. Unresolved feedback
-intent is a rollback blocker, not permission to force a setting. Before activation
-and again before rollback, Operations must reconfirm retention, attempt limits,
-dependencies, identity, feedback intent and migration compatibility. Independent
-Quality must verify the rebuilt candidate against isolated synthetic PostgreSQL
-with retained representative DFA state, including inactive guard denial and
-rights/export/cancellation/deletion/manifest replay. No live rollback is claimed.
-The older PR839 source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`
-and its synthetic PostgreSQL proof remain historical secondary evidence only.
+Rollback is time-bounded. The default route reruns successful backend main/push run
+`36367840399`, deploy job `108757706180`, attempt 1, at source
+`9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2` while GitHub's 30-day/50-attempt
+eligibility remains (deadline `2026-10-28T01:55:43Z`). The workflow rebuilds the
+pinned source; it has no retained byte-identical package or target-ref input. The
+original run used `sync_config=false`: settings synchronization and telemetry
+cutover were skipped, while state capture, quiescence, deployment and restoration
+succeeded. A rerun therefore captures and restores the current feedback-publication
+value, preserving the current `false` value rather than reconciling it to a
+repository variable.
+
+The old readiness response has no `dfa_policy` field. Bind verification to the
+exact source SHA plus readiness/database observations and the existing exact-source
+synthetic PostgreSQL startup/state/rights and real inactive-guard evidence recorded
+in `docs/ops/incidents/ir-dfa-readiness-recovery-20260928.md` lines 56–60. That
+incident record also preserves the historical no-blind-rollback boundary. No fresh
+exact-`9e703444` test receipt was produced by this correction. Immediately before
+use, Operations must recheck run retention, attempt eligibility, deployment/Labs
+queue state, dependencies, identity and migration compatibility. This makes the
+preserve-`false` route the viable default; it is not a fresh Quality
+recertification, retained-package claim or live rollback rehearsal.
+
+The newer source `8dcd9b4f2905e29376f9e17126ca3bd2b6720342`, backend run
+`36445536979`, attempt 1, remains eligible only until
+`2026-10-28T15:41:49Z`. That push used `sync_config=true`; settings synchronization
+and telemetry cutover ran. A rerun would select the current configured repository
+intent `PRAXYS_ENABLE_FEEDBACK_PUBLICATION=true` and may mutate current production
+`false` to `true`. Use it only with explicit separate authority for that
+reconciliation or a separately validated preserve-`false` route. Its historical
+success does not prove an outage or authorize a settings change. Fresh Quality
+byte-identity evidence for this source is limited to the migration, DFA, rights and
+dependency surfaces actually compared. The task-local comparison archive is
+`/tmp/praxys-dfa-activation-20260930.E4E4cL/quality-rollback-8dcd.6TEkta/source.tar`,
+SHA256 `348559b39acbdd11c45c2c050787fa620f9fafb7db9ff28925281ac11889b93c`;
+that provenance does not transfer to `9e703444`, attest to deployed package bytes
+or runtime settings, or constitute a live rollback rehearsal.
 
 ## Supported terminal STOP and later maintenance
 
@@ -402,25 +429,36 @@ parameter fingerprint
 Existing enablement consent does not invent an unseen exact three-role attestation.
 Only after real source-verified approvals, deterministic replay, required checks
 and protected merge may rollout establish the exact deployed SHA, normal
-eight-second checks, restored feedback subject to the current kill switch, and
-no-store `policy_active: true` with the exact approved active contract digest.
+eight-second checks, the captured feedback state restored without an activation-
+driven settings change, and no-store `policy_active: true` with the exact approved
+active contract digest. The ordinary activation-only push uses `sync_config=false`
+and may validly activate DFA while preserving the current feedback value `false`.
 Retain the existing 20-minute observation bound. No athlete catalog access,
 submission or computation is needed; legacy `/api/science` is not an activation
 proxy. No recovery dispatch allowance carries into this preparation or release.
 
-Prefer the verified inactive source above and backend run `36445536979`, attempt 1,
-as the fallback candidate, ahead of historical PR839 source
-`9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`. Its candidate 30-day rerun deadline
-is `2026-10-28T15:41:49Z`. Before activation and again before rollback, Operations
-must reconfirm retention, attempt limits, dependencies, identity, migration
-compatibility and current/original feedback intent. Because the run used
-`sync_config=false`, the rerun cannot establish missing intent by itself; unresolved
-intent blocks rollback. This rebuild is not a retained byte-identical package or a
-live rollback rehearsal. Existing readiness gates still apply; rollback does not
-guarantee recovery from broken readiness.
+Prefer PR839 source `9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2` and backend run
+`36367840399`, deploy job `108757706180`, attempt 1, as the default fallback. Its
+30-day rerun deadline is `2026-10-28T01:55:43Z`; `sync_config=false` preserves the
+captured current feedback value, and the settings/telemetry steps were skipped in
+the original run. Old readiness lacks `dfa_policy`, so require exact SHA and
+readiness/database evidence plus the checked-in historical inactive-policy and
+rights evidence. No fresh exact-`9e703444` test receipt was produced; recheck
+retention, attempt eligibility and deployment/Labs queue state immediately before
+use. The alternative `8dcd9b4f2905e29376f9e17126ca3bd2b6720342`
+run `36445536979`, attempt 1, remains eligible until
+`2026-10-28T15:41:49Z`, but its `sync_config=true` path ran settings/telemetry and
+may reconcile current production `false` to configured repository intent `true`;
+it requires explicit separate authority or a validated preserve-`false` route.
+Fresh Quality byte-identity evidence applies only to that newer source's actually
+compared migration/DFA/rights/dependency surfaces and does not transfer to PR839.
+Neither route is a retained byte-identical package or live rollback rehearsal.
+Existing readiness gates still apply; rollback does not guarantee recovery from
+broken readiness.
 Preserve Alembic head `b4d5f6a70819`, additive tables, retained FIT, deletion
 manifests and owner rights. Retain the older PR839 synthetic PostgreSQL proof
-under its original source and scope; it does not attest to a new build.
+under its original source and scope; do not relabel the newer source comparison as
+an exact-PR839 receipt.
 
 Activation protects whole governed shared files: main/deps, requirements, client
 API types, global catalogs and package locks, plus telemetry/proof helpers and

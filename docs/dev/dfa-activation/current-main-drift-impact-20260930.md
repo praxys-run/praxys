@@ -78,10 +78,35 @@ head's final-preflight claim solely because evidence is SHA-bound, so the refres
 head still requires current parity, routing/science checks, clean generators and a
 new final preflight.
 
-Rollback preparation uses preferred inactive source
-`8dcd9b4f2905e29376f9e17126ca3bd2b6720342`, backend run `36445536979`, attempt 1,
-with rerun deadline `2026-10-28T15:41:49Z`. A rerun rebuilds source, not a retained
-package. `sync_config=false` means missing current/original feedback-positive intent
-is a blocker, not an inferred setting. Independent synthetic PostgreSQL and rights
-verification and Operations eligibility checks remain required; no live rollback is
-claimed.
+Rollback preparation defaults to inactive PR839 source
+`9e7034442ec1a027ee5f6d2ca56ede0c2b85e5d2`, backend run `36367840399`, deploy job
+`108757706180`, attempt 1, with rerun deadline `2026-10-28T01:55:43Z`. Its
+`sync_config=false` path skipped settings synchronization and telemetry cutover while
+capture/quiesce/deploy/restore succeeded, so a rerun captures and restores the
+current feedback value and preserves current production `false`. Old readiness has
+no `dfa_policy`; verification binds exact source SHA and readiness/database evidence
+to the completed exact-source synthetic PostgreSQL startup/state/rights and real
+inactive-guard evidence in
+`docs/ops/incidents/ir-dfa-readiness-recovery-20260928.md` lines 56–60. That record
+also preserves the historical no-blind-rollback boundary. No fresh exact-`9e703444`
+test receipt was produced. Operations must recheck run retention, attempt
+eligibility and deployment/Labs queue state immediately before use. This is the
+viable preserve-`false` default, not fresh Quality recertification, a retained
+package or a live rollback claim.
+
+The newer source `8dcd9b4f2905e29376f9e17126ca3bd2b6720342`, backend run
+`36445536979`, attempt 1, remains an alternative until
+`2026-10-28T15:41:49Z`. It used `sync_config=true`; settings synchronization and
+telemetry cutover ran, so rerunning it would select configured repository intent
+`PRAXYS_ENABLE_FEEDBACK_PUBLICATION=true` and may change current production
+`false` to `true`. It requires explicit separate authority for that reconciliation
+or a separately validated preserve-`false` route. An ordinary activation-only push
+changes no deployment/configuration path, uses `sync_config=false`, preserves the
+captured current `false`, and may activate DFA without changing feedback. These
+facts prove neither an outage nor permission to flip settings. Fresh Quality
+byte-identity evidence is scoped only to the newer source's actually compared
+migration, DFA, rights and dependency surfaces. Its task-local comparison archive
+is `/tmp/praxys-dfa-activation-20260930.E4E4cL/quality-rollback-8dcd.6TEkta/source.tar`,
+SHA256 `348559b39acbdd11c45c2c050787fa620f9fafb7db9ff28925281ac11889b93c`;
+it does not transfer to `9e703444`, attest deployed package/runtime settings or
+constitute a live rollback rehearsal.
