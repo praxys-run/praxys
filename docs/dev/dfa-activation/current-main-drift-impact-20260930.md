@@ -7,7 +7,11 @@ approval.
 This review compares the prior activation base
 `994d4ded39316615a6aa119265de8e2ef5dde301` with trusted main
 `0c82ce26a23856c09f620708a23cb80380b9c555`. Exactly 34 files named by
-`config/science-implementation-coverage.json` changed. No DFA numerical,
+`config/science-implementation-coverage.json` changed. The reviewed current-main
+coverage file digest is
+`sha256:f9b3c8e619661616f31a2f4dc6b4144b3dc7469e71b7022f230a39298fd9a4ae`;
+the separate `proposal-checksums.sha256` remains the historical PR842 snapshot.
+No DFA numerical,
 parser, source-eligibility, runtime guard, approval materializer, database model,
 route, dispatcher, storage, rights, or STOP production module changed.
 
