@@ -1,12 +1,13 @@
 import type { IAppOption } from '../../app';
 import type {
-  Activity, ActivityDetailResponse, ActivityKilometerSplit, ActivityDetailSample,
+  Activity, ActivityDetailResponse, ActivityKilometerSplit,
   KilometerUnavailableReason, SplitData,
 } from '../../types/api';
 import { apiGet, type ApiError } from '../../utils/api-client';
-import { elapsed, reading, recordedMetrics, type TraceKey } from '../../utils/activity-detail';
+import { elapsed, recordedMetrics, type TraceKey } from '../../utils/activity-detail';
+import { hasRecordedGaps, heroSummaryKeys, knownRecordSource } from '../../utils/activity-record';
 import { formatStoredPace } from '../../utils/format';
-import { detectLocale, t } from '../../utils/i18n';
+import { detectLocale, t, tNamed } from '../../utils/i18n';
 import { applyThemeChrome, resolveTheme, themeClassName } from '../../utils/theme';
 
 interface MetricRow { label: string; value: string; unit: string }
@@ -19,7 +20,7 @@ interface SplitRow {
   power: string;
   heart: string;
 }
-interface SavedRow { label: string; value: string }
+interface SavedRow { key: string; reference: boolean; label: string; value: string }
 interface MetricChoice { key: TraceKey; label: string }
 interface OverlayChoice { key: TraceKey | ''; label: string }
 interface DetailView {
@@ -35,10 +36,12 @@ interface DetailView {
   kilometerSplits: SplitRow[];
   saved: SavedRow[];
   savedCount: number;
+  savedLabel: string;
   sampleCount: number;
   partial: boolean;
   sourceRows: string;
   sampleStartOnly: boolean;
+  activityStart: boolean;
   hasReferenceScores: boolean;
   kilometerReason: string;
 }
@@ -52,33 +55,35 @@ function translations() {
     notFoundDetail: t('This record is not available to this account.'),
     retryDetail: t('Check your connection and retry. No stale record is shown.'),
     retry: t('Retry'),
-    firstLap: t('First lap'),
-    lastLap: t('Last lap'),
-    observation: t("This activity's saved record is ready to inspect."),
-    comparisonScope: t('Source laps only · not an overall trend'),
-    observationScope: t('Recorded activity · no lap comparison available'),
-    timeline: t('Read the run over time'),
+    firstLap: t("First recorded split"),
+    lastLap: t("Last recorded split"),
+    comparisonScope: t("Not an overall trend"),
+    timeline: t("Recorded curves"),
     primary: t('Primary recorded metric'),
     moreCurves: t('More curves'),
     otherMetrics: t('Other recorded metrics'),
     overlay: t('Overlay'),
     overlayUnavailable: t('Only one recorded metric; overlay unavailable.'),
-    noSamples: t('No recorded metric curves'),
-    noRows: t('No time-series samples were stored. Any available summaries and laps are shown below.'),
-    noMetrics: t('This stream has no saved metric readings. Any available summaries and laps are shown below.'),
-    seeSaved: t('View saved values'),
-    axes: t('Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude.'),
+    noSamples: t("No recorded curves"),
+    seeSaved: t("View summaries"),
+    dataInformation: t('Data information'),
+    reducedStatus: t('Reduced display'),
+    timeStatus: t('Time from first sample; activity start unverified'),
+    activityStart: t('Time is measured from the recorded activity start.'),
+    splitDetails: t('Recorded split boundaries and recording method are unverified.'),
+    kilometerDetails: t('Kilometer boundaries use the first recorded distance sample to reach each kilometer.'),
+    referenceDetails: t('RSS and the source CP estimate are activity-level references, not sampled curves or a Praxys training verdict.'),
     samples: t('Recorded sample rows'),
     reduced: t('Extrema shown; omitted points are not interpolated.'),
-    gaps: t('Some intervals were not sampled; lines stop at gaps.'),
+    gaps: t("Gaps in recorded data"),
     missing: t('Missing metric readings and time gaps are shown as breaks, never filled in.'),
-    sourceRows: t('Stream record source (not guaranteed per field)'),
+    sourceRows: t("Sample records"),
     timeOrigin: t('Time is measured from the first stored sample; activity start time is unverified.'),
     segments: t('Review by split'),
-    recorded: t('Recorded laps'),
+    recorded: t("Recorded splits"),
     kilometers: t('Each kilometer'),
-    lapScope: t('Source-recorded laps may be manual or automatic. No reliable timeline boundaries were saved, so these rows cannot jump to the chart.'),
-    kmScope: t('Derived from continuous recorded distance. Boundaries use the first sample to reach each kilometer; not device laps.'),
+    lapScope: t("Split times unverified; chart jump unavailable."),
+    kmScope: t("From recorded distance"),
     kmSummaryOnly: t('No sampled metric curves are available; these kilometer rows are for summary comparison only.'),
     kmUnavailable: t('Each kilometer unavailable:'),
     split: t('Split'),
@@ -89,16 +94,9 @@ function translations() {
     heart: t('Heart rate'),
     selectedKilometer: t('Kilometer'),
     returnToSplits: t('Back to split table'),
-    records: t('Other saved values'),
-    recordedCurves: t('Recorded curves'),
-    wholeValues: t('Whole-activity values'),
-    stream: t('Recorded stream · view chart'),
-    whole: t('Whole-activity summary'),
-    activitySource: t('Activity record source'),
-    environmentSource: t('Environment record source'),
-    fieldSource: t('Field sources for summary values are not independently verified.'),
-    noneSaved: t('No additional saved values are available.'),
-    reference: t('RSS and the source CP estimate are activity-level references, not sampled curves or a Praxys training verdict.'),
+    environmentSource: t("Environment records"),
+    fieldSource: t("Record sources do not verify every field's source."),
+    reference: t("Source reference; not a training assessment."),
     unavailable: t('Source unavailable'),
     notRecorded: t('Not recorded'),
   };
@@ -159,23 +157,34 @@ function buildSplit(split: SplitData | ActivityKilometerSplit, recorded: boolean
   };
 }
 
-function buildView(detail: ActivityDetailResponse, samples: ActivityDetailSample[]): DetailView {
+function sourceName(source: string | null | undefined): string {
+  if (!source?.trim()) return t('Source unavailable');
+  const known = knownRecordSource(source);
+  return known ? t(known) : t('Unrecognized source name');
+}
+
+function scopedSource(source: string | null | undefined, activitySource: string | null): string {
+  return knownRecordSource(source) && knownRecordSource(source) === knownRecordSource(activitySource)
+    ? t('Same as activity record') : sourceName(source);
+}
+
+function buildView(detail: ActivityDetailResponse): DetailView {
   const activity: Activity = detail.activity;
   const locale = detectLocale();
   const first = activity.splits[0];
   const last = activity.splits[activity.splits.length - 1];
   const saved: SavedRow[] = [
-    { label: t('Average power'), value: numberValue(activity.avg_power, ' W') },
-    { label: t('Average heart rate'), value: numberValue(activity.avg_hr, ' bpm') },
-    { label: t('Average pace'), value: paceValue(activity.avg_pace_min_km) },
-    { label: t('Maximum power'), value: numberValue(activity.max_power, ' W') },
-    { label: t('Maximum heart rate'), value: numberValue(activity.max_hr, ' bpm') },
-    { label: t('Elevation gain'), value: numberValue(activity.elevation_gain_m, ' m') },
-    { label: t('Temperature'), value: activity.temperature_c == null ? '—' : `${activity.temperature_c} °C` },
-    { label: t('Relative humidity'), value: activity.relative_humidity_pct == null ? '—' : `${activity.relative_humidity_pct}%` },
-    { label: 'RSS', value: numberValue(activity.rss) },
-    { label: t('Source CP estimate'), value: numberValue(activity.cp_estimate, ' W') },
-  ].filter((row) => row.value !== '—');
+    { key: 'avg_power', reference: false, label: t('Average power'), value: numberValue(activity.avg_power, ' W') },
+    { key: 'avg_hr', reference: false, label: t('Average heart rate'), value: numberValue(activity.avg_hr, ' bpm') },
+    { key: 'avg_pace_min_km', reference: false, label: t('Average pace'), value: paceValue(activity.avg_pace_min_km) },
+    { key: 'max_power', reference: false, label: t('Maximum power'), value: numberValue(activity.max_power, ' W') },
+    { key: 'max_hr', reference: false, label: t('Maximum heart rate'), value: numberValue(activity.max_hr, ' bpm') },
+    { key: 'elevation_gain_m', reference: false, label: t('Elevation gain'), value: numberValue(activity.elevation_gain_m, ' m') },
+    { key: 'temperature_c', reference: false, label: t('Temperature'), value: activity.temperature_c == null ? '—' : `${activity.temperature_c} °C` },
+    { key: 'relative_humidity_pct', reference: false, label: t('Relative humidity'), value: activity.relative_humidity_pct == null ? '—' : `${activity.relative_humidity_pct}%` },
+    { key: 'rss', reference: true, label: 'RSS', value: numberValue(activity.rss) },
+    { key: 'cp_estimate', reference: true, label: t('Source CP estimate'), value: numberValue(activity.cp_estimate, ' W') },
+  ].filter((row) => row.value !== '—' && !heroSummaryKeys(activity).includes(row.key));
 
   const primarySummary = activity.avg_power != null && activity.avg_power > 0
     ? { label: t('Average power'), value: numberValue(activity.avg_power), unit: 'W' }
@@ -195,8 +204,8 @@ function buildView(detail: ActivityDetailResponse, samples: ActivityDetailSample
     date: new Date(`${activity.date}T12:00:00`).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric', month: 'long', day: 'numeric',
     }),
-    source: activity.source || t('Source unavailable'),
-    environmentSource: activity.environment_source || '',
+    source: activity.source?.trim() ? `${t('Activity source')}: ${sourceName(activity.source)}` : sourceName(null),
+    environmentSource: scopedSource(activity.environment_source, activity.source),
     hasLapComparison: Boolean(first && last && first !== last
       && first.avg_pace_min_km && last.avg_pace_min_km
       && paceValue(first.avg_pace_min_km) !== '—' && paceValue(last.avg_pace_min_km) !== '—'),
@@ -211,11 +220,14 @@ function buildView(detail: ActivityDetailResponse, samples: ActivityDetailSample
     recordedSplits: activity.splits.map((split) => buildSplit(split, true)),
     kilometerSplits: detail.kilometer_splits.map((split) => buildSplit(split, false)),
     saved,
-    savedCount: saved.length + recordedMetrics(samples).length,
+    savedCount: saved.length,
+    savedLabel: tNamed('Additional summaries ({count})', { count: saved.length }),
     sampleCount: detail.sample_count,
-    partial: activity.sample_coverage.state === 'partial',
-    sourceRows: detail.sample_sources.join(', ') || '—',
+    partial: hasRecordedGaps(detail),
+    sourceRows: detail.sample_sources.length
+      ? [...new Set(detail.sample_sources.map((source) => scopedSource(source, activity.source)))].join(', ') : sourceName(null),
     sampleStartOnly: detail.time_origin === 'sample_start',
+    activityStart: detail.time_origin === 'activity_start',
     hasReferenceScores: activity.rss != null || activity.cp_estimate != null,
     kilometerReason: kilometerReason(detail.kilometer_unavailable_reason),
   };
@@ -253,6 +265,7 @@ Page({
     fullEnd: 0,
     cursor: 0,
     savedOpen: false,
+    dataOpen: false,
     scrollTarget: '',
   },
 
@@ -296,7 +309,7 @@ Page({
       this.setData({
         loading: false,
         response,
-        view: buildView(response, response.samples),
+        view: buildView(response),
         metrics,
         featuredMetrics,
         extraMetrics,
@@ -310,7 +323,7 @@ Page({
         overlayIndex: secondary ? 1 : 0,
         fullStart, fullEnd, rangeStart: fullStart, rangeEnd: fullEnd, cursor: fullStart,
         splitMode: response.activity.splits.length ? 'recorded' : 'kilometers',
-        selected: null, selectedText: '', savedOpen: false,
+        selected: null, selectedText: '', savedOpen: false, dataOpen: false,
       });
     } catch (error) {
       const failure = error as Partial<ApiError>;
@@ -394,13 +407,5 @@ Page({
   onToggleSaved() { this.setData({ savedOpen: !this.data.savedOpen }); },
   onSeeSaved() { this.setData({ savedOpen: true }); this.goTo('activity-saved'); },
 
-  onSavedMetric(event: WechatMiniprogram.TouchEvent) {
-    const key = String(event.currentTarget.dataset.key) as TraceKey;
-    if (!this.data.metrics.some((metric) => metric.key === key)) return;
-    const options = this.overlayChoices(this.data.metrics, key);
-    this.setData({ primary: key, primaryLabel: metricLabel(key), secondary: '', secondaryLabel: '', overlayOptions: options, overlayIndex: 0,
-      featuredExtra: this.data.extraMetrics.find((metric) => metric.key === key) || null,
-      metricsExpanded: true });
-    this.goTo('activity-chart');
-  },
+  onToggleData() { this.setData({ dataOpen: !this.data.dataOpen }); },
 });

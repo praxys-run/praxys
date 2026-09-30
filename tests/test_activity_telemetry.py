@@ -108,7 +108,13 @@ def capture(mode):
     assert server.started
     statuses = []
     try:
-        with httpx.Client(base_url=f"http://127.0.0.1:{listener.getsockname()[1]}") as client:
+        # The deliberate unhandled 500 closes Uvicorn's connection after sending
+        # the response. Fresh connections avoid racing that close on the next
+        # request; this test measures telemetry, not connection-pool recovery.
+        with httpx.Client(
+            base_url=f"http://127.0.0.1:{listener.getsockname()[1]}",
+            limits=httpx.Limits(max_keepalive_connections=0),
+        ) as client:
             for activity_id in ("synthetic-secret", "synthetic-secret%20encoded"):
                 for status in (200, 401, 404, 405, 500):
                     response = client.request(

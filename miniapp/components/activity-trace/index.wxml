@@ -1,4 +1,8 @@
 <view class="activity-trace">
+  <view wx:if="{{secondary || primary === 'pace_sec_km'}}" class="activity-trace__notes">
+    <text wx:if="{{secondary}}">{{tr.independentAxes}}</text>
+    <text wx:if="{{primary === 'pace_sec_km' || secondary === 'pace_sec_km'}}">{{tr.paceDirection}}</text>
+  </view>
   <view class="activity-trace__legends">
     <view class="activity-trace__reading">
       <text class="activity-trace__caption" style="color: {{primaryColor}};">{{tr.leftAxis}} · {{primaryLabel}}</text>
@@ -20,8 +24,10 @@
     <button disabled="{{isFull}}" bindtap="onFullRun">{{tr.fullRun}}</button>
   </view>
   <view class="activity-trace__slider-wrap">
+    <text wx:if="{{!canZoom}}" class="activity-trace__notes">{{tr.minimumWindow}}</text>
     <view class="activity-trace__slider-label"><text>{{tr.cursor}}</text><text class="ts-value">{{cursorTime}}</text></view>
     <slider min="{{rangeStart}}" max="{{rangeEnd}}" step="1" value="{{cursor}}" disabled="{{rangeStart === rangeEnd}}"
       activeColor="{{primaryColor}}" bindchanging="onSliderChange" bindchange="onSliderChange" aria-label="{{tr.cursor}}" />
+    <text wx:if="{{rangeStart === rangeEnd}}" class="activity-trace__notes">{{tr.singleTime}}</text>
   </view>
 </view>
