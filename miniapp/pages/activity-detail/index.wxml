@@ -15,13 +15,12 @@
           <text class="activity-page__title">{{view.title}}</text>
           <text class="activity-page__date ts-value ts-muted">{{view.date}} · {{view.source}}</text>
         </view>
-        <view class="activity-page__observation">
-          <view wx:if="{{view.hasLapComparison}}" class="activity-page__observation-line activity-page__observation-line--laps">
+        <view wx:if="{{view.hasLapComparison}}" class="activity-page__observation">
+          <view class="activity-page__observation-line activity-page__observation-line--laps">
             <view class="activity-page__lap"><text>{{tr.firstLap}}</text><text class="ts-value">{{view.firstLapPace}}</text></view>
             <view class="activity-page__lap"><text>{{tr.lastLap}}</text><text class="ts-value">{{view.lastLapPace}}</text></view>
           </view>
-          <text wx:else class="activity-page__observation-line">{{tr.observation}}</text>
-          <text class="activity-page__source-note">{{view.hasLapComparison ? tr.comparisonScope : tr.observationScope}} · {{view.source}}</text>
+          <text class="activity-page__source-note">{{tr.comparisonScope}}</text>
         </view>
         <view class="activity-page__overview">
           <view wx:for="{{view.summary}}" wx:key="label" class="activity-page__metric">
@@ -33,8 +32,7 @@
           </view>
         </view>
 
-        <view id="activity-chart" class="activity-page__section">
-          <text class="activity-page__section-title">{{tr.timeline}}</text>
+        <view id="activity-chart" class="activity-page__section" aria-label="{{tr.timeline}}">
           <block wx:if="{{metrics.length}}">
             <view class="activity-page__metric-tabs" role="group" aria-label="{{tr.primary}}">
               <button wx:for="{{featuredMetrics}}" wx:key="key" data-key="{{item.key}}" bindtap="onPrimary"
@@ -61,23 +59,38 @@
               primary-label="{{primaryLabel}}" secondary-label="{{secondaryLabel}}"
               range-start="{{rangeStart}}" range-end="{{rangeEnd}}" full-start="{{fullStart}}" full-end="{{fullEnd}}"
               cursor="{{cursor}}" theme="{{theme}}" bindrange="onChartRange" bindcursor="onChartCursor" />
-            <view wx:if="{{selected}}" class="activity-page__selection" role="status">
-              <text class="activity-page__selection-text ts-value">{{selectedText}}</text>
-              <button bindtap="onReturnToSplit">{{tr.returnToSplits}}</button>
-            </view>
-            <text class="activity-page__hint activity-page__cobalt">{{tr.axes}}</text>
-            <text class="activity-page__hint">{{tr.samples}}: <text class="ts-value">{{view.sampleCount}}</text>
-              <text wx:if="{{view.sampleCount > response.samples.length}}"> · {{tr.reduced}}</text>
-              <text wx:if="{{view.partial}}"> · {{tr.gaps}}</text>
-            </text>
-            <text class="activity-page__hint">{{tr.missing}}</text>
-            <text class="activity-page__hint">{{tr.sourceRows}}: {{view.sourceRows}}</text>
-            <text wx:if="{{view.sampleStartOnly}}" class="activity-page__hint">{{tr.timeOrigin}}</text>
+            <text wx:if="{{view.partial}}" class="activity-page__hint">{{tr.gaps}}</text>
+            <text wx:if="{{view.sampleCount > response.samples.length}}" class="activity-page__hint">{{tr.reducedStatus}}</text>
+            <text wx:if="{{view.sampleStartOnly}}" class="activity-page__hint">{{tr.timeStatus}}</text>
           </block>
           <view wx:else class="activity-page__summary-only">
             <text class="activity-page__summary-title">{{tr.noSamples}}</text>
-            <text class="activity-page__hint">{{view.sampleCount ? tr.noMetrics : tr.noRows}}</text>
             <button wx:if="{{view.savedCount}}" bindtap="onSeeSaved">{{tr.seeSaved}}</button>
+          </view>
+          <view class="activity-page__data">
+            <button class="activity-page__data-toggle" bindtap="onToggleData" aria-expanded="{{dataOpen}}">
+              <text>{{tr.dataInformation}}</text>
+              <view class="activity-page__chevron {{dataOpen ? 'activity-page__chevron--open' : ''}}" aria-hidden="true"></view>
+            </button>
+            <view wx:if="{{dataOpen}}">
+              <block wx:if="{{view.sampleCount}}">
+                <text class="activity-page__hint">{{tr.samples}}: <text class="ts-value">{{view.sampleCount}}</text></text>
+                <text wx:if="{{view.sampleCount > response.samples.length}}" class="activity-page__hint">{{tr.reduced}}</text>
+                <text class="activity-page__hint">{{tr.missing}}</text>
+              </block>
+              <text wx:if="{{view.sampleStartOnly}}" class="activity-page__hint">{{tr.timeOrigin}}</text>
+              <text wx:if="{{view.activityStart}}" class="activity-page__hint">{{tr.activityStart}}</text>
+              <text class="activity-page__hint">{{tr.sourceRows}}: {{view.sourceRows}}</text>
+              <text class="activity-page__hint">{{tr.environmentSource}}: {{view.environmentSource}}</text>
+              <text class="activity-page__hint">{{tr.fieldSource}}</text>
+              <text wx:if="{{view.recordedSplits.length}}" class="activity-page__hint">{{tr.splitDetails}}</text>
+              <text wx:if="{{view.kilometerSplits.length}}" class="activity-page__hint">{{tr.kilometerDetails}}</text>
+              <text wx:if="{{view.hasReferenceScores}}" class="activity-page__hint">{{tr.referenceDetails}}</text>
+            </view>
+          </view>
+          <view wx:if="{{selected}}" class="activity-page__selection" role="status">
+            <text class="activity-page__selection-text ts-value">{{selectedText}}</text>
+            <button bindtap="onReturnToSplit">{{tr.returnToSplits}}</button>
           </view>
         </view>
 
@@ -120,32 +133,17 @@
           </view>
         </view>
 
-        <view id="activity-saved" class="activity-page__section activity-page__saved">
+        <view wx:if="{{view.savedCount}}" id="activity-saved" class="activity-page__section activity-page__saved">
           <button class="activity-page__saved-toggle" bindtap="onToggleSaved" aria-expanded="{{savedOpen}}">
-            <text>{{tr.records}} <text class="ts-value">{{view.savedCount}}</text></text>
+            <text class="ts-value">{{view.savedLabel}}</text>
             <view class="activity-page__chevron {{savedOpen ? 'activity-page__chevron--open' : ''}}" aria-hidden="true"></view>
           </button>
-          <block wx:if="{{savedOpen}}">
-            <view wx:if="{{metrics.length}}" class="activity-page__record-group">
-              <text class="activity-page__record-group-title">{{tr.recordedCurves}}</text>
-              <button wx:for="{{metrics}}" wx:key="key" data-key="{{item.key}}" bindtap="onSavedMetric" class="activity-page__record-row">
-                <text>{{item.label}}<text class="activity-page__record-source ts-muted">{{tr.stream}}</text></text>
-              </button>
+          <view wx:if="{{savedOpen}}">
+            <view wx:for="{{view.saved}}" wx:key="key" class="activity-page__record-row">
+              <text>{{item.label}}<text wx:if="{{item.reference}}" class="activity-page__record-source ts-muted">{{tr.reference}}</text></text>
+              <text class="activity-page__record-value ts-value">{{item.value}}</text>
             </view>
-            <view wx:if="{{view.saved.length}}" class="activity-page__record-group">
-              <text class="activity-page__record-group-title">{{tr.wholeValues}}</text>
-              <view wx:for="{{view.saved}}" wx:key="label" class="activity-page__record-row">
-                <text>{{item.label}}<text class="activity-page__record-source ts-muted">{{tr.whole}}</text></text>
-                <text class="activity-page__record-value ts-value">{{item.value}}</text>
-              </view>
-            </view>
-            <text wx:if="{{!view.savedCount}}" class="activity-page__hint">{{tr.noneSaved}}</text>
-            <text wx:if="{{view.saved.length}}" class="activity-page__hint">{{tr.activitySource}}: {{view.source}}
-              <text wx:if="{{view.environmentSource}}"> · {{tr.environmentSource}}: {{view.environmentSource}}</text>
-              · {{tr.fieldSource}}
-            </text>
-            <text wx:if="{{view.hasReferenceScores}}" class="activity-page__hint">{{tr.reference}}</text>
-          </block>
+          </view>
         </view>
       </block>
     </view>
