@@ -235,7 +235,7 @@ def test_history_confirmation_is_idempotent_and_owner_scoped(goal_api) -> None:
     _add_activity(
         db_session,
         activity_id="history-run",
-        observed_date=date(2026, 8, 9),
+        observed_date=_athlete_today() - timedelta(days=1),
         distance_km=5.06,
         duration_sec=1_240,
     )
@@ -821,7 +821,7 @@ def test_current_history_blocks_optional_test_scheduling(goal_api) -> None:
     _add_activity(
         db_session,
         activity_id="already-current",
-        observed_date=date(2026, 8, 10),
+        observed_date=_athlete_today() - timedelta(days=1),
         distance_km=5.0,
         duration_sec=1235,
     )
@@ -840,7 +840,7 @@ def test_current_history_blocks_optional_test_scheduling(goal_api) -> None:
     scheduled = client.post(
         "/api/goal/baseline/test",
         headers={**_headers("goal-baseline-owner"), "Idempotency-Key": "goal-test-schedule-blocked"},
-        json={"action": "schedule", "scheduled_date": "2026-08-20"},
+        json={"action": "schedule", "scheduled_date": SCHEDULED_TEST_DATE_STR},
     )
     assert scheduled.status_code == 409
     assert scheduled.json()["detail"]["message"] == (

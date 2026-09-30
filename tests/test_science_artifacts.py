@@ -488,15 +488,8 @@ def test_active_contract_requires_implementation_approval(
             role=ReviewRole.IMPLEMENTATION_REVIEWER,
         ),
     )
-    registry = load_science_registry(science_dir)
-    sync_science_artifacts(registry, check=False)
-    loaded = load_policy_contract(
-        _DECISION_ID,
-        science_dir=science_dir,
-        require_active=True,
-    )
-    assert loaded.runtime_state == ArtifactRuntimeState.ACTIVE
-    assert loaded.parameter_values
+    with pytest.raises(ValueError, match="code-bound review mechanism"):
+        load_science_registry(science_dir)
 
 
 def test_approval_roles_require_complete_scopes() -> None:

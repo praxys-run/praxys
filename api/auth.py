@@ -292,6 +292,20 @@ def require_account_deletion_access(
     return user_id
 
 
+def is_dfa_rights_route(method: str, path: str) -> bool:
+    """Only erasure/revocation/cancellation survive stopped processing."""
+    base = r"/api/activities/[^/]+/dfa-alpha1"
+    return ((method == "DELETE" and re.fullmatch(base + r"(?:/source-confirmations/[^/]+)?", path) is not None)
+            or (method == "POST" and re.fullmatch(base + r"/runs/[^/]+/cancel", path) is not None))
+
+
+def require_dfa_rights_access(request: Request, db: Session = Depends(get_db)) -> str:
+    """Owner first-party rights, with no terms, processing or demo redirect."""
+    if not is_dfa_rights_route(request.method.upper(), request.url.path):
+        raise HTTPException(403, "DFA rights route required")
+    return require_account_deletion_access(request, db)
+
+
 def get_data_user_id(request: Request, db: Session = Depends(get_db)) -> str:
     """Get the user_id whose data should be displayed.
 

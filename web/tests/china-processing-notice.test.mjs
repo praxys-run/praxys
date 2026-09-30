@@ -306,7 +306,7 @@ test("auth prefetch and provider mounting honor the pre-transfer boundary", asyn
   assert.match(settings, /<PlatformConnectionNotice platform=\{connectPlatform\} \/>/);
   assert.match(
     miniClient.replace(/\s+/g, " "),
-    /if \(!hasAcknowledgedChinaProcessingNotice\(\)\) \{ redirectToProcessingNotice\(\); throw/,
+    /if \(!dfaRights && !hasAcknowledgedChinaProcessingNotice\(\)\) \{ redirectToProcessingNotice\(\); throw/,
   );
   assert.match(miniClient, /'X-Praxys-Client': 'wechat-miniapp'/);
   assert.match(

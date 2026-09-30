@@ -10,12 +10,29 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from api.auth import get_current_user_id, get_data_user_id
+from api.activity_detail import get_activity_detail
 from api.etag import ENDPOINT_SCOPES, ETagGuard, compute_etag
 from api.packs import RequestContext, get_history_pack
 from api.stryd_access import stryd_connection_enabled
+from db.models import User
 from db.session import get_db
 
 router = APIRouter()
+
+
+@router.get("/history/{activity_id}/detail")
+def get_history_detail(
+    activity_id: str,
+    viewer_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Return only one owned activity and its recorded, non-GPS streams."""
+    if db.query(User.is_demo).filter(User.id == viewer_user_id).scalar():
+        raise HTTPException(status_code=404, detail="Activity not found")
+    detail = get_activity_detail(viewer_user_id, db, activity_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return detail
 
 
 @router.get("/history")
@@ -32,6 +49,9 @@ def get_history(
     user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ):
+    activity_detail_available = not bool(
+        db.query(User.is_demo).filter(User.id == viewer_user_id).scalar()
+    )
     stryd_enabled = stryd_connection_enabled(
         db,
         user_id=viewer_user_id,
@@ -49,7 +69,7 @@ def get_history(
         db, user_id, ENDPOINT_SCOPES["history"],
         salt=(
             f"limit={limit}&offset={offset}&source={source or ''}"
-            f"&stryd={int(stryd_enabled)}"
+            f"&stryd={int(stryd_enabled)}&detail={int(activity_detail_available)}"
         ),
     )
     guard = ETagGuard(etag, request.headers.get("if-none-match"))
@@ -74,6 +94,7 @@ def get_history(
         "limit": limit,
         "offset": offset,
         "source_filter": pack["source_filter"],
+        "activity_detail_available": activity_detail_available,
         "training_base": ctx.config.training_base,
         "display": ctx.display,
     }

@@ -76,10 +76,11 @@ repository remains the only source of truth. Agents load the authoritative
 `wechatide-skill` from that installation, so DevTools upgrades update the tool
 contract without a stale vendored copy. Stable DevTools remains separate.
 
-Tencent provides no headless or no-focus simulator mode. To prevent accidental
-desktop interruption, `scripts/wechatide` refuses to launch the Windows CLI
-unless the user has approved foreground use and that one invocation is
-prefixed with `WECHATIDE_ALLOW_FOREGROUND=1`. Do not export it globally.
+Tencent provides no headless or no-focus simulator mode. Authorized miniapp
+work may launch visible DevTools through `scripts/wechatide` without a separate
+foreground question or `WECHATIDE_ALLOW_FOREGROUND`. Honor explicit user
+restrictions and reuse one project window; close only task-owned windows,
+preserving pre-existing and unrelated windows.
 Guaranteed isolation requires a separate Windows session or VM; WSL2 shares
 the user's desktop. Supported non-simulator build, preview, and upload work
 should use

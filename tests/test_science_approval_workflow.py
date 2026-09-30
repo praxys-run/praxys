@@ -605,28 +605,16 @@ def test_verifier_blocks_unbound_implementation_approval(
     shutil.copytree(base_dir, head_dir)
     registry = load_science_registry(head_dir)
     contract = build_policy_contract(registry, decision.id)
-    implementation = _approval(
-        subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
-        subject_id=decision.id,
-        subject_digest=contract.contract_digest,
-        role=ReviewRole.IMPLEMENTATION_REVIEWER,
-        source_ref=(
-            "https://github.com/praxys-run/praxys/pull/1"
-            "#issuecomment-12"
-        ),
-    )
-    _write_yaml(
-        head_dir / "approvals" / "implementation.yaml",
-        implementation.model_dump(mode="json"),
-    )
-    load_science_registry(head_dir)
-
     with pytest.raises(ValueError, match="code-bound review mechanism"):
-        verify_science_approval_changes(
-            base_dir,
-            head_dir,
-            [],
-            {},
+        implementation = _approval(
+            subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
+            subject_id=decision.id,
+            subject_digest=contract.contract_digest,
+            role=ReviewRole.IMPLEMENTATION_REVIEWER,
+            source_ref=(
+                "https://github.com/praxys-run/praxys/pull/1"
+                "#issuecomment-12"
+            ),
         )
 
 

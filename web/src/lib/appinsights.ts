@@ -28,6 +28,7 @@ import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from 'web-vitals'
 
 import { isAppInsightsAllowed, isChinaFrontendDeployment } from './runtime-region'
 import { hasAcknowledgedChinaProcessingNotice } from './china-processing'
+import { redactActivityUrl } from './activity-telemetry'
 
 const CONNECTION_STRING = import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING ?? ''
 const REGIONAL_URL_FIELD = /(?:url|uri|referrer|target)/i
@@ -72,14 +73,14 @@ export function initAppInsights(): ApplicationInsights | null {
   return appInsights
 }
 
-function stripQueryAndFragment(value: unknown): unknown {
+function sanitizeUrl(value: unknown, chinaDeployment: boolean): unknown {
   if (typeof value !== 'string') return value
-  return value.replace(/[?#].*$/, '')
+  const redacted = redactActivityUrl(value)
+  return chinaDeployment ? redacted.replace(/[?#].*$/, '') : redacted
 }
 
-/** Remove URL parameters before a regional browser envelope leaves Praxys. */
 function sanitizeRegionalTelemetry(envelope: ITelemetryItem): void {
-  if (!isChinaFrontendDeployment()) return
+  const chinaDeployment = isChinaFrontendDeployment()
   const baseData = envelope.baseData as Record<string, unknown> | undefined
   if (!baseData) return
   // Dependency telemetry stores its method-prefixed URL in `name` as well as
@@ -92,15 +93,26 @@ function sanitizeRegionalTelemetry(envelope: ITelemetryItem): void {
     'target',
     'refUri',
     'referrerUri',
+    'referrer',
+    'referrerUrl',
   ]) {
-    if (key in baseData) baseData[key] = stripQueryAndFragment(baseData[key])
+    if (key in baseData) baseData[key] = sanitizeUrl(baseData[key], chinaDeployment)
   }
-  const properties = baseData.properties
-  if (!properties || typeof properties !== 'object') return
-  for (const [key, value] of Object.entries(properties)) {
-    if (REGIONAL_URL_FIELD.test(key)) {
-      (properties as Record<string, unknown>)[key] = stripQueryAndFragment(value)
+  for (const properties of [baseData.properties, envelope.data]) {
+    if (!properties || typeof properties !== 'object') continue
+    for (const [key, value] of Object.entries(properties)) {
+      if (typeof value === 'string') {
+        (properties as Record<string, unknown>)[key] = sanitizeUrl(
+          value, chinaDeployment && REGIONAL_URL_FIELD.test(key),
+        )
+      }
     }
+  }
+  const trace = envelope.ext?.trace
+  if (trace && typeof trace.name === 'string') trace.name = redactActivityUrl(trace.name)
+  const tags = envelope.tags
+  if (tags && typeof tags['ai.operation.name'] === 'string') {
+    tags['ai.operation.name'] = redactActivityUrl(tags['ai.operation.name'])
   }
 }
 

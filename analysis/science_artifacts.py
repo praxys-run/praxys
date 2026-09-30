@@ -13,7 +13,10 @@ from typing import Annotated, Any, Literal
 from pydantic import AnyHttpUrl, Field, JsonValue, model_validator
 import yaml
 
+from analysis.science_yaml import load_science_yaml
+
 from analysis.evidence_registry import (
+    _yaml_paths,
     ApprovalMode,
     ArtifactRuntimeState,
     ClaimId,
@@ -35,6 +38,28 @@ _CONTRACT_DIR = Path("generated") / "contracts"
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 Digest = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+GitRevision = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+
+
+class ImplementationBinding(RegistryModel):
+    """Immutable source and independently produced validation envelope."""
+
+    version: Literal[1]
+    repository: Annotated[str, Field(pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")]
+    pull_request: int = Field(gt=0)
+    base_sha: GitRevision
+    reviewed_head_sha: GitRevision
+    diff_digest: Digest
+    active_contract_digest: Digest
+    validation_run_id: int = Field(gt=0)
+    validation_run_attempt: int = Field(gt=0)
+    validation_workflow_sha: GitRevision
+    validation_artifact_id: int = Field(gt=0)
+    validation_digest: Digest
+
+    @property
+    def envelope_digest(self) -> str:
+        return digest_payload(self.model_dump(mode="json"))
 
 
 class ReviewSubjectKind(StrEnum):
@@ -103,7 +128,7 @@ _REQUIRED_SCOPES = {
 class ScienceApproval(RegistryModel):
     """One role-scoped human attestation bound to an immutable digest."""
 
-    schema_version: Literal[1]
+    schema_version: Literal[1, 2]
     subject_kind: ReviewSubjectKind
     subject_id: RecordId
     subject_digest: Digest
@@ -112,10 +137,18 @@ class ScienceApproval(RegistryModel):
     reviewed_on: date
     scopes: list[ReviewScope] = Field(min_length=1)
     source_ref: AnyHttpUrl
+    implementation_binding: ImplementationBinding | None = None
 
     @model_validator(mode="after")
     def validate_role_and_scope(self) -> "ScienceApproval":
         """Require the role's exact subject type and complete review scope."""
+        if self.role == ReviewRole.IMPLEMENTATION_REVIEWER:
+            if self.schema_version != 2 or self.implementation_binding is None:
+                raise ValueError("Implementation approval requires a code-bound review mechanism")
+            if self.subject_digest != self.implementation_binding.active_contract_digest:
+                raise ValueError("Implementation binding must match the active contract")
+        elif self.schema_version != 1 or self.implementation_binding is not None:
+            raise ValueError("Only implementation approvals may carry implementation binding")
         if not self.reviewer.startswith(("github:", "orcid:")):
             raise ValueError(
                 "science approvals require an identified human reviewer"
@@ -300,12 +333,9 @@ def load_science_approvals(
     if not approval_dir.is_dir():
         return []
     approvals: list[ScienceApproval] = []
-    for path in sorted(
-        [*approval_dir.rglob("*.yaml"), *approval_dir.rglob("*.yml")],
-        key=lambda item: item.as_posix(),
-    ):
+    for path in _yaml_paths(approval_dir):
         with path.open(encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle)
+            raw = load_science_yaml(handle)
         if not isinstance(raw, dict):
             raise ValueError(f"Science approval must be a mapping: {path}")
         approvals.append(ScienceApproval.model_validate(raw))
@@ -382,6 +412,9 @@ def validate_registry_approvals(registry: ScienceRegistry) -> None:
                 f"Active implementation contract {decision.id} requires an "
                 "implementation_reviewer approval artifact"
             )
+
+    from analysis.science_implementation_stop import validate_registry_stops
+    validate_registry_stops(registry)
 
 
 def _approval_subject_digest(
@@ -854,6 +887,8 @@ def expected_science_artifacts(
         expected[_CONTRACT_DIR / f"{decision.id}.json"] = (
             render_policy_contract_json(contract)
         )
+    from analysis.science_implementation_stop import expected_stop_artifacts
+    expected.update(expected_stop_artifacts(registry))
     return expected
 
 
@@ -870,6 +905,7 @@ def sync_science_artifacts(
         for directory, suffix in (
             (science_dir / _REVIEW_PACKET_DIR, ".md"),
             (science_dir / _CONTRACT_DIR, ".json"),
+            (science_dir / "generated/implementation-stops", ".md"),
         )
         if directory.is_dir()
         for path in directory.glob(f"*{suffix}")
@@ -912,6 +948,8 @@ def load_policy_contract(
             f"Generated science contract {decision_id} is stale"
         )
     if require_active:
+        from analysis.science_implementation_stop import require_not_stopped
+        require_not_stopped(registry, decision_id)
         if contract.decision_status != RecordStatus.ACCEPTED:
             raise ValueError(
                 f"Science contract {decision_id} is not accepted"

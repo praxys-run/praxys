@@ -3520,6 +3520,71 @@ export interface Activity {
   splits: SplitData[];
 }
 
+export interface ActivityDetailSample {
+  offset_sec: number;
+  /** The stored sample row's source, not a per-field provider guarantee. */
+  source: string;
+  power_watts: number | null;
+  hr_bpm: number | null;
+  pace_sec_km: number | null;
+  cadence_spm: number | null;
+  speed_ms: number | null;
+  altitude_m: number | null;
+  grade_pct: number | null;
+  temperature_c: number | null;
+  ground_time_ms: number | null;
+  oscillation_mm: number | null;
+  vertical_ratio: number | null;
+  leg_spring_kn_m: number | null;
+  form_power_watts: number | null;
+  respiration_rate: number | null;
+  power_watts_break: boolean;
+  hr_bpm_break: boolean;
+  pace_sec_km_break: boolean;
+  cadence_spm_break: boolean;
+  speed_ms_break: boolean;
+  altitude_m_break: boolean;
+  grade_pct_break: boolean;
+  temperature_c_break: boolean;
+  ground_time_ms_break: boolean;
+  oscillation_mm_break: boolean;
+  vertical_ratio_break: boolean;
+  leg_spring_kn_m_break: boolean;
+  form_power_watts_break: boolean;
+  respiration_rate_break: boolean;
+}
+
+export interface ActivityKilometerSplit {
+  split_num: number;
+  start_offset_sec: number;
+  end_offset_sec: number;
+  distance_km: number;
+  duration_sec: number;
+  pace_sec_km: number | null;
+}
+
+export type KilometerUnavailableReason =
+  | 'samples_unavailable'
+  | 'distance_trace_unavailable'
+  | 'distance_trace_incomplete'
+  | 'distance_trace_non_monotonic'
+  | 'distance_below_display_precision'
+  | 'start_time_unverified'
+  | 'duration_alignment_unverified'
+  | 'activity_distance_mismatch';
+
+export interface ActivityDetailResponse {
+  activity: Activity;
+  training_base: TrainingBase;
+  samples: ActivityDetailSample[];
+  sample_count: number;
+  sample_sources: string[];
+  time_origin: 'activity_start' | 'sample_start' | 'none';
+  kilometer_splits: ActivityKilometerSplit[];
+  kilometer_unavailable_reason: KilometerUnavailableReason | null;
+  privacy: { gps_included: false; raw_distance_trace_included: false };
+}
+
 export interface StableActivitySegment {
   source: 'samples' | 'splits';
   stability_state: 'evaluated' | 'not_evaluable';
@@ -3770,6 +3835,7 @@ export type AiInsightsResponse = {
 
 export interface HistoryResponse {
   activities: Activity[];
+  activity_detail_available: boolean;
   total: number;
   limit: number;
   offset: number;
@@ -4554,4 +4620,50 @@ export interface WaitlistInviteResult {
   email: string;
   invite_url: string;
   expires_at: string | null;
+}
+
+/** Post-run DFA, immutable recording versions and user-confirmed ECG source. */
+export interface DFAInput {
+  provider: 'garmin'; user_id: string; account_id: string; activity_id: string;
+  snapshot_id: string; parse_id: string; sha256: string; parser_version: string;
+}
+export interface DFASourceConfirmation {
+  id: string; snapshot_id: string; parse_id: string; sensor_ref: string;
+  sensor_label: string; statement_version: string; created_at: string;
+  source_assurance: 'user_confirmed';
+}
+export interface DFAWindow {
+  index: number; block: number; start_ms: number; end_ms: number;
+  alpha1: number | null; r2: number | null; hr_bpm: number | null;
+  reasons: string[]; flags: string[]; beat_count: number; coverage_ms: number;
+  offset_ms: number | null; offset_width_ms: number | null;
+  rr_index_start: number | null; rr_index_end: number | null;
+}
+export interface DFARun {
+  id: string; phase: 'prepare' | 'compute';
+  status: 'queued' | 'running' | 'awaiting_source_confirmation' | 'complete' | 'unavailable' | 'failed' | 'cancelled';
+  generation: number; freshness: 'current' | 'stale'; progress: string; retry_after_seconds?: number;
+  error_code: string | null; created_at: string; completed_at: string | null;
+  expires_at: string | null; method_version: string; science_contract_digest: string; snapshot_id: string; parse_id: string;
+  source_confirmation_id: string | null; result_revision: string | null;
+  sensors?: { sensor_ref: string; label: string; rule_fingerprint: string }[];
+  evidence_digest?: string; statement_version?: string;
+  source_assurance?: 'user_confirmed'; time_alignment?: 'estimated';
+  availability?: 'available' | 'no_valid_windows';
+  summary?: { scheduled_windows: number; valid_windows: number; window_success_rate: number | null;
+    supported_time_ratio: number | null; short_blocks: number; excluded_reasons: Record<string, number> };
+  navigation?: { start_ms: number; end_ms: number; timer_blocks: [number, number][];
+    support: [number, number][]; page_size: number; page_anchors: { offset: number; time_ms: number }[] };
+  windows?: DFAWindow[];
+  page?: { offset: number; limit: number; total: number; next_offset: number | null };
+}
+export interface DFACatalog {
+  activity_id: string; inputs: { input: DFAInput; created_at: string }[];
+  catalog_revision: string; source_confirmations: DFASourceConfirmation[];
+  latest_run: DFARun | null; availability: 'ready' | 'original_unavailable' | 'provider_unsupported' | 'activity_type_unsupported';
+  policy_active: boolean; processing_authorized: boolean; statement_version: string;
+}
+export interface DFAContext {
+  result_revision: string; samples_revision: string; overlay_version: string; offset: number;
+  windows: { index: number; power_watts: number | null; pace_sec_km: number | null }[];
 }

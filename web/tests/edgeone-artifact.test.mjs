@@ -11,8 +11,46 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { prepareEdgeOneArtifact } from '../scripts/prepare-edgeone-artifact.mjs';
+import { rewrittenPath } from '../scripts/check-edgeone-routing.mjs';
 
 const SOURCE_SHA = '0123456789abcdef0123456789abcdef01234567';
+
+test('EdgeOne serves nested and encoded activity history links from the app shell', async () => {
+  const { rewrites } = JSON.parse(await readFile(new URL('../edgeone.json', import.meta.url), 'utf8'));
+  for (const request of [
+    '/history/synthetic-id',
+    '/history/synthetic-id/',
+    '/history/synthetic-id/nested',
+    '/history/synthetic%2Fid?metric=power%20watts&next=%2Fhistory%2Fother',
+    '/history/%E6%B5%8B%E8%AF%95?metric=hr#cursor-10',
+    '/history/synthetic%3Fid%23part?metric=pace',
+  ]) {
+    const { pathname } = new URL(request, 'https://praxys.cn');
+    assert.equal(rewrittenPath(pathname, rewrites), '/app-shell.html', request);
+  }
+});
+
+test('EdgeOne history fallback preserves static resources and API routes', async () => {
+  const { rewrites } = JSON.parse(await readFile(new URL('../edgeone.json', import.meta.url), 'utf8'));
+  for (const request of [
+    '/assets/client/app.js?v=synthetic',
+    '/assets/client/app.css?v=synthetic',
+    '/assets/client/data.woff2',
+    '/fonts/display.woff2',
+    '/sw.js?version=synthetic',
+    '/healthz',
+    '/deployed_sha.txt',
+    '/api',
+    '/api/history/synthetic-id/detail?metric=hr',
+    '/api/history',
+    '/api/status',
+    '/historyish/synthetic-id',
+    '/history.json',
+  ]) {
+    const { pathname } = new URL(request, 'https://praxys.cn');
+    assert.equal(rewrittenPath(pathname, rewrites), pathname, request);
+  }
+});
 
 test('EdgeOne artifact preparation stamps health and ICP metadata', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'praxys-edgeone-'));

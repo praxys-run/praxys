@@ -161,13 +161,13 @@ For miniapp UI changes, WeChat DevTools/Skyline rendered evidence remains a
 human-capable boundary when that runtime is unavailable in the cloud session.
 Fill every UI evidence field truthfully and leave the PR draft. Draft CI accepts
 explicitly pending evidence, but the ready-for-review gate remains strict.
-On Windows + WSL2, never start WeChat simulator work from an unattended
-background agent unless the user explicitly approved foreground interruption
-for that time window. Follow `wechat-devtools`, scope
-`WECHATIDE_ALLOW_FOREGROUND=1` to each approved command, reuse one project
-window, and close it when the bounded pass ends. Never use Win32 focus APIs,
-cursor movement, synthetic mouse/keyboard events, or raw desktop coordinates
-as a fallback.
+On Windows + WSL2, authorized miniapp work may visibly launch registered
+DevTools through `wechat-devtools` without a separate foreground question or
+environment opt-in. Honor explicit user restrictions and Tencent readiness,
+login, client/token, pending-task and sensitive-action gates. Reuse one project
+window; close only task-owned windows when the bounded pass ends and preserve
+pre-existing or unrelated windows. Never use Win32 focus APIs, cursor movement,
+synthetic mouse/keyboard events, or raw desktop coordinates as a fallback.
 
 Do not merge, approve, or independently verify your own PR. Independent
 repository policy owns review and merge.

@@ -1,0 +1,29 @@
+.dfa-overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 200; display: flex; align-items: flex-end; background: rgba(0, 0, 0, 0.48); }
+.dfa-sheet { width: 100%; height: 88vh; max-height: 88vh; overflow: hidden; box-sizing: border-box; border-radius: 24rpx 24rpx 0 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.dfa-head { flex: none; display: flex; gap: 24rpx; justify-content: space-between; align-items: flex-start; padding: 36rpx 32rpx 20rpx; border-bottom: 1rpx solid var(--border); }
+.dfa-head > view { flex: 1; min-width: 0; }
+.dfa-close { flex: none; min-width: 44px; }
+.dfa-title { display: block; font-size: 38rpx; font-weight: 600; }
+.dfa-scroll { flex: 1; min-height: 0; }
+.dfa-body { padding: 24rpx 32rpx calc(64rpx + env(safe-area-inset-bottom)); }
+.dfa-section { padding: 24rpx 0; border-bottom: 1rpx solid var(--border); }
+.dfa-heading { display: block; font-size: 32rpx; font-weight: 600; margin-bottom: 16rpx; }
+.dfa-copy { display: block; font-size: 28rpx; line-height: 1.65; margin: 16rpx 0; }
+.dfa-hint { display: block; font-size: 24rpx; color: var(--text-muted); line-height: 1.65; margin: 12rpx 0; }
+.dfa-button { display: flex; align-items: center; justify-content: center; min-height: 44px; line-height: 1.4; padding: 12rpx 20rpx; box-sizing: border-box; font-size: 26rpx; margin: 12rpx 0; border: 1rpx solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+.dfa-button::after { border: 0; }
+.dfa-button[disabled] { opacity: .5; }
+.dfa-primary { background: var(--primary); color: var(--primary-on); }
+.dfa-check { display: flex; align-items: flex-start; min-height: 44px; padding: 20rpx 0; gap: 16rpx; font-size: 28rpx; line-height: 1.6; }
+.dfa-check checkbox { flex: none; }
+.dfa-summary { display: flex; gap: 32rpx; justify-content: space-between; padding: 16rpx 0; border-top: 1rpx solid var(--border); border-bottom: 1rpx solid var(--border); }
+.dfa-coverage { height: 32rpx; position: relative; background: var(--border); margin: 20rpx 0; }
+.dfa-span { position: absolute; top: 0; height: 100%; }
+.dfa-span--unsupported { background: var(--text-muted); }
+.dfa-span--supported { background: var(--accent-cobalt); }
+.dfa-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16rpx; margin: 20rpx 0; }
+.dfa-window { padding: 20rpx 0; border-bottom: 1rpx solid var(--border); font-size: 24rpx; line-height: 1.6; }
+.dfa-window > text { display: block; }
+.dfa-science { color: var(--accent-cobalt); border-color: transparent; justify-content: flex-start; padding-left: 0; }
+
+.dfa-page-outline { position: absolute; top: 0; height: 100%; border: 2px solid var(--text); box-sizing: border-box; }

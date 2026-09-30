@@ -6,6 +6,16 @@ import ts from "typescript";
 
 const sourceRoot = new URL("../src/", import.meta.url);
 
+test("authentication transitions clear in-memory personal-data queries", async () => {
+  const source = await readFile(new URL("../src/hooks/useAuth.tsx", import.meta.url), "utf8");
+  const restored = source.slice(source.indexOf("const clearRestoredSession"), source.indexOf("const login = useCallback"));
+  const login = source.slice(source.indexOf("const login = useCallback"), source.indexOf("const register = useCallback"));
+  const logout = source.slice(source.indexOf("const logout = useCallback"), source.indexOf("const acceptTerms = useCallback"));
+  for (const action of [restored, login, logout]) {
+    assert.match(action, /queryClient\.clear\(\)/);
+  }
+});
+
 const rawFetchAllowlist = new Map([
   ["hooks/useApi.ts", { expected: 1, argument: /^fullUrl$/ }],
   ["hooks/useAuth.tsx", {

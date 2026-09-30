@@ -86,7 +86,7 @@ Engineering capabilities preserve repository-specific rules:
 | Data pipeline | `sync/`, `db/sync_writer.py`, `db/models.py`, `analysis/data_loader.py` | All sync writes use `db/sync_writer.py` upserts |
 | Analysis | `analysis/metrics.py`, `api/deps.py` | Metrics are pure; intensity uses splits/samples, never activity `avg_power` |
 | API | `api/main.py`, `api/deps.py`, `api/auth.py`, `api/routes/` | Routes stay thin; authenticated data is recomputed through deps; only register/token are public |
-| Frontend | `web/src/`, `miniapp/` | Use `useApi<T>`, strict types, UI quality, and web/miniapp parity; use `wechat-devtools` only in a user-approved foreground window |
+| Frontend | `web/src/`, `miniapp/` | Use `useApi<T>`, strict types, UI quality, and web/miniapp parity; use `wechat-devtools` for authorized miniapp work, honoring explicit user restrictions and Tencent authorization gates |
 | AI features | `api/ai.py`, `api/routes/ai.py`, `analysis/providers/ai.py`, `plugins/praxys/` | Azure AI is an ordinary authenticated-service capability, not an optional enhancement. During an outage or emergency stop, AI-only features report unavailable while separately labelled deterministic metrics continue; deterministic content is never presented as AI. Plugin edits land in its submodule repository first |
 
 ### Architecture
@@ -223,3 +223,12 @@ materialize human authority.
 - `python scripts/seed_sample_data.py` copies sample data for local testing.
 - `python scripts/generate_sample_data.py` regenerates fixtures after schema
   changes.
+
+## Cooperative local decision-card trial
+
+After deterministic routing, local orchestration follows
+`docs/dev/agent-decision-card-trial.md` and `scripts/local_decision_trial.py`.
+The separate cooperative cohort uses sticky task IDs, an independent checkpoint
+at 8 and a cap of 16. Its same-user-editable ledger confers no authority; missing
+coverage means baseline and unenrolled, never an A success. Existing review,
+Quality, CI and human authority remain unchanged. The protected trial stays off.

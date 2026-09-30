@@ -164,6 +164,15 @@ def _delete_user_owned_rows(
     * ``feedback_publication_outbox.feedback_id`` (nullable) — private feedback
       is deleted, while marker/digest delivery evidence is detached and retained.
     """
+    from db.models import (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
+                           GarminConnectIQJob, GarminFitSnapshot)
+    from api.activity_dfa import _erase
+    _erase(db, {"user_id": user_id, "scope": "owner", "target_id": user_id,
+                "requested_at": datetime.utcnow().isoformat()})
+    for model in (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
+                  GarminConnectIQJob, GarminFitSnapshot):
+        db.query(model).filter_by(user_id=user_id).delete(synchronize_session=False)
+
     feedback_refs = [str(feedback_id) for feedback_id in feedback_ids]
     _detach_feedback_publication_evidence(
         db,
@@ -561,11 +570,14 @@ def _delete_user_account_locked(
     )
 
     try:
+        from api import activity_dfa_storage
+        dfa_manifests = [activity_dfa_storage.request(owner_id, "owner", owner_id, "account_deletion")
+                         for owner_id in [user_id, *demo_user_ids]]
         context_manifests = stage_account_deletion_manifests(
             db,
             [user_id, *demo_user_ids],
         )
-    except PersonalContextDeletionError:
+    except (PersonalContextDeletionError, activity_dfa_storage.StorageError):
         db.rollback()
         logger.error("Account context deletion manifest staging failed")
         raise HTTPException(503, "ACCOUNT_DELETE_STORAGE_UNAVAILABLE")
@@ -669,6 +681,9 @@ def _delete_user_account_locked(
     from api.personal_context import complete_account_deletion_manifests
 
     complete_account_deletion_manifests(context_manifests)
+    from api.activity_dfa import _complete_manifest
+    for manifest in dfa_manifests:
+        _complete_manifest(manifest)
     for deleted_user_id in deleted_user_ids:
         _clear_tokenstore(deleted_user_id)
         _clear_legacy_plan_status(db, deleted_user_id)

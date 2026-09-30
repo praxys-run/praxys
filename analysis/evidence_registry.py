@@ -27,6 +27,8 @@ from pydantic import (
 )
 import yaml
 
+from analysis.science_yaml import load_science_yaml
+
 
 _SCIENCE_DIR = Path(__file__).resolve().parents[1] / "data" / "science"
 _DOI_RE = re.compile(r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$", re.IGNORECASE)
@@ -677,7 +679,7 @@ def _yaml_paths(directory: Path) -> list[Path]:
 def _load_yaml(path: Path) -> dict[str, Any]:
     """Load one YAML mapping with a path-specific error for malformed roots."""
     with path.open(encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle)
+        raw = load_science_yaml(handle)
     if not isinstance(raw, dict):
         raise ValueError(f"Registry record must be a mapping: {path}")
     return raw

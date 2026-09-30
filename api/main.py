@@ -1,9 +1,16 @@
 """Praxys API — FastAPI application with SQLite backend and JWT auth."""
 import logging
 import os
-from contextlib import asynccontextmanager
+import re
+import time
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+from api.activity_telemetry import configure_activity_access_logging, sanitize_activity_span
+
+
+configure_activity_access_logging()
 
 
 def _configure_httpx_logging_boundary() -> None:
@@ -51,9 +58,15 @@ if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
             if _mi_client_id
             else ManagedIdentityCredential()
         )
-        configure_azure_monitor(credential=_credential)
+        configure_azure_monitor(
+            credential=_credential,
+            instrumentation_options={"fastapi": {"enabled": False}},
+        )
     else:
-        configure_azure_monitor()
+        configure_azure_monitor(instrumentation_options={"fastapi": {"enabled": False}})
+
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FastAPIInstrumentor().instrument(server_request_hook=sanitize_activity_span)
 
     # configure_azure_monitor attaches a LoggingHandler to the root logger,
     # which means anything these libraries log at INFO gets shipped back into
@@ -78,6 +91,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.concurrency import run_in_threadpool
 
 from api.auth import (
     get_current_user_id,
@@ -107,12 +121,43 @@ from db.session import init_db
 
 
 _FEEDBACK_OWNER_STATUS_PATH = "/api/me/feedback/status"
+_ACTIVITY_DETAIL_PATH = re.compile(r"^/api/history/[^/]+/detail/?$")
 _PRIVATE_NO_STORE = "private, no-store"
 
 
 def _is_feedback_owner_status_path(path: str) -> bool:
     """Match only the fixed owner-status path, excluding image/admin routes."""
     return path == _FEEDBACK_OWNER_STATUS_PATH
+
+
+class DFAResponsePrivacyMiddleware:
+    """Protect the complete DFA route family, including authorization errors."""
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = str(scope.get("path", ""))
+        parts = path.split("/")
+        private = (scope.get("type") == "http" and len(parts) >= 5
+                   and parts[1:3] == ["api", "activities"] and parts[4] == "dfa-alpha1")
+        started = False
+        async def send_private(message: Message) -> None:
+            nonlocal started
+            if private and message["type"] == "http.response.start":
+                started = True
+                headers = MutableHeaders(scope=message)
+                headers["Cache-Control"] = _PRIVATE_NO_STORE
+                if "ETag" in headers:
+                    del headers["ETag"]
+            await send(message)
+        try:
+            await self.app(scope, receive, send_private)
+        except Exception:
+            if not private or started:
+                raise
+            from fastapi.responses import JSONResponse
+            logging.getLogger(__name__).error("DFA request failed")
+            await JSONResponse({"detail": "DFA_REQUEST_FAILED"}, status_code=500)(scope, receive, send_private)
 
 
 class FeedbackOwnerStatusPrivacyMiddleware:
@@ -142,12 +187,55 @@ class FeedbackOwnerStatusPrivacyMiddleware:
         await self.app(scope, receive, send_private)
 
 
+class ActivityDetailPrivacyMiddleware:
+    """Apply no-store to activity detail success and failure responses alike."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if (
+            scope.get("type") != "http"
+            or not _ACTIVITY_DETAIL_PATH.fullmatch(str(scope.get("path", "")))
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def send_private(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+                MutableHeaders(scope=message)["Cache-Control"] = _PRIVATE_NO_STORE
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_private)
+        except Exception:
+            if not response_started:
+                await Response(
+                    "Internal Server Error", status_code=500, media_type="text/plain",
+                )(scope, receive, send_private)
+            raise
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     from api.optional_processing import validate_optional_processing_config
 
     validate_optional_processing_config()
+    from api.telemetry import init_readiness_timing
+    try:
+        init_readiness_timing()
+    except Exception:
+        pass
     init_db()
     from api.personal_context import (
         replay_deletion_manifests,
@@ -199,12 +287,16 @@ async def lifespan(app: FastAPI):
 
         start_dispatcher()
         start_publication_reconciler()
+        from api.activity_dfa_dispatch import start as start_dfa_dispatcher
+        start_dfa_dispatcher()
         if scheduler_enabled:
             from db.sync_scheduler import start_scheduler
 
             start_scheduler()
         yield
     finally:
+        from api.activity_dfa_dispatch import stop as stop_dfa_dispatcher
+        stop_dfa_dispatcher()
         try:
             from api.feedback_publication import stop_publication_reconciler
 
@@ -256,6 +348,7 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(PersonalContextPrivacyMiddleware)
 app.add_middleware(FeedbackOwnerStatusPrivacyMiddleware)
 app.add_middleware(ChinaClientBoundaryMiddleware)
+app.add_middleware(DFAResponsePrivacyMiddleware)
 
 # CORS — use FastAPI middleware for local dev only.
 # On Azure, platform-level CORS is configured via `az webapp cors` and takes
@@ -284,6 +377,8 @@ if is_rate_limit_disabled():
     )
 else:
     app.add_middleware(AuthRateLimitMiddleware)
+
+app.add_middleware(ActivityDetailPrivacyMiddleware)
 
 # Auth routes
 from api.users import fastapi_users, auth_backend
@@ -340,10 +435,14 @@ app.include_router(feedback_router, prefix="/api", tags=["feedback"])
 from api.routes import analysis as activity_analysis_routes
 from api.routes import today, training, goal, history, labs, personal_context, plan, adaptive_plan, outdoor_5k_plan_generation, road_10k_plan_generation, plan_generation_capabilities, settings, sync, science, insights, product_events, status
 from api.routes import ai as ai_routes
+from api.routes import connectiq
+from api.routes import activity_dfa
 
 from api.plan_generation_capabilities import PLAN_GENERATION_CAPABILITIES
 
 router_modules = [
+    activity_dfa,
+    connectiq,
     today,
     training,
     goal,
@@ -378,8 +477,80 @@ def health():
     return {"status": "ok"}
 
 
+def _readiness_clock(clock):
+    try:
+        return clock()
+    except Exception:
+        return None
+
+
+class _ReadinessTiming:
+    """Worker-owned, fixed-size timings, separate from readiness authority."""
+
+    def __init__(self, dispatched, started, cpu_started):
+        self.started, self.cpu_started = started, cpu_started
+        self.samples: list[tuple[str, str, float, str]] = []
+        self.outcome = "completed"
+        self._add("dispatch_queue", "wall", dispatched, started, "completed")
+
+    def _add(self, stage, clock, before, after, outcome):
+        if before is not None and after is not None:
+            self.samples.append((stage, clock, (after - before) / 1_000_000, outcome))
+
+    @contextmanager
+    def stage(self, name, *, cpu=False):
+        started = _readiness_clock(time.perf_counter_ns)
+        cpu_started = _readiness_clock(time.thread_time_ns) if cpu else None
+        outcome = ["completed"]
+        try:
+            yield outcome
+        except BaseException:
+            outcome[0] = "failed"
+            raise
+        finally:
+            self._add(name, "wall", started, _readiness_clock(time.perf_counter_ns), outcome[0])
+            if cpu:
+                self._add(name, "thread_cpu", cpu_started,
+                          _readiness_clock(time.thread_time_ns), outcome[0])
+
+    def finish(self):
+        self._add("handler_total", "wall", self.started,
+                  _readiness_clock(time.perf_counter_ns), self.outcome)
+        self._add("handler_total", "thread_cpu", self.cpu_started,
+                  _readiness_clock(time.thread_time_ns), self.outcome)
+        try:
+            import yaml
+            from analysis.science_yaml import UniqueKeyLoader
+            from api.telemetry import record_readiness_timing
+
+            c_loader = getattr(yaml, "CSafeLoader", None)
+            parser = "c_safe" if c_loader and issubclass(UniqueKeyLoader, c_loader) else "python_safe"
+            record_readiness_timing(self.samples, parser=parser)
+        except Exception:
+            pass
+
+
 @app.get("/api/health/ready")
-def health_ready(response: Response):
+async def health_ready(response: Response):
+    # Use Starlette's existing default limiter/cancellation behavior exactly once.
+    dispatched = _readiness_clock(time.perf_counter_ns)
+    return await run_in_threadpool(_health_ready_worker, response, dispatched)
+
+
+def _health_ready_worker(response: Response, dispatched):
+    started = _readiness_clock(time.perf_counter_ns)
+    cpu_started = _readiness_clock(time.thread_time_ns)
+    timing = _ReadinessTiming(dispatched, started, cpu_started)
+    try:
+        return _health_ready_sync(response, timing)
+    except BaseException:
+        timing.outcome = "failed"
+        raise
+    finally:
+        timing.finish()
+
+
+def _health_ready_sync(response: Response, timing: _ReadinessTiming):
     """Readiness probe (issue #350): verify the database is reachable.
 
     Runs a trivial ``SELECT 1`` so a corrupt / unavailable database reports
@@ -388,30 +559,40 @@ def health_ready(response: Response):
     where nothing alerted). Suitable as the App Service health-check path and
     as a deploy / warmup gate.
     """
+    response.headers["Cache-Control"] = "no-store"
     from sqlalchemy import text as _text
     from api.optional_processing import optional_processing_status
     from db.session import SessionLocal, init_db, is_postgres
 
     if SessionLocal is None:
-        init_db()
+        with timing.stage("db_init"):
+            init_db()
     try:
         db = SessionLocal()
         try:
-            db.execute(_text("SELECT 1"))
+            # This is the same lazy checkout previously done by execute(), not
+            # another connection/query. It includes pre-ping and reconnect work.
+            with timing.stage("db_acquire"):
+                db.connection()
+            with timing.stage("db_select"):
+                db.execute(_text("SELECT 1"))
             from api.channel_processing_authority import (
                 expected_channel_processing_status,
                 shared_channel_processing_snapshot,
             )
 
-            expected_authority = expected_channel_processing_status()
-            shared_authority = shared_channel_processing_snapshot(db)
-            if shared_authority != expected_authority:
-                raise RuntimeError(
-                    "shared China processing authority did not converge"
-                )
+            with timing.stage("shared_authority"):
+                expected_authority = expected_channel_processing_status()
+                shared_authority = shared_channel_processing_snapshot(db)
+                if shared_authority != expected_authority:
+                    raise RuntimeError(
+                        "shared China processing authority did not converge"
+                    )
         finally:
-            db.close()
+            with timing.stage("db_close"):
+                db.close()
     except Exception as exc:
+        timing.outcome = "failed"
         logging.getLogger(__name__).error("readiness probe DB check failed: %s", exc)
         try:
             from api.telemetry import record_db_health
@@ -425,8 +606,10 @@ def health_ready(response: Response):
         response.status_code = 503
         return {"status": "unavailable", "database": "error"}
     try:
-        processing = optional_processing_status()
+        with timing.stage("controls"):
+            processing = optional_processing_status()
     except ValueError as exc:
+        timing.outcome = "failed"
         logging.getLogger(__name__).error(
             "readiness privacy-control config failed: %s",
             exc,
@@ -438,12 +621,25 @@ def health_ready(response: Response):
             "privacy_controls": "invalid",
         }
     china_processing = china_processing_status()
+    from api.activity_dfa import require_policy
+
+    with timing.stage("dfa_policy", cpu=True) as policy_outcome:
+        try:
+            dfa_contract_digest = require_policy()
+        except Exception:
+            # Public observation contains no exception, athlete or result data.
+            policy_outcome[0] = "denied_or_error"
+            dfa_contract_digest = None
     return {
         "status": "ready",
         "database": "ok",
         "optional_processing": processing,
         "china_processing": china_processing,
         "miniapp_processing": miniapp_processing_status(),
+        "dfa_policy": {
+            "policy_active": dfa_contract_digest is not None,
+            "contract_digest": dfa_contract_digest,
+        },
     }
 
 
@@ -523,19 +719,21 @@ def delete_me(
 
 @app.get("/api/me/export")
 def export_my_data(
-    response: Response,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
-    """Download a JSON export containing only the authenticated user's data."""
-    from api.data_export import build_user_data_export
+):
+    """Stream a complete JSON export containing only the caller's data."""
+    from fastapi.responses import StreamingResponse
+    from api.data_export import build_user_data_export, stream_user_data_export
 
     filename_date = datetime.now(timezone.utc).date().isoformat()
-    response.headers["Content-Disposition"] = (
-        f'attachment; filename="praxys-data-export-{filename_date}.json"'
-    )
-    response.headers["Cache-Control"] = "private, no-store"
-    return build_user_data_export(user_id, db)
+    # Validate restore erasures before sending a successful streaming header.
+    prepared = build_user_data_export(user_id, db)
+    return StreamingResponse(stream_user_data_export(user_id, db, prepared),
+        media_type="application/json", headers={
+            "Content-Disposition": f'attachment; filename="praxys-data-export-{filename_date}.json"',
+            "Cache-Control": "private, no-store",
+        })
 
 
 @app.post("/api/me/accept-terms")

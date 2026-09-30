@@ -1,0 +1,121 @@
+name: Validate frozen science activation
+run-name: Validate science activation PR ${{ inputs.pull_request }} at ${{ inputs.candidate_sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      purpose:
+        required: true
+        default: activation
+        type: choice
+        options: [activation, stopped-maintenance]
+      pull_request:
+        required: true
+        type: string
+      candidate_sha:
+        required: true
+        type: string
+      subject_id:
+        required: true
+        type: string
+      active_contract_digest:
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    name: Synthetic activation validation
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install trusted dependency set
+        run: pip install -r trusted/requirements.txt pytest
+      - name: Run synthetic candidate regression
+        working-directory: candidate
+        env:
+          PRAXYS_SYNC_SCHEDULER: 'false'
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: >-
+          python -m pytest -q tests/test_activity_dfa.py
+          tests/test_science_activation.py tests/test_science_activation_github.py
+          tests/test_science_stop_github.py tests/test_science_policy_probe.py tests/test_science_implementation_stop.py tests/test_science_implementation_coverage.py tests/test_science_approval_workflow.py
+          tests/test_science_artifacts.py tests/test_science_yaml.py tests/test_dfa_recovery_workflow.py tests/test_health_ready.py tests/test_telemetry.py tests/test_readiness_quiescence_proof.py
+  probe:
+    name: Isolated actual DFA policy probe
+    if: github.ref == 'refs/heads/main'
+    # GitHub-hosted jobs get fresh runners. Never reuse regression files,
+    # environment, caches or artifacts for the authoritative policy probe.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install trusted dependency set on fresh probe runner
+        run: pip install -r trusted/requirements.txt
+      - name: Require a completed validated actual-policy observation
+        env:
+          CANDIDATE_ROOT: ${{ github.workspace }}/candidate
+          ACTIVATION_SUBJECT: ${{ inputs.subject_id }}
+          ACTIVATION_CONTRACT: ${{ inputs.active_contract_digest }}
+          PROBE_PURPOSE: ${{ inputs.purpose }}
+        run: python trusted/scripts/run_science_policy_probe.py
+  collect:
+    name: Collect immutable activation validation
+    needs: [validate, probe]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install 'pydantic==2.13.4' 'pyyaml==6.0.3'
+      - name: Construct evidence from authenticated job results and static candidate data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python trusted/scripts/collect_science_activation_validation.py
+          --candidate candidate --output validation.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: science-activation-validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: validation.json
+          if-no-files-found: error
+          retention-days: 90

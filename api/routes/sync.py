@@ -1894,6 +1894,21 @@ def _sync_garmin_locked(
                 user_id, atype, e,
             )
     activity_rows = parse_activities(raw_activities)
+    # Originals preserve all Connect IQ applications independently of metric maps.
+    if credential_generation is not None and raw_activities:
+        try:
+            fit_account_id = garmin_profile_account_id(
+                user_id=user_id, is_cn=is_cn,
+                garmin_user_profile_id=garmin_user_profile_id(client),
+            )
+            with db.begin_nested():
+                sync_writer.enqueue_connectiq_activities(
+                    user_id, fit_account_id, credential_generation,
+                    "cn" if is_cn else "international",
+                    [str(a.get("activityId", "")) for a in raw_activities], db,
+                )
+        except Exception:
+            logger.warning("Garmin Connect IQ queue unavailable for user %s", user_id)
     status = _get_user_status(user_id)
     weather_rows_by_id = {
         str(row.get("activity_id")): row

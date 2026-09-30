@@ -219,6 +219,83 @@ class UserConnection(Base):
     )
 
 
+class GarminFitSnapshot(Base):
+    """Private original bytes; identities and hashes never deduplicate owners."""
+    __tablename__ = "garmin_fit_snapshots"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String(100), nullable=False)
+    activity_id = Column(String(100), nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    raw_fit = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    active_parse_id = Column(String(36), nullable=True)
+    __table_args__ = (UniqueConstraint("user_id", "account_id", "activity_id", "sha256", name="uq_garmin_fit_snapshot"),)
+
+
+class GarminFitParse(Base):
+    __tablename__ = "garmin_fit_parses"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
+    parser_version = Column(String(80), nullable=False)
+    status = Column(String(30), nullable=False, default="parsing")
+    error_code = Column(String(80), nullable=True)
+    catalog = Column(JSON, nullable=False, default=list)
+    frame_count = Column(Integer, nullable=False, default=0)
+    developer_field_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class GarminFitChunk(Base):
+    __tablename__ = "garmin_fit_chunks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    frames = Column(JSON, nullable=False)
+    __table_args__ = (UniqueConstraint("parse_id", "chunk_index", name="uq_garmin_fit_chunk"),)
+
+
+class GarminConnectIQJob(Base):
+    __tablename__ = "garmin_connectiq_jobs"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String(100), nullable=True)
+    credential_generation = Column(String(160), nullable=False)
+    region = Column(String(20), nullable=False)
+    kind = Column(String(20), nullable=False)
+    from_date = Column(Date, nullable=True)
+    to_date = Column(Date, nullable=True)
+    discovery_date = Column(Date, nullable=True)
+    discovery_offset = Column(Integer, nullable=False, default=0)
+    discovery_complete = Column(Boolean, nullable=False, default=False)
+    status = Column(String(30), nullable=False, default="queued", index=True)
+    lease_token = Column(String(36), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    next_retry_at = Column(DateTime, nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    error_code = Column(String(80), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (Index("uq_garmin_connectiq_running_owner", "user_id", unique=True,
+                           sqlite_where=text("status = 'running'"),
+                           postgresql_where=text("status = 'running'")),)
+
+
+class GarminConnectIQItem(Base):
+    __tablename__ = "garmin_connectiq_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(String(36), ForeignKey("garmin_connectiq_jobs.id", ondelete="CASCADE"), nullable=False)
+    activity_id = Column(String(100), nullable=False)
+    status = Column(String(30), nullable=False, default="queued")
+    snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="SET NULL"), nullable=True)
+    error_code = Column(String(80), nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    __table_args__ = (UniqueConstraint("job_id", "activity_id", name="uq_garmin_connectiq_item"),)
+
+
 class Activity(Base):
     """Activity data (merged from Garmin/Stryd/etc.)."""
 
@@ -2935,3 +3012,71 @@ class ServiceIncidentUpdate(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     incident = relationship("ServiceIncident", back_populates="updates")
+
+
+class ActivityDFAConfirmation(Base):
+    """Purpose-bound source statement; independent of preparation/cache lifetime."""
+    __tablename__ = "activity_dfa_confirmations"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_id = Column(String(100), nullable=False)
+    snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False)
+    parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
+    recording_ref = Column(JSON, nullable=False)
+    sensor_ref = Column(String(32), nullable=False)
+    sensor_label = Column(String(80), nullable=False)
+    evidence_digest = Column(String(64), nullable=False)
+    rule_fingerprint = Column(String(64), nullable=False)
+    statement_version = Column(String(80), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "snapshot_id", "parse_id", name="uq_dfa_confirmation_input"),)
+
+
+class ActivityDFARun(Base):
+    """Immutable input/method identity; conditional leases fence all publications."""
+    __tablename__ = "activity_dfa_runs"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_id = Column(String(100), nullable=False)
+    snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False)
+    parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
+    confirmation_id = Column(String(36), ForeignKey("activity_dfa_confirmations.id", ondelete="CASCADE"), nullable=True)
+    recording_ref = Column(JSON, nullable=False)
+    input_digest = Column(String(64), nullable=False)
+    method_version = Column(String(80), nullable=False)
+    science_contract_digest = Column(String(71), nullable=False)
+    phase = Column(String(20), nullable=False)
+    status = Column(String(40), nullable=False, default="queued")
+    freshness = Column(String(10), nullable=False, default="current")
+    generation = Column(Integer, nullable=False, default=1)
+    recoveries = Column(Integer, nullable=False, default=0)
+    lease_token = Column(String(36), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    progress = Column(String(32), nullable=False, default="queued")
+    error_code = Column(String(80), nullable=True)
+    result = Column(JSON, nullable=True)
+    result_revision = Column(String(64), nullable=True)
+    retained_bytes = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    __table_args__ = (
+        UniqueConstraint("user_id", "input_digest", name="uq_dfa_run_input"),
+        CheckConstraint("phase IN ('prepare','compute')", name="ck_dfa_phase"),
+        CheckConstraint("status IN ('queued','running','awaiting_source_confirmation','complete','unavailable','failed','cancelled')", name="ck_dfa_state"),
+        CheckConstraint("freshness IN ('current','stale')", name="ck_dfa_freshness"),
+        CheckConstraint("generation >= 1 AND retained_bytes >= 0 AND recoveries BETWEEN 0 AND 1", name="ck_dfa_run_bounds"),
+        Index("uq_dfa_active_owner", "user_id", unique=True,
+              sqlite_where=text("status IN ('queued','running')"),
+              postgresql_where=text("status IN ('queued','running')")),
+    )
+
+
+class ActivityDFAExecutionSlot(Base):
+    __tablename__ = "activity_dfa_execution_slot"
+    id = Column(Integer, primary_key=True)
+    run_id = Column(String(36), ForeignKey("activity_dfa_runs.id", ondelete="SET NULL"), nullable=True)
+    lease_token = Column(String(36), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    __table_args__ = (CheckConstraint("id = 1", name="ck_dfa_single_slot"),)
