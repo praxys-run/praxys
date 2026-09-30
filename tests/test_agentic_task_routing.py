@@ -140,6 +140,94 @@ def test_agent_policy_change_routes_meta_eval_then_delivery() -> None:
     assert route.executor_roles == ["engineering"]
     assert route.verifier_roles == ["quality"]
     assert "policy-change-proposal" in route.required_artifacts
+    assert route.classification_digest == (
+        "sha256:0ad9318cbabe89b8918297e022d356e47ca4d91510fdb983761ba44a53a0e8e5"
+    )
+    assert route.route_digest == (
+        "sha256:02ae5b927772915aa703344217dd7092151f847719fe05a9d72d43dd6f92949b"
+    )
+
+
+def test_bounded_repository_work_keeps_delivery_without_unrelated_loops() -> None:
+    """An ordinary repository task needs no incident or runtime contribution."""
+    route = route_task(TaskClassification(primary_object="repository-behavior"))
+
+    assert route.primary_loop == "delivery"
+    assert route.nested_loops == []
+    assert route.contributor_roles == []
+    assert route.executor_roles == ["engineering"]
+    assert route.verifier_roles == ["quality"]
+    assert route.required_artifacts == [
+        "implementation-impact-map",
+        "implementation-change",
+        "verification-evidence",
+    ]
+    assert route.decision_review_required is False
+
+
+@pytest.mark.parametrize(
+    ("impact", "role", "artifact", "loop"),
+    [
+        ("trust-boundary", "trust", "trust-decision-record", None),
+        ("architecture-boundary", "architecture", "architecture-decision-record", None),
+        ("scientific-evidence-or-claim", "science", "science-decision-record", "science"),
+        ("user-visible-experience", "design", "experience-specification", "design"),
+        ("production-operation", "operations", "release-evidence", "runtime"),
+        ("incident-response", "operations", "incident-record", "incident"),
+    ],
+)
+def test_bounded_delivery_preserves_each_triggered_specialist(
+    impact: str, role: str, artifact: str, loop: str | None,
+) -> None:
+    """Smaller handoffs cannot remove a causal impact's roles or artifacts."""
+    route = route_task(
+        TaskClassification(primary_object="repository-behavior", impacts=[impact])
+    )
+
+    assert role in route.contributor_roles + route.executor_roles
+    assert artifact in route.required_artifacts
+    assert route.nested_loops == ([] if loop is None else [loop])
+    assert "engineering" in route.executor_roles
+    assert route.verifier_roles == ["quality"]
+    assert route.decision_review_required is True
+
+
+def test_dependency_merge_with_deployment_effect_preserves_trust_and_operations() -> None:
+    """CI-based evidence does not remove dependency or deployment authority."""
+    route = route_task(
+        TaskClassification(
+            primary_object="repository-behavior",
+            impacts=["trust-boundary", "production-operation"],
+            risk_triggers=["security-or-privacy-boundary"],
+        )
+    )
+
+    assert route.nested_loops == ["runtime"]
+    assert route.contributor_roles == ["trust"]
+    assert route.executor_roles == ["engineering", "operations"]
+    assert route.verifier_roles == ["quality"]
+    assert {"trust-decision-record", "operations-decision-record", "release-evidence"} <= set(
+        route.required_artifacts
+    )
+    assert route.decision_review_required is True
+
+
+def test_description_clarifications_do_not_change_any_routing_contract() -> None:
+    config = load_task_routing_config()
+    payload = config.model_dump()
+    for group in ("primary_objects", "impacts"):
+        for contribution in payload[group].values():
+            contribution["description"] = "Alternate classifier guidance."
+    alternate = TaskRoutingConfig.model_validate(payload)
+
+    for primary in config.primary_objects:
+        for impact in [None, *config.impacts]:
+            classification = TaskClassification(
+                primary_object=primary, impacts=[] if impact is None else [impact],
+            )
+            assert route_task(classification, config=config) == route_task(
+                classification, config=alternate,
+            )
 
 
 def test_research_and_evaluation_do_not_force_downstream_decisions() -> None:

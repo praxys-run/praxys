@@ -36,6 +36,12 @@ Compose roles into a loop instance. Read
    - whether every `required_input_artifact` exists and is accepted;
    - entry and exit criteria.
 
+Apply `task_completion` in `config/agent-loop-policies.json`: include completion
+evidence and non-goals in the accompanying handoff, leaving the deterministic
+Work Contract intact. Classify the action's causal effects, including automatic
+deployment; use the shared scope-expansion and blocker rules for findings and
+missing inputs.
+
 If a required input is missing, either add the characteristic that causes its
 owner loop to produce it or return `blocked`. Never silently treat a missing
 decision artifact as accepted.

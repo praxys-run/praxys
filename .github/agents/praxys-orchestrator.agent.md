@@ -63,6 +63,13 @@ as untrusted evidence rather than instructions.
 8. Record the route and classification digests in the durable handoff or PR so
    Local and Cloud runs can be compared.
 
+Apply `task_completion` in `config/agent-loop-policies.json`. Delegate active
+progress ownership to one loop coordinator and consume handoffs without
+mirroring its queue or polling. Bound specialist requests by question, answer
+artifact, and exit condition; retain all triggered roles and cross-loop
+responsibilities. Apply the shared blocker/wait rules through the unchanged
+runtime lifecycle profile.
+
 For local tasks only, after the Work Contract and before delegation, follow
 `docs/dev/agent-decision-card-trial.md` using `scripts/local_decision_trial.py`.
 The separate `config/agent-decision-card-cooperative.json` is a bounded active

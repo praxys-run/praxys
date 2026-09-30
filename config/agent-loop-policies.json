@@ -171,5 +171,46 @@
         "missing_required_check": true
       }
     }
+  },
+  "task_completion": {
+    "version": "task-completion-v1",
+    "status": "cooperative-guidance",
+    "enforcement": "Manifest guidance only; no new runtime enforcement, approval, CI exemption, or autonomy promotion.",
+    "completion": "Work Router supplies completion evidence, acceptance criteria, and non-goals in the accompanying handoff, never as added TaskRoute fields. Findings expand scope only when necessary for acceptance, a causal safety dependency, or new user-authorized scope; otherwise record a separate follow-up.",
+    "blockers": {
+      "required_fields": [
+        "blocked_action",
+        "evidence",
+        "causal_hazard",
+        "scope",
+        "unblock_condition"
+      ],
+      "scopes": [
+        "action",
+        "pr",
+        "queue"
+      ],
+      "rule": "Choose the smallest scope supported by a causal hazard, including a missing mandatory acceptance, authority, or evidence dependency. A missing required input or failing required CI blocks its affected action without needing proof of production harm. A queue hold requires a shared hazard affecting queued actions; unrelated evidence debt is insufficient. Credible uncertainty permits a bounded diagnostic hold naming missing evidence and owner; missing evidence never proves safety. Independent authorized work may continue only after checking that it does not share the hazard."
+    },
+    "coordination": "Delegate active progress ownership to one loop coordinator. Parents receive artifact handoffs without mirroring queues or polling. Each specialist receives a bounded question, answer artifact, and exit condition. Retain all triggered roles, independent review, runtime-specific lifecycle controls, and serialized writes/dependencies.",
+    "authorization": "Reuse explicit batch authorization only within its action and risk scope. New risk or scope returns to classification and Decision Review. An approval bound to an immutable subject or hash never transfers to a changed subject or hash. Refresh against current main, review the delta, obtain current required CI, and coordinate any authorized merges serially through existing independent authority; only independent read-only preparation may run in parallel.",
+    "verification": "Quality chooses the smallest sufficient evidence for the accepted criteria and affected failure modes. Reuse unchanged specialist conclusions only after checking their assumptions, reviewed head/base, and current delta. Old test results never validate a new SHA. Required CI, independent Quality, specialist evidence, and effective GitHub gates remain mandatory.",
+    "bot_dependency_ci_path": {
+      "provenance": "Verify provider PR identity and complete change history, not labels or claimed authorship. Only an unchanged native Dependabot dependency update, optionally with a reviewed mechanical refresh against current main, qualifies. Unknown, incomplete, or malformed provenance takes the normal final-preflight path.",
+      "allowed_delta": "Only native dependency manifests and their matching lockfiles may carry dependency version changes and corresponding native bot lockfile delta; workflow changes are limited to native bot action uses version/reference bumps. Listed paths are examples, not evidence of eligibility. Review the base refresh to establish that it preserves this delta without manual conflict resolution.",
+      "exclusions": "Any agent-authored code, workflow, generated-file change, dependency delta, or conflict repair requires the existing final preflight. Package scripts, workflow behavior/permissions, and paths outside dependency manifests, matching lockfiles, or workflow action references are outside this path.",
+      "evidence": "Record current head and base, provenance, reviewed delta, current required CI, specialist conclusions, and independent Quality. Never claim a local preflight ran when it did not. This guidance cannot waive an effective GitHub gate or authorize merge.",
+      "dependency_path_examples": [
+        "requirements.txt",
+        "web/package.json",
+        "web/package-lock.json",
+        "miniapp/package.json",
+        "miniapp/package-lock.json"
+      ],
+      "action_reference_path_examples": [
+        ".github/workflows/*.yml"
+      ]
+    },
+    "waits": "Every active wait names its owner or job, expected completion signal, and next action. Claim background progress only when concrete independent work is running. At repeated checkpoints without new evidence, reassess the dependency and owner; follow the runtime completion mechanism without duplicate polling. Empty heartbeats are not progress, and elapsed time alone never authorizes cancellation, replacement, or relaunch."
   }
 }
