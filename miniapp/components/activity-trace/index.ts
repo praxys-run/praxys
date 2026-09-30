@@ -45,7 +45,10 @@ function chartTranslations() {
     zoomOut: t('Zoom out'),
     fullRun: t('Full run'),
     notSampled: t('Not sampled'),
-    emptyWindow: t('No displayed readings in this interval; zoom out for context.'),
+    emptyWindow: t('No readings in this interval; zoom out.'),
+    independentAxes: t('Independent axes'),
+    paceDirection: t('Pace: faster ↑'),
+    singleTime: t('Only one recorded time; cursor unavailable.'),
     minimumWindow: t('Minimum readable interval reached'),
   };
 }

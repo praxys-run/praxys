@@ -4,6 +4,7 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { Button } from '@/components/ui/button';
 import { useChartColors } from '@/hooks/useChartColors';
 import { formatStoredPace } from '@/lib/format';
+import { hasRecordedGaps } from '@/lib/activity-record';
 import {
   closestRecordedSample,
   formatElapsed,
@@ -45,6 +46,7 @@ export default function ActivityTraceChart({
 }: Props) {
   const { t } = useLingui();
   const colors = useChartColors();
+  const hasGaps = useMemo(() => hasRecordedGaps(detail), [detail]);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gestureRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -183,9 +185,11 @@ export default function ActivityTraceChart({
       <div className="activity-trace-card__header">
         <div>
           <h3>{metricName(primary)}{secondary && <> × {metricName(secondary)}</>}</h3>
-          <p className="activity-trace__subline">
-            {selectedLabel ?? <Trans>Recorded time · two independent axes</Trans>}
-          </p>
+          {(selectedLabel || secondary || primary === 'pace_sec_km') && <p className="activity-trace__subline">
+            {selectedLabel && <span>{selectedLabel}</span>}
+            {secondary && <span><Trans>Independent axes</Trans></span>}
+            {(primary === 'pace_sec_km' || secondary === 'pace_sec_km') && <span><Trans>Pace: faster ↑</Trans></span>}
+          </p>}
         </div>
         <div className="activity-trace__desktop-zoom">{zoomControls}</div>
       </div>
@@ -269,10 +273,11 @@ export default function ActivityTraceChart({
           <span>{formatElapsed(viewport[1])}</span>
         </div>
         {!primarySegments.length && !secondarySegments.length && (
-          <p className="activity-trace__no-data"><Trans>No displayed readings in this interval; zoom out for context.</Trans></p>
+          <p className="activity-trace__no-data"><Trans>No readings in this interval; zoom out.</Trans></p>
         )}
       </div>
       <div className="activity-trace__mobile-zoom">{zoomControls}</div>
+      {!canZoom && <p className="activity-report__aside"><Trans>Minimum readable interval reached</Trans></p>}
       <div className="activity-trace__scrub" style={{ paddingInline: plotLeft }}>
         <div className="activity-trace__scrub-label">
           <label htmlFor="activity-time-scrub"><Trans>Time cursor · recorded readings</Trans></label>
@@ -287,17 +292,12 @@ export default function ActivityTraceChart({
           aria-valuetext={`${formatElapsed(cursor)} · ${metricName(primary)} ${formatValue(cursorPoint, primary)}${secondary ? ` · ${metricName(secondary)} ${formatValue(cursorPoint, secondary)}` : ''}`}
         />
       </div>
-      <div className="activity-trace__foot">
-        <p><Trans>Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude.</Trans></p>
-        <p>
-          <Trans>Recorded sample rows</Trans>: <span className="font-data">{detail.sample_count}</span>
-          {detail.sample_count > detail.samples.length && <><span> · </span><Trans>Extrema shown; omitted points are not interpolated.</Trans></>}
-          {detail.activity.sample_coverage.state === 'partial' && <><span> · </span><Trans>Some intervals were not sampled; lines stop at gaps.</Trans></>}
-        </p>
-        <p><Trans>Missing metric readings and time gaps are shown as breaks, never filled in.</Trans></p>
-        <p><Trans>Stream record source (not guaranteed per field)</Trans>: {detail.sample_sources.join(', ') || '—'}</p>
-        {detail.time_origin === 'sample_start' && <p><Trans>Time is measured from the first stored sample; activity start time is unverified.</Trans></p>}
-      </div>
+      {viewport[0] === viewport[1] && <p className="activity-report__aside"><Trans>Only one recorded time; cursor unavailable.</Trans></p>}
+      {(hasGaps || detail.sample_count > detail.samples.length || detail.time_origin === 'sample_start') && <div className="activity-trace__foot">
+        {hasGaps && <p><Trans>Gaps in recorded data</Trans></p>}
+        {detail.sample_count > detail.samples.length && <p><Trans>Reduced display</Trans></p>}
+        {detail.time_origin === 'sample_start' && <p><Trans>Time from first sample; activity start unverified</Trans></p>}
+      </div>}
     </div>
   );
 }
