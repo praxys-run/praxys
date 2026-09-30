@@ -40,23 +40,23 @@ def validate_evidence(data: dict, *, weights: dict | None = None) -> list[str]:
         errors.append('unsupported evidence format')
     if data.get('session_finished') is not True or data.get('collection_complete') is not True:
         errors.append('collection or session incomplete')
-    collected, selected = data.get('full_collected'), data.get('selected')
-    if not isinstance(collected, list) or not isinstance(selected, list):
+    collected, selected, before = data.get('full_collected'), data.get('selected'), data.get('pre_shard_selected')
+    if not all(isinstance(nodes, list) for nodes in (collected, selected, before)):
         return [*errors, 'missing collection lists']
-    if not all(isinstance(node, str) for node in collected + selected):
+    if not all(isinstance(node, str) for nodes in (collected, selected, before) for node in nodes):
         return [*errors, 'invalid node IDs']
-    if not collected or len(collected) != len(set(collected)) or len(selected) != len(set(selected)):
+    if not collected or any(len(nodes) != len(set(nodes)) for nodes in (collected, selected, before)):
         errors.append('empty or duplicate collection')
     count, index = data.get('shard_count'), data.get('shard_index')
     if (type(count) is not int or type(index) is not int or count not in (1, 2)
             or index not in range(count) or data.get('mode') != ('serial' if count == 1 else 'sharded')):
         errors.append('invalid shard identity')
-    if data.get('pre_shard_selected') != collected or data.get('deselected') != []:
+    if set(before) != set(collected) or data.get('deselected') != []:
         errors.append('unexpected test deselection before sharding')
-    if count == 1 and collected != selected:
+    if count == 1 and set(collected) != set(selected):
         errors.append('serial run unexpectedly omitted tests')
     elif count == 2:
-        if weights is None or index not in (0, 1) or selected != selected_nodes(collected, index, weights):
+        if weights is None or index not in (0, 1) or set(selected) != set(selected_nodes(collected, index, weights)):
             errors.append('shard selection differs from complete file plan')
     phases = data.get('phases')
     if not isinstance(phases, list):

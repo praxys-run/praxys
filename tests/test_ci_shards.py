@@ -183,6 +183,46 @@ def test_real_processes_collect_once_and_cover_all_files_with_skip_equivalence(t
     assert collection_outcomes(serial) == collection_outcomes(first) == collection_outcomes(second)
 
 
+def test_scoped_fixture_reordering_preserves_real_serial_and_shard_coverage(tmp_path):
+    suite = tmp_path / 'suite'
+    suite.mkdir()
+    (suite / 'test_scoped.py').write_text('''import pytest
+@pytest.fixture(scope='module', params=[1, 2])
+def value(request): return request.param
+def test_first(value): assert value in (1, 2)
+def test_second(value): assert value in (1, 2)
+''')
+    (suite / 'test_other.py').write_text('def test_other(): pass\n')
+    environment = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTEST_DISABLE_PLUGIN_AUTOLOAD='1')
+    environment.pop('PYTEST_ADDOPTS', None)
+    environment.pop('PYTEST_PLUGINS', None)
+    reports = {}
+    for count, index in ((1, 0), (2, 0), (2, 1)):
+        output = tmp_path / f'evidence-{count}-{index}'
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/ci_pytest.py'), '--output-dir', str(output),
+                                 '--shard-count', str(count), '--shard-index', str(index), '--', str(suite)],
+                                cwd=ROOT, env=environment, capture_output=True, text=True, timeout=30)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert json.loads((output / 'result.json').read_text())['evidence_complete']
+        reports[count, index] = json.loads((output / 'phases.json').read_text())
+    serial = reports[1, 0]
+    assert len(serial['full_collected']) == len(serial['selected']) == 5
+    assert serial['full_collected'] != serial['selected']  # Pytest's legitimate fixture grouping.
+    assert set(serial['full_collected']) == set(serial['selected'])
+    assert not set(reports[2, 0]['selected']) & set(reports[2, 1]['selected'])
+    assert set(reports[2, 0]['selected']) | set(reports[2, 1]['selected']) == set(serial['selected'])
+
+
+@pytest.mark.parametrize('field', ['full_collected', 'selected', 'pre_shard_selected'])
+def test_each_collection_list_rejects_duplicates(artifacts, field):
+    path = artifacts / '2-1/phases.json'
+    data = json.loads(path.read_text())
+    data[field].append(data[field][0])
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match='duplicate'):
+        verify_comparison(artifacts)
+
+
 def test_workflow_defaults_to_serial_and_keeps_required_contexts_and_same_run_artifacts():
     workflow = yaml.load((ROOT / '.github/workflows/ci-premerge.yml').read_text(), Loader=yaml.BaseLoader)
     assert workflow['on']['workflow_dispatch']['inputs']['test_mode']['default'] == 'serial'
