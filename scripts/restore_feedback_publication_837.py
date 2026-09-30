@@ -42,12 +42,10 @@ hard_deadline = started + END_SECONDS
 expired = False
 conflicting_write = False
 mutation_started = False
-cleanup_started = False
-verified = False
-observation = 'unknown'
-original_failure = 1
 write_interval = None
 receipts = []
+write_evidence = []
+snapshots = []
 
 
 def emit(phase, *, outcome, elapsed_ms=0, exit_class=None):
@@ -199,6 +197,10 @@ POSITIVE = 'PRAXYS_ENABLE_FEEDBACK_PUBLICATION'
 KILL = 'PRAXYS_DISABLE_FEEDBACK_PUBLICATION'
 
 
+class RuntimeMismatch(Failure):
+    """Available runtime disagrees with the requested publication state."""
+
+
 class Drift(Failure):
     """A source or authority mismatch; never compensate across this boundary."""
 
@@ -206,6 +208,18 @@ class Drift(Failure):
 def require(condition):
     if not condition:
         raise Failure()
+
+
+def stable(condition):
+    if not condition:
+        raise Drift()
+
+
+def timestamp(value):
+    from datetime import datetime, timezone
+    parsed = datetime.fromisoformat(value)
+    require(parsed.tzinfo is not None and parsed.utcoffset() is not None)
+    return parsed.astimezone(timezone.utc)
 
 
 def strict_json(raw):
@@ -276,6 +290,7 @@ def producer_evidence():
         (19, 'Restore reviewed feedback publication after verified cutover', 'skipped'),
     ):
         step = one(steps, 'number', number)
+        require(one(steps, 'name', name).get('number') == number)
         require(step.get('name') == name and step.get('status') == 'completed')
         require(step.get('conclusion') == conclusion)
     require(all(step.get('conclusion') == 'skipped' for step in steps
@@ -338,6 +353,28 @@ def labs_guard(run):
     require(all(j.get('status') == 'completed' for j in jobs if j.get('id') != LABS_JOB))
 
 
+def natural_labs_terminal(runs):
+    sha = os.environ['PRAXYS_REVIEWED_CONTROLLER_SHA']
+    matching = [run for run in runs if run.get('head_sha') == sha]
+    require(len(matching) == 1)
+    run = matching[0]
+    run_identity(run, run['id'], sha, '.github/workflows/deploy-labs-worker.yml', 'push')
+    require(run.get('status') == 'completed')
+    jobs = collection(gh(f"actions/runs/{run['id']}/attempts/1/jobs?per_page=100"), 'jobs')
+    deploy = one(jobs, 'name', 'deploy')
+    require(all(job.get('status') == 'completed' for job in jobs))
+    if deploy.get('conclusion') == 'skipped':
+        require(not deploy.get('steps'))
+    else:
+        require(deploy.get('conclusion') == 'failure')
+        guard = one(deploy['steps'], 'name', 'Require matching backend migration and authority')
+        require(guard.get('number') == 3 and guard.get('conclusion') == 'failure')
+        require(guard.get('status') == 'completed')
+        later = [step for step in deploy['steps'] if 4 <= step.get('number', 0) <= 10]
+        require({step['number'] for step in later} == set(range(4, 11)))
+        require(all(step.get('conclusion') == 'skipped' for step in later))
+
+
 def github_no_overlap():
     controller_evidence()
     for workflow in ('deploy-backend.yml', 'deploy-labs-worker.yml'):
@@ -345,6 +382,9 @@ def github_no_overlap():
                           'workflow_runs')
         require(any(r.get('id') == (PRODUCER if workflow == 'deploy-backend.yml' else LABS_RUN)
                     for r in runs))
+        if workflow == 'deploy-labs-worker.yml':
+            # Absence/not-yet-visible is NOT evidence that merge-triggered work finished.
+            natural_labs_terminal(runs)
         for run in runs:
             if run.get('id') == LABS_RUN:
                 labs_guard(run)
@@ -352,6 +392,13 @@ def github_no_overlap():
                 raise Failure()
             if run.get('id') == PRODUCER:
                 require(run.get('run_attempt') == 1 and run.get('conclusion') == 'failure')
+        # Include active work created BEFORE the incident; never hide it behind a date filter.
+        for status in ('queued', 'in_progress', 'waiting', 'requested', 'pending'):
+            active = collection(gh(f'actions/workflows/{workflow}/runs?per_page=100&status={status}'),
+                                'workflow_runs')
+            for run in active:
+                require(workflow == 'deploy-labs-worker.yml' and run.get('id') == LABS_RUN)
+                labs_guard(run)
 
 
 def az_json(argv):
@@ -378,30 +425,48 @@ def runtime(positive):
     if version.get('source_sha') != SERVING_SHA or version.get('version') != SERVING_VERSION:
         raise Drift()
     ready = read('health/ready')
-    require(ready.get('status') == 'ready' and ready.get('database') == 'ok')
     flags = ready.get('optional_processing', {})
-    require(flags.get('feedback_publication_positive_enable') is positive)
-    if flags.get('feedback_publication_kill_switch') is not False:
-        raise Drift()
-    require(flags.get('feedback_publication_enabled') is positive)
+    stable(flags.get('feedback_publication_kill_switch') is not True)
+    require(ready.get('status') == 'ready' and ready.get('database') == 'ok')
+    stable(flags.get('feedback_publication_kill_switch') is False)
+    if flags.get('feedback_publication_positive_enable') is not positive:
+        raise RuntimeMismatch()
+    if flags.get('feedback_publication_enabled') is not positive:
+        raise RuntimeMismatch()
+    return {'source_sha': version['source_sha'], 'version': version['version'],
+            'ready': True, 'database_ok': True, 'positive': positive, 'kill': False, 'effective': positive}
 
 
 def worker():
     value = az_json(['containerapp', 'job', 'show', '--ids', WORKER_ID])
-    require(value.get('id', '').lower() == WORKER_ID.lower())
+    try:
+        return validate_worker(value)
+    except (KeyError, TypeError, ValueError, AttributeError) as failure:
+        raise Drift() from failure
+
+
+def validate_worker(value):
+    stable(value.get('id', '').lower() == WORKER_ID.lower())
     props = value['properties']
-    require(props.get('provisioningState') == 'Succeeded')
+    stable(props.get('provisioningState') == 'Succeeded')
     config = props['configuration']
-    require(config.get('triggerType') == 'Event' and config.get('replicaTimeout') == 1800)
-    require(config.get('replicaRetryLimit') == 0)
+    stable(config.get('triggerType') == 'Event' and config.get('replicaTimeout') == 1800)
+    stable(config.get('replicaRetryLimit') == 0)
     event = config['eventTriggerConfig']
-    require(event.get('parallelism') == 1 and event.get('replicaCompletionCount') == 1)
-    require(event['scale'].get('minExecutions') == 0 and event['scale'].get('maxExecutions') == 1)
+    stable(event.get('parallelism') == 1 and event.get('replicaCompletionCount') == 1)
+    stable(event['scale'].get('minExecutions') == 0 and event['scale'].get('maxExecutions') == 1)
     containers = props['template']['containers']
-    require(len(containers) == 1)
-    require(containers[0].get('image') == 'ghcr.io/praxys-run/praxys-labs-worker:' + SERVING_SHA)
-    require(containers[0]['resources'].get('cpu') == 1)
-    require(containers[0]['resources'].get('memory') == '2Gi')
+    stable(len(containers) == 1)
+    stable(containers[0].get('image') == 'ghcr.io/praxys-run/praxys-labs-worker:' + SERVING_SHA)
+    stable(containers[0]['resources'].get('cpu') == 1)
+    stable(containers[0]['resources'].get('memory') == '2Gi')
+    return {'resource_id': value['id'], 'image': containers[0]['image'],
+            'provisioning': props['provisioningState'], 'trigger': config['triggerType'],
+            'timeout': config['replicaTimeout'], 'retries': config['replicaRetryLimit'],
+            'parallelism': event['parallelism'], 'completions': event['replicaCompletionCount'],
+            'min_executions': event['scale']['minExecutions'],
+            'max_executions': event['scale']['maxExecutions'],
+            'cpu': containers[0]['resources']['cpu'], 'memory': containers[0]['resources']['memory']}
 
 
 def utc():
@@ -430,14 +495,16 @@ def operation_evidence():
         resource = event.get('resourceId', '').lower()
         require(resource.startswith(RESOURCE_GROUP.lower() + '/'))
         correlation = event.get('correlationId')
-        require(isinstance(correlation, str) and len(correlation) == 36)
+        from uuid import UUID
+        require(isinstance(correlation, str) and str(UUID(correlation)) == correlation)
         groups.setdefault(correlation, []).append(event)
     for events in groups.values():
         statuses = [e.get('status', {}).get('value') for e in events]
         require(all(s in ('Started', 'Accepted', 'Succeeded', 'Failed') for s in statuses))
         terminal = [e for e in events if e.get('status', {}).get('value') in ('Succeeded', 'Failed')]
         require(len(terminal) == 1)
-        require(all(e['eventTimestamp'] <= terminal[0]['eventTimestamp'] for e in events))
+        require(all(timestamp(e['eventTimestamp']) <= timestamp(terminal[0]['eventTimestamp'])
+                    for e in events))
     producer = groups.get(PRODUCER_CORRELATION, [])
     require(any(e.get('status', {}).get('value') == 'Succeeded' and
                 e.get('resourceId', '').lower() == SETTINGS_ID.lower() and
@@ -446,12 +513,20 @@ def operation_evidence():
     return groups
 
 
+def no_unexpected_operations(operations):
+    require(set(operations) == {PRODUCER_CORRELATION, *receipts})
+
+
 def admission(positive):
     github_no_overlap()
     operations = operation_evidence()
-    worker()
-    require(settings() == {POSITIVE: positive, KILL: False})
-    runtime(positive)
+    no_unexpected_operations(operations)
+    observed_worker = worker()
+    flags = settings()
+    require(flags == {POSITIVE: positive, KILL: False})
+    observed_runtime = runtime(positive)
+    snapshots.append({'phase': 'admission', 'utc': utc(), 'flags': flags,
+                      'runtime': observed_runtime, 'worker': observed_worker})
     return operations
 
 
@@ -469,43 +544,86 @@ def receipt(before, after, begin, end):
     events = after[correlation]
     require(len(events) >= 2)
     require({e.get('status', {}).get('value') for e in events} == {'Started', 'Succeeded'})
-    from datetime import datetime
-    lower, upper = datetime.fromisoformat(begin), datetime.fromisoformat(end)
+    lower, upper = timestamp(begin), timestamp(end)
+    require(lower <= upper)
     callers = set()
     for event in events:
         require(event.get('resourceId', '').lower() == SETTINGS_ID.lower())
         require(event.get('operationName', {}).get('value') == 'Microsoft.Web/sites/config/write')
         require(event.get('claims', {}).get('appid') == os.environ['AZURE_CLIENT_ID'])
-        require(lower <= datetime.fromisoformat(event['eventTimestamp']) <= upper)
+        require(lower <= timestamp(event['eventTimestamp']) <= upper)
         callers.add(event.get('caller'))
     require(len(callers) == 1 and None not in callers and '' not in callers)
+    starts = [timestamp(e['eventTimestamp']) for e in events if e['status']['value'] == 'Started']
+    terminals = [timestamp(e['eventTimestamp']) for e in events if e['status']['value'] == 'Succeeded']
+    require(len(starts) == 1 and len(terminals) == 1 and starts[0] <= terminals[0])
     return correlation
 
 
 def set_positive(value, before):
-    global conflicting_write
+    global conflicting_write, write_interval
     # Mark uncertainty BEFORE spawning. Only the definitive audit receipt clears it.
     conflicting_write = True
-    command('restore_write' if value else 'disable_write',
-            ['az', 'webapp', 'config', 'appsettings', 'set', '--ids', APP_ID,
-             '--settings', POSITIVE + '=' + str(value).lower(), '--output', 'none',
-             '--only-show-errors'], WRITE_SECONDS, write=True)
+    write_record = {'positive': value, 'admitted_at': utc(), 'outcome': 'unknown'}
+    write_evidence.append(write_record)
+    persist_evidence('unknown')
+    write_interval = None
+    try:
+        command('restore_write' if value else 'disable_write',
+                ['az', 'webapp', 'config', 'appsettings', 'set', '--ids', APP_ID,
+                 '--settings', POSITIVE + '=' + str(value).lower(), '--output', 'none',
+                 '--only-show-errors'], WRITE_SECONDS, write=True)
+    finally:
+        if write_interval is not None:
+            write_record.update(started_at=write_interval[0], ended_at=write_interval[1],
+                                cli_exit='unknown')
     require(write_interval is not None and write_interval[1] is not None)
     begin, end = write_interval
+    write_record.update(started_at=begin, ended_at=end, cli_exit='success')
     after = operation_evidence()
     correlation = receipt(before, after, begin, end)
     conflicting_write = False
     receipts.append(correlation)
+    write_record.update(correlation=correlation, outcome='terminal_success',
+                        resource_id=SETTINGS_ID, operation='Microsoft.Web/sites/config/write',
+                        provider_started_at=next(e['eventTimestamp'] for e in after[correlation]
+                                                 if e['status']['value'] == 'Started'),
+                        provider_terminal_at=next(e['eventTimestamp'] for e in after[correlation]
+                                                  if e['status']['value'] == 'Succeeded'),
+                        caller_matched=True)
+    persist_evidence('unknown')
     emit('write_receipt', outcome='terminal_success')
     return after, correlation
 
 
+def persist_evidence(state):
+    import re
+    from uuid import UUID
+    require(re.fullmatch('[0-9a-f]{40}', os.environ['PRAXYS_REVIEWED_CONTROLLER_SHA']) is not None)
+    require(re.fullmatch('[1-9][0-9]{0,19}', os.environ['GITHUB_RUN_ID']) is not None)
+    require(len(write_evidence) <= 2 and len(snapshots) <= 5)
+    for value in receipts:
+        require(str(UUID(value)) == value)
+    record = {'schema': 1, 'observation': state, 'incident_run': PRODUCER,
+              'incident_job': PRODUCER_JOB, 'incident_source': PRODUCER_SHA,
+              'controller_sha': os.environ['PRAXYS_REVIEWED_CONTROLLER_SHA'],
+              'controller_run': int(os.environ['GITHUB_RUN_ID']), 'controller_attempt': 1,
+              'source_sha': SERVING_SHA, 'source_version': SERVING_VERSION,
+              'uncertain_write': conflicting_write, 'snapshots': snapshots, 'writes': write_evidence}
+    payload = json.dumps(record, sort_keys=True).encode()
+    require(len(payload) <= 16384)
+    # Atomic replace prevents a truncated record from becoming success evidence.
+    command('evidence', ['bash', '-c',
+        'umask 077; cat > "$RUNNER_TEMP/publication-recovery-evidence.tmp" && '
+        'mv "$RUNNER_TEMP/publication-recovery-evidence.tmp" "$RUNNER_TEMP/publication-recovery-evidence.json"'],
+        OUTPUT_SECONDS, payload=payload)
+
+
 def outputs(state):
     require(state in ('verified', 'verified_disabled', 'control_plane_only', 'unknown', 'prewrite_rejected'))
+    persist_evidence(state)
     command('outputs', ['bash', '-c', 'cat >> "$GITHUB_OUTPUT"'], OUTPUT_SECONDS,
-            payload=(f'observation={state}\n' +
-                     ''.join(f'write_{i + 1}_correlation={value}\n'
-                             for i, value in enumerate(receipts))).encode())
+            payload=f'observation={state}\n'.encode())
 
 
 def compensate(acknowledged):
@@ -517,19 +635,28 @@ def compensate(acknowledged):
     # No retry, no uncertain write, and no source/kill/worker drift is admissible.
     github_no_overlap()
     before = operation_evidence()
+    no_unexpected_operations(before)
     worker()
     require(settings() == {POSITIVE: True, KILL: False})
     version = strict_json(command('version_read', ['curl', '-fsS', '--max-time', '8', '-H',
         'Cache-Control: no-cache', 'https://api.praxys.run/api/version'], HTTP_SECONDS))
     if version.get('source_sha') != SERVING_SHA or version.get('version') != SERVING_VERSION:
         raise Drift()
-    set_positive(False, before)
-    require(settings() == {POSITIVE: False, KILL: False})
+    after, _ = set_positive(False, before)
+    flags = settings()
+    require(flags == {POSITIVE: False, KILL: False})
+    observed_worker = worker()
+    require(operation_evidence() == after)
+    snapshot = {'phase': 'compensated', 'utc': utc(), 'flags': flags, 'worker': observed_worker}
+    snapshots.append(snapshot)
     try:
-        runtime(False)
-    except Drift:
+        snapshot['runtime'] = runtime(False)
+    except (Drift, RuntimeMismatch):
         raise
-    except Failure:
+    except Failure as failure:
+        if failure.code in (130, 143):
+            raise
+        snapshot['runtime'] = {'observation': 'unavailable'}
         return 'control_plane_only'
     return 'verified_disabled'
 
@@ -546,9 +673,10 @@ def restore():
         acknowledged = True
         for _ in range(36):
             try:
-                require(settings() == {POSITIVE: True, KILL: False})
-                runtime(True)
-                worker()
+                flags = settings()
+                stable(flags == {POSITIVE: True, KILL: False})
+                observed_runtime = runtime(True)
+                observed_worker = worker()
             except Drift:
                 raise
             except Failure as failure:
@@ -558,6 +686,8 @@ def restore():
             else:
                 github_no_overlap()
                 require(operation_evidence() == after)
+                snapshots.append({'phase': 'restored', 'utc': utc(), 'flags': flags,
+                                  'runtime': observed_runtime, 'worker': observed_worker})
                 outputs('verified')
                 return 'verified'
         raise Failure()

@@ -44,3 +44,12 @@ jobs:
           read -r PRAXYS_RESTORE_STARTED _ < /proc/uptime
           export PRAXYS_RESTORE_STARTED
           exec timeout --signal=KILL 465s python3 scripts/restore_feedback_publication_837.py
+      - name: Retain bounded nonsecret recovery evidence
+        if: always()
+        timeout-minutes: 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: publication-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/publication-recovery-evidence.json
+          if-no-files-found: error
+          retention-days: 7

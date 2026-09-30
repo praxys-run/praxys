@@ -1295,8 +1295,9 @@ are provisioned. The helper pins subscription
    **The test file matches `tests/**` in `deploy-labs-worker.yml`: merging normally
    builds/tests and publishes a Labs image**, including its `latest` tag. The
    deploy job requires its own exact API SHA before Azure login/reconciliation;
-   the currently serving API has a different SHA. The new run must finish before
-   restoration admission. Do not cancel it or bypass its guard. Normal PR CI and
+   the currently serving API has a different SHA. The helper requires exactly one
+   terminal natural Labs run bound to the reviewed controller SHA, with provider
+   reconciliation unstarted. Absence or delayed visibility fails admission. Do not cancel it or bypass its guard. Normal PR CI and
    repository policy/advisory workflows also run according to their own triggers:
    `ci-premerge.yml` on PR changes; `selective-review.yml` on PR changes/CI completion;
    `science-approval-ledger.yml` on PR changes; Copilot readiness and Dependabot
@@ -1343,11 +1344,30 @@ is not a globally causal UUID receipt: delayed audit or same-principal out-of-ba
 activity remains a residual risk controlled by the explicit writer freeze. Truncated, missing, delayed, ambiguous
 or unresolved evidence fails closed. Audit ingestion delay can therefore leave
 `unknown` despite a successful provider write. A later positive sample cannot
-clear that state. Provider bodies/settings and exception text are suppressed.
+clear that state. Every started-write failure remains unknown: CLI nonzero,
+HTTP errors, Azure Failed/Cancelled, and unchanged settings do not prove no partial
+or late effects. Authoritative no-effect classification is unsupported by this
+mechanism; it would need separately specified request-specific provider proof.
+Actual instants are compared as timezone-aware UTC values, including fractional
+seconds. Any observed kill/source/worker drift is terminal; a later baseline sample
+cannot clear it. Available runtime disagreement cannot be reported as unavailable. Provider bodies/settings and exception text are suppressed.
 
 The work clock starts before interpreter startup and all helper preflight reads:
 360 seconds work, at most 105 seconds cleanup within the absolute 465-second outer
 watchdog, and an 8-minute restoration step. Commands and capture are bounded.
+
+The helper atomically persists at most 16 KiB of curated evidence in
+`publication-recovery-evidence.json`, within the same bounded engine. It records
+controller SHA/run/attempt, incident bindings, admitted write timestamps and actual
+CLI interval, provider correlation/terminal timestamps, outcome and before/after
+flag/runtime/worker observations. A separate always-run, one-minute artifact step
+retains only this file for 7 days. No raw log, settings, credentials, provider body
+or exception text is uploaded. Missing artifact, upload failure, nonterminal runner
+or watchdog loss must be treated as incomplete/unknown even if an earlier snapshot
+exists; the artifact is evidence, not execution authority. Capture approved release
+evidence separately before artifact expiry. No operation history is silently
+filtered by caller before competing writers are rejected; active Actions queries
+include pre-incident queued/waiting/requested/pending/in-progress work.
 
 - `verified`: acknowledged true write, exact source ready/database OK, control
   plane and runtime true/false/true, baseline worker and no overlap.
