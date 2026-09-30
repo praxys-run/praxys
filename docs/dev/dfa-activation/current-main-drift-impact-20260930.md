@@ -60,6 +60,24 @@ web/miniapp build/type/i18n checks, trusted-main frozen activation validation, a
 fresh independent specialist and Quality review. Evidence Review and SDR remain
 draft, and runtime remains inactive.
 
+## Final main refresh to `3067bcba`
+
+After the first frozen-head preflight, trusted main advanced from `0c82ce26` to
+`3067bcba6ecd22d29fab612fd58b3960b987c5b2` through PR #867. The 13-file delta
+changes only task-completion guidance, role manifests, routing descriptions,
+agent-loop policy, the change-loop runbook and routing tests. Its intersection
+with the DFA governed-file manifest is empty. Routing descriptions are explicitly
+excluded from classification and route digests; the new tests preserve triggered
+Science, Design, Trust, Architecture, Operations and Quality obligations.
+
+The branch merged this exact main revision normally at
+`a7c17824499b360522e9deaaec89dcbac072933e`. No conflict resolution or DFA file
+edit was required. This refresh adds no DFA science, runtime, API, client,
+dependency, migration, workflow or production behavior. It invalidates the old
+head's final-preflight claim solely because evidence is SHA-bound, so the refreshed
+head still requires current parity, routing/science checks, clean generators and a
+new final preflight.
+
 Rollback preparation uses preferred inactive source
 `8dcd9b4f2905e29376f9e17126ca3bd2b6720342`, backend run `36445536979`, attempt 1,
 with rerun deadline `2026-10-28T15:41:49Z`. A rerun rebuilds source, not a retained
