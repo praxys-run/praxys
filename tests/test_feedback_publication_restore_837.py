@@ -601,9 +601,13 @@ def transport_run(recovery, monkeypatch):
             if argv[-1].endswith('/version'):
                 return json.dumps({'version': r.SERVING_VERSION, 'source_sha': r.SERVING_SHA}).encode()
             positive = state['positive']
-            if state['writes'] and state['fault'] in ('compensate', 'control_plane_only', 'false_nonzero'):
+            if state['writes'] and state['fault'] in ('compensate', 'control_plane_only', 'false_nonzero', 'mixed_bad_ready'):
                 if positive or state['fault'] == 'control_plane_only':
                     raise r.Failure()
+            if state['fault'] == 'mixed_bad_ready' and state['writes'] and not positive:
+                return json.dumps({'status': 'not_ready', 'database': 'error', 'optional_processing': {
+                    'feedback_publication_positive_enable': True,
+                    'feedback_publication_kill_switch': False, 'feedback_publication_enabled': True}}).encode()
             return json.dumps({'status': 'ready', 'database': 'ok', 'optional_processing': {
                 'feedback_publication_positive_enable': positive,
                 'feedback_publication_kill_switch': False, 'feedback_publication_enabled': positive}}).encode()
@@ -665,3 +669,12 @@ def test_transport_only_safe_compensation_uses_distinct_receipt(transport_run, f
         assert record['writes'][0]['correlation'] != record['writes'][1]['correlation']
     else:
         assert record['uncertain_write'] is True
+
+
+def test_unhealthy_runtime_cannot_hide_affirmative_compensation_contradiction(transport_run):
+    r, state, _ = transport_run
+    state['fault'] = 'mixed_bad_ready'
+    assert r.restore() == 'unknown'
+    assert state['writes'] == [True, False]
+    assert state['artifacts'][-1]['observation'] == 'unknown'
+    assert state['artifacts'][-1]['writes'][1]['outcome'] == 'terminal_success'

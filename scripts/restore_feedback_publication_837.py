@@ -426,7 +426,14 @@ def runtime(positive):
         raise Drift()
     ready = read('health/ready')
     flags = ready.get('optional_processing', {})
-    stable(flags.get('feedback_publication_kill_switch') is not True)
+    if 'feedback_publication_kill_switch' in flags:
+        stable(flags['feedback_publication_kill_switch'] is False)
+    # Affirmative publication contradictions take precedence over unhealthy status.
+    for name in ('feedback_publication_positive_enable', 'feedback_publication_enabled'):
+        if name in flags:
+            stable(type(flags[name]) is bool)
+            if flags[name] is not positive:
+                raise RuntimeMismatch()
     require(ready.get('status') == 'ready' and ready.get('database') == 'ok')
     stable(flags.get('feedback_publication_kill_switch') is False)
     if flags.get('feedback_publication_positive_enable') is not positive:
