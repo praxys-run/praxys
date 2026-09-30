@@ -1,5 +1,12 @@
 """Static safeguards for the automated translation workflow."""
 from pathlib import Path
+import json
+import os
+import subprocess
+import sys
+
+import pytest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -61,7 +68,10 @@ def test_exact_head_status_waits_for_both_dispatched_workflows():
     assert '.head.sha' in bind
     assert "current_head" in bind and "ACTION_HEAD_SHA" in bind
     validation = _step("Dispatch required validation on translation head")
-    assert "for workflow in ci-premerge.yml miniapp-build.yml" in validation
+    assert "for workflow in ci-premerge.yml; do" in validation
+    assert validation.count('gh workflow run ci-premerge.yml --ref "$PR_BRANCH"') == 1
+    assert 'gh workflow run miniapp-build.yml' not in validation
+    assert 'Unified pre-merge CI (including miniapp checks)' in workflow
     assert "select(.headSha == \\\"$HEAD_SHA\\\")" in validation
     assert 'gh run watch "$dispatched_run_id" --exit-status' in validation
     publish = _step("Publish generated translation validation status")
@@ -99,3 +109,44 @@ def test_science_yaml_is_outside_translation_automation():
     assert "Fill missing zh science YAML" not in workflow
     assert "--source-dir data/science" not in workflow
     assert "Science YAML stays" in workflow
+
+
+@pytest.mark.parametrize('listed,watch_exit,expected', [(True, 0, 0), (False, 0, 1), (True, 1, 1)])
+def test_unified_dispatch_waits_for_exact_head_and_propagates_failure(tmp_path, listed, watch_exit, expected):
+    workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    command = next(step['run'] for step in workflow['jobs']['translate']['steps']
+                   if step.get('name') == 'Dispatch required validation on translation head')
+    binary = tmp_path / 'bin'
+    binary.mkdir()
+    gh = binary / 'gh'
+    gh.write_text(f'#!{sys.executable}\n' + '''import json,os,sys
+from pathlib import Path
+args=sys.argv[1:]
+with Path(os.environ['CALL_LOG']).open('a') as stream: stream.write(json.dumps(args)+'\\n')
+if args[:2]==['workflow','run']:
+    assert args[2:]==['ci-premerge.yml','--ref',os.environ['PR_BRANCH']]
+elif args[:2]==['run','list']:
+    assert args[args.index('--workflow')+1]=='ci-premerge.yml'
+    assert args[args.index('--branch')+1]==os.environ['PR_BRANCH']
+    assert args[args.index('--event')+1]=='workflow_dispatch'
+    assert 'select(.headSha == "'+os.environ['HEAD_SHA']+'")' in args[args.index('--jq')+1]
+    if os.environ['LISTED']=='true': print('42')
+elif args[:2]==['run','watch']:
+    assert args[2:]==['42','--exit-status']
+    raise SystemExit(int(os.environ['WATCH_EXIT']))
+else: raise AssertionError(args)
+''')
+    gh.chmod(0o755)
+    sleep = binary / 'sleep'
+    sleep.write_text('#!/bin/sh\nexit 0\n')
+    sleep.chmod(0o755)
+    log = tmp_path / 'calls.jsonl'
+    environment = dict(os.environ, PATH=f'{binary}:/usr/bin:/bin', CALL_LOG=str(log),
+                       PR_BRANCH='synthetic-i18n-branch', HEAD_SHA='a' * 40,
+                       LISTED=str(listed).lower(), WATCH_EXIT=str(watch_exit))
+    result = subprocess.run(['bash', '-c', command], cwd=tmp_path, env=environment,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == expected, result.stdout + result.stderr
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    assert len([call for call in calls if call[:2] == ['workflow', 'run']]) == 1
+    assert len([call for call in calls if call[:2] == ['run', 'watch']]) == int(listed)

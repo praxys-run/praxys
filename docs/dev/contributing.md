@@ -303,6 +303,11 @@ CI runs the full backend suite serially through `python scripts/ci_pytest.py
 --output-dir /tmp/praxys-pytest`, retaining node IDs, phase timings, skip reasons
 and JUnit results. See [CI timing and completeness](../ops/ci-throughput.md) for
 measurement, failure handling and the runner-usage comparison requirement.
+Manual CI supports `test_mode=compare` to validate a serial baseline and two
+complete-file shards at the same revision. PRs remain serial until reviewed
+GitHub job timings prove a shorter critical path within the 5% runner budget.
+Miniapp PR source/type/generated-file checks run in unified CI; the standalone
+Miniapp workflow remains available for main pushes and manual runs.
 
 ```bash
 # Run all tests

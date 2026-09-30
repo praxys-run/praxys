@@ -16,6 +16,8 @@ import time
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.ci_shards import DEFAULT_WEIGHTS, load_weights, selected_nodes
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -32,21 +34,30 @@ def dependency_identity() -> dict:
     return dict(packages=packages, sha256=sha256(encoded).hexdigest())
 
 
-def validate_evidence(data: dict) -> list[str]:
+def validate_evidence(data: dict, *, weights: dict | None = None) -> list[str]:
     errors = []
-    if data.get('schema_version') != 1 or data.get('mode') != 'serial':
+    if type(data.get('schema_version')) is not int or data.get('schema_version') != 1 or data.get('mode') not in {'serial', 'sharded'}:
         errors.append('unsupported evidence format')
     if data.get('session_finished') is not True or data.get('collection_complete') is not True:
         errors.append('collection or session incomplete')
-    collected, selected = data.get('full_collected'), data.get('selected')
-    if not isinstance(collected, list) or not isinstance(selected, list):
+    collected, selected, before = data.get('full_collected'), data.get('selected'), data.get('pre_shard_selected')
+    if not all(isinstance(nodes, list) for nodes in (collected, selected, before)):
         return [*errors, 'missing collection lists']
-    if not all(isinstance(node, str) for node in collected + selected):
+    if not all(isinstance(node, str) for nodes in (collected, selected, before) for node in nodes):
         return [*errors, 'invalid node IDs']
-    if not collected or len(collected) != len(set(collected)) or len(selected) != len(set(selected)):
+    if not collected or any(len(nodes) != len(set(nodes)) for nodes in (collected, selected, before)):
         errors.append('empty or duplicate collection')
-    if set(collected) != set(selected) or data.get('deselected') != []:
-        errors.append('serial run unexpectedly deselected tests')
+    count, index = data.get('shard_count'), data.get('shard_index')
+    if (type(count) is not int or type(index) is not int or count not in (1, 2)
+            or index not in range(count) or data.get('mode') != ('serial' if count == 1 else 'sharded')):
+        errors.append('invalid shard identity')
+    if set(before) != set(collected) or data.get('deselected') != []:
+        errors.append('unexpected test deselection before sharding')
+    if count == 1 and set(collected) != set(selected):
+        errors.append('serial run unexpectedly omitted tests')
+    elif count == 2:
+        if weights is None or index not in (0, 1) or set(selected) != set(selected_nodes(collected, index, weights)):
+            errors.append('shard selection differs from complete file plan')
     phases = data.get('phases')
     if not isinstance(phases, list):
         return [*errors, 'missing phase reports']
@@ -82,11 +93,13 @@ def validate_evidence(data: dict) -> list[str]:
     return errors
 
 
-def run(output: Path, paths: list[str]) -> int:
+def run(output: Path, paths: list[str], *, shard_count: int = 1, shard_index: int = 0,
+        weights_path: Path = DEFAULT_WEIGHTS) -> int:
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     manifest_path, report_path, junit_path = output / 'result.json', output / 'phases.json', output / 'junit.xml'
-    manifest = dict(schema_version=1, mode='serial', requested_paths=paths,
+    manifest = dict(schema_version=1, mode='serial' if shard_count == 1 else 'sharded',
+                    shard_count=shard_count, shard_index=shard_index, requested_paths=paths,
                     started_at=datetime.now(timezone.utc).isoformat(), completed=False,
                     evidence_complete=False, child_exit_code=None, exit_code=None,
                     elapsed_seconds=None, errors=[])
@@ -94,6 +107,10 @@ def run(output: Path, paths: list[str]) -> int:
     write_json(manifest_path, manifest)
     # Never admit artifacts from a previous invocation using the same directory.
     try:
+        if shard_count not in (1, 2) or shard_index not in range(shard_count):
+            raise ValueError('invalid shard index/count')
+        weights, weights_digest = load_weights(weights_path)
+        manifest['weights_sha256'] = weights_digest
         for path in (report_path, junit_path):
             path.unlink(missing_ok=True)
         revision = subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
@@ -115,6 +132,8 @@ def run(output: Path, paths: list[str]) -> int:
     write_json(manifest_path, manifest)
     command = [sys.executable, '-m', 'pytest', '-p', 'scripts.ci_pytest_plugin',
                '--ci-report', str(report_path), '--junitxml', str(junit_path),
+               '--ci-shard-count', str(shard_count), '--ci-shard-index', str(shard_index),
+               '--ci-weights', str(weights_path.resolve()),
                '-v', '--durations=30', *paths]
     started = time.monotonic()
     child = None
@@ -136,7 +155,9 @@ def run(output: Path, paths: list[str]) -> int:
             evidence = json.loads(report_path.read_text(encoding='utf-8'))
             if not isinstance(evidence, dict):
                 raise ValueError('phase report must be an object')
-            errors = validate_evidence(evidence)
+            errors = validate_evidence(evidence, weights=weights)
+            if any(evidence.get(key) != manifest[key] for key in ('mode', 'shard_count', 'shard_index', 'weights_sha256')):
+                errors.append('pytest shard identity differs from wrapper')
             if evidence.get('exit_code') != status:
                 errors.append('pytest report and process exit disagree')
             tree = ET.parse(junit_path)
@@ -167,12 +188,16 @@ def run(output: Path, paths: list[str]) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--shard-count', type=int, choices=(1, 2), default=1)
+    parser.add_argument('--shard-index', type=int, choices=(0, 1), default=0)
+    parser.add_argument('--weights', type=Path, default=DEFAULT_WEIGHTS)
     parser.add_argument('paths', nargs='*', help='Optional explicit test paths after --; default tests/')
     args = parser.parse_args(argv)
     if any(path.startswith('-') for path in args.paths):
         parser.error('only test paths are accepted, not pytest selection/options')
     try:
-        return run(args.output_dir, args.paths or ['tests/'])
+        return run(args.output_dir, args.paths or ['tests/'], shard_count=args.shard_count,
+                   shard_index=args.shard_index, weights_path=args.weights)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f'Cannot initialize/write CI evidence: {type(error).__name__}', file=sys.stderr)
         return 2

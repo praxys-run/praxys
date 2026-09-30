@@ -107,7 +107,7 @@ jobs:
   # not at subscription level.
   # PRs created with GITHUB_TOKEN do not emit pull_request workflow events.
   # After opening the PR, this workflow explicitly dispatches required
-  # validation on the bot branch and waits for both downstream workflows. New translations
+  # validation on the bot branch and waits for the unified downstream workflow. New translations
   # first pass an explicit semantic-faithfulness gate; later copy revisions use
   # separate editor/critic passes on the same deployment. These passes are
   # defense in depth, not independent human review.
@@ -315,14 +315,14 @@ jobs:
             - Lingui extraction and catalog compilation
             - Deterministic terminology, placeholder, coverage, and typography checks
             - Miniapp catalog regeneration
-            - Pre-merge CI and miniapp build dispatched and bound to this exact head SHA
+            - Unified pre-merge CI (including miniapp checks) dispatched and bound to this exact head SHA
 
             ## UI quality
 
             - Impeccable: `audit web/src/locales/zh/messages.po` via the automated context-aware native-copy critic
             - Visual review: desktop and mobile Web plus WeChat miniapp rendered review unavailable in this catalog-only run; the Draft remains blocked on maintainer review
             - Primary journey: generated Chinese catalog -> synchronized miniapp catalog -> maintainer copy review
-            - Reviewer handoff: CI artifact - i18n human-review manifest; exact-head Web and miniapp build runs are linked by translation-validation
+            - Reviewer handoff: CI artifact - i18n human-review manifest; the exact-head unified Web and miniapp validation run is linked by translation-validation
             - States checked: catalog coverage, placeholders, protected tokens, terminology, typography, fuzzy entries, and long-content diff review
             - Accessibility: no interaction, focus, contrast, motion, or touch-target behavior changed
             - Design system impact: none - the existing localization and typography systems cover catalog-only changes
@@ -388,9 +388,8 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run ci-premerge.yml --ref "$PR_BRANCH"
-          gh workflow run miniapp-build.yml --ref "$PR_BRANCH"
 
-          for workflow in ci-premerge.yml miniapp-build.yml; do
+          for workflow in ci-premerge.yml; do
             dispatched_run_id=""
             for _attempt in $(seq 1 30); do
               dispatched_run_id="$(
