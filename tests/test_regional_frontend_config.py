@@ -289,7 +289,7 @@ def test_miniapp_is_decoupled_from_china_web_launch() -> None:
     assert "Promotion and publication remain human-authorized provider actions." in workflow
     assert "node-version: '24.11.0'" in workflow
     package = json.loads(_text("miniapp/package.json"))
-    assert package["devDependencies"]["miniprogram-ci"] == "2.1.31"
+    assert package["devDependencies"]["miniprogram-ci"] == "2.1.48"
 
 
 def test_obsolete_ceremony_is_removed_from_owned_operations_scope() -> None:
