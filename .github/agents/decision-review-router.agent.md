@@ -42,6 +42,12 @@ Evaluate:
 
 Do not use proposer confidence as the sole routing signal.
 
+Apply `task_completion` in `config/agent-loop-policies.json`. Recognize existing
+explicit batch authorization within its action/risk scope without asking again;
+new risk or scope requires reclassification and review. Never transfer approval
+tied to an immutable subject or hash. Return `blocked` with the shared causal
+blocker fields and scope; this guidance grants no approval authority.
+
 ## Return exactly one route
 
 - `agent-resolved`: deterministic, non-judgmental work listed in the active
