@@ -503,9 +503,16 @@ def test_restoration_rejects_valid_body_with_failed_transport(execute_restoratio
     'secret-invalid-json-canary',
 ])
 def test_restoration_rejects_malformed_and_contradictory_runtime(execute_restoration, body):
-    result, calls, output, _, _ = execute_restoration(plan={'readiness':[{'body':body}]})
+    # One rejected sample establishes the boundary. Advance the synthetic
+    # monotonic clock to the real work deadline before the next attempt so this
+    # matrix does not spend wall time replaying all 36 identical failures.
+    result, calls, output, _, _ = execute_restoration(plan={
+        'readiness': [{'body': body}],
+        'retry_gap': [{'duration': 350}],
+    })
     assert result.returncode != 0 and 'observation=verified\n' not in output
     assert 'secret-' not in result.stdout + result.stderr + output
+    assert sum(call['operation'] == 'readiness' for call in calls) >= 1
     assert sum(call['operation']=='disable_write' for call in calls) == 1
 
 
