@@ -20,6 +20,8 @@ REQUIRED_FILES = [
     'scripts/collect_science_activation_validation.py', 'scripts/agent_preflight.py',
     'scripts/run_science_policy_probe.py', 'scripts/observe_science_policy.py', 'tests/test_science_policy_probe.py',
     '.github/workflows/ci-premerge.yml', '.github/workflows/science-activation-validation.yml',
+    'scripts/ci_pytest.py', 'scripts/ci_pytest_plugin.py', 'scripts/ci_metrics.py',
+    'tests/test_ci_pytest.py', 'tests/test_ci_metrics.py',
 ]
 
 

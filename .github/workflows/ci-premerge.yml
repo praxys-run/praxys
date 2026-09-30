@@ -74,7 +74,16 @@ jobs:
           fi
 
       - name: Run backend tests
-        run: python -m pytest tests/ -v
+        run: python scripts/ci_pytest.py --output-dir "$RUNNER_TEMP/pytest"
+
+      - name: Retain backend test timing and completeness evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-pytest-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pytest/
+          retention-days: 30
+          if-no-files-found: error
 
       - name: Validate selective-review promotions
         run: python scripts/validate_review_policy.py
