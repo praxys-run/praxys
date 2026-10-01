@@ -5,13 +5,13 @@ title: Post-run short-scale DFA from ECG chest-strap RR
 research_question: Can existing archived running FIT RR support bounded post-run DFA
   alpha1 without threshold or training claims?
 topic: activity-dfa-alpha1
-status: draft
+status: accepted
 approval_mode: artifact
 authors:
 - agent:science
 human_reviewers: []
 created_on: &id001 2026-09-27
-reviewed_on: null
+reviewed_on: 2026-10-01
 intended_product_purpose: Inspect valid running windows and the uncertainty of post-run
   beat-interval analysis.
 scope:
