@@ -43,7 +43,14 @@ def ready_env(monkeypatch, tmp_path):
         yield client, db_session
 
 
-def test_health_ready_ok(ready_env):
+def test_health_ready_ok(ready_env, monkeypatch):
+    from fastapi import HTTPException
+    from api import activity_dfa
+
+    def inactive_policy():
+        raise HTTPException(503, 'DFA_SCIENCE_POLICY_INACTIVE')
+
+    monkeypatch.setattr(activity_dfa, 'require_policy', inactive_policy)
     client, _ = ready_env
     r = client.get("/api/health/ready")
     assert r.status_code == 200
@@ -146,6 +153,7 @@ def test_health_ready_503_when_db_unavailable(ready_env, monkeypatch):
 
 
 def test_health_ready_exposes_only_bounded_dfa_policy(ready_env, monkeypatch):
+    from fastapi import HTTPException
     from api import activity_dfa
     client, _ = ready_env
     digest = 'sha256:' + 'a' * 64
@@ -154,6 +162,12 @@ def test_health_ready_exposes_only_bounded_dfa_policy(ready_env, monkeypatch):
     assert response.status_code == 200
     assert response.headers['cache-control'] == 'no-store'
     assert response.json()['dfa_policy'] == {'policy_active': True, 'contract_digest': digest}
+    def denied_policy():
+        raise HTTPException(503, 'DFA_SCIENCE_POLICY_INACTIVE')
+    monkeypatch.setattr(activity_dfa, 'require_policy', denied_policy)
+    response = client.get('/api/health/ready')
+    assert response.status_code == 200
+    assert response.json()['dfa_policy'] == {'policy_active': False, 'contract_digest': None}
     def broken_policy():
         raise RuntimeError('private diagnostic must not leak')
     monkeypatch.setattr(activity_dfa, 'require_policy', broken_policy)
