@@ -1,6 +1,6 @@
 """Terminal STOP preserves history, denies the real guard and unlocks safe maintenance."""
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import shutil
 
@@ -17,6 +17,58 @@ from analysis.science_implementation_stop import (
 from analysis.science_stop_github import StopContext
 from tests.test_science_activation import commit
 from tests.test_science_implementation_coverage import accepted_active_baseline, SUBJECT
+
+
+def test_synthetic_dates_share_one_utc_day_when_local_date_is_ahead(monkeypatch):
+    from scripts import check_projected_dfa_policy as producer
+
+    utc_now = datetime(2026, 9, 28, 18, 30, tzinfo=timezone.utc)
+    local_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+    assert local_now.date() != utc_now.date()
+
+    class LocalDate(date):
+        @classmethod
+        def today(cls):
+            return local_now.date()
+
+    class Clock(datetime):
+        calls = 0
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.calls += 1
+            assert tz is timezone.utc
+            return utc_now
+
+    # Also control the former local-date API so the regression is deterministic
+    # on UTC CI hosts, without changing the process timezone.
+    monkeypatch.setattr(producer, 'date', LocalDate, raising=False)
+    monkeypatch.setattr(producer, 'datetime', Clock, raising=False)
+    candidate = Path(__file__).resolve().parents[1]
+    with producer.synthetic_active_registry(candidate, SUBJECT, None) as (science, _):
+        registry = load_science_registry(science)
+        approvals = [approval for approval in load_science_approvals(science)
+                     if approval.reviewer == 'github:synthetic-validation-only']
+        assert len(approvals) == 3
+        assert {approval.reviewed_on for approval in approvals} == {utc_now.date()}
+        for review_id in registry.decisions[SUBJECT].evidence_review_ids:
+            assert registry.evidence_reviews[review_id].reviewed_on == utc_now.date()
+        assert Clock.calls == 1
+
+        approval = next(a for a in approvals if a.role == ReviewRole.IMPLEMENTATION_REVIEWER)
+        binding = approval.implementation_binding
+        target = dict(schema_version=1, action='stop', repository=binding.repository,
+                      subject_id=SUBJECT, active_contract_digest=approval.subject_digest,
+                      implementation_envelope_digest=binding.envelope_digest)
+        comment = dict(id=77, body=render_stop_comment(target),
+                       user={'type': 'User', 'login': 'human'},
+                       created_at=utc_now.isoformat(),
+                       html_url=f'https://github.com/{binding.repository}/pull/{binding.pull_request}#issuecomment-77')
+        stop = stop_from_comment(comment, 'admin', binding.repository)
+        validate_stop_target(registry, stop)
+        earlier = stop.model_copy(update={'requested_at': utc_now - timedelta(days=1)})
+        with pytest.raises(ValueError, match='not the trusted approved binding'):
+            validate_stop_target(registry, earlier)
 
 
 @pytest.fixture
