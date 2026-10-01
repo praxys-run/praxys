@@ -6,8 +6,8 @@
 - **Lifecycle:** `draft`
 - **Model version:** `dfa-alpha1-raw120-v1`
 - **Runtime state:** `inactive`
-- **Decision digest:** `sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2`
-- **Contract digest:** `sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821`
+- **Decision digest:** `sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae`
+- **Contract digest:** `sha256:9e31562ef3709f770b36e22ebf4d4aa610892c95cb96d60590b91f6c9f1474c3`
 - **Required decision role:** `decision_approver`
 - **Decision approval:** _Pending_
 - **Required activation role:** `implementation_reviewer`
@@ -48,7 +48,7 @@ Do not approve merely because the audit appendix looks reasonable or because you
 
 A decision approval bound to the displayed digest attests:
 
-> Approve only the named science decision and displayed digest; this does not activate runtime.
+> Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation.
 
 - **Decision approval:** _Pending_
 
@@ -61,12 +61,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-activity-dfa-alpha1-v1`
-- Digest: `sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2`
+- Digest: `sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae`
 
-> Approve only the named science decision and displayed digest; this does not activate runtime.
+> Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
 -->
 ```
 
@@ -76,7 +76,7 @@ Praxys science approval — **APPROVE**
 
 ### Accepted interpretation
 
-Proposed scientific boundary: native ECG chest-strap RR can support descriptive post-run short-scale DFA when source, timer alignment and conservative uncorrected-RR QC pass. Results characterize supported windows only; no personal threshold, fatigue diagnosis or training prescription is inferred. This draft does not activate runtime.
+Native ECG chest-strap RR can support descriptive post-run short-scale DFA when source, timer alignment and conservative uncorrected-RR QC pass. Results characterize supported windows only; no personal threshold, fatigue diagnosis or training prescription is inferred. Runtime use requires an accepted decision and implementation approval bound to the active contract, reviewed code diff and validation evidence.
 
 ### Linked evidence
 
@@ -344,7 +344,7 @@ Unsupported transfer and processing differences would widen the approved claim.
 
 ### Decision notes
 
-- Approved implementation plan is contextually adopted; formal evidence, decision and implementation signatures are absent.
+- The initial implementation adopted the user-approved plan contextually and remained draft/inactive without formal evidence, decision or implementation signatures. Activation requires separately recorded, source-verified approvals for the exact final reviewed artifacts.
 - Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.
 - Window membership is limited to complete unchanged RR intervals in the exact gathered packets used for local offset bounds; it never borrows intervals from other packets in the same chain. Actual selected-RR support remains the reported union.
 
@@ -358,7 +358,7 @@ Unsupported transfer and processing differences would widen the approved claim.
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821",
+  "contract_digest": "sha256:9e31562ef3709f770b36e22ebf4d4aa610892c95cb96d60590b91f6c9f1474c3",
   "decision_id": "sdr-activity-dfa-alpha1-v1",
   "decision_status": "draft",
   "decision_version": 1,
@@ -563,7 +563,7 @@ Unsupported transfer and processing differences would widen the approved claim.
   },
   "runtime_state": "inactive",
   "schema_version": 1,
-  "source_decision_digest": "sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2"
+  "source_decision_digest": "sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae"
 }
 ```
 
@@ -579,7 +579,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
 
 ```json
 {
-  "accepted_interpretation": "Proposed scientific boundary: native ECG chest-strap RR can support descriptive post-run short-scale DFA when source, timer alignment and conservative uncorrected-RR QC pass. Results characterize supported windows only; no personal threshold, fatigue diagnosis or training prescription is inferred. This draft does not activate runtime.",
+  "accepted_interpretation": "Native ECG chest-strap RR can support descriptive post-run short-scale DFA when source, timer alignment and conservative uncorrected-RR QC pass. Results characterize supported windows only; no personal threshold, fatigue diagnosis or training prescription is inferred. Runtime use requires an accepted decision and implementation approval bound to the active contract, reviewed code diff and validation evidence.",
   "affected_surfaces": {
     "apis": [
       "/api/activities/{activity_id}/dfa-alpha1"
@@ -606,12 +606,12 @@ Runtime activation remains fail-closed until implementation approval can bind bo
   },
   "decision_date": "2026-09-27",
   "decision_notes": [
-    "Approved implementation plan is contextually adopted; formal evidence, decision and implementation signatures are absent.",
+    "The initial implementation adopted the user-approved plan contextually and remained draft/inactive without formal evidence, decision or implementation signatures. Activation requires separately recorded, source-verified approvals for the exact final reviewed artifacts.",
     "Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.",
     "Window membership is limited to complete unchanged RR intervals in the exact gathered packets used for local offset bounds; it never borrows intervals from other packets in the same chain. Actual selected-RR support remains the reported union."
   ],
   "decision_review": {
-    "approval_statement": "Approve only the named science decision and displayed digest; this does not activate runtime.",
+    "approval_statement": "Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation.",
     "items": [
       {
         "approval_effect": [

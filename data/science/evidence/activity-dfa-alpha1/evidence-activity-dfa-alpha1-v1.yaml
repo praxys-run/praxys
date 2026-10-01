@@ -11,6 +11,7 @@ authors:
 - agent:science
 human_reviewers: []
 created_on: &id001 2026-09-27
+reviewed_on: null
 intended_product_purpose: Inspect valid running windows and the uncertainty of post-run
   beat-interval analysis.
 scope:
