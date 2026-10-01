@@ -279,6 +279,54 @@ def test_contention_harness_never_classifies_an_unreadable_store(tmp_path, monke
     assert len(attempts) == 8
 
 
+@pytest.mark.parametrize('entrypoint', ['service', 'cli'])
+def test_eight_conflicts_leave_ledger_unchanged_and_no_candidate(tmp_path, monkeypatch, capsys, entrypoint):
+    from scripts import local_decision_trial as command
+
+    service = trial(tmp_path)
+    key = new_task_key()
+    before = service.store.read()
+    before_bytes = service.path.read_bytes()
+    conflicts = []
+
+    def conflict(revision, proposed):
+        assert revision == before[0]
+        assert key in proposed.assignments
+        conflicts.append(revision)
+        return False
+
+    monkeypatch.setattr(service.store, 'compare_and_swap', conflict)
+    if entrypoint == 'service':
+        with pytest.raises(TrialUnavailable) as unavailable:
+            service.admit(key, contract())
+        assert str(unavailable.value) == 'cohort contention; use baseline'
+    else:
+        policy_path = tmp_path / 'policy.json'
+        policy_path.write_text(service.policy.model_dump_json())
+        contract_path = tmp_path / 'contract.json'
+        contract_path.write_text(contract().model_dump_json())
+
+        def synthetic_service(path, policy):
+            assert path == service.path and policy == service.policy
+            return service
+
+        monkeypatch.setattr(command, 'CooperativeTrial', synthetic_service)
+        monkeypatch.setattr(sys, 'argv', [
+            'local_decision_trial.py', '--test-policy', str(policy_path),
+            '--test-store', str(service.path), 'admit', '--task-key', key,
+            '--contract', str(contract_path),
+        ])
+        assert command.main() == 1
+        output = json.loads(capsys.readouterr().out)
+        assert output['presentation'] == 'baseline'
+        assert output['enrolled'] == output['original_arm'] == 'unknown'
+        assert output['card'] is None
+    assert len(conflicts) == 8
+    assert service.store.read() == before
+    assert service.path.read_bytes() == before_bytes
+    assert key not in service.store.read()[1].assignments
+
+
 def test_worktrees_resolve_same_canonical_path_without_creation(tmp_path):
     repository, worktree = tmp_path / 'repo', tmp_path / 'linked'
     subprocess.run(['git', 'init', str(repository)], check=True, capture_output=True)

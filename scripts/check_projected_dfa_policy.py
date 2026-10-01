@@ -4,7 +4,7 @@ Prepares candidate data with trusted code, never importing candidate modules.
 The CLI delegates candidate execution and completion to the bounded controller.
 """
 from contextlib import contextmanager
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 import shutil
 import sys
@@ -20,6 +20,7 @@ def synthetic_active_registry(candidate: Path, subject: str, expected: str | Non
 
     if subject != 'sdr-activity-dfa-alpha1-v1':
         raise ValueError('This bounded producer validates descriptive activity DFA only')
+    reviewed_on = datetime.now(timezone.utc).date()
     with tempfile.TemporaryDirectory(prefix='synthetic-dfa-policy-') as temporary:
         root = Path(temporary) / 'science'
         shutil.copytree(candidate / 'data/science', root)
@@ -41,7 +42,7 @@ def synthetic_active_registry(candidate: Path, subject: str, expected: str | Non
             review = projected.evidence_reviews[review_id]
             if review.approval_mode.value != 'artifact':
                 continue
-            review = review.model_copy(update={'reviewed_on': date.today()})
+            review = review.model_copy(update={'reviewed_on': reviewed_on})
             projected.review_paths[review_id].write_text(yaml.safe_dump(review.model_dump(mode='json'), sort_keys=False))
             subjects.append((artifacts.ReviewSubjectKind.EVIDENCE_REVIEW, review_id,
                              artifacts.evidence_review_digest(review), artifacts.ReviewRole.EVIDENCE_REVIEWER))
@@ -53,7 +54,7 @@ def synthetic_active_registry(candidate: Path, subject: str, expected: str | Non
         for kind, identity, digest, role in subjects:
             payload = dict(schema_version=1, subject_kind=kind.value, subject_id=identity,
                            subject_digest=digest, reviewer='github:synthetic-validation-only',
-                           role=role.value, reviewed_on=date.today().isoformat(),
+                           role=role.value, reviewed_on=reviewed_on.isoformat(),
                            scopes=[s.value for s in artifacts.required_review_scopes(role)],
                            source_ref='https://github.com/praxys-run/praxys/issues/1#issuecomment-1')
             if role == artifacts.ReviewRole.IMPLEMENTATION_REVIEWER:

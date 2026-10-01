@@ -1,0 +1,25 @@
+schema_version: 2
+subject_kind: implementation_contract
+subject_id: sdr-activity-dfa-alpha1-v1
+subject_digest: sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6
+reviewer: github:dddtc2005
+role: implementation_reviewer
+reviewed_on: '2026-10-01'
+scopes:
+- contract_mapping
+- runtime_diff
+- validation
+source_ref: https://github.com/praxys-run/praxys/pull/870#issuecomment-5933469391
+implementation_binding:
+  version: 1
+  repository: praxys-run/praxys
+  pull_request: 870
+  base_sha: ac1bfd37cd1c79064b3920bee33c689f106f1c58
+  reviewed_head_sha: 0ba7409c6ca7c347e88bdc8aa5583417d1691474
+  diff_digest: sha256:5944dca9a2f98a8866491672821580eb52af149a205d2ee2734621533f0f5383
+  active_contract_digest: sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6
+  validation_run_id: 36860022481
+  validation_run_attempt: 1
+  validation_workflow_sha: ac1bfd37cd1c79064b3920bee33c689f106f1c58
+  validation_artifact_id: 11161177778
+  validation_digest: sha256:c66526d8c79345ff2385476c4b0e1272783833785d83e17c84cbae1f2c4d672d
