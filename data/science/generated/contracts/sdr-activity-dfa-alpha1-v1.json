@@ -3,9 +3,9 @@
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:729dd1b09e4736b79a34f7e929df0d68fab61f45fac2455e2355eb405469a821",
+  "contract_digest": "sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6",
   "decision_id": "sdr-activity-dfa-alpha1-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "dfa.recording-artifacts",
@@ -206,7 +206,7 @@
       }
     }
   },
-  "runtime_state": "inactive",
+  "runtime_state": "active",
   "schema_version": 1,
-  "source_decision_digest": "sha256:8013269bfd3d09737872b93a1cf977dd60eb41dc353c4efa4bed13276fc1b8e2"
+  "source_decision_digest": "sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288"
 }

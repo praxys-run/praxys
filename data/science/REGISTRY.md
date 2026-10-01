@@ -10,6 +10,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
+| [evidence-activity-dfa-alpha1-v1](evidence/activity-dfa-alpha1/evidence-activity-dfa-alpha1-v1.yaml) — Post-run short-scale DFA from ECG chest-strap RR | 1 | activity-dfa-alpha1 | 2026-10-01 |
 | [evidence-adaptive-training-load-v1](evidence/adaptive-training-load/evidence-adaptive-training-load-v1.yaml) — Adaptive endurance-training load decisions | 1 | adaptive-training-load | 2026-08-16 |
 | [evidence-adult-running-plan-population-routing-v1](evidence/adult-running-plan-population-routing/evidence-adult-running-plan-population-routing-v1.yaml) — Adult running-plan population routing | 1 | adult-running-plan-population-routing | 2026-08-17 |
 | [evidence-environmental-performance-v1](evidence/environmental-performance/evidence-environmental-performance-v1.yaml) — Environmental heat and endurance performance | 1 | environmental-performance | 2026-07-26 |
@@ -34,6 +35,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
+| [sdr-activity-dfa-alpha1-v1](decisions/sdr-activity-dfa-alpha1-v1.yaml) — Bounded raw RR DFA alpha1 for a single running activity | 1 | dfa-alpha1-raw120-v1 | 2026-09-27 |
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Require actionable, feedback-aware recommendations across managed plans | 1 | adaptive-plan-policy-v1 | 2026-08-16 |
 | [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
@@ -53,14 +55,12 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [evidence-activity-dfa-alpha1-v1](evidence/activity-dfa-alpha1/evidence-activity-dfa-alpha1-v1.yaml) — Post-run short-scale DFA from ECG chest-strap RR | 1 | activity-dfa-alpha1 | 2026-09-27 |
 | [evidence-trail-training-resource-adaptation-v1](evidence/trail-training-resource-adaptation/evidence-trail-training-resource-adaptation-v1.yaml) — Resource-aware trail preparation: bounded strength and treadmill modules | 1 | trail-training-resource-adaptation | 2026-09-08 |
 
 ### Science decisions
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [sdr-activity-dfa-alpha1-v1](decisions/sdr-activity-dfa-alpha1-v1.yaml) — Bounded raw RR DFA alpha1 for a single running activity | 1 | dfa-alpha1-raw120-v1 | 2026-09-27 |
 | [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
 | [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
 
