@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-activity-dfa-alpha1-v1
 version: 1
 title: Bounded raw RR DFA alpha1 for a single running activity
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: 2026-09-27
 owners:
@@ -236,7 +236,7 @@ affected_surfaces:
   science_notes:
   - Post-run DFA method and guardrails
 artifact_policy:
-  runtime_state: inactive
+  runtime_state: active
 decision_notes:
 - "The initial implementation adopted the user-approved plan contextually and remained draft/inactive without formal evidence, decision or implementation signatures. Activation requires separately recorded, source-verified approvals for the exact final reviewed artifacts."
 - 'Full implementation contract: docs/dev/activity-dfa-alpha1-implementation.md.'

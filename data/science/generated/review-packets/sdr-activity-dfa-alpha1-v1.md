@@ -3,15 +3,15 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-activity-dfa-alpha1-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `dfa-alpha1-raw120-v1`
-- **Runtime state:** `inactive`
-- **Decision digest:** `sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae`
-- **Contract digest:** `sha256:9e31562ef3709f770b36e22ebf4d4aa610892c95cb96d60590b91f6c9f1474c3`
+- **Runtime state:** `active`
+- **Decision digest:** `sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288`
+- **Contract digest:** `sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-10-01` ([source](https://github.com/praxys-run/praxys/pull/869#issuecomment-5929471354))
 - **Required activation role:** `implementation_reviewer`
-- **Implementation approval:** _Pending_
+- **Implementation approval:** `github:dddtc2005` on `2026-10-01` ([source](https://github.com/praxys-run/praxys/pull/869#issuecomment-5929471354))
 
 ## Your task
 
@@ -50,7 +50,7 @@ A decision approval bound to the displayed digest attests:
 
 > Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-10-01` ([source](https://github.com/praxys-run/praxys/pull/869#issuecomment-5929471354))
 
 ### Decision approval
 
@@ -61,12 +61,12 @@ Praxys science approval — **APPROVE**
 
 - Role: `decision_approver`
 - Subject: `sdr-activity-dfa-alpha1-v1`
-- Digest: `sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae`
+- Digest: `sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288`
 
 > Approve only the named science decision and displayed digest, including its bounded descriptive interpretation, parameters, applicability, claim limits and activation boundary. Decision approval alone does not authorize runtime activation.
 
 <!-- praxys-science-approval:v1
-{"role":"decision_approver","subject_digest":"sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
+{"role":"decision_approver","subject_digest":"sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288","subject_id":"sdr-activity-dfa-alpha1-v1","subject_kind":"science_decision"}
 -->
 ```
 
@@ -358,9 +358,9 @@ Unsupported transfer and processing differences would widen the approved claim.
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:9e31562ef3709f770b36e22ebf4d4aa610892c95cb96d60590b91f6c9f1474c3",
+  "contract_digest": "sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6",
   "decision_id": "sdr-activity-dfa-alpha1-v1",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 1,
   "evidence_claim_ids": [
     "dfa.recording-artifacts",
@@ -561,9 +561,9 @@ Unsupported transfer and processing differences would widen the approved claim.
       }
     }
   },
-  "runtime_state": "inactive",
+  "runtime_state": "active",
   "schema_version": 1,
-  "source_decision_digest": "sha256:a2a2c358220cff5324f32c7d6f685071324a09999b06a26615a14b7a8d4669ae"
+  "source_decision_digest": "sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288"
 }
 ```
 
@@ -602,7 +602,7 @@ Runtime activation remains fail-closed until implementation approval can bind bo
     "Existing Garmin-platform archive adapter, device-neutral pure core."
   ],
   "artifact_policy": {
-    "runtime_state": "inactive"
+    "runtime_state": "active"
   },
   "decision_date": "2026-09-27",
   "decision_notes": [

@@ -3,11 +3,11 @@
 > Generated from the canonical Evidence Review. Review this packet, not the raw YAML. Any source change invalidates the digest below.
 
 - **Record:** `evidence-activity-dfa-alpha1-v1`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Review mode:** `artifact`
 - **Reviewed content digest:** `sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f`
 - **Required role:** `evidence_reviewer`
-- **Approval:** _Pending_
+- **Approval:** `github:dddtc2005` on `2026-10-01` ([source](https://github.com/praxys-run/praxys/pull/869#issuecomment-5929471354))
 
 ## Approval
 
