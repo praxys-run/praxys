@@ -1,0 +1,13 @@
+schema_version: 1
+subject_kind: evidence_review
+subject_id: evidence-activity-dfa-alpha1-v1
+subject_digest: sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f
+reviewer: github:dddtc2005
+role: evidence_reviewer
+reviewed_on: '2026-10-01'
+scopes:
+- citation_verification
+- evidence_claims
+- limitations_and_gaps
+- search_method
+source_ref: https://github.com/praxys-run/praxys/pull/853#issuecomment-5924024414
