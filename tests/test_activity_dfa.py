@@ -343,7 +343,7 @@ def test_original_rr_indices_survive_off_timer_and_corrupt_packets():
     assert after.first_index == 206
 
 
-def _isolated_dfa_science_dir(tmp_path, *, accepted, active):
+def _isolated_dfa_science_dir(tmp_path, *, accepted, active, source_science_dir=None):
     from dataclasses import replace
     from pathlib import Path
     import shutil
@@ -359,9 +359,13 @@ def _isolated_dfa_science_dir(tmp_path, *, accepted, active):
         science_decision_digest, sync_science_artifacts,
     )
 
-    source = Path(__file__).resolve().parents[1] / 'data' / 'science'
+    source = (Path(source_science_dir) if source_science_dir is not None
+              else Path(__file__).resolve().parents[1] / 'data' / 'science')
     target = tmp_path / f"science-{'accepted' if accepted else 'draft'}-{'active' if active else 'inactive'}"
     shutil.copytree(source, target)
+    from analysis.science_implementation_stop import stop_paths
+    for relative in stop_paths(core.SDR_ID):
+        (target / relative).unlink(missing_ok=True)
     registry = load_science_registry(target, validate_approvals=False)
     decision = registry.decisions[core.SDR_ID]
     reviews = dict(registry.evidence_reviews)
@@ -489,6 +493,133 @@ def _isolated_dfa_science_dir(tmp_path, *, accepted, active):
     validated = load_science_registry(target)
     sync_science_artifacts(validated, check=False)
     return target
+
+
+def test_isolated_lifecycle_fixtures_remove_only_target_stop(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    import yaml
+    from analysis import science_artifacts
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_activation import project_active_registry
+    from analysis.science_approval_workflow import _write_approval_artifact
+    from analysis.science_artifacts import (
+        ImplementationBinding, ReviewRole, ReviewSubjectKind, ScienceApproval,
+        build_policy_contract, load_science_approvals, required_review_scopes,
+        science_decision_digest, sync_science_artifacts,
+    )
+    from analysis.science_implementation_stop import (
+        ImplementationStop, require_not_stopped, stop_paths, write_stop_files,
+    )
+
+    source = _isolated_dfa_science_dir(tmp_path / 'source', accepted=True, active=True)
+    other_subject = 'sdr-adaptive-plan-feasibility-and-adjustment-v1'
+    registry = load_science_registry(source)
+    projected = project_active_registry(registry, other_subject)
+    other_decision_path = registry.decision_paths[other_subject]
+    (source / other_decision_path.relative_to(registry.science_dir)).write_text(
+        yaml.safe_dump(projected.decisions[other_subject].model_dump(mode='json'), sort_keys=False),
+        encoding='utf-8', newline='\n',
+    )
+    other_contract = build_policy_contract(projected, other_subject)
+    for path in (source / 'approvals').glob(f'{other_subject}--*.yaml'):
+        if '--decision_approver--' in path.name or '--implementation_reviewer--' in path.name:
+            path.unlink()
+    _write_approval_artifact(source, ScienceApproval(
+        schema_version=1,
+        subject_kind=ReviewSubjectKind.SCIENCE_DECISION,
+        subject_id=other_subject,
+        subject_digest=science_decision_digest(projected.decisions[other_subject]),
+        reviewer='github:isolated-lifecycle-test',
+        role=ReviewRole.DECISION_APPROVER,
+        reviewed_on=date(2035, 1, 1),
+        scopes=required_review_scopes(ReviewRole.DECISION_APPROVER),
+        source_ref='https://github.com/praxys-run/praxys/pull/2#issuecomment-2',
+    ))
+    other_binding = ImplementationBinding(
+        version=1,
+        repository='praxys-run/praxys',
+        pull_request=2,
+        base_sha='4' * 40,
+        reviewed_head_sha='5' * 40,
+        diff_digest='sha256:' + '6' * 64,
+        active_contract_digest=other_contract.contract_digest,
+        validation_run_id=2,
+        validation_run_attempt=1,
+        validation_workflow_sha='4' * 40,
+        validation_artifact_id=2,
+        validation_digest='sha256:' + '7' * 64,
+    )
+    _write_approval_artifact(source, ScienceApproval(
+        schema_version=2,
+        subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
+        subject_id=other_subject,
+        subject_digest=other_contract.contract_digest,
+        reviewer='github:isolated-lifecycle-test',
+        role=ReviewRole.IMPLEMENTATION_REVIEWER,
+        reviewed_on=date(2035, 1, 1),
+        scopes=required_review_scopes(ReviewRole.IMPLEMENTATION_REVIEWER),
+        source_ref='https://github.com/praxys-run/praxys/pull/2#issuecomment-2',
+        implementation_binding=other_binding,
+    ))
+    sync_science_artifacts(load_science_registry(source), check=False)
+    registry = load_science_registry(source)
+    dfa_approval = next(
+        item for item in load_science_approvals(source)
+        if item.subject_id == core.SDR_ID and item.role == ReviewRole.IMPLEMENTATION_REVIEWER
+    )
+    stops = {
+        core.SDR_ID: ImplementationStop(
+            schema_version=1,
+            action='stop',
+            repository=dfa_approval.implementation_binding.repository,
+            subject_id=core.SDR_ID,
+            active_contract_digest=dfa_approval.subject_digest,
+            implementation_envelope_digest=dfa_approval.implementation_binding.envelope_digest,
+            requested_by='github:isolated-lifecycle-test',
+            requested_at=datetime(2035, 1, 2, tzinfo=timezone.utc),
+            source_ref='https://github.com/praxys-run/praxys/pull/1#issuecomment-11',
+        ),
+        other_subject: ImplementationStop(
+            schema_version=1,
+            action='stop',
+            repository=other_binding.repository,
+            subject_id=other_subject,
+            active_contract_digest=other_contract.contract_digest,
+            implementation_envelope_digest=other_binding.envelope_digest,
+            requested_by='github:isolated-lifecycle-test',
+            requested_at=datetime(2035, 1, 2, tzinfo=timezone.utc),
+            source_ref='https://github.com/praxys-run/praxys/pull/2#issuecomment-22',
+        ),
+    }
+    for stop in stops.values():
+        write_stop_files(source, stop)
+    stopped_registry = load_science_registry(source)
+    source_bytes = {
+        (subject, relative): (source / relative).read_bytes()
+        for subject in stops
+        for relative in stop_paths(subject)
+    }
+    with pytest.raises(ValueError, match='terminally stopped'):
+        require_not_stopped(stopped_registry, core.SDR_ID)
+    monkeypatch.setattr(science_artifacts, '_SCIENCE_DIR', source)
+    with pytest.raises(HTTPException, match='503'):
+        service.require_policy()
+
+    targets = [
+        _isolated_dfa_science_dir(
+            tmp_path / 'copies', accepted=accepted, active=active,
+            source_science_dir=source,
+        )
+        for accepted, active in ((False, False), (True, False), (True, True))
+    ]
+    for target in targets:
+        for relative in stop_paths(core.SDR_ID):
+            assert not (target / relative).exists()
+        for relative in stop_paths(other_subject):
+            assert (target / relative).read_bytes() == source_bytes[(other_subject, relative)]
+        load_science_registry(target)
+    for key, content in source_bytes.items():
+        assert (source / key[1]).read_bytes() == content
 
 
 def test_science_contract_parameter_mapping_and_activation_fail_closed(monkeypatch, tmp_path):
