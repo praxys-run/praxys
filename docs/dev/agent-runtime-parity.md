@@ -295,14 +295,7 @@ MCP configuration, Copilot workflows, and invocation-control ledger unchanged.
 
 ## Independent Codex-local Statsig setup extension
 
-`config/codex-statsig-mcp-extension.json` binds the immutable proposed Meta/Eval
-subject/proposal and supporting Evaluation Report, ADR and native TDR independently
-of the unchanged Microsoft/Azure models and approval digests. Those originals
-remain proposed records; `docs/dev/codex-statsig-mcp-setup-review-v1.json` separately
-records the coordinator-supplied independent route and provenance. The route is
-human-review-required with bounded setup authority already supplied by the user's
-explicit configuration request. It does not manufacture exact-digest human
-approval or transfer an older approval.
+`config/codex-statsig-mcp-extension.json` binds the new minimized Meta/Eval subject/proposal and four exact supporting records: historical Evaluation Report/ADR, independently accepted historical-TDR publication attachment and current Evaluation Report. Private originals and the seven public attachments keep their bytes and historical/proposed status. The byte-identical `docs/dev/codex-statsig-mcp-setup-review-v1.json` is historical provenance only. Current independently allocated review and authenticated ordinary PR/review/merge authority are mirrored in `docs/dev/codex-statsig-public-projection-review-v1.json`; no exact-digest human approval or historical approval transfer is claimed. Final independent verification and required checks remain prerequisites. Earlier published refs/caches may retain identity; additive repair does not establish purge.
 
 Root and Operations declare direct V3 Streamable HTTP,
 `https://api.statsig.com/v3/mcp`, `auth = "oauth"`, `enabled = true`,

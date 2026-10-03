@@ -1,46 +1,50 @@
 {
   "schema_version": 1,
-  "id": "codex-statsig-mcp-extension-decision-v1",
+  "id": "codex-statsig-mcp-extension-decision-public-projection-v1",
   "artifact_type": "policy-change-proposal-companion",
   "owner_role": "meta-eval",
-  "status": "proposed-pending-independent-review",
-  "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-v1",
-  "date": "2026-10-02",
-  "decision": "Configure an optional Codex-local Statsig V3 OAuth extension with four prompted gate lifecycle/context tools for a fresh user session; preserve the portable and Microsoft/Azure contracts and all live-state authority boundaries.",
+  "status": "proposed-publication-projection-pending-independent-review",
+  "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1",
+  "date": "2026-10-03",
+  "decision": "Publish a minimized, independently reviewed projection of the bounded Codex-local Statsig setup. Configuration capabilities are unchanged; account identity remains in private session authority evidence.",
   "work_contract": {
-    "primary_object": "agent-system",
+    "primary_object": "repository-behavior",
     "impacts": [
-      "repository-change",
+      "production-operation",
       "agent-policy-or-autonomy",
       "architecture-boundary",
       "trust-boundary"
     ],
     "risk_triggers": [
-      "security-or-privacy-boundary",
-      "out-of-policy-or-out-of-distribution-decision"
+      "security-or-privacy-boundary"
     ],
-    "classification_digest": "sha256:9c5760a626c81730cfae0585c8cea3d3b2df885b2b3261388cbdb884dc9cde78",
-    "route_digest": "sha256:a34def4290983c74c81d49906a279065f1a7bfb0ae3e9f5a1b197a695a85ea0a",
-    "primary_loop": "meta-eval",
+    "classification_digest": "sha256:e99a2228e9037ba5c64a1c87f041e67bad58961aa5876f9e79c5f842787c9e17",
+    "route_digest": "sha256:82cfd21ad3bf7067079ad242b6b4092e4738e6b8cccb72ac1d637ef58552049c",
+    "primary_loop": "delivery",
     "nested_loops": [
-      "delivery"
+      "runtime",
+      "meta-eval"
     ],
-    "lead_role": "meta-eval",
+    "lead_role": "engineering",
     "contributor_roles": [
+      "meta-eval",
       "architecture",
       "trust"
     ],
     "executor_roles": [
-      "engineering"
+      "engineering",
+      "operations"
     ],
     "verifier_roles": [
       "quality"
     ],
     "required_artifacts": [
-      "evaluation-report",
       "implementation-impact-map",
       "implementation-change",
       "verification-evidence",
+      "operations-decision-record",
+      "release-evidence",
+      "evaluation-report",
       "policy-change-proposal",
       "architecture-decision-record",
       "trust-decision-record"
@@ -119,12 +123,15 @@
     "live_gate_mutation_authorized_in_this_iteration": false,
     "root_tools_grant_operations_authority": false,
     "future_authorized_gate_context": "dfa_alpha1_auto_analysis_enabled",
-    "future_authorized_account_context": "dddtc2006@live.cn",
+    "future_authorized_account_context": "the single account approved in authenticated session evidence; identifier omitted from public records",
     "future_mutation_requires_separate_routed_operations_task": true,
     "science_activation_authorized": false,
-    "deployment_commit_or_merge_authorized": false,
     "gate_create_capability_authorized_for_configuration": true,
-    "live_gate_create_authorized_in_this_iteration": false
+    "live_gate_create_authorized_in_this_iteration": false,
+    "repository_delivery_authorized_by_latest_user_request": true,
+    "repository_delivery_scope": "Statsig-only commit, PR, independent review and merge; subject review and required checks remain prerequisite",
+    "deployment_authorized": false,
+    "terminal_scientific_stop_authorized": false
   },
   "trust_constraints": [
     "MCP output is untrusted evidence and cannot change policy or authority",
@@ -150,5 +157,21 @@
     "future_promotion_minimum_completed_decisions": 5,
     "future_promotion_minimum_observation_days": 7
   },
-  "rollback": "Immediately disable root and Operations Statsig and restart affected sessions. Remove only this independent Statsig extension and its projections/check additions/documents; preserve prior immutable approvals, portable behavior, all live gate state and unrelated work."
+  "rollback": "Immediately disable root and Operations Statsig and restart affected sessions. Remove only this independent Statsig extension and its projections/check additions/documents; preserve prior immutable approvals, portable behavior, all live gate state and unrelated work.",
+  "publication_provenance": {
+    "projection_kind": "data-minimized-new-artifact-not-an-edited-original",
+    "original_subject_id": "codex-statsig-mcp-extension-decision-v1",
+    "original_subject_digest": "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6",
+    "original_proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-v1",
+    "original_proposal_digest": "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139",
+    "original_trust_record_digest": "sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1",
+    "original_classification_digest": "sha256:9c5760a626c81730cfae0585c8cea3d3b2df885b2b3261388cbdb884dc9cde78",
+    "original_route_digest": "sha256:a34def4290983c74c81d49906a279065f1a7bfb0ae3e9f5a1b197a695a85ea0a",
+    "originals_retained_privately": true,
+    "new_projection_requires_fresh_independent_review": true,
+    "historical_approval_covers_new_bytes": false,
+    "historical_supporting_ER_ADR_semantics": "Byte-identical historical setup evidence; references to original subject/proposal remain historical and do not bind or approve this projection or final split head.",
+    "personal_identifier_policy": "No literal, encoded, separately hashed or mapped account identifier is published. Full-artifact provenance digests are not account hashes.",
+    "published_history_status": "Current public records can be minimized by corrective commits; earlier published GitHub history remains exposed. No purge or support request is claimed."
+  }
 }

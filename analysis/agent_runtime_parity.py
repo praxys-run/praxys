@@ -33,14 +33,15 @@ _DEFAULT_EXTENSION_CONFIG_PATH = (
     _ROOT / "config" / "codex-local-mcp-extensions.json"
 )
 _DEFAULT_STATSIG_CONFIG_PATH = _ROOT / "config" / "codex-statsig-mcp-extension.json"
-_STATSIG_SUBJECT_DIGEST = "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6"
-_STATSIG_PROPOSAL_DIGEST = "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139"
+_STATSIG_SUBJECT_DIGEST = "sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6"
+_STATSIG_PROPOSAL_DIGEST = "sha256:d20726456dc9bc7ce52c372959c18de3308fd22a1b64c2f1effcd07a6a2078fe"
 _STATSIG_TOOLS = ("get_context", "gate_read", "gate_create", "gate_update")
 _STATSIG_DISABLED_ROLES = ("praxys-orchestrator", "work-router", "decision-review-router", "praxys-change-loop", "product", "design", "engineering", "architecture", "quality", "science", "trust", "meta-eval")
 _STATSIG_SUPPORT = (
     ("docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md", "sha256:c340b12fe6b4fbc72530de2399ff7b03a1c522f26d401e1db3416c287e3147b3"),
     ("docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"),
-    ("docs/dev/trust-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1"),
+    ("docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md", "sha256:1ea94595b99465c3d4456bbe3c504c51ec126774e8e17bc2496dd9688c776beb"),
+    ("docs/dev/evaluation-report-codex-statsig-public-projection-v1.md", "sha256:4df991a55b17993d53ef8255cc89a3ac46b2deedaac45181c2dd6003c6bc0ecf"),
 )
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -819,11 +820,11 @@ class CodexLocalMcpExtensions(ParityRecord):
 class StatsigDecisionBinding(ParityRecord):
     """Session setup authority; never reuse an older approval or invent one."""
 
-    proposal_id: Literal["policy-change-proposal-codex-statsig-mcp-extension-v1"]
-    proposal_path: Literal["docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md"]
+    proposal_id: Literal["policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1"]
+    proposal_path: Literal["docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md"]
     proposal_digest: str
-    subject_id: Literal["codex-statsig-mcp-extension-decision-v1"]
-    subject_path: Literal["docs/dev/codex-statsig-mcp-extension-decision-v1.json"]
+    subject_id: Literal["codex-statsig-mcp-extension-decision-public-projection-v1"]
+    subject_path: Literal["docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json"]
     subject_digest: str
     authorized_scope: Literal["project-configuration-and-verification-only"]
     exact_digest_human_approval_claimed: Literal[False]
@@ -891,7 +892,7 @@ class CodexStatsigMcpExtension(ParityRecord):
     """One independently bound local pilot; no portable/generic registry."""
 
     schema_version: Literal[1]
-    extension_version: Literal["praxys-codex-statsig-mcp-extension-v1"]
+    extension_version: Literal["praxys-codex-statsig-mcp-extension-public-projection-v1"]
     status: Literal["implementation-candidate"]
     binding: StatsigDecisionBinding
     mcp_extension: StatsigHttpMcpExtension

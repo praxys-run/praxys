@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "extension_version": "praxys-codex-statsig-mcp-extension-v1",
+  "extension_version": "praxys-codex-statsig-mcp-extension-public-projection-v1",
   "status": "implementation-candidate",
   "binding": {
-    "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-v1",
-    "proposal_path": "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md",
-    "proposal_digest": "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139",
-    "subject_id": "codex-statsig-mcp-extension-decision-v1",
-    "subject_path": "docs/dev/codex-statsig-mcp-extension-decision-v1.json",
-    "subject_digest": "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6",
+    "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md",
+    "proposal_digest": "sha256:d20726456dc9bc7ce52c372959c18de3308fd22a1b64c2f1effcd07a6a2078fe",
+    "subject_id": "codex-statsig-mcp-extension-decision-public-projection-v1",
+    "subject_path": "docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json",
+    "subject_digest": "sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6",
     "authorized_scope": "project-configuration-and-verification-only",
     "exact_digest_human_approval_claimed": false
   },
@@ -60,8 +60,12 @@
       "digest": "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"
     },
     {
-      "path": "docs/dev/trust-decision-record-codex-statsig-mcp-extension-v1.md",
-      "digest": "sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1"
+      "path": "docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md",
+      "digest": "sha256:1ea94595b99465c3d4456bbe3c504c51ec126774e8e17bc2496dd9688c776beb"
+    },
+    {
+      "path": "docs/dev/evaluation-report-codex-statsig-public-projection-v1.md",
+      "digest": "sha256:4df991a55b17993d53ef8255cc89a3ac46b2deedaac45181c2dd6003c6bc0ecf"
     }
   ]
 }

@@ -1,18 +1,29 @@
-# Trust Decision Record: Codex-local Statsig MCP
+# Historical Trust contribution: proposed public projection
 
-- id: trust-decision-record-codex-statsig-mcp-extension-v1
+- id: trust-decision-record-codex-statsig-mcp-extension-public-projection-v1
 - schema_version: 1
 - decision_type: identity-and-authorization
-- artifact_type: trust-decision-record
-- owner_role: trust
+- artifact_type: policy-change-proposal-attachment
+- source_artifact_type: trust-decision-record
+- owner_role: meta-eval
+- source_decision_owner_role: trust
 - implementation_status: logical-contract
-- status: Proposed Trust contribution; independent Decision Review pending
+- status: Proposed publication attachment; fresh Trust acceptance and independent Decision Review pending
+- source_status_preserved: Proposed Trust contribution; independent Decision Review pending
 - date: 2026-10-02
 - review_route: Unallocated; Trust does not select or approve its own route
 - dependencies: None in the logical TDR contract; implementation requires accepted specialist decisions and the independent review result
 - digest: Decision-subject binding sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6; not a human approval or this record's byte hash
 
-## Question and reviewed evidence
+## Publication provenance and limits
+
+This is Meta/Eval's proposed publication attachment of the historical Trust contribution, not a new Trust decision or acceptance. Original Trust authored the private source at `sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1`. Fresh Trust owns acceptance of this projection and its actual byte digest. Its owner/source-owner fields separate publication proposal ownership from Trust authority. The full historical body follows with a new projection ID and the sole account identifier omitted. Full-artifact digests below are lineage, not identifier hashes or approval of this projection.
+
+Current split subject: `codex-statsig-mcp-extension-decision-public-projection-v1.json` at `sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6`. The source's historical classification, route, input hashes, setup-only statements, author-reported checks and proposed status below remain historical. They do not authorize current delivery or assert new reviews. Latest authenticated user instructions separately authorize repository PR/review/merge and previously authorized the single-account Statsig action; this publication task grants no new live action, deployment, scientific activation or terminal STOP. The historical report's unmeasured claims apply to its original iteration, not a fresh verdict on current runtime state.
+
+Current public records may be minimized; earlier GitHub history remains exposed. No purge, third-party contact or retention guarantee is claimed.
+
+## Historical question and reviewed evidence
 
 What authentication, authorization, privacy and dependency controls permit the requested project Codex Statsig configuration without treating tool availability as live Operations authority?
 
@@ -60,7 +71,7 @@ Boundaries are repository configuration versus native credential storage; client
 
 4. Native prompt selection is a configured control, not measured behavior. The reviewed proposal requires native prompting for every admitted tool and does not establish that behavior in a live session. No per-tool automatic override is allowed. A future mutation requires the exact proposed resource and account scope to be confirmed under native prompting and the routed task's review requirements. Do not test prompting by mutating live state during setup.
 
-5. Future Operations scope is only dfa_alpha1_auto_analysis_enabled and dddtc2006@live.cn within the independently confirmed authorized project. Resolve only the necessary account identity. Root tool presence does not transfer Operations authority. Setup does not enable that gate, activate Science, deploy, commit, open a PR or merge.
+5. Future Operations scope is only dfa_alpha1_auto_analysis_enabled and the single account approved in authenticated session evidence within the independently confirmed authorized project. Resolve only the necessary account identity. Root tool presence does not transfer Operations authority. Setup does not enable that gate, activate Science, deploy, commit, open a PR or merge.
 
 6. The reviewed subject, proposal and ADR identify gate_update as a full-resource overwrite risk and gate_create as requiring the live JSON schema and potentially a Target App name. Before a separately authorized update, read the complete gate, preview the exact change, retain default false and all unrelated rules/fields, and reconcile stale state before proceeding. Use the live schema's supported concurrency controls when available. Unresolvable stale state fails closed. Read back the exact resource and verify only the authorized account was admitted.
 

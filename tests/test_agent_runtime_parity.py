@@ -1394,9 +1394,12 @@ def test_statsig_strict_contract_rejects_drift(section,key,value) -> None:
 
 
 @pytest.mark.parametrize("relative",[
-    "docs/dev/codex-statsig-mcp-extension-decision-v1.json",
-    "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md",
-    "docs/dev/trust-decision-record-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json",
+    "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-public-projection-v1.md",
 ])
 def test_statsig_original_artifact_byte_drift_fails_closed(tmp_path,relative) -> None:
     repository=_copy_runtime_fixture(tmp_path)
@@ -1455,3 +1458,71 @@ def test_codex_statsig_get_is_parser_only_and_secret_free(tmp_path) -> None:
     assert payload["transport"]["url"]=="https://api.statsig.com/v3/mcp"
     for name in ("bearer_token_env_var","http_headers","env_http_headers"):
         assert payload["transport"].get(name) in (None,{})
+
+
+@pytest.mark.parametrize("key,value", [
+    ("proposal_id", "policy-change-proposal-codex-statsig-mcp-extension-v1"),
+    ("proposal_path", "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md"),
+    ("subject_id", "codex-statsig-mcp-extension-decision-v1"),
+    ("subject_path", "docs/dev/codex-statsig-mcp-extension-decision-v1.json"),
+    ("proposal_digest", "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139"),
+    ("subject_digest", "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6"),
+    ("authorized_scope", "merge-and-default-branch-activation-only"),
+])
+def test_statsig_public_projection_rejects_historical_rebinding(key, value) -> None:
+    from analysis.agent_runtime_parity import CodexStatsigMcpExtension
+    payload = json.loads((ROOT / "config/codex-statsig-mcp-extension.json").read_text())
+    payload["binding"][key] = value
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+
+
+@pytest.mark.parametrize("index", range(4))
+@pytest.mark.parametrize("mutation", ["digest", "escaping-path", "extra-field"])
+def test_statsig_public_projection_support_rebinding_fails_closed(index, mutation) -> None:
+    from analysis.agent_runtime_parity import CodexStatsigMcpExtension
+    payload = json.loads((ROOT / "config/codex-statsig-mcp-extension.json").read_text())
+    record = payload["supporting_artifacts"][index]
+    if mutation == "digest":
+        record["digest"] = "sha256:" + "0" * 64
+    elif mutation == "escaping-path":
+        record["path"] = "../outside.md"
+    else:
+        record["approval"] = "invented"
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+
+
+def test_statsig_public_projection_exact_pins_and_historical_support() -> None:
+    from analysis.agent_runtime_parity import load_statsig_mcp_extension
+    extension = load_statsig_mcp_extension()
+    assert extension.extension_version == "praxys-codex-statsig-mcp-extension-public-projection-v1"
+    assert extension.binding.subject_id == "codex-statsig-mcp-extension-decision-public-projection-v1"
+    assert extension.binding.subject_digest == "sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6"
+    assert extension.binding.proposal_id == "policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1"
+    assert extension.binding.proposal_digest == "sha256:d20726456dc9bc7ce52c372959c18de3308fd22a1b64c2f1effcd07a6a2078fe"
+    assert [(a.path, a.digest) for a in extension.supporting_artifacts] == [
+        ("docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md", "sha256:c340b12fe6b4fbc72530de2399ff7b03a1c522f26d401e1db3416c287e3147b3"),
+        ("docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"),
+        ("docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md", "sha256:1ea94595b99465c3d4456bbe3c504c51ec126774e8e17bc2496dd9688c776beb"),
+        ("docs/dev/evaluation-report-codex-statsig-public-projection-v1.md", "sha256:4df991a55b17993d53ef8255cc89a3ac46b2deedaac45181c2dd6003c6bc0ecf"),
+    ]
+
+
+@pytest.mark.parametrize("relative", [
+    "docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json",
+    "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-public-projection-v1.md",
+])
+def test_statsig_public_projection_artifact_escape_fails_closed(tmp_path, relative) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    path = repository / relative
+    outside = tmp_path / "outside-record"
+    outside.write_bytes(path.read_bytes())
+    path.unlink()
+    path.symlink_to(outside)
+    errors = validate_static_runtime_parity(_load_fixture_config(repository), root=repository)
+    assert any("missing/escaping Statsig immutable artifact" in error for error in errors)
