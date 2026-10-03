@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tomllib
 
 import pytest
 from pydantic import ValidationError
@@ -746,7 +747,7 @@ def test_codex_native_cli_loads_agents_hooks_and_skills(tmp_path: Path) -> None:
     details = report["checks"]["config.load"]["details"]
 
     assert details["config.toml parse"] == "ok"
-    assert details["mcp servers"] == "4"
+    assert details["mcp servers"] == "5"
     assert details.get("startup warnings", "0") == "0"
     assert details.get("startup warning hooks", "0") == "0"
     assert details.get("startup warning skills", "0") == "0"
@@ -1098,7 +1099,7 @@ def test_operations_is_the_only_adapter_with_azure_mcp(tmp_path: Path) -> None:
     engineering = repository / ".codex/agents/engineering.toml"
     azure = (repository / ".codex/agents/operations.toml").read_text(
         encoding="utf-8"
-    ).split("[mcp_servers.azure-mcp]", 1)[1]
+    ).split("[mcp_servers.azure-mcp]", 1)[1].split("[mcp_servers.statsig]", 1)[0]
     engineering.write_text(
         engineering.read_text(encoding="utf-8")
         + "\n[mcp_servers.azure-mcp]"
@@ -1343,3 +1344,214 @@ def test_legacy_copilot_drift_remains_a_failure(tmp_path: Path) -> None:
     )
 
     assert any(error.startswith("legacy Copilot parity:") for error in errors)
+
+
+# Statsig is a separately bound configuration pilot, never a relaxation of the
+# exact Microsoft/Azure approval model or portable capabilities.
+def test_statsig_extension_exact_scope_and_immutable_predecessors() -> None:
+    from analysis.agent_runtime_parity import load_statsig_mcp_extension
+    extension=load_statsig_mcp_extension()
+    config=load_runtime_parity_config()
+    assert extension.mcp_extension.enabled_tools==["get_context","gate_read","gate_create","gate_update"]
+    assert extension.mcp_extension.role_enablement==["operations"]
+    assert set(extension.mcp_extension.role_explicit_disable)=={a.id for a in config.agent_adapters}-{"operations"}
+    assert extension.binding.exact_digest_human_approval_claimed is False
+    assert "statsig" in config.excluded_mcp_servers and "statsig" not in config.portable_mcp_servers
+    assert set(load_local_mcp_extensions().mcp_extensions)=={"microsoft-learn","azure-mcp"}
+    root=tomllib.loads((ROOT/".codex/config.toml").read_text())
+    assert root["mcp_servers"]["statsig"]=={"url":"https://api.statsig.com/v3/mcp","auth":"oauth","enabled":True,"required":False,"enabled_tools":["get_context","gate_read","gate_create","gate_update"],"default_tools_approval_mode":"prompt"}
+    for adapter in config.agent_adapters:
+        payload=tomllib.loads((ROOT/adapter.codex_path).read_text())
+        assert payload["mcp_servers"]["statsig"]=={**root["mcp_servers"]["statsig"],"enabled":adapter.id=="operations"}
+
+
+@pytest.mark.parametrize("section,key,value",[
+    ("mcp_extension","url","https://api.statsig.com/v1/mcp"),
+    ("mcp_extension","authentication","api-key"),
+    ("mcp_extension","required",True),
+    ("mcp_extension","root_enabled",False),
+    ("mcp_extension","enabled_tools",["get_context","gate_read","gate_update"]),
+    ("mcp_extension","enabled_tools",["*"]),
+    ("mcp_extension","enabled_tools",["get_context","gate_read","gate_create","gate_update","api_write"]),
+    ("mcp_extension","role_enablement",["engineering"]),
+    ("mcp_extension","role_explicit_disable",[]),
+    ("mcp_extension","default_tools_approval_mode","auto"),
+    ("mcp_extension","environment_forwarding",["STATSIG_SECRET"]),
+    ("mcp_extension","bearer_token_environment_variable","STATSIG_TOKEN"),
+    ("mcp_extension","headers_in_repository",True),
+    ("mcp_extension","http_headers",{"Authorization":"synthetic-only"}),
+    ("mcp_extension","oauth_scopes",["all"]),
+    ("binding","subject_digest","sha256:"+"0"*64),
+    ("binding","proposal_digest","sha256:"+"0"*64),
+    ("binding","subject_path","../outside.json"),
+    ("binding","exact_digest_human_approval_claimed",True),
+])
+def test_statsig_strict_contract_rejects_drift(section,key,value) -> None:
+    from analysis.agent_runtime_parity import CodexStatsigMcpExtension
+    payload=json.loads((ROOT/"config/codex-statsig-mcp-extension.json").read_text())
+    payload[section][key]=value
+    with pytest.raises(ValueError):CodexStatsigMcpExtension.model_validate(payload)
+
+
+@pytest.mark.parametrize("relative",[
+    "docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json",
+    "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-public-projection-v1.md",
+])
+def test_statsig_original_artifact_byte_drift_fails_closed(tmp_path,relative) -> None:
+    repository=_copy_runtime_fixture(tmp_path)
+    path=repository/relative;path.write_bytes(path.read_bytes()+b"\n")
+    errors=validate_static_runtime_parity(_load_fixture_config(repository),root=repository)
+    assert any("Statsig immutable artifact byte digest differs" in e for e in errors)
+
+
+@pytest.mark.parametrize("case",["missing","malformed","extra-field"])
+def test_statsig_contract_absence_or_malformed_fails_closed(tmp_path,case) -> None:
+    repository=_copy_runtime_fixture(tmp_path);path=repository/"config/codex-statsig-mcp-extension.json"
+    if case=="missing":path.unlink()
+    elif case=="malformed":path.write_text("{broken")
+    else:
+        data=json.loads(path.read_text());data["approval"]={"human_approved_at":"invented"};path.write_text(json.dumps(data))
+    errors=validate_static_runtime_parity(_load_fixture_config(repository),root=repository)
+    assert any("invalid Codex Statsig MCP extension contract" in e for e in errors)
+
+
+@pytest.mark.parametrize("path,replacement",[
+    (".codex/config.toml",('auth = "oauth"','auth = "api-key"')),
+    (".codex/config.toml",('default_tools_approval_mode = "prompt"','default_tools_approval_mode = "auto"')),
+    (".codex/config.toml",('required = false','required = true')),
+    (".codex/config.toml",('enabled_tools = ["get_context", "gate_read", "gate_create", "gate_update"]','enabled_tools = ["get_context", "gate_read", "gate_create", "gate_update", "api_destructive"]')),
+    (".codex/config.toml",('auth = "oauth"','auth = "oauth"\nhttp_headers = {Authorization = "synthetic-only"}')),
+    (".codex/config.toml",('auth = "oauth"','auth = "oauth"\nbearer_token_env_var = "STATSIG_TOKEN"')),
+    (".codex/config.toml",('auth = "oauth"','auth = "oauth"\nenv_vars = ["STATSIG_TOKEN"]')),
+    (".codex/config.toml",('auth = "oauth"','auth = "oauth"\ntools.gate_update.approval_mode = "auto"')),
+    (".codex/agents/engineering.toml",('enabled = false','enabled = true')),
+    (".codex/agents/quality.toml",('enabled = false','enabled = 0')),
+])
+def test_statsig_native_projection_rejects_credentials_scope_or_prompt_drift(tmp_path,path,replacement) -> None:
+    repository=_copy_runtime_fixture(tmp_path);target=repository/path
+    text=target.read_text();prefix,stanza=text.rsplit("[mcp_servers.statsig]",1)
+    assert replacement[0] in stanza;stanza=stanza.replace(*replacement,1)
+    target.write_text(prefix+"[mcp_servers.statsig]"+stanza)
+    assert validate_static_runtime_parity(_load_fixture_config(repository),root=repository)
+
+
+def test_statsig_omitted_child_disable_and_id_collision_fail_closed(tmp_path) -> None:
+    repository=_copy_runtime_fixture(tmp_path);target=repository/".codex/agents/design.toml"
+    target.write_text(target.read_text().split("[mcp_servers.statsig]")[0])
+    errors=validate_static_runtime_parity(_load_fixture_config(repository),root=repository)
+    assert any("Codex agent adapter differs from contract: design" in e for e in errors)
+    config=_load_fixture_config(repository)
+    collided=config.model_copy(update={"portable_mcp_servers":{**config.portable_mcp_servers,"statsig":next(iter(config.portable_mcp_servers.values()))}})
+    assert any("Statsig MCP ID collides" in e for e in validate_static_runtime_parity(collided,root=repository))
+
+
+def test_codex_statsig_get_is_parser_only_and_secret_free(tmp_path) -> None:
+    if shutil.which("codex") is None:pytest.skip("Codex CLI unavailable")
+    result=subprocess.run(["codex","mcp","get","statsig","--json"],cwd=ROOT,env=_isolated_codex_environment(tmp_path),check=True,capture_output=True,text=True,timeout=30)
+    payload=json.loads(result.stdout)
+    assert payload["enabled"] is True
+    assert payload["enabled_tools"]==["get_context","gate_read","gate_create","gate_update"]
+    assert payload["transport"]["url"]=="https://api.statsig.com/v3/mcp"
+    for name in ("bearer_token_env_var","http_headers","env_http_headers"):
+        assert payload["transport"].get(name) in (None,{})
+
+
+@pytest.mark.parametrize("key,value", [
+    ("proposal_id", "policy-change-proposal-codex-statsig-mcp-extension-v1"),
+    ("proposal_path", "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md"),
+    ("subject_id", "codex-statsig-mcp-extension-decision-v1"),
+    ("subject_path", "docs/dev/codex-statsig-mcp-extension-decision-v1.json"),
+    ("proposal_digest", "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139"),
+    ("subject_digest", "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6"),
+    ("authorized_scope", "merge-and-default-branch-activation-only"),
+])
+def test_statsig_public_projection_rejects_historical_rebinding(key, value) -> None:
+    from analysis.agent_runtime_parity import CodexStatsigMcpExtension
+    payload = json.loads((ROOT / "config/codex-statsig-mcp-extension.json").read_text())
+    payload["binding"][key] = value
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+
+
+@pytest.mark.parametrize("index", range(4))
+@pytest.mark.parametrize("mutation", ["digest", "escaping-path", "extra-field"])
+def test_statsig_public_projection_support_rebinding_fails_closed(index, mutation) -> None:
+    from analysis.agent_runtime_parity import CodexStatsigMcpExtension
+    payload = json.loads((ROOT / "config/codex-statsig-mcp-extension.json").read_text())
+    record = payload["supporting_artifacts"][index]
+    if mutation == "digest":
+        record["digest"] = "sha256:" + "0" * 64
+    elif mutation == "escaping-path":
+        record["path"] = "../outside.md"
+    else:
+        record["approval"] = "invented"
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+
+
+def test_statsig_public_projection_exact_pins_and_historical_support() -> None:
+    from analysis.agent_runtime_parity import load_statsig_mcp_extension
+    extension = load_statsig_mcp_extension()
+    assert extension.extension_version == "praxys-codex-statsig-mcp-extension-public-projection-v1"
+    assert extension.binding.subject_id == "codex-statsig-mcp-extension-decision-public-projection-v1"
+    assert extension.binding.subject_digest == "sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6"
+    assert extension.binding.proposal_id == "policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1"
+    assert extension.binding.proposal_digest == "sha256:d20726456dc9bc7ce52c372959c18de3308fd22a1b64c2f1effcd07a6a2078fe"
+    assert [(a.path, a.digest) for a in extension.supporting_artifacts] == [
+        ("docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md", "sha256:c340b12fe6b4fbc72530de2399ff7b03a1c522f26d401e1db3416c287e3147b3"),
+        ("docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"),
+        ("docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md", "sha256:1ea94595b99465c3d4456bbe3c504c51ec126774e8e17bc2496dd9688c776beb"),
+        ("docs/dev/evaluation-report-codex-statsig-public-projection-v1.md", "sha256:4df991a55b17993d53ef8255cc89a3ac46b2deedaac45181c2dd6003c6bc0ecf"),
+    ]
+
+
+@pytest.mark.parametrize("relative", [
+    "docs/dev/codex-statsig-mcp-extension-decision-public-projection-v1.json",
+    "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md",
+    "docs/dev/trust-decision-record-codex-statsig-mcp-extension-public-projection-v1.md",
+    "docs/dev/evaluation-report-codex-statsig-public-projection-v1.md",
+])
+def test_statsig_public_projection_artifact_escape_fails_closed(tmp_path, relative) -> None:
+    repository = _copy_runtime_fixture(tmp_path)
+    path = repository / relative
+    outside = tmp_path / "outside-record"
+    outside.write_bytes(path.read_bytes())
+    path.unlink()
+    path.symlink_to(outside)
+    errors = validate_static_runtime_parity(_load_fixture_config(repository), root=repository)
+    assert any("missing/escaping Statsig immutable artifact" in error for error in errors)
+
+
+@pytest.mark.parametrize("section,key,value", [
+    (None, "schema_version", True),
+    (None, "schema_version", 1.0),
+    ("binding", "exact_digest_human_approval_claimed", 0),
+    ("binding", "exact_digest_human_approval_claimed", 0.0),
+])
+def test_statsig_scalar_aliases_fail_through_model_loader_and_static_check(
+    tmp_path, section, key, value
+) -> None:
+    from analysis.agent_runtime_parity import (
+        CodexStatsigMcpExtension,
+        load_statsig_mcp_extension,
+    )
+    repository = _copy_runtime_fixture(tmp_path)
+    path = repository / "config/codex-statsig-mcp-extension.json"
+    payload = json.loads(path.read_text())
+    target = payload if section is None else payload[section]
+    target[key] = value
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+    path.write_text(json.dumps(payload))
+    with pytest.raises(ValueError):
+        load_statsig_mcp_extension(path)
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+    assert any("invalid Codex Statsig MCP extension contract" in error for error in errors)
