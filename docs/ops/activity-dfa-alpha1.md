@@ -22,14 +22,16 @@ scientific approval workflow is complete.
 
 ### Activation and rollback
 
-PostgreSQL startup applies the additive `b4d5f6a70819` Alembic migration under
-the existing advisory lock; SQLite startup creates the three new tables. Generation of a draft science contract does not authorize
+PostgreSQL startup applies additive migration `c5e6f7a81920` after `b4d5f6a70819`
+under the existing advisory lock. SQLite startup creates new tables and narrowly
+upgrades existing DFA runs while retaining manual origin, generations and data. Generation of a draft science contract does not authorize
 processing. `sdr-activity-dfa-alpha1-v1` must pass the existing evidence/decision/
 implementation approval workflow and become active. The executor also verifies
-model version and the complete parameter-map fingerprint. No feature flag,
-service, credential or environment setting is added. Roll back application code
+model version and the complete parameter-map fingerprint. The declared server gate `dfa_alpha1_auto_analysis_enabled` defaults false in every
+environment; no live Console provisioning, pass rule, enablement, new service,
+credential or environment variable is included. Roll back application code
 using the ordinary deployment workflow. A rollback build must retain revision
-`b4d5f6a70819` in its Alembic revision graph, as well as the additive tables,
+`c5e6f7a81920` and all predecessors in its Alembic revision graph, as well as the additive tables,
 original FIT archives and deletion manifests. A build that cannot resolve the
 already-applied revision is not a valid rollback artifact.
 
@@ -56,7 +58,7 @@ fallback, prefix `activity-dfa-deletions` / directory
 `activity_dfa_deletion_manifests`. They contain operation ID, owner/target references,
 reason and requested/completed timestamps; no RR, alpha values or sensor identifiers.
 Persist requested before SQL erase; completed only after commit. Pending manifests
-never expire; completed manifests remain14d from completion to cover backups.
+never expire; completed non-owner manifests remain14d from completion to cover backups. Owner-erasure markers never expire: they must fence genuinely later provider completions after an active account is restored.
 Never restore SQL without the current manifest store. Every DFA read/compute/export
 preflight replays that owner's active manifests before returning data or admitting
 work. Dispatcher reconciliation is asynchronous and advances a cursor through at
@@ -66,8 +68,7 @@ invalid storage closes DFA reads/admission and complete export, while cancellati
 and deletion remain available. Cancellation always returns metadata only, including
 for completed runs. Deletion can proceed without successful replay/listing when a
 new request can be persisted; if durable request storage is unavailable, it fails
-without erasing SQL. Repeated deletion reuses a covering retained target request;
-newly created work requires a new cutoff. Nonexistent targets do not create new
+without erasing SQL. Repeated deletion reuses a covering retained target request only when its suppression generation equals the current suppressed rights state; reauthorization or newly created work requires a fresh withdrawal marker/cutoff. Nonexistent targets do not create new
 manifests. Absence of derived SQL rows never discards a pending durable request. Do not manually discard pending manifests to restore
 service. Restore storage access, let reconciliation retry, then verify exact owner
 deletion before resuming. No new monitoring alert is created by this change.
@@ -507,3 +508,133 @@ Rendered acceptance remains an independent obligation, separate from real guard
 evidence. Physical Skyline canvas, gestures, screen readers, larger text, native
 focus and contrast gaps remain disclosed. The robot5 package-size failure and
 packaging repair/manual upload remain outside this activation work.
+
+## Default-off receipt admission and dual science branches
+
+A new completed activity and the first successful parse of a newly provider-synced
+original produce metadata-only durable completion receipts in the same DAL
+transaction as their committed facts. Rollback exposes no receipt. Duplicate
+input/events deduplicate; genuinely new provider bytes for an existing activity
+can produce a new exact-input receipt. Explicit/maintenance/parser-version reparse
+of a retained snapshot invalidates existing work and does not schedule replacement.
+Sync CLI never initializes/evaluates Statsig, hydrates RR for DFA or calls queue
+submission in its writer transaction. Postcommit wake plus indexed, bounded fair
+API-worker sweeps recover missed wakes. OFF parks receipts without RR work or
+new runs. ON discovers only these delivery-era receipt events, including parked
+ones; it does not sweep historical archives or recompute expired results.
+
+Three additive tables retain completion receipts, sanitized immutable metadata
+proofs and minimal owner/activity suppression generations. Existing runs remain
+manual. Automatic qualification runs under the same one-global SQL execution
+lease, then eligible metadata produces a separate exact-proof compute identity
+without any Confirmation row, owner statement or another start click. Unknown
+inventory remains unresolved; compatible owner clarification stays a distinct
+explicit v1 operation. Separate ANT+/BLE handles never establish physical identity.
+
+Manual computation requires its separately signed-active v1 contract; automatic
+computation requires separately signed-active matching v2 plus the server gate and
+current processing authority. Both preserve the frozen raw120-v1 numerical/QC
+recipe. The accepted v2 record is draft/inactive and supplies no signatures. Gate,
+authority, exact input, proof, rights generation and lease are rechecked at claim,
+cooperative checks and conditional publication. Observed OFF fences the automatic
+run generation, releases the slot and records durable gate-paused state outside
+active-owner quota; ON may resume only a current authorized receipt. Completed
+current inferred results remain readable after OFF when their other authority is
+current. Manual processing never depends on this gate.
+
+Owner/cap/quota contention durably defers receipt admission rather than dropping
+it or inventing computational failure. Existing limits above remain unchanged.
+Twenty serial jobs at the 120-second work ceiling can take about 40 minutes; no
+five-minute completion promise is made. Observe only aggregate bounded states,
+reasons, pending age, cap/quota deferrals, queue/execution duration, lease recovery
+and replay failure. Never log owner/account/activity IDs, RR/alpha, sensor IDs,
+raw metadata or health targeting attributes. No new alert is introduced.
+
+## Withdrawal, restore and compatible rollback
+
+Cancel (including a deferred receipt with no run), delete and real/inferred proof
+withdrawal serialize durable activity-level suppression and monotonic rights
+generations with receipt/run/lease fencing. Suppression survives input/method
+changes and cache TTL. Cancellation remains metadata-only and immediately fences
+work even if private durability is temporarily pending; automatic work stays
+closed until the marker is reconciled. Private v2 payload-free manifests bind the
+activity, generation and suppress/reauthorize state in addition to erasure scope
+and cutoff. Higher-generation explicit reauthorization wins over an older replay;
+a stale queued manual HTTP action cannot clear newer withdrawal. Missing expected
+rights generation is compatible only at pristine generation zero.
+
+Reauthorization is an explicit authenticated processing action requiring ordinary
+write/legal/science authority plus expected input and rights revisions. It grants
+no owner source statement and does not automatically restart a suppressed receipt.
+Every read/admission/execute/export preflight replays current private manifests.
+Requested deletion persists before SQL erasure; pending markers never expire and
+completed non-owner markers cover the existing 14-day backup window. A non-expiring owner marker reconstructs an irreversible payload-free owner fence in the existing rights table (reserved empty activity key, inaccessible through activity paths or request bodies). Owner replay removes every owner source proof, confirmation, receipt and result, including restored rows newer than its cutoff, and preserves monotonic activity rights states. No activity reauthorization clears that owner fence. Missing owners cause no orphan FK insert; real account deletion cascades SQL state while retaining the private owner marker. Admission, claim, cooperative execution, publication, current-result reads and exports consult the owner fence independently of gate/science/active-account projections. Ordinary rights export retains all new metadata accounting and excludes raw duplication and leases; an erased owner exports only scoped payload-free rights states, with no source or numerical records.
+
+Roll back through the existing owned deployment workflows only after a separately
+authorized OFF transition. A compatible artifact must retain the new migration
+revision, additive tables, suppression/restore protocol and proof/lease fences;
+an older binary ignoring them is unsafe. Schema downgrade deliberately refuses to
+drop these rights tables. Retain the private manifest store across every restore.
+Console provisioning/readback, scientific signatures/activation, deployment and
+Operations Release Evidence remain pending and coordinator-owned. Engineering
+checks are implementation evidence, not independent release approval.
+
+## Current native integrity and rights portability
+
+Current source admission/display uses complete native identity integrity for
+manual and inferred branches. Legacy confirmation digests retain their format;
+owner confirmation cannot override native identity contradiction. HR relevance
+survives later overwritten native descriptors; ambiguous class/transport remains
+manual clarification when supported ECG evidence exists, never automatic proof.
+Authorized device-only inspections retain64MiB/250000-frame bounds and the30s read
+deadline. A bounded128-entry process cache contains outcome/digest summaries only,
+bound to exact immutable input and implementation, with no raw/device duplication.
+
+A hard native observation fences snapshot-dependent generations/leases. Persist
+its existing private `snapshot` / `source_changed` marker before removing numbers.
+Private-write failure retains SQL `source_durability_pending` negative state and
+payload until reconciliation; do not delete that only negative fact or let TTL/
+quota cleanup evict it. Reconciliation uses metadata only and existing bounded
+worker ticks/preflights. Durable replay precedes read/admission/execution/export;
+completed markers cover the accepted14-day backup window without read-refresh.
+Restore SQL only with the corresponding current private manifest store. A late
+worker/proof cannot recreate current results for the same contradictory input.
+Unrelated retained snapshots remain scoped separately. Generic proof mismatch is
+not sufficient to assert hard native contradiction.
+
+Rights export remains metadata-only even when processing/science is withdrawn.
+It preserves retained historical assurance and numbers only when exact input,
+historical proof and rights checks permit them; known-negative inputs are
+withheld. Each exported run adds machine-only `current_native_integrity` state
+`UNKNOWN`, reason `not_inspected_for_rights_export` and exact retained input. This
+states what that export supplies, independently of record/method freshness, and
+never establishes verified native source or current processing/display authority.
+No export reader, source inspection, recomputation or renewed processing authority
+is introduced. The serialized representation changed; affected encoding/export
+checks passed, with untested external consumers remaining a limitation.
+
+Private fallback native-negative bookkeeping is initialized terminal before any
+flush and is excluded from all analysis views, jobs, leases, admission, quota and
+export accounting. Its private progress discriminator remains retained through
+TTL cleanup while journal durability is pending; reconciliation/erasure alone
+removes it after the existing restore marker is durable. Unrelated queued/running
+work remains intact. Manual retry validates against an effective generation
+without dirtying stored run authority; only an accepted retry binds that authority.
+Independent negative observation may commit its own invalidation even when the
+processing retry returns409.
+
+
+## Automatic gate observation — 2026-10-03
+
+Following actual trusted user confirmation, Operations created
+`dfa_alpha1_auto_analysis_enabled` in project `praxys`
+(`4yfDTkiVBIx43WaMmzkykr`). Exact readback returned enabled, `In Progress`,
+version 3, and one 100% `any_case_sensitive` exact-account email rule, owned ID
+`3hQJrq1ucskuwuLvnyWEdu`. The earlier ABSENT/approval-rejected attempt remains
+historical evidence; its write blocker is resolved. Default OFF depends on
+reviewed provider semantics because explicit default/override fields were not
+returned; hidden overrides and actual SDK evaluation were not separately proven.
+Provider review fields remain distinct and no approval is inferred. Code remains
+undeployed, automatic v2 science draft/inactive and processing consent unchanged.
+No rollback ran. See the [dated rollout record](dfa-automatic-analysis-rollout-20261003.md)
+for exact evidence, limitations and separately authorized owned-rule-only recovery.

@@ -14,6 +14,7 @@ from db.models import Activity, GarminFitSnapshot as Snapshot, GarminFitParse as
 
 MAX_FIT_BYTES = 64 * 1024 * 1024
 MAX_FRAMES = 250_000
+READ_TIMEOUT_SECONDS = 30
 # FIT global message/field IDs and native base types, independent of rendered
 # profile/subfield/developer names. Tuple: normalized name, base ID, scalar bytes.
 NATIVE_FIELDS = {
@@ -22,7 +23,7 @@ NATIVE_FIELDS = {
     20: {253: ("timestamp", 134, 4)},
     21: {0: ("event", 0, 1), 1: ("event_type", 0, 1),
          4: ("event_group", 2, 1), 253: ("timestamp", 134, 4)},
-    23: {0: ("device_index", 2, 1), 2: ("manufacturer", 132, 2),
+    23: {0: ("device_index", 2, 1), 1: ("device_type", 2, 1), 25: ("source_type", 0, 1), 2: ("manufacturer", 132, 2),
          4: ("product", 132, 2), 27: ("product_name", 7, None)},
     78: {0: ("time", 132, None)},
 }
@@ -33,7 +34,10 @@ def _validate_definition(frame) -> None:
     fields = NATIVE_FIELDS[frame.global_mesg_num]
     seen: set[int] = set()
     for field in frame.field_defs:
-        if field.def_num not in fields:
+        if field.def_num not in fields or (frame.global_mesg_num == 23 and field.def_num in (1,25)):
+            # New inventory diagnostics do not tighten the v1 numerical reader.
+            # Ambiguous/malformed diagnostics are omitted below, forcing v2 to
+            # unresolved while leaving existing genuine manual proof unchanged.
             continue
         _, base_type, scalar_size = fields[field.def_num]
         if field.def_num in seen or field.base_type.identifier != base_type:
@@ -64,7 +68,11 @@ def _native_values(frame) -> dict:
             continue
         if definition.is_dev or definition.def_num not in fields:
             continue
-        name, _, _ = fields[definition.def_num]
+        name, base_type, scalar_size = fields[definition.def_num]
+        if frame.global_mesg_num == 23 and definition.def_num in (1,25):
+            native_defs=[f for f in frame.def_mesg.field_defs if f.def_num==definition.def_num]
+            if len(native_defs)!=1 or definition.base_type.identifier!=base_type or definition.size!=scalar_size:
+                continue
         values[name] = field.raw_value
     return values
 
@@ -135,8 +143,16 @@ class RRRecordingReader:
     def iter_recording(self, ref: RecordingRef, check: Callable[[], None] = lambda: None) -> Iterator[dict]:
         yield from decode(self.raw(ref), check)
 
+    def iter_source_metadata(self, ref: RecordingRef, check: Callable[[], None] = lambda: None) -> Iterator[dict]:
+        """Exact native device descriptors only; never project RR or samples."""
+        yield from _decode(self.raw(ref),check,device_only=True)
+
 
 def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dict]:
+    yield from _decode(raw,check)
+
+
+def _decode(raw: bytes, check: Callable[[], None], *, device_only: bool = False) -> Iterator[dict]:
     if len(raw) > MAX_FIT_BYTES:
         raise DFAError("fit_too_large")
     try:
@@ -147,9 +163,9 @@ def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dic
                 check()
                 if index >= MAX_FRAMES:
                     raise DFAError("frame_limit")
-                if frame.frame_type == fitdecode.FIT_FRAME_DEFINITION and frame.global_mesg_num in NATIVE_MESSAGES:
+                if frame.frame_type == fitdecode.FIT_FRAME_DEFINITION and frame.global_mesg_num in ({23} if device_only else NATIVE_MESSAGES):
                     _validate_definition(frame)
-                if frame.frame_type != fitdecode.FIT_FRAME_DATA or frame.global_mesg_num not in NATIVE_MESSAGES:
+                if frame.frame_type != fitdecode.FIT_FRAME_DATA or frame.global_mesg_num not in ({23} if device_only else NATIVE_MESSAGES):
                     continue
                 values = _native_values(frame)
                 if frame.global_mesg_num == 78:
@@ -170,5 +186,5 @@ def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dic
 def read_timeout(db: Session) -> None:
     """Bound each current transaction, including reads after a heartbeat commit."""
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SET LOCAL statement_timeout = '30s'"))
+        db.execute(text(f"SET LOCAL statement_timeout = '{READ_TIMEOUT_SECONDS}s'"))
         db.execute(text("SET LOCAL lock_timeout = '30s'"))

@@ -131,6 +131,10 @@ def build_recording(messages: list[dict], frame_count: int = 0,
         raise DFAError("activity_type_unsupported")
     if any(m["values"].get("sport", 1) != 1 for m in messages if m["message"] == 12):
         raise DFAError("activity_type_unsupported")
+    # Keep the genuine v1 sensor/evidence representation, but enforce current
+    # complete native integrity before either branch can prepare or compute.
+    from analysis.dfa_source import require_native_integrity
+    require_native_integrity(messages)
     sensors, evidence = sensor_evidence(messages)
     blocks: list[Block] = []
     current: Block | None = None
@@ -305,8 +309,10 @@ def union_support(intervals: Iterable[tuple[float, float]]) -> list[list[float]]
     return result
 
 
-def compute(recording: Recording, check: Callable[[], None] = lambda: None) -> dict:
+def compute(recording: Recording, check: Callable[[], None] = lambda: None, *, source_assurance: str = "user_confirmed") -> dict:
     """Preserve every scheduled window, including failed alignment/QC windows."""
+    if source_assurance not in ("user_confirmed", "metadata_inferred"):
+        raise DFAError("source_contradiction")
     chains: dict[int, dict] = {}
     for block in recording.blocks:
         for p in block.packets:
@@ -385,7 +391,7 @@ def compute(recording: Recording, check: Callable[[], None] = lambda: None) -> d
     for window in windows:
         for reason in window["reasons"]:
             reasons[reason] = reasons.get(reason, 0) + 1
-    return {"method_version": METHOD_VERSION, "source_assurance": "user_confirmed",
+    return {"method_version": METHOD_VERSION, "source_assurance": source_assurance,
             "time_alignment": "estimated", "availability": "available" if valid else "no_valid_windows",
             "summary": {"scheduled_windows": len(windows), "valid_windows": valid,
                         "window_success_rate": valid/len(windows) if windows else None,

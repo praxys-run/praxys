@@ -222,7 +222,10 @@ def store(tmp_path, monkeypatch, request):
 def prepare(factory, owner):
     with factory() as db:
         c = service.catalog(db, owner, '123')
-        result, code = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], None)
+        rights=c['automatic']['rights_generation']
+        if c['automatic']['suppressed']:
+            rights=service.automatic.reauthorize(db,owner,'123',c['catalog_revision'],rights)['rights_generation']
+        result, code = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], None,rights)
         assert code == 202
     with factory() as db:
         claim = service.claim(db)
@@ -238,9 +241,10 @@ def confirmed(factory, owner):
     with factory() as db:
         proof = service.confirm(db, owner, '123', {
             'run_id': preparation['id'], 'sensor_ref': preparation['sensors'][0]['sensor_ref'],
-            'evidence_digest': preparation['evidence_digest'], 'statement_version':core.STATEMENT_VERSION, 'confirmed':True})
+            'evidence_digest': preparation['evidence_digest'], 'statement_version':core.STATEMENT_VERSION, 'confirmed':True,
+            'expected_rights_generation':service.automatic.state(db,owner,'123').generation if service.automatic.state(db,owner,'123') else 0})
         c = service.catalog(db, owner, '123')
-        run, _ = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], proof['id'])
+        run, _ = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], proof['id'],c['automatic']['rights_generation'])
     return proof, run
 
 
@@ -258,7 +262,7 @@ def test_end_to_end_two_phase_cache_and_context(store):
         context = service.context(db, owner, '123', run['id'],0,120,result['result_revision'],None)
         assert all(w['power_watts'] is None for w in context['windows'])
         c = service.catalog(db, owner, '123')
-        cached, code = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], proof['id'])
+        cached, code = service.submit(db, owner, '123', c['inputs'][0]['input'], c['catalog_revision'], proof['id'],c['automatic']['rights_generation'])
         assert code == 200 and cached['id'] == run['id']
         with pytest.raises(HTTPException) as exc:
             service.read_run(db, 'another-owner', '123', run['id'],0,120)
@@ -327,7 +331,9 @@ def test_cancel_retry_generation_and_lease_recovery(store):
         cancelled = service.change_run(db,owner,'123',run['id'],'cancel')
         with pytest.raises(HTTPException):
             service.change_run(db,owner,'123',run['id'],'retry',first[1])
-        retried = service.change_run(db,owner,'123',run['id'],'retry',cancelled['generation'])
+        catalog=service.catalog(db,owner,'123')
+        rights=service.automatic.reauthorize(db,owner,'123',catalog['catalog_revision'],catalog['automatic']['rights_generation'])['rights_generation']
+        retried = service.change_run(db,owner,'123',run['id'],'retry',cancelled['generation'],rights)
         assert retried['status'] == 'queued'
 
 
@@ -666,7 +672,9 @@ def test_quota_retry_target_preserved_and_policy_change_stales_result(store,monk
         db.get(Run,run['id']).retained_bytes=service.MAX_RESULT_BYTES
         db.commit()
         monkeypatch.setattr(service,'OWNER_QUOTA',service.MAX_RESULT_BYTES)
-        retry=service.change_run(db,owner,'123',run['id'],'retry',cancelled['generation'])
+        catalog=service.catalog(db,owner,'123')
+        rights=service.automatic.reauthorize(db,owner,'123',catalog['catalog_revision'],catalog['automatic']['rights_generation'])['rights_generation']
+        retry=service.change_run(db,owner,'123',run['id'],'retry',cancelled['generation'],rights)
         assert retry['id']==run['id'] and retry['status']=='queued'
         monkeypatch.setattr(service,'require_policy',lambda:'sha256:'+'b'*64)
         assert service.read_run(db,owner,'123',run['id'],0,120)['freshness']=='stale'
@@ -1243,7 +1251,7 @@ def test_cancel_is_metadata_only_for_completed_pending_erasure_and_storage_outag
             assert db.get(Confirmation, proof['id']) is None
     finally:
         event.remove(engine, 'before_cursor_execute', capture)
-    assert next(storage.iter_active(owner))['id'] == manifest['id']
+    assert manifest['id'] in {value['id'] for value in storage.iter_active(owner)}
 
 
 @pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)
@@ -1284,7 +1292,7 @@ def test_deletion_noops_are_bounded_and_new_work_gets_a_new_cutoff(store):
         assert db.get(Run, run['id']) is None
         assert db.get(Confirmation, proof['id']) is None
     after = list(storage.iter_active(owner))
-    assert len(after) == 2
+    assert len(after) == 3 # erasure, explicit reauthorization, new erasure
     assert max(v['requested_at'] for v in after) > before[0]['requested_at']
 
 

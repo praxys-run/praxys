@@ -1,0 +1,449 @@
+schema_version: 1
+id: sdr-activity-dfa-alpha1-v2
+version: 2
+title: Conditional automatic raw DFA admission with metadata-inferred source
+status: draft
+approval_mode: artifact
+decision_date: '2026-10-02'
+owners:
+- agent:science
+human_reviewers: []
+model_version: dfa-alpha1-raw120-v1
+evidence_review_ids:
+- evidence-activity-dfa-alpha1-v1
+evidence_claim_ids: &id001
+- dfa.recording-artifacts
+- dfa.short-scale-method
+- dfa.threshold-transfer-limited
+accepted_interpretation: 'DRAFT INACTIVE PROPOSAL: preserve the complete dfa-alpha1-raw120-v1 numerical
+  method. Conditionally allow automatic completed-sync analysis under an independently active source/admission
+  contract and default-off server gate, using metadata_inferred source assurance for the specified recorded
+  ECG-type/model predicate. Such recordings compute without a per-activity human assertion. Manual owner-confirmed
+  analysis remains a distinct branch; neither inference nor flag evaluation proves per-interval sensor
+  provenance or individual accuracy.'
+rejected_alternatives:
+- alternative: Infer RR from sampled BPM or AlphaHRV developer alpha fields.
+  rationale: Neither supplies the required raw beat sequence.
+- alternative: Apply universal0.75/0.5 physiological thresholds or silently correct artifacts.
+  rationale: Unsupported transfer and processing differences would widen the approved claim.
+model_parameters:
+- name: window
+  value:
+    seconds: 120
+    step_seconds: 5
+    min_complete_rr: 200
+    min_rr_coverage_ms: 117600
+    short_block: report_without_windows
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support does not validate these
+    complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: rr_quality
+  value:
+    trim: trailing_invalid_only
+    invalid_raw: 65535
+    zero_or_interior_invalid: break_chain
+    range_ms:
+    - 250
+    - 2000
+    neighbor_each_side: 5
+    minimum_neighbors: 5
+    relative_median_deviation: 0.2
+    correction: none
+    resampling: none
+    reject: any_suspect_or_incomplete
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support does not validate these
+    complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: time_alignment
+  value:
+    epoch: '1989-12-31T00:00:00Z'
+    anchors: file_order_record_or_primary_timer_boundary
+    max_anchor_width_ms: 30000
+    adjacent_offset_gap_ms: 2000
+    expansion_ms: 1000
+    max_local_offset_width_ms: 5000
+    local_offset: clamped_median_packet_midpoint_minus_cumulative_rr
+    window_membership: complete_intervals_from_exact_gathered_packets_only
+    audit: original_nonpadding_interval_indices_and_local_offset
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support does not validate these
+    complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: dfa
+  value:
+    scales:
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    profile: cumulative_demeaned_rr_float64
+    boxes: forward_backward_nonoverlapping_keep_duplicates
+    detrend: linear_OLS_with_intercept
+    fluctuation: sqrt_mean_all_residual_squares
+    slope: equal_weight_OLS_log_F_log_n
+    minimum_fluctuation_ms: 1.0e-12
+    clip: false
+    atypical_bounds:
+    - 0
+    - 2
+    r2: audit_only_null_zero_variance
+    display_decimals: 2
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support does not validate these
+    complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: source
+  value:
+    required: native_RR_and_recorded_ECG_and_branch_specific_assurance
+    garmin_manufacturer: 1
+    garmin_products:
+    - 1743
+    - 1752
+    - 2327
+    - 3299
+    - 3300
+    - 4130
+    - 4446
+    - 4606
+    polar_manufacturer: 123
+    polar_native_names:
+    - H10
+    - Polar H10
+    statement_version: dfa-source-attestation-v1
+    optical_or_contradictory: positive_optical_RR_or_known_external_optical_or_identity_source_contradiction_ineligible
+    identity_change: ineligible
+    direct_native_rr_source_reference: false
+    manual_required: native_RR_and_recorded_ECG_and_activity_confirmation
+    automatic_required: native_RR_and_all_recorded_HR_candidates_same_compatible_ECG_rule_and_interpretable_external_transport
+  classification: guardrail
+  rationale: The supported modality/model registry is unchanged. Manual source assurance retains a factual
+    per-activity owner statement. Automatic source assurance is a narrow metadata inference and must not
+    assert measured per-beat attribution.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: context
+  value:
+    heart_rate: 60000/mean_RR_ms
+    sample_clock: Unix_seconds
+    max_forward_hold_seconds: 2
+    min_field_support_seconds: 96
+    power: time_weighted_mean_stored_precedence
+    pace: 1000/time_weighted_mean_speed_m_s
+    negative_or_nonfinite: missing
+    zero: retained
+    gates_alpha: false
+  classification: guardrail
+  rationale: User-approved conservative Praxys method contract; published support does not validate these
+    complete operational choices.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: claim_limits
+  value:
+    overall_score: false
+    threshold_lines: false
+    individual_thresholds: false
+    training_changes: false
+    diagnosis: false
+    kubios_equivalence: false
+    time_alignment: estimated
+    coverage: availability_not_accuracy
+    source_assurance: branch_specific_user_confirmed_or_metadata_inferred
+    metadata_inference_proves_per_interval_source: false
+  classification: guardrail
+  rationale: Preserve all physiological claim limits and distinguish source evidence categories. Source
+    inference is a Product/Science guardrail, not a measured accuracy effect.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: activation
+  value:
+    contract: signed_active_only
+    method_version: dfa-alpha1-raw120-v1
+    source_scope: single_native_running_session_exact_owner_recording
+    automatic_background_admission: true
+    automatic_condition: default_off_server_gate_and_active_signed_v2_contract_and_current_metadata_predicate_and_owner_processing_authority
+    automatic_scope: newly_completed_sync_only
+    historical_backfill: false
+    manual_contract_id: sdr-activity-dfa-alpha1-v1
+    automatic_contract_id: sdr-activity-dfa-alpha1-v2
+    numerical_method_unchanged: true
+  classification: guardrail
+  rationale: Conditional admission amendment for the approved Product scope. Actual generated runtime
+    state remains inactive; the gate alone cannot authorize inference or activate science. Keep manual
+    v1 contract authority distinct until an approved migration.
+  evidence_claim_ids:
+  - dfa.recording-artifacts
+  - dfa.short-scale-method
+  - dfa.threshold-transfer-limited
+  applies_to: post-run DFA alpha1 v1
+- name: source_assurance
+  value:
+    allowed:
+    - user_confirmed
+    - metadata_inferred
+    user_confirmed_requires: immutable_factual_owner_confirmation_bound_to_exact_recording_and_sensor_rule
+    metadata_inferred_requires: immutable_typed_metadata_proof_bound_to_exact_recording_and_source_rule
+    metadata_inferred_confirmation_id: null
+    metadata_inferred_human_confirmation: false
+    public_sensor_identity: recording_local_opaque_handles_and_compatible_model_labels
+    direct_rr_sensor_fk: false
+    published_signal_accuracy: false
+    metadata_projection_version: rr-native-source-metadata-v2
+  classification: guardrail
+  rationale: Metadata inference is not human confirmation or direct native RR source attribution. Never
+    populate a confirmation table by automation.
+  evidence_claim_ids: *id001
+  applies_to: conditional automatic admission only; no numerical change
+- name: automatic_source
+  value:
+    rule_version: dfa-native-ecg-metadata-v1
+    provider: garmin
+    session: exactly_one_native_running_session
+    rr_field: native_hrv78_time0_only
+    require_current_archive_parse_hash: true
+    require_explicit_recording_local_handle: true
+    compatible_registry: unchanged_v1_Garmin_products_or_Polar_native_H10_identity
+    acceptable_transport_class_pairs:
+    - source_type: 1
+      device_type: 120
+      label: ANT_PLUS_heart_rate
+    - source_type: 3
+      device_type: 1
+      label: BLE_heart_rate
+    candidate_selection: all_recorded_native_external_HR_handles_and_explicit_local_wrist_HR_inventory
+    eligible: one_or_more_coherent_external_HR_handles_all_registered_ECG_and_same_compatibility_rule
+    multiple_same_model_transport_handles: eligible_as_ECG_type_model_inference_preserve_each_handle_no_physical_merge
+    different_compatible_models: source_unresolved
+    unknown_external_HR_identity: source_unresolved
+    missing_or_uninterpretable_transport_class: source_unresolved
+    explicit_local_wrist_HR_inventory: source_unresolved_not_proven_optical_RR
+    generic_watch_optical_capability: does_not_block
+    known_optical_external_HR_identity: ineligible
+    same_handle_identity_contradiction: ineligible
+    positive_RR_source_switch_or_mixed_source_evidence: ineligible
+    ordinary_raw_QC_or_gap_failures: unchanged_numerical_window_rules_no_global_source_diagnosis
+    provenance_claim: recorded_compatible_ECG_type_model_inferred_not_per_beat_source_verified
+    explicit_local_wrist_HR_pair:
+      source_type: 5
+      device_type: 10
+      outcome: source_unresolved_inventory_not_RR_assignment
+  classification: guardrail
+  rationale: Same-model all-candidate modality inference is deliberately broader than one physical-sensor
+    certainty and remains honestly labelled. It can complete ordinary single-strap and same-model ANT+/BLE
+    inventories without inventing physical identity. Unknown competing sources require clarification;
+    positive contradictions cannot be overridden.
+  evidence_claim_ids: *id001
+  applies_to: conditional automatic admission only; no numerical change
+- name: binding_and_versions
+  value:
+    numerical_method_version: dfa-alpha1-raw120-v1
+    frozen_parameter_groups:
+    - window
+    - rr_quality
+    - time_alignment
+    - dfa
+    - context
+    frozen_parameter_digest: sha256:f36cf405cbf84aef9d04e6e52aa1600662ce0254de1b230d7372ff035ebede11
+    source_rule_version: dfa-native-ecg-metadata-v1
+    manual_statement_version: dfa-source-attestation-v1
+    idempotency_includes:
+    - exact_recording_ref
+    - source_assurance
+    - source_evidence_digest
+    - source_rule_version
+    - numerical_method_version
+    - science_contract_digest
+    - metadata_projection_version
+    revalidate_at:
+    - admission
+    - execution
+    - publication
+    gate_off_automatic_execution_or_publication: false
+    view_focus_poll_starts_work: false
+    metadata_projection_version: rr-native-source-metadata-v2
+  classification: guardrail
+  rationale: Distinct immutable source and contract digests prevent inferred/manual authority mixing while
+    the full fixed numerical recipe remains unchanged. Trust/Architecture own lifecycle persistence and
+    rights fences.
+  evidence_claim_ids: *id001
+  applies_to: conditional automatic admission only; no numerical change
+applicability:
+- Exactly one native running FIT session under the existing Garmin archive adapter with unchanged raw
+  RR timing/QC; source qualification is branch-specific.
+- 'Automatic: each explicitly recorded external HR handle has coherent ANT+/HR or BLE/HR metadata and
+  an unchanged supported ECG compatibility rule; all candidates share that rule, including same-model
+  separate radio handles.'
+- Unknown external HR, missing transport/class, different supported ECG models or explicit local wrist-HR
+  inventory produce source_unresolved; ordinary watch optical capability does not.
+- Known external optical identity, source-handle identity contradiction or positive mixed/switching source
+  evidence remains ineligible.
+- Source assurance is a modality/model inference from recording metadata, never a guarantee of the exact
+  physical or per-interval native RR source.
+user_facing_claim_limits:
+- 'Metadata-inferred output: Source inferred from recording metadata; no source confirmed by you or verified-source
+  label.'
+- 'User-confirmed output: preserve the existing factual owner-confirmation label and exact statement revision.'
+- Same-model multiple recorded handles may represent radio connections or separate devices; do not merge
+  physical identities or promise one strap.
+- Preserve estimated time alignment, availability-not-accuracy, no overall score, no threshold lines,
+  no individual threshold, no diagnosis/training change or cross-app equivalence.
+safety_implications:
+- Descriptive post-run analysis does not clear exercise safety or change training.
+privacy_implications:
+- Owner-only inferred proof and result; no automatic human confirmation row, serial/address persistence,
+  private raw metadata duplication or RR/source data in gate telemetry.
+- Source evidence binding, deletion/revocation/reparse/restore, processing consent, feature-gate fences
+  and retained proof schema require the separate Trust/Architecture acceptance.
+validation_plan:
+- Golden numeric fixture outputs under v1manual and v2automatic are identical except typed assurance/provenance
+  metadata; frozen numerical parameter digest must match.
+- 'Synthetic native FIT source matrix: eligible oneANT+ECG, oneBLEECG, twoANT+/BLEsame-model handles without
+  physical merge, repeated coherent handle descriptions, generic optically capable watch plus supported
+  externalECG.'
+- 'Source-unresolved cases: differentcompatibleECGmodels, unknowncompetingexternalHR, missing source_type/device_type/index,
+  explicit localwhr inventory, ambiguous handle transport reuse.'
+- 'Ineligible cases: positively knownexternalopticalHRidentity, samehandle identitycontradiction, positiveoptical/external
+  switching or mixedRRsourceevidence.'
+- Positive source inference completes automatic numerical phase without any Confirmation row, per-activity
+  click or confirmed:true. Baseline raw QC can still produce no_valid_windows or timing failures truthfully.
+- GateOFF, failing gate wrapper or inactive/wrong science contract never admit/execute/publishautomaticresults;
+  manual existing authority remains independent.
+- Independent Science/Trust/Quality review tests exact source-proof binding and stale/input/gate/rights
+  fences before production activation.
+falsification_conditions:
+- Automation fabricates a factual owner confirmation or labels metadata_inferred as user_confirmed/verified.
+- Known contradictory/optical source admitted; ambiguous inventory silently claimed to be physically one
+  sensor or direct native RR provenance.
+- A positive eligible metadata predicate invariably requires another manual confirmation/start rather
+  than completing.
+- Any numerical/QC/formula/timing/coverage correction changes under this source-only amendment.
+- DefaultOFF, inactive science or processing/gate revocation permits new automatic work/publication.
+affected_surfaces:
+  models:
+  - analysis/activity_dfa.py
+  - sync/rr_recording.py
+  apis:
+  - /api/activities/{activity_id}/dfa-alpha1
+  clients:
+  - web History
+  - miniapp Analysis activities
+  science_notes:
+  - Post-run DFA method and guardrails
+artifact_policy:
+  runtime_state: inactive
+decision_notes:
+- PDR logical digest sha256:086c52e80679e9d0a89a6f28ba70bda7d351076ed4c8933b77e32ca8b6f2501c verified.
+  User Product implementation approval does not originate scientific signatures.
+- Work classification sha256:1f80b1e4ff20a296d77cc15154af9d8826ea75e8d9726f2be624eb6292c11cff;route sha256:a45599ca884e6edfe42e642bddbf2026d027776c58081de6e35ec91f59892904.
+- Existing v1EvidenceReview and SDR are draft/inactive here. This proposed v2 successor uses no active
+  supersession links; baseline is not rewritten.
+- 'Transitional strategy: manual uses its separately active v1contract; automatic requires separately
+  active v2contract and servergate. If an eventual approved lifecycle supersedes v1, atomically migrate
+  manual lookup to v2user_confirmed branch and all v1links before disabling v1; no partialtransition.'
+- Reuse existing baselineEvidenceReview; source inference parameters are explicit operational guardrails,
+  not new published physiological validation. Five reviewed papers/source limits in the earlier research
+  bundle remain contextual.
+- The3%/5%corrected-method candidate record is a different inactive research object and is excluded from
+  this amendment.
+- 'SDK metadata facts re-used from coordinator verification: global78time has no RR-sensor FK; source_type/device_type
+  is source inventory. Localwhr presence is not proven optical RR; dive_settings source fields do not
+  establish running provenance.'
+- Inventory-only optical capability or localwhr device presence does not constitute positive optical-RR
+  contradiction; new v2 source-group wording clarifies that distinction. Existing v1manual record remains
+  unchanged.
+decision_review:
+  reviewer_task: Review only unchanged baseline inheritance and narrow source/admission amendment. Product
+    user-value approval is already recorded separately; implementation activation remains a different
+    approval role.
+  approval_statement: Approve the displayed source/admission decision digest only; this does not activate
+    runtime or enable the server gate.
+  items:
+  - id: unchanged-method
+    title: Retain complete numerical baseline
+    disposition: approve
+    question: Retain complete numerical baseline?
+    proposed_decision: Keep exact dfa-alpha1-raw120-v1 formula, constants, quality and timing.
+    approval_effect:
+    - Accept only the named scientific/source interpretation after authenticated digest-bound decision
+      approval.
+    does_not_authorize:
+    - Runtime activation, gate enablement, deployment, fabricated human source statements or changed numerical
+      QC.
+    parameter_names:
+    - window
+    - rr_quality
+    - time_alignment
+    - dfa
+    - context
+    evidence_claim_ids: *id001
+  - id: inferred-source
+    title: Admit narrow metadata-inferred ECG-type/model source
+    disposition: approve
+    question: Admit narrow metadata-inferred ECG-type/model source?
+    proposed_decision: Accept branch-specific user_confirmed versus metadata_inferred assurance and the
+      all-candidate/same-ECG-rule metadata predicate, with unknown versus contradiction outcomes.
+    approval_effect:
+    - Accept only the named scientific/source interpretation after authenticated digest-bound decision
+      approval.
+    does_not_authorize:
+    - Runtime activation, gate enablement, deployment, fabricated human source statements or changed numerical
+      QC.
+    parameter_names:
+    - source
+    - source_assurance
+    - automatic_source
+    - claim_limits
+    evidence_claim_ids: *id001
+  - id: conditional-admission
+    title: Default-off conditional automatic admission and immutable bindings
+    disposition: approve
+    question: Default-off conditional automatic admission and immutable bindings?
+    proposed_decision: Allow automatic completed-sync computation only under a separately active source
+      contract, gate and authority; preserve independent manual v1path until an approved lifecycle migration.
+    approval_effect:
+    - Accept only the named scientific/source interpretation after authenticated digest-bound decision
+      approval.
+    does_not_authorize:
+    - Runtime activation, gate enablement, deployment, fabricated human source statements or changed numerical
+      QC.
+    parameter_names:
+    - activation
+    - binding_and_versions
+    evidence_claim_ids: *id001
+supersedes: []
+superseded_by: null

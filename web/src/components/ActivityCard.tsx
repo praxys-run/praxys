@@ -10,7 +10,7 @@ import { formatStoredPace } from '@/lib/format';
 import { formatElapsed } from '@/lib/activity-trace';
 import { Button } from '@/components/ui/button';
 
-const ActivityDFA = lazy(() => import('@/components/ActivityDFA'));
+const ActivityDetailSheet = lazy(() => import('@/components/ActivityDetailSheet'));
 
 interface Props {
   activity: Activity;
@@ -19,7 +19,7 @@ interface Props {
 
 export default function ActivityCard({ activity, activityDetailAvailable }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [dfaOpen, setDfaOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const splitId = useId();
   const { locale } = useLocale();
   const { t } = useLingui();
@@ -69,11 +69,11 @@ export default function ActivityCard({ activity, activityDetailAvailable }: Prop
         <Trans>Recorded splits</Trans> <span className="font-data">({activity.splits.length})</span>
         <ChevronDown size={14} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
       </Button>}
-      <Button variant="ghost" className="min-h-11 px-2 text-xs" onClick={() => setDfaOpen(true)}><Trans>DFA α1</Trans></Button>
+      <Button variant="ghost" className="min-h-11 px-2 text-xs" onClick={() => setDetailOpen(true)}><Trans>View details</Trans></Button>
     </div>
     {activity.splits.length > 0 && <div id={splitId} hidden={!expanded}>
       {expanded && <SplitBreakdown splits={activity.splits} cpEstimate={activity.cp_estimate} />}
     </div>}
-    {dfaOpen && <Suspense fallback={null}><ActivityDFA activityId={activity.activity_id} activityDate={activity.date} onClose={() => setDfaOpen(false)} /></Suspense>}
+    {detailOpen && <Suspense fallback={null}><ActivityDetailSheet activity={activity} onClose={() => setDetailOpen(false)} /></Suspense>}
   </Card>;
 }

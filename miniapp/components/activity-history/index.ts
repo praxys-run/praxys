@@ -6,7 +6,7 @@ import { detectLocale, t, tFmt } from '../../utils/i18n';
 
 function translations() {
   return {
-    dfa: t('DFA α1'),
+    detail: t('View details'),
     failedToLoad: t('Failed to load'),
     loadingMore: t('Loading more…'),
     endOfActivities: t('End of activities'),
@@ -30,6 +30,7 @@ interface SplitRow {
 }
 
 interface ActivityRow {
+  activity: Activity;
   id: string;
   detailAvailable: boolean;
   date: string;
@@ -102,6 +103,7 @@ function buildActivityRow(activity: Activity, detailAvailable: boolean): Activit
   });
 
   return {
+    activity,
     id: activity.activity_id,
     detailAvailable,
     date: new Date(activity.date).toLocaleDateString(detectLocale() === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
@@ -167,8 +169,9 @@ Component({
   },
 
   methods: {
-    onDFA(event: WechatMiniprogram.TouchEvent) {
-      this.triggerEvent('dfa', { activityId: String(event.currentTarget.dataset.id), activityDate:String(event.currentTarget.dataset.date) });
+    onDetail(event: WechatMiniprogram.TouchEvent) {
+      const row=this.data.activities.find(v=>v.id===String(event.currentTarget.dataset.id));
+      if(row)this.triggerEvent('detail',{activity:row.activity});
     },
     refresh(): Promise<void> {
       return this.fetchPage(0, true);

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "extension_version": "praxys-codex-statsig-mcp-extension-v1",
+  "status": "implementation-candidate",
+  "binding": {
+    "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-v1",
+    "proposal_path": "docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md",
+    "proposal_digest": "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139",
+    "subject_id": "codex-statsig-mcp-extension-decision-v1",
+    "subject_path": "docs/dev/codex-statsig-mcp-extension-decision-v1.json",
+    "subject_digest": "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6",
+    "authorized_scope": "project-configuration-and-verification-only",
+    "exact_digest_human_approval_claimed": false
+  },
+  "mcp_extension": {
+    "id": "statsig",
+    "transport": "streamable-http",
+    "url": "https://api.statsig.com/v3/mcp",
+    "authentication": "codex-managed-oauth",
+    "root_enabled": true,
+    "required": false,
+    "role_enablement": [
+      "operations"
+    ],
+    "role_explicit_disable": [
+      "praxys-orchestrator",
+      "work-router",
+      "decision-review-router",
+      "praxys-change-loop",
+      "product",
+      "design",
+      "engineering",
+      "architecture",
+      "quality",
+      "science",
+      "trust",
+      "meta-eval"
+    ],
+    "enabled_tools": [
+      "get_context",
+      "gate_read",
+      "gate_create",
+      "gate_update"
+    ],
+    "default_tools_approval_mode": "prompt",
+    "environment_forwarding": [],
+    "credentials_in_repository": false,
+    "headers_in_repository": false,
+    "bearer_token_environment_variable": null,
+    "generic_discovery_or_execution_tools": false,
+    "live_tool_discovery_status": "not-performed-documentation-derived-declarations-only"
+  },
+  "supporting_artifacts": [
+    {
+      "path": "docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md",
+      "digest": "sha256:c340b12fe6b4fbc72530de2399ff7b03a1c522f26d401e1db3416c287e3147b3"
+    },
+    {
+      "path": "docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md",
+      "digest": "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"
+    },
+    {
+      "path": "docs/dev/trust-decision-record-codex-statsig-mcp-extension-v1.md",
+      "digest": "sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1"
+    }
+  ]
+}

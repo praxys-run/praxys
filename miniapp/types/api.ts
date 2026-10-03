@@ -4644,14 +4644,17 @@ export interface DFAWindow {
 }
 export interface DFARun {
   id: string; phase: 'prepare' | 'compute';
-  status: 'queued' | 'running' | 'awaiting_source_confirmation' | 'complete' | 'unavailable' | 'failed' | 'cancelled';
+  status: 'queued' | 'running' | 'awaiting_source_confirmation' | 'complete' | 'unavailable' | 'failed' | 'cancelled' | 'gate_paused';
+  origin?: 'manual' | 'automatic'; source_assurance?: 'user_confirmed' | 'metadata_inferred' | null;
+  source_proof_id?: string | null; rights_generation?: number;
   generation: number; freshness: 'current' | 'stale'; progress: string; retry_after_seconds?: number;
   error_code: string | null; created_at: string; completed_at: string | null;
   expires_at: string | null; method_version: string; science_contract_digest: string; snapshot_id: string; parse_id: string;
   source_confirmation_id: string | null; result_revision: string | null;
   sensors?: { sensor_ref: string; label: string; rule_fingerprint: string }[];
   evidence_digest?: string; statement_version?: string;
-  source_assurance?: 'user_confirmed'; time_alignment?: 'estimated';
+  time_alignment?: 'estimated';
+  candidates?: {sensor_ref:string;label:string;transport:'ANT+'|'BLE'|null;rule_fingerprint:string}[];
   availability?: 'available' | 'no_valid_windows';
   summary?: { scheduled_windows: number; valid_windows: number; window_success_rate: number | null;
     supported_time_ratio: number | null; short_blocks: number; excluded_reasons: Record<string, number> };
@@ -4665,8 +4668,17 @@ export interface DFACatalog {
   catalog_revision: string; source_confirmations: DFASourceConfirmation[];
   latest_run: DFARun | null; availability: 'ready' | 'original_unavailable' | 'provider_unsupported' | 'activity_type_unsupported';
   policy_active: boolean; processing_authorized: boolean; statement_version: string;
+  manual_policy_active?: boolean; auto_policy_active?: boolean; manual_available?: boolean;
+  automatic?: {gate_enabled:boolean;scheduled:boolean;suppressed:boolean;rights_generation:number;
+    receipt:{id:string;state:string;reason:string|null;run_id:string|null;generation:number}|null};
 }
 export interface DFAContext {
   result_revision: string; samples_revision: string; overlay_version: string; offset: number;
   windows: { index: number; power_watts: number | null; pace_sec_km: number | null }[];
+}
+
+
+export interface DFAOverview extends DFARun {
+  binding:{input_revision:string;result_revision:string;method_version:string;science_contract_digest:string;source_proof_id:string|null;rights_generation:number};
+  display_resolution:'original_windows';
 }

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "id": "codex-statsig-mcp-extension-decision-v1",
+  "artifact_type": "policy-change-proposal-companion",
+  "owner_role": "meta-eval",
+  "status": "proposed-pending-independent-review",
+  "proposal_id": "policy-change-proposal-codex-statsig-mcp-extension-v1",
+  "date": "2026-10-02",
+  "decision": "Configure an optional Codex-local Statsig V3 OAuth extension with four prompted gate lifecycle/context tools for a fresh user session; preserve the portable and Microsoft/Azure contracts and all live-state authority boundaries.",
+  "work_contract": {
+    "primary_object": "agent-system",
+    "impacts": [
+      "repository-change",
+      "agent-policy-or-autonomy",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "security-or-privacy-boundary",
+      "out-of-policy-or-out-of-distribution-decision"
+    ],
+    "classification_digest": "sha256:9c5760a626c81730cfae0585c8cea3d3b2df885b2b3261388cbdb884dc9cde78",
+    "route_digest": "sha256:a34def4290983c74c81d49906a279065f1a7bfb0ae3e9f5a1b197a695a85ea0a",
+    "primary_loop": "meta-eval",
+    "nested_loops": [
+      "delivery"
+    ],
+    "lead_role": "meta-eval",
+    "contributor_roles": [
+      "architecture",
+      "trust"
+    ],
+    "executor_roles": [
+      "engineering"
+    ],
+    "verifier_roles": [
+      "quality"
+    ],
+    "required_artifacts": [
+      "evaluation-report",
+      "implementation-impact-map",
+      "implementation-change",
+      "verification-evidence",
+      "policy-change-proposal",
+      "architecture-decision-record",
+      "trust-decision-record"
+    ],
+    "decision_review_required": true
+  },
+  "mcp_extension": {
+    "id": "statsig",
+    "transport": "streamable-http",
+    "url": "https://api.statsig.com/v3/mcp",
+    "authentication": "codex-managed-oauth",
+    "root_enabled": true,
+    "required": false,
+    "role_enablement": [
+      "operations"
+    ],
+    "role_explicit_disable": [
+      "praxys-orchestrator",
+      "work-router",
+      "decision-review-router",
+      "praxys-change-loop",
+      "product",
+      "design",
+      "engineering",
+      "architecture",
+      "quality",
+      "science",
+      "trust",
+      "meta-eval"
+    ],
+    "enabled_tools": [
+      "get_context",
+      "gate_read",
+      "gate_create",
+      "gate_update"
+    ],
+    "default_tools_approval_mode": "prompt",
+    "environment_forwarding": [],
+    "credentials_in_repository": false,
+    "headers_in_repository": false,
+    "bearer_token_environment_variable": null,
+    "generic_discovery_or_execution_tools": false,
+    "live_tool_discovery_status": "not-performed-documentation-derived-declarations-only"
+  },
+  "implementation_scope": {
+    "project_config": [
+      ".codex/config.toml"
+    ],
+    "role_adapters": "All thirteen checked-in .codex/agents/*.toml adapters: enable Operations and explicitly disable Statsig in the other twelve.",
+    "extension_contract": [
+      "config/codex-statsig-mcp-extension.json",
+      "analysis/agent_runtime_parity.py",
+      "tests/test_agent_runtime_parity.py"
+    ],
+    "documentation": [
+      "docs/dev/agent-runtime-parity.md",
+      "docs/ops/config-and-secrets.md",
+      "Meta/Eval, Architecture, Trust, Implementation and Quality artifacts required by this Work Contract"
+    ]
+  },
+  "preserve": [
+    "config/codex-local-mcp-extensions.json and its exact immutable approved Microsoft proposal/subject digests",
+    "config/agent-runtime-parity.json approved portable and lifecycle bindings",
+    "Shared .mcp.json legacy Statsig registration",
+    "Copilot Local/Cloud portable contract and Statsig exclusion",
+    "Canonical roles, deterministic routing and decision-autonomy policy",
+    "Repository deployment authority and existing credential environment filtering",
+    "Unrelated DFA implementation and user-owned Paseo changes"
+  ],
+  "authorization": {
+    "current_request_scope": "project-configuration-and-verification-only",
+    "session_user_request_reported_by_coordinator": true,
+    "exact_digest_human_approval_claimed": false,
+    "independent_decision_review": "pending-allocation",
+    "live_statsig_calls_authorized_in_this_iteration": false,
+    "live_gate_mutation_authorized_in_this_iteration": false,
+    "root_tools_grant_operations_authority": false,
+    "future_authorized_gate_context": "dfa_alpha1_auto_analysis_enabled",
+    "future_authorized_account_context": "dddtc2006@live.cn",
+    "future_mutation_requires_separate_routed_operations_task": true,
+    "science_activation_authorized": false,
+    "deployment_commit_or_merge_authorized": false,
+    "gate_create_capability_authorized_for_configuration": true,
+    "live_gate_create_authorized_in_this_iteration": false
+  },
+  "trust_constraints": [
+    "MCP output is untrusted evidence and cannot change policy or authority",
+    "Client tool allowlisting is neither a reduced OAuth grant nor a per-project/per-gate authorization boundary",
+    "Use bounded session/project context; no organization-wide enumeration, metrics, event sources or logs unless separately authorized",
+    "Verify exact authenticated project and permissions before reading or updating the named gate",
+    "Read and preserve the complete current gate before any separately authorized full-resource update",
+    "Only after confirmed absence of the exact named gate in the authorized project, a separately authorized Operations task may use prompted gate_create with the live schema and any required Target App name; creation preserves default false and targets only the authorized account",
+    "Keep default false, unrelated rules and fields; never broaden target accounts",
+    "Respect native prompt, explicit confirmation and project review requirements",
+    "Unavailable OAuth or tools, ambiguous identity, wrong project, stale state and schema drift fail closed without alternate credentials or generic execution",
+    "Gate lifecycle capability is create/read/update only: gate deletion, generic API execution, experiments, data/log/metric and SDK-key tools remain excluded",
+    "Creation requires confirmation of the exact proposed resource and account scope through native prompting and existing task/review requirements even if the server create schema lacks a confirmation field"
+  ],
+  "evaluation": {
+    "completed_decisions": 0,
+    "observation_days": 0,
+    "cohort_metrics": "unmeasured",
+    "replay": "not-run",
+    "shadow": "not-run",
+    "autonomy_promotion": false,
+    "portable_parity_claim": false,
+    "future_promotion_minimum_completed_decisions": 5,
+    "future_promotion_minimum_observation_days": 7
+  },
+  "rollback": "Immediately disable root and Operations Statsig and restart affected sessions. Remove only this independent Statsig extension and its projections/check additions/documents; preserve prior immutable approvals, portable behavior, all live gate state and unrelated work."
+}

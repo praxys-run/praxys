@@ -3041,6 +3041,10 @@ class ActivityDFARun(Base):
     snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False)
     parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
     confirmation_id = Column(String(36), ForeignKey("activity_dfa_confirmations.id", ondelete="CASCADE"), nullable=True)
+    origin = Column(String(16), nullable=False, default="manual", server_default="manual")
+    source_assurance = Column(String(24), nullable=False, default="user_confirmed", server_default="user_confirmed")
+    metadata_proof_id = Column(String(36), ForeignKey("activity_dfa_metadata_proofs.id", ondelete="CASCADE"), nullable=True)
+    rights_generation = Column(Integer, nullable=False, default=0, server_default="0")
     recording_ref = Column(JSON, nullable=False)
     input_digest = Column(String(64), nullable=False)
     method_version = Column(String(80), nullable=False)
@@ -3063,8 +3067,10 @@ class ActivityDFARun(Base):
     expires_at = Column(DateTime, nullable=True)
     __table_args__ = (
         UniqueConstraint("user_id", "input_digest", name="uq_dfa_run_input"),
+        CheckConstraint("(origin = 'manual' AND source_assurance = 'user_confirmed' AND metadata_proof_id IS NULL) OR (origin = 'automatic' AND source_assurance = 'metadata_inferred' AND confirmation_id IS NULL)", name="ck_dfa_source_branch"),
+        CheckConstraint("rights_generation >= 0", name="ck_dfa_run_rights"),
         CheckConstraint("phase IN ('prepare','compute')", name="ck_dfa_phase"),
-        CheckConstraint("status IN ('queued','running','awaiting_source_confirmation','complete','unavailable','failed','cancelled')", name="ck_dfa_state"),
+        CheckConstraint("status IN ('queued','running','awaiting_source_confirmation','complete','unavailable','failed','cancelled','gate_paused')", name="ck_dfa_state"),
         CheckConstraint("freshness IN ('current','stale')", name="ck_dfa_freshness"),
         CheckConstraint("generation >= 1 AND retained_bytes >= 0 AND recoveries BETWEEN 0 AND 1", name="ck_dfa_run_bounds"),
         Index("uq_dfa_active_owner", "user_id", unique=True,
@@ -3080,3 +3086,55 @@ class ActivityDFAExecutionSlot(Base):
     lease_token = Column(String(36), nullable=True)
     lease_until = Column(DateTime, nullable=True)
     __table_args__ = (CheckConstraint("id = 1", name="ck_dfa_single_slot"),)
+
+
+class ActivityDFAMetadataProof(Base):
+    """Immutable source inference; never a human source confirmation."""
+    __tablename__ = "activity_dfa_metadata_proofs"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_id = Column(String(100), nullable=False)
+    snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False)
+    parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
+    recording_ref = Column(JSON, nullable=False)
+    source_evidence_digest = Column(String(64), nullable=False)
+    source_contract_digest = Column(String(71), nullable=False)
+    source_rule_version = Column(String(80), nullable=False)
+    metadata_projection_version = Column(String(80), nullable=False)
+    candidates = Column(JSON, nullable=False)
+    identity_digest = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "identity_digest", name="uq_dfa_metadata_proof_identity"),)
+
+
+class ActivityDFARightsState(Base):
+    """Durable withdrawal fence; empty activity key is reserved for owner erasure."""
+    __tablename__ = "activity_dfa_rights_state"
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    activity_id = Column(String(100), primary_key=True)
+    suppressed = Column(Boolean, nullable=False, default=False)
+    generation = Column(Integer, nullable=False, default=0)
+    reason = Column(String(40), nullable=False, default="initial")
+    changed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (CheckConstraint("generation >= 0", name="ck_dfa_rights_generation"), Index("ix_dfa_rights_pending", "reason", "changed_at"),)
+
+
+class ActivityDFAReceipt(Base):
+    """Transaction-local completion facts; runtime eligibility is never cached consent."""
+    __tablename__ = "activity_dfa_receipts"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_id = Column(String(100), nullable=False)
+    provider = Column(String(40), nullable=False)
+    account_id = Column(String(100), nullable=True)
+    recording_ref = Column(JSON, nullable=True)
+    event_digest = Column(String(64), nullable=False)
+    generation = Column(Integer, nullable=False, default=1)
+    rights_generation = Column(Integer, nullable=False, default=0)
+    status = Column(String(40), nullable=False, default="pending")
+    reason = Column(String(80), nullable=True)
+    run_id = Column(String(36), ForeignKey("activity_dfa_runs.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    checked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "event_digest", name="uq_dfa_receipt_event"),
+                     Index("ix_dfa_receipt_scan", "status", "checked_at", "user_id", "id"),)

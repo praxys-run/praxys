@@ -836,6 +836,11 @@ interface ActivityHistoryComponent {
 Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: string; dfaActivityDate: string }, PageMethods>({
   data: { ...initialData, tr: buildTrainingTr(), dfaActivityId: '', dfaActivityDate: '' },
 
+  onOpenDetail(event:WechatMiniprogram.CustomEvent<{activity: import('../../types/api').Activity}>){
+    const activity=event.detail.activity;
+    this.setData({dfaActivityId:activity.activity_id});this.syncDFATabBar();
+    wx.navigateTo({url:'/pages/activity-detail/index',events:{closed:()=>this.onCloseDFA()},success:result=>{result.eventChannel.emit('activity',activity);},fail:()=>{this.onCloseDFA();}});
+  },
   onOpenDFA(event: WechatMiniprogram.CustomEvent<{ activityId: string; activityDate: string }>) {
     this.setData({ dfaActivityId: event.detail.activityId, dfaActivityDate:event.detail.activityDate });
     this.syncDFATabBar();

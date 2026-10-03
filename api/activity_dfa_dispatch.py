@@ -44,6 +44,7 @@ def _loop():
                         db.rollback()
                         manifests = None
                         logger.warning("DFA dispatcher erasure replay unavailable")
+                    service.reconcile_source_integrity(db,limit=20)
                     if time.monotonic()-last_cleanup > 3600:
                         owners = [r[0] for r in db.query(service.Run.user_id).distinct().all()]
                         for owner in owners:
@@ -51,6 +52,7 @@ def _loop():
                                 service.cleanup(db, owner)
                                 db.commit()
                         last_cleanup = time.monotonic()
+                    service.reconcile_receipts(db, limit=20)
                     claimed = service.claim(db)
                 if claimed and _pool is not None:
                     pending = _pool.submit(service.execute, session.SessionLocal, *claimed)
@@ -61,7 +63,21 @@ def _loop():
         _wake.clear()
 
 
+def _after_commit(db):
+    if db.info.pop('dfa_completion_pending', False):
+        wake()
+
+
+def _after_rollback(db):
+    db.info.pop('dfa_completion_pending', None)
+
+
 def start():
+    from sqlalchemy import event
+    from sqlalchemy.orm import Session
+    if not event.contains(Session, 'after_commit', _after_commit):
+        event.listen(Session, 'after_commit', _after_commit)
+        event.listen(Session, 'after_rollback', _after_rollback)
     global _thread, _pool
     if _thread is not None and _thread.is_alive():
         return

@@ -32,6 +32,16 @@ _DEFAULT_CONFIG_PATH = _ROOT / "config" / "agent-runtime-parity.json"
 _DEFAULT_EXTENSION_CONFIG_PATH = (
     _ROOT / "config" / "codex-local-mcp-extensions.json"
 )
+_DEFAULT_STATSIG_CONFIG_PATH = _ROOT / "config" / "codex-statsig-mcp-extension.json"
+_STATSIG_SUBJECT_DIGEST = "sha256:5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6"
+_STATSIG_PROPOSAL_DIGEST = "sha256:680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139"
+_STATSIG_TOOLS = ("get_context", "gate_read", "gate_create", "gate_update")
+_STATSIG_DISABLED_ROLES = ("praxys-orchestrator", "work-router", "decision-review-router", "praxys-change-loop", "product", "design", "engineering", "architecture", "quality", "science", "trust", "meta-eval")
+_STATSIG_SUPPORT = (
+    ("docs/dev/evaluation-report-codex-statsig-mcp-extension-v1.md", "sha256:c340b12fe6b4fbc72530de2399ff7b03a1c522f26d401e1db3416c287e3147b3"),
+    ("docs/dev/architecture-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:fe240f5feeae71c3f257cdba6e4ee9707b8e259ef09cd20d6c99f4c59d169deb"),
+    ("docs/dev/trust-decision-record-codex-statsig-mcp-extension-v1.md", "sha256:21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1"),
+)
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 _APPROVED_PROPOSAL_ID = (
@@ -806,6 +816,126 @@ class CodexLocalMcpExtensions(ParityRecord):
         return self
 
 
+class StatsigDecisionBinding(ParityRecord):
+    """Session setup authority; never reuse an older approval or invent one."""
+
+    proposal_id: Literal["policy-change-proposal-codex-statsig-mcp-extension-v1"]
+    proposal_path: Literal["docs/dev/policy-change-proposal-codex-statsig-mcp-extension-v1.md"]
+    proposal_digest: str
+    subject_id: Literal["codex-statsig-mcp-extension-decision-v1"]
+    subject_path: Literal["docs/dev/codex-statsig-mcp-extension-decision-v1.json"]
+    subject_digest: str
+    authorized_scope: Literal["project-configuration-and-verification-only"]
+    exact_digest_human_approval_claimed: Literal[False]
+
+    @model_validator(mode="after")
+    def validate_binding(self) -> "StatsigDecisionBinding":
+        if self.subject_digest != _STATSIG_SUBJECT_DIGEST or self.proposal_digest != _STATSIG_PROPOSAL_DIGEST:
+            raise ValueError("Statsig immutable subject/proposal binding differs")
+        return self
+
+
+class StatsigHttpMcpExtension(ParityRecord):
+    """Exact standalone OAuth extension, separate from public Microsoft HTTP."""
+
+    id: Literal["statsig"]
+    transport: Literal["streamable-http"]
+    url: Literal["https://api.statsig.com/v3/mcp"]
+    authentication: Literal["codex-managed-oauth"]
+    root_enabled: Literal[True]
+    required: Literal[False]
+    role_enablement: list[str]
+    role_explicit_disable: list[str]
+    enabled_tools: list[str]
+    default_tools_approval_mode: Literal["prompt"]
+    environment_forwarding: list[str]
+    credentials_in_repository: Literal[False]
+    headers_in_repository: Literal[False]
+    bearer_token_environment_variable: None
+    generic_discovery_or_execution_tools: Literal[False]
+    live_tool_discovery_status: Literal["not-performed-documentation-derived-declarations-only"]
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_boolean_flags(cls, data):
+        if isinstance(data, dict):
+            for key in ("root_enabled", "required", "credentials_in_repository", "headers_in_repository", "generic_discovery_or_execution_tools"):
+                if type(data.get(key)) is not bool:
+                    raise ValueError(f"Statsig {key} must be an explicit boolean")
+        return data
+
+    @model_validator(mode="after")
+    def validate_exact_scope(self) -> "StatsigHttpMcpExtension":
+        if self.role_enablement != ["operations"] or tuple(self.role_explicit_disable) != _STATSIG_DISABLED_ROLES:
+            raise ValueError("Statsig role partition must remain exact")
+        if tuple(self.enabled_tools) != _STATSIG_TOOLS:
+            raise ValueError("Statsig tool allowlist must remain exact")
+        if self.environment_forwarding:
+            raise ValueError("Statsig must forward no environment")
+        return self
+
+
+class StatsigArtifactBinding(ParityRecord):
+    path: str
+    digest: str
+
+    @model_validator(mode="after")
+    def validate_path(self) -> "StatsigArtifactBinding":
+        _require_repository_path(self.path, "Statsig artifact")
+        if _DIGEST_RE.fullmatch(self.digest) is None:
+            raise ValueError("Statsig artifact digest is malformed")
+        return self
+
+
+class CodexStatsigMcpExtension(ParityRecord):
+    """One independently bound local pilot; no portable/generic registry."""
+
+    schema_version: Literal[1]
+    extension_version: Literal["praxys-codex-statsig-mcp-extension-v1"]
+    status: Literal["implementation-candidate"]
+    binding: StatsigDecisionBinding
+    mcp_extension: StatsigHttpMcpExtension
+    supporting_artifacts: list[StatsigArtifactBinding]
+
+    @model_validator(mode="after")
+    def validate_support(self) -> "CodexStatsigMcpExtension":
+        if tuple((item.path, item.digest) for item in self.supporting_artifacts) != _STATSIG_SUPPORT:
+            raise ValueError("Statsig supporting artifact bindings differ")
+        return self
+
+
+def _statsig_native_payload(server: StatsigHttpMcpExtension) -> dict[str, object]:
+    return {"url":server.url,"auth":"oauth","enabled":True,"required":False,
+            "enabled_tools":server.enabled_tools,"default_tools_approval_mode":"prompt"}
+
+
+def _validate_statsig_binding(config:CodexStatsigMcpExtension,root:Path) -> list[str]:
+    errors=[]
+    artifacts=[(config.binding.subject_path,config.binding.subject_digest),(config.binding.proposal_path,config.binding.proposal_digest),
+               *((item.path,item.digest) for item in config.supporting_artifacts)]
+    for relative,digest in artifacts:
+        path=root/relative
+        if not path.is_file() or not _is_within(path.resolve(),root.resolve()):
+            errors.append(f"missing/escaping Statsig immutable artifact: {relative}")
+            continue
+        if "sha256:"+hashlib.sha256(path.read_bytes()).hexdigest()!=digest:
+            errors.append(f"Statsig immutable artifact byte digest differs: {relative}")
+    subject=root/config.binding.subject_path
+    if subject.is_file():
+        try:payload=json.loads(subject.read_bytes())
+        except (ValueError,UnicodeDecodeError):errors.append("Statsig decision subject is malformed")
+        else:
+            if not isinstance(payload,dict) or payload.get("id")!=config.binding.subject_id or payload.get("mcp_extension")!=config.mcp_extension.model_dump():
+                errors.append("Statsig contract differs from complete decision subject")
+    return errors
+
+
+def _statsig_projection_exact(actual,expected) -> bool:
+    # JSON comparison distinguishes bool from TOML integer lookalikes while the
+    # legacy Microsoft/Azure/native comparisons remain unchanged.
+    return json.dumps(actual,sort_keys=True)==json.dumps(expected,sort_keys=True)
+
+
 class HookContract(ParityRecord):
     """Exact Codex projection of the repository Impeccable hook."""
 
@@ -1065,6 +1195,7 @@ def _role_extension_payload(
 def _expected_codex_config(
     config: AgentRuntimeParity,
     extensions: CodexLocalMcpExtensions,
+    statsig: CodexStatsigMcpExtension,
 ) -> dict[str, object]:
     servers: dict[str, object] = {}
     for server_id, server in config.portable_mcp_servers.items():
@@ -1078,6 +1209,9 @@ def _expected_codex_config(
         }
     for server_id, server in extensions.mcp_extensions.items():
         servers[server_id] = _root_extension_payload(server)
+    if statsig.mcp_extension.id in servers:
+        raise ValueError("Statsig MCP ID collides with existing server")
+    servers[statsig.mcp_extension.id]=_statsig_native_payload(statsig.mcp_extension)
     return {
         "approval_policy": config.codex_adapter.approval_policy,
         "sandbox_mode": config.codex_adapter.default_sandbox_mode,
@@ -1536,6 +1670,7 @@ def validate_static_runtime_parity(
     *,
     root: Path = _ROOT,
     extensions: CodexLocalMcpExtensions | None = None,
+    statsig: CodexStatsigMcpExtension | None = None,
 ) -> list[str]:
     """Return deterministic adapter violations without starting any MCP process."""
     errors: list[str] = []
@@ -1548,6 +1683,15 @@ def validate_static_runtime_parity(
         except (OSError, ValueError) as exc:
             return [f"invalid Codex-local MCP extension contract: {exc}"]
 
+    if statsig is None:
+        try:statsig=load_statsig_mcp_extension(root/"config"/"codex-statsig-mcp-extension.json")
+        except (OSError,ValueError) as exc:return [f"invalid Codex Statsig MCP extension contract: {exc}"]
+    errors.extend(_validate_statsig_binding(statsig,root))
+    if statsig.mcp_extension.id in set(config.portable_mcp_servers)|set(extensions.mcp_extensions):
+        errors.append("Statsig MCP ID collides with existing server")
+        return errors
+    if set(statsig.mcp_extension.role_enablement+statsig.mcp_extension.role_explicit_disable)!=set(item.id for item in config.agent_adapters):
+        errors.append("Statsig role partition differs from current adapter inventory")
     required_files = [
         config.approval.proposal_path,
         config.approval.subject_path,
@@ -1636,7 +1780,8 @@ def validate_static_runtime_parity(
     except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
         errors.append(f"invalid Codex project config: {exc}")
     else:
-        if codex_payload != _expected_codex_config(config, extensions):
+        if (codex_payload != _expected_codex_config(config, extensions, statsig)
+                or not _statsig_projection_exact(codex_payload.get("mcp_servers",{}).get("statsig"),_statsig_native_payload(statsig.mcp_extension))):
             errors.append("Codex project config differs from the runtime contract")
 
     operating_model = load_agentic_operating_model(
@@ -1724,7 +1869,10 @@ def validate_static_runtime_parity(
                 expected["mcp_servers"][server_id] = (
                     _role_extension_payload(server)
                 )
-        if payload != expected:
+        statsig_role=_statsig_native_payload(statsig.mcp_extension)
+        statsig_role["enabled"]=adapter.id=="operations"
+        expected.setdefault("mcp_servers", {})["statsig"]=statsig_role
+        if (payload != expected or not _statsig_projection_exact(payload.get("mcp_servers",{}).get("statsig"),expected["mcp_servers"]["statsig"])):
             errors.append(f"Codex agent adapter differs from contract: {adapter.id}")
         canonical_text = (root / adapter.canonical_path).read_text(encoding="utf-8")
         canonical_mcp_servers = _canonical_agent_mcp_servers(
@@ -1884,3 +2032,8 @@ def _load_default_local_mcp_extensions() -> CodexLocalMcpExtensions:
     return CodexLocalMcpExtensions.model_validate_json(
         _DEFAULT_EXTENSION_CONFIG_PATH.read_text(encoding="utf-8")
     )
+
+
+def load_statsig_mcp_extension(path:str|Path|None=None) -> CodexStatsigMcpExtension:
+    """Load mandatory strict independent Statsig setup contract; no OAuth call."""
+    return CodexStatsigMcpExtension.model_validate_json((Path(path) if path is not None else _DEFAULT_STATSIG_CONFIG_PATH).read_text(encoding="utf-8"))

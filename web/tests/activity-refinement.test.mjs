@@ -48,7 +48,7 @@ function render(Component, props = {}) {
 const tagged = (node, tag) => markupNodes(node, (child) => child.tag === tag);
 const withClass = (node, name) => markupNodes(node, (child) => (child.attributes.class ?? '').split(' ').includes(name));
 
-test('history uses one native report link whose name includes facts; split and DFA controls are siblings', () => {
+test('history uses one native report link whose name includes facts; split and generic detail controls are siblings', () => {
   const detail = activityFixture();
   const card = render(components(detail)('components/ActivityCard').default, { activity: detail.activity, activityDetailAvailable: true });
   const [link] = tagged(card, 'a');
@@ -57,7 +57,7 @@ test('history uses one native report link whose name includes facts; split and D
   assert.equal(link.attributes['aria-label'], undefined);
   for (const fact of ['Running', 'Sep 27, 2026', 'Distance 3.3 km', 'Duration 22:00', 'Pace 6:40 /km', 'View report']) assert.ok(textContent(link).includes(fact), fact);
   assert.equal(tagged(link, 'button').length, 0);
-  assert.deepEqual(tagged(card, 'button').map(textContent), ['Recorded splits (2)', 'DFA α1']);
+  assert.deepEqual(tagged(card, 'button').map(textContent), ['Recorded splits (2)', 'View details']);
   assert.equal(tagged(card, 'button')[0].attributes['aria-expanded'], 'false');
 });
 
@@ -205,7 +205,7 @@ test('miniapp executes matching summary, source and independent-disclosure view 
   assert.equal(page.data.view.saved.some((row) => ['avg_power', 'avg_pace_min_km'].includes(row.key)), false);
 });
 
-test('miniapp history keeps native navigation, split preview and DFA dispatch independent for owner and demo', async () => {
+test('miniapp history keeps native navigation, split preview and generic detail dispatch independent for owner and demo', async () => {
   const detail = activityFixture();
   const filename = path.resolve(root, '../../miniapp/components/activity-history/index.ts');
   const template = readFileSync(filename.replace('.ts', '.wxml'), 'utf8');
@@ -239,9 +239,9 @@ test('miniapp history keeps native navigation, split preview and DFA dispatch in
     history.toggleExpand(event);
     assert.equal(history.data.activities[0].expanded, true);
     assert.equal(navigations.length, 0);
-    history.onDFA(event);
-    assert.equal(events[0][0], 'dfa');
-    assert.equal(events[0][1].activityDate, detail.activity.date);
+    history.onDetail(event);
+    assert.equal(events[0][0], 'detail');
+    assert.deepEqual(events[0][1].activity, detail.activity);
     assert.equal(navigations.length, 0);
     history.openDetail(event);
     assert.equal(navigations.length, allowed ? 1 : 0);
