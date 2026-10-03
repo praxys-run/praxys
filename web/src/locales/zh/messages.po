@@ -809,7 +809,7 @@ msgstr "通过快速前置检查的活动"
 msgid "Activities-only connection"
 msgstr "仅同步活动"
 
-#: src/components/ActivityDetailSheet.tsx:19
+#: src/components/ActivityDetailSheet.tsx:24
 msgid "Activity details"
 msgstr "活动详情"
 
@@ -1489,12 +1489,12 @@ msgid "Average power"
 msgstr "平均功率"
 
 #: src/components/ActivityCard.tsx:50
-#: src/components/ActivityDetailSheet.tsx:14
+#: src/components/ActivityDetailSheet.tsx:19
 msgid "Avg HR"
 msgstr "平均心率"
 
 #: src/components/ActivityCard.tsx:49
-#: src/components/ActivityDetailSheet.tsx:13
+#: src/components/ActivityDetailSheet.tsx:18
 msgid "Avg Power"
 msgstr "平均功率"
 
@@ -3162,6 +3162,7 @@ msgid "Custom workout purpose"
 msgstr "自定义训练目的"
 
 #: src/components/ActivityCard.tsx:29
+#: src/components/ActivityDetailSheet.tsx:14
 #: src/components/UpcomingPlanCard.tsx:567
 #: src/components/WorkoutPlanEditor.tsx:445
 #: src/pages/ActivityDetail.tsx:76
@@ -3677,7 +3678,7 @@ msgid "Dist"
 msgstr "距离"
 
 #: src/components/ActivityCard.tsx:44
-#: src/components/ActivityDetailSheet.tsx:11
+#: src/components/ActivityDetailSheet.tsx:16
 #: src/components/AdoptedPlanDetails.tsx:57
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
@@ -3820,7 +3821,7 @@ msgid "Durable preference"
 msgstr "长期偏好"
 
 #: src/components/ActivityCard.tsx:45
-#: src/components/ActivityDetailSheet.tsx:12
+#: src/components/ActivityDetailSheet.tsx:17
 #: src/components/SplitBreakdown.tsx:48
 #: src/components/WorkoutStructureEditor.tsx:810
 #: src/pages/ActivityDetail.tsx:116
@@ -3995,7 +3996,7 @@ msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
 #~ msgstr ""
 
 #: src/components/ActivityCard.tsx:51
-#: src/components/ActivityDetailSheet.tsx:16
+#: src/components/ActivityDetailSheet.tsx:21
 msgid "Elev"
 msgstr "爬升"
 
@@ -5150,6 +5151,7 @@ msgid "High variability"
 msgstr "变异性偏高"
 
 #: src/components/ActivityCard.tsx:28
+#: src/components/ActivityDetailSheet.tsx:13
 #: src/components/UpcomingPlanCard.tsx:569
 #: src/components/WorkoutPlanEditor.tsx:447
 #: src/pages/ActivityDetail.tsx:75
@@ -7257,7 +7259,7 @@ msgstr "没有可查看的逐时指标曲线；这些公里段只能在表格中
 msgid "No split data available."
 msgstr "没有可用的分段数据。"
 
-#: src/components/ActivityDetailSheet.tsx:22
+#: src/components/ActivityDetailSheet.tsx:27
 msgid "No splits recorded."
 msgstr "未记录分段。"
 
@@ -8009,7 +8011,7 @@ msgid "Ownership conflict"
 msgstr "归属冲突"
 
 #: src/components/ActivityCard.tsx:46
-#: src/components/ActivityDetailSheet.tsx:15
+#: src/components/ActivityDetailSheet.tsx:20
 #: src/components/ActivityTraceChart.tsx:95
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
@@ -10785,6 +10787,7 @@ msgid "Run p95"
 msgstr "运行 P95"
 
 #: src/components/ActivityCard.tsx:27
+#: src/components/ActivityDetailSheet.tsx:12
 #: src/components/PlanStart.tsx:965
 #: src/pages/ActivityDetail.tsx:72
 #: src/pages/Setup.tsx:170
@@ -11523,7 +11526,7 @@ msgstr "分段起止时间未核实，无法定位图表。"
 msgid "Split-weighted weather"
 msgstr "按分段加权的天气"
 
-#: src/components/ActivityDetailSheet.tsx:22
+#: src/components/ActivityDetailSheet.tsx:27
 msgid "Splits"
 msgstr "分段"
 
@@ -11840,6 +11843,7 @@ msgstr "将 {workout} 改为轻松跑"
 #~ msgstr ""
 
 #: src/components/ActivityCard.tsx:29
+#: src/components/ActivityDetailSheet.tsx:14
 #: src/pages/ActivityDetail.tsx:77
 #: src/pages/Setup.tsx:172
 msgid "Swimming"
@@ -13443,6 +13447,7 @@ msgid "Trail planning isn't available for this case"
 msgstr "此情况暂不支持越野计划"
 
 #: src/components/ActivityCard.tsx:27
+#: src/components/ActivityDetailSheet.tsx:12
 #: src/components/UpcomingPlanCard.tsx:566
 #: src/components/WorkoutPlanEditor.tsx:444
 #: src/pages/ActivityDetail.tsx:73
@@ -14117,6 +14122,7 @@ msgid "Waitlist unavailable"
 msgstr "候补名单不可用"
 
 #: src/components/ActivityCard.tsx:28
+#: src/components/ActivityDetailSheet.tsx:13
 #: src/components/UpcomingPlanCard.tsx:568
 #: src/components/WorkoutPlanEditor.tsx:446
 #: src/pages/ActivityDetail.tsx:74
