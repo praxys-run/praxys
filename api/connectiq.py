@@ -334,7 +334,7 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
             job = _fence(db, job_id, token)
             parsed = db.query(Parse).filter_by(id=snapshot.active_parse_id, parser_version=PARSER_VERSION, status="complete").first() if snapshot.active_parse_id else None
             if parsed is None:
-                parsed = sync_writer.write_garmin_fit_parse(snapshot, db)
+                parsed = sync_writer.write_garmin_fit_parse(snapshot, db, provider_completion=True)
             success = success and parsed.status == "complete"
             _fence(db, job_id, token)
             db.commit()

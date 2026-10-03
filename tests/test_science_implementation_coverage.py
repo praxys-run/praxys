@@ -27,12 +27,19 @@ REQUIRED_FILES = [
 ]
 
 
+# Exact candidate runtime dependencies are copied for fresh-import tests without
+# changing the trusted implementation coverage policy or its required assertions.
+RUNTIME_DEPENDENCY_FILES = [
+    'api/dfa_automatic.py', 'analysis/dfa_source.py', 'db/dfa_receipts.py',
+]
+
+
 @pytest.fixture(scope='module')
 def accepted_active_baseline(tmp_path_factory):
     root = tmp_path_factory.mktemp('real-governed-baseline')
     policy = json.loads((ROOT / 'config/science-implementation-coverage.json').read_text())
     assert set(REQUIRED_FILES) <= set(policy['contracts'][SUBJECT])
-    for name in policy['contracts'][SUBJECT]:
+    for name in dict.fromkeys([*policy['contracts'][SUBJECT], *RUNTIME_DEPENDENCY_FILES]):
         destination = root / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / name, destination)

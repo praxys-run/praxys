@@ -72,8 +72,8 @@ async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> 
   const headers = new Headers(init.headers);
   const rightsPath = new URL(fullUrl, window.location.origin).pathname;
   const rightsMethod = (init.method ?? 'GET').toUpperCase();
-  const dfaRights = (rightsMethod === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/source-confirmations\/[^/]+)?$/.test(rightsPath))
-    || (rightsMethod === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/runs\/[^/]+\/cancel$/.test(rightsPath));
+  const dfaRights = (rightsMethod === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/(?:source-confirmations|metadata-proofs)\/[^/]+)?$/.test(rightsPath))
+    || (rightsMethod === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/(?:runs|receipts)\/[^/]+\/cancel$/.test(rightsPath));
   const authHeaders = new Headers(getAuthHeaders());
   if (dfaRights) {
     const token = getCompatItem(KEYS.authToken.new, KEYS.authToken.legacy);

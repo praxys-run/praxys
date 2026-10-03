@@ -577,6 +577,7 @@ The final Statsig Console state owned by this integration is exactly:
 
 | Resource type | Name | Default / schema | Rules |
 |---|---|---|---|
+| Feature gate (declared only) | `dfa_alpha1_auto_analysis_enabled` | `false` in every environment | No pass, percentage or global rules in this delivery. TODO(Operations): provision Console resource and read back exact false defaults under separately authorized runtime work. |
 | Feature gate | `garmin_plan_delivery_eligible` | `false` in every environment | Optional reviewed allow rule matching only dedicated users by internal Praxys UUID. Never add a global pass rule. |
 | Feature gate | `stryd_connection_enabled` | `false` in every environment | One exact-email allow rule for the maintainer account only. The backend removes Stryd from settings, sync, plan delivery, Labs, schedulers, and direct actions for every other account. Never add a percentage or global pass rule. |
 | Dynamic config | `insight_daily_cap` | `{"value": 30}` where `value` is an integer | No experiment assignment. Runtime rules may return another validated positive integer. |
@@ -1256,3 +1257,84 @@ outgrown.
 
 ---
 _Last reviewed: 2026-08-27 · Owner: @dddtc2005_
+
+
+DFA automatic analysis uses the existing server-only Statsig account identity and
+local evaluation wrapper. No new key, environment variable or client SDK is
+required. Missing SDK/key/config/identity, initialization or evaluation error is
+OFF. The declaration above is not live Console provisioning/readback evidence.
+OFF pauses/fences automatic work and publication; manual v1 work, current saved
+results under their own authority and rights controls remain independent.
+Automatic v2 science remains draft/inactive; the gate does not supply scientific
+signatures, processing permission or deployment authority.
+
+
+### Codex-local Statsig MCP setup (configuration only)
+
+The independent contract `config/codex-statsig-mcp-extension.json` declares optional
+V3 `https://api.statsig.com/v3/mcp` with native managed OAuth, exact context/gate
+read/create/update names and native default prompting. Root discovery and the
+Operations adapter are enabled; all twelve other children explicitly disable it.
+Tool presence is not Operations authority. Microsoft/Azure approvals, shared
+legacy `.mcp.json`, portable exclusions and `STATSIG_*` credential filtering remain
+unchanged. No repository OAuth secret, header, token/env passthrough, custom scope,
+SDK-key fallback or auto-approved tool override is introduced.
+
+For a fresh trusted session, inspect `/mcp` and `codex mcp get statsig --json`.
+The latter is parser-only and cannot prove OAuth, tool availability, inheritance
+isolation or prompting. Authenticate locally with `codex mcp login statsig`, or
+its `--no-browser` option when callback completion is manual. Never record tokens,
+authorization codes, callback URLs or credential-store contents. Runtime consent,
+project identity, permissions and actual filtered tools must be established before
+later authorized work. No login or live call is performed by setup tests.
+
+A future separately routed Operations task is limited to its exact authorized
+project, gate and account. Four names do not restrict every server subaction or
+OAuth grant. Use minimal project/session context and exact named-gate reads/schema,
+not organization enumeration, targeting history, logs, events or metrics. Before a
+full-resource `gate_update`, preserve the complete current resource, default false
+and unrelated rules/fields. Before `gate_create`, positively confirm exact absence
+and use the live JSON schema plus any required Target App name; denied/failed/
+ambiguous lookup is not absence. Preview the exact resource/account change,
+satisfy native prompt and existing review requirements, then read back. Setup
+authorizes none of those live operations and does not enable the DFA gate or
+activate Science. Existing DFA declarations and pending Operations readback remain.
+
+On failed OAuth, missing tool, wrong project, broad grant/schema requirements,
+stale state or lost prompting, stop dependent work without secret/tool fallback.
+Disable root and Operations Statsig and restart sessions to stop cached tool use.
+Full rollback removes only the independent Statsig setup projection/contract/docs;
+retain older approvals, portable settings, all live gate state and unrelated work.
+Fresh independent Quality owns final configuration verification; effective native
+behavior, external grant scope and live outcomes remain unmeasured.
+
+
+### Statsig session observation — 2026-10-03
+
+After actual trusted user confirmation of the account-email transmission and
+exact live write, Operations created `dfa_alpha1_auto_analysis_enabled` in
+project `praxys` (`4yfDTkiVBIx43WaMmzkykr`). Exact readback returned enabled,
+`In Progress`, version 3, with one 100% case-sensitive exact-account email rule
+(`any_case_sensitive`); owned rule ID is `3hQJrq1ucskuwuLvnyWEdu`. No literal
+email is recorded here. The earlier ABSENT attempt was rejected because automatic
+approval review did not accept the recovered write-authorization evidence; actual
+user confirmation resolved that write blocker. Athlete processing consent was unchanged.
+
+Default OFF relies on reviewed new-gate/sole-allow-rule semantics: explicit
+`defaultValue` and override fields were omitted from readback. Project production
+`reviewRequired: true` and gate `requiredReview: false` are distinct returned
+fields; no review request or provider approval is inferred. SDK evaluation was
+not exercised. See the [dated rollout record](dfa-automatic-analysis-rollout-20261003.md)
+and [independent setup evidence](../dev/codex-statsig-mcp-verification-20261003.md).
+Code remains undeployed and automatic v2 science draft/inactive; creation supplies
+no science activation or processing consent. Fresh Quality review is pending.
+
+
+## Codex-local Statsig public projection
+
+The optional local extension is `config/codex-statsig-mcp-extension.json` with exact new publication pins. Root and Operations use direct V3 managed OAuth, four prompted context/gate tools, no repository credentials or forwarded environment; twelve other roles explicitly disable it. Public account identity is omitted and privately approved scope is retained. The earlier setup review and setup test results are historical provenance; current acceptance is conditional on fresh independent final-head review and checks. See [implementation](../dev/codex-statsig-mcp-implementation-v1.md), [review provenance](../dev/codex-statsig-public-projection-review-v1.json) and [dated Operations observation and release plan](statsig-public-projection-release-20261003.md).
+
+This iteration makes no live gate call, deployment, secret, infrastructure, alert or workflow change. Disable root/Operations Statsig and restart sessions for capability rollback while retaining existing gate state and predecessor approvals.
+
+
+The corrective Statsig publication iteration rejects malformed schema/approval scalar aliases and uses the Root-verified public GitHub noreply identity per commit. The earlier blob/message-only helper omitted raw commit headers; historical PR 871/872 document and commit-metadata exposure remains. Complete introduced raw Git objects and current public surfaces require checks before publication, followed by fresh independent acceptance. This corrective phase changes no DFA application/UI/science source and supplies no STOP or release approval.

@@ -46,6 +46,7 @@ Component({
     dates: { type: Array as ArrayConstructor, value: [] as string[] },
     /** Optional numeric time positions. Existing consumers retain ordinal spacing. */
     xValues: { type: Array as ArrayConstructor, value: [] as number[] },
+    xDomain: { type: Array as ArrayConstructor, value: [] as number[] },
     height: { type: Number as NumberConstructor, value: 240 },
     yMin: { type: Number as NumberConstructor, optionalTypes: [null], value: null as number | null },
     yMax: { type: Number as NumberConstructor, optionalTypes: [null], value: null as number | null },
@@ -102,7 +103,7 @@ Component({
   },
 
   observers: {
-    'series, dates, xValues, yMin, yMax, showZeroLine, showAxes, referenceY, theme': function () {
+    'series, dates, xValues, xDomain, yMin, yMax, showZeroLine, showAxes, referenceY, theme': function () {
       if (!this.data.ready) return;
       wx.nextTick(() => this.drawChart());
       // Hide stale tooltip — its index may no longer be valid.
@@ -132,7 +133,7 @@ Component({
 
       const relX = pageX - rect.left;
       const ratio = (relX - plotLeft) / plotWidth;
-      const positions = xPositions(this.data.xValues as number[], n);
+      const positions = xPositions(this.data.xValues as number[], n, this.data.xDomain as number[]);
       let idx = 0;
       for (let i = 1; i < positions.length; i++) {
         if (Math.abs(positions[i]-ratio) < Math.abs(positions[idx]-ratio)) idx = i;
@@ -145,6 +146,7 @@ Component({
       const seriesValues = series
         .map((s) => ({ label: s.label, value: s.values[idx] as number | null }))
         .filter((sv): sv is { label: string; value: number } => sv.value != null);
+      this.triggerEvent('select',{index:idx,time:(this.data.xValues as number[])[idx]});
       if (seriesValues.length === 0) return;
 
       const tooltipRows =
@@ -297,6 +299,7 @@ Component({
           chartColors(themePref === 'light' ? 'light' : 'dark'),
           this.data.yUnit as string,
           this.data.xValues as number[],
+          this.data.xDomain as number[],
         );
         },
       );
@@ -321,6 +324,7 @@ function renderChart(
   colors: { axis: string; grid: string; tick: string; zero: string; reference: string },
   yUnit: string,
   xValues: number[] = [],
+  xDomain: number[] = [],
 ) {
   const { yMin, yMax, n } = bounds;
   ctx.clearRect(0, 0, width, height);
@@ -340,7 +344,7 @@ function renderChart(
   const plotWidth = plotRight - plotLeft;
   const plotHeight = plotBottom - plotTop;
 
-  const positions = xPositions(xValues, n);
+  const positions = xPositions(xValues, n, xDomain);
   const xScale = (i: number) => plotLeft + positions[i] * plotWidth;
   const yScale = (v: number) => plotBottom - ((v - yMin) / (yMax - yMin)) * plotHeight;
 
@@ -485,7 +489,8 @@ function shortDate(iso: string): string {
   return `${month} ${parseInt(m[3], 10)}`;
 }
 
-export function xPositions(values: number[], n: number): number[] {
+export function xPositions(values: number[], n: number, domain:number[]=[]): number[] {
+  if(domain.length===2&&Number.isFinite(domain[0])&&Number.isFinite(domain[1])&&domain[1]>domain[0]&&values.length===n&&values.every(Number.isFinite))return values.map(v=>(v-domain[0])/(domain[1]-domain[0]));
   const numeric = values.length === n && values.every((v, i) => Number.isFinite(v) && (!i || v >= values[i-1])) && values[n-1] > values[0];
   return Array.from({length:n}, (_,i) => numeric ? (values[i]-values[0])/(values[n-1]-values[0]) : i/Math.max(1,n-1));
 }

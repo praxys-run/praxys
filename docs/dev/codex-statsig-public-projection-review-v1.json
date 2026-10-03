@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "codex-statsig-public-projection-review-v1",
+  "artifact_type": "coordinator-supplied-independent-review-provenance-mirror",
+  "owner_role": "decision-review-router",
+  "mirror_writer_role": "engineering",
+  "date": "2026-10-03",
+  "classification_digest": "sha256:e99a2228e9037ba5c64a1c87f041e67bad58961aa5876f9e79c5f842787c9e17",
+  "route_digest": "sha256:82cfd21ad3bf7067079ad242b6b4092e4738e6b8cccb72ac1d637ef58552049c",
+  "decision_review_route": "human-review-required",
+  "manifest_digest": "sha256:dc44904d1daf8996c0b978d6383afbb804485cf1b0e390d00f2ea5dfc098df2e",
+  "handoff_digest": "sha256:5ea6dd5b5c5249d9c9e6293d2aef2e6f908a515e54542c8e7296dcb796174fab",
+  "subject_digest": "sha256:e3a8b7b81725470e653710d03958c90ce1839f855a8a98e3308e79820a8398e6",
+  "proposal_digest": "sha256:d20726456dc9bc7ce52c372959c18de3308fd22a1b64c2f1effcd07a6a2078fe",
+  "trust_projection_digest": "sha256:1ea94595b99465c3d4456bbe3c504c51ec126774e8e17bc2496dd9688c776beb",
+  "exact_digest_human_approval_claimed": false,
+  "historical_approval_covers_new_bytes": false,
+  "provenance": {
+    "source": "coordinator-supplied native terminal reviewer finals observed through native tree inspection",
+    "coordinator": "/root/dfa_pr_delivery",
+    "decision_review_author": "/root/statsig_projection_decision_review",
+    "trust_author": "/root/statsig_projection_trust",
+    "reviewers_read_only": true,
+    "reviewers_terminal": true
+  },
+  "decision_review_reported": "Route: human-review-required. Existing human authority satisfies the bounded implementation and ordinary merge scope, conditional on specialist acceptance, final independent verification, and required checks. No repeated user confirmation is needed.",
+  "trust_acceptance_reported": "Trust accepts the exact frozen historical-TDR attachment as a faithful, minimized publication projection. No artifact repair is required.",
+  "authority_source": {
+    "kind": "authenticated-session-user-request-reported-by-coordinator",
+    "text": "好，把相关内容提交PR，review，合并吧",
+    "scope": "Frozen minimized projection, serialized additive draft PR 871 corrections, related PR delivery through independent review and ordinary merge conditional on final verification and required checks"
+  },
+  "limitations": [
+    "Engineering mirrors supplied review evidence and neither selects a route nor approves its implementation.",
+    "Trust acceptance covers publication semantics and source ownership, not historical proposal approval or final implementation.",
+    "Seven public artifacts retain exact bytes and proposed/historical status. Five private originals remain unchanged.",
+    "Historical ER, ADR, setup review and test results are provenance, not new-head approval.",
+    "No live calls, deployment, scientific STOP or activation, history rewrite, force push, branch deletion, third-party contacts or claim of historical exposure removal.",
+    "Fresh independent final-head Trust and Quality remain required."
+  ],
+  "corrective_iteration": {
+    "status": "review-allocation-only",
+    "reported_by": "root-orchestrator",
+    "native_final_provenance": "collaboration-delivered final",
+    "reviewer_agent": "/root/statsig_projection_decision_review",
+    "reviewer_read_only": true,
+    "reviewer_terminal": true,
+    "mirror_writer_role": "engineering",
+    "decision_review_route": "human-review-required",
+    "statement": "Existing authority covers this bounded corrective iteration and subsequent ordinary merge; no repeated permission is required.",
+    "exact_digest_human_approval_claimed": false,
+    "accepted_scope": "Fresh branch from verified current main with accepted source reconstruction, minimal Statsig exact scalar guards and alias regressions; verified public GitHub noreply author/committer identity per commit; complete introduced raw-object checks before push; new draft PR and conditional ordinary merge.",
+    "source_revision_with_findings": "7ff717182df3a0eeb6de70d7273ab18ce2147730",
+    "trusted_main": "11fc89f29833d28977c4e19e0a1ade3b20e5ee99",
+    "public_actor_provenance": "Root authenticated GitHub API verified actor ID 12397121 and login dddtc2005; per-command author/committer identity only, no global or repository config changes.",
+    "preserved": "All seven frozen publication artifacts and five private originals, new subject/proposal/TDR bindings, MCP semantics, previous approvals and science/UI HOLD.",
+    "prerequisites": "Fresh final-head Trust and Quality, complete preflight and required checks; this record is review allocation provenance, not independent implementation approval.",
+    "historical_publication": "Prior PR 871 document/commit metadata and PR 872 commit metadata exposure remains; no purge or historical-clean claim.",
+    "exclusions": [
+      "No tainted prior commit ancestry or cherry-pick metadata",
+      "No source-tree equality claim after type fixes",
+      "No history rewrite, force push, branch deletion or third-party contact",
+      "No live Statsig action, application deployment, scientific STOP or activation"
+    ]
+  }
+}

@@ -36,6 +36,9 @@ import type { Locale } from './i18n-catalog';
 // ---------------------------------------------------------------------------
 
 const EN_AUTH = {
+  "Previous window details": "Previous window details",
+  "Back to activities": "Back to activities",
+  'Complete beats: {beats} · Interval coverage: {coverage}%': 'Complete beats: {beats} · Interval coverage: {coverage}%',
   // Legacy tagline retained for the share card / timeline copy and any
   // surface that still reads it. The login page itself uses the
   // canonical brand-guide tagline ("Sports science that meets you
@@ -557,6 +560,9 @@ const EN_HEAT = {
 // ---------------------------------------------------------------------------
 
 const ZH_AUTH = {
+  "Previous window details": "上一组窗口详情",
+  "Back to activities": "返回活动列表",
+  'Complete beats: {beats} · Interval coverage: {coverage}%': '完整心搏数：{beats} · 间期覆盖率：{coverage}%',
   // Legacy share-card tagline (still consumed by share / timeline
   // copy). Login page proper uses the canonical brand-guide tagline
   // ("运动科学，知行合一。") split into prefix/accent/suffix in

@@ -9,3 +9,11 @@ enabled = true
 required = false
 enabled_tools = ["microsoft_docs_search", "microsoft_docs_fetch", "microsoft_code_sample_search"]
 default_tools_approval_mode = "auto"
+
+[mcp_servers.statsig]
+url = "https://api.statsig.com/v3/mcp"
+auth = "oauth"
+enabled = false
+required = false
+enabled_tools = ["get_context", "gate_read", "gate_create", "gate_update"]
+default_tools_approval_mode = "prompt"

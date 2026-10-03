@@ -51,8 +51,9 @@ Codex loads the project layer only after the user trusts the checkout. The
 project adapter contains:
 
 - `.codex/config.toml`: `workspace-write` plus `on-request` defaults, two
-  portable MCP registrations, two separately approved Codex-local extension
-  registrations, environment filtering, hooks, and multi-agent enablement;
+  portable MCP registrations, two separately approved Microsoft/Azure
+  registrations and one independently bound optional Statsig setup extension,
+  environment filtering, hooks, and multi-agent enablement;
 - `.codex/agents/*.toml`: thin adapters that direct the child to read one
   canonical `.github/agents/*.agent.md` manifest before acting;
 - `.agents/skills/*`: relative symlinks to canonical repository skill
@@ -60,8 +61,11 @@ project adapter contains:
 - `.codex/hooks.json`: the Codex-native PostToolUse projection of the existing
   repository-owned Impeccable hook.
 
-The root project layer registers every MCP server as disabled. Chrome DevTools
-and `praxys-local` remain the only portable servers. Microsoft Learn and Azure
+The root project layer keeps both portable servers and Microsoft/Azure disabled.
+The independent optional Statsig extension is enabled at root for fresh-session
+discovery and in Operations only; the other twelve adapters explicitly disable it.
+Root tool presence grants no Operations authority. Chrome DevTools and
+`praxys-local` remain the only portable servers. Microsoft Learn and Azure
 MCP are separately bound by `config/codex-local-mcp-extensions.json`; they do
 not change the Copilot Local/Cloud portable contract.
 The selected role adapter repeats the complete native MCP transport and enables
@@ -249,8 +253,9 @@ is absent, cyclic, duplicated, or otherwise inconsistent.
 `scripts/check_agent_runtime_parity.py` is the stable local/CI entry point.
 `tests/test_agent_runtime_parity.py` covers the accepted route, dispatch matrix,
 and negative drift paths. The Codex-native files remain deliberately thin and
-contain no provider, model, authentication, notification, telemetry, or
-personal preference state.
+contain no credentials, model, notification, telemetry or personal preference
+state. The separate Statsig projection declares managed OAuth without storing auth
+material; runtime consent and actual grants remain outside static conformance.
 
 `config/codex-local-mcp-extensions.json` independently binds the Microsoft MCP
 pilot to its approved subject. Keeping it outside
@@ -286,3 +291,63 @@ disable `.codex/`, remove the `.agents/skills/` aliases, and remove the runtime
 parity contract/check/test/docs. Leave `AGENTS.md`, the canonical
 operating/routing/policy JSON, `.github/agents/`, `.github/skills/`, Copilot
 MCP configuration, Copilot workflows, and invocation-control ledger unchanged.
+
+
+## Independent Codex-local Statsig setup extension
+
+`config/codex-statsig-mcp-extension.json` binds the new minimized Meta/Eval subject/proposal and four exact supporting records: historical Evaluation Report/ADR, independently accepted historical-TDR publication attachment and current Evaluation Report. Private originals and the seven public attachments keep their bytes and historical/proposed status. The byte-identical `docs/dev/codex-statsig-mcp-setup-review-v1.json` is historical provenance only. Current independently allocated review and authenticated ordinary PR/review/merge authority are mirrored in `docs/dev/codex-statsig-public-projection-review-v1.json`; no exact-digest human approval or historical approval transfer is claimed. Final independent verification and required checks remain prerequisites. Earlier PR 871 documents/commit metadata and PR 872 commit metadata remain historically exposed; current repair establishes no purge. The corrective branch reconstructs accepted source from trusted main, adds Statsig-specific exact scalar-type rejection, and uses a verified public noreply commit identity. Fresh independent final-head verification remains required.
+
+Root and Operations declare direct V3 Streamable HTTP,
+`https://api.statsig.com/v3/mcp`, `auth = "oauth"`, `enabled = true`,
+`required = false`, exactly `get_context`, `gate_read`, `gate_create`, `gate_update`
+and `default_tools_approval_mode = "prompt"`. All twelve other child adapters
+contain explicit `enabled = false`. No header, bearer-token variable, custom
+client/scopes, env forwarding, API-key fallback or per-tool auto override is
+present. Shell credential filtering, shared legacy `.mcp.json`, portable Statsig
+exclusion, canonical roles and deterministic task routing remain unchanged.
+
+The new strict model and static checker reject missing/malformed contracts,
+changed subject/proposal/supporting bytes, widened tools or roles, omitted child
+disables, endpoint/auth/prompt drift, token/header/env fallback and server-ID
+collisions. Local CLI `codex mcp get statsig --json` only parses effective native
+configuration; it starts no server and performs no authentication. Its output
+omits auth/required/default-prompt fields, so successful parsing does not establish
+OAuth consent, live tools, prompt enforcement or runtime child inheritance.
+
+In a new trusted checkout session, use `/mcp` and inspect the actual filtered
+inventory. The local user can run `codex mcp login statsig`, or
+`codex mcp login statsig --no-browser` for manual callback completion. Keep tokens,
+codes, callback URLs and credential-store contents out of artifacts. Login is a
+separate local step; setup tests do not authenticate or invoke a mutation. Missing
+OAuth/tools, unexpected schema/grant, lost prompting or ambiguous project identity
+make the dependent capability unavailable without expanding tools or credentials.
+Native session/user overrides may supersede checked project settings; static
+claims apply only to the effective accepted configuration. No portable/measured
+parity or autonomy promotion follows from this setup.
+
+The four names are not a per-project/per-gate authorization or subaction boundary.
+A later separately authorized Operations task must use minimal session/project
+identity and exact named-gate schema/state, excluding broad enumeration, history,
+metrics, events and logs. Read the complete gate before a full-resource update;
+preserve default false and all unrelated fields/rules. Confirm exact absence
+before prompted creation with the live schema and required Target App name;
+lookup failure or denied access is not absence. Native prompting and existing
+resource/account review precede a change, followed by exact readback. No such
+live call, creation, update, signature, activation or deployment occurs here.
+
+Rollback disables root and Operations Statsig and restarts affected sessions, then
+removes only this separate extension's tables/contract/checks/docs if needed.
+Retain all previous immutable approvals, portable behavior, live gates and
+unrelated work. Fresh independent Quality verifies the exact frozen patch; future
+Meta/Eval observations remain unmeasured.
+
+
+Native representation correction: Codex0.159.2 independently parses each role's
+MCP transport before applying disabled state. The ADR's illustrative minimal
+`enabled=false` table caused twelve `invalid transport` startup warnings and
+ignored role files. The implementation therefore repeats the same exact V3
+URL/OAuth/four-tool/prompt/optional transport with `enabled=false` in those twelve
+roles. This preserves the immutable subject's complete explicit-disable partition
+and grants no capability. Originals remain byte-identical; checker/negative tests
+bind the complete native representation. The initial twelve warnings are evidence
+in the separate implementation record; they are not waived or counted as success.

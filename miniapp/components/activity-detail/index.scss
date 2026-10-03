@@ -1,0 +1,11 @@
+.activity-detail { height:100vh; box-sizing:border-box; display:flex; flex-direction:column; color:var(--text); background:var(--bg); padding-top:env(safe-area-inset-top); }
+.activity-detail__head { flex:none; display:flex; justify-content:space-between; align-items:flex-start; gap:24rpx; padding:32rpx; border-bottom:1rpx solid var(--border); }
+.activity-detail__head > view { flex:1; min-width:0; }
+.activity-detail__title { display:block; font-size:36rpx; font-weight:600; margin-bottom:12rpx; }
+.activity-detail__scroll { flex:1; min-height:0; }
+.activity-detail__body { padding:32rpx 32rpx calc(64rpx + env(safe-area-inset-bottom)); }
+.activity-detail__summary { display:grid; grid-template-columns:1fr 1fr; gap:24rpx; padding-bottom:32rpx; margin-bottom:24rpx; border-bottom:1rpx solid var(--border); }
+.activity-detail__summary text { display:block; line-height:1.65; font-size:28rpx; }
+.activity-detail__button { min-height:44px; padding:12rpx 20rpx; margin:12rpx 0; border:1rpx solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:26rpx; line-height:1.4; }
+.activity-detail__button::after { border:0; }
+.activity-detail__split { padding:20rpx 0; border-bottom:1rpx solid var(--border); font-size:26rpx; line-height:1.65; }
