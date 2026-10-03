@@ -818,14 +818,19 @@ def execute(session_factory, run_id: str, generation: int, token: str) -> None:
             run = db.query(Run).filter(Run.id == run_id, Run.user_id == owner, Run.generation == generation,
                 Run.lease_token == token, Run.status == "running", Run.lease_until >= datetime.utcnow()).populate_existing().first()
             slot = db.query(Slot).filter_by(id=1, run_id=run_id, lease_token=token).first()
-            if run is None or slot is None or not _current(db, run):
+            if run is None or slot is None:
                 raise DFAError("lease_lost")
+            # Keep policy/processing withdrawal distinct from a lost exact lease.
+            # Authority reads no FIT and renews nothing; all source/rights checks
+            # remain below before progress, computation or publication.
             if run.origin=='automatic':
                 automatic.require_authority(db,owner)
                 if not automatic.enabled(db,owner):
                     raise DFAError('gate_paused')
             else:
                 require_authority(db,owner)
+            if not _current(db, run):
+                raise DFAError("lease_lost")
             if progress:
                 until = datetime.utcnow() + timedelta(seconds=LEASE_SECONDS)
                 run.lease_until = slot.lease_until = until
