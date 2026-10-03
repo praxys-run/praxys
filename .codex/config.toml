@@ -69,3 +69,11 @@ required = false
 enabled_tools = ["azmcp_subscription_list", "azmcp_group_list"]
 env_vars = []
 default_tools_approval_mode = "prompt"
+
+[mcp_servers.statsig]
+url = "https://api.statsig.com/v3/mcp"
+auth = "oauth"
+enabled = true
+required = false
+enabled_tools = ["get_context", "gate_read", "gate_create", "gate_update"]
+default_tools_approval_mode = "prompt"

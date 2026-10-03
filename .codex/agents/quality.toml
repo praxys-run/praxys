@@ -10,3 +10,11 @@ enabled = true
 required = true
 enabled_tools = ["click","drag","fill","fill_form","handle_dialog","hover","press_key","type_text","close_page","list_pages","navigate_page","new_page","select_page","wait_for","emulate","resize_page","get_network_request","list_network_requests","evaluate_script","get_console_message","lighthouse_audit","list_console_messages","take_screenshot","take_snapshot"]
 env_vars = []
+
+[mcp_servers.statsig]
+url = "https://api.statsig.com/v3/mcp"
+auth = "oauth"
+enabled = false
+required = false
+enabled_tools = ["get_context", "gate_read", "gate_create", "gate_update"]
+default_tools_approval_mode = "prompt"
