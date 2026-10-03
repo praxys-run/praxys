@@ -1256,3 +1256,10 @@ outgrown.
 
 ---
 _Last reviewed: 2026-08-27 · Owner: @dddtc2005_
+
+
+## Codex-local Statsig public projection
+
+The optional local extension is `config/codex-statsig-mcp-extension.json` with exact new publication pins. Root and Operations use direct V3 managed OAuth, four prompted context/gate tools, no repository credentials or forwarded environment; twelve other roles explicitly disable it. Public account identity is omitted and privately approved scope is retained. The earlier setup review and setup test results are historical provenance; current acceptance is conditional on fresh independent final-head review and checks. See [implementation](../dev/codex-statsig-mcp-implementation-v1.md), [review provenance](../dev/codex-statsig-public-projection-review-v1.json) and [dated Operations observation and release plan](statsig-public-projection-release-20261003.md).
+
+This iteration makes no live gate call, deployment, secret, infrastructure, alert or workflow change. Disable root/Operations Statsig and restart sessions for capability rollback while retaining existing gate state and predecessor approvals.

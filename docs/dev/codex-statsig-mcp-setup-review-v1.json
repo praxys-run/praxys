@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "codex-statsig-mcp-setup-review-v1",
+  "date": "2026-10-02",
+  "artifact_type": "independent-review-route-mirror",
+  "mirror_writer": "engineering",
+  "original_route_owner": "decision-review-router",
+  "native_route_reported_by": "root-orchestrator",
+  "review_route": "human-review-required",
+  "current_authority": "explicit latest user setup request already supplies bounded project configuration and verification authority; no repeated permission or additional decision",
+  "exact_digest_human_approval_claimed": false,
+  "subject_sha256": "5d2eff8ab7743bbbcd4d709ab28826f03a54457553f3e83c6274644d761c0fc6",
+  "proposal_sha256": "680b2ed4bffa2feb063e0c1b64b64245b736af410a905f39b63dfbfc5a0c8139",
+  "live_calls_or_mutations_authorized": false,
+  "original_artifact_status_preserved": true,
+  "trust_original_native_bytes": 11934,
+  "trust_original_native_sha256": "21b86cf088c2f77456fa11dd6d56b02459be4f2043469900aa34a0ab655b83e1",
+  "trust_original_author_role": "trust",
+  "trust_body_mirror_writer": "engineering",
+  "verification": "fresh independent Quality of complete frozen implementation still required"
+}
