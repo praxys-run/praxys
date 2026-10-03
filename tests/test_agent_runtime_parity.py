@@ -1526,3 +1526,32 @@ def test_statsig_public_projection_artifact_escape_fails_closed(tmp_path, relati
     path.symlink_to(outside)
     errors = validate_static_runtime_parity(_load_fixture_config(repository), root=repository)
     assert any("missing/escaping Statsig immutable artifact" in error for error in errors)
+
+
+@pytest.mark.parametrize("section,key,value", [
+    (None, "schema_version", True),
+    (None, "schema_version", 1.0),
+    ("binding", "exact_digest_human_approval_claimed", 0),
+    ("binding", "exact_digest_human_approval_claimed", 0.0),
+])
+def test_statsig_scalar_aliases_fail_through_model_loader_and_static_check(
+    tmp_path, section, key, value
+) -> None:
+    from analysis.agent_runtime_parity import (
+        CodexStatsigMcpExtension,
+        load_statsig_mcp_extension,
+    )
+    repository = _copy_runtime_fixture(tmp_path)
+    path = repository / "config/codex-statsig-mcp-extension.json"
+    payload = json.loads(path.read_text())
+    target = payload if section is None else payload[section]
+    target[key] = value
+    with pytest.raises(ValueError):
+        CodexStatsigMcpExtension.model_validate(payload)
+    path.write_text(json.dumps(payload))
+    with pytest.raises(ValueError):
+        load_statsig_mcp_extension(path)
+    errors = validate_static_runtime_parity(
+        _load_fixture_config(repository), root=repository
+    )
+    assert any("invalid Codex Statsig MCP extension contract" in error for error in errors)

@@ -37,5 +37,30 @@
     "Historical ER, ADR, setup review and test results are provenance, not new-head approval.",
     "No live calls, deployment, scientific STOP or activation, history rewrite, force push, branch deletion, third-party contacts or claim of historical exposure removal.",
     "Fresh independent final-head Trust and Quality remain required."
-  ]
+  ],
+  "corrective_iteration": {
+    "status": "review-allocation-only",
+    "reported_by": "root-orchestrator",
+    "native_final_provenance": "collaboration-delivered final",
+    "reviewer_agent": "/root/statsig_projection_decision_review",
+    "reviewer_read_only": true,
+    "reviewer_terminal": true,
+    "mirror_writer_role": "engineering",
+    "decision_review_route": "human-review-required",
+    "statement": "Existing authority covers this bounded corrective iteration and subsequent ordinary merge; no repeated permission is required.",
+    "exact_digest_human_approval_claimed": false,
+    "accepted_scope": "Fresh branch from verified current main with accepted source reconstruction, minimal Statsig exact scalar guards and alias regressions; verified public GitHub noreply author/committer identity per commit; complete introduced raw-object checks before push; new draft PR and conditional ordinary merge.",
+    "source_revision_with_findings": "7ff717182df3a0eeb6de70d7273ab18ce2147730",
+    "trusted_main": "11fc89f29833d28977c4e19e0a1ade3b20e5ee99",
+    "public_actor_provenance": "Root authenticated GitHub API verified actor ID 12397121 and login dddtc2005; per-command author/committer identity only, no global or repository config changes.",
+    "preserved": "All seven frozen publication artifacts and five private originals, new subject/proposal/TDR bindings, MCP semantics, previous approvals and science/UI HOLD.",
+    "prerequisites": "Fresh final-head Trust and Quality, complete preflight and required checks; this record is review allocation provenance, not independent implementation approval.",
+    "historical_publication": "Prior PR 871 document/commit metadata and PR 872 commit metadata exposure remains; no purge or historical-clean claim.",
+    "exclusions": [
+      "No tainted prior commit ancestry or cherry-pick metadata",
+      "No source-tree equality claim after type fixes",
+      "No history rewrite, force push, branch deletion or third-party contact",
+      "No live Statsig action, application deployment, scientific STOP or activation"
+    ]
+  }
 }

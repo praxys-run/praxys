@@ -829,6 +829,15 @@ class StatsigDecisionBinding(ParityRecord):
     authorized_scope: Literal["project-configuration-and-verification-only"]
     exact_digest_human_approval_claimed: Literal[False]
 
+    @model_validator(mode="before")
+    @classmethod
+    def require_exact_approval_claim(cls, data):
+        if isinstance(data, dict):
+            value = data.get("exact_digest_human_approval_claimed")
+            if type(value) is not bool or value is not False:
+                raise ValueError("Statsig approval claim must be the boolean false")
+        return data
+
     @model_validator(mode="after")
     def validate_binding(self) -> "StatsigDecisionBinding":
         if self.subject_digest != _STATSIG_SUBJECT_DIGEST or self.proposal_digest != _STATSIG_PROPOSAL_DIGEST:
@@ -897,6 +906,15 @@ class CodexStatsigMcpExtension(ParityRecord):
     binding: StatsigDecisionBinding
     mcp_extension: StatsigHttpMcpExtension
     supporting_artifacts: list[StatsigArtifactBinding]
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_exact_schema_version(cls, data):
+        if isinstance(data, dict):
+            value = data.get("schema_version")
+            if type(value) is not int or value != 1:
+                raise ValueError("Statsig schema version must be the integer 1")
+        return data
 
     @model_validator(mode="after")
     def validate_support(self) -> "CodexStatsigMcpExtension":
