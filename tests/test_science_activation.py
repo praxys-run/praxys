@@ -774,7 +774,7 @@ def test_designated_stopped_v2_cannot_project_or_authenticate(tmp_path):
     target=dict(schema_version=1, action='stop', repository=binding.repository, subject_id=DESIGNATED,
         active_contract_digest=approval.subject_digest, implementation_envelope_digest=approval.implementation_binding.envelope_digest)
     comment=dict(id=90, body=render_stop_comment(target), user={'type':'User','login':'synthetic'},
-        created_at='2026-10-08T00:00:00Z', html_url='https://github.com/praxys-run/praxys/pull/1#issuecomment-90')
+        created_at=approval.reviewed_on.isoformat() + 'T00:00:00Z', html_url='https://github.com/praxys-run/praxys/pull/1#issuecomment-90')
     materialize_stop(target_root, stop_from_comment(comment, 'admin', binding.repository))
     with pytest.raises(ValueError, match='terminally stopped'):
         project_active_registry(load_science_registry(target_root/'data/science'), DESIGNATED)
