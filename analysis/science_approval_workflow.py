@@ -75,6 +75,7 @@ def approvals_from_github_comments(
 
     source_registry = registry
     implementation_payloads = {}
+    historical_payloads = {}
     for comment in comments:
         user = comment.get("user", {})
         if (not isinstance(user, Mapping) or user.get("type") != "User"
@@ -94,9 +95,18 @@ def approvals_from_github_comments(
             raise ValueError("Implementation approval source is not this repository/PR")
         if implementation_payloads:
             raise ValueError("One activation batch may contain exactly one implementation approval")
-        registry = activation_context.verify(binding, registry, payload["subject_id"])
+        registry = activation_context.verify(binding, registry, payload['subject_id'])
+        from analysis.science_admission_amendment import DESIGNATED
+        if payload['subject_id']==DESIGNATED:
+            from analysis.science_activation_link import activation_input
+            link=activation_input(source_registry,binding,activation_context)
+            if link is not None:
+                event=(activation_context.source_comments or {}).get(source)
+                if not event or event['comment']!=comment:
+                    raise ValueError('Fresh staged comment differs from authenticated transport event')
+                historical_payloads={old.assertion['source_ref']:[{key:old.assertion[key] for key in ('subject_kind','subject_id','subject_digest','role')}] for old in link.historical_assertions}
         implementation_payloads[source] = (
-            composite_approval_payloads(str(comment["body"]), registry)
+            composite_approval_payloads(str(comment["body"]), registry,activation_context=activation_context)
             if any(m in str(comment["body"]) for m in (COMPOSITE_MARKER, V2_COMPOSITE_MARKER)) else [payload]
         )
 
@@ -134,7 +144,10 @@ def approvals_from_github_comments(
         ):
             continue
 
+        if source_ref in historical_payloads and (activation_context.source_comments or {}).get(source_ref,{}).get('comment')!=comment:
+            raise ValueError('Retained staged comment differs from exact authenticated prior source')
         payloads = (implementation_payloads[source_ref] if source_ref in implementation_payloads
+                    else historical_payloads[source_ref] if source_ref in historical_payloads
                     else _structured_approval_payloads(body, registry))
         if not payloads:
             payloads = _legacy_approval_payloads(body, registry)
@@ -163,6 +176,11 @@ def approvals_from_github_comments(
                 approval.role,
                 approval.reviewer,
             )
+            from analysis.science_admission_amendment import DESIGNATED
+            if approval.subject_id==DESIGNATED:
+                key=(*key,approval.subject_digest)
+                if key in approvals and approvals[key]!=approval:
+                    raise ValueError('Conflicting same-stage designated source assertions')
             approvals.setdefault(key, approval)
 
     from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
@@ -202,6 +220,26 @@ def materialize_science_approvals(
         if any(a.subject_id != DESIGNATED for a in approvals):
             raise ValueError('Designated batch issues only new V2 assertions; shared evidence cannot be renewed')
     implementation = [a for a in approvals if a.role == ReviewRole.IMPLEMENTATION_REVIEWER]
+    link_input = None
+    if implementation and designated:
+        from analysis.science_activation_link import activation_input,read_link
+        link_input=activation_input(load_science_registry(root),implementation[0].implementation_binding,activation_context)
+        from analysis.science_activation import composite_approval_payloads
+        event=(activation_context.source_comments or {}).get(str(implementation[0].source_ref))
+        if link_input is not None:
+            if not event or event.get('permission') not in _AUTHORIZED_PERMISSIONS:
+                raise ValueError('Staged materialization requires authenticated complete fresh source')
+            composite_approval_payloads(event['comment']['body'],load_science_registry(root),activation_context=activation_context)
+            current=next((a for a in approvals if a.role==ReviewRole.DECISION_APPROVER and a.subject_digest==link_input.active_decision_digest),None)
+            source_event=event['comment']
+            if (current is None or current.reviewer!=implementation[0].reviewer
+                    or str(current.source_ref)!=str(implementation[0].source_ref)
+                    or source_event.get('html_url')!=str(current.source_ref)
+                    or source_event.get('user',{}).get('type')!='User'
+                    or source_event.get('user',{}).get('login')!=current.reviewer.removeprefix('github:')
+                    or _github_timestamp_date(source_event['created_at'])!=current.reviewed_on
+                    or current.reviewed_on!=implementation[0].reviewed_on):
+                raise ValueError('Staged activation requires complete fresh exact decision and implementation assertions')
     if implementation:
         if activation_context is None or len(implementation) != 1:
             raise ValueError("Implementation approval requires one authenticated activation context")
@@ -228,14 +266,18 @@ def materialize_science_approvals(
             ReviewRole.IMPLEMENTATION_REVIEWER: 2,
         }[a.role])
         for approval in ordered:
+            if designated and approval in load_science_approvals(staged_root):
+                continue
             record_path = _transition_subject(staged_root, approval)
             candidate_paths.add(record_path.relative_to(staged_root))
-            approval_path = _write_approval_artifact(
-                staged_root,
-                approval,
-            )
+            approval_path = (_write_approval_artifact(staged_root,approval,active_link=link_input)
+                             if link_input is not None else _write_approval_artifact(staged_root,approval))
             candidate_paths.add(approval_path.relative_to(staged_root))
 
+        if link_input is not None:
+            from analysis.science_activation_link import write_link
+            link_path=write_link(staged_root,link_input,approvals,activation_context)
+            candidate_paths.add(link_path.relative_to(staged_root))
         registry = load_science_registry(staged_root)
         generated_paths = sync_science_artifacts(registry, check=False)
         candidate_paths.update(generated_paths)
@@ -323,14 +365,38 @@ def verify_science_approval_changes(
     verify_governed_maintenance(base_registry, head_registry, stop_context=stop_context)
 
     from analysis.science_implementation_stop import load_implementation_stops, verify_stop_changes
+    verified_stops=[]
     if load_implementation_stops(base_root) or load_implementation_stops(head_root):
         if stop_context is None:
             raise ValueError("STOP source/history verification requires authenticated context")
-        verify_stop_changes(base_registry, head_registry,
+        verified_stops=verify_stop_changes(base_registry, head_registry,
                             repository_root=stop_context.repository_root,
                             base_sha=stop_context.base_sha,
                             authenticated=list(stop_context.authenticated_stops))
 
+    from analysis.science_admission_amendment import DESIGNATED,validate_local_amendment
+    from analysis.science_activation import directory_tree,git_tree,git
+    stopped_v2=any(stop.subject_id==DESIGNATED for stop in load_implementation_stops(head_root))
+    if stopped_v2:
+        if stop_context is None:
+            raise ValueError('Stopped V2 requires fully verified exact STOP/history context')
+        expected_tree=git_tree(stop_context.repository_root,stop_context.base_sha)
+        terminal_only=any(stop.subject_id==DESIGNATED for stop in verified_stops)
+        unchanged_history=(not verified_stops and directory_tree(head_root.parent.parent,expected_tree,repository=stop_context.repository_root)==expected_tree)
+        if not terminal_only and not unchanged_history:
+            raise ValueError('No generic stopped-V2 maintenance, approval or revival is supported')
+        if git(stop_context.repository_root,'rev-parse','HEAD').decode().strip()!=stop_context.head_sha:
+            raise ValueError('Verified terminal history source head changed')
+        from analysis.science_activation_link import verify_retained_source_comments
+        verify_retained_source_comments(base_registry,comments,permissions,stop_context)
+        from analysis.science_admission_amendment import BASELINE
+        baseline_stop=next(s for s in load_implementation_stops(head_root) if s.subject_id==BASELINE)
+        stop_context.require_denial(baseline_stop)
+        validate_local_amendment(head_registry)
+        _verify_generated_state(head_root,registry=head_registry)
+        if stop_context.recheck is not None:
+            stop_context.recheck()
+        return
     base_approvals = load_science_approvals(base_root)
     head_approvals = load_science_approvals(head_root)
     verified = approvals_from_github_comments(
@@ -561,6 +627,8 @@ def _require_unique_approval_batch(
         )
         for approval in approvals
     ]
+    from analysis.science_admission_amendment import DESIGNATED
+    keys=[(*key,a.subject_digest) if a.subject_id==DESIGNATED else key for key,a in zip(keys,approvals)]
     if len(keys) != len(set(keys)):
         raise ValueError("approval batch entries must be unique")
 
@@ -705,13 +773,17 @@ def _replace_top_level_scalar(
 def _write_approval_artifact(
     science_dir: Path,
     approval: ScienceApproval,
+    *, active_link=None,
 ) -> Path:
     reviewer_slug = _SAFE_SLUG_RE.sub("-", approval.reviewer).strip("-")
     filename = (
         f"{approval.subject_id}--{approval.role.value}--"
         f"{reviewer_slug}.yaml"
     )
-    path = science_dir / "approvals" / filename
+    path = science_dir / 'approvals' / filename
+    if active_link is not None and approval.role==ReviewRole.DECISION_APPROVER and approval.subject_digest==active_link.active_decision_digest:
+        from analysis.science_activation_link import active_assertion_path
+        path=science_dir/active_assertion_path(approval.model_dump(mode='json',exclude_none=True))
     payload = approval.model_dump(mode="json", exclude_none=True)
     content = yaml.safe_dump(payload, sort_keys=False)
     if path.exists():
@@ -766,6 +838,8 @@ def _verify_lifecycle_transitions(
     *, admission_context=None,
 ) -> None:
     from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
+    from analysis.science_activation_link import current_approvals
+    head_approvals=current_approvals(head_registry,head_approvals)
     if DESIGNATED in head_registry.decisions:
         require_authenticated_amendment_base(head_registry, admission_context)
         designated = head_registry.decisions[DESIGNATED]

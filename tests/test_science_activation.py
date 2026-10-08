@@ -835,3 +835,240 @@ def test_designated_actual_base_stop_and_science_closure_are_not_candidate_autho
         new_head=commit(root,'synthetic candidate-only STOP')
         context=replace(context,base_sha=no_stop,head_sha=new_head)
     with pytest.raises(ValueError): require_authenticated_amendment_base(load_science_registry(science),context)
+
+
+@pytest.fixture(scope='module')
+def staged_templates(tmp_path_factory):
+    from tests.science_v2_transaction_fixture import staged_case
+    return {kind:staged_case(tmp_path_factory.mktemp('staged-'+kind),kind) for kind in ('same-pr','later-pr')}
+
+
+def _copy_staged_case(template,tmp_path):
+    root,base,context,binding,stop_context,comments,prior=template
+    candidate=tmp_path/'candidate';shutil.copytree(root,candidate,symlinks=True)
+    return candidate,base,replace(context,repository_root=candidate),binding,replace(stop_context,repository_root=candidate),comments,prior
+
+
+@pytest.mark.parametrize('kind',['same-pr','later-pr'])
+@pytest.mark.parametrize('reverse_comments',[False,True])
+def test_full_staged_same_reviewer_transaction_preserves_history_and_current_authority(staged_templates,tmp_path,kind,reverse_comments):
+    from tests.science_v2_transaction_fixture import cli_verify
+    from analysis.science_artifacts import load_science_approvals,render_decision_review_packet
+    from analysis.science_activation_link import read_link,current_approvals
+    from analysis.science_admission_amendment import DESIGNATED
+    root,base,context,binding,stopped,comments,_=_copy_staged_case(staged_templates[kind],tmp_path)
+    science=root/'data/science'
+    before={p.relative_to(science):(p.read_bytes(),p.stat().st_mode) for p in science.rglob('*') if p.is_file()}
+    inputs=list(reversed(comments)) if reverse_comments else comments
+    parsed=approvals_from_github_comments(science,inputs,{'synthetic':'admin'},activation_context=context)
+    materialize_science_approvals(science,parsed,activation_context=context)
+    registry=load_science_registry(science);link=read_link(registry)
+    assert link.input.predecessor_digest!=link.input.active_decision_digest
+    current=current_approvals(registry,load_science_approvals(science))
+    assert [a.subject_digest for a in current if a.subject_id==DESIGNATED and a.role==ReviewRole.DECISION_APPROVER]==[link.input.active_decision_digest]
+    for old in link.input.historical_assertions:
+        assert (science/old.path).read_bytes()==before[Path(old.path)][0]
+        assert (science/old.path).stat().st_mode==before[Path(old.path)][1]
+        assert old.assertion['reviewer']==link.active_assertion.assertion['reviewer']=='github:synthetic'
+    for path,(content,mode) in before.items():
+        if DESIGNATED not in path.name and path.as_posix()!='REGISTRY.md':
+            assert (science/path).read_bytes()==content and (science/path).stat().st_mode==mode
+    packet=render_decision_review_packet(registry,DESIGNATED)
+    assert packet.count('## Retained inactive assertions')==1
+    assert 'historical provenance only' in packet
+    context.verify_replay(binding,parsed,root)
+    verify_science_approval_changes(base/'data/science',science,inputs,{'synthetic':'admin'},activation_context=context,stop_context=stopped)
+    assert cli_verify(base,root,inputs,context,stopped,tmp_path)==0
+    assert materialize_science_approvals(science,parsed,activation_context=context)==[]
+
+
+@pytest.mark.parametrize('kind',['same-pr','later-pr'])
+def test_staged_partial_publication_restores_exact_inactive_state(staged_templates,tmp_path,kind,monkeypatch):
+    import analysis.science_approval_workflow as workflow
+    root,_,context,_,_,comments,_=_copy_staged_case(staged_templates[kind],tmp_path)
+    science=root/'data/science';before=workflow._snapshot_tree(science)
+    modes={p.relative_to(science):p.stat().st_mode for p in science.rglob('*') if p.is_file()}
+    parsed=approvals_from_github_comments(science,comments,{'synthetic':'admin'},activation_context=context)
+    real=workflow._atomic_copy;calls=0
+    def partial(source,target):
+        nonlocal calls
+        calls+=1
+        if calls==3:raise OSError('synthetic recoverable publication failure')
+        real(source,target)
+    monkeypatch.setattr(workflow,'_atomic_copy',partial)
+    with pytest.raises(OSError,match='recoverable'):
+        materialize_science_approvals(science,parsed,activation_context=context)
+    assert workflow._snapshot_tree(science)==before
+    assert all((science/p).stat().st_mode==mode for p,mode in modes.items())
+    assert load_science_registry(science).decisions['sdr-activity-dfa-alpha1-v2'].artifact_policy.runtime_state.value=='inactive'
+
+
+@pytest.fixture(scope='module')
+def linked_active_template(staged_templates,tmp_path_factory):
+    case=_copy_staged_case(staged_templates['same-pr'],tmp_path_factory.mktemp('linked-current'))
+    root,base,context,binding,stopped,comments,prior=case
+    parsed=approvals_from_github_comments(root/'data/science',comments,{'synthetic':'admin'},activation_context=context)
+    materialize_science_approvals(root/'data/science',parsed,activation_context=context)
+    return case
+
+
+@pytest.mark.parametrize('mutation',['missing-link','duplicate-link','unknown','bool-schema','wrong-subject','coerced-version',
+    'missing-history','duplicate-history','wrong-path','old-bytes','old-mode','old-reviewer','old-date','old-source',
+    'current-digest','implementation-envelope','predecessor-drift','orphan-approval','missing-current'])
+def test_staged_companion_strict_closure_rejects_tampering(linked_active_template,tmp_path,mutation):
+    from copy import deepcopy
+    from analysis.science_activation_link import read_link
+    from analysis.science_admission_amendment import DESIGNATED
+    root,_,_,_,_,_,_=_copy_staged_case(linked_active_template,tmp_path)
+    science=root/'data/science';path=next((science/'activation-links').glob('*.json'));raw=json.loads(path.read_text())
+    if mutation=='missing-link':path.unlink()
+    elif mutation=='duplicate-link':shutil.copy2(path,path.with_name('orphan.json'))
+    elif mutation=='orphan-approval':shutil.copy2(science/raw['input']['historical_assertions'][0]['path'],science/'approvals'/'orphan.yaml')
+    elif mutation=='missing-current':(science/raw['active_assertion']['path']).unlink()
+    else:
+        if mutation=='unknown':raw['authorized']=True
+        if mutation=='bool-schema':raw['schema_version']=True
+        if mutation=='wrong-subject':raw['input']['subject_id']='sdr-unrelated-v2'
+        if mutation=='coerced-version':raw['input']['version']='2'
+        if mutation=='missing-history':raw['input']['historical_assertions']=[]
+        if mutation=='duplicate-history':raw['input']['historical_assertions']*=2
+        old=raw['input']['historical_assertions'][0] if raw['input']['historical_assertions'] else None
+        if mutation=='wrong-path':old['path']='approvals/../forged.yaml'
+        if mutation=='old-bytes':old['bytes_digest']='sha256:'+'0'*64
+        if mutation=='old-mode':old['mode']='100755'
+        if mutation=='old-reviewer':old['assertion']['reviewer']='github:invented'
+        if mutation=='old-date':old['assertion']['reviewed_on']='2026-10-09'
+        if mutation=='old-source':old['assertion']['source_ref']='https://github.com/praxys-run/praxys/pull/42#issuecomment-999'
+        if mutation=='current-digest':raw['active_assertion']['assertion']['subject_digest']=raw['input']['predecessor_digest']
+        if mutation=='implementation-envelope':raw['input']['implementation_envelope_digest']='sha256:'+'0'*64
+        if mutation=='predecessor-drift':raw['input']['predecessor_payload']['model_version']='forged-method'
+        path.write_text(json.dumps(raw))
+    with pytest.raises(ValueError):load_science_registry(science)
+
+
+@pytest.mark.parametrize('mutation',['missing-source','source-permission','source-body','source-timestamp','source-id',
+                                    'fresh-before-old','fresh-other-reviewer','incomplete-composite','old-only','implementation-only'])
+def test_staged_source_authority_and_chronology_rejects_forgery(staged_templates,tmp_path,mutation):
+    from copy import deepcopy
+    from analysis.science_approval_workflow import _snapshot_tree
+    root,_,context,_,_,comments,prior=_copy_staged_case(staged_templates['same-pr'],tmp_path)
+    science=root/'data/science';before=_snapshot_tree(science);inputs=deepcopy(comments);events=deepcopy(context.source_comments)
+    old=events[prior['html_url']]
+    if mutation=='missing-source':events.pop(prior['html_url'])
+    if mutation=='source-permission':old['permission']='read'
+    if mutation=='source-body':old['comment']['body']='looks approved'
+    if mutation=='source-timestamp':old['comment']['created_at']='2026-10-08T00:00:00'
+    if mutation=='source-id':old['comment']['id']=True
+    if mutation=='fresh-before-old':
+        inputs[-1]['created_at']='2026-10-08T00:30:00Z';events[inputs[-1]['html_url']]['comment']=inputs[-1]
+    if mutation=='fresh-other-reviewer':
+        inputs[-1]['user']['login']='invented';events[inputs[-1]['html_url']]['comment']=inputs[-1]
+    if mutation=='incomplete-composite':inputs[-1]['body']=inputs[-1]['body'].replace('APPROVE NEW V2 DECISION','APPROVE ONLY')
+    context=replace(context,source_comments=events)
+    if mutation=='old-only':
+        parsed=approvals_from_github_comments(science,inputs,{'synthetic':'admin'},activation_context=context)
+        old=[a for a in parsed if str(a.source_ref)==prior['html_url']]
+        assert materialize_science_approvals(science,old,stop_context=_designated_stop_context(science,context))==[]
+        assert load_science_registry(science).decisions['sdr-activity-dfa-alpha1-v2'].artifact_policy.runtime_state.value=='inactive'
+        return
+    with pytest.raises(ValueError):
+        parsed=approvals_from_github_comments(science,inputs,{'synthetic':'admin','invented':'admin'},activation_context=context)
+        if mutation=='old-only':parsed=[a for a in parsed if a.source_ref==prior['html_url']]
+        if mutation=='implementation-only':parsed=[a for a in parsed if a.role==ReviewRole.IMPLEMENTATION_REVIEWER]
+        if mutation in {'old-only','implementation-only'}:
+            assert parsed
+        materialize_science_approvals(science,parsed,activation_context=context)
+    assert _snapshot_tree(science)==before
+
+
+@pytest.fixture(scope='module')
+def lawful_stop_templates(tmp_path_factory):
+    from tests.science_v2_transaction_fixture import lawful_stop_case
+    return {staged:lawful_stop_case(tmp_path_factory.mktemp('lawful-stop'),staged=staged) for staged in (False,True)}
+
+
+def _copy_stop_case(template,tmp_path):
+    root,base,context,comments,event,stop=template
+    candidate=tmp_path/'candidate';shutil.copytree(root,candidate,symlinks=True)
+    return candidate,base,replace(context,repository_root=candidate),comments,event,stop
+
+
+@pytest.mark.parametrize('staged',[False,True])
+def test_lawful_designated_stop_full_verifier_retains_prior_comments_and_history(lawful_stop_templates,tmp_path,staged):
+    from tests.science_v2_transaction_fixture import cli_verify
+    from analysis.science_admission_amendment import DESIGNATED
+    from analysis.science_implementation_stop import require_not_stopped,stop_paths
+    root,base,context,comments,event,stop=_copy_stop_case(lawful_stop_templates[staged],tmp_path)
+    all_comments=comments+[event]
+    verify_science_approval_changes(base/'data/science',root/'data/science',all_comments,{'synthetic':'admin'},stop_context=context)
+    assert cli_verify(base,root,all_comments,None,context,tmp_path)==0
+    assert set(git(root,'diff','--name-only',context.base_sha,context.head_sha).decode().splitlines())=={'data/science/'+p.as_posix() for p in stop_paths(DESIGNATED)}
+    for file in (base/'data/science').rglob('*'):
+        if file.is_file():
+            new=root/'data/science'/file.relative_to(base/'data/science')
+            assert new.read_bytes()==file.read_bytes() and new.stat().st_mode==file.stat().st_mode
+    registry=load_science_registry(root/'data/science')
+    with pytest.raises(ValueError,match='terminally stopped'):require_not_stopped(registry,DESIGNATED)
+    # Read-only unchanged terminal history is separately exact and supplies no mutation authority.
+    from analysis.science_stop_github import StopContext
+    transport=replace(context,base_sha=context.head_sha)
+    active_context_stub=ActivationContext(root,context.repository,context.pull_request,context.head_sha,context.head_sha,{})
+    transport=replace(transport,authenticated_stops=(),maintenance_evidence=_designated_stop_context(root/'data/science',active_context_stub).maintenance_evidence)
+    verify_science_approval_changes(root/'data/science',root/'data/science',all_comments,{'synthetic':'admin'},stop_context=transport)
+
+
+@pytest.mark.parametrize('mutation',['missing-source','forged-source','target','extra-file','stop-mode','audit','remove-history',
+                                    'new-approval','new-activation','revival','no-v1-denial','stale-head'])
+def test_designated_stop_exception_only_after_complete_authentication(lawful_stop_templates,tmp_path,mutation):
+    from analysis.science_yaml import load_science_yaml
+    import yaml
+    root,base,context,comments,event,stop=_copy_stop_case(lawful_stop_templates[True],tmp_path)
+    science=root/'data/science';all_comments=comments+[event]
+    if mutation=='missing-source':context=replace(context,authenticated_stops=())
+    if mutation=='forged-source':context=replace(context,authenticated_stops=(stop.model_copy(update={'requested_by':'github:forged'}),))
+    if mutation=='target':
+        path=science/'stops'/'sdr-activity-dfa-alpha1-v2.yaml';raw=load_science_yaml(path.read_text());raw['active_contract_digest']='sha256:'+'0'*64;path.write_text(yaml.safe_dump(raw))
+    if mutation=='extra-file':(root/'unapproved-maintenance.txt').write_text('candidate new source\n')
+    if mutation=='stop-mode':(science/'stops'/'sdr-activity-dfa-alpha1-v2.yaml').chmod(0o755)
+    if mutation=='audit':
+        path=science/'generated/implementation-stops/sdr-activity-dfa-alpha1-v2.md';path.write_bytes(path.read_bytes()+b'forged\n')
+    if mutation=='remove-history':next((science/'approvals').glob('sdr-activity-dfa-alpha1-v2--decision_approver--github-synthetic.yaml')).unlink()
+    if mutation=='new-approval':
+        new=dict(comments[0],id=999,html_url='https://github.com/praxys-run/praxys/pull/42#issuecomment-999');all_comments+=[new]
+    if mutation=='new-activation':
+        new=dict(comments[-1],id=999,html_url='https://github.com/praxys-run/praxys/pull/42#issuecomment-999');all_comments+=[new]
+    if mutation=='revival':(science/'stops'/'sdr-activity-dfa-alpha1-v2.yaml').unlink()
+    if mutation=='no-v1-denial':context=replace(context,maintenance_evidence={})
+    if mutation=='stale-head':context=replace(context,head_sha='0'*40)
+    with pytest.raises(ValueError):
+        verify_science_approval_changes(base/'data/science',science,all_comments,{'synthetic':'admin'},stop_context=context)
+
+
+def test_stopped_designated_general_maintenance_and_new_approval_remain_denied(lawful_stop_templates,tmp_path):
+    from analysis.science_admission_amendment import DESIGNATED,require_authenticated_amendment_base
+    root,_,context,_,_,_=_copy_stop_case(lawful_stop_templates[True],tmp_path)
+    baseline=tmp_path/'stopped-base';shutil.copytree(root,baseline,symlinks=True)
+    (root/'unrelated-source.py').write_text('VALUE=1\n')
+    transport=replace(context,base_sha=context.head_sha,authenticated_stops=())
+    with pytest.raises(ValueError):verify_science_approval_changes(baseline/'data/science',root/'data/science',[],{},stop_context=transport)
+    registry=load_science_registry(root/'data/science')
+    with pytest.raises(ValueError,match='terminally stopped'):require_authenticated_amendment_base(registry,transport)
+    with pytest.raises(ValueError,match='terminally stopped'):project_active_registry(registry,DESIGNATED)
+
+
+def test_staged_companion_duplicate_keys_and_current_endpoint_permissions_are_strict(linked_active_template,tmp_path):
+    root,_,_,_,_,_,_=_copy_staged_case(linked_active_template,tmp_path)
+    path=next((root/'data/science/activation-links').glob('*.json'))
+    text=path.read_text()
+    assert '"schema_version": 1' in text
+    path.write_text(text.replace('"schema_version": 1','"schema_version": 1, "schema_version": 1',1))
+    with pytest.raises(ValueError,match='Duplicate JSON key'):load_science_registry(root/'data/science')
+
+
+@pytest.mark.parametrize('mutation',['pr-head','run-attempt','artifact-digest','artifact-association','retained-event-body',
+                                    'retained-event-timestamp','permission','probe-job'])
+def test_staged_actual_native_readers_reject_offline_transport_swaps(linked_active_template,tmp_path,mutation):
+    from tests.science_v2_transaction_fixture import cli_verify
+    root,base,context,_,stopped,comments,_=_copy_staged_case(linked_active_template,tmp_path)
+    with pytest.raises(ValueError):
+        cli_verify(base,root,comments,context,stopped,tmp_path,transport_mutation=mutation)

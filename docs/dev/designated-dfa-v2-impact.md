@@ -33,3 +33,26 @@ its separate lifecycle review applies. Global process retirement is UNKNOWN.
 Independent Trust and Quality must inspect the immutable proposal in fresh
 read-only threads; later provider/publication/merge/release remain coordinated
 outside this private executor's scope.
+
+## R2 staged assertion and STOP correction
+
+The independent Q1/Q2 findings are reproduced in new owned disposable checkouts;
+the original fab proposal and all earlier source/evidence remain frozen. This
+correction adds a strictly designated linkage helper and minimal
+`science_artifacts.py` classification integration. Existing approval models and
+all historical digest algorithms stay unchanged. The parser authenticates exact
+predecessor events/snapshots and fresh complete composite coverage; the writer
+appends a full-digest-qualified active assertion and derived receipt; registry,
+current role checks, generated packets and replay share historical/current
+classification. The general verifier distinguishes exact authenticated STOP-only
+and byte-identical stopped-history inspection after existing full STOP checks.
+Retained source comments provide audit closure without issuing new roles.
+
+The [concrete representation](designated-dfa-v2-staged-assertions.md) specifies
+input/output namespaces, chronology, self-reference avoidance and compatible
+rollback. Tests cover actual staged same/later-PR transactions, retained comments,
+current-only authority, replay, no-op retry, recoverable partial rollback, lawful
+STOP/full CLI and strict source/linkage/terminality negatives. Runtime/API/db/sync,
+scientific values, canonical data, UI, dependencies, plugin and preflight script
+remain outside the correction. The changed exact head requires its own canonical
+preflight and fresh independent specialist/Trust/Quality review.

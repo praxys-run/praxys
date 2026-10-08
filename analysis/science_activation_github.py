@@ -158,6 +158,26 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
             if binding.repository != repository or binding.pull_request != pull_request:
                 raise ValueError('Approval belongs to another repository or PR')
             validations[binding.envelope_digest] = fetch_validation(reader, binding, root)
+    source_comments={str(c.get('html_url')):{'comment':c,'permission':permissions.get(c.get('user',{}).get('login'),'none')} for c in comments}
+    from analysis.science_activation_link import approval_entries
+    from analysis.science_admission_amendment import DESIGNATED
+    retained_sources=[]
+    for _,approval in approval_entries(science_dir):
+        if approval.subject_id!=DESIGNATED or approval.role.value!='decision_approver':
+            continue
+        source=str(approval.source_ref)
+        if source in source_comments:
+            continue
+        match=re.fullmatch(r'https://github.com/'+re.escape(repository)+r'/(?:pull|issues)/[1-9][0-9]*#issuecomment-([1-9][0-9]*)',source)
+        if match is None:
+            raise ValueError('Retained assertion source is outside exact repository')
+        event=reader.read('issues/comments/'+match[1])
+        login=event.get('user',{}).get('login')
+        if not isinstance(login,str):
+            raise ValueError('Retained source human identity missing')
+        permission=reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']
+        source_comments[source]={'comment':event,'permission':permission}
+        retained_sources.append((source,match[1],login,permission,event))
     original_comments = comments
     original_permissions = dict(permissions)
     def recheck():
@@ -167,6 +187,9 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
         for login, permission in original_permissions.items():
             if reader.read(f'collaborators/{quote(login, safe="")}/permission')['permission'] != permission:
                 raise ValueError('Reviewer permission changed during activation materialization')
+        for source,identity,login,permission,event in retained_sources:
+            if reader.read('issues/comments/'+identity)!=event or reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']!=permission:
+                raise ValueError('Historical assertion source or permission changed')
         for comment in original_comments:
             if original_permissions.get(comment.get('user', {}).get('login')) not in {'write', 'maintain', 'admin'}:
                 continue
@@ -175,6 +198,6 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
                 binding = ImplementationBinding.model_validate(payload['implementation_binding'])
                 if fetch_validation(reader, binding, root) != validations[binding.envelope_digest]:
                     raise ValueError('Validation changed during activation materialization')
-    context = ActivationContext(root, repository, pull_request, base_sha, head_sha, validations, recheck)
+    context = ActivationContext(root, repository, pull_request, base_sha, head_sha, validations, recheck, source_comments)
     verify_pr(reader.read(f'pulls/{pull_request}'), repository, pull_request, base_sha, head_sha)
     return context, comments, permissions

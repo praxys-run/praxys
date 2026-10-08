@@ -110,3 +110,11 @@ Do not renew, retimestamp or rewrite the shared Evidence approval. Generic
 successors and stopped subjects remain rejected. Missing actual V2 guards fail
 closed; synthetic fixtures and numerical value equality cannot supply runtime
 acceptance or equivalence evidence.
+
+For decision-only accepted-inactive V2 followed by activation, retain the original
+inactive assertion and sign the distinct fresh active assertion plus exact
+implementation composite. The canonical source explicitly covers the
+[designated immutable linkage inputs](../dev/designated-dfa-v2-staged-assertions.md).
+The derived companion is audit provenance; old inactive assertions never approve
+the current active boundary. No historical payload normalization or reviewer
+substitution supplies activation authority.

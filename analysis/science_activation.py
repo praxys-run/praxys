@@ -174,6 +174,10 @@ def composite_envelope(body: str) -> dict[str, Any] | None:
     from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
     if marker == V2_COMPOSITE_MARKER:
         required |= {'schema_version', 'purpose', 'baseline_stop_digest'}
+    if marker == V2_COMPOSITE_MARKER and isinstance(raw,dict) and 'activation_link_input' in raw:
+        required.add('activation_link_input')
+        from analysis.science_activation_link import ActivationLinkInput
+        ActivationLinkInput.model_validate(raw['activation_link_input'])
     if not isinstance(raw, dict) or set(raw) != required:
         raise ValueError('Composite activation marker fields are invalid')
     if marker == V2_COMPOSITE_MARKER:
@@ -214,7 +218,7 @@ def activation_approval_payloads(registry: ScienceRegistry, subject_id: str,
 
 
 def render_activation_comment(registry: ScienceRegistry, subject_id: str,
-                              binding: ImplementationBinding) -> str:
+                              binding: ImplementationBinding, *, activation_context=None, activation_link_input=None) -> str:
     projected = project_active_registry(registry, subject_id)
     payloads = activation_approval_payloads(projected, subject_id, binding)
     from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
@@ -240,18 +244,34 @@ def render_activation_comment(registry: ScienceRegistry, subject_id: str,
     if designated:
         marker = V2_COMPOSITE_MARKER
         raw.update(schema_version=2, purpose=V2_PURPOSE, baseline_stop_digest=BASELINE_STOP)
+    if designated:
+        from analysis.science_activation_link import activation_input, ActivationLinkInput
+        link_input = activation_link_input or activation_input(registry,binding,activation_context)
+        if link_input is not None:
+            if not isinstance(link_input,ActivationLinkInput):
+                link_input=ActivationLinkInput.model_validate(link_input)
+            raw['activation_link_input']=link_input.model_dump(mode='json')
+            lines += ['', '### Immutable staged activation linkage',
+                      'I approve the exact linkage inputs below as part of this fresh activation source. Retained inactive assertions supply historical provenance only. The new active decision and implementation assertions supply current authority. Derived receipt file hashes are outputs and are not signing inputs.',
+                      '', '```json', json.dumps(raw['activation_link_input'],ensure_ascii=False,indent=2,sort_keys=True), '```']
     lines += ['', f'<!-- {marker}',
               json.dumps(raw, ensure_ascii=False, separators=(',', ':'), sort_keys=True), '-->']
     return '\n'.join(lines)
 
 
-def composite_approval_payloads(body: str, registry: ScienceRegistry) -> list[dict[str, Any]]:
+def composite_approval_payloads(body: str, registry: ScienceRegistry, *, activation_context=None) -> list[dict[str, Any]]:
     raw = composite_envelope(body)
     if raw is None:
         raise ValueError('Missing composite activation marker')
     binding = ImplementationBinding.model_validate(raw['implementation_binding'])
     expected = activation_approval_payloads(registry, raw['subject_id'], binding)
-    if not same_typed_value(raw['approvals'], expected) or body.strip() != render_activation_comment(registry, raw['subject_id'], binding).strip():
+    from analysis.science_admission_amendment import DESIGNATED
+    if raw['subject_id']==DESIGNATED:
+        from analysis.science_activation_link import activation_input
+        link=activation_input(registry,binding,activation_context)
+        if not same_typed_value(raw.get('activation_link_input'),link.model_dump(mode='json') if link else None):
+            raise ValueError('Fresh composite must bind complete authenticated predecessor linkage inputs')
+    if not same_typed_value(raw['approvals'], expected) or body.strip() != render_activation_comment(registry, raw['subject_id'], binding,activation_context=activation_context).strip():
         raise ValueError('Composite activation comment must contain the exact complete canonical assertions')
     return expected
 
@@ -350,6 +370,8 @@ class ActivationContext:
     # Only the trusted GitHub collector/verifier may populate this mapping.
     validations: Mapping[str, Mapping[str, Any]]
     recheck: Callable[[], None] | None = None
+    # Only privileged readers populate authenticated historical/current events.
+    source_comments: Mapping[str, Mapping[str, Any]] | None = None
 
     def verify(self, binding: ImplementationBinding, registry: ScienceRegistry, subject_id: str) -> ScienceRegistry:
         if (binding.repository, binding.pull_request, binding.base_sha) != (self.repository, self.pull_request, self.base_sha):

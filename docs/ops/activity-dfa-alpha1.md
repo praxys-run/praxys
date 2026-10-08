@@ -536,3 +536,20 @@ acceptance/activation, use its own reviewed lifecycle; bridge rollback cannot
 implicitly undo V2 or revive V1. Rebind source/base/full diff, current checks and
 reviews after every material source revision. Physical drain remains UNKNOWN
 until Operations supplies actual completion/retirement evidence.
+
+For staged V2 activation, use the
+[immutable assertion linkage](../dev/designated-dfa-v2-staged-assertions.md).
+Preserve the inactive assertion, append the fresh digest-qualified active assertion
+and derived companion, and require authenticated predecessor/current source
+closure plus exact replay. Once linked history exists, rollback must retain a
+compatible history-validating reader; do not roll back to a validator that rejects
+preserved lineage. A lawful V2 terminal STOP remains an exact authenticated two-file
+transaction. Its bound PR may retain historical activation comments, but these
+only reauthenticate existing immutable source history and supply no new authority.
+New approvals, altered envelope/source, extra files, revival or general stopped-V2
+maintenance remain denied. Physical drain remains a separate UNKNOWN obligation.
+
+The approval-ledger automation permits only the designated companion output
+namespace in addition to existing Science outputs. Its complete trusted replay
+and source verifier determine the exact filename/content; the workflow path
+allowlist itself supplies no authority or stale-approval exception.

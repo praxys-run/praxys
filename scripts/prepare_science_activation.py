@@ -54,7 +54,22 @@ def main():
                                 {binding.envelope_digest:verified})
     context.verify(binding, registry, args.subject_id)
     context.require_reviewed_tree(binding, root)
-    statements = {'approval.md': render_activation_comment(projected, args.subject_id, binding)}
+    from analysis.science_activation_link import approval_entries
+    from urllib.parse import quote
+    sources={}
+    for _,approval in approval_entries(registry.science_dir):
+        if approval.subject_id!=args.subject_id or approval.role.value!='decision_approver':
+            continue
+        identity=str(approval.source_ref).rsplit('#issuecomment-',1)[-1]
+        if not identity.isdigit():
+            raise ValueError('Invalid retained source identity')
+        event=reader.read('issues/comments/'+identity)
+        login=event.get('user',{}).get('login')
+        permission=reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']
+        sources[str(approval.source_ref)]={'comment':event,'permission':permission}
+    from dataclasses import replace
+    context=replace(context,source_comments=sources)
+    statements = {'approval.md': render_activation_comment(registry, args.subject_id, binding,activation_context=context)}
     verify_pr(reader.read(f'pulls/{args.pull_request}'), args.repository, args.pull_request, base, head)
     args.output_dir.mkdir(parents=True, exist_ok=False)
     for name, body in statements.items():

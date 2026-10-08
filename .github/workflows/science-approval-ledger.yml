@@ -299,6 +299,7 @@ jobs:
             case "$path" in
               data/science/REGISTRY.md | \
               data/science/approvals/*.yaml | \
+              data/science/activation-links/sdr-activity-dfa-alpha1-v2--*.json | \
               data/science/evidence/*.yaml | \
               data/science/decisions/*.yaml | \
               data/science/generated/review-packets/*.md | \

@@ -5,6 +5,7 @@ uses shipped data only; privileged callers separately bind the real Git base.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -147,6 +148,8 @@ def designated_relative_path(relative: Path) -> bool:
     parts = relative.parts
     if not parts:
         return False
+    if parts[0]=='activation-links':
+        return len(parts)==2 and re.fullmatch(re.escape(DESIGNATED)+r'--[0-9a-f]{64}\.json',relative.name) is not None
     if parts[0] == 'approvals':
         return relative.name.startswith(DESIGNATED + '--') or relative.name.startswith('synthetic-' + DESIGNATED + '-')
     return relative.name in {DESIGNATED + '.yaml', DESIGNATED + '.md', DESIGNATED + '.json'}

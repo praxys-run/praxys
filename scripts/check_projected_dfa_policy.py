@@ -98,6 +98,9 @@ def synthetic_v2_registry(candidate: Path, phase: str, expected: str):
         contract = artifacts.build_policy_contract(active, DESIGNATED)
         if contract.contract_digest != expected:
             raise ValueError('Projected V2 contract mismatch')
+        from analysis.science_activation_link import LINK_DIR
+        for path in (root/LINK_DIR).glob(DESIGNATED+'--*.json'):
+            path.unlink()
         for path in (root / 'approvals').rglob('*.yaml'):
             if load_science_yaml(path.read_text()).get('subject_id') == DESIGNATED:
                 path.unlink()
