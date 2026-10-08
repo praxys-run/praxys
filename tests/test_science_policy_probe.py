@@ -191,3 +191,132 @@ def test_controller_never_projects_an_actual_stopped_subject(probe_candidates):
     with pytest.raises(ValueError, match='terminally stopped'):
         with prepared_probe(roots['stopped-maintenance'], 'activation', SUBJECT, contract):
             pytest.fail('Stopped subject cannot reach its hypothetical observer')
+
+
+def test_nested_list_scalar_types_are_exact():
+    from analysis.science_activation import same_typed_value
+    expected = {'nested':[{'versions':[1, 2]}]}
+    assert same_typed_value(expected, expected)
+    for actual in ({'nested':[{'versions':[True, 2]}]}, {'nested':[{'versions':[1, 2.0]}]}):
+        with pytest.raises(ValueError, match='types'):
+            validate_observation(json.dumps(actual).encode(), 0, expected)
+
+
+def test_designated_missing_actual_guards_fail_closed(tmp_path):
+    from tests.test_science_activation import designated_case
+    from analysis.science_admission_amendment import DESIGNATED
+    root, _, _, binding, _ = designated_case(tmp_path)
+    with pytest.raises(ValueError, match='did not complete successfully'):
+        observe(root, 'dfa-v2-activation', DESIGNATED, binding.active_contract_digest)
+
+
+def _simulated_v2_guards(root, contract):
+    """Disposable protocol fixture; this is never actual V2 runtime evidence."""
+    import re
+    parameters = __import__('hashlib').sha256(json.dumps(contract.parameter_values, sort_keys=True,
+        separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+    method = root/'analysis/activity_dfa.py'
+    text = method.read_text().replace('SDR_ID = "sdr-activity-dfa-alpha1-v1"', 'SDR_ID = "sdr-activity-dfa-alpha1-v2"')
+    text = re.sub(r'POLICY_PARAMETER_DIGEST = "[0-9a-f]+"', f'POLICY_PARAMETER_DIGEST = "{parameters}"', text)
+    method.write_text(text)
+    (root/'analysis/dfa_source.py').write_text("AUTO_SDR_ID = 'sdr-activity-dfa-alpha1-v2'\n")
+    (root/'api/activity_dfa.py').write_text('''from fastapi import HTTPException
+from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST
+from analysis.science_artifacts import load_policy_contract
+
+def require_historical_v1_policy():
+    try:
+        return load_policy_contract('sdr-activity-dfa-alpha1-v1', require_active=True).contract_digest
+    except ValueError as error:
+        raise HTTPException(503, 'DFA_SCIENCE_POLICY_INACTIVE') from error
+
+def require_policy():
+    try:
+        return load_policy_contract('sdr-activity-dfa-alpha1-v2', require_active=True).contract_digest
+    except ValueError as error:
+        raise HTTPException(503, 'DFA_SCIENCE_POLICY_INACTIVE') from error
+''')
+    (root/'api/dfa_automatic.py').write_text('''from fastapi import HTTPException
+from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST
+from analysis.science_artifacts import load_policy_contract
+from analysis.dfa_source import AUTO_SDR_ID
+
+def require_policy():
+    try:
+        return load_policy_contract(AUTO_SDR_ID, require_active=True).contract_digest
+    except ValueError as error:
+        raise HTTPException(503, 'DFA_AUTO_SCIENCE_POLICY_INACTIVE') from error
+''')
+
+
+def test_designated_protocol_simulation_runs_actual_fixture_callables_in_fresh_children(tmp_path):
+    from tests.test_science_activation import designated_case
+    from analysis.science_activation import project_active_registry
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_artifacts import build_policy_contract
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
+    root, science, _, binding, _ = designated_case(tmp_path)
+    contract = build_policy_contract(project_active_registry(load_science_registry(science), DESIGNATED), DESIGNATED)
+    _simulated_v2_guards(root, contract)
+    original = {p.relative_to(science):p.read_bytes() for p in science.rglob('*') if p.is_file()}
+    observed = observe(root, 'dfa-v2-activation', DESIGNATED, binding.active_contract_digest)
+    assert [o['phase'] for o in observed['observations']] == ['draft','accepted-inactive','projected-active']
+    for result in observed['observations']:
+        assert result['baseline_stop_digest'] == BASELINE_STOP
+        assert result['observation']['historical_v1']['http_status'] == 503
+    assert observed['observations'][-1]['observation']['automatic']['returned_contract'] == contract.contract_digest
+    assert {p.relative_to(science):p.read_bytes() for p in science.rglob('*') if p.is_file()} == original
+
+
+@pytest.mark.parametrize('mutation', ['missing-branch','legacy-historical-callable','parameter-digest','provenance'])
+def test_designated_simulated_wrong_guards_never_complete(tmp_path, mutation):
+    from tests.test_science_activation import designated_case
+    from analysis.science_activation import project_active_registry
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_artifacts import build_policy_contract
+    from analysis.science_admission_amendment import DESIGNATED
+    root, science, _, binding, _ = designated_case(tmp_path)
+    contract = build_policy_contract(project_active_registry(load_science_registry(science), DESIGNATED), DESIGNATED)
+    _simulated_v2_guards(root, contract)
+    if mutation == 'missing-branch': (root/'api/dfa_automatic.py').unlink()
+    if mutation == 'legacy-historical-callable':
+        path=root/'api/activity_dfa.py';path.write_text(path.read_text().replace('def require_historical_v1_policy()', 'def absent_historical_guard()'))
+    if mutation == 'parameter-digest':
+        with (root/'api/dfa_automatic.py').open('a') as handle: handle.write("\nPOLICY_PARAMETER_DIGEST = '0' * 64\n")
+    if mutation == 'provenance':
+        with (root/'api/dfa_automatic.py').open('a') as handle:
+            handle.write("\nrequire_policy.__code__ = require_policy.__code__.replace(co_filename='/outside/forged.py')\n")
+    with pytest.raises(ValueError):
+        observe(root, 'dfa-v2-activation', DESIGNATED, binding.active_contract_digest)
+
+
+def test_legacy_stopped_protocol_observes_retained_v1_callable_after_simulated_v2_migration(tmp_path):
+    from tests.test_science_activation import designated_case
+    from analysis.science_activation import project_active_registry
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_artifacts import build_policy_contract
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE, BASELINE_CONTRACT
+    root, science, _, _, _ = designated_case(tmp_path)
+    contract=build_policy_contract(project_active_registry(load_science_registry(science),DESIGNATED),DESIGNATED)
+    _simulated_v2_guards(root,contract)
+    observed=observe(root,'stopped-maintenance',BASELINE,BASELINE_CONTRACT)
+    assert observed['schema_version']==1 and observed['subject_id']==BASELINE
+    assert observed['observation']==dict(http_status=503,detail='DFA_SCIENCE_POLICY_INACTIVE')
+
+
+@pytest.mark.parametrize('field,value',[('candidate_dependencies',{'analysis..science_artifacts':'/outside.py'}),
+    ('candidate_dependencies',{'analysis.science_artifacts':True}),('callables',{}),('schema_version',True)])
+def test_designated_observation_provenance_schema_rejects_forged_fields(tmp_path,field,value):
+    from tests.test_science_activation import designated_case
+    from analysis.science_activation import project_active_registry
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_artifacts import build_policy_contract
+    from analysis.science_admission_amendment import DESIGNATED
+    from scripts.run_science_policy_probe import v2_expected,validate_v2_observation
+    root,science,_,_,_=designated_case(tmp_path)
+    contract=build_policy_contract(project_active_registry(load_science_registry(science),DESIGNATED),DESIGNATED)
+    expected=v2_expected(root,contract,'projected-active')
+    payload=deepcopy(expected)
+    payload['candidate_dependencies']=dict(payload['module_paths'])
+    payload[field]=value
+    with pytest.raises(ValueError): validate_v2_observation(json.dumps(payload).encode(),0,expected,root)

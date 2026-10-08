@@ -7,7 +7,7 @@ on:
         required: true
         default: activation
         type: choice
-        options: [activation, stopped-maintenance]
+        options: [activation, stopped-maintenance, dfa-v2-activation]
       pull_request:
         required: true
         type: string

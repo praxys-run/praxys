@@ -61,6 +61,7 @@ def approvals_from_github_comments(
     permissions: Mapping[str, str],
     *,
     activation_context=None,
+    stop_context=None,
 ) -> list[ScienceApproval]:
     """Return digest-bound approvals from authorized human PR comments."""
     registry = load_science_registry(
@@ -68,10 +69,11 @@ def approvals_from_github_comments(
         validate_approvals=False,
     )
     from analysis.science_activation import (
-        COMPOSITE_MARKER, composite_approval_payloads, implementation_envelope,
+        COMPOSITE_MARKER, V2_COMPOSITE_MARKER, composite_approval_payloads, implementation_envelope,
     )
     from analysis.science_artifacts import ImplementationBinding
 
+    source_registry = registry
     implementation_payloads = {}
     for comment in comments:
         user = comment.get("user", {})
@@ -95,7 +97,7 @@ def approvals_from_github_comments(
         registry = activation_context.verify(binding, registry, payload["subject_id"])
         implementation_payloads[source] = (
             composite_approval_payloads(str(comment["body"]), registry)
-            if COMPOSITE_MARKER in str(comment["body"]) else [payload]
+            if any(m in str(comment["body"]) for m in (COMPOSITE_MARKER, V2_COMPOSITE_MARKER)) else [payload]
         )
 
     approvals: dict[
@@ -163,6 +165,10 @@ def approvals_from_github_comments(
             )
             approvals.setdefault(key, approval)
 
+    from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
+    if any(a.subject_id == DESIGNATED for a in approvals.values()):
+        require_authenticated_amendment_base(source_registry, activation_context or stop_context)
+
     return sorted(
         approvals.values(),
         key=lambda item: (
@@ -178,6 +184,7 @@ def materialize_science_approvals(
     approvals: Sequence[ScienceApproval],
     *,
     activation_context=None,
+    stop_context=None,
 ) -> list[Path]:
     """Atomically record approvals and accepted lifecycle transitions."""
     unresolved_root = Path(science_dir)
@@ -188,6 +195,12 @@ def materialize_science_approvals(
         raise ValueError(f"Science directory does not exist: {root}")
     if not approvals:
         return []
+    from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
+    designated = any(a.subject_id == DESIGNATED for a in approvals)
+    if designated:
+        require_authenticated_amendment_base(load_science_registry(root), activation_context or stop_context)
+        if any(a.subject_id != DESIGNATED for a in approvals):
+            raise ValueError('Designated batch issues only new V2 assertions; shared evidence cannot be renewed')
     implementation = [a for a in approvals if a.role == ReviewRole.IMPLEMENTATION_REVIEWER]
     if implementation:
         if activation_context is None or len(implementation) != 1:
@@ -258,6 +271,11 @@ def materialize_science_approvals(
                     f"Science file changed during approval materialization: "
                     f"{relative}"
                 )
+        if designated:
+            require_authenticated_amendment_base(validated, activation_context or stop_context)
+            admission_context = activation_context or stop_context
+            if admission_context.recheck is not None:
+                admission_context.recheck()
         if implementation:
             activation_context.require_reviewed_tree(binding, root.parent.parent)
             if activation_context.recheck is not None:
@@ -320,6 +338,7 @@ def verify_science_approval_changes(
         comments,
         permissions,
         activation_context=activation_context,
+        stop_context=stop_context,
     )
 
     for approval in base_approvals:
@@ -341,6 +360,7 @@ def verify_science_approval_changes(
         base_registry,
         head_registry,
         head_approvals,
+        admission_context=activation_context or stop_context,
     )
     _verify_generated_state(head_root, registry=head_registry)
     if stop_context is not None and stop_context.recheck is not None:
@@ -559,6 +579,8 @@ def _transition_subject(
     science_dir: Path,
     approval: ScienceApproval,
 ) -> Path:
+    from analysis.science_admission_amendment import DESIGNATED, prevalidate_amendment_record
+    designated = approval.subject_id == DESIGNATED
     if approval.subject_kind == ReviewSubjectKind.EVIDENCE_REVIEW:
         record_path = _subject_path(
             science_dir / "evidence",
@@ -571,6 +593,9 @@ def _transition_subject(
         )
 
     raw = _load_mapping(record_path)
+    if designated:
+        # Public caller authenticates the complete input and staged output.
+        prevalidate_amendment_record(raw)
     if raw.get("approval_mode") != ApprovalMode.ARTIFACT.value:
         raise ValueError(
             f"Approval subject {approval.subject_id} is not artifact-mode"
@@ -579,6 +604,7 @@ def _transition_subject(
     text = record_path.read_text(encoding="utf-8")
     if (
         status == RecordStatus.DRAFT.value
+        and not designated
         and (
             raw.get("version", 1) != 1
             or bool(raw.get("supersedes"))
@@ -737,7 +763,15 @@ def _verify_lifecycle_transitions(
     base_registry: ScienceRegistry,
     head_registry: ScienceRegistry,
     head_approvals: Sequence[ScienceApproval],
+    *, admission_context=None,
 ) -> None:
+    from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
+    if DESIGNATED in head_registry.decisions:
+        require_authenticated_amendment_base(head_registry, admission_context)
+        designated = head_registry.decisions[DESIGNATED]
+        if designated.status == RecordStatus.ACCEPTED and not _has_exact_role_approval(
+                head_approvals, ReviewSubjectKind.SCIENCE_DECISION, DESIGNATED, ReviewRole.DECISION_APPROVER):
+            raise ValueError('Designated acceptance requires exact new decision approval')
     for review_id, head_review in head_registry.evidence_reviews.items():
         base_review = base_registry.evidence_reviews.get(review_id)
         if (

@@ -363,6 +363,8 @@ def _isolated_dfa_science_dir(tmp_path, *, accepted, active, source_science_dir=
               else Path(__file__).resolve().parents[1] / 'data' / 'science')
     target = tmp_path / f"science-{'accepted' if accepted else 'draft'}-{'active' if active else 'inactive'}"
     shutil.copytree(source, target)
+    from analysis.science_admission_amendment import prune_designated_fixture_closure
+    prune_designated_fixture_closure(target)
     from analysis.science_implementation_stop import stop_paths
     for relative in stop_paths(core.SDR_ID):
         (target / relative).unlink(missing_ok=True)

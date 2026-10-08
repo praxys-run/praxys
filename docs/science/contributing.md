@@ -95,3 +95,18 @@ scientific product claim or safety behavior changes.
 
 Praxys does not provide medical clearance, diagnose heat illness, or turn
 population evidence into personal guarantees.
+
+## Designated DFA V2 admission
+
+The designated DFA V2 bridge uses a strict parameter-based admission amendment,
+retains terminal V1 and the unchanged accepted Evidence, and adds no historical
+model defaults. It supplies tooling only. See the
+[tooling protocol](../dev/designated-dfa-v2-tooling.md) before preparing a later
+corrected inactive V2 decision and generated Markdown packet. Canonical V2
+materialization and exact Science decision/implementation approval remain separate.
+
+A V2 composite approval issues only the new decision and implementation assertions.
+Do not renew, retimestamp or rewrite the shared Evidence approval. Generic
+successors and stopped subjects remain rejected. Missing actual V2 guards fail
+closed; synthetic fixtures and numerical value equality cannot supply runtime
+acceptance or equivalence evidence.

@@ -61,7 +61,9 @@ def main():
         (args.output_dir / name).write_text(body + '\n')
     (args.output_dir / 'binding.json').write_text(json.dumps(binding.model_dump(mode='json'), indent=2, sort_keys=True)+'\n')
     (args.output_dir / 'validation.json').write_text(json.dumps(verified, indent=2, sort_keys=True)+'\n')
-    print('Prepared one atomic comment containing all three role assertions. No approval was published or materialized.')
+    from analysis.science_admission_amendment import DESIGNATED
+    roles = 'new V2 decision and implementation' if args.subject_id == DESIGNATED else 'all three roles'
+    print(f'Prepared one atomic comment containing {roles} assertions. No approval was published or materialized.')
     print(f'Envelope: {binding.envelope_digest}')
 
 

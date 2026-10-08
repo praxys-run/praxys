@@ -13,7 +13,7 @@ import zipfile
 
 from analysis.science_activation import (
     ActivationContext, COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH,
-    COMPOSITE_MARKER, git, implementation_envelope, strict_json,
+    COMPOSITE_MARKER, V2_COMPOSITE_MARKER, git, implementation_envelope, strict_json,
 )
 from analysis.science_artifacts import ImplementationBinding, digest_payload
 
@@ -104,6 +104,24 @@ def fetch_validation(reader: GitHubReader, binding: ImplementationBinding, repos
         validation = strict_json(archive.read('validation.json').decode())
     if digest_payload(validation) != binding.validation_digest:
         raise ValueError('Validation content digest mismatch')
+    from analysis.science_activation import V2_PURPOSE
+    if isinstance(validation, dict) and validation.get('purpose') == V2_PURPOSE:
+        # Strict V2 metadata bindings supplement the unchanged legacy protocol.
+        if (type(run.get('id')) is not int or run['id'] != binding.validation_run_id
+                or type(artifact.get('id')) is not int or artifact['id'] != binding.validation_artifact_id
+                or type(run.get('run_attempt')) is not int
+                or type(artifact.get('workflow_run', {}).get('id')) is not int):
+            raise ValueError('V2 artifact/run identity types or values mismatch')
+        expected_jobs = [VALIDATION_JOB, PROBE_JOB, COLLECTOR_JOB]
+        for job in jobs:
+            if job.get('name') in expected_jobs and (type(job.get('id')) is not int
+                    or job['id'] <= 0 or type(job.get('run_id')) is not int
+                    or job['run_id'] != binding.validation_run_id
+                    or job.get('status') != 'completed'):
+                raise ValueError('V2 jobs must be completed authenticated exact-run jobs')
+        job_ids = [job['id'] for job in jobs if job.get('name') in expected_jobs]
+        if len(set(job_ids)) != len(expected_jobs):
+            raise ValueError('V2 authenticated job identities must be distinct')
     return validation
 
 
@@ -112,7 +130,7 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
     from analysis.science_approval_workflow import _reject_symlinks
     _reject_symlinks(science_dir)
     if not any(any(marker in str(c.get('body', '')) for marker in
-                   ('praxys-science-implementation:v1', COMPOSITE_MARKER)) for c in comments):
+                   ('praxys-science-implementation:v1', COMPOSITE_MARKER, V2_COMPOSITE_MARKER)) for c in comments):
         return None, comments, permissions
     if not repository or not pull_request:
         raise ValueError('Activation requires explicit repository and pull request')

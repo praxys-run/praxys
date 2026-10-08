@@ -94,6 +94,8 @@ jobs:
       group: science-approval-${{ matrix.pr_number }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Verify pull request snapshot
         id: target
@@ -241,7 +243,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/trusted
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python trusted/scripts/verify_science_approval_sources.py
+          python -B trusted/scripts/verify_science_approval_sources.py
           --base-science-dir trusted/data/science
           --head-science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"
@@ -255,7 +257,8 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/trusted
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python trusted/scripts/materialize_science_approvals.py
+          python -B trusted/scripts/materialize_science_approvals.py
+          --base-science-dir trusted/data/science
           --science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"
           --github-permissions "${{ steps.review-input.outputs.permissions }}"
@@ -268,7 +271,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/trusted
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python trusted/scripts/verify_science_approval_sources.py
+          python -B trusted/scripts/verify_science_approval_sources.py
           --base-science-dir trusted/data/science
           --head-science-dir candidate/data/science
           --github-comments "${{ steps.review-input.outputs.comments }}"

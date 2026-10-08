@@ -507,3 +507,32 @@ Rendered acceptance remains an independent obligation, separate from real guard
 evidence. Physical Skyline canvas, gestures, screen readers, larger text, native
 focus and contrast gaps remain disclosed. The robot5 package-size failure and
 packaging repair/manual upload remain outside this activation work.
+
+## Designated V2 tooling bridge
+
+The [designated bridge](../dev/designated-dfa-v2-tooling.md) changes admission
+preparation only. V1 STOP, approvals and generated history remain immutable.
+Use the existing trusted `stopped-maintenance` purpose with V1, actual bridge PR,
+exact candidate head and V1 contract for bridge admission. The bridge's new V2
+protocol cannot certify this admission. Independent review and current gates
+remain required; fixture exceptions confer no bridge authority.
+
+The approval-ledger materialization job disables Python bytecode generation at
+job scope and uses `python -B` on both source verifiers and the materializer.
+Physical bytecode/native-shadow/import-slot guards still reject injected artifacts;
+no cache ignore or deletion supplies success. The materializer receives the trusted
+base science snapshot for designated decision-only acceptance.
+
+After trusted tooling is admitted, a later separately authorized V2 activation
+uses `dfa-v2-activation` and the exact V2 subject/contract. Its three-phase actual
+probe must complete on a fresh runner before the separate trusted collector can
+produce schema-2 validation. The current shipped guards cannot complete it.
+Do not interpret simulated protocol tests, repository STOP presence, or successful
+bridge CI as deployment, process drain or V2 activation evidence.
+
+Before V2 activation, roll back bridge source through reviewed stopped-maintenance
+while preserving all terminal STOP and historical science bytes/modes. After V2
+acceptance/activation, use its own reviewed lifecycle; bridge rollback cannot
+implicitly undo V2 or revive V1. Rebind source/base/full diff, current checks and
+reviews after every material source revision. Physical drain remains UNKNOWN
+until Operations supplies actual completion/retirement evidence.
