@@ -45,7 +45,7 @@ def test_synthetic_dates_share_one_utc_day_when_local_date_is_ahead(monkeypatch)
     monkeypatch.setattr(producer, 'date', LocalDate, raising=False)
     monkeypatch.setattr(producer, 'datetime', Clock, raising=False)
     candidate = Path(__file__).resolve().parents[1]
-    with producer.synthetic_active_registry(candidate, SUBJECT, None) as (science, _):
+    with producer.synthetic_active_registry(candidate, SUBJECT, None, fresh_hypothetical=True) as (science, _):
         registry = load_science_registry(science)
         approvals = [approval for approval in load_science_approvals(science)
                      if approval.reviewer == 'github:synthetic-validation-only']
