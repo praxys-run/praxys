@@ -1,0 +1,9 @@
+schema_version: 1
+action: stop
+repository: praxys-run/praxys
+subject_id: sdr-activity-dfa-alpha1-v1
+active_contract_digest: sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6
+implementation_envelope_digest: sha256:facc27c7a4b51d2901b3fdfe55f2cb0c193f6a1aad12767abaf1d57aa74d2f2b
+requested_by: github:dddtc2005
+requested_at: '2026-10-08T04:23:38Z'
+source_ref: https://github.com/praxys-run/praxys/pull/870#issuecomment-6052177089
