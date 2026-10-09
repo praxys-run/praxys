@@ -1,0 +1,15 @@
+schema_version: 1
+subject_kind: science_decision
+subject_id: sdr-activity-dfa-alpha1-v2
+subject_digest: sha256:2fcee27f23b310a7592b24818c36562fca07a20cdf23cb78dcc738e4de7fd5a2
+reviewer: github:dddtc2005
+role: decision_approver
+reviewed_on: '2026-10-09'
+scopes:
+- activation_boundary
+- applicability
+- claim_limits
+- decision_interpretation
+- parameters
+- safety_and_privacy
+source_ref: https://github.com/praxys-run/praxys/pull/871#issuecomment-6075711532

@@ -2,7 +2,7 @@ schema_version: 1
 id: sdr-activity-dfa-alpha1-v2
 version: 2
 title: Designated raw DFA V2 source admission with distinct manual and automatic authority
-status: draft
+status: accepted
 approval_mode: artifact
 decision_date: '2026-10-09'
 owners:

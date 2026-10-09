@@ -3,13 +3,13 @@
 > Start with the decision sheet. The audit appendix preserves every code-consumed field, but it is not the reviewer's primary task.
 
 - **Record:** `sdr-activity-dfa-alpha1-v2`
-- **Lifecycle:** `draft`
+- **Lifecycle:** `accepted`
 - **Model version:** `dfa-alpha1-raw120-v1`
 - **Runtime state:** `inactive`
 - **Decision digest:** `sha256:2fcee27f23b310a7592b24818c36562fca07a20cdf23cb78dcc738e4de7fd5a2`
-- **Contract digest:** `sha256:e0663f96b6a73c68cc4ce2b3b26ac38b17ed86725dc0dd3aaded09f402af0b57`
+- **Contract digest:** `sha256:bc6b57a3f1867f483ebde882f721399b1394512cf11b61fec3149fd0f6f44328`
 - **Required decision role:** `decision_approver`
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-10-09` ([source](https://github.com/praxys-run/praxys/pull/871#issuecomment-6075711532))
 - **Required activation role:** `implementation_reviewer`
 - **Implementation approval:** _Pending_
 
@@ -130,7 +130,7 @@ A decision approval bound to the displayed digest attests:
 
 > Approve only this named Science decision and displayed immutable decision digest, including its interpretation, mapped guardrails, applicability, claim limits, safety/privacy and conditional activation boundary. This is inactive decision approval, not new Evidence approval, implementation approval, runtime activation, gate enablement or V1 revival.
 
-- **Decision approval:** _Pending_
+- **Decision approval:** `github:dddtc2005` on `2026-10-09` ([source](https://github.com/praxys-run/praxys/pull/871#issuecomment-6075711532))
 
 ### Decision approval
 
@@ -705,9 +705,9 @@ Manual source evidence and processing authority must arise independently for the
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:e0663f96b6a73c68cc4ce2b3b26ac38b17ed86725dc0dd3aaded09f402af0b57",
+  "contract_digest": "sha256:bc6b57a3f1867f483ebde882f721399b1394512cf11b61fec3149fd0f6f44328",
   "decision_id": "sdr-activity-dfa-alpha1-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "dfa.recording-artifacts",

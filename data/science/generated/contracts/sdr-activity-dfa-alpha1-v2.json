@@ -3,9 +3,9 @@
     "analysis/activity_dfa.py",
     "sync/rr_recording.py"
   ],
-  "contract_digest": "sha256:e0663f96b6a73c68cc4ce2b3b26ac38b17ed86725dc0dd3aaded09f402af0b57",
+  "contract_digest": "sha256:bc6b57a3f1867f483ebde882f721399b1394512cf11b61fec3149fd0f6f44328",
   "decision_id": "sdr-activity-dfa-alpha1-v2",
-  "decision_status": "draft",
+  "decision_status": "accepted",
   "decision_version": 2,
   "evidence_claim_ids": [
     "dfa.recording-artifacts",

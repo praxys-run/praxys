@@ -36,6 +36,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
 | [sdr-activity-dfa-alpha1-v1](decisions/sdr-activity-dfa-alpha1-v1.yaml) — Bounded raw RR DFA alpha1 for a single running activity | 1 | dfa-alpha1-raw120-v1 | 2026-09-27 |
+| [sdr-activity-dfa-alpha1-v2](decisions/sdr-activity-dfa-alpha1-v2.yaml) — Designated raw DFA V2 source admission with distinct manual and automatic authority | 2 | dfa-alpha1-raw120-v1 | 2026-10-09 |
 | [sdr-adaptive-plan-feasibility-and-adjustment-v1](decisions/sdr-adaptive-plan-feasibility-and-adjustment-v1.yaml) — Require actionable, feedback-aware recommendations across managed plans | 1 | adaptive-plan-policy-v1 | 2026-08-16 |
 | [sdr-adult-running-plan-population-routing-v1](decisions/sdr-adult-running-plan-population-routing-v1.yaml) — Bound scientific applicability for adult running-plan populations | 1 | adult-running-plan-population-routing-v1 | 2026-08-16 |
 | [sdr-environmental-performance-v4](decisions/sdr-environmental-performance-v4.yaml) — Center comparable-power support on each athlete's observed training workload | 4 | environmental-performance-context-v4 | 2026-08-10 |
@@ -61,7 +62,6 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [sdr-activity-dfa-alpha1-v2](decisions/sdr-activity-dfa-alpha1-v2.yaml) — Designated raw DFA V2 source admission with distinct manual and automatic authority | 2 | dfa-alpha1-raw120-v1 | 2026-10-09 |
 | [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
 | [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
 
