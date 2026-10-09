@@ -1,8 +1,0 @@
-<view class="activity-detail">
-  <view class="activity-detail__head"><view><text class="activity-detail__title">{{tr.title}}</text><text class="ts-muted ts-value">{{activity.date}} · {{activity.activity_type}}</text></view><button class="activity-detail__button" bindtap="close">{{tr.back}}</button></view>
-  <scroll-view scroll-y class="activity-detail__scroll"><view class="activity-detail__body"><view class="activity-detail__summary"><view wx:for="{{metrics}}" wx:key="label"><text class="ts-muted">{{item.label}}</text><text class="ts-value">{{item.value}}</text></view></view>
-    <dfa-analysis id="activity-detail-dfa" activity-id="{{activity.activity_id}}" />
-    <button class="activity-detail__button" bindtap="splits" aria-expanded="{{showSplits}}">{{tr.splits}}</button>
-    <view wx:if="{{showSplits}}"><text wx:if="{{!splits.length}}" class="ts-muted">{{tr.none}}</text><view wx:for="{{splits}}" wx:key="id" class="activity-detail__split"><text class="ts-value">{{item.id}} · {{item.values}}</text></view></view>
-  </view></scroll-view>
-</view>

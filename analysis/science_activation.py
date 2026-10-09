@@ -40,6 +40,10 @@ MARKER = 'praxys-science-implementation:v1'
 MARKER_RE = re.compile(r'<!--\s*praxys-science-implementation:v1\s*(\{.*?\})\s*-->', re.S)
 
 COMPOSITE_MARKER = 'praxys-science-activation:v1'
+V2_COMPOSITE_MARKER = 'praxys-science-activation:v2'
+V2_COMPOSITE_RE = re.compile(r'<!--\s*praxys-science-activation:v2\s*(\{.*?\})\s*-->', re.S)
+V2_PURPOSE = 'dfa-v2-activation'
+
 COMPOSITE_RE = re.compile(r'<!--\s*praxys-science-activation:v1\s*(\{.*?\})\s*-->', re.S)
 MAINTENANCE_LIMITATION = (
     'Subsequent maintenance checks protect enumerated source files only. '
@@ -70,6 +74,17 @@ def strict_json(text: str) -> Any:
     return json.loads(text, object_pairs_hook=unique)
 
 
+def same_typed_value(actual: Any, expected: Any) -> bool:
+    """Exact recursive JSON types, including bool/int inside nested arrays."""
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return actual.keys() == expected.keys() and all(same_typed_value(actual[k], v) for k, v in expected.items())
+    if isinstance(expected, list):
+        return len(actual) == len(expected) and all(same_typed_value(a, e) for a, e in zip(actual, expected))
+    return actual == expected
+
+
 def project_active_registry(registry: ScienceRegistry, subject_id: str) -> ScienceRegistry:
     """Project only lifecycle; scientific content must already be reviewed."""
     from analysis.science_implementation_stop import require_not_stopped
@@ -77,7 +92,10 @@ def project_active_registry(registry: ScienceRegistry, subject_id: str) -> Scien
     decision = registry.decisions[subject_id]
     if decision.approval_mode != ApprovalMode.ARTIFACT or decision.artifact_policy is None:
         raise ValueError('Activation requires artifact-mode science')
-    if decision.version != 1 or decision.supersedes:
+    from analysis.science_admission_amendment import DESIGNATED, validate_local_amendment
+    if subject_id == DESIGNATED:
+        validate_local_amendment(registry, require_unstopped=True)
+    elif decision.version != 1 or decision.supersedes:
         raise ValueError('Successor activation requires an explicit coordinated lifecycle patch')
     if decision.status not in {RecordStatus.DRAFT, RecordStatus.ACCEPTED}:
         raise ValueError('Activation cannot revive a superseded decision')
@@ -110,6 +128,9 @@ def implementation_payload(body: str) -> dict[str, Any] | None:
         raise ValueError('Implementation approval marker fields are invalid')
     if raw['subject_kind'] != ReviewSubjectKind.IMPLEMENTATION_CONTRACT.value or raw['role'] != ReviewRole.IMPLEMENTATION_REVIEWER.value:
         raise ValueError('Implementation marker requires implementation role and subject')
+    from analysis.science_admission_amendment import DESIGNATED
+    if raw['subject_id'] == DESIGNATED:
+        raise ValueError('Designated activation requires new-only V2 composite assertions')
     binding = ImplementationBinding.model_validate(raw['implementation_binding'])
     if raw['subject_digest'] != binding.active_contract_digest:
         raise ValueError('Implementation subject and envelope contract differ')
@@ -138,15 +159,37 @@ def render_implementation_comment(subject_id: str, binding: ImplementationBindin
 
 def composite_envelope(body: str) -> dict[str, Any] | None:
     """Read the envelope only; complete canonical role verification follows."""
-    if COMPOSITE_MARKER not in body:
+    markers = [(COMPOSITE_MARKER, COMPOSITE_RE), (V2_COMPOSITE_MARKER, V2_COMPOSITE_RE)]
+    present = [(marker, pattern) for marker, pattern in markers if marker in body]
+    if not present:
         return None
-    matches = list(COMPOSITE_RE.finditer(body))
+    if len(present) != 1:
+        raise ValueError('Activation comment mixes protocol versions')
+    marker, pattern = present[0]
+    matches = list(pattern.finditer(body))
     if len(matches) != 1:
         raise ValueError('Activation comment requires exactly one composite marker')
     raw = strict_json(matches[0].group(1))
-    if not isinstance(raw, dict) or set(raw) != {'subject_id', 'approvals', 'implementation_binding'}:
+    required = {'subject_id', 'approvals', 'implementation_binding'}
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
+    if marker == V2_COMPOSITE_MARKER:
+        required |= {'schema_version', 'purpose', 'baseline_stop_digest'}
+    if marker == V2_COMPOSITE_MARKER and isinstance(raw,dict) and 'activation_link_input' in raw:
+        required.add('activation_link_input')
+        from analysis.science_activation_link import ActivationLinkInput
+        ActivationLinkInput.model_validate(raw['activation_link_input'])
+    if not isinstance(raw, dict) or set(raw) != required:
         raise ValueError('Composite activation marker fields are invalid')
-    ImplementationBinding.model_validate(raw['implementation_binding'])
+    if marker == V2_COMPOSITE_MARKER:
+        if (type(raw['schema_version']) is not int or raw['schema_version'] != 2
+                or raw['purpose'] != V2_PURPOSE or raw['subject_id'] != DESIGNATED
+                or raw['baseline_stop_digest'] != BASELINE_STOP):
+            raise ValueError('Unsupported designated composite activation protocol')
+    elif raw['subject_id'] == DESIGNATED:
+        raise ValueError('Designated activation requires V2 composite protocol')
+    binding = ImplementationBinding.model_validate(raw['implementation_binding'])
+    if marker == V2_COMPOSITE_MARKER and not same_typed_value(raw['implementation_binding'], binding.model_dump(mode='json')):
+        raise ValueError('Designated composite binding must use exact scalar types')
     return raw
 
 
@@ -156,8 +199,9 @@ def activation_approval_payloads(registry: ScienceRegistry, subject_id: str,
     decision = projected.decisions[subject_id]
     if build_policy_contract(projected, subject_id).contract_digest != binding.active_contract_digest:
         raise ValueError('Composite active contract digest mismatch')
+    from analysis.science_admission_amendment import DESIGNATED
     payloads = []
-    for review_id in decision.evidence_review_ids:
+    for review_id in ([] if subject_id == DESIGNATED else decision.evidence_review_ids):
         review = projected.evidence_reviews[review_id]
         if review.approval_mode == ApprovalMode.ARTIFACT:
             payloads.append(dict(subject_kind=ReviewSubjectKind.EVIDENCE_REVIEW.value,
@@ -174,10 +218,14 @@ def activation_approval_payloads(registry: ScienceRegistry, subject_id: str,
 
 
 def render_activation_comment(registry: ScienceRegistry, subject_id: str,
-                              binding: ImplementationBinding) -> str:
+                              binding: ImplementationBinding, *, activation_context=None, activation_link_input=None) -> str:
     projected = project_active_registry(registry, subject_id)
     payloads = activation_approval_payloads(projected, subject_id, binding)
-    lines = ['Praxys science activation — **APPROVE ALL THREE ROLES**', '',
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
+    designated = subject_id == DESIGNATED
+    title = ('Praxys science activation — **APPROVE NEW V2 DECISION AND IMPLEMENTATION**'
+             if designated else 'Praxys science activation — **APPROVE ALL THREE ROLES**')
+    lines = [title, '',
              'This is one atomic source attestation. Do not split it into separate comments.', '',
              SHARED_FILE_LIMIT, '', MAINTENANCE_LIMITATION, '',
              f'- Implementation envelope digest: `{binding.envelope_digest}`']
@@ -192,18 +240,38 @@ def render_activation_comment(registry: ScienceRegistry, subject_id: str,
                   f"- Digest: `{payload['subject_digest']}`", '', f'> {statement}']
     raw = {'subject_id': subject_id, 'approvals': payloads,
            'implementation_binding': binding.model_dump(mode='json')}
-    lines += ['', f'<!-- {COMPOSITE_MARKER}',
+    marker = COMPOSITE_MARKER
+    if designated:
+        marker = V2_COMPOSITE_MARKER
+        raw.update(schema_version=2, purpose=V2_PURPOSE, baseline_stop_digest=BASELINE_STOP)
+    if designated:
+        from analysis.science_activation_link import activation_input, ActivationLinkInput
+        link_input = activation_link_input or activation_input(registry,binding,activation_context)
+        if link_input is not None:
+            if not isinstance(link_input,ActivationLinkInput):
+                link_input=ActivationLinkInput.model_validate(link_input)
+            raw['activation_link_input']=link_input.model_dump(mode='json')
+            lines += ['', '### Immutable staged activation linkage',
+                      'I approve the exact linkage inputs below as part of this fresh activation source. Retained inactive assertions supply historical provenance only. The new active decision and implementation assertions supply current authority. Derived receipt file hashes are outputs and are not signing inputs.',
+                      '', '```json', json.dumps(raw['activation_link_input'],ensure_ascii=False,indent=2,sort_keys=True), '```']
+    lines += ['', f'<!-- {marker}',
               json.dumps(raw, ensure_ascii=False, separators=(',', ':'), sort_keys=True), '-->']
     return '\n'.join(lines)
 
 
-def composite_approval_payloads(body: str, registry: ScienceRegistry) -> list[dict[str, Any]]:
+def composite_approval_payloads(body: str, registry: ScienceRegistry, *, activation_context=None) -> list[dict[str, Any]]:
     raw = composite_envelope(body)
     if raw is None:
         raise ValueError('Missing composite activation marker')
     binding = ImplementationBinding.model_validate(raw['implementation_binding'])
     expected = activation_approval_payloads(registry, raw['subject_id'], binding)
-    if raw['approvals'] != expected or body.strip() != render_activation_comment(registry, raw['subject_id'], binding).strip():
+    from analysis.science_admission_amendment import DESIGNATED
+    if raw['subject_id']==DESIGNATED:
+        from analysis.science_activation_link import activation_input
+        link=activation_input(registry,binding,activation_context)
+        if not same_typed_value(raw.get('activation_link_input'),link.model_dump(mode='json') if link else None):
+            raise ValueError('Fresh composite must bind complete authenticated predecessor linkage inputs')
+    if not same_typed_value(raw['approvals'], expected) or body.strip() != render_activation_comment(registry, raw['subject_id'], binding,activation_context=activation_context).strip():
         raise ValueError('Composite activation comment must contain the exact complete canonical assertions')
     return expected
 
@@ -302,6 +370,8 @@ class ActivationContext:
     # Only the trusted GitHub collector/verifier may populate this mapping.
     validations: Mapping[str, Mapping[str, Any]]
     recheck: Callable[[], None] | None = None
+    # Only privileged readers populate authenticated historical/current events.
+    source_comments: Mapping[str, Mapping[str, Any]] | None = None
 
     def verify(self, binding: ImplementationBinding, registry: ScienceRegistry, subject_id: str) -> ScienceRegistry:
         if (binding.repository, binding.pull_request, binding.base_sha) != (self.repository, self.pull_request, self.base_sha):
@@ -310,6 +380,9 @@ class ActivationContext:
         git(self.repository_root, 'merge-base', '--is-ancestor', binding.reviewed_head_sha, self.head_sha)
         if diff_digest(self.repository_root, binding.base_sha, binding.reviewed_head_sha) != binding.diff_digest:
             raise ValueError('Implementation code diff digest mismatch')
+        from analysis.science_admission_amendment import DESIGNATED, require_authenticated_amendment_base
+        if subject_id == DESIGNATED:
+            require_authenticated_amendment_base(registry, self)
         projected = project_active_registry(registry, subject_id)
         if build_policy_contract(projected, subject_id).contract_digest != binding.active_contract_digest:
             raise ValueError('Implementation active contract digest mismatch')
@@ -325,7 +398,11 @@ class ActivationContext:
             'run_attempt': binding.validation_run_attempt, 'conclusion': 'success',
             'required_jobs': [VALIDATION_JOB, PROBE_JOB],
         }
-        if dict(validation) != expected:
+        if subject_id == DESIGNATED:
+            from analysis.science_admission_amendment import amendment_value
+            expected.update(schema_version=2, purpose=V2_PURPOSE, baseline_guard_result='denied',
+                            admission_amendment=amendment_value(registry.decisions[subject_id]).model_dump(mode='json'))
+        if not same_typed_value(dict(validation), expected):
             raise ValueError('Implementation validation producer, revision or outcome mismatch')
         return projected
 

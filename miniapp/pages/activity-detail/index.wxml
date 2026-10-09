@@ -1,5 +1,4 @@
-<view wx:if="{{inlineActivity}}" class="{{themeClass}}"><activity-detail activity="{{inlineActivity}}" bindclose="onBack" /></view>
-<view wx:else class="activity-page {{themeClass}} {{languageClass}}">
+<view class="activity-page {{themeClass}} {{languageClass}}">
   <nav-bar title="{{tr.title}}" theme-class="{{themeClass}}" show-back="{{true}}" bindback="onBack" />
   <scroll-view scroll-y="{{true}}" scroll-into-view="{{scrollTarget}}" class="activity-page__scroll">
     <view class="activity-page__content">

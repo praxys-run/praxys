@@ -54,14 +54,31 @@ def main():
                                 {binding.envelope_digest:verified})
     context.verify(binding, registry, args.subject_id)
     context.require_reviewed_tree(binding, root)
-    statements = {'approval.md': render_activation_comment(projected, args.subject_id, binding)}
+    from analysis.science_activation_link import approval_entries
+    from urllib.parse import quote
+    sources={}
+    for _,approval in approval_entries(registry.science_dir):
+        if approval.subject_id!=args.subject_id or approval.role.value!='decision_approver':
+            continue
+        identity=str(approval.source_ref).rsplit('#issuecomment-',1)[-1]
+        if not identity.isdigit():
+            raise ValueError('Invalid retained source identity')
+        event=reader.read('issues/comments/'+identity)
+        login=event.get('user',{}).get('login')
+        permission=reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']
+        sources[str(approval.source_ref)]={'comment':event,'permission':permission}
+    from dataclasses import replace
+    context=replace(context,source_comments=sources)
+    statements = {'approval.md': render_activation_comment(registry, args.subject_id, binding,activation_context=context)}
     verify_pr(reader.read(f'pulls/{args.pull_request}'), args.repository, args.pull_request, base, head)
     args.output_dir.mkdir(parents=True, exist_ok=False)
     for name, body in statements.items():
         (args.output_dir / name).write_text(body + '\n')
     (args.output_dir / 'binding.json').write_text(json.dumps(binding.model_dump(mode='json'), indent=2, sort_keys=True)+'\n')
     (args.output_dir / 'validation.json').write_text(json.dumps(verified, indent=2, sort_keys=True)+'\n')
-    print('Prepared one atomic comment containing all three role assertions. No approval was published or materialized.')
+    from analysis.science_admission_amendment import DESIGNATED
+    roles = 'new V2 decision and implementation' if args.subject_id == DESIGNATED else 'all three roles'
+    print(f'Prepared one atomic comment containing {roles} assertions. No approval was published or materialized.')
     print(f'Envelope: {binding.envelope_digest}')
 
 

@@ -141,8 +141,8 @@ function wxRequest(
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const dfaRights = (options.method === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/(?:source-confirmations|metadata-proofs)\/[^/]+)?$/.test(path))
-    || (options.method === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/(?:runs|receipts)\/[^/]+\/cancel$/.test(path));
+  const dfaRights = (options.method === 'DELETE' && /^\/api\/activities\/[^/]+\/dfa-alpha1(?:\/source-confirmations\/[^/]+)?$/.test(path))
+    || (options.method === 'POST' && /^\/api\/activities\/[^/]+\/dfa-alpha1\/runs\/[^/]+\/cancel$/.test(path));
   if (!dfaRights && !hasAcknowledgedChinaProcessingNotice()) {
     redirectToProcessingNotice();
     throw {

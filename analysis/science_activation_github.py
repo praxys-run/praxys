@@ -13,7 +13,7 @@ import zipfile
 
 from analysis.science_activation import (
     ActivationContext, COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH,
-    COMPOSITE_MARKER, git, implementation_envelope, strict_json,
+    COMPOSITE_MARKER, V2_COMPOSITE_MARKER, git, implementation_envelope, strict_json,
 )
 from analysis.science_artifacts import ImplementationBinding, digest_payload
 
@@ -104,6 +104,24 @@ def fetch_validation(reader: GitHubReader, binding: ImplementationBinding, repos
         validation = strict_json(archive.read('validation.json').decode())
     if digest_payload(validation) != binding.validation_digest:
         raise ValueError('Validation content digest mismatch')
+    from analysis.science_activation import V2_PURPOSE
+    if isinstance(validation, dict) and validation.get('purpose') == V2_PURPOSE:
+        # Strict V2 metadata bindings supplement the unchanged legacy protocol.
+        if (type(run.get('id')) is not int or run['id'] != binding.validation_run_id
+                or type(artifact.get('id')) is not int or artifact['id'] != binding.validation_artifact_id
+                or type(run.get('run_attempt')) is not int
+                or type(artifact.get('workflow_run', {}).get('id')) is not int):
+            raise ValueError('V2 artifact/run identity types or values mismatch')
+        expected_jobs = [VALIDATION_JOB, PROBE_JOB, COLLECTOR_JOB]
+        for job in jobs:
+            if job.get('name') in expected_jobs and (type(job.get('id')) is not int
+                    or job['id'] <= 0 or type(job.get('run_id')) is not int
+                    or job['run_id'] != binding.validation_run_id
+                    or job.get('status') != 'completed'):
+                raise ValueError('V2 jobs must be completed authenticated exact-run jobs')
+        job_ids = [job['id'] for job in jobs if job.get('name') in expected_jobs]
+        if len(set(job_ids)) != len(expected_jobs):
+            raise ValueError('V2 authenticated job identities must be distinct')
     return validation
 
 
@@ -112,7 +130,7 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
     from analysis.science_approval_workflow import _reject_symlinks
     _reject_symlinks(science_dir)
     if not any(any(marker in str(c.get('body', '')) for marker in
-                   ('praxys-science-implementation:v1', COMPOSITE_MARKER)) for c in comments):
+                   ('praxys-science-implementation:v1', COMPOSITE_MARKER, V2_COMPOSITE_MARKER)) for c in comments):
         return None, comments, permissions
     if not repository or not pull_request:
         raise ValueError('Activation requires explicit repository and pull request')
@@ -140,6 +158,26 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
             if binding.repository != repository or binding.pull_request != pull_request:
                 raise ValueError('Approval belongs to another repository or PR')
             validations[binding.envelope_digest] = fetch_validation(reader, binding, root)
+    source_comments={str(c.get('html_url')):{'comment':c,'permission':permissions.get(c.get('user',{}).get('login'),'none')} for c in comments}
+    from analysis.science_activation_link import approval_entries
+    from analysis.science_admission_amendment import DESIGNATED
+    retained_sources=[]
+    for _,approval in approval_entries(science_dir):
+        if approval.subject_id!=DESIGNATED or approval.role.value!='decision_approver':
+            continue
+        source=str(approval.source_ref)
+        if source in source_comments:
+            continue
+        match=re.fullmatch(r'https://github.com/'+re.escape(repository)+r'/(?:pull|issues)/[1-9][0-9]*#issuecomment-([1-9][0-9]*)',source)
+        if match is None:
+            raise ValueError('Retained assertion source is outside exact repository')
+        event=reader.read('issues/comments/'+match[1])
+        login=event.get('user',{}).get('login')
+        if not isinstance(login,str):
+            raise ValueError('Retained source human identity missing')
+        permission=reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']
+        source_comments[source]={'comment':event,'permission':permission}
+        retained_sources.append((source,match[1],login,permission,event))
     original_comments = comments
     original_permissions = dict(permissions)
     def recheck():
@@ -149,6 +187,9 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
         for login, permission in original_permissions.items():
             if reader.read(f'collaborators/{quote(login, safe="")}/permission')['permission'] != permission:
                 raise ValueError('Reviewer permission changed during activation materialization')
+        for source,identity,login,permission,event in retained_sources:
+            if reader.read('issues/comments/'+identity)!=event or reader.read(f'collaborators/{quote(login,safe="")}/permission')['permission']!=permission:
+                raise ValueError('Historical assertion source or permission changed')
         for comment in original_comments:
             if original_permissions.get(comment.get('user', {}).get('login')) not in {'write', 'maintain', 'admin'}:
                 continue
@@ -157,6 +198,6 @@ def authenticated_context(science_dir: Path, comments, permissions, *, repositor
                 binding = ImplementationBinding.model_validate(payload['implementation_binding'])
                 if fetch_validation(reader, binding, root) != validations[binding.envelope_digest]:
                     raise ValueError('Validation changed during activation materialization')
-    context = ActivationContext(root, repository, pull_request, base_sha, head_sha, validations, recheck)
+    context = ActivationContext(root, repository, pull_request, base_sha, head_sha, validations, recheck, source_comments)
     verify_pr(reader.read(f'pulls/{pull_request}'), repository, pull_request, base_sha, head_sha)
     return context, comments, permissions

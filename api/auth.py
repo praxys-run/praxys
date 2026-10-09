@@ -295,8 +295,8 @@ def require_account_deletion_access(
 def is_dfa_rights_route(method: str, path: str) -> bool:
     """Only erasure/revocation/cancellation survive stopped processing."""
     base = r"/api/activities/[^/]+/dfa-alpha1"
-    return ((method == "DELETE" and re.fullmatch(base + r"(?:/(?:source-confirmations|metadata-proofs)/[^/]+)?", path) is not None)
-            or (method == "POST" and re.fullmatch(base + r"/(?:runs|receipts)/[^/]+/cancel", path) is not None))
+    return ((method == "DELETE" and re.fullmatch(base + r"(?:/source-confirmations/[^/]+)?", path) is not None)
+            or (method == "POST" and re.fullmatch(base + r"/runs/[^/]+/cancel", path) is not None))
 
 
 def require_dfa_rights_access(request: Request, db: Session = Depends(get_db)) -> str:

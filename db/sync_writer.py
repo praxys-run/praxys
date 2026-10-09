@@ -240,9 +240,6 @@ def write_activities(user_id: str, rows: list[dict], db: Session) -> int:
             source=_str(row.get("source")) or "garmin",
         )
         db.add(new_obj)
-        db.flush()
-        from db.dfa_receipts import record_completion
-        record_completion(db, user_id, aid, new_obj.source, event_key='activity:'+str(new_obj.id))
         existing[aid] = new_obj
         count += 1
     if count > 0:
@@ -1014,7 +1011,7 @@ def write_garmin_fit_snapshot(user_id: str, account_id: str, activity_id: str,
     return snapshot
 
 
-def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session, *, provider_completion: bool = False) -> GarminFitParse:
+def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session) -> GarminFitParse:
     """Atomic projection; failed versions never displace the last good parse."""
     from db.models import GarminFitChunk, GarminFitParse
     from sync.garmin_fit import FitProjection, PARSER_VERSION, FitArchiveError
@@ -1038,14 +1035,6 @@ def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session, *, provider
         if snapshot.active_parse_id is not None:
             from api.activity_dfa import invalidate_snapshot
             invalidate_snapshot(db, snapshot.user_id, snapshot.id)
-        was_initial_parse = snapshot.active_parse_id is None
         snapshot.active_parse_id = parsed.id
-        if was_initial_parse and provider_completion:
-            from db.dfa_receipts import record_completion
-            ref = dict(provider='garmin', user_id=snapshot.user_id, account_id=snapshot.account_id,
-                activity_id=snapshot.activity_id, snapshot_id=snapshot.id, parse_id=parsed.id,
-                sha256=snapshot.sha256, parser_version=parsed.parser_version)
-            record_completion(db, snapshot.user_id, snapshot.activity_id, 'garmin', account=snapshot.account_id,
-                recording_ref=ref, event_key='archive:'+snapshot.id)
     db.flush()
     return parsed

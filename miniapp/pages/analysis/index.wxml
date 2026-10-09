@@ -168,12 +168,12 @@
       <activity-history
         id="analysis-activity-history"
         tabbed="{{true}}"
-        binddetail="onOpenDetail"
+        binddfa="onOpenDFA"
       />
     </view>
   </scroll-view>
 
-
+  <dfa-analysis id="analysis-dfa" wx:if="{{dfaActivityId}}" activity-id="{{dfaActivityId}}" activity-date="{{dfaActivityDate}}" bindclose="onCloseDFA" />
 
   <view
     wx:if="{{activeSection === 'analysis' && activeMetric}}"

@@ -169,14 +169,6 @@ def _delete_user_owned_rows(
     from api.activity_dfa import _erase
     _erase(db, {"user_id": user_id, "scope": "owner", "target_id": user_id,
                 "requested_at": datetime.utcnow().isoformat()})
-    # The private owner marker is staged before this transaction. Live account
-    # deletion removes its SQL rights rows explicitly, including on SQLite
-    # installations without FK enforcement. Restore replay rebuilds the fence.
-    from db.models import ActivityDFARightsState
-    # Some account-deletion sessions disable autoflush. Finish the transient
-    # restore fence before bulk deletion so no later dirty UPDATE targets it.
-    db.flush()
-    db.query(ActivityDFARightsState).filter_by(user_id=user_id).delete(synchronize_session='fetch')
     for model in (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
                   GarminConnectIQJob, GarminFitSnapshot):
         db.query(model).filter_by(user_id=user_id).delete(synchronize_session=False)

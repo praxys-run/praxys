@@ -10,8 +10,8 @@ from uuid import UUID, uuid4
 from api import feedback_storage
 
 PREFIX = "activity-dfa-deletions"
-SCOPES = {"owner", "activity", "snapshot", "confirmation", "rights", "metadata_proof"}
-REASONS = {"withdrawal", "account_deletion", "source_deletion", "source_changed", "cancelled", "reauthorized"}
+SCOPES = {"owner", "activity", "snapshot", "confirmation"}
+REASONS = {"withdrawal", "account_deletion", "source_deletion", "source_changed"}
 
 
 class StorageError(RuntimeError):
@@ -30,14 +30,7 @@ def _key(value: dict) -> str:
 
 def _validate(value: dict) -> dict:
     try:
-        legacy = {"id", "user_id", "scope", "target_id", "reason", "requested_at", "completed_at"}
-        versioned = legacy | {"version", "activity_id", "rights_generation", "suppressed"}
-        if set(value) not in (legacy, versioned):
-            raise ValueError()
-        if set(value) == versioned:
-            if value['version'] != 2 or type(value['rights_generation']) is not int or value['rights_generation'] < 1 or type(value['suppressed']) is not bool or not isinstance(value['activity_id'],str) or not 1 <= len(value['activity_id']) <= 100:
-                raise ValueError()
-        elif value.get('scope') in ('rights','metadata_proof'):
+        if set(value) != {"id", "user_id", "scope", "target_id", "reason", "requested_at", "completed_at"}:
             raise ValueError()
         UUID(value["id"])
         if not isinstance(value["user_id"], str) or not 1 <= len(value["user_id"]) <= 120:
@@ -92,23 +85,11 @@ def request(user_id: str, scope: str, target_id: str, reason: str) -> dict:
     return value
 
 
-def request_rights(user_id: str, activity: str, generation: int, suppressed: bool, reason: str, *, scope='rights', target_id=None) -> dict:
-    value = {'id':str(uuid4()),'user_id':user_id,'scope':scope,'target_id':target_id or activity,
-        'reason':reason,'requested_at':datetime.utcnow().isoformat(),'completed_at':None,
-        'version':2,'activity_id':activity,'rights_generation':generation,'suppressed':suppressed}
-    store(value)
-    return value
-
-
 def complete(value: dict) -> None:
     store({**value, "completed_at": datetime.utcnow().isoformat()})
 
 
 def expired(value: dict) -> bool:
-    # Owner erasure is an irreversible admission/read fence, including later
-    # provider completions after SQL restore. Keep its payload-free marker.
-    if value['scope']=='owner':
-        return False
     return (value["completed_at"] is not None and
             datetime.fromisoformat(value["completed_at"]) < datetime.utcnow() - timedelta(days=14))
 

@@ -1109,42 +1109,6 @@ def _ensure_sqlite_road_10k_snapshot_schema(engine_obj) -> None:
             )
 
 
-def _ensure_sqlite_dfa_automatic(engine_obj) -> None:
-    """Add the default-off branch to existing local DFA rows, preserving data."""
-    with engine_obj.begin() as conn:
-        conn.exec_driver_sql("CREATE TRIGGER IF NOT EXISTS dfa_metadata_proofs_immutable BEFORE UPDATE ON activity_dfa_metadata_proofs BEGIN SELECT RAISE(ABORT,'DFA metadata proofs are immutable'); END")
-    columns={column['name'] for column in inspect(engine_obj).get_columns('activity_dfa_runs')}
-    if 'origin' in columns:
-        return
-    import sqlalchemy as sa
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
-    connection=engine_obj.connect()
-    enabled=bool(connection.exec_driver_sql('PRAGMA foreign_keys').scalar())
-    connection.commit()
-    if enabled:
-        connection.exec_driver_sql('PRAGMA foreign_keys=OFF');connection.commit()
-    try:
-        with connection.begin():
-            operations=Operations(MigrationContext.configure(connection))
-            with operations.batch_alter_table('activity_dfa_runs',recreate='always') as batch:
-                batch.add_column(sa.Column('origin',sa.String(16),nullable=False,server_default='manual'))
-                batch.add_column(sa.Column('source_assurance',sa.String(24),nullable=False,server_default='user_confirmed'))
-                batch.add_column(sa.Column('metadata_proof_id',sa.String(36),nullable=True))
-                batch.create_foreign_key('fk_dfa_metadata_proof','activity_dfa_metadata_proofs',['metadata_proof_id'],['id'],ondelete='CASCADE')
-                batch.add_column(sa.Column('rights_generation',sa.Integer(),nullable=False,server_default='0'))
-                batch.create_check_constraint('ck_dfa_source_branch',"(origin = 'manual' AND source_assurance = 'user_confirmed' AND metadata_proof_id IS NULL) OR (origin = 'automatic' AND source_assurance = 'metadata_inferred' AND confirmation_id IS NULL)")
-                batch.create_check_constraint('ck_dfa_run_rights','rights_generation >= 0')
-                batch.drop_constraint('ck_dfa_state',type_='check')
-                batch.create_check_constraint('ck_dfa_state',"status IN ('queued','running','awaiting_source_confirmation','complete','unavailable','failed','cancelled','gate_paused')")
-            if connection.exec_driver_sql('PRAGMA foreign_key_check').first():
-                raise RuntimeError('DFA migration foreign-key check failed')
-    finally:
-        if enabled:
-            connection.exec_driver_sql('PRAGMA foreign_keys=ON');connection.commit()
-        connection.close()
-
-
 def _ensure_schema(engine_obj, backend: str) -> None:
     """Create / migrate the schema for the active backend.
 
@@ -1155,7 +1119,6 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         return
     if backend == "sqlite":
         Base.metadata.create_all(bind=engine_obj)
-        _ensure_sqlite_dfa_automatic(engine_obj)
         _ensure_sqlite_road_10k_snapshot_schema(engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
         _rebuild_sqlite_feedback_publication_outbox(engine_obj)

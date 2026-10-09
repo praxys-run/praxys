@@ -61,7 +61,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
-| [sdr-activity-dfa-alpha1-v2](decisions/sdr-activity-dfa-alpha1-v2.yaml) — Conditional automatic raw DFA admission with metadata-inferred source | 2 | dfa-alpha1-raw120-v1 | 2026-10-02 |
+| [sdr-activity-dfa-alpha1-v2](decisions/sdr-activity-dfa-alpha1-v2.yaml) — Designated raw DFA V2 source admission with distinct manual and automatic authority | 2 | dfa-alpha1-raw120-v1 | 2026-10-09 |
 | [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
 | [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
 

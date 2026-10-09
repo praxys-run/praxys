@@ -30,7 +30,6 @@ class Submit(StrictBody):
     input: Input
     catalog_revision: str = Field(min_length=64, max_length=64)
     source_confirmation_id: str | None = Field(None, max_length=36)
-    expected_rights_generation: int | None = Field(None, ge=0)
 
 
 class Confirmation(StrictBody):
@@ -38,7 +37,6 @@ class Confirmation(StrictBody):
     sensor_ref: str = Field(min_length=32, max_length=32)
     evidence_digest: str = Field(min_length=64, max_length=64)
     statement_version: Literal["dfa-source-attestation-v1"]
-    expected_rights_generation: int | None = Field(None, ge=0)
     confirmed: Literal[True]
 
     @field_validator("confirmed", mode="before")
@@ -51,7 +49,6 @@ class Confirmation(StrictBody):
 
 class Retry(StrictBody):
     expected_generation: int = Field(ge=1)
-    expected_rights_generation: int | None = Field(None, ge=0)
 
 
 @router.get("")
@@ -62,7 +59,7 @@ def catalog(activity_id: str, user_id: str = Depends(require_write_access), db: 
 @router.post("")
 def submit(activity_id: str, body: Submit, response: Response,
            user_id: str = Depends(require_write_access), db: Session = Depends(get_db)):
-    result, response.status_code = service.submit(db, user_id, activity_id, body.input.model_dump(), body.catalog_revision, body.source_confirmation_id, body.expected_rights_generation)
+    result, response.status_code = service.submit(db, user_id, activity_id, body.input.model_dump(), body.catalog_revision, body.source_confirmation_id)
     return result
 
 
@@ -86,7 +83,7 @@ def context(activity_id: str, run_id: str, result_revision: str, expected_sample
 
 @router.post("/runs/{run_id}/retry")
 def retry(activity_id: str, run_id: str, body: Retry, user_id: str = Depends(require_write_access), db: Session = Depends(get_db)):
-    return service.change_run(db, user_id, activity_id, run_id, "retry", body.expected_generation, body.expected_rights_generation)
+    return service.change_run(db, user_id, activity_id, run_id, "retry", body.expected_generation)
 
 
 @router.post("/runs/{run_id}/cancel")
@@ -102,30 +99,3 @@ def revoke(activity_id: str, confirmation_id: str, user_id: str = Depends(requir
 @router.delete("")
 def erase(activity_id: str, user_id: str = Depends(require_dfa_rights_access), db: Session = Depends(get_db)):
     return service.erase(db, user_id, activity_id)
-
-
-class Reauthorize(StrictBody):
-    catalog_revision: str = Field(min_length=64,max_length=64)
-    expected_rights_generation: int = Field(ge=0)
-
-
-@router.post('/reauthorize')
-def reauthorize(activity_id: str, body: Reauthorize, user_id: str = Depends(require_write_access), db: Session = Depends(get_db)):
-    return service.automatic.reauthorize(db,user_id,activity_id,body.catalog_revision,body.expected_rights_generation)
-
-
-@router.get('/runs/{run_id}/overview')
-def overview(activity_id: str, run_id: str, result_revision: str,
-             offset: int = Query(0,ge=0), limit: int = Query(1000,ge=1,le=1000),
-             user_id: str = Depends(require_write_access), db: Session = Depends(get_db)):
-    return service.overview(db,user_id,activity_id,run_id,result_revision,offset,limit)
-
-
-@router.delete('/metadata-proofs/{proof_id}')
-def withdraw_inference(activity_id: str, proof_id: str, user_id: str = Depends(require_dfa_rights_access), db: Session = Depends(get_db)):
-    return service.withdraw_inference(db,user_id,activity_id,proof_id)
-
-
-@router.post('/receipts/{receipt_id}/cancel')
-def cancel_receipt(activity_id: str, receipt_id: str, user_id: str = Depends(require_dfa_rights_access),db: Session=Depends(get_db)):
-    return service.cancel_receipt(db,user_id,activity_id,receipt_id)

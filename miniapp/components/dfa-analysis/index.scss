@@ -5,7 +5,7 @@
 .dfa-close { flex: none; min-width: 44px; }
 .dfa-title { display: block; font-size: 38rpx; font-weight: 600; }
 .dfa-scroll { flex: 1; min-height: 0; }
-.dfa-body { position: relative; padding: 24rpx 32rpx calc(64rpx + env(safe-area-inset-bottom)); }
+.dfa-body { padding: 24rpx 32rpx calc(64rpx + env(safe-area-inset-bottom)); }
 .dfa-section { padding: 24rpx 0; border-bottom: 1rpx solid var(--border); }
 .dfa-heading { display: block; font-size: 32rpx; font-weight: 600; margin-bottom: 16rpx; }
 .dfa-copy { display: block; font-size: 28rpx; line-height: 1.65; margin: 16rpx 0; }
@@ -14,6 +14,8 @@
 .dfa-button::after { border: 0; }
 .dfa-button[disabled] { opacity: .5; }
 .dfa-primary { background: var(--primary); color: var(--primary-on); }
+.dfa-check { display: flex; align-items: flex-start; min-height: 44px; padding: 20rpx 0; gap: 16rpx; font-size: 28rpx; line-height: 1.6; }
+.dfa-check checkbox { flex: none; }
 .dfa-summary { display: flex; gap: 32rpx; justify-content: space-between; padding: 16rpx 0; border-top: 1rpx solid var(--border); border-bottom: 1rpx solid var(--border); }
 .dfa-coverage { height: 32rpx; position: relative; background: var(--border); margin: 20rpx 0; }
 .dfa-span { position: absolute; top: 0; height: 100%; }
@@ -25,10 +27,3 @@
 .dfa-science { color: var(--accent-cobalt); border-color: transparent; justify-content: flex-start; padding-left: 0; }
 
 .dfa-page-outline { position: absolute; top: 0; height: 100%; border: 2px solid var(--text); box-sizing: border-box; }
-
-.dfa-checking { min-height: 48rpx; font-size: 28rpx; line-height: 1.65; }
-
-.dfa-range { display:flex; gap:24rpx; }
-.dfa-range label { flex:1; min-width:0; }
-.dfa-inline { color:var(--text); }
-.dfa-inline .dfa-body { padding:0; }

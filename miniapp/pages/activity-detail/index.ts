@@ -243,7 +243,6 @@ Page({
     errorMessage: '',
     notFound: false,
     response: null as ActivityDetailResponse | null,
-    inlineActivity: null as Activity | null,
     view: null as DetailView | null,
     tr: translations(),
     metrics: [] as MetricChoice[],
@@ -274,12 +273,7 @@ Page({
     const id = decodeURIComponent(options.id || '');
     this.setData({ id });
     if (id) void this.fetchDetail(id);
-    else {
-      this.setData({ loading: false });
-      this.getOpenerEventChannel?.()?.on?.('activity', (activity: Activity) => {
-        this.setData({ inlineActivity: activity });
-      });
-    }
+    else this.setData({ loading: false, notFound: true });
   },
 
   onShow() {
@@ -295,10 +289,6 @@ Page({
   onBack() {
     if (getCurrentPages().length > 1) wx.navigateBack();
     else wx.switchTab({ url: '/pages/analysis/index' });
-  },
-
-  onUnload() {
-    if (this.data.inlineActivity) this.getOpenerEventChannel?.()?.emit?.('closed');
   },
 
   onRetry() { if (this.data.id) void this.fetchDetail(this.data.id); },
