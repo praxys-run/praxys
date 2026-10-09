@@ -28,7 +28,7 @@ msgstr "（受 Garmin 访问频率限制）"
 
 #: src/components/PersonalContextPanel.tsx:975
 msgid "(optional)"
-msgstr "（可选）"
+msgstr "（选填）"
 
 #. placeholder {0}: bin.reference_power_activity_count
 #: src/pages/LabsEnvironment.tsx:629
@@ -115,7 +115,7 @@ msgstr "{0} 天"
 #. placeholder {0}: formatRange( conditions.relative_humidity_pct.min, conditions.relative_humidity_pct.max, '%', locale, )
 #: src/components/HeatAdaptationPanel.tsx:545
 msgid "{0} humidity"
-msgstr "湿度 {0}"
+msgstr "湿度{0}"
 
 #. placeholder {0}: selected.counted_session_count
 #. placeholder {1}: selected.session_count - selected.counted_session_count
@@ -608,7 +608,7 @@ msgstr "已触发非诊断安全停止；Praxys 不会给出诊断、治疗或�
 
 #: src/components/HeatAdaptationPanel.tsx:178
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining."
-msgstr "先前符合条件的训练区块仍可为这一阶段提供定性依据，但不同适应反应可能已经开始减弱。"
+msgstr "此前一段达标训练仍可作为这一阶段的定性依据，但不同适应反应可能已经开始减弱。"
 
 #: src/components/HeatAdaptationPanel.tsx:177
 msgid "A prior qualifying block can still inform this qualitative stage, but response-specific adaptations may already be declining. The range shown here describes current qualifying evidence, not that prior block."
@@ -1132,7 +1132,7 @@ msgstr "以上四项都符合我的情况。"
 
 #: src/pages/Status.tsx:72
 msgid "All Systems Operational"
-msgstr "所有系统运行正常"
+msgstr "系统运行正常"
 
 #: src/components/PersonalContextPanel.tsx:1700
 #~ msgid "Allow for this item"
@@ -1943,7 +1943,7 @@ msgstr "正在检查交付兼容性…"
 
 #: src/components/FeedbackDialog.tsx:695
 msgid "Checking public publishing availability…"
-msgstr "正在检查能否公开发布…"
+msgstr "正在检查是否可公开发布…"
 
 #: src/components/PlanStart.tsx:2036
 msgid "Checking readiness…"
@@ -1986,7 +1986,7 @@ msgstr "选择训练方向"
 
 #: src/components/GoalEditor.tsx:44
 msgid "Choose a race target, track continuous progress, or use the 5K baseline pilot."
-msgstr "选择比赛目标、持续追踪进步，或使用 5 公里基线试点。"
+msgstr "选择比赛目标、持续追踪进步，或使用 5K 基准试点。"
 
 #: src/components/PersonalContextPanel.tsx:834
 msgid "Choose a recent workout"
@@ -2046,7 +2046,7 @@ msgstr "只在需要时选择并设置一个可选基准测试日期。Praxys �
 
 #: src/components/TrailCourseReview.tsx:1856
 msgid "Choose at most 14 dates inside the displayed 14-day horizon."
-msgstr "最多可在当前显示的 14 天内选择 14 个日期。"
+msgstr "在当前显示的 14 天范围内，最多可选 14 个日期。"
 
 #: src/components/PlanStart.tsx:1768
 msgid "Choose by training intent"
@@ -3258,7 +3258,7 @@ msgstr "性能下降"
 
 #: src/pages/Status.tsx:73
 msgid "Degraded Performance"
-msgstr "性能降级"
+msgstr "性能下降"
 
 #: src/components/PersonalContextPanel.tsx:1433
 #: src/components/WorkoutPlanEditor.tsx:880
@@ -3330,7 +3330,7 @@ msgstr "删除训练"
 #. placeholder {0}: formatDate(currentDetailItem.narrative_purge_at)
 #: src/components/PersonalContextPanel.tsx:1303
 msgid "Deletes {0}"
-msgstr "将于 {0} 删除"
+msgstr "将于{0}删除"
 
 #: src/components/PersonalContextPanel.tsx:724
 #: src/components/PersonalContextPanel.tsx:1253
@@ -3544,7 +3544,7 @@ msgstr "记录时间是否为完整耗时，且没有未处理的暂停？"
 
 #: src/components/TodayDecisionCheck.tsx:160
 msgid "Did today's brief affect your training decision?"
-msgstr "今日简报影响了你的训练安排吗？"
+msgstr "今日简报影响你的训练决定了吗？"
 
 #: src/components/GoalBaselinePanel.tsx:547
 msgid "Did you follow the exact protocol?"
@@ -4128,7 +4128,7 @@ msgstr "场地或装备受限"
 
 #: src/components/PersonalContextPanel.tsx:1008
 msgid "Equipment still available (optional)"
-msgstr "仍可使用的装备（可多选）"
+msgstr "仍可使用的装备（选填）"
 
 #: src/pages/admin/AdminOps.tsx:431
 #: src/pages/Settings.tsx:976
@@ -4637,7 +4637,7 @@ msgstr "按计划训练"
 
 #: src/components/trail-course-review/copy.tsx:156
 msgid "Food availability"
-msgstr "食物供应"
+msgstr "能量补给情况"
 
 #: src/components/trail-course-review/copy.tsx:101
 msgid "Footing available for training"
@@ -4843,7 +4843,7 @@ msgstr "获取访问权限"
 
 #: src/components/SetupChecklist.tsx:94
 msgid "Get started with Praxys"
-msgstr "开始使用 Praxys"
+msgstr "开始设置 Praxys"
 
 #: src/pages/Admin.tsx:336
 #~ msgid "GitHub isn't configured — nothing to sync."
@@ -5189,7 +5189,7 @@ msgstr "区间和训练负荷的计算方式"
 
 #: src/components/WorkoutStructureEditor.tsx:1494
 msgid "hr"
-msgstr "时"
+msgstr "小时"
 
 #: src/components/SplitBreakdown.tsx:50
 msgid "HR"
@@ -5703,7 +5703,7 @@ msgstr "保留训练"
 
 #: src/components/GoalPlanReconciliationDialog.tsx:170
 msgid "Keeping plan…"
-msgstr "正在保留计划…"
+msgstr "正在保留当前计划…"
 
 #: src/components/HeatAdaptationPanel.tsx:74
 #~ msgid "Kelly female-athlete evidence review"
@@ -5712,7 +5712,7 @@ msgstr "正在保留计划…"
 #: src/pages/ActivityDetail.tsx:227
 #: src/pages/ActivityDetail.tsx:239
 msgid "Kilometer"
-msgstr "公里段"
+msgstr "公里"
 
 #: src/components/ActivityDataInformation.tsx:30
 msgid "Kilometer boundaries use the first recorded distance sample to reach each kilometer."
@@ -5936,7 +5936,7 @@ msgstr "受限"
 
 #: src/components/PlanStart.tsx:499
 msgid "Limits of a universal beginner schedule"
-msgstr "通用入门训练安排的证据限制"
+msgstr "通用入门计划的局限"
 
 #: src/components/PlanStart.tsx:508
 msgid "Limits of inferring a return to training from sparse records"
@@ -6386,7 +6386,7 @@ msgstr "需 MFA"
 
 #: src/components/PersonalContextPanel.tsx:1327
 msgid "Microsoft Azure AI"
-msgstr "Microsoft Azure AI 服务"
+msgstr "Microsoft Azure AI"
 
 #: src/pages/Today.tsx:304
 #~ msgid "mild fatigue"
@@ -6520,7 +6520,7 @@ msgstr "模型估算负荷处于平衡"
 
 #: src/components/HeatAdaptationPanel.tsx:35
 msgid "Moderate coverage"
-msgstr "覆盖度中等"
+msgstr "覆盖中等"
 
 #: src/components/HeatAdaptationPanel.tsx:50
 #~ msgid "Moderate data coverage"
@@ -6873,7 +6873,7 @@ msgstr "暂无活动。"
 
 #: src/pages/admin/AdminUsers.tsx:540
 msgid "No admin configuration found"
-msgstr "未找到管理配置"
+msgstr "未找到管理端配置"
 
 #: src/pages/admin/AdminCommunications.tsx:227
 msgid "No announcements yet"
@@ -6881,7 +6881,7 @@ msgstr "还没有公告"
 
 #: src/components/PersonalContextPanel.tsx:1346
 msgid "No assessment or plan change has used this context yet."
-msgstr "尚未用于任何评估或计划调整。"
+msgstr "这条信息还没用于任何评估或计划调整。"
 
 #: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
@@ -6974,7 +6974,7 @@ msgstr "尚未选择训练执行平台。在配置计划同步前，兼容性信
 
 #: src/components/PersonalContextPanel.tsx:734
 msgid "no expiry"
-msgstr "无到期时间"
+msgstr "无有效期"
 
 #: src/components/PersonalContextPanel.tsx:299
 msgid "No expiry"
@@ -7065,7 +7065,7 @@ msgstr "此窗口内暂无 Praxys 训练。之后由 Praxys 创建的训练会�
 #: src/components/PlanStart.tsx:2007
 #: src/components/trail-course-review/copy.tsx:92
 msgid "No preference"
-msgstr "无偏好"
+msgstr "不限"
 
 #: src/components/PersonalContextPanel.tsx:688
 msgid "No private context saved"
@@ -7126,7 +7126,7 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 
 #: src/pages/ActivityDetail.tsx:232
 msgid "No recorded curves"
-msgstr "无记录曲线"
+msgstr "暂无记录曲线"
 
 #: src/pages/ActivityDetail.tsx:99
 msgid "No recorded distance trace is stored."
@@ -7485,7 +7485,7 @@ msgstr "关于 Garmin 原生功率的说明"
 
 #: src/components/PersonalContextPanel.tsx:790
 msgid "Nothing is stored until you confirm this exact purpose and expiry."
-msgstr "在你确认这个具体用途和到期时间前，不会存储任何内容。"
+msgstr "在确认具体用途和有效期前，不会保存任何内容。"
 
 #: src/pages/Login.tsx:221
 msgid "Now open · Create your account"
@@ -8420,7 +8420,7 @@ msgstr "功率数据源匹配"
 
 #: src/components/trail-course-review/copy.tsx:164
 msgid "Practiced intake"
-msgstr "已练习的补给形式"
+msgstr "已练习的摄入形式"
 
 #: src/components/RecoveryPanel.tsx:227
 #~ msgid "Praxys adapts individualized HRV-guided training and ln(RMSSD) trend monitoring into operational reference bands. The exact Fresh, Normal, and Fatigued cutoffs are product guardrails, not thresholds validated by the cited studies. CV above {cvThreshold}% is also a coaching caution flag, not a diagnosis. Sleep, readiness, RHR, and TSB remain separate informational context."
@@ -8547,7 +8547,7 @@ msgstr "当前执行平台上仍有未来训练。更换前，只移除由 Praxy
 
 #: src/components/GoalBaselinePanel.tsx:114
 msgid "Praxys has not found qualified 10K history yet."
-msgstr "Praxys 还没有找到合格的 10K 历史。"
+msgstr "Praxys 还没找到符合要求的 10K 记录。"
 
 #: src/components/GoalBaselinePanel.tsx:511
 msgid "Praxys has not found qualified 5K history yet."
@@ -9163,7 +9163,7 @@ msgstr "比赛预测"
 
 #: src/pages/admin/AdminOps.tsx:395
 msgid "Rate limited"
-msgstr "已限流"
+msgstr "受访问频率限制"
 
 #: src/pages/admin/AdminUsers.tsx:941
 msgid "Re-invite"
@@ -9492,7 +9492,7 @@ msgstr "推荐"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1454
 msgid "Recommended. Delivered workouts stay on the calendar; Praxys simply stops managing them."
-msgstr "推荐。已下发的训练会保留在日历中，Praxys 只停止继续管理。"
+msgstr "推荐。已下发的训练会保留在日历中；Praxys 只是不再管理。"
 
 #: src/pages/LabsEnvironment.tsx:1236
 msgid "Recompute"
@@ -9756,7 +9756,7 @@ msgstr "采样点已精简显示"
 #. placeholder {0}: detail.linked_revision_ids.length
 #: src/components/PersonalContextPanel.tsx:1337
 msgid "Referenced by {0} plan change record(s)."
-msgstr "被 {0} 条计划调整记录引用。"
+msgstr "有 {0} 条计划调整记录引用了这条信息。"
 
 #: src/components/PlanStart.tsx:487
 #: src/pages/Science.tsx:510
@@ -9956,7 +9956,7 @@ msgstr "组"
 
 #: src/components/WorkoutStructureEditor.tsx:1071
 msgid "Repeat"
-msgstr "重复组"
+msgstr "重复"
 
 #: src/components/WorkoutStructureEditor.tsx:808
 #~ msgid "Repeat children"
@@ -10465,7 +10465,7 @@ msgstr "查看该假设"
 
 #: src/components/PlanStart.tsx:1045
 msgid "Review the constraints and try again."
-msgstr "请复核限制条件后重试。"
+msgstr "请检查限制条件后重试。"
 
 #: src/pages/McpAuthorization.tsx:38
 msgid "Review the current goal"
@@ -10589,7 +10589,7 @@ msgstr "公路"
 
 #: src/components/PlanStart.tsx:2102
 msgid "Road 10K schedule guardrails"
-msgstr "公路 10 公里训练安排护栏"
+msgstr "公路 10K 训练计划约束"
 
 #: src/components/PlanStart.tsx:1415
 msgid "Road and trail policies are exposed here only after their population, goal, and safety boundaries are reviewed and versioned."
@@ -11120,7 +11120,7 @@ msgstr "设置目标"
 
 #: src/components/trail-course-review/copy.tsx:135
 msgid "Set this group to unknown"
-msgstr "将本组设为未知"
+msgstr "将这组设为未知"
 
 #: src/pages/Setup.tsx:588
 msgid "Set up Praxys"
@@ -11608,7 +11608,7 @@ msgstr "挑战目标"
 #: src/components/PersonalContextPanel.tsx:1113
 #: src/components/PersonalContextPanel.tsx:1275
 msgid "Structured details"
-msgstr "已保存的信息"
+msgstr "结构化详情"
 
 #: src/components/PersonalContextPanel.tsx:1613
 #~ msgid "Structured fields sent"
@@ -11825,7 +11825,7 @@ msgstr "同步近期活动以生成每周距离序列。"
 
 #: src/components/HeatAdaptationPanel.tsx:40
 msgid "Sync recent training to start estimating the conditions represented in your heat evidence."
-msgstr "先同步近期训练，Praxys 才能开始估算热适应证据对应的环境条件。"
+msgstr "先同步近期训练，才能开始估算这些热适应证据对应的环境条件。"
 
 #: src/pages/admin/AdminOps.tsx:1669
 msgid "Sync reliability"
@@ -11841,7 +11841,7 @@ msgstr "同步覆盖时长足够的分段或采样数据，以便与所选理论
 
 #: src/components/HeatAdaptationPanel.tsx:45
 msgid "Sync split or sample power evidence so Praxys can identify sustained work."
-msgstr "同步分段或采样功率数据，帮助 Praxys 识别持续发力的训练段。"
+msgstr "同步分段或采样功率数据后，Praxys 才能识别持续做功。"
 
 #: src/components/HeatAdaptationPanel.tsx:54
 #~ msgid "Sync split-level power so workload can contribute."
@@ -11849,7 +11849,7 @@ msgstr "同步分段或采样功率数据，帮助 Praxys 识别持续发力的�
 
 #: src/components/UpcomingPlanCard.tsx:494
 msgid "Sync target to review"
-msgstr "同步目标平台后处理"
+msgstr "同步目标平台后查看"
 
 #: src/components/UpcomingPlanCard.tsx:235
 #~ msgid "Sync to Stryd"
@@ -12008,7 +12008,7 @@ msgstr "同时包含温度和湿度的活动数量不足。"
 
 #: src/pages/LabsEnvironment.tsx:84
 msgid "Temperature is missing from too many otherwise eligible activities."
-msgstr "其他条件合格的活动中，温度缺失过多。"
+msgstr "太多原本符合条件的活动缺少温度数据。"
 
 #: src/components/PlanStart.tsx:2081
 msgid "Templates"
@@ -12024,7 +12024,7 @@ msgstr "节奏跑"
 #: src/components/PersonalContextPanel.tsx:730
 #: src/pages/McpAuthorization.tsx:48
 msgid "Temporary availability"
-msgstr "临时训练安排"
+msgstr "临时可训练时间"
 
 #: src/components/PersonalContextPanel.tsx:365
 msgid "Temporary context can stay active for at most 90 days."
@@ -12836,7 +12836,7 @@ msgstr "这是采纳时保存的方案。当前课表包含之后的调整，请
 
 #: src/components/WorkoutStructureEditor.tsx:2022
 msgid "This legacy workout has no structured tree to deliver."
-msgstr "此旧版训练没有可供交付的结构化步骤。"
+msgstr "这条旧版训练没有可交付的结构化步骤。"
 
 #: src/pages/Verify.tsx:71
 msgid "This link is invalid or has expired. Try signing in to request a new link."
@@ -12933,7 +12933,7 @@ msgstr "此提案为 {0}，无法更改主计划。准备好后，请检查准�
 
 #: src/components/PlanStart.tsx:2169
 msgid "This proposal is not yet your plan. It cannot deliver workouts until after explicit adoption and separate delivery consent."
-msgstr "此提案尚未成为你的计划。在明确采纳并单独同意投递前，它不能投递训练。"
+msgstr "这份提案还不是你的训练计划。只有明确采纳，并单独同意接收训练后，才会下发训练。"
 
 #. placeholder {0}: capability?.purpose.distance?.toUpperCase() ?? '5K'
 #: src/components/PlanStart.tsx:1620
@@ -13611,7 +13611,7 @@ msgstr "不可分析"
 #. placeholder {0}: formatDate(item.expires_at)
 #: src/components/PersonalContextPanel.tsx:733
 msgid "until {0}"
-msgstr "至 {0}"
+msgstr "到 {0} 为止"
 
 #: src/components/GoalPlanReconciliationDialog.tsx:146
 msgid "Until you adopt a replacement, your current workouts and delivery continue unchanged."
@@ -13703,7 +13703,7 @@ msgstr "US"
 
 #: src/components/PlanStart.tsx:2088
 msgid "usable completed weeks; latest run"
-msgstr "个可用完整周；最近跑步"
+msgstr "个可用完整周；最近一次跑步"
 
 #: src/components/ActivityDFA.tsx:263
 msgid "Usable windows are ready to inspect."
@@ -14142,11 +14142,11 @@ msgstr "湿球温度代理值计算器"
 
 #: src/components/PersonalContextPanel.tsx:786
 msgid "What availability changed?"
-msgstr "哪项可用时间有变？"
+msgstr "可训练时间有什么变化？"
 
 #: src/components/PersonalContextPanel.tsx:785
 msgid "What changed with this workout?"
-msgstr "这次训练变了什么？"
+msgstr "这次训练有什么变化？"
 
 #: src/components/HeatAdaptationPanel.tsx:565
 #~ msgid "What counts"
