@@ -345,8 +345,10 @@ def load_science_approvals(
 def validate_registry_approvals(registry: ScienceRegistry) -> None:
     """Validate approval subjects, roles, scopes, and bound digests."""
     approvals = load_science_approvals(registry.science_dir)
+    from analysis.science_activation_link import current_approvals
+    current = current_approvals(registry,approvals)
     seen: set[tuple[str, str, str]] = set()
-    for approval in approvals:
+    for approval in current:
         key = (
             approval.subject_kind.value,
             approval.subject_id,
@@ -370,7 +372,7 @@ def validate_registry_approvals(registry: ScienceRegistry) -> None:
             review.approval_mode == ApprovalMode.ARTIFACT
             and review.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}
             and not _has_approval(
-                approvals,
+                current,
                 ReviewSubjectKind.EVIDENCE_REVIEW,
                 review.id,
                 ReviewRole.EVIDENCE_REVIEWER,
@@ -387,7 +389,7 @@ def validate_registry_approvals(registry: ScienceRegistry) -> None:
         if (
             decision.status in {RecordStatus.ACCEPTED, RecordStatus.SUPERSEDED}
             and not _has_approval(
-                approvals,
+                current,
                 ReviewSubjectKind.SCIENCE_DECISION,
                 decision.id,
                 ReviewRole.DECISION_APPROVER,
@@ -402,7 +404,7 @@ def validate_registry_approvals(registry: ScienceRegistry) -> None:
             and decision.artifact_policy.runtime_state
             == ArtifactRuntimeState.ACTIVE
             and not _has_approval(
-                approvals,
+                current,
                 ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
                 decision.id,
                 ReviewRole.IMPLEMENTATION_REVIEWER,
@@ -627,7 +629,8 @@ def render_decision_review_packet(
             f"Artifact decision {decision_id} has no decision review manifest"
         )
     contract = build_policy_contract(registry, decision_id)
-    approvals = load_science_approvals(registry.science_dir)
+    from analysis.science_activation_link import current_approvals,read_link
+    approvals = current_approvals(registry,load_science_approvals(registry.science_dir))
     lines = [
         f"# Science decision review packet: {decision.title}",
         "",
@@ -857,6 +860,11 @@ def render_decision_review_packet(
         "Exact reviewed decision payload",
         science_decision_payload(decision),
     ))
+    link=read_link(registry) if decision_id=='sdr-activity-dfa-alpha1-v2' else None
+    if link is not None:
+        lines += ['', '## Retained inactive assertions — historical provenance only',
+                  'These assertions do not approve the current active boundary. Current role labels above use fresh active assertions only.']
+        lines += [f"- `{old.path}` — `{old.assertion['subject_digest']}` — `{old.assertion['reviewer']}` — `{old.assertion['reviewed_on']}` — `{old.assertion['source_ref']}`" for old in link.input.historical_assertions]
     return "\n".join(lines).rstrip() + "\n"
 
 

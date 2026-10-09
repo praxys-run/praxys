@@ -36,6 +36,7 @@ def main() -> int:
         required=True,
         help="JSON object mapping GitHub login to repository permission",
     )
+    parser.add_argument("--base-science-dir", type=Path)
     parser.add_argument("--repository")
     parser.add_argument("--pull-request", type=int)
     args = parser.parse_args()
@@ -56,11 +57,21 @@ def main() -> int:
         repository=args.repository, pull_request=args.pull_request,
     )
 
+    stop_context = None
+    from analysis.science_admission_amendment import DESIGNATED
+    from analysis.evidence_registry import load_science_registry
+    if context is None and DESIGNATED in load_science_registry(args.science_dir).decisions:
+        if args.base_science_dir is None:
+            parser.error('Designated decision acceptance requires authenticated --base-science-dir')
+        from analysis.science_stop_github import authenticated_stop_context
+        stop_context = authenticated_stop_context(args.base_science_dir, args.science_dir,
+            repository=args.repository, pull_request=args.pull_request)
     approvals = approvals_from_github_comments(
         args.science_dir,
         comments,
         permissions,
         activation_context=context,
+        stop_context=stop_context,
     )
 
     if not approvals:
@@ -71,6 +82,7 @@ def main() -> int:
         args.science_dir,
         approvals,
         activation_context=context,
+        stop_context=stop_context,
     )
     if not changed:
         print("Science approvals are already materialized.")

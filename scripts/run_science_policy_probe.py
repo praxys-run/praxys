@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from hashlib import sha256
 import json
 import os
+import re
 from pathlib import Path
 import selectors
 import signal
@@ -20,7 +21,7 @@ import time
 TRUSTED_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TRUSTED_ROOT))
 from analysis.evidence_registry import load_science_registry
-from analysis.science_activation import project_active_registry, strict_json
+from analysis.science_activation import project_active_registry, strict_json, same_typed_value, V2_PURPOSE
 from analysis.science_artifacts import build_policy_contract
 from analysis.science_implementation_stop import load_implementation_stops
 from analysis.science_approval_workflow import _reject_symlinks
@@ -73,11 +74,7 @@ def prepared_probe(candidate: Path, purpose: str, subject: str, contract_digest:
 
 
 def _same_typed_value(actual, expected) -> bool:
-    if type(actual) is not type(expected):
-        return False
-    if isinstance(expected, dict):
-        return actual.keys() == expected.keys() and all(_same_typed_value(actual[key], value) for key, value in expected.items())
-    return actual == expected
+    return same_typed_value(actual, expected)
 
 
 def validate_observation(stdout: bytes, returncode: int, expected: dict) -> dict:
@@ -94,7 +91,7 @@ def validate_observation(stdout: bytes, returncode: int, expected: dict) -> dict
 
 def bounded_child(command: list[str], *, cwd: Path, timeout: float = 60, output_limit: int = 16384):
     """Bound aggregate stdout/stderr during capture and terminate child descendants."""
-    if not 0 < timeout <= 60 or not 0 < output_limit <= 65536:
+    if not 0 < timeout <= 60 or not 0 < output_limit <= 16384:
         raise ValueError('Invalid policy observer resource bound')
     process = subprocess.Popen(command, cwd=cwd, env=CHILD_ENV, stdin=subprocess.DEVNULL,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
@@ -138,8 +135,83 @@ def bounded_child(command: list[str], *, cwd: Path, timeout: float = 60, output_
         process.stderr.close()
 
 
+V2_MODULE_PATHS = {**MODULE_PATHS, 'api.dfa_automatic': 'api/dfa_automatic.py',
+                   'analysis.dfa_source': 'analysis/dfa_source.py'}
+V2_CALLABLES = {'historical_v1': ('api.activity_dfa', 'require_historical_v1_policy'),
+                'manual': ('api.activity_dfa', 'require_policy'),
+                'automatic': ('api.dfa_automatic', 'require_policy')}
+
+
+def v2_expected(candidate: Path, contract, phase: str) -> dict:
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE_STOP
+    parameters = sha256(json.dumps(contract.parameter_values, sort_keys=True,
+                                  separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+    denial = dict(http_status=503, detail='DFA_SCIENCE_POLICY_INACTIVE')
+    active = dict(returned_contract=contract.contract_digest,
+                  method_version=contract.model_version, parameter_digest=parameters)
+    return dict(schema_version=2, purpose=V2_PURPOSE, subject_id=DESIGNATED,
+                contract_digest=contract.contract_digest, baseline_stop_digest=BASELINE_STOP, phase=phase,
+                module_paths={name: str(candidate / path) for name, path in V2_MODULE_PATHS.items()},
+                callables={branch: dict(module=module, name=name,
+                    source=str(candidate / V2_MODULE_PATHS[module])) for branch, (module, name) in V2_CALLABLES.items()},
+                observation={'historical_v1': denial, 'manual': active if phase == 'projected-active' else denial,
+                             'automatic': active if phase == 'projected-active' else
+                                 dict(http_status=503, detail='DFA_AUTO_SCIENCE_POLICY_INACTIVE')})
+
+
+def validate_v2_observation(stdout: bytes, returncode: int, expected: dict, candidate: Path) -> dict:
+    if returncode != 0:
+        raise ValueError('Policy observer did not complete successfully')
+    observed = strict_json(stdout.decode('utf-8'))
+    if not isinstance(observed, dict) or 'candidate_dependencies' not in observed:
+        raise ValueError('V2 observation must bind actual candidate dependencies')
+    dependencies = observed['candidate_dependencies']
+    if (not isinstance(dependencies, dict) or not set(expected['module_paths']) <= set(dependencies)
+            or any(type(name) is not str or type(path) is not str for name, path in dependencies.items())):
+        raise ValueError('V2 candidate dependency schema or required modules mismatch')
+    for name, path in dependencies.items():
+        if (re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*', name) is None
+                or name.split('.')[0] not in {'analysis', 'api', 'db', 'sync'}):
+            raise ValueError('V2 dependency namespace escape')
+        stem = candidate.joinpath(*name.split('.'))
+        permitted = [stem.with_suffix('.py'), stem / '__init__.py']
+        if not any(p.is_file() and not p.is_symlink() and str(p.resolve()) == path
+                   and p.resolve().is_relative_to(candidate) for p in permitted):
+            raise ValueError('V2 dependency provenance escape or module shadow')
+    validation = dict(observed)
+    validation.pop('candidate_dependencies')
+    validate_observation(json.dumps(validation).encode(), returncode, expected)
+    return observed
+
+
+def observe_v2(candidate: Path, subject: str, contract_digest: str, *, timeout: float, output_limit: int):
+    from analysis.science_admission_amendment import DESIGNATED, validate_local_amendment
+    from scripts.check_projected_dfa_policy import synthetic_v2_registry
+    if subject != DESIGNATED:
+        raise ValueError('V2 purpose requires exact designated subject')
+    _reject_symlinks(candidate / 'data/science')
+    registry = load_science_registry(candidate / 'data/science')
+    validate_local_amendment(registry, require_unstopped=True)
+    contract = build_policy_contract(project_active_registry(registry, subject), subject)
+    if contract.contract_digest != contract_digest:
+        raise ValueError('Projected V2 contract mismatch')
+    observations = []
+    for phase in ('draft', 'accepted-inactive', 'projected-active'):
+        with synthetic_v2_registry(candidate, phase, contract_digest) as (science, _):
+            expected = v2_expected(candidate, contract, phase)
+            command = [sys.executable, '-E', '-B', '-P', str(TRUSTED_ROOT / 'scripts/observe_science_policy.py'),
+                       str(candidate), str(science), V2_PURPOSE, phase]
+            with tempfile.TemporaryDirectory(prefix='v2-observer-cwd-') as temporary:
+                stdout, returncode = bounded_child(command, cwd=Path(temporary), timeout=timeout, output_limit=output_limit)
+            observations.append(validate_v2_observation(stdout, returncode, expected, candidate))
+    return dict(schema_version=2, purpose=V2_PURPOSE, subject_id=subject,
+                contract_digest=contract_digest, baseline_guard_result='denied', observations=observations)
+
+
 def observe(candidate: Path, purpose: str, subject: str, contract_digest: str, *, timeout: float = 60, output_limit: int = 16384):
     candidate = candidate.resolve()
+    if purpose == V2_PURPOSE:
+        return observe_v2(candidate, subject, contract_digest, timeout=timeout, output_limit=output_limit)
     with prepared_probe(candidate, purpose, subject, contract_digest) as (science, expected):
         # The observer starts with stdlib imports only and then imports candidate
         # modules in a fresh interpreter, never this controller's cached modules.

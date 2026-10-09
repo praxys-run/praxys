@@ -507,3 +507,49 @@ Rendered acceptance remains an independent obligation, separate from real guard
 evidence. Physical Skyline canvas, gestures, screen readers, larger text, native
 focus and contrast gaps remain disclosed. The robot5 package-size failure and
 packaging repair/manual upload remain outside this activation work.
+
+## Designated V2 tooling bridge
+
+The [designated bridge](../dev/designated-dfa-v2-tooling.md) changes admission
+preparation only. V1 STOP, approvals and generated history remain immutable.
+Use the existing trusted `stopped-maintenance` purpose with V1, actual bridge PR,
+exact candidate head and V1 contract for bridge admission. The bridge's new V2
+protocol cannot certify this admission. Independent review and current gates
+remain required; fixture exceptions confer no bridge authority.
+
+The approval-ledger materialization job disables Python bytecode generation at
+job scope and uses `python -B` on both source verifiers and the materializer.
+Physical bytecode/native-shadow/import-slot guards still reject injected artifacts;
+no cache ignore or deletion supplies success. The materializer receives the trusted
+base science snapshot for designated decision-only acceptance.
+
+After trusted tooling is admitted, a later separately authorized V2 activation
+uses `dfa-v2-activation` and the exact V2 subject/contract. Its three-phase actual
+probe must complete on a fresh runner before the separate trusted collector can
+produce schema-2 validation. The current shipped guards cannot complete it.
+Do not interpret simulated protocol tests, repository STOP presence, or successful
+bridge CI as deployment, process drain or V2 activation evidence.
+
+Before V2 activation, roll back bridge source through reviewed stopped-maintenance
+while preserving all terminal STOP and historical science bytes/modes. After V2
+acceptance/activation, use its own reviewed lifecycle; bridge rollback cannot
+implicitly undo V2 or revive V1. Rebind source/base/full diff, current checks and
+reviews after every material source revision. Physical drain remains UNKNOWN
+until Operations supplies actual completion/retirement evidence.
+
+For staged V2 activation, use the
+[immutable assertion linkage](../dev/designated-dfa-v2-staged-assertions.md).
+Preserve the inactive assertion, append the fresh digest-qualified active assertion
+and derived companion, and require authenticated predecessor/current source
+closure plus exact replay. Once linked history exists, rollback must retain a
+compatible history-validating reader; do not roll back to a validator that rejects
+preserved lineage. A lawful V2 terminal STOP remains an exact authenticated two-file
+transaction. Its bound PR may retain historical activation comments, but these
+only reauthenticate existing immutable source history and supply no new authority.
+New approvals, altered envelope/source, extra files, revival or general stopped-V2
+maintenance remain denied. Physical drain remains a separate UNKNOWN obligation.
+
+The approval-ledger automation permits only the designated companion output
+namespace in addition to existing Science outputs. Its complete trusted replay
+and source verifier determine the exact filename/content; the workflow path
+allowlist itself supplies no authority or stale-approval exception.

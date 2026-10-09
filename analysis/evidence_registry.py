@@ -731,6 +731,8 @@ def _load_science_registry(
     for path in _yaml_paths(root / "decisions"):
         raw = _load_yaml(path)
         _validate_schema_version(raw, path)
+        from analysis.science_admission_amendment import prevalidate_amendment_record
+        prevalidate_amendment_record(raw)
         decision = ScienceDecisionRecord.model_validate(raw)
         _add_record(decisions, decision.id, decision, path)
         _validate_record_filename(decision.id, path)
@@ -788,6 +790,8 @@ def _load_science_registry(
         review_paths=review_paths,
         decision_paths=decision_paths,
     )
+    from analysis.science_admission_amendment import validate_designated_registry
+    validate_designated_registry(registry)
     if validate_approvals:
         from analysis.science_artifacts import validate_registry_approvals
 

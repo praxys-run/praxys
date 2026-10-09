@@ -6,7 +6,7 @@ import re
 from typing import Callable, Mapping
 from urllib.parse import quote
 
-from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git
+from analysis.science_activation import COLLECTOR_JOB, VALIDATION_JOB, PROBE_JOB, WORKFLOW_PATH, diff_digest, git, same_typed_value
 from analysis.science_activation_github import GitHubReader, verify_jobs, verify_pr
 from analysis.science_implementation_stop import (
     ImplementationStop, load_implementation_stops, stop_from_comment, validate_stop_target,
@@ -37,7 +37,10 @@ class StopContext:
             'workflow_path':WORKFLOW_PATH, 'conclusion':'success', 'required_jobs':[VALIDATION_JOB, PROBE_JOB],
         }
         if (set(manifest) != set(required) | {'workflow_sha', 'run_id', 'run_attempt'}
-                or any(manifest.get(key) != value for key, value in required.items())):
+                or any(not same_typed_value(manifest.get(key), value) for key, value in required.items())
+                or any(type(manifest.get(key)) is not int or manifest[key] <= 0 for key in ('run_id', 'run_attempt'))
+                or not isinstance(manifest.get('workflow_sha'), str)
+                or re.fullmatch(r'[0-9a-f]{40}', manifest['workflow_sha']) is None):
             raise ValueError('Stopped maintenance validation target, revision or result mismatch')
 
 
@@ -141,8 +144,11 @@ def authenticated_stop_context(base_science_dir: Path, head_science_dir: Path, *
     evidence = {}
     # Only a stop already in trusted base can unlock a later governed change.
     from analysis.science_activation import governed_changes
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_admission_amendment import DESIGNATED, BASELINE
+    designated = DESIGNATED in load_science_registry(head_science_dir).decisions
     for stop in base_stops:
-        if governed_changes(base_science_dir.parent.parent, head_science_dir.parent.parent, stop.subject_id):
+        if (designated and stop.subject_id == BASELINE) or governed_changes(base_science_dir.parent.parent, head_science_dir.parent.parent, stop.subject_id):
             evidence[stop.subject_id] = find_denial_evidence(reader, root, base, head, pull_request, stop)
     def recheck():
         verify_pr(reader.read(f'pulls/{pull_request}'), repository, pull_request, base, head)

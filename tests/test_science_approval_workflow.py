@@ -4,6 +4,11 @@ from datetime import date
 import json
 from pathlib import Path
 import shutil
+import os
+import subprocess
+import sys
+import tarfile
+import io
 
 import pytest
 import yaml
@@ -49,6 +54,79 @@ _WORKFLOW = _ROOT / ".github" / "workflows" / "science-approval-ledger.yml"
 _SELECTIVE_REVIEW_WORKFLOW = (
     _ROOT / ".github" / "workflows" / "selective-review.yml"
 )
+
+
+@pytest.fixture
+def fresh_ledger_checkouts(tmp_path):
+    """Fresh Git inputs, never a filtered copy of a possibly polluted checkout."""
+    trusted = tmp_path / "trusted"
+    trusted.mkdir()
+    archive = subprocess.check_output(["git", "archive", "HEAD"], cwd=_ROOT)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as source:
+        source.extractall(trusted, filter="data")
+    from tests.test_science_activation import commit
+    subprocess.run(["git", "init", "-q"], cwd=trusted, check=True)
+    revision = commit(trusted, "synthetic unchanged trusted stopped baseline")
+    candidate = tmp_path / "candidate"
+    shutil.copytree(trusted, candidate, symlinks=True)
+    return trusted, candidate, revision
+
+
+def _fresh_source_verifier(trusted, candidate, revision, tmp_path):
+    """Run the real CLI/function; only authenticated transport is an offline fixture."""
+    comments = tmp_path / "comments.json"
+    permissions = tmp_path / "permissions.json"
+    comments.write_text("[]")
+    permissions.write_text("{}")
+    bootstrap = """
+import sys, runpy
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from analysis.science_stop_github import StopContext
+from analysis import science_stop_github
+context = StopContext(Path(sys.argv[2]), 'praxys-run/praxys', 1,
+                      sys.argv[3], sys.argv[3], (), {})
+science_stop_github.authenticated_stop_context = lambda *a, **k: context
+sys.argv = [sys.argv[1]+'/scripts/verify_science_approval_sources.py',
+            '--base-science-dir', sys.argv[1]+'/data/science',
+            '--head-science-dir', sys.argv[2]+'/data/science',
+            '--github-comments', sys.argv[4], '--github-permissions', sys.argv[5],
+            '--repository', 'praxys-run/praxys', '--pull-request', '1']
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+    env = {"PATH": os.defpath, "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
+           "PYTHONDONTWRITEBYTECODE": "1"}
+    return subprocess.run([sys.executable, "-B", "-c", bootstrap, str(trusted),
+                           str(candidate), revision, str(comments), str(permissions)],
+                          cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60)
+
+
+def test_fresh_full_source_verifier_creates_no_project_bytecode(fresh_ledger_checkouts, tmp_path):
+    trusted, candidate, revision = fresh_ledger_checkouts
+    result = _fresh_source_verifier(trusted, candidate, revision, tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "sources and lifecycle transitions are verified" in result.stdout
+    for checkout in (trusted, candidate):
+        assert not list(checkout.rglob("*.pyc"))
+        assert subprocess.check_output(["git", "status", "--porcelain"], cwd=checkout) == b""
+
+
+@pytest.mark.parametrize("side", ["trusted", "candidate"])
+@pytest.mark.parametrize("slot", ["api/activity_dfa.pyc",
+                                  "api/__pycache__/activity_dfa.cpython-312.pyc",
+                                  "api/activity_dfa.abi3.so"])
+def test_bytecode_prevention_still_denies_existing_unapproved_import_slots(
+    fresh_ledger_checkouts, tmp_path, side, slot,
+):
+    trusted, candidate, revision = fresh_ledger_checkouts
+    checkout = trusted if side == "trusted" else candidate
+    target = checkout / slot
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"unapproved synthetic import alternative; never executed")
+    result = _fresh_source_verifier(trusted, candidate, revision, tmp_path)
+    assert result.returncode != 0
+    assert "actual-guard denial evidence" in result.stderr
+    assert target.read_bytes() == b"unapproved synthetic import alternative; never executed"
 
 
 def _write_yaml(path: Path, payload: dict[str, object]) -> None:
@@ -726,7 +804,7 @@ def test_workflow_uses_trusted_code_and_rechecks_the_exact_pr_head() -> None:
     assert "actions/create-github-app-token@v3" in workflow
     assert "PRAXYS_REVIEW_POLICY_APP_SLUG" in workflow
     assert "verify_science_approval_sources.py" in workflow
-    assert "python trusted/scripts/materialize_science_approvals.py" in workflow
+    assert "python -B trusted/scripts/materialize_science_approvals.py" in workflow
     assert "python candidate/" not in workflow
     assert 'test "$(git -C candidate rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"' in workflow
     assert 'current_head" != "$EXPECTED_HEAD_SHA"' in workflow
