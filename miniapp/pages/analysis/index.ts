@@ -1,3 +1,4 @@
+import type { AiInsightResponse, CoachTheoryRef } from '../../types/api';
 import { setTabBarHidden, setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet } from '../../utils/api-client';
@@ -786,7 +787,7 @@ function buildState(
       : [],
 
 
-    coach,
+    coach: buildCoachFallback(diagnosis, locale),
     coachTr,
     detailsOpen,
     coachToggleLabel: coachToggleLabelText,
@@ -833,8 +834,11 @@ interface ActivityHistoryComponent {
   loadMore(): void;
 }
 
-Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: string; dfaActivityDate: string }, PageMethods>({
-  data: { ...initialData, tr: buildTrainingTr(), dfaActivityId: '', dfaActivityDate: '' },
+Page<TrainingState & { coachResponse: AiInsightResponse | null; coachLoading: boolean; coachFailed: boolean; coachSnapshot: string; coachTheoryRefs: CoachTheoryRef[]; tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: string; dfaActivityDate: string }, PageMethods>({
+  data: {
+    coachResponse: null as AiInsightResponse | null,
+    coachLoading: true, coachFailed: false,
+    coachSnapshot: '', coachTheoryRefs: [] as CoachTheoryRef[], ...initialData, tr: buildTrainingTr(), dfaActivityId: '', dfaActivityDate: '' },
 
   onOpenDFA(event: WechatMiniprogram.CustomEvent<{ activityId: string; activityDate: string }>) {
     this.setData({ dfaActivityId: event.detail.activityId, dfaActivityDate:event.detail.activityDate });
@@ -1084,6 +1088,7 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
+    this.setData({ coachLoading: true, coachResponse: null, coachFailed: false });
     this.setData(background
       ? { errorMessage: '' }
       : { loading: true, errorMessage: '' });
@@ -1093,10 +1098,11 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
         fetchInsight('training_review').catch((e) => {
           // eslint-disable-next-line no-console
           console.warn('[analysis] Azure AI insight fetch failed; deterministic training metrics remain available:', e);
-          return { insight: null, ai_available: false };
+          return { insight: null, ai_available: true, content_status: 'pending' as const, failed: true };
         }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
+      this.setData({ coachResponse: insightResponse, coachLoading: false, coachFailed: 'failed' in insightResponse });
       const activeMetric = readActiveMetric(pageState, this.data.activeMetric);
       this.setData(
         buildState(
@@ -1111,6 +1117,9 @@ Page<TrainingState & { tr: ReturnType<typeof buildTrainingTr>; dfaActivityId: st
       );
     } catch (e) {
       if (pageState._refetchRequestId !== requestId) return;
+      // This request owns the loading state. Settle Coach even when the
+      // canonical background fetch fails and cached metrics remain visible.
+      this.setData({ coachLoading: false, coachFailed: true });
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });

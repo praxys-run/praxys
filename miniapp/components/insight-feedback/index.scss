@@ -23,8 +23,8 @@
   align-items: center;
   justify-content: center;
   min-width: 116rpx;
-  height: 64rpx;
-  min-height: 64rpx;
+  height: 88rpx;
+  min-height: 88rpx;
   margin: 0;
   padding: 0 14rpx;
   border: 1rpx solid var(--border-subtle);
@@ -73,7 +73,7 @@
   font-size: 20rpx;
 }
 .insight-feedback__cancel {
-  min-height: 64rpx;
+  min-height: 88rpx;
   margin: 0;
   padding: 0 16rpx;
   border: 0;
@@ -90,7 +90,7 @@
 }
 .insight-feedback__send {
   min-width: 136rpx;
-  min-height: 64rpx;
+  min-height: 88rpx;
   margin: 0;
   padding: 0 24rpx;
   border-radius: 8rpx;

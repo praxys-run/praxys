@@ -24,6 +24,8 @@ Component({
   properties: {
     insightType: { type: String as StringConstructor, value: '' },
     datasetHash: { type: String as StringConstructor, value: '' },
+    snapshot: { type: String, value: '' },
+    contentVersion: { type: String, value: '' },
     initialVote: { type: String as StringConstructor, value: '' },
   },
 
@@ -40,7 +42,7 @@ Component({
   },
 
   observers: {
-    'datasetHash, initialVote'(datasetHash: string, initialVote: string) {
+    'datasetHash, initialVote, snapshot, contentVersion'(datasetHash: string, initialVote: string) {
       const validVote = initialVote === 'up' || initialVote === 'down';
       this.setData({
         selectedVote: validVote ? initialVote : '',
@@ -107,9 +109,12 @@ Component({
       const insightType = this.data.insightType as string;
       if (!vote || !datasetHash || !insightType || this.data.submitting || this.data.stale) return;
 
+      const snapshot = this.data.snapshot;
+      const version = this.data.contentVersion;
       const requestIsCurrent = () => (
         this.data.insightType === insightType
         && this.data.datasetHash === datasetHash
+        && this.data.snapshot === snapshot && this.data.contentVersion === version
       );
       this.setData({ submitting: true, error: '' });
       try {
@@ -118,6 +123,7 @@ Component({
           datasetHash,
           vote,
           (this.data.comment as string).trim() || null,
+          snapshot, version,
         );
         if (!requestIsCurrent()) return;
         this.setData({
@@ -137,7 +143,7 @@ Component({
             || apiError.detail === 'INSIGHT_FEEDBACK_UNVERSIONED'
           )
         ) {
-          this.setData({ stale: true, error: this.data.tr.stale });
+          this.setData({ stale: true, error: this.data.tr.stale, selectedVote: '', comment: '', commentLength: 0 });
           this.triggerEvent('stale');
         } else {
           this.setData({ error: this.data.tr.error });

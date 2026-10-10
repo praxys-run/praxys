@@ -1705,7 +1705,10 @@ def _compute_recovery_analysis(
         positions = [
             position
             for position, value in enumerate(numeric.tolist())
-            if pd.notna(value) and (not positive_only or float(value) > 0)
+            if pd.notna(value) and math.isfinite(float(value))
+            and (float(value) > 0 if positive_only else 0 <= float(value) <= 100)
+            and (observed := _coerce_date(recovery_sorted.iloc[position].get("date"))) is not None
+            and observed <= as_of_date
         ]
         if not positions:
             return [], None, None
@@ -1793,6 +1796,7 @@ def _compute_recovery_analysis(
     is_stale = latest_date is not None and latest_date < grace_date
     augmented = {
         **display_analysis,
+        "current_hrv_ms": latest_hrv,
         "latest_date": latest_date.isoformat() if latest_date else None,
         "is_stale": is_stale,
         "hrv_latest_date": hrv_latest_date.isoformat() if hrv_latest_date else None,

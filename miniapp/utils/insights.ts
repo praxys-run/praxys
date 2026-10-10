@@ -68,9 +68,10 @@ export function localizedInsight(
  * Fetch a specific insight and the server-owned Azure AI availability state.
  */
 export async function fetchInsight(
-  insightType: 'training_review' | 'race_forecast',
+  insightType: 'daily_brief' | 'training_review' | 'race_forecast',
+  snapshot?: string | null,
 ): Promise<AiInsightResponse> {
-  return request<AiInsightResponse>(`/api/insights/${insightType}`);
+  return request<AiInsightResponse>(`/api/insights/${insightType}${snapshot ? `?snapshot=${encodeURIComponent(snapshot)}` : ''}`);
 }
 
 /** Submit one vote for the exact generated insight version shown to the user. */
@@ -79,10 +80,12 @@ export async function submitInsightFeedback(
   datasetHash: string,
   vote: InsightFeedbackVote,
   comment: string | null,
+  snapshot?: string,
+  contentVersion?: string,
 ): Promise<InsightFeedbackResponse> {
   return apiPost<InsightFeedbackResponse>(
     `/api/insights/${insightType}/feedback`,
-    { vote, dataset_hash: datasetHash, comment },
+    { vote, dataset_hash: datasetHash, comment, ...(insightType === 'daily_brief' ? { snapshot, content_version: contentVersion } : {}) },
   );
 }
 

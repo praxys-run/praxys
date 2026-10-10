@@ -15,6 +15,7 @@ import pandas as pd
 from analysis.config import (
     LEGACY_PRAXYS_PLAN_SOURCE,
     PRAXYS_PLAN_SOURCE,
+    is_praxys_managed_plan,
     is_praxys_plan_source,
     load_config,
     load_config_from_db,
@@ -26,6 +27,22 @@ from analysis.metrics import is_hard_workout, is_rest_workout
 # ---------------------------------------------------------------------------
 # Training context builder
 # ---------------------------------------------------------------------------
+
+
+def _workout_context(row: dict) -> dict:
+    """Serialize one selected row with canonical ownership and provenance."""
+    workout = {k: (v if pd.notna(v) else None) for k, v in row.items()}
+    observed = pd.to_datetime(workout.get("date"), errors="coerce")
+    workout["date"] = observed.date().isoformat() if pd.notna(observed) else ""
+    source = workout.get("source")
+    origin = workout.pop("workout_origin", None)
+    if is_praxys_plan_source(source):
+        workout["source"] = LEGACY_PRAXYS_PLAN_SOURCE
+        workout["owner"] = PRAXYS_PLAN_SOURCE
+    else:
+        workout["owner"] = "external"
+    workout["origin"] = normalize_workout_origin(origin, source=source)
+    return workout
 
 
 def _build_context_from_data(
@@ -156,9 +173,18 @@ def _build_context_from_data(
             None if recovery_analysis.get("readiness_is_stale")
             else recovery_analysis.get("readiness_score")
         ),
-        "hrv_ms": recovery.get("hrv_ms"),
+        "hrv_ms": recovery_analysis.get("current_hrv_ms", recovery.get("hrv_ms")),
+        "resting_hr": recovery_analysis.get("resting_hr"),
+        "rhr_trend": (None if recovery_analysis.get("rhr_is_stale") else recovery_analysis.get("rhr_trend")),
+        "hrv_trend": ((recovery_analysis.get("hrv") or {}).get("trend")
+                      if not recovery_analysis.get("hrv_is_stale")
+                      and not recovery_analysis.get("classification_reason") else None),
+        "metric_validity": {
+            metric: not recovery_analysis.get(f"{metric}_is_stale", False)
+            for metric in ("hrv", "sleep", "rhr")
+        },
         "hrv_trend_pct": recovery.get("hrv_trend_pct"),
-        "sleep_score": recovery.get("sleep_score"),
+        "sleep_score": recovery_analysis.get("sleep_score", recovery.get("sleep_score")),
         "metric_dates": {
             "hrv": recovery_analysis.get("hrv_latest_date"),
             "sleep": recovery_analysis.get("sleep_latest_date"),
@@ -169,6 +195,8 @@ def _build_context_from_data(
     today_signal = {
         "recommendation": signal.get("recommendation"),
         "reason": signal.get("reason"),
+        "reason_code": signal.get("reason_code"),
+        "alternative_codes": signal.get("alternative_codes") or [],
         "alternatives": signal.get("alternatives") or [],
     }
 
@@ -182,31 +210,51 @@ def _build_context_from_data(
     plan_df = data.get("plan")
     current_plan: list[dict] = []
     planned_today: dict | None = None
+    external_planned_today: list[dict] = []
     if isinstance(plan_df, pd.DataFrame) and not plan_df.empty:
-        plan_future = plan_df[plan_df["date"] >= today]
+        plan_future = plan_df[pd.to_datetime(plan_df["date"], errors="coerce").dt.date >= today]
         for _, row in plan_future.iterrows():
-            wp = {k: (v if pd.notna(v) else None) for k, v in row.to_dict().items()}
-            row_date = wp.get("date")
-            wp["date"] = str(row_date) if row_date is not None else ""
-            raw_source = wp.get("source")
-            raw_origin = wp.pop("workout_origin", None)
-            if is_praxys_plan_source(raw_source):
-                # Keep the context compatible with existing skill clients while
-                # exposing explicit ownership and provenance.
-                wp["source"] = LEGACY_PRAXYS_PLAN_SOURCE
-                wp["owner"] = PRAXYS_PLAN_SOURCE
-            else:
-                wp["owner"] = "external"
-            wp["origin"] = normalize_workout_origin(
-                raw_origin,
-                source=raw_source,
+            current_plan.append(_workout_context(row.to_dict()))
+
+    # Reuse Today's exact order-independent selection and fallback semantics.
+    # The first calendar row may be rest/easy while Today selected a quality
+    # session; a future preferred-source row may also hide today's other source.
+    from api.deps import _get_todays_plan
+
+    all_plans = data.get("all_plans", plan_df)
+    _, selected = _get_todays_plan(
+        plan_df if isinstance(plan_df, pd.DataFrame) else pd.DataFrame(), today,
+        fallback_plan=(all_plans if isinstance(all_plans, pd.DataFrame)
+                       and not is_praxys_managed_plan(config) else None),
+    )
+    if selected is not None:
+        planned_today = _workout_context(selected)
+
+    # The canonical plan stays authoritative. Connected-platform courses are
+    # separate observations, including in Praxys-managed mode where the
+    # canonical plan intentionally excludes them. all_plans is already gated
+    # by include_stryd_plan at the authenticated data-loading boundary.
+    if isinstance(all_plans, pd.DataFrame) and not all_plans.empty:
+        today_rows = pd.to_datetime(all_plans["date"], errors="coerce").dt.date == today
+        for _, row in all_plans[today_rows].iterrows():
+            if is_praxys_plan_source(row.get("source")):
+                continue
+            workout = {
+                k: (row.get(k) if pd.notna(row.get(k)) else None)
+                for k in ("date", "source", "workout_type", "workout_origin",
+                          "planned_duration_min", "planned_distance_km",
+                          "target_power_min", "target_power_max")
+            }
+            workout["date"] = today.isoformat()
+            workout["owner"] = "external"
+            workout["origin"] = normalize_workout_origin(
+                workout.pop("workout_origin", None), source=workout.get("source"),
             )
-            current_plan.append(wp)
-            if planned_today is None and row_date == today:
-                planned_today = wp
+            external_planned_today.append(workout)
 
     return {
         "generated_at": datetime.now().isoformat(),
+        "as_of_date": today.isoformat(),
         "athlete_profile": athlete_profile,
         "science": science_section,
         "current_fitness": current_fitness,
@@ -215,6 +263,7 @@ def _build_context_from_data(
         "today_signal": today_signal,
         "current_plan": current_plan,
         "planned_today": planned_today,
+        "external_planned_today": external_planned_today,
     }
 
 
@@ -243,12 +292,14 @@ def build_training_context(
         db=db,
         include_stryd_plan=include_stryd_plan,
     )
-    return _build_context_from_data(
-        data,
-        user_id=user_id,
-        db=db,
-        recent_training_weeks=recent_training_weeks,
+    context = _build_context_from_data(
+        data, user_id=user_id, db=db, recent_training_weeks=recent_training_weeks,
     )
+    if user_id is not None and db is not None:
+        from api.packs import RequestContext
+        context["data_as_of"] = RequestContext(user_id=user_id, db=db, include_stryd_plan=include_stryd_plan).data_as_of
+    return context
+
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,14 @@
 """Today's training signal endpoint."""
+import hashlib
+import json
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from api.auth import get_current_user_id, get_data_user_id
 from api.dashboard_cache import cached_or_compute
-from api.etag import CACHE_CONTROL, ETagGuard, compute_endpoint_etag
+from api.etag import CACHE_CONTROL, ETagGuard
 from api.packs import (
     RequestContext,
     get_signal_pack,
@@ -49,7 +52,9 @@ def _build_today_payload(
         ctx.heat_adaptation,
         signal["signal"].get("recommendation"),
     )
+    from api.morning_coach import theory_refs
     return {
+        "theory_refs": theory_refs(ctx.science),
         # Server-local calendar date the response was computed for. Clients
         # render the eyebrow against this rather than `new Date()` so a
         # traveler whose device time crossed midnight before sync caught up
@@ -88,32 +93,36 @@ def get_today(
         db,
         user_id=viewer_user_id,
     )
-    guard = ETagGuard(
-        compute_endpoint_etag(
-            db,
-            user_id,
-            "today",
-            variant="stryd-on" if stryd_enabled else "stryd-off",
-        ),
-        request.headers.get("if-none-match"),
-    )
-    if guard.is_match:
+    from api.morning_coach import current_snapshot
+
+    # Verify cache hits, bypasses and misses across the complete read interval.
+    # End read transactions between checks so SQLite/PG cannot replay an old
+    # transaction snapshot. This endpoint owns no writes.
+    body_payload = None
+    for _attempt in range(2):
+        db.rollback()
+        before = current_snapshot(db, user_id, stryd_enabled)
+        body = cached_or_compute(
+            db, user_id, "today",
+            compute=lambda: _build_today_payload(user_id, db, include_stryd_plan=stryd_enabled),
+            source_version_field="coach_snapshot", use_cache=not stryd_enabled,
+        )
+        body_payload = json.loads(body)
+        db.rollback()
+        after = current_snapshot(db, user_id, stryd_enabled)
+        variant_current = stryd_connection_enabled(db, user_id=viewer_user_id)
+        if before == after and variant_current == stryd_enabled:
+            body_payload["coach_snapshot"] = after
+            break
+        stryd_enabled = variant_current
+    else:
+        body_payload["coach_snapshot"] = None
+    body = json.dumps(body_payload, ensure_ascii=False, separators=(",", ":")).encode()
+    # Conditional responses are authorized only after the same verification.
+    guard = ETagGuard('W/"' + hashlib.sha256(body).hexdigest() + '"', request.headers.get("if-none-match"))
+    if body_payload["coach_snapshot"] and guard.is_match:
         return guard.not_modified()
-    compute = lambda: _build_today_payload(
-        user_id,
-        db,
-        include_stryd_plan=stryd_enabled,
-    )
-    body = cached_or_compute(
-        db,
-        user_id,
-        "today",
-        compute=compute,
-        source_version_field="coach_snapshot",
-        use_cache=not stryd_enabled,
-    )
-    return Response(
-        content=body,
-        media_type="application/json",
-        headers={"ETag": guard.etag, "Cache-Control": CACHE_CONTROL},
-    )
+    return Response(content=body, media_type="application/json", headers={
+        "ETag": guard.etag,
+        "Cache-Control": CACHE_CONTROL if body_payload["coach_snapshot"] else "no-store",
+    })

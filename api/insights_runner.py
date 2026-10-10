@@ -1,7 +1,7 @@
 """Post-sync LLM insight generation runner.
 
-Called after a sync finishes. Runs the durable training-review and race-forecast
-generators, each gated by:
+Called after a sync finishes. Runs snapshot-bound daily Coach plus durable
+training-review and race-forecast generators, each gated by:
 
 - A *content-addressable* dataset hash: skip if the inputs that drive the
   insight haven't materially changed since the last generation.
@@ -44,7 +44,7 @@ from api.optional_processing import (
 logger = logging.getLogger(__name__)
 
 
-GENERATORS_ORDER = ("training_review", "race_forecast")
+GENERATORS_ORDER = ("daily_brief", "training_review", "race_forecast")
 INSIGHT_CONTEXT_LOOKBACK_WEEKS = 12
 _RUN_LOCKS = tuple(threading.Lock() for _ in range(64))
 
@@ -52,7 +52,7 @@ _RUN_LOCKS = tuple(threading.Lock() for _ in range(64))
 def run_insights_for_user(
     user_id: str, db: Session, counts: dict, *, _session: Optional[Session] = None
 ) -> dict:
-    """Run the training-review and race-forecast generators for ``user_id``.
+    """Run approved Coach generators for ``user_id``.
 
     Args:
         user_id: User the sync just completed for.
@@ -61,7 +61,7 @@ def run_insights_for_user(
             with the sync transaction.
         counts: Per-platform row-count dict from the sync writer
             (e.g. ``{"activities": 5, "splits": 23}``). A no-op sync skips
-            generation because Today guidance is computed deterministically.
+            multi-week generation; daily eligibility is checked on every run.
         _session: Test-only override. Pass an in-memory session and the
             runner uses it directly instead of opening ``SessionLocal``.
 
@@ -74,16 +74,14 @@ def run_insights_for_user(
         return {"skipped": "ai_unavailable"}
 
     has_new_rows = _has_new_rows(counts)
-    if not has_new_rows:
-        return {"skipped": "no_new_rows"}
     if _session is not None:
-        return _run_serialized(_session, user_id)
+        return _run_serialized(_session, user_id, has_new_rows=has_new_rows)
 
     from db.session import SessionLocal
 
     own_session = SessionLocal()
     try:
-        return _run_serialized(own_session, user_id)
+        return _run_serialized(own_session, user_id, has_new_rows=has_new_rows)
     finally:
         own_session.close()
 
@@ -106,13 +104,13 @@ def _lock_generation(db: Session, user_id: str) -> None:
         )
 
 
-def _run_serialized(db: Session, user_id: str) -> dict:
+def _run_serialized(db: Session, user_id: str, *, has_new_rows: bool = True) -> dict:
     """Serialize one user's runners before taking the source snapshot."""
     lock = _RUN_LOCKS[hash(user_id) % len(_RUN_LOCKS)]
     with lock:
         _lock_generation(db, user_id)
         try:
-            return _run(db, user_id)
+            return _run(db, user_id, has_new_rows=has_new_rows)
         finally:
             # Early-return paths do not commit, so roll back their read
             # transaction to release the transaction-scoped advisory lock.
@@ -120,10 +118,9 @@ def _run_serialized(db: Session, user_id: str) -> dict:
                 db.rollback()
 
 
-def _run(db: Session, user_id: str) -> dict:
+def _run(db: Session, user_id: str, *, has_new_rows: bool = True) -> dict:
     if not background_ai_authorized(db, user_id=user_id):
         return {"skipped": "current_terms_required"}
-    used_today = _count_today(user_id, db)
 
     # Imports deferred so this module is cheap to import (the post-sync hook
     # imports it on every sync, including ones with no new rows).
@@ -133,12 +130,14 @@ def _run(db: Session, user_id: str) -> dict:
     from api import statsig_client
     from api.stryd_access import stryd_connection_enabled
     from api.insights_generator import (
+        generate_daily_brief,
         generate_race_forecast,
         generate_training_review,
     )
     from db.models import AiInsight
 
     generators = {
+        "daily_brief": generate_daily_brief,
         "training_review": generate_training_review,
         "race_forecast": generate_race_forecast,
     }
@@ -152,6 +151,8 @@ def _run(db: Session, user_id: str) -> dict:
         for _attempt in range(2):
             if not background_ai_authorized(db, user_id=user_id):
                 return {"skipped": "processing_not_authorized"}
+            if db.in_transaction():
+                db.rollback()
             run_date = date.today()
             revisions_before = get_revisions(db, user_id, SCOPES)
             if not background_ai_authorized(db, user_id=user_id):
@@ -174,6 +175,8 @@ def _run(db: Session, user_id: str) -> dict:
             )
             if not background_ai_authorized(db, user_id=user_id):
                 return {"skipped": "processing_not_authorized"}
+            if db.in_transaction():
+                db.rollback()
             source_revisions = get_revisions(db, user_id, SCOPES)
             if run_date == date.today() and revisions_before == source_revisions:
                 break
@@ -187,6 +190,10 @@ def _run(db: Session, user_id: str) -> dict:
 
     if not background_ai_authorized(db, user_id=user_id):
         return {"skipped": "processing_not_authorized"}
+    from api.morning_coach import snapshot_identity
+    context["as_of_date"] = run_date.isoformat()
+    context["include_stryd_plan"] = include_stryd_plan
+    context["coach_snapshot"] = snapshot_identity(user_id, source_revisions, run_date.isoformat(), include_stryd_plan)
     statsig_user = statsig_client.get_statsig_user_for_account(
         db,
         user_id=user_id,
@@ -196,7 +203,7 @@ def _run(db: Session, user_id: str) -> dict:
     cap = _daily_cap(statsig_user)
     run_started_at = datetime.utcnow()
 
-    from api import telemetry
+    from api import telemetry, llm
     from db.account_lifecycle import (
         AccountLifecycleBusy,
         account_lifecycle_lease,
@@ -210,7 +217,10 @@ def _run(db: Session, user_id: str) -> dict:
     try:
         with account_lifecycle_lease(user_id, timeout_seconds=30.0):
             for itype in GENERATORS_ORDER:
-                new_hash = compute_dataset_hash(
+                if itype != "daily_brief" and not has_new_rows:
+                    results[itype] = "no_new_rows"
+                    continue
+                new_hash = context["coach_snapshot"] if itype == "daily_brief" else compute_dataset_hash(
                     context,
                     itype,
                     science_pillars=pillars,
@@ -227,12 +237,15 @@ def _run(db: Session, user_id: str) -> dict:
                 )
                 if (
                     existing is not None
-                    and (existing.meta or {}).get("dataset_hash") == new_hash
+                    and (existing.meta or {}).get("input_hash" if itype == "daily_brief" else "dataset_hash") == new_hash
                     and _generation_started_at(existing.meta) is not None
+                    and (itype != "daily_brief" or _valid_daily(existing, new_hash))
                 ):
                     results[itype] = "hash_match"
                     continue
-                if used_today + len(pending) >= cap:
+                if _count_today(user_id, db) >= cap:
+                    if itype == "daily_brief":
+                        _record_daily_failure(db, user_id, context["coach_snapshot"])
                     results[itype] = "cap_reached"
                     continue
                 if not background_ai_authorized(db, user_id=user_id):
@@ -241,8 +254,20 @@ def _run(db: Session, user_id: str) -> dict:
                     return {"skipped": "current_terms_required"}
                 if sqlite and db.in_transaction():
                     db.rollback()
+                # Reserve worst-case provider calls durably before invoking Azure.
+                # A rejected response or crash still consumes its reservation.
+                if not _reserve_attempts(db, user_id, cap, 1 if itype == "daily_brief" else 2):
+                    results[itype] = "cap_reached"
+                    continue
+                if date.today() != run_date or get_revisions(db, user_id, SCOPES) != source_revisions:
+                    return {"skipped": "context_changed"}
+                if not background_ai_authorized(db, user_id=user_id):
+                    return {"skipped": "processing_not_authorized"}
+                db.rollback()
                 payload = generators[itype](context, pillars)
                 if payload is None:
+                    if itype == "daily_brief":
+                        _record_daily_failure(db, user_id, context["coach_snapshot"])
                     results[itype] = "generator_returned_none"
                     continue
                 pending.append((itype, payload, new_hash))
@@ -252,6 +277,8 @@ def _run(db: Session, user_id: str) -> dict:
         logger.info("Insight generation skipped: account lifecycle busy")
         return {"skipped": "account_unavailable"}
 
+    if db.in_transaction():
+        db.rollback()
     if pending:
         from db.session import begin_serialized_write
 
@@ -269,7 +296,6 @@ def _run(db: Session, user_id: str) -> dict:
             results[itype] = "superseded"
 
             continue
-        used_today += 1
         results[itype] = "generated"
 
     if date.today() != run_date:
@@ -280,6 +306,9 @@ def _run(db: Session, user_id: str) -> dict:
     elif not background_ai_authorized(db, user_id=user_id):
         db.rollback()
         return {"skipped": "processing_not_authorized"}
+    elif pending and not llm.runtime_ai_available():
+        db.rollback()
+        return {"skipped": "ai_unavailable"}
     else:
         db.commit()
     for itype in GENERATORS_ORDER:
@@ -323,23 +352,61 @@ def _daily_cap(statsig_user: object | None) -> int:
 
 
 def _count_today(user_id: str, db: Session) -> int:
-    """Count AiInsight rows generated for this user since UTC midnight.
-
-    Uses naive UTC datetimes to match ``AiInsight.generated_at``'s
-    ``datetime.utcnow`` default.
-    """
+    """Read cumulative reserved calls, independently of mutable insight slots."""
     from db.models import AiInsight
+    row = db.query(AiInsight).populate_existing().filter_by(
+        user_id=user_id, insight_type="_generation_budget").first()
+    budget = row.meta if row is not None else {}
+    return int(budget.get("used", 0)) if budget.get("day") == date.today().isoformat() else 0
 
-    today_midnight = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    return (
-        db.query(AiInsight)
-        .filter(
-            AiInsight.user_id == user_id,
-            AiInsight.insight_type.in_(GENERATORS_ORDER),
-            AiInsight.generated_at >= today_midnight,
-        )
-        .count()
-    )
+
+def _valid_daily(row: object, snapshot: str) -> bool:
+    """Require a fully validated daily row before skipping regeneration."""
+    from api.morning_coach import validate_stored
+    return validate_stored(row, snapshot)
+
+
+def _record_daily_failure(db: Session, user_id: str, snapshot: str) -> None:
+    """Record unavailable content for this input without retaining rejected text."""
+    from db.models import AiInsight
+    from db.session import begin_serialized_write
+    from db.cache_revision import lock_revision_writes
+    if db.in_transaction():
+        db.rollback()
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
+    row = db.query(AiInsight).populate_existing().with_for_update().filter_by(
+        user_id=user_id, insight_type="_generation_budget").first()
+    if row is not None:
+        row.meta = {**(row.meta or {}), "daily_failure_snapshot": snapshot}
+    db.commit()
+
+
+def _reserve_attempts(db: Session, user_id: str, cap: int, calls: int) -> bool:
+    """Atomically reserve calls in existing storage, including rejected attempts."""
+    from db.models import AiInsight, User
+    from db.session import begin_serialized_write
+    from db.cache_revision import lock_revision_writes
+    if db.in_transaction():
+        db.rollback()
+    begin_serialized_write(db)
+    lock_revision_writes(db, user_id)
+    user = db.query(User).populate_existing().with_for_update().filter_by(id=user_id).first()
+    if user is None or not user.is_active or not background_ai_authorized(db, user_id=user_id):
+        db.rollback()
+        return False
+    used = _count_today(user_id, db)
+    if used + calls > cap:
+        db.rollback()
+        return False
+    row = db.query(AiInsight).populate_existing().with_for_update().filter_by(
+        user_id=user_id, insight_type="_generation_budget").first()
+    if row is None:
+        row = AiInsight(user_id=user_id, insight_type="_generation_budget")
+        db.add(row)
+    row.meta = {"day": date.today().isoformat(), "used": used + calls}
+    db.commit()
+    return True
 
 
 def _insight_lock_key(user_id: str, insight_type: str) -> int:
@@ -407,8 +474,19 @@ def _upsert_insight(
         .filter(User.id == user_id)
         .first()
     )
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or not background_ai_authorized(db, user_id=user_id):
         return False
+    from api import llm
+    if not llm.runtime_ai_available():
+        return False
+    if itype == "daily_brief":
+        from api.morning_coach import CONTRACT_KEY, current_snapshot
+        from api.stryd_access import stryd_connection_enabled
+        contract = (payload.get("meta_extra") or {}).get(CONTRACT_KEY, {})
+        enabled = stryd_connection_enabled(db, user_id=user_id)
+        if (contract.get("as_of_date") != date.today().isoformat()
+                or contract.get("snapshot") != current_snapshot(db, user_id, enabled)):
+            return False
 
     row = (
         db.query(AiInsight)
@@ -448,7 +526,7 @@ def _upsert_insight(
         itype,
         {
             **meta_extra,
-            "dataset_hash": dataset_hash,
+            "dataset_hash": meta_extra.get("dataset_hash") if itype == "daily_brief" else dataset_hash,
             GENERATION_PROVENANCE_KEY: provenance,
         },
         row.meta,

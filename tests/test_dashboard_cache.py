@@ -223,7 +223,7 @@ def test_compute_source_version_is_deterministic(cache_client):
             "today is date-salted — date.today() must appear in source_version"
         )
         assert "splits=0" in a
-        assert "v=private-plan-boundary-today-v14" in a
+        assert "v=morning-coach-today-v15" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
         assert "v=private-plan-boundary-training-v14" in training
@@ -288,7 +288,7 @@ def test_today_cold_then_warm_hits_cache(cache_client):
     assert cold.status_code == 200
     cold_bytes = cold.content
     cold_snapshot = cold.json()["coach_snapshot"]
-    assert isinstance(cold_snapshot, str) and len(cold_snapshot) == 32
+    assert isinstance(cold_snapshot, str) and len(cold_snapshot) == 64
     int(cold_snapshot, 16)
     assert cold.headers.get("content-type", "").startswith("application/json")
     stats_after_cold = get_stats().get("today", {})
@@ -345,7 +345,7 @@ def test_today_recomputes_prior_response_version_with_snapshot(cache_client):
     try:
         current_version = compute_source_version(db, user_id, "today")
         prior_version = current_version.replace(
-            "v=private-plan-boundary-today-v14",
+            "v=morning-coach-today-v15",
             "v=heat-adaptation-today-v12",
         )
         assert prior_version != current_version

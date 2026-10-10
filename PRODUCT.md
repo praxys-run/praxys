@@ -18,7 +18,8 @@ The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view 
 
 Scientific training system for endurance runners. Praxys combines activity and recovery data from supported platforms and produces interpreted, methodology-cited outputs. The user picks their **training base** (power, heart rate, or pace); the system computes thresholds (CP, LTHR, threshold pace), zones, and load against whichever modality fits their gear and preference. Power is one option of three, not a prerequisite.
 
-- **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load.
+- **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load. The canonical signal remains independently authoritative.
+- **Morning Coach:** a waking summary in training context, covering current recovery (or explicit missingness), recent workout and its recorded splits, seven-day recorded training/load and today's plan. Praxys-managed training is authoritative, including planned rest. Connected-platform courses are named external references: when today has no Praxys-managed session, advice is conditional on choosing that course and uses its recorded targets. An empty day and a scheduled rest day stay distinct. One concrete recommendation is visible; supporting findings and other recommendations start collapsed. Model selection is restricted to server-eligible identifiers; bilingual server templates own every visible word and value. AI outages show explicit Coach unavailability beside separately branded Training metrics.
 - **Managed training:** start, adopt, review, adjust, pause, and end Praxys-owned plans.
 - **Analysis:** zone distribution, CP / threshold trend, fitness-fatigue balance, heat adaptation, and Praxys Coach interpretation across all observed training.
 - **AI training plans:** plans regenerated against current state and goals.
@@ -28,6 +29,14 @@ Scientific training system for endurance runners. Praxys combines activity and r
 Success looks like: the user trusts a one-line signal in the morning, understands why when they want to, and trains better over a season because of it. Every metric on screen has a verifiable source.
 
 ## Brand Personality
+
+**Coach voice:** calm, direct guidance. Connect an observation to its supported
+meaning and a useful next step. Prefer constructive suggestions over correcting
+the runner or repeating what cannot be concluded. Keep necessary risk notices,
+data gaps and ownership facts concise where they affect the choice. Preserve
+uncertainty without turning the briefing into a list of disclaimers. In Chinese,
+use natural phrasing with `你` when needed. The shared AI persona and daily server
+templates both follow this rule.
 
 **Default voice: sharp, opinionated, scientific.** The system holds research-grounded views and shows its work. It is willing to disagree with the user's instinct and cite the paper that says so. It does not hedge for politeness. It uses the right technical word — *threshold*, *CTL*, *polarized* — and explains it inline, once, the first time it appears.
 
