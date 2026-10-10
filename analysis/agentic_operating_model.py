@@ -47,6 +47,12 @@ class AgenticOperatingModel(PolicyRecord):
         agents = [self.executor_agent, self.reviewer_agent, self.operations_agent]
         if len(set(agents)) != 3:
             raise ValueError("executor, reviewer and operations must be distinct")
+        if agents != [
+            ".github/agents/praxys-orchestrator.agent.md",
+            ".github/agents/quality.agent.md",
+            ".github/agents/operations.agent.md",
+        ]:
+            raise ValueError("executor, reviewer and operations identities must match their adapters")
         for value in [*agents, *self.contexts.values()]:
             path = Path(value)
             if path.is_absolute() or ".." in path.parts:

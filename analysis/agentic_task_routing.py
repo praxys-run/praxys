@@ -47,6 +47,18 @@ class TaskRoutingConfig(PolicyRecord):
         _unique(self.authority_triggers)
         if not set(self.authority_triggers) <= set(self.risk_triggers):
             raise ValueError("authority triggers must also be risk triggers")
+        for contributions, mandatory in (
+            (self.primary_objects, (
+                "scientific-evidence", "production-state", "production-incident", "agent-system",
+            )),
+            (self.impacts, (
+                "scientific-evidence-or-claim", "production-operation", "incident-response",
+                "agent-policy-or-autonomy", "architecture-boundary", "trust-boundary",
+            )),
+        ):
+            for concern in mandatory:
+                if concern not in contributions or not contributions[concern].independent_review:
+                    raise ValueError(f"independent review is mandatory for {concern}")
         return self
 
 

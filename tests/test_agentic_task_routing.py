@@ -58,6 +58,29 @@ def test_combined_science_security_runtime_risk_has_one_reviewer():
     assert route.authority_checks == ["security-or-privacy-boundary"]
 
 
+@pytest.mark.parametrize("section,concern", [
+    ("primary_objects", "scientific-evidence"),
+    ("primary_objects", "production-state"),
+    ("primary_objects", "production-incident"),
+    ("primary_objects", "agent-system"),
+    ("impacts", "scientific-evidence-or-claim"),
+    ("impacts", "production-operation"),
+    ("impacts", "incident-response"),
+    ("impacts", "agent-policy-or-autonomy"),
+    ("impacts", "architecture-boundary"),
+    ("impacts", "trust-boundary"),
+])
+@pytest.mark.parametrize("mutation", ["disable", "remove"])
+def test_mandatory_material_risk_review_cannot_be_disabled(section, concern, mutation):
+    payload = load_task_routing_config().model_dump()
+    if mutation == "disable":
+        payload[section][concern]["independent_review"] = False
+    else:
+        del payload[section][concern]
+    with pytest.raises(ValidationError, match="independent review is mandatory"):
+        TaskRoutingConfig.model_validate(payload)
+
+
 def test_order_does_not_change_route_and_policy_edits_invalidate_it():
     a = TaskClassification(primary_object="agent-system", impacts=["repository-change", "agent-policy-or-autonomy"])
     b = TaskClassification(primary_object=a.primary_object, impacts=list(reversed(a.impacts)))

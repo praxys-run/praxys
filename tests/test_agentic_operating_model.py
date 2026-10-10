@@ -35,6 +35,13 @@ def test_executor_cannot_be_its_own_reviewer():
         AgenticOperatingModel.model_validate(payload)
 
 
+def test_executor_and_reviewer_identities_cannot_be_swapped():
+    payload = load_agentic_operating_model().model_dump()
+    payload["executor_agent"], payload["reviewer_agent"] = payload["reviewer_agent"], payload["executor_agent"]
+    with pytest.raises(ValidationError, match="identities must match"):
+        AgenticOperatingModel.model_validate(payload)
+
+
 @pytest.mark.parametrize("path", ["../external.md", "/tmp/external.md"])
 def test_context_cannot_escape_repository(path):
     payload = load_agentic_operating_model().model_dump()

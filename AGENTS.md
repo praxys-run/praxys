@@ -75,8 +75,9 @@ Block only the dependent action and continue independent authorized work.
 - Scientific changes use `science-research` and the existing Evidence Review,
   SDR, independent approval and activation contracts. Consolidating sessions
   does not combine those approval identities or bypass scientific gates.
-- Azure AI is an ordinary authenticated capability. Outages report AI-only
-  features unavailable; separately label deterministic metrics, never as AI.
+- Azure AI is an ordinary authenticated-service capability, not an optional enhancement.
+  During an outage or emergency stop, AI-only features report unavailable while
+  separately labelled deterministic metrics continue; deterministic content is never presented as AI.
   Plugin changes land in the `plugins/praxys` submodule repository first.
 - Deploy, runtime config, secret, infrastructure and alert changes update
   `docs/ops/` in the same PR. Alerts require an action group and inventory entry.

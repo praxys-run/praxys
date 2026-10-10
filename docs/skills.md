@@ -24,8 +24,8 @@ handoff for a Product decision. It has two explicit modes:
 - **Research-only** updates evidence in draft form without changing accepted
   product behavior.
 - **Decision proposal** creates any required draft Science Decision Record for
-  scientific interpretation and runtime boundaries, then hands the evidence and
-  science artifacts to the Product role for a separate Product Decision Record.
+  scientific interpretation and runtime boundaries. The same session records
+  the product recommendation and outcome plan, linking the science artifacts.
 
 It preserves historical records, requires search provenance and source
 verification levels, and never accepts or merges science on an agent's behalf.

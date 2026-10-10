@@ -83,11 +83,11 @@ Science changes use two linked, versioned science records before implementation:
   interpretation, parameters, applicability, claim limits, and runtime
   boundary.
 
-When the work also changes product behavior, Product separately owns a Product
-Decision Record covering the user problem, options, promise, trade-offs,
-minimum valuable scope, non-goals, and outcome plan. Science artifacts are
-dependencies of that product decision; they do not own product value. The
-shared record contract is specified in
+When the work also changes product behavior, the main session records the user
+problem, options, promise, trade-offs, minimum valuable scope, non-goals and
+outcome plan in the task/PR decision section, or links an existing Product
+Decision Record. Link the scientific evidence and decisions without treating
+scientific conclusions as the product value recommendation. The session policy is in
 [`agentic-operating-model.md`](agentic-operating-model.md).
 
 New records use the artifact review workflow documented in

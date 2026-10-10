@@ -504,6 +504,21 @@ def test_current_adapter_contract_passes_without_legacy_approval_rebinding():
     assert "lifecycle_profiles" not in config.model_dump()
 
 
+@pytest.mark.parametrize("mutation", ["swap-identities", "disable-trust-review"])
+def test_static_check_rejects_policy_that_bypasses_independence(tmp_path, mutation):
+    repository = _copy_runtime_fixture(tmp_path)
+    if mutation == "swap-identities":
+        path = repository / "config/agentic-operating-model.json"
+        payload = json.loads(path.read_text())
+        payload["executor_agent"], payload["reviewer_agent"] = payload["reviewer_agent"], payload["executor_agent"]
+    else:
+        path = repository / "config/agentic-task-routing.json"
+        payload = json.loads(path.read_text())
+        payload["impacts"]["trust-boundary"]["independent_review"] = False
+    path.write_text(json.dumps(payload))
+    assert validate_static_runtime_parity(_load_fixture_config(repository), root=repository)
+
+
 @pytest.mark.parametrize("old,new", [
     ('sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"'),
     ('Do not spawn agents', 'May spawn agents'),

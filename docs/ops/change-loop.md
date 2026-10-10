@@ -6,11 +6,11 @@
 > **Use when:** Enabling / operating / tuning the change loop, or debugging "I
 > labeled an issue `agent-ready` but Copilot was never assigned".
 
-Praxys defines seven object-improvement loops. This runbook covers the
-GitHub-native **Delivery loop** entry for qualifying bugs: feedback -> routed
-Work Contract -> drafted fix PR. Production incident execution still lives in
-the private `praxys-run/praxys-ops-agent` repo; the public Operations role can
-classify and hand off an Incident task without receiving production
+This runbook covers GitHub-native automation for qualifying bugs: feedback ->
+one executing session -> drafted fix PR. The session uses domain skills and
+risk-based independent review. Production incident execution still lives in
+the private `praxys-run/praxys-ops-agent` repo; the public Operations adapter
+retains its separately scoped local tools and does not acquire those production
 credentials.
 
 ## How it works
@@ -20,10 +20,7 @@ feedback triage (api/feedback_triage.py)  ──adds `agent-ready` for a qualify
 a maintainer manually adds `agent-ready`  ───────────────────────────────────────────┤
                                                                                       ▼
                           .github/workflows/assign-copilot.yml  ──assigns──▶  Praxys Orchestrator
-                                                                                      │ opens
-                                                                                      ▼
-                          deterministic Work Contract ──▶ Delivery / Change Loop
-                                                                                      │ opens
+                                                                                      │ implements and verifies
                                                                                       ▼
                     draft PR ──▶ checks + outcome observer ──▶ policy-controlled merge gate
 ```
@@ -176,11 +173,8 @@ verdicts so prompt changes are not scored against decisions they do not own.
 
 - Repo admin (to enable the coding agent, create labels, set branch protection).
 - `gh` CLI authenticated (`gh auth status`).
-- Before operating explicit invocation-ledger migration, bind the action to an
-  exact reviewed artifact and satisfy the linked-worktree quiescence and
-  pre-state requirements in the claim-ownership ODR, plus the predecessor ODR
-  for any v1 backfill. Repository implementation approval is not migration
-  authority.
+- Private legacy invocation/trial ledgers remain retained. The current flow
+  requires no admission, migration or provisioning of those retired ledgers.
 
 ## Steps
 
@@ -690,7 +684,7 @@ and the cost is low).
 
 - Label a **qualifying bug** `agent-ready` → the `Change loop — assign
   agent-ready issues to Copilot` workflow runs and the issue gets
-  `copilot-swe-agent` as an assignee using the `praxys-change-loop` custom
+  `copilot-swe-agent` as an assignee using the `praxys-orchestrator` custom
   agent; a draft PR follows.
 - Mark a Copilot PR ready without the recorded final preflight or with a failing
   required check → `Copilot PR readiness guard` returns it to draft.
