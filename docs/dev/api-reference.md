@@ -781,7 +781,11 @@ dashboard consumers do not duplicate training formulas. `current_tsb` is `null`
 until the account has one active CTL time constant of history.
 `distribution_match_pct` is `null` unless every recent activity has at least 90%
 duration coverage from split or timestamped sample intensity and every zone has
-a target. Timestamped samples also require a median cadence of five seconds or
+a target. For power-based accounts, the distribution and its coverage denominator
+include only running activities (`running` and subtypes ending in `_running` or
+`_run`); non-running activities do not contribute or block completeness. Garmin
+activities may use their Stryd ConnectIQ samples as power evidence. Timestamped
+samples also require a median cadence of five seconds or
 less. `load_compliance_pct` uses only completed weeks where both actual and
 planned load have exact selected-base inputs and the plan target is positive.
 It is `null` until at least two such weeks exist. A week is complete only after

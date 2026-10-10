@@ -11,7 +11,10 @@ from analysis.metrics import diagnose_training
 # ---------------------------------------------------------------------------
 
 def _activities(rows: list[dict]) -> pd.DataFrame:
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    if not frame.empty and "activity_type" not in frame.columns:
+        frame["activity_type"] = "running"
+    return frame
 
 
 def _splits(rows: list[dict]) -> pd.DataFrame:
@@ -347,6 +350,167 @@ def test_isolated_sample_does_not_claim_workout_coverage():
     result = diagnose_training(
         acts, pd.DataFrame(), _cp_trend(cp), samples=samples,
         threshold_value=cp, current_date=_today(),
+    )
+
+    assert result["data_meta"]["distribution_resolution"] == "unavailable"
+    assert result["data_meta"]["distribution_complete"] is False
+    assert result["data_meta"]["distribution_coverage_pct"] == 0
+
+
+def test_power_distribution_includes_all_running_types_only():
+    """Garmin running subtypes count; non-running activities do not affect zones."""
+    cp = 250.0
+    running_types = [
+        "running",
+        "trail_running",
+        "treadmill_running",
+        "track_running",
+        "virtual_run",
+        "ultra_run",
+    ]
+    activity_rows = [
+        {
+            "activity_id": activity_type,
+            "activity_type": activity_type,
+            "date": _recent(1),
+            "distance_km": 5,
+            "duration_sec": 100,
+            "source": "garmin",
+        }
+        for activity_type in running_types
+    ]
+    activity_rows.extend([
+        {
+            "activity_id": "cycling",
+            "activity_type": "cycling",
+            "date": _recent(1),
+            "distance_km": 20,
+            "duration_sec": 200,
+            "source": "garmin",
+        },
+        {
+            "activity_id": "hiking",
+            "activity_type": "hiking",
+            "date": _recent(1),
+            "distance_km": 5,
+            "duration_sec": 100,
+            "source": "garmin",
+        },
+    ])
+    samples = []
+    for activity_type in running_types:
+        samples.extend({
+            "activity_id": activity_type,
+            "t_sec": 1_000_000 + second,
+            "power_watts": 175.0,
+            "hr_bpm": None,
+            "pace_sec_km": None,
+            "source": "stryd",
+        } for second in range(0, 100, 2))
+    # Complete but non-running power evidence must not contribute to the zone mix.
+    samples.extend({
+        "activity_id": "cycling",
+        "t_sec": 2_000_000 + second,
+        "power_watts": 400.0,
+        "hr_bpm": None,
+        "pace_sec_km": None,
+        "source": "garmin",
+    } for second in range(0, 200, 2))
+    splits = _splits([
+        {
+            "activity_id": activity["activity_id"],
+            "split_num": 1,
+            "avg_power": 175.0,
+            "duration_sec": activity["duration_sec"],
+        }
+        for activity in activity_rows
+    ])
+
+    result = diagnose_training(
+        _activities(activity_rows), splits, _cp_trend(cp),
+        samples=_samples(samples), threshold_value=cp, current_date=_today(),
+    )
+
+    distribution = {
+        zone["name"]: zone["actual_pct"] for zone in result["distribution"]
+    }
+    assert result["data_meta"]["distribution_resolution"] == "samples"
+    assert result["data_meta"]["distribution_complete"] is True
+    assert result["data_meta"]["distribution_coverage_pct"] == 100
+    assert distribution["Endurance"] == 100
+    assert distribution["VO2max"] == 0
+    # Interval-power evidence retains its existing all-activity scope.
+    assert result["interval_power"]["activities_expected"] == 8
+    assert result["interval_power"]["evidence_complete"] is True
+
+
+def test_non_running_activities_do_not_mask_incomplete_running_coverage():
+    """The 90% gate is evaluated against running duration only."""
+    activities = _activities([
+        {
+            "activity_id": "run",
+            "activity_type": "treadmill_running",
+            "date": _recent(1),
+            "distance_km": 5,
+            "duration_sec": 100,
+            "source": "garmin",
+        },
+        {
+            "activity_id": "ride",
+            "activity_type": "cycling",
+            "date": _recent(1),
+            "distance_km": 20,
+            "duration_sec": 1000,
+            "source": "garmin",
+        },
+    ])
+    splits = _splits([
+        {
+            "activity_id": "run",
+            "split_num": 1,
+            "avg_power": 175.0,
+            "duration_sec": 89,
+        },
+        {
+            "activity_id": "ride",
+            "split_num": 1,
+            "avg_power": 400.0,
+            "duration_sec": 1000,
+        },
+    ])
+
+    result = diagnose_training(
+        activities, splits, _cp_trend(), threshold_value=250.0,
+        current_date=_today(),
+    )
+
+    assert result["data_meta"]["distribution_resolution"] == "splits"
+    assert result["data_meta"]["distribution_coverage_pct"] == 89
+    assert result["data_meta"]["distribution_complete"] is False
+
+
+def test_non_running_power_samples_do_not_enable_distribution():
+    """A power-bearing ride alone is not evidence for running power zones."""
+    activities = _activities([{
+        "activity_id": "ride",
+        "activity_type": "cycling",
+        "date": _recent(1),
+        "distance_km": 20,
+        "duration_sec": 100,
+        "source": "garmin",
+    }])
+    samples = _samples([{
+        "activity_id": "ride",
+        "t_sec": 1_000_000 + second,
+        "power_watts": 250.0,
+        "hr_bpm": None,
+        "pace_sec_km": None,
+        "source": "garmin",
+    } for second in range(100)])
+
+    result = diagnose_training(
+        activities, pd.DataFrame(), _cp_trend(), samples=samples,
+        threshold_value=250.0, current_date=_today(),
     )
 
     assert result["data_meta"]["distribution_resolution"] == "unavailable"

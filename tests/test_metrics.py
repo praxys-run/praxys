@@ -539,6 +539,7 @@ def _make_activities(dates, distances):
         "date": dates,
         "activity_id": [str(i) for i in range(len(dates))],
         "distance_km": distances,
+        "activity_type": "running",
     })
 
 
