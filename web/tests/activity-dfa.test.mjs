@@ -79,11 +79,24 @@ test('actual miniapp refresh never recomputes an expired cache with a retained p
   await c.launch();assert.equal(calls.find(v=>v.method==='POST').body.source_confirmation_id,'proof');
 });
 test('actual miniapp clears HR values before an asynchronous power comparator response',async()=>{
-  let resolveContext;const c=miniComponent(()=>new Promise(resolve=>{resolveContext=resolve;}));
+  let resolveRun,resolveContext;const requests=[];
+  const c=miniComponent(path=>{
+    requests.push(path);
+    return new Promise(resolve=>{if(path.includes('/context?'))resolveContext=resolve;else resolveRun=resolve;});
+  });
   c.setData({run:completed,comparators:['HR','Power','Pace'],comparator:0,canAnalyse:true});
   await c.showResult(completed);assert.equal(c.data.rows[0].value,'120.0');
   const change=c.onComparator({detail:{value:'1'}});
   assert.equal(c.data.comparator,1);assert.deepEqual(c.data.rows,[]);assert.deepEqual(c.data.comparatorSeries,[]);
+  assert.equal(c.data.run,null);assert.equal(c.data.hasResult,false);
+  assert.deepEqual(requests,['/api/activities/activity/dfa-alpha1/runs/run?offset=0&limit=120']);
+  assert.equal(resolveContext,undefined);
+  // Comparator changes must first obtain a currently authorized run, then
+  // fetch the distinct overlay. Neither pending stage may restore old HR.
+  resolveRun(completed);await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.data.run.result_revision,'revision');assert.equal(c.data.hasResult,true);
+  assert.deepEqual(c.data.rows,[]);assert.deepEqual(c.data.comparatorSeries,[]);
+  assert.equal(requests[1],'/api/activities/activity/dfa-alpha1/runs/run/context?offset=0&limit=120&result_revision=revision');
   resolveContext({result_revision:'revision',samples_revision:'1',offset:0,windows:[{index:0,power_watts:250,pace_sec_km:300}]});
   await change;assert.equal(c.data.rows[0].value,'250.0');assert.equal(c.data.comparatorSeries[0].label,'Power');
 });
