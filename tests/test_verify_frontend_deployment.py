@@ -132,9 +132,10 @@ def test_public_probe_identifies_itself_and_revalidates(monkeypatch):
 
 
 def test_known_cloudflare_beacon_and_indentation_do_not_hide_the_current_app(dist, monkeypatch):
-    original = (dist / "app-shell.html").read_bytes()
+    original = b"<body>" + (dist / "app-shell.html").read_bytes() + b"\n  </body>"
+    (dist / "app-shell.html").write_bytes(original)
     beacon = b'''<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4abc" data-cf-beacon='{"token":"synthetic"}' crossorigin="anonymous"></script>'''
-    served = original + b"\n  " + beacon + b"\n"
+    served = original.replace(b"</body>", beacon + b"\n</body>")
     assert served != original
     serve(dist, monkeypatch, {"/settings": served})
     assert deployment.probe(deployment.BASE_URLS[1], SHA, deployment.expected_resources(dist), float("inf"))["matched"] is True
@@ -164,3 +165,22 @@ def test_theme_code_and_visible_document_text_are_preserved():
     base = b'<script>applyTheme()</script><p>Praxys</p>'
     for changed in (b'<script>otherTheme()</script><p>Praxys</p>', b'<script>applyTheme()</script><p>old version</p>'):
         assert deployment.resource_fingerprint("/settings", base) != deployment.resource_fingerprint("/settings", changed)
+
+
+def test_newline_between_inline_elements_is_preserved():
+    spaced = b"<body><p><span>Hello</span>\n<span>world</span></p></body>"
+    joined = spaced.replace(b"\n", b"")
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "pre", "textarea"])
+def test_raw_text_whitespace_is_preserved(tag):
+    spaced = f"<body><{tag}>\n  </{tag}></body>".encode()
+    joined = f"<body><{tag}></{tag}></body>".encode()
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)
+
+
+def test_malformed_preformatted_body_whitespace_is_preserved():
+    spaced = b"<body><pre>\n  </body>"
+    joined = b"<body><pre></body>"
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)

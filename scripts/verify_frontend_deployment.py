@@ -63,6 +63,13 @@ class _DocumentFingerprint(HTMLParser):
         if self.beacon and tag == "script":
             self.beacon = False
             return
+        # The observed beacon adds a newline immediately before </body>.
+        # Normalize only this boundary, preserving spacing between inline
+        # elements and all raw/preformatted content, including malformed HTML.
+        if tag == "body" and not self.raw_text:
+            while (self.events and self.events[-1][0] == "data"
+                   and not self.events[-1][1].strip() and "\n" in self.events[-1][1]):
+                self.events.pop()
         self.events.append(("end", tag))
         if self.raw_text and self.raw_text[-1] == tag:
             self.raw_text.pop()
@@ -71,10 +78,6 @@ class _DocumentFingerprint(HTMLParser):
         if self.beacon:
             if data.strip():
                 raise ValueError("edge beacon contains unexpected inline code")
-            return
-        # Only inter-element indentation is cosmetic. Preserve application
-        # text, theme scripts and preformatted content byte for byte.
-        if not self.raw_text and not data.strip() and "\n" in data:
             return
         self.events.append(("data", data))
 

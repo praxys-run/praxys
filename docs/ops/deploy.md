@@ -75,8 +75,10 @@ entry points one shared ten-minute startup window. It checks the full source
 SHA at the Azure origin, `praxys.run`, and `www.praxys.run`, then compares the
 served Settings app document, bootstrap script, and `sw.js` with the downloaded
 package. HTML comparison preserves elements, attributes, application/theme
-code, and visible text, while normalizing inter-element indentation and only
-the identified Cloudflare Insights beacon insertion. Bootstrap and worker
+code, and visible text, while normalizing only newline indentation immediately
+before the closing body tag and the identified Cloudflare Insights beacon
+insertion. Whitespace between inline elements and in scripts, styles, or
+preformatted content remains significant. Bootstrap and worker
 bytes must still match exactly; unknown scripts, event-handler attributes,
 changed app content, and stale resources remain failures. A healthy `/healthz`
 alone cannot pass this check. Each attempt records
