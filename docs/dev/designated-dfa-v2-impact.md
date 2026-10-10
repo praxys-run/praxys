@@ -123,3 +123,74 @@ rejected. The deterministic positive fixtures synchronize from a completed real
 renewal without changing the independent watchdog; benchmark execution remains
 unsynchronized. A delayed-reason positive case and the before-commit negative
 case cover the interleaving. Runtime/client/Science code and modes are unchanged.
+
+### Admission contention repair after latest-main integration
+
+The failed exact `15ebd0b` preflight (4,349 passed, one failed, 53 skipped)
+remains bound to base `8f0f5db`. Its seventh admission was accepted and its
+physical retirement occurred within five seconds, but lacked the required
+matching committed-priority cause. It is a failed causal cohort, not evidence
+of a five-second physical yield miss. A bounded PostgreSQL comparison also
+observed aggregate renewal exceeding 250ms; replacing SQLite is insufficient.
+Neither the original SQLite exception nor a PostgreSQL lock-timeout cause was
+established. Diagnostic overhead and a retained fixture cleanup failure limit
+those observations.
+
+Retry now performs current owner, rights, source and generation checks inside
+the original serialized owner transaction, defers the prior result payload,
+clears its result/revision, and returns queued metadata only. Metadata projection
+and pending writes finish before the global control admission mutation and
+commit. No authority check is moved outside the serialization fence. Current
+grant reconstruction performs the fresh processing/Science/origin/journal checks
+once, explicitly comparing the run's contract; `_current` no longer repeats
+that reconstruction's processing and Science checks. Renewal uses its one
+observed priority query for both permission invalidation and reason reporting.
+
+The supervisor control pool has two bounded connections, for renewal and the
+single spawn/exit acknowledgement. Acknowledgements do not overlap: exit
+projection follows work-thread join. SQLite control I/O uses a separate pool
+with the repository's durability pragmas and a 100ms busy timeout; PostgreSQL
+retains 200ms statement/lock deadlines and 100ms checkout. The 250ms poll and
+750ms local expiry are unchanged. The prospective synthetic capacity profile
+names both control connections; its causal, refusal, accepted-failure and
+finite-budget assertions are unchanged. No 100-trial rerun is part of this
+repair's focused verification.
+
+New bounded cells run one ingress per database, retain every acceptance/refusal
+and terminal failure, observe actual commit/error outcomes and separate physical
+exit/durable availability, delay response delivery only after commit, and require
+real manual completion and exit/availability before reuse. Negative tests cover
+rights/source/generation changes, stale-result response denial and late child
+publication. PostgreSQL fixture cleanup deletes only the fixture owner's sync
+children/connections before that owner. A new migrated scratch database separates
+prospective evidence from the earlier diagnostic's retained orphaned synthetic
+owner; earlier failures are neither erased nor counted as passing cells.
+
+Latest main was ordinarily merged at `157d42c` with base `e646278`. The two locale
+conflicts preserve incoming Coach entries and existing DFA translations. Shared
+CSS and the native Analysis page changed upstream, so complete historical web
+hash equivalence no longer establishes merged rendered behavior. Fresh affected
+web rendering and native compilation/rendering remain separate evidence gaps;
+native calls remain paused pending external DevTools recovery. No frozen DFA
+Science/STOP or numerical source changes are included in this repair.
+
+Renewal's aggregate 250ms budget now includes actual commit completion. If that
+completion is late, local permission is denied and its previous deadline is
+not extended; durable readiness alone cannot authorize the physical reactor.
+Real SQLite BUSY and PostgreSQL lock-timeout tests exercise this failure path
+with independent connections; delayed completed-commit negatives preserve the
+same aggregate budget. The earlier combined focused run's cold-SDK regression
+was an actual fallback factory error with a mocked uninitialized `SessionLocal`;
+it was corrected using the existing configured database-URL resolver, while
+keeping the orphan-retirement-before-initialization regression intact.
+
+Because response metadata can load Control before admission, admission refreshes
+the actual `FOR UPDATE` row rather than trusting the ORM identity cache. A real
+independent PostgreSQL drain committed after projection denies admission and
+leaves generation, sequence and admission unchanged. The prospective cells
+start locally denied and require a new real completed renewal; the legacy
+fixture's long direct-step permission does not authorize their physical launch.
+Lock-negative evidence records actual SQLite BUSY or the winning PostgreSQL
+200ms deadline (statement cancellation or lock timeout), with exact DBAPI class
+and code, blocked control UPDATE and unchanged local permission. This does not
+retroactively identify the original failed SQLite admission's exception.

@@ -178,7 +178,7 @@ def test_100_healthy_synthetic_manual_admission_preemptions(both_origins,monkeyp
         row=db.get(Run,manual['id']);row.status='failed';row.error_code='synthetic_retry';db.commit()
     complete_unit(factory,owner)
     supervisor=factory.dfa_supervisor
-    supervisor.controls=sessionmaker(bind=create_engine(factory.kw['bind'].url,pool_size=1,max_overflow=0,pool_timeout=.1,
+    supervisor.controls=sessionmaker(bind=create_engine(factory.kw['bind'].url,pool_size=2,max_overflow=0,pool_timeout=.1,
                                                         connect_args={'timeout':.1}))
     real_popen=subprocess.Popen
     code='''import io,json,signal,sys,time
@@ -338,7 +338,7 @@ else:
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
-        (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + reserved control connection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
+        (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
             'cohort':'100 accepted durable admissions; pre-admission refusals separately retained, not 100/100 ingress success',
             'measurement_scope':'cohort excluding fixture setup; full pytest duration reported separately',
             'attempts':len(ingress),'maximum_attempts':maximum_attempts,'maximum_seconds':600,

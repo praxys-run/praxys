@@ -164,11 +164,8 @@ def _owned(db: Session, owner: str, activity: str, run_id: str, *, metadata_only
 def _current(db: Session, run: Run) -> bool:
     if run.freshness != "current" or run.method_version != METHOD_VERSION:
         return False
-    try:
-        if require_authority(db, run.user_id) != run.science_contract_digest:
-            return False
-    except HTTPException:
-        return False
+    # grant_current reconstructs the exact binding from fresh processing,
+    # Science, journal and origin authority. Do not repeat those checks here.
     from api.dfa_rights import grant_current
     return grant_current(db, run) and _source_current(db, run)
 
@@ -364,7 +361,7 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
     if action == "retry":
         ensure_replayed(db, owner)
     with owner_write(db, owner):
-        run = _owned(db, owner, activity, run_id, metadata_only=action == "cancel")
+        run = _owned(db, owner, activity, run_id, metadata_only=True)
         if action == "retry":
             require_authority(db, owner)
             if expected_generation != run.generation or run.status not in ("failed", "cancelled", "unavailable") or not _current(db, run):
@@ -372,12 +369,13 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
             if run.origin != "manual":
                 raise HTTPException(409, "DFA_EXPLICIT_MANUAL_RETRY_REQUIRED")
             _reserve(db, owner, retry_run=run)
-            from api.dfa_supervisor import manual_admission
-            run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
             run.status, run.progress, run.error_code = "queued", "queued", None
             run.retained_bytes = MAX_RESULT_BYTES
             run.completed_at = run.expires_at = None
             run.recoveries = 0
+            # A retry supersedes the prior result; neither its payload nor its
+            # revision belongs in the newly queued generation's response.
+            run.result = run.result_revision = None
         elif run.status in ACTIVE:
             state = storage.record_negative(owner, "cancel", "run", run.id)
             run.generation = max(run.generation, state["sequence"])
@@ -397,7 +395,15 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
         run.updated_at = datetime.utcnow()
         # Cancellation is an exempt rights operation: never read or return
         # result payloads, even for terminal rows or unavailable private storage.
-        result = _metadata(db, run, False) if action == "cancel" else view(run, db)
+        result = _metadata(db, run, action == "retry")
+        if action == "retry":
+            # Current owner/rights/source/generation were validated above under
+            # the same serialized owner transaction. Finish projection and
+            # pending writes before locking the global admission control row.
+            db.flush()
+            from api.dfa_supervisor import manual_admission
+            run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
+            result.update(admission_id=run.admission_id, accepted_at=run.accepted_at)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()

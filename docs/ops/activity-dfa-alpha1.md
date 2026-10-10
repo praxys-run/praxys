@@ -703,3 +703,44 @@ independent 750ms timer remains live and is never extended; slow admission still
 fails the positive case. Benchmark execution does not enable that test
 synchronization. A separate regression delays the diagnostic reason assignment
 until physical exit to exercise the real invalidation/reason interleaving.
+
+## Admission/control contention observations
+
+Retry authorization remains serialized with owner/source generation changes.
+Its response is queued metadata only; superseded result bytes/revision are
+cleared. The global control-row admission mutation follows response metadata
+preparation and pending writes, immediately before commit. Response delivery
+must not hold that transaction while repeating source/storage/authority checks.
+
+The supervisor control pool uses two connections with zero overflow and 100ms
+checkout, allowing renewal alongside the single lifecycle acknowledgement.
+Spawn acknowledgement and verified-exit projection cannot overlap: retirement
+joins the work thread before exit projection. SQLite uses a dedicated bounded
+control pool with the existing durable journal/synchronous settings and 100ms
+busy timeout. PostgreSQL retains 200ms statement and lock timeouts. This reduces
+avoidable pool contention; it does not remove database writer/row-lock
+contention. The actual 250ms renewal budget and 750ms independent expiry remain
+binding, including when authority/source/storage checks or database I/O stall.
+
+The `15ebd0b` accepted SQLite synthetic cohort failed causal certification;
+it cannot be dismissed as an unsupported deployment cell. PostgreSQL production
+and SQLite local/test remain supported. Preserve all accepted failures and
+refusal rates when measuring a prospective profile. Distinguish authority checks,
+completed renewal, durable acceptance, physical exit, durable availability and
+post-Popen process start. A timely physical exit alone does not prove that a new
+durable manual admission caused retirement. Focused synthetic cells and code
+review are not maximum-input, mixed-load/soak, live placement or activation
+certification. Native compiler/render verification remains externally blocked.
+
+The aggregate renewal deadline includes completed control commit. If commit
+finishes after 250ms, readiness in SQL is insufficient: local permission remains
+denied and the previous local expiry is not extended. Diagnose such deadline
+or database exceptions separately from observed committed manual priority;
+never infer a lock exception from a permission retirement reason alone.
+
+Admission refreshes the actual locked control row even if response metadata
+already loaded it. A concurrent drain/epoch/readiness change must not be hidden
+by the ORM identity cache. Equal PostgreSQL 200ms statement/lock deadlines may
+produce statement cancellation (`57014`) or lock timeout (`55P03`); record the
+actual class/code and operation. SQLite lock failure reports BUSY. All remain
+fail-closed without extending local permission.

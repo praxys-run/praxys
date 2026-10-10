@@ -83,6 +83,8 @@ def grant_current(db: Session, run) -> bool:
         from api.activity_dfa import require_policy, Confirmation
         from api.dfa_automatic import require_policy as automatic_policy
         contract = automatic_policy() if run.origin == 'automatic' else require_policy()
+        if contract != run.science_contract_digest:
+            return False
         proof = db.query(Confirmation).filter_by(id=run.confirmation_id, user_id=run.user_id).first() if run.confirmation_id else None
         completion = db.query(ActivityDFASyncReceipt).filter_by(id=grant.binding.get('completion_id'), user_id=run.user_id).first()
         current = binding(db, run.user_id, run.recording_ref, run.origin, contract, proof,

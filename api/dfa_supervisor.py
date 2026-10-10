@@ -27,7 +27,9 @@ SAFE_FAILURES = WORKER_FAILURES | TRANSIENT_FAILURES | {'execution_time_limit','
 
 
 def manual_admission(db):
-    control = db.query(Control).filter_by(id=1).with_for_update().first()
+    # Response metadata may already have loaded this row. Refresh its actual
+    # locked values; cached readiness/drain/epoch cannot authorize admission.
+    control = db.query(Control).filter_by(id=1).populate_existing().with_for_update().first()
     now = datetime.utcnow()
     if (control is None or not control.enabled or control.drained or not control.incarnation
             or not control.ready_until or control.ready_until < now):
@@ -79,19 +81,36 @@ def incarnation():
 
 
 def control_factory():
+    # Two bounded connections: renewal and the single lifecycle acknowledgement
+    # (spawn or verified exit). Exit follows work-thread join, so acknowledgements
+    # never overlap each other or consume the renewal connection.
     # Existing database authority is used only in supervisor, never child env.
     url = os.environ.get('PRAXYS_DATABASE_URL') or os.environ.get('DATABASE_URL')
     if not url:
         from db import session
-        return session.SessionLocal
+        url = session.get_database_url()
     if url.startswith('postgres://'):
         url = 'postgresql+psycopg://' + url[len('postgres://'):]
     elif url.startswith('postgresql://'):
         url = 'postgresql+psycopg://' + url[len('postgresql://'):]
-    engine = create_engine(url, pool_size=1, max_overflow=0, pool_timeout=.1,
-        connect_args={'connect_timeout': 1, 'options': '-c statement_timeout=200 -c lock_timeout=200'})
-    from db.session import _attach_entra_token
-    _attach_entra_token(engine)
+    from sqlalchemy.engine import make_url
+    sqlite = make_url(url).get_backend_name() == 'sqlite'
+    args = {'timeout': .1, 'check_same_thread': False} if sqlite else {
+        'connect_timeout': 1, 'options': '-c statement_timeout=200 -c lock_timeout=200'}
+    engine = create_engine(url, pool_size=2, max_overflow=0, pool_timeout=.1, connect_args=args)
+    from db.session import _attach_entra_token, _attach_sqlite_pragmas
+    if sqlite:
+        _attach_sqlite_pragmas(engine)
+        from sqlalchemy import event
+        @event.listens_for(engine, 'connect')
+        def bounded_busy_timeout(connection, record):
+            # Preserve the repository's durable SQLite settings while keeping
+            # this supervisor pool's lock wait within the control budget.
+            cursor = connection.cursor()
+            try: cursor.execute('PRAGMA busy_timeout=100')
+            finally: cursor.close()
+    else:
+        _attach_entra_token(engine)
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
@@ -119,6 +138,7 @@ class Supervisor:
         while not self.stop.is_set():
             started = time.monotonic()
             valid = False
+            priority = False
             try:
                 with self.controls() as db:
                     db.info['dfa_read_timeout_ms']=200
@@ -134,17 +154,25 @@ class Supervisor:
                             generation=active['generation'], status='running', execution_epoch=str(row.epoch) if row else '').first()
                         valid = bool(valid and run and service._current(db, run))
                         if valid and run.origin == 'automatic' and db.query(Run.id).filter_by(origin='manual', status='queued').first():
+                            priority = True
                             valid = False
                     if valid and time.monotonic() - started < PROFILE['poll_seconds']:
                         row.ready_until = datetime.utcnow() + timedelta(seconds=PROFILE['permission_seconds'])
                         row.readiness_sequence += 1
                         db.commit()
-                        self.permission_until = time.monotonic() + PROFILE['permission_seconds']
-                        self.allowed = True
-                        self.retirement_reason = None
+                        # The aggregate budget includes the real durable write,
+                        # not only validation before commit. A late commit may
+                        # publish stale readiness, but cannot grant local work.
+                        if time.monotonic() - started < PROFILE['poll_seconds']:
+                            self.permission_until = time.monotonic() + PROFILE['permission_seconds']
+                            self.allowed = True
+                            self.retirement_reason = None
+                        else:
+                            self.allowed = False
+                            self.retirement_reason = 'permission'
                     else:
                         self.allowed = False
-                        self.retirement_reason = 'priority' if active and run and run.origin=='automatic' and row and db.query(Run.id).filter_by(origin='manual',status='queued').first() else 'permission'
+                        self.retirement_reason = 'priority' if priority else 'permission'
                     self.control_observation = {'state':'ready' if self.allowed else 'denied' if not valid else 'deadline', 'duration_seconds':time.monotonic()-started}
             except Exception as exc:
                 self.allowed = False

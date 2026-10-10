@@ -216,11 +216,15 @@ def store(tmp_path, monkeypatch, request):
         yield factory, owner
     finally:
         if backend == 'postgresql':
-            from db.models import GarminFitSnapshot, GarminFitParse, GarminFitChunk
+            from db.models import (GarminFitSnapshot, GarminFitParse, GarminFitChunk,
+                                   UserConnection, GarminConnectIQJob, GarminConnectIQItem)
             with factory() as db:
                 service._erase(db, {'user_id': owner, 'scope': 'owner', 'target_id': owner,
                                     'requested_at': datetime.utcnow().isoformat()})
-                for model in [GarminFitChunk, GarminFitParse, GarminFitSnapshot, Activity]:
+                # Only this fixture owner: completion jobs and connections are
+                # parents of origin grants already erased above.
+                for model in [GarminConnectIQItem, GarminConnectIQJob, UserConnection,
+                              GarminFitChunk, GarminFitParse, GarminFitSnapshot, Activity]:
                     db.query(model).filter_by(user_id=owner).delete(synchronize_session=False)
                 db.query(User).filter_by(id=owner).delete(synchronize_session=False)
                 db.commit()
