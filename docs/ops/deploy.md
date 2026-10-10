@@ -96,7 +96,15 @@ For clients pinned to a release predating these hooks, first close and reopen
 the Praxys tab, then wait for the new worker to install on a stable connection.
 Compare the frontend version in Settings with the deployed workflow version;
 the API version alone does not identify the frontend. If the client remains
-pinned, clearing only `praxys.run` website data is a last-resort recovery and
+pinned, open the same frontend origin's `/api/frontend-recovery.html` and use
+its update button. This static document deliberately uses the path excluded
+by legacy workers' navigation fallback. It unregisters only the same-origin
+root Praxys `/sw.js` registration, preserves storage and other registrations,
+and opens `/settings` directly so the regional public-home redirect cannot
+move the session to a different origin. It does not call a backend API.
+The document is noindex and revalidates; it works without the application
+bundle. If this recovery also fails, clearing only `praxys.run` website data
+is a last-resort recovery and
 requires signing in again. Check the exact site's `/sw.js` response and install
 errors before requesting that step; do not clear browser-wide data.
 
