@@ -1,7 +1,4 @@
-"""Deterministic task-characteristic routing contracts."""
-
-from __future__ import annotations
-
+"""Behavioral replay: no handoffs for routine work, one review for material risk."""
 import json
 from pathlib import Path
 import subprocess
@@ -10,320 +7,82 @@ import sys
 import pytest
 from pydantic import ValidationError
 
-from analysis.agentic_operating_model import load_agentic_operating_model
-from analysis.agentic_task_routing import (
-    TaskClassification,
-    TaskRoutingConfig,
-    load_task_routing_config,
-    route_task,
-    validate_task_routing_references,
-)
-
+from analysis.agentic_task_routing import TaskClassification, TaskRoutingConfig, load_task_routing_config, route_task
 
 ROOT = Path(__file__).resolve().parents[1]
-ROUTING_PATH = ROOT / "config" / "agentic-task-routing.json"
 
 
-def test_every_loop_has_a_primary_object_and_agent() -> None:
-    config = load_task_routing_config()
-    model = load_agentic_operating_model()
-
-    assert config.status == "active"
-    assert set(config.loop_agents) == set(model.loops)
-    assert {
-        contribution.loop
-        for contribution in config.primary_objects.values()
-    } == set(model.loops)
-    assert config.orchestrator_agent_path == (
-        ".github/agents/praxys-orchestrator.agent.md"
-    )
-
-
-def test_product_feature_routes_product_design_and_delivery() -> None:
-    route = route_task(
-        TaskClassification(
-            primary_object="product-promise",
-            impacts=[
-                "repository-change",
-                "user-visible-experience",
-            ],
-        )
-    )
-
-    assert route.primary_loop == "product"
-    assert route.nested_loops == ["design", "delivery"]
-    assert route.lead_role == "product"
-    assert route.contributor_roles == ["design"]
-    assert route.executor_roles == ["engineering"]
-    assert route.verifier_roles == ["quality"]
-    assert route.outcome_observer_roles == ["product"]
-    assert route.loop_agents == {
-        "product": ".github/agents/product.agent.md",
-        "design": ".github/agents/design.agent.md",
-        "delivery": ".github/agents/praxys-change-loop.agent.md",
-    }
-    assert route.decision_review_required is True
-    assert "product-decision-record" in route.required_artifacts
-    assert "implementation-change" in route.required_artifacts
-    assert route.required_input_artifacts == []
-    assert route.outcome_artifacts == ["product-outcome-record"]
+@pytest.mark.parametrize("primary,impacts", [
+    ("repository-behavior", []),
+    ("repository-behavior", ["repository-change"]),
+    ("user-experience", ["repository-change", "user-visible-experience"]),
+    ("product-promise", ["product-value", "repository-change", "user-visible-experience"]),
+])
+def test_routine_work_stays_in_one_session(primary, impacts):
+    route = route_task(TaskClassification(primary_object=primary, impacts=impacts))
+    assert route.execution_mode == "single-session"
+    assert route.reviewer_agent is None
+    assert route.authority_checks == []
+    assert "loop_agents" not in route.model_dump()
+    assert "required_artifacts" not in route.model_dump()
 
 
-def test_science_change_keeps_science_primary_and_adds_specialists() -> None:
-    route = route_task(
-        TaskClassification(
-            primary_object="scientific-evidence",
-            impacts=[
-                "scientific-evidence-or-claim",
-                "architecture-boundary",
-                "repository-change",
-                "product-value",
-                "user-visible-experience",
-            ],
-            risk_triggers=["scientific-uncertainty"],
-        )
-    )
-
-    assert route.primary_loop == "science"
-    assert route.nested_loops == ["product", "design", "delivery"]
-    assert route.lead_role == "science"
-    assert route.contributor_roles == [
-        "product",
-        "design",
-        "architecture",
-    ]
-    assert route.executor_roles == ["engineering"]
-    assert route.verifier_roles == ["quality"]
-    assert route.risk_triggers == ["scientific-uncertainty"]
-    assert "architecture-decision-record" in route.required_artifacts
-    assert "science-decision-record" in route.required_artifacts
-    assert route.required_input_artifacts == []
+@pytest.mark.parametrize("impact", [
+    "scientific-evidence-or-claim", "trust-boundary", "architecture-boundary",
+    "production-operation", "incident-response", "agent-policy-or-autonomy",
+])
+def test_each_material_risk_requires_independent_review(impact):
+    route = route_task(TaskClassification(primary_object="repository-behavior", impacts=[impact]))
+    assert route.execution_mode == "independent-review"
+    assert route.reviewer_agent and route.reviewer_agent != route.executor_agent
 
 
-def test_incident_fix_routes_incident_then_delivery_and_runtime() -> None:
-    route = route_task(
-        TaskClassification(
-            primary_object="production-incident",
-            impacts=[
-                "trust-boundary",
-                "repository-change",
-                "production-operation",
-            ],
-            risk_triggers=["security-or-privacy-boundary"],
-        )
-    )
-
-    assert route.primary_loop == "incident"
-    assert route.nested_loops == ["delivery", "runtime"]
-    assert route.lead_role == "operations"
-    assert route.contributor_roles == ["trust"]
-    assert route.executor_roles == ["operations", "engineering"]
-    assert route.verifier_roles == ["quality"]
-    assert route.decision_review_required is True
-    assert route.required_input_artifacts == []
+@pytest.mark.parametrize("risk", load_task_routing_config().risk_triggers)
+def test_risk_trigger_alone_cannot_escape_review(risk):
+    route = route_task(TaskClassification(primary_object="repository-behavior", risk_triggers=[risk]))
+    assert route.reviewer_agent
+    assert (risk in route.authority_checks) == (risk in load_task_routing_config().authority_triggers)
+    # The result neither grants authority nor assumes existing authorization is absent.
+    assert "approved" not in route.model_dump()
+    assert "human_review_required" not in route.model_dump()
 
 
-def test_agent_policy_change_routes_meta_eval_then_delivery() -> None:
-    route = route_task(
-        TaskClassification(
-            primary_object="agent-system",
-            impacts=[
-                "repository-change",
-                "agent-policy-or-autonomy",
-            ],
-        )
-    )
-
-    assert route.primary_loop == "meta-eval"
-    assert route.nested_loops == ["delivery"]
-    assert route.lead_role == "meta-eval"
-    assert route.executor_roles == ["engineering"]
-    assert route.verifier_roles == ["quality"]
-    assert "policy-change-proposal" in route.required_artifacts
-    assert route.classification_digest == (
-        "sha256:0ad9318cbabe89b8918297e022d356e47ca4d91510fdb983761ba44a53a0e8e5"
-    )
-    assert route.route_digest == (
-        "sha256:02ae5b927772915aa703344217dd7092151f847719fe05a9d72d43dd6f92949b"
-    )
+def test_combined_science_security_runtime_risk_has_one_reviewer():
+    route = route_task(TaskClassification(
+        primary_object="production-incident",
+        impacts=["trust-boundary", "scientific-evidence-or-claim", "repository-change", "production-operation"],
+        risk_triggers=["security-or-privacy-boundary"],
+    ))
+    assert isinstance(route.reviewer_agent, str)
+    assert len(route.contexts) == 3
+    assert route.authority_checks == ["security-or-privacy-boundary"]
 
 
-def test_bounded_repository_work_keeps_delivery_without_unrelated_loops() -> None:
-    """An ordinary repository task needs no incident or runtime contribution."""
-    route = route_task(TaskClassification(primary_object="repository-behavior"))
-
-    assert route.primary_loop == "delivery"
-    assert route.nested_loops == []
-    assert route.contributor_roles == []
-    assert route.executor_roles == ["engineering"]
-    assert route.verifier_roles == ["quality"]
-    assert route.required_artifacts == [
-        "implementation-impact-map",
-        "implementation-change",
-        "verification-evidence",
-    ]
-    assert route.decision_review_required is False
+def test_order_does_not_change_route_and_policy_edits_invalidate_it():
+    a = TaskClassification(primary_object="agent-system", impacts=["repository-change", "agent-policy-or-autonomy"])
+    b = TaskClassification(primary_object=a.primary_object, impacts=list(reversed(a.impacts)))
+    original = route_task(a)
+    assert original == route_task(b)
+    config = load_task_routing_config().model_dump()
+    config["impacts"]["repository-change"]["description"] += " Changed policy."
+    changed = route_task(a, config=TaskRoutingConfig.model_validate(config))
+    assert changed.route_digest != original.route_digest
 
 
-@pytest.mark.parametrize(
-    ("impact", "role", "artifact", "loop"),
-    [
-        ("trust-boundary", "trust", "trust-decision-record", None),
-        ("architecture-boundary", "architecture", "architecture-decision-record", None),
-        ("scientific-evidence-or-claim", "science", "science-decision-record", "science"),
-        ("user-visible-experience", "design", "experience-specification", "design"),
-        ("production-operation", "operations", "release-evidence", "runtime"),
-        ("incident-response", "operations", "incident-record", "incident"),
-    ],
-)
-def test_bounded_delivery_preserves_each_triggered_specialist(
-    impact: str, role: str, artifact: str, loop: str | None,
-) -> None:
-    """Smaller handoffs cannot remove a causal impact's roles or artifacts."""
-    route = route_task(
-        TaskClassification(primary_object="repository-behavior", impacts=[impact])
-    )
-
-    assert role in route.contributor_roles + route.executor_roles
-    assert artifact in route.required_artifacts
-    assert route.nested_loops == ([] if loop is None else [loop])
-    assert "engineering" in route.executor_roles
-    assert route.verifier_roles == ["quality"]
-    assert route.decision_review_required is True
+@pytest.mark.parametrize("field,value", [("primary_object", "missing"), ("impacts", ["missing"]), ("risk_triggers", ["missing"])])
+def test_unknown_classification_is_rejected(field, value):
+    payload = {"primary_object": "repository-behavior", field: value}
+    with pytest.raises(ValueError, match="unknown"):
+        route_task(TaskClassification.model_validate(payload))
 
 
-def test_dependency_merge_with_deployment_effect_preserves_trust_and_operations() -> None:
-    """CI-based evidence does not remove dependency or deployment authority."""
-    route = route_task(
-        TaskClassification(
-            primary_object="repository-behavior",
-            impacts=["trust-boundary", "production-operation"],
-            risk_triggers=["security-or-privacy-boundary"],
-        )
-    )
-
-    assert route.nested_loops == ["runtime"]
-    assert route.contributor_roles == ["trust"]
-    assert route.executor_roles == ["engineering", "operations"]
-    assert route.verifier_roles == ["quality"]
-    assert {"trust-decision-record", "operations-decision-record", "release-evidence"} <= set(
-        route.required_artifacts
-    )
-    assert route.decision_review_required is True
+def test_duplicate_and_malformed_classifications_are_rejected():
+    with pytest.raises(ValidationError):
+        TaskClassification(primary_object="repository-behavior", impacts=["repository-change"] * 2)
+    with pytest.raises(ValidationError):
+        TaskClassification(primary_object="repository-behavior", impacts="repository-change")
 
 
-def test_description_clarifications_do_not_change_any_routing_contract() -> None:
-    config = load_task_routing_config()
-    payload = config.model_dump()
-    for group in ("primary_objects", "impacts"):
-        for contribution in payload[group].values():
-            contribution["description"] = "Alternate classifier guidance."
-    alternate = TaskRoutingConfig.model_validate(payload)
-
-    for primary in config.primary_objects:
-        for impact in [None, *config.impacts]:
-            classification = TaskClassification(
-                primary_object=primary, impacts=[] if impact is None else [impact],
-            )
-            assert route_task(classification, config=config) == route_task(
-                classification, config=alternate,
-            )
-
-
-def test_research_and_evaluation_do_not_force_downstream_decisions() -> None:
-    research = route_task(
-        TaskClassification(primary_object="scientific-evidence")
-    )
-    evaluation = route_task(
-        TaskClassification(primary_object="agent-system")
-    )
-
-    assert research.required_artifacts == ["evidence-review"]
-    assert "science-decision-record" not in research.required_artifacts
-    assert evaluation.required_artifacts == ["evaluation-report"]
-    assert "policy-change-proposal" not in evaluation.required_artifacts
-
-
-def test_design_and_runtime_routes_require_their_accepted_inputs() -> None:
-    design = route_task(
-        TaskClassification(primary_object="user-experience")
-    )
-    runtime = route_task(
-        TaskClassification(primary_object="production-state")
-    )
-
-    assert design.required_input_artifacts == ["product-decision-record"]
-    assert runtime.required_input_artifacts == [
-        "implementation-change",
-        "verification-evidence",
-    ]
-
-
-def test_route_normalizes_trait_order_and_produces_stable_digests() -> None:
-    first = route_task(
-        TaskClassification(
-            primary_object="product-promise",
-            impacts=["repository-change", "user-visible-experience"],
-        )
-    )
-    second = route_task(
-        TaskClassification(
-            primary_object="product-promise",
-            impacts=["user-visible-experience", "repository-change"],
-        )
-    )
-
-    assert first == second
-    assert first.classification_digest.startswith("sha256:")
-    assert first.route_digest.startswith("sha256:")
-    assert first.decision_review_agent == (
-        ".github/agents/decision-review-router.agent.md"
-    )
-
-
-def test_route_rejects_unknown_traits() -> None:
-    with pytest.raises(ValueError, match="unknown primary object"):
-        route_task(TaskClassification(primary_object="missing"))
-
-    with pytest.raises(ValueError, match="unknown impacts"):
-        route_task(
-            TaskClassification(
-                primary_object="repository-behavior",
-                impacts=["missing"],
-            )
-        )
-
-
-def test_routing_config_rejects_incomplete_loop_coverage() -> None:
-    payload = json.loads(ROUTING_PATH.read_text(encoding="utf-8"))
-    del payload["loop_agents"]["product"]
-    config = TaskRoutingConfig.model_validate(payload)
-
-    with pytest.raises(ValueError, match="every operating-model loop"):
-        validate_task_routing_references(
-            config,
-            load_agentic_operating_model(),
-        )
-
-
-def test_route_cli_emits_the_same_contract() -> None:
-    completed = subprocess.run(
-        [
-            sys.executable,
-            "scripts/route_agentic_task.py",
-            "--primary-object",
-            "repository-behavior",
-            "--impact",
-            "trust-boundary",
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    payload = json.loads(completed.stdout)
-
-    assert payload["primary_loop"] == "delivery"
-    assert payload["contributor_roles"] == ["trust"]
-    assert payload["executor_roles"] == ["engineering"]
-    assert payload["verifier_roles"] == ["quality"]
+def test_cli_summarizes_without_ledger_or_approval():
+    result = subprocess.run([sys.executable, "scripts/route_agentic_task.py", "--primary-object", "repository-behavior"], cwd=ROOT, text=True, capture_output=True, check=True)
+    assert json.loads(result.stdout)["execution_mode"] == "single-session"

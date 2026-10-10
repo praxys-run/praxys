@@ -1,4 +1,4 @@
-"""Render a deterministic Praxys work contract from bounded task traits."""
+"""Summarize Praxys task risk without dispatching agents or requesting approval."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ def _parser() -> argparse.ArgumentParser:
     config = load_task_routing_config()
     parser = argparse.ArgumentParser(
         description=(
-            "Route one classified Praxys task through the checked-in "
-            "agentic operating model."
+            "Summarize one classified Praxys task using the checked-in "
+            "single-session policy."
         )
     )
     parser.add_argument(
@@ -53,39 +53,18 @@ def _parser() -> argparse.ArgumentParser:
 
 def _markdown(route: object) -> str:
     payload = route.model_dump()
-
-    def values(key: str) -> str:
-        items = payload[key]
-        return ", ".join(items) if items else "none"
-
-    loop_agents = ", ".join(
-        f"{loop_id} -> {path}"
-        for loop_id, path in payload["loop_agents"].items()
-    )
-    return "\n".join(
-        [
-            "# Praxys Work Contract",
-            "",
-            f"- Route digest: `{payload['route_digest']}`",
-            f"- Classification digest: `{payload['classification_digest']}`",
-            f"- Primary object: `{payload['classification']['primary_object']}`",
-            f"- Primary loop: `{payload['primary_loop']}`",
-            f"- Nested loops: {values('nested_loops')}",
-            f"- Loop agents: {loop_agents}",
-            f"- Lead role: `{payload['lead_role']}`",
-            f"- Contributors: {values('contributor_roles')}",
-            f"- Executors: {values('executor_roles')}",
-            f"- Verifiers: {values('verifier_roles')}",
-            f"- Outcome observers: {values('outcome_observer_roles')}",
-            f"- Required input artifacts: {values('required_input_artifacts')}",
-            f"- Required output artifacts: {values('required_artifacts')}",
-            f"- Outcome artifacts: {values('outcome_artifacts')}",
-            f"- Risk triggers: {values('risk_triggers')}",
-            f"- Decision review agent: `{payload['decision_review_agent']}`",
-            "- Decision review required: "
-            f"`{str(payload['decision_review_required']).lower()}`",
-        ]
-    )
+    return "\n".join([
+        "# Praxys execution summary",
+        "",
+        f"- Mode: {payload['execution_mode']}",
+        f"- Executor: {payload['executor_agent']}",
+        f"- Reviewer: {payload['reviewer_agent'] or 'none'}",
+        f"- Context: {', '.join(payload['contexts']) or 'repository conventions'}",
+        f"- Check existing authority for: {', '.join(payload['authority_checks']) or 'none'}",
+        f"- Policy/output digest: {payload['route_digest']}",
+        "",
+        "Authority checks are not approval requests or grants. Reuse existing scoped authorization.",
+    ])
 
 
 def main() -> int:

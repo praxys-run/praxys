@@ -1,352 +1,102 @@
-# Praxys agentic operating model
+# Single-session execution
 
-**Status:** Version 1 has active task routing through
-`config/agentic-operating-model.json` and
-`config/agentic-task-routing.json`. Judgment autonomy remains
-specification-only and default-human unless a narrow class is explicitly
-promoted.
+Version 2 replaces the per-task role graph with one owner: the current session.
+The session understands, implements and verifies. Product, design, architecture,
+science and debugging are capabilities applied through relevant context and
+skills. They are not mandatory agent identities or sequential handoffs.
 
-## Core model
+## Execution and review
 
-An **agent is a role** with bounded decision rights, owned artifacts,
-capabilities, constraints, and outcome measures.
-
-A **loop is a learning system** around an object such as a product promise,
-scientific evidence, user experience, repository behavior, production health,
-or the agent policies themselves.
-
-A **capability or subagent** is a specialization inside a role. It does not need
-independent role status unless it acquires distinct recurring authority,
-artifact ownership, independence requirements, and outcome measures.
-
-The operating model is not a permanent digital copy of a traditional software
-organization. Traditional roles provide the initial vocabulary. The durable
-abstractions are decision classes, artifacts, constraints, review independence,
-and observed outcomes.
-
-## End-to-end composition
-
-```text
-                     AGENTIC OPERATING MODEL
-
-  INPUT SIGNALS
-  -----------------------------------------------------------------
-  User needs | Feedback | Telemetry | Research | Incidents
-  Product strategy | Regulatory changes | Agent outcomes
-                              |
-                              v
-                 +-------------------------+
-                 | Praxys Orchestrator     |
-                 |                         |
-                 | Work Router classifies  |
-                 | deterministic router    |
-                 | emits Work Contract     |
-                 +------------+------------+
-                              |
-                              v
-  +---------------------- LOOP INSTANCE ---------------------------+
-  |                                                               |
-  | SENSE -> FRAME -> INVESTIGATE -> PROPOSE -> REVIEW -> DECIDE  |
-  |                                             |                 |
-  |                                             v                 |
-  |                                  Decision Review Router       |
-  |                                                               |
-  |                        +-----------------------------------+  |
-  |                        | agent-resolved                    |  |
-  |                        | agent-reviewed                    |  |
-  |                        | human-review-required             |  |
-  |                        | blocked                           |  |
-  |                        +-----------------------------------+  |
-  |                                             |                 |
-  |                                             v                 |
-  |      PLAN -> ACT -> VERIFY -> RELEASE / OPERATE -> OBSERVE   |
-  |                                             |                 |
-  |                                             v                 |
-  |                                            LEARN ------------+--+
-  +---------------------------------------------------------------+  |
-                                                                      |
-                         +--------------------------------------------+
-                         v
-              +---------------------------+
-              |      Meta / Eval Loop     |
-              |                           |
-              | - evaluate agent quality  |
-              | - replay past decisions   |
-              | - detect bad routing      |
-              | - tune prompts/policies   |
-              | - promote/demote autonomy |
-              +-------------+-------------+
-                            |
-                            v
-                  Policy and role updates
+```mermaid
+flowchart LR
+  Task[User task] --> Session[One executing session]
+  Session --> Checks[Tests and domain checks]
+  Checks --> Risk{Material risk?}
+  Risk -->|No| Result[Result and evidence]
+  Risk -->|Yes| Review[One fresh read-only review]
+  Review --> Result
+  Review -->|Material finding| Session
 ```
 
-Praxys Orchestrator is the shared Local and Cloud entry point. Work Router
-selects one primary object plus bounded impacts and risks; the deterministic
-task router composes the smallest sufficient role set. The Decision Review
-Router allocates review authority after the proposer and required specialists
-have produced a durable decision.
+The model handles planning, investigation, tool selection and ordinary
+implementation choices. The runtime handles context, thread identity, follow-up,
+completion and cancellation. There is no custom invocation ledger, admission
+protocol, role-slot graph, read-claim token or mandatory trial enrollment.
 
-See [`copilot-execution-parity.md`](copilot-execution-parity.md) for the common
-entry point, tool contract, drift checks, and explicit environment limitations.
+Only three native profiles remain discoverable:
 
-## Role slots
-
-Each loop instance fills explicit slots:
-
-| Slot | Responsibility |
+| Profile | Use |
 |---|---|
-| `lead` | Owns the loop object and coordinates the current iteration |
-| `contributors` | Supply bounded specialist decisions or evidence |
-| `independent_reviewers` | Challenge the proposal without sharing proposer authority |
-| `executor` | Performs the accepted action or implementation |
-| `verifier` | Checks the exact execution and acceptance evidence |
-| `outcome_observer` | Records what users, systems, or reviewers actually did |
-| `human_authority` | Resolves irreducible judgment or authenticated authority |
+| Praxys Orchestrator | Execute the task directly; existing sessions follow its instructions without launching it again. |
+| Quality | One consolidated, independent review for material risks; fresh context and read-only. |
+| Operations | Optional isolated adapter for separately authorized local operations tools. |
 
-One role may fill different slots in different loops, but the same agent
-instance cannot propose and independently review the same decision. High-risk
-execution also requires verification independent from the executor.
+Routine reversible fixes, documentation and UI refinements require sufficient
+tests and rendered checks without an extra agent. Science/formula changes,
+security/privacy, architecture/external contracts, production/incident work,
+agent policy and other material risks require independent review. UI skills and
+scientific evidence requirements still apply. A specialized review can use all
+relevant context without launching professional role agents.
 
-## Initial role registry
+For a genuinely complex task, an additional read-only investigation is useful
+only when it can answer a bounded independent question or reduce wall time.
+Only the main session dispatches. Serialize writes and dependent work; reuse
+active threads, and do not replace an agent whose termination is unconfirmed.
+A failed required reviewer leaves review incomplete and blocks the dependent
+release/handoff; it does not prevent authorized local preparation.
 
-The checked-in role taxonomy is intentionally evolvable:
+## Authority and records
 
-| Role | Owns |
-|---|---|
-| **Product** | User problems, prioritization, product promises, value trade-offs, minimum valuable scope, target and guardrail outcomes |
-| **Design** | User journeys, information architecture, interaction, visual language, content, accessibility, and rendered experience |
-| **Engineering** | Implementation across frontend, backend, API, data, analysis, database, integrations, migrations, and test automation |
-| **Architecture** | Cross-cutting boundaries, long-lived technical constraints, non-functional trade-offs, and irreversible technical choices |
-| **Quality** | Test strategy, acceptance sufficiency, regression, exploratory validation, and release confidence for the current change |
-| **Science** | Evidence claims, applicability, uncertainty, formulas, constants, claim limits, and science-specific runtime boundaries |
-| **Trust** | Security, privacy, identity, authorization, sensitive data, threat models, and dependency trust |
-| **Operations** | Deployment, runtime configuration, observability, capacity, incidents, mitigation, rollback, and recovery |
-| **Meta/Eval** | Evaluation of agents, prompts, policies, routing, review effort, and autonomy across batches of outcomes |
+Use existing user authorization within its resource, action and risk scope.
+Routine reversible decisions are agent-resolved. Ask only for missing authority
+or a material choice that cannot be inferred, after preparing the concrete
+result. Combine related questions. A review finding normally leads to a fix,
+not another human approval request.
 
-API, frontend, backend, data, and similar technical areas are Engineering
-capabilities. They do not become top-level roles merely because they use
-different directories or technologies.
+This changes session governance, not external authority. Scientific acceptance
+and activation identities, immutable subjects, external tool consent, CI,
+branch protection, merge and production controls remain binding. General task
+authorization cannot substitute for a required digest-bound science approval.
+No old approval receipt is transferred to this policy revision.
 
-Quality and Meta/Eval remain separate:
+The task/PR record contains scope, material decisions, validation and remaining
+risks. Reuse existing accepted decisions. Write an ADR or domain record only
+when the durable choice or domain schema needs it. Ordinary UI work does not
+need separate Product and Design decision files. Scientific Evidence Reviews
+and SDRs remain schema-backed artifacts with their existing review gates.
 
-- Quality asks whether this exact change is correct, complete, and safe to
-  release.
-- Meta/Eval asks whether agents, prompts, policies, and review routes improve
-  across many completed changes.
+## Configuration
 
-## Loop family
+`AGENTS.md` is the concise session entry point.
+`config/agentic-operating-model.json` lists the workflow and context sources;
+`config/agentic-task-routing.json` lists concerns requiring independent review.
+The optional `scripts/route_agentic_task.py` summarizes a classification in one
+record. Its digest binds the policy and output for comparison; it is not an
+approval or admission token. Classification still requires reading the actual
+task and diff, including causal deployment effects. A missing risk flag is not
+proof that a change is safe.
 
-| Loop | Object being improved | Lead role |
-|---|---|---|
-| **Product** | Product promise and expected user outcome | Product |
-| **Science** | Scientific evidence claims and applicability | Science |
-| **Design** | User experience and design system | Design |
-| **Delivery** | Repository behavior and implementation quality | Engineering |
-| **Runtime** | Production state and service reliability | Operations |
-| **Incident** | Production health and mitigation policy | Operations |
-| **Meta/Eval** | Agents, prompts, policies, routing, and autonomy | Meta/Eval |
+`config/agent-loop-policies.json` keeps session-authority guidance alongside the
+existing automated assignment/selective-merge policies. Those merge policies
+are unchanged. `check_agent_runtime_parity.py` verifies native sandbox, tools,
+credential filters, skill links and hooks; it does not measure runtime parity.
 
-Not every role needs its own loop, and no loop belongs to only one role.
-Architecture, Quality, Science, and Trust frequently participate as
-cross-cutting roles. A Design or Trust loop can become a stronger independent
-outer loop when repeated outcomes begin changing its policy or source of truth.
+## Measure before claiming success
 
-`docs/dev/agentic-loops.md` describes the shared learning substrate: trace logs,
-outcome capture, replay, shadow comparison, policy PRs, metrics, and autonomy.
-This document describes how roles are composed into those loops.
+The structural change removes ten of thirteen registered profiles and replaces
+seven mandatory loop types with one workflow. Ordinary work has zero mandatory
+agent handoffs; risky work has one review round trip, absent findings. These
+are configuration counts, not measured latency or quality results.
 
-## Durable artifacts are the interfaces
+Compare representative tasks of similar complexity: elapsed start-to-completion
+time including retries and waits, human approval requests, agent handoffs,
+corrections/reopens/reverts, escaped defects, and missing required checks.
+Use available session/CI records; do not add a per-task ledger or another review
+agent merely to collect these numbers. Unknown measurements stay unknown.
+Do not claim equal or better quality until outcome evidence supports it.
 
-```text
-Evidence Review
-      |
-      v
-Science Decision Record --------+
-                                 |
-User signal -> Product Decision Record
-                                 |
-                  +--------------+--------------+
-                  |              |              |
-                  v              v              v
-          Design Decision      ADR       Trust Decision
-                  |              |              |
-                  +--------------+--------------+
-                                 |
-                                 v
-                       Implementation Change
-                                 |
-                                 v
-                       Verification Evidence
-                                 |
-                                 v
-                         Release Evidence
-                                 |
-                                 v
-                    Product / Runtime Outcomes
-                                 |
-                                 v
-                     Evaluation Report -> Policy PR
-```
-
-The diagram is dependency-based rather than strictly linear. A product decision
-may not need science, architecture, or trust input. The Work Router includes a
-role only when its decision class or activation trigger is present.
-
-The Work Contract's loop and artifact lists are sets in canonical presentation
-order, not a one-pass execution sequence. The primary loop owns the iteration;
-nested loops satisfy bounded dependencies; the orchestrator resumes a loop
-when its later stages depend on a nested result.
-
-### Completing the authorized task
-
-`task_completion` in `config/agent-loop-policies.json` is the shared cooperative
-guidance for completion boundaries, causal blockers, progress ownership,
-authorization reuse, sufficient evidence, and waits. Work Router supplies
-completion evidence and non-goals alongside the unchanged `TaskRoute`; the
-owning loop coordinates progress and bounded specialist handoffs.
-
-Causal blockers include missing mandatory acceptance, authority, or evidence
-dependencies: no proof of production harm is needed to hold the affected
-action. A whole-queue hold requires a shared hazard; credible uncertainty
-supports a bounded diagnostic, and missing evidence never proves safety.
-Classify actual automatic deployment effects as well as direct actions.
-
-The guidance preserves triggered roles, review independence, hash-bound
-approvals, current CI, effective GitHub gates, and runtime lifecycle controls.
-It adds no scheduler, schema, enforcement engine, or autonomy promotion.
-See `docs/dev/task-completion-policy-v1.md` for evaluation, proposal,
-implementation impact, rollback, and expected manual replay cases.
-
-### Shared decision-record contract
-
-Product, Design, Architecture, Science, Trust, and Operations decisions share
-these logical fields:
-
-```text
-id
-schema_version
-decision_type
-owner_role
-question
-options
-recommendation
-rationale
-dependencies
-review_route
-outcome_plan
-digest
-```
-
-Each specialization owns additional typed content. For example, an existing
-Science Decision Record keeps evidence claims, applicability, parameters, claim
-limits, and its runtime contract. A Product Decision Record owns the user
-problem, scenarios, product promise, trade-offs, non-goals, minimum valuable
-scope, and target/guardrail metrics. Product does not absorb Science authority,
-and Science does not choose product value.
-
-The common contract is specified in
-`config/agentic-operating-model.json`. Concrete record schemas are introduced
-when a loop first needs to persist that artifact. Existing accepted science
-records remain immutable.
-
-Every artifact also declares an implementation status:
-
-- `logical-contract`: ownership and required meaning are specified, but no
-  persistence or approval format exists yet;
-- `repository-native`: the artifact already exists as a PR, commit, check,
-  workflow result, or other repository-native evidence;
-- `schema-backed`: the artifact has a validated, versioned machine schema.
-
-A router or role must not invent persistence or approval semantics for a
-`logical-contract` artifact.
-
-## Governance and human attention
-
-The control plane has two independent routers:
-
-1. **Work Router:** selects the object, primary loop, decision classes, role
-   traits, and risks from a checked-in enumeration.
-2. **Deterministic Task Router:** produces the digest-bound loops, agents,
-   lead/contributor/executor/verifier/outcome-observer slots, required
-   input/output artifacts, and review requirement.
-3. **Decision Review Router:** returns exactly one review route:
-   `agent-resolved`, `agent-reviewed`, `human-review-required`, or `blocked`.
-
-Human review remains required by default for unpromoted judgment classes,
-including new product promises, material value trade-offs, safety or medical
-boundaries, sensitive-data collection, privacy/security boundaries,
-irreversible high-blast-radius choices, unresolved independent-agent
-disagreement, and out-of-policy decisions.
-
-`agent-reviewed` is also default-off. A decision class must be explicitly
-listed in `agent_reviewed_classes`, use the Work Router's independent-reviewer
-assignment, pass deterministic validation, carry a digest-bound Decision
-Record, and trigger none of the human-review factors. No class is currently
-listed.
-
-The objective is not the fewest reviews:
-
-> Minimize human attention subject to quality, safety, reversibility, and
-> authenticated authority.
-
-When human authority is required, the router returns one bounded decision at a
-time with a recommendation, realistic alternatives, user impact, explicit
-deferrals, and the immutable subject/digest when approval is artifact-bound.
-
-## Evolving beyond traditional roles
-
-Create a new role only when all or most of these become true:
-
-1. a distinct decision class recurs;
-2. independence from the executor is required;
-3. a durable artifact needs clear ownership;
-4. the work has distinct outcome measures.
-
-Keep work as a capability or subagent when it remains a specialization inside an
-existing authority boundary, does not need an independent artifact or review,
-or is infrequent and task-local.
-
-Retire or merge a role when it no longer owns a distinct decision, its decision
-class becomes deterministic and policy-resolved, or another role can own the
-artifact without losing necessary independence.
-
-Role changes are policy changes. They require an Evaluation Report, a versioned
-policy proposal, independent review, and the same promotion/demotion safeguards
-as other autonomy changes.
-
-## Example: population routing
-
-For a future running-plan population-routing decision:
-
-1. Praxys Orchestrator obtains a classification whose deterministic Work
-   Contract selects Product as primary and includes Science, Design, Trust,
-   Delivery, and Quality when triggered.
-2. Product owns whether every athlete may select the goal and what value each
-   routed experience should provide.
-3. Science owns what training history or personal characteristics can support
-   and what cannot be inferred.
-4. Trust owns whether age, sex, reproductive state, or related data is
-   necessary, proportionate, consented, and minimized.
-5. Design owns automatic assessment, confirmation, correction, uncertainty,
-   and unsupported-state interactions.
-6. Architecture participates only if profile or routing storage creates a
-   cross-cutting long-lived technical choice.
-7. Decision Review Router surfaces only the remaining irreducible decisions.
-8. Engineering implements accepted artifacts; Quality verifies scenarios and
-   regressions; Operations participates only when rollout or runtime policy is
-   affected.
-9. Product observes user outcomes, while Meta/Eval observes routing quality and
-   human review effort.
-
-## Current boundary
-
-Version 1 defines and validates the operating model, routes every material task
-through a shared Local/Cloud orchestrator, and makes all seven loops selectable
-from task characteristics. It does not promote a judgment class, authorize
-agent-created human approvals, make every role autonomous, or provide Cloud
-production credentials and the WeChat desktop simulator.
-
-The first product-specific application will convert the pending adult running
-population-routing work into a Product Decision Record linked to its existing
-Evidence Review and any required Science Decision Record.
+If required checks are missed or defects increase, restore targeted independent
+review for that failure mode. Revert this policy change if the guardrails cannot
+be met. Do not reactivate retired trials or reinterpret their old cohorts as
+successful v2 observations. Git history retains the removed implementation;
+private ledgers and historical approval documents remain untouched.
