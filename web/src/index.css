@@ -1399,7 +1399,7 @@
 .coach-key-recommendation .coach-label { margin-block: 0 0.5rem; }
 .coach-key-recommendation .coach-text { margin: 0; line-height: 1.6; }
 .coach-theory-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-.coach-theory-links a { color: var(--accent-cobalt-val); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.coach-theory-links a { color: color-mix(in oklch, var(--accent-cobalt-val) 85%, var(--foreground)); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
 .coach-status { margin-bottom: 1rem; line-height: 1.6; }
 
 .coach-loading { display: grid; gap: 0.65rem; margin-block: 1rem; }
