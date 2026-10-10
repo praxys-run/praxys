@@ -107,3 +107,19 @@ post-commit retirement before response delivery, plus mismatched receipt fields.
 Retirement/availability and process-start remain separate; production code,
 750ms expiry and accepted Science/STOP bytes and modes are unchanged. The revised
 100-trial measurement and full preflight await independent delta clearance.
+
+
+### Control-observation interleaving correction
+
+The exact `54eeafe` preflight failed with 4,347 passed, two capacity-test failures
+and 53 skips; it never reached build/UI stages. One real committed priority
+selection preceded retirement while the diagnostic reason assignment lagged the
+actual permission invalidation. The positive fixture also encountered SQLite
+renewal contention before its commit. Test-only observation now binds the
+actual `allowed=False` write in the real renewal iteration to its fresh committed
+manual selection and matching actor, with permission still disabled at retirement
+start. Expiry and exception invalidations have no such evidence and remain
+rejected. The deterministic positive fixtures synchronize from a completed real
+renewal without changing the independent watchdog; benchmark execution remains
+unsynchronized. A delayed-reason positive case and the before-commit negative
+case cover the interleaving. Runtime/client/Science code and modes are unchanged.

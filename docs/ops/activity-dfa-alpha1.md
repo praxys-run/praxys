@@ -686,10 +686,20 @@ cover the documented healthy synthetic cell only, not live capacity or soak.
 
 Accepted preemption evidence also binds a real control-query observation of the
 newly committed queued manual admission ID, generation and execution epoch to
-the matching occupied automatic actor token. The actual retirement must start
-with the priority cause and follow that observation. A permission-expiry exit
+the matching occupied automatic actor token. The actual retirement must follow the observed priority-triggered permission
+invalidation and start with permission disabled. The separately assigned reason
+string can lag that write; it is retained as a diagnostic, not used alone as
+proof of the cause. A permission-expiry exit
 during the ingress/commit bracket cannot count as accepted preemption. Exit
 need not follow response delivery: fast post-commit priority retirement is valid.
 The test observer observes the actual priority queries, reads selected metadata
 on the reserved control connection, and records actual retirement events; it does not extend the 750ms watchdog or
 modify production decisions.
+
+
+The positive transaction regression synchronizes at a real completed renewal,
+then parks only the following control I/O until actual admission commit. The
+independent 750ms timer remains live and is never extended; slow admission still
+fails the positive case. Benchmark execution does not enable that test
+synchronization. A separate regression delays the diagnostic reason assignment
+until physical exit to exercise the real invalidation/reason interleaving.

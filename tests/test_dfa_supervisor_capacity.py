@@ -9,7 +9,7 @@ import time
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Query, defer
+from sqlalchemy.orm import sessionmaker, Query, defer, Session
 
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_activity_dfa import store, confirmed
@@ -69,6 +69,9 @@ class PriorityEvidence:
     """
     def __init__(self, supervisor, monkeypatch):
         self.priorities=[];self.retirements=[];self.retired=threading.Event()
+        self.invalidation=None
+        self.park_after_renewal=threading.Event();self.parked=threading.Event();self.resume=threading.Event()
+        self.hold_reason_until_exit=False
         observer=self
         class ObservedQuery(Query):
             def filter_by(self, **kw):
@@ -94,20 +97,56 @@ class PriorityEvidence:
                             'active_id':active['id'],'active_binding':actor['binding'],
                             'observed_monotonic':time.monotonic()})
                 return value
-        supervisor.controls.configure(query_cls=ObservedQuery)
+        # The actual invalidation precedes the independently assigned reason
+        # string. Observe that write; never substitute a value or a deadline.
+        original_class=type(supervisor)
+        renewal_code=supervisor.renew.__func__.__code__
+        class ObservedSupervisor(original_class):
+            def __setattr__(self,name,value):
+                if name=='allowed':
+                    observer.invalidation=None
+                    caller=sys._getframe(1)
+                    local=caller.f_locals
+                    latest=observer.priorities[-1] if observer.priorities else None
+                    active=local.get('active')
+                    if (value is False and caller.f_code is renewal_code and local.get('valid') is False
+                            and 'exc' not in local and latest and active and active['origin']=='automatic'
+                            and latest['active_id']==active['id']
+                            and latest['observed_monotonic']>=local['started']):
+                        observer.invalidation={**latest,'iteration_started':local['started'],
+                            'before_allowed_false_monotonic':time.monotonic()}
+                if name=='retirement_reason' and value=='priority' and observer.hold_reason_until_exit:
+                    assert observer.retired.wait(5)
+                super().__setattr__(name,value)
+        monkeypatch.setattr(supervisor,'__class__',ObservedSupervisor)
+        class ObservedSession(Session):
+            def commit(self):
+                super().commit()
+                self.info['capacity_actual_commit_completed']=True
+            def close(self):
+                completed=self.info.get('capacity_actual_commit_completed')
+                super().close()
+                # Positive regression synchronization only. A real completed
+                # renewal supplied the existing 750ms lease; its timer stays live.
+                if (threading.current_thread().name=='dfa-control' and completed
+                        and supervisor.control_observation['state']=='ready'
+                        and observer.park_after_renewal.is_set()):
+                    observer.park_after_renewal.clear();observer.parked.set()
+                    assert observer.resume.wait(5)
+        supervisor.controls=sessionmaker(class_=ObservedSession,query_cls=ObservedQuery,**supervisor.controls.kw)
         real_retire=supervisor.lane.retire
         def retire(*args,**kwargs):
             actor=supervisor.lane.actor()
             reason=supervisor.retirement_reason
             started=time.monotonic()
-            matching=[value for value in observer.priorities
-                      if actor and value['actor_token']==actor.get('actor_token')]
-            priority=dict(matching[-1]) if matching else None
+            allowed=supervisor.allowed
+            invalidation=observer.invalidation
+            priority=dict(invalidation) if invalidation and actor and invalidation['actor_token']==actor.get('actor_token') else None
             result=real_retire(*args,**kwargs)
             exited=supervisor.lane.actor()
             if actor and actor.get('state')=='occupied' and exited and exited.get('state')=='idle':
                 observer.retirements.append({'actor_token':actor['actor_token'],'reason':reason,
-                    'started_monotonic':started,'priority':priority,
+                    'allowed_at_start':allowed,'started_monotonic':started,'priority_invalidation':priority,
                     'exit_observed_at':exited['exit_observed_at']})
                 observer.retired.set()
             return result
@@ -116,8 +155,8 @@ class PriorityEvidence:
     def accepted_preemption(self, admitted, actor, entry):
         matching=[value for value in self.retirements if value['actor_token']==actor['actor_token']]
         assert len(matching)==1,matching
-        retirement=matching[0];priority=retirement['priority']
-        assert retirement['reason']=='priority' and priority,retirement
+        retirement=matching[0];priority=retirement['priority_invalidation']
+        assert retirement['allowed_at_start'] is False and priority,retirement
         assert priority['manual_id']==admitted['id']
         assert priority['admission_id']==admitted['admission_id']
         assert priority['generation']==admitted['generation']
@@ -125,7 +164,7 @@ class PriorityEvidence:
         assert priority['manual_sequence']==entry['after_durable']['manual_sequence']
         assert priority['actor_token']==actor['actor_token']
         assert priority['active_binding']==actor['binding']
-        assert entry['before_monotonic']<=priority['observed_monotonic']<=retirement['started_monotonic']<=retirement['exit_observed_at']
+        assert entry['before_monotonic']<=priority['observed_monotonic']<=priority['before_allowed_false_monotonic']<=retirement['started_monotonic']<=retirement['exit_observed_at']
         # No comparison with response time: post-commit preemption can be faster.
         return retirement
 
@@ -358,7 +397,7 @@ def test_noncapacity_admission_failures_are_not_retryable_denials(store,monkeypa
     assert len(ledger)==1 and ledger[0]['outcome']=='exception'
 
 
-@pytest.mark.parametrize('pause_phase',['before_commit','after_commit'])
+@pytest.mark.parametrize('pause_phase',['before_commit','after_commit','after_commit_delayed_reason'])
 def test_preemption_requires_committed_priority_not_ingress_or_response(both_origins,monkeypatch,pause_phase):
     factory,owner=both_origins
     _,manual=confirmed(factory,owner)
@@ -388,9 +427,11 @@ def test_preemption_requires_committed_priority_not_ingress_or_response(both_ori
         callback={'entered_monotonic':time.monotonic()}
         commit_observations.append(callback)
         if pause_phase=='before_commit':db.flush()
+        else:evidence.resume.set()
         assert evidence.retired.wait(5),'Actual old actor did not exit'
         callback['released_monotonic']=time.monotonic()
-    event.listen(admission_session,pause_phase,pause)
+    commit_event='before_commit' if pause_phase=='before_commit' else 'after_commit'
+    event.listen(admission_session,commit_event,pause)
     class RequestFactory:
         def __call__(self):return admission_session
     # Admission snapshots must use separate readers, not the request session.
@@ -406,6 +447,10 @@ def test_preemption_requires_committed_priority_not_ingress_or_response(both_ori
             if ready and actor and actor.get('state')=='occupied':break
             assert time.monotonic()<deadline,errors
             time.sleep(.01)
+        if pause_phase!='before_commit':
+            evidence.hold_reason_until_exit=pause_phase=='after_commit_delayed_reason'
+            evidence.park_after_renewal.set()
+            assert evidence.parked.wait(3),'Real completed renewal did not reach synchronization point'
         # Only this request's commit is paused; renewal and 750ms expiry remain real.
         admitted,entry=admission_attempt(RequestFactory(),owner,manual['id'],generation,ledger,{})
         actor=entry['readiness']['actor']
@@ -425,15 +470,17 @@ def test_preemption_requires_committed_priority_not_ingress_or_response(both_ori
             with pytest.raises(AssertionError):evidence.accepted_preemption(admitted,actor,entry)
         else:
             proof=evidence.accepted_preemption(admitted,actor,entry)
-            assert proof['priority']['admission_id']==admitted['admission_id']
-            assert commit_observations[0]['entered_monotonic']<=proof['priority']['observed_monotonic']
+            assert proof['priority_invalidation']['admission_id']==admitted['admission_id']
+            assert commit_observations[0]['entered_monotonic']<=proof['priority_invalidation']['observed_monotonic']
             assert proof['exit_observed_at']<=commit_observations[0]['released_monotonic']
+            if pause_phase=='after_commit_delayed_reason':assert proof['reason'] is None
             for changed in ({**admitted,'generation':admitted['generation']+1},
                             {**admitted,'admission_id':'another-admission'}):
                 with pytest.raises(AssertionError):evidence.accepted_preemption(changed,actor,entry)
             with pytest.raises(AssertionError):
                 evidence.accepted_preemption(admitted,{**actor,'actor_token':'another-actor'},entry)
     finally:
-        event.remove(admission_session,pause_phase,pause)
+        evidence.resume.set()
+        event.remove(admission_session,commit_event,pause)
         admission_session.close();supervisor.stop.set();worker.join(10)
         assert not worker.is_alive()
