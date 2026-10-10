@@ -15,6 +15,7 @@ import pandas as pd
 from analysis.config import (
     LEGACY_PRAXYS_PLAN_SOURCE,
     PRAXYS_PLAN_SOURCE,
+    is_praxys_managed_plan,
     is_praxys_plan_source,
     load_config,
     load_config_from_db,
@@ -26,6 +27,22 @@ from analysis.metrics import is_hard_workout, is_rest_workout
 # ---------------------------------------------------------------------------
 # Training context builder
 # ---------------------------------------------------------------------------
+
+
+def _workout_context(row: dict) -> dict:
+    """Serialize one selected row with canonical ownership and provenance."""
+    workout = {k: (v if pd.notna(v) else None) for k, v in row.items()}
+    observed = pd.to_datetime(workout.get("date"), errors="coerce")
+    workout["date"] = observed.date().isoformat() if pd.notna(observed) else ""
+    source = workout.get("source")
+    origin = workout.pop("workout_origin", None)
+    if is_praxys_plan_source(source):
+        workout["source"] = LEGACY_PRAXYS_PLAN_SOURCE
+        workout["owner"] = PRAXYS_PLAN_SOURCE
+    else:
+        workout["owner"] = "external"
+    workout["origin"] = normalize_workout_origin(origin, source=source)
+    return workout
 
 
 def _build_context_from_data(
@@ -195,35 +212,31 @@ def _build_context_from_data(
     planned_today: dict | None = None
     external_planned_today: list[dict] = []
     if isinstance(plan_df, pd.DataFrame) and not plan_df.empty:
-        plan_future = plan_df[plan_df["date"] >= today]
+        plan_future = plan_df[pd.to_datetime(plan_df["date"], errors="coerce").dt.date >= today]
         for _, row in plan_future.iterrows():
-            wp = {k: (v if pd.notna(v) else None) for k, v in row.to_dict().items()}
-            row_date = wp.get("date")
-            wp["date"] = str(row_date) if row_date is not None else ""
-            raw_source = wp.get("source")
-            raw_origin = wp.pop("workout_origin", None)
-            if is_praxys_plan_source(raw_source):
-                # Keep the context compatible with existing skill clients while
-                # exposing explicit ownership and provenance.
-                wp["source"] = LEGACY_PRAXYS_PLAN_SOURCE
-                wp["owner"] = PRAXYS_PLAN_SOURCE
-            else:
-                wp["owner"] = "external"
-            wp["origin"] = normalize_workout_origin(
-                raw_origin,
-                source=raw_source,
-            )
-            current_plan.append(wp)
-            if planned_today is None and row_date == today:
-                planned_today = wp
+            current_plan.append(_workout_context(row.to_dict()))
+
+    # Reuse Today's exact order-independent selection and fallback semantics.
+    # The first calendar row may be rest/easy while Today selected a quality
+    # session; a future preferred-source row may also hide today's other source.
+    from api.deps import _get_todays_plan
+
+    all_plans = data.get("all_plans", plan_df)
+    _, selected = _get_todays_plan(
+        plan_df if isinstance(plan_df, pd.DataFrame) else pd.DataFrame(), today,
+        fallback_plan=(all_plans if isinstance(all_plans, pd.DataFrame)
+                       and not is_praxys_managed_plan(config) else None),
+    )
+    if selected is not None:
+        planned_today = _workout_context(selected)
 
     # The canonical plan stays authoritative. Connected-platform courses are
     # separate observations, including in Praxys-managed mode where the
     # canonical plan intentionally excludes them. all_plans is already gated
     # by include_stryd_plan at the authenticated data-loading boundary.
-    all_plans = data.get("all_plans", plan_df)
     if isinstance(all_plans, pd.DataFrame) and not all_plans.empty:
-        for _, row in all_plans[all_plans["date"] == today].iterrows():
+        today_rows = pd.to_datetime(all_plans["date"], errors="coerce").dt.date == today
+        for _, row in all_plans[today_rows].iterrows():
             if is_praxys_plan_source(row.get("source")):
                 continue
             workout = {

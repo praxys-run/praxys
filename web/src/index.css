@@ -703,7 +703,7 @@
 .coach-receipt > .coach-body > .coach-summary {
   font-size: 12.5px;
   line-height: 1.55;
-  color: var(--muted-foreground);
+  color: var(--foreground);
   margin: 0 0 12px 0;
   white-space: pre-line;
   /* Cap prose at the readability range. The receipt is full-bleed on
@@ -1399,7 +1399,7 @@
 .coach-key-recommendation .coach-label { margin-block: 0 0.5rem; }
 .coach-key-recommendation .coach-text { margin: 0; line-height: 1.6; }
 .coach-theory-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-.coach-theory-links a { color: var(--accent-cobalt); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.coach-theory-links a { color: var(--accent-cobalt-val); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
 .coach-status { margin-bottom: 1rem; line-height: 1.6; }
 
 .coach-loading { display: grid; gap: 0.65rem; margin-block: 1rem; }
@@ -1414,3 +1414,10 @@
 .coach-receipt .coach-feedback-cancel,
 .coach-receipt .coach-feedback-send { min-height: 44px; }
 .coach-receipt .coach-feedback-icon { min-width: 44px; }
+
+/* Reading and interaction text stays legible in both receipt themes. */
+.coach-receipt .coach-label,
+.coach-receipt .coach-feedback-question,
+.coach-receipt .coach-feedback-sent,
+.coach-receipt .coach-feedback-count,
+.coach-receipt .coach-feedback-cancel { color: var(--foreground); }
