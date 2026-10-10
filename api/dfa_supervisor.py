@@ -11,7 +11,7 @@ import time
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, cast, String, or_
 from sqlalchemy.orm import sessionmaker, defer
 
 from api.dfa_physical import Lane, PhysicalUnavailable, MAX_OUTPUT, PROFILE
@@ -133,6 +133,9 @@ class Supervisor:
         self.physical_mutex = threading.RLock()
         self.retired = threading.Event()
         self.retirement_reason = None
+        # At most two Python I/O continuations including the active job. A
+        # cancelled automatic continuation cannot consume the manual slot.
+        self.cleanups = []
 
     def _bound(self, db):
         row = db.query(Control).filter_by(id=1).populate_existing().first()
@@ -158,7 +161,7 @@ class Supervisor:
                     row = self._bound(db)
                     with self.lock:
                         active = self.active
-                    valid = row is not None
+                    valid = row is not None and len(self.cleanups)<2
                     if active:
                         run = db.query(Run).options(defer(Run.result)).filter_by(id=active['id'],
                             generation=active['generation'], status='running', execution_epoch=str(row.epoch) if row else '').first()
@@ -261,11 +264,14 @@ class Supervisor:
                     receipt.disposition = 'authority_denied'
                 db.commit()
 
-    def acquire_job(self):
+    def acquire_job(self, *, manual_only=False):
         from api import activity_dfa as service, dfa_rights
         from sqlalchemy import case
         with self.factory() as db:
-            candidates = db.query(Run.id, Run.user_id).filter_by(status='queued').order_by(
+            query = db.query(Run.id, Run.user_id).filter_by(status='queued')
+            if manual_only:
+                query = query.filter_by(origin='manual')
+            candidates = query.order_by(
                 case((Run.origin == 'manual', 0), else_=1), Run.created_at).limit(service.MAX_ACTIVE_GLOBAL).all()
             db.rollback()
             for candidate in candidates:
@@ -293,7 +299,7 @@ class Supervisor:
                     return value
         return None
 
-    def work(self, job, result_queue):
+    def work(self, job, result_queue, cancellation=None):
         """Loading/IPC/publication is off the retirement reactor."""
         from api import activity_dfa as service
         from sync.rr_recording import RRRecordingReader, RecordingRef
@@ -301,6 +307,10 @@ class Supervisor:
         child = None
         launch_attempted = False
         validating_output = False
+        # This event is never cleared/reused by a subsequent job. Direct-step
+        # fixtures retain the existing event when no explicit token is supplied.
+        cancellation = cancellation if cancellation is not None else self.retired
+        cancellation.launch_attempted = False
         started = time.monotonic()
         try:
             with self.factory() as db:
@@ -313,34 +323,59 @@ class Supervisor:
                                 'evidence_digest': proof.evidence_digest} if proof else None
                 # Durable intent distinguishes recovery of a proven preload
                 # interruption from loss of an unacknowledged spawn journal.
-                run.progress='launching';db.commit()
-            if not self.allowed or time.monotonic() > self.permission_until:
+                if cancellation.is_set():
+                    raise ValueError('permission_expired')
+                if db.query(Run).filter_by(id=job['id'], generation=job['generation'], status='running').update(
+                        {Run.progress:'launching'}, synchronize_session=False)!=1:
+                    raise ValueError('authority_changed')
+                db.commit()
+            if cancellation.is_set() or not self.allowed or time.monotonic() > self.permission_until:
                 raise ValueError('permission_expired')
             if time.monotonic() - started > service.MAX_EXECUTION_SECONDS:
                 raise ValueError("execution_time_limit")
             binding = {key: job[key] for key in ('generation','epoch','input')}
             with self.physical_mutex:
-                if self.retired.is_set() or not self.allowed or time.monotonic() > self.permission_until:
+                if cancellation.is_set() or not self.allowed or time.monotonic() > self.permission_until:
                     raise ValueError("permission_expired")
                 launch_attempted = True
+                cancellation.launch_attempted = True
                 actor, child = self.lane.launch(binding, authorized=True)
             # Acknowledged local journal is durable before any private bytes flow.
             with self.controls() as db:
                 control = self._bound(db)
-                if control is None:
+                if control is None or cancellation.is_set():
                     raise ValueError('binding_changed')
-                control.actor = actor; db.commit()
+                previous = control.actor
+                guard = db.query(Control).filter_by(id=1, epoch=self.identity['epoch'], enabled=True, drained=False)
+                for key, value in self.identity.items():
+                    field = Control.incarnation[key]
+                    guard = guard.filter((field.as_integer() if key=='epoch' else field.as_string()) == value)
+                if previous is None:
+                    # JSON(None) and SQL NULL both decode as None. Match those
+                    # exact absent encodings; never treat a malformed object as
+                    # an empty predecessor or use unsupported PostgreSQL JSON =.
+                    guard = guard.filter(or_(Control.actor.is_(None), cast(Control.actor, String)=='null'))
+                else:
+                    guard = guard.filter(Control.actor['actor_token'].as_string()==previous['actor_token'],
+                                         Control.actor['state'].as_string()==previous['state'])
+                # Exit publication may win while this I/O call is blocked. A
+                # late acknowledgement must not overwrite that receipt/new actor.
+                if guard.update({Control.actor:actor}, synchronize_session=False)!=1:
+                    raise ValueError('binding_changed')
+                db.commit()
             with self.factory() as db:
                 current=db.query(Run).filter_by(id=job['id'],generation=job['generation'],status='running').first()
                 if current is None or not service._current(db,current):
                     raise ValueError('authority_changed')
-            if self.retired.is_set() or not self.allowed or time.monotonic()>self.permission_until:
+            if cancellation.is_set() or not self.allowed or time.monotonic()>self.permission_until:
                 raise ValueError('permission_expired')
             payload = {'binding': binding, 'actor_token': actor['actor_token'], 'phase': job['phase'],
                        'raw_fit': base64.b64encode(raw).decode(), 'recording_ref': job['ref'], 'manual_proof': manual_proof, 'origin': job['origin']}
             child.stdin.write(json.dumps(payload, separators=(',', ':')).encode() + b'\n')
             child.stdin.close()
             output = child.stdout.read(MAX_OUTPUT + 2)
+            if cancellation.is_set():
+                raise ValueError('permission_expired')
             if len(output) > MAX_OUTPUT + 1 or not output.endswith(b'\n'):
                 raise ValueError('ipc_output_invalid')
             if len(output) > service.MAX_RESULT_BYTES:
@@ -360,6 +395,16 @@ class Supervisor:
         except Exception as exc:
             safe = str(exc) if str(exc) in SAFE_FAILURES else 'ipc_output_invalid' if validating_output else 'execution_unavailable'
             result_queue.put(('failed' if launch_attempted else 'failed_before_spawn', safe))
+        finally:
+            # The worker owns these handles. Closing from the retirement thread
+            # could block on a BufferedReader's lock and obstruct its watchdog.
+            if child is not None:
+                for stream in (child.stdin, child.stdout):
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except (OSError, ValueError):
+                            pass
 
     def record_exit(self):
         """Physical availability commits independently from owner cleanup I/O."""
@@ -378,7 +423,8 @@ class Supervisor:
                 # A bounded acknowledgement query can fail after the local
                 # journal recorded this live supervisor's child. Its verified
                 # exit is safe to project over an empty/idle predecessor only,
-                # after the work thread is joined. Never replace another actor.
+                # after irreversible cancellation fenced further launches and
+                # acknowledgement CAS. Never replace another actor.
                 with self.lock:
                     active = self.active
                 expected = {key: active[key] for key in ('generation','epoch','input')} if active else None
@@ -466,6 +512,7 @@ class Supervisor:
         work_thread, outputs, job = None, None, None
         try:
             while not self.stop.wait(.01):
+                self.cleanups = [thread for thread in self.cleanups if thread.is_alive()]
                 if job:
                     ready = not outputs.empty()
                     expired = time.monotonic() > self.permission_until or not self.allowed
@@ -473,39 +520,49 @@ class Supervisor:
                     timed_out = time.monotonic() - launched_at > MAX_EXECUTION_SECONDS
                     if expired or timed_out or ready:
                         self.retired.set()
+                        cancellation.set()
                         with self.physical_mutex:
                             self.lane.retire()
+                        # Physical retirement is proved independently. Cancelled
+                        # I/O has no permission to launch or publish, and its
+                        # private queue is discarded rather than joined here.
                         if work_thread.is_alive():
-                            work_thread.join(timeout=.25)
-                        if work_thread.is_alive():
-                            raise PhysicalUnavailable('loading_or_ipc_not_retired')
+                            self.cleanups.append(work_thread)
                         status, value = outputs.get() if not outputs.empty() else ('failed','execution_unavailable')
                         if status!='failed_before_spawn' and (expired or timed_out):
                             status,value = ('failed','execution_time_limit') if timed_out else ('preempted',None) if self.retirement_reason=='priority' else ('failed','permission_expired')
                         actor = self.lane.actor()
                         if actor and actor.get('binding')=={key:job[key] for key in ('generation','epoch','input')}:
                             self.record_exit()
-                        elif status!='failed_before_spawn':
+                        elif (getattr(cancellation, 'launch_attempted', False)
+                              or actor and actor.get('state')!='idle'):
                             raise PhysicalUnavailable('launch_exit_uncertain')
                         self.finish(job, status, value)
                         with self.lock:
                             self.active = None
                         job = None
                 elif self.allowed and time.monotonic() < self.permission_until:
+                    if len(self.cleanups)>=2:
+                        continue
                     self.admit_completion()
-                    job = self.acquire_job()
+                    job = self.acquire_job(manual_only=bool(self.cleanups))
                     if job:
                         outputs = queue.Queue(maxsize=1)
                         with self.lock:
                             self.active = job
                         self.retired.clear()
+                        cancellation = threading.Event()
                         launched_at = time.monotonic()
-                        work_thread = threading.Thread(target=self.work, args=(job, outputs), daemon=True)
+                        work_thread = threading.Thread(target=self.work, args=(job, outputs, cancellation), daemon=True)
                         work_thread.start()
         finally:
             self.stop.set()
-            self.lane.retire()
-            self.lane.close()
+            self.allowed = False
+            if job:
+                cancellation.set()
+            with self.physical_mutex:
+                self.lane.retire()
+                self.lane.close()
 
 
 def retire_before_initialization(identity=None, directory=None):

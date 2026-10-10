@@ -147,8 +147,9 @@ that reconstruction's processing and Science checks. Renewal uses its one
 observed priority query for both permission invalidation and reason reporting.
 
 The supervisor control pool has two bounded connections, for renewal and the
-single spawn/exit acknowledgement. Acknowledgements do not overlap: exit
-projection follows work-thread join. SQLite control I/O uses a separate pool
+spawn/exit acknowledgement capacity. Cancelled acknowledgement and exit
+projection can race; exact actor CAS preserves the winning receipt, and the
+existing pool/command bounds still apply. SQLite control I/O uses a separate pool
 with the repository's durability pragmas and a 100ms busy timeout; PostgreSQL
 retains 200ms statement/lock deadlines and 100ms checkout. The 250ms poll and
 750ms local expiry are unchanged. The prospective synthetic capacity profile
@@ -251,3 +252,31 @@ wait. Production never obtains that fixture's synthetic initialization authority
 Earlier failed/interrupted evidence remains separate and is not substituted by
 later focused results. Frozen DFA Science/STOP and numerical objects remain
 unchanged; shared upstream UI still requires fresh rendered evidence.
+
+### Physical exit versus cancelled Python continuation
+
+`644b1c4`/base`e646278` failed canonical validation with4498 passed,1 failed,
+53 skipped in2511.37s. Capacity retained15 ingress/5 pre-admission denials/
+10 accepted/9 completed; the tenth manual request did not complete after
+`loading_or_ipc_not_retired`. Matching committed priority and group exit were
+observed. Exact historical worker stack was not captured. A source-bound
+12-step diagnostic did not reproduce the lingering worker. Ordinary merge
+`5c06a05`/base`4faac47` changed only an unrelated research document, without
+conflicts or lifecycle/policy changes. Original evidence keeps its644/e646 binding.
+
+The repair separates physical exclusion from private Python cleanup, with an
+irreversible per-job cancellation event, fenced intent/actor writes, existing
+verified group retirement and current publication authority. The old result
+queue never becomes the new job's queue. Cleanup capacity is bounded to two
+continuations total; automatic loads wait while cancelled cleanup remains so
+manual work can use the second slot. Exhaustion denies new completed readiness
+and execution while already accepted requests remain queued. Worker-owned pipe
+closure avoids blocking the retirement reactor on buffered-reader locks.
+
+No formula, Science/STOP object, authority grant, output bound, SQL pulse,750ms
+physical expiry,125ms cadence, connection count or deployment activation changes.
+Deterministic real SQLite/PostgreSQL cases distinguish actual pipe/group exit
+from deliberately held Python continuation, delayed raw-loading return and late
+actor acknowledgement; they are boundary regressions rather than reconstructed
+historical causation or a replacement100-trial certificate. Unbounded driver/
+storage stalls exhausting both slots remain an explicit capacity/recovery limit.

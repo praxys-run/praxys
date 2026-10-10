@@ -714,9 +714,11 @@ preparation and pending writes, immediately before commit. Response delivery
 must not hold that transaction while repeating source/storage/authority checks.
 
 The supervisor control pool uses two connections with zero overflow and 100ms
-checkout, allowing renewal alongside the single lifecycle acknowledgement.
-Spawn acknowledgement and verified-exit projection cannot overlap: retirement
-joins the work thread before exit projection. SQLite uses a dedicated bounded
+checkout, reserving bounded capacity for renewal and lifecycle acknowledgements.
+A cancelled worker acknowledgement can race verified-exit projection: exact
+incarnation/epoch/prior-actor CAS prevents it from overwriting an exit receipt
+or replacement actor. Pool checkout and command deadlines still apply when
+those calls overlap; no extra connection or overflow is introduced. SQLite uses a dedicated bounded
 control pool with the existing durable journal/synchronous settings and 100ms
 busy timeout. PostgreSQL retains 200ms statement and lock timeouts. This reduces
 avoidable pool contention; it does not remove database writer/row-lock
@@ -769,3 +771,50 @@ outcomes and physical exit/durable availability/post-Popen timings. Selecting
 only fast readiness windows is not general healthy capacity. Focused25ms SQL
 coverage sampling adds up to40 observer reads/s and is an estimate, not a live
 availability certificate. No maximum-input/shared-service/soak capacity is proved.
+
+### Cancelled I/O and independent physical retirement
+
+The failed `644b1c4` canonical run is retained:4498 passed,1 failed,53 skipped.
+The SQLite capacity cell recorded15 ingress,5 pre-admission refusals,10 durable
+acceptances and9 complete outcomes. The tenth remained an accepted failure:
+its matching priority invalidation and physical group exit were observed, but
+the Python loading/IPC continuation remained alive after the old250ms join.
+Its exact blocked stack/resource was not recorded and is unknown. One bounded
+12-step diagnostic completed all12; that does not repair the failed certificate.
+
+Physical retirement no longer joins a Python I/O continuation. Before retirement,
+a job-local event irrevocably denies later launch; it is never cleared for a new
+job. All launches check that event under the physical mutex. Intent writes are
+generation/status fenced; actor acknowledgements use exact CAS. Verified group
+exit and its durable receipt precede slot reuse. Old private result queues are
+discarded; current owner/origin/rights/source checks remain required for any
+publication. A late worker owns and closes its own pipe handles, because closing
+a buffered reader from the reactor can block on that reader's lock.
+
+There are at most two Python I/O continuations including the active job. With
+one cancelled continuation, automatic loading is paused and the remaining slot
+is reserved for manual work. At two cancelled continuations no new work starts
+and completed renewal denies new readiness; requests already durably accepted
+stay accepted. A formerly valid admission pulse can expire naturally while that
+denial completes. No250ms SQL/750ms physical bound or125ms cadence changes.
+
+Focused SQLite/PostgreSQL tests deliberately hold a private stdout continuation
+after actual pipe EOF, retain every ingress outcome, and require real admitted
+manual computation/physical exit before reuse before releasing cleanup. Other
+tests delay raw loading and actual actor UPDATE execution, proving cancelled
+loads cannot launch/write a newer generation and old acknowledgements cannot
+overwrite a replacement. These deterministic delays reproduce a lifecycle
+boundary; they do not identify the original644 blocked dependency. Permanent
+storage/driver stalls, maximum input and mixed-load/soak capacity remain unproved.
+A stuck dependency exhausting both continuation slots requires recovery; do not
+claim universal manual availability or increase slots/deadlines to hide it.
+
+The EOF-boundary cell uses one work connection/zero overflow and two control
+connections; it observes zero checked-out work connections at the paused pipe
+continuation. An indefinitely blocked raw-loading transaction can instead hold
+that sole work connection. The extra Python continuation does not create another
+DB connection or prove service during such a stall; pool/driver contention and
+permanent dependency failure remain explicit recovery/capacity limitations.
+Focused regressions passed12 lifecycle cases and59 existing runtime/authority/
+readiness cases; the wider bounded combination passed72 with the100-trial case
+excluded. This is preparation for independent review, not final canonical proof.

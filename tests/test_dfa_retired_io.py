@@ -1,0 +1,294 @@
+"""Real child exit stays independent of cancelled Python I/O cleanup."""
+import json
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from api import activity_dfa as service
+from db.models import ActivityDFAControl as Control, ActivityDFARun as Run
+from tests.test_activity_dfa import store, confirmed
+from tests.test_dfa_origins import both_origins, complete_unit
+from tests.test_dfa_supervisor_capacity import admission_attempt, PriorityEvidence
+
+
+@pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
+def test_manual_completes_while_retired_automatic_pipe_cleanup_lingers(both_origins, monkeypatch):
+    factory, owner = both_origins
+    _, manual = confirmed(factory, owner)
+    with factory() as db: claimed = service.claim(db)
+    service.execute(factory, *claimed)
+    with factory() as db:
+        row = db.get(Run, manual['id']); row.status = 'failed'; db.commit()
+    complete_unit(factory, owner)
+    supervisor = factory.dfa_supervisor
+    supervisor.allowed = False; supervisor.permission_until = 0.
+    url = factory.kw['bind'].url
+    args = {'timeout': .1} if url.get_backend_name() == 'sqlite' else {
+        'connect_timeout': 1, 'options': '-c statement_timeout=200 -c lock_timeout=200'}
+    engine = create_engine(url, pool_size=2, max_overflow=0, pool_timeout=.1, connect_args=args)
+    supervisor.controls = sessionmaker(bind=engine)
+    producer = create_engine(url, pool_size=1, max_overflow=0, pool_timeout=.1,
+                             connect_args={'timeout':.1} if url.get_backend_name()=='sqlite' else {'connect_timeout':1})
+    if url.get_backend_name()=='sqlite':
+        from db.session import _attach_sqlite_pragmas
+        _attach_sqlite_pragmas(producer)
+    supervisor.factory = sessionmaker(bind=producer)
+    actual_popen = subprocess.Popen
+    eof = threading.Event(); release = threading.Event(); cleanup_done = threading.Event()
+    actors = []; errors = []; attempts = []; timeline = []
+    code = '''import io,json,signal,sys,time
+signal.signal(signal.SIGTERM,signal.SIG_IGN)
+raw=sys.stdin.buffer.readline(90*1024*1024+1)
+payload=json.loads(raw)
+if payload['origin']=='automatic':
+    while True:time.sleep(.01)
+else:
+    signal.signal(signal.SIGTERM,signal.SIG_DFL)
+    sys.stdin=io.TextIOWrapper(io.BytesIO(raw))
+    from api.dfa_worker import main
+    main()
+'''
+    class DelayedEOF:
+        def __init__(self, pipe): self.pipe = pipe
+        def read(self, limit):
+            data = self.pipe.read(limit)
+            # Actual group termination has already closed its writer. Hold only
+            # this Python continuation/private read handle; no numerical actor.
+            timeline.append({'kind':'real_pipe_eof','at':time.monotonic(),
+                             'owned_private_read_fd':self.pipe.fileno(),
+                             'data_pool_checked_out':producer.pool.checkedout()})
+            assert producer.pool.checkedout()==0
+            eof.set()
+            assert release.wait(8)
+            self.pipe.close(); cleanup_done.set()
+            return data
+        def close(self): self.pipe.close()
+    def popen(command, **kwargs):
+        if command[-2:] == ['-m', 'api.dfa_worker']:
+            command = [sys.executable, '-E', '-B', '-c', code]
+        child = actual_popen(command, **kwargs)
+        # Fixture setup already completed. First real-loop child is automatic.
+        if not actors: child.stdout = DelayedEOF(child.stdout)
+        return child
+    monkeypatch.setattr(subprocess, 'Popen', popen)
+    actual_record = supervisor.lane.record
+    def record(actor):
+        actual_record(actor)
+        if actor['state']=='occupied': actors.append(dict(actor))
+        timeline.append({'kind':actor['state'],'at':time.monotonic(),'actor_token':actor['actor_token']})
+    monkeypatch.setattr(supervisor.lane, 'record', record)
+    evidence = PriorityEvidence(supervisor, monkeypatch)
+    def run():
+        try: supervisor.run()
+        except Exception as exc: errors.append(type(exc).__name__+':'+str(exc))
+    thread = threading.Thread(target=run); thread.start()
+    deadline = time.monotonic()+15
+    try:
+        while not actors:
+            assert time.monotonic()<deadline, errors
+            time.sleep(.01)
+        initial = actors[0]; evidence.startup_launch(initial)
+        for attempt in range(3):
+            admitted, entry = admission_attempt(factory, owner, manual['id'], manual['generation'], attempts, {'attempt':attempt})
+            if admitted: break
+            time.sleep(.125)
+        assert admitted, attempts
+        assert eof.wait(3), errors
+        # Delayed cleanup stays blocked while the accepted manual request must
+        # compute through the real worker and complete with genuine rights.
+        while True:
+            with factory() as db: complete = db.get(Run, manual['id']).status=='complete'
+            if complete: break
+            assert time.monotonic()<entry['before_monotonic']+5, errors
+            time.sleep(.01)
+        assert not cleanup_done.is_set()
+        retirement = evidence.accepted_preemption(admitted, initial, entry)
+        manual_actor = next(actor for actor in actors if actor['binding']['generation']==admitted['generation']
+                            and actor['binding']['input']!=initial['binding']['input'])
+        assert manual_actor['launch_at']>=retirement['exit_observed_at']
+        assert not errors
+        release.set(); assert cleanup_done.wait(2)
+    finally:
+        release.set(); supervisor.stop.set(); thread.join(10); engine.dispose(); producer.dispose()
+        assert not thread.is_alive()
+        root = Path(__file__).resolve().parents[1]
+        (root/f'.git/pr871-retired-io-{url.get_backend_name()}-{time.time_ns()}.json').write_text(json.dumps({
+            'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+            'source_hashes':{name:__import__('hashlib').sha256((root/name).read_bytes()).hexdigest()
+                             for name in ('api/dfa_supervisor.py','api/dfa_physical.py','tests/test_dfa_retired_io.py')},
+            'injection':'bounded task-local delay after actual pipe EOF; not diagnosis of historical blocked phase',
+            'producer_pool':{'size':1,'overflow':0,'checkout_seconds':.1},
+            'control_pool':{'size':2,'overflow':0,'checkout_seconds':.1},
+            'timeline':timeline,'attempts':attempts,'errors':errors},indent=2))
+
+
+@pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
+def test_cancelled_raw_load_cannot_launch_or_mutate_retried_generation(store, monkeypatch):
+    from sync.rr_recording import RRRecordingReader
+    factory, owner = store
+    _, manual = confirmed(factory, owner)
+    supervisor = factory.dfa_supervisor
+    job = supervisor.acquire_job(); supervisor.active = job
+    previous_actor = supervisor.lane.actor()
+    entered = threading.Event(); release = threading.Event(); cancellation = threading.Event()
+    actual_raw = RRRecordingReader.raw
+    def delayed_raw(reader, ref):
+        raw = actual_raw(reader, ref)
+        entered.set(); assert release.wait(5)
+        return raw
+    monkeypatch.setattr(RRRecordingReader, 'raw', delayed_raw)
+    import queue
+    outputs = queue.Queue(maxsize=1)
+    worker = threading.Thread(target=supervisor.work, args=(job, outputs, cancellation)); worker.start()
+    try:
+        assert entered.wait(3)
+        with supervisor.physical_mutex:
+            cancellation.set(); supervisor.lane.retire()
+        supervisor.finish(job, 'failed_before_spawn', 'permission_expired')
+        with factory() as db:
+            accepted = service.change_run(db, owner, '123', manual['id'], 'retry', manual['generation'])
+        release.set(); worker.join(3)
+        assert not worker.is_alive()
+        assert outputs.get_nowait()[0]=='failed_before_spawn'
+        assert supervisor.lane.actor() == previous_actor
+        with factory() as db:
+            row = db.get(Run, manual['id'])
+            assert row.generation==accepted['generation'] and row.status==row.progress=='queued'
+            assert row.result is None
+    finally:
+        release.set(); worker.join(5); supervisor.lane.close()
+
+
+@pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
+def test_late_actor_ack_cannot_overwrite_exit_or_replacement(store, monkeypatch):
+    from sqlalchemy import event
+    import queue
+    factory, owner = store
+    _, manual = confirmed(factory, owner)
+    supervisor = factory.dfa_supervisor
+    job = supervisor.acquire_job(); supervisor.active = job
+    entered = threading.Event(); release = threading.Event(); cancellation = threading.Event()
+    outputs = queue.Queue(maxsize=1)
+    worker = threading.Thread(target=supervisor.work, args=(job, outputs, cancellation))
+    engine = factory.kw['bind']
+    def delay_actor_ack(connection, cursor, statement, parameters, context, executemany):
+        if threading.current_thread() is worker and statement.startswith('UPDATE activity_dfa_control SET actor='):
+            entered.set(); assert release.wait(8)
+    event.listen(engine, 'before_cursor_execute', delay_actor_ack)
+    try:
+        worker.start(); assert entered.wait(5)
+        first = supervisor.lane.actor()
+        with supervisor.physical_mutex:
+            cancellation.set(); supervisor.lane.retire()
+        retired = supervisor.lane.actor()
+        assert retired['state']=='idle' and retired['actor_token']==first['actor_token']
+        supervisor.record_exit()
+        supervisor.finish(job, 'failed', 'permission_expired')
+        with factory() as db:
+            accepted = service.change_run(db, owner, '123', manual['id'], 'retry', manual['generation'])
+        with factory() as db: replacement = service.claim(db)
+        service.execute(factory, *replacement)
+        replacement_actor = supervisor.lane.actor()
+        assert replacement_actor['actor_token']!=first['actor_token']
+        assert replacement_actor['launch_at']>=retired['exit_observed_at']
+        release.set(); worker.join(3)
+        assert not worker.is_alive() and outputs.get_nowait()[0]=='failed'
+        with factory() as db:
+            assert db.get(Control, 1).actor==replacement_actor
+            row = db.get(Run, manual['id'])
+            assert row.generation==accepted['generation'] and row.status=='complete'
+    finally:
+        release.set(); worker.join(5)
+        event.remove(engine, 'before_cursor_execute', delay_actor_ack)
+        supervisor.lane.retire(); supervisor.lane.close()
+
+
+@pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
+@pytest.mark.parametrize('absence', ['json_null', 'sql_null'])
+def test_absent_actor_ack_handles_both_database_null_encodings(store, absence):
+    from sqlalchemy import null
+    factory, owner = store
+    _, manual = confirmed(factory, owner)
+    with factory() as db:
+        control = db.get(Control, 1)
+        control.actor = None if absence=='json_null' else null()
+        db.commit()
+    with factory() as db: claimed = service.claim(db)
+    service.execute(factory, *claimed)
+    with factory() as db:
+        row = db.get(Run, manual['id'])
+        assert row.status=='complete', row.error_code
+        actor = db.get(Control, 1).actor
+        assert actor['state']=='idle'
+        assert actor['binding']['generation']==row.generation
+
+
+@pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
+def test_cleanup_capacity_denies_then_reserves_recovered_slot_for_manual(both_origins, monkeypatch):
+    from datetime import datetime, timedelta
+    from fastapi import HTTPException
+    from tests.test_dfa_supervisor_capacity import admission_snapshot
+    factory, owner = both_origins
+    _, manual = confirmed(factory, owner)
+    with factory() as db: claimed = service.claim(db)
+    service.execute(factory, *claimed)
+    with factory() as db:
+        row = db.get(Run, manual['id']); row.status='failed'
+        control = db.get(Control, 1); control.ready_until=datetime.utcnow()-timedelta(seconds=1)
+        db.commit()
+    complete_unit(factory, owner)
+    supervisor = factory.dfa_supervisor
+    supervisor.allowed=False; supervisor.permission_until=0.
+    release = [threading.Event(), threading.Event()]
+    cleanups = [threading.Thread(target=signal.wait, daemon=True) for signal in release]
+    for thread in cleanups: thread.start()
+    supervisor.cleanups=list(cleanups)
+    errors=[]; launches=[]
+    actual_launch = supervisor.lane.launch
+    def launch(*args, **kwargs):
+        actor, child = actual_launch(*args, **kwargs); launches.append(actor)
+        return actor, child
+    monkeypatch.setattr(supervisor.lane, 'launch', launch)
+    def run():
+        try: supervisor.run()
+        except Exception as exc: errors.append(type(exc).__name__+':'+str(exc))
+    reactor=threading.Thread(target=run); reactor.start()
+    deadline=time.monotonic()+10
+    try:
+        while supervisor.control_observation['state']!='denied':
+            assert time.monotonic()<deadline, errors
+            time.sleep(.005)
+        before=admission_snapshot(factory, manual['id'])
+        with factory() as db, pytest.raises(HTTPException) as failure:
+            service.change_run(db, owner, '123', manual['id'], 'retry', manual['generation'])
+        assert (failure.value.status_code, failure.value.detail)==(503, 'DFA_CAPACITY_UNAVAILABLE')
+        assert admission_snapshot(factory, manual['id'])==before
+        assert not launches and not supervisor.allowed and supervisor.permission_until==0.
+        release[0].set(); cleanups[0].join(1)
+        while supervisor.control_observation['state']!='ready':
+            assert time.monotonic()<deadline, errors
+            time.sleep(.005)
+        assert len(supervisor.cleanups)==1
+        with factory() as db:
+            accepted=service.change_run(db, owner, '123', manual['id'], 'retry', manual['generation'])
+        while True:
+            with factory() as db: complete=db.get(Run, manual['id']).status=='complete'
+            if complete: break
+            assert time.monotonic()<deadline, errors
+            time.sleep(.01)
+        assert len(launches)==1 and launches[0]['binding']['generation']==accepted['generation']
+        assert not errors and cleanups[1].is_alive()
+        with factory() as db:
+            auto=db.query(Run).filter_by(origin='automatic').one()
+            assert auto.status=='queued' and auto.result is None
+    finally:
+        for signal in release: signal.set()
+        supervisor.stop.set(); reactor.join(5)
+        for thread in cleanups: thread.join(1)
+        assert not reactor.is_alive()
