@@ -269,7 +269,8 @@ def test_alembic_head_includes_adaptive_plan_proposals():
 
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["b4d5f6a70819"]
+    assert script.get_heads() == ["d6e7f8091a2b"]
+    assert script.get_revision("d6e7f8091a2b").down_revision == "b4d5f6a70819"
     assert script.get_revision("b4d5f6a70819").down_revision == "0a1b2c3d4e5f"
     assert script.get_revision("0a1b2c3d4e5f").down_revision == "f2a3b4c5d6e7"
     assert script.get_revision("f2a3b4c5d6e7").down_revision == "e1f2a3b4c5d6"
@@ -415,7 +416,9 @@ def test_road_10k_merge_secure_deletes_legacy_ids_before_rebuild(
 
         event.listen(Engine, "before_cursor_execute", capture)
         try:
-            command.upgrade(config, "head")
+            # This historical plan up/down regression ends before the DFA migration,
+            # whose destructive downgrade deliberately requires physical drain.
+            command.upgrade(config, "b4d5f6a70819")
         finally:
             event.remove(Engine, "before_cursor_execute", capture)
         return statements
@@ -503,7 +506,8 @@ def test_alembic_canonical_default_supports_old_worker_inserts(
 
     db_session.dispose_engines()
     config = Config("alembic.ini")
-    command.upgrade(config, "head")
+    # Exercise the historical plan migration/downgrade boundary.
+    command.upgrade(config, "b4d5f6a70819")
     migrated = create_engine(db_session.get_database_url())
     try:
         with migrated.begin() as conn:
@@ -697,7 +701,8 @@ def test_alembic_migrates_plan_ownership_origin_and_delivery_uuid(
                 ),
             )
 
-        command.upgrade(config, "head")
+        # Exercise the historical plan migration/downgrade boundary.
+        command.upgrade(config, "b4d5f6a70819")
         with migrated.connect() as conn:
             plan_rows = conn.exec_driver_sql(
                 """
