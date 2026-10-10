@@ -1,4 +1,5 @@
 """Real child exit stays independent of cancelled Python I/O cleanup."""
+from copy import deepcopy
 import json
 import os
 import select
@@ -17,7 +18,25 @@ from db.models import ActivityDFAControl as Control, ActivityDFARun as Run, Acti
 from tests.test_activity_dfa import store, confirmed
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_dfa_supervisor_capacity import admission_attempt, PriorityEvidence
-from tests.dfa_capacity_measurement import observed_requests, fresh_physical_eligibility, observe_acceptance, lifecycle_observations
+from tests.dfa_capacity_measurement import observed_requests, fresh_physical_eligibility, observe_acceptance, lifecycle_observations, _admission_binding_matches
+
+
+def require_eof_acceptance(admitted, entry, result):
+    """Accept real service only with its exact durable and acknowledged receipt.
+
+    Retirement cause is deliberately independent of this service contract.
+    Recheck the recorded transaction/response as well as the observer decision;
+    completed service is retained even when any of that evidence is invalid.
+    """
+    assert result['service_success'],result
+    assert entry['outcome']=='accepted',entry
+    assert result.get('admission_receipt_valid') is True,result
+    assert entry.get('acceptance_consistent') is True,entry
+    assert _admission_binding_matches(result,admitted,entry),entry
+    response=entry.get('accepted_response',{})
+    durable=entry.get('after_durable',{})
+    assert all(response.get(k)==admitted[k]==durable.get(k)
+               for k in ('id','generation','admission_id')),entry
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
@@ -147,8 +166,7 @@ else:
         # for the independently held real EOF continuation.
         result=observe_acceptance(factory,owner,admitted,entry,manual_input,evidence,
             transitions,availability,entry['before_monotonic']+5,errors,allow_existing_retirement=True)
-        assert result['service_success'],result
-        assert entry['outcome']=='accepted',entry
+        require_eof_acceptance(admitted,entry,result)
         assert eof.is_set() and not cleanup_done.is_set(),timeline
         retirement=next((r for r in evidence.retirements if r['actor_token']==initial['actor_token']),None)
         assert retirement and retirement['actor_snapshot']['binding']==initial['binding'],retirement
@@ -181,6 +199,41 @@ else:
                 time.sleep(.01)
             assert second_load.is_set() and receipt_reads
             assert all(read['cleanup_released'] and read['retained_cleanups']==0 for read in receipt_reads)
+        # These negatives run AFTER actual cleanup/release checks and actual
+        # completed service; they never change a DB receipt or sample a new
+        # accepted request. The same EOF decision above must reject each copy.
+        entry['deliberately_damaged_EOF_receipt_negatives']=[]
+        defects=('missing_consistency','false_consistency','missing_response',
+                 'response_id','response_generation','response_admission',
+                 'missing_subject','subject_id','subject_generation','subject_admission',
+                 'subject_epoch','subject_input','false_observer_receipt')
+        for defect in defects:
+            damaged=deepcopy(entry)
+            if defect=='missing_consistency':damaged.pop('acceptance_consistent')
+            elif defect=='false_consistency':damaged['acceptance_consistent']=False
+            elif defect=='missing_response':damaged.pop('accepted_response')
+            elif defect.startswith('response_'):
+                key={'response_id':'id','response_generation':'generation','response_admission':'admission_id'}[defect]
+                damaged['accepted_response'][key]='wrong'
+            elif defect=='missing_subject':damaged.pop('transaction_subject')
+            elif defect.startswith('subject_'):
+                key={'subject_id':'id','subject_generation':'generation','subject_admission':'admission_id',
+                     'subject_epoch':'execution_epoch','subject_input':'input_digest'}[defect]
+                damaged['transaction_subject'][key]='wrong'
+            negative=observe_acceptance(factory,owner,admitted,damaged,manual_input,evidence,
+                transitions,availability,time.monotonic()+.5,errors,allow_existing_retirement=True)
+            if defect=='false_observer_receipt':negative['admission_receipt_valid']=False
+            # This is the previously unsafe case: authorized service succeeds
+            # despite invalid evidence, so successful service alone cannot pass
+            # THE actual EOF caller's acceptance predicate.
+            assert negative['service_success'] and negative['authorization_current'],negative
+            if defect=='false_consistency' or defect.startswith('subject_') or defect=='missing_subject':
+                assert negative['classification']=='insufficient_admission_evidence',negative
+            with pytest.raises(AssertionError):
+                require_eof_acceptance(admitted,damaged,negative)
+            entry['deliberately_damaged_EOF_receipt_negatives'].append({
+                'defect':defect,'observation':negative,'EOF_decision':'rejected'})
+        assert entry['accepted_observation'] is result and result['service_success']
     finally:
         release.set(); supervisor.stop.set(); thread.join(10); engine.dispose(); producer.dispose()
         os.close(ready_read); os.close(ready_write)
