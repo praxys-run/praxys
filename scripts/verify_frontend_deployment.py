@@ -10,6 +10,7 @@ import re
 import time
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 
 BASE_URLS = (
     "https://praxys-frontend.azurewebsites.net",
@@ -30,6 +31,72 @@ class _AppEntry(HTMLParser):
             self.scripts.append(source)
 
 
+class _DocumentFingerprint(HTMLParser):
+    """Preserve application HTML while allowing the known edge beacon."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.events: list[tuple] = []
+        self.beacon = False
+        self.raw_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        source = urlsplit(values.get("src") or "")
+        allowed = {"src", "type", "integrity", "data-cf-beacon", "crossorigin", "async", "defer"}
+        if (tag == "script" and source.scheme == "https"
+                and source.netloc == "static.cloudflareinsights.com"
+                and re.fullmatch(r"/beacon\.min\.js(?:/[A-Za-z0-9]+)?", source.path)
+                and not source.query and not source.fragment
+                and "data-cf-beacon" in values and set(values) <= allowed
+                and len(values) == len(attrs)):
+            self.beacon = True
+            return
+        self.events.append(("start", tag, sorted(attrs, key=lambda item: (item[0], item[1] or ""))))
+        if tag in {"script", "style", "pre", "textarea"}:
+            self.raw_text.append(tag)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.events.append(("empty", tag, sorted(attrs, key=lambda item: (item[0], item[1] or ""))))
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.beacon and tag == "script":
+            self.beacon = False
+            return
+        self.events.append(("end", tag))
+        if self.raw_text and self.raw_text[-1] == tag:
+            self.raw_text.pop()
+
+    def handle_data(self, data: str) -> None:
+        if self.beacon:
+            if data.strip():
+                raise ValueError("edge beacon contains unexpected inline code")
+            return
+        # Only inter-element indentation is cosmetic. Preserve application
+        # text, theme scripts and preformatted content byte for byte.
+        if not self.raw_text and not data.strip() and "\n" in data:
+            return
+        self.events.append(("data", data))
+
+    def handle_comment(self, data: str) -> None:
+        self.events.append(("comment", data))
+
+    def handle_decl(self, decl: str) -> None:
+        self.events.append(("decl", decl))
+
+
+def resource_fingerprint(path: str, body: bytes) -> str:
+    """Fingerprint HTML structure or exact executable-resource bytes."""
+    if path == "/settings":
+        document = _DocumentFingerprint()
+        document.feed(body.decode("utf-8"))
+        document.close()
+        if document.beacon:
+            raise ValueError("unterminated edge beacon")
+        body = json.dumps(document.events, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(body).hexdigest()
+
+
 def expected_resources(dist: Path) -> dict[str, str]:
     """Fingerprint the app document, its bootstrap, and update authority."""
     shell = dist / "app-shell.html"
@@ -39,7 +106,7 @@ def expected_resources(dist: Path) -> dict[str, str]:
         raise ValueError("package must have one local application bootstrap")
     paths = {"/settings": shell, "/sw.js": dist / "sw.js"}
     paths[entry.scripts[0]] = dist / entry.scripts[0].lstrip("/")
-    return {url: hashlib.sha256(path.read_bytes()).hexdigest() for url, path in paths.items()}
+    return {url: resource_fingerprint(url, path.read_bytes()) for url, path in paths.items()}
 
 
 def fetch(url: str, timeout: float) -> bytes:
@@ -70,7 +137,7 @@ def probe(base_url: str, source_sha: str, resources: dict[str, str], deadline: f
             result["error"] = "running version does not match package"
             return result
         for path, expected in resources.items():
-            actual = hashlib.sha256(read(path)).hexdigest()
+            actual = resource_fingerprint(path, read(path))
             result["resources"][path] = {"expected": expected, "observed": actual}
             if actual != expected:
                 result["error"] = "served resource does not match package"
