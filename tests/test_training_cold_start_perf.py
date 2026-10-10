@@ -263,6 +263,7 @@ def _activities_with_cp(
     return pd.DataFrame([
         {
             "activity_id": aid,
+            "activity_type": "running",
             "date": (today - pd.Timedelta(days=7 + i)).isoformat(),
             "distance_km": 10, "duration_sec": 3600,
             "avg_power": avg_power, "avg_hr": avg_power,

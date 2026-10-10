@@ -3425,6 +3425,32 @@ def diagnose_training(
         if "activity_id" in recent.columns
         else set()
     )
+    # Power zones describe running intensity. Garmin returns running
+    # subtypes (for example trail_running and treadmill_running) alongside
+    # cycling, hiking, and other selected activities, so exclude non-running
+    # sessions from this distribution and its completeness denominator.
+    distribution_activities = recent
+    if base == "power":
+        if "activity_type" in recent.columns:
+            activity_types = (
+                recent["activity_type"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.casefold()
+            )
+            is_running = activity_types.eq("running") | activity_types.str.endswith(
+                ("_running", "_run")
+            )
+            distribution_activities = recent[is_running]
+        else:
+            distribution_activities = recent.iloc[0:0]
+    distribution_recent_ids = (
+        set(distribution_activities["activity_id"].astype(str).values)
+        if "activity_id" in distribution_activities.columns
+        else set()
+    )
+
     expected_duration_by_aid: dict[str, float] = {}
     if "activity_id" in recent.columns and "duration_sec" in recent.columns:
         activity_durations = pd.to_numeric(
@@ -3441,6 +3467,11 @@ def diagnose_training(
         expected_duration_by_aid.update(
             duration_frame.groupby("_aid")["_duration"].max().to_dict()
         )
+    distribution_expected_duration_by_aid = {
+        aid: duration
+        for aid, duration in expected_duration_by_aid.items()
+        if aid in distribution_recent_ids
+    }
 
     has_sample_metric = False
     if (
@@ -3551,7 +3582,7 @@ def diagnose_training(
             )
         else:
             message = "Zone distribution unavailable because no valid intensity data exists."
-        expected_total = sum(expected_duration_by_aid.values())
+        expected_total = sum(distribution_expected_duration_by_aid.values())
         coverage_pct = (
             min(100, round(total_time / expected_total * 100))
             if expected_total > 0 else 0
@@ -3604,6 +3635,24 @@ def diagnose_training(
         )
         for aid, duration in split_duration_by_aid.items():
             expected_duration_by_aid.setdefault(aid, float(duration))
+
+    distribution_splits = recent_splits[
+        recent_splits["_aid"].isin(distribution_recent_ids)
+    ] if not recent_splits.empty else recent_splits
+    if not distribution_splits.empty:
+        distribution_split_durations = (
+            distribution_splits[
+                distribution_splits["duration_sec"].notna()
+                & (distribution_splits["duration_sec"] > 0)
+            ]
+            .groupby("_aid")["duration_sec"]
+            .sum()
+            .to_dict()
+        )
+        for aid, duration in distribution_split_durations.items():
+            distribution_expected_duration_by_aid.setdefault(
+                aid, float(duration),
+            )
 
     # ESTIMATE -- 90% per-activity duration coverage is a conservative Praxys
     # data-quality gate, not an exercise-science threshold.
@@ -3754,7 +3803,7 @@ def diagnose_training(
         s[sample_col] = pd.to_numeric(s[sample_col], errors="coerce")
         s["_t_sec"] = pd.to_numeric(s["t_sec"], errors="coerce")
         s = s[
-            s["_aid"].isin(recent_ids) & s["_t_sec"].notna()
+            s["_aid"].isin(distribution_recent_ids) & s["_t_sec"].notna()
         ].sort_values(["_aid", "_t_sec"])
         if not s.empty:
             next_t = s.groupby("_aid", sort=False)["_t_sec"].shift(-1)
@@ -3781,9 +3830,9 @@ def diagnose_training(
             aids_with_complete_samples = {
                 aid
                 for aid, covered_seconds in sample_seconds.items()
-                if expected_duration_by_aid.get(aid, 0) > 0
+                if distribution_expected_duration_by_aid.get(aid, 0) > 0
                 and float(covered_seconds)
-                >= expected_duration_by_aid[aid] * duration_coverage_ratio
+                >= distribution_expected_duration_by_aid[aid] * duration_coverage_ratio
             }
             complete_sample_seconds_by_aid = {
                 str(aid): float(sample_seconds[aid])
@@ -3869,10 +3918,12 @@ def diagnose_training(
             covered_seconds_by_aid.update(complete_sample_seconds_by_aid)
 
     # Split-duration fallback for activities that have no samples.
-    if not recent_splits.empty:
-        fallback_splits = recent_splits[
-            ~recent_splits["activity_id"].astype(str).isin(aids_with_complete_samples)
-        ] if aids_with_complete_samples else recent_splits
+    if not distribution_splits.empty:
+        fallback_splits = distribution_splits[
+            ~distribution_splits["activity_id"].astype(str).isin(
+                aids_with_complete_samples
+            )
+        ] if aids_with_complete_samples else distribution_splits
         if not fallback_splits.empty:
             val_arr = pd.to_numeric(
                 fallback_splits[metric_col], errors="coerce",
@@ -3930,25 +3981,25 @@ def diagnose_training(
             for i in range(n_zones)
         ]
 
-    expected_total = sum(expected_duration_by_aid.values())
+    expected_total = sum(distribution_expected_duration_by_aid.values())
     coverage_pct = (
         min(100, round(total_time / expected_total * 100))
         if expected_total > 0 else 0
     )
     every_activity_complete = bool(
-        recent_ids
+        distribution_recent_ids
         and all(
-            expected_duration_by_aid.get(aid, 0) > 0
+            distribution_expected_duration_by_aid.get(aid, 0) > 0
             and covered_seconds_by_aid.get(aid, 0)
-            >= expected_duration_by_aid[aid] * duration_coverage_ratio
-            for aid in recent_ids
+            >= distribution_expected_duration_by_aid[aid] * duration_coverage_ratio
+            for aid in distribution_recent_ids
         )
     )
     distribution_complete = bool(
         total_time > 0
-        and recent_ids
-        and recent_ids.issubset(expected_duration_by_aid)
-        and recent_ids.issubset(covered_activity_ids)
+        and distribution_recent_ids
+        and distribution_recent_ids.issubset(distribution_expected_duration_by_aid)
+        and distribution_recent_ids.issubset(covered_activity_ids)
         and every_activity_complete
     )
     result["data_meta"] = {
