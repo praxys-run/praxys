@@ -682,3 +682,14 @@ time alongside 100 accepted preemptions; never label retries as 100/100 ingress
 success. Exit/availability uses the conservative before-transaction bracket;
 post-Popen/PID process-start observations remain separate. These measurements
 cover the documented healthy synthetic cell only, not live capacity or soak.
+
+
+Accepted preemption evidence also binds a real control-query observation of the
+newly committed queued manual admission ID, generation and execution epoch to
+the matching occupied automatic actor token. The actual retirement must start
+with the priority cause and follow that observation. A permission-expiry exit
+during the ingress/commit bracket cannot count as accepted preemption. Exit
+need not follow response delivery: fast post-commit priority retirement is valid.
+The test observer observes the actual priority queries, reads selected metadata
+on the reserved control connection, and records actual retirement events; it does not extend the 750ms watchdog or
+modify production decisions.

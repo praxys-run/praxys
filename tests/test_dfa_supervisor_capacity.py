@@ -8,8 +8,8 @@ import threading
 import time
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker, Query, defer
 
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_activity_dfa import store, confirmed
@@ -61,6 +61,75 @@ def admission_attempt(factory, owner, run_id, generation, ledger, observation):
     return accepted,record
 
 
+class PriorityEvidence:
+    """Observe real committed priority queries and the actual retirement cause.
+
+    Uses only the supervisor's existing control connection and query results;
+    no readiness, watchdog, admission or retirement decisions are changed.
+    """
+    def __init__(self, supervisor, monkeypatch):
+        self.priorities=[];self.retirements=[];self.retired=threading.Event()
+        observer=self
+        class ObservedQuery(Query):
+            def filter_by(self, **kw):
+                value=super().filter_by(**kw)
+                value.manual_priority=kw.get('origin')=='manual' and kw.get('status')=='queued'
+                return value
+            def first(self):
+                value=super().first()
+                if value and getattr(self,'manual_priority',False):
+                    manual=self.session.get(Run,value.id,options=[defer(Run.result)])
+                    control=self.session.get(Control,1)
+                    actor=supervisor.lane.actor()
+                    with supervisor.lock:
+                        active=dict(supervisor.active) if supervisor.active else None
+                    if (manual and manual.status=='queued' and manual.admission_id and manual.accepted_at
+                            and active and active['origin']=='automatic' and actor and actor['state']=='occupied'
+                            and control.actor and control.actor.get('actor_token')==actor['actor_token']
+                            and actor['binding']=={key:active[key] for key in ('generation','epoch','input')}):
+                        observer.priorities.append({'manual_id':manual.id,'admission_id':manual.admission_id,
+                            'generation':manual.generation,'execution_epoch':manual.execution_epoch,
+                            'manual_sequence':self.session.query(Control.manual_sequence).filter_by(id=1).scalar(),
+                            'actor_token':actor['actor_token'],
+                            'active_id':active['id'],'active_binding':actor['binding'],
+                            'observed_monotonic':time.monotonic()})
+                return value
+        supervisor.controls.configure(query_cls=ObservedQuery)
+        real_retire=supervisor.lane.retire
+        def retire(*args,**kwargs):
+            actor=supervisor.lane.actor()
+            reason=supervisor.retirement_reason
+            started=time.monotonic()
+            matching=[value for value in observer.priorities
+                      if actor and value['actor_token']==actor.get('actor_token')]
+            priority=dict(matching[-1]) if matching else None
+            result=real_retire(*args,**kwargs)
+            exited=supervisor.lane.actor()
+            if actor and actor.get('state')=='occupied' and exited and exited.get('state')=='idle':
+                observer.retirements.append({'actor_token':actor['actor_token'],'reason':reason,
+                    'started_monotonic':started,'priority':priority,
+                    'exit_observed_at':exited['exit_observed_at']})
+                observer.retired.set()
+            return result
+        monkeypatch.setattr(supervisor.lane,'retire',retire)
+
+    def accepted_preemption(self, admitted, actor, entry):
+        matching=[value for value in self.retirements if value['actor_token']==actor['actor_token']]
+        assert len(matching)==1,matching
+        retirement=matching[0];priority=retirement['priority']
+        assert retirement['reason']=='priority' and priority,retirement
+        assert priority['manual_id']==admitted['id']
+        assert priority['admission_id']==admitted['admission_id']
+        assert priority['generation']==admitted['generation']
+        assert priority['execution_epoch']==entry['after_durable']['execution_epoch']
+        assert priority['manual_sequence']==entry['after_durable']['manual_sequence']
+        assert priority['actor_token']==actor['actor_token']
+        assert priority['active_binding']==actor['binding']
+        assert entry['before_monotonic']<=priority['observed_monotonic']<=retirement['started_monotonic']<=retirement['exit_observed_at']
+        # No comparison with response time: post-commit preemption can be faster.
+        return retirement
+
+
 def test_100_healthy_synthetic_manual_admission_preemptions(both_origins,monkeypatch,tmp_path):
     factory,owner=both_origins
     proof,manual=confirmed(factory,owner)
@@ -108,6 +177,7 @@ else:
     error=[]
     transitions=[]
     committed_exits={}
+    priority_evidence=PriorityEvidence(supervisor,monkeypatch)
     real_record=supervisor.lane.record
     def record(value):
         real_record(value)
@@ -203,8 +273,9 @@ else:
                 time.sleep(.005)
             exits=[value for value in transitions if value.get('state')=='idle'
                    and value.get('actor_token')==actor['actor_token']]
-            assert exits and exits[-1]['exit_observed_at']>=before
-            outcomes.append({'retired_actor_token':actor['actor_token'],'readiness_sequence':readiness_sequence,'trial':trial,'admission_id':admitted['admission_id'],'commit_bracket_seconds':after-before,
+            assert exits
+            causal_retirement=priority_evidence.accepted_preemption(admitted,actor,entry)
+            outcomes.append({'retired_actor_token':actor['actor_token'],'committed_priority_retirement':causal_retirement,'readiness_sequence':readiness_sequence,'trial':trial,'admission_id':admitted['admission_id'],'commit_bracket_seconds':after-before,
                              'availability_upper_seconds':observed-before})
             deadline=min(time.monotonic()+15,overall_deadline)
             while True:
@@ -240,7 +311,8 @@ else:
         try:
             progress.with_suffix('.ingress-final.json').write_text(json.dumps({
                 'source_head':source_head,'source_bindings':source_bindings,'attempts':ingress,
-                'retirements_observed':len(outcomes),
+                'retirements_observed':len(outcomes),'priority_observations':priority_evidence.priorities,
+                'retirement_observations':priority_evidence.retirements,
                 'completed_trials':sum('manual_process_start_upper_seconds' in trial for trial in outcomes),
                 'elapsed_seconds':time.monotonic()-overall_started,
                 'denial_rate':len(admission_denials)/len(ingress) if ingress else None},indent=2))
@@ -284,3 +356,84 @@ def test_noncapacity_admission_failures_are_not_retryable_denials(store,monkeypa
         admission_attempt(factory,owner,run['id'],run['generation'],ledger,{})
     assert error.value.status_code==status and error.value.detail==detail
     assert len(ledger)==1 and ledger[0]['outcome']=='exception'
+
+
+@pytest.mark.parametrize('pause_phase',['before_commit','after_commit'])
+def test_preemption_requires_committed_priority_not_ingress_or_response(both_origins,monkeypatch,pause_phase):
+    factory,owner=both_origins
+    _,manual=confirmed(factory,owner)
+    with factory() as db:claimed=service.claim(db)
+    service.execute(factory,*claimed)
+    with factory() as db:
+        row=db.get(Run,manual['id']);row.status='failed';generation=row.generation;db.commit()
+    complete_unit(factory,owner)
+    supervisor=factory.dfa_supervisor
+    supervisor.controls=sessionmaker(bind=create_engine(factory.kw['bind'].url,pool_size=1,max_overflow=0,
+        pool_timeout=.1,connect_args={'timeout':.1}))
+    actual_popen=subprocess.Popen
+    code="import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)"
+    def fixture_child(command,**kw):
+        if command[-2:]==['-m','api.dfa_worker']:command=[sys.executable,'-E','-B','-c',code]
+        return actual_popen(command,**kw)
+    monkeypatch.setattr(subprocess,'Popen',fixture_child)
+    evidence=PriorityEvidence(supervisor,monkeypatch)
+    errors=[]
+    def run():
+        try:supervisor.run()
+        except Exception as exc:errors.append(exc)
+    worker=threading.Thread(target=run);worker.start()
+    admission_session=factory()
+    ledger=[];commit_observations=[]
+    def pause(db):
+        callback={'entered_monotonic':time.monotonic()}
+        commit_observations.append(callback)
+        if pause_phase=='before_commit':db.flush()
+        assert evidence.retired.wait(5),'Actual old actor did not exit'
+        callback['released_monotonic']=time.monotonic()
+    event.listen(admission_session,pause_phase,pause)
+    class RequestFactory:
+        def __call__(self):return admission_session
+    # Admission snapshots must use separate readers, not the request session.
+    actual_snapshot=admission_snapshot
+    monkeypatch.setattr(sys.modules[__name__],'admission_snapshot',
+        lambda selected,run_id:actual_snapshot(factory,run_id))
+    try:
+        deadline=time.monotonic()+10
+        while True:
+            with factory() as db:
+                control=db.get(Control,1);actor=control.actor
+                ready=control.readiness_sequence>0 and control.ready_until and control.ready_until>datetime.utcnow()+timedelta(seconds=.5)
+            if ready and actor and actor.get('state')=='occupied':break
+            assert time.monotonic()<deadline,errors
+            time.sleep(.01)
+        # Only this request's commit is paused; renewal and 750ms expiry remain real.
+        admitted,entry=admission_attempt(RequestFactory(),owner,manual['id'],generation,ledger,{})
+        actor=entry['readiness']['actor']
+        assert admitted and commit_observations
+        retirement=next(value for value in evidence.retirements if value['actor_token']==actor['actor_token'])
+        assert entry['before_monotonic']<=retirement['exit_observed_at']<entry['after_monotonic']
+        trace={'phase':pause_phase,'ingress':entry,'admitted_id':admitted['id'],
+               'admitted_generation':admitted['generation'],'admission_id':admitted['admission_id'],
+               'commit_callback':commit_observations[0],
+               'retirement':retirement,'priority_observations':evidence.priorities}
+        from hashlib import sha256
+        trace['source_test_sha256']=sha256(Path(__file__).read_bytes()).hexdigest()
+        trace_path=Path(__file__).resolve().parents[1]/f'.git/pr871-causality-{pause_phase}-{time.time_ns()}.json'
+        trace_path.write_text(json.dumps(trace,indent=2))
+        if pause_phase=='before_commit':
+            assert commit_observations[0]['entered_monotonic']<=retirement['exit_observed_at']<commit_observations[0]['released_monotonic']
+            with pytest.raises(AssertionError):evidence.accepted_preemption(admitted,actor,entry)
+        else:
+            proof=evidence.accepted_preemption(admitted,actor,entry)
+            assert proof['priority']['admission_id']==admitted['admission_id']
+            assert commit_observations[0]['entered_monotonic']<=proof['priority']['observed_monotonic']
+            assert proof['exit_observed_at']<=commit_observations[0]['released_monotonic']
+            for changed in ({**admitted,'generation':admitted['generation']+1},
+                            {**admitted,'admission_id':'another-admission'}):
+                with pytest.raises(AssertionError):evidence.accepted_preemption(changed,actor,entry)
+            with pytest.raises(AssertionError):
+                evidence.accepted_preemption(admitted,{**actor,'actor_token':'another-actor'},entry)
+    finally:
+        event.remove(admission_session,pause_phase,pause)
+        admission_session.close();supervisor.stop.set();worker.join(10)
+        assert not worker.is_alive()

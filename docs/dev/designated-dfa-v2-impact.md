@@ -94,3 +94,16 @@ SQLite-to-PostgreSQL migration test (its distinct destructive scratch database
 variable was unset), and 51 private Stryd dependency tests. DFA PostgreSQL tests
 used the migrated task-owned synthetic database; these skips are not counted as
 passes. Final full preflight and native rendered/compiled evidence remain pending.
+
+
+### Accepted-preemption causal evidence
+
+Test-only instrumentation binds the real committed queued-manual priority
+selection (admission ID, generation, epoch and sequence) to the occupied
+automatic actor token and the priority cause at physical retirement start.
+Permission expiry before the admission commit is rejected even if exit follows
+pre-ingress. Real process/transaction tests cover that negative case and fast
+post-commit retirement before response delivery, plus mismatched receipt fields.
+Retirement/availability and process-start remain separate; production code,
+750ms expiry and accepted Science/STOP bytes and modes are unchanged. The revised
+100-trial measurement and full preflight await independent delta clearance.
