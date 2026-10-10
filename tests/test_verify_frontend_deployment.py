@@ -129,3 +129,58 @@ def test_public_probe_identifies_itself_and_revalidates(monkeypatch):
         return Response()
     monkeypatch.setattr(deployment, "urlopen", open_request)
     assert deployment.fetch(deployment.BASE_URLS[1] + "/healthz", 15) == b"current"
+
+
+def test_known_cloudflare_beacon_and_indentation_do_not_hide_the_current_app(dist, monkeypatch):
+    original = b"<body>" + (dist / "app-shell.html").read_bytes() + b"\n  </body>"
+    (dist / "app-shell.html").write_bytes(original)
+    beacon = b'''<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4abc" data-cf-beacon='{"token":"synthetic"}' crossorigin="anonymous"></script>'''
+    served = original.replace(b"</body>", beacon + b"\n</body>")
+    assert served != original
+    serve(dist, monkeypatch, {"/settings": served})
+    assert deployment.probe(deployment.BASE_URLS[1], SHA, deployment.expected_resources(dist), float("inf"))["matched"] is True
+
+
+@pytest.mark.parametrize("extra", [
+    b'<script src="https://other.invalid/beacon.min.js" data-cf-beacon="synthetic"></script>',
+    b'<script src="https://static.cloudflareinsights.com/other.js" data-cf-beacon="synthetic"></script>',
+    b'<script src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="synthetic" onload="unexpected()"></script>',
+    b'<script>unexpected()</script>',
+    b'<script src="https://other.invalid/evil.js" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="synthetic"></script>',
+])
+def test_unrecognized_document_scripts_still_fail_verification(dist, monkeypatch, extra):
+    original = (dist / "app-shell.html").read_bytes()
+    serve(dist, monkeypatch, {"/settings": original + extra})
+    assert deployment.probe(deployment.BASE_URLS[1], SHA, deployment.expected_resources(dist), float("inf"))["matched"] is False
+
+
+def test_beacon_inline_code_is_not_normalized_away(dist, monkeypatch):
+    original = (dist / "app-shell.html").read_bytes()
+    extra = b'<script src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="synthetic">unexpected()</script>'
+    serve(dist, monkeypatch, {"/settings": original + extra})
+    assert deployment.probe(deployment.BASE_URLS[1], SHA, deployment.expected_resources(dist), float("inf"))["matched"] is False
+
+
+def test_theme_code_and_visible_document_text_are_preserved():
+    base = b'<script>applyTheme()</script><p>Praxys</p>'
+    for changed in (b'<script>otherTheme()</script><p>Praxys</p>', b'<script>applyTheme()</script><p>old version</p>'):
+        assert deployment.resource_fingerprint("/settings", base) != deployment.resource_fingerprint("/settings", changed)
+
+
+def test_newline_between_inline_elements_is_preserved():
+    spaced = b"<body><p><span>Hello</span>\n<span>world</span></p></body>"
+    joined = spaced.replace(b"\n", b"")
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "pre", "textarea"])
+def test_raw_text_whitespace_is_preserved(tag):
+    spaced = f"<body><{tag}>\n  </{tag}></body>".encode()
+    joined = f"<body><{tag}></{tag}></body>".encode()
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)
+
+
+def test_malformed_preformatted_body_whitespace_is_preserved():
+    spaced = b"<body><pre>\n  </body>"
+    joined = b"<body><pre></body>"
+    assert deployment.resource_fingerprint("/settings", spaced) != deployment.resource_fingerprint("/settings", joined)
