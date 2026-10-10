@@ -831,3 +831,52 @@ receipt be loaded and associated. Earlier failed focused attempts remain
 diagnostics, including an accepted SQLite failure during live receipt creation
 and a cancellation before the EOF boundary existed. These tests do not identify
 the original644 blocked phase or establish a new capacity certificate.
+
+### Prospective preemption cohort and supplemental service outcomes
+
+The32f canonical run remains failed:4512 passed,1 failed,53 skipped,
+90 ingress/23 refusals/67 durable acceptances/66 complete causal steps. Its
+last retry followed a real5s pre-admission refusal backoff into an already idle
+actor, so the old occupied-only assertion stopped observation of accepted
+service. Original permission-loss cause remains unknown. The observed DELETE
+journal setting is not a demonstrated cause. Four bounded DELETE/WAL idle and
+explicit durable-drain boundary cells completed service without forged renewals;
+they are separate from the operational profile and do not repair that certificate.
+
+The prospective test checks exact actor/token/incarnation/epoch/input/generation
+and running automatic workload before every ingress, including retries. It
+never selects a favourable remaining SQL pulse. Five-second refusal backoff and
+three-attempt per-episode bounds remain; the entire setup/live qualification/
+API/service observation schedule has300 ingress slots and600s total, with15s
+bounded qualification/accepted-service observations. A lack of eligible work or
+an exhausted budget reports insufficient coverage.
+
+Thirty-two independently originated synthetic daily completion units are
+predeclared before live startup through the real sync writer: distinct activity,
+snapshot, parse, job, item and completion identifiers. They are actual newly
+completed synthetic units, not historical/backfill synthesis or an adaptive
+replacement for an accepted failure. A terminal automatic row is never reset;
+no grant or physical permission is forged. This changes the prospective
+workload population and incurs receipt inventory overhead; it does not certify
+concurrent sync workloads or substitute a retrospective profile.
+
+A test-only request adapter captures the already-read locked control actor and
+real commit invocation/ACK bracket, without an extra authority read under the
+lock. Every durable acknowledgement (including a post-commit503) is recorded
+before classification, and every accepted request receives an actual service
+outcome, current authorization check and post-Popen/physical reuse evidence.
+Independent committed-priority actor/generation/epoch/admission/sequence proof,
+verified group exit and durable availability still govern required preemption.
+Fast post-commit retirement before client ACK can qualify only with that actual
+committed-priority proof; ACK time is not invented as server commit time.
+
+Certification still requires100 causally proven accepted preemptions with
+complete authorized service and physical exit/durable availability within5s,
+PLUS separate idle/race acceptances and outcomes.100 mixed successes does not
+meet that target. Retirement races do not become idle/preemption successes;
+ambiguity remains insufficient evidence. Genuine accepted failures stop
+certification after observation and stay retained rather than resampled.
+All ingress, refusals, supplemental outcomes, renewal denial/exception classes,
+automatic terminal transitions, source hashes and budget elapsed time remain
+in the final ledger, including failed or incomplete runs. Runtime125ms cadence,
+250ms SQL pulse/ACK budget,750ms local permission and pool2 are unchanged.

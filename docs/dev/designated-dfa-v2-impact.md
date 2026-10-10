@@ -280,3 +280,22 @@ from deliberately held Python continuation, delayed raw-loading return and late
 actor acknowledgement; they are boundary regressions rather than reconstructed
 historical causation or a replacement100-trial certificate. Unbounded driver/
 storage stalls exhausting both slots remain an explicit capacity/recovery limit.
+
+### Prospective measurement correction after32f
+
+The failed32f certificate is preserved under its actual base4faac47.
+Normal merge0bc8796/base4f3103c adds upstream running-only powerzone
+statistics/copy/tests, with no conflicts or changes to DFA runtime, its frozen
+math or Science/STOP objects. A fresh affected rendered check remains required
+after eventual successful canonical validation.
+
+Test-only measurement now requalifies exact workload before every ingress,
+observes all durable acceptances before cohort classification, captures existing
+locked-control/real commit/ACK observations and retains idle/race/failure outcomes.
+A predeclared finite32-unit distinct successful synthetic daily-completion plan
+provides independent provenance without resetting terminal automatic rows.
+No accepted failure is replaced and all attempts/qualification/setup time count
+inside300 ingress/600s. The target remains100 complete causally proven accepted
+preemptions, not100 mixed successes. Missing workload/ambiguous evidence/budget
+exhaustion reports insufficiency; real service or latency failures remain failures.
+The runtime and its125/250/750ms/2-control-connection boundaries are unchanged.

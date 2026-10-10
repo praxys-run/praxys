@@ -15,6 +15,7 @@ from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_activity_dfa import store, confirmed
 from api import activity_dfa as service
 from db.models import ActivityDFARun as Run, ActivityDFAControl as Control
+from tests.dfa_capacity_measurement import observed_requests, workload_eligibility, observe_acceptance
 
 
 def admission_snapshot(factory, run_id):
@@ -42,19 +43,27 @@ def admission_attempt(factory, owner, run_id, generation, ledger, observation):
     ledger.append(record)
     try:
         with factory() as db:
+            db.info['capacity_admission_record']=record
             accepted=service.change_run(db,owner,'123',run_id,'retry',generation)
     except Exception as exc:
         record.update(after_monotonic=time.monotonic(),after_durable=admission_snapshot(factory,run_id),
                       outcome='exception',http_status=getattr(exc,'status_code',None),
                       detail=getattr(exc,'detail',type(exc).__name__))
         record['no_durable_acceptance']=record['before_durable']==record['after_durable']
+        after=record['after_durable']
+        if (after['admission_id'] and after['admission_id']!=previous['admission_id']
+                and after['accepted_at'] and after['manual_sequence']>previous['manual_sequence']):
+            record['outcome']='accepted_error'
+            return {'id':run_id,'generation':after['generation'],'admission_id':after['admission_id']},record
         if isinstance(exc,HTTPException) and exc.status_code==503 and exc.detail=='DFA_CAPACITY_UNAVAILABLE':
             # Never relabel a post-commit exception as a pre-admission denial.
             assert record['no_durable_acceptance'],record
             record['outcome']='pre_admission_denied'
             return None,record
         raise
-    record.update(after_monotonic=time.monotonic(),after_durable=admission_snapshot(factory,run_id),outcome='accepted')
+    # Record acknowledged acceptance before any independent-read/classification assertion.
+    record.update(after_monotonic=time.monotonic(),outcome='accepted',accepted_response={key:accepted[key] for key in ('id','generation','admission_id')})
+    record['after_durable']=admission_snapshot(factory,run_id)
     assert record['after_durable']['admission_id']==accepted['admission_id']
     assert record['after_durable']['accepted_at'] and record['after_durable']['generation']==accepted['generation']
     assert record['after_durable']['manual_sequence']==previous['manual_sequence']+1
@@ -68,7 +77,7 @@ class PriorityEvidence:
     no readiness, watchdog, admission or retirement decisions are changed.
     """
     def __init__(self, supervisor, monkeypatch):
-        self.priorities=[];self.retirements=[];self.renewals=[];self.retired=threading.Event()
+        self.priorities=[];self.retirements=[];self.renewals=[];self.renewal_decisions=[];self.retired=threading.Event()
         self.invalidation=None
         self.park_after_renewal=threading.Event();self.parked=threading.Event();self.resume=threading.Event()
         self.hold_reason_until_exit=False
@@ -103,6 +112,15 @@ class PriorityEvidence:
         renewal_code=supervisor.renew.__func__.__code__
         class ObservedSupervisor(original_class):
             def __setattr__(self,name,value):
+                if name=='control_observation':
+                    caller=sys._getframe(1)
+                    if caller.f_code is renewal_code:
+                        local=caller.f_locals;exc=local.get('exc')
+                        observer.renewal_decisions.append({'at':time.monotonic(),'observation':dict(value),
+                            'valid':local.get('valid'),'priority':local.get('priority'),'allowed':self.allowed,
+                            'permission_until':self.permission_until,
+                            'exception_class':type(exc).__name__ if exc else None,
+                            'dbapi_class':type(getattr(exc,'orig',None)).__name__ if exc and getattr(exc,'orig',None) else None})
                 if name=='permission_until':
                     caller=sys._getframe(1)
                     local=caller.f_locals
@@ -200,14 +218,43 @@ class PriorityEvidence:
         return retirement
 
 
+def predeclare_automatic_completions(factory, owner, count):
+    """Finite independent inputs; no terminal run reset or adaptive replenishment."""
+    from datetime import date
+    from tests.test_activity_dfa import synthetic_fit
+    from db import sync_writer
+    from db.models import Activity, GarminConnectIQJob, GarminConnectIQItem, ActivityDFASyncReceipt
+    plan=[]
+    with factory() as db:
+        for number in range(count):
+            activity_id=f'capacity-{number:03d}'
+            db.add(Activity(user_id=owner,activity_id=activity_id,date=date.today(),source='garmin',activity_type='new_running_subtype'))
+            snapshot=sync_writer.write_garmin_fit_snapshot(owner,'account',activity_id,synthetic_fit(transport=True),db)
+            sync_writer.write_garmin_fit_parse(snapshot,db)
+            job=GarminConnectIQJob(user_id=owner,account_id='account',credential_generation='synthetic',region='international',kind='daily',status='complete')
+            db.add(job);db.flush()
+            item=GarminConnectIQItem(user_id=owner,job_id=job.id,activity_id=activity_id,status='complete')
+            db.add(item);db.flush()
+            sync_writer.write_dfa_sync_completion(db,job,item,[snapshot])
+            receipt=db.query(ActivityDFASyncReceipt).filter_by(user_id=owner).filter(
+                ActivityDFASyncReceipt.recording_ref['activity_id'].as_string()==activity_id).one()
+            assert receipt.disposition=='pending'
+            plan.append({'activity_id':activity_id,'snapshot_id':snapshot.id,'parse_id':snapshot.active_parse_id,
+                         'job_id':job.id,'item_id':item.id,'receipt_id':receipt.id,'completion_revision':receipt.completion_revision})
+        db.commit()
+    return plan
+
+
 def test_100_healthy_synthetic_manual_admission_preemptions(both_origins,monkeypatch,tmp_path):
+    overall_started=time.monotonic()
+    overall_deadline=overall_started+600
     factory,owner=both_origins
     proof,manual=confirmed(factory,owner)
     with factory() as db: claimed=service.claim(db)
     service.execute(factory,*claimed)
     with factory() as db:
         row=db.get(Run,manual['id']);row.status='failed';row.error_code='synthetic_retry';db.commit()
-    complete_unit(factory,owner)
+    completion_plan=predeclare_automatic_completions(factory,owner,32)
     supervisor=factory.dfa_supervisor
     # The direct-step fixture grants long synthetic permission for setup only.
     # Real benchmark startup must obtain its own completed valid renewal ACK.
@@ -239,16 +286,19 @@ else:
     source_paths = {path.relative_to(root).as_posix()
         for family in ('api','analysis','sync','db') for path in (root/family).rglob('*.py')}
     source_paths.update({'tests/test_dfa_supervisor_capacity.py','tests/dfa_supervisor_harness.py',
-                         'tests/test_activity_dfa.py','tests/test_dfa_origins.py'})
+                         'tests/test_activity_dfa.py','tests/test_dfa_origins.py','tests/dfa_capacity_measurement.py'})
     source_bindings={name:sha256((root/name).read_bytes()).hexdigest() for name in sorted(source_paths)}
     admission_denials=[]
     ingress=[]
-    overall_started=time.monotonic()
-    overall_deadline=overall_started+600
     maximum_attempts=300
+    requests=observed_requests(factory)
+    eligibility_observations=[]
+    accepted_outcomes=[]
+    coverage_reason=None
     outcomes=[]
     error=[]
-    transitions=[]
+    initial_actor=supervisor.lane.actor()
+    transitions=[initial_actor] if initial_actor else []
     committed_exits={}
     priority_evidence=PriorityEvidence(supervisor,monkeypatch)
     startup_evidence=None
@@ -268,100 +318,85 @@ else:
         except Exception as exc:error.append(str(exc))
     worker=threading.Thread(target=run,daemon=True);worker.start()
     try:
-        for trial in range(100):
-            deadline=min(time.monotonic()+15,overall_deadline)
-            while True:
-                with factory() as db:
-                    control=db.get(Control,1)
-                    actor=control.actor
-                    automatic=db.query(Run).filter_by(origin='automatic').first()
-                    if actor and actor.get('state')=='occupied' and automatic and actor['binding']['input']==automatic.input_digest:
-                        break
-                if time.monotonic()>deadline: raise AssertionError({'trial':trial,'stage':'automatic_start','errors':error})
-                time.sleep(.01)
-            if trial==0:
-                startup_evidence=priority_evidence.startup_launch(actor)
-            # Actual durable manual retry transaction, bracketed conservatively.
+        # Predeclared300 ingress slots, including refusals and supplemental
+        # idle/race admissions; never replenish terminal runs or resample a
+        # genuinely failed accepted request. Stop early only at the stated goal.
+        for trial in range(maximum_attempts):
+            if len(outcomes)>=100: break
+            if len(ingress)>=maximum_attempts or time.monotonic()>=overall_deadline:
+                coverage_reason='whole_run_budget';break
             with factory() as db:
                 row=db.get(Run,manual['id'])
-                if row.status=='complete': row.status='failed';db.commit()
-                generation=row.generation
-            # Eligibility is the occupied automatic actor, not a selected
-            # fast readiness window. Attempt admission at the current phase and
-            # retain every refusal/accepted failure under the prospective pulse.
-            with factory() as db:
-                health=db.get(Control,1)
-                readiness_sequence=health.readiness_sequence
+                if row.status=='complete':row.status='failed';db.commit()
+                generation=row.generation;manual_input=row.input_digest
+            admitted=None
             for attempt in range(3):
-                assert len(ingress)<maximum_attempts and time.monotonic()<overall_deadline
-                admitted,entry=admission_attempt(factory,owner,manual['id'],generation,ingress,
-                    {'trial':trial,'attempt':attempt,'readiness_sequence':readiness_sequence,
-                     'ready_until_observed':health.ready_until.isoformat(),
+                if len(ingress)>=maximum_attempts or time.monotonic()>=overall_deadline:
+                    coverage_reason='whole_run_budget';break
+                qualification_deadline=min(time.monotonic()+15,overall_deadline)
+                previous_state=None
+                while True:
+                    eligibility=workload_eligibility(factory,owner)
+                    signature=(eligibility['actor'],eligibility['automatic_states'])
+                    if signature!=previous_state:
+                        eligibility_observations.append(eligibility);previous_state=signature
+                    if eligibility['eligible']:break
+                    if time.monotonic()>=qualification_deadline:
+                        coverage_reason='no_eligible_predeclared_workload';break
+                    time.sleep(.01)
+                if coverage_reason:break
+                if startup_evidence is None:
+                    startup_evidence=priority_evidence.startup_launch(eligibility['actor'])
+                # Requalify exact actor/workload every ingress, including after
+                # a denial. Do not select a favourable SQL pulse or duration.
+                admitted,entry=admission_attempt(requests,owner,manual['id'],generation,ingress,
+                    {'trial':trial,'attempt':attempt,'eligibility':eligibility,
                      'cohort_elapsed_seconds':time.monotonic()-overall_started})
                 if admitted:
-                    before,after=entry['before_monotonic'],entry['after_monotonic']
-                    actor=entry['readiness']['actor']
-                    assert actor and actor['state']=='occupied'
-                    assert actor['binding']['input']==automatic.input_digest
+                    observation=observe_acceptance(factory,owner,admitted,entry,manual_input,
+                        priority_evidence,transitions,committed_exits,overall_deadline,error)
+                    accepted_outcomes.append(observation)
+                    with progress.with_suffix('.accepted.jsonl').open('a') as stream:
+                        stream.write(json.dumps({'ingress':entry,'observation':observation})+'\n')
+                    # Service failures stay retained and fail certification;
+                    # further accepted successes cannot replace them.
+                    assert entry['outcome']=='accepted',entry
+                    assert observation['service']=='complete',observation
+                    assert not observation['reuse_violations'],observation
+                    if observation['classification']=='causal_preemption':
+                        assert observation['physical_exit_upper_seconds']<=5,observation
+                        assert observation['durable_availability_upper_seconds']<=5,observation
+                        assert observation['required_preemption'],observation
+                    if observation['required_preemption']:
+                        outcomes.append(observation)
+                        with progress.open('a') as stream:stream.write(json.dumps(observation)+'\n')
                     break
                 admission_denials.append(entry)
                 with progress.with_suffix('.ingress.jsonl').open('a') as stream:
                     stream.write(json.dumps(entry)+'\n')
-                assert attempt<2,entry
+                if attempt==2:
+                    coverage_reason='three_pre_admission_refusals';break
                 entry['backoff_requested_seconds']=5
-                assert time.monotonic()+5 <= overall_deadline
-                backoff_started=time.monotonic()
-                supervisor.stop.wait(5)
+                if time.monotonic()+5>overall_deadline:
+                    coverage_reason='whole_run_budget';break
+                backoff_started=time.monotonic();supervisor.stop.wait(5)
                 entry['backoff_elapsed_seconds']=time.monotonic()-backoff_started
-                # No wait for a selected fresh/fast pulse before retry.
-                with factory() as db:
-                    health=db.get(Control,1)
-                    readiness_sequence=health.readiness_sequence
-                    entry['next_readiness_sequence']=readiness_sequence
-            with progress.with_suffix('.ingress.jsonl').open('a') as stream:
-                stream.write(json.dumps(entry)+'\n')
-            until=before+5
-            while True:
-                with factory() as db:
-                    acknowledged=db.get(Control,1).actor
-                if acknowledged and acknowledged.get('state')=='idle' and acknowledged.get('actor_token')==actor['actor_token']:
-                    observed=time.monotonic();break
-                # A new actor may start only after the old exit receipt was committed.
-                if actor['actor_token'] in committed_exits:
-                    observed=max(time.monotonic(),committed_exits[actor['actor_token']]);break
-                if time.monotonic()>until: raise AssertionError({'trial':trial,'stage':'retirement','errors':error})
-                time.sleep(.005)
-            exits=[value for value in transitions if value.get('state')=='idle'
-                   and value.get('actor_token')==actor['actor_token']]
-            assert exits
-            causal_retirement=priority_evidence.accepted_preemption(admitted,actor,entry)
-            outcomes.append({'retired_actor_token':actor['actor_token'],'committed_priority_retirement':causal_retirement,'readiness_sequence':readiness_sequence,'trial':trial,'admission_id':admitted['admission_id'],'commit_bracket_seconds':after-before,
-                             'availability_upper_seconds':observed-before})
-            deadline=min(time.monotonic()+15,overall_deadline)
-            while True:
-                with factory() as db:
-                    if db.get(Run,manual['id']).status=='complete':break
-                if time.monotonic()>deadline:raise AssertionError({'trial':trial,'stage':'manual_start_completion','errors':error})
-                time.sleep(.01)
-            starts=[value for value in transitions if value.get('state')=='occupied'
-                    and value.get('binding',{}).get('generation')==admitted['generation']
-                    and value.get('binding',{}).get('input')==row.input_digest]
-            assert starts
-            outcomes[-1]['manual_process_start_upper_seconds']=starts[-1]['process_start_observed_at']-before
-            with progress.open('a') as stream:stream.write(json.dumps(outcomes[-1])+'\n')
+            if coverage_reason:break
         for previous,next_actor in zip(transitions,transitions[1:]):
             if next_actor['state']=='launching' and previous.get('actor_token') != next_actor.get('actor_token'):
                 assert previous['state']=='idle'
                 assert next_actor['launch_at']>=previous['exit_observed_at']
         assert time.monotonic()<=overall_deadline
-        assert len(outcomes)==100
-        assert max(row['availability_upper_seconds'] for row in outcomes)<=5
+        assert len(outcomes)==100, {'required_preemptions':len(outcomes),'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason}
+        assert not any(row['classification'] in ('ambiguous_retirement','unproved') for row in accepted_outcomes),accepted_outcomes
+        assert max(row['durable_availability_upper_seconds'] for row in outcomes)<=5
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
         (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 125ms start cadence, 250ms SQL admission pulse, no fast-window selection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
             'startup_evidence':startup_evidence,
-            'cohort':'100 accepted durable admissions; pre-admission refusals separately retained, not 100/100 ingress success',
+            'cohort':'100 causally proven accepted preemptions PLUS separate idle/race acceptance outcomes; every ingress/time counts, not100mixed successes',
+            'completion_plan':completion_plan,'accepted_outcomes':accepted_outcomes,'eligibility_observations':eligibility_observations,
             'measurement_scope':'cohort excluding fixture setup; full pytest duration reported separately',
             'attempts':len(ingress),'maximum_attempts':maximum_attempts,'maximum_seconds':600,
             'overall_elapsed_seconds':time.monotonic()-overall_started,
@@ -372,10 +407,14 @@ else:
         try:
             progress.with_suffix('.ingress-final.json').write_text(json.dumps({
                 'source_head':source_head,'source_bindings':source_bindings,'attempts':ingress,
+                'completion_plan':completion_plan,'eligibility_observations':eligibility_observations,
+                'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason,
+                'renewal_decisions':priority_evidence.renewal_decisions,
                 'startup_evidence':startup_evidence,'completed_valid_renewals':priority_evidence.renewals,
                 'retirements_observed':len(outcomes),'priority_observations':priority_evidence.priorities,
                 'retirement_observations':priority_evidence.retirements,
-                'completed_trials':sum('manual_process_start_upper_seconds' in trial for trial in outcomes),
+                'completed_trials':sum(row['service']=='complete' for row in accepted_outcomes),
+                'required_causal_preemptions':len(outcomes),
                 'elapsed_seconds':time.monotonic()-overall_started,
                 'denial_rate':len(admission_denials)/len(ingress) if ingress else None},indent=2))
         finally:
@@ -397,9 +436,10 @@ def test_capacity_refusal_must_prove_no_new_durable_admission(store,monkeypatch,
     monkeypatch.setattr(service,'change_run',refused)
     ledger=[]
     if after_commit:
-        with pytest.raises(AssertionError):admission_attempt(factory,owner,run['id'],generation,ledger,{})
-        assert ledger[0]['no_durable_acceptance'] is False
-        assert ledger[0]['outcome']=='exception'
+        accepted,entry=admission_attempt(factory,owner,run['id'],generation,ledger,{})
+        assert accepted['admission_id']==entry['after_durable']['admission_id']
+        assert entry['no_durable_acceptance'] is False
+        assert entry['outcome']=='accepted_error' and entry['http_status']==503
     else:
         accepted,entry=admission_attempt(factory,owner,run['id'],generation,ledger,{})
         assert accepted is None and entry['no_durable_acceptance'] is True
