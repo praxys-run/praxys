@@ -66,6 +66,52 @@ Azure package before running `npm run build:edgeone` as validation. It then:
   action;
 - uploads no EdgeOne artifact and performs no public `.cn` verification.
 
+The Azure package is downloaded by the successful build job's immutable
+artifact ID. Re-running only a failed deployment job reuses that package even
+when `github.run_attempt` changes. Evidence names still include the attempt.
+
+`scripts/verify_frontend_deployment.py` gives the running container and public
+entry points one shared ten-minute startup window. It checks the full source
+SHA at the Azure origin, `praxys.run`, and `www.praxys.run`, then compares the
+served Settings app document, bootstrap script, and `sw.js` with the downloaded
+package. A healthy `/healthz` alone cannot pass this check. Each attempt records
+the observed SHA, resource hashes, or request error; the final evidence artifact
+retains failed observations as well as successful verification. Changes to
+this helper trigger frontend deployment.
+The read-only probe uses `Praxys-Deployment-Monitor/1.0` as its user agent:
+the public edge rejected the default Python user agent during this incident.
+HTTP failures record both the request path and status code without response
+bodies or cookies.
+
+On 2026-10-10, run `38055205151` finished verification at 13:28:02 UTC;
+App Service started its new deployment at 13:29:12 UTC. The earlier two-minute
+polling window ended before the container had switched releases.
+
+### Suspended mobile tabs
+
+The app checks for a replacement service worker when a visible tab resumes,
+when the browser restores a page, and when connectivity returns. Checks are
+limited to once per minute and cannot overlap. The existing auto-update flow
+activates a successfully installed worker and reloads the page; failed checks
+preserve offline caches and authentication. The Miniapp has its own release
+mechanism and does not use browser service workers.
+
+For clients pinned to a release predating these hooks, first close and reopen
+the Praxys tab, then wait for the new worker to install on a stable connection.
+Compare the frontend version in Settings with the deployed workflow version;
+the API version alone does not identify the frontend. If the client remains
+pinned, open the same frontend origin's `/api/frontend-recovery.html` and use
+its update button. This static document deliberately uses the path excluded
+by legacy workers' navigation fallback. It unregisters only the same-origin
+root Praxys `/sw.js` registration, preserves storage and other registrations,
+and opens `/settings` directly so the regional public-home redirect cannot
+move the session to a different origin. It does not call a backend API.
+The document is noindex and revalidates; it works without the application
+bundle. If this recovery also fails, clearing only `praxys.run` website data
+is a last-resort recovery and
+requires signing in again. Check the exact site's `/sw.js` response and install
+errors before requesting that step; do not clear browser-wide data.
+
 The EdgeOne native Git project separately runs `web/edgeone.json`. Its static
 build contains `healthz`, `deployed_sha.txt`, ICP markup, and security
 configuration without a checksum manifest or release-preflight ceremony.

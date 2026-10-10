@@ -274,6 +274,26 @@ def test_edgeone_public_verification_is_owned_by_launch_workflow() -> None:
     assert "沪ICP备2025109616号-2" in launch
 
 
+def test_frontend_failed_job_rerun_reuses_the_successful_build_artifact() -> None:
+    jobs = _workflow(".github/workflows/deploy-frontend-appservice.yml")["jobs"]
+    build = jobs["build"]
+    upload = next(step for step in build["steps"] if step.get("name") == "Upload Azure package")
+    assert upload["id"] == "azure_package"
+    assert build["outputs"]["azure_package_id"] == "${{ steps.azure_package.outputs.artifact-id }}"
+    download = next(step for step in jobs["deploy_azure"]["steps"] if step.get("name") == "Download Azure package")
+    assert download["with"]["artifact-ids"] == "${{ needs.build.outputs.azure_package_id }}"
+    assert "name" not in download["with"]
+
+
+def test_frontend_verification_uses_downloaded_bundle_and_shared_deadline() -> None:
+    steps = _workflow(".github/workflows/deploy-frontend-appservice.yml")["jobs"]["deploy_azure"]["steps"]
+    check = next(step for step in steps if step.get("name") == "Verify Azure deployment")
+    assert "scripts/verify_frontend_deployment.py" in check["run"]
+    assert "--dist deploy-pkg/web/dist" in check["run"]
+    assert '--source-sha "${GITHUB_SHA}"' in check["run"]
+    assert '--evidence "${RUNNER_TEMP}/azure-frontend-deployment.json"' in check["run"]
+
+
 def test_miniapp_is_decoupled_from_china_web_launch() -> None:
     workflow = _text(".github/workflows/miniapp-publish.yml")
     assert not any(token in workflow for token in OBSOLETE)

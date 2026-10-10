@@ -15,6 +15,8 @@ Covers the three behaviours that would silently break in production:
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -63,6 +65,21 @@ def test_root_returns_index_html(client):
     res = client.get("/")
     assert res.status_code == 200
     assert "SPA" in res.text
+
+
+def test_recovery_document_bypasses_legacy_worker_navigation_and_revalidates(fake_dist):
+    recovery_dir = fake_dist / "api"
+    recovery_dir.mkdir()
+    source = Path(__file__).resolve().parent.parent / "web/public/api/frontend-recovery.html"
+    (recovery_dir / "frontend-recovery.html").write_bytes(source.read_bytes())
+    with TestClient(create_app(dist_dir=fake_dist)) as client:
+        response = client.get("/api/frontend-recovery.html")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["Content-Type"]
+        assert response.headers["Cache-Control"] == "public, max-age=0, must-revalidate"
+        assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+        assert 'id="update"' in response.text
+        assert "location.replace('/settings')" in response.text
 
 
 def test_explicit_index_returns_index_html(client):
