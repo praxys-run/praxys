@@ -83,11 +83,11 @@ Science changes use two linked, versioned science records before implementation:
   interpretation, parameters, applicability, claim limits, and runtime
   boundary.
 
-When the work also changes product behavior, Product separately owns a Product
-Decision Record covering the user problem, options, promise, trade-offs,
-minimum valuable scope, non-goals, and outcome plan. Science artifacts are
-dependencies of that product decision; they do not own product value. The
-shared record contract is specified in
+When the work also changes product behavior, the main session records the user
+problem, options, promise, trade-offs, minimum valuable scope, non-goals and
+outcome plan in the task/PR decision section, or links an existing Product
+Decision Record. Link the scientific evidence and decisions without treating
+scientific conclusions as the product value recommendation. The session policy is in
 [`agentic-operating-model.md`](agentic-operating-model.md).
 
 New records use the artifact review workflow documented in
@@ -104,7 +104,7 @@ packet begins with its concise scientific decision sheet. Every contract
 parameter group must be mapped to an explicit proposed decision or deferral.
 The complete evidence, parameter, and contract material remains a collapsed
 audit appendix rather than the reviewer's primary task. Product value belongs
-in the linked Product Decision Record, not the SDR.
+in the task/PR decision section or an existing Product Decision Record.
 
 ### Research before changing science
 
@@ -113,10 +113,10 @@ Use the repository-owned
 before changing a scientific claim, formula, constant, safety boundary, theory,
 or user-facing interpretation. Its **Research-only** mode creates a bounded,
 auditable evidence update without changing accepted behavior; its **Decision
-proposal** mode creates any required draft SDR, then hands the evidence and
-science artifacts to
-[`Praxys Product`](../../.github/agents/product.agent.md), which owns the
-separate product decision and outcome plan.
+proposal** mode creates any required draft SDR. The same session prepares the
+product reasoning and outcome plan, with independent review for material risk.
+Evidence/decision acceptance and implementation activation retain their existing
+human identities and exact digest-bound approval requirements.
 
 The athlete-facing `/science` plugin skill remains browse/select only. It does
 not research literature, edit evidence records, or make product decisions.
@@ -168,10 +168,9 @@ honestly; neither level lets schema validation declare a paper true.
      blocked until `implementation_reviewer` approval also binds the exact
      reviewed code diff and validation evidence.
 
-   If the proposal changes product value or user behavior, also create or reuse
-   the separate Product Decision Record required by the Work Router. Do not put
-   product ownership into the SDR merely because the product decision depends
-   on science.
+   If the proposal changes product value or user behavior, record that choice
+   in the task/PR decision section or link an existing Product Decision Record.
+   Keep product value reasoning distinct from the SDR scientific decision.
 
 3. **Create or update the canonical English theory YAML** in
    `data/science/{pillar}/{theory_id}.yaml`:

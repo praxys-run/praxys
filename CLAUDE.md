@@ -291,18 +291,16 @@ The repository-owned `science-research` Agent Skill lives at
 at `.claude/skills/praxys-science-research-claude/SKILL.md` named
 `praxys-science-research-claude` for direct invocation. It supports explicit
 Research-only and Decision proposal modes for versioned Evidence Reviews and
-science decisions. Science then hands its exact artifacts to
-`.github/agents/product.agent.md`, which owns the separate Product Decision
-Record. `.github/agents/decision-review-router.agent.md` independently narrows
-any human decision. Neither role accepts its own record, promotes its own
-autonomy, or merges a science change. This does not expand the athlete-facing
-`science` skill beyond browsing and selecting shipped theories.
+science decisions. The same session prepares evidence, product reasoning and
+implementation. Scientific acceptance/activation retains its distinct approval
+identities, immutable subjects and existing gates; session simplification never
+materializes approval. This does not expand the athlete-facing `science` skill
+beyond browsing and selecting shipped theories.
 
-The role/loop/control-plane contract lives in
-`docs/dev/agentic-operating-model.md` and
-`config/agentic-operating-model.json`. Product, Science, Design, Delivery,
-Runtime, Incident, and Meta/Eval loop details live in
-`docs/dev/agentic-loops.md` and `docs/dev/product-decision-loop.md`.
+The shared session policy is in `AGENTS.md` and
+`docs/dev/agentic-operating-model.md`: one executor, appropriate domain skills,
+and one fresh read-only review for material risks. No role routers or nested
+loops are required.
 
 The MCP server (`plugins/praxys/mcp-server/server.py`) runs in dual mode — local (direct DB) or remote (HTTP + JWT via `PRAXYS_URL`).
 
