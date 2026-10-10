@@ -3694,13 +3694,13 @@ msgstr "Distance not verified"
 msgid "Distribution match"
 msgstr "Distribution match"
 
-#: src/components/ZoneAnalysisCard.tsx:140
-msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
-msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
-
 #: src/components/ZoneAnalysisCard.tsx:139
 #~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 #~ msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
+
+#: src/components/ZoneAnalysisCard.tsx:140
+msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
 
 #: src/pages/admin/AdminOps.tsx:460
 msgid "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."

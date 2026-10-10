@@ -680,7 +680,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "Distance in {0}": "距离（{0}）",
     "Distance not verified": "距离未确认",
     "Distribution match": "分布匹配度",
-    "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates.": "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。仅当近期每次活动的有效分段或时间戳采样均覆盖至少 90% 的活动时长时才会显示；采样流还要求中位采样间隔不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。",
+    "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates.": "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。功率基准仅纳入各类跑步活动；心率和配速基准纳入所有活动。仅当近期每次纳入统计的活动，其有效分段或时间戳采样均覆盖至少 90% 的活动时长时才会显示；采样流还要求中位采样间隔不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。",
     "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy.": "不要重试此项。下发安全策略已将此次失败标记为不可重试。",
     "Do not replay this item. The athlete must resolve it from the plan reconciliation flow.": "不要重试此项。运动员必须通过计划对账流程处理。",
     "Do you currently have symptoms that should stop performance planning?": "你目前是否有应停止竞速计划的症状？",
