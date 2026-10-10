@@ -818,3 +818,16 @@ permanent dependency failure remain explicit recovery/capacity limitations.
 Focused regressions passed12 lifecycle cases and59 existing runtime/authority/
 readiness cases; the wider bounded combination passed72 with the100-trial case
 excluded. This is preparation for independent review, not final canonical proof.
+
+Automatic loading pause includes successful-sync receipt admission/inventory
+decoding, not only acquisition of an already queued automatic run. While a
+cancelled continuation remains, leave the receipt pending without consuming a
+grant or linking a run, and select manual work first. After cleanup pruning
+removes that continuation, normal receipt admission resumes. The focused
+SQLite/PostgreSQL regression queues another genuine receipt before live startup,
+observes actual child payload acknowledgement without parking renewal, and
+requires manual completion before releasing EOF cleanup; only then may that
+receipt be loaded and associated. Earlier failed focused attempts remain
+diagnostics, including an accepted SQLite failure during live receipt creation
+and a cancellation before the EOF boundary existed. These tests do not identify
+the original644 blocked phase or establish a new capacity certificate.

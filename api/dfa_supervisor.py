@@ -544,7 +544,11 @@ class Supervisor:
                 elif self.allowed and time.monotonic() < self.permission_until:
                     if len(self.cleanups)>=2:
                         continue
-                    self.admit_completion()
+                    # Receipt admission loads/decodes automatic RR under the
+                    # producer transaction. Preserve it pending while cleanup
+                    # reserves this reactor/connection for manual selection.
+                    if not self.cleanups:
+                        self.admit_completion()
                     job = self.acquire_job(manual_only=bool(self.cleanups))
                     if job:
                         outputs = queue.Queue(maxsize=1)
