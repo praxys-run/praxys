@@ -76,6 +76,7 @@ def test_shipped_registry_is_valid_and_heat_migration_is_complete() -> None:
     assert set(registry.decisions) == {
         "sdr-morning-coach-evidence-presentation-v1",
         "sdr-activity-dfa-alpha1-v1",
+        "sdr-activity-dfa-alpha1-v2",
         "sdr-adult-running-plan-population-routing-v1",
         "sdr-adaptive-plan-feasibility-and-adjustment-v1",
         "sdr-environmental-performance-v1",

@@ -1,0 +1,432 @@
+{
+  "affected_models": [
+    "analysis/activity_dfa.py",
+    "sync/rr_recording.py"
+  ],
+  "contract_digest": "sha256:bc6b57a3f1867f483ebde882f721399b1394512cf11b61fec3149fd0f6f44328",
+  "decision_id": "sdr-activity-dfa-alpha1-v2",
+  "decision_status": "accepted",
+  "decision_version": 2,
+  "evidence_claim_ids": [
+    "dfa.recording-artifacts",
+    "dfa.short-scale-method",
+    "dfa.threshold-transfer-limited"
+  ],
+  "evidence_review_ids": [
+    "evidence-activity-dfa-alpha1-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-activity-dfa-alpha1-v1": "sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f"
+  },
+  "model_version": "dfa-alpha1-raw120-v1",
+  "parameters": {
+    "activation": {
+      "applies_to": "both designated V2 branches and historical V1 denial",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "automatic_background_admission": true,
+        "automatic_condition": "server_gate_ON_and_active_signed_v2_contract_and_current_metadata_predicate_and_origin_specific_owner_processing_authority",
+        "automatic_contract_id": "sdr-activity-dfa-alpha1-v2",
+        "automatic_scope": "newly_completed_sync_only",
+        "contract": "signed_active_only",
+        "gate_OFF_or_unavailable_automatic_admission": false,
+        "gate_OFF_or_unavailable_automatic_execution": false,
+        "gate_OFF_or_unavailable_automatic_numeric_context_reads": false,
+        "gate_OFF_or_unavailable_automatic_publication": false,
+        "gate_ON_alone_activates_science": false,
+        "gate_default": false,
+        "historical_backfill": false,
+        "historical_v1_contract_id": "sdr-activity-dfa-alpha1-v1",
+        "historical_v1_runtime_admission": "terminal_STOP_denied",
+        "manual_available_when_gate_OFF": true,
+        "manual_available_when_gate_ON": true,
+        "manual_contract_id": "sdr-activity-dfa-alpha1-v2",
+        "method_version": "dfa-alpha1-raw120-v1",
+        "source_scope": "single_native_running_session_exact_owner_recording"
+      }
+    },
+    "admission_amendment": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "baseline_contract_digest": "sha256:0029c8753ba7c3a695ec7549ef41f39886280642d2fd70e7973b5022dba751d6",
+        "baseline_decision_digest": "sha256:3c43b0c3b3eae94bc07a40c27e159110d8ce815206d248e3aaef7ef6e9077288",
+        "baseline_implementation_envelope": "sha256:facc27c7a4b51d2901b3fdfe55f2cb0c193f6a1aad12767abaf1d57aa74d2f2b",
+        "baseline_stop_digest": "sha256:05c11e11adf6cec91d8a60d126364a6260287317c8872e43a365c0665790c944",
+        "baseline_subject": "sdr-activity-dfa-alpha1-v1",
+        "baseline_version": 1,
+        "evidence_digest": "sha256:dcb55292c89c9721fbf4d7133f94e34487e5de50efd4ffc94b36a5a7eff9a73f",
+        "evidence_subject": "evidence-activity-dfa-alpha1-v1",
+        "frozen_group_value_digest": "sha256:f36cf405cbf84aef9d04e6e52aa1600662ce0254de1b230d7372ff035ebede11",
+        "kind": "designated_activity_dfa_v2",
+        "manual_statement_revision": "dfa-source-attestation-v1",
+        "modalities": [
+          "native_RR",
+          "recorded_ECG",
+          "single_native_running_session"
+        ],
+        "model_version": "dfa-alpha1-raw120-v1",
+        "schema_version": 1
+      }
+    },
+    "automatic_source": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "acceptable_transport_class_pairs": [
+          {
+            "device_type": 120,
+            "label": "ANT_PLUS_heart_rate",
+            "source_type": 1
+          },
+          {
+            "device_type": 1,
+            "label": "BLE_heart_rate",
+            "source_type": 3
+          }
+        ],
+        "ambiguous_handle_transport_reuse": "source_unresolved",
+        "candidate_selection": "all_recorded_native_external_HR_handles_and_explicit_local_wrist_HR_inventory",
+        "compatible_registry": "unchanged_v1_Garmin_products_or_Polar_native_H10_identity",
+        "different_compatible_models": "source_unresolved",
+        "eligible": "one_or_more_coherent_external_HR_handles_all_registered_ECG_and_same_compatibility_rule",
+        "explicit_local_wrist_HR_inventory": "source_unresolved_not_proven_optical_RR",
+        "explicit_local_wrist_HR_pair": {
+          "device_type": 10,
+          "outcome": "source_unresolved_inventory_not_RR_assignment",
+          "source_type": 5
+        },
+        "generic_watch_optical_capability": "does_not_block",
+        "known_optical_external_HR_identity": "ineligible",
+        "missing_or_uninterpretable_transport_class": "source_unresolved",
+        "missing_recording_local_handle": "source_unresolved",
+        "multiple_same_model_transport_handles": "eligible_as_ECG_type_model_inference_preserve_each_handle_no_physical_merge",
+        "ordinary_raw_QC_or_gap_failures": "unchanged_numerical_window_rules_no_global_source_diagnosis",
+        "positive_RR_source_switch_or_mixed_source_evidence": "ineligible",
+        "provenance_claim": "recorded_compatible_ECG_type_model_inferred_not_per_beat_source_verified",
+        "provider": "garmin",
+        "require_current_archive_parse_hash": true,
+        "require_explicit_recording_local_handle": true,
+        "rr_field": "native_hrv78_time0_only",
+        "rule_version": "dfa-native-ecg-metadata-v1",
+        "same_handle_identity_contradiction": "ineligible",
+        "session": "exactly_one_native_running_session",
+        "unknown_external_HR_identity": "source_unresolved"
+      }
+    },
+    "binding_and_versions": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "automatic_to_manual_receipt_conversion": false,
+        "automatic_to_manual_rights_conversion": false,
+        "automatic_work_relabelled_as_manual": false,
+        "frozen_parameter_digest": "sha256:f36cf405cbf84aef9d04e6e52aa1600662ce0254de1b230d7372ff035ebede11",
+        "frozen_parameter_groups": [
+          "window",
+          "rr_quality",
+          "time_alignment",
+          "dfa",
+          "context"
+        ],
+        "idempotency_includes": [
+          "exact_owner_activity_provider_account_recording_ref",
+          "snapshot_SHA_parse_parser",
+          "origin",
+          "source_assurance",
+          "source_evidence_digest",
+          "source_rule_version",
+          "numerical_method_version",
+          "science_contract_digest",
+          "metadata_projection_version",
+          "processing_authority_revision",
+          "source_lifecycle_revision",
+          "sync_completion_revision"
+        ],
+        "manual_statement_version": "dfa-source-attestation-v1",
+        "metadata_projection_version": "rr-native-source-metadata-v2",
+        "numerical_method_version": "dfa-alpha1-raw120-v1",
+        "origin_separated_receipts_proofs_rights": true,
+        "revalidate_at": [
+          "admission",
+          "execution",
+          "publication",
+          "numeric_context_read"
+        ],
+        "shared_physical_numerical_result_requires": "independently_validated_identical_exact_input_method_numerical_contract_and_separate_current_origin_grants",
+        "source_rule_version": "dfa-native-ecg-metadata-v1",
+        "view_focus_poll_starts_work": false
+      }
+    },
+    "claim_limits": {
+      "applies_to": "all designated V2 outputs and both clients",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "accuracy_percentage": false,
+        "coverage": "availability_not_accuracy",
+        "diagnosis": false,
+        "individual_thresholds": false,
+        "kubios_equivalence": false,
+        "manual_preference_implies_greater_accuracy": false,
+        "metadata_inference_proves_per_interval_source": false,
+        "numeric_telemetry": false,
+        "numerical_equivalence_established_by_value_inheritance": false,
+        "overall_score": false,
+        "owner_confirmation_proves_per_interval_source": false,
+        "source_assurance": "branch_specific_user_confirmed_or_metadata_inferred",
+        "threshold_lines": false,
+        "time_alignment": "estimated",
+        "training_changes": false
+      }
+    },
+    "context": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "gates_alpha": false,
+        "heart_rate": "60000/mean_RR_ms",
+        "max_forward_hold_seconds": 2,
+        "min_field_support_seconds": 96,
+        "negative_or_nonfinite": "missing",
+        "pace": "1000/time_weighted_mean_speed_m_s",
+        "power": "time_weighted_mean_stored_precedence",
+        "sample_clock": "Unix_seconds",
+        "zero": "retained"
+      }
+    },
+    "dfa": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "atypical_bounds": [
+          0,
+          2
+        ],
+        "boxes": "forward_backward_nonoverlapping_keep_duplicates",
+        "clip": false,
+        "detrend": "linear_OLS_with_intercept",
+        "display_decimals": 2,
+        "fluctuation": "sqrt_mean_all_residual_squares",
+        "minimum_fluctuation_ms": 1e-12,
+        "profile": "cumulative_demeaned_rr_float64",
+        "r2": "audit_only_null_zero_variance",
+        "scales": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "slope": "equal_weight_OLS_log_F_log_n"
+      }
+    },
+    "execution_boundary": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "accepted_architecture_and_operations_capacity_evidence_required": true,
+        "automatic_gate_or_rights_loss": "stop_automatic_work_and_numeric_context_reads_without_manual_conversion",
+        "automatic_yield_deadline_seconds": 5,
+        "automatic_yield_interval": "durable_accepted_manual_admission_to_actual_old_automatic_process_group_retirement_and_slot_availability",
+        "automatic_yield_scope": "required_preemption_under_documented_healthy_measured_capacity",
+        "lease_expiry_or_cancel_flag_proves_physical_exit": false,
+        "manual_admission_and_start_latencies": "measured_separately",
+        "physical_computation_limit": 1,
+        "physical_exit_required_before_slot_reuse": true,
+        "source_sync_owner_rights_races": "revalidate_and_deny_stale_origin_bound_work",
+        "universal_manual_start_SLO_seconds": null
+      }
+    },
+    "manual_source": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "automatic_feature_gate_dependency": false,
+        "automatic_proof_or_receipt_satisfies_manual_authority": false,
+        "automatic_source_unresolved": "may_offer_exact_owner_confirmation_for_selected_supported_ECG_without_positive_contradiction",
+        "factual_owner_confirmation": true,
+        "identity_change": "ineligible_for_current_proof_new_exact_input_requires_new_confirmation",
+        "known_optical_external_HR_identity": "ineligible_cannot_override",
+        "positive_source_contradiction": "ineligible_cannot_override",
+        "selected_sensor": "recording_local_compatible_ECG_rule_required",
+        "statement_version": "dfa-source-attestation-v1"
+      }
+    },
+    "rr_quality": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "correction": "none",
+        "invalid_raw": 65535,
+        "minimum_neighbors": 5,
+        "neighbor_each_side": 5,
+        "range_ms": [
+          250,
+          2000
+        ],
+        "reject": "any_suspect_or_incomplete",
+        "relative_median_deviation": 0.2,
+        "resampling": "none",
+        "trim": "trailing_invalid_only",
+        "zero_or_interior_invalid": "break_chain"
+      }
+    },
+    "source": {
+      "applies_to": "manual and automatic designated V2",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "automatic_required": "native_RR_and_all_recorded_HR_candidates_same_compatible_ECG_rule_and_interpretable_external_transport",
+        "direct_native_rr_source_reference": false,
+        "garmin_manufacturer": 1,
+        "garmin_products": [
+          1743,
+          1752,
+          2327,
+          3299,
+          3300,
+          4130,
+          4446,
+          4606
+        ],
+        "identity_change": "ineligible",
+        "manual_required": "native_RR_and_recorded_ECG_and_activity_confirmation",
+        "optical_or_contradictory": "positive_optical_RR_or_known_external_optical_or_identity_source_contradiction_ineligible",
+        "polar_manufacturer": 123,
+        "polar_native_names": [
+          "H10",
+          "Polar H10"
+        ],
+        "required": "native_RR_and_recorded_ECG_and_branch_specific_assurance",
+        "statement_version": "dfa-source-attestation-v1"
+      }
+    },
+    "source_assurance": {
+      "applies_to": "designated V2 source/admission policy",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "allowed": [
+          "user_confirmed",
+          "metadata_inferred"
+        ],
+        "automatic_to_manual_confirmation_conversion": false,
+        "direct_rr_sensor_fk": false,
+        "manual_statement_version": "dfa-source-attestation-v1",
+        "manual_statement_zh": "本次活动记录全程以所选 ECG 心率胸带作为逐搏间期来源，未切换至其他 RR 传感器或光学心率。",
+        "metadata_inferred_confirmation_id": null,
+        "metadata_inferred_human_confirmation": false,
+        "metadata_inferred_requires": "immutable_typed_metadata_proof_bound_to_exact_recording_and_source_rule",
+        "metadata_projection_version": "rr-native-source-metadata-v2",
+        "public_sensor_identity": "recording_local_opaque_handles_and_compatible_model_labels",
+        "published_signal_accuracy": false,
+        "user_confirmed_requires": "immutable_factual_owner_confirmation_bound_to_exact_recording_and_sensor_rule"
+      }
+    },
+    "time_alignment": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "adjacent_offset_gap_ms": 2000,
+        "anchors": "file_order_record_or_primary_timer_boundary",
+        "audit": "original_nonpadding_interval_indices_and_local_offset",
+        "epoch": "1989-12-31T00:00:00Z",
+        "expansion_ms": 1000,
+        "local_offset": "clamped_median_packet_midpoint_minus_cumulative_rr",
+        "max_anchor_width_ms": 30000,
+        "max_local_offset_width_ms": 5000,
+        "window_membership": "complete_intervals_from_exact_gathered_packets_only"
+      }
+    },
+    "window": {
+      "applies_to": "post-run DFA alpha1 v1",
+      "classification": "guardrail",
+      "evidence_claim_ids": [
+        "dfa.recording-artifacts",
+        "dfa.short-scale-method",
+        "dfa.threshold-transfer-limited"
+      ],
+      "value": {
+        "min_complete_rr": 200,
+        "min_rr_coverage_ms": 117600,
+        "seconds": 120,
+        "short_block": "report_without_windows",
+        "step_seconds": 5
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:2fcee27f23b310a7592b24818c36562fca07a20cdf23cb78dcc738e4de7fd5a2"
+}
