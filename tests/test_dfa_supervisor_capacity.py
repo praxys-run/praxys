@@ -68,7 +68,7 @@ class PriorityEvidence:
     no readiness, watchdog, admission or retirement decisions are changed.
     """
     def __init__(self, supervisor, monkeypatch):
-        self.priorities=[];self.retirements=[];self.retired=threading.Event()
+        self.priorities=[];self.retirements=[];self.renewals=[];self.retired=threading.Event()
         self.invalidation=None
         self.park_after_renewal=threading.Event();self.parked=threading.Event();self.resume=threading.Event()
         self.hold_reason_until_exit=False
@@ -103,6 +103,15 @@ class PriorityEvidence:
         renewal_code=supervisor.renew.__func__.__code__
         class ObservedSupervisor(original_class):
             def __setattr__(self,name,value):
+                if name=='permission_until':
+                    caller=sys._getframe(1)
+                    local=caller.f_locals
+                    session=local.get('db')
+                    receipt=session.info.get('capacity_renewal_commit') if session is not None else None
+                    if (caller.f_code is renewal_code and local.get('valid') is True
+                            and local.get('updated')==1 and receipt and receipt.get('completed_at') is not None):
+                        observer.renewals.append({**receipt,'permission_granted_at':time.monotonic(),
+                            'permission_until':value,'iteration_started':local['started']})
                 if name=='allowed':
                     observer.invalidation=None
                     caller=sys._getframe(1)
@@ -121,8 +130,18 @@ class PriorityEvidence:
         monkeypatch.setattr(supervisor,'__class__',ObservedSupervisor)
         class ObservedSession(Session):
             def commit(self):
+                caller=sys._getframe(1)
+                local=caller.f_locals
+                # Capture already-loaded metadata before commit expires ORM
+                # state. Observation adds no DB reads or permission decisions.
+                if caller.f_code is renewal_code and local.get('valid') is True and local.get('updated')==1:
+                    row=local['row']
+                    self.info['capacity_renewal_commit']={'epoch':row.epoch,
+                        'incarnation':dict(row.incarnation),'readiness_sequence':row.readiness_sequence+1}
                 super().commit()
                 self.info['capacity_actual_commit_completed']=True
+                if self.info.get('capacity_renewal_commit'):
+                    self.info['capacity_renewal_commit']['completed_at']=time.monotonic()
             def close(self):
                 completed=self.info.get('capacity_actual_commit_completed')
                 super().close()
@@ -152,6 +171,18 @@ class PriorityEvidence:
             return result
         monkeypatch.setattr(supervisor.lane,'retire',retire)
 
+    def startup_launch(self, actor):
+        matching=[value for value in self.renewals
+            if value['incarnation']==actor['incarnation'] and str(value['epoch'])==actor['binding']['epoch']
+            and value['completed_at']<=value['permission_granted_at']<=actor['launch_at']<value['permission_until']]
+        assert matching, {'actor':actor,'completed_valid_renewals':self.renewals}
+        first=matching[0]
+        from api.dfa_physical import PROFILE
+        assert first['completed_at']-first['iteration_started']<PROFILE['poll_seconds'],first
+        assert first['readiness_sequence']>0
+        assert actor['launch_at']<=actor['process_start_observed_at']
+        return {'actor':actor,'completed_valid_renewal':first}
+
     def accepted_preemption(self, admitted, actor, entry):
         matching=[value for value in self.retirements if value['actor_token']==actor['actor_token']]
         assert len(matching)==1,matching
@@ -178,6 +209,9 @@ def test_100_healthy_synthetic_manual_admission_preemptions(both_origins,monkeyp
         row=db.get(Run,manual['id']);row.status='failed';row.error_code='synthetic_retry';db.commit()
     complete_unit(factory,owner)
     supervisor=factory.dfa_supervisor
+    # The direct-step fixture grants long synthetic permission for setup only.
+    # Real benchmark startup must obtain its own completed valid renewal ACK.
+    supervisor.allowed=False;supervisor.permission_until=0.
     supervisor.controls=sessionmaker(bind=create_engine(factory.kw['bind'].url,pool_size=2,max_overflow=0,pool_timeout=.1,
                                                         connect_args={'timeout':.1}))
     real_popen=subprocess.Popen
@@ -217,6 +251,7 @@ else:
     transitions=[]
     committed_exits={}
     priority_evidence=PriorityEvidence(supervisor,monkeypatch)
+    startup_evidence=None
     real_record=supervisor.lane.record
     def record(value):
         real_record(value)
@@ -244,6 +279,8 @@ else:
                         break
                 if time.monotonic()>deadline: raise AssertionError({'trial':trial,'stage':'automatic_start','errors':error})
                 time.sleep(.01)
+            if trial==0:
+                startup_evidence=priority_evidence.startup_launch(actor)
             # Actual durable manual retry transaction, bracketed conservatively.
             with factory() as db:
                 row=db.get(Run,manual['id'])
@@ -323,6 +360,7 @@ else:
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
         (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 125ms start cadence, 250ms SQL admission pulse, no fast-window selection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
+            'startup_evidence':startup_evidence,
             'cohort':'100 accepted durable admissions; pre-admission refusals separately retained, not 100/100 ingress success',
             'measurement_scope':'cohort excluding fixture setup; full pytest duration reported separately',
             'attempts':len(ingress),'maximum_attempts':maximum_attempts,'maximum_seconds':600,
@@ -334,6 +372,7 @@ else:
         try:
             progress.with_suffix('.ingress-final.json').write_text(json.dumps({
                 'source_head':source_head,'source_bindings':source_bindings,'attempts':ingress,
+                'startup_evidence':startup_evidence,'completed_valid_renewals':priority_evidence.renewals,
                 'retirements_observed':len(outcomes),'priority_observations':priority_evidence.priorities,
                 'retirement_observations':priority_evidence.retirements,
                 'completed_trials':sum('manual_process_start_upper_seconds' in trial for trial in outcomes),
