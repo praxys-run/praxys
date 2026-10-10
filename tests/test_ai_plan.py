@@ -311,6 +311,8 @@ class TestPlannedTodayContext:
         assert ctx["today_signal"] == {
             "recommendation": "rest",
             "reason": "Recovery first.",
+            "reason_code": None,
+            "alternative_codes": [],
             "alternatives": ["Walk only"],
         }
 

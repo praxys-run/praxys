@@ -1394,3 +1394,17 @@
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
+
+/* Shared Coach hierarchy: one visible action, supporting detail on demand. */
+.coach-key-recommendation { margin-block: 1.25rem; }
+.coach-key-recommendation .coach-label { margin-block: 0 0.5rem; }
+.coach-key-recommendation .coach-text { margin: 0; line-height: 1.6; }
+.coach-theory-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.coach-theory-links a { color: var(--accent-cobalt); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.coach-status { margin-bottom: 1rem; line-height: 1.6; }
+
+.coach-loading { display: grid; gap: 0.65rem; margin-block: 1rem; }
+.coach-loading span { height: 0.75rem; background: var(--muted); }
+.coach-loading span:last-child { width: 65%; }
+
+.coach-key-recommendation .coach-label { font-size: 0.875rem; font-weight: 600; color: var(--foreground); }

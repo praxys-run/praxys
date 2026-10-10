@@ -534,8 +534,13 @@ prefilled register link (when SMTP is configured). Re-inviting revokes the prior
 ### GET /api/today
 
 Deterministic same-day training signal. `signal` is the sole authority for the
-recommendation, reason, and alternatives; Today does not load or generate an
-LLM `daily_brief`.
+recommendation, reason, and alternatives. `coach_snapshot` binds the returned
+body to the authenticated data owner, server date, all source revisions, plan
+visibility variant, and Coach template version. The endpoint verifies source
+stability around cache hits, bypasses, computation and conditional responses.
+After repeated concurrent change it returns a null snapshot and `no-store`;
+clients keep deterministic metrics but cannot attach daily Coach content.
+`data_as_of` remains the newest source observation, never generation time.
 
 Recovery classification is HRV-based. The current HRV observation is excluded
 from its own historical baseline; the default method requires seven preceding
@@ -670,9 +675,9 @@ physiological adaptation. The status is not medical clearance or a current
 heat-risk assessment, and restrictive `signal` recommendations replace its
 normal-training action with `follow_today_signal`.
 
-`coach_snapshot` is an opaque cache/source version retained for response
-compatibility. It is not an insight identifier and clients should not use it to
-request same-day prose.
+`coach_snapshot` is an opaque verified input identity. Pass it to daily insight
+GET and feedback requests; it confers no authorization. Feedback also binds the
+separate emitted-content digest and supported content version.
 
 ## Training
 
@@ -2838,16 +2843,45 @@ Trigger sync for all configured sources.
 
 ### GET /api/insights and GET /api/insights/{insight_type}
 
-Returns durable model-generated insights for `training_review` and
-`race_forecast`. The list endpoint always omits legacy `daily_brief` rows, and
-`GET /api/insights/daily_brief` always returns `{"insight": null}`. Today clients
-must render `/api/today.signal` instead. Both endpoints return
+Returns multi-week `training_review`, goal-feasibility `race_forecast`, and
+snapshot-bound morning `daily_brief`. Daily reads require
+`?snapshot=<TodayResponse.coach_snapshot>` on both list and individual endpoints.
+Missing, mismatched, stale or unverifiable snapshots suppress daily content.
+Legacy daily rows, untrusted provenance and unsupported content versions are
+never rendered. Both endpoints return
 `ai_available`; it is `false` while the emergency stop is active, the Azure
 client cannot be initialized, or an authentication, rate-limit, transport, or
 provider failure remains unconfirmed as recovered. Only a successfully parsed
 model response clears the shared provider-failure state. In that state durable
 AI rows are withheld while separately sourced deterministic metrics remain
 available.
+
+Daily response metadata includes typed `content_status` (`ready`, `pending`,
+`stale`, `unavailable`), `snapshot`, and structured `theory_refs` with allowlisted
+`pillar`, selected `theory_id`, and server `label`. A ready insight includes
+`as_of_date`, source-only `data_as_of`, `snapshot`, `content_version`, and complete
+`translations.en`/`translations.zh`. Theory destinations are `/science#<pillar>`
+and `/pages/science/index?pillar=<pillar>`; they remain visible outside details.
+
+Daily model output contains only `evidence_ids`, `interpretation_ids`, and
+`action_ids`. Eligible candidates come from existing metrics and canonical
+Today actions. Extra fields, unknown IDs, unsupported combinations, missing
+recovery coverage and contradictory actions are rejected without raw-text
+logging. Server templates render every visible word and value. Recovery uses
+metric-specific finite values and today/yesterday dates; unavailable trends
+remain unavailable. The seven-day window includes the server date and prior
+six dates, describes recorded coverage, and never treats missing history as
+zero training or infers intensity from activity averages.
+
+The existing post-sync runner evaluates daily eligibility even with no new
+rows, so server date rollover can generate new content. Multi-week types retain
+the new-row gate. Durable cumulative call reservations use a private
+`_generation_budget` slot in existing `AiInsight` storage (not a new table),
+excluded from public insight endpoints. Rejected calls and crashes consume the
+reservation; overwriting content cannot reset it. Multi-week calls reserve two
+attempts and daily calls one; SDK retries are disabled for these capped calls.
+Publication rechecks revisions, date, authorization and provider availability
+inside a fresh serialized write transaction, using revision-before-user locks.
 
 ### POST /api/insights
 
@@ -2860,8 +2894,15 @@ same-day signal.
 
 Submit one vote for the exact generated Coach insight the authenticated user saw.
 Uses the current user's id (not demo-source data) and supports `training_review`
-or `race_forecast`. Feedback for `daily_brief` returns HTTP 410 with
-`DAILY_BRIEF_DETERMINISTIC`.
+or `race_forecast`. Daily feedback additionally requires `snapshot` and
+`content_version: "morning-coach-v1"`. For daily content `dataset_hash` is the
+exact emitted content digest, separate from `meta.input_hash` (generation input
+identity). Changing selection order or content creates a different feedback
+version even for identical sources. Under source-write exclusion, the endpoint
+refreshes and checks owner, active account, current Terms, provider availability,
+source/date identity and content before both new and duplicate votes. A stale
+vote returns HTTP 409 `INSIGHT_FEEDBACK_STALE`; clients discard the obsolete
+vote/comment and refresh, without transferring or resubmitting it.
 
 **Request body:**
 ```json

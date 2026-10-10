@@ -18,7 +18,8 @@ The mini program (`miniapp/`) serves the WeChat-native CN audience; it's a view 
 
 Scientific training system for endurance runners. Praxys combines activity and recovery data from supported platforms and produces interpreted, methodology-cited outputs. The user picks their **training base** (power, heart rate, or pace); the system computes thresholds (CP, LTHR, threshold pace), zones, and load against whichever modality fits their gear and preference. Power is one option of three, not a prerequisite.
 
-- **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load.
+- **Today's signal:** go / modify / rest, grounded in HRV, sleep, resting HR, recent load. The canonical signal remains independently authoritative.
+- **Morning Coach:** a waking summary in training context, covering current recovery (or explicit missingness), recent workout, seven-day recorded training/load and today's plan. One concrete recommendation is visible; supporting findings and other recommendations start collapsed. Model selection is restricted to server-eligible identifiers; bilingual server templates own every visible word and value. AI outages show explicit Coach unavailability beside separately branded Training metrics.
 - **Managed training:** start, adopt, review, adjust, pause, and end Praxys-owned plans.
 - **Analysis:** zone distribution, CP / threshold trend, fitness-fatigue balance, heat adaptation, and Praxys Coach interpretation across all observed training.
 - **AI training plans:** plans regenerated against current state and goals.

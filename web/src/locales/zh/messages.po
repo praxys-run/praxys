@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:271
+#: src/components/AiInsightsCard.tsx:297
 msgid " · "
 msgstr " · "
 
@@ -36,12 +36,12 @@ msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, other {# 项活动}}"
 
 #. placeholder {0}: displayedContent.findings.length
-#: src/components/AiInsightsCard.tsx:269
+#: src/components/AiInsightsCard.tsx:295
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, other {# 条发现}}"
 
-#. placeholder {0}: displayedContent.recommendations.length
-#: src/components/AiInsightsCard.tsx:273
+#. placeholder {0}: remainingRecommendations.length
+#: src/components/AiInsightsCard.tsx:299
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
@@ -1482,8 +1482,8 @@ msgstr "等待分诊判断"
 #~ msgid "Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude."
 #~ msgstr "双轴单位不同；每公里秒数越少，配速曲线越高。曲线位置只用于比较走势，不比较数值大小。"
 
-#: src/components/AiInsightsCard.tsx:218
-#: src/components/AiInsightsCard.tsx:248
+#: src/components/AiInsightsCard.tsx:92
+#: src/components/AiInsightsCard.tsx:237
 msgid "Azure AI insights are temporarily unavailable."
 msgstr "Azure AI 洞察暂时不可用。"
 
@@ -1750,7 +1750,7 @@ msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线
 msgid "Can you access terrain for controlled downhill training?"
 msgstr "你能使用适合受控下坡训练的路线吗？"
 
-#: src/components/AiInsightsCard.tsx:382
+#: src/components/AiInsightsCard.tsx:398
 #: src/components/FeedbackDialog.tsx:784
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
@@ -2182,6 +2182,18 @@ msgstr "已关闭"
 #: src/pages/admin/AdminUsers.tsx:392
 msgid "Closed · cap reached"
 msgstr "已关闭 · 名额已满"
+
+#: src/components/AiInsightsCard.tsx:93
+msgid "Coach analysis is unavailable. Training metrics remain available."
+msgstr "Coach 分析暂不可用，仍可查看训练指标。"
+
+#: src/components/AiInsightsCard.tsx:95
+msgid "Coach is waiting for a current analysis."
+msgstr "Coach 正在等待当前分析结果。"
+
+#: src/components/AiInsightsCard.tsx:94
+msgid "Coach needs a refreshed training snapshot."
+msgstr "请刷新训练数据后查看 Coach。"
 
 #: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
@@ -2851,6 +2863,10 @@ msgstr "无法查看反馈状态，请重试。"
 msgid "Couldn't load announcements"
 msgstr "无法加载公告"
 
+#: src/components/AiInsightsCard.tsx:90
+msgid "Couldn't load Coach. Try again."
+msgstr "无法加载 Coach，请重试。"
+
 #: src/pages/admin/AdminFeedback.tsx:411
 msgid "Couldn't load feedback queue"
 msgstr "无法加载反馈队列"
@@ -2876,7 +2892,7 @@ msgstr "无法保存更改。"
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "保存失败。请检查网络连接后重试。"
 
-#: src/components/AiInsightsCard.tsx:208
+#: src/components/AiInsightsCard.tsx:227
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "反馈发送失败，请重试。"
@@ -3153,6 +3169,10 @@ msgstr "数据偏好"
 #: src/pages/Setup.tsx:798
 msgid "Data synced successfully"
 msgstr "数据同步成功"
+
+#: src/components/AiInsightsCard.tsx:281
+msgid "Data through"
+msgstr "数据截至"
 
 #: src/pages/admin/AdminOps.tsx:730
 msgid "Database"
@@ -3488,7 +3508,7 @@ msgstr "详情"
 msgid "deterministic"
 msgstr "确定"
 
-#: src/components/AiInsightsCard.tsx:236
+#: src/components/AiInsightsCard.tsx:255
 msgid "Deterministic training summary"
 msgstr "确定性训练摘要"
 
@@ -4551,7 +4571,7 @@ msgstr "反馈类型"
 msgid "Finding"
 msgstr "发现"
 
-#: src/components/AiInsightsCard.tsx:281
+#: src/components/AiInsightsCard.tsx:307
 msgid "Findings"
 msgstr "解读要点"
 
@@ -5030,7 +5050,7 @@ msgstr "高温安全"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "热适应证据正在衰减"
 
-#: src/components/AiInsightsCard.tsx:339
+#: src/components/AiInsightsCard.tsx:355
 msgid "Helpful"
 msgstr "有帮助"
 
@@ -5038,7 +5058,7 @@ msgstr "有帮助"
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
-#: src/components/AiInsightsCard.tsx:265
+#: src/components/AiInsightsCard.tsx:291
 msgid "Hide details"
 msgstr "收起详情"
 
@@ -5709,6 +5729,10 @@ msgstr "正在保留计划…"
 #~ msgid "Kelly female-athlete evidence review"
 #~ msgstr "Kelly 女性运动员证据综述"
 
+#: src/components/AiInsightsCard.tsx:278
+msgid "Key recommendation"
+msgstr "关键建议"
+
 #: src/pages/ActivityDetail.tsx:227
 #: src/pages/ActivityDetail.tsx:239
 msgid "Kilometer"
@@ -6026,6 +6050,10 @@ msgstr "负荷平衡（TSB）"
 #: src/pages/Analysis.tsx:287
 msgid "Load compliance"
 msgstr "计划完成度"
+
+#: src/components/AiInsightsCard.tsx:91
+msgid "Loading Coach…"
+msgstr "正在加载 Coach…"
 
 #: src/pages/Status.tsx:176
 msgid "Loading components…"
@@ -7424,7 +7452,7 @@ msgstr "尚未建立"
 msgid "Not evaluated"
 msgstr "尚未评估"
 
-#: src/components/AiInsightsCard.tsx:349
+#: src/components/AiInsightsCard.tsx:365
 msgid "Not helpful"
 msgstr "帮助不大"
 
@@ -7800,7 +7828,7 @@ msgstr "可选基准测试日期"
 msgid "Optional coaching cue"
 msgstr "可选教练提示"
 
-#: src/components/AiInsightsCard.tsx:363
+#: src/components/AiInsightsCard.tsx:379
 msgid "Optional comment"
 msgstr "可选备注"
 
@@ -8474,11 +8502,13 @@ msgstr "Praxys 无法安全解释当前版本。"
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 msgstr "Praxys 会在显示参与同意内容或开始分析前，检查所需环境，以及 Stryd 功率、心率和阈值功率的数据覆盖情况。"
 
-#: src/components/AiInsightsCard.tsx:239
+#: src/components/AiInsightsCard.tsx:258
+#: src/components/AiInsightsCard.tsx:266
+#: src/components/AiInsightsCard.tsx:273
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
 
-#: src/components/AiInsightsCard.tsx:235
+#: src/components/AiInsightsCard.tsx:254
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
@@ -9475,7 +9505,7 @@ msgstr "近期记录到的路面"
 msgid "Recommendation available"
 msgstr "有建议可供查看"
 
-#: src/components/AiInsightsCard.tsx:295
+#: src/components/AiInsightsCard.tsx:321
 msgid "Recommendations"
 msgstr "建议"
 
@@ -9764,6 +9794,7 @@ msgid "References"
 msgstr "参考文献"
 
 #: src/components/ActivityDFA.tsx:229
+#: src/components/AiInsightsCard.tsx:271
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
@@ -10658,8 +10689,8 @@ msgid "Run"
 msgstr "跑步"
 
 #: src/components/AiInsightsCard.tsx:307
-msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
-msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
+#~ msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
+#~ msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
 #: src/pages/Today.tsx:299
 msgid "Run as planned but cap at low end of power range"
@@ -10984,7 +11015,7 @@ msgstr "步骤类型"
 #~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 #~ msgstr "语义描述可移植的步骤。标签和说明保留你的措辞；Praxys 不会从中推断热身、放松或重复组。"
 
-#: src/components/AiInsightsCard.tsx:390
+#: src/components/AiInsightsCard.tsx:406
 msgid "Send"
 msgstr "发送"
 
@@ -11007,7 +11038,7 @@ msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动
 #~ msgid "Sending workouts to {targetLabel}"
 #~ msgstr "正在向{targetLabel}发送训练"
 
-#: src/components/AiInsightsCard.tsx:390
+#: src/components/AiInsightsCard.tsx:406
 msgid "Sending..."
 msgstr "发送中…"
 
@@ -11021,7 +11052,7 @@ msgstr "发送中…"
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
-#: src/components/AiInsightsCard.tsx:326
+#: src/components/AiInsightsCard.tsx:342
 msgid "Sent"
 msgstr "已发送"
 
@@ -12774,7 +12805,7 @@ msgstr "此导入或旧版训练没有便携结构树。可按原样编辑摘要
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 msgstr "无法安全编辑此导入结构。请先复制为受支持的 Praxys 训练。"
 
-#: src/components/AiInsightsCard.tsx:189
+#: src/components/AiInsightsCard.tsx:209
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
@@ -13341,7 +13372,11 @@ msgstr "训练诊断"
 #~ msgid "Training Insights"
 #~ msgstr "训练解读"
 
-#: src/components/AiInsightsCard.tsx:239
+#: src/components/AiInsightsCard.tsx:334
+msgid "Training methods"
+msgstr "训练方法"
+
+#: src/components/AiInsightsCard.tsx:258
 msgid "Training metrics"
 msgstr "训练指标"
 
@@ -14001,8 +14036,8 @@ msgstr "这次完整努力是实测 10K 吗？"
 msgid "Was the full effort a measured 5K?"
 msgstr "这是否是一次距离准确的完整 5 公里？"
 
-#: src/components/AiInsightsCard.tsx:330
-#: src/components/AiInsightsCard.tsx:334
+#: src/components/AiInsightsCard.tsx:346
+#: src/components/AiInsightsCard.tsx:350
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
@@ -14181,7 +14216,7 @@ msgstr "它能说明什么，又不能说明什么"
 msgid "What was this full activity?"
 msgstr "这次完整活动属于哪种情况？"
 
-#: src/components/AiInsightsCard.tsx:370
+#: src/components/AiInsightsCard.tsx:386
 msgid "What was useful or missing?"
 msgstr "哪些内容有帮助，或还缺少什么？"
 
@@ -14615,10 +14650,9 @@ msgstr "你的 Strava API 客户端密钥"
 msgid "Your symptoms, schedule, history, or terrain access blocks a proposal for now"
 msgstr "当前症状、时间安排、训练历史或场地条件暂时阻止生成计划"
 
-#: src/components/AiInsightsCard.tsx:219
-#: src/components/AiInsightsCard.tsx:249
-msgid "Your synced data and deterministic training metrics remain available."
-msgstr "已同步的数据和确定性训练指标仍可使用。"
+#: src/components/AiInsightsCard.tsx:225
+#~ msgid "Your synced data and deterministic training metrics remain available."
+#~ msgstr "已同步的数据和确定性训练指标仍可使用。"
 
 #: src/components/ZoneAnalysisCard.tsx:62
 #~ msgid "Zone"

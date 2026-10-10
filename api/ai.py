@@ -156,9 +156,18 @@ def _build_context_from_data(
             None if recovery_analysis.get("readiness_is_stale")
             else recovery_analysis.get("readiness_score")
         ),
-        "hrv_ms": recovery.get("hrv_ms"),
+        "hrv_ms": recovery_analysis.get("current_hrv_ms", recovery.get("hrv_ms")),
+        "resting_hr": recovery_analysis.get("resting_hr"),
+        "rhr_trend": (None if recovery_analysis.get("rhr_is_stale") else recovery_analysis.get("rhr_trend")),
+        "hrv_trend": ((recovery_analysis.get("hrv") or {}).get("trend")
+                      if not recovery_analysis.get("hrv_is_stale")
+                      and not recovery_analysis.get("classification_reason") else None),
+        "metric_validity": {
+            metric: not recovery_analysis.get(f"{metric}_is_stale", False)
+            for metric in ("hrv", "sleep", "rhr")
+        },
         "hrv_trend_pct": recovery.get("hrv_trend_pct"),
-        "sleep_score": recovery.get("sleep_score"),
+        "sleep_score": recovery_analysis.get("sleep_score", recovery.get("sleep_score")),
         "metric_dates": {
             "hrv": recovery_analysis.get("hrv_latest_date"),
             "sleep": recovery_analysis.get("sleep_latest_date"),
@@ -169,6 +178,8 @@ def _build_context_from_data(
     today_signal = {
         "recommendation": signal.get("recommendation"),
         "reason": signal.get("reason"),
+        "reason_code": signal.get("reason_code"),
+        "alternative_codes": signal.get("alternative_codes") or [],
         "alternatives": signal.get("alternatives") or [],
     }
 
@@ -207,6 +218,7 @@ def _build_context_from_data(
 
     return {
         "generated_at": datetime.now().isoformat(),
+        "as_of_date": today.isoformat(),
         "athlete_profile": athlete_profile,
         "science": science_section,
         "current_fitness": current_fitness,
@@ -243,12 +255,14 @@ def build_training_context(
         db=db,
         include_stryd_plan=include_stryd_plan,
     )
-    return _build_context_from_data(
-        data,
-        user_id=user_id,
-        db=db,
-        recent_training_weeks=recent_training_weeks,
+    context = _build_context_from_data(
+        data, user_id=user_id, db=db, recent_training_weeks=recent_training_weeks,
     )
+    if user_id is not None and db is not None:
+        from api.packs import RequestContext
+        context["data_as_of"] = RequestContext(user_id=user_id, db=db, include_stryd_plan=include_stryd_plan).data_as_of
+    return context
+
 
 
 # ---------------------------------------------------------------------------

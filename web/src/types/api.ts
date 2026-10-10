@@ -2727,6 +2727,7 @@ export interface TodayResponse {
   data_as_of: string | null;
   /** Opaque Today cache/source version retained for response compatibility. */
   coach_snapshot: string | null;
+  theory_refs?: CoachTheoryRef[];
   signal: TrainingSignal;
   tsb_sparkline: TsbSparkline;
   warnings: string[];
@@ -3809,7 +3810,20 @@ export interface ProductEventResponse {
   accepted: boolean;
   duplicate: boolean;
 }
+export interface CoachTheoryRef {
+  pillar: 'recovery' | 'load' | 'prediction' | 'zones';
+  theory_id: string;
+  label: string;
+}
+
+export type CoachContentStatus = 'ready' | 'pending' | 'stale' | 'unavailable';
+
 export interface AiInsight {
+  as_of_date?: string | null;
+  data_as_of?: string | null;
+  snapshot?: string | null;
+  content_version?: string | null;
+  theory_refs?: CoachTheoryRef[];
   headline: string;
   summary: string;
   findings: AiInsightFinding[];
@@ -3824,11 +3838,17 @@ export interface AiInsight {
 }
 
 export interface AiInsightResponse {
+  content_status: CoachContentStatus;
+  snapshot?: string | null;
+  theory_refs?: CoachTheoryRef[];
   insight: AiInsight | null;
   ai_available: boolean;
 }
 
 export type AiInsightsResponse = {
+  content_status: CoachContentStatus;
+  snapshot?: string | null;
+  theory_refs?: CoachTheoryRef[];
   insights: Partial<Record<string, AiInsight>>;
   ai_available: boolean;
 };

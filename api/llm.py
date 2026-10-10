@@ -449,6 +449,10 @@ def chat_json(
     from api import telemetry
 
     itype = insight_type or "unknown"
+    if itype in {"daily_brief", "training_review", "race_forecast"} and hasattr(client, "with_options"):
+        # The runner durably reserves chat_json attempts; hidden SDK retries
+        # would otherwise exceed that cumulative call budget.
+        client = client.with_options(max_retries=0)
 
     # SDK exception classes — imported here so this module stays importable
     # without the openai SDK (chat_json is unreachable in that case because
@@ -517,7 +521,7 @@ def chat_json(
             telemetry.record_coach_error(error_class="Auth")
             return None  # operator-actionable, no retry
         except BadRequestError as e:
-            logger.error("chat_json: bad request (no retry): %s", e)
+            logger.error("chat_json: bad request (no retry): %s", type(e).__name__ if itype == "daily_brief" else e)
             telemetry.record_coach_error(error_class="BadRequest")
             return None  # malformed prompt — bug in caller
         except json.JSONDecodeError as e:
@@ -533,6 +537,6 @@ def chat_json(
             continue
     logger.warning(
         "chat_json failed after %d attempt(s): %s",
-        retry + 1, last_err,
+        retry + 1, type(last_err).__name__ if itype == "daily_brief" else last_err,
     )
     return None

@@ -1,3 +1,4 @@
+import type { AiInsightResponse, CoachTheoryRef } from '../../types/api';
 import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet, apiPost } from '../../utils/api-client';
@@ -11,7 +12,7 @@ import type {
 } from '../../types/api';
 import { applyThemeChrome, themeClassName } from '../../utils/theme';
 import { t, tFmt, tNamed, detectLocale } from '../../utils/i18n';
-import { coachToggleLabel } from '../../utils/insights';
+import { coachToggleLabel, fetchInsight } from '../../utils/insights';
 import { recordProductEventOnce } from '../../utils/product-events';
 import { copyUrlToClipboard } from '../../utils/markdown';
 import { shouldShowMetricProvenance } from '../../utils/format';
@@ -220,13 +221,14 @@ function buildCoachReceipt(
   recoveryName: string | undefined,
   loadName: string | undefined,
 ): CoachReceipt {
-  const recommendations: CoachRecRow[] = localizedSignalAlternatives(response.signal).map(
+  const alternatives = localizedSignalAlternatives(response.signal);
+  const recommendations: CoachRecRow[] = (alternatives.length ? alternatives : [localizedSignalReason(response.signal)]).map(
     (text, index) => ({ index: `${index + 1}`, text }),
   );
   const attribution = [recoveryName, loadName].filter((s): s is string => !!s).join(' · ');
   return {
     stamp: '',
-    headline: localizedSignalReason(response.signal),
+    headline: (signalMeta()[response.signal.recommendation] ?? signalMeta().follow_plan).subtitle,
     summary: localizedRecoverySummary(response.recovery_analysis),
     hasFindings: false,
     findings: [],
@@ -788,7 +790,10 @@ const initialTr = buildTranslations();
 let todayPageVisible = false;
 
 Page({
-  data: { ...initialData, tr: initialTr },
+  data: {
+    coachResponse: null as AiInsightResponse | null,
+    coachLoading: true, coachFailed: false,
+    coachSnapshot: '', coachTheoryRefs: [] as CoachTheoryRef[], ...initialData, tr: initialTr },
 
   onLoad() {
     const tc = themeClassName();
@@ -1057,6 +1062,8 @@ Page({
     if (url) copyUrlToClipboard(url);
   },
 
+  onCoachFeedbackStale() { void this.refetch(); },
+
   async refetch(options?: { background?: boolean }) {
     const pageState = this as unknown as Record<string, unknown>;
     const background = options?.background === true && this.data.hasResponse;
@@ -1065,6 +1072,7 @@ Page({
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
+    this.setData({ coachLoading: true, coachResponse: null, coachFailed: false });
     this.setData(background
       ? { errorMessage: '' }
       : { loading: true, errorMessage: '' });
@@ -1089,6 +1097,16 @@ Page({
         todayPageVisible && renderState.decisionCheckEligible
       );
       this.setData(renderState as unknown as Record<string, unknown>);
+      this.setData({ coachSnapshot: response.coach_snapshot ?? '', coachTheoryRefs: response.theory_refs ?? [] });
+      try {
+        const coachResponse = await fetchInsight('daily_brief', response.coach_snapshot);
+        if (pageState._refetchRequestId !== requestId) return;
+        this.setData({ coachResponse, coachLoading: false });
+      } catch {
+        if (pageState._refetchRequestId !== requestId) return;
+        this.setData({ coachLoading: false, coachFailed: true });
+      }
+
       if (todayPageVisible) {
         recordProductEventOnce('today_brief_rendered', response.as_of_date);
       }
