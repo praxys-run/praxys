@@ -1,0 +1,1300 @@
+schema_version: 1
+id: sdr-trail-running-program-policy-v1
+version: 1
+title: 'Universal trail-running programme: inactive candidate modules through inclusive 50-km goal context'
+status: draft
+approval_mode: artifact
+decision_date: '2026-09-14'
+owners:
+- team:praxys
+human_reviewers: []
+model_version: trail-running-program-policy-v1
+evidence_review_ids:
+- evidence-trail-running-program-v1
+evidence_claim_ids:
+- trail-program.base-transfer-is-partial
+- trail-program.sparse-records-need-provenance
+- trail-program.strength-support-with-protocol-limits
+- trail-program.eccentric-control-not-descent-equivalence
+- trail-program.home-access-not-equivalent-load
+- trail-program.stairs-and-incline-are-distinct
+- trail-program.dual-sessions-are-feasible-not-universal-spacing
+- trail-program.run-walk-is-a-practice-option
+- trail-program.fifty-km-needs-duration-specific-coverage
+- trail-program.fuel-practice-is-individual
+- trail-program.taper-direction-transfers-with-limits
+- trail-program.feedback-does-not-measure-adaptation
+accepted_interpretation: 'PROPOSED, NOT ACCEPTED: Combine an explicit general-running/history bridge,
+  optional home/gym lower-limb control, bounded incline/stair ascent, observed terrain maintenance, same-day
+  running and strength, run/walk, fuel practice and a taper candidate. Keep daily, first-finish and performance
+  goals through 50,000 m visible without pretending all event-specific doses are supported. Exact executable
+  values are Praxys guardrails; first-50-km long-duration, novel descent and complete race prescriptions
+  remain explicitly unresolved. The entire contract is inactive and no predecessor approval is reused.'
+decision_review:
+  reviewer_task: Review the affirmative module rules and explicit deferrals, source applicability and
+    every guardrail. Read the decision sheet before the audit appendix. This sheet records proposed decisions
+    only, not approval.
+  approval_statement: I approve the scientific interpretation and exact parameter groups in sdr-trail-running-program-policy-v1
+    at the displayed immutable decision digest, only as a candidate for separately reviewed inactive implementation.
+    I understand the guardrails are not validated personal safe doses or a complete first-50-km programme.
+    I do not approve runtime activation, predecessor supersession, provider delivery or deployment.
+  items:
+  - id: scope-and-authority
+    title: Review daily, first-finish and performance goals through 50,000 m without importing v2/v3 authority
+    disposition: approve
+    question: Review daily, first-finish and performance goals through 50,000 m without importing v2/v3
+      authority — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: All three goals and the inclusive 50,000-m boundary are reviewable product context.
+      They do not certify admission to every module. This is a new topic and inactive contract; no accepted
+      or draft predecessor is changed.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - scope_and_authority
+    evidence_claim_ids: &id001
+    - trail-program.base-transfer-is-partial
+    - trail-program.fifty-km-needs-duration-specific-coverage
+  - id: history-admission
+    title: Allow an explicit reported-history bridge without manufacturing observed training
+    disposition: approve
+    question: Allow an explicit reported-history bridge without manufacturing observed training — adopt
+      this exact candidate boundary for separate implementation review?
+    proposed_decision: The four-week and six-session observed gate and the two 20-minute reported bridge
+      are deliberate low-complexity candidate guardrails. They are not published eligibility or safety
+      thresholds. Reported history keeps its provenance and enables limited basic support; it never supplies
+      measured descent or a full race plan.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - history_admission
+    evidence_claim_ids: &id002
+    - trail-program.sparse-records-need-provenance
+    - trail-program.base-transfer-is-partial
+  - id: basic-running
+    title: Prescribe bounded easy running and repeat existing sessions within a separate running budget
+    disposition: approve
+    question: Prescribe bounded easy running and repeat existing sessions within a separate running budget
+      — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: 'Reuse original general-running references while maintaining two separate ceilings:
+      total run/walk time T0+P and actual running time R0+P. Each accepted five-minute basic-running increment
+      raises both by five; capacity and single-session limits still apply. Original references and cumulative
+      progression persist across proposals, restarts and refreshed history; no rolling rebase defeats
+      the 10-minute-per-14-days or 20-minute lifetime ceiling.'
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - basic_running
+    evidence_claim_ids: &id003
+    - trail-program.base-transfer-is-partial
+    - trail-program.sparse-records-need-provenance
+  - id: strength-and-control
+    title: Offer a concrete home or gym introduction with lower-limb control and no descent-equivalence
+      claim
+    disposition: approve
+    question: Offer a concrete home or gym introduction with lower-limb control and no descent-equivalence
+      claim — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Freeze a small introductory sequence and select the initial template once. An established
+      2x6 template requires pre-programme evidence of that dose in every dynamic pattern and separately
+      known frequency. Completing introductory sessions preserves acquired dose state; it never upgrades
+      all patterns or resets to the familiar template. Repetitions, sets and frequency change only through
+      the authoritative reviewed transitions. All doses remain guardrails, not proven safe or descent-equivalent.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - strength_and_control
+    evidence_claim_ids: &id004
+    - trail-program.strength-support-with-protocol-limits
+    - trail-program.eccentric-control-not-descent-equivalence
+    - trail-program.home-access-not-equivalent-load
+  - id: equipment-substitutions
+    title: Make every strength pattern executable without a gym and show missing-action limits
+    disposition: approve
+    question: Make every strength pattern executable without a gym and show missing-action limits — adopt
+      this exact candidate boundary for separate implementation review?
+    proposed_decision: Home substitutions remove gym location as an admission gate. They preserve a movement
+      purpose, not a proven equal dose or training effect. Variant-specific tolerance is checked; an unavailable
+      pattern remains visible instead of being hidden by more work elsewhere.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - equipment_substitutions
+    evidence_claim_ids: &id005
+    - trail-program.home-access-not-equivalent-load
+    - trail-program.eccentric-control-not-descent-equivalence
+  - id: uphill-indoor-modules
+    title: Provide positive-incline and stair-ascent introductions with explicit return-path constraints
+    disposition: approve
+    question: Provide positive-incline and stair-ascent introductions with explicit return-path constraints
+      — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: A small easy exposure is a candidate familiarization choice, distinct from the
+      intense stair trials. The machine range never supplies training grade, and stair descent cannot
+      be hidden in recovery. Exact time/grade values are guardrails; no vertical equivalence is assigned.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - uphill_indoor_modules
+    evidence_claim_ids: &id006
+    - trail-program.stairs-and-incline-are-distinct
+    - trail-program.feedback-does-not-measure-adaptation
+  - id: observed-terrain-maintenance
+    title: Repeat qualified outdoor exposure while leaving novel descent and technical progression unresolved
+    disposition: approve
+    question: Repeat qualified outdoor exposure while leaving novel descent and technical progression
+      unresolved — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Constrain an optional maintenance module to actual comparable outdoor observations.
+      These windows and budgets are reviewable operational guardrails, not proof of conditioning. No reference
+      data means this module is unavailable while basic and strength work can continue.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - observed_terrain_maintenance
+    evidence_claim_ids: &id007
+    - trail-program.eccentric-control-not-descent-equivalence
+    - trail-program.base-transfer-is-partial
+  - id: joint-schedule
+    title: Schedule at most one running-type and one strength session per day with independent time and
+      load accounting
+    disposition: approve
+    question: Schedule at most one running-type and one strength session per day with independent time
+      and load accounting — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Allow independent short easy-running and qualified strength sessions without selecting
+      a higher strength template. Every 48/72-hour recovery pair is symmetric and measured from the earlier
+      session end to the later start in elapsed UTC time, including across days and proposal boundaries.
+      The largest matching interval applies; unknown time leaves dependent sessions unplaced. These buffers
+      remain scheduling guardrails, not personal recovery guarantees.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - joint_schedule
+    evidence_claim_ids: &id008
+    - trail-program.dual-sessions-are-feasible-not-universal-spacing
+    - trail-program.eccentric-control-not-descent-equivalence
+  - id: progression-and-review
+    title: Use feedback to permit one small change, hold or regress; never infer recovered capacity from
+      no soreness
+    disposition: approve
+    question: Use feedback to permit one small change, hold or regress; never infer recovered capacity
+      from no soreness — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Use one authoritative upward transition per rolling seven days, including strength
+      frequency. Introductory strength stays once weekly for the first fourteen days; a reviewed second
+      session requires two tolerated sessions at the current dose and consumes the sole transition. This
+      doubles weekly strength exposure without changing per-session dose and is an explicit guardrail,
+      not a no-load-change claim. Acquired doses persist, and synchronized running ceilings retain immutable
+      original references.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - progression_and_review
+    evidence_claim_ids: &id009
+    - trail-program.feedback-does-not-measure-adaptation
+    - trail-program.strength-support-with-protocol-limits
+  - id: interruption-restart
+    title: Reassess non-medical missed training with exact restart actions and no fitness-loss percentage
+    disposition: approve
+    question: Reassess non-medical missed training with exact restart actions and no fitness-loss percentage
+      — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Interruption-day boundaries trigger reassessment rather than an inferred loss of
+      fitness. The bridge provides a concrete non-medical restart candidate; illness, injury and unclear
+      reasons require separate assessment and do not automatically re-enter training.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - interruption_restart
+    evidence_claim_ids: &id010
+    - trail-program.feedback-does-not-measure-adaptation
+    - trail-program.sparse-records-need-provenance
+  - id: run-walk-practice
+    title: Offer first-finish practice ratios without turning them into a finish or cardiac-safety prediction
+    disposition: approve
+    question: Offer first-finish practice ratios without turning them into a finish or cardiac-safety
+      prediction — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Provide an executable 20-minute practice option and a way to reduce running within
+      the same duration. Ratios are new guardrails, not copied from the abstract-only trial. This supports
+      preparation activity without asserting first-event readiness.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - run_walk_practice
+    evidence_claim_ids: &id011
+    - trail-program.run-walk-is-a-practice-option
+    - trail-program.base-transfer-is-partial
+  - id: fuel-practice
+    title: Introduce tolerable carbohydrate practice while withholding a complete race nutrition or hydration
+      prescription
+    disposition: approve
+    question: Introduce tolerable carbohydrate practice while withholding a complete race nutrition or
+      hydration prescription — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Select a modest practice target within published ultra guidance and test tolerability
+      without extending exercise. Exact portions and advancement are candidate guardrails. Complete race
+      energy/fluid/electrolyte needs, high-intake protocols and environmental adaptation remain unresolved.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - fuel_practice
+    evidence_claim_ids: &id012
+    - trail-program.fuel-practice-is-individual
+    - trail-program.fifty-km-needs-duration-specific-coverage
+  - id: taper-candidate
+    title: Provide a bounded volume-reduction template and preserve first-finish/50-km applicability limits
+    disposition: approve
+    question: Provide a bounded volume-reduction template and preserve first-finish/50-km applicability
+      limits — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: The 14-day 60%/40% remaining-running-volume template is an explicit transfer guardrail.
+      It does not claim the same benefit in untrained or first-50-km users and does not manufacture missing
+      long-duration or vertical policy. It omits novel eccentric work and does not prescribe pre-taper
+      overload.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - taper_candidate
+    evidence_claim_ids: &id013
+    - trail-program.taper-direction-transfers-with-limits
+    - trail-program.eccentric-control-not-descent-equivalence
+  - id: cycle-and-coverage
+    title: Keep 14/7 operation and a course-to-race roadmap without claiming unsupported phases are prescribed
+    disposition: approve
+    question: Keep 14/7 operation and a course-to-race roadmap without claiming unsupported phases are
+      prescribed — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: Specify the operational cycle and objective transition checks. A roadmap is useful
+      for explaining remaining preparation, but is not a generated full-cycle schedule. Missing first-50-km
+      long-duration prescriptions are visible blockers and prevent a completeness claim.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - cycle_and_coverage
+    evidence_claim_ids: &id014
+    - trail-program.base-transfer-is-partial
+    - trail-program.fifty-km-needs-duration-specific-coverage
+    - trail-program.feedback-does-not-measure-adaptation
+  - id: published-reference-context
+    title: Keep source ranges as review context, never personal targets
+    disposition: approve
+    question: Keep source ranges as review context, never personal targets — adopt this exact candidate
+      boundary for separate implementation review?
+    proposed_decision: These are verified source study/guidance characteristics. Every behavior-driving
+      candidate number elsewhere is classified separately as a guardrail. Published group averages or
+      recommendation ranges do not automatically become personal targets.
+    approval_effect:
+    - Bind only this exact scientific interpretation and parameter group as a candidate for a separately
+      reviewed implementation.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - published_reference_context
+    evidence_claim_ids: &id015
+    - trail-program.strength-support-with-protocol-limits
+    - trail-program.dual-sessions-are-feasible-not-universal-spacing
+    - trail-program.taper-direction-transfers-with-limits
+    - trail-program.fuel-practice-is-individual
+  - id: unresolved-modules-and-activation
+    title: Defer specific unsupported prescriptions while exposing exactly which outputs they block
+    disposition: defer
+    question: Defer specific unsupported prescriptions while exposing exactly which outputs they block
+      — adopt this exact candidate boundary for separate implementation review?
+    proposed_decision: 'Research produced affirmative executable candidates for common modules. It did
+      not validate the first-50-km long-run/vertical backbone, initial descent, technical progression
+      or a complete race nutrition plan. These precise modules remain unavailable and #798 cannot close
+      on this draft alone.'
+    approval_effect:
+    - Keep the named unsupported modules unavailable; preserve supported general modules with an explicit
+      incomplete-coverage reason.
+    does_not_authorize:
+    - Runtime activation, acceptance of other roles, provider access/delivery, deployment, human self-approval,
+      predecessor supersession or a complete 50-km preparation claim.
+    parameter_names:
+    - unresolved_modules_and_activation
+    evidence_claim_ids: &id016
+    - trail-program.fifty-km-needs-duration-specific-coverage
+    - trail-program.eccentric-control-not-descent-equivalence
+    - trail-program.fuel-practice-is-individual
+rejected_alternatives:
+- alternative: Reuse accepted v2 or draft v3 approval for general goals, same-day sessions and exactly
+    50,000 m
+  rationale: Both scope and exact parameters differ; history and authority remain immutable.
+- alternative: Require a gym or treat disconnected devices as zero running history
+  rationale: Location and observed data are distinct from biological capacity. A labelled bridge and qualified
+    home variants preserve useful options with limits.
+- alternative: Translate treadmill, stairs or strength into outdoor descent meters
+  rationale: These stimuli and observed terrain exposure are not interchangeable.
+- alternative: Invent a first-50-km long-run/back-to-back/vertical schedule to declare P1 complete
+  rationale: Selected evidence cannot support those exact prescriptions; module-specific deferral is required.
+- alternative: Call every exact guardrail evidence-based safety or infer clearance from no soreness
+  rationale: Population evidence and symptom response do not validate individual safety or recovered neuromuscular
+    function.
+model_parameters:
+- name: scope_and_authority
+  value:
+    minimum_age_years: 18
+    clinical_rehabilitation_scope: false
+    goal_modes:
+    - daily
+    - race
+    race_intents:
+    - first_finish
+    - performance
+    daily_intent: continuous_development
+    race_format: single_day
+    distance_meters:
+      exclusive_minimum: 0
+      inclusive_maximum: 50000
+      exact_50000_supported_as_goal: true
+      distance_alone_is_admission: false
+    event_date_required_for_daily: false
+    event_date_required_for_race: true
+    resource_presets:
+    - frequent_trail
+    - city_occasional_trail
+    - road_gym
+    presets_editable: true
+    gym_required: false
+    presets_imply_history_or_equipment: false
+    review_candidate_states:
+    - candidate_supported
+    - candidate_limited
+    - candidate_unavailable
+    runtime_eligibility_from_candidate_state: false
+    history_v2_v3_unchanged: true
+    no_accepted_supersession_links: true
+    required_race_context:
+    - date
+    - distance_meters
+    - single_day_format
+    - intent
+    - planning_duration_range_min
+    - ascent_m
+    - descent_m
+    - footing
+    - hands_assist
+    - fixed_rope
+    - environment_requirements
+    unknown_race_context: limit_dependent_race_modules_preserve_general_modules
+    hands_assist_or_fixed_rope_true: course_specific_modules_unavailable
+    current_symptom_stop_true_or_unknown: all_exercise_candidates_unavailable
+    unknown_adult_or_nonclinical_confirmation: all_exercise_candidates_unavailable
+  classification: guardrail
+  evidence_claim_ids: *id001
+  rationale: All three goals and the inclusive 50,000-m boundary are reviewable product context. They
+    do not certify admission to every module. This is a new topic and inactive contract; no accepted or
+    draft predecessor is changed.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: history_admission
+  value:
+    provenance_states:
+    - unknown
+    - confirmed_no_exposure
+    - athlete_reported
+    - observed
+    device_disconnection_means_zero: false
+    client_can_assert_observed: false
+    all_records_include_source_and_confirmation_revision: true
+    observed_general:
+      lookback_days: 28
+      complete_calendar_weeks: 4
+      minimum_qualifying_sessions: 6
+      minimum_weeks_with_two_qualifying_sessions: 3
+      qualifying_session_minimum_minutes: 20
+      eligible_actual_modes:
+      - outdoor_running
+      - treadmill_running
+      - recorded_run_walk
+      unknown_week_counts_as_zero: false
+      explicit_zero_week_included_in_statistics: true
+      symptom_or_nonmedical_interruption_reassessed: true
+    reported_bridge:
+      requires:
+      - adult_nonclinical_confirmation
+      - current_symptom_stop_false
+      - athlete_confirms_running_at_least_twice_in_each_last_four_weeks
+      - athlete_confirms_each_typical_session_at_least_20_minutes
+      - athlete_confirms_no_current_limiting_symptoms
+      - athlete_confirms_no_unassessed_illness_injury_return
+      confirmation_maximum_age_days: 7
+      first_seven_days_running_sessions: 2
+      session_minutes: 20
+      all_running_easy: true
+      all_numeric_history_caps: unavailable_until_sufficient_observed_or_separately_reviewed_provenance
+      athlete_reported_is_not_observed: true
+      bridge_feedback_required: each_completed_session_and_next_day
+      review_after_days: 7
+      repeat_bridge_maximum_blocks: 2
+      if_still_unverified_after_two_blocks: reconfirm_base_and_keep_limited_or_request_individual_review_no_automatic_upgrade
+      successful_bridge_proves_race_readiness: false
+      new_strength_introduction: optional_with_own_gate_and_shared_novelty_budget
+    no_running_base_or_unknown_base: general_running_module_unavailable_request_base_confirmation_or_separate_beginner_policy
+    strength_familiarity:
+    - never_or_unknown
+    - familiar
+    missing_strength_history: use_introductory_template_not_observed_strength_cap
+    descent_history: independent_never_derived_from_general_running_or_strength
+  classification: guardrail
+  evidence_claim_ids: *id002
+  rationale: The four-week and six-session observed gate and the two 20-minute reported bridge are deliberate
+    low-complexity candidate guardrails. They are not published eligibility or safety thresholds. Reported
+    history keeps its provenance and enables limited basic support; it never supplies measured descent
+    or a full race plan.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: basic_running
+  value:
+    effort: comfortable_full_sentences_with_self_selected_pace; slow_or_walk_if_not_comfortable
+    prescribed_power_or_hr_zone: null
+    intensity_uses_activity_avg_power: false
+    intensity_sources:
+    - activity_splits
+    - activity_samples
+    observed_weekly_reference: original_running_reference_R0 = median(actual_running_minutes_in_each_of_four_complete_original_admission_weeks_including_explicit_zero)
+    observed_frequency_reference: floor(median(running_session_count_in_each_of_four_complete_weeks_including_explicit_zero))
+    initial_sessions_per_seven_days: min(observed_frequency_reference,confirmed_running_days,5); if less
+      than 2 use bridge_or_limited_schedule
+    initial_running_minutes_per_seven_days: min(R0,confirmed_running_time_budget); initial_progression_offset_P_is_zero
+    minimum_planned_session_minutes: 20
+    regular_session_maximum_minutes: 60
+    single_session_cap: min(60,original_median_total_duration_of_last_four_qualifying_easy_sessions,available_slot_minutes);
+      weekly_actual_and_total_budgets_checked_separately
+    template:
+      warmup_walk_minutes: 5
+      easy_running_minutes: session_minutes_minus_10
+      cooldown_walk_minutes: 5
+      walking_counts_in_total_time: true
+      walking_excluded_from_running_minutes_if_step_data_available: true
+      unknown_running_fraction: retain_total_run_walk_time_separately_no_invented_running_minutes
+    history_repeat_extended_session:
+      requires: at_least_two_comparable_completed_sessions_in_28_days_with_known_duration_and_tolerance
+      frequency_maximum_per_seven_days: 1
+      duration_minutes: min(last_two_comparable_total_durations,available_slot_minutes,remaining_weekly_total_run_walk_budget,120)
+      no_distance_or_vertical_increase: true
+      above_120_minutes: long_duration_dose_unavailable
+      purpose: repeat_observed_practice_not_a_new_long_run_target
+      outdoor_terrain_requires_independent_module_gate: true
+    new_quality_intervals_or_race_pace: unavailable_in_this_candidate
+    if_full_budget_does_not_fit: shorten_or_omit_low_priority_session_with_explicit_gap_never_compress_recovery_or_add_catchup
+    observed_weekly_total_run_walk_reference: original_total_reference_T0 = median(total_run_walk_minutes_in_same_four_complete_original_admission_weeks_including_explicit_zero)
+    weekly_total_run_walk_budget: min(T0+P,confirmed_running_type_time_budget,remaining_shared_calendar_time_after_other_sessions_and_transit);
+      includes_all_run_walk_warmup_work_recovery_cooldown
+    duration_statistic_missing: dependent_observed_template_unavailable_use_qualified_reported_bridge_or_request_history_review
+    weekly_actual_running_budget: min(R0+P,confirmed_running_time_budget); count_only_known_actual_running_step_minutes
+    running_budget_precedence:
+    - both_total_T0_plus_P_and_actual_running_R0_plus_P_ceilings_must_pass_independently
+    - shared_calendar_capacity_and_single_session_caps_may_only_reduce_output
+    - unknown_actual_running_fraction_does_not_become_zero; dependent_observed_progression_unavailable_until_resolved
+    - taper_restart_regression_and_any_module_specific_lower_cap_take_precedence_over_progression_allowance
+    - progression_allowance_is_a_ceiling_not_a_target; never_add_minutes_to_fill_it
+    original_reference_and_progression_state:
+      immutable_fields:
+      - original_history_snapshot_revision
+      - original_program_lineage
+      - R0
+      - T0
+      - original_single_session_reference
+      initial_offset_minutes: 0
+      P_definition: sum_of_unique_explicitly_adopted_basic_running_plus5_transitions_in_original_program_lineage;
+        never_readded_on_proposal_retry
+      positive_offset_maximum_in_any_rolling_14_days: 10
+      positive_offset_lifetime_maximum_minutes: 20
+      new_14_day_block_or_7_day_review_resets_P: false
+      reconfirmation_history_refresh_restart_goal_edit_or_successor_proposal_resets_references_or_P: false
+      new_history_snapshot: can_lower_current_session_or_weekly_caps; cannot_raise_R0_T0_or_original_single_session_cap_under_this_contract
+      rebase: preserve_original_references_and_cumulative_P_across_revisions; upward_rebase_or_reset_to_exceed_original_plus20_requires_a_separate_exact_science_decision
+      at_lifetime_ceiling: hold_or_reduce_existing_qualified_doses; no_additional_duration_transition
+      bridge_path: P_remains_zero; bridge_success_does_not_initialize_or_rebase_observed_references
+    budget_example:
+      original_T0_minutes: 150
+      original_R0_minutes: 120
+      original_sessions_total_minutes:
+      - 50
+      - 50
+      - 50
+      walking_minutes_per_session: 10
+      single_session_cap_minutes: 60
+      P_before_minutes: 0
+      adopt_one_basic_running_transition:
+        session_total_minutes:
+        - 55
+        - 50
+        - 50
+        session_running_minutes:
+        - 45
+        - 40
+        - 40
+        P_after_minutes: 5
+        total_minutes: 155
+        actual_running_minutes: 125
+        total_ceiling_minutes: 155
+        actual_running_ceiling_minutes: 125
+      valid_only_if: confirmed_total_calendar_budget_at_least155_and_actual_running_budget_at_least125_and_all_other_gates_pass
+      if_confirmed_total_budget_is150: transition_unavailable_hold_prior_dose; do_not_override_time_budget
+  classification: guardrail
+  evidence_claim_ids: *id003
+  rationale: 'Reuse original general-running references while maintaining two separate ceilings: total
+    run/walk time T0+P and actual running time R0+P. Each accepted five-minute basic-running increment
+    raises both by five; capacity and single-session limits still apply. Original references and cumulative
+    progression persist across proposals, restarts and refreshed history; no rolling rebase defeats the
+    10-minute-per-14-days or 20-minute lifetime ceiling.'
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: strength_and_control
+  value:
+    admission:
+    - general_base_confirmed
+    - current_symptom_stop_false
+    - confirmed_flat_space
+    - athlete_understands_demonstrated_movement
+    - no_pain_or_loss_of_control_in_unloaded_rehearsal
+    unknown_familiarity_uses: intro
+    gym_membership_required: false
+    template_order:
+    - squat_pattern
+    - calf_raise
+    - hip_extension
+    - supported_balance
+    intro:
+      sessions_first_seven_days: 1
+      minutes_reserved_per_session: 25
+      dynamic_sets_per_exercise: 1
+      dynamic_repetitions_per_set: 6
+      eccentric_seconds_per_rep: 3
+      concentric_seconds_per_rep: 1
+      rest_seconds_between_sets_or_exercises: 120
+      balance_sets_per_side: 1
+      balance_seconds_per_side: 20
+      load_choice: bodyweight_only
+      repetitions_in_reserve_cue: at_least_3_comfortable_repetitions_remaining; do_not_test_to_failure
+      sessions_in_each_of_first_two_seven_day_periods: 1
+      after_first_fourteen_days: retain_one_session_per_seven_days_until_strength_frequency_transition_in_progression_and_review_is_explicitly_adopted
+      repetitions_and_sets_after_admission: persist_current_per_pattern_dose_state; this_template_does_not_reset_or_upgrade_it
+    familiar:
+      requires:
+      - two_qualifying_strength_sessions_completed_before_original_program_admission_and_within_28_days
+      - each_dynamic_pattern_has_same_variant_and_at_least_two_sets_of_six_controlled_repetitions_in_both_sessions
+      - each_pattern_load_and_lowering_control_comparable_to_or_greater_than_candidate_without_inferred_weight_or_tempo
+      - known_clear_feedback_and_structured_source_provenance_for_both_sessions
+      - independently_known_recent_weekly_strength_frequency
+      sessions_per_seven_days_maximum: 2
+      minutes_reserved_per_session: 35
+      dynamic_sets_per_exercise: 2
+      dynamic_repetitions_per_set: 6
+      eccentric_seconds_per_rep: 3
+      concentric_seconds_per_rep: 1
+      rest_seconds_between_sets_or_exercises: 120
+      balance_sets_per_side: 1
+      balance_seconds_per_side: 20
+      load_choice: bodyweight_or_previously_tolerated_athlete_selected_resistance
+      load_may_exceed_recent_comparable_load: false
+      load_kg_or_one_rm_required: false
+      repetitions_in_reserve_cue: at_least_3_comfortable_repetitions_remaining; do_not_test_to_failure
+      initial_sessions_per_seven_days: min(2,floor(median(strength_sessions_per_complete_week_in_original_four_week_snapshot)));
+        if_less_than_1_or_unknown_use_intro
+      evidence_missing_for_any_pattern: select_intro_path_for_whole_strength_module; no_automatic_two_sets
+      later_acquired_exposures_are_preexisting_evidence: false
+      after_admission: persist_actual_per_pattern_per_set_dose_and_frequency; familiar_template_is_not_a_reset_target
+    load_selection:
+    - rehearse_each_movement_unloaded_once_as_part_of_warmup
+    - use_bodyweight_for_intro; familiar_may_use_same_or_lower_previously_tolerated_resistance
+    - if_form_cannot_be_maintained_use_easier_supported_variant_without_adding_repetitions
+    - if_pain_or_new_limiting_symptom_stop_affected_session
+    - if_effort_is_uncertain_do_not_add_resistance
+    set_failure_training: false
+    maximal_isometric_preconditioning: false
+    ballistic_plyometrics: false
+    exercise_purpose: general_strength_and_control_related_to_lower_limb_demands; not_measured_descent_adaptation
+    admission_template_selection:
+      select_once: at_original_program_admission_before_any_programme_session
+      paths:
+      - intro_or_acquired
+      - established_before_original_admission
+      athlete_familiarity_label_alone_selects_familiar: false
+      acquired_path: persist_actual_per_pattern_per_set_dose_and_frequency; only_progression_and_review_may_raise_any_component
+      completed_intro_sessions_select_familiar_template: false
+      new_proposal_restart_reconfirmation_or_history_refresh_reselects_template: false
+      missing_dose_state: use_introductory_or_lower_dose_and_reassess; never_default_to_familiar
+    frequency_or_dose_changes_authority: progression_and_review_only; introduction_and_familiar_templates_initialize_state_once
+  classification: guardrail
+  evidence_claim_ids: *id004
+  rationale: Freeze a small introductory sequence and select the initial template once. An established
+    2x6 template requires pre-programme evidence of that dose in every dynamic pattern and separately
+    known frequency. Completing introductory sessions preserves acquired dose state; it never upgrades
+    all patterns or resets to the familiar template. Repetitions, sets and frequency change only through
+    the authoritative reviewed transitions. All doses remain guardrails, not proven safe or descent-equivalent.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: equipment_substitutions
+  value:
+    patterns:
+      squat_pattern:
+        no_special_equipment: comfortable_range_bodyweight_squat
+        stable_chair: sit_to_stand_from_stable_chair
+        familiar_dumbbell: goblet_squat_same_or_lower_recent_resistance
+        familiar_machine: seated_leg_press_same_or_lower_recent_resistance
+        cue: controlled_lowering_knees_follow_feet_no_bounce
+      calf_raise:
+        no_special_equipment: bilateral_flat_floor_calf_raise
+        stable_support: bilateral_supported_flat_floor_calf_raise
+        familiar_dumbbell: supported_bilateral_calf_raise_same_or_lower_recent_resistance
+        cue: rise_and_lower_under_control_on_level_floor_no_step_edge
+      hip_extension:
+        floor_space: bodyweight_glute_bridge
+        no_floor_space: standing_unloaded_hip_hinge
+        familiar_dumbbell: dumbbell_hip_hinge_same_or_lower_recent_resistance
+        cue: comfortable_range_no_ballistic_motion
+      supported_balance:
+        stable_support: single_leg_stand_near_stable_support
+        no_stable_support: bilateral_tandem_stance_on_level_floor
+        cue: eyes_open_stop_before_loss_of_balance
+    only_one_variant_per_pattern: true
+    new_variant_uses_intro_dose: true
+    variant_change_counts_as_progression: true
+    band_loading: not_prescribed_without_a_specific_reviewed_exercise_and_secure_setup
+    unstable_surface_or_step_edge_loading: false
+    no_available_variant: omit_pattern_record_limited_strength_coverage_do_not_replace_with_more_sets_elsewhere
+    equivalent_strength_or_descent_dose_claim: false
+  classification: guardrail
+  evidence_claim_ids: *id005
+  rationale: Home substitutions remove gym location as an admission gate. They preserve a movement purpose,
+    not a proven equal dose or training effect. Variant-specific tolerance is checked; an unavailable
+    pattern remains visible instead of being hidden by more work elsewhere.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: uphill_indoor_modules
+  value:
+    shared_admission:
+    - general_base_confirmed
+    - current_symptom_stop_false
+    - resource_confirmed_on_exact_date
+    - no_new_lower_limb_strength_or_descent_introduction_in_same_seven_days
+    - required_machine_or_stair_capability_known
+    treadmill_intro:
+      session_total_minutes: 20
+      steps:
+      - minutes: 5
+        incline_pct: 0
+        action: easy_walk_or_run
+      - repeat: 3
+        steps:
+        - minutes: 2
+          incline_pct: 2
+          action: easy_walk_or_run
+        - minutes: 2
+          incline_pct: 0
+          action: easy_walk_or_run
+      - minutes: 3
+        incline_pct: 0
+        action: easy_walk_cooldown
+      inclined_minutes: 6
+      maximum_sessions_per_seven_days: 1
+      machine_must_support_exact_grades:
+      - 0
+      - 2
+      unknown_or_incompatible_capability: substitute_qualified_flat_running_or_walking_no_invented_grade
+      machine_maximum_incline_is_prescription: false
+      negative_incline_prescription: false
+    stair_ascent_intro:
+      session_total_minutes: 15
+      warmup_flat_walk_minutes: 5
+      repetitions: 3
+      ascent_seconds_per_repetition: 30
+      flat_recovery_seconds_per_repetition: 90
+      cooldown_flat_walk_minutes: 4
+      total_ascent_seconds: 90
+      maximum_sessions_per_seven_days: 1
+      pace: comfortable_walk_one_step_at_a_time_use_available_rail
+      stairs_require:
+      - well_lit_dry_unobstructed_steps
+      - stable_handrail
+      - known_return_path_without_prescribed_descent_training
+      return_path: elevator_or_flat_exit; if_only_stair_descent_is_possible_this_intro_is_unavailable_without_separate_comparable_descent_history_and_budget
+      return_transit_minutes: count_actual_expected_return_time_in_slot_in_addition_to_15_minutes
+      no_egress_or_transit_fit: module_limited_choose_treadmill_flat_or_strength
+    same_week_stairs_and_treadmill_intro: false
+    session_replaces_existing_easy_slot: true
+    outdoor_ascent_descent_credit: 0
+    progression_source: progression_and_review_group
+  classification: guardrail
+  evidence_claim_ids: *id006
+  rationale: A small easy exposure is a candidate familiarization choice, distinct from the intense stair
+    trials. The machine range never supplies training grade, and stair descent cannot be hidden in recovery.
+    Exact time/grade values are guardrails; no vertical equivalence is assigned.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: observed_terrain_maintenance
+  value:
+    admission:
+    - resource_confirmed_on_exact_date
+    - known_footing_grade_ascent_descent_and_duration
+    - two_comparable_observed_tolerated_sessions_within_56_days
+    - no_current_limiting_symptoms
+    - nontechnical_surface_without_hands_assist_or_fixed_rope
+    comparable: same_actual_mode_and_footing_class; proposed_grade_range_within_both_reference_sessions;
+      all_ascent_descent_duration_quantities_known
+    maximum_duration_ascent_descent_per_session: componentwise_minimum_of_the_two_comparable_reference_sessions
+    maximum_sessions_in_rolling_28_days: count_of_comparable_observed_sessions_in_preceding_56_days_divided_by_2_rounded_down
+    maximum_total_ascent_descent_duration_in_rolling_28_days: one_half_of_corresponding_observed_56_day_sum_with_complete_provenance
+    no_positive_weeks_only_median: true
+    missing_descent_as_zero: false
+    ascent_to_descent_inference: false
+    gym_treadmill_stairs_credit_as_outdoor_exposure: false
+    minimum_spacing_hours: 72
+    history_older_than_56_days: terrain_module_unavailable_reassess
+    novel_outdoor_descent: unavailable
+    technical_skill_progression: unavailable
+    purpose: maintenance_of_observed_practice_not_first_exposure_or_complete_race_preparation
+    spacing_basis: joint_schedule.spacing_semantics; previous_session_end_to_next_start_in_either_order_across_block_boundaries
+  classification: guardrail
+  evidence_claim_ids: *id007
+  rationale: Constrain an optional maintenance module to actual comparable outdoor observations. These
+    windows and budgets are reviewable operational guardrails, not proof of conditioning. No reference
+    data means this module is unavailable while basic and strength work can continue.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: joint_schedule
+  value:
+    maximum_sessions_per_day: 2
+    allowed_dual_pair:
+    - one_easy_running_or_run_walk_session
+    - one_strength_session
+    running_type_includes:
+    - outdoor_running
+    - treadmill
+    - run_walk
+    - stair_ascent
+    - outdoor_terrain
+    independent_completion_and_feedback: true
+    dual_session_admission: both_modules_qualified; strength_has_two_tolerated_sessions_at_current_per_pattern_dose_with_clear_next_day_feedback;
+      this_does_not_select_familiar_2set_template; easy_session_total_at_most40minutes; independent_confirmed_time_slots
+    order: easy_running_first_then_strength
+    minimum_end_to_start_gap_hours: 4
+    gap_is_not_exercise_minutes: true
+    day_boundary: confirmed_local_timezone; elapsed_UTC_time_for_spacing
+    unknown_session_time_or_timezone: no_dual_pair_until_resolved
+    maximum_novel_lower_limb_module_introductions_per_seven_days: 1
+    minimum_days_without_scheduled_training_per_seven_days: 1
+    same_day_extended_terrain_stairs_plus_strength: false
+    shared_time_budget: sum_all_session_warmup_work_recovery_cooldown_and_required_transit_minutes <=
+      confirmed_day_and_week_available_minutes
+    running_budget: running_minutes_separate_from_total_run_walk_time
+    mechanical_budgets:
+    - outdoor_ascent_m
+    - outdoor_descent_m
+    - strength_sets_repetitions
+    - new_eccentric_exposure_count
+    mechanical_budgets_are_not_convertible: true
+    double_counting_multi_purpose_session: false
+    no_universal_minimum_four_training_days: true
+    capacity_conflict: preserve_rest_and_spacing; show_unplaced_module; request_new_proposal_not_silent_catchup
+    spacing_rules:
+    - pair:
+      - strength
+      - strength
+      minimum_hours: 48
+    - pair:
+      - strength
+      - extended_session
+      minimum_hours: 48
+    - pair:
+      - strength
+      - outdoor_terrain
+      minimum_hours: 48
+    - pair:
+      - outdoor_terrain_or_new_eccentric
+      - outdoor_terrain_or_new_eccentric
+      minimum_hours: 72
+    spacing_semantics:
+      direction: symmetric_for_every_listed_pair; apply_in_either_order
+      interval: later_session_start_UTC_minus_earlier_session_end_UTC
+      if_multiple_rules_match: use_maximum_required_interval; 72h_overrides48h_and4h
+      new_eccentric: first_strength_introduction_or_unfamiliar_variant_or_upward_eccentric_set_repetition_load_transition;
+        never_derived_from_soreness_absence
+      end_time: includes_all_planned_session_steps_and_recovery_cooldown; required_transit_still_counts_in_calendar_budget
+      unknown_time_or_timezone: do_not_place_any_session_dependent_on_an_hourly_spacing_rule_until_bounds_are_confirmed
+      cross_day_and_cross_proposal_boundaries: check_neighbouring_completed_and_already_adopted_sessions_in_same_lineage;
+        new_day_or_block_does_not_reset_spacing
+  classification: guardrail
+  evidence_claim_ids: *id008
+  rationale: Allow independent short easy-running and qualified strength sessions without selecting a
+    higher strength template. Every 48/72-hour recovery pair is symmetric and measured from the earlier
+    session end to the later start in elapsed UTC time, including across days and proposal boundaries.
+    The largest matching interval applies; unknown time leaves dependent sessions unplaced. These buffers
+    remain scheduling guardrails, not personal recovery guarantees.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: progression_and_review
+  value:
+    review_days_after_block_start:
+    - 7
+    - 14
+    feedback_times:
+    - session_end
+    - next_day
+    - before_next_dependent_session
+    feedback_fields:
+    - completed_or_skipped
+    - steps_or_sets_modified
+    - effort_as_expected_or_harder
+    - pain_or_limiting_symptom
+    - normal_daily_movement_or_stairs_affected
+    - resource_or_schedule_change
+    progression_requires:
+    - all_feedback_present_for_prior_seven_days
+    - all_scheduled_sessions_completed_or_deliberately_reduced_at_review
+    - no_pain_or_limiting_symptom
+    - normal_daily_movement_unaffected
+    - effort_not_harder_than_planned
+    - at_least_two_tolerated_exposures_at_current_module_dose_variant_and_frequency_since_its_most_recent_upward_transition
+    - not_in_taper
+    - budget_and_spacing_fit
+    - explicit_review_of_new_candidate
+    maximum_progression_variables_per_seven_days: 1
+    no_automatic_adoption: true
+    options:
+      basic_running: add_exactly_5_minutes_of_easy_running_to_one_regular_session; total_run_walk_and_actual_running_each_increase_by5;
+        increase_P_by5_once; positive_P_increments_at_most10_in_any_rolling14days_and20_in_original_lineage;
+        both_new_weekly_ceilings_and_unchanged_single_session_cap_must_fit; no_extended_session_increase
+      strength: in_one_dynamic_pattern_increase_one_existing_set_from6_to8_or8_to10_only; other_sets_patterns_load_and_frequency_unchanged;
+        two_tolerated_exposures_at_current_state_required_before_each_upward_transition
+      strength_set_increase: in_one_dynamic_pattern_only_after_two_tolerated_1x10_exposures_transition_1x10_to2x6;
+        first_set_reduction_is_part_of_this_single_set_count_increase; other_patterns_load_and_frequency_unchanged;
+        maximum2sets; no_reset_to_familiar_template
+      treadmill: after_two_tolerated_intro_exposures_add_one_2min_incline_plus_2min_flat_cycle; maximum_4_cycles_and_24min_total;
+        incline_remains_2pct
+      stairs: maintain_intro_only_no_automatic_ascent_or_descent_progression
+      outdoor_terrain: maintain_observed_caps_no_automatic_vertical_or_technical_progression
+      fuel_practice: use_its_own_tolerance_rule_counts_as_the_one_changed_variable
+      strength_frequency:
+        earliest_review_days_after_original_admission: 14
+        requires:
+        - two_tolerated_sessions_at_current_per_pattern_dose_and_once_weekly_frequency
+        - all_shared_progression_gates
+        - two_confirmed_slots_meeting_all_spacing_and_shared_time_budgets
+        transition: one_to_two_strength_sessions_per_seven_days_at_unchanged_current_per_pattern_dose
+        maximum_sessions_per_seven_days: 2
+        counts_as: the_only_upward_transition_for_rolling_seven_days
+        weekly_volume_effect: doubles_current_weekly_strength_exposure_at_unchanged_per_session_dose;
+          disclose_as_frequency_guardrail_not_as_no_load_change
+        dose_variant_running_incline_or_fuel_progression_at_same_review: false
+        post_transition: two_tolerated_sessions_at_the_new_frequency_and_at_least_seven_days_since_transition_before_any_further_upward_transition
+        failed_gate: retain_one_session_per_seven_days
+    horizon_maximum_basic_running_increase_above_original_reference_minutes: 20
+    after_reaching_horizon: hold_or_reduce; ordinary_baseline_refresh_cannot_reset_original_references_or_cumulative_P;
+      an_upward_rebase_requires_separate_exact_science_decision
+    hold_triggers:
+    - missing_feedback
+    - unexpectedly_hard_effort
+    - sleep_or_schedule_disruption_reported
+    - missed_session_without_clear_reason
+    - new_resource_uncertainty
+    hold_action: repeat_last_tolerated_or_reduced_dose_no_catchup
+    regress_trigger: soreness_or_fatigue_interferes_with_daily_movement_or_next_planned_session_without_red_flag_symptoms
+    regress_action: omit_next_affected_session_until_normal_daily_movement_and_symptom_review; then_use_intro_strength_or_last_short_easy_session;
+      do_not_add_volume_to_other_modules
+    pain_new_limiting_symptom_or_illness: stop_affected_training_and_suspend_performance_optimization;
+      seek_appropriate_assessment_no_automated_medical_clearance
+    no_soreness_means_descent_ready: false
+    no_acwr_safe_zone: true
+    authoritative_transition_rule:
+      maximum_upward_transitions_in_any_rolling_seven_days: 1
+      includes:
+      - frequency
+      - repetitions_of_one_existing_set
+      - one_exercise_set_count
+      - exercise_variant
+      - basic_running_duration
+      - incline_cycle_count
+      - fuel_target
+      state_origin: original_admission_template_then_explicitly_adopted_transitions; not_current_familiarity_label
+      before_and_after_state_required: true
+      repeat_proposal_or_retry_applies_transition_again: false
+      reduction_for_tolerance: may_reduce_or_omit_more_than_one_component; never_creates_an_extra_upward_transition
+      frequency_change_counts_as_weekly_volume_change: true
+      no_template_reset_bypass: true
+    progression_budget_authority: basic_running.original_reference_and_progression_state_and_its_two_weekly_ceiling_formulas;
+      no_separate_weekly_reference_plus10_override
+  classification: guardrail
+  evidence_claim_ids: *id009
+  rationale: Use one authoritative upward transition per rolling seven days, including strength frequency.
+    Introductory strength stays once weekly for the first fourteen days; a reviewed second session requires
+    two tolerated sessions at the current dose and consumes the sole transition. This doubles weekly strength
+    exposure without changing per-session dose and is an explicit guardrail, not a no-load-change claim.
+    Acquired doses persist, and synchronized running ceilings retain immutable original references.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: interruption_restart
+  value:
+    medical_or_unknown_reason: no_automatic_restart; clarify_nonmedical_context_and_symptom_boundary
+    nonmedical_gap_days_1_to_6: drop_missed_sessions; resume_next_qualified_short_easy_session_or_prior_lower_strength_dose;
+      no_catchup_or_progression_in_first_week
+    nonmedical_gap_days_7_to_13:
+      running: two_20min_easy_or_run_walk_sessions_in_first_seven_days
+      strength: one_intro_session_only_if_previously_tolerated_and_shared_novelty_rule_met
+      terrain_stairs_incline: omit_first_seven_days
+      review: session_and_next_day_feedback_then_day7_reassessment
+    nonmedical_gap_days_at_least_14: rerun_history_admission; stale_observations_cannot_supply_old_caps;
+      use_reported_bridge_if_qualified_else_module_unavailable
+    partial_cessation: evaluate_each_module_separately; continuing_running_does_not_preserve_strength_or_descent_exposure
+    restart_proves_recovery: false
+  classification: guardrail
+  evidence_claim_ids: *id010
+  rationale: Interruption-day boundaries trigger reassessment rather than an inferred loss of fitness.
+    The bridge provides a concrete non-medical restart candidate; illness, injury and unclear reasons
+    require separate assessment and do not automatically re-enter training.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: run_walk_practice
+  value:
+    admission: general_running_or_reported_bridge_qualified; stable_nontechnical_flat_route_or_qualified_treadmill;
+      current_symptom_stop_false
+    initial_template:
+      total_minutes: 20
+      warmup_walk_minutes: 5
+      main_cycles: 2
+      run_minutes_per_cycle: 4
+      walk_minutes_per_cycle: 1
+      cooldown_walk_minutes: 5
+    during_session_if_speech_uncomfortable: walk_until_comfortable; remaining_main_period_can_use_2min_run_1min_walk;
+      if_still_uncomfortable_use_1min_run_1min_walk_or_walk_only; do_not_extend_total_time
+    ratio_rounding: truncate_final_segment_to_total_main_period_never_add_minutes
+    first_seven_days_maximum_sessions: 2
+    after_qualified_history: may_replace_any_regular_easy_slot_with_same_or_lower_total_duration
+    uphill_walk_switch: walk_when_speech_or_footing_requires; only_inside_qualified_terrain_or_incline_module
+    hiking_adds_free_volume: false
+    ratio_progression: no_automatic_increase; explicit_day7_review_can_keep_or_reduce_ratio; normal_running_progression_changes_duration_only
+    event_day_pacing_from_practice_ratio: false
+    first_trail_and_first_distance_separate_inputs: true
+  classification: guardrail
+  evidence_claim_ids: *id011
+  rationale: Provide an executable 20-minute practice option and a way to reduce running within the same
+    duration. Ratios are new guardrails, not copied from the abstract-only trial. This supports preparation
+    activity without asserting first-event readiness.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: fuel_practice
+  value:
+    admission:
+    - already_qualified_session_total_60_to_120_minutes
+    - athlete_consents_to_food_practice
+    - known_previously_tolerated_food_or_drink
+    - no_current_GI_symptoms_or_known_conflicting_dietary_medical_constraints
+    - water_available
+    - no_extreme_environment_requirement
+    practice_does_not_lengthen_session: true
+    starter:
+      carbohydrate_grams_per_hour: 30
+      portion_grams: 10
+      portion_times_minutes:
+      - 20
+      - 40
+      - 60
+      - 80
+      - 100
+      - 120
+      only_portions_at_or_before_session_end: true
+      food_selection: athlete_selected_previously_tolerated_food_or_drink_with_labelled_carbohydrate;
+        no_brand_or_supplement_requirement
+    progression:
+      minimum_clear_practices: 2
+      review_required: true
+      next_target_grams_per_hour: 40
+      next_portion_grams: 10
+      next_portion_interval_minutes: 15
+      maximum_candidate_target_grams_per_hour: 40
+      new_running_strength_or_terrain_progression_same_week: false
+    feedback:
+    - tolerated
+    - mild_discomfort
+    - symptoms_requiring_stop
+    mild_discomfort: stop_further_intake_experiment_do_not_force_target; return_to_previously_tolerated_practice_at_review
+    persistent_or_severe_symptoms: stop_training_and_seek_appropriate_assessment_no_GI_treatment
+    fluids: provide_access_and_drink_to_thirst_for_ordinary_training; no_fixed_volume_or_forced_intake;
+      this_is_not_a_between_session_rehydration_protocol
+    fixed_sodium_caffeine_supplement_or_restrictive_diet: false
+    full_event_day_nutrition_plan: false
+  classification: guardrail
+  evidence_claim_ids: *id012
+  rationale: Select a modest practice target within published ultra guidance and test tolerability without
+    extending exercise. Exact portions and advancement are candidate guardrails. Complete race energy/fluid/electrolyte
+    needs, high-intake protocols and environmental adaptation remain unresolved.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: taper_candidate
+  value:
+    admission:
+    - known_race_date_and_intent
+    - at_least_four_complete_weeks_of_observed_running_history
+    - no_current_symptom_stop
+    - previous_two_weeks_not_interruption_restart
+    - all_planned_modules_independently_qualified
+    taper_start_days_before_event: 14
+    reference_running_minutes: median(total_running_minutes_in_four_complete_pre_taper_weeks_including_explicit_zero)
+    days_minus_14_to_minus_8_running_minutes_remaining_fraction: 0.6
+    days_minus_7_to_minus_1_running_minutes_remaining_fraction: 0.4
+    rounding: floor_minutes; do_not_add_sessions_or_extend_slots_to_hit_target
+    frequency: at_most_recent_tolerated_frequency; shorten_or_omit_sessions_when_20min_minimum_does_not_fit
+    intensity: retain_only_familiar_easy_effort_in_this_candidate; no_new_intervals_or_race_pace
+    strength_first_taper_week: at_most_one_intro_volume_session_using_familiar_movements_no_new_load
+    strength_last_seven_days: omit
+    new_eccentric_stair_descent_technical_or_incline_introduction: omit_throughout_taper
+    outdoor_vertical_progression: none; dependent_unresolved_terrain_dose_remains_unavailable
+    fuel: only_previously_tolerated_practice_if_existing_shortened_session_qualifies; no_new_intake_target
+    pre_taper_overload: false
+    event_day_training_session: false
+    first_finish_or_50000m: candidate_limited_taper_transfer_not_a_complete_race_preparation_or_readiness_receipt
+  classification: guardrail
+  evidence_claim_ids: *id013
+  rationale: The 14-day 60%/40% remaining-running-volume template is an explicit transfer guardrail. It
+    does not claim the same benefit in untrained or first-50-km users and does not manufacture missing
+    long-duration or vertical policy. It omits novel eccentric work and does not prescribe pre-taper overload.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: cycle_and_coverage
+  value:
+    proposal_days: 14
+    review_after_days: 7
+    daily_cycle: rolling_14_day_blocks_with_day7_review_and_fresh_resource_validity_no_fictitious_event
+    race_roadmap_stages:
+    - establish_supported_base
+    - repeat_and_progress_qualified_modules
+    - event_specific_coverage_review
+    - taper_candidate
+    - event_day_context
+    calendar_stage_is_dose_authority: false
+    base_to_progress_trigger: history_admission_and_two_tolerated_module_exposures_plus_review
+    event_specific_stage_trigger: explicit_complete_mapping_of_course_requirements_to_accepted_module_contracts;
+      absent_mapping_is_limited_not_complete
+    no_fixed_week_count_guarantees_ready: true
+    resource_expiry_or_change: revalidate_dependent_future_sessions_and_proposal; no_silent_replacement_or_assumed_extension
+    full_cycle_generation: only_14_days_of_executable_candidates; later_stages_are_named_review_obligations_until_supported_and_reconfirmed
+    coverage_required_dimensions:
+    - running_base
+    - ascent
+    - descent
+    - footing
+    - expected_duration
+    - fuel_and_fluid_logistics
+    - environment
+    - recovery_and_taper
+    coverage_states:
+    - candidate_supported
+    - limited_by_history
+    - limited_by_resource
+    - scientific_policy_unavailable
+    - unknown_input
+    full_preparation_allowed: only_if_every_required_dimension_has_a_separately_accepted_prescription_and_implementation;
+      this_draft_never_returns_true
+    goal50k_basic_modules: can_be_candidate_supported_while_long_duration_and_event_specific_coverage_remain_unavailable
+    completed_sessions: preserved; changes_only_via_explicit_successor_adoption_for_future_uncompleted_sessions
+  classification: guardrail
+  evidence_claim_ids: *id014
+  rationale: Specify the operational cycle and objective transition checks. A roadmap is useful for explaining
+    remaining preparation, but is not a generated full-cycle schedule. Missing first-50-km long-duration
+    prescriptions are visible blockers and prevent a completeness claim.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: published_reference_context
+  value:
+    acsm_resistance_intervention_weeks:
+    - 6
+    - 52
+    concurrent_meta_analysis_included_studies: 43
+    concurrent_session_separation_subgroup_minimum_hours: 3
+    taper_meta_analysis_included_studies: 14
+    taper_published_volume_reduction_percent:
+    - 41
+    - 60
+    taper_published_duration_maximum_days: 21
+    issn_ultra_racing_carbohydrate_grams_per_hour:
+    - 30
+    - 50
+    issn_carbohydrate_evidence_category: C
+    source_context_values_may_generate_personal_dose: false
+  classification: published
+  evidence_claim_ids: *id015
+  rationale: These are verified source study/guidance characteristics. Every behavior-driving candidate
+    number elsewhere is classified separately as a guardrail. Published group averages or recommendation
+    ranges do not automatically become personal targets.
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+- name: unresolved_modules_and_activation
+  value:
+    first_50km_admission_for_complete_race_plan: not_accepted
+    new_long_run_duration_distance_or_back_to_back_dose: not_accepted
+    first_50km_vertical_and_descent_progression: not_accepted
+    initial_outdoor_descent_without_comparable_exposure: not_accepted
+    negative_incline_treadmill_prescription: not_accepted
+    technical_terrain_skill_progression: not_accepted
+    performance_quality_session_progression_and_race_pace: not_accepted
+    full_event_day_nutrition_fluid_electrolyte_schedule: not_accepted
+    heat_altitude_or_extreme_environment_specific_prescription: not_accepted
+    personal_finish_probability_or_medical_clearance: not_accepted
+    production_schema_allocation: not_accepted
+    runtime_activation: not_accepted
+    provider_access_delivery_or_deployment: not_accepted
+    blocking_map:
+      first_50km_complete_plan:
+      - first_50km_admission
+      - new_long_run_or_back_to_back_dose
+      - vertical_and_descent_progression
+      - event_day_nutrition_and_environment_coverage
+      first_trail_with_no_descent_history:
+      - new_outdoor_descent
+      - technical_course_coverage
+      performance_optimization:
+      - quality_progression
+      - race_pace
+      negative_incline_machine_module:
+      - negative_incline_prescription
+      ordinary_daily_basic_strength_run_walk:
+      - no_additional_scientific_block_beyond_own_admission; draft_acceptance_still_required
+    allowed_output_despite_partial_coverage: qualified_general_modules_and_concrete_reasons_for_each_missing_dimension
+    must_not_label: complete_race_preparation_or_ready_to_finish
+    required_resolution: bounded_source_review_plus_exact_new_parameter_group_and_independent_human_acceptance_then_separate_implementation_review
+  classification: guardrail
+  evidence_claim_ids: *id016
+  rationale: 'Research produced affirmative executable candidates for common modules. It did not validate
+    the first-50-km long-run/vertical backbone, initial descent, technical progression or a complete race
+    nutrition plan. These precise modules remain unavailable and #798 cannot close on this draft alone.'
+  applies_to: New draft review candidates only; runtime inactive; no predecessor authority reused
+applicability:
+- Adults with an existing running base in a nonclinical context; source directness and module admission
+  remain explicit
+- Daily development, first-finish and performance intent; single-day goals up to and including 50,000
+  m, with incomplete race-specific support clearly labelled
+- Editable resource contexts including no gym and no special equipment; unknown resource or history limits
+  only dependent modules unless a shared safety/admission input is missing
+- Draft review candidates only; neither accepted science nor production planning
+user_facing_claim_limits:
+- Call home strength a general strength/control module, not descent-equivalent, injury-preventing or proven
+  to improve trail race performance.
+- Call the reported bridge athlete-reported limited support; do not present it as measured history or
+  validated readiness.
+- Do not promise first finish, completion probability, safe dose, optimal ratio, fourteen-day adaptation
+  or complete first-50-km preparation.
+- Explain published source ranges separately from all candidate prescription numbers.
+- A roadmap or tapered general module does not fill unresolved long-run, technical, nutrition or environmental
+  coverage.
+safety_implications:
+- Symptoms or unclear medical return suspend automated exercise candidates; no diagnosis or medical clearance
+  is generated.
+- No new outdoor descent without comparable exposure, no negative-incline prescription, no failure/maximal/ballistic
+  strength and no catch-up workload.
+- Soreness, mechanical exposure and running intensity are distinct; no activity-average power, equivalent
+  descent credit or safe ACWR threshold.
+- Fuel practice never forces intake, lengthens the session or supplies a clinical hydration/GI protocol.
+privacy_implications:
+- Collect only structured context needed for qualified modules and feedback; retain athlete-reported versus
+  observed provenance without converting client assertions into observations.
+- No weights, 1RM, diagnosis narrative, GPS/routes, provider credentials, additional demographic profiling
+  or cross-user training telemetry is required by this science candidate.
+- Architecture/Trust own exact production schema, access, retention and data rights; this SDR grants no
+  authority beyond its science parameters.
+validation_plan:
+- Validate Evidence Review, citations, SDR schema, every decision-item-to-parameter mapping, inactive
+  machine contract and exact generated review packet digests.
+- Independently review all source levels and the important non-transfer claims, especially ACSM bodyweight
+  limits, laboratory descent, run/walk and 50-km coverage.
+- 'Exercise candidate arithmetic: treadmill 20/24 minutes, run/walk 20 minutes, stairs 15 minutes plus
+  return transit, unilateral balance and strength reserves, no duplicate multi-purpose time.'
+- Replay daily/no date, first finish, performance, exactly 50000 m and 50001 m, all resource presets and
+  no gym, sparse/unknown/reported/observed-zero histories, same-day sessions and timezone/spacing conflicts.
+- Verify regression/restart, incomplete feedback, missed work, one-variable progression, new resource
+  revisions, taper crossing block boundaries and preservation of completed sessions.
+- Reject complete-first-50-km coverage, activation and provider behavior from draft/inactive contracts,
+  including candidate_supported receipts.
+- 'Reject acquired-strength template reset: two 1x6 introductory sessions do not yield 2x6 across all
+  three dynamic patterns; reject second weekly intro session before day14 and reject simultaneous frequency/dose
+  progression.'
+- 'Replay original total150/actual-running120 minutes with three50-minute sessions: one plus5 transition
+  permits ceilings155/125 only when capacity and single-session caps fit; refresh/restart/new proposal
+  cannot reset cumulative10-per14-day or20-lifetime ceilings.'
+- 'Check symmetric end-to-start spacing in both orders: strength/extended and strength/terrain48h; terrain/new-eccentric72h;
+  highest matching rule wins across date/block boundaries.'
+falsification_conditions:
+- The bridge or a resource preset manufactures observed exposure or measured zero.
+- Any 50,000-m goal is silently routed through the old 49,999-m contract or an incomplete general plan
+  is presented as full preparation.
+- A same-day pair violates elapsed spacing, doubles time, overwrites independent completion, or turns
+  strength minutes into running/vertical allowance.
+- The generated candidate exceeds its guardrail ceilings, repeats progression indefinitely, schedules
+  catch-up or hides unsupported course dimensions.
+- No-soreness feedback triggers new downhill exposure, an injury-prevention guarantee or medical clearance.
+- Source access is overstated, numeric guardrails are called published, or an inactive draft reaches production
+  behavior.
+- Introductory completions select the familiar template, template refresh loses acquired dose state, or
+  frequency rises outside the one authoritative progression transition.
+- A positive running-duration transition changes only one of total/actual-running ceilings, or refreshed
+  history resets original references/cumulative progression.
+- Spacing is start-to-start, directional-only, calendar-day-only, reset at a block boundary, or uses48h
+  where a matching72h rule applies.
+affected_surfaces:
+  models:
+  - New inactive trail-running-program-policy-v1 candidate only; accepted v2 and draft v3 are unchanged
+  - Future pure module planning and explicit provenance/coverage contracts after acceptance
+  apis:
+  - Future owner-scoped context/proposal/revision/adoption and independent session feedback; no active
+    API change authorized here
+  clients:
+  - Future Web editable goals/resources/module details/two-session experience
+  - Future miniapp compatible reading and explicit Web editing handoff; no dropped second session
+  science_notes:
+  - Why no gym and sparse records can still support limited training
+  - Why strength/stairs/treadmill do not certify descent readiness
+  - Why inclusive 50-km goal support is distinct from a complete 50-km prescription
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+superseded_by: null
+decision_notes:
+- Decision-proposal mode. No acceptance, activation or approval artifact has been created.
+- 'Exact classification digest: sha256:d2b15692d6d8db1b897b750ce30d6418e9a62e1acf683a4e88fce8f4a7851668.'
+- 'Exact Work Contract route digest: sha256:172191b42862f63e1368bb23496cb773b1fb7a8e8cd5e1ed2c413b080a5adb72.'
+- Engineering owns persistence/generation of packets and implementation artifacts; Science owns this new
+  Evidence Review and SDR only.
+- Human evidence_reviewer and decision_approver acceptance is still missing; independent source/parameter
+  review and all specialist prerequisite decisions must bind the same version.
+- A future supersession proposal must cover both accepted trail ontology and non-ultra policy decisions
+  atomically; this new-topic draft has no active supersession links.
+- 'Issue #798 remains open: complete new 50-km science policy, necessary content acceptance and downstream
+  implementation are not established by this draft.'
+- Independent source verification found all24 citation identities and access levels consistent. This revision
+  addresses independent parameter-review findings on acquired strength, synchronized running budgets and
+  symmetric elapsed recovery; renewed exact-digest science review remains required.
