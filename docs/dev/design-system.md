@@ -191,3 +191,11 @@ Deterministic fallback content stays labelled **Training metrics** and never
 claims to be Coach. Daily content must match the Today snapshot, server date and
 supported template version; no legacy prose fallback. Applicable selected
 recovery/load theory links remain visible even when AI is unavailable.
+
+Coach voice guides through observations, supported meaning and a useful next
+step. Prefer constructive suggestions to correction or repeated negative
+sentences; keep necessary risk notices, data gaps and source ownership concise.
+Praxys-managed training is authoritative, including scheduled rest. External
+courses are platform-labelled references, with conditional advice using recorded
+targets. Expanded findings may describe measured splits without assigning zones
+or recovery costs from a power value alone.

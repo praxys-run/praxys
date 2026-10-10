@@ -39,7 +39,7 @@ Component({
       const coherent = !daily || (Boolean(this.data.snapshot)
         && response?.snapshot === this.data.snapshot && response.content_status === 'ready'
         && response.insight?.snapshot === this.data.snapshot
-        && response.insight.content_version === 'morning-coach-v1');
+        && response.insight.content_version === 'morning-coach-v2');
       const insight = coherent && !this.data.loading && !this.data.failed ? response?.insight ?? null : null;
       const view = insight ? localizedInsight(insight, detectLocale()) : null;
       const receipt: Receipt | null = view ? {

@@ -193,6 +193,7 @@ def _build_context_from_data(
     plan_df = data.get("plan")
     current_plan: list[dict] = []
     planned_today: dict | None = None
+    external_planned_today: list[dict] = []
     if isinstance(plan_df, pd.DataFrame) and not plan_df.empty:
         plan_future = plan_df[plan_df["date"] >= today]
         for _, row in plan_future.iterrows():
@@ -216,6 +217,28 @@ def _build_context_from_data(
             if planned_today is None and row_date == today:
                 planned_today = wp
 
+    # The canonical plan stays authoritative. Connected-platform courses are
+    # separate observations, including in Praxys-managed mode where the
+    # canonical plan intentionally excludes them. all_plans is already gated
+    # by include_stryd_plan at the authenticated data-loading boundary.
+    all_plans = data.get("all_plans", plan_df)
+    if isinstance(all_plans, pd.DataFrame) and not all_plans.empty:
+        for _, row in all_plans[all_plans["date"] == today].iterrows():
+            if is_praxys_plan_source(row.get("source")):
+                continue
+            workout = {
+                k: (row.get(k) if pd.notna(row.get(k)) else None)
+                for k in ("date", "source", "workout_type", "workout_origin",
+                          "planned_duration_min", "planned_distance_km",
+                          "target_power_min", "target_power_max")
+            }
+            workout["date"] = today.isoformat()
+            workout["owner"] = "external"
+            workout["origin"] = normalize_workout_origin(
+                workout.pop("workout_origin", None), source=workout.get("source"),
+            )
+            external_planned_today.append(workout)
+
     return {
         "generated_at": datetime.now().isoformat(),
         "as_of_date": today.isoformat(),
@@ -227,6 +250,7 @@ def _build_context_from_data(
         "today_signal": today_signal,
         "current_plan": current_plan,
         "planned_today": planned_today,
+        "external_planned_today": external_planned_today,
     }
 
 

@@ -83,7 +83,7 @@ export default function AiInsightsCard({
 
   const coherent = !daily || (Boolean(snapshot) && data?.snapshot === snapshot
     && data?.content_status === 'ready' && data.insight?.snapshot === snapshot
-    && data.insight?.content_version === 'morning-coach-v1');
+    && data.insight?.content_version === 'morning-coach-v2');
   const insight = fetchInsight && coherent && !stale && !error && !loading ? data?.insight : null;
   const aiUnavailable = fetchInsight && data?.ai_available === false;
   const refs = insight?.theory_refs ?? data?.theory_refs ?? theoryRefs ?? [];

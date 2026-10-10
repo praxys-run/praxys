@@ -245,6 +245,42 @@ class TestPlannedTodayContext:
         assert workout["origin"] == "generated"
         assert "workout_origin" not in workout
 
+    def test_external_observations_survive_empty_managed_calendar(self, monkeypatch):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        data = self._empty_data([])
+        data['all_plans'] = pd.DataFrame([
+            {'date': today, 'source': 'stryd', 'workout_type': 'long',
+             'target_power_min': 170, 'target_power_max': 195},
+            {'date': today + timedelta(days=1), 'source': 'stryd', 'workout_type': 'easy'},
+            {'date': today, 'source': 'praxys', 'workout_type': 'rest'},
+        ])
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today'] is None
+        assert len(ctx['external_planned_today']) == 1
+        course = ctx['external_planned_today'][0]
+        assert course['owner'] == 'external'
+        assert course['source'] == 'stryd'
+        assert course['date'] == today.isoformat()
+        assert course['target_power_min'] == 170
+
+    def test_external_observations_keep_canonical_praxys_rest(self, monkeypatch):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        owned = {'date': today, 'source': 'praxys', 'workout_type': 'rest'}
+        data = self._empty_data([owned])
+        data['all_plans'] = pd.DataFrame([owned, {'date': today, 'source': 'stryd', 'workout_type': 'long'}])
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today']['owner'] == 'praxys'
+        assert ctx['planned_today']['workout_type'] == 'rest'
+        assert len(ctx['external_planned_today']) == 1
+
     def test_planned_today_none_when_today_is_unscheduled(self, monkeypatch):
         """A future entry must not be presented as today's workout."""
         from api.ai import _build_context_from_data

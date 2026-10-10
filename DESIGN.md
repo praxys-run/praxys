@@ -311,6 +311,13 @@ content feedback. Source freshness is separately labelled **Data through / 数�
 Today provides waking recovery and training context; Analysis remains multi-week
 and Goal remains feasibility. Shared web/native components preserve these horizons.
 
+Coach copy leads with calm guidance: observation, supported meaning, then a useful
+next step. Praxys-managed sessions and scheduled rest take priority. Name external
+courses by platform and introduce advice with "If you choose… / 如果选择…".
+Keep data gaps and necessary risk notices brief and actionable. Descriptive split
+observations add context without assigning intensity or a recovery cost from power
+alone. Supporting findings avoid repeating the summary's trend sentences.
+
 Web uses the existing square, hairline cobalt receipt. Miniapp uses native rounded
 full-width presentation and buttons. Keep summary and action untruncated. Findings
 and remaining recommendations default closed, omit empty disclosures and do not

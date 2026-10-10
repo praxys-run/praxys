@@ -13,9 +13,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from analysis.config import is_praxys_plan_source
 from db.cache_revision import SCOPES, get_revisions
 
-CONTENT_VERSION = "morning-coach-v1"
+CONTENT_VERSION = "morning-coach-v2"
 CONTRACT_KEY = "_morning_coach"
 
 
@@ -76,6 +77,45 @@ def _day(value: object) -> date | None:
         return None
 
 
+def _workout_label(plan: dict) -> tuple[str, str]:
+    """Name a course through fixed bilingual labels, never provider prose."""
+    return {"easy": ("easy run", "轻松跑"), "recovery": ("recovery run", "恢复跑"),
+            "long": ("long run", "长距离跑"), "tempo": ("tempo run", "节奏跑"),
+            "intervals": ("interval session", "间歇训练"),
+            "rest": ("rest day", "休息日")}.get(plan.get("workout_type"), ("workout", "训练课"))
+
+
+def _course_targets(plan: dict) -> tuple[str, str]:
+    """Quote finite, ordered course targets without deriving a new dose."""
+    en, zh = [], []
+    for key, unit in (("planned_distance_km", "km"), ("planned_duration_min", "min")):
+        value = _number(plan.get(key))
+        if value is not None:
+            en.append(f"{value:g} {unit}")
+            zh.append(f"{value:g} {'公里' if unit == 'km' else '分钟'}")
+    low, high = (_number(plan.get(key)) for key in ("target_power_min", "target_power_max"))
+    if low is not None and high is not None and low <= high:
+        en.append(f"{low:g}–{high:g} W")
+        zh.append(f"{low:g}–{high:g} W")
+    return ", ".join(en), "、".join(zh)
+
+
+def _external_courses(context: dict, as_of: date) -> list[dict]:
+    """Keep same-day external observations separate from the canonical plan."""
+    courses = list(context.get("external_planned_today") or [])
+    plan = context.get("planned_today")
+    if not courses and isinstance(plan, dict) and plan.get("owner") == "external":
+        courses = [plan]
+    return [p for p in courses if isinstance(p, dict)
+            and _day(p.get("date")) == as_of and not is_praxys_plan_source(p.get("source"))
+            and (context.get("include_stryd_plan", True) or str(p.get("source", "")).strip().casefold() != "stryd")]
+
+
+def _platform_name(plan: dict) -> str:
+    """Use provider identities rather than arbitrary external labels."""
+    return {"stryd": "Stryd", "garmin": "Garmin"}.get(str(plan.get("source", "")).strip().casefold(), "External")
+
+
 def candidates(context: dict) -> dict:
     """Build eligible observations and actions before model selection.
 
@@ -106,9 +146,9 @@ def candidates(context: dict) -> dict:
             missing["zh"].append(zh)
         evidence[f"recovery.{metric}"] = {
             "en": (f"{en.capitalize()}: {value:g}{unit}, recorded {observed}." if current else
-                   f"Current {en} unavailable; sync a valid recent observation."),
+                   f"Sync a recent {en} observation to complete the recovery picture."),
             "zh": (f"{zh}：{value:g}{unit}，记录于 {observed}。" if current else
-                   f"缺少当前{zh}；请同步有效的近期记录。"),
+                   f"同步近期{zh}记录后，可补齐今天的恢复信息。"),
             "current": bool(current),
         }
     recovery_summary = {}
@@ -137,8 +177,8 @@ def candidates(context: dict) -> dict:
             }
         else:
             evidence[f"trend.{metric}"] = {
-                "en": f"{'HRV' if metric == 'hrv' else 'Resting heart rate'} trend unavailable with current evidence.",
-                "zh": f"当前证据不足以判断{'HRV' if metric == 'hrv' else '静息心率'}趋势。",
+                "en": f"{'HRV' if metric == 'hrv' else 'Resting heart rate'} trend assessment awaits sufficient recent observations.",
+                "zh": f"{'HRV' if metric == 'hrv' else '静息心率'}趋势解读等待有效的近期记录补齐。",
             }
     fitness = context.get("current_fitness") or {}
     if not (context.get("recent_training") or {}).get("sessions"):
@@ -150,8 +190,8 @@ def candidates(context: dict) -> dict:
             load_parts.append(f"{key.upper()} {value:.1f}")
     load_text = ", ".join(load_parts)
     evidence["load.current"] = {
-        "en": f"Modeled load on {as_of}: {load_text}. TSB describes modeled load balance, not measured fatigue." if load_parts else "Current modeled load unavailable.",
-        "zh": f"{as_of} 的建模负荷：{load_text}。TSB 描述建模负荷平衡，并非实测疲劳。" if load_parts else "当前建模负荷不可用。",
+        "en": f"Modeled load on {as_of}: {load_text}. Read TSB as modeled load balance alongside recovery observations." if load_parts else "Current modeled load awaits training data.",
+        "zh": f"{as_of} 的建模负荷：{load_text}。TSB 表示建模负荷平衡，可结合恢复观测一起参考。" if load_parts else "当前建模负荷解读等待训练数据补齐。",
     }
     start = as_of - timedelta(days=6)
     sessions = [s for s in (context.get("recent_training") or {}).get("sessions", [])
@@ -173,9 +213,23 @@ def candidates(context: dict) -> dict:
             "en": f"Latest recorded workout: {str(last['date'])[:10]}" + (f", {distance_last:g} km." if distance_last is not None else "; distance unavailable."),
             "zh": f"最近已记录训练：{str(last['date'])[:10]}" + (f"，{distance_last:g} km。" if distance_last is not None else "；距离不可用。"),
         }
+        # Descriptive split evidence only. Select the longest measured power
+        # split; never infer a zone, recovery cost or dose from activity avg_power.
+        splits = [s for s in (last.get("splits") or []) if isinstance(s, dict)
+                  and _number(s.get("duration_sec")) is not None
+                  and _number(s.get("avg_power")) is not None and s.get("power_source")]
+        if splits:
+            split = max(splits, key=lambda s: s["duration_sec"])
+            minutes, watts = split["duration_sec"] / 60, _number(split["avg_power"])
+            evidence["training.split"] = {
+                "en": f"The latest workout includes a recorded {minutes:g}-minute split averaging {watts:g} W. Keep this session in view when reviewing today's course.",
+                "zh": f"最近一次训练包含一个 {minutes:g} 分钟、平均功率 {watts:g} W 的分段。查看今天的课程时，可一起参考这节训练的记录。",
+            }
     else:
         evidence["training.recent"] = {"en": "No recent workout recorded in the available history.", "zh": "现有历史中没有近期训练记录。"}
-    plan = context.get("planned_today")
+    canonical_plan = context.get("planned_today")
+    plan = canonical_plan if canonical_plan and canonical_plan.get("owner") != "external" else None
+    external = _external_courses(context, as_of)
     rec = (context.get("today_signal") or {}).get("recommendation")
     # Every action is an existing canonical decision, with no invented dose.
     actions_by_signal = {
@@ -186,7 +240,7 @@ def candidates(context: dict) -> dict:
         "follow_plan": ("Follow today's scheduled workout.", "按今天已安排的训练执行。"),
         "unscheduled": ("Review the training plan before adding a session.", "添加训练前先查看训练计划。"),
     }
-    if rec not in actions_by_signal or (plan is None and rec != "unscheduled"):
+    if rec not in actions_by_signal or (canonical_plan is None and rec != "unscheduled"):
         raise ValueError("incoherent_canonical_action")
     reason_code = (context.get("today_signal") or {}).get("reason_code")
     action = actions_by_signal[rec]
@@ -204,15 +258,43 @@ def candidates(context: dict) -> dict:
             "run_easy": ("Run easy instead.", "改为轻松跑。"),
         }.get(first, action)
     if rec == "follow_plan" and plan:
-        workout = {"easy": ("easy run", "轻松跑"), "recovery": ("recovery run", "恢复跑"),
-                   "long": ("long run", "长距离跑"), "tempo": ("tempo run", "节奏跑"),
-                   "intervals": ("interval session", "间歇训练")}.get(plan.get("workout_type"))
+        workout = _workout_label(plan)
         duration = _number(plan.get("planned_duration_min"))
         if workout:
             action = (f"Follow the planned {duration:g}-minute {workout[0]}." if duration else f"Follow the planned {workout[0]}.",
                       f"按计划完成 {duration:g} 分钟{workout[1]}。" if duration else f"按计划完成{workout[1]}。")
-    plan_en = "No workout is scheduled today." if plan is None else ("A rest day is scheduled today." if reason_code == "rest_scheduled" else "Today's workout is scheduled in the training plan.")
-    plan_zh = "今天没有安排训练。" if plan is None else ("今天安排了休息。" if reason_code == "rest_scheduled" else "今天已有安排好的训练。")
+    plan_en = "No Praxys-managed workout is scheduled today." if plan is None else ("Praxys schedules recovery today." if reason_code == "rest_scheduled" else "Today's workout follows the Praxys-managed plan.")
+    plan_zh = "今天暂无 Praxys 管理的训练安排。" if plan is None else ("Praxys 计划今天以恢复为主。" if reason_code == "rest_scheduled" else "今天按 Praxys 管理的训练计划安排。")
+    for index, course in enumerate(external):
+        provider = _platform_name(course)
+        label_en, label_zh = _workout_label(course)
+        target_en, target_zh = _course_targets(course)
+        evidence[f"plan.external.{index}"] = {
+            "en": f"{provider} lists an external {label_en}" + (f": {target_en}." if target_en else ".") + " The Praxys-managed plan takes priority.",
+            "zh": f"{'外部平台' if provider == 'External' else provider} 显示一节外部{label_zh}" + (f"：{target_zh}。" if target_zh else "。") + "今日安排优先依据 Praxys 管理的计划。",
+        }
+    if plan is None and external:
+        if len(external) == 1:
+            course = external[0]
+            provider = _platform_name(course)
+            label_en, label_zh = _workout_label(course)
+            plan_en = plan_en[:-1] + f"; {provider} lists an external {label_en} for reference."
+            plan_zh = plan_zh[:-1] + f"；{'外部平台' if provider == 'External' else provider} 的{label_zh}可作为训练参考。"
+            # External-course wording is conditional and uses existing course
+            # values only. Canonical caution/recovery actions still win.
+            if ((rec == "unscheduled" and reason_code == "unscheduled_open") or rec == "follow_plan"):
+                low, high = (_number(course.get(key)) for key in ("target_power_min", "target_power_max"))
+                target_en = f"use its {low:g}–{high:g} W target as a reference" if low is not None and high is not None and low <= high else "use its recorded targets as a reference"
+                target_zh = f"以课程标注的 {low:g}–{high:g} W 为强度参考" if low is not None and high is not None and low <= high else "参考该课程已记录的目标"
+                action = (f"If you choose the {provider} {label_en}, {target_en} and adjust execution to how you feel.",
+                          f"如果选择{'外部平台' if provider == 'External' else provider} 的{label_zh}，{target_zh}，并结合身体感受调整执行。")
+        else:
+            plan_en = plan_en[:-1] + "; connected platforms list several external courses for reference."
+            plan_zh = plan_zh[:-1] + "；已连接平台提供了多节外部课程参考。"
+            if rec == "follow_plan":
+                action = ("If you choose an external course, review that course's recorded targets alongside recovery.", "如果选择外部课程，结合恢复状态查看该课程已记录的目标。")
+    elif plan is None and rec == "follow_plan":
+        raise ValueError("missing_external_course")
     evidence["plan.today"] = {"en": plan_en, "zh": plan_zh}
     # Approved plan values, never descriptions from external free text.
     if plan:
@@ -222,14 +304,19 @@ def candidates(context: dict) -> dict:
                 evidence["plan.today"]["en"] += f" {en}: {val:g} {unit}."
                 evidence["plan.today"]["zh"] += f"{zh}：{val:g} {unit}。"
     sessions_label = f"{count} recorded {'session' if count == 1 else 'sessions'} in seven days" if count else "No training recorded in the seven-day window"
-    week_en = f"{sessions_label}; recorded load {load or 'unavailable'}."
-    week_zh = f"近七天{'记录 ' + str(count) + ' 次训练' if count else '暂无训练记录'}；已记录负荷{load or '不可用'}。"
+    week_en = f"{sessions_label}" + (f", totaling {distance}" if distance else "") + "."
+    week_zh = f"近七天{'记录 ' + str(count) + ' 次训练' if count else '暂无训练记录'}" + (f"，共 {distance}" if distance else "") + "。"
+    if load is None:
+        evidence["training.week"]["en"] += " Further load interpretation awaits complete session loads."
+        evidence["training.week"]["zh"] += "进一步的负荷解读等待逐次训练数据补齐。"
+    sleep_value = _number(state.get("sleep_score"), score=True) if evidence["recovery.sleep"]["current"] else None
     return {"evidence": evidence, "interpretations": interpretations,
             "actions": {f"today.{rec}": {"en": action[0], "zh": action[1]}},
             "recovery_summary": recovery_summary,
             "missing_recovery": bool(missing["en"]),
             "plan_summary": {"en": plan_en, "zh": plan_zh},
             "week_summary": {"en": week_en, "zh": week_zh},
+            "sleep_value": sleep_value,
             "theory_refs": theory_refs(context.get("science") or {})}
 
 
@@ -266,12 +353,25 @@ def render_selection(raw: object, eligible: dict) -> dict:
                 recovery = recovery[0].upper() + recovery[1:] + " against the personal reference window"
             else:
                 recovery = "相对个人参考窗口，" + recovery
+        sleep = eligible.get("sleep_value")
+        if sleep is not None:
+            recovery += f"; sleep score {sleep:g}" if lang == "en" else f"，睡眠评分为 {sleep:g}"
         recovery += "." if lang == "en" else "。"
+        findings = []
+        recovery_added = False
+        for key in raw["evidence_ids"]:
+            if key.startswith("recovery."):
+                if not recovery_added:
+                    findings.append({"type": "neutral", "text": " ".join(
+                        eligible["evidence"][f"recovery.{metric}"][lang]
+                        for metric in ("sleep", "hrv", "rhr"))})
+                    recovery_added = True
+            else:
+                findings.append({"type": "neutral", "text": eligible["evidence"][key][lang]})
         translations[lang] = {
             "headline": "Recovery and training today" if lang == "en" else "今日恢复与训练",
             "summary": " ".join((recovery, eligible["week_summary"][lang], eligible["plan_summary"][lang])),
-            "findings": [{"type": "neutral", "text": eligible[pool][key][lang]}
-                         for field, pool in (("evidence_ids", "evidence"), ("interpretation_ids", "interpretations")) for key in raw[field]],
+            "findings": findings,
             "recommendations": [eligible["actions"][key][lang] for key in raw["action_ids"]],
         }
     return {**translations["en"], "translations": translations}

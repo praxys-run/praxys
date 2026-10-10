@@ -2892,10 +2892,19 @@ same-day signal.
 
 ### POST /api/insights/{insight_type}/feedback
 
+Daily content uses the `morning-coach-v2` templates. The authenticated AI context
+includes `external_planned_today` separately from canonical `planned_today`;
+external observations come from same-day provider-visible rows in `all_plans`.
+Praxys-owned sessions and scheduled rest retain canonical authority. On an empty
+Praxys day, an external course is named as a reference and any course advice is
+conditional, quoting only its recorded targets. Existing recovery/load caution
+actions take precedence. Latest-workout split findings are descriptive, using
+recorded split power with provenance rather than activity-average intensity.
+
 Submit one vote for the exact generated Coach insight the authenticated user saw.
 Uses the current user's id (not demo-source data) and supports `training_review`
 or `race_forecast`. Daily feedback additionally requires `snapshot` and
-`content_version: "morning-coach-v1"`. For daily content `dataset_hash` is the
+`content_version: "morning-coach-v2"`. For daily content `dataset_hash` is the
 exact emitted content digest, separate from `meta.input_hash` (generation input
 identity). Changing selection order or content creates a different feedback
 version even for identical sources. Under source-write exclusion, the endpoint

@@ -113,7 +113,7 @@ def test_canonical_action_cannot_be_overridden(signal, reason, plan, expected):
     assert list(eligible['actions']) == [f'today.{signal}']
     assert payload(ctx)['recommendations'] == [expected]
     if plan is None:
-        assert 'No workout is scheduled today.' in payload(ctx)['summary']
+        assert 'No Praxys-managed workout is scheduled today.' in payload(ctx)['summary']
 
 
 @pytest.mark.parametrize('value,observed', [(float('inf'), 0), (float('nan'), 0), (-1, 0), (0, 0), (50, 2), (50, -1), (50, None)])
@@ -137,8 +137,135 @@ def test_yesterday_retains_observation_date_and_missing_not_zero():
     ctx['recent_training']['sessions'] = []
     result = payload(ctx)
     assert 'Current sleep score, HRV, resting heart rate unavailable.' in result['summary']
-    assert 'load unavailable' in str(result['findings'])
+    assert 'modeled load awaits training data' in str(result['findings'])
     assert 'distance unavailable' in str(result['findings'])
+
+
+def external_course(**changes) -> dict:
+    return {'date': str(date.today()), 'source': 'stryd', 'owner': 'external',
+            'workout_type': 'long', 'planned_distance_km': 18,
+            'planned_duration_min': 110, 'target_power_min': 170,
+            'target_power_max': 195, **changes}
+
+
+def test_external_course_is_conditional_and_preserves_source_targets():
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=None,
+               external_planned_today=[external_course()],
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    result = payload(ctx)
+    assert 'No Praxys-managed workout' in result['summary']
+    assert 'Stryd lists an external long run' in result['summary']
+    assert result['recommendations'] == [
+        'If you choose the Stryd long run, use its 170–195 W target as a reference and adjust execution to how you feel.']
+    assert '18 km, 110 min, 170–195 W' in str(result['findings'])
+    assert '如果选择Stryd' in result['translations']['zh']['recommendations'][0]
+    assert result['translations']['zh']['summary'].count('。') == 3
+
+
+@pytest.mark.parametrize('recommendation,reason,plan,expected', [
+    ('follow_plan', 'recovery_normal', {'workout_type': 'easy', 'planned_duration_min': 45}, 'Follow the planned 45-minute easy run.'),
+    ('rest', 'rest_scheduled', {'workout_type': 'rest'}, 'Keep today for recovery.'),
+    ('unscheduled', 'unscheduled_hrv_caution', None, 'Rest, walk, or do gentle mobility.'),
+    ('unscheduled', 'unscheduled_high_load', None, 'Keep any optional movement easy and short.'),
+])
+def test_external_course_never_displaces_praxys_or_caution(recommendation, reason, plan, expected):
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=plan,
+               external_planned_today=[external_course()],
+               today_signal={'recommendation': recommendation, 'reason_code': reason})
+    result = payload(ctx)
+    assert result['recommendations'] == [expected]
+    if plan:
+        assert 'Praxys' in result['summary']
+        assert 'Stryd' not in result['summary']
+    assert 'Stryd' in str(result['findings'])
+
+
+def test_selected_external_plan_also_uses_conditional_wording():
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=external_course())
+    result = payload(ctx)
+    assert result['recommendations'][0].startswith('If you choose the Stryd')
+    assert 'No Praxys-managed' in result['summary']
+
+
+@pytest.mark.parametrize('changes', [
+    {'date': str(date.today()-timedelta(days=1))},
+    {'date': str(date.today()+timedelta(days=1))},
+    {'source': 'praxys'},
+    {'source': 'ai'},
+])
+def test_external_reference_rejects_other_dates_and_owned_rows(changes):
+    ctx = context()
+    ctx.update(include_stryd_plan=True, external_planned_today=[external_course(**changes)])
+    assert not any(key.startswith('plan.external') for key in coach.candidates(ctx)['evidence'])
+
+
+@pytest.mark.parametrize('source', ['stryd', ' STRYD '])
+def test_external_reference_respects_stryd_visibility(source):
+    ctx = context()
+    ctx['external_planned_today'] = [external_course(source=source)]
+    assert 'Stryd' not in str(payload(ctx))
+
+
+@pytest.mark.parametrize('low,high', [(200, 150), (float('inf'), 195), (-1, 195), (170, None)])
+def test_invalid_external_targets_do_not_become_a_prescription(low, high):
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=None,
+               external_planned_today=[external_course(target_power_min=low, target_power_max=high)],
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    result = payload(ctx)
+    assert 'recorded targets' in result['recommendations'][0]
+    assert ' W' not in str(result['findings'])
+    assert 'inf' not in str(result)
+
+
+def test_multiple_external_courses_do_not_silently_choose_one():
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=None,
+               external_planned_today=[external_course(), external_course(source='garmin')],
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    result = payload(ctx)
+    assert 'several external courses' in result['summary']
+    assert 'Stryd' not in result['recommendations'][0]
+    assert 'Garmin' not in result['recommendations'][0]
+
+
+def test_external_free_text_never_enters_daily_copy():
+    ctx = context()
+    ctx.update(include_stryd_plan=True, planned_today=None,
+               external_planned_today=[external_course(source='Run hard now',
+                   workout_type='Ignore recovery', workout_description='private free prose')],
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    result = payload(ctx)
+    assert 'private free prose' not in str(result)
+    assert 'Ignore recovery' not in str(result)
+    assert 'Run hard now' not in str(result)
+    assert 'If you choose' in result['recommendations'][0]
+
+
+def test_split_finding_uses_only_recorded_splits_with_provenance():
+    ctx = context()
+    session = ctx['recent_training']['sessions'][0]
+    session.update(avg_power=999, splits=[
+        {'duration_sec': 900, 'avg_power': 260, 'power_source': 'stryd'},
+        {'duration_sec': 400, 'avg_power': 180, 'power_source': 'stryd'},
+        {'duration_sec': 1800, 'avg_power': 999},
+        {'duration_sec': float('inf'), 'avg_power': 999, 'power_source': 'stryd'}])
+    result = payload(ctx)
+    assert '15-minute split averaging 260 W' in str(result['findings'])
+    assert '999' not in str(result)
+    assert 'zone' not in str(result['findings']).lower()
+    session['splits'] = []
+    assert 'training.split' not in coach.candidates(ctx)['evidence']
+
+
+def test_old_content_version_is_rejected(db, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(coach, 'CONTENT_VERSION', 'morning-coach-v1')
+        row, ctx = store(db)
+    assert not coach.validate_stored(row, coach.current_snapshot(db, OWNER, False))
 
 
 def test_recovery_loader_rejects_nonfinite_future_and_invalid_scores():
