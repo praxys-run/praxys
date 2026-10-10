@@ -5219,7 +5219,7 @@ msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络�
 #~ msgid "How this estimate was built"
 #~ msgstr "这项估算如何得出"
 
-#: src/components/ScienceNote.tsx:96
+#: src/components/ScienceNote.tsx:99
 msgid "How this is calculated"
 msgstr "计算方式"
 
@@ -11423,7 +11423,7 @@ msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据
 msgid "Some stations"
 msgstr "部分补给站"
 
-#: src/components/ScienceNote.tsx:49
+#: src/components/ScienceNote.tsx:52
 #: src/pages/Goal.tsx:390
 msgid "Source"
 msgstr "来源"

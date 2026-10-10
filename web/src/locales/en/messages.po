@@ -5212,7 +5212,7 @@ msgstr "How often Praxys pulls new data in the background. Lower frequency uses 
 #~ msgid "How this estimate was built"
 #~ msgstr "How this estimate was built"
 
-#: src/components/ScienceNote.tsx:96
+#: src/components/ScienceNote.tsx:99
 msgid "How this is calculated"
 msgstr "How this is calculated"
 
@@ -11276,7 +11276,7 @@ msgstr "Some prior heat adaptation may persist, while response-specific evidence
 msgid "Some stations"
 msgstr "Some stations"
 
-#: src/components/ScienceNote.tsx:49
+#: src/components/ScienceNote.tsx:52
 #: src/pages/Goal.tsx:390
 msgid "Source"
 msgstr "Source"
