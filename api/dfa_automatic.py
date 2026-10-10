@@ -13,4 +13,4 @@ def require_policy() -> str:
             raise ValueError("Automatic DFA method differs from its active contract")
         return contract.contract_digest
     except Exception as exc:
-        raise HTTPException(503, "DFA_SCIENCE_POLICY_INACTIVE") from exc
+        raise HTTPException(503, "DFA_AUTO_SCIENCE_POLICY_INACTIVE") from exc

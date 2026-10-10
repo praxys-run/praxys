@@ -41,6 +41,7 @@ def test_actual_inactive_and_historical_guards():
         with pytest.raises(HTTPException) as exc:
             guard()
         assert exc.value.status_code==503
+        assert exc.value.detail==('DFA_AUTO_SCIENCE_POLICY_INACTIVE' if guard is dfa_automatic.require_policy else 'DFA_SCIENCE_POLICY_INACTIVE')
 
 
 @pytest.mark.parametrize('phase',['draft','accepted-inactive','projected-active'])
