@@ -880,3 +880,17 @@ All ingress, refusals, supplemental outcomes, renewal denial/exception classes,
 automatic terminal transitions, source hashes and budget elapsed time remain
 in the final ledger, including failed or incomplete runs. Runtime125ms cadence,
 250ms SQL pulse/ACK budget,750ms local permission and pool2 are unchanged.
+
+
+Prospective occupied-acceptance classification requires the exact locked actor
+(token, full binding, incarnation and state), a real request commit bracket,
+and matching verified physical exit plus durable availability. Every occupied
+supplemental race also retains these timings and must satisfy the conservative
+five-second bound from the pre-ingress observation (earlier than acceptance).
+A precommit race is affirmative only when verified exit precedes the observed
+SQLAlchemy commit event, which occurs before the DBAPI COMMIT invocation.
+Exit before client ACK alone proves neither precommit retirement nor priority.
+The event does not identify SQL server commit time. Missing/mismatched evidence,
+invalid committed-priority proof, ambiguous ordering or overbudget retirement
+blocks certification after retaining actual accepted service. No failed causal
+assertion is converted into a permitted race category.

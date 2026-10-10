@@ -363,6 +363,9 @@ else:
                     assert entry['outcome']=='accepted',entry
                     assert observation['service']=='complete',observation
                     assert not observation['reuse_violations'],observation
+                    assert observation['classification'] in ('causal_preemption','retirement_race','idle_service'),observation
+                    if observation['classification'] in ('causal_preemption','retirement_race'):
+                        assert observation['retirement_within_budget'],observation
                     if observation['classification']=='causal_preemption':
                         assert observation['physical_exit_upper_seconds']<=5,observation
                         assert observation['durable_availability_upper_seconds']<=5,observation
@@ -388,7 +391,7 @@ else:
                 assert next_actor['launch_at']>=previous['exit_observed_at']
         assert time.monotonic()<=overall_deadline
         assert len(outcomes)==100, {'required_preemptions':len(outcomes),'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason}
-        assert not any(row['classification'] in ('ambiguous_retirement','unproved') for row in accepted_outcomes),accepted_outcomes
+        assert all(row['classification'] in ('causal_preemption','retirement_race','idle_service') for row in accepted_outcomes),accepted_outcomes
         assert max(row['durable_availability_upper_seconds'] for row in outcomes)<=5
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'

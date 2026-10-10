@@ -1,4 +1,5 @@
 """Actual service outcomes remain distinct from causal preemption certification."""
+from copy import copy,deepcopy
 from datetime import datetime,timedelta
 from pathlib import Path
 import json,os,select,subprocess,sys,threading,time
@@ -11,7 +12,7 @@ from db.models import ActivityDFAControl as Control,ActivityDFARun as Run
 from tests.test_activity_dfa import store,confirmed
 from tests.test_dfa_origins import both_origins,complete_unit
 from tests.test_dfa_supervisor_capacity import admission_attempt,PriorityEvidence,predeclare_automatic_completions
-from tests.dfa_capacity_measurement import observed_requests,workload_eligibility,observe_acceptance
+from tests.dfa_capacity_measurement import observed_requests,workload_eligibility,observe_acceptance,classify_occupied
 
 
 @pytest.fixture
@@ -158,9 +159,63 @@ def test_retirement_during_commit_is_retained_race(outcome_cell):
     assert admitted
     result=observe(c,admitted,entry)
     assert result['classification']=='retirement_race' and not result['required_preemption']
-    assert result['service'] in ('complete','failed','timeout')
+    assert result['service']=='complete'
+    assert result['retirement_within_budget']
+    assert result['physical_exit_upper_seconds']<=result['durable_availability_upper_seconds']<=5
+    assert result['retirement_order']['physical_exit_observed_at']<=entry['sql_commit_call_begin']
+    # Mutate only retained observation copies AFTER actual accepted service.
+    # These are deliberate evidence-negative cases, never capacity outcomes.
+    actor=entry['eligibility']['actor']
+    result['deliberately_mutated_evidence_negatives']=[]
+    for defect in ('missing_exit','missing_availability','locked_token','locked_binding','locked_incarnation',
+                   'missing_commit','missing_commit_begin','missing_commit_ack','overbudget','ack_only_order'):
+        damaged=deepcopy(entry);available=dict(c.available);evidence=copy(c.evidence)
+        evidence.retirements=deepcopy(c.evidence.retirements)
+        if defect=='missing_exit':evidence.retirements[0].pop('exit_observed_at')
+        elif defect=='missing_availability':available.pop(actor['actor_token'])
+        elif defect=='locked_token':damaged['locked_admission']['actor']['actor_token']='other'
+        elif defect=='locked_binding':damaged['locked_admission']['actor']['binding']['input']='other'
+        elif defect=='locked_incarnation':damaged['locked_admission']['actor']['incarnation']={}
+        elif defect=='missing_commit':damaged.pop('sql_commit_call_begin')
+        elif defect=='missing_commit_begin':damaged.pop('commit_begin')
+        elif defect=='missing_commit_ack':damaged.pop('commit_ack')
+        elif defect=='overbudget':damaged['before_monotonic']-=6
+        elif defect=='ack_only_order':
+            damaged['sql_commit_call_begin']=damaged['commit_begin']
+        negative={'service':result['service'],'required_preemption':False}
+        classify_occupied(negative,admitted,actor,damaged['locked_admission']['actor'],
+                          damaged,evidence,available)
+        result['deliberately_mutated_evidence_negatives'].append({'defect':defect,'result':negative})
+        assert negative['classification']=='insufficient_retirement_evidence',(defect,negative)
+        assert negative['service']=='complete' and not negative['required_preemption']
     assert entry['outcome']=='accepted' and entry['accepted_observation'] is result
 
+
+
+def test_actual_postcommit_retirement_before_ack_remains_causal(outcome_cell):
+    c=outcome_cell;c.start(True)
+    requests=observed_requests(c.factory)
+    def after_commit(db):
+        assert c.evidence.retired.wait(4)
+    event.listen(requests.class_,'after_commit',after_commit)
+    try:
+        eligibility=workload_eligibility(c.factory,c.owner);assert eligibility['eligible']
+        admitted,entry=attempt(c,requests,eligibility);assert admitted
+    finally:event.remove(requests.class_,'after_commit',after_commit)
+    result=observe(c,admitted,entry)
+    assert result['service']=='complete' and result['required_preemption']
+    assert result['classification']=='causal_preemption'
+    assert result['causal_receipt']['exit_observed_at']<entry['commit_ack']
+    # A matching retirement with broken priority binding is insufficient,
+    # irrespective of actual successful service and pre-ACK physical exit.
+    evidence=copy(c.evidence);evidence.retirements=deepcopy(c.evidence.retirements)
+    evidence.retirements[0]['priority_invalidation']['active_binding']['input']='other'
+    negative={'service':result['service'],'required_preemption':False}
+    classify_occupied(negative,admitted,eligibility['actor'],entry['locked_admission']['actor'],
+                      entry,evidence,c.available)
+    assert negative['classification']=='insufficient_retirement_evidence'
+    assert negative['evidence_failure']=='invalid_committed_priority'
+    result['deliberately_mutated_evidence_negative']=negative
 
 def test_real_accepted_worker_failure_remains_observed(outcome_cell):
     c=outcome_cell;c.force_bad_manual=True;c.start(False)

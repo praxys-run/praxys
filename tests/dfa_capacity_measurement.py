@@ -3,6 +3,7 @@ from copy import deepcopy
 import sys
 import time
 
+from sqlalchemy import event
 from sqlalchemy.orm import Query, Session, sessionmaker
 from api import activity_dfa as service
 from api.dfa_supervisor import manual_admission
@@ -28,11 +29,19 @@ def observed_requests(factory, before_locked_read=None):
             record = self.info.get('capacity_admission_record')
             request = record is not None and sys._getframe(1).f_code is service.change_run.__code__
             if request: record['commit_begin'] = time.monotonic()
+            connection = self.connection() if request else None
+            def committing(connection):
+                # SQLAlchemy invokes this before the DBAPI COMMIT call. This
+                # proves earlier exits precede commit, never its server time.
+                record['sql_commit_call_begin'] = time.monotonic()
+            if request: event.listen(connection, 'commit', committing)
             try:
                 super().commit()
             except Exception as exc:
                 if request: record['commit_exception_class'] = type(exc).__name__
                 raise
+            finally:
+                if request: event.remove(connection, 'commit', committing)
             if request: record['commit_ack'] = time.monotonic()
     return sessionmaker(class_=AdmissionSession, query_cls=AdmissionQuery, **factory.kw)
 
@@ -95,22 +104,10 @@ def observe_acceptance(factory, owner, admitted, entry, manual_input, evidence, 
     outcome['locked_admission']=deepcopy(entry.get('locked_admission'))
     outcome['commit_bracket']=[entry.get('commit_begin'),entry.get('commit_ack')]
     if actor and actor.get('state')=='occupied':
-        matches=[r for r in evidence.retirements if r['actor_token']==actor['actor_token']]
-        outcome['actor_retirements']=deepcopy(matches)
-        try:
-            proof=evidence.accepted_preemption(admitted,actor,entry)
-            assert locked and locked['actor_token']==actor['actor_token'] and locked['binding']==actor['binding']
-            assert entry.get('commit_begin') is not None and proof['priority_invalidation']['observed_monotonic']>=entry['commit_begin']
-            available=committed_exits.get(actor['actor_token'])
-            assert available is not None
-            outcome.update(classification='causal_preemption', physical_exit_upper_seconds=proof['exit_observed_at']-entry['before_monotonic'],
-                durable_availability_upper_seconds=available-entry['before_monotonic'], causal_receipt=deepcopy(proof))
-            outcome['required_preemption']=bool(outcome['service']=='complete' and starts and not violations
-                and outcome['physical_exit_upper_seconds']<=5 and outcome['durable_availability_upper_seconds']<=5)
-        except AssertionError:
-            # Retirement lacking the newly committed priority cannot be turned
-            # into an idle/preemption success, even when manual service works.
-            outcome['classification']='retirement_race' if matches else 'ambiguous_retirement'
+        classify_occupied(outcome, admitted, actor, locked, entry, evidence, committed_exits)
+        outcome['required_preemption']=bool(outcome['classification']=='causal_preemption'
+            and outcome['service']=='complete' and starts and not violations
+            and outcome.get('retirement_within_budget') is True)
     elif (actor and actor.get('state')=='idle' and locked and locked.get('state')=='idle'
             and actor['actor_token']==locked['actor_token'] and entry.get('commit_ack') is not None):
         outcome['classification']='idle_service'
@@ -120,3 +117,49 @@ def observe_acceptance(factory, owner, admitted, entry, manual_input, evidence, 
     if outcome['service']=='complete' and (not starts or violations):
         outcome['service']='physical_evidence_insufficient';outcome['required_preemption']=False
     return outcome
+
+
+def classify_occupied(outcome, admitted, actor, locked, entry, evidence, committed_exits):
+    """Affirmative ordering only; failed causal checks never establish a race."""
+    outcome['classification']='insufficient_retirement_evidence'
+    matches=[r for r in evidence.retirements if r['actor_token']==actor['actor_token']]
+    outcome['actor_retirements']=deepcopy(matches)
+    if len(matches)!=1:
+        outcome['evidence_failure']='nonunique_or_missing_retirement'; return
+    retirement=matches[0]
+    available=committed_exits.get(actor['actor_token'])
+    exit_at=retirement.get('exit_observed_at')
+    if exit_at is not None:
+        outcome['physical_exit_upper_seconds']=exit_at-entry['before_monotonic']
+    if available is not None:
+        outcome['durable_availability_upper_seconds']=available-entry['before_monotonic']
+    # Snapshot and serialized admission must identify precisely the same actor,
+    # including physical incarnation and the full computation binding.
+    if not locked or any(locked.get(k)!=actor.get(k) for k in ('actor_token','binding','incarnation','state')):
+        outcome['evidence_failure']='locked_actor_mismatch'; return
+    begin=entry.get('commit_begin'); call=entry.get('sql_commit_call_begin'); ack=entry.get('commit_ack')
+    if begin is None or call is None or ack is None or not entry['before_monotonic']<=begin<=call<=ack:
+        outcome['evidence_failure']='missing_or_invalid_commit_bracket'; return
+    if (exit_at is None or available is None or
+            not entry['before_monotonic']<=retirement['started_monotonic']<=exit_at<=available):
+        outcome['evidence_failure']='missing_or_invalid_durable_retirement'; return
+    outcome['retirement_within_budget']=max(outcome['physical_exit_upper_seconds'],
+        outcome['durable_availability_upper_seconds'])<=5
+    if not outcome['retirement_within_budget']:
+        outcome['evidence_failure']='occupied_retirement_over_budget'; return
+    priority=retirement.get('priority_invalidation')
+    if priority is not None:
+        try:
+            proof=evidence.accepted_preemption(admitted,actor,entry)
+            assert proof['priority_invalidation']['observed_monotonic']>=begin
+        except AssertionError:
+            outcome['evidence_failure']='invalid_committed_priority'; return
+        outcome.update(classification='causal_preemption',causal_receipt=deepcopy(proof))
+    elif exit_at<=call:
+        # Physical exit observed BEFORE the DBAPI commit invocation proves a
+        # precommit retirement. Exit merely before ACK does not prove a race.
+        outcome.update(classification='retirement_race',retirement_order={
+            'physical_exit_observed_at':exit_at,'sql_commit_call_begin':call,
+            'commit_ack':ack,'predicate':'verified_exit_before_dbapi_commit_call'})
+    else:
+        outcome['evidence_failure']='retirement_commit_order_unproved'
