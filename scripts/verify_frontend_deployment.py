@@ -82,15 +82,17 @@ def verify(dist: Path, source_sha: str, timeout: float = 600) -> dict:
         raise ValueError("a full source SHA and positive timeout are required")
     resources = expected_resources(dist)
     deadline = time.monotonic() + timeout
-    evidence: dict = {"sourceSha": source_sha, "status": "failure", "checks": []}
+    evidence: dict = {"sourceSha": source_sha, "status": "failure", "checks": [], "attempts": []}
     attempt = 0
     while time.monotonic() < deadline:
         attempt += 1
         # Repeat every origin together so success describes one observed release.
         evidence["checks"] = [probe(url, source_sha, resources, deadline) for url in BASE_URLS]
+        evidence["attempts"].append({"attempt": attempt, "checks": evidence["checks"]})
         if all(check["matched"] for check in evidence["checks"]):
             evidence["status"] = "success"
-        print(json.dumps({"attempt": attempt, **evidence}), flush=True)
+        print(json.dumps({"attempt": attempt, "sourceSha": source_sha,
+                          "status": evidence["status"], "checks": evidence["checks"]}), flush=True)
         if evidence["status"] == "success":
             break
         time.sleep(min(10, max(0, deadline - time.monotonic())))

@@ -80,8 +80,11 @@ def test_startup_can_settle_after_old_two_minute_window(dist, monkeypatch):
         return {"url": url, "matched": clock[0] >= 240, "observedSha": source_sha if clock[0] >= 240 else "old"}
 
     monkeypatch.setattr(deployment, "probe", probe)
-    assert deployment.verify(dist, SHA, timeout=600)["status"] == "success"
+    evidence = deployment.verify(dist, SHA, timeout=600)
+    assert evidence["status"] == "success"
     assert clock[0] == 240
+    assert evidence["attempts"][0]["checks"][0]["matched"] is False
+    assert evidence["attempts"][-1]["checks"][0]["matched"] is True
 
 
 def test_deadline_retains_failure_evidence(dist, monkeypatch):
