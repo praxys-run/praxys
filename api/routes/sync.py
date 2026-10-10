@@ -1901,11 +1901,21 @@ def _sync_garmin_locked(
                 user_id=user_id, is_cn=is_cn,
                 garmin_user_profile_id=garmin_user_profile_id(client),
             )
+            # Bind only a previously recorded explicit activity-sync action.
+            # Existing connections without that evidence remain DFA-ineligible.
+            from db.models import ActivityDFASyncGrant, UserConnection
+            current_connection = db.query(UserConnection).filter_by(user_id=user_id, platform="garmin").first()
+            if current_connection and current_connection.dfa_account_generation:
+                pending_grant = db.query(ActivityDFASyncGrant).filter_by(user_id=user_id,
+                    account_generation=current_connection.dfa_account_generation, account_id="pending").first()
+                if pending_grant:
+                    pending_grant.account_id = fit_account_id
             with db.begin_nested():
                 sync_writer.enqueue_connectiq_activities(
                     user_id, fit_account_id, credential_generation,
                     "cn" if is_cn else "international",
                     [str(a.get("activityId", "")) for a in raw_activities], db,
+                    kind="backfill" if from_date else "daily",
                 )
         except Exception:
             logger.warning("Garmin Connect IQ queue unavailable for user %s", user_id)

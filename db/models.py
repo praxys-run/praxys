@@ -191,6 +191,7 @@ class UserConnection(Base):
     garmin_token_generation = Column(String(160), nullable=True)
     tokens_updated_at = Column(DateTime, nullable=True)
     preferences = Column(JSON, default=dict)  # {"activities": True, "recovery": True, ...}
+    dfa_account_generation = Column(String(36), nullable=True)
     last_sync = Column(DateTime, nullable=True)
     status = Column(
         String(20), default="disconnected"
@@ -3041,6 +3042,11 @@ class ActivityDFARun(Base):
     snapshot_id = Column(String(36), ForeignKey("garmin_fit_snapshots.id", ondelete="CASCADE"), nullable=False)
     parse_id = Column(String(36), ForeignKey("garmin_fit_parses.id", ondelete="CASCADE"), nullable=False)
     confirmation_id = Column(String(36), ForeignKey("activity_dfa_confirmations.id", ondelete="CASCADE"), nullable=True)
+    origin = Column(String(12), nullable=False, default="manual")
+    grant_id = Column(String(36), nullable=True)
+    admission_id = Column(String(36), nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    execution_epoch = Column(String(64), nullable=True)
     recording_ref = Column(JSON, nullable=False)
     input_digest = Column(String(64), nullable=False)
     method_version = Column(String(80), nullable=False)
@@ -3067,7 +3073,7 @@ class ActivityDFARun(Base):
         CheckConstraint("status IN ('queued','running','awaiting_source_confirmation','complete','unavailable','failed','cancelled')", name="ck_dfa_state"),
         CheckConstraint("freshness IN ('current','stale')", name="ck_dfa_freshness"),
         CheckConstraint("generation >= 1 AND retained_bytes >= 0 AND recoveries BETWEEN 0 AND 1", name="ck_dfa_run_bounds"),
-        Index("uq_dfa_active_owner", "user_id", unique=True,
+        Index("uq_dfa_active_owner", "user_id", "origin", unique=True,
               sqlite_where=text("status IN ('queued','running')"),
               postgresql_where=text("status IN ('queued','running')")),
     )
@@ -3080,3 +3086,58 @@ class ActivityDFAExecutionSlot(Base):
     lease_token = Column(String(36), nullable=True)
     lease_until = Column(DateTime, nullable=True)
     __table_args__ = (CheckConstraint("id = 1", name="ck_dfa_single_slot"),)
+
+
+class ActivityDFAOriginGrant(Base):
+    """Immutable, independently originated authority for one exact input."""
+    __tablename__ = 'activity_dfa_origin_grants'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    origin = Column(String(12), nullable=False)
+    binding_digest = Column(String(64), nullable=False)
+    binding = Column(JSON, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint('user_id', 'origin', 'binding_digest', name='uq_dfa_origin_grant'),
+                     CheckConstraint("origin IN ('manual','automatic')", name='ck_dfa_grant_origin'))
+
+
+class ActivityDFASyncReceipt(Base):
+    """Successful newly completed activity-recording unit, never a view event."""
+    __tablename__ = 'activity_dfa_sync_receipts'
+    id = Column(String(64), primary_key=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    recording_ref = Column(JSON, nullable=False)
+    completion_revision = Column(String(64), nullable=False)
+    account_generation = Column(String(36), nullable=False)
+    sync_grant_id = Column(String(36), nullable=False)
+    disposition = Column(String(32), nullable=False, default='pending')
+    run_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ActivityDFAControl(Base):
+    """Pinned actor control survives owner/run deletion; no cascading references."""
+    __tablename__ = 'activity_dfa_control'
+    id = Column(Integer, primary_key=True)
+    incarnation = Column(JSON, nullable=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    drained = Column(Boolean, nullable=False, default=True)
+    epoch = Column(Integer, nullable=False, default=1)
+    manual_sequence = Column(Integer, nullable=False, default=0)
+    readiness_sequence = Column(Integer, nullable=False, default=0)
+    ready_until = Column(DateTime, nullable=True)
+    actor = Column(JSON, nullable=True)
+    __table_args__ = (CheckConstraint('id = 1', name='ck_dfa_control_singleton'),)
+
+
+class ActivityDFASyncGrant(Base):
+    """Explicit account-bound activity-sync action, distinct from token refresh."""
+    __tablename__ = 'activity_dfa_sync_grants'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    account_id = Column(String(128), nullable=False)
+    account_generation = Column(String(36), nullable=False)
+    connection_id = Column(Integer, nullable=False)
+    action = Column(String(40), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint('user_id', 'account_id', 'account_generation', name='uq_dfa_sync_grant'),)

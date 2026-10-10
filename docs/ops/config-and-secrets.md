@@ -1266,3 +1266,19 @@ This iteration makes no live gate call, deployment, secret, infrastructure, aler
 
 
 The corrective publication iteration reconstructs the accepted source from verified current main and rejects malformed schema/approval scalar aliases. Commit identity uses the Root-verified public GitHub noreply identity per command; complete raw introduced Git objects are checked before publication. Earlier document and commit-metadata exposure on PRs 871/872 remains historical; prior blob-only privacy results and interrupted preflight do not certify the corrective candidate. Fresh final-head independent review and complete checks remain required.
+
+## Default-disabled DFA supervisor source
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `PRAXYS_DFA_SUPERVISOR_ENABLED` | false | Starts a candidate only; never supplies Science, gate, rights or placement authority. |
+| `PRAXYS_DFA_PLACEMENT_ID` | unset | Exact placement identity matched to durable authorized control. |
+| `PRAXYS_DFA_INCARNATION` | unset | Strict resource/slot/instance/source/UUID nonce/epoch/boot/namespace proposal; observed identity and durable binding must match. |
+| `PRAXYS_API_WORKERS` | 1 | Startup coordinator worker count; increases need separate connection/capacity evidence. |
+
+`python -m api.runtime_startup` owns child startup and drain. No live settings are
+changed by PR871 source preparation. Supervisor env is an explicit allowlist;
+numerical children get no DB/provider/API-signing credentials. Both-origin drain,
+old-group exit and separately authorized handover precede recycling mutations.
+See [DFA operations](activity-dfa-alpha1.md) for pool accounting and remaining
+capacity/release evidence. Preserve disabled/drained state through config sync.

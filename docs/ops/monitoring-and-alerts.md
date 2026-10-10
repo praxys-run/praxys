@@ -1174,3 +1174,20 @@ and existing trusted request/dependency aggregates; do not infer a process cause
 from plan-wide CPU or subtract unrelated percentile bins. Whole-file telemetry
 maintenance becomes DFA-governed after activation; see the
 [accepted boundary record](../dev/dfa-readiness-recovery/readiness-timing-deadline-v1.md).
+
+## DFA supervisor release-observation inventory
+
+These are release prerequisites, not provisioned alerts. No live alert is created
+by this source change. Each future alert must attach the existing
+`praxys-feedback-ag` action group and be independently verified before enable.
+
+| Proposed signal | Action group | Operator action |
+|---|---|---|
+| Required retirement exceeds5s after durable accepted manual admission | `praxys-feedback-ag` | Drain both origins; preserve actor/exit evidence; do not clear occupied slot. |
+| `recovery_required` or ambiguous process identity | `praxys-feedback-ag` | Verify registered old environment/group; perform authorized retirement/handover only. |
+| Supervisor/control unavailable or fresh admission capacity rejected | `praxys-feedback-ag` | Keep compute unavailable; inspect bounded control capacity and permission expiry. |
+| Bounded backlog sustained at global20/origin-per-owner limits | `praxys-feedback-ag` | Review measured envelope before changing capacity; never raise bounds implicitly. |
+
+Record opaque actor state/timing/failure classes only, with no athlete identity,
+source inventory, alpha, RR or credential-bearing telemetry. Live signal delivery,
+receiver health, thresholds and soak/capacity evidence remain unproved.

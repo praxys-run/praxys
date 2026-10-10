@@ -342,7 +342,10 @@ def run_job(db: Session, job_id: str, token: str, client_factory: Callable | Non
         item = db.get(Item, item_id)
         item.status = "complete" if success else "parse_failed"
         item.error_code = None if success else "invalid_fit"
-        item.attempts += 1; db.commit(); time.sleep(RATE_LIMIT_DELAY)
+        item.attempts += 1
+        if success:
+            sync_writer.write_dfa_sync_completion(db, job, item, snapshots)
+        db.commit(); time.sleep(RATE_LIMIT_DELAY)
     job = _fence(db, job_id, token)
     remaining = db.query(Item.id).filter_by(job_id=job.id, status="queued").first()
     failed = db.query(Item.id).filter(Item.job_id == job.id, Item.status != "complete").first()

@@ -32,6 +32,7 @@ function components(detail) {
       if (specifier.endsWith('.css')) return {};
       if (specifier === '@/contexts/LocaleContext') return { useLocale: () => ({ locale: 'en' }) };
       if (specifier === '@/hooks/useChartColors') return { useChartColors: () => getChartColors(false) };
+      if (specifier === '@/components/ActivityDFA') return { DFAContent: () => React.createElement('p', null, 'DFA section fixture') };
       if (specifier === '@/hooks/useApi') return { useApi: () => ({ data: detail, loading: false, error: null }) };
       if (specifier.startsWith('@/')) return load(specifier.slice(2));
       if (specifier.startsWith('.')) return load(path.resolve(path.dirname(filename), specifier));
@@ -52,12 +53,13 @@ test('history uses one native report link whose name includes facts; split and D
   const detail = activityFixture();
   const card = render(components(detail)('components/ActivityCard').default, { activity: detail.activity, activityDetailAvailable: true });
   const [link] = tagged(card, 'a');
-  assert.equal(tagged(card, 'a').length, 1);
+  assert.equal(tagged(card, 'a').length, 2);
+  assert.equal(tagged(card, 'a')[1].attributes.href, '/history/native-synthetic-running#activity-dfa');
   assert.equal(link.attributes.href, '/history/native-synthetic-running');
   assert.equal(link.attributes['aria-label'], undefined);
   for (const fact of ['Running', 'Sep 27, 2026', 'Distance 3.3 km', 'Duration 22:00', 'Pace 6:40 /km', 'View report']) assert.ok(textContent(link).includes(fact), fact);
   assert.equal(tagged(link, 'button').length, 0);
-  assert.deepEqual(tagged(card, 'button').map(textContent), ['Recorded splits (2)', 'DFA α1']);
+  assert.deepEqual(tagged(card, 'button').map(textContent), ['Recorded splits (2)']);
   assert.equal(tagged(card, 'button')[0].attributes['aria-expanded'], 'false');
 });
 
@@ -86,7 +88,7 @@ test('demo history preserves factual body and independent secondary controls wit
   assert.equal(tagged(card, 'a').length, 0);
   assert.ok(!textContent(card).includes('View report'));
   assert.ok(textContent(card).includes('3.3 km'));
-  assert.equal(tagged(card, 'button').length, 2);
+  assert.equal(tagged(card, 'button').length, 1);
 });
 
 test('additional summaries count displayed fields, deduplicate hero keys and contain only static definition rows', () => {

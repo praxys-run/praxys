@@ -33,9 +33,9 @@ SAFE_INPUT_ERRORS = {"activity_type_unsupported", "source_unsupported", "source_
 
 
 def require_policy() -> str:
-    from analysis.science_artifacts import load_policy_contract
+    from api.dfa_policy import validated_contract
     try:
-        contract = load_policy_contract(SDR_ID, require_active=True)
+        contract = validated_contract(SDR_ID)
         parameters = {k: v.value for k, v in contract.parameters.items()}
         if contract.model_version != METHOD_VERSION or digest(parameters) != POLICY_PARAMETER_DIGEST:
             raise ValueError("DFA implementation does not match the active method")
@@ -44,11 +44,14 @@ def require_policy() -> str:
         raise HTTPException(503, "DFA_SCIENCE_POLICY_INACTIVE") from exc
 
 
+def require_historical_v1_policy() -> str:
+    """Historical callable remains permanently denied after terminal V1 STOP."""
+    raise HTTPException(503, "DFA_SCIENCE_POLICY_INACTIVE")
+
+
 def require_authority(db: Session, owner: str) -> str:
-    from api.legal_receipts import user_background_processing_authorized
-    user = db.query(User).filter_by(id=owner).first()
-    if user is None or not user.is_active or user.is_demo or not user_background_processing_authorized(db, owner):
-        raise HTTPException(403, "DFA_PROCESSING_NOT_AUTHORIZED")
+    from api.dfa_rights import processing_receipt
+    processing_receipt(db, owner)
     return require_policy()
 
 
@@ -121,10 +124,28 @@ def catalog(db: Session, owner: str, activity: str) -> dict:
         active_policy = False
     from api.legal_receipts import user_background_processing_authorized
     user = db.query(User).filter_by(id=owner).first()
-    processing_authorized = bool(user and user.is_active and not user.is_demo and user_background_processing_authorized(db, owner))
+    from api import dfa_rights
+    try:
+        dfa_rights.processing_receipt(db, owner)
+        processing_authorized = True
+    except HTTPException:
+        processing_authorized = False
+    from db.models import ActivityDFASyncReceipt
+    receipt = db.query(ActivityDFASyncReceipt).filter_by(user_id=owner).filter(
+        ActivityDFASyncReceipt.recording_ref["activity_id"].as_string() == activity).order_by(ActivityDFASyncReceipt.created_at.desc()).first()
+    automatic_availability = "science_inactive" if not active_policy else "rights_missing" if not processing_authorized else (
+        "gate_denied" if not dfa_rights.automatic_gate(db, owner) else receipt.disposition if receipt else "no_new_sync")
+    origin_runs = []
+    for origin in ("manual", "automatic"):
+        latest = db.query(Run).options(defer(Run.result)).filter_by(user_id=owner, activity_id=activity, origin=origin).filter(
+            or_(Run.expires_at.is_(None), Run.expires_at > datetime.utcnow())).order_by(Run.created_at.desc()).first()
+        if latest:
+            origin_runs.append(view(latest, db, include_result=False))
+    current_runs = [item for item in origin_runs if item["freshness"] == "current"]
     return {"activity_id": activity, "inputs": candidates, "catalog_revision": digest(candidates),
             "source_confirmations": [proof_view(p) for p in proofs],
-            "latest_run": view(run, db, include_result=False) if run else None,
+            "latest_run": current_runs[0] if current_runs else (origin_runs[0] if origin_runs else None),
+            "origin_runs": origin_runs, "automatic_availability": automatic_availability,
             "availability": availability, "policy_active": active_policy,
             "processing_authorized": processing_authorized, "statement_version": STATEMENT_VERSION}
 
@@ -148,7 +169,8 @@ def _current(db: Session, run: Run) -> bool:
             return False
     except HTTPException:
         return False
-    return _source_current(db, run)
+    from api.dfa_rights import grant_current
+    return grant_current(db, run) and _source_current(db, run)
 
 
 def _source_current(db: Session, run: Run) -> bool:
@@ -159,25 +181,43 @@ def _source_current(db: Session, run: Run) -> bool:
         return False
     if not any(c["input"] == run.recording_ref for c in candidates):
         return False
-    if run.phase == "compute":
+    if run.phase == "compute" and run.origin == "manual":
         proof = db.query(Confirmation).filter_by(id=run.confirmation_id, user_id=run.user_id).first()
         return bool(proof and proof_current(proof, candidates))
     return True
 
 
 def _run_metadata(run: Run, current: bool) -> dict:
-    return {"id": run.id, "phase": run.phase, "status": run.status, "generation": run.generation,
+    return {"id": run.id, "origin": run.origin, "source_assurance": "metadata_inferred" if run.origin == "automatic" else "user_confirmed" if run.confirmation_id else None,
+            "admission_id": run.admission_id, "accepted_at": run.accepted_at, "phase": run.phase, "status": run.status, "generation": run.generation,
             "freshness": "current" if current else "stale", "progress": run.progress,
             "error_code": run.error_code, "created_at": run.created_at, "completed_at": run.completed_at,
             "expires_at": run.expires_at, "method_version": run.method_version,
             "science_contract_digest": run.science_contract_digest,
+            "source_rule_version": "dfa-native-ecg-metadata-v1",
+            "metadata_projection_version": "rr-native-source-metadata-v2",
+            "statement_version": STATEMENT_VERSION,
             "snapshot_id": run.snapshot_id, "parse_id": run.parse_id, "source_confirmation_id": run.confirmation_id,
             "result_revision": run.result_revision if current else None}
 
 
+def _metadata(db: Session, run: Run, current: bool) -> dict:
+    from db.models import ActivityDFAControl
+    value = _run_metadata(run, current)
+    control = db.query(ActivityDFAControl).filter_by(id=1).first()
+    actor = control.actor if control else None
+    if actor and actor.get("binding", {}).get("input") == run.input_digest and actor.get("state") != "idle":
+        value["physical_state"] = actor.get("state")
+        if run.status == "cancelled":
+            value["status"] = "cancellation_requested"
+    else:
+        value["physical_state"] = "idle"
+    return value
+
+
 def view(run: Run, db: Session, offset: int = 0, limit: int = 120, include_result: bool = True) -> dict:
     current = _current(db, run)
-    base = _run_metadata(run, current)
+    base = _metadata(db, run, current)
     if include_result and current and run.result:
         value = run.result
         base.update({k: v for k, v in value.items() if k != "windows"})
@@ -190,7 +230,10 @@ def view(run: Run, db: Session, offset: int = 0, limit: int = 120, include_resul
 
 def read_run(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int) -> dict:
     ensure_replayed(db, owner)
-    return view(_owned(db, owner, activity, run_id), db, offset, limit)
+    with owner_write(db, owner):
+        result = view(_owned(db, owner, activity, run_id, metadata_only=True), db, offset, limit)
+        db.commit()
+        return result
 
 
 def _slot(db: Session) -> Slot:
@@ -208,7 +251,6 @@ def _slot(db: Session) -> Slot:
 def _delete_runs(db: Session, query) -> None:
     ids = [r[0] for r in query.with_entities(Run.id).all()]
     if ids:
-        db.query(Slot).filter(Slot.run_id.in_(ids)).update({Slot.run_id: None, Slot.lease_token: None, Slot.lease_until: None}, synchronize_session=False)
         query.delete(synchronize_session=False)
 
 
@@ -222,7 +264,7 @@ def cleanup(db: Session, owner: str | None = None) -> None:
 def _reserve(db: Session, owner: str, retry_run: Run | None = None) -> None:
     _slot(db)  # global queue admission lock, after owner lock
     cleanup(db, owner)
-    if db.query(Run.id).filter(Run.user_id == owner, Run.status.in_(ACTIVE)).first():
+    if db.query(Run.id).filter(Run.user_id == owner, Run.origin == "manual", Run.status.in_(ACTIVE)).first():
         raise HTTPException(429, "DFA_OWNER_QUEUE_FULL", headers={"Retry-After": "5"})
     if db.query(Run.id).filter(Run.status.in_(ACTIVE)).count() >= MAX_ACTIVE_GLOBAL:
         raise HTTPException(429, "DFA_QUEUE_FULL", headers={"Retry-After": "5"})
@@ -259,7 +301,9 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
             if proof is None or proof.recording_ref != ref or not proof_current(proof, candidates):
                 raise HTTPException(409, "DFA_SOURCE_CONFIRMATION_CHANGED")
         phase = "compute" if proof else "prepare"
-        identity = digest([ref, METHOD_VERSION, policy_digest, phase, proof.id if proof else None,
+        from api import dfa_rights
+        grant = dfa_rights.create_grant(db, dfa_rights.binding(db, owner, ref, "manual", policy_digest, proof))
+        identity = digest(["manual", grant.id, ref, METHOD_VERSION, policy_digest, phase, proof.id if proof else None,
                            proof.evidence_digest if proof else None, STATEMENT_VERSION])
         run = db.query(Run).filter_by(user_id=owner, input_digest=identity).first()
         if run and (run.expires_at is None or run.expires_at > datetime.utcnow()):
@@ -269,7 +313,10 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
         if run:
             _delete_runs(db, db.query(Run).filter_by(id=run.id))
         _reserve(db, owner)
-        run = Run(user_id=owner, activity_id=activity, snapshot_id=ref["snapshot_id"], parse_id=ref["parse_id"],
+        from api.dfa_supervisor import manual_admission
+        admission_id, accepted_at, epoch = manual_admission(db)
+        run = Run(origin="manual", grant_id=grant.id, admission_id=admission_id, accepted_at=accepted_at, execution_epoch=epoch,
+                  user_id=owner, activity_id=activity, snapshot_id=ref["snapshot_id"], parse_id=ref["parse_id"],
                   confirmation_id=proof.id if proof else None, recording_ref=ref, input_digest=identity,
                   method_version=METHOD_VERSION, science_contract_digest=policy_digest, phase=phase, retained_bytes=MAX_RESULT_BYTES)
         db.add(run)
@@ -322,23 +369,35 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
             require_authority(db, owner)
             if expected_generation != run.generation or run.status not in ("failed", "cancelled", "unavailable") or not _current(db, run):
                 raise HTTPException(409, "DFA_RETRY_CHANGED")
+            if run.origin != "manual":
+                raise HTTPException(409, "DFA_EXPLICIT_MANUAL_RETRY_REQUIRED")
             _reserve(db, owner, retry_run=run)
+            from api.dfa_supervisor import manual_admission
+            run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
             run.status, run.progress, run.error_code = "queued", "queued", None
             run.retained_bytes = MAX_RESULT_BYTES
             run.completed_at = run.expires_at = None
             run.recoveries = 0
         elif run.status in ACTIVE:
+            state = storage.record_negative(owner, "cancel", "run", run.id)
+            run.generation = max(run.generation, state["sequence"])
+            if run.origin == "automatic":
+                from db.models import ActivityDFASyncReceipt, ActivityDFAOriginGrant
+                grant = db.get(ActivityDFAOriginGrant, run.grant_id)
+                completion = db.get(ActivityDFASyncReceipt, grant.binding.get("completion_id")) if grant else None
+                if completion:
+                    storage.record_negative(owner, "automatic_cancel", "completion", completion.id)
+                    completion.disposition = "cancelled"
             run.status, run.progress = "cancelled", "cancelled"
             run.completed_at = datetime.utcnow()
             run.expires_at = run.completed_at + timedelta(days=7)
             run.retained_bytes = 0
         run.generation += 1
         run.lease_until = run.lease_token = None
-        db.query(Slot).filter_by(run_id=run.id).update({Slot.run_id: None, Slot.lease_token: None, Slot.lease_until: None}, synchronize_session=False)
         run.updated_at = datetime.utcnow()
         # Cancellation is an exempt rights operation: never read or return
         # result payloads, even for terminal rows or unavailable private storage.
-        result = _run_metadata(run, False) if action == "cancel" else view(run, db)
+        result = _metadata(db, run, False) if action == "cancel" else view(run, db)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()
@@ -347,6 +406,7 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
 
 def _erase(db: Session, value: dict) -> None:
     cutoff = datetime.fromisoformat(value["requested_at"])
+    from db.models import ActivityDFAOriginGrant, ActivityDFASyncReceipt, ActivityDFASyncGrant
     query = db.query(Run).filter(Run.user_id == value["user_id"], Run.created_at <= cutoff)
     proofs = db.query(Confirmation).filter(Confirmation.user_id == value["user_id"], Confirmation.created_at <= cutoff)
     scope, target = value["scope"], value["target_id"]
@@ -356,7 +416,16 @@ def _erase(db: Session, value: dict) -> None:
         query, proofs = query.filter(Run.snapshot_id == target), proofs.filter(Confirmation.snapshot_id == target)
     elif scope == "confirmation":
         query, proofs = query.filter(Run.confirmation_id == target), proofs.filter(Confirmation.id == target)
+    affected = query.with_entities(Run.grant_id).all()
+    grant_ids = [row[0] for row in affected if row[0]]
     _delete_runs(db, query)
+    if grant_ids:
+        db.query(ActivityDFAOriginGrant).filter(ActivityDFAOriginGrant.id.in_(grant_ids)).delete(synchronize_session=False)
+    if scope == "owner":
+        db.query(ActivityDFAOriginGrant).filter_by(user_id=value["user_id"]).delete(synchronize_session=False)
+        db.query(ActivityDFASyncReceipt).filter_by(user_id=value["user_id"]).delete(synchronize_session=False)
+        if value.get("reason") == "account_deletion":
+            db.query(ActivityDFASyncGrant).filter_by(user_id=value["user_id"]).delete(synchronize_session=False)
     proofs.delete(synchronize_session=False)
 
 
@@ -416,6 +485,16 @@ def replay_manifest(db: Session, value: dict) -> None:
 
 def ensure_replayed(db: Session, owner: str) -> None:
     try:
+        state = storage.authority_state(owner)
+        if state["deleted"]:
+            with owner_write(db, owner):
+                user = db.query(User).filter_by(id=owner).first()
+                if user:
+                    user.is_active = False
+                _erase(db, {"user_id": owner, "scope": "owner", "target_id": owner,
+                            "requested_at": datetime.max.isoformat()})
+                db.commit()
+            raise HTTPException(403, "DFA_OWNER_DELETED")
         for value in storage.iter_active(owner):
             replay_manifest(db, value)
     except Exception as exc:
@@ -426,11 +505,9 @@ def ensure_replayed(db: Session, owner: str) -> None:
 def invalidate_snapshot(db: Session, owner: str, snapshot_id: str) -> None:
     """Called inside source writer's owner transaction before switching parse."""
     runs = db.query(Run).filter_by(user_id=owner, snapshot_id=snapshot_id).all()
-    if runs or db.query(Confirmation.id).filter_by(user_id=owner, snapshot_id=snapshot_id).first():
-        # A pre-reparse backup must not revive the previous proof. Leave this
-        # requested until reconciliation erases the cutoff and commits; never
-        # mark completion inside the caller's still-uncommitted parse transaction.
-        storage.request(owner, "snapshot", snapshot_id, "source_changed")
+    # Journal every prior source generation, even when no DFA rows exist.
+    # A restored archive must not revive a former grant or proof.
+    storage.request(owner, "snapshot", snapshot_id, "source_changed")
     for run in runs:
         run.freshness = "stale"
         run.generation += 1
@@ -443,8 +520,6 @@ def invalidate_snapshot(db: Session, owner: str, snapshot_id: str) -> None:
             run.completed_at = datetime.utcnow()
             run.expires_at = run.completed_at + timedelta(days=7)
     db.flush()
-    ids = [r.id for r in runs]
-    db.query(Slot).filter(Slot.run_id.in_(ids)).update({Slot.run_id: None, Slot.lease_until: None, Slot.lease_token: None}, synchronize_session=False)
     db.query(Confirmation).filter_by(user_id=owner, snapshot_id=snapshot_id).delete(synchronize_session=False)
 
 
@@ -453,24 +528,27 @@ def export(db: Session, owner: str) -> dict:
     def runs():
         from api.data_export import ExportJSONValue
         from fastapi.encoders import jsonable_encoder
-        read_timeout(db)
-        query = db.query(Run).filter(Run.user_id == owner,
-            or_(Run.expires_at.is_(None), Run.expires_at > datetime.utcnow())).order_by(Run.created_at, Run.id)
-        for run in query.yield_per(1):
-            source_valid = _source_current(db, run)
-            method_current = False
-            try:
-                method_current = (run.freshness == "current" and run.method_version == METHOD_VERSION
-                                  and require_policy() == run.science_contract_digest)
-            except HTTPException:
-                pass
-            # Export is a rights operation: retained data remains portable after
-            # processing withdrawal, stale Terms or ordinary numerical updates.
-            # Source revocation/reparse/erasure still removes or withholds it.
-            metadata = _run_metadata(run, source_valid and method_current)
-            metadata["result_revision"] = run.result_revision if source_valid else None
-            yield ExportJSONValue(jsonable_encoder({**metadata,
-                "recording_ref": run.recording_ref, "result": run.result if source_valid else None}))
+        last_id = ""
+        while True:
+            # Keyset metadata reads avoid retaining a server cursor across the
+            # owner transaction used for each disclosure decision.
+            next_id = db.query(Run.id).filter(Run.user_id == owner, Run.id > last_id,
+                or_(Run.expires_at.is_(None), Run.expires_at > datetime.utcnow())).order_by(Run.id).first()
+            if not next_id:
+                break
+            last_id = next_id[0]
+            with owner_write(db, owner):
+                run = db.query(Run).options(defer(Run.result)).filter_by(id=last_id, user_id=owner).first()
+                if run is None:
+                    continue
+                current = _current(db, run)
+                metadata = _metadata(db, run, current)
+                encoded = ExportJSONValue(jsonable_encoder({**metadata,
+                    "recording_ref": run.recording_ref, "result": run.result if current else None}))
+                db.commit()
+            # Authorization linearizes while the current owner/source/rights
+            # transaction holds its locks; the already encoded value is released.
+            yield encoded
     return {"schema_version": 1,
             "confirmations": [{**proof_view(p), "recording_ref": p.recording_ref, "evidence_digest": p.evidence_digest,
                                "rule_fingerprint": p.rule_fingerprint}
@@ -478,10 +556,9 @@ def export(db: Session, owner: str) -> dict:
             "runs": runs()}
 
 
-def context(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int,
+def _context(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int,
             result_revision: str, expected_samples_revision: str | None) -> dict:
-    ensure_replayed(db, owner)
-    run = _owned(db, owner, activity, run_id)
+    run = _owned(db, owner, activity, run_id, metadata_only=True)
     if not _current(db, run) or run.status != "complete" or run.result_revision != result_revision:
         raise HTTPException(409, "DFA_RESULT_CHANGED")
     windows = (run.result or {}).get("windows", [])[offset:offset+limit]
@@ -506,124 +583,19 @@ def context(db: Session, owner: str, activity: str, run_id: str, offset: int, li
     raise HTTPException(409, "context_changed")
 
 
-def claim(db: Session) -> tuple[str, int, str] | None:
-    """Global slot lock + generation fencing; owner lock is acquired first."""
-    now = datetime.utcnow()
-    read_timeout(db)
-    candidate = db.query(Run.id, Run.user_id).filter(or_(Run.status == "queued", (Run.status == "running") & (Run.lease_until < now))).order_by(Run.created_at).first()
-    db.rollback()
-    if candidate is None:
-        return None
-    ensure_replayed(db, candidate.user_id)
-    with owner_write(db, candidate.user_id):
-        slot = _slot(db)
-        if slot.lease_until and slot.lease_until >= now:
-            return None
-        run = db.query(Run).filter_by(id=candidate.id).populate_existing().first()
-        if run is None or run.status not in ACTIVE or (run.lease_until and run.lease_until >= now):
-            return None
-        if run.status == "running":
-            if run.recoveries >= 1:
-                run.status, run.error_code = "failed", "lease_recovery_exhausted"
-                run.completed_at = now
-                run.expires_at = now + timedelta(days=7)
-                run.retained_bytes = 0
-                run.lease_until = run.lease_token = None
-                db.commit()
-                return None
-            run.recoveries += 1
-            run.generation += 1
-        token = str(uuid4())
-        run.status, run.progress = "running", "reading"
-        run.lease_token, run.lease_until = token, now + timedelta(seconds=LEASE_SECONDS)
-        slot.run_id, slot.lease_token, slot.lease_until = run.id, token, run.lease_until
-        result = (run.id, run.generation, token)
+def context(db: Session, owner: str, activity: str, run_id: str, offset: int, limit: int,
+            result_revision: str, expected_samples_revision: str | None) -> dict:
+    ensure_replayed(db, owner)
+    with owner_write(db, owner):
+        value = _context(db, owner, activity, run_id, offset, limit, result_revision, expected_samples_revision)
         db.commit()
-        return result
+        return value
 
 
-def execute(session_factory, run_id: str, generation: int, token: str) -> None:
-    started, renewed = time.monotonic(), 0.
-    with session_factory() as db:
-        initial = db.query(Run).filter_by(id=run_id).first()
-        if initial is None:
-            return
-        owner, ref, phase = initial.user_id, RecordingRef(**initial.recording_ref), initial.phase
-        db.rollback()
-        ensure_replayed(db, owner)
+def claim(db: Session):
+    """API workers have no physical launch authority."""
+    raise HTTPException(503, "DFA_SUPERVISOR_REQUIRED")
 
-        def fence(progress: str | None = None) -> Run:
-            require_authority(db, owner)
-            run = db.query(Run).filter(Run.id == run_id, Run.user_id == owner, Run.generation == generation,
-                Run.lease_token == token, Run.status == "running", Run.lease_until >= datetime.utcnow()).populate_existing().first()
-            slot = db.query(Slot).filter_by(id=1, run_id=run_id, lease_token=token).first()
-            if run is None or slot is None or not _current(db, run):
-                raise DFAError("lease_lost")
-            if progress:
-                until = datetime.utcnow() + timedelta(seconds=LEASE_SECONDS)
-                run.lease_until = slot.lease_until = until
-                run.progress = progress
-            return run
 
-        def check():
-            nonlocal renewed
-            now = time.monotonic()
-            if now-started > MAX_EXECUTION_SECONDS:
-                raise DFAError("execution_time_limit")
-            if now-renewed >= 15:
-                with owner_write(db, owner):
-                    fence("reading" if phase == "prepare" else "computing")
-                    db.commit()
-                renewed = now
-
-        try:
-            check()
-            messages = list(RRRecordingReader(db).iter_recording(ref, check))
-            db.rollback()  # no long transaction while doing numerical work
-            recording = build_recording(messages, (messages[-1]["frame"]+1) if messages else 0, check)
-            if phase == "prepare":
-                output, status = recording.preparation(), "awaiting_source_confirmation"
-            else:
-                with owner_write(db, owner):
-                    run = fence()
-                    proof = db.query(Confirmation).filter_by(id=run.confirmation_id, user_id=owner).first()
-                    if proof is None or proof.evidence_digest != recording.evidence_digest or not any(
-                        s["sensor_ref"] == proof.sensor_ref and s["rule_fingerprint"] == proof.rule_fingerprint for s in recording.sensors):
-                        raise DFAError("source_contradiction")
-                    db.commit()
-                output, status = compute(recording, check), "complete"
-            encoded = json.dumps(output, separators=(",", ":"), allow_nan=False).encode()
-            if len(encoded) > MAX_RESULT_BYTES:
-                raise DFAError("result_limit")
-            check()
-            with owner_write(db, owner):
-                fence()
-                now = datetime.utcnow()
-                changed = db.query(Run).filter_by(id=run_id, user_id=owner, generation=generation, lease_token=token, status="running").update(
-                    {Run.status: status, Run.progress: status, Run.result: output, Run.result_revision: digest(output),
-                     Run.retained_bytes: len(encoded), Run.completed_at: now, Run.updated_at: now,
-                     Run.expires_at: now + timedelta(days=30 if status == "complete" else 1),
-                     Run.lease_until: None, Run.lease_token: None}, synchronize_session=False)
-                if changed:
-                    db.query(Slot).filter_by(id=1, run_id=run_id, lease_token=token).update(
-                        {Slot.run_id: None, Slot.lease_token: None, Slot.lease_until: None}, synchronize_session=False)
-                db.commit()
-        except Exception as exc:
-            db.rollback()
-            error = str(exc) if isinstance(exc, DFAError) else ("processing_not_authorized" if isinstance(exc, HTTPException) else "computation_failed")
-            if error not in SAFE_INPUT_ERRORS | {"execution_time_limit", "result_limit", "lease_lost", "processing_not_authorized"}:
-                error = "computation_failed"
-            with owner_write(db, owner):
-                now = datetime.utcnow()
-                status = "unavailable" if error in SAFE_INPUT_ERRORS else "failed"
-                changed = db.query(Run).filter(Run.id == run_id, Run.user_id == owner, Run.generation == generation,
-                    Run.lease_token == token, Run.status == "running", Run.lease_until >= now).update(
-                    {Run.status: status, Run.progress: status, Run.error_code: error,
-                     Run.result: None, Run.retained_bytes: 0, Run.completed_at: now,
-                     Run.expires_at: now + timedelta(days=1 if status == "unavailable" else 7),
-                     Run.lease_until: None, Run.lease_token: None}, synchronize_session=False)
-                if changed:
-                    db.query(Slot).filter_by(run_id=run_id, lease_token=token).update(
-                        {Slot.run_id: None, Slot.lease_token: None, Slot.lease_until: None}, synchronize_session=False)
-                db.commit()
-            logger.info("DFA task ended: state=%s reason=%s", status, error)
+def execute(*args, **kwargs):
+    raise HTTPException(503, "DFA_SUPERVISOR_REQUIRED")

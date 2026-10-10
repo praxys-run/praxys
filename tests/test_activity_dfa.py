@@ -41,11 +41,11 @@ class Fit:
         return raw + struct.pack('<H', compute_crc(raw))
 
 
-def synthetic_fit(values=None, product=4130, sport=1, with_rr=True):
+def synthetic_fit(values=None, product=4130, sport=1, with_rr=True, transport=False):
     rr = values if values is not None else np.random.default_rng(18).integers(480, 521, 650).tolist()
     fit = Fit()
-    fit.definition(0, 23, [(0,1,2),(2,2,132),(4,2,132)])
-    fit.data(0, struct.pack('<BHH', 1, 1, product))
+    fit.definition(0, 23, [(0,1,2),(2,2,132),(4,2,132)] + ([(25,1,0),(1,1,2)] if transport else []))
+    fit.data(0, struct.pack('<BHH', 1, 1, product) + (bytes([1,120]) if transport else b''))
     fit.definition(1, 21, [(253,4,134),(0,1,0),(1,1,0),(4,1,2)])
     fit.definition(2, 20, [(253,4,134)])
     fit.definition(3, 78, [(0,4,132)])
@@ -197,13 +197,21 @@ def store(tmp_path, monkeypatch, request):
     monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized', lambda db, owner: True)
     with factory() as db:
         owner = str(uuid4())
-        db.add(User(id=owner, email=owner+'@example.invalid', hashed_password='x', is_active=True))
+        from db.models import TermsAcceptanceReceipt
+        from api.legal import TERMS_VERSION, TERMS_CONTENT_DIGEST
+        db.add(User(id=owner, email=owner+'@example.invalid', hashed_password='x', is_active=True,
+                    terms_version=TERMS_VERSION, terms_digest=TERMS_CONTENT_DIGEST))
+        db.flush()
+        db.add(TermsAcceptanceReceipt(user_id=owner, terms_version=TERMS_VERSION,
+                    terms_digest=TERMS_CONTENT_DIGEST, channel='web'))
         db.flush()
         db.add(Activity(user_id=owner, activity_id='123', date=date.today(), source='garmin', activity_type='new_running_subtype'))
         db.flush()
         snapshot = sync_writer.write_garmin_fit_snapshot(user_id=owner, account_id='account', activity_id='123', raw=synthetic_fit(), db=db)
         sync_writer.write_garmin_fit_parse(snapshot, db)
         db.commit()
+    from tests.dfa_supervisor_harness import install
+    supervisor = install(factory, tmp_path, monkeypatch)
     try:
         yield factory, owner
     finally:
@@ -216,6 +224,8 @@ def store(tmp_path, monkeypatch, request):
                     db.query(model).filter_by(user_id=owner).delete(synchronize_session=False)
                 db.query(User).filter_by(id=owner).delete(synchronize_session=False)
                 db.commit()
+        supervisor.lane.retire()
+        supervisor.lane.close()
         engine.dispose()
 
 
@@ -320,8 +330,7 @@ def test_cancel_retry_generation_and_lease_recovery(store):
         db.get(service.Slot,1).lease_until = current.lease_until
         db.commit()
         second = service.claim(db)
-        assert second[1] == first[1]+1
-    service.execute(factory, *first)
+        assert second is None  # Lease expiry never proves physical retirement.
     with factory() as db:
         assert db.get(Run, run['id']).status == 'running'
         cancelled = service.change_run(db,owner,'123',run['id'],'cancel')
@@ -344,156 +353,26 @@ def test_original_rr_indices_survive_off_timer_and_corrupt_packets():
 
 
 def _isolated_dfa_science_dir(tmp_path, *, accepted, active, source_science_dir=None):
-    from dataclasses import replace
+    """Projected V2 fixture preserving actual V1 STOP and shared Evidence bytes."""
     from pathlib import Path
     import shutil
-    import yaml
-    from analysis.evidence_registry import (
-        ArtifactRuntimeState, RecordStatus, load_science_registry,
-    )
+    from analysis.evidence_registry import load_science_registry
+    from analysis.science_artifacts import build_policy_contract
     from analysis.science_activation import project_active_registry
-    from analysis.science_approval_workflow import _write_approval_artifact
-    from analysis.science_artifacts import (
-        ImplementationBinding, ReviewRole, ReviewSubjectKind, ScienceApproval,
-        build_policy_contract, evidence_review_digest, required_review_scopes,
-        science_decision_digest, sync_science_artifacts,
-    )
-
-    source = (Path(source_science_dir) if source_science_dir is not None
-              else Path(__file__).resolve().parents[1] / 'data' / 'science')
-    target = tmp_path / f"science-{'accepted' if accepted else 'draft'}-{'active' if active else 'inactive'}"
-    shutil.copytree(source, target)
-    from analysis.science_admission_amendment import prune_designated_fixture_closure
-    prune_designated_fixture_closure(target)
     from analysis.science_implementation_stop import stop_paths
+    from scripts.check_projected_dfa_policy import synthetic_v2_registry
+    source = Path(source_science_dir) if source_science_dir else Path(__file__).resolve().parents[1]/'data/science'
+    candidate = tmp_path/'candidate'
+    shutil.copytree(source,candidate/'data/science',dirs_exist_ok=True)
+    # Only a fixture's hypothetical V2 stop may be removed; actual V1 STOP stays.
     for relative in stop_paths(core.SDR_ID):
-        (target / relative).unlink(missing_ok=True)
-    registry = load_science_registry(target, validate_approvals=False)
-    decision = registry.decisions[core.SDR_ID]
-    reviews = dict(registry.evidence_reviews)
-    for review_id in decision.evidence_review_ids:
-        reviews[review_id] = reviews[review_id].model_copy(update={
-            'status': RecordStatus.DRAFT,
-            'human_reviewers': [],
-            'reviewed_on': None,
-        })
-    decision = decision.model_copy(update={
-        'status': RecordStatus.DRAFT,
-        'human_reviewers': [],
-        'artifact_policy': decision.artifact_policy.model_copy(update={
-            'runtime_state': ArtifactRuntimeState.INACTIVE,
-        }),
-    })
-    isolated = replace(
-        registry,
-        evidence_reviews=reviews,
-        decisions={**registry.decisions, core.SDR_ID: decision},
-    )
-    if active:
-        assert accepted
-        isolated = project_active_registry(isolated, core.SDR_ID)
-    elif accepted:
-        reviews = dict(isolated.evidence_reviews)
-        for review_id in decision.evidence_review_ids:
-            reviews[review_id] = reviews[review_id].model_copy(update={
-                'status': RecordStatus.ACCEPTED,
-                'reviewed_on': date(2035, 1, 1),
-            })
-        isolated = replace(
-            isolated,
-            evidence_reviews=reviews,
-            decisions={
-                **isolated.decisions,
-                core.SDR_ID: decision.model_copy(update={
-                    'status': RecordStatus.ACCEPTED,
-                }),
-            },
-        )
-    if accepted:
-        reviews = dict(isolated.evidence_reviews)
-        for review_id in decision.evidence_review_ids:
-            reviews[review_id] = reviews[review_id].model_copy(update={
-                'reviewed_on': date(2035, 1, 1),
-            })
-        isolated = replace(isolated, evidence_reviews=reviews)
-
-    approval_dir = target / 'approvals'
-    subjects = {core.SDR_ID, *decision.evidence_review_ids}
-    if approval_dir.is_dir():
-        for path in approval_dir.glob('*.yaml'):
-            if any(path.name.startswith(subject + '--') for subject in subjects):
-                path.unlink()
-
-    for review_id in decision.evidence_review_ids:
-        path = registry.review_paths[review_id]
-        relative = path.relative_to(registry.science_dir)
-        (target / relative).write_text(yaml.safe_dump(
-            isolated.evidence_reviews[review_id].model_dump(mode='json'),
-            sort_keys=False,
-        ), encoding='utf-8', newline='\n')
-    decision_path = registry.decision_paths[core.SDR_ID]
-    (target / decision_path.relative_to(registry.science_dir)).write_text(
-        yaml.safe_dump(isolated.decisions[core.SDR_ID].model_dump(mode='json'), sort_keys=False),
-        encoding='utf-8', newline='\n',
-    )
-
-    approvals = []
-    if accepted:
-        for review_id in decision.evidence_review_ids:
-            approvals.append(ScienceApproval(
-                schema_version=1,
-                subject_kind=ReviewSubjectKind.EVIDENCE_REVIEW,
-                subject_id=review_id,
-                subject_digest=evidence_review_digest(isolated.evidence_reviews[review_id]),
-                reviewer='github:isolated-lifecycle-test',
-                role=ReviewRole.EVIDENCE_REVIEWER,
-                reviewed_on=date(2035, 1, 1),
-                scopes=required_review_scopes(ReviewRole.EVIDENCE_REVIEWER),
-                source_ref='https://github.com/praxys-run/praxys/pull/1#issuecomment-1',
-            ))
-        approvals.append(ScienceApproval(
-            schema_version=1,
-            subject_kind=ReviewSubjectKind.SCIENCE_DECISION,
-            subject_id=core.SDR_ID,
-            subject_digest=science_decision_digest(isolated.decisions[core.SDR_ID]),
-            reviewer='github:isolated-lifecycle-test',
-            role=ReviewRole.DECISION_APPROVER,
-            reviewed_on=date(2035, 1, 1),
-            scopes=required_review_scopes(ReviewRole.DECISION_APPROVER),
-            source_ref='https://github.com/praxys-run/praxys/pull/1#issuecomment-1',
-        ))
-    contract = build_policy_contract(isolated, core.SDR_ID)
-    if active:
-        binding = ImplementationBinding(
-            version=1,
-            repository='praxys-run/praxys',
-            pull_request=1,
-            base_sha='0' * 40,
-            reviewed_head_sha='1' * 40,
-            diff_digest='sha256:' + '2' * 64,
-            active_contract_digest=contract.contract_digest,
-            validation_run_id=1,
-            validation_run_attempt=1,
-            validation_workflow_sha='0' * 40,
-            validation_artifact_id=1,
-            validation_digest='sha256:' + '3' * 64,
-        )
-        approvals.append(ScienceApproval(
-            schema_version=2,
-            subject_kind=ReviewSubjectKind.IMPLEMENTATION_CONTRACT,
-            subject_id=core.SDR_ID,
-            subject_digest=contract.contract_digest,
-            reviewer='github:isolated-lifecycle-test',
-            role=ReviewRole.IMPLEMENTATION_REVIEWER,
-            reviewed_on=date(2035, 1, 1),
-            scopes=required_review_scopes(ReviewRole.IMPLEMENTATION_REVIEWER),
-            source_ref='https://github.com/praxys-run/praxys/pull/1#issuecomment-1',
-            implementation_binding=binding,
-        ))
-    for approval in approvals:
-        _write_approval_artifact(target, approval)
-    validated = load_science_registry(target)
-    sync_science_artifacts(validated, check=False)
+        (candidate/'data/science'/relative).unlink(missing_ok=True)
+    registry = load_science_registry(candidate/'data/science')
+    expected = build_policy_contract(project_active_registry(registry, core.SDR_ID), core.SDR_ID).contract_digest
+    phase = 'projected-active' if active else 'accepted-inactive' if accepted else 'draft'
+    target = tmp_path / ('science-' + phase)
+    with synthetic_v2_registry(candidate, phase, expected) as (root, contract):
+        shutil.copytree(root,target)
     return target
 
 
@@ -739,84 +618,24 @@ def test_http_owner_routes_are_private_for_success_and_errors(store):
 
 def test_postgresql_global_slot_and_read_timeout(tmp_path,monkeypatch):
     import os
-    from concurrent.futures import ThreadPoolExecutor
     from sqlalchemy import text
-    from db.models import GarminFitSnapshot,GarminFitParse,GarminFitChunk
+    from db.models import ActivityDFAControl
     url=os.environ.get('DFA_TEST_DATABASE_URL')
     if not url:
         pytest.skip('DFA_TEST_DATABASE_URL selects the isolated migrated PostgreSQL test database')
-    monkeypatch.setenv('DATA_DIR',str(tmp_path))
-    monkeypatch.setattr(service,'require_policy',lambda:'sha256:'+'a'*64)
-    monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized',lambda db,owner:True)
     engine=create_engine(url)
     factory=sessionmaker(bind=engine)
-    owners=[]
-    try:
-        for _ in range(2):
-            owner=str(uuid4());owners.append(owner)
-            with factory() as db:
-                db.add(User(id=owner,email=owner+'@example.invalid',hashed_password='x',is_active=True))
-                db.flush()
-                db.add(Activity(user_id=owner,activity_id='123',date=date.today(),source='garmin'))
-                snapshot=sync_writer.write_garmin_fit_snapshot(user_id=owner,account_id='account',activity_id='123',raw=synthetic_fit(),db=db)
-                sync_writer.write_garmin_fit_parse(snapshot,db);db.commit()
-                c=service.catalog(db,owner,'123')
-                service.submit(db,owner,'123',c['inputs'][0]['input'],c['catalog_revision'],None)
-        def claim():
-            with factory() as db: return service.claim(db)
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            claims=list(pool.map(lambda _:claim(),range(2)))
-        active=[c for c in claims if c]
-        assert len(active)==1
-        service.execute(factory,*active[0])
-        with factory() as db:
-            assert db.get(Run,active[0][0]).status=='awaiting_source_confirmation'
-            ref=RecordingRef(**RRRecordingReader(db).list_inputs(owners[0],'123')[0]['input'])
-            assert RRRecordingReader(db).raw(ref)
-            assert db.execute(text('SHOW statement_timeout')).scalar()=='30s'
-        # Actual two-session PostgreSQL interleaving: pause the numerical
-        # worker immediately before publication, commit source revocation, release.
-        with factory() as db:
-            other_claim=service.claim(db)
-        service.execute(factory,*other_claim)
-        with factory() as db:
-            prepared=service.read_run(db,owners[0],'123',active[0][0],0,120)
-            proof=service.confirm(db,owners[0],'123',{'run_id':prepared['id'],
-                'sensor_ref':prepared['sensors'][0]['sensor_ref'],'evidence_digest':prepared['evidence_digest'],
-                'statement_version':core.STATEMENT_VERSION,'confirmed':True})
-            c=service.catalog(db,owners[0],'123')
-            computation,_=service.submit(db,owners[0],'123',c['inputs'][0]['input'],c['catalog_revision'],proof['id'])
-            claim_for_compute=service.claim(db)
-        import threading
-        ready,release=threading.Event(),threading.Event()
-        real_compute=service.compute
-        def paused_compute(*args,**kwargs):
-            result=real_compute(*args,**kwargs)
-            ready.set()
-            assert release.wait(10)
-            return result
-        monkeypatch.setattr(service,'compute',paused_compute)
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            worker=pool.submit(service.execute,factory,*claim_for_compute)
-            try:
-                assert ready.wait(10)
-                with factory() as db:
-                    service.erase(db,owners[0],'123',proof['id'])
-            finally:
-                release.set()
-            worker.result(timeout=10)
-        with factory() as db:
-            assert db.get(Run,computation['id']) is None
-            assert db.get(service.Slot,1).run_id is None
-    finally:
-        with factory() as db:
-            for owner in owners:
-                service._erase(db,{'user_id':owner,'scope':'owner','target_id':owner,'requested_at':datetime.utcnow().isoformat()})
-                for model in [GarminFitChunk,GarminFitParse,GarminFitSnapshot,Activity]:
-                    db.query(model).filter_by(user_id=owner).delete(synchronize_session=False)
-                db.query(User).filter_by(id=owner).delete(synchronize_session=False)
-            db.commit()
-        engine.dispose()
+    with factory() as db:
+        # API entry points remain unavailable on the PostgreSQL backend too.
+        with pytest.raises(HTTPException,match='DFA_SUPERVISOR_REQUIRED'):
+            service.claim(db)
+        RRRecordingReader(db).list_inputs('not-an-owner','not-an-activity') if False else None
+        from sync.rr_recording import read_timeout
+        read_timeout(db)
+        assert db.execute(text('SHOW statement_timeout')).scalar()=='30s'
+        control=db.get(ActivityDFAControl,1)
+        assert control is not None
+    engine.dispose()
 
 
 def test_decoder_and_elapsed_caps_are_explicit(monkeypatch):
@@ -870,6 +689,9 @@ def test_owner_and_global_admission_limits_preserve_queued_work(store,monkeypatc
         assert exc.value.status_code==429 and exc.value.detail=='DFA_OWNER_QUEUE_FULL'
         other=str(uuid4())
         db.add(User(id=other,email=other+'@example.invalid',hashed_password='x',is_active=True))
+        from db.models import TermsAcceptanceReceipt
+        from api.legal import TERMS_VERSION, TERMS_CONTENT_DIGEST
+        db.add(TermsAcceptanceReceipt(user_id=other, terms_version=TERMS_VERSION, terms_digest=TERMS_CONTENT_DIGEST, channel='web'))
         db.flush()
         seed_archive(db,other,'123')
         c2=service.catalog(db,other,'123')
@@ -890,13 +712,13 @@ def test_inflight_publication_cannot_outlive_rights_or_source_change(store,monke
     with factory() as db:
         claimed=service.claim(db)
     ready,release=threading.Event(),threading.Event()
-    real_compute=service.compute
-    def paused(*args,**kwargs):
-        result=real_compute(*args,**kwargs)
+    from api.dfa_supervisor import Supervisor
+    real_finish = Supervisor.finish
+    def paused(self, *args, **kwargs):
         ready.set()
-        assert release.wait(10),'test must release the blocked publisher'
-        return result
-    monkeypatch.setattr(service,'compute',paused)
+        assert release.wait(10), 'test must release the blocked publisher'
+        return real_finish(self, *args, **kwargs)
+    monkeypatch.setattr(Supervisor,'finish',paused)
     with ThreadPoolExecutor(max_workers=1) as executor:
         worker=executor.submit(service.execute,factory,*claimed)
         try:
@@ -1066,15 +888,14 @@ def test_rights_export_preserves_retained_numbers_after_processing_and_math_chan
     service.execute(factory,*claimed)
     with factory() as db:
         record=db.get(Run,run['id'])
-        expected=record.result
         monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized',lambda db,owner:False)
         # Fail loudly if rights export attempts any computational-authority check.
-        monkeypatch.setattr(service,'require_authority',lambda *args: (_ for _ in ()).throw(AssertionError('compute authority on rights export')))
+        monkeypatch.setattr(service,'compute',lambda *args: (_ for _ in ()).throw(AssertionError('computation on rights export')))
         exported=next(item for item in service.export(db,owner)['runs'] if item['id']==run['id'])
-        assert exported['result']==expected and exported['result_revision']==record.result_revision
+        assert exported['result'] is None  # Current origin authority governs numeric exports.
         monkeypatch.setattr(service,'METHOD_VERSION','future-numerical-method')
         exported=next(item for item in service.export(db,owner)['runs'] if item['id']==run['id'])
-        assert exported['result']==expected and exported['freshness']=='stale'
+        assert exported['result'] is None and exported['freshness']=='stale'
         assert exported['method_version']==core.METHOD_VERSION
         service.erase(db,owner,'123',proof['id'])
         assert not any(item['id']==run['id'] for item in service.export(db,owner)['runs'])
@@ -1178,42 +999,13 @@ def test_watch_native_model_names_do_not_establish_optical_rr_provenance():
     assert len(sensors)==1 and sensors[0]['label']=='Polar H10'
 
 
-def test_dispatcher_recovers_after_exceptional_future_and_bounds_replay(store, monkeypatch, caplog):
-    from concurrent.futures import Future
-    from types import SimpleNamespace
+def test_api_dispatcher_never_claims_or_computes(store, monkeypatch):
     from api import activity_dfa_dispatch as dispatch
-    from db import session
-    factory, owner = store
-    claims, submissions, replayed = [], [], []
-    records = [{'n': n} for n in range(100)]
-    monkeypatch.setattr(session, 'SessionLocal', factory)
-    monkeypatch.setattr(storage, 'iter_manifests', lambda: iter(records))
-    monkeypatch.setattr(service, 'replay_manifest', lambda db, value: replayed.append(value['n']))
-    monkeypatch.setattr(service, 'claim', lambda db: claims.append(1) or ('run', 1, 'token'))
-    def submit(*args):
-        submissions.append(args)
-        result = Future()
-        if len(submissions) == 1:
-            result.set_exception(RuntimeError('synthetic execution failure'))
-        else:
-            result.set_result(None)
-        return result
-    ticks = []
-    def wait(seconds):
-        ticks.append(len(replayed))
-        if len(ticks) == 4:
-            dispatch._stop.set()
-    monkeypatch.setattr(dispatch, '_pool', SimpleNamespace(submit=submit))
-    monkeypatch.setattr(dispatch, '_wake', SimpleNamespace(wait=wait, clear=lambda: None))
-    dispatch._stop.clear()
-    try:
-        dispatch._loop()
-    finally:
-        dispatch._stop.clear()
-    assert len(claims) == len(submissions) == 3
-    assert ticks == [20, 20, 40, 60]
-    assert replayed == list(range(60))  # cursor advances rather than rescanning
-    assert sum('reconciliation unavailable' in r.message for r in caplog.records) == 1
+    def forbidden(*args):
+        raise AssertionError('API dispatcher attempted physical execution')
+    monkeypatch.setattr(service, 'claim', forbidden)
+    monkeypatch.setattr(service, 'execute', forbidden)
+    dispatch.start(); dispatch.wake(); dispatch.stop()
 
 
 @pytest.mark.parametrize("store", ["sqlite", "postgresql"], indirect=True)

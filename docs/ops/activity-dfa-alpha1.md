@@ -1,3 +1,100 @@
+# Activity DFA V2 operations
+
+**Summary:** Keep V2 inactive by default, pin the Linux supervisor, and require physical exit before reuse.
+
+**Use when:** Preparing reviewed inactive source, diagnosing origin/queue/retirement state, or restoring synthetic/authorized data.
+
+## Prerequisites
+
+Actual designated V2 remains accepted/inactive and historical V1 remains terminally
+stopped. Gate ON, a supervisor setting, a nonce and source maintenance are not
+activation or host-handover authority. Fresh independent implementation/source
+review, current CI and separate Operations rollout remain required.
+
+## Steps
+
+The repository startup command is `python -m api.runtime_startup`; this task does
+not change live App Service settings. `PRAXYS_DFA_SUPERVISOR_ENABLED` defaults
+false and API workers never execute DFA. The optional supervisor candidate must
+match the durable control row and observed instance, slot, source SHA, boot and
+PID/mount namespaces. Missing or changed identity stays disabled; no first-start
+self-election or heartbeat takeover exists.
+
+Manual and automatic have independent immutable grants/results. An explicit
+current processing receipt is required, and automatic additionally requires an
+exact account-sync action, current account generation, a newly successful daily
+archive-unit receipt, current metadata predicate and server gate. Date backfill,
+partial sync, reparse, report view/focus/poll never creates automatic computation.
+Source/gate/rights are rechecked before result hydration and publication.
+
+A private local runtime directory under `/tmp` has mode0700. Its supervisor lock
+is not inherited, its recovery mutex is distinct, and its physical guard is
+inherited by controlled children. Recovery retires an identified old group before
+physical-lock acquisition. TERM grace is500ms, followed by KILL/reaping and group
+absence observation; a lease, signal delivery or leader exit is not exit proof.
+Unexpected members, identity reuse or unacknowledged launch remain blocked.
+
+Control polling is250ms and local automatic permission expires after750ms without
+a completed valid renewal. Current control readiness, generation, drain and queue
+reservation gate durable manual admission. The retirement reactor is independent
+of DB/auth/gate/loading/serialization I/O. Physical exit commits through dedicated
+control before owner cleanup. Admission-to-exit/availability and manual process
+start are separate observations. A post-acceptance capacity failure remains a miss.
+
+The control pool has one connection/zero overflow,100ms checkout,200ms statement
+and lock bounds, and1s driver connect timeout. Token acquisition/cold connections
+may exceed the healthy envelope; permission expiry remains local. Supervisor work
+pools are explicitly1/zero-overflow; its unused async engine is still counted.
+One API worker at existing defaults configures20 potential connections, supervisor
+work/async/control3, coordinator0 steady-state after disposal:23 total potential
+connections. Coordinator migration/drain pools are transient and must also be
+counted during startup/shutdown. This is accounting, not demonstrated live capacity.
+
+Children have explicit credential-free environment allowlists and private bounded
+pipes. The supervisor alone publishes; actor/token/epoch/generation/input and
+nested result schemas/size are checked. Same-container processes share an OS/cloud
+identity; environment filtering does not establish separate managed-identity isolation.
+
+## Verify
+
+Use synthetic data only. Retain failed admissions and interrupted runs. The first
+capacity test and its rerun rejected manual admission with503; their original logs
+are preserved. A later100-trial post-handshake ignored-TERM synthetic cell passed
+with observed durable admission/retirement, independently from real raw-reference
+and both-origin numerical tests. It does not prove maximum-input/native-compute,
+loading/IPC, Azure contention, a60-minute soak or host handover. Final exact-head
+preflight, fresh specialist/Quality review and both rendered clients remain required.
+
+## Rollback / Recovery
+
+Before any recycling settings/deploy/rollback action, durably drain both origins,
+fence publication and prove the old registered group/environment exited. Keep
+replacement compute disabled until separately authorized incarnation handover.
+Never unlink held locks, erase actor metadata with a run/user, or restore an older
+unsafe per-API-worker dispatcher. The additive migration retains historical data
+without granting V2 authority; destructive downgrade requires independent drain.
+
+Independent private negative authority uses Blob ETag CAS or fsynced local files,
+separate from SQL. Never replace it with an old SQL backup or restore an archive
+whose recoverable horizon outlives its current negative history. Pending cleanup
+never expires; active-owner high-watermarks and deleted-incarnation fences remain
+until every recoverable copy/execution reference is retired.
+
+Before reopening a restored API, run `python -m api.dfa_restore` in the separately
+authorized restore procedure: disable/drain, advance epoch, replay unconditional
+account deletion, discard restored DFA grants/proofs/results/receipts and clear
+restored sync-authority generations. Original activities remain. Restore creates
+neither a grant nor a successful-sync event. Missing authority with retained grants
+fails closed. Fresh owner actions must establish new independent authority.
+
+## Related
+
+- [Implementation](../dev/pr871-original-runtime.md)
+- [Impact map](../dev/pr871-original-implementation-impact.md)
+- [Backup and restore](backup-and-restore.md)
+
+<details><summary>Historical V1 runbook and prior staging proposals (not current runtime authority)</summary>
+
 # Activity DFA α1 operations
 
 **Summary:** Operate bounded post-run DFA jobs and preserve owner erasure across restores.
@@ -553,3 +650,5 @@ The approval-ledger automation permits only the designated companion output
 namespace in addition to existing Science outputs. Its complete trusted replay
 and source verifier determine the exact filename/content; the workflow path
 allowlist itself supplies no authority or stale-approval exception.
+
+</details>

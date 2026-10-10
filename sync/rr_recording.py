@@ -23,7 +23,8 @@ NATIVE_FIELDS = {
     21: {0: ("event", 0, 1), 1: ("event_type", 0, 1),
          4: ("event_group", 2, 1), 253: ("timestamp", 134, 4)},
     23: {0: ("device_index", 2, 1), 2: ("manufacturer", 132, 2),
-         4: ("product", 132, 2), 27: ("product_name", 7, None)},
+         4: ("product", 132, 2), 1: ("device_type", 2, 1),
+         25: ("source_type", 0, 1), 27: ("product_name", 7, None)},
     78: {0: ("time", 132, None)},
 }
 NATIVE_MESSAGES = set(NATIVE_FIELDS)

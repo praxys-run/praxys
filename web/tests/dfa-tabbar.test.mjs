@@ -6,7 +6,7 @@ import { setTabBarHidden, setTabBarSelected } from '../../miniapp/utils/tabbar.t
 
 function analysisPage(mode) {
   let definition;
-  const callbacks = [], updates = [];
+  const callbacks = [], updates = [], navigations = [];
   const tabBar = { data: { hidden: false }, setData(data) { updates.push({ ...data }); Object.assign(this.data, data); } };
   const modules = {
     '../../utils/tabbar': { setTabBarHidden, setTabBarSelected },
@@ -22,7 +22,7 @@ function analysisPage(mode) {
   new Function('require', 'module', 'exports', 'Page', 'getApp', 'wx', code)(
     name => modules[name] ?? {}, module, module.exports, value => { definition = value; },
     () => ({ globalData: { locale: 'en', themeClass: 'theme-light' } }),
-    { getStorageSync: () => '' },
+    { getStorageSync: () => '', navigateTo: ({url}) => navigations.push(url) },
   );
   const page = {
     data: structuredClone(definition.data),
@@ -36,54 +36,19 @@ function analysisPage(mode) {
     for (const callback of reverse ? pending.reverse() : pending) callback(tabBar);
   };
   const open = () => page.onOpenDFA({ detail: { activityId: 'dfa-synthetic-running', activityDate: '2026-09-27' } });
-  return { page, tabBar, updates, flush, open };
+  return { page, tabBar, updates, navigations, flush, open };
 }
 
-for (const mode of ['sync', 'async']) {
-  test(`actual Analysis lifecycle owns and restores its DFA tab bar (${mode})`, () => {
-    const scene = analysisPage(mode);
-    const { page, tabBar, flush, open } = scene;
-    page.data.activeSection = 'activities';
-    page.data.scrollIntoView = 'existing-list-position';
-    page.onShow(); flush();
-    assert.equal(tabBar.data.hidden, false);
-    open(); flush();
-    assert.equal(tabBar.data.hidden, true);
-    page.onHide(); flush();
-    assert.equal(tabBar.data.hidden, false);
-    assert.equal(page.data.dfaActivityId, 'dfa-synthetic-running');
-    page.onShow(); flush();
-    assert.equal(tabBar.data.hidden, true);
-    assert.equal(page.data.activeSection, 'activities');
-    assert.equal(page.data.scrollIntoView, 'existing-list-position');
-    page.onCloseDFA(); flush();
-    assert.equal(tabBar.data.hidden, false);
-    assert.equal(page.data.dfaActivityId, '');
-    open(); flush();
-    page.onUnload(); flush();
-    assert.equal(tabBar.data.hidden, false);
+for (const mode of ['sync','async']) {
+  test(`DFA shortcut opens full native report and preserves Analysis state (${mode})`, () => {
+    const scene=analysisPage(mode);
+    scene.page.data.activeSection='activities';
+    scene.page.data.scrollIntoView='existing-list-position';
+    scene.page.onShow(); scene.flush(); scene.open(); scene.flush();
+    assert.deepEqual(scene.navigations,['/pages/activity-detail/index?id=dfa-synthetic-running&section=dfa']);
+    assert.equal(scene.tabBar.data.hidden,false);
+    assert.equal(scene.page.data.activeSection,'activities');
+    assert.equal(scene.page.data.scrollIntoView,'existing-list-position');
+    assert.equal(scene.page.data.dfaActivityId,'');
   });
 }
-
-test('late Skyline callbacks use current DFA/page state after close, hide, show and unload', () => {
-  const { page, tabBar, updates, flush, open } = analysisPage('async');
-  open(); page.onCloseDFA(); flush(true);
-  assert.equal(tabBar.data.hidden, false);
-  assert.ok(updates.every(update => update.hidden === false));
-  updates.length = 0;
-  open(); page.onHide(); page.onShow(); flush(true);
-  assert.equal(tabBar.data.hidden, true);
-  assert.ok(updates.filter(update => 'hidden' in update).every(update => update.hidden === true));
-  updates.length = 0;
-  open(); page.onUnload(); flush(true);
-  assert.equal(tabBar.data.hidden, false);
-  assert.ok(updates.every(update => update.hidden === false));
-});
-
-test('DFA cleanup updates only its owning page tab-bar instance', () => {
-  const owner = analysisPage('async'), other = analysisPage('sync');
-  other.open();
-  owner.open(); owner.page.onHide(); owner.flush(true);
-  assert.equal(owner.tabBar.data.hidden, false);
-  assert.equal(other.tabBar.data.hidden, true);
-});

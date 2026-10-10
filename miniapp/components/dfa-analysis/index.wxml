@@ -1,19 +1,23 @@
-<view class="dfa-overlay" catchtouchmove="block" aria-role="dialog" aria-modal="true" aria-label="{{tr.alpha}}">
+<view class="{{inline ? 'dfa-inline' : 'dfa-overlay'}}" aria-label="{{tr.alpha}}">
   <view class="dfa-sheet">
-    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
-    <scroll-view scroll-y class="dfa-scroll">
+    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button wx:if="{{!inline}}" class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
+    <scroll-view scroll-y="{{!inline}}" class="dfa-scroll">
       <view class="dfa-body">
         <state-card wx:if="{{loading}}" type="loading" />
         <block wx:else>
           <state-card wx:if="{{error}}" type="error" detail="{{error}}" show-retry bindretry="refresh" />
+          <text wx:if="{{catalog.automatic_availability === 'source_unresolved'}}" class="dfa-copy">{{tr.unresolved}}</text>
+          <text wx:if="{{catalog.automatic_availability === 'source_ineligible'}}" class="dfa-copy">{{tr.ineligible}}</text>
+          <text wx:if="{{catalog.automatic_availability === 'gate_denied'}}" class="dfa-copy">{{tr.automaticUnavailable}}</text>
           <text wx:if="{{!catalog.policy_active}}" class="dfa-copy">{{tr.policy}}</text>
           <text wx:if="{{!catalog.processing_authorized}}" class="dfa-copy">{{tr.processing}}</text>
           <text wx:if="{{catalog.availability === 'provider_unsupported'}}" class="dfa-copy">{{tr.provider}}</text>
           <text wx:if="{{catalog.availability === 'activity_type_unsupported'}}" class="dfa-copy">{{tr.type}}</text>
+          <view wx:if="{{origins.length}}" class="dfa-actions"><button wx:for="{{origins}}" wx:key="id" class="dfa-button" data-id="{{item.id}}" bindtap="onOrigin" aria-pressed="{{item.origin === selectedOrigin}}">{{item.label}}</button></view>
           <text wx:if="{{cooling}}" class="dfa-copy" role="status">{{tr.cooldown}}</text>
           <text wx:if="{{catalog.availability === 'original_unavailable'}}" class="dfa-copy">{{tr.missing}}</text>
           <picker wx:if="{{catalog.inputs.length > 1}}" range="{{inputLabels}}" value="{{selected}}" bindchange="onRecording"><view class="dfa-button">{{selected >= 0 ? inputLabels[selected] : tr.recording}}</view></picker>
-          <button wx:if="{{selected >= 0 && !active && (!run || stale)}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{stale || retainedProof ? tr.recalculate : tr.analyse}}</button>
+          <button wx:if="{{selected >= 0 && (!active || run.origin === 'automatic') && (!run || stale || run.origin === 'automatic')}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{stale || retainedProof ? tr.recalculate : tr.analyse}}</button>
           <view wx:if="{{active}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><text class="dfa-hint">{{tr.continuing}}</text><button class="dfa-button" data-action="cancel" bindtap="action" disabled="{{busy}}">{{tr.cancel}}</button></view>
           <text wx:if="{{stale && !active}}" class="dfa-copy">{{status}}</text>
           <view wx:if="{{run.status === 'awaiting_source_confirmation' && !stale}}" class="dfa-section">
@@ -24,9 +28,9 @@
           </view>
           <view wx:if="{{run && (run.status === 'failed' || run.status === 'unavailable' || run.status === 'cancelled')}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><button wx:if="{{run.status !== 'unavailable'}}" class="dfa-button" data-action="retry" bindtap="action" disabled="{{busy || cooling || !canAnalyse || stale}}">{{tr.retry}}</button></view>
           <view wx:if="{{hasResult}}" class="dfa-section">
-            <text class="dfa-heading">{{headline}}</text><text class="dfa-hint">{{tr.source}} · {{tr.timing}}</text>
+            <text class="dfa-heading">{{headline}}</text><text class="dfa-hint">{{assurance}} · {{tr.timing}}</text>
             <view class="dfa-summary"><view><text class="dfa-hint">{{tr.valid}}</text><text class="ts-value">{{valid}}</text></view><view><text class="dfa-hint">{{tr.support}}</text><text class="ts-value">{{support}}</text></view></view>
-            <text class="dfa-hint">{{tr.coverage}}</text><text class="dfa-copy">{{tr.overview}}</text>
+            <text class="dfa-hint ts-value">{{tr.timerBasis}} {{timerBasis}} · {{tr.shortBlocks}} {{shortBlocks}}</text><text class="dfa-hint ts-value">{{run.method_version}} · {{run.source_rule_version}}</text><text class="dfa-hint">{{tr.coverage}}</text><text class="dfa-copy">{{tr.overview}}</text>
             <view class="dfa-coverage"><view wx:for="{{navigation}}" wx:key="index" class="dfa-span dfa-span--{{item.kind}}" style="{{item.style}}"></view><view class="dfa-page-outline" style="{{pageOutline}}"></view></view><text class="dfa-hint">{{tr.legend}}</text>
             <slider min="0" max="{{timeMax}}" step="1" value="{{cursorSeconds}}" bindchanging="onTime" bindchange="onTime" aria-label="{{tr.pickTime}}" />
             <text class="dfa-hint ts-value" role="status">{{timeStatus}}</text><button class="dfa-button" bindtap="goTime">{{tr.goTime}}</button>
@@ -36,7 +40,7 @@
             <line-chart canvas-id="dfa-context-chart" series="{{comparatorSeries}}" dates="{{dates}}" x-values="{{times}}" height="{{150}}" theme="{{theme}}" />
             <view class="dfa-actions"><button class="dfa-button" data-direction="-1" disabled="{{offset === 0}}" bindtap="onPage">{{tr.previous}}</button><text class="ts-value">{{pageIndex + 1}} / {{pages || 1}}</text><button class="dfa-button" data-direction="1" disabled="{{run.page.next_offset === null}}" bindtap="onPage">{{tr.next}}</button></view>
             <button class="dfa-button" bindtap="details" aria-expanded="{{showDetails}}">{{tr.details}}</button>
-            <view wx:if="{{showDetails}}"><view wx:for="{{rows}}" wx:key="id" class="dfa-window"><text class="ts-value">{{item.time}} · α1 {{item.alpha}}</text><text class="ts-value">{{comparators[comparator]}} · {{item.value}}</text><text>{{item.quality}}</text><text class="ts-value dfa-hint">{{item.coverage}}</text></view></view>
+            <view wx:if="{{showDetails}}"><view wx:for="{{rows}}" wx:key="id" class="dfa-window"><button wx:if="{{activityStartMs}}" class="dfa-button ts-value" data-start="{{item.startMs}}" data-end="{{item.endMs}}" bindtap="selectInterval">{{item.time}} · α1 {{item.alpha}}</button><text wx:else class="ts-value">{{item.time}} · α1 {{item.alpha}}</text><text class="ts-value">{{comparators[comparator]}} · {{item.value}}</text><text>{{item.quality}}</text><text class="ts-value dfa-hint">{{item.coverage}}</text></view></view>
             <text wx:for="{{exclusions}}" wx:key="*this" class="dfa-hint">{{item}}</text>
           </view>
           <button class="dfa-button dfa-science" bindtap="science" aria-expanded="{{showScience}}">{{tr.method}}</button><view wx:if="{{showScience}}" class="dfa-section"><text class="dfa-copy">{{tr.science}}</text><text class="dfa-hint" selectable>{{tr.sources}}</text></view>

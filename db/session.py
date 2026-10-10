@@ -451,7 +451,15 @@ _SQLITE_COMPAT_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "plan_target_calendar_syncs": (
         ("provider_references", "JSON NOT NULL DEFAULT '{}'"),
     ),
+    "activity_dfa_runs": (
+        ("origin", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
+        ("grant_id", "VARCHAR(36)"),
+        ("admission_id", "VARCHAR(36)"),
+        ("accepted_at", "DATETIME"),
+        ("execution_epoch", "VARCHAR(64)"),
+    ),
     "user_connections": (
+        ("dfa_account_generation", "VARCHAR(36)"),
         ("plan_delivery_consent", "VARCHAR(64)"),
         ("encrypted_garmin_tokens", "BLOB"),
         ("wrapped_token_dek", "BLOB"),
@@ -1121,6 +1129,9 @@ def _ensure_schema(engine_obj, backend: str) -> None:
         Base.metadata.create_all(bind=engine_obj)
         _ensure_sqlite_road_10k_snapshot_schema(engine_obj)
         _ensure_sqlite_compat_columns(engine_obj)
+        with engine_obj.begin() as conn:
+            conn.execute(text("DROP INDEX IF EXISTS uq_dfa_active_owner"))
+            conn.execute(text("CREATE UNIQUE INDEX uq_dfa_active_owner ON activity_dfa_runs(user_id, origin) WHERE status IN ('queued','running')"))
         _rebuild_sqlite_feedback_publication_outbox(engine_obj)
         _normalize_sqlite_feedback_publication_evidence(engine_obj)
         _repair_sqlite_feedback_publication(engine_obj)

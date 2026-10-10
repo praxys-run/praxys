@@ -1,3 +1,8 @@
+> Historical V1 contract below. V1 is terminally stopped. Current PR871 V2 source
+> behavior is specified in [original runtime](pr871-original-runtime.md); the
+> unchanged numerical recipe below is retained, while its old thread/lease,
+> manual-only and sheet authority are superseded.
+
 # Activity DFA α1 implementation contract
 
 Status: user-approved implementation specification, 2026-09-27. This record

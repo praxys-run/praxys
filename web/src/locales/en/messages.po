@@ -780,6 +780,10 @@ msgstr "Active Incidents"
 msgid "Active incidents: {0}"
 msgstr "Active incidents: {0}"
 
+#: src/components/ActivityDFA.tsx:271
+msgid "Active timer time:"
+msgstr "Active timer time:"
+
 #: src/components/PersonalContextPanel.tsx:1084
 #: src/components/PersonalContextPanel.tsx:1265
 msgid "Active until"
@@ -818,7 +822,7 @@ msgstr "Activity gauge"
 msgid "Activity is the schedule lane (for example road or trail), not the session purpose."
 msgstr "Activity is the schedule lane (for example road or trail), not the session purpose."
 
-#: src/pages/ActivityDetail.tsx:158
+#: src/pages/ActivityDetail.tsx:163
 msgid "Activity navigation"
 msgstr "Activity navigation"
 
@@ -826,7 +830,7 @@ msgstr "Activity navigation"
 #~ msgid "Activity not counted"
 #~ msgstr "Activity not counted"
 
-#: src/components/ActivityDFA.tsx:234
+#: src/components/ActivityDFA.tsx:227
 msgid "Activity processing is unavailable. You can still delete this analysis."
 msgstr "Activity processing is unavailable. You can still delete this analysis."
 
@@ -834,7 +838,7 @@ msgstr "Activity processing is unavailable. You can still delete this analysis."
 #~ msgid "Activity record source"
 #~ msgstr "Activity record source"
 
-#: src/pages/ActivityDetail.tsx:164
+#: src/pages/ActivityDetail.tsx:169
 msgid "Activity source"
 msgstr "Activity source"
 
@@ -846,7 +850,7 @@ msgstr "Activity splits"
 msgid "Activity types to sync"
 msgstr "Activity types to sync"
 
-#: src/pages/ActivityDetail.tsx:323
+#: src/pages/ActivityDetail.tsx:336
 msgid "Activity unavailable"
 msgstr "Activity unavailable"
 
@@ -929,11 +933,11 @@ msgstr "Add workout"
 #~ msgid "Additional summaries"
 #~ msgstr "Additional summaries"
 
-#: src/pages/ActivityDetail.tsx:298
+#: src/pages/ActivityDetail.tsx:311
 msgid "Additional summaries ({count})"
 msgstr "Additional summaries ({count})"
 
-#: src/pages/ActivityDetail.tsx:298
+#: src/pages/ActivityDetail.tsx:311
 msgid "Additional summaries (<0>{count}</0>)"
 msgstr "Additional summaries (<0>{count}</0>)"
 
@@ -1106,8 +1110,8 @@ msgstr "All"
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "All {0} linked ticket(s) already up to date."
 
-#: src/pages/ActivityDetail.tsx:159
-#: src/pages/ActivityDetail.tsx:321
+#: src/pages/ActivityDetail.tsx:164
+#: src/pages/ActivityDetail.tsx:334
 msgid "All activities"
 msgstr "All activities"
 
@@ -1165,7 +1169,7 @@ msgstr "Already have an invitation code?"
 #~ msgstr "Also send my optional note"
 
 #: src/components/ActivityTraceChart.tsx:98
-#: src/pages/ActivityDetail.tsx:87
+#: src/pages/ActivityDetail.tsx:88
 msgid "Altitude"
 msgstr "Altitude"
 
@@ -1193,7 +1197,7 @@ msgstr "An external planner overlaps the Praxys plan. Use one planner at a time 
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
-#: src/components/ActivityDFA.tsx:242
+#: src/components/ActivityDFA.tsx:245
 msgid "Analyse recording"
 msgstr "Analyse recording"
 
@@ -1202,7 +1206,7 @@ msgstr "Analyse recording"
 msgid "Analysis"
 msgstr "Analysis"
 
-#: src/pages/ActivityDetail.tsx:160
+#: src/pages/ActivityDetail.tsx:165
 msgid "Analysis / Activity record"
 msgstr "Analysis / Activity record"
 
@@ -1214,7 +1218,7 @@ msgstr "Analysis / Activity record"
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 msgstr "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 
-#: src/components/ActivityDFA.tsx:166
+#: src/components/ActivityDFA.tsx:156
 msgid "Analysis is unavailable. Refresh the recording or try again."
 msgstr "Analysis is unavailable. Refresh the recording or try again."
 
@@ -1222,11 +1226,15 @@ msgstr "Analysis is unavailable. Refresh the recording or try again."
 msgid "Analysis needs a manual retry"
 msgstr "Analysis needs a manual retry"
 
+#: src/components/ActivityDFA.tsx:230
+msgid "Analysis origin"
+msgstr "Analysis origin"
+
 #: src/pages/LabsEnvironment.tsx:268
 msgid "Analysis request saved"
 msgstr "Analysis request saved"
 
-#: src/components/ActivityDFA.tsx:260
+#: src/components/ActivityDFA.tsx:264
 msgid "Analysis was cancelled."
 msgstr "Analysis was cancelled."
 
@@ -1287,7 +1295,7 @@ msgstr "Approve access"
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 
-#: src/components/ActivityDFA.tsx:327
+#: src/components/ActivityDFA.tsx:334
 msgid "Artefacts and recording devices"
 msgstr "Artefacts and recording devices"
 
@@ -1334,7 +1342,7 @@ msgstr "attempts"
 msgid "Attempts {0}"
 msgstr "Attempts {0}"
 
-#: src/components/ActivityDFA.tsx:163
+#: src/components/ActivityDFA.tsx:153
 msgid "Atypical value; no physiological conclusion."
 msgstr "Atypical value; no physiological conclusion."
 
@@ -1377,6 +1385,15 @@ msgstr "Automated recovery is unavailable for this item."
 #: src/pages/admin/AdminOps.tsx:481
 msgid "Automated recovery unavailable"
 msgstr "Automated recovery unavailable"
+
+#: src/components/ActivityDFA.tsx:233
+msgid "Automatic analysis"
+msgstr "Automatic analysis"
+
+#: src/components/ActivityDFA.tsx:223
+#: src/components/ActivityDFA.tsx:236
+msgid "Automatic analysis is unavailable. Its values are hidden."
+msgstr "Automatic analysis is unavailable. Its values are hidden."
 
 #: src/pages/admin/AdminOps.tsx:1244
 msgid "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
@@ -1444,26 +1461,26 @@ msgstr "Available terrain"
 msgid "Available training plans could not be loaded."
 msgstr "Available training plans could not be loaded."
 
-#: src/pages/ActivityDetail.tsx:120
-#: src/pages/ActivityDetail.tsx:124
+#: src/pages/ActivityDetail.tsx:121
+#: src/pages/ActivityDetail.tsx:125
 msgid "Average heart rate"
 msgstr "Average heart rate"
 
-#: src/pages/ActivityDetail.tsx:117
-#: src/pages/ActivityDetail.tsx:125
+#: src/pages/ActivityDetail.tsx:118
+#: src/pages/ActivityDetail.tsx:126
 msgid "Average pace"
 msgstr "Average pace"
 
-#: src/pages/ActivityDetail.tsx:119
-#: src/pages/ActivityDetail.tsx:123
+#: src/pages/ActivityDetail.tsx:120
+#: src/pages/ActivityDetail.tsx:124
 msgid "Average power"
 msgstr "Average power"
 
-#: src/components/ActivityCard.tsx:50
+#: src/components/ActivityCard.tsx:47
 msgid "Avg HR"
 msgstr "Avg HR"
 
-#: src/components/ActivityCard.tsx:49
+#: src/components/ActivityCard.tsx:46
 msgid "Avg Power"
 msgstr "Avg Power"
 
@@ -1538,7 +1555,7 @@ msgstr "Back to Praxys"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
-#: src/pages/ActivityDetail.tsx:241
+#: src/pages/ActivityDetail.tsx:246
 msgid "Back to split table"
 msgstr "Back to split table"
 
@@ -1607,7 +1624,7 @@ msgstr "Baseline ready"
 msgid "Baseline source"
 msgstr "Baseline source"
 
-#: src/components/ActivityDFA.tsx:160
+#: src/components/ActivityDFA.tsx:150
 msgid "Beat intervals outside the supported range."
 msgstr "Beat intervals outside the supported range."
 
@@ -1727,7 +1744,7 @@ msgid "by"
 msgstr "by"
 
 #: src/components/ActivityTraceChart.tsx:96
-#: src/pages/ActivityDetail.tsx:85
+#: src/pages/ActivityDetail.tsx:86
 msgid "Cadence"
 msgstr "Cadence"
 
@@ -1735,7 +1752,7 @@ msgstr "Cadence"
 msgid "Calculate proxy"
 msgstr "Calculate proxy"
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:247
 msgid "Calculating valid windows…"
 msgstr "Calculating valid windows…"
 
@@ -1778,7 +1795,7 @@ msgstr "Can you access terrain for controlled downhill training?"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/components/ActivityDFA.tsx:246
+#: src/components/ActivityDFA.tsx:249
 msgid "Cancel analysis"
 msgstr "Cancel analysis"
 
@@ -1789,6 +1806,10 @@ msgstr "Cancel and withdraw"
 #: src/pages/Science.tsx:463
 msgid "Cancel preview"
 msgstr "Cancel preview"
+
+#: src/components/ActivityDFA.tsx:263
+msgid "Cancellation requested"
+msgstr "Cancellation requested"
 
 #: src/pages/admin/AdminFeedback.tsx:586
 #: src/pages/admin/AdminFeedback.tsx:609
@@ -1918,7 +1939,7 @@ msgstr "Check status"
 msgid "Check the current inputs again before generating a new proposal."
 msgstr "Check the current inputs again before generating a new proposal."
 
-#: src/pages/ActivityDetail.tsx:326
+#: src/pages/ActivityDetail.tsx:339
 msgid "Check your connection and retry. No stale record is shown."
 msgstr "Check your connection and retry. No stale record is shown."
 
@@ -1926,7 +1947,7 @@ msgstr "Check your connection and retry. No stale record is shown."
 msgid "Check your credentials in the connection step, then try again."
 msgstr "Check your credentials in the connection step, then try again."
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:247
 msgid "Checking beat intervals and chest-strap evidence…"
 msgstr "Checking beat intervals and chest-strap evidence…"
 
@@ -1993,7 +2014,7 @@ msgstr "Choose a race target, track continuous progress, or use the 5K baseline 
 msgid "Choose a recent workout"
 msgstr "Choose a recent workout"
 
-#: src/components/ActivityDFA.tsx:238
+#: src/components/ActivityDFA.tsx:241
 msgid "Choose a recording"
 msgstr "Choose a recording"
 
@@ -2016,7 +2037,7 @@ msgstr "Choose a training plan first."
 #~ msgid "Choose an accepted plan purpose first."
 #~ msgstr "Choose an accepted plan purpose first."
 
-#: src/components/ActivityDFA.tsx:279
+#: src/components/ActivityDFA.tsx:286
 msgid "Choose an activity time"
 msgstr "Choose an activity time"
 
@@ -2087,8 +2108,8 @@ msgstr "Choose primary source"
 #~ msgid "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 #~ msgstr "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 
-#: src/components/ActivityDFA.tsx:251
-#: src/components/ActivityDFA.tsx:251
+#: src/components/ActivityDFA.tsx:254
+#: src/components/ActivityDFA.tsx:254
 msgid "Choose the chest strap"
 msgstr "Choose the chest strap"
 
@@ -2196,7 +2217,7 @@ msgstr "Coach useful-vote rate"
 msgid "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 msgstr "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 
-#: src/components/ActivityDFA.tsx:294
+#: src/components/ActivityDFA.tsx:301
 msgid "Cobalt: supported · dark: unsupported · pale: paused"
 msgstr "Cobalt: supported · dark: unsupported · pale: paused"
 
@@ -2254,7 +2275,7 @@ msgstr "Compare other providers ({0})"
 msgid "Compare the request with recent history"
 msgstr "Compare the request with recent history"
 
-#: src/components/ActivityDFA.tsx:300
+#: src/components/ActivityDFA.tsx:307
 msgid "Compare with"
 msgstr "Compare with"
 
@@ -2327,7 +2348,7 @@ msgstr "Conditions, support, and fueling"
 msgid "Configure your training system"
 msgstr "Configure your training system"
 
-#: src/components/ActivityDFA.tsx:258
+#: src/components/ActivityDFA.tsx:261
 msgid "Confirm and analyse"
 msgstr "Confirm and analyse"
 
@@ -2335,8 +2356,8 @@ msgstr "Confirm and analyse"
 msgid "Confirm applicability and availability before generating a proposal."
 msgstr "Confirm applicability and availability before generating a proposal."
 
-#: src/components/ActivityDFA.tsx:332
-#: src/components/ActivityDFA.tsx:333
+#: src/components/ActivityDFA.tsx:339
+#: src/components/ActivityDFA.tsx:340
 #: src/components/trail-course-review/copy.tsx:219
 #: src/components/trail-course-review/states.tsx:254
 msgid "Confirm deletion"
@@ -2379,7 +2400,7 @@ msgstr "Confirm the boundary before Praxys writes to {targetLabel}."
 msgid "Confirm the reviewed adult scope first."
 msgstr "Confirm the reviewed adult scope first."
 
-#: src/components/ActivityDFA.tsx:248
+#: src/components/ActivityDFA.tsx:251
 msgid "Confirm the source for this activity"
 msgstr "Confirm the source for this activity"
 
@@ -2412,9 +2433,13 @@ msgstr "Conflict <0>{0}</0>"
 msgid "Conflict retained"
 msgstr "Conflict retained"
 
-#: src/components/ActivityDFA.tsx:157
+#: src/components/ActivityDFA.tsx:147
 msgid "Conflicting sensor evidence prevents analysis."
 msgstr "Conflicting sensor evidence prevents analysis."
+
+#: src/components/ActivityDFA.tsx:222
+msgid "Conflicting source evidence prevents analysis. Confirmation cannot override it."
+msgstr "Conflicting source evidence prevents analysis. Confirmation cannot override it."
 
 #: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
@@ -2525,7 +2550,7 @@ msgstr "Conservative adjustments on"
 msgid "Context and dependent private traces deleted."
 msgstr "Context and dependent private traces deleted."
 
-#: src/components/ActivityDFA.tsx:303
+#: src/components/ActivityDFA.tsx:310
 msgid "Context changed or is unavailable. Refresh to reload it."
 msgstr "Context changed or is unavailable. Refresh to reload it."
 
@@ -2749,7 +2774,7 @@ msgstr "Could not load plans"
 msgid "Could not load the managed-window preview."
 msgstr "Could not load the managed-window preview."
 
-#: src/pages/ActivityDetail.tsx:323
+#: src/pages/ActivityDetail.tsx:336
 msgid "Could not load this activity"
 msgstr "Could not load this activity"
 
@@ -2919,7 +2944,7 @@ msgstr "Course review saved. Confirm each reviewed section at this revision."
 msgid "Course-specific work cannot be bounded from observed experience."
 msgstr "Course-specific work cannot be bounded from observed experience."
 
-#: src/components/ActivityDFA.tsx:267
+#: src/components/ActivityDFA.tsx:274
 msgid "Coverage describes which data could be analysed, not measurement accuracy."
 msgstr "Coverage describes which data could be analysed, not measurement accuracy."
 
@@ -3111,10 +3136,10 @@ msgstr "Custom wording"
 msgid "Custom workout purpose"
 msgstr "Custom workout purpose"
 
-#: src/components/ActivityCard.tsx:29
+#: src/components/ActivityCard.tsx:26
 #: src/components/UpcomingPlanCard.tsx:567
 #: src/components/WorkoutPlanEditor.tsx:445
-#: src/pages/ActivityDetail.tsx:76
+#: src/pages/ActivityDetail.tsx:77
 #: src/pages/Setup.tsx:171
 msgid "Cycling"
 msgstr "Cycling"
@@ -3271,7 +3296,7 @@ msgstr "Delete"
 msgid "Delete account"
 msgstr "Delete account"
 
-#: src/components/ActivityDFA.tsx:331
+#: src/components/ActivityDFA.tsx:338
 msgid "Delete DFA analysis"
 msgstr "Delete DFA analysis"
 
@@ -3292,7 +3317,7 @@ msgstr "Delete permanently"
 msgid "Delete retained history"
 msgstr "Delete retained history"
 
-#: src/components/ActivityDFA.tsx:332
+#: src/components/ActivityDFA.tsx:339
 msgid "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
 msgstr "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
 
@@ -3497,27 +3522,27 @@ msgstr "Deterministic training summary"
 msgid "Developing"
 msgstr "Developing"
 
-#: src/components/ActivityDFA.tsx:230
+#: src/components/ActivityDFA.tsx:220
 msgid "DFA analysis is awaiting scientific activation."
 msgstr "DFA analysis is awaiting scientific activation."
 
-#: src/components/ActivityDFA.tsx:232
+#: src/components/ActivityDFA.tsx:225
 msgid "DFA analysis is not yet available for this activity’s connected platform."
 msgstr "DFA analysis is not yet available for this activity’s connected platform."
 
-#: src/components/ActivityDFA.tsx:163
+#: src/components/ActivityDFA.tsx:153
 msgid "DFA cannot be estimated in this window."
 msgstr "DFA cannot be estimated in this window."
 
-#: src/components/ActivityCard.tsx:72
+#: src/components/ActivityCard.tsx:69
 msgid "DFA α1"
 msgstr "DFA α1"
 
-#: src/components/ActivityDFA.tsx:305
+#: src/components/ActivityDFA.tsx:312
 msgid "DFA α1 by window end time"
 msgstr "DFA α1 by window end time"
 
-#: src/components/ActivityDFA.tsx:328
+#: src/components/ActivityDFA.tsx:335
 msgid "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
 msgstr "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
 
@@ -3626,7 +3651,7 @@ msgstr "Display preferences"
 msgid "Dist"
 msgstr "Dist"
 
-#: src/components/ActivityCard.tsx:44
+#: src/components/ActivityCard.tsx:41
 #: src/components/AdoptedPlanDetails.tsx:57
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
@@ -3634,8 +3659,8 @@ msgstr "Dist"
 #: src/components/WorkoutStructureEditor.tsx:817
 #: src/components/WorkoutStructureEditor.tsx:1437
 #: src/components/WorkoutStructureEditor.tsx:1486
-#: src/pages/ActivityDetail.tsx:115
-#: src/pages/ActivityDetail.tsx:266
+#: src/pages/ActivityDetail.tsx:116
+#: src/pages/ActivityDetail.tsx:271
 #: src/pages/Settings.tsx:1438
 msgid "Distance"
 msgstr "Distance"
@@ -3760,11 +3785,11 @@ msgstr "Duplicate workout"
 msgid "Durable preference"
 msgstr "Durable preference"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 #: src/components/SplitBreakdown.tsx:48
 #: src/components/WorkoutStructureEditor.tsx:810
-#: src/pages/ActivityDetail.tsx:116
-#: src/pages/ActivityDetail.tsx:267
+#: src/pages/ActivityDetail.tsx:117
+#: src/pages/ActivityDetail.tsx:272
 msgid "Duration"
 msgstr "Duration"
 
@@ -3841,11 +3866,11 @@ msgstr "Each experiment has its own consent, data requirements, limitations, and
 msgid "Each image must be under 5 MB."
 msgstr "Each image must be under 5 MB."
 
-#: src/pages/ActivityDetail.tsx:254
+#: src/pages/ActivityDetail.tsx:259
 msgid "Each kilometer"
 msgstr "Each kilometer"
 
-#: src/pages/ActivityDetail.tsx:260
+#: src/pages/ActivityDetail.tsx:265
 msgid "Each kilometer unavailable:"
 msgstr "Each kilometer unavailable:"
 
@@ -3853,7 +3878,7 @@ msgstr "Each kilometer unavailable:"
 #~ msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 #~ msgstr "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 
-#: src/components/ActivityDFA.tsx:319
+#: src/components/ActivityDFA.tsx:326
 msgid "Each row represents a 120-second window."
 msgstr "Each row represents a 120-second window."
 
@@ -3883,7 +3908,7 @@ msgstr "Easy run"
 msgid "Easy Run"
 msgstr "Easy Run"
 
-#: src/components/ActivityDFA.tsx:327
+#: src/components/ActivityDFA.tsx:334
 msgid "ECG chest-strap validation"
 msgstr "ECG chest-strap validation"
 
@@ -3930,7 +3955,7 @@ msgstr "Effective heat: {0} of {thresholdMinutes} minutes"
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 #~ msgstr "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 
-#: src/components/ActivityCard.tsx:51
+#: src/components/ActivityCard.tsx:48
 msgid "Elev"
 msgstr "Elev"
 
@@ -3942,7 +3967,7 @@ msgstr "Elev"
 #~ msgid "Elevated"
 #~ msgstr "Elevated"
 
-#: src/pages/ActivityDetail.tsx:128
+#: src/pages/ActivityDetail.tsx:129
 msgid "Elevation gain"
 msgstr "Elevation gain"
 
@@ -4144,7 +4169,7 @@ msgstr "Estimated from targets"
 msgid "Estimated psychrometric wet-bulb proxy"
 msgstr "Estimated psychrometric wet-bulb proxy"
 
-#: src/components/ActivityDFA.tsx:264
+#: src/components/ActivityDFA.tsx:268
 msgid "Estimated time alignment"
 msgstr "Estimated time alignment"
 
@@ -4580,7 +4605,7 @@ msgstr "First completion, performance improvement, and return to regular running
 #~ msgid "First lap"
 #~ msgstr "First lap"
 
-#: src/pages/ActivityDetail.tsx:169
+#: src/pages/ActivityDetail.tsx:174
 msgid "First recorded split"
 msgstr "First recorded split"
 
@@ -4650,7 +4675,7 @@ msgstr "Footing available for training"
 #~ msgstr "Form (TSB)"
 
 #: src/components/ActivityTraceChart.tsx:105
-#: src/pages/ActivityDetail.tsx:94
+#: src/pages/ActivityDetail.tsx:95
 msgid "Form power"
 msgstr "Form power"
 
@@ -4710,7 +4735,7 @@ msgstr "from {label}"
 msgid "From activities"
 msgstr "From activities"
 
-#: src/pages/ActivityDetail.tsx:258
+#: src/pages/ActivityDetail.tsx:263
 msgid "From recorded distance"
 msgstr "From recorded distance"
 
@@ -4860,7 +4885,7 @@ msgstr "Go Easy"
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
-#: src/components/ActivityDFA.tsx:293
+#: src/components/ActivityDFA.tsx:300
 msgid "Go to selected time"
 msgstr "Go to selected time"
 
@@ -4898,7 +4923,7 @@ msgstr "Goal type"
 #~ msgstr "Good balance of fitness and recovery. Ready for quality work."
 
 #: src/components/ActivityTraceChart.tsx:99
-#: src/pages/ActivityDetail.tsx:88
+#: src/pages/ActivityDetail.tsx:89
 msgid "Grade"
 msgstr "Grade"
 
@@ -4911,7 +4936,7 @@ msgid "Grade-specific training"
 msgstr "Grade-specific training"
 
 #: src/components/ActivityTraceChart.tsx:101
-#: src/pages/ActivityDetail.tsx:90
+#: src/pages/ActivityDetail.tsx:91
 msgid "Ground contact time"
 msgstr "Ground contact time"
 
@@ -4933,8 +4958,8 @@ msgid "Have an invitation code?"
 msgstr "Have an invitation code?"
 
 #: src/components/ActivityTraceChart.tsx:94
-#: src/pages/ActivityDetail.tsx:83
-#: src/pages/ActivityDetail.tsx:270
+#: src/pages/ActivityDetail.tsx:84
+#: src/pages/ActivityDetail.tsx:275
 msgid "Heart rate"
 msgstr "Heart rate"
 
@@ -5072,10 +5097,10 @@ msgstr "High coverage"
 msgid "High variability"
 msgstr "High variability"
 
-#: src/components/ActivityCard.tsx:28
+#: src/components/ActivityCard.tsx:25
 #: src/components/UpcomingPlanCard.tsx:569
 #: src/components/WorkoutPlanEditor.tsx:447
-#: src/pages/ActivityDetail.tsx:75
+#: src/pages/ActivityDetail.tsx:76
 #: src/pages/Setup.tsx:173
 msgid "Hiking"
 msgstr "Hiking"
@@ -5135,7 +5160,7 @@ msgstr "hour rolling window"
 msgid "Hours"
 msgstr "Hours"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 msgid "hours:minutes:seconds"
 msgstr "hours:minutes:seconds"
 
@@ -5485,7 +5510,7 @@ msgstr "Interpret one workout without guessing a cause"
 msgid "Interpret this workout without guessing a cause"
 msgstr "Interpret this workout without guessing a cause"
 
-#: src/components/ActivityDFA.tsx:162
+#: src/components/ActivityDFA.tsx:152
 msgid "Interrupted beat sequence."
 msgstr "Interrupted beat sequence."
 
@@ -5601,7 +5626,7 @@ msgstr "Judgment recorded. The linked issue is not open, so no label was added."
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "Judgment recorded. This feedback has no linked GitHub issue."
 
-#: src/components/ActivityDFA.tsx:297
+#: src/components/ActivityDFA.tsx:304
 msgid "Jump to time"
 msgstr "Jump to time"
 
@@ -5613,7 +5638,7 @@ msgstr "Keep any optional movement easy and short"
 msgid "Keep current plan"
 msgstr "Keep current plan"
 
-#: src/components/ActivityDFA.tsx:334
+#: src/components/ActivityDFA.tsx:341
 msgid "Keep data"
 msgstr "Keep data"
 
@@ -5662,8 +5687,8 @@ msgstr "Keeping plan…"
 #~ msgid "Kelly female-athlete evidence review"
 #~ msgstr "Kelly female-athlete evidence review"
 
-#: src/pages/ActivityDetail.tsx:227
-#: src/pages/ActivityDetail.tsx:239
+#: src/pages/ActivityDetail.tsx:232
+#: src/pages/ActivityDetail.tsx:244
 msgid "Kilometer"
 msgstr "Kilometer"
 
@@ -5757,7 +5782,7 @@ msgstr "Last known: {systemicTitle}"
 #~ msgid "Last lap"
 #~ msgstr "Last lap"
 
-#: src/pages/ActivityDetail.tsx:170
+#: src/pages/ActivityDetail.tsx:175
 msgid "Last recorded split"
 msgstr "Last recorded split"
 
@@ -5812,7 +5837,7 @@ msgid "Left axis"
 msgstr "Left axis"
 
 #: src/components/ActivityTraceChart.tsx:104
-#: src/pages/ActivityDetail.tsx:93
+#: src/pages/ActivityDetail.tsx:94
 msgid "Leg spring stiffness"
 msgstr "Leg spring stiffness"
 
@@ -6224,6 +6249,10 @@ msgstr "Management routes remain available. Retry the aggregate health snapshot.
 msgid "Manual"
 msgstr "Manual"
 
+#: src/components/ActivityDFA.tsx:233
+msgid "Manual analysis"
+msgstr "Manual analysis"
+
 #: src/components/ManagedPlanSettingsCard.tsx:1176
 msgid "Manual and other-coach workouts remain external and will not be edited or deleted."
 msgstr "Manual and other-coach workouts remain external and will not be edited or deleted."
@@ -6272,7 +6301,7 @@ msgstr "Max HR"
 msgid "Maximum course altitude"
 msgstr "Maximum course altitude"
 
-#: src/pages/ActivityDetail.tsx:127
+#: src/pages/ActivityDetail.tsx:128
 msgid "Maximum heart rate"
 msgstr "Maximum heart rate"
 
@@ -6288,7 +6317,7 @@ msgstr "Maximum minutes available per affected day"
 msgid "Maximum planning duration"
 msgstr "Maximum planning duration"
 
-#: src/pages/ActivityDetail.tsx:126
+#: src/pages/ActivityDetail.tsx:127
 msgid "Maximum power"
 msgstr "Maximum power"
 
@@ -6392,7 +6421,7 @@ msgstr "Minor"
 msgid "Minutes"
 msgstr "Minutes"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 msgid "minutes:seconds"
 msgstr "minutes:seconds"
 
@@ -6515,7 +6544,7 @@ msgstr "months"
 msgid "More actions"
 msgstr "More actions"
 
-#: src/pages/ActivityDetail.tsx:199
+#: src/pages/ActivityDetail.tsx:204
 msgid "More curves"
 msgstr "More curves"
 
@@ -6667,6 +6696,10 @@ msgstr "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgid "negative balance"
 msgstr "negative balance"
 
+#: src/components/ActivityDFA.tsx:228
+msgid "Neither recording metadata nor your confirmation verifies the source of every beat interval."
+msgstr "Neither recording metadata nor your confirmation verifies the source of every beat interval."
+
 #: src/pages/admin/AdminOps.tsx:407
 #: src/pages/Settings.tsx:632
 #: src/pages/Settings.tsx:662
@@ -6745,7 +6778,7 @@ msgstr "Newer workout structure"
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "Newly triaged work will appear here when admin action is needed."
 
-#: src/components/ActivityDFA.tsx:317
+#: src/components/ActivityDFA.tsx:324
 #: src/pages/History.tsx:100
 msgid "Next"
 msgstr "Next"
@@ -6844,7 +6877,7 @@ msgstr "No Coach votes were recorded in this window."
 msgid "No code yet?"
 msgstr "No code yet?"
 
-#: src/components/ActivityDFA.tsx:156
+#: src/components/ActivityDFA.tsx:146
 msgid "No compatible ECG chest strap was found."
 msgstr "No compatible ECG chest strap was found."
 
@@ -6962,7 +6995,7 @@ msgstr "No incidents yet"
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "No invitation codes yet. Generate one to invite a user."
 
-#: src/components/ActivityDFA.tsx:323
+#: src/components/ActivityDFA.tsx:330
 msgid "No issues detected by these checks."
 msgstr "No issues detected by these checks."
 
@@ -6982,7 +7015,7 @@ msgstr "No new HRV, sleep, or activity since."
 msgid "No new proposal was generated: you reported a safety stop."
 msgstr "No new proposal was generated: you reported a safety stop."
 
-#: src/pages/ActivityDetail.tsx:216
+#: src/pages/ActivityDetail.tsx:221
 msgid "No overlay"
 msgstr "No overlay"
 
@@ -7069,11 +7102,11 @@ msgstr "No recent Praxys workout is available to link."
 #~ msgid "No recorded activity for this day."
 #~ msgstr "No recorded activity for this day."
 
-#: src/pages/ActivityDetail.tsx:232
+#: src/pages/ActivityDetail.tsx:237
 msgid "No recorded curves"
 msgstr "No recorded curves"
 
-#: src/pages/ActivityDetail.tsx:99
+#: src/pages/ActivityDetail.tsx:100
 msgid "No recorded distance trace is stored."
 msgstr "No recorded distance trace is stored."
 
@@ -7105,7 +7138,7 @@ msgstr "No required equipment listed"
 #~ msgid "No sample or split power"
 #~ msgstr "No sample or split power"
 
-#: src/pages/ActivityDetail.tsx:259
+#: src/pages/ActivityDetail.tsx:264
 msgid "No sampled metric curves are available; these kilometer rows are for summary comparison only."
 msgstr "No sampled metric curves are available; these kilometer rows are for summary comparison only."
 
@@ -7168,7 +7201,7 @@ msgstr "No tickets to show"
 #~ msgid "No tickets to show."
 #~ msgstr "No tickets to show."
 
-#: src/pages/ActivityDetail.tsx:98
+#: src/pages/ActivityDetail.tsx:99
 msgid "No time-series samples are stored."
 msgstr "No time-series samples are stored."
 
@@ -7200,7 +7233,7 @@ msgstr "No waitlist signups yet."
 msgid "No weekly distance history yet"
 msgstr "No weekly distance history yet"
 
-#: src/components/ActivityDFA.tsx:263
+#: src/components/ActivityDFA.tsx:267
 msgid "No windows passed the analysis checks."
 msgstr "No windows passed the analysis checks."
 
@@ -7280,7 +7313,7 @@ msgstr "Not actionable"
 msgid "Not an all-out 5K effort"
 msgstr "Not an all-out 5K effort"
 
-#: src/pages/ActivityDetail.tsx:172
+#: src/pages/ActivityDetail.tsx:177
 msgid "Not an overall trend"
 msgstr "Not an overall trend"
 
@@ -7292,7 +7325,7 @@ msgstr "Not applicable"
 msgid "Not connected"
 msgstr "Not connected"
 
-#: src/components/ActivityDFA.tsx:158
+#: src/components/ActivityDFA.tsx:148
 msgid "Not enough complete beats."
 msgstr "Not enough complete beats."
 
@@ -7328,7 +7361,7 @@ msgstr "Not enough data yet for stable load tracking"
 msgid "Not enough data yet for weekly load comparison"
 msgstr "Not enough data yet for weekly load comparison"
 
-#: src/components/ActivityDFA.tsx:159
+#: src/components/ActivityDFA.tsx:149
 msgid "Not enough interval coverage."
 msgstr "Not enough interval coverage."
 
@@ -7336,7 +7369,7 @@ msgstr "Not enough interval coverage."
 msgid "not enough load history"
 msgstr "not enough load history"
 
-#: src/components/ActivityDFA.tsx:160
+#: src/components/ActivityDFA.tsx:150
 msgid "Not enough neighbouring beats to check quality."
 msgstr "Not enough neighbouring beats to check quality."
 
@@ -7366,7 +7399,7 @@ msgstr "Not helpful"
 msgid "Not linked to current Goal"
 msgstr "Not linked to current Goal"
 
-#: src/pages/ActivityDetail.tsx:179
+#: src/pages/ActivityDetail.tsx:184
 msgid "Not recorded"
 msgstr "Not recorded"
 
@@ -7527,7 +7560,7 @@ msgstr "One-time codes for new user registration."
 msgid "Online · saved"
 msgstr "Online · saved"
 
-#: src/components/ActivityDFA.tsx:157
+#: src/components/ActivityDFA.tsx:147
 msgid "Only a single running session can be analysed."
 msgstr "Only a single running session can be analysed."
 
@@ -7552,7 +7585,7 @@ msgstr "Only explicit distance, timing, protocol, route or venue, and intent con
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 #~ msgstr "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 
-#: src/pages/ActivityDetail.tsx:221
+#: src/pages/ActivityDetail.tsx:226
 msgid "Only one recorded metric; overlay unavailable."
 msgstr "Only one recorded metric; overlay unavailable."
 
@@ -7797,7 +7830,7 @@ msgstr "Other"
 #~ msgid "Other plan purpose available"
 #~ msgstr "Other plan purpose available"
 
-#: src/pages/ActivityDetail.tsx:204
+#: src/pages/ActivityDetail.tsx:209
 msgid "Other recorded metrics"
 msgstr "Other recorded metrics"
 
@@ -7834,11 +7867,11 @@ msgstr "Outage"
 msgid "Outstanding codes"
 msgstr "Outstanding codes"
 
-#: src/pages/ActivityDetail.tsx:213
+#: src/pages/ActivityDetail.tsx:218
 msgid "Overlay"
 msgstr "Overlay"
 
-#: src/pages/ActivityDetail.tsx:215
+#: src/pages/ActivityDetail.tsx:220
 msgid "Overlay recorded metric"
 msgstr "Overlay recorded metric"
 
@@ -7854,12 +7887,12 @@ msgstr "overnight score"
 msgid "Ownership conflict"
 msgstr "Ownership conflict"
 
-#: src/components/ActivityCard.tsx:46
+#: src/components/ActivityCard.tsx:43
 #: src/components/ActivityTraceChart.tsx:95
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
-#: src/pages/ActivityDetail.tsx:84
-#: src/pages/ActivityDetail.tsx:268
+#: src/pages/ActivityDetail.tsx:85
+#: src/pages/ActivityDetail.tsx:273
 #: src/pages/Settings.tsx:92
 #: src/pages/Setup.tsx:186
 msgid "Pace"
@@ -7889,8 +7922,8 @@ msgstr "Pace · threshold delta in sec/km"
 msgid "Pace · threshold delta in sec/mi"
 msgstr "Pace · threshold delta in sec/mi"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:216
+#: src/components/ActivityDFA.tsx:308
 msgid "Pace (s/km)"
 msgstr "Pace (s/km)"
 
@@ -7906,7 +7939,7 @@ msgstr "Pace minimum (min/km)"
 msgid "Pace: faster ↑"
 msgstr "Pace: faster ↑"
 
-#: src/components/ActivityDFA.tsx:292
+#: src/components/ActivityDFA.tsx:299
 msgid "Page"
 msgstr "Page"
 
@@ -7971,7 +8004,7 @@ msgstr "Pause delivery"
 msgid "Pause delivery to change the target."
 msgstr "Pause delivery to change the target."
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:207
 #: src/components/UpcomingPlanCard.tsx:392
 #: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
@@ -8205,7 +8238,7 @@ msgstr "Please check your email format and try again."
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "Please verify your email before signing in. Check your inbox for the link."
 
-#: src/components/ActivityDFA.tsx:235
+#: src/components/ActivityDFA.tsx:238
 msgid "Please wait before trying again."
 msgstr "Please wait before trying again."
 
@@ -8252,7 +8285,7 @@ msgstr "Pool"
 msgid "positive balance"
 msgstr "positive balance"
 
-#: src/components/ActivityDFA.tsx:159
+#: src/components/ActivityDFA.tsx:149
 msgid "Possible irregular or missed beats."
 msgstr "Possible irregular or missed beats."
 
@@ -8267,8 +8300,8 @@ msgstr "PostgreSQL connections"
 #: src/components/ActivityTraceChart.tsx:93
 #: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
-#: src/pages/ActivityDetail.tsx:82
-#: src/pages/ActivityDetail.tsx:269
+#: src/pages/ActivityDetail.tsx:83
+#: src/pages/ActivityDetail.tsx:274
 #: src/pages/Settings.tsx:74
 #: src/pages/Setup.tsx:182
 msgid "Power"
@@ -8282,8 +8315,8 @@ msgstr "Power · %CP"
 msgid "Power · watts"
 msgstr "Power · watts"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:216
+#: src/components/ActivityDFA.tsx:308
 msgid "Power (W)"
 msgstr "Power (W)"
 
@@ -8720,7 +8753,7 @@ msgstr "Preparing export…"
 msgid "Previewing"
 msgstr "Previewing"
 
-#: src/components/ActivityDFA.tsx:315
+#: src/components/ActivityDFA.tsx:322
 #: src/pages/History.tsx:84
 msgid "Previous"
 msgstr "Previous"
@@ -8734,7 +8767,7 @@ msgstr "Previous plan window"
 msgid "Primary for {0}"
 msgstr "Primary for {0}"
 
-#: src/pages/ActivityDetail.tsx:187
+#: src/pages/ActivityDetail.tsx:192
 msgid "Primary recorded metric"
 msgstr "Primary recorded metric"
 
@@ -9004,7 +9037,7 @@ msgstr "Qualifying days: {0} of {thresholdDays}"
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 
-#: src/components/ActivityDFA.tsx:320
+#: src/components/ActivityDFA.tsx:327
 msgid "Quality"
 msgstr "Quality"
 
@@ -9232,7 +9265,7 @@ msgstr "Rebuilding"
 #~ msgid "Rebuilding heat-adaptation evidence"
 #~ msgstr "Rebuilding heat-adaptation evidence"
 
-#: src/components/ActivityDFA.tsx:242
+#: src/components/ActivityDFA.tsx:245
 msgid "Recalculate analysis"
 msgstr "Recalculate analysis"
 
@@ -9484,11 +9517,11 @@ msgstr "Record the test result"
 #~ msgid "Recorded activity · no lap comparison available"
 #~ msgstr "Recorded activity · no lap comparison available"
 
-#: src/pages/ActivityDetail.tsx:105
+#: src/pages/ActivityDetail.tsx:106
 msgid "Recorded and summary distances do not match."
 msgstr "Recorded and summary distances do not match."
 
-#: src/pages/ActivityDetail.tsx:224
+#: src/pages/ActivityDetail.tsx:229
 msgid "Recorded chart"
 msgstr "Recorded chart"
 
@@ -9496,7 +9529,7 @@ msgstr "Recorded chart"
 msgid "Recorded chart. Arrow keys move the time cursor; drag to select a time range."
 msgstr "Recorded chart. Arrow keys move the time cursor; drag to select a time range."
 
-#: src/pages/ActivityDetail.tsx:184
+#: src/pages/ActivityDetail.tsx:189
 msgid "Recorded curves"
 msgstr "Recorded curves"
 
@@ -9520,8 +9553,8 @@ msgstr "Recorded sample rows"
 msgid "Recorded split boundaries and recording method are unverified."
 msgstr "Recorded split boundaries and recording method are unverified."
 
-#: src/components/ActivityCard.tsx:69
-#: src/pages/ActivityDetail.tsx:250
+#: src/components/ActivityCard.tsx:66
+#: src/pages/ActivityDetail.tsx:255
 msgid "Recorded splits"
 msgstr "Recorded splits"
 
@@ -9533,12 +9566,16 @@ msgstr "Recorded splits"
 #~ msgid "Recorded time · two independent axes"
 #~ msgstr "Recorded time · two independent axes"
 
-#: src/pages/ActivityDetail.tsx:104
+#: src/pages/ActivityDetail.tsx:105
 msgid "Recorded time and activity duration do not align."
 msgstr "Recorded time and activity duration do not align."
 
-#: src/components/ActivityDFA.tsx:236
-#: src/components/ActivityDFA.tsx:238
+#: src/components/ActivityDFA.tsx:221
+msgid "Recording metadata cannot resolve the RR source. Independent manual confirmation may be available."
+msgstr "Recording metadata cannot resolve the RR source. Independent manual confirmation may be available."
+
+#: src/components/ActivityDFA.tsx:239
+#: src/components/ActivityDFA.tsx:241
 msgid "Recording version"
 msgstr "Recording version"
 
@@ -9664,7 +9701,7 @@ msgstr "Referenced by {0} plan change record(s)."
 msgid "References"
 msgstr "References"
 
-#: src/components/ActivityDFA.tsx:229
+#: src/components/ActivityDFA.tsx:219
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
@@ -9773,7 +9810,7 @@ msgstr "Rejected"
 msgid "Rejecting…"
 msgstr "Rejecting…"
 
-#: src/pages/ActivityDetail.tsx:130
+#: src/pages/ActivityDetail.tsx:131
 msgid "Relative humidity"
 msgstr "Relative humidity"
 
@@ -9987,7 +10024,7 @@ msgid "Resolved"
 msgstr "Resolved"
 
 #: src/components/ActivityTraceChart.tsx:105
-#: src/pages/ActivityDetail.tsx:94
+#: src/pages/ActivityDetail.tsx:95
 msgid "Respiration rate"
 msgstr "Respiration rate"
 
@@ -10088,7 +10125,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/components/trail-course-review/states.tsx:96
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/ActivityDetail.tsx:327
+#: src/pages/ActivityDetail.tsx:340
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:171
@@ -10104,8 +10141,8 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 msgid "Retry"
 msgstr "Retry"
 
-#: src/components/ActivityDFA.tsx:258
 #: src/components/ActivityDFA.tsx:261
+#: src/components/ActivityDFA.tsx:265
 msgid "Retry analysis"
 msgstr "Retry analysis"
 
@@ -10224,7 +10261,7 @@ msgstr "Review and update plan"
 msgid "Review before saving"
 msgstr "Review before saving"
 
-#: src/pages/ActivityDetail.tsx:247
+#: src/pages/ActivityDetail.tsx:252
 msgid "Review by split"
 msgstr "Review by split"
 
@@ -10439,11 +10476,11 @@ msgstr "Review your schedule"
 msgid "Revoke"
 msgstr "Revoke"
 
-#: src/components/ActivityDFA.tsx:330
+#: src/components/ActivityDFA.tsx:337
 msgid "Revoke source confirmation"
 msgstr "Revoke source confirmation"
 
-#: src/components/ActivityDFA.tsx:332
+#: src/components/ActivityDFA.tsx:339
 msgid "Revoke this source confirmation and remove its analysis results? The original recording will remain."
 msgstr "Revoke this source confirmation and remove its analysis results? The original recording will remain."
 
@@ -10513,8 +10550,8 @@ msgstr "Route or venue identifier"
 msgid "RPE · 0–10"
 msgstr "RPE · 0–10"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:216
+#: src/components/ActivityDFA.tsx:308
 msgid "RR heart rate (bpm)"
 msgstr "RR heart rate (bpm)"
 
@@ -10562,9 +10599,9 @@ msgstr "Run easy instead"
 msgid "Run p95"
 msgstr "Run p95"
 
-#: src/components/ActivityCard.tsx:27
+#: src/components/ActivityCard.tsx:24
 #: src/components/PlanStart.tsx:965
-#: src/pages/ActivityDetail.tsx:72
+#: src/pages/ActivityDetail.tsx:73
 #: src/pages/Setup.tsx:170
 msgid "Running"
 msgstr "Running"
@@ -10833,7 +10870,7 @@ msgstr "Select the days you can usually run."
 msgid "Select the region matching your COROS account."
 msgstr "Select the region matching your COROS account."
 
-#: src/pages/ActivityDetail.tsx:224
+#: src/pages/ActivityDetail.tsx:229
 msgid "Selected kilometer"
 msgstr "Selected kilometer"
 
@@ -11041,6 +11078,10 @@ msgstr "Share only what could change your plan. Praxys keeps it private, never g
 msgid "Sheltered"
 msgstr "Sheltered"
 
+#: src/components/ActivityDFA.tsx:272
+msgid "Short timer blocks without scheduled windows:"
+msgstr "Short timer blocks without scheduled windows:"
+
 #: src/pages/Today.tsx:309
 msgid "Shorten the session if fatigue develops"
 msgstr "Shorten the session if fatigue develops"
@@ -11208,19 +11249,23 @@ msgstr "Some stations"
 msgid "Source"
 msgstr "Source"
 
-#: src/components/ActivityDFA.tsx:264
+#: src/components/ActivityDFA.tsx:268
 msgid "Source confirmed by you"
 msgstr "Source confirmed by you"
 
-#: src/pages/ActivityDetail.tsx:132
+#: src/pages/ActivityDetail.tsx:133
 msgid "Source CP estimate"
 msgstr "Source CP estimate"
+
+#: src/components/ActivityDFA.tsx:268
+msgid "Source inferred from recording metadata"
+msgstr "Source inferred from recording metadata"
 
 #: src/pages/ActivityDetail.tsx:179
 #~ msgid "Source laps only · not an overall trend"
 #~ msgstr "Source laps only · not an overall trend"
 
-#: src/pages/ActivityDetail.tsx:301
+#: src/pages/ActivityDetail.tsx:314
 msgid "Source reference; not a training assessment."
 msgstr "Source reference; not a training assessment."
 
@@ -11245,11 +11290,11 @@ msgstr "Source-owned"
 #~ msgstr "Source-recorded laps may be manual or automatic. No reliable timeline boundaries were saved, so these rows cannot jump to the chart."
 
 #: src/components/ActivityTraceChart.tsx:97
-#: src/pages/ActivityDetail.tsx:86
+#: src/pages/ActivityDetail.tsx:87
 msgid "Speed"
 msgstr "Speed"
 
-#: src/pages/ActivityDetail.tsx:265
+#: src/pages/ActivityDetail.tsx:270
 msgid "Split"
 msgstr "Split"
 
@@ -11261,11 +11306,11 @@ msgstr "Split"
 #~ msgid "Split power"
 #~ msgstr "Split power"
 
-#: src/pages/ActivityDetail.tsx:248
+#: src/pages/ActivityDetail.tsx:253
 msgid "Split source"
 msgstr "Split source"
 
-#: src/pages/ActivityDetail.tsx:257
+#: src/pages/ActivityDetail.tsx:262
 msgid "Split times unverified; chart jump unavailable."
 msgstr "Split times unverified; chart jump unavailable."
 
@@ -11560,7 +11605,7 @@ msgstr "Support ID"
 msgid "Support setup"
 msgstr "Support setup"
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:207
 #: src/pages/LabsEnvironment.tsx:642
 msgid "Supported"
 msgstr "Supported"
@@ -11569,7 +11614,7 @@ msgstr "Supported"
 #~ msgid "Supported periods, unsupported periods and timer pauses"
 #~ msgstr "Supported periods, unsupported periods and timer pauses"
 
-#: src/components/ActivityDFA.tsx:266
+#: src/components/ActivityDFA.tsx:270
 msgid "Supported recording time"
 msgstr "Supported recording time"
 
@@ -11577,8 +11622,8 @@ msgstr "Supported recording time"
 msgid "Swap {workout} for easy run"
 msgstr "Swap {workout} for easy run"
 
-#: src/components/ActivityCard.tsx:29
-#: src/pages/ActivityDetail.tsx:77
+#: src/components/ActivityCard.tsx:26
+#: src/pages/ActivityDetail.tsx:78
 #: src/pages/Setup.tsx:172
 msgid "Swimming"
 msgstr "Swimming"
@@ -11838,8 +11883,8 @@ msgstr "Technical terrain"
 #~ msgstr "Tell Praxys if a safety stop applies. It will stop this plan path and show policy-bounded alternatives."
 
 #: src/components/ActivityTraceChart.tsx:100
-#: src/pages/ActivityDetail.tsx:89
-#: src/pages/ActivityDetail.tsx:129
+#: src/pages/ActivityDetail.tsx:90
+#: src/pages/ActivityDetail.tsx:130
 msgid "Temperature"
 msgstr "Temperature"
 
@@ -11964,15 +12009,15 @@ msgstr "The action did not complete."
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 
-#: src/pages/ActivityDetail.tsx:102
+#: src/pages/ActivityDetail.tsx:103
 msgid "The activity is shorter than the table's 0.01 km resolution."
 msgstr "The activity is shorter than the table's 0.01 km resolution."
 
-#: src/pages/ActivityDetail.tsx:103
+#: src/pages/ActivityDetail.tsx:104
 msgid "The activity start time cannot be verified."
 msgstr "The activity start time cannot be verified."
 
-#: src/components/ActivityDFA.tsx:158
+#: src/components/ActivityDFA.tsx:148
 msgid "The activity timer cannot be reconstructed."
 msgstr "The activity timer cannot be reconstructed."
 
@@ -12125,7 +12170,7 @@ msgstr "The existing draft uses its saved inputs"
 msgid "The feedback aggregate could not be refreshed."
 msgstr "The feedback aggregate could not be refreshed."
 
-#: src/components/ActivityDFA.tsx:249
+#: src/components/ActivityDFA.tsx:252
 msgid "The file records a compatible chest strap, but does not directly identify the source of its beat intervals."
 msgstr "The file records a compatible chest strap, but does not directly identify the source of its beat intervals."
 
@@ -12236,7 +12281,7 @@ msgstr "The optional 5K pilot test is in progress."
 msgid "The ordered steps and target ranges can be delivered without flattening."
 msgstr "The ordered steps and target ranges can be delivered without flattening."
 
-#: src/components/ActivityDFA.tsx:231
+#: src/components/ActivityDFA.tsx:224
 msgid "The original recording is not available yet. Sync this activity from your connected platform."
 msgstr "The original recording is not available yet. Sync this activity from your connected platform."
 
@@ -12317,24 +12362,24 @@ msgstr "The readiness response did not match the accepted inactive Trail contrac
 msgid "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
 msgstr "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
 
-#: src/pages/ActivityDetail.tsx:101
+#: src/pages/ActivityDetail.tsx:102
 msgid "The recorded distance moves backward."
 msgstr "The recorded distance moves backward."
 
-#: src/pages/ActivityDetail.tsx:100
+#: src/pages/ActivityDetail.tsx:101
 msgid "The recorded distance trace has missing intervals."
 msgstr "The recorded distance trace has missing intervals."
 
-#: src/components/ActivityDFA.tsx:243
+#: src/components/ActivityDFA.tsx:246
 msgid "The recording or method has changed. Recalculate to see current results."
 msgstr "The recording or method has changed. Recalculate to see current results."
 
-#: src/components/ActivityDFA.tsx:130
-#: src/components/ActivityDFA.tsx:150
-#: src/components/ActivityDFA.tsx:177
-#: src/components/ActivityDFA.tsx:191
-#: src/components/ActivityDFA.tsx:206
-#: src/components/ActivityDFA.tsx:211
+#: src/components/ActivityDFA.tsx:121
+#: src/components/ActivityDFA.tsx:140
+#: src/components/ActivityDFA.tsx:167
+#: src/components/ActivityDFA.tsx:181
+#: src/components/ActivityDFA.tsx:196
+#: src/components/ActivityDFA.tsx:201
 msgid "The request failed. Try again."
 msgstr "The request failed. Try again."
 
@@ -12379,6 +12424,10 @@ msgstr "The same comparable-power range is not represented across enough environ
 #: src/components/TrailCourseReview.tsx:702
 msgid "The save result is uncertain. Review the latest server version before restoring pending changes."
 msgstr "The save result is uncertain. Review the latest server version before restoring pending changes."
+
+#: src/components/ActivityDFA.tsx:229
+msgid "The selected analysis is no longer authorized. Current available analysis is shown."
+msgstr "The selected analysis is no longer authorized. Current available analysis is shown."
 
 #: src/components/HeatAdaptationPanel.tsx:439
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
@@ -12799,15 +12848,15 @@ msgstr "This queue item no longer exists. Refresh the queue."
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 
-#: src/pages/ActivityDetail.tsx:325
+#: src/pages/ActivityDetail.tsx:338
 msgid "This record is not available to this account."
 msgstr "This record is not available to this account."
 
-#: src/components/ActivityDFA.tsx:165
+#: src/components/ActivityDFA.tsx:155
 msgid "This recording exceeds the analysis limit."
 msgstr "This recording exceeds the analysis limit."
 
-#: src/components/ActivityDFA.tsx:156
+#: src/components/ActivityDFA.tsx:146
 msgid "This recording has no beat intervals."
 msgstr "This recording has no beat intervals."
 
@@ -12961,7 +13010,7 @@ msgstr "Threshold Pace Trend"
 msgid "Thresholds"
 msgstr "Thresholds"
 
-#: src/components/ActivityDFA.tsx:256
+#: src/components/ActivityDFA.tsx:259
 msgid "Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate."
 msgstr "Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate."
 
@@ -12973,21 +13022,21 @@ msgstr "Thu"
 msgid "Thursday"
 msgstr "Thursday"
 
-#: src/components/ActivityDFA.tsx:320
+#: src/components/ActivityDFA.tsx:327
 #: src/components/WorkoutStructureEditor.tsx:1436
 #: src/components/WorkoutStructureEditor.tsx:1485
 msgid "Time"
 msgstr "Time"
 
-#: src/components/ActivityDFA.tsx:161
+#: src/components/ActivityDFA.tsx:151
 msgid "Time alignment is inconsistent."
 msgstr "Time alignment is inconsistent."
 
-#: src/components/ActivityDFA.tsx:162
+#: src/components/ActivityDFA.tsx:152
 msgid "Time alignment is too uncertain."
 msgstr "Time alignment is too uncertain."
 
-#: src/components/ActivityDFA.tsx:161
+#: src/components/ActivityDFA.tsx:151
 msgid "Time alignment is unavailable."
 msgstr "Time alignment is unavailable."
 
@@ -13155,10 +13204,10 @@ msgstr "Trail course review could not be loaded"
 msgid "Trail planning isn't available for this case"
 msgstr "Trail planning isn't available for this case"
 
-#: src/components/ActivityCard.tsx:27
+#: src/components/ActivityCard.tsx:24
 #: src/components/UpcomingPlanCard.tsx:566
 #: src/components/WorkoutPlanEditor.tsx:444
-#: src/pages/ActivityDetail.tsx:73
+#: src/pages/ActivityDetail.tsx:74
 msgid "Trail running"
 msgstr "Trail running"
 
@@ -13446,7 +13495,7 @@ msgstr "Unmarked on this page, not yet submitted. A new proposal still needs ano
 msgid "Unrecognized source name"
 msgstr "Unrecognized source name"
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:207
 msgid "Unsupported"
 msgstr "Unsupported"
 
@@ -13547,7 +13596,7 @@ msgstr "US"
 msgid "usable completed weeks; latest run"
 msgstr "usable completed weeks; latest run"
 
-#: src/components/ActivityDFA.tsx:263
+#: src/components/ActivityDFA.tsx:267
 msgid "Usable windows are ready to inspect."
 msgstr "Usable windows are ready to inspect."
 
@@ -13571,7 +13620,7 @@ msgstr "Use {target}:"
 msgid "Use a completion or consistency goal"
 msgstr "Use a completion or consistency goal"
 
-#: src/components/ActivityDFA.tsx:291
+#: src/components/ActivityDFA.tsx:298
 msgid "Use arrow keys for one window, Page Up or Down for a page, then Enter to jump."
 msgstr "Use arrow keys for one window, Page Up or Down for a page, then Enter to jump."
 
@@ -13669,7 +13718,7 @@ msgstr "Users and access"
 msgid "Users unavailable"
 msgstr "Users unavailable"
 
-#: src/components/ActivityDFA.tsx:265
+#: src/components/ActivityDFA.tsx:269
 msgid "Valid windows"
 msgstr "Valid windows"
 
@@ -13714,12 +13763,12 @@ msgid "Version"
 msgstr "Version"
 
 #: src/components/ActivityTraceChart.tsx:102
-#: src/pages/ActivityDetail.tsx:91
+#: src/pages/ActivityDetail.tsx:92
 msgid "Vertical oscillation"
 msgstr "Vertical oscillation"
 
 #: src/components/ActivityTraceChart.tsx:103
-#: src/pages/ActivityDetail.tsx:92
+#: src/pages/ActivityDetail.tsx:93
 msgid "Vertical ratio"
 msgstr "Vertical ratio"
 
@@ -13736,7 +13785,7 @@ msgstr "view"
 msgid "View available training plans"
 msgstr "View available training plans"
 
-#: src/pages/ActivityDetail.tsx:278
+#: src/pages/ActivityDetail.tsx:283
 msgid "View kilometer"
 msgstr "View kilometer"
 
@@ -13748,7 +13797,7 @@ msgstr "View proposal"
 msgid "View public GitHub issue"
 msgstr "View public GitHub issue"
 
-#: src/components/ActivityCard.tsx:57
+#: src/components/ActivityCard.tsx:54
 msgid "View report"
 msgstr "View report"
 
@@ -13760,7 +13809,7 @@ msgstr "View report"
 msgid "View status"
 msgstr "View status"
 
-#: src/pages/ActivityDetail.tsx:234
+#: src/pages/ActivityDetail.tsx:239
 msgid "View summaries"
 msgstr "View summaries"
 
@@ -13802,7 +13851,7 @@ msgstr "vs {theoryName}"
 msgid "vs target zones"
 msgstr "vs target zones"
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:247
 msgid "Waiting to analyse this recording…"
 msgstr "Waiting to analyse this recording…"
 
@@ -13814,10 +13863,10 @@ msgstr "Waitlist"
 msgid "Waitlist unavailable"
 msgstr "Waitlist unavailable"
 
-#: src/components/ActivityCard.tsx:28
+#: src/components/ActivityCard.tsx:25
 #: src/components/UpcomingPlanCard.tsx:568
 #: src/components/WorkoutPlanEditor.tsx:446
-#: src/pages/ActivityDetail.tsx:74
+#: src/pages/ActivityDetail.tsx:75
 #: src/pages/Setup.tsx:174
 msgid "Walking"
 msgstr "Walking"
@@ -14049,7 +14098,7 @@ msgstr "When you continue, Praxys sends the authentication details needed for th
 msgid "Which accepted surface or protocol matched this effort?"
 msgstr "Which accepted surface or protocol matched this effort?"
 
-#: src/components/ActivityDFA.tsx:269
+#: src/components/ActivityDFA.tsx:276
 msgid "Whole activity coverage"
 msgstr "Whole activity coverage"
 
@@ -14081,7 +14130,7 @@ msgstr "Will sync:"
 msgid "Wind exposure"
 msgstr "Wind exposure"
 
-#: src/components/ActivityDFA.tsx:318
+#: src/components/ActivityDFA.tsx:325
 msgid "Window values and quality details"
 msgstr "Window values and quality details"
 
@@ -14247,8 +14296,8 @@ msgid "You can attach up to 3 images."
 msgstr "You can attach up to 3 images."
 
 #: src/components/ActivityDFA.tsx:245
-msgid "You can close this panel. Analysis will continue."
-msgstr "You can close this panel. Analysis will continue."
+#~ msgid "You can close this panel. Analysis will continue."
+#~ msgstr "You can close this panel. Analysis will continue."
 
 #: src/components/PlanStart.tsx:277
 #~ msgid "You can keep this goal and manage workouts manually while separate road and trail policies go through science review."
@@ -14257,6 +14306,10 @@ msgstr "You can close this panel. Analysis will continue."
 #: src/pages/LabsEnvironment.tsx:280
 msgid "You can leave this page and return later. No action is needed while the analysis runs."
 msgstr "You can leave this page and return later. No action is needed while the analysis runs."
+
+#: src/components/ActivityDFA.tsx:248
+msgid "You can leave this report. Analysis will continue."
+msgstr "You can leave this report. Analysis will continue."
 
 #: src/components/WorkoutStructureEditor.tsx:1983
 msgid "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
@@ -14393,6 +14446,10 @@ msgstr "Your history includes enough broad sample coverage, but the full analysi
 #: src/pages/Settings.tsx:750
 msgid "Your identity in Praxys"
 msgstr "Your identity in Praxys"
+
+#: src/components/ActivityDFA.tsx:237
+msgid "Your manual analysis is shown first when current and authorized. This preference does not establish greater accuracy."
+msgstr "Your manual analysis is shown first when current and authorized. This preference does not establish greater accuracy."
 
 #: src/pages/Settings.tsx:776
 msgid "Your name"

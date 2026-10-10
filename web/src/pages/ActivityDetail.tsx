@@ -9,6 +9,7 @@ import ActivityDataInformation from '@/components/ActivityDataInformation';
 import { useRecordSourceName } from '@/hooks/useRecordSourceName';
 import { heroSummaryKeys } from '@/lib/activity-record';
 import ActivityTraceChart from '@/components/ActivityTraceChart';
+import { DFAContent } from '@/components/ActivityDFA';
 import { useApi } from '@/hooks/useApi';
 import { useLocale } from '@/contexts/LocaleContext';
 import { availableTraces, formatElapsed, type TraceKey } from '@/lib/activity-trace';
@@ -133,6 +134,10 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
   ].filter((record) => record.value !== '—' && !heroSummaryKeys(activity).includes(record.key));
   const count = saved.length;
 
+  const alignedStart = detail.time_origin === 'activity_start' && activity.start_time.utc
+    ? Date.parse(activity.start_time.utc) : null;
+  const dfaRange: [number, number] | undefined = alignedStart != null && Number.isFinite(alignedStart)
+    ? [alignedStart + viewport[0] * 1000, alignedStart + viewport[1] * 1000] : undefined;
   const showGraph = metrics.length > 0 && Boolean(primary);
   const shownSplits = splitMode === 'recorded' ? activity.splits : detail.kilometer_splits;
   function onChooseSplit(split: ActivityKilometerSplit) {
@@ -293,6 +298,14 @@ function Report({ detail }: { detail: ActivityDetailResponse }) {
           </div>
         </section>
       )}
+
+      <section id="activity-dfa" className="activity-report__section" aria-labelledby="activity-dfa-title">
+        <h2 id="activity-dfa-title">DFA α1</h2>
+        <DFAContent activityId={activity.activity_id} rangeMs={dfaRange} onSelectInterval={alignedStart == null ? undefined : interval => {
+          setRequestedRange([(interval[0] - alignedStart) / 1000, (interval[1] - alignedStart) / 1000]);
+          setRequestedCursor((interval[0] - alignedStart) / 1000);
+        }} />
+      </section>
 
       {saved.length > 0 && <details id="activity-records" className="activity-report__records" ref={recordsRef}>
         <summary aria-label={t`Additional summaries (${count})`}><span><Trans>Additional summaries (<span className="font-data">{count}</span>)</Trans></span><ChevronDown size={18} aria-hidden="true" /></summary>
