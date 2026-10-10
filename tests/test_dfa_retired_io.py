@@ -233,6 +233,34 @@ else:
                 require_eof_acceptance(admitted,damaged,negative)
             entry['deliberately_damaged_EOF_receipt_negatives'].append({
                 'defect':defect,'observation':negative,'EOF_decision':'rejected'})
+        # Missing/NULL on BOTH sides cannot be affirmative equality. Keep
+        # actual read/start/exit observation independent from the damaged
+        # certificate, then challenge THE same EOF gate with the original
+        # successful observer flags as well (no trust in a cached True).
+        entry['required_field_EOF_negatives']=[]
+        for field in ('id','generation','admission_id','execution_epoch','input_digest'):
+            for absence in ('absent','null'):
+                damaged=deepcopy(entry);bad_admitted=deepcopy(admitted)
+                for record in (damaged['transaction_subject'],damaged['after_durable']):
+                    if absence=='absent':record.pop(field)
+                    else:record[field]=None
+                negative=observe_acceptance(factory,owner,admitted,damaged,manual_input,evidence,
+                    transitions,availability,time.monotonic()+.5,errors,allow_existing_retirement=True)
+                assert negative['service_success'] and negative['authorization_current'],negative
+                assert negative['manual_physical_exit'] and negative['manual_durable_available_at'],negative
+                assert negative['classification']=='insufficient_admission_evidence',negative
+                with pytest.raises(AssertionError):
+                    require_eof_acceptance(admitted,damaged,negative)
+                # Include all equality participants for fields carried by the
+                # acknowledgement; the actual serviced request is unchanged.
+                if field in bad_admitted:
+                    if absence=='absent':bad_admitted.pop(field)
+                    else:bad_admitted[field]=None
+                with pytest.raises(AssertionError):
+                    require_eof_acceptance(bad_admitted,damaged,result)
+                entry['required_field_EOF_negatives'].append({'field':field,'absence':absence,
+                    'observation':negative,'EOF_decision':'rejected',
+                    'cached_successful_observer_flags_EOF_decision':'rejected'})
         assert entry['accepted_observation'] is result and result['service_success']
     finally:
         release.set(); supervisor.stop.set(); thread.join(10); engine.dispose(); producer.dispose()

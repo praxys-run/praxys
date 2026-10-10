@@ -81,7 +81,8 @@ def observe_acceptance(factory, owner, admitted, entry, manual_input, evidence, 
     while True:
         with factory() as db:
             row = db.get(Run, admitted['id'])
-            state = {'status': row.status, 'generation': row.generation, 'error_code': row.error_code} if row else {'status':'erased'}
+            state = {'status': row.status, 'generation': row.generation, 'error_code': row.error_code,
+                     'execution_epoch':row.execution_epoch} if row else {'status':'erased'}
             if row and row.status==terminal_status and row.generation==admitted['generation']:
                 try:
                     view = service.read_run(db, owner, '123', row.id, 0, 120)
@@ -107,7 +108,7 @@ def observe_acceptance(factory, owner, admitted, entry, manual_input, evidence, 
     outcome['service_observed_at']=time.monotonic()
     outcome['response_outcome']=entry.get('outcome')
     starts = [a for a in transitions if a.get('state')=='occupied' and a.get('binding')=={
-        'generation':admitted['generation'], 'epoch':entry['after_durable']['execution_epoch'], 'input':manual_input}]
+        'generation':admitted['generation'], 'epoch':state.get('execution_epoch'), 'input':manual_input}]
     # Even a failed/unauthorized accepted run must retain physical outcome.
     # Terminal SQL publication alone is not physical/durable availability.
     while starts and starts[-1]['actor_token'] not in committed_exits and time.monotonic()<deadline:
@@ -241,7 +242,18 @@ def lifecycle_observations(supervisor,monkeypatch):
 
 def _admission_binding_matches(outcome,admitted,entry):
     subject=entry.get('transaction_subject',{});durable=entry.get('after_durable',{})
-    return bool(outcome.get('manual_input_digest') and entry.get('acceptance_consistent',True)
+    # Required for a CURRENT accepted manual admission, although the SQL model
+    # permits null admission/epoch for historical or other-origin rows. The
+    # acknowledged projection intentionally contains only id/gen/admission;
+    # epoch/input come from the transaction and durable snapshot. Phase/status
+    # and timestamps are separate service/timeline metadata, not this binding.
+    identity=('id','generation','admission_id')
+    binding=identity+('execution_epoch','input_digest')
+    for record,fields in ((admitted,identity),(subject,binding),(durable,binding),
+                          (outcome,('manual_input_digest',))):
+        if not isinstance(record,dict) or any(k not in record or record[k] is None for k in fields):
+            return False
+    return bool(entry.get('acceptance_consistent',True)
         and entry.get('metadata_response_valid',True)
         and all(subject.get(k)==admitted.get(k)==durable.get(k) for k in ('id','generation','admission_id'))
         and subject.get('execution_epoch')==durable.get('execution_epoch')
