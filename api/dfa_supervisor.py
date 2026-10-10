@@ -42,7 +42,7 @@ def manual_admission(db):
     return str(uuid4()), now, str(control.epoch)
 
 
-def incarnation():
+def proposed_incarnation():
     # Supplied identity only proposes a candidate; exact durable binding is
     # checked below. Startup never generates an authority nonce or elects itself.
     raw = os.environ.get('PRAXYS_DFA_INCARNATION')
@@ -54,6 +54,11 @@ def incarnation():
         raise PhysicalUnavailable('incarnation_not_configured')
     from uuid import UUID
     UUID(value['incarnation'])
+    return value
+
+
+def incarnation():
+    value = proposed_incarnation()
     import subprocess
     source_file = Path(__file__).with_name('_build_sha.txt')
     if source_file.exists():

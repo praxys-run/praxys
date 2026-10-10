@@ -56,3 +56,19 @@ STOP/full CLI and strict source/linkage/terminality negatives. Runtime/API/db/sy
 scientific values, canonical data, UI, dependencies, plugin and preflight script
 remain outside the correction. The changed exact head requires its own canonical
 preflight and fresh independent specialist/Trust/Quality review.
+
+### cc49 delta regression repair
+
+API startup now separates structurally proposed identity, observed compute
+identity and receipt-only local retirement. Invalid/stale candidates preserve
+API-only startup; unresolved actors deny supervisor startup. Negative receipt
+cases cover both launching and running journals. Coordinator tests cover
+malformed/absent/stale candidates and inherited-group retirement before cold DB
+initialization.
+
+Native context-only network, overlay and samples-revision failures retain
+independently authorized alpha with unavailable comparator values and continuing
+authority polling. Explicit result/authority failures purge both. Actual
+transpiled component tests cover both paths and subsequent denial. No numerical
+functions or scientific acceptance/activation records change. Real native
+rendering remains blocked on the separately recorded DevTools service boundary.

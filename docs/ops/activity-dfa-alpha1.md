@@ -662,3 +662,11 @@ and source verifier determine the exact filename/content; the workflow path
 allowlist itself supplies no authority or stale-approval exception.
 
 </details>
+
+
+Inactive candidate startup keeps ordinary API availability separate from DFA
+compute readiness. Missing, malformed or stale candidate observations cannot
+start the supervisor. A structurally valid previous-source identity in the same
+boot and process/mount namespace may retire its exact locally receipted actor
+before database initialization; that retirement receipt grants no launch rights.
+Missing or mismatched receipts leave uncertain actors untouched and deny compute.

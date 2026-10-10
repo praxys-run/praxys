@@ -227,9 +227,18 @@ Component({
       this.setData({contextError:'', rows:[], comparatorSeries:[]});
       if (this.data.comparator !== 0) {
         try { context = await this.call<DFAContext>(`/runs/${run.id}/context?offset=${this.data.offset}&limit=120&result_revision=${run.result_revision}`); }
-        catch {
-          if (ticket===local(this).epoch) this.setData({contextError:t('Context changed or is unavailable. Refresh to reload it.'),hasResult:false,run:null,...clearedNumbers(),navigation:[],times:[],dates:[]});
-          return;
+        catch (error) {
+          if (ticket!==local(this).epoch) return;
+          const failure = error as ApiError;
+          const invalid = [401,403,404,410].includes(failure.status)
+            || ['DFA_RESULT_CHANGED','DFA_RESULT_EXPIRED','DFA_SCIENCE_POLICY_INACTIVE',
+              'DFA_AUTHORITY_RECONCILIATION_REQUIRED','DFA_RESTORE_REPLAY_UNAVAILABLE'].includes(failure.detail);
+          this.setData({contextError:t('Context changed or is unavailable. Refresh to reload it.')});
+          if (invalid) {
+            this.setData({hasResult:false,run:null,...clearedNumbers()});
+            return;
+          }
+          // An unavailable overlay does not invalidate independently authorized alpha.
         }
         if (ticket!==local(this).epoch || !local(this).visible || !this.data.hasResult
             || this.data.run?.id!==run.id || this.data.run?.result_revision!==run.result_revision

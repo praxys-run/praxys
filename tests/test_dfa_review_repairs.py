@@ -89,7 +89,7 @@ def test_proven_failure_before_first_spawn_keeps_supervisor_alive(store,monkeypa
     finally:supervisor.stop.set();worker.join(5)
 
 
-@pytest.mark.parametrize('cold_stage',['database','statsig'])
+@pytest.mark.parametrize('cold_stage',['database','statsig','coordinator'])
 def test_restart_retires_inherited_child_before_blocked_initialization(tmp_path,monkeypatch,cold_stage):
     from api import dfa_supervisor as module
     directory=tmp_path/'lane'
@@ -116,7 +116,7 @@ os._exit(0)
     from db import session
     entered=threading.Event();release=threading.Event();errors=[]
     def blocked_init():entered.set();release.wait(5);raise RuntimeError('synthetic_cold_init')
-    if cold_stage=='database':
+    if cold_stage in {'database','coordinator'}:
         monkeypatch.setattr(session,'init_db',blocked_init)
     else:
         monkeypatch.setattr(session,'init_db',lambda:None)
@@ -127,7 +127,11 @@ os._exit(0)
             raise RuntimeError('synthetic_cold_init')
         monkeypatch.setattr(statsig_client,'init_statsig',blocked_sdk)
     def run():
-        try:module.main()
+        try:
+            if cold_stage=='coordinator':
+                from api.runtime_startup import main
+                main()
+            else:module.main()
         except RuntimeError as exc:errors.append(str(exc))
     thread=threading.Thread(target=run);thread.start()
     try:
@@ -296,3 +300,63 @@ def test_real_worker_reports_invalid_timer_as_allowlisted_permanent_failure():
         'raw_fit':base64.b64encode(fit.finish()).decode(),'recording_ref':{'snapshot_id':'synthetic'},'manual_proof':None,'origin':'automatic'}
     result=subprocess.run([sys.executable,'-E','-B','-m','api.dfa_worker'],input=(json.dumps(payload)+'\n').encode(),capture_output=True,check=True)
     value=json.loads(result.stdout);assert value['error']=='timer_invalid' and 'result' not in value
+
+@pytest.mark.parametrize('enabled,raw', [('false','malformed'),('true','malformed'),('false','stale'),('true','stale'),('false',None)])
+def test_startup_coordinator_invalid_candidate_keeps_api_only(tmp_path,monkeypatch,enabled,raw):
+    from api import runtime_startup as startup,dfa_supervisor
+    from db import session
+    from contextlib import nullcontext
+    monkeypatch.setenv('PRAXYS_DFA_SUPERVISOR_ENABLED',enabled)
+    if raw is None:monkeypatch.delenv('PRAXYS_DFA_INCARNATION',raising=False)
+    elif raw=='stale':monkeypatch.setenv('PRAXYS_DFA_INCARNATION',json.dumps({**IDENTITY,'incarnation':'11111111-1111-1111-1111-111111111111',
+        'boot':Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
+        'namespace':os.readlink('/proc/self/ns/pid')+'|'+os.readlink('/proc/self/ns/mnt')}))
+    else:monkeypatch.setenv('PRAXYS_DFA_INCARNATION',raw)
+    monkeypatch.setattr(dfa_supervisor.subprocess if hasattr(dfa_supervisor,'subprocess') else startup.subprocess,'check_output',lambda *args,**kw:'current-source')
+    original=dfa_supervisor.retire_before_initialization
+    monkeypatch.setattr(dfa_supervisor,'retire_before_initialization',lambda identity:original(identity,tmp_path/'lane'))
+    events=[]
+    monkeypatch.setattr(session,'init_db',lambda:events.append('db'))
+    monkeypatch.setattr(session,'dispose_engines',lambda:None)
+    class DB:
+        def query(self,*args):return self
+        def filter_by(self,**kw):return self
+        def with_for_update(self):return self
+        def first(self):return None
+    monkeypatch.setattr(session,'SessionLocal',lambda:nullcontext(DB()))
+    class Child:
+        returncode=0
+        def poll(self):return 0
+        def wait(self,**kw):return 0
+    monkeypatch.setattr(startup.subprocess,'Popen',lambda args,**kw:(events.append(args) or Child()))
+    monkeypatch.setattr(startup.signal,'signal',lambda *args:None)
+    assert startup.main()==0
+    commands=[x for x in events if isinstance(x,list)]
+    assert len(commands)==1 and 'gunicorn' in commands[0]
+    assert events[0]=='db'
+
+@pytest.mark.parametrize('receipt',['missing','mismatched'])
+@pytest.mark.parametrize('state',['launching','running'])
+def test_recovery_without_exact_receipt_never_signals_or_launches(tmp_path,monkeypatch,receipt,state):
+    from api import runtime_startup as startup,dfa_supervisor
+    directory=tmp_path/'lane'
+    lane=Lane(directory,IDENTITY)
+    lane.record({'incarnation':IDENTITY,'state':state,'actor_token':'synthetic',
+        'identity':{'pid':99999999,'pgid':99999999,'start_ticks':1}})
+    if receipt=='mismatched':
+        other=Lane(directory,{**IDENTITY,'epoch':IDENTITY['epoch']+1})
+        other.authorize_recovery();other.close()
+    lane.close()
+    signals=[];launches=[]
+    monkeypatch.setattr(os,'killpg',lambda *args:signals.append(args))
+    monkeypatch.setattr(startup.subprocess,'Popen',lambda *args,**kw:launches.append(args))
+    with pytest.raises(PhysicalUnavailable,match='recovery_not_authorized'):
+        retire_before_initialization(IDENTITY,directory)
+    monkeypatch.setattr(dfa_supervisor,'incarnation',lambda:IDENTITY)
+    original=dfa_supervisor.retire_before_initialization
+    monkeypatch.setattr(dfa_supervisor,'retire_before_initialization',lambda identity:original(identity,directory))
+    assert startup.reconcile_candidate() is False
+    assert signals==[] and launches==[]
+    check=Lane(directory,IDENTITY)
+    assert check.actor()['state']==state
+    check.close()

@@ -4,6 +4,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 from api.dfa_physical import worker_environment
 
 SUPERVISOR_ENV = {'PRAXYS_DATABASE_URL','DATABASE_URL','DATA_DIR','PRAXYS_DFA_SUPERVISOR_ENABLED',
@@ -19,19 +20,41 @@ def supervisor_environment():
             'PRAXYS_DB_POOL_SIZE':'1','PRAXYS_DB_MAX_OVERFLOW':'0'}
 
 
+def reconcile_candidate():
+    """Retirement receipts confer no compute authority; API availability is separate."""
+    from api.dfa_supervisor import incarnation, proposed_incarnation, retire_before_initialization
+    from api.dfa_physical import PhysicalUnavailable
+    candidate = False
+    try:
+        identity = incarnation()
+        candidate = True
+    except (PhysicalUnavailable, ValueError, OSError, subprocess.SubprocessError):
+        try:
+            identity = proposed_incarnation()
+            if (identity['boot'] != Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+                    or identity['namespace'] != os.readlink('/proc/self/ns/pid') + '|' + os.readlink('/proc/self/ns/mnt')):
+                return False
+        except (PhysicalUnavailable, ValueError, OSError):
+            return False
+    try:
+        lane = retire_before_initialization(identity)
+        lane.close()
+    except (PhysicalUnavailable, ValueError, OSError):
+        # Unknown actors remain untouched and cannot obtain launch authority.
+        return False
+    return candidate
+
+
 def main():
     workers=int(os.environ.get('PRAXYS_API_WORKERS','1'))
     if not 1 <= workers <= 8:
         raise ValueError('Invalid API worker count')
-    if os.environ.get('PRAXYS_DFA_INCARNATION'):
-        from api.dfa_supervisor import retire_before_initialization
-        recovery_lane=retire_before_initialization()
-        recovery_lane.close()
+    candidate = reconcile_candidate()
     from db import session
     session.init_db()
     session.dispose_engines()
     children=[]
-    if os.environ.get('PRAXYS_DFA_SUPERVISOR_ENABLED','').lower()=='true':
+    if candidate and os.environ.get('PRAXYS_DFA_SUPERVISOR_ENABLED','').lower()=='true':
         children.append(subprocess.Popen([sys.executable,'-m','api.dfa_supervisor'],env=supervisor_environment()))
     api=subprocess.Popen([sys.executable,'-m','gunicorn','api.main:app','-k','uvicorn.workers.UvicornWorker',
         '--workers',str(workers),'--bind','0.0.0.0:'+os.environ.get('PORT','8000'),'--timeout','180'])
