@@ -333,7 +333,7 @@ export function DFAContent({ activityId, rangeMs, onSelectInterval }: { activity
       </details>
       {Object.entries(current.summary.excluded_reasons).map(([code,count]) => <p className="text-sm text-muted-foreground" key={code}>{reason(code)} <span className="font-data">{count}</span></p>)}
     </>}
-    <ScienceNote sources={[{url:'https://doi.org/10.3390/s21030821',label:t`Artefacts and recording devices`},{url:'https://doi.org/10.3390/s22176536',label:t`ECG chest-strap validation`}]}
+    <ScienceNote triggerClassName="min-h-11 min-w-11 rounded-sm focus-visible:ring-2 focus-visible:ring-ring" sources={[{url:'https://doi.org/10.3390/s21030821',label:t`Artefacts and recording devices`},{url:'https://doi.org/10.3390/s22176536',label:t`ECG chest-strap validation`}]}
       text={t`DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds.`}/>
     {(runId || proof) && <div className="border-t pt-4"><div className="flex flex-wrap gap-2">
       {(proof || current?.source_confirmation_id) && <Button className="min-h-11" variant="outline" onClick={() => setDeleting('proof')}><Trans>Revoke source confirmation</Trans></Button>}

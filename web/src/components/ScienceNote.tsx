@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { cn } from '@/lib/utils';
 
 /**
  * Inline progressive-disclosure reasoning surface \u2014 sits at the bottom of
@@ -29,6 +30,7 @@ interface ScienceNoteProps {
   sourceLabel?: string;
   sources?: ScienceSource[];
   embedded?: boolean;
+  triggerClassName?: string;
 }
 
 export default function ScienceNote({
@@ -39,6 +41,7 @@ export default function ScienceNote({
   sourceLabel,
   sources,
   embedded = false,
+  triggerClassName,
 }: ScienceNoteProps) {
   const [expanded, setExpanded] = useState(false);
   const contentId = useId();
@@ -91,7 +94,7 @@ export default function ScienceNote({
         aria-controls={contentId}
         aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
-        className="text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors"
+        className={cn("text-[12px] text-accent-cobalt hover:text-accent-cobalt/80 transition-colors", triggerClassName)}
       >
         {expanded ? '\u25be' : '\u25b8'} {label ?? <Trans>How this is calculated</Trans>}
       </button>
