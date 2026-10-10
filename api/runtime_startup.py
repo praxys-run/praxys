@@ -23,6 +23,10 @@ def main():
     workers=int(os.environ.get('PRAXYS_API_WORKERS','1'))
     if not 1 <= workers <= 8:
         raise ValueError('Invalid API worker count')
+    if os.environ.get('PRAXYS_DFA_INCARNATION'):
+        from api.dfa_supervisor import retire_before_initialization
+        recovery_lane=retire_before_initialization()
+        recovery_lane.close()
     from db import session
     session.init_db()
     session.dispose_engines()

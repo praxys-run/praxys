@@ -68,6 +68,27 @@ class Lane:
         if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
             raise PhysicalUnavailable("subreaper_unavailable")
 
+    def authorize_recovery(self):
+        """Called only after durable host validation; never grants launch authority."""
+        path=self.directory/'recovery-authority.json'
+        temporary=self.directory/('recovery-'+uuid4().hex+'.tmp')
+        fd=os.open(temporary,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+        with os.fdopen(fd,'w') as stream:
+            json.dump({'incarnation':self.incarnation,'purpose':'retirement-only'},stream)
+            stream.flush();os.fsync(stream.fileno())
+        os.replace(temporary,path)
+        fd=os.open(self.directory,os.O_DIRECTORY)
+        try:os.fsync(fd)
+        finally:os.close(fd)
+
+    def has_recovery_authority(self):
+        path=self.directory/'recovery-authority.json'
+        if not path.exists():return False
+        if path.is_symlink() or path.stat().st_uid!=os.getuid() or path.stat().st_mode & 0o077 or path.stat().st_size>16384:
+            raise PhysicalUnavailable('recovery_authority_invalid')
+        value=json.loads(path.read_text())
+        return value=={'incarnation':self.incarnation,'purpose':'retirement-only'}
+
     @contextmanager
     def recovery_mutex(self):
         fd = os.open(self.directory / "recovery.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)

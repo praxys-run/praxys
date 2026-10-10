@@ -59,3 +59,22 @@ contention,60-minute soak and former-environment termination/handover. Active
 rollout is blocked by the inactive installer and needs separately reviewed
 operational integration/authority. No push/deploy/activation/gate enablement/live
 host binding or PR merge has occurred.
+
+## Independent source review repair batch
+
+Review `/tmp/pr871-quality-b8411ef-review-20261010.md` identified seven defects.
+The coherent repair batch covers native comparator/polling/cached-state fences,
+invalid and temporarily unavailable queue peers, proven preload failure versus
+ambiguous spawn, orphan retirement before DB/SDK initialization, permanent errors
+versus bounded transient retries versus priority preemption, preserved200ms
+control/source timeouts and bilingual native disclosures.
+
+`tests/test_dfa_review_repairs.py` exercises real orphan processes, PostgreSQL
+source-lock deadlines, concurrent acquisition and revocation/publication
+serialization, Blob ETag conflict replay and file/directory fsync failures.
+`web/tests/native-dfa-authorization.test.mjs` executes the actual transpiled
+native component for polling, denied/late context and disclosure regressions.
+The b8411ef capacity and Chromium artifacts remain historical source-bound
+outcomes. Its canonical preflight was interrupted before edits:1467 passed,
+1 skipped; this is not a completed or passing preflight. Fresh expensive final
+validation awaits delta review of the new committed repair batch.

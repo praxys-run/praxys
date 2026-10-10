@@ -6,6 +6,8 @@
         <state-card wx:if="{{loading}}" type="loading" />
         <block wx:else>
           <state-card wx:if="{{error}}" type="error" detail="{{error}}" show-retry bindretry="refresh" />
+          <text class="dfa-hint">{{tr.sourceLimit}}</text>
+          <text class="dfa-hint">{{tr.manualPreference}}</text>
           <text wx:if="{{catalog.automatic_availability === 'source_unresolved'}}" class="dfa-copy">{{tr.unresolved}}</text>
           <text wx:if="{{catalog.automatic_availability === 'source_ineligible'}}" class="dfa-copy">{{tr.ineligible}}</text>
           <text wx:if="{{catalog.automatic_availability === 'gate_denied'}}" class="dfa-copy">{{tr.automaticUnavailable}}</text>
@@ -28,6 +30,7 @@
             <button class="dfa-button dfa-primary" disabled="{{!checked || sensorIndex < 0 || busy || cooling || !canAnalyse}}" bindtap="confirm">{{proof ? tr.retry : tr.confirm}}</button>
           </view>
           <view wx:if="{{run && (run.status === 'failed' || run.status === 'unavailable' || run.status === 'cancelled')}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><button wx:if="{{run.origin === 'manual' && run.status !== 'unavailable'}}" class="dfa-button" data-action="retry" bindtap="action" disabled="{{busy || cooling || !canAnalyse || stale}}">{{tr.retry}}</button></view>
+<view wx:if="{{contextError}}" class="dfa-section"><text class="dfa-hint" role="status">{{contextError}}</text><button class="dfa-button" bindtap="refresh">{{tr.refresh}}</button><button class="dfa-button" bindtap="useHeartRate">{{tr.heart}}</button></view>
           <view wx:if="{{hasResult}}" class="dfa-section">
             <text class="dfa-heading">{{headline}}</text><text class="dfa-hint">{{assurance}} · {{tr.timing}}</text>
             <view class="dfa-summary"><view><text class="dfa-hint">{{tr.valid}}</text><text class="ts-value">{{valid}}</text></view><view><text class="dfa-hint">{{tr.support}}</text><text class="ts-value">{{support}}</text></view></view>
@@ -37,7 +40,6 @@
             <text class="dfa-hint ts-value" role="status">{{timeStatus}}</text><button class="dfa-button" bindtap="goTime">{{tr.goTime}}</button>
             <view class="dfa-actions"><picker range="{{pageLabels}}" value="{{pageIndex}}" bindchange="onJump"><view class="dfa-button ts-value">{{tr.jump}} · {{pageLabels[pageIndex]}}</view></picker><picker range="{{comparators}}" value="{{comparator}}" bindchange="onComparator"><view class="dfa-button">{{comparators[comparator]}}</view></picker></view>
             <line-chart canvas-id="dfa-alpha-chart" series="{{series}}" dates="{{dates}}" x-values="{{times}}" height="{{210}}" theme="{{theme}}" />
-            <text wx:if="{{contextError}}" class="dfa-hint">{{contextError}}</text>
             <line-chart canvas-id="dfa-context-chart" series="{{comparatorSeries}}" dates="{{dates}}" x-values="{{times}}" height="{{150}}" theme="{{theme}}" />
             <view class="dfa-actions"><button class="dfa-button" data-direction="-1" disabled="{{offset === 0}}" bindtap="onPage">{{tr.previous}}</button><text class="ts-value">{{pageIndex + 1}} / {{pages || 1}}</text><button class="dfa-button" data-direction="1" disabled="{{run.page.next_offset === null}}" bindtap="onPage">{{tr.next}}</button></view>
             <button class="dfa-button" bindtap="details" aria-expanded="{{showDetails}}">{{tr.details}}</button>

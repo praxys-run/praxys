@@ -107,3 +107,49 @@ def create_grant(db: Session, value: dict):
         origin=value['origin'], binding_digest=identity, binding=value, created_at=datetime.utcnow())
     db.execute(statement.on_conflict_do_nothing(index_elements=['user_id','origin','binding_digest']))
     return db.query(ActivityDFAOriginGrant).filter_by(user_id=value['owner'], origin=value['origin'], binding_digest=identity).one()
+
+
+def permanently_invalid(db: Session, run) -> bool:
+    """Classify immutable invalidation; unavailable journals/gates never grant work."""
+    from api import activity_dfa as service
+    from api.legal import TERMS_VERSION, TERMS_CONTENT_DIGEST
+    from api.legal_receipts import TERMS_ACCEPTANCE_ACTION
+    try:
+        user = db.query(User).filter_by(id=run.user_id).first()
+        grant = db.query(ActivityDFAOriginGrant).filter_by(id=run.grant_id,user_id=run.user_id,origin=run.origin).first()
+        if (user is None or not user.is_active or user.is_demo or run.freshness!='current'
+                or grant is None or grant.binding_digest!=digest(grant.binding)):
+            return True
+        bound=grant.binding
+        if bound.get('method')!=METHOD_VERSION or bound.get('parameters')!=POLICY_PARAMETER_DIGEST:
+            return True
+        state=storage.authority_state(run.user_id)
+        if state['deleted']: return True
+        if state['epoch']=='missing': return False
+        if bound.get('negative_revision')!=storage.authority_revision(run.user_id,run.origin,run.recording_ref,run.confirmation_id):
+            return True
+        receipt=db.query(TermsAcceptanceReceipt).filter_by(user_id=run.user_id,
+            terms_version=TERMS_VERSION,terms_digest=TERMS_CONTENT_DIGEST,action=TERMS_ACCEPTANCE_ACTION).order_by(TermsAcceptanceReceipt.accepted_at.desc()).first()
+        if (receipt is None or receipt.id!=bound.get('processing_receipt')
+                or user.terms_version!=TERMS_VERSION or user.terms_digest!=TERMS_CONTENT_DIGEST):
+            return True
+        inputs=service._inputs(db,run.user_id,run.activity_id)
+        if not any(item['input']==run.recording_ref for item in inputs): return True
+        if run.origin=='manual' and run.phase=='compute':
+            proof=db.get(service.Confirmation,run.confirmation_id)
+            if proof is None or not service.proof_current(proof,inputs): return True
+        if run.origin=='automatic':
+            sync=current_sync_grant(db,run.user_id,run.recording_ref['account_id'])
+            completion=db.get(ActivityDFASyncReceipt,bound.get('completion_id'))
+            if (sync.id!=bound.get('sync_grant') or sync.account_generation!=bound.get('account_generation')
+                    or completion is None or completion.disposition not in ('admitted','unchanged','pending')):
+                return True
+        # A new active contract permanently supersedes this run. Inactive policy
+        # or gate/channel unavailability instead defers it without blocking peers.
+        try: contract=service.require_policy()
+        except HTTPException: return False
+        return contract!=run.science_contract_digest
+    except HTTPException as exc:
+        return exc.status_code<500
+    except storage.StorageError:
+        return False

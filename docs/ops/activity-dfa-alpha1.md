@@ -29,8 +29,10 @@ Source/gate/rights are rechecked before result hydration and publication.
 
 A private local runtime directory under `/tmp` has mode0700. Its supervisor lock
 is not inherited, its recovery mutex is distinct, and its physical guard is
-inherited by controlled children. Recovery retires an identified old group before
-physical-lock acquisition. TERM grace is500ms, followed by KILL/reaping and group
+inherited by controlled children. An existing private recovery-only incarnation receipt, written after durable
+host validation, permits exact old-group retirement before cold DB/SDK startup
+and before physical-lock acquisition. It never permits launch or host election.
+Missing receipt with an actor or ambiguous launch intent remains blocked. TERM grace is500ms, followed by KILL/reaping and group
 absence observation; a lease, signal delivery or leader exit is not exit proof.
 Unexpected members, identity reuse or unacknowledged launch remain blocked.
 

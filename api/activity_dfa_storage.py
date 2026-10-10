@@ -180,6 +180,16 @@ def authority_state(owner: str) -> dict:
 
 
 def record_negative(owner: str, operation: str, scope: str, target: str) -> dict:
+    """Report durability failure consistently; no caller may acknowledge erasure."""
+    try:
+        return _record_negative(owner, operation, scope, target)
+    except StorageError:
+        raise
+    except Exception as exc:
+        raise StorageError('dfa_authority_write_unavailable') from exc
+
+
+def _record_negative(owner: str, operation: str, scope: str, target: str) -> dict:
     """Append negative authority before exposing a SQL rights/source transition."""
     from db.account_lifecycle import account_lifecycle_lease
     import portalocker

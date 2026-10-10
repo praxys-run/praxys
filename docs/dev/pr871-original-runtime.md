@@ -87,3 +87,24 @@ supervisor whose bounded launch acknowledgement fails may project its verified
 child exit over an empty/idle predecessor only, after joining the work thread and
 matching the live job binding. Different occupied actors, missing recovery
 journals and changed incarnations remain blocked.
+
+Independent b8411ef source review repairs distinguish queued immutable
+invalidation from temporary gate/channel/policy or journal unavailability and
+continue to later eligible requests. A preload failure is finished without an
+invented actor exit; durable launch intent or a missing/unacknowledged actor
+journal remains fail-closed. Actual priority preemption alone is requeued as
+preemption. Deterministic worker/protocol/limit failures are terminal, while
+allowlisted transient failures have at most one automatic retry.
+
+After the durable host binding has been validated, the supervisor writes a
+private recovery-only incarnation receipt. On same-environment restart, this
+existing receipt permits exact old-group retirement before cold DB or SDK
+initialization; it supplies no launch, activation or new-host authority. The
+startup coordinator uses the same recovery-before-initialization order. Missing
+or changed receipt/identity and ambiguous launch history prevent replacement.
+
+Control sessions carry a200ms read budget through recording/source checks;
+normal API reads retain their existing30s ceiling. Native comparator changes
+read current authorization and keep polling, clear alpha and all context on
+denial, and reject late context after a newer denial. Both native origins show
+the canonical per-beat limitation and manual-preference accuracy disclaimer.

@@ -171,5 +171,8 @@ def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dic
 def read_timeout(db: Session) -> None:
     """Bound each current transaction, including reads after a heartbeat commit."""
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SET LOCAL statement_timeout = '30s'"))
-        db.execute(text("SET LOCAL lock_timeout = '30s'"))
+        budget = min(30000, int(db.info.get('dfa_read_timeout_ms', 30000)))
+        if budget < 1:
+            raise ValueError('Invalid DFA read timeout')
+        db.execute(text(f"SET LOCAL statement_timeout = '{budget}ms'"))
+        db.execute(text(f"SET LOCAL lock_timeout = '{budget}ms'"))

@@ -20,29 +20,37 @@ def main():
         raise ValueError("ipc_schema_invalid")
     if payload["phase"] not in ("prepare", "compute"):
         raise ValueError("ipc_phase_invalid")
-    from analysis.activity_dfa import build_recording, compute
-    from analysis.dfa_source import require_native_integrity
-    from sync.rr_recording import decode
-    messages = list(decode(base64.b64decode(payload["raw_fit"], validate=True)))
-    inventory = require_native_integrity(messages, payload["recording_ref"])
-    recording = build_recording(messages, messages[-1]["frame"] + 1 if messages else 0)
-    if payload["phase"] == "compute":
-        if payload["origin"] == "automatic":
-            if inventory["outcome"] != "eligible_metadata_inferred" or payload["manual_proof"] is not None:
-                raise ValueError("automatic_source_changed")
-        elif payload["origin"] == "manual":
-            proof = payload["manual_proof"]
-            if not proof or proof["evidence_digest"] != recording.evidence_digest or not any(
-                s["sensor_ref"] == proof["sensor_ref"] and s["rule_fingerprint"] == proof["rule_fingerprint"]
-                for s in recording.sensors):
-                raise ValueError("manual_source_changed")
-        else:
-            raise ValueError("origin_invalid")
-    result = recording.preparation() if payload["phase"] == "prepare" else compute(recording)
-    output = json.dumps({"binding": payload["binding"], "actor_token": payload["actor_token"],
-                         "inventory": inventory, "result": result}, separators=(",", ":"), allow_nan=False).encode()
-    if len(output) > OUTPUT_LIMIT:
-        raise ValueError("ipc_result_limit")
+    try:
+        from analysis.activity_dfa import build_recording, compute
+        from analysis.dfa_source import require_native_integrity
+        from sync.rr_recording import decode
+        messages = list(decode(base64.b64decode(payload["raw_fit"], validate=True)))
+        inventory = require_native_integrity(messages, payload["recording_ref"])
+        recording = build_recording(messages, messages[-1]["frame"] + 1 if messages else 0)
+        if payload["phase"] == "compute":
+            if payload["origin"] == "automatic":
+                if inventory["outcome"] != "eligible_metadata_inferred" or payload["manual_proof"] is not None:
+                    raise ValueError("automatic_source_changed")
+            elif payload["origin"] == "manual":
+                proof = payload["manual_proof"]
+                if not proof or proof["evidence_digest"] != recording.evidence_digest or not any(
+                    s["sensor_ref"] == proof["sensor_ref"] and s["rule_fingerprint"] == proof["rule_fingerprint"]
+                    for s in recording.sensors):
+                    raise ValueError("manual_source_changed")
+            else:
+                raise ValueError("origin_invalid")
+        result = recording.preparation() if payload["phase"] == "prepare" else compute(recording)
+        output = json.dumps({"binding": payload["binding"], "actor_token": payload["actor_token"],
+                             "inventory": inventory, "result": result}, separators=(",", ":"), allow_nan=False).encode()
+        if len(output) > OUTPUT_LIMIT:
+            raise ValueError("ipc_result_limit")
+    except Exception as exc:
+        # Only enumerated diagnostics leave the child; never exception payloads.
+        allowed={'timer_invalid','fit_invalid','fit_too_large','rr_limit','frame_limit','elapsed_limit',
+            'source_contradiction','source_unsupported','rr_missing','manual_source_changed',
+            'automatic_source_changed','ipc_result_limit','numerical_invalid'}
+        code=str(exc) if str(exc) in allowed else 'numerical_invalid'
+        output=json.dumps({'binding':payload['binding'],'actor_token':payload['actor_token'],'error':code},allow_nan=False).encode()
     sys.stdout.buffer.write(output + b"\n")
     sys.stdout.buffer.flush()
 
