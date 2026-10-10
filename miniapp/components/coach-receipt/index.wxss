@@ -1,0 +1,19 @@
+.coach-receipt { border: 1rpx solid var(--border); border-radius: 24rpx; overflow: hidden; background: var(--surface); margin: 24rpx 0; }
+.coach-banner { display: flex; justify-content: space-between; gap: 16rpx; padding: 24rpx 32rpx; background: var(--accent-cobalt); color: var(--surface); }
+.coach-mark { font-weight: 600; }
+.coach-body { padding: 32rpx; }
+.coach-headline { display: block; font-size: 36rpx; font-weight: 600; line-height: 1.4; }
+.coach-summary, .coach-text, .coach-status { display: block; font-size: 28rpx; line-height: 1.65; margin-top: 16rpx; color: var(--text); }
+.coach-label { display: block; font-size: 26rpx; font-weight: 600; margin: 28rpx 0 8rpx; color: var(--text); }
+.coach-key-recommendation { margin: 28rpx 0; }
+.coach-toggle, .coach-theory-link { min-height: 88rpx; padding: 16rpx 0; margin: 8rpx 0; text-align: left; font-size: 26rpx; line-height: 1.6; color: var(--accent-cobalt); background: transparent; border: 0; }
+.coach-toggle::after, .coach-theory-link::after { border: 0; }
+.coach-foot { padding: 8rpx 32rpx; border-top: 1rpx solid var(--border); }
+.coach-theory-link { text-decoration: underline; }
+
+.coach-loading { margin: 24rpx 0; }
+.coach-loading view { height: 20rpx; background: var(--surface-subtle); margin: 16rpx 0; }
+.coach-loading view:last-child { width: 65%; }
+
+.coach-mark, .coach-stamp { color: var(--surface); }
+.coach-summary, .coach-text { font-variant-numeric: tabular-nums; }

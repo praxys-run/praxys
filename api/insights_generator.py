@@ -2,9 +2,8 @@
 
 Training review and race forecast each take a training context
 (:func:`api.ai.build_training_context`) plus the user's selected science
-pillars and return an ``AiInsight`` upsert payload. The daily entry point
-intentionally returns ``None`` so Today uses the deterministic metric instead
-of free-form model advice.
+pillars and return an ``AiInsight`` upsert payload. The daily entry point accepts only eligible identifiers and renders bilingual
+server templates; the canonical Today decision remains independently authoritative.
 
 Returned payload shape (matches ``db.models.AiInsight`` columns):
 
@@ -48,17 +47,29 @@ logger = logging.getLogger(__name__)
 def generate_daily_brief(
     context: dict, science_pillars: dict[str, str]
 ) -> dict | None:
-    """Use the deterministic Today signal instead of free-form model advice.
+    """Select only server-eligible IDs; render every visible word on the server."""
+    from api.morning_coach import candidates, render_selection, bind_payload
 
-    A model can produce fluent prose that contradicts the canonical action even
-    when prompted or asked for a matching decision enum. Until daily coaching is
-    represented by a fully server-owned structured action, the pure metric is the
-    sole source of Today advice. Training review and race forecast remain model-
-    generated because they do not compete with a same-day safety verdict.
-    """
-    _ = context, science_pillars
-    logger.debug("Insight daily_brief skipped: deterministic_today_signal")
-    return None
+    client = llm.get_client()
+    if client is None:
+        return None
+    try:
+        eligible = candidates(context)
+        raw = llm.chat_json(
+            client,
+            system=("Order the eligible evidence for a morning training review. Return ONLY "
+                    "evidence_ids, interpretation_ids, action_ids arrays. Include every evidence ID, "
+                    "choose supported interpretation IDs and exactly one eligible action ID. "
+                    "No other fields, prose, values or invented IDs."),
+            user=json.dumps({k: eligible[k] for k in ("evidence", "interpretations", "actions")}),
+            model=llm.INSIGHT_MODEL, insight_type="daily_brief", retry=0,
+        )
+        payload = bind_payload(render_selection(raw, eligible), context, raw, eligible)
+        payload["meta_extra"].update(model=llm.INSIGHT_MODEL, pillars=dict(science_pillars or {}))
+        return payload
+    except (ValueError, TypeError, KeyError):
+        logger.warning("Insight daily_brief rejected: invalid_selection")
+        return None
 
 
 def generate_training_review(
@@ -330,7 +341,7 @@ def _validate_bilingual_shape(raw: Any) -> tuple[bool, str]:
 
 def _log_rejection(insight_type: str, reason: str, raw: Any) -> None:
     """Log a rejected insight payload with a stable reason code."""
-    preview = json.dumps(raw, ensure_ascii=False)[:300] if raw else None
+    preview = None if insight_type == "daily_brief" else (json.dumps(raw, ensure_ascii=False)[:300] if raw else None)
     logger.warning(
         "Insight %s rejected: reason=%s model=%s raw_preview=%r",
         insight_type, reason, llm.INSIGHT_MODEL, preview,

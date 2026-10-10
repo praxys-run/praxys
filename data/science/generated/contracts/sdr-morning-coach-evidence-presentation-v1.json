@@ -1,0 +1,94 @@
+{
+  "affected_models": [
+    "daily_brief"
+  ],
+  "contract_digest": "sha256:e3c7838fa8fd2f9768cc59f8aa9512e708a0682ff9e348c1cedbe41545ac37a1",
+  "decision_id": "sdr-morning-coach-evidence-presentation-v1",
+  "decision_status": "draft",
+  "decision_version": 1,
+  "evidence_claim_ids": [
+    "load.hrv-guidance-limited",
+    "load.acwr-not-causal-threshold",
+    "outcome.single-indicator-insufficient",
+    "outcome.observations-not-causal-explanation"
+  ],
+  "evidence_review_ids": [
+    "evidence-adaptive-training-load-v1",
+    "evidence-plan-outcome-interpretation-v1"
+  ],
+  "linked_evidence_digests": {
+    "evidence-adaptive-training-load-v1": "sha256:101f9e5b3a9eeed9d8777d0cef8cf56f332372568fed32ba812c4f969551d50f",
+    "evidence-plan-outcome-interpretation-v1": "sha256:46026c614f9be03950e9e2d9f9e4bb6ef29d12f5882432105a5b522b7fb96956"
+  },
+  "model_version": "morning-coach-evidence-presentation-v1",
+  "parameters": {
+    "action_boundary": {
+      "applies_to": "daily_brief",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "allowed_actions": "server_eligible_and_consistent_with_canonical_today",
+        "automatic_plan_mutation": "forbidden",
+        "canonical_today_signal": "independently_authoritative",
+        "intensity_evidence": "splits_or_samples_only",
+        "invented_workouts_or_targets": "forbidden",
+        "values_and_targets": "server_owned"
+      }
+    },
+    "model_selection_boundary": {
+      "applies_to": "daily_brief",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "allowed_output": [
+          "evidence_ids",
+          "interpretation_ids",
+          "action_ids"
+        ],
+        "candidate_scope": "authenticated_current_snapshot",
+        "extra_fields": "reject",
+        "incompatible_combinations": "reject",
+        "model_numeric_values": "forbidden",
+        "model_prose": "forbidden",
+        "unknown_or_ineligible_ids": "reject"
+      }
+    },
+    "observation_eligibility": {
+      "applies_to": "daily_brief",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "baseline": "reuse_existing_theory_and_formula",
+        "current_recovery_age_days": [
+          0,
+          1
+        ],
+        "dates": "parseable_metric_specific_nonfuture",
+        "freshness_basis": "server_as_of_date",
+        "historical_context": "dated_and_not_presented_as_current_recovery",
+        "stale_or_missing_recovery": "explicit_unavailability",
+        "values": "finite_and_valid_for_existing_metric_contract"
+      }
+    },
+    "presentation_boundary": {
+      "applies_to": "daily_brief",
+      "classification": "guardrail",
+      "evidence_claim_ids": [],
+      "value": {
+        "data_as_of": "source_only",
+        "freshness_change_at_any_boundary": "fail_closed",
+        "identity_binding": [
+          "as_of_date",
+          "source_snapshot",
+          "content_version"
+        ],
+        "recovery_summary": "current_evidence_or_explicit_missingness",
+        "theory_references": "structured_server_owned",
+        "visible_text": "bilingual_server_templates"
+      }
+    }
+  },
+  "runtime_state": "inactive",
+  "schema_version": 1,
+  "source_decision_digest": "sha256:df51b53d081bbdfab78845fce94e1f531338635301ff4c47d364716b5a5b6b19"
+}

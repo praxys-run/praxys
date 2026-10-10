@@ -1,0 +1,33 @@
+<view class="coach-receipt">
+  <view class="coach-banner">
+    <text class="coach-mark">{{isAi || !receipt ? tr.coach : tr.metrics}}</text>
+    <text wx:if="{{receipt.stamp}}" class="coach-stamp ts-value">{{receipt.stamp}}</text>
+  </view>
+  <view class="coach-body">
+    <view wx:if="{{statusText}}" class="coach-status" aria-role="status">
+      <text>{{tr.coach}} — {{statusText}}</text>
+      <view wx:if="{{loading}}" class="coach-loading" aria-hidden="true"><view /><view /><view /></view>
+      <button wx:if="{{!loading && response.ai_available !== false}}" class="coach-toggle" bindtap="refresh">{{tr.refresh}}</button>
+    </view>
+    <block wx:if="{{receipt}}">
+      <text class="coach-headline">{{receipt.headline}}</text>
+      <text wx:if="{{receipt.summary}}" class="coach-summary">{{receipt.summary}}</text>
+      <view wx:if="{{primaryAction}}" class="coach-key-recommendation">
+        <text class="coach-label">{{tr.key}}</text>
+        <text class="coach-text">{{primaryAction}}</text>
+      </view>
+      <text wx:if="{{dataAsOf}}" class="coach-summary ts-value">{{tr.dataThrough}} {{dataAsOf}}</text>
+      <button wx:if="{{detailLabel}}" class="coach-toggle" aria-expanded="{{detailsOpen}}" bindtap="toggle">{{detailLabel}}</button>
+      <block wx:if="{{detailsOpen}}">
+        <text wx:if="{{receipt.findings.length}}" class="coach-label">{{tr.findings}}</text>
+        <view wx:for="{{receipt.findings}}" wx:key="index" class="coach-row"><text class="coach-text">{{item.text}}</text></view>
+        <text wx:if="{{remaining.length}}" class="coach-label">{{tr.recommendations}}</text>
+        <view wx:for="{{remaining}}" wx:key="index" class="coach-row"><text class="coach-text">{{item.text}}</text></view>
+      </block>
+    </block>
+  </view>
+  <view wx:if="{{refs.length}}" class="coach-foot" aria-label="{{tr.methods}}">
+    <button wx:for="{{refs}}" wx:key="pillar" class="coach-theory-link" data-pillar="{{item.pillar}}" bindtap="openTheory">{{item.label}}</button>
+  </view>
+  <insight-feedback wx:if="{{isAi && datasetHash}}" insight-type="{{insightType}}" dataset-hash="{{datasetHash}}" snapshot="{{snapshot}}" content-version="{{contentVersion}}" initial-vote="{{vote}}" bindstale="stale" />
+</view>

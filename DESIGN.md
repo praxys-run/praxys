@@ -300,3 +300,32 @@ The component is deliberately *minimal* — it adds reasoning depth without clai
 - **Don't** apply ambient drop shadows on cards at rest. Elevation is a response to state. If you can't say which user state caused the shadow, remove it.
 - **Don't** use `--accent-blue` or `--accent-purple` in new code — they are deprecated. Reasoning roles move to cobalt; positive deltas to primary; metadata to `muted-foreground`.
 - **Don't** show always-both EN + 中文 by reflex on product chrome. Surface purpose decides; the user's locale wins for app UI.
+
+
+## Morning Coach receipt
+
+The approved receipt order is Praxys Coach and applicable server date, headline,
+two-to-three-sentence recovery-bearing summary, **Key recommendation / 关键建议**,
+optional details disclosure, always-visible structured theory links, then exact
+content feedback. Source freshness is separately labelled **Data through / 数据截至**.
+Today provides waking recovery and training context; Analysis remains multi-week
+and Goal remains feasibility. Shared web/native components preserve these horizons.
+
+Coach copy leads with calm guidance: observation, supported meaning, then a useful
+next step. Praxys-managed sessions and scheduled rest take priority. Name external
+courses by platform and introduce advice with "If you choose… / 如果选择…".
+Keep data gaps and necessary risk notices brief and actionable. Descriptive split
+observations add context without assigning intensity or a recovery cost from power
+alone. Supporting findings avoid repeating the summary's trend sentences.
+
+Web uses the existing square, hairline cobalt receipt. Miniapp uses native rounded
+full-width presentation and buttons. Keep summary and action untruncated. Findings
+and remaining recommendations default closed, omit empty disclosures and do not
+duplicate the key recommendation. Content changes reset disclosure and feedback.
+
+Server date and source snapshot govern freshness. Stale/error/loading states never
+retain prior feedback as current; errors have retry. AI unavailability stays explicit
+alongside Training metrics. Applicable selected recovery/load theory links remain
+outside disclosures and are visible in deterministic states. Receipts contain no
+plugin-install promotion. Daily text is bilingual server-owned; model prose cannot
+be used as a fallback.

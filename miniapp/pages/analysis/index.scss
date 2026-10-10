@@ -162,8 +162,7 @@
 .lang-en .train-peer-hint,
 .lang-en .train-metric-label,
 .lang-en .train-metric-context,
-.lang-en .train-metric-value,
-.lang-en .train-coach .coach-headline {
+.lang-en .train-metric-value {
   word-break: keep-all;
 }
 
@@ -187,9 +186,6 @@
   line-height: 1;
 }
 
-.train-coach .coach-headline {
-  font-size: 28rpx;
-}
 
 // ─── Metric detail sheet ─────────────────────────────────────────────
 .train-metric-overlay {

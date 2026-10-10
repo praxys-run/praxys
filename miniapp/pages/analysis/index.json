@@ -8,7 +8,8 @@
     "state-card": "../../components/state-card/index",
     "insight-feedback": "/components/insight-feedback/index",
     "activity-history": "/components/activity-history/index",
-    "dfa-analysis": "/components/dfa-analysis/index"
+    "dfa-analysis": "/components/dfa-analysis/index",
+    "coach-receipt": "/components/coach-receipt/index"
   },
   "backgroundColor": "@bgColor",
   "backgroundColorBottom": "@bgColor",

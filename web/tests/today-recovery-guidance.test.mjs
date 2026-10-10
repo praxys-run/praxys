@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('Today deterministic guidance uses source-aware branding', async () => {
+test('Today Coach preserves source-aware branding and snapshot binding', async () => {
   const [webToday, insightsCard, miniToday, miniTemplate, miniAnalysis] = await Promise.all([
     read('../src/pages/Today.tsx'),
     read('../src/components/AiInsightsCard.tsx'),
@@ -15,14 +15,14 @@ test('Today deterministic guidance uses source-aware branding', async () => {
 
   assert.match(webToday, /summary:\s*localizedRecoverySummary\(ra,\s*i18n\)/);
   assert.match(webToday, /recommendations:\s*localizedAlternatives/);
-  assert.match(webToday, /fetchInsight=\{false\}/);
+  assert.match(webToday, /snapshot=\{data.coach_snapshot\}/);
 
   assert.match(
     miniToday,
     /summary:\s*localizedRecoverySummary\(response\.recovery_analysis\)/,
   );
   assert.match(miniToday, /recommendations,\s*\n\s*attribution,/);
-  assert.match(miniTemplate, /class="coach-summary">\{\{coach\.summary\}\}/);
+  assert.match(miniTemplate, /<coach-receipt[\s\S]*snapshot="\{\{coachSnapshot\}\}"/);
 
   assert.match(miniToday, /mark: t\('Training metrics'\)/);
   assert.match(miniToday, /aria: t\('Deterministic training summary'\)/);
@@ -32,7 +32,7 @@ test('Today deterministic guidance uses source-aware branding', async () => {
 
   assert.match(
     insightsCard,
-    /displayedContent\.isAi \? <Trans>Praxys Coach<\/Trans> : <Trans>Training metrics<\/Trans>/,
+    /displayedContent\.isAi \|\| !content \? <Trans>Praxys Coach<\/Trans> : <Trans>Training metrics<\/Trans>/,
   );
   assert.match(
     insightsCard,

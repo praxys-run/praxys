@@ -56,7 +56,9 @@ def insights_client(monkeypatch):
     user_id = "test-user-insights"
     db = db_session.SessionLocal()
     try:
-        db.add(User(id=user_id, email="insights@example.com", hashed_password="x"))
+        from api.legal import TERMS_VERSION, TERMS_CONTENT_DIGEST
+        db.add(User(id=user_id, email="insights@example.com", hashed_password="x",
+                    terms_version=TERMS_VERSION, terms_digest=TERMS_CONTENT_DIGEST))
         db.commit()
     finally:
         db.close()
@@ -158,7 +160,7 @@ def test_get_returns_empty_translations_when_legacy_row(insights_client):
     assert payload["translations"] == {}
 
 
-def test_daily_brief_is_permanently_suppressed(insights_client):
+def test_legacy_daily_brief_without_verified_snapshot_is_suppressed(insights_client):
     from db import session as db_session
     from db.models import AiInsight
 
@@ -181,7 +183,8 @@ def test_daily_brief_is_permanently_suppressed(insights_client):
     listed = insights_client.get("/api/insights")
 
     assert direct.status_code == 200
-    assert direct.json() == {"insight": None, "ai_available": True}
+    assert direct.json()["insight"] is None
+    assert direct.json()["content_status"] == "stale"
     assert "daily_brief" not in listed.json()["insights"]
 
 
@@ -203,8 +206,8 @@ def test_daily_brief_push_and_feedback_are_rejected(insights_client):
 
     assert pushed.status_code == 410
     assert pushed.json()["detail"] == "DAILY_BRIEF_DETERMINISTIC"
-    assert feedback.status_code == 410
-    assert feedback.json()["detail"] == "DAILY_BRIEF_DETERMINISTIC"
+    assert feedback.status_code == 404
+    assert feedback.json()["detail"] == "INSIGHT_NOT_FOUND"
 
 def test_non_daily_insight_get_remains_available(insights_client):
     body = {
@@ -273,8 +276,11 @@ def test_ai_emergency_stop_suppresses_stored_insights_but_reports_unavailable(
     direct = insights_client.get("/api/insights/training_review")
     listed = insights_client.get("/api/insights")
 
-    assert direct.json() == {"insight": None, "ai_available": False}
-    assert listed.json() == {"insights": {}, "ai_available": False}
+    assert direct.json()["insight"] is None
+    assert direct.json()["content_status"] == "unavailable"
+    assert direct.json()["ai_available"] is False
+    assert listed.json()["insights"] == {}
+    assert listed.json()["ai_available"] is False
 
 
 def test_provider_outage_suppresses_stored_insights_but_reports_unavailable(
@@ -288,8 +294,11 @@ def test_provider_outage_suppresses_stored_insights_but_reports_unavailable(
     direct = insights_client.get("/api/insights/training_review")
     listed = insights_client.get("/api/insights")
 
-    assert direct.json() == {"insight": None, "ai_available": False}
-    assert listed.json() == {"insights": {}, "ai_available": False}
+    assert direct.json()["insight"] is None
+    assert direct.json()["content_status"] == "unavailable"
+    assert direct.json()["ai_available"] is False
+    assert listed.json()["insights"] == {}
+    assert listed.json()["ai_available"] is False
 
 
 def test_demo_read_hides_feedback_controls(insights_client):

@@ -654,14 +654,13 @@
   border-radius: 0;
   padding: 0;
 }
-/* Training pairs Coach with the peer-metrics surface, so the two cards
-   share one silhouette and fill the same comparison row. */
+/* Fill the Analysis comparison row while retaining the shared square receipt. */
 .training-coach-column > .coach-receipt {
   display: flex;
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--radius-xl);
+  border-radius: 0;
 }
 .training-coach-column > .coach-receipt > .coach-body {
   flex: 1;
@@ -704,7 +703,7 @@
 .coach-receipt > .coach-body > .coach-summary {
   font-size: 12.5px;
   line-height: 1.55;
-  color: var(--muted-foreground);
+  color: var(--foreground);
   margin: 0 0 12px 0;
   white-space: pre-line;
   /* Cap prose at the readability range. The receipt is full-bleed on
@@ -1394,3 +1393,31 @@
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
+
+/* Shared Coach hierarchy: one visible action, supporting detail on demand. */
+.coach-key-recommendation { margin-block: 1.25rem; }
+.coach-key-recommendation .coach-label { margin-block: 0 0.5rem; }
+.coach-key-recommendation .coach-text { margin: 0; line-height: 1.6; }
+.coach-theory-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.coach-theory-links a { color: color-mix(in oklch, var(--accent-cobalt-val) 85%, var(--foreground)); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.coach-status { margin-bottom: 1rem; line-height: 1.6; }
+
+.coach-loading { display: grid; gap: 0.65rem; margin-block: 1rem; }
+.coach-loading span { height: 0.75rem; background: var(--muted); }
+.coach-loading span:last-child { width: 65%; }
+
+.coach-key-recommendation .coach-label { font-size: 0.875rem; font-weight: 600; color: var(--foreground); }
+
+/* Receipt controls retain a 44px touch target in every viewport. */
+.coach-receipt .coach-toggle,
+.coach-receipt .coach-feedback-icon,
+.coach-receipt .coach-feedback-cancel,
+.coach-receipt .coach-feedback-send { min-height: 44px; }
+.coach-receipt .coach-feedback-icon { min-width: 44px; }
+
+/* Reading and interaction text stays legible in both receipt themes. */
+.coach-receipt .coach-label,
+.coach-receipt .coach-feedback-question,
+.coach-receipt .coach-feedback-sent,
+.coach-receipt .coach-feedback-count,
+.coach-receipt .coach-feedback-cancel { color: var(--foreground); }

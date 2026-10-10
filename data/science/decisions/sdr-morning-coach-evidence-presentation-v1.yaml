@@ -1,0 +1,145 @@
+schema_version: 1
+id: sdr-morning-coach-evidence-presentation-v1
+version: 1
+title: Morning Coach presentation of existing training evidence
+status: draft
+approval_mode: artifact
+decision_date: 2026-10-10
+owners: [team:praxys]
+human_reviewers: []
+model_version: morning-coach-evidence-presentation-v1
+evidence_review_ids:
+  - evidence-adaptive-training-load-v1
+  - evidence-plan-outcome-interpretation-v1
+evidence_claim_ids:
+  - load.hrv-guidance-limited
+  - load.acwr-not-causal-threshold
+  - outcome.single-indicator-insufficient
+  - outcome.observations-not-causal-explanation
+accepted_interpretation: >
+  Present existing server-computed recovery, recent activity, seven-day
+  training context, and today's plan through bounded server templates.
+  Model selection may determine presentation emphasis only among eligible
+  evidence, interpretation, and action identifiers. It cannot determine a
+  new training prescription, alter the canonical Today signal, or infer
+  clinical status, individual causality, or guaranteed performance.
+decision_review:
+  reviewer_task: Check faithful reuse of existing evidence and runtime boundaries.
+  approval_statement: >
+    This record preserves existing scientific claims and formulas and bounds
+    Coach presentation. It does not activate the shared managed-plan policy.
+  items:
+    - id: preserve-existing-science
+      title: Preserve authoritative metrics and constrain presentation
+      disposition: approve
+      question: Does Coach faithfully present existing eligible evidence?
+      proposed_decision: >
+        Restrict model output to server-eligible identifiers, preserve
+        canonical actions and metric provenance, and render all text on
+        the server.
+      approval_effect:
+        - Establishes the bounded presentation and validation specification.
+      does_not_authorize:
+        - New formulas, clinical thresholds, prescriptions, or plan mutation.
+        - Activation of any inactive science contract.
+      parameter_names:
+        - model_selection_boundary
+        - observation_eligibility
+        - action_boundary
+        - presentation_boundary
+      evidence_claim_ids:
+        - load.hrv-guidance-limited
+        - load.acwr-not-causal-threshold
+        - outcome.single-indicator-insufficient
+        - outcome.observations-not-causal-explanation
+rejected_alternatives:
+  - alternative: Accept model-authored explanations or prescriptions.
+    rationale: Identifier selection cannot establish scientific eligibility or authority.
+model_parameters:
+  - name: model_selection_boundary
+    classification: guardrail
+    rationale: Keep scientific eligibility and visible meaning server-owned.
+    applies_to: daily_brief
+    value:
+      allowed_output: [evidence_ids, interpretation_ids, action_ids]
+      candidate_scope: authenticated_current_snapshot
+      extra_fields: reject
+      unknown_or_ineligible_ids: reject
+      incompatible_combinations: reject
+      model_prose: forbidden
+      model_numeric_values: forbidden
+  - name: observation_eligibility
+    classification: guardrail
+    rationale: Preserve existing observation validity and freshness semantics.
+    applies_to: daily_brief
+    value:
+      values: finite_and_valid_for_existing_metric_contract
+      dates: parseable_metric_specific_nonfuture
+      current_recovery_age_days: [0, 1]
+      freshness_basis: server_as_of_date
+      baseline: reuse_existing_theory_and_formula
+      stale_or_missing_recovery: explicit_unavailability
+      historical_context: dated_and_not_presented_as_current_recovery
+  - name: action_boundary
+    classification: guardrail
+    rationale: Model presentation must not become a second decision engine.
+    applies_to: daily_brief
+    value:
+      canonical_today_signal: independently_authoritative
+      allowed_actions: server_eligible_and_consistent_with_canonical_today
+      values_and_targets: server_owned
+      invented_workouts_or_targets: forbidden
+      automatic_plan_mutation: forbidden
+      intensity_evidence: splits_or_samples_only
+  - name: presentation_boundary
+    classification: guardrail
+    rationale: Keep visible meaning coherent, attributable, and version-bound.
+    applies_to: daily_brief
+    value:
+      visible_text: bilingual_server_templates
+      recovery_summary: current_evidence_or_explicit_missingness
+      theory_references: structured_server_owned
+      identity_binding: [as_of_date, source_snapshot, content_version]
+      freshness_change_at_any_boundary: fail_closed
+      data_as_of: source_only
+applicability:
+  - Existing supported adult recreational-running training context.
+  - Presentation of already computed metrics and canonical training guidance.
+user_facing_claim_limits:
+  - Recovery bands are Praxys coaching guardrails, not diagnostic cutoffs.
+  - No composite recovery score or clinical inference from sleep, HRV, and RHR.
+  - Seven-day load describes recorded training; it does not establish injury risk.
+  - Observed associations do not establish individual causality.
+  - No benefit, safety, or readiness guarantee.
+safety_implications:
+  - Missing, invalid, stale, or incompatible evidence cannot authorize an action.
+  - Rest and caution recommendations cannot be overridden by presentation selection.
+privacy_implications:
+  - Candidates and feedback remain scoped to the authenticated user.
+  - Feedback refers to the exact served content version and snapshot.
+validation_plan:
+  - Verify current, normal, rest, no-plan, missing, and stale scenarios.
+  - Reject invalid IDs, prose, incompatible interpretations, and contradictory actions.
+  - Verify metric-specific dates, non-finite values, and unavailable baselines.
+  - Verify rollover and freshness races at generation, persistence, read, and feedback.
+  - Verify equivalent English and Chinese meaning on web and miniapp.
+falsification_conditions:
+  - Coach changes the canonical training decision or invents a target.
+  - Missing or stale recovery is presented as normal or current.
+  - A selected identifier renders unsupported scientific meaning.
+  - Content or feedback survives a mismatched snapshot, date, or version.
+affected_surfaces:
+  models: [daily_brief]
+  apis:
+    - api/deps.py
+    - api/ai.py
+    - api/routes/insights.py
+  clients: [web, miniapp]
+  science_notes: [recovery, load]
+artifact_policy:
+  runtime_state: inactive
+supersedes: []
+decision_notes:
+  - Reuses accepted evidence without changing its lifecycle or claims.
+  - Existing hrv_based theory and canonical Today formulas remain authoritative.
+  - User-approved implementation scope is supplied by the parent Work Contract.

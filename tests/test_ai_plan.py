@@ -245,6 +245,94 @@ class TestPlannedTodayContext:
         assert workout["origin"] == "generated"
         assert "workout_origin" not in workout
 
+    def test_external_observations_survive_empty_managed_calendar(self, monkeypatch):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        cfg = UserConfig()
+        cfg.plan_management = {**cfg.plan_management, 'mode': 'praxys'}
+        monkeypatch.setattr("api.ai.load_config", lambda: cfg)
+        today = date.today()
+        data = self._empty_data([])
+        data['all_plans'] = pd.DataFrame([
+            {'date': today, 'source': 'stryd', 'workout_type': 'long',
+             'target_power_min': 170, 'target_power_max': 195},
+            {'date': today + timedelta(days=1), 'source': 'stryd', 'workout_type': 'easy'},
+            {'date': today, 'source': 'praxys', 'workout_type': 'rest'},
+        ])
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today'] is None
+        assert len(ctx['external_planned_today']) == 1
+        course = ctx['external_planned_today'][0]
+        assert course['owner'] == 'external'
+        assert course['source'] == 'stryd'
+        assert course['date'] == today.isoformat()
+        assert course['target_power_min'] == 170
+
+    @pytest.mark.parametrize('first_type', ['rest', 'easy'])
+    @pytest.mark.parametrize('reverse', [False, True])
+    def test_context_uses_todays_exact_order_independent_workout(self, monkeypatch, first_type, reverse):
+        from api.ai import _build_context_from_data
+        from api.deps import _get_todays_plan
+        from api.morning_coach import candidates, render_selection
+        from analysis.config import UserConfig
+
+        cfg = UserConfig()
+        cfg.plan_management = {**cfg.plan_management, 'mode': 'praxys'}
+        monkeypatch.setattr("api.ai.load_config", lambda: cfg)
+        today = date.today()
+        rows = [{'date': today, 'source': 'praxys', 'workout_type': first_type, 'planned_duration_min': 30},
+                {'date': today, 'source': 'praxys', 'workout_type': 'tempo', 'planned_duration_min': 60}]
+        data = self._empty_data(list(reversed(rows)) if reverse else rows)
+        selected_type, selected = _get_todays_plan(data['plan'], today)
+        data['signal'] = {'recommendation': 'follow_plan', 'reason_code': 'recovery_normal'}
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today']['workout_type'] == selected_type == 'tempo'
+        assert ctx['planned_today']['planned_duration_min'] == selected['planned_duration_min'] == 60
+        eligible = candidates(ctx)
+        result = render_selection({'evidence_ids': list(eligible['evidence']),
+            'interpretation_ids': [], 'action_ids': list(eligible['actions'])}, eligible)
+        assert result['recommendations'] == ['Follow the planned 60-minute tempo run.']
+
+    @pytest.mark.parametrize('recommendation,reason', [
+        ('follow_plan', 'recovery_normal'), ('rest', 'hrv_below_hard')])
+    def test_external_mode_fallback_matches_todays_course_and_caution(self, monkeypatch, recommendation, reason):
+        from api.ai import _build_context_from_data
+        from api.morning_coach import candidates, render_selection
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        future = {'date': today + timedelta(days=1), 'source': 'stryd', 'workout_type': 'easy'}
+        data = self._empty_data([future])
+        data['all_plans'] = pd.DataFrame([future, {'date': today.isoformat(), 'source': 'garmin',
+            'workout_type': 'tempo', 'planned_duration_min': 60}])
+        data['signal'] = {'recommendation': recommendation, 'reason_code': reason}
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today']['source'] == 'garmin'
+        assert ctx['planned_today']['owner'] == 'external'
+        eligible = candidates(ctx)
+        result = render_selection({'evidence_ids': list(eligible['evidence']),
+            'interpretation_ids': [], 'action_ids': list(eligible['actions'])}, eligible)
+        if recommendation == 'rest':
+            assert result['recommendations'] == ['Keep today for recovery.']
+        else:
+            assert result['recommendations'][0].startswith('If you choose the Garmin tempo run')
+
+    def test_external_observations_keep_canonical_praxys_rest(self, monkeypatch):
+        from api.ai import _build_context_from_data
+        from analysis.config import UserConfig
+
+        monkeypatch.setattr("api.ai.load_config", lambda: UserConfig())
+        today = date.today()
+        owned = {'date': today, 'source': 'praxys', 'workout_type': 'rest'}
+        data = self._empty_data([owned])
+        data['all_plans'] = pd.DataFrame([owned, {'date': today, 'source': 'stryd', 'workout_type': 'long'}])
+        ctx = _build_context_from_data(data)
+        assert ctx['planned_today']['owner'] == 'praxys'
+        assert ctx['planned_today']['workout_type'] == 'rest'
+        assert len(ctx['external_planned_today']) == 1
+
     def test_planned_today_none_when_today_is_unscheduled(self, monkeypatch):
         """A future entry must not be presented as today's workout."""
         from api.ai import _build_context_from_data
@@ -311,6 +399,8 @@ class TestPlannedTodayContext:
         assert ctx["today_signal"] == {
             "recommendation": "rest",
             "reason": "Recovery first.",
+            "reason_code": None,
+            "alternative_codes": [],
             "alternatives": ["Walk only"],
         }
 

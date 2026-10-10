@@ -145,7 +145,7 @@ Two patterns. Different jobs.
 - Expanded body: `text-muted-foreground`, small, leading-relaxed.
 - Citation link: `text-accent-cobalt` with underline on hover.
 
-**`coach-receipt` — narrative reasoning surface.** A standalone block where reasoning *is* the content. Today fills it from the deterministic signal. Analysis and Goal use durable AI insights during ordinary service; an outage or emergency stop is shown as explicit AI unavailability. Any deterministic summary that remains visible is a separately labelled companion with **Training metrics** branding, never a Coach/AI fallback or AI output. Square-cornered, thin border, flat cobalt banner header with brand mark and optional timestamp, body with headline + findings + dashed rule + numbered recommendations, muted footer with theory attribution. Defined globally in `web/src/index.css` under `.coach-receipt`; reusable on any page. CSS classes: `coach-receipt`, `coach-banner`, `coach-mark`, `coach-stamp`, `coach-body`, `coach-headline`, `coach-rule`, `coach-label`, `coach-list`, `coach-row`, `coach-tag`, `coach-tag-rec`, `coach-text`, `coach-foot`.
+**`coach-receipt` — narrative reasoning surface.** A standalone block where reasoning *is* the content. Today combines current recovery, recent workout, trailing seven-day training, modeled load and today’s plan through server-rendered Coach templates; the canonical Today signal remains independently authoritative. Analysis and Goal use durable AI insights during ordinary service; an outage or emergency stop is shown as explicit AI unavailability. Any deterministic summary that remains visible is a separately labelled companion with **Training metrics** branding, never a Coach/AI fallback or AI output. Square-cornered, thin border, flat cobalt banner header with brand mark and optional timestamp, body with headline + two-to-three-sentence summary + one visible key recommendation, followed by default-collapsed findings and remaining recommendations. Structured theory links stay visible before version-bound feedback. Defined globally in `web/src/index.css` under `.coach-receipt`; reusable on any page. CSS classes: `coach-receipt`, `coach-banner`, `coach-mark`, `coach-stamp`, `coach-body`, `coach-headline`, `coach-rule`, `coach-label`, `coach-list`, `coach-row`, `coach-tag`, `coach-tag-rec`, `coach-text`, `coach-foot`.
 
 **The retired rail-card pattern.** An earlier iteration of these docs prescribed a cobalt 3px left-border + cobalt-tinted card for the ScienceNote. That pattern became the AI-generated-UI cliché in 2025–26; the receipt's flat-banner geometry replaced it. **Don't reach for a >1px cobalt left border** — it's an absolute ban now (see DESIGN.md "Don't" list). Reasoning is encoded by cobalt *color* (banner backgrounds, eyebrow labels, citation links, recommendation arrows, ScienceNote triggers), not by rail-card shape.
 
@@ -176,3 +176,26 @@ Tracked here so they don't get lost. When picking up any of these, update this s
 - [ ] Remove `--accent-blue-val` / `--accent-purple-val` usages: migrate TSB/form displays to cobalt (if reasoning) or primary (if positive), move sleep/recovery off purple.
 - [ ] Add the `.font-serif-sc` utility class for Chinese display/quote contexts.
 - [ ] Update `docs/brand/index.html` § V (the Reasoning Note section) to reflect the receipt + minimal-ScienceNote split. The brand guide still describes the retired rail-card pattern.
+
+
+Morning Coach receipts share `AiInsightsCard` on web and
+`components/coach-receipt` on miniapp. Web keeps square cobalt reasoning
+surfaces; miniapp keeps native rounded full-width surfaces. Use consistent
+heading levels, spacing, applicable dates and feedback order across Today,
+Analysis and Goal without changing their time horizons. Do not truncate the
+summary/action or repeat the visible action inside details. Reset disclosure and
+feedback on content identity changes. Remove install promotions from receipts.
+
+Loading, failure/retry, stale, pending and AI-unavailable states are explicit.
+Deterministic fallback content stays labelled **Training metrics** and never
+claims to be Coach. Daily content must match the Today snapshot, server date and
+supported template version; no legacy prose fallback. Applicable selected
+recovery/load theory links remain visible even when AI is unavailable.
+
+Coach voice guides through observations, supported meaning and a useful next
+step. Prefer constructive suggestions to correction or repeated negative
+sentences; keep necessary risk notices, data gaps and source ownership concise.
+Praxys-managed training is authoritative, including scheduled rest. External
+courses are platform-labelled references, with conditional advice using recorded
+targets. Expanded findings may describe measured splits without assigning zones
+or recovery costs from a power value alone.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { apiFetch, getAuthHeaders, useApi } from '@/hooks/useApi';
 import type {
@@ -10,6 +10,8 @@ import type {
 import { msg } from '@lingui/core/macro';
 import { Trans, Plural, useLingui } from '@lingui/react/macro';
 import { useLocale } from '@/contexts/LocaleContext';
+import { Link } from 'react-router-dom';
+import type { CoachTheoryRef } from '@/types/api';
 import { linkifyScienceTerms } from '@/lib/science-links';
 
 /**
@@ -32,6 +34,8 @@ export interface CoachFallback {
 interface Props {
   /** Durable insight slot, or the disabled Today slot used with deterministic content. */
   insightType: string;
+  snapshot?: string | null;
+  theoryRefs?: CoachTheoryRef[];
   /** Optional theory attribution rendered in the muted receipt footer. */
   attribution?: string;
   /** Separately labelled deterministic companion shown when the AI slot is empty. */
@@ -44,31 +48,26 @@ interface Props {
   fetchInsight?: boolean;
 }
 
-const PLUGIN_URL = 'https://github.com/praxys-run/praxys-coach-plugin#install';
-
-function timeAgo(isoDate: string, locale: string): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
-  const rtf = new Intl.RelativeTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { style: 'short' });
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return rtf.format(-mins, 'minute');
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return rtf.format(-hours, 'hour');
-  const days = Math.floor(hours / 24);
-  return rtf.format(-days, 'day');
+function coachText(text: string): ReactNode {
+  return text.split(/(\d+(?:[.,:–-]\d+)*)/g).map((part, index) =>
+    /^\d/.test(part) ? <span className="font-data" key={index}>{part}</span> : part);
 }
 
 /** Render a source-aware insight receipt with AI-only feedback controls. */
 export default function AiInsightsCard({
   insightType,
+  snapshot,
+  theoryRefs,
   attribution,
   fallback,
   onDetailsOpen,
   onFeedbackStale,
   fetchInsight = true,
 }: Props) {
-  const { data, refetch } = useApi<AiInsightResponse>(
-    `/api/insights/${insightType}`,
-    { enabled: fetchInsight },
+  const daily = insightType === 'daily_brief';
+  const { data, refetch, loading, stale, error } = useApi<AiInsightResponse>(
+    `/api/insights/${insightType}${daily && snapshot ? `?snapshot=${encodeURIComponent(snapshot)}` : ''}`,
+    { enabled: fetchInsight && (!daily || Boolean(snapshot)), refetchOnMount: 'always', refetchOnWindowFocus: 'always' },
   );
   const { locale } = useLocale();
   const { i18n } = useLingui();
@@ -82,8 +81,18 @@ export default function AiInsightsCard({
   const [feedbackStale, setFeedbackStale] = useState(false);
   const [feedbackError, setFeedbackError] = useState('');
 
-  const insight = fetchInsight ? data?.insight : null;
+  const coherent = !daily || (Boolean(snapshot) && data?.snapshot === snapshot
+    && data?.content_status === 'ready' && data.insight?.snapshot === snapshot
+    && data.insight?.content_version === 'morning-coach-v2');
+  const insight = fetchInsight && coherent && !stale && !error && !loading ? data?.insight : null;
   const aiUnavailable = fetchInsight && data?.ai_available === false;
+  const refs = insight?.theory_refs ?? data?.theory_refs ?? theoryRefs ?? [];
+  const statusText = error ? i18n._(msg`Couldn't load Coach. Try again.`)
+    : loading ? i18n._(msg`Loading Coach…`)
+    : aiUnavailable ? i18n._(msg`Azure AI insights are temporarily unavailable.`)
+    : data?.content_status === 'unavailable' ? i18n._(msg`Coach analysis is unavailable. Training metrics remain available.`)
+    : daily && (!snapshot || data?.content_status === 'stale') ? i18n._(msg`Coach needs a refreshed training snapshot.`)
+    : !insight && fetchInsight ? i18n._(msg`Coach is waiting for a current analysis.`) : '';
   const rawDatasetHash = insight?.meta.dataset_hash;
   const datasetHash = insight?.feedback_allowed !== false
     && typeof rawDatasetHash === 'string'
@@ -92,12 +101,20 @@ export default function AiInsightsCard({
     : null;
   const persistedFeedback = insight?.meta.feedback;
   const feedbackIdentityRef = useRef('');
-  feedbackIdentityRef.current = `${insightType}:${datasetHash ?? ''}`;
+  const feedbackIdentity = `${insightType}:${snapshot ?? ''}:${datasetHash ?? ''}`;
+  useLayoutEffect(() => {
+    feedbackIdentityRef.current = feedbackIdentity;
+    return () => { feedbackIdentityRef.current = ''; };
+  }, [feedbackIdentity]);
 
-  useEffect(() => {
+  const resetIdentity = `${feedbackIdentity}:${persistedFeedback?.vote ?? ''}`;
+  const [previousIdentity, setPreviousIdentity] = useState('');
+  if (previousIdentity !== resetIdentity) {
+    setPreviousIdentity(resetIdentity);
     const matchesCurrent = datasetHash
       && persistedFeedback?.dataset_hash === datasetHash
       && (persistedFeedback.vote === 'up' || persistedFeedback.vote === 'down');
+    setDetailsOpen(false);
     setFeedbackVote(matchesCurrent ? persistedFeedback.vote : null);
     setFeedbackSent(Boolean(matchesCurrent));
     setFeedbackStale(false);
@@ -105,11 +122,11 @@ export default function AiInsightsCard({
     setFeedbackOpen(false);
     setFeedbackComment('');
     setFeedbackError('');
-  }, [datasetHash, persistedFeedback?.dataset_hash, persistedFeedback?.vote]);
+  }
 
   // Prefer the active-locale translation when present; fall back to
   // the top-level English fields (Issue #103 contract).
-  const localized = insight && ((locale === 'zh' && insight.translations?.zh) || insight);
+  const localized = insight && (daily ? insight.translations?.[locale] : ((locale === 'zh' && insight.translations?.zh) || insight));
 
   // Resolve the actual content to render. AI and deterministic content retain
   // distinct branding; deterministic content is never presented as AI output.
@@ -120,10 +137,10 @@ export default function AiInsightsCard({
         summary: localized.summary,
         findings: localized.findings ?? insight!.findings ?? [],
         recommendations: localized.recommendations ?? insight!.recommendations ?? [],
-        stamp: insight!.generated_at ? timeAgo(insight!.generated_at, locale) : undefined,
+        stamp: insight!.as_of_date ?? insight!.generated_at?.slice(0, 10),
         isAi: true,
       }
-    : fallback
+    : fallback && !loading
       ? {
           headline: fallback.headline,
           summary: fallback.summary,
@@ -172,6 +189,7 @@ export default function AiInsightsCard({
           vote: feedbackVote,
           dataset_hash: datasetHash,
           comment: feedbackComment.trim() || null,
+          ...(daily ? { snapshot, content_version: insight?.content_version } : {}),
         }),
       });
       if (!requestIsCurrent()) return;
@@ -186,13 +204,14 @@ export default function AiInsightsCard({
           )
         ) {
           setFeedbackStale(true);
+          setFeedbackVote(null);
+          setFeedbackComment('');
           setFeedbackError(i18n._(msg`This insight changed. Refresh the page before sending feedback.`));
           const refreshes: Array<Promise<unknown>> = [refetch()];
           if (onFeedbackStale) {
             refreshes.push(Promise.resolve().then(onFeedbackStale));
           }
           await Promise.allSettled(refreshes);
-          if (requestIsCurrent()) setFeedbackStale(false);
           return;
         }
         throw new Error(`HTTP ${response.status}`);
@@ -212,19 +231,19 @@ export default function AiInsightsCard({
     }
   };
 
-  if (!content && !aiUnavailable) return null;
+  if (!content && !statusText) return null;
 
   const displayedContent = content ?? {
     headline: i18n._(msg`Azure AI insights are temporarily unavailable.`),
-    summary: i18n._(msg`Your synced data and deterministic training metrics remain available.`),
+    summary: undefined,
     findings: [],
     recommendations: [],
     stamp: undefined,
     isAi: false,
   };
 
-  const skillName = insightType.replace(/_/g, '-');
-  const hasDetails = displayedContent.findings.length > 0 || displayedContent.recommendations.length > 0;
+  const remainingRecommendations = displayedContent.recommendations.slice(1);
+  const hasDetails = displayedContent.findings.length > 0 || remainingRecommendations.length > 0;
   const toggleDetails = () => {
     if (!detailsOpen) onDetailsOpen?.();
     setDetailsOpen((value) => !value);
@@ -236,23 +255,30 @@ export default function AiInsightsCard({
       : i18n._(msg`Deterministic training summary`)}>
       <div className="coach-banner">
         <span className="coach-mark">
-          {displayedContent.isAi ? <Trans>Praxys Coach</Trans> : <Trans>Training metrics</Trans>}
+          {displayedContent.isAi || !content ? <Trans>Praxys Coach</Trans> : <Trans>Training metrics</Trans>}
         </span>
         {displayedContent.stamp && (
           <span className="coach-stamp font-data">{displayedContent.stamp}</span>
         )}
       </div>
       <div className="coach-body">
-        {aiUnavailable && content && (
-          <p className="coach-summary" role="status">
-            <Trans>Azure AI insights are temporarily unavailable.</Trans>{' '}
-            <Trans>Your synced data and deterministic training metrics remain available.</Trans>
-          </p>
-        )}
-        <p className="coach-headline">{displayedContent.headline}</p>
+        {statusText && <div role={error ? 'alert' : 'status'} className="coach-status">
+          <p><strong><Trans>Praxys Coach</Trans></strong> — {statusText}</p>
+          {loading && <div className="coach-loading" aria-hidden="true"><span /><span /><span /></div>}
+          {!loading && !aiUnavailable && <button type="button" className="coach-toggle" onClick={() => {
+            if (onFeedbackStale) void onFeedbackStale();
+            void refetch();
+          }}><Trans>Refresh</Trans></button>}
+        </div>}
+        <h2 className="coach-headline">{content ? displayedContent.headline : <Trans>Praxys Coach</Trans>}</h2>
         {displayedContent.summary && (
-          <p className="coach-summary">{linkifyScienceTerms(displayedContent.summary)}</p>
+          <p className="coach-summary">{coachText(displayedContent.summary)}</p>
         )}
+        {displayedContent.recommendations[0] && <div className="coach-key-recommendation">
+          <h3 className="coach-label"><Trans>Key recommendation</Trans></h3>
+          <p className="coach-text">{coachText(displayedContent.recommendations[0])}</p>
+        </div>}
+        {insight?.data_as_of && <p className="coach-summary"><Trans>Data through</Trans>{' '}<span className="font-data">{insight.data_as_of.slice(0, 10)}</span></p>}
         {hasDetails && (
           <button
             type="button"
@@ -268,9 +294,9 @@ export default function AiInsightsCard({
                 {displayedContent.findings.length > 0 && (
                   <Plural value={displayedContent.findings.length} one="# finding" other="# findings" />
                 )}
-                {displayedContent.findings.length > 0 && displayedContent.recommendations.length > 0 && <Trans> · </Trans>}
-                {displayedContent.recommendations.length > 0 && (
-                  <Plural value={displayedContent.recommendations.length} one="# recommendation" other="# recommendations" />
+                {displayedContent.findings.length > 0 && remainingRecommendations.length > 0 && <Trans> · </Trans>}
+                {remainingRecommendations.length > 0 && (
+                  <Plural value={remainingRecommendations.length} one="# recommendation" other="# recommendations" />
                 )}
               </span>
             )}
@@ -289,12 +315,12 @@ export default function AiInsightsCard({
             </ul>
           </>
         )}
-        {detailsOpen && displayedContent.recommendations.length > 0 && (
+        {detailsOpen && remainingRecommendations.length > 0 && (
           <>
             {displayedContent.findings.length > 0 && <hr className="coach-rule" />}
             <p className="coach-label"><Trans>Recommendations</Trans></p>
             <ol className="coach-list">
-              {displayedContent.recommendations.map((recommendation, index) => (
+              {remainingRecommendations.map((recommendation, index) => (
                 <li key={index} className="coach-row">
                   <span className="coach-tag coach-tag-rec" aria-hidden="true">→</span>
                   <span className="coach-text">{linkifyScienceTerms(recommendation)}</span>
@@ -303,21 +329,11 @@ export default function AiInsightsCard({
             </ol>
           </>
         )}
-        {displayedContent.isAi && <p className="coach-skill-hint">
-          <Trans>
-            Run{' '}
-            <a
-              href={PLUGIN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="coach-skill-link"
-            >
-              /praxys:{skillName}
-            </a>{' '}
-            in Claude Code for deeper analysis
-          </Trans>
-        </p>}
+
       </div>
+      {refs.length > 0 && <nav className="coach-foot coach-theory-links" aria-label={i18n._(msg`Training methods`)}>
+        {refs.map(ref => <Link key={ref.pillar} to={`/science#${ref.pillar}`}>{ref.label}</Link>)}
+      </nav>}
       {canCollectFeedback && (
         <div className={`coach-feedback-panel ${feedbackOpen ? 'is-open' : ''}`.trim()}>
           <div className="coach-feedback-toolbar">
@@ -397,7 +413,7 @@ export default function AiInsightsCard({
           )}
         </div>
       )}
-      {attribution && <div className="coach-foot">{attribution}</div>}
+      {attribution && refs.length === 0 && <div className="coach-foot">{attribution}</div>}
     </aside>
   );
 }

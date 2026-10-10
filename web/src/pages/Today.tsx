@@ -577,17 +577,17 @@ export default function Today() {
         </div>
         <p className={`text-xl font-bold ${tone.text}`}>{verdictSubtitle}</p>
       </div>
-      {/* Today uses a deterministic training summary. The daily insight
-          slot is intentionally disabled so generated prose can never
-          contradict the canonical signal. */}
+      {/* Coach is bound to this verified canonical Today snapshot. */}
       <AiInsightsCard
         insightType="daily_brief"
-        fetchInsight={false}
+        snapshot={data.coach_snapshot}
+        theoryRefs={data.theory_refs}
+        onFeedbackStale={refetch}
         attribution={attribution}
         fallback={{
-          headline: localizedReason,
+          headline: verdictSubtitle,
           summary: localizedRecoverySummary(ra, i18n),
-          recommendations: localizedAlternatives,
+          recommendations: localizedAlternatives.length ? localizedAlternatives : [localizedReason],
         } as CoachFallback}
         onDetailsOpen={() => recordProductEventOnce(
           'today_reasoning_opened',

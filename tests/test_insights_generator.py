@@ -176,11 +176,11 @@ def test_returns_none_when_client_unavailable(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_daily_brief_uses_deterministic_fallback_without_llm(monkeypatch):
+def test_daily_brief_rejects_legacy_context(monkeypatch):
     monkeypatch.setattr(
         llm,
         "get_client",
-        lambda: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
+        lambda: object(),
     )
 
     assert insights_generator.generate_daily_brief(_fake_context(), PILLARS) is None
@@ -264,7 +264,7 @@ def test_system_prompt_carries_coach_persona(monkeypatch):
     "recommendation",
     ["follow_plan", "unscheduled", "easy", "modify", "reduce_intensity", "rest"],
 )
-def test_daily_brief_never_requests_llm(monkeypatch, recommendation):
+def test_daily_brief_rejects_unbound_canonical_context(monkeypatch, recommendation):
     ctx = _fake_context()
     ctx["today_signal"] = {
         "recommendation": recommendation,
@@ -274,7 +274,7 @@ def test_daily_brief_never_requests_llm(monkeypatch, recommendation):
     monkeypatch.setattr(
         llm,
         "get_client",
-        lambda: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
+        lambda: object(),
     )
 
     assert insights_generator.generate_daily_brief(ctx, PILLARS) is None

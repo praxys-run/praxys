@@ -141,6 +141,7 @@ def _serialize_meta(value: object, *, feedback_allowed: bool) -> dict[str, Any]:
     meta = dict(value) if isinstance(value, dict) else {}
     meta.pop(GENERATION_PROVENANCE_KEY, None)
     meta.pop(DAILY_BRIEF_FRESHNESS_KEY, None)
+    meta.pop("_morning_coach", None)
     if not isinstance(meta.get("dataset_hash"), str):
         meta.pop("dataset_hash", None)
     if not isinstance(meta.get("model"), str):
@@ -202,7 +203,14 @@ def _serialize_insight(
     headline = row.headline.strip() if isinstance(row.headline, str) else ""
     summary = row.summary.strip() if isinstance(row.summary, str) else ""
 
+    from api.morning_coach import CONTRACT_KEY
+    contract = (row.meta or {}).get(CONTRACT_KEY, {})
     return {
+        "as_of_date": contract.get("as_of_date"),
+        "data_as_of": contract.get("data_as_of"),
+        "snapshot": contract.get("snapshot"),
+        "content_version": contract.get("version"),
+        "theory_refs": (row.meta or {}).get("theory_refs", []),
         "headline": headline or english.get("headline", ""),
         "summary": summary or english.get("summary", ""),
         "findings": findings or english.get("findings", []),
@@ -221,6 +229,8 @@ class InsightFeedbackRequest(BaseModel):
     vote: Literal["up", "down"]
     dataset_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     comment: str | None = Field(default=None, max_length=200)
+    snapshot: str | None = None
+    content_version: str | None = None
 
     @field_validator("comment")
     @classmethod
@@ -307,8 +317,6 @@ def submit_insight_feedback(
             400,
             detail=f"Invalid insight_type. Must be one of: {VALID_INSIGHT_TYPES}",
         )
-    if insight_type == "daily_brief":
-        raise HTTPException(410, detail="DAILY_BRIEF_DETERMINISTIC")
     allowed, retry_after = _INSIGHT_FEEDBACK_RATE_LIMIT.check_and_record(user_id)
     if not allowed:
         raise HTTPException(
@@ -319,7 +327,11 @@ def submit_insight_feedback(
 
     from db.models import AiInsight, AiInsightFeedback
 
+    if db.in_transaction():
+        db.rollback()
     begin_serialized_write(db)
+    from db.cache_revision import lock_revision_writes
+    lock_revision_writes(db, user_id)
     _lock_active_user(db, user_id)
     row = (
         db.query(AiInsight)
@@ -333,6 +345,21 @@ def submit_insight_feedback(
     if row is None:
         raise HTTPException(404, detail="INSIGHT_NOT_FOUND")
 
+    def validate_daily_feedback() -> None:
+        if insight_type != "daily_brief":
+            return
+        from api.morning_coach import available, current_snapshot, validate_stored, CONTENT_VERSION
+        from api.stryd_access import stryd_connection_enabled
+        from db.models import User
+        account = db.query(User.is_demo).filter(User.id == user_id).first()
+        snapshot_now = current_snapshot(db, user_id, stryd_connection_enabled(db, user_id=user_id))
+        if (account is None or account.is_demo or not available(db, user_id)
+                or body.snapshot != snapshot_now or body.content_version != CONTENT_VERSION
+                or not validate_stored(row, snapshot_now)):
+            db.rollback()
+            raise HTTPException(409, detail="INSIGHT_FEEDBACK_STALE")
+
+    validate_daily_feedback()
     meta = dict(row.meta or {})
     current_hash = meta.get("dataset_hash")
     if not _is_dataset_hash(current_hash):
@@ -346,11 +373,13 @@ def submit_insight_feedback(
         AiInsightFeedback.dataset_hash == current_hash,
     ).first()
     if existing_row is not None:
+        validate_daily_feedback()
         feedback = _feedback_payload(existing_row)
         if _feedback_state(meta.get("feedback"), current_hash) != feedback:
             meta["feedback"] = feedback
             row.meta = meta
             try:
+                validate_daily_feedback()
                 db.commit()
             except Exception:
                 db.rollback()
@@ -378,6 +407,7 @@ def submit_insight_feedback(
     db.add(feedback_row)
     meta["feedback"] = feedback
     row.meta = meta
+    validate_daily_feedback()
     try:
         db.commit()
     except Exception:
@@ -396,6 +426,45 @@ def submit_insight_feedback(
     )
     return {"accepted": True, "duplicate": False, "feedback": feedback}
 
+def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapshot: str | None) -> dict:
+    """Serve only verified, current, server-rendered daily content."""
+    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs
+    from api.stryd_access import stryd_connection_enabled
+    from api.packs import RequestContext
+    from db.models import AiInsight
+
+    db.rollback()
+    enabled = stryd_connection_enabled(db, user_id=current_user_id)
+    before = current_snapshot(db, data_user_id, enabled)
+    refs = theory_refs(RequestContext(user_id=data_user_id, db=db, include_stryd_plan=enabled).science)
+    response = {"insight": None, "ai_available": available(db, data_user_id),
+                "content_status": "pending", "snapshot": before, "theory_refs": refs}
+    if not response["ai_available"]:
+        response["content_status"] = "unavailable"
+        return response
+    if snapshot != before:
+        response["content_status"] = "stale"
+        return response
+    row = db.query(AiInsight).populate_existing().filter_by(user_id=data_user_id, insight_type="daily_brief").first()
+    if row is not None:
+        if validate_stored(row, before):
+            response["insight"] = _serialize_insight(row, db, feedback_allowed=current_user_id == data_user_id)
+            response["content_status"] = "ready"
+        else:
+            response["content_status"] = "stale"
+    if response["insight"] is None:
+        budget = db.query(AiInsight).filter_by(user_id=data_user_id, insight_type="_generation_budget").first()
+        if budget is not None and (budget.meta or {}).get("daily_failure_snapshot") == before:
+            response["content_status"] = "unavailable"
+    db.rollback()
+    if (current_snapshot(db, data_user_id, enabled) != before
+            or stryd_connection_enabled(db, user_id=current_user_id) != enabled):
+        response.update(insight=None, content_status="stale", snapshot=None)
+    if not available(db, data_user_id):
+        response.update(insight=None, content_status="unavailable", ai_available=False)
+    return response
+
+
 @router.get("/insights")
 def get_insights(
     snapshot: str | None = None,
@@ -403,29 +472,30 @@ def get_insights(
     data_user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get durable AI insights; Today guidance is deterministic."""
-    from db.models import AiInsight
-    from api import llm
-
-    ai_available = llm.runtime_ai_available()
-    if not ai_available:
-        return {"ai_available": False, "insights": {}}
-    feedback_allowed = current_user_id == data_user_id
-    rows = db.query(AiInsight).filter(
-        AiInsight.user_id == data_user_id,
-        AiInsight.insight_type != "daily_brief",
-    ).all()
-    return {
-        "ai_available": ai_available,
-        "insights": {
-            row.insight_type: _serialize_insight(
-                row,
-                db,
-                feedback_allowed=feedback_allowed,
-            )
-            for row in rows
-        },
-    }
+    """List durable insights and attach daily content only to a verified snapshot."""
+    daily = _daily_response(db, current_user_id, data_user_id, snapshot)
+    insights = {}
+    if daily["ai_available"]:
+        from db.models import AiInsight
+        rows = db.query(AiInsight).filter(AiInsight.user_id == data_user_id,
+                                         AiInsight.insight_type.in_(["training_review", "race_forecast"])).all()
+        insights = {row.insight_type: _serialize_insight(row, db, feedback_allowed=current_user_id == data_user_id) for row in rows}
+        if daily["insight"]:
+            insights["daily_brief"] = daily["insight"]
+    if "daily_brief" in insights:
+        from api.morning_coach import available, current_snapshot
+        from api.stryd_access import stryd_connection_enabled
+        db.rollback()
+        enabled = stryd_connection_enabled(db, user_id=current_user_id)
+        if current_snapshot(db, data_user_id, enabled) != daily["snapshot"]:
+            insights.pop("daily_brief", None)
+            daily.update(content_status="stale", snapshot=None)
+        if not available(db, data_user_id):
+            insights = {}
+            daily.update(content_status="unavailable", ai_available=False)
+    return {"ai_available": daily["ai_available"], "insights": insights,
+            "content_status": daily["content_status"], "snapshot": daily["snapshot"],
+            "theory_refs": daily["theory_refs"]}
 
 
 @router.get("/insights/{insight_type}")
@@ -436,29 +506,22 @@ def get_insight(
     data_user_id: str = Depends(get_data_user_id),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get one durable AI insight and its operational availability."""
+    """Get one durable insight with explicit content and availability status."""
+    if insight_type == "daily_brief":
+        return _daily_response(db, current_user_id, data_user_id, snapshot)
+    if insight_type not in VALID_INSIGHT_TYPES:
+        raise HTTPException(404, detail="INSIGHT_NOT_FOUND")
     from db.models import AiInsight
     from api import llm
-
-    ai_available = llm.runtime_ai_available()
-    if insight_type == "daily_brief":
-        return {"insight": None, "ai_available": ai_available}
-    if not ai_available:
-        return {"insight": None, "ai_available": False}
-
-    row = db.query(AiInsight).filter(
-        AiInsight.user_id == data_user_id,
-        AiInsight.insight_type == insight_type,
-    ).first()
-
-    if not row:
-        return {"insight": None, "ai_available": True}
-
-    return {
-        "ai_available": True,
-        "insight": _serialize_insight(
-            row,
-            db,
-            feedback_allowed=current_user_id == data_user_id,
-        )
-    }
+    from api.morning_coach import theory_refs
+    from api.packs import RequestContext
+    refs = theory_refs(RequestContext(user_id=data_user_id, db=db).science,
+                       ("load", "zones") if insight_type == "training_review" else ("prediction",))
+    if not llm.runtime_ai_available():
+        return {"insight": None, "ai_available": False, "content_status": "unavailable", "theory_refs": refs}
+    row = db.query(AiInsight).filter_by(user_id=data_user_id, insight_type=insight_type).first()
+    insight = _serialize_insight(row, db, feedback_allowed=current_user_id == data_user_id) if row else None
+    if insight:
+        insight["theory_refs"] = refs
+    return {"ai_available": True, "insight": insight,
+            "content_status": "ready" if insight else "pending", "theory_refs": refs}

@@ -1,3 +1,4 @@
+import type { AiInsightResponse, CoachTheoryRef } from '../../types/api';
 import { setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet, apiPost, apiPut } from '../../utils/api-client';
@@ -903,7 +904,10 @@ const initialData: GoalState = {
 // ---- Page ----
 
 Page({
-  data: { ...initialData, tr: buildGoalTr() },
+  data: {
+    coachResponse: null as AiInsightResponse | null,
+    coachLoading: true, coachFailed: false,
+    coachSnapshot: '', coachTheoryRefs: [] as CoachTheoryRef[], ...initialData, tr: buildGoalTr() },
 
   onLoad() {
     const tc = themeClassName();
@@ -1288,7 +1292,7 @@ Page({
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
-    this.setData({ loading: true, errorMessage: '' });
+    this.setData({ loading: true, errorMessage: '', coachLoading: true, coachResponse: null, coachFailed: false });
     const tr = this.data.tr as ReturnType<typeof buildGoalTr>;
     try {
       const locale = (getApp<IAppOption>().globalData.locale ?? 'en') as 'en' | 'zh';
@@ -1298,7 +1302,7 @@ Page({
           const fe = e as Partial<ApiError>;
           if (fe?.code === 'UNAUTHENTICATED') throw e;
           console.warn('[goal] race_forecast fetch failed; suppressing coach receipt:', e);
-          return { insight: null, ai_available: false };
+          return { insight: null, ai_available: true, content_status: 'pending' as const, failed: true };
         }),
         apiGet<PlanGenerationCapabilitiesResponse>(
           '/api/plan/generation/capabilities',
@@ -1313,6 +1317,7 @@ Page({
           }),
       ]);
       if (pageState._refetchRequestId !== requestId) return;
+      this.setData({ coachResponse: insightResponse, coachLoading: false, coachFailed: 'failed' in insightResponse });
       const discovery = capabilityResult.data;
       const serverGoalPlanImpact = discovery
         ? discovery.goal_plan_impact

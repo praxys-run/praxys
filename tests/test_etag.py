@@ -139,7 +139,7 @@ def test_response_versions_cover_changed_endpoints():
     from api.etag import ENDPOINT_RESPONSE_VERSIONS
 
     assert ENDPOINT_RESPONSE_VERSIONS["today"] == (
-        "private-plan-boundary-today-v14"
+        "morning-coach-today-v15"
     )
     assert ENDPOINT_RESPONSE_VERSIONS["training"] == (
         "private-plan-boundary-training-v14"
@@ -618,6 +618,8 @@ def test_today_etag_changes_at_midnight(etag_client, monkeypatch):
             return _real_date.fromisoformat(cls._value)
 
     monkeypatch.setattr(etag_mod, "date", _FrozenDate)
+    monkeypatch.setattr("api.morning_coach.date", _FrozenDate)
+    monkeypatch.setattr("api.dashboard_cache.date", _FrozenDate)
     cold = client.get("/api/today")
     yesterday_etag = cold.headers["etag"]
     assert cold.status_code == 200

@@ -109,6 +109,10 @@ def db_session():
 def enable_background_ai(monkeypatch):
     """Existing runner tests exercise the explicitly enabled path."""
     monkeypatch.setenv("PRAXYS_DISABLE_BACKGROUND_AI", "false")
+    # These historical tests focus on the two multi-week generators. Daily
+    # selection, rollover and caps have real-generator coverage in test_morning_coach.
+    monkeypatch.setattr(insights_runner, "GENERATORS_ORDER", ("training_review", "race_forecast"))
+    monkeypatch.setattr(llm, "runtime_ai_available", lambda: True)
     monkeypatch.setattr(
         insights_runner,
         "background_ai_authorized",
@@ -231,8 +235,8 @@ def stub_pillars(monkeypatch):
 def test_skips_when_no_new_rows(db_session, stub_context, stub_pillars):
     """Empty counts → short-circuit, no LLM calls, no DB writes."""
     result = insights_runner.run_insights_for_user(USER_ID, db_session, {}, _session=db_session)
-    assert result == {"skipped": "no_new_rows"}
-    assert db_session.query(AiInsight).count() == 0
+    assert result == {"training_review": "no_new_rows", "race_forecast": "no_new_rows"}
+    assert db_session.query(AiInsight).filter(AiInsight.insight_type != "_generation_budget").count() == 0
 
 
 def test_requests_twelve_week_context_for_insight_reviews(
@@ -272,7 +276,7 @@ def test_generates_both_durable_insights_when_hash_differs(
         "training_review": "generated",
         "race_forecast": "generated",
     }
-    rows = db_session.query(AiInsight).filter(AiInsight.user_id == USER_ID).all()
+    rows = db_session.query(AiInsight).filter(AiInsight.user_id == USER_ID, AiInsight.insight_type != "_generation_budget").all()
     assert len(rows) == 2
     assert {row.insight_type for row in rows} == {
         "training_review",
@@ -329,7 +333,7 @@ def test_discards_generated_insights_if_authorization_is_lost_before_commit(
     )
 
     assert result == {"skipped": "processing_not_authorized"}
-    assert db_session.query(AiInsight).count() == 0
+    assert db_session.query(AiInsight).filter(AiInsight.insight_type != "_generation_budget").count() == 0
 
 
 def test_retries_context_when_calendar_date_changes(
@@ -348,7 +352,7 @@ def test_retries_context_when_calendar_date_changes(
     class _RollingDate:
         @classmethod
         def today(cls):
-            return next(dates)
+            return next(dates, real_date(2026, 7, 13))
 
     context_calls = {"count": 0}
 
@@ -377,30 +381,32 @@ def test_discards_generation_batch_when_llm_calls_cross_midnight(
 ):
     from datetime import date as real_date
 
-    dates = iter([
-        real_date(2026, 7, 12),
-        real_date(2026, 7, 12),
-        real_date(2026, 7, 13),
-    ])
+    current_day = real_date(2026, 7, 12)
 
     class _RollingDate:
         @classmethod
         def today(cls):
-            return next(dates)
+            return current_day
 
+    from api import insights_generator
+    original = insights_generator.generate_training_review
+    def generate(*args, **kwargs):
+        nonlocal current_day
+        result = original(*args, **kwargs)
+        current_day = real_date(2026, 7, 13)
+        return result
+    monkeypatch.setattr(insights_generator, "generate_training_review", generate)
     monkeypatch.setattr(insights_runner, "date", _RollingDate)
-    monkeypatch.setattr(llm, "get_client", lambda: _FakeClient(
-        json.dumps(_bilingual_response())
-    ))
+    monkeypatch.setattr(llm, "get_client", lambda: _FakeClient(json.dumps(_bilingual_response())))
 
     result = insights_runner.run_insights_for_user(
         USER_ID, db_session, {"activities": 1}, _session=db_session,
     )
 
-    assert all(status == "superseded" for status in result.values())
-    assert db_session.query(AiInsight).count() == 0
+    assert result == {"skipped": "context_changed"}
+    assert db_session.query(AiInsight).filter(AiInsight.insight_type != "_generation_budget").count() == 0
 
-def test_runner_never_writes_or_refreshes_daily_brief(
+def test_multiweek_only_run_leaves_legacy_daily_row_untouched(
     db_session, stub_context, stub_pillars, monkeypatch,
 ):
     existing = AiInsight(
@@ -416,7 +422,7 @@ def test_runner_never_writes_or_refreshes_daily_brief(
     db_session.commit()
     fake = _FakeClient(json.dumps(_bilingual_response()))
     monkeypatch.setattr(llm, "get_client", lambda: fake)
-    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "2")
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "4")
 
     result = insights_runner.run_insights_for_user(
         USER_ID, db_session, {"activities": 1}, _session=db_session,
@@ -578,7 +584,7 @@ def test_matching_hash_client_push_is_regenerated_not_trusted(
 def test_cap_reached_skips_remaining_types(db_session, stub_context, stub_pillars, monkeypatch):
     fake = _FakeClient(json.dumps(_bilingual_response()))
     monkeypatch.setattr(llm, "get_client", lambda: fake)
-    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "1")
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "2")
 
     result = insights_runner.run_insights_for_user(
         USER_ID, db_session, {"activities": 1}, _session=db_session,
@@ -604,7 +610,7 @@ def test_cap_reached_skips_all_generators(
         "race_forecast": "cap_reached",
     }
     assert fake.chat.completions.call_count == 0
-    assert db_session.query(AiInsight).count() == 0
+    assert db_session.query(AiInsight).filter(AiInsight.insight_type != "_generation_budget").count() == 0
 
 
 def test_daily_cap_uses_dynamic_config_override(monkeypatch):
@@ -861,7 +867,7 @@ def test_upsert_rejects_snapshot_after_source_revision_advances(db_session):
     )
 
     assert written is False
-    assert db_session.query(AiInsight).count() == 0
+    assert db_session.query(AiInsight).filter(AiInsight.insight_type != "_generation_budget").count() == 0
 
 
 def test_generator_returns_none_leaves_existing_row_intact(db_session, stub_context, stub_pillars, monkeypatch):
@@ -966,7 +972,9 @@ def test_runner_serializes_write_batch_before_upserts(
     assert set(result.values()) == {"generated"}
     assert events == [
         "lifecycle-enter",
+        "serialized-write",
         "provider:training_review",
+        "serialized-write",
         "provider:race_forecast",
         "lifecycle-exit",
         "serialized-write",
@@ -1007,7 +1015,7 @@ def test_generation_lock_is_transaction_scoped_and_released_on_early_return(
     monkeypatch.setattr(
         insights_runner,
         "_run",
-        lambda _db, _user_id: {"skipped": "cap_reached"},
+        lambda _db, _user_id, **_kw: {"skipped": "cap_reached"},
     )
 
     result = insights_runner._run_serialized(db, USER_ID)
