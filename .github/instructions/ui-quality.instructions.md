@@ -8,10 +8,10 @@ applyTo: "web/**,miniapp/**,DESIGN.md,PRODUCT.md,docs/brand/**,docs/dev/design-s
 Treat every user-visible change as an **Operate-mode** product design task, not
 as styling after implementation.
 
-Under the agentic operating model, Product owns user value, Design owns the
-intended experience, Engineering implements it, and Quality independently
-verifies it. The UI quality harness is the mandatory rendered Design harness;
-it does not authorize one implementation agent to collapse those roles.
+The main session covers product intent, design, implementation and the rendered
+harness. Use independent Quality review for material risks per `AGENTS.md`.
+The rendered evidence, accessibility, state coverage and parity requirements
+apply equally to single-session work.
 
 1. Invoke the repository `ui-quality` skill before editing. It loads and follows
    `.github/skills/impeccable/SKILL.md`; run its context command exactly once for

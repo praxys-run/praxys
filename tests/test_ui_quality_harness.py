@@ -246,10 +246,10 @@ def test_harness_is_wired_into_agents_and_required_ci():
     ).is_file()
 
     agent = (
-        ROOT / ".github" / "agents" / "praxys-change-loop.agent.md"
+        ROOT / ".github" / "agents" / "praxys-orchestrator.agent.md"
     ).read_text(encoding="utf-8")
     assert "description:" in agent
-    assert "agent-ready" in agent
+    assert "Completes a Praxys task" in agent
     assert "playwright/*" not in agent
     assert "python scripts/agent_preflight.py --base origin/main" in agent
 

@@ -1027,7 +1027,7 @@ merely because an object with the same key is absent there.
 
 `agent-ready` (auto-added to qualifying, actionable bugs by `api/feedback_triage.py`, or added
 by hand) triggers `.github/workflows/assign-copilot.yml`, which assigns the issue
-to the Copilot coding agent with the checked-in `praxys-change-loop` custom
+to the Copilot coding agent with the checked-in `praxys-orchestrator` custom
 agent profile. These are **repo settings, not deploy-managed**:
 
 - **Labels** `agent-ready` and `backlog` (optionally `later`) are created once
