@@ -78,6 +78,10 @@ package. A healthy `/healthz` alone cannot pass this check. Each attempt records
 the observed SHA, resource hashes, or request error; the final evidence artifact
 retains failed observations as well as successful verification. Changes to
 this helper trigger frontend deployment.
+The read-only probe uses `Praxys-Deployment-Monitor/1.0` as its user agent:
+the public edge rejected the default Python user agent during this incident.
+HTTP failures record both the request path and status code without response
+bodies or cookies.
 
 On 2026-10-10, run `38055205151` finished verification at 13:28:02 UTC;
 App Service started its new deployment at 13:29:12 UTC. The earlier two-minute

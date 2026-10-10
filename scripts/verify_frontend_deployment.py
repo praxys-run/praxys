@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import time
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 BASE_URLS = (
     "https://praxys-frontend.azurewebsites.net",
@@ -43,7 +44,10 @@ def expected_resources(dist: Path) -> dict[str, str]:
 
 def fetch(url: str, timeout: float) -> bytes:
     """Read public deployment resources without using cached responses."""
-    request = Request(url, headers={"Cache-Control": "no-cache"})
+    request = Request(url, headers={
+        "Cache-Control": "no-cache",
+        "User-Agent": "Praxys-Deployment-Monitor/1.0",
+    })
     with urlopen(request, timeout=timeout) as response:
         return response.read()
 
@@ -53,6 +57,7 @@ def probe(base_url: str, source_sha: str, resources: dict[str, str], deadline: f
     result: dict = {"url": base_url, "matched": False, "resources": {}}
     try:
         def read(path: str) -> bytes:
+            result["requestedPath"] = path
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError("verification deadline exceeded")
@@ -71,6 +76,9 @@ def probe(base_url: str, source_sha: str, resources: dict[str, str], deadline: f
                 result["error"] = "served resource does not match package"
                 return result
         result["matched"] = True
+    except HTTPError as exc:
+        result["error"] = "HTTPError"
+        result["httpStatus"] = exc.code
     except (OSError, ValueError, TimeoutError) as exc:
         result["error"] = type(exc).__name__
     return result

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.error import HTTPError
 
 import pytest
 
@@ -105,3 +106,26 @@ def test_network_failures_produce_evidence(dist, monkeypatch):
     result = deployment.probe(deployment.BASE_URLS[0], SHA, deployment.expected_resources(dist), float("inf"))
     assert result["matched"] is False
     assert result["error"] == "TimeoutError"
+
+
+def test_http_failures_retain_status_and_request_path(dist, monkeypatch):
+    def fail(url, *args):
+        raise HTTPError(url, 403, "Forbidden", None, None)
+    monkeypatch.setattr(deployment, "fetch", fail)
+    result = deployment.probe(deployment.BASE_URLS[1], SHA, deployment.expected_resources(dist), float("inf"))
+    assert result["matched"] is False
+    assert result["httpStatus"] == 403
+    assert result["requestedPath"] == "/healthz"
+
+
+def test_public_probe_identifies_itself_and_revalidates(monkeypatch):
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self): return b"current"
+    def open_request(request, timeout):
+        assert request.get_header("User-agent") == "Praxys-Deployment-Monitor/1.0"
+        assert request.get_header("Cache-control") == "no-cache"
+        return Response()
+    monkeypatch.setattr(deployment, "urlopen", open_request)
+    assert deployment.fetch(deployment.BASE_URLS[1] + "/healthz", 15) == b"current"
