@@ -907,8 +907,12 @@ Prospective focused admission cells separate two contracts. Fixed-phase cells
 issue one ingress after the declared observation interval/phase offset; they
 retain every refusal or durable acceptance and observe its actual service before
 classifying retirement. Independent strict-priority cells issue one ingress
-following the real automatic child's payload-decode handshake, with a genuine
-completed valid initial renewal, without selecting remaining SQL-pulse duration.
+after the real automatic child's payload-decode handshake and a subsequent
+completed valid renewal for the same occupied actor, full incarnation and epoch.
+The receipt includes successful CAS, actual commit ACK and local permission
+extension; the event is published after actual allowed/ready assignment. Waiting
+is bounded and does not park control or select remaining SQL-pulse duration.
+This event reserves no readiness: a subsequent503 still fails strict coverage.
 Retry, new preparation and confirmed computation each require affirmative
 committed-priority retirement on both SQLite and PostgreSQL. A refusal or
 missing priority proof in those cells is insufficient coverage/failure, never a
@@ -925,9 +929,14 @@ observation covers both submit and retry, including the already-read locked
 actor and physical journal, the transaction subject, pre-DBAPI commit invocation
 and client ACK. None of these observations invents SQL server commit time.
 
-Focused already-retiring service requires affirmative matching physical
-`retiring` journal observation before commit invocation, exact token/full
-binding/incarnation and matching exit plus durable availability. It is not a
+Prospective already-retiring supplemental service requires successful persistence
+of the matching `retiring` journal followed by successful actual live-group TERM
+dispatch, both completed before pre-DBAPI commit invocation. The observation
+binds initial and serialized actor token, full computation binding, incarnation,
+PID/start/PGID identity, actual signal group and live membership. Function entry,
+`term_at`, journal alone or exit before ACK alone are insufficient. Independent
+verified physical exit before commit invocation remains the separate race proof.
+Both require matching exit and durable availability within5s from ingress. It is not a
 strict-priority positive. Missing/mismatched evidence and ACK-only ordering
 remain insufficient; generic failed assertions never establish a race. The
 physical exit/availability bound remains conservatively measured from ingress.
@@ -944,3 +953,11 @@ errors are negative tests, not operational samples. The capacity target remains
 300 ingress/600s, plus separately retained supplemental outcomes. No authority,
 250ms SQL pulse/ACK budget,750ms physical expiry,125ms cadence or pool2 boundary
 is changed by these test contracts.
+
+The failed `f2237a8` run remains4533 passed/2 failed/53 skipped;36 ingress,
+29 completed accepted services and28 causal proofs do not meet100. Its last
+supplemental record lacks persisted-journal/TERM completion timestamps and stays
+unproved. The361.617ms strict-cell renewal overrun and earlier341.986ms overrun
+have unknown causes. No runtime defect or retrospective repair is claimed.
+The new observers add local timestamp/frame/journal observations; their overhead
+is not quantified and focused forced-boundary results are not a capacity claim.

@@ -74,12 +74,14 @@ def admission_attempt(factory, owner, run_id, generation, ledger, observation):
 class PriorityEvidence:
     """Observe real committed priority queries and the actual retirement cause.
 
-    Uses only the supervisor's existing control connection and query results;
-    no readiness, watchdog, admission or retirement decisions are changed.
+    Reuses the existing control/query results and observes real journal/signal
+    completion. Local journal reads/timestamps add unquantified overhead; no
+    readiness, watchdog, admission or retirement decisions are changed.
     """
     def __init__(self, supervisor, monkeypatch):
         self.priorities=[];self.retirements=[];self.renewals=[];self.renewal_decisions=[];self.retired=threading.Event()
         self.invalidation=None
+        self.renewal_event=threading.Event();self.renewal_target=None;self.subsequent_receipt=None
         self.park_after_renewal=threading.Event();self.parked=threading.Event();self.resume=threading.Event()
         self.hold_reason_until_exit=False
         observer=self
@@ -121,7 +123,9 @@ class PriorityEvidence:
                             'valid':local.get('valid'),'priority':local.get('priority'),'allowed':self.allowed,
                             'permission_until':self.permission_until,
                             'exception_class':type(exc).__name__ if exc else None,
-                            'dbapi_class':type(getattr(exc,'orig',None)).__name__ if exc and getattr(exc,'orig',None) else None})
+                            'dbapi_class':type(getattr(exc,'orig',None)).__name__ if exc and getattr(exc,'orig',None) else None,
+                            'sqlstate':getattr(getattr(exc,'orig',None),'sqlstate',None),
+                            'sqlite_errorcode':getattr(getattr(exc,'orig',None),'sqlite_errorcode',None)})
                 if name=='permission_until':
                     caller=sys._getframe(1)
                     local=caller.f_locals
@@ -129,8 +133,16 @@ class PriorityEvidence:
                     receipt=session.info.get('capacity_renewal_commit') if session is not None else None
                     if (caller.f_code is renewal_code and local.get('valid') is True
                             and local.get('updated')==1 and receipt and receipt.get('completed_at') is not None):
-                        observer.renewals.append({**receipt,'permission_granted_at':time.monotonic(),
-                            'permission_until':value,'iteration_started':local['started']})
+                        previous_permission=self.permission_until
+                        super().__setattr__(name,value)
+                        actor=self.lane.actor()
+                        completed={**receipt,'permission_granted_at':time.monotonic(),
+                            'permission_until':self.permission_until,'iteration_started':local['started'],
+                            'actor':json.loads(json.dumps(actor)) if actor else None,
+                            'active':dict(local['active']) if local.get('active') else None,
+                            'previous_permission_until':previous_permission}
+                        observer.renewals.append(completed)
+                        return
                 if name=='allowed':
                     observer.invalidation=None
                     caller=sys._getframe(1)
@@ -146,6 +158,17 @@ class PriorityEvidence:
                 if name=='retirement_reason' and value=='priority' and observer.hold_reason_until_exit:
                     assert observer.retired.wait(5)
                 super().__setattr__(name,value)
+                if name=='control_observation' and value.get('state')=='ready' and observer.renewals:
+                    completed=observer.renewals[-1];target=observer.renewal_target;actor=self.lane.actor()
+                    if (target and actor and self.allowed and completed['iteration_started']>=target['armed_at']
+                            and completed['permission_until']==self.permission_until>completed['previous_permission_until']
+                            and completed.get('active') and completed['active']['origin']=='automatic'
+                            and {k:completed['active'][k] for k in ('generation','epoch','input')}==actor['binding']
+                            and all(actor.get(k)==target['actor'].get(k)==completed['actor'].get(k)
+                                for k in ('actor_token','binding','incarnation','identity'))
+                            and actor.get('state')=='occupied' and completed['epoch']==int(actor['binding']['epoch'])
+                            and completed['incarnation']==actor['incarnation']):
+                        observer.subsequent_receipt=completed;observer.renewal_event.set()
         monkeypatch.setattr(supervisor,'__class__',ObservedSupervisor)
         class ObservedSession(Session):
             def commit(self):
@@ -172,6 +195,32 @@ class PriorityEvidence:
                     observer.park_after_renewal.clear();observer.parked.set()
                     assert observer.resume.wait(5)
         supervisor.controls=sessionmaker(class_=ObservedSession,query_cls=ObservedQuery,**supervisor.controls.kw)
+        from api import dfa_physical
+        real_record=supervisor.lane.record;real_killpg=dfa_physical.os.killpg
+        retire_code=supervisor.lane.retire.__func__.__code__
+        observer.retirement_dispatches=[]
+        def record(value):
+            real_record(value)
+            caller=sys._getframe(1)
+            # Lifecycle observers may wrap record; retain the actual retire frame.
+            for _ in range(3):
+                if caller.f_code is retire_code or caller.f_back is None:break
+                caller=caller.f_back
+            if caller.f_code is retire_code and caller.f_locals.get('value') is value and value.get('state')=='retiring':
+                observer.retirement_dispatches.append({'actor':json.loads(json.dumps(value)),
+                    'journal_persisted_at':time.monotonic()})
+        def killpg(pgid,sig):
+            result=real_killpg(pgid,sig)
+            caller=sys._getframe(1)
+            if caller.f_code is retire_code and sig==dfa_physical.signal.SIGTERM:
+                value=caller.f_locals['value'];members=caller.f_locals['members']
+                matches=[d for d in observer.retirement_dispatches if d['actor']['actor_token']==value['actor_token']]
+                if len(matches)==1 and value['identity']['pgid']==pgid and members:
+                    matches[0].update(term_dispatch_completed_at=time.monotonic(),pgid=pgid,
+                        dispatch_identity=dict(value['identity']),live_members=json.loads(json.dumps(members)))
+            return result
+        monkeypatch.setattr(supervisor.lane,'record',record)
+        monkeypatch.setattr(dfa_physical.os,'killpg',killpg)
         real_retire=supervisor.lane.retire
         def retire(*args,**kwargs):
             actor=supervisor.lane.actor()
@@ -185,10 +234,15 @@ class PriorityEvidence:
             if actor and actor.get('state')=='occupied' and exited and exited.get('state')=='idle':
                 observer.retirements.append({'actor_token':actor['actor_token'],'actor_snapshot':json.loads(json.dumps(actor)),'reason':reason,
                     'allowed_at_start':allowed,'started_monotonic':started,'priority_invalidation':priority,
-                    'exit_observed_at':exited['exit_observed_at']})
+                    'exit_observed_at':exited['exit_observed_at'],
+                    'dispatches':[json.loads(json.dumps(d)) for d in observer.retirement_dispatches if d['actor']['actor_token']==actor['actor_token']]})
                 observer.retired.set()
             return result
         monkeypatch.setattr(supervisor.lane,'retire',retire)
+
+    def arm_subsequent_renewal(self, actor):
+        self.renewal_event.clear();self.subsequent_receipt=None
+        self.renewal_target={'actor':json.loads(json.dumps(actor)),'armed_at':time.monotonic()}
 
     def startup_launch(self, actor):
         matching=[value for value in self.renewals
@@ -355,7 +409,7 @@ else:
                      'cohort_elapsed_seconds':time.monotonic()-overall_started})
                 if admitted:
                     observation=observe_acceptance(factory,owner,admitted,entry,manual_input,
-                        priority_evidence,transitions,committed_exits,overall_deadline,error)
+                        priority_evidence,transitions,committed_exits,overall_deadline,error,allow_existing_retirement=True)
                     accepted_outcomes.append(observation)
                     with progress.with_suffix('.accepted.jsonl').open('a') as stream:
                         stream.write(json.dumps({'ingress':entry,'observation':observation})+'\n')
@@ -364,8 +418,8 @@ else:
                     assert entry['outcome']=='accepted',entry
                     assert observation['service']=='complete',observation
                     assert not observation['reuse_violations'],observation
-                    assert observation['classification'] in ('causal_preemption','retirement_race','idle_service'),observation
-                    if observation['classification'] in ('causal_preemption','retirement_race'):
+                    assert observation['classification'] in ('causal_preemption','retirement_race','already_retiring_service','idle_service'),observation
+                    if observation['classification'] in ('causal_preemption','retirement_race','already_retiring_service'):
                         assert observation['retirement_within_budget'],observation
                     if observation['classification']=='causal_preemption':
                         assert observation['physical_exit_upper_seconds']<=5,observation
@@ -392,14 +446,14 @@ else:
                 assert next_actor['launch_at']>=previous['exit_observed_at']
         assert time.monotonic()<=overall_deadline
         assert len(outcomes)==100, {'required_preemptions':len(outcomes),'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason}
-        assert all(row['classification'] in ('causal_preemption','retirement_race','idle_service') for row in accepted_outcomes),accepted_outcomes
+        assert all(row['classification'] in ('causal_preemption','retirement_race','already_retiring_service','idle_service') for row in accepted_outcomes),accepted_outcomes
         assert max(row['durable_availability_upper_seconds'] for row in outcomes)<=5
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
         (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 125ms start cadence, 250ms SQL admission pulse, no fast-window selection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
             'startup_evidence':startup_evidence,
-            'cohort':'100 causally proven accepted preemptions PLUS separate idle/race acceptance outcomes; every ingress/time counts, not100mixed successes',
+            'cohort':'100 causally proven accepted preemptions PLUS separate idle/race/persisted-TERM service acceptance outcomes; every ingress/time counts, not100mixed successes',
             'completion_plan':completion_plan,'accepted_outcomes':accepted_outcomes,'eligibility_observations':eligibility_observations,
             'measurement_scope':'cohort excluding fixture setup; full pytest duration reported separately',
             'attempts':len(ingress),'maximum_attempts':maximum_attempts,'maximum_seconds':600,

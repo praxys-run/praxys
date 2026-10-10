@@ -234,6 +234,9 @@ else:
             assert select.select([ready_read],[],[],3)[0],errors
             assert os.read(ready_read,1)==b'A'
             startup_ack=proof.startup_launch(supervisor.lane.actor())
+            proof.arm_subsequent_renewal(supervisor.lane.actor())
+            assert proof.renewal_event.wait(3),{'renewals':proof.renewals,'decisions':proof.renewal_decisions,'errors':errors}
+            startup_ack['subsequent_completed_renewal']=proof.subsequent_receipt
         else:time.sleep(.75)
         # Predetermined phase offsets, independent of readiness eligibility.
         phase_delay = {'retry': 0., 'prepare': .06, 'compute': .12}[operation]
@@ -288,7 +291,7 @@ else:
             'priorities': proof.priorities, 'renewal_decisions':proof.renewal_decisions,'completed_renewals':proof.renewals,'actors': actors, 'durable_availability': availability, 'errors': errors,
             'pulse_samples':pulse_samples, 'profile':{'start_cadence_seconds':.125,'sql_admission_budget_seconds':.25,
                 'physical_permission_seconds':.75,'phase_delay_seconds':{'retry':0.,'prepare':.06,'compute':.12}[operation],
-                'attempt_budget':1,'strict_ingress_event':'actual_child_payload_handshake_no_pulse_duration_selection' if cell_contract=='strict_priority' else None,'fast_window_selection':False,'fixed_observation_seconds':.75,'pulse_sampling_seconds':.025},
+                'attempt_budget':1,'strict_ingress_event':'subsequent_same_actor_completed_renewal_after_payload_handshake_no_pulse_selection' if cell_contract=='strict_priority' else None,'fast_window_selection':False,'fixed_observation_seconds':.75,'pulse_sampling_seconds':.025},
             'instrumentation': 'SQLAlchemy actual after_commit/error callbacks and 2ms read-only renewal/25ms independent SQL pulse sampling; no SQL payloads, tracing, parking or forged renewal; observer overhead unquantified'}, default=str, indent=2))
         assert not thread.is_alive(), errors
 

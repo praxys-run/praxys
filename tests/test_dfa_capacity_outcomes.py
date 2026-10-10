@@ -272,16 +272,39 @@ def test_genuine_already_retiring_service_is_not_priority_positive(outcome_cell)
     assert result['retirement_within_budget'] and result['manual_physical_exit'] and result['manual_durable_available_at'],result
     result['forced_boundary']='actual committed drain -> actual retiring -> committed recovery -> one ingress'
     result['deliberately_mutated_retiring_negatives']=[]
-    for defect in ('missing_physical_journal','wrong_physical_token','wrong_physical_binding','not_retiring','after_commit_observation'):
-        damaged=deepcopy(entry)
-        if defect=='missing_physical_journal':damaged['locked_admission'].pop('physical_actor')
-        elif defect=='wrong_physical_token':damaged['locked_admission']['physical_actor']['actor_token']='other'
-        elif defect=='wrong_physical_binding':damaged['locked_admission']['physical_actor']['binding']['input']='other'
-        elif defect=='not_retiring':damaged['locked_admission']['physical_actor']['state']='occupied'
-        else:damaged['locked_admission']['physical_observed_at']=entry['commit_ack']+1
+    for defect in ('entry_only','journal_only','late_term','wrong_identity','wrong_token','wrong_binding',
+                   'missing_commit','exit_before_ack_only','missing_availability','missing_exit','overbudget',
+                   'locked_identity','missing_identity','zombie_member','missing_dispatch_identity',
+                   'all_missing_binding_input','all_null_incarnation_source'):
+        damaged=deepcopy(entry);retirements=deepcopy(c.evidence.retirements);available=dict(c.available)
+        initial=deepcopy(eligibility['actor'])
+        matching=next(r for r in retirements if r['actor_token']==eligibility['actor']['actor_token'])
+        dispatch=matching['dispatches'][0]
+        if defect=='entry_only':matching['dispatches']=[]
+        elif defect=='journal_only':dispatch.pop('term_dispatch_completed_at')
+        elif defect=='late_term':dispatch['term_dispatch_completed_at']=entry['commit_ack']+1
+        elif defect=='wrong_identity':dispatch['dispatch_identity']['start']='other'
+        elif defect=='wrong_token':dispatch['actor']['actor_token']='other'
+        elif defect=='wrong_binding':dispatch['actor']['binding']['input']='other'
+        elif defect=='missing_commit':damaged.pop('sql_commit_call_begin')
+        elif defect=='exit_before_ack_only':
+            matching['dispatches']=[]
+            matching['exit_observed_at']=(entry['sql_commit_call_begin']+entry['commit_ack'])/2
+        elif defect=='missing_availability':available.pop(eligibility['actor']['actor_token'])
+        elif defect=='missing_exit':matching.pop('exit_observed_at')
+        elif defect=='locked_identity':damaged['locked_admission']['actor']['identity']['start']='other'
+        elif defect=='missing_identity':dispatch['actor'].pop('identity')
+        elif defect=='zombie_member':dispatch['live_members'][0]['state']='Z'
+        elif defect=='missing_dispatch_identity':dispatch.pop('dispatch_identity')
+        elif defect in ('all_missing_binding_input','all_null_incarnation_source'):
+            for actor_copy in (initial,damaged['locked_admission']['actor'],matching['actor_snapshot'],dispatch['actor']):
+                if defect=='all_missing_binding_input':actor_copy['binding'].pop('input')
+                else:actor_copy['incarnation']['source']=None
+        else:available[eligibility['actor']['actor_token']]=entry['before_monotonic']+6
+        evidence=copy(c.evidence);evidence.retirements=retirements
         negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
-        classify_occupied(negative,admitted,eligibility['actor'],damaged['locked_admission']['actor'],
-            damaged,c.evidence,c.available,allow_existing_retirement=True)
+        classify_occupied(negative,admitted,initial,damaged['locked_admission']['actor'],
+            damaged,evidence,available,allow_existing_retirement=True)
         assert negative['classification']=='insufficient_retirement_evidence',(defect,negative)
         assert not negative['required_preemption']
         result['deliberately_mutated_retiring_negatives'].append({'defect':defect,'observation':negative})

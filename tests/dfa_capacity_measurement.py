@@ -169,15 +169,18 @@ def classify_occupied(outcome, admitted, actor, locked, entry, evidence, committ
         outcome['durable_availability_upper_seconds']=available-entry['before_monotonic']
     # Snapshot and serialized admission must identify precisely the same actor,
     # including physical incarnation and the full computation binding.
-    same_keys=('actor_token','binding','incarnation')
-    if (not locked or any(locked.get(k)!=actor.get(k) for k in same_keys)
+    same_keys=('actor_token','binding','incarnation','identity')
+    if not all(_physical_binding_complete(a) for a in (actor,locked)):
+        outcome['evidence_failure']='incomplete_actor_binding'; return
+    if (not locked or any(actor.get(k) is None or locked.get(k)!=actor.get(k) for k in same_keys)
+            or actor.get('state') not in ('occupied','retiring') or locked.get('state') not in ('occupied','retiring')
             or (locked.get('state')!=actor.get('state') and not allow_existing_retirement)):
         outcome['evidence_failure']='locked_actor_mismatch'; return
     begin=entry.get('commit_begin'); call=entry.get('sql_commit_call_begin'); ack=entry.get('commit_ack')
     if begin is None or call is None or ack is None or not entry['before_monotonic']<=begin<=call<=ack:
         outcome['evidence_failure']='missing_or_invalid_commit_bracket'; return
     actual_actor=retirement.get('actor_snapshot')
-    if not actual_actor or any(actual_actor.get(k)!=actor.get(k) for k in same_keys):
+    if not _physical_binding_complete(actual_actor) or any(actual_actor.get(k)!=actor.get(k) for k in same_keys):
         outcome['evidence_failure']='retirement_actor_mismatch';return
     if not _admission_binding_matches(outcome,admitted,entry):
         outcome['evidence_failure']='admission_binding_mismatch';return
@@ -199,8 +202,8 @@ def classify_occupied(outcome, admitted, actor, locked, entry, evidence, committ
         outcome.update(classification='causal_preemption',causal_receipt=deepcopy(proof))
     elif allow_existing_retirement and _already_retiring(actor,entry,retirement):
         outcome.update(classification='already_retiring_service',retirement_order={
-            'retirement_started':retirement['started_monotonic'],'precommit_physical':deepcopy(entry['locked_admission']['physical_actor']),
-            'sql_commit_call_begin':call,'predicate':'matching_physical_retiring_journal_before_commit'})
+            'retirement_started':retirement['started_monotonic'],'persisted_term_dispatch':deepcopy(retirement['dispatches'][0]),
+            'sql_commit_call_begin':call,'predicate':'persisted_matching_journal_and_successful_live_group_TERM_before_dbapi_commit_call'})
     elif exit_at<=call:
         # Physical exit observed BEFORE the DBAPI commit invocation proves a
         # precommit retirement. Exit merely before ACK does not prove a race.
@@ -211,12 +214,30 @@ def classify_occupied(outcome, admitted, actor, locked, entry, evidence, committ
         outcome['evidence_failure']='retirement_commit_order_unproved'
 
 
+def _physical_binding_complete(actor):
+    if not isinstance(actor,dict) or actor.get('actor_token') is None:return False
+    fields={'binding':('generation','epoch','input'), 'identity':('pid','pgid','start'),
+            'incarnation':('resource','slot','instance','source','incarnation','epoch','boot','namespace')}
+    return all(isinstance(actor.get(group),dict) and all(actor[group].get(k) is not None for k in keys)
+               for group,keys in fields.items())
+
+
 def _already_retiring(actor,entry,retirement):
-    locked=entry['locked_admission'];physical=locked.get('physical_actor');at=locked.get('physical_observed_at')
-    return bool(physical and physical.get('state')=='retiring' and at is not None
-        and all(physical.get(k)==actor.get(k) for k in ('actor_token','binding','incarnation'))
+    """Successful real persisted journal AND completed live-group TERM before COMMIT invocation."""
+    dispatches=retirement.get('dispatches',[])
+    if len(dispatches)!=1:return False
+    dispatch=dispatches[0];persisted=dispatch.get('journal_persisted_at');term=dispatch.get('term_dispatch_completed_at')
+    physical=dispatch.get('actor',{});identity=actor.get('identity')
+    return bool(identity and persisted is not None and term is not None
+        and physical.get('state')=='retiring'
+        and all(physical.get(k)==actor.get(k) for k in ('actor_token','binding','incarnation','identity'))
+        and dispatch.get('dispatch_identity')==identity and dispatch.get('pgid')==identity['pgid']
+        and all(identity.get(k) is not None for k in ('pid','pgid','start'))
+        and dispatch.get('live_members') and all(
+            all(m.get(k)==identity[k] for k in ('pid','pgid','start')) and m.get('state') not in ('Z','X')
+            for m in dispatch['live_members'])
         and retirement['allowed_at_start'] is False
-        and retirement['started_monotonic']<=physical.get('term_at',float('-inf'))<=at<=entry['sql_commit_call_begin'])
+        and retirement['started_monotonic']<=persisted<=term<=entry['sql_commit_call_begin'])
 
 
 def fresh_physical_eligibility(factory,owner,supervisor):
