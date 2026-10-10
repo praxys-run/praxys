@@ -22,7 +22,7 @@ def admission_snapshot(factory, run_id):
     """Independent post-transaction read; an old admission is not a new one."""
     with factory() as db:
         row=db.get(Run,run_id);control=db.get(Control,1)
-        return {'status':row.status,'generation':row.generation,'admission_id':row.admission_id,
+        return {'id':row.id,'input_digest':row.input_digest,'status':row.status,'generation':row.generation,'admission_id':row.admission_id,
                 'accepted_at':row.accepted_at.isoformat() if row.accepted_at else None,
                 'execution_epoch':row.execution_epoch,'manual_sequence':control.manual_sequence}
 
@@ -64,10 +64,11 @@ def admission_attempt(factory, owner, run_id, generation, ledger, observation):
     # Record acknowledged acceptance before any independent-read/classification assertion.
     record.update(after_monotonic=time.monotonic(),outcome='accepted',accepted_response={key:accepted[key] for key in ('id','generation','admission_id')})
     record['after_durable']=admission_snapshot(factory,run_id)
-    assert record['after_durable']['admission_id']==accepted['admission_id']
-    assert record['after_durable']['accepted_at'] and record['after_durable']['generation']==accepted['generation']
-    assert record['after_durable']['manual_sequence']==previous['manual_sequence']+1
-    return accepted,record
+    after=record['after_durable']
+    record['acceptance_consistent']=bool(after['accepted_at'] and after['manual_sequence']==previous['manual_sequence']+1
+        and all(after[k]==accepted[k] for k in ('id','generation','admission_id')))
+    # Observe actual durable service even when response metadata is inconsistent.
+    return {k:after[k] for k in ('id','generation','admission_id')},record
 
 
 class PriorityEvidence:
@@ -182,7 +183,7 @@ class PriorityEvidence:
             result=real_retire(*args,**kwargs)
             exited=supervisor.lane.actor()
             if actor and actor.get('state')=='occupied' and exited and exited.get('state')=='idle':
-                observer.retirements.append({'actor_token':actor['actor_token'],'reason':reason,
+                observer.retirements.append({'actor_token':actor['actor_token'],'actor_snapshot':json.loads(json.dumps(actor)),'reason':reason,
                     'allowed_at_start':allowed,'started_monotonic':started,'priority_invalidation':priority,
                     'exit_observed_at':exited['exit_observed_at']})
                 observer.retired.set()

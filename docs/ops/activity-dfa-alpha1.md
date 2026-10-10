@@ -894,3 +894,53 @@ The event does not identify SQL server commit time. Missing/mismatched evidence,
 invalid committed-priority proof, ambiguous ordering or overbudget retirement
 blocks certification after retaining actual accepted service. No failed causal
 assertion is converted into a permitted race category.
+
+### Focused service contracts and strict priority evidence
+
+The failed `1e6945c` canonical run remains failed (4520 passed, 2 failed,
+53 skipped); its capacity subtest completed100 causal preemptions but is not
+whole-preflight success. The recorded341.986ms renewal overrun has an unknown
+cause. The original accepted preparation outcome was not observed to completion;
+new tests cannot retrospectively complete that certificate.
+
+Prospective focused admission cells separate two contracts. Fixed-phase cells
+issue one ingress after the declared observation interval/phase offset; they
+retain every refusal or durable acceptance and observe its actual service before
+classifying retirement. Independent strict-priority cells issue one ingress
+following the real automatic child's payload-decode handshake, with a genuine
+completed valid initial renewal, without selecting remaining SQL-pulse duration.
+Retry, new preparation and confirmed computation each require affirmative
+committed-priority retirement on both SQLite and PostgreSQL. A refusal or
+missing priority proof in those cells is insufficient coverage/failure, never a
+mixed-service substitute. This transparent event synchronization is a focused
+regression condition, not the unparked capacity profile.
+
+Every accepted preparation must reach `awaiting_source_confirmation` with a
+current authorized evidence/sensor read; compute/retry must reach `complete`
+with a current result revision. Shared observation retains child start, physical
+exit, post-commit durable availability, reuse ordering, terminal failure/timeout
+and response errors before retirement assertions. A response error after a real
+durable submit is an accepted error, not a pre-admission503 refusal. Request
+observation covers both submit and retry, including the already-read locked
+actor and physical journal, the transaction subject, pre-DBAPI commit invocation
+and client ACK. None of these observations invents SQL server commit time.
+
+Focused already-retiring service requires affirmative matching physical
+`retiring` journal observation before commit invocation, exact token/full
+binding/incarnation and matching exit plus durable availability. It is not a
+strict-priority positive. Missing/mismatched evidence and ACK-only ordering
+remain insufficient; generic failed assertions never establish a race. The
+physical exit/availability bound remains conservatively measured from ingress.
+
+EOF cells independently prove accepted manual service while actual post-exit
+Python cleanup is still held, matching physical exit and durable availability
+before reuse within5s, an untouched pending automatic receipt, and actual receipt
+processing only after cleanup release/pruning. Their retirement cause need not
+be manual priority; an unavailable cause remains explicitly unavailable. Separate
+strict-priority cells protect that contract. Deliberately damaged observation
+copies, denied reads, malformed real worker input and scoped post-commit response
+errors are negative tests, not operational samples. The capacity target remains
+100 causal accepted preemptions from the predeclared32-source inventory within
+300 ingress/600s, plus separately retained supplemental outcomes. No authority,
+250ms SQL pulse/ACK budget,750ms physical expiry,125ms cadence or pool2 boundary
+is changed by these test contracts.

@@ -168,7 +168,8 @@ def test_retirement_during_commit_is_retained_race(outcome_cell):
     actor=entry['eligibility']['actor']
     result['deliberately_mutated_evidence_negatives']=[]
     for defect in ('missing_exit','missing_availability','locked_token','locked_binding','locked_incarnation',
-                   'missing_commit','missing_commit_begin','missing_commit_ack','overbudget','ack_only_order'):
+                   'missing_commit','missing_commit_begin','missing_commit_ack','overbudget','ack_only_order',
+                   'retirement_token','retirement_binding','retirement_incarnation','admission_id','admission_generation','admission_input'):
         damaged=deepcopy(entry);available=dict(c.available);evidence=copy(c.evidence)
         evidence.retirements=deepcopy(c.evidence.retirements)
         if defect=='missing_exit':evidence.retirements[0].pop('exit_observed_at')
@@ -182,7 +183,13 @@ def test_retirement_during_commit_is_retained_race(outcome_cell):
         elif defect=='overbudget':damaged['before_monotonic']-=6
         elif defect=='ack_only_order':
             damaged['sql_commit_call_begin']=damaged['commit_begin']
-        negative={'service':result['service'],'required_preemption':False}
+        if defect=='retirement_token':evidence.retirements[0]['actor_snapshot']['actor_token']='other'
+        elif defect=='retirement_binding':evidence.retirements[0]['actor_snapshot']['binding']['input']='other'
+        elif defect=='retirement_incarnation':evidence.retirements[0]['actor_snapshot']['incarnation']={}
+        elif defect=='admission_id':damaged['transaction_subject']['admission_id']='other'
+        elif defect=='admission_generation':damaged['transaction_subject']['generation']+=1
+        elif defect=='admission_input':damaged['transaction_subject']['input_digest']='other'
+        negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
         classify_occupied(negative,admitted,actor,damaged['locked_admission']['actor'],
                           damaged,evidence,available)
         result['deliberately_mutated_evidence_negatives'].append({'defect':defect,'result':negative})
@@ -210,7 +217,7 @@ def test_actual_postcommit_retirement_before_ack_remains_causal(outcome_cell):
     # irrespective of actual successful service and pre-ACK physical exit.
     evidence=copy(c.evidence);evidence.retirements=deepcopy(c.evidence.retirements)
     evidence.retirements[0]['priority_invalidation']['active_binding']['input']='other'
-    negative={'service':result['service'],'required_preemption':False}
+    negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
     classify_occupied(negative,admitted,eligibility['actor'],entry['locked_admission']['actor'],
                       entry,evidence,c.available)
     assert negative['classification']=='insufficient_retirement_evidence'
@@ -225,7 +232,8 @@ def test_real_accepted_worker_failure_remains_observed(outcome_cell):
     result=observe(c,admitted,entry)
     assert entry['outcome']=='accepted' and result['service']=='failed'
     assert result['last_state']['error_code']=='fit_invalid'
-    assert result['manual_actor'] and not result['required_preemption']
+    assert result['manual_actor'] and result['manual_physical_exit'] and result['manual_durable_available_at']
+    assert not result['required_preemption']
 
 
 def test_predeclared_workloads_have_distinct_true_provenance(both_origins):
@@ -241,3 +249,39 @@ def test_predeclared_workloads_have_distinct_true_provenance(both_origins):
             assert db.get(GarminConnectIQItem,item['item_id']).status=='complete'
             receipt=db.get(ActivityDFASyncReceipt,item['receipt_id'])
             assert receipt.disposition=='pending' and receipt.run_id is None
+
+
+def test_genuine_already_retiring_service_is_not_priority_positive(outcome_cell):
+    c=outcome_cell;c.start(True)
+    # Explicit synthetic drain/recovery ordering, not a diagnosis of1e's
+    # unexplained overrun and never used to qualify the unparked cohort.
+    with c.factory() as db:
+        control=db.get(Control,1);control.drained=True;control.ready_until=datetime.utcnow();db.commit()
+    wait(lambda:(c.supervisor.lane.actor() or {}).get('state')=='retiring',c.deadline,c.errors)
+    with c.factory() as db:db.get(Control,1).drained=False;db.commit()
+    wait(lambda:c.supervisor.control_observation['state']=='ready',c.deadline,c.errors)
+    from tests.dfa_capacity_measurement import fresh_physical_eligibility
+    eligibility=fresh_physical_eligibility(c.factory,c.owner,c.supervisor)
+    assert eligibility['actor']['state']=='retiring',eligibility
+    requests=observed_requests(c.factory,supervisor=c.supervisor)
+    admitted,entry=attempt(c,requests,eligibility);assert admitted,entry
+    result=observe_acceptance(c.factory,c.owner,admitted,entry,c.manual_input,c.evidence,
+        c.transitions,c.available,c.deadline,c.errors,allow_existing_retirement=True)
+    assert result['service_success'] and not result['reuse_violations'],result
+    assert result['classification']=='already_retiring_service' and not result['required_preemption'],result
+    assert result['retirement_within_budget'] and result['manual_physical_exit'] and result['manual_durable_available_at'],result
+    result['forced_boundary']='actual committed drain -> actual retiring -> committed recovery -> one ingress'
+    result['deliberately_mutated_retiring_negatives']=[]
+    for defect in ('missing_physical_journal','wrong_physical_token','wrong_physical_binding','not_retiring','after_commit_observation'):
+        damaged=deepcopy(entry)
+        if defect=='missing_physical_journal':damaged['locked_admission'].pop('physical_actor')
+        elif defect=='wrong_physical_token':damaged['locked_admission']['physical_actor']['actor_token']='other'
+        elif defect=='wrong_physical_binding':damaged['locked_admission']['physical_actor']['binding']['input']='other'
+        elif defect=='not_retiring':damaged['locked_admission']['physical_actor']['state']='occupied'
+        else:damaged['locked_admission']['physical_observed_at']=entry['commit_ack']+1
+        negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
+        classify_occupied(negative,admitted,eligibility['actor'],damaged['locked_admission']['actor'],
+            damaged,c.evidence,c.available,allow_existing_retirement=True)
+        assert negative['classification']=='insufficient_retirement_evidence',(defect,negative)
+        assert not negative['required_preemption']
+        result['deliberately_mutated_retiring_negatives'].append({'defect':defect,'observation':negative})

@@ -18,6 +18,7 @@ from db.models import ActivityDFAControl as Control, ActivityDFARun as Run
 from tests.test_activity_dfa import store, confirmed
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_dfa_supervisor_capacity import PriorityEvidence, admission_attempt
+from tests.dfa_capacity_measurement import (observed_requests,fresh_physical_eligibility,observe_acceptance,lifecycle_observations)
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
@@ -70,41 +71,51 @@ def test_retry_revalidates_serialized_authority_before_acceptance(store, invalid
 def new_submission_attempt(factory, owner, catalog, confirmation, ledger, context):
     def snapshot(run_id=None):
         with factory() as db:
-            control = db.get(Control, 1)
-            rows = db.query(Run).filter_by(user_id=owner, origin='manual').all()
+            control=db.get(Control,1)
             if run_id:
-                row = db.get(Run, run_id)
-                return {'status': row.status, 'generation': row.generation, 'admission_id': row.admission_id,
-                        'accepted_at': row.accepted_at.isoformat(), 'execution_epoch': row.execution_epoch,
-                        'manual_sequence': control.manual_sequence}
-            return {'runs': sorted((r.id, r.generation, r.admission_id) for r in rows),
-                    'manual_sequence': control.manual_sequence}
-    previous = snapshot()
+                row=db.get(Run,run_id)
+                return None if row is None else {k:getattr(row,k).isoformat() if k=='accepted_at' and getattr(row,k) else getattr(row,k)
+                    for k in ('id','status','phase','generation','admission_id','accepted_at','execution_epoch','input_digest')} | {'manual_sequence':control.manual_sequence}
+            return {'runs':sorted(tuple(r) for r in db.query(Run.id,Run.generation,Run.admission_id).filter_by(user_id=owner,origin='manual')),
+                    'manual_sequence':control.manual_sequence}
+    previous=snapshot();before=time.monotonic()
     with factory() as db:
-        control = db.get(Control, 1)
-        readiness = {'sequence': control.readiness_sequence, 'ready_until': str(control.ready_until),
-                     'actor': control.actor, 'observed_at_utc': datetime.utcnow().isoformat()}
-    entry = {**context, 'before_monotonic': time.monotonic(), 'before_durable': previous, 'readiness': readiness}
-    ledger.append(entry)
+        control=db.get(Control,1)
+        readiness={'sequence':control.readiness_sequence,'ready_until':str(control.ready_until),
+                   'actor':control.actor,'observed_at_utc':datetime.utcnow().isoformat()}
+    entry={**context,'before_monotonic':before,'before_durable':previous,'readiness':readiness};ledger.append(entry)
     try:
         with factory() as db:
-            admitted, status = service.submit(db, owner, '123', catalog['inputs'][0]['input'], catalog['catalog_revision'], confirmation)
-    except HTTPException as exc:
-        entry.update(after_monotonic=time.monotonic(), after_durable=snapshot(), outcome='exception',
-                     http_status=exc.status_code, detail=exc.detail)
-        if (exc.status_code, exc.detail) != (503, 'DFA_CAPACITY_UNAVAILABLE'): raise
-        assert previous == entry['after_durable'], entry
-        entry['outcome'] = 'pre_admission_denied'
-        return None, entry
-    entry.update(after_monotonic=time.monotonic(), after_durable=snapshot(admitted['id']), outcome='accepted')
-    assert status == 202 and not {'result', 'summary', 'windows'}.intersection(admitted)
-    assert entry['after_durable']['manual_sequence'] == previous['manual_sequence']+1
-    return admitted, entry
+            db.info['capacity_admission_record']=entry
+            admitted,status=service.submit(db,owner,'123',catalog['inputs'][0]['input'],catalog['catalog_revision'],confirmation)
+    except Exception as exc:
+        entry.update(after_monotonic=time.monotonic(),outcome='exception',http_status=getattr(exc,'status_code',None),
+                     detail=getattr(exc,'detail',type(exc).__name__))
+        subject=entry.get('transaction_subject',{});after=snapshot(subject['id']) if subject.get('id') else None
+        if (after and after['accepted_at'] and after['manual_sequence']>previous['manual_sequence']
+                and all(after[k]==subject[k] for k in ('generation','admission_id'))
+                and (after['id'],after['generation'],after['admission_id']) not in previous['runs']):
+            entry.update(after_durable=after,outcome='accepted_error')
+            return {k:after[k] for k in ('id','generation','admission_id')},entry
+        entry['after_durable']=snapshot();entry['no_durable_acceptance']=entry['after_durable']==previous
+        if isinstance(exc,HTTPException) and (exc.status_code,exc.detail)==(503,'DFA_CAPACITY_UNAVAILABLE'):
+            assert entry['no_durable_acceptance'],entry
+            entry['outcome']='pre_admission_denied';return None,entry
+        raise
+    # Retain durable acceptance before response or cohort validity assertions.
+    entry.update(after_monotonic=time.monotonic(),outcome='accepted',accepted_response={k:admitted[k] for k in ('id','generation','admission_id')},
+                 metadata_response_valid=status==202 and not {'result','summary','windows'}.intersection(admitted))
+    subject=entry.get('transaction_subject',admitted);entry['after_durable']=snapshot(subject['id'])
+    entry['acceptance_consistent']=bool(entry['after_durable'] and entry['after_durable']['accepted_at']
+        and entry['after_durable']['manual_sequence']==previous['manual_sequence']+1
+        and all(entry['after_durable'][k]==admitted[k] for k in ('id','generation','admission_id')))
+    return {k:entry['after_durable'][k] for k in ('id','generation','admission_id')},entry
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
 @pytest.mark.parametrize('operation', ['retry', 'prepare', 'compute'])
-def test_real_renewal_admission_and_delayed_response(both_origins, monkeypatch, operation):
+@pytest.mark.parametrize('cell_contract',['fixed_phase','strict_priority'])
+def test_real_renewal_admission_and_delayed_response(both_origins, monkeypatch, operation,cell_contract):
     """ONE ingress per DB: accepted failure is terminal, never resampled."""
     factory, owner = both_origins
     confirmation, manual = confirmed(factory, owner)
@@ -129,11 +140,13 @@ def test_real_renewal_admission_and_delayed_response(both_origins, monkeypatch, 
     control_engine = create_engine(url, pool_size=2, max_overflow=0, pool_timeout=.1, connect_args=args)
     supervisor.controls = sessionmaker(bind=control_engine)
     actual_popen = subprocess.Popen
-    code = '''import io,json,signal,sys,time
+    ready_read,ready_write=__import__('os').pipe()
+    code = f'''import io,json,os,signal,sys,time
 signal.signal(signal.SIGTERM,signal.SIG_IGN)
 raw=sys.stdin.buffer.readline(90*1024*1024+1)
 payload=json.loads(raw)
 if payload['origin']=='automatic':
+    os.write({ready_write},b'A')
     while True:time.sleep(.01)
 else:
     signal.signal(signal.SIGTERM,signal.SIG_DFL)
@@ -144,10 +157,12 @@ else:
     def child(command, **kwargs):
         if command[-2:] == ['-m', 'api.dfa_worker']:
             command = [sys.executable, '-E', '-B', '-c', code]
+            kwargs['pass_fds']=(*kwargs.get('pass_fds',()),ready_write)
         return actual_popen(command, **kwargs)
     monkeypatch.setattr(subprocess, 'Popen', child)
     proof = PriorityEvidence(supervisor, monkeypatch)
-    observations = []; ledger = []; errors = []; actors = []; availability = {}; pulse_samples = []
+    observations = []; ledger = []; errors = []; pulse_samples = []
+    actors,availability=lifecycle_observations(supervisor,monkeypatch)
     observe_stop = threading.Event()
     def observe_renewal():
         previous = None
@@ -158,6 +173,7 @@ else:
                 previous = value
     observer = threading.Thread(target=observe_renewal); observer.start()
     def observe_pulse():
+        if cell_contract=='strict_priority':return
         while not observe_stop.wait(.025):
             try:
                 with factory() as db:
@@ -188,16 +204,6 @@ else:
     event.listen(Session, 'after_begin', begun)
     event.listen(Session, 'after_commit', committed)
     for engine in (factory.kw['bind'], control_engine): event.listen(engine, 'handle_error', db_error)
-    actual_exit = supervisor.record_exit
-    def record_exit():
-        actual_exit()
-        actor = supervisor.lane.actor()
-        availability[actor['actor_token']] = time.monotonic()
-    monkeypatch.setattr(supervisor, 'record_exit', record_exit)
-    actual_record = supervisor.lane.record
-    def record(actor):
-        actual_record(actor); actors.append(dict(actor))
-    monkeypatch.setattr(supervisor.lane, 'record', record)
     from api import activity_dfa_dispatch
     def delayed_delivery():
         observations.append({'kind': 'delivery_start', 'at': time.monotonic()})
@@ -210,7 +216,7 @@ else:
         except Exception as exc: errors.append(type(exc).__name__)
     thread = threading.Thread(target=worker); thread.start()
     root = Path(__file__).resolve().parents[1]
-    outcome = 'failed'
+    outcome = 'failed'; startup_ack=None
     try:
         deadline = time.monotonic() + 15
         while True:
@@ -221,16 +227,25 @@ else:
             time.sleep(.01)
         # Fixed observation period covers several complete cadence cycles; no
         # readiness predicate chooses when this profile issues its one ingress.
-        time.sleep(.75)
+        if cell_contract=='strict_priority':
+            # A single prospective ingress immediately after actual first child
+            # payload decode/startup ACK, NOT a favourable pulse selector.
+            import select,os
+            assert select.select([ready_read],[],[],3)[0],errors
+            assert os.read(ready_read,1)==b'A'
+            startup_ack=proof.startup_launch(supervisor.lane.actor())
+        else:time.sleep(.75)
         # Predetermined phase offsets, independent of readiness eligibility.
         phase_delay = {'retry': 0., 'prepare': .06, 'compute': .12}[operation]
-        time.sleep(phase_delay)
+        if cell_contract=='fixed_phase':time.sleep(phase_delay)
+        eligibility=fresh_physical_eligibility(factory,owner,supervisor)
+        requests=observed_requests(factory,supervisor=supervisor)
         if operation == 'retry':
-            admitted, entry = admission_attempt(factory, owner, manual['id'], generation, ledger,
-                {'cell': str(url.get_backend_name()), 'operation': operation, 'phase_delay': phase_delay})
+            admitted, entry = admission_attempt(requests, owner, manual['id'], generation, ledger,
+                {'cell': str(url.get_backend_name()), 'operation': operation, 'phase_delay': phase_delay,'eligibility':eligibility,'cell_contract':cell_contract})
         else:
-            admitted, entry = new_submission_attempt(factory, owner, catalog, confirmation['id'] if operation=='compute' else None,
-                ledger, {'cell': str(url.get_backend_name()), 'operation': operation, 'phase_delay': phase_delay})
+            admitted, entry = new_submission_attempt(requests, owner, catalog, confirmation['id'] if operation=='compute' else None,
+                ledger, {'cell': str(url.get_backend_name()), 'operation': operation, 'phase_delay': phase_delay,'eligibility':eligibility,'cell_contract':cell_contract})
         if admitted is None:
             # This is a profile measurement, not a selected-window promise of
             # ingress success. Retain the real bounded refusal separately;
@@ -238,31 +253,24 @@ else:
             assert entry['outcome']=='pre_admission_denied', entry
             assert entry['before_durable']==entry['after_durable'], entry
             outcome='pre_admission_denied'
+            assert cell_contract=='fixed_phase',{'coverage':'strict_priority_insufficient','entry':entry}
             return
-        deadline = time.monotonic() + 5
-        while not proof.retired.is_set():
-            assert time.monotonic() < deadline, errors
-            time.sleep(.01)
-        retirement = proof.accepted_preemption(admitted, entry['readiness']['actor'], entry)
-        assert retirement['exit_observed_at'] - entry['before_monotonic'] <= 5
-        deadline = time.monotonic() + 15
-        while True:
-            with factory() as db:
-                row = db.get(Run, admitted['id']); state = row.status
-                durable_actor = db.get(Control, 1).actor
-            if state == ('awaiting_source_confirmation' if operation=='prepare' else 'complete'): break
-            assert time.monotonic() < deadline, {'stage': 'manual_completion', 'state': state, 'errors': errors}
-            time.sleep(.01)
-        assert row.result and not errors
-        assert entry['readiness']['actor']['actor_token'] in availability
-        available_at = availability[entry['readiness']['actor']['actor_token']]
-        assert available_at - entry['before_monotonic'] <= 5
-        for previous, following in zip(actors, actors[1:]):
-            if following['state'] == 'launching' and following['actor_token'] != previous.get('actor_token'):
-                assert previous['state'] == 'idle'
-                assert following['launch_at'] >= previous['exit_observed_at']
-                assert following['launch_at'] >= availability[previous['actor_token']]
-        assert any(e['kind'] == 'commit_completed' and e['thread'] == 'dfa-control' for e in observations)
+        with factory() as db: manual_input=db.get(Run,admitted['id']).input_digest
+        observation=observe_acceptance(factory,owner,admitted,entry,manual_input,proof,actors,availability,
+            time.monotonic()+15,errors,terminal_status='awaiting_source_confirmation' if operation=='prepare' else 'complete',
+            allow_existing_retirement=cell_contract=='fixed_phase')
+        assert observation['service_success'],observation
+        assert entry['outcome']=='accepted' and entry.get('acceptance_consistent',True),entry
+        assert entry.get('metadata_response_valid',True),entry
+        assert observation['manual_actor'] and not observation['reuse_violations'],observation
+        if cell_contract=='strict_priority':
+            assert eligibility['eligible'],eligibility
+            assert observation['classification']=='causal_preemption' and observation['required_preemption'],observation
+        else:
+            assert observation['classification'] in ('causal_preemption','retirement_race','already_retiring_service','idle_service'),observation
+        if observation['classification']!='idle_service':assert observation['retirement_within_budget'],observation
+        assert not errors,errors
+        assert any(e['kind']=='commit_completed' and e['thread']=='dfa-control' for e in observations)
         outcome = 'passed'
     finally:
         supervisor.stop.set(); thread.join(10)
@@ -271,15 +279,16 @@ else:
         event.remove(Session, 'after_commit', committed)
         for engine in (factory.kw['bind'], control_engine): event.remove(engine, 'handle_error', db_error)
         control_engine.dispose()
+        __import__('os').close(ready_read);__import__('os').close(ready_write)
         artifact = root / f'.git/pr871-new-admission-{operation}-{url.get_backend_name()}-{time.time_ns()}.json'
-        artifact.write_text(json.dumps({'operation': operation, 'outcome': outcome, 'head': subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
+        artifact.write_text(json.dumps({'operation': operation, 'cell_contract':cell_contract,'outcome': outcome, 'head': subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
             'working_tree_source_bindings': {str(p.relative_to(root)):sha256(p.read_bytes()).hexdigest() for p in
-                [root/'api/activity_dfa.py',root/'api/dfa_rights.py',root/'api/dfa_supervisor.py',Path(__file__),root/'tests/test_dfa_supervisor_capacity.py']},
-            'observations': observations, 'ingress': ledger, 'retirements': proof.retirements,
-            'priorities': proof.priorities, 'actors': actors, 'durable_availability': availability, 'errors': errors,
+                [root/'api/activity_dfa.py',root/'api/dfa_rights.py',root/'api/dfa_supervisor.py',Path(__file__),root/'tests/test_dfa_supervisor_capacity.py',root/'tests/dfa_capacity_measurement.py']},
+            'startup_ack':startup_ack,'observations': observations, 'ingress': ledger, 'retirements': proof.retirements,
+            'priorities': proof.priorities, 'renewal_decisions':proof.renewal_decisions,'completed_renewals':proof.renewals,'actors': actors, 'durable_availability': availability, 'errors': errors,
             'pulse_samples':pulse_samples, 'profile':{'start_cadence_seconds':.125,'sql_admission_budget_seconds':.25,
                 'physical_permission_seconds':.75,'phase_delay_seconds':{'retry':0.,'prepare':.06,'compute':.12}[operation],
-                'attempt_budget':1,'fast_window_selection':False,'fixed_observation_seconds':.75,'pulse_sampling_seconds':.025},
+                'attempt_budget':1,'strict_ingress_event':'actual_child_payload_handshake_no_pulse_duration_selection' if cell_contract=='strict_priority' else None,'fast_window_selection':False,'fixed_observation_seconds':.75,'pulse_sampling_seconds':.025},
             'instrumentation': 'SQLAlchemy actual after_commit/error callbacks and 2ms read-only renewal/25ms independent SQL pulse sampling; no SQL payloads, tracing, parking or forged renewal; observer overhead unquantified'}, default=str, indent=2))
         assert not thread.is_alive(), errors
 

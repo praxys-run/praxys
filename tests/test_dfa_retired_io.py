@@ -17,6 +17,7 @@ from db.models import ActivityDFAControl as Control, ActivityDFARun as Run, Acti
 from tests.test_activity_dfa import store, confirmed
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_dfa_supervisor_capacity import admission_attempt, PriorityEvidence
+from tests.dfa_capacity_measurement import observed_requests, fresh_physical_eligibility, observe_acceptance, lifecycle_observations
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
@@ -116,6 +117,8 @@ else:
         timeline.append({'kind':actor['state'],'at':time.monotonic(),'actor_token':actor['actor_token']})
     monkeypatch.setattr(supervisor.lane, 'record', record)
     evidence = PriorityEvidence(supervisor, monkeypatch)
+    transitions, availability = lifecycle_observations(supervisor, monkeypatch)
+    requests = observed_requests(factory, supervisor=supervisor)
     def run():
         try: supervisor.run()
         except Exception as exc: errors.append(type(exc).__name__+':'+str(exc))
@@ -131,30 +134,41 @@ else:
         assert select.select([ready_read],[],[],3)[0], errors
         assert os.read(ready_read,1)==b'A'
         timeline.append({'kind':'automatic_payload_handshake','at':time.monotonic()})
-        initial = actors[0]; evidence.startup_launch(initial)
+        initial = actors[0]; startup_ack=evidence.startup_launch(initial)
         for attempt in range(3):
-            admitted, entry = admission_attempt(factory, owner, manual['id'], manual['generation'], attempts, {'attempt':attempt})
+            eligibility = fresh_physical_eligibility(factory, owner, supervisor)
+            admitted, entry = admission_attempt(requests, owner, manual['id'], manual['generation'], attempts,
+                                              {'attempt':attempt,'eligibility':eligibility})
             if admitted: break
             time.sleep(.125)
         assert admitted, attempts
-        assert eof.wait(3), errors
-        # Delayed cleanup stays blocked while the accepted manual request must
-        # compute through the real worker and complete with genuine rights.
-        while True:
-            with factory() as db: complete = db.get(Run, manual['id']).status=='complete'
-            if complete: break
-            assert time.monotonic()<entry['before_monotonic']+5, errors
-            time.sleep(.01)
-        assert not cleanup_done.is_set()
+        with factory() as db: manual_input=db.get(Run,admitted['id']).input_digest
+        # Fully observe this durable acceptance before assertions/classification
+        # for the independently held real EOF continuation.
+        result=observe_acceptance(factory,owner,admitted,entry,manual_input,evidence,
+            transitions,availability,entry['before_monotonic']+5,errors,allow_existing_retirement=True)
+        assert result['service_success'],result
+        assert entry['outcome']=='accepted',entry
+        assert eof.is_set() and not cleanup_done.is_set(),timeline
+        retirement=next((r for r in evidence.retirements if r['actor_token']==initial['actor_token']),None)
+        assert retirement and retirement['actor_snapshot']['binding']==initial['binding'],retirement
+        assert retirement['actor_snapshot']['incarnation']==initial['incarnation'],retirement
+        available=availability.get(initial['actor_token'])
+        assert available is not None and retirement['exit_observed_at']<=available,retirement
+        assert available-entry['before_monotonic']<=5,retirement
+        assert result['manual_actor']['launch_at']>=available and not result['reuse_violations'],result
+        # This cell proves service during physical post-exit cleanup, regardless
+        # of its retirement cause. It is NOT a strict-priority positive and does
+        # not turn unavailable commit/cause ordering into a race certificate.
+        entry['cleanup_service_proof']={'actor_token':initial['actor_token'],
+            'physical_exit':retirement['exit_observed_at'],'durable_availability':available,
+            'manual_launch':result['manual_actor']['launch_at'],'priority_required':False,
+            'causal_classification':result['classification']}
         if another_receipt:
             assert not second_load.is_set() and not receipt_reads
             with factory() as db:
                 pending=db.get(Receipt, second_receipt)
                 assert pending.disposition=='pending' and pending.run_id is None
-        retirement = evidence.accepted_preemption(admitted, initial, entry)
-        manual_actor = next(actor for actor in actors if actor['binding']['generation']==admitted['generation']
-                            and actor['binding']['input']!=initial['binding']['input'])
-        assert manual_actor['launch_at']>=retirement['exit_observed_at']
         assert not errors
         release.set(); assert cleanup_done.wait(2)
         if another_receipt:
@@ -175,12 +189,14 @@ else:
         (root/f'.git/pr871-retired-io-{url.get_backend_name()}-{time.time_ns()}.json').write_text(json.dumps({
             'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'source_hashes':{name:__import__('hashlib').sha256((root/name).read_bytes()).hexdigest()
-                             for name in ('api/dfa_supervisor.py','api/dfa_physical.py','tests/test_dfa_retired_io.py')},
+                             for name in ('api/dfa_supervisor.py','api/dfa_physical.py','tests/test_dfa_retired_io.py','tests/dfa_capacity_measurement.py','tests/test_dfa_supervisor_capacity.py')},
             'injection':'bounded task-local delay after actual pipe EOF; not diagnosis of historical blocked phase',
             'producer_pool':{'size':1,'overflow':0,'checkout_seconds':.1},
             'control_pool':{'size':2,'overflow':0,'checkout_seconds':.1},
-            'another_receipt':another_receipt,'second_receipt':second_receipt,'receipt_reads':receipt_reads,
-            'timeline':timeline,'attempts':attempts,'errors':errors},indent=2))
+            'startup_ack':locals().get('startup_ack'),'another_receipt':another_receipt,'second_receipt':second_receipt,'receipt_reads':receipt_reads,
+            'timeline':timeline,'attempts':attempts,'errors':errors,'transitions':transitions,
+            'durable_availability':availability,'retirements':evidence.retirements,
+            'renewal_decisions':evidence.renewal_decisions,'completed_renewals':evidence.renewals},indent=2))
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
