@@ -83,7 +83,9 @@ export function DFAContent({ activityId, rangeMs, onSelectInterval }: { activity
     if (!fresh) { setRunId(''); return; }
     const available = (fresh.origin_runs ?? (fresh.latest_run ? [fresh.latest_run] : [])).filter(item => item.freshness === 'current');
     const inspected = available.find(item => item.origin === selectedOrigin);
-    const preferred = inspected ?? available.find(item => item.origin === 'manual') ?? available[0];
+    const preferred = inspected ?? available.find(item => item.origin === 'manual' && item.status === 'complete')
+      ?? available.find(item => item.origin === 'automatic' && item.status === 'complete')
+      ?? available.find(item => item.origin === 'manual') ?? available[0];
     if (selectedOrigin && !inspected) setOriginChanged(true);
     if (preferred) { setSelectedOrigin(preferred.origin); setRunId(preferred.id); setSelected(preferred.snapshot_id); }
     else setRunId('');
@@ -242,7 +244,7 @@ export function DFAContent({ activityId, rangeMs, onSelectInterval }: { activity
           {data.inputs.map((v,i) => <SelectItem className="min-h-11" key={v.input.snapshot_id} value={v.input.snapshot_id}><span className="font-data">{i+1} · {new Date(v.created_at+'Z').toLocaleString()}</span></SelectItem>)}
         </SelectContent></Select></div>}
     {chosen && !catalog.error && (!active || current?.origin === 'automatic') && (!current || staleResult || current.origin === 'automatic') &&
-      <Button className="min-h-11" disabled={busy || cooling || !mayAnalyse} onClick={() => void launch(chosen, proof?.id)}>{staleResult || proof ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
+      <Button className="min-h-11" disabled={busy || cooling || !mayAnalyse} onClick={() => void launch(chosen, proof?.id)}>{current?.origin === 'automatic' ? t`Manual analysis` : staleResult || proof ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
     {run.data?.freshness === 'stale' && <p><Trans>The recording or method has changed. Recalculate to see current results.</Trans></p>}
     {active && <div role="status" className="space-y-3"><p>{active.status === 'queued' ? t`Waiting to analyse this recording…` : active.phase === 'prepare' ? t`Checking beat intervals and chest-strap evidence…` : t`Calculating valid windows…`}</p>
       <p className="text-sm text-muted-foreground"><Trans>You can leave this report. Analysis will continue.</Trans></p>
@@ -262,7 +264,7 @@ export function DFAContent({ activityId, rangeMs, onSelectInterval }: { activity
     </div>}
     {ownedRun?.status === 'cancellation_requested' && <p role="status"><Trans>Cancellation requested</Trans></p>}
     {current && ['failed','unavailable','cancelled'].includes(current.status) && <div className="space-y-3"><p role="status">{current.status === 'cancelled' ? t`Analysis was cancelled.` : reason(current.error_code ?? '')}</p>
-      {current.status !== 'unavailable' && <Button className="min-h-11" variant="outline" disabled={busy || cooling || !mayAnalyse} onClick={() => void runAction('retry')}><Trans>Retry analysis</Trans></Button>}</div>}
+      {current.origin === 'manual' && current.status !== 'unavailable' && <Button className="min-h-11" variant="outline" disabled={busy || cooling || !mayAnalyse} onClick={() => void runAction('retry')}><Trans>Retry analysis</Trans></Button>}</div>}
     {current?.status === 'complete' && current.summary && nav && <>
       <div className="space-y-2"><h3 className="text-lg font-semibold">{current.summary.valid_windows ? t`Usable windows are ready to inspect.` : t`No windows passed the analysis checks.`}</h3>
         <p className="text-sm">{current.source_assurance === 'metadata_inferred' ? <Trans>Source inferred from recording metadata</Trans> : <Trans>Source confirmed by you</Trans>} · <Trans>Estimated time alignment</Trans></p>

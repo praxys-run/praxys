@@ -160,7 +160,7 @@ class Lane:
             identity = process_identity(self.child.pid)
             if identity is None or identity["pgid"] != self.child.pid:
                 raise PhysicalUnavailable("launch_identity_unknown")
-            value.update(state="occupied", identity=identity)
+            value.update(state="occupied", identity=identity, process_start_observed_at=time.monotonic())
             self.record(value)
             return value, self.child
         except Exception:

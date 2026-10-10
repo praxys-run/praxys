@@ -67,9 +67,17 @@ preflight, fresh specialist/Quality review and both rendered clients remain requ
 
 ## Rollback / Recovery
 
+The workflow installs the coordinator startup command but permits inactive source
+and an unset/false candidate setting only; enabled/active deployment is blocked
+before its first mutation. This does not authorize a live startup change.
+
 Before any recycling settings/deploy/rollback action, durably drain both origins,
 fence publication and prove the old registered group/environment exited. Keep
 replacement compute disabled until separately authorized incarnation handover.
+Use `python -m api.dfa_drain` only inside the separately authorized exact bound
+environment. It commits admission/publication closure before observing the matching
+local and SQL idle receipt and actual group absence. Timeout retains closure and
+is not exit evidence. Environment handover remains separately authorized.
 Never unlink held locks, erase actor metadata with a run/user, or restore an older
 unsafe per-API-worker dispatcher. The additive migration retains historical data
 without granting V2 authority; destructive downgrade requires independent drain.

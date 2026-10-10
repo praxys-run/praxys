@@ -105,3 +105,7 @@ change the SKU or worker count.
 
 ---
 _Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+
+## PR871 inactive supervisor implementation
+
+The DFA supervisor adds one sync work pool, one async work pool and one reserved control connection (each size1/overflow0). One API worker at existing defaults reserves up to20 connections; steady-state combined ceiling is23, plus transient coordinator migration/drain engines and other services. This is configured accounting, not measured Azure capacity. The measured synthetic cell uses SQLite and a post-handshake ignored-TERM actor; maximum input, native execution, shared-plan/API/sync contention and a60-minute soak remain unproved. Drain and verify old environment termination before scale/replacement; do not infer a SKU change.

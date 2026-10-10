@@ -7,7 +7,7 @@ import type { LineSeries } from '../line-chart/index';
 
 function copy() {
   return {
-    alpha: t('DFA α1'),
+    alpha: t('DFA α1'), manual: t('Manual analysis'), originChanged: t('The selected analysis is no longer authorized. Current available analysis is shown.'),
     sources: 'doi:10.3390/s21030821 · doi:10.3390/s22176536',
     description: t('Post-run analysis from ECG chest-strap beat intervals.'), close: t('Close'), refresh: t('Refresh'),
     policy: t('DFA analysis is awaiting scientific activation.'), missing: t('The original recording is not available yet. Sync this activity from your connected platform.'),
@@ -61,7 +61,7 @@ Component({
   options: { addGlobalClass: true },
   properties: { inline: { type: Boolean, value: false }, activityStartMs: { type: Number, value: 0 }, rangeStart: { type: Number, value: 0 }, rangeEnd: { type: Number, value: 0 }, activityId: { type: String, value: '' }, activityDate: { type: String, value: '' } },
   data: {
-    origins: [] as { id: string; label: string; origin: string }[], selectedOrigin: '', assurance: '',
+    origins: [] as { id: string; label: string; origin: string }[], selectedOrigin: '', originChanged:false, assurance: '',
     tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, error:'',
     timeMax:0, cursorSeconds:0, timeStatus:'', selectedOffset:0, pageOutline:'', catalog:null as DFACatalog|null,
     run:null as DFARun|null, selected:-1, sensorIndex:-1, checked:false, proof:null as DFASourceConfirmation|null,
@@ -115,15 +115,22 @@ Component({
           comparators:[copy().heart,copy().power,copy().pace]});
         const origins = (catalog.origin_runs ?? (catalog.latest_run ? [catalog.latest_run] : [])).filter(run => run.freshness === 'current');
         this.setData({origins: origins.map(run => ({id:run.id,origin:run.origin,label:run.origin === 'automatic' ? t('Automatic analysis') : t('Manual analysis')}))});
-        const preferred = origins.find(run => run.origin === this.data.selectedOrigin) ?? origins.find(run => run.origin === 'manual') ?? origins[0] ?? catalog.latest_run;
-        if (preferred && catalog.inputs.length === 1) { this.setData({selectedOrigin:preferred.origin}); await this.loadRun(preferred.id); }
+        const inspected = origins.find(run => run.origin === this.data.selectedOrigin);
+        const preferred = inspected ?? origins.find(run => run.origin === 'manual' && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'automatic' && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'manual') ?? origins[0] ?? catalog.latest_run;
+        this.setData({originChanged:!!preferred && !!this.data.selectedOrigin && !inspected});
+        if (preferred) {
+          this.setData({selectedOrigin:preferred.origin, selected:catalog.inputs.findIndex(input => input.input.snapshot_id === preferred.snapshot_id)});
+          await this.loadRun(preferred.id);
+        }
 
       } catch { if (ticket === state.epoch) this.setData({loading:false,error:t('The request failed. Try again.')}); }
     },
     async onOrigin(e: WechatMiniprogram.TouchEvent) {
       const chosen = this.data.origins.find(item => item.id === String(e.currentTarget.dataset.id));
       if (!chosen) return;
-      stop(this); this.setData({selectedOrigin:chosen.origin,offset:0,run:null,rows:[],series:[],comparatorSeries:[],hasResult:false});
+      stop(this); this.setData({selectedOrigin:chosen.origin,originChanged:false,offset:0,run:null,rows:[],series:[],comparatorSeries:[],hasResult:false});
       await this.loadRun(chosen.id);
     },
     selectInterval(e: WechatMiniprogram.TouchEvent) {

@@ -222,3 +222,7 @@ estimated.
 
 ---
 _Last reviewed: 2026-08-06 · Owner: @dddtc2005_
+
+## PR871 inactive supervisor implementation
+
+Before reopening a restored API, keep DFA disabled and execute `python -m api.dfa_restore` within the separately authorized recovery. It advances the execution epoch, replays unconditional deleted-owner fences, discards restored DFA authority and clears restored sync-account generations. The independent private negative journal must be current and retained for the entire recoverable archive horizon; SQL restore cannot restore authority. Physical old-actor retirement and separately authorized incarnation handover are additional requirements.

@@ -16,6 +16,7 @@ IDENTITY = {"resource": "synthetic", "slot": "test", "instance": "fixture", "sou
 def test_real_child_exclusion_and_exit_before_reuse(tmp_path):
     lane = Lane(tmp_path / 'lane', IDENTITY)
     actor, child = lane.launch({'epoch': 1, 'generation': 1, 'input': 'synthetic'}, authorized=True)
+    assert actor['process_start_observed_at'] >= actor['launch_at']
     assert group_members(child.pid)
     other = Lane(tmp_path / 'lane', IDENTITY)
     with pytest.raises(PhysicalUnavailable, match='physical_guard_occupied'):

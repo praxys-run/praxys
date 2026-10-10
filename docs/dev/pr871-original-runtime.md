@@ -74,3 +74,16 @@ focus, polling, pagination and range changes are reads only. Gate-denied automat
 windows/context are omitted before hydration. Aligned range/window selection
 uses the preceding 120-second interval; unverified alignment has no invented jump.
 Both platforms retain complete unchecked canonical EN/中文 factual confirmation.
+
+The supervisor initializes the existing fail-closed Statsig SDK independently;
+API initialization does not carry across process boundaries. Its environment
+allowlist retains the existing App Service managed-identity selector and current
+CN/miniapp processing switches. Processing checks serialize with shared channel
+authority so stale local settings cannot bypass a committed cross-instance stop.
+Numerical children inherit none of these names.
+
+Recovery commits the exact old actor exit before requeue/next acquisition. A live
+supervisor whose bounded launch acknowledgement fails may project its verified
+child exit over an empty/idle predecessor only, after joining the work thread and
+matching the live job binding. Different occupied actors, missing recovery
+journals and changed incarnations remain blocked.

@@ -15,7 +15,16 @@ def loads(payload: bytes):
             if key in result: raise IPCInvalid('duplicate_ipc_field')
             result[key]=value
         return result
-    return json.loads(payload,object_pairs_hook=pairs,parse_constant=lambda value: (_ for _ in ()).throw(IPCInvalid('nonfinite_ipc')))
+    value = json.loads(payload,object_pairs_hook=pairs,parse_constant=lambda value: (_ for _ in ()).throw(IPCInvalid('nonfinite_ipc')))
+    def finite(item):
+        if isinstance(item, float) and not math.isfinite(item):
+            raise IPCInvalid('nonfinite_ipc')
+        if isinstance(item, dict):
+            for nested in item.values(): finite(nested)
+        elif isinstance(item, list):
+            for nested in item: finite(nested)
+    finite(value)
+    return value
 
 
 def binding(value):

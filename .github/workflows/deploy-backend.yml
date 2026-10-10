@@ -128,7 +128,7 @@ jobs:
             else
               changed_files="$(git diff --name-only "${BEFORE_SHA}" "${GITHUB_SHA}")"
               if grep -Eq \
-                '^(\.github/azure-observability\.env|\.github/workflows/deploy-backend\.yml|scripts/appinsights_boundary\.sh)$' \
+                '^(\.github/azure-observability\.env|\.github/workflows/deploy-backend\.yml|scripts/appinsights_boundary\.sh|api/runtime_startup\.py|api/dfa_[^/]+\.py)$' \
                 <<< "${changed_files}"; then
                 sync_config=true
               fi
@@ -183,6 +183,26 @@ jobs:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Require inactive DFA candidate before recycling configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Inactive installation only. An enabled supervisor requires separate
+          # host-local drain/exit verification before disabling its setting.
+          # This workflow cannot establish host handover or activate either origin.
+          dfa_enabled="$(az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_DFA_SUPERVISOR_ENABLED'].value" -o json)"
+          jq -e 'type == "array" and (length == 0 or . == ["false"])' \
+            <<< "${dfa_enabled}" >/dev/null
+          python3 - <<'PYCODE'
+          import json
+          from pathlib import Path
+          contract = json.loads(Path('data/science/generated/contracts/sdr-activity-dfa-alpha1-v2.json').read_text())
+          assert contract['runtime_state'] == 'inactive'
+          PYCODE
 
       - name: Capture state preserved by deployment
         id: preserved
@@ -564,7 +584,8 @@ jobs:
           az webapp config set \
             --name "${AZURE_BACKEND_APP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --always-on true
+            --always-on true \
+            --startup-file "python -m api.runtime_startup"
 
       - name: Verify production runtime controls
         shell: bash

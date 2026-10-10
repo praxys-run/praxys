@@ -45,6 +45,14 @@ else:
             command=[sys.executable,'-E','-B','-c',code]
         return real_popen(command,**kwargs)
     monkeypatch.setattr(subprocess,'Popen',fixture_process)
+    progress=Path(__file__).resolve().parents[1]/f'.git/pr871-capacity-{time.time_ns()}-steps.jsonl'
+    root=Path(__file__).resolve().parents[1]
+    source_head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
+    from hashlib import sha256
+    source_bindings={name:sha256((root/name).read_bytes()).hexdigest() for name in (
+        'api/dfa_supervisor.py','api/dfa_physical.py','api/dfa_rights.py','api/dfa_ipc.py',
+        'api/dfa_worker.py','api/activity_dfa.py','analysis/activity_dfa.py',
+        'tests/test_dfa_supervisor_capacity.py')}
     outcomes=[]
     error=[]
     transitions=[]
@@ -109,8 +117,6 @@ else:
                 time.sleep(.005)
             outcomes.append({'readiness_sequence':readiness_sequence,'trial':trial,'admission_id':admitted['admission_id'],'commit_bracket_seconds':after-before,
                              'availability_upper_seconds':observed-before})
-            progress=Path(__file__).resolve().parents[1]/'.git/pr871-capacity-r3-steps.jsonl'
-            with progress.open('a') as stream:stream.write(json.dumps(outcomes[-1])+'\n')
             deadline=time.monotonic()+15
             while True:
                 with factory() as db:
@@ -121,7 +127,8 @@ else:
                     and value.get('binding',{}).get('generation')==admitted['generation']
                     and value.get('binding',{}).get('input')==row.input_digest]
             assert starts
-            outcomes[-1]['manual_process_start_upper_seconds']=starts[-1]['launch_at']-before
+            outcomes[-1]['manual_process_start_upper_seconds']=starts[-1]['process_start_observed_at']-before
+            with progress.open('a') as stream:stream.write(json.dumps(outcomes[-1])+'\n')
         for previous,next_actor in zip(transitions,transitions[1:]):
             if next_actor['state']=='launching' and previous.get('actor_token') != next_actor.get('actor_token'):
                 assert previous['state']=='idle'
@@ -131,7 +138,7 @@ else:
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
-        (destination/'synthetic-capacity.json').write_text(json.dumps({'profile':'one SQLite writer + reserved control connection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
+        (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + reserved control connection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
             'trials':outcomes,'unproved':['raw-loading preemption','maximum-input/native-compute preemption','output-transfer preemption','Azure/API/sync contention','60-minute mixed-load soak','cross-host placement/handover']},indent=2))
     finally:
         supervisor.stop.set();worker.join(timeout=10)

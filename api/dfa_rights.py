@@ -14,6 +14,9 @@ def processing_receipt(db: Session, owner: str) -> str:
     user = db.query(User).filter_by(id=owner, is_active=True, is_demo=False).first()
     if user is None or not user_background_processing_authorized(db, owner):
         raise HTTPException(403, 'DFA_PROCESSING_NOT_AUTHORIZED')
+    from api.channel_processing_authority import user_channels_processing_authorized
+    if not user_channels_processing_authorized(db, owner, lock_for_commit=True):
+        raise HTTPException(403, 'DFA_PROCESSING_NOT_AUTHORIZED')
     receipt = db.query(TermsAcceptanceReceipt).filter_by(user_id=owner, terms_version=TERMS_VERSION,
         terms_digest=TERMS_CONTENT_DIGEST, action=TERMS_ACCEPTANCE_ACTION).order_by(TermsAcceptanceReceipt.accepted_at.desc()).first()
     if receipt is None:

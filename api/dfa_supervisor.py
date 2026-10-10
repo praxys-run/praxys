@@ -275,9 +275,19 @@ class Supervisor:
                 db.execute(text("SET LOCAL statement_timeout='200ms'"))
                 db.execute(text("SET LOCAL lock_timeout='200ms'"))
             control = db.query(Control).filter_by(id=1).with_for_update().first()
-            if (control is None or control.incarnation != self.identity or not control.actor
-                    or control.actor.get('actor_token') != actor['actor_token']):
+            if control is None or control.incarnation != self.identity or control.epoch != self.identity['epoch']:
                 raise PhysicalUnavailable('exit_journal_binding_changed')
+            previous = control.actor
+            if not previous or previous.get('actor_token') != actor['actor_token']:
+                # A bounded acknowledgement query can fail after the local
+                # journal recorded this live supervisor's child. Its verified
+                # exit is safe to project over an empty/idle predecessor only,
+                # after the work thread is joined. Never replace another actor.
+                with self.lock:
+                    active = self.active
+                expected = {key: active[key] for key in ('generation','epoch','input')} if active else None
+                if (expected != actor.get('binding') or previous and previous.get('state') != 'idle'):
+                    raise PhysicalUnavailable('exit_journal_binding_changed')
             control.actor = actor
             db.commit()
 
@@ -311,11 +321,34 @@ class Supervisor:
                     control.actor = self.lane.actor()
                 db.commit()
 
+    def reconcile_recovery(self):
+        """Commit an old actor's verified exit before admitting replacement work."""
+        self.lane.recover(authorized=True)
+        actor = self.lane.actor()
+        with self.controls() as db:
+            control = self._bound(db)
+            if control is None:
+                raise PhysicalUnavailable('host_not_bound')
+            recorded = control.actor
+        if recorded and recorded.get('state') != 'idle' and actor is None:
+            raise PhysicalUnavailable('recovery_actor_missing')
+        if actor is not None:
+            if not recorded or recorded.get('actor_token') != actor.get('actor_token'):
+                raise PhysicalUnavailable('exit_journal_binding_changed')
+            self.record_exit()
+            with self.factory() as db:
+                previous = db.query(Run).filter_by(input_digest=actor['binding']['input'],
+                    generation=actor['binding']['generation'], status='running').first()
+                job = {'id': previous.id, 'owner': previous.user_id,
+                       'generation': previous.generation, 'origin': previous.origin} if previous else None
+            if job:
+                self.finish(job, 'retired', None)
+
     def run(self):
         with self.controls() as db:
             if self._bound(db) is None:
                 raise PhysicalUnavailable('host_not_bound')
-        self.lane.recover(authorized=True)
+        self.reconcile_recovery()
         threading.Thread(target=self.renew, daemon=True, name='dfa-control').start()
         work_thread, outputs, job = None, None, None
         try:
@@ -369,7 +402,13 @@ def main():
     import signal
     signal.signal(signal.SIGTERM, lambda signum, frame: supervisor.stop.set())
     signal.signal(signal.SIGINT, lambda signum, frame: supervisor.stop.set())
-    supervisor.run()
+    import asyncio
+    from api.statsig_client import init_statsig, shutdown_statsig
+    asyncio.run(init_statsig())
+    try:
+        supervisor.run()
+    finally:
+        asyncio.run(shutdown_statsig())
 
 
 if __name__ == '__main__':
