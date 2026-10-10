@@ -588,6 +588,9 @@ def designated_case(tmp_path):
     shutil.copytree(source / 'data/science', science)
     amendment.prune_designated_fixture_closure(science)
     git(root, 'init')
+    # The byte-preservation fixture copies checked-out YAML verbatim. Do not
+    # inherit a developer's autocrlf setting and normalize those baseline blobs.
+    git(root, 'config', '--local', 'core.autocrlf', 'false')
     base = commit(root, 'synthetic exact shipped stopped baseline')
     baseline = science / 'decisions' / (amendment.BASELINE + '.yaml')
     raw = load_science_yaml(baseline.read_text())

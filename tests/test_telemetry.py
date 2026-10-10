@@ -689,7 +689,7 @@ def _runner_session(monkeypatch, user_id: str):
 
 
 def test_run_insights_emits_coach_run_per_type(fake_meter, monkeypatch):
-    """Both durable generators emit coach_run when the LLM is unavailable."""
+    """All three Coach types emit outcomes when the LLM is unavailable."""
     from api import insights_runner, llm, telemetry
 
     session = _runner_session(monkeypatch, "user-1")
@@ -701,9 +701,9 @@ def test_run_insights_emits_coach_run_per_type(fake_meter, monkeypatch):
 
     counter = fake_meter.counters["praxys.coach_run"]
     statuses = sorted(c[1]["status"] for c in counter.calls)
-    assert statuses == ["generator_returned_none"] * 2
+    assert statuses == ["generator_returned_none"] * 3
     types = sorted(c[1]["insight_type"] for c in counter.calls)
-    assert types == ["race_forecast", "training_review"]
+    assert types == ["daily_brief", "race_forecast", "training_review"]
     for _, attrs in counter.calls:
         assert attrs["user_id_hash"] == telemetry.hash_user_id("user-1")
 
@@ -754,12 +754,12 @@ def test_run_insights_emits_hash_match_status(fake_meter, monkeypatch):
 
     counter = fake_meter.counters["praxys.coach_run"]
     statuses = sorted(c[1]["status"] for c in counter.calls)
-    assert statuses == ["hash_match"] * 2
+    assert statuses == ["generator_returned_none", "hash_match", "hash_match"]
 
     session.close()
 
 def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
-    """Cap=1 makes the second durable generator report cap pressure.
+    """Rejected daily output plus one multi-week call exhausts reserved attempts.
 
     Anchors the per-iteration cap-pressure branch in ``insights_runner._run``
     (NOT the early-return branch — see test below). Removing the
@@ -773,8 +773,8 @@ def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
 
     session = _runner_session(monkeypatch, "user-3")
 
-    # Cap=1 means the first generator succeeds and the second is skipped.
-    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "1")
+    # Daily rejection consumes one; training review reserves two; forecast is capped.
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "3")
 
     # A working fake client so the first iteration's generate path is real.
     bilingual = {
@@ -788,6 +788,7 @@ def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
     payload = json.dumps(bilingual)
     client = _FakeClient(_FakeResponse(payload, _FakeUsage(prompt=10, completion=5)))
     monkeypatch.setattr(llm, "get_client", lambda: client)
+    monkeypatch.setattr(llm, "runtime_ai_available", lambda: True)
 
     insights_runner.run_insights_for_user(
         "user-3", session, {"activities": 1}, _session=session,
@@ -795,9 +796,9 @@ def test_run_insights_emits_cap_reached_status(fake_meter, monkeypatch):
 
     counter = fake_meter.counters["praxys.coach_run"]
     statuses = [c[1]["status"] for c in counter.calls]
-    assert statuses == ["generated", "cap_reached"]
+    assert statuses == ["generator_returned_none", "generated", "cap_reached"]
     # And only one row was actually written.
-    assert session.query(AiInsight).filter(AiInsight.user_id == "user-3").count() == 1
+    assert session.query(AiInsight).filter(AiInsight.user_id == "user-3", AiInsight.insight_type != "_generation_budget").count() == 1
 
     session.close()
 
@@ -820,11 +821,12 @@ def test_run_insights_emits_cap_status_after_cap_is_exhausted(
     )
 
     assert result == {
+        "daily_brief": "cap_reached",
         "training_review": "cap_reached",
         "race_forecast": "cap_reached",
     }
     counter = fake_meter.counters["praxys.coach_run"]
-    assert [call[1]["status"] for call in counter.calls] == ["cap_reached"] * 2
+    assert [call[1]["status"] for call in counter.calls] == ["cap_reached"] * 3
 
     session.close()
 

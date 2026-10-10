@@ -91,8 +91,9 @@ inspect the final exact commit without executor history and finish native render
 QA when the environment is ready. Browser captures do not substitute for it.
 
 `paseo.json` predates this work and remains untracked. It must not be deleted,
-committed, excluded or hidden to obtain a clean preflight. Report its dirty-check
-failure truthfully. Engineering retains sole source write ownership until handoff.
+committed, excluded or hidden to obtain a clean preflight. Report that original-worktree limitation truthfully. Root may run the unchanged
+preflight in a separate clean checkout of the identical immutable commit; that
+result remains distinct from the original worktree and is pending at handoff. Engineering retains sole source write ownership until handoff.
 
 
 ## Independent Quality repair
@@ -111,3 +112,55 @@ the shared square web receipt. Native receipts remain rounded. Exact-head Qualit
 recheck follows the repair commit. The first preflight was deliberately stopped at
 31% for this required repair, with no failures observed; its log is retained at
 `/tmp/coach-preflight.log`. It is not a completed or passing preflight.
+
+
+## Main integration and full-suite artifact repair
+
+The user authorized merging `origin/main` at
+`8f0f5dbb1600d16cc811c19898efbc9439134d2a` into this branch. Merge
+`7bb86ee72d9639cfba910e1684cefdbb19676b80` preserves Coach commits and applies
+the new single-session AGENTS policy. Earlier role/route references above are
+historical task context, not additional current orchestration requirements.
+
+The full preflight at `20cc81c8` completed pytest in 30m44s with 4,582 passed,
+62 skipped, 13 failures and 59 setup errors. It stopped at pytest; no full
+preflight pass is claimed. Log: `/tmp/coach-preflight-repair.log`.
+
+Confirmed causes and repairs:
+
+- Register the supplied draft SDR in the expected decision set and generated
+  registry index; generate its missing review packet and inactive JSON contract
+  with the existing scripts. Existing accepted records are unchanged.
+- Update four telemetry assertions for the restored third insight type and
+  cumulative reserved attempts; a rejected daily response consumes budget.
+- Make the disposable designated-science fixture independent of global
+  `core.autocrlf=true`. Its copied CRLF baseline was normalized by Git into LF
+  blobs, causing strict historical-byte failures and dependent setup errors.
+  Set `core.autocrlf=false` only inside that temporary fixture before its first
+  commit. Do not weaken production byte/digest checks or rewrite source records.
+- Root restored the exact pinned plugin checkout. The previously missing-file
+  personal-context MCP test passed on rerun; no plugin source/gitlink changed.
+
+The morning SDR remains draft/inactive. Its generated review packet is
+`data/science/generated/review-packets/sdr-morning-coach-evidence-presentation-v1.md`;
+its machine contract is in `data/science/generated/contracts/` with digest
+`sha256:e3c7838fa8fd2f9768cc59f8aa9512e708a0682ff9e348c1cedbe41545ac37a1`.
+No acceptance, activation or human approval was materialized. Final check results
+and source ownership release are stated in the session handoff.
+
+
+Final validation ownership: after this repair commit and explicit writer release,
+root will create a separate clean `/tmp` checkout of the same immutable commit,
+prepare pinned dependencies/submodule, and run unchanged
+`agent_preflight.py --base origin/main`. The original `paseo.json` remains
+untracked and untouched; no exclusion, stash, deletion or hidden change is used.
+No completed final preflight result is asserted by this implementation record.
+
+
+Repair verification before commit: registry/artifacts/telemetry/restored-plugin
+checks passed 109 tests. The three affected science lifecycle suites completed
+with 207 passed and one failure in 10m02s: the fresh source verifier clones HEAD,
+so it could not see the still-uncommitted new packet/contract. That exact verifier
+must be rerun after committing this generated-artifact repair. All prior designated
+activation errors passed with the disposable fixture's local line-ending fix.
+Static runtime/Copilot parity and both generated-artifact/index checks passed.

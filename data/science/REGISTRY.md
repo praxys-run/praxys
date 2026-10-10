@@ -61,6 +61,7 @@ Evidence reviews record what the literature supports. Science Decision Records (
 
 | Record | Version | Topic/model | Reviewed/decided |
 |---|---:|---|---|
+| [sdr-morning-coach-evidence-presentation-v1](decisions/sdr-morning-coach-evidence-presentation-v1.yaml) — Morning Coach presentation of existing training evidence | 1 | morning-coach-evidence-presentation-v1 | 2026-10-10 |
 | [sdr-non-ultra-trail-plan-generation-policy-v3](decisions/sdr-non-ultra-trail-plan-generation-policy-v3.yaml) — Propose resource-aware Trail basics with structured gym and bounded treadmill modules | 3 | non-ultra-trail-plan-generation-policy-v3 | 2026-09-08 |
 | [sdr-trail-running-goal-ontology-v3](decisions/sdr-trail-running-goal-ontology-v3.yaml) — Add resource context and explicit missingness for Trail v3 | 3 | trail-course-demand-v3 | 2026-09-08 |
 
