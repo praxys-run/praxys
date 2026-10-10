@@ -1105,7 +1105,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "Load balance": "负荷平衡",
     "Load balance (TSB)": "负荷平衡（TSB）",
     "Load compliance": "计划完成度",
-    "Loading Coach…": "正在加载 Coach…",
+    "Loading Coach…": "Coach 加载中…",
     "Loading components…": "正在加载组件…",
     "Loading private context": "正在加载计划个性化信息",
     "Loading recent workouts…": "正在加载近期训练…",

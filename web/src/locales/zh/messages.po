@@ -6053,7 +6053,7 @@ msgstr "计划完成度"
 
 #: src/components/AiInsightsCard.tsx:91
 msgid "Loading Coach…"
-msgstr "正在加载 Coach…"
+msgstr "Coach 加载中…"
 
 #: src/pages/Status.tsx:176
 msgid "Loading components…"
