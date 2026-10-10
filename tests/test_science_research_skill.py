@@ -50,12 +50,9 @@ def test_science_research_skill_has_a_discoverable_canonical_workflow() -> None:
         "materialize the digest-bound approval artifact",
         "every accepted SDR",
         "all governed theory/model references",
-        ".github/agents/product.agent.md",
         "Product Decision Record",
         "Science Decision Record",
-        "Product owns a separate Product Decision",
-        "Engineering may prepare an implementation",
-        "decision-review router",
+        "cannot replace a human approval role",
         "First fixture: heat adaptation and environmental performance",
         "plugins/praxys/",
     ):

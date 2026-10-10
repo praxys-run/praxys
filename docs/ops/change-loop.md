@@ -6,11 +6,11 @@
 > **Use when:** Enabling / operating / tuning the change loop, or debugging "I
 > labeled an issue `agent-ready` but Copilot was never assigned".
 
-Praxys defines seven object-improvement loops. This runbook covers the
-GitHub-native **Delivery loop** entry for qualifying bugs: feedback -> routed
-Work Contract -> drafted fix PR. Production incident execution still lives in
-the private `praxys-run/praxys-ops-agent` repo; the public Operations role can
-classify and hand off an Incident task without receiving production
+This runbook covers GitHub-native automation for qualifying bugs: feedback ->
+one executing session -> drafted fix PR. The session uses domain skills and
+risk-based independent review. Production incident execution still lives in
+the private `praxys-run/praxys-ops-agent` repo; the public Operations adapter
+retains its separately scoped local tools and does not acquire those production
 credentials.
 
 ## How it works
@@ -20,10 +20,7 @@ feedback triage (api/feedback_triage.py)  ──adds `agent-ready` for a qualify
 a maintainer manually adds `agent-ready`  ───────────────────────────────────────────┤
                                                                                       ▼
                           .github/workflows/assign-copilot.yml  ──assigns──▶  Praxys Orchestrator
-                                                                                      │ opens
-                                                                                      ▼
-                          deterministic Work Contract ──▶ Delivery / Change Loop
-                                                                                      │ opens
+                                                                                      │ implements and verifies
                                                                                       ▼
                     draft PR ──▶ checks + outcome observer ──▶ policy-controlled merge gate
 ```
@@ -66,17 +63,8 @@ while sensitive, broad, uncertain, or failing changes still require a human.
 The assignment uses GitHub's agent-assignment API with
 `customAgent=praxys-orchestrator`, so every eligible issue starts with the
 checked-in `.github/agents/praxys-orchestrator.agent.md` profile. The
-orchestrator classifies the task, emits the deterministic Work Contract, and
-delegates repository implementation to
-`.github/agents/praxys-change-loop.agent.md`.
-
-### Cooperative local decision-card trial
-
-The local-only cooperative cohort is separate from this Cloud assignment path.
-It uses explicit local CLI bookkeeping, with no Azure resource, credential,
-hook, branch rule, or required status change. The protected trial remains off.
-See the operational procedure below and
-[the bounded protocol](../dev/agent-decision-card-trial.md).
+main session implements and verifies directly, with one fresh read-only
+Quality review for material risk. See [session policy](agent-session-policy.md).
 
 Agent-authored Copilot PRs stay draft until the final preflight command and
 validated head SHA are recorded and the required branch checks pass.
@@ -89,7 +77,7 @@ session lacks a WeChat DevTools/Skyline runtime: a human completes that rendered
 review, updates the PR body, waits for draft CI, and then marks the PR ready.
 
 For task coordination, follow `task_completion` in
-`config/agent-loop-policies.json`. The owning loop keeps one progress queue;
+`config/agent-loop-policies.json`. The main session owns progress;
 holds name the action, evidence, causal hazard, scope, and unblock condition.
 Hold a whole queue only for a shared hazard, including actual deployment side
 effects. Credible uncertainty permits a bounded diagnostic hold with an owner.
@@ -100,95 +88,12 @@ An unrelated incident stays with its own owner while authorized actions without
 that hazard continue. Active waits name their job/owner, completion signal, and
 next action; elapsed time does not authorize replacement or cancellation.
 
-### Cooperative invocation lifecycle
+### Native session lifecycle
 
-Manifest-coordinated Delivery Loop calls use
-`scripts/agent_invocation_control.py`; see
-[the developer protocol](../dev/agent-invocation-control.md). The local ledger
-allows one active contract/stable-slot/immutable-revision key and records
-initial launch, resume, replacement, review after a new digest, duplicate, and
-illegal transitions. Duplicate and illegal transitions are not dispatched.
-If persistence of any known hard admission rejection fails, including the kill
-switch or a lifecycle protocol rejection, the CLI reports
-`ledger_unavailable` with `launch_authorized=false`; storage failure does not
-convert the rejection into permission to dispatch. Replaying an already
-recorded lifecycle rejection also remains fail-closed.
-A lost non-replacement attempt may make one separately identified replacement
-eligible; an operator or orchestrator must explicitly consume it. Nothing
-auto-launches, and replacements never chain. Once a revision has replacement
-history it cannot be resumed to disguise that lineage and create another
-replacement source.
-
-Lifecycle-aware calls also serialize only at the direct-parent boundary: one
-non-null parent may have one active direct child. A sibling waits until that
-child terminalizes. Sequential nesting, roots, and unrelated parents are not
-globally serialized.
-
-Cooperative callers explicitly use `sync`/`sync_inline` by default. Sync returns
-inline and does not bind or read an agent. Background is allowed only with
-`background`/`background_independent_immediate_no_poll` and immediate,
-independent parent work. Bind a `nat_*` repository alias to the exact public
-agent ID returned by successful `task`; the ledger keeps only its
-domain-separated fingerprint. Wait for external completion notification
-without status checks, `read_agent(wait:true)`, or polling. Then generate one
-fresh `rcl_*` read-claim identity, submit `native_read`, perform at most one
-physical native read, and submit `native_observation` using the same attempt,
-alias, exact public ID, and claim ID. A lost claim response is retried only
-with the same token. A repeated acknowledgement is the same logical
-authorization and never permits a second physical read. If the caller loses
-the token or cannot determine whether the physical read already ran, it stops
-without a new token, reread, observation, loss record, or replacement. The
-first not-found record closes that binding permanently.
-If completion notifications are unavailable, record the limitation and stop
-without reading or polling. On parent
-abort, shutdown, or failure, invoke `terminate_tree` to make active descendants
-leaf-first `orphaned` records before the parent terminal record. This does not
-cancel or kill native activity. Only an explicit new progress fingerprint
-updates last progress; elapsed time establishes no loss or staleness.
-
-For shutdown, resume, or context replacement, explicitly invalidate the exact
-binding. Invalidation performs no native registry lookup, polling, inference,
-automatic loss, replacement, relaunch, or external rebind. Mediated
-pre-completion write is unsupported. Use `terminate_tree` separately when
-attempt cleanup is intended.
-
-This is accepted-policy lifecycle correctness, not a role, routing, policy
-limit, reviewer-authority, autonomy, or enforcement change. The bounded PR
-correction is semantically authorized for implementation but is not approved
-for release and still requires independent Quality verification. The
-repository does not own Copilot's native registry,
-notification delivery, read API, or cancellation, and cannot govern unmediated
-calls.
-
-The stable Git-common-dir file is a policy-v1 locator whose expanded internal
-layout is ledger schema 3; the machine request/response contract is JSON schema
-2. Only explicit `init` may migrate an exact recognized v1 or v2 source. It
-takes `BEGIN IMMEDIATE` before inspecting migration state. Recognized v1
-sources apply the predecessor backfill and claim delta in one transaction;
-valid v2 sources apply only the claim column and partial unique index. Metadata
-becomes 3 only after the exact target validates. Ordinary commands require
-ledger 3 and never migrate.
-
-A lifecycle-v1 source with any native invocation is unsupported because it has
-no persisted public-ID fingerprint from which verified provenance can be
-reconstructed. Do not fabricate or guess one. Full-v1 and v2 require one
-matching provenance row per native invocation and one of the two exact
-dispatch-mode/provenance pairs. Any source with ownerless
-`lifecycle_status=read_claimed` is unsupported; do not clear it, move it back
-to `completion_notified`, or fabricate a token or fingerprint.
-
-Before initializing a retained v1 or v2 ledger, stop every invocation-control client
-in all linked worktrees, stop new cooperative dispatch, and capture
-privacy-safe layout/version/integrity, kill-switch, and aggregate active-state
-evidence. Fence and drain tokenless old-client events, take a
-SQLite-consistent restricted backup, and bind the operation to the exact
-reviewed artifact. A released v1 client freshly opening a successful v3 migration
-returns unsupported. See
-[ODR-2026-08-31-agent-native-read-claim-ownership](./odr-2026-08-31-agent-native-read-claim-ownership.md)
-for quiescence, WAL/SHM handling, evidence, cutover, and rollback. The
-predecessor
-[ledger-v2 ODR](./odr-2026-08-30-agent-invocation-ledger-v2.md) remains
-authoritative for the recognized v1-to-v2 backfill.
+The runtime owns thread identity, reuse, completion and cancellation. Only the
+main session dispatches bounded independent work. Custom invocation ledgers and
+the decision-card trial are retired; their private data remains untouched.
+There is no per-task provisioning, admission or review-router call.
 
 ### Shadow mode
 
@@ -268,11 +173,8 @@ verdicts so prompt changes are not scored against decisions they do not own.
 
 - Repo admin (to enable the coding agent, create labels, set branch protection).
 - `gh` CLI authenticated (`gh auth status`).
-- Before operating explicit invocation-ledger migration, bind the action to an
-  exact reviewed artifact and satisfy the linked-worktree quiescence and
-  pre-state requirements in the claim-ownership ODR, plus the predecessor ODR
-  for any v1 backfill. Repository implementation approval is not migration
-  authority.
+- Private legacy invocation/trial ledgers remain retained. The current flow
+  requires no admission, migration or provisioning of those retired ledgers.
 
 ## Steps
 
@@ -536,11 +438,10 @@ reintroduces interface skew.
   keep the PR draft until the implementation/tests/final diff are stable. A code
   push after the first ready handoff returns the PR to draft before more work.
   Edit there rather than stuffing per-issue boilerplate into the public tracker.
-- **Specialized implementation agent:** `.github/agents/praxys-change-loop.agent.md`
-  is the Delivery-loop implementation agent delegated by Praxys Orchestrator.
-  It exposes the repository/browser tools needed by the change loop and
-  converts the routed Work Contract into an ordered implementation, review,
-  and handoff.
+- **Executing session:** `.github/agents/praxys-orchestrator.agent.md`
+  completes the task directly. Domain skills provide relevant knowledge; one
+  independent Quality review covers material risks. Operations retains its
+  separately authorized local tool boundary.
 - **Deterministic final preflight:** after committing the implementation, the
   agent runs `python scripts/agent_preflight.py --base origin/main`. The command
   selects backend, web, Lingui, miniapp, and UI checks from the actual PR diff
@@ -783,7 +684,7 @@ and the cost is low).
 
 - Label a **qualifying bug** `agent-ready` → the `Change loop — assign
   agent-ready issues to Copilot` workflow runs and the issue gets
-  `copilot-swe-agent` as an assignee using the `praxys-change-loop` custom
+  `copilot-swe-agent` as an assignee using the `praxys-orchestrator` custom
   agent; a draft PR follows.
 - Mark a Copilot PR ready without the recorded final preflight or with a failing
   required check → `Copilot PR readiness guard` returns it to draft.
@@ -875,60 +776,10 @@ gh run list --workflow=assign-copilot.yml -R praxys-run/praxys --limit 5
   source `.md` and generated `.lock.yml`; the assignment/coding flow continues.
 - **Un-assign Copilot:** `gh issue edit <n> --remove-assignee copilot-swe-agent`
   and remove the `agent-ready` label.
-- **Invocation-ledger migration failure:** keep all linked-worktree clients
-  stopped and validate the exact pre-migration v1 or v2 state before resuming.
-  If ledger 3 committed but no schema-3 operation ran, a complete verified
-  source backup may be restored only under separate authority. After any
-  schema-3 mutation, keep ledger 3, disable new claims, preserve fingerprints,
-  and correct forward. In-place downgrade, stale restore, column deletion, or
-  reset requires separate incident authority and never cancels native work.
-  Follow the claim-ownership ODR.
-
-## Cooperative local decision-card operations
-
-`config/agent-decision-card-cooperative.json` selects the active local cohort
-`decision-card-local-2026-v1`, expiring at `2026-10-28T00:00:00Z`.
-`scripts/local_decision_trial.py status` reads without provisioning. Authorized
-local setup (already covered by the approved cooperative choice) uses `init`
-once, creating a private `praxys-decision-trial` directory
-under the canonical Git common directory and one SQLite ledger shared by
-worktrees. Do not initialize this policy-changing task into its own trial.
-The CLI accepts synthetic `--test-policy` and `--test-store` together only for
-tests; they are never live recovery alternatives.
-
-After routing, create and retain a random task key, admit the exact Work Contract,
-and use the same key with `--resume` thereafter. Record failed/abandoned/no-PR
-outcomes even without a PR. At eight, new admissions pause: independent review
-must assess safety, completeness and comparability before `checkpoint
---review-digest <digest>`. The digest is a reference, not authentication.
-At sixteen, admissions close permanently; already enrolled work may finish
-before expiry/stop. Complete the final evaluation without extending the cohort.
-
-Run `stop` immediately on critical omission, privacy exposure, authorization or
-review bypass, serious regression, or unreliable records. Disable policy status
-for an additional emergency off switch. Both preserve the pinned policy digest;
-changing expiry or other rules makes the existing ledger unusable. Missing,
-corrupt, deleted, or rolled-back records mean baseline and unknown coverage:
-never reset, restore an older snapshot, or change cohort ID to evade the cap.
-Outcomes may still be appended after stop/expiry. Keep original B attribution
-when falling back. Stop affects subsequent checks; it cannot retract issued
-text or promise linearizable UI suppression.
-
-This ledger is editable by the same user and cannot protect against deletion or
-out-of-band changes. It supplies no authorization, authenticated provenance,
-or automatic runtime coverage. Read-only adapters retain their permissions;
-failed canonical writes continue the underlying task in baseline presentation.
-No real cohort was provisioned by implementation/testing. Retire via stop or
-expiry, complete the Meta/Eval report, then delete the local ledger after the
-final review plus a 30-day correction window (no later than 90 days after
-closure); include any operator-made copies in deletion. Never publish task
-keys, review input, or ledger contents; publish safe aggregate observations.
-
-The archived protected policy `config/agent-decision-card-trial.json` and its
-inspection CLI remain disabled. Its Blob adapter is unprovisioned. Any future
-protected broker, authenticated receipts, required PR gate, or infrastructure
-activation needs a separate routed decision. This cooperative trial introduces
-none of those controls.
+- **Retired local bookkeeping:** private invocation/trial ledgers are retained
+  but are no longer used. Do not reset them or re-enroll tasks. Revert the session
+  policy/adapters together if needed; restoring code does not authorize a new
+  trial or broaden tool permissions.
 
 ## Related
 
@@ -939,7 +790,7 @@ none of those controls.
   `.github/workflows/ci-failure-doctor.md`,
   `.github/workflows/praxys-invariant-review.md`.
 - Agent guidance: `.github/copilot-instructions.md`.
-- Invocation-ledger operations:
+- Historical invocation-ledger records (retired; not current procedures):
   [ODR-2026-08-31-agent-native-read-claim-ownership](./odr-2026-08-31-agent-native-read-claim-ownership.md),
   [TDR-2026-08-31-agent-native-read-claim-ownership](./tdr-2026-08-31-agent-native-read-claim-ownership.md),
   and predecessor

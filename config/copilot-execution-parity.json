@@ -1,24 +1,14 @@
 {
   "schema_version": 1,
-  "parity_version": "praxys-copilot-execution-parity-v1",
+  "parity_version": "praxys-copilot-execution-parity-v2",
   "status": "active",
   "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
   "orchestrator_agent_slug": "praxys-orchestrator",
   "routing_config_path": "config/agentic-task-routing.json",
   "portable_agent_paths": [
     ".github/agents/praxys-orchestrator.agent.md",
-    ".github/agents/work-router.agent.md",
-    ".github/agents/decision-review-router.agent.md",
-    ".github/agents/praxys-change-loop.agent.md",
-    ".github/agents/product.agent.md",
-    ".github/agents/design.agent.md",
-    ".github/agents/engineering.agent.md",
-    ".github/agents/architecture.agent.md",
     ".github/agents/quality.agent.md",
-    ".github/agents/science.agent.md",
-    ".github/agents/trust.agent.md",
-    ".github/agents/operations.agent.md",
-    ".github/agents/meta-eval.agent.md"
+    ".github/agents/operations.agent.md"
   ],
   "common_builtin_tools": [
     "execute",
@@ -81,7 +71,7 @@
       ".github/copilot-instructions.md",
       "AGENTS.md"
     ],
-    "entry_method": "Automatic model delegation or `/agent Praxys Orchestrator` in Copilot CLI.",
+    "entry_method": "Use the current session or select Praxys Orchestrator; execution stays in that session.",
     "setup_markers": []
   },
   "cloud": {
@@ -112,7 +102,7 @@
         "local",
         "cloud"
       ],
-      "behavior": "Use the same enumerated classification and deterministic Work Contract; prose and intermediate reasoning may still differ.",
+      "behavior": "Use the same single-session policy and optional deterministic risk summary; reasoning and runtime results can differ.",
       "rationale": "Copilot model selection and sampling are runtime concerns outside the repository contract."
     },
     {
@@ -173,13 +163,13 @@
       "rationale": "Network availability, publisher access, and paywalls are external to the repository and portable agents do not inherit personal browser sessions."
     },
     {
-      "id": "cooperative-invocation-mediation",
+      "id": "native-session-lifecycle",
       "environments": [
         "local",
         "cloud"
       ],
-      "behavior": "Use lifecycle-aware repository mediation for manifest-coordinated calls. Deduplicate active contract/slot/revision keys; allow at most one active direct child per non-null parent; send explicit sync/background provenance; return sync work inline; bind background work only from the exact task-result public ID; wait for external completion notification without polling; allow one claimed read; explicitly invalidate stale bindings; and perform leaf-first cleanup. Ordinary candidate-policy would-reject and unavailable-state results remain non-blocking; protocol violations fail closed cooperatively.",
-      "rationale": "The repository can maintain its own ledger and cooperative call boundary but cannot own native registry lookup, notification delivery, external rebind, native writes or cancellation, or otherwise unmediated agent invocations."
+      "behavior": "Use native thread reuse, completion and cancellation. Only the main session dispatches a bounded independent review or useful investigation; no repository invocation ledger.",
+      "rationale": "The runtime already owns thread identity, delivery and cancellation."
     }
   ]
 }

@@ -37,20 +37,17 @@ behavior, or user-facing product claim.
 
 ### Decision proposal
 
-Decision-proposal work begins with the same Evidence Review process. The
-`Praxys Science` role owns any required Science Decision Record (SDR): evidence
-interpretation, parameters, applicability, claim limits, and runtime boundary.
-It then hands the exact evidence and science artifacts to `Praxys Product`,
-which owns the Product Decision Record: user problem, product options, scenarios,
-value trade-offs, minimum valuable scope, and outcome metrics.
+Decision-proposal work begins with the same Evidence Review process. The main
+session may prepare the Science Decision Record (SDR), evidence interpretation,
+parameters, applicability and product recommendation together. State the user
+problem, evidence-consistent options, value trade-offs, scope and outcome metrics
+in the task/PR record. Do not create Product, Science or review-router handoffs.
 
-Science may challenge or refine evidence mapping, but it must not substitute
-scientific prohibitions for a product recommendation. Product may choose among
-evidence-consistent options, but it must not invent scientific support.
-
-Engineering may prepare an implementation only after the required Product,
-Science, Design, Architecture, Trust, and review-routing prerequisites are
-explicit.
+Scientific reasoning must not substitute scientific prohibitions for a product
+recommendation; product preferences must not invent scientific support.
+Implementation follows the accepted scientific contracts. Independent evidence,
+decision and implementation approvals below retain their separate identities,
+immutable subjects and activation requirements.
 
 Neither mode may mark a record `accepted`, claim human approval, merge a
 science change, or silently replace research history.
@@ -157,9 +154,9 @@ Follow the existing registry schema and lifecycle:
   Review and claim IDs, classify every parameter as `published`, `estimate`, or
   `guardrail`, and document rejected scientific interpretations, claim limits,
   safety/privacy implications, and a falsification plan.
-- Dispatch the completed evidence and science bundle to
-  `.github/agents/product.agent.md`. Product owns a separate Product Decision
-  Record and links the science artifacts as dependencies.
+- Consult `PRODUCT.md` and link the completed science bundle to the product
+  recommendation in the same task record. Reuse an existing Product Decision
+  Record when relevant; no separate agent handoff is required.
 - New records use `approval_mode: artifact`; draft SDRs declare
   `artifact_policy.runtime_state: inactive`.
 - Run `python scripts/generate_science_artifacts.py` and hand reviewers the
@@ -168,19 +165,17 @@ Follow the existing registry schema and lifecycle:
 - Artifact-mode SDRs must define a typed `decision_review` manifest. Start the
   science packet with a short decision sheet that tells the reviewer exactly
   which scientific interpretation, parameters, applicability, deferrals, and
-  runtime boundaries are being approved. Product value belongs in the linked
-  Product Decision Record. Map every `model_parameters` group to at least one
+  runtime boundaries are being approved. Product value belongs in the task/PR
+  decision section or an existing Product Decision Record. Map every `model_parameters` group to at least one
   decision item. Keep the full parameter/evidence/contract material in the
   audit appendix.
 - Evidence, decision, and implementation review are separate roles. Only a
   digest-bound `evidence_reviewer` may accept an artifact-mode Evidence Review;
   only a `decision_approver` may accept its SDR; only an
   `implementation_reviewer` may activate its contract.
-- Current science approval artifacts remain human-authenticated. The independent
-  decision-review router may reduce the review to the irreducible decision, but
-  it cannot replace a human role unless a narrow judgment class is explicitly
-  promoted through the repository autonomy policy. No such science class is
-  promoted by default.
+- Current science approval artifacts remain human-authenticated. The main session
+  may consolidate review questions, but cannot replace a human approval role.
+  The single-session policy grants no scientific acceptance or activation authority.
 - Human approval may be given in an authenticated GitHub PR comment or an
   authenticated local/remote agent session. It counts only when the human
   explicitly approves the named role, subject, and displayed immutable digest.
@@ -202,9 +197,9 @@ Follow the existing registry schema and lifecycle:
   ledger must not infer or partially apply predecessor transitions.
 - Regenerate `data/science/REGISTRY.md` after valid record changes.
 
-## 5. Hand evidence to Product
+## 5. Connect evidence to the product decision
 
-For decision proposals, give the Product Agent a structured mapping:
+For decision proposals, include a structured product mapping in the same record:
 
 | Category | Required treatment |
 | --- | --- |
@@ -225,7 +220,7 @@ Metrics remain pure functions in `analysis/metrics.py`; data loading stays in
 that changes CP, load, diagnosis, race forecasts, or the canonical Today verdict
 unless the decision explicitly evaluates that impact.
 
-The Product handoff must identify:
+The product decision section must identify:
 
 - the user problem the evidence may help solve;
 - what evidence positively supports, not only what it prohibits;

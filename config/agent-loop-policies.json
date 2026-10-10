@@ -2,69 +2,21 @@
   "schema_version": 1,
   "operating_model": {
     "path": "config/agentic-operating-model.json",
-    "version": "praxys-agentic-operating-model-v1",
-    "status": "active-routing"
+    "version": "praxys-single-session-v2",
+    "status": "active"
   },
   "decision_autonomy": {
-    "version": "decision-autonomy-v1",
-    "status": "specification-only",
-    "objective": "minimize-human-attention-subject-to-quality-safety-reversibility-and-authenticated-authority",
-    "routing_outcomes": [
-      "agent-resolved",
-      "agent-reviewed",
-      "human-review-required",
-      "blocked"
-    ],
-    "default_judgment_route": "human-review-required",
-    "agent_only_classes": [
-      "schema-validation",
-      "artifact-regeneration",
-      "contract-consistency",
-      "test-execution"
-    ],
-    "agent_reviewed_classes": [],
-    "agent_reviewed_requirements": {
-      "class_must_be_explicitly_listed": true,
-      "reviewer_assignment_source": "work-router-independent-reviewers",
-      "minimum_independent_reviews": 1,
-      "reviewer_must_differ_from_proposer_and_executor": true,
-      "triggered_roles_must_be_assigned": true,
-      "deterministic_validation_required": true,
-      "decision_record_digest_required": true,
-      "human_review_factor_must_be_absent": true
-    },
-    "human_review_factors": [
-      "new-product-promise",
-      "material-user-value-tradeoff",
-      "safety-or-medical-boundary",
-      "sensitive-data-collection",
-      "security-or-privacy-boundary",
-      "irreversible-or-high-blast-radius-action",
-      "unresolved-independent-agent-disagreement",
-      "out-of-policy-or-out-of-distribution-decision"
-    ],
+    "version": "session-authority-v2",
+    "status": "active",
+    "default_judgment_route": "agent-resolved",
+    "scope": "Authorized reversible work in the current session; no merge, production, credential, or scientific approval grant.",
+    "review_policy_path": "config/agentic-task-routing.json",
+    "authorization": "Reuse explicit user authorization within its action, resource and risk scope. Ask only for missing authority or an irreducible material choice, after preparing the concrete result. Never manufacture exact-digest approval.",
     "independence": {
-      "proposer_may_select_own_review_route": false,
-      "proposer_may_review_own_decision": false,
       "executor_may_verify_own_high_risk_work": false,
-      "router_may_approve": false,
       "agent_may_materialize_human_approval": false
     },
-    "promoted_judgment_classes": [],
-    "promotion_requirements": {
-      "minimum_completed_decisions": 5,
-      "minimum_observation_days": 7,
-      "maximum_human_correction_rate": 0.0,
-      "maximum_adverse_outcome_rate": 0.0,
-      "minimum_replay_score": 1.0,
-      "independent_policy_approval_required": true
-    },
-    "demotion_triggers": {
-      "any_human_correction": true,
-      "any_adverse_outcome": true,
-      "any_policy_escape": true,
-      "missing_outcome_observation": true
-    }
+    "external_gates": "Scientific approval ledgers, runtime tool consent, required CI and branch protection remain authoritative."
   },
   "change": {
     "agent_ready": {
@@ -173,28 +125,12 @@
     }
   },
   "task_completion": {
-    "version": "task-completion-v1",
-    "status": "cooperative-guidance",
-    "enforcement": "Manifest guidance only; no new runtime enforcement, approval, CI exemption, or autonomy promotion.",
-    "completion": "Work Router supplies completion evidence, acceptance criteria, and non-goals in the accompanying handoff, never as added TaskRoute fields. Findings expand scope only when necessary for acceptance, a causal safety dependency, or new user-authorized scope; otherwise record a separate follow-up.",
-    "blockers": {
-      "required_fields": [
-        "blocked_action",
-        "evidence",
-        "causal_hazard",
-        "scope",
-        "unblock_condition"
-      ],
-      "scopes": [
-        "action",
-        "pr",
-        "queue"
-      ],
-      "rule": "Choose the smallest scope supported by a causal hazard, including a missing mandatory acceptance, authority, or evidence dependency. A missing required input or failing required CI blocks its affected action without needing proof of production harm. A queue hold requires a shared hazard affecting queued actions; unrelated evidence debt is insufficient. Credible uncertainty permits a bounded diagnostic hold naming missing evidence and owner; missing evidence never proves safety. Independent authorized work may continue only after checking that it does not share the hazard."
-    },
-    "coordination": "Delegate active progress ownership to one loop coordinator. Parents receive artifact handoffs without mirroring queues or polling. Each specialist receives a bounded question, answer artifact, and exit condition. Retain all triggered roles, independent review, runtime-specific lifecycle controls, and serialized writes/dependencies.",
-    "authorization": "Reuse explicit batch authorization only within its action and risk scope. New risk or scope returns to classification and Decision Review. An approval bound to an immutable subject or hash never transfers to a changed subject or hash. Refresh against current main, review the delta, obtain current required CI, and coordinate any authorized merges serially through existing independent authority; only independent read-only preparation may run in parallel.",
-    "verification": "Quality chooses the smallest sufficient evidence for the accepted criteria and affected failure modes. Reuse unchanged specialist conclusions only after checking their assumptions, reviewed head/base, and current delta. Old test results never validate a new SHA. Required CI, independent Quality, specialist evidence, and effective GitHub gates remain mandatory.",
+    "version": "task-completion-v2",
+    "completion": "The main session owns scope, implementation, checks and final handoff. Finish when acceptance is met. New findings expand scope only when needed for acceptance or causally required for safety; otherwise record follow-up.",
+    "coordination": "Use one session by default. Load domain context as needed. Use one fresh read-only reviewer for triggered risks, consolidating questions. Use native planning and lifecycle tools; no routing agents, loop coordinators, invocation ledgers or per-task trial enrollment.",
+    "authorization": "Reuse explicit user authorization within its action, resource and risk scope. Ask only for missing authority or an irreducible material choice, after preparing the concrete result. Never manufacture exact-digest approval.",
+    "verification": "Run the smallest sufficient checks, plus required CI. Reuse evidence only for unchanged relevant inputs. Review new material deltas; do not repeat unaffected reviews. A missing mandatory check blocks its dependent action, not unrelated authorized work.",
+    "waits": "Name the running job, completion signal and next action. Reuse an active thread, use native completion, do not duplicate or poll needlessly. Confirm termination before replacement.",
     "bot_dependency_ci_path": {
       "provenance": "Verify provider PR identity and complete change history, not labels or claimed authorship. Only an unchanged native Dependabot dependency update, optionally with a reviewed mechanical refresh against current main, qualifies. Unknown, incomplete, or malformed provenance takes the normal final-preflight path.",
       "allowed_delta": "Only native dependency manifests and their matching lockfiles may carry dependency version changes and corresponding native bot lockfile delta; workflow changes are limited to native bot action uses version/reference bumps. Listed paths are examples, not evidence of eligibility. Review the base refresh to establish that it preserves this delta without manual conflict resolution.",
@@ -210,7 +146,6 @@
       "action_reference_path_examples": [
         ".github/workflows/*.yml"
       ]
-    },
-    "waits": "Every active wait names its owner or job, expected completion signal, and next action. Claim background progress only when concrete independent work is running. At repeated checkpoints without new evidence, reassess the dependency and owner; follow the runtime completion mechanism without duplicate polling. Empty heartbeats are not progress, and elapsed time alone never authorizes cancellation, replacement, or relaunch."
+    }
   }
 }

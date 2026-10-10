@@ -14,15 +14,10 @@ argument-hint: "[target path or route]"
 
 Use this skill before editing any user-visible interface.
 
-This is the mandatory rendered harness for the **Praxys Design** role:
-
-- Product owns user value, priority, and product scope.
-- Design owns the intended journey, interaction, visual language, content,
-  accessibility, and complete state space.
-- Engineering implements the accepted Product and Design artifacts.
-- Quality independently verifies the exact rendered implementation.
-
-The harness does not let one implementation agent silently fill all four roles.
+The main session owns product intent, design and implementation. Use this
+harness to preserve rendered quality without separate Product/Design handoffs.
+A material risk receives the independent review defined in `AGENTS.md`; routine
+UI refinement still requires the same rendered, accessibility and parity checks.
 
 ## 1. Enter Impeccable
 

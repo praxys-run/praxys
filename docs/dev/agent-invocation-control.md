@@ -1,3 +1,8 @@
+> Retired from session execution by the single-session policy (2026-10-10).
+> The implementation and CLI below are historical; they are no longer shipped.
+> Private ledgers and prior observations remain untouched. See
+> [the active policy](agentic-operating-model.md).
+
 # Agent invocation control v1
 
 ## Status and authorized scope

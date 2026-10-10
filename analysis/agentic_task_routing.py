@@ -1,124 +1,69 @@
-"""Deterministic task-to-loop routing for the Praxys agentic runtime."""
+"""Optional deterministic risk summary for a single executing session.
 
+Classification is supplied by the session and is not an authorization receipt.
+This module never dispatches agents, starts loops, or grants human authority.
+"""
 from __future__ import annotations
 
-from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
-import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
 from analysis.agentic_operating_model import (
-    AgenticOperatingModel,
-    load_agentic_operating_model,
+    AgenticOperatingModel, PolicyRecord, ROOT, load_agentic_operating_model,
 )
 
 
-_ROOT = Path(__file__).resolve().parents[1]
-_DEFAULT_ROUTING_PATH = _ROOT / "config" / "agentic-task-routing.json"
-_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
-
-
-def _require_unique(values: list[str], label: str) -> None:
+def _unique(values: list[str]) -> None:
     if len(values) != len(set(values)):
-        raise ValueError(f"{label} must be unique")
+        raise ValueError("classification and policy lists must be unique")
 
 
-def _append_unique(target: list[str], values: list[str]) -> None:
-    for value in values:
-        if value not in target:
-            target.append(value)
-
-
-def _digest(payload: object) -> str:
-    canonical = json.dumps(
-        payload,
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
-
-
-class RoutingRecord(BaseModel):
-    """Strict immutable base model for routing records."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class RouteContribution(RoutingRecord):
-    """Roles, artifacts, and loop contributed by one task characteristic."""
+class RouteContribution(PolicyRecord):
+    """A concern to cover, with no mandatory professional handoff."""
 
     description: str = Field(min_length=1)
-    loop: str | None
-    required_roles: list[str] = Field(min_length=1)
-    required_artifacts: list[str] = Field(default_factory=list)
-    outcome_artifacts: list[str] = Field(default_factory=list)
-    executor_roles: list[str] = Field(default_factory=list)
-    verifier_roles: list[str] = Field(default_factory=list)
-    material_judgment: bool
-
-    @model_validator(mode="after")
-    def validate_contribution(self) -> "RouteContribution":
-        """Keep every contribution deterministic and internally complete."""
-        for label, values in (
-            ("required_roles", self.required_roles),
-            ("required_artifacts", self.required_artifacts),
-            ("outcome_artifacts", self.outcome_artifacts),
-            ("executor_roles", self.executor_roles),
-            ("verifier_roles", self.verifier_roles),
-        ):
-            _require_unique(values, label)
-        missing_role_assignments = (
-            set(self.executor_roles) | set(self.verifier_roles)
-        ) - set(self.required_roles)
-        if missing_role_assignments:
-            raise ValueError(
-                "executor and verifier roles must be required roles: "
-                f"{sorted(missing_role_assignments)}"
-            )
-        return self
+    contexts: list[str]
+    independent_review: bool
 
 
-class TaskRoutingConfig(RoutingRecord):
-    """Versioned task-characteristic and loop-routing policy."""
+class TaskRoutingConfig(PolicyRecord):
+    """Concern and risk vocabulary shared by both runtime adapters."""
 
-    schema_version: Literal[1]
-    routing_version: str = Field(min_length=1)
-    status: Literal["active"]
-    operating_model_version: str = Field(min_length=1)
-    orchestrator_agent_path: str = Field(min_length=1)
-    loop_agents: dict[str, str] = Field(min_length=1)
+    schema_version: Literal[2]
+    routing_version: Literal["praxys-task-routing-v2"]
     primary_objects: dict[str, RouteContribution] = Field(min_length=1)
     impacts: dict[str, RouteContribution] = Field(min_length=1)
     risk_triggers: list[str] = Field(min_length=1)
-    nested_loop_order: list[str] = Field(min_length=1)
+    authority_triggers: list[str]
 
     @model_validator(mode="after")
-    def validate_ids(self) -> "TaskRoutingConfig":
-        """Require stable identifiers and deterministic ordering."""
-        for label, identifiers in (
-            ("loop agent", self.loop_agents),
-            ("primary object", self.primary_objects),
-            ("impact", self.impacts),
+    def validate_policy(self) -> "TaskRoutingConfig":
+        """An authority concern must also receive independent review."""
+        _unique(self.risk_triggers)
+        _unique(self.authority_triggers)
+        if not set(self.authority_triggers) <= set(self.risk_triggers):
+            raise ValueError("authority triggers must also be risk triggers")
+        for contributions, mandatory in (
+            (self.primary_objects, (
+                "scientific-evidence", "production-state", "production-incident", "agent-system",
+            )),
+            (self.impacts, (
+                "scientific-evidence-or-claim", "production-operation", "incident-response",
+                "agent-policy-or-autonomy", "architecture-boundary", "trust-boundary",
+            )),
         ):
-            invalid = sorted(
-                identifier
-                for identifier in identifiers
-                if _ID_RE.fullmatch(identifier) is None
-            )
-            if invalid:
-                raise ValueError(f"invalid {label} IDs: {invalid}")
-        _require_unique(self.risk_triggers, "risk_triggers")
-        _require_unique(self.nested_loop_order, "nested_loop_order")
+            for concern in mandatory:
+                if concern not in contributions or not contributions[concern].independent_review:
+                    raise ValueError(f"independent review is mandatory for {concern}")
         return self
 
 
-class TaskClassification(RoutingRecord):
-    """Model-produced classification constrained to repository-owned IDs."""
+class TaskClassification(PolicyRecord):
+    """Facts inferred from user intent, changed paths and causal impact."""
 
     primary_object: str = Field(min_length=1)
     impacts: list[str] = Field(default_factory=list)
@@ -126,286 +71,74 @@ class TaskClassification(RoutingRecord):
 
     @model_validator(mode="after")
     def validate_classification(self) -> "TaskClassification":
-        """Reject duplicated model output before deterministic routing."""
-        _require_unique(self.impacts, "classification impacts")
-        _require_unique(self.risk_triggers, "classification risk_triggers")
+        _unique(self.impacts)
+        _unique(self.risk_triggers)
         return self
 
 
-class TaskRoute(RoutingRecord):
-    """Canonical work contract shared by local and cloud Copilot."""
+class TaskRoute(PolicyRecord):
+    """A compact execution summary, never proof of authority or completion."""
 
     routing_version: str
-    operating_model_version: str
     classification: TaskClassification
-    classification_digest: str
-    primary_loop: str
-    nested_loops: list[str]
-    loop_agents: dict[str, str]
-    lead_role: str
-    contributor_roles: list[str]
-    executor_roles: list[str]
-    verifier_roles: list[str]
-    outcome_observer_roles: list[str]
-    required_input_artifacts: list[str]
-    required_artifacts: list[str]
-    outcome_artifacts: list[str]
-    risk_triggers: list[str]
-    decision_review_agent: str
-    decision_review_required: bool
+    execution_mode: Literal["single-session", "independent-review"]
+    executor_agent: str
+    reviewer_agent: str | None
+    contexts: list[str]
+    authority_checks: list[str]
     route_digest: str
 
 
 def validate_task_routing_references(
-    config: TaskRoutingConfig,
-    model: AgenticOperatingModel,
-    *,
-    root: Path = _ROOT,
+    config: TaskRoutingConfig, model: AgenticOperatingModel, *, root: Path = ROOT,
 ) -> None:
-    """Cross-check routing policy against loops, roles, artifacts, and agents."""
-    if config.operating_model_version != model.model_version:
-        raise ValueError("task routing operating-model version mismatch")
-    if set(config.loop_agents) != set(model.loops):
-        raise ValueError("every operating-model loop requires one loop agent")
-    if set(config.nested_loop_order) != set(model.loops):
-        raise ValueError("nested_loop_order must contain every loop exactly once")
-    primary_loops = {
-        contribution.loop
-        for contribution in config.primary_objects.values()
-    }
-    if primary_loops != set(model.loops):
-        raise ValueError("every loop must be selectable as a primary object")
-
-    agent_paths = [
-        config.orchestrator_agent_path,
-        *config.loop_agents.values(),
-    ]
-    for path in agent_paths:
-        candidate = Path(path)
-        if candidate.is_absolute() or ".." in candidate.parts:
-            raise ValueError("routing agent paths must be repository-relative")
-        if not (root / candidate).is_file():
-            raise ValueError(f"routing agent manifest is missing: {path}")
-
-    for characteristic_id, contribution in (
-        list(config.primary_objects.items()) + list(config.impacts.items())
-    ):
-        if contribution.loop is not None and contribution.loop not in model.loops:
-            raise ValueError(
-                f"characteristic {characteristic_id} references unknown loop "
-                f"{contribution.loop}"
-            )
-        unknown_roles = set(contribution.required_roles) - set(model.roles)
-        if unknown_roles:
-            raise ValueError(
-                f"characteristic {characteristic_id} references unknown roles: "
-                f"{sorted(unknown_roles)}"
-            )
-        unknown_artifacts = (
-            set(contribution.required_artifacts)
-            | set(contribution.outcome_artifacts)
-        ) - set(model.artifacts)
-        if unknown_artifacts:
-            raise ValueError(
-                f"characteristic {characteristic_id} references unknown "
-                f"artifacts: {sorted(unknown_artifacts)}"
-            )
-
-    for object_id, contribution in config.primary_objects.items():
-        assert contribution.loop is not None
-        expected_lead = model.loops[contribution.loop].lead_role
-        if expected_lead not in contribution.required_roles:
-            raise ValueError(
-                f"primary object {object_id} must require loop lead "
-                f"{expected_lead}"
-            )
+    """Reject nonexistent context and agent references."""
+    for trait in [*config.primary_objects.values(), *config.impacts.values()]:
+        if not set(trait.contexts) <= set(model.contexts):
+            raise ValueError("unknown domain context")
+    for relative in [model.executor_agent, model.reviewer_agent, model.operations_agent, *model.contexts.values()]:
+        path = root / relative
+        if not path.is_file() or not path.resolve().is_relative_to(root.resolve()):
+            raise ValueError(f"missing or escaping policy reference: {relative}")
 
 
 def route_task(
-    classification: TaskClassification,
-    *,
-    config: TaskRoutingConfig | None = None,
+    classification: TaskClassification, *, config: TaskRoutingConfig | None = None,
     model: AgenticOperatingModel | None = None,
 ) -> TaskRoute:
-    """Convert a bounded classification into one canonical work contract."""
-    active_config = config or load_task_routing_config()
-    active_model = model or load_agentic_operating_model()
-
-    if classification.primary_object not in active_config.primary_objects:
-        raise ValueError(
-            f"unknown primary object: {classification.primary_object}"
-        )
-    unknown_impacts = (
-        set(classification.impacts) - set(active_config.impacts)
-    )
-    if unknown_impacts:
-        raise ValueError(f"unknown impacts: {sorted(unknown_impacts)}")
-    unknown_risks = (
-        set(classification.risk_triggers)
-        - set(active_config.risk_triggers)
-    )
-    if unknown_risks:
-        raise ValueError(f"unknown risk triggers: {sorted(unknown_risks)}")
-
-    normalized_impacts = [
-        impact_id
-        for impact_id in active_config.impacts
-        if impact_id in classification.impacts
-    ]
-    normalized_risks = [
-        risk_id
-        for risk_id in active_config.risk_triggers
-        if risk_id in classification.risk_triggers
-    ]
-    normalized_classification = TaskClassification(
+    """Consolidate concerns into at most one independent review, without approval."""
+    config = config or load_task_routing_config()
+    model = model or load_agentic_operating_model()
+    if classification.primary_object not in config.primary_objects:
+        raise ValueError(f"unknown primary object: {classification.primary_object}")
+    if not set(classification.impacts) <= set(config.impacts):
+        raise ValueError("unknown impacts")
+    if not set(classification.risk_triggers) <= set(config.risk_triggers):
+        raise ValueError("unknown risk triggers")
+    normalized = TaskClassification(
         primary_object=classification.primary_object,
-        impacts=normalized_impacts,
-        risk_triggers=normalized_risks,
+        impacts=[item for item in config.impacts if item in classification.impacts],
+        risk_triggers=[item for item in config.risk_triggers if item in classification.risk_triggers],
     )
-
-    primary = active_config.primary_objects[
-        normalized_classification.primary_object
-    ]
-    assert primary.loop is not None
-    selected_loops = [primary.loop]
-    required_roles: list[str] = []
-    executor_roles: list[str] = []
-    verifier_roles: list[str] = []
-    required_artifacts: list[str] = []
-    outcome_artifacts: list[str] = []
-    material_judgment = primary.material_judgment
-
-    contributions = [
-        primary,
-        *(
-            active_config.impacts[impact_id]
-            for impact_id in normalized_impacts
-        ),
-    ]
-    for contribution in contributions:
-        if (
-            contribution.loop is not None
-            and contribution.loop not in selected_loops
-        ):
-            selected_loops.append(contribution.loop)
-        _append_unique(required_roles, contribution.required_roles)
-        _append_unique(executor_roles, contribution.executor_roles)
-        _append_unique(verifier_roles, contribution.verifier_roles)
-        _append_unique(required_artifacts, contribution.required_artifacts)
-        _append_unique(outcome_artifacts, contribution.outcome_artifacts)
-        material_judgment = (
-            material_judgment or contribution.material_judgment
-        )
-
-    ordered_nested_loops = [
-        loop_id
-        for loop_id in active_config.nested_loop_order
-        if loop_id in selected_loops and loop_id != primary.loop
-    ]
-    ordered_loops = [primary.loop, *ordered_nested_loops]
-    for loop_id in ordered_loops:
-        _append_unique(required_roles, [active_model.loops[loop_id].lead_role])
-
-    lead_role = active_model.loops[primary.loop].lead_role
-    contributor_roles = [
-        role_id
-        for role_id in required_roles
-        if role_id != lead_role
-        and role_id not in executor_roles
-        and role_id not in verifier_roles
-    ]
-    loop_agents = {
-        loop_id: active_config.loop_agents[loop_id]
-        for loop_id in ordered_loops
-    }
-    required_input_artifacts: list[str] = []
-    selected_artifacts = set(required_artifacts)
-    outcome_observer_roles: list[str] = []
-    for artifact_id in outcome_artifacts:
-        _append_unique(
-            outcome_observer_roles,
-            [active_model.artifacts[artifact_id].owner_role],
-        )
-
-    def add_input_dependencies(artifact_id: str) -> None:
-        for dependency_id in active_model.artifacts[artifact_id].depends_on:
-            if dependency_id in selected_artifacts:
-                add_input_dependencies(dependency_id)
-                continue
-            add_input_dependencies(dependency_id)
-            if dependency_id not in required_input_artifacts:
-                required_input_artifacts.append(dependency_id)
-
-    for artifact_id in required_artifacts:
-        add_input_dependencies(artifact_id)
-
-    classification_payload = normalized_classification.model_dump()
-    route_payload = {
-        "routing_version": active_config.routing_version,
-        "operating_model_version": active_model.model_version,
-        "primary_loop": primary.loop,
-        "nested_loops": ordered_nested_loops,
-        "loop_agents": loop_agents,
-        "lead_role": lead_role,
-        "contributor_roles": contributor_roles,
-        "executor_roles": executor_roles,
-        "verifier_roles": verifier_roles,
-        "outcome_observer_roles": outcome_observer_roles,
-        "required_input_artifacts": required_input_artifacts,
-        "required_artifacts": required_artifacts,
-        "outcome_artifacts": outcome_artifacts,
-        "risk_triggers": normalized_risks,
-        "decision_review_agent": (
-            active_model.control_plane.decision_review_router_agent_path
-        ),
-        "decision_review_required": (
-            material_judgment or bool(normalized_risks)
-        ),
-    }
-    digest_payload = {
-        **route_payload,
-        "classification": classification_payload,
-    }
-    return TaskRoute(
-        **route_payload,
-        classification=normalized_classification,
-        classification_digest=_digest(classification_payload),
-        route_digest=_digest(digest_payload),
+    traits = [config.primary_objects[normalized.primary_object], *(config.impacts[item] for item in normalized.impacts)]
+    review = bool(normalized.risk_triggers) or any(trait.independent_review for trait in traits)
+    concerns = {context for trait in traits for context in trait.contexts}
+    payload = dict(
+        routing_version=config.routing_version,
+        classification=normalized.model_dump(),
+        execution_mode="independent-review" if review else "single-session",
+        executor_agent=model.executor_agent,
+        reviewer_agent=model.reviewer_agent if review else None,
+        contexts=list(dict.fromkeys(model.contexts[key] for key in model.contexts if key in concerns)),
+        authority_checks=[item for item in normalized.risk_triggers if item in config.authority_triggers],
     )
+    # Bind policy as well as output; changing the rules invalidates cached summaries.
+    subject = {"route": payload, "policy": config.model_dump(), "model": model.model_dump()}
+    digest = hashlib.sha256(json.dumps(subject, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return TaskRoute.model_validate({**payload, "route_digest": f"sha256:{digest}"})
 
 
-def load_task_routing_config(
-    path: str | Path | None = None,
-    *,
-    validate_paths: bool = True,
-) -> TaskRoutingConfig:
-    """Load and validate task routing plus operating-model references."""
-    if path is None:
-        return _load_default_task_routing_config()
-    routing_path = Path(path)
-    config = TaskRoutingConfig.model_validate_json(
-        routing_path.read_text(encoding="utf-8")
-    )
-    if validate_paths:
-        root = routing_path.resolve().parents[1]
-        validate_task_routing_references(
-            config,
-            load_agentic_operating_model(
-                root / "config" / "agentic-operating-model.json"
-            ),
-            root=root,
-        )
-    return config
-
-
-@lru_cache(maxsize=1)
-def _load_default_task_routing_config() -> TaskRoutingConfig:
-    """Load the checked-in task routing policy once per process."""
-    config = TaskRoutingConfig.model_validate_json(
-        _DEFAULT_ROUTING_PATH.read_text(encoding="utf-8")
-    )
-    validate_task_routing_references(
-        config,
-        load_agentic_operating_model(),
-    )
-    return config
+def load_task_routing_config(path: str | Path | None = None) -> TaskRoutingConfig:
+    """Load policy without dispatch, ledger I/O or persistent admission state."""
+    source = Path(path) if path else ROOT / "config/agentic-task-routing.json"
+    return TaskRoutingConfig.model_validate(json.loads(source.read_text()))
