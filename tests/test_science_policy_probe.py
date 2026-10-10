@@ -67,14 +67,18 @@ def test_genuine_guard_uses_candidate_modules_after_trusted_preparation(candidat
     from analysis import science_artifacts as trusted_artifacts
     root, purpose, contract = candidate
     trusted_file = trusted_artifacts.__file__
+    if purpose == 'activation':
+        # The current candidate implements V2. Projecting archived V1 data
+        # cannot activate its current API or revive the terminal V1 callable.
+        with pytest.raises(ValueError, match='did not complete successfully'):
+            observe(root, purpose, SUBJECT, contract)
+        assert trusted_artifacts.__file__ == trusted_file
+        return
     observed = observe(root, purpose, SUBJECT, contract)
     assert observed['module_paths'] == {name:str(root / path) for name, path in MODULE_PATHS.items()}
     assert trusted_artifacts.__file__ == trusted_file
     assert not Path(trusted_file).is_relative_to(root)
-    if purpose == 'activation':
-        assert observed['observation']['returned_contract'] == contract
-    else:
-        assert observed['observation'] == {'http_status':503, 'detail':'DFA_SCIENCE_POLICY_INACTIVE'}
+    assert observed['observation'] == {'http_status':503, 'detail':'DFA_SCIENCE_POLICY_INACTIVE'}
 
 
 @pytest.mark.parametrize('candidate', ['activation', 'stopped-maintenance'], indirect=True)
@@ -88,9 +92,10 @@ def test_zero_exit_without_guard_observation_never_completes(candidate, stage, e
         module.write_text(exit_code + '\n')
     else:
         source = module.read_text()
-        function = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == 'require_policy')
+        guard = 'require_historical_v1_policy' if purpose == 'stopped-maintenance' else 'require_policy'
+        function = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == guard)
         lines = source.splitlines(keepends=True)
-        lines[function.lineno-1:function.end_lineno] = [f'def require_policy():\n    {exit_code}\n']
+        lines[function.lineno-1:function.end_lineno] = [f'def {guard}():\n    {exit_code}\n']
         module.write_text(''.join(lines))
     git(root, 'init')
     commit(root, 'frozen synthetic early-exit candidate')
@@ -206,6 +211,14 @@ def test_designated_missing_actual_guards_fail_closed(tmp_path):
     from tests.test_science_activation import designated_case
     from analysis.science_admission_amendment import DESIGNATED
     root, _, _, binding, _ = designated_case(tmp_path)
+    import ast
+    path = root / 'api/activity_dfa.py'
+    source = path.read_text()
+    function = next(node for node in ast.parse(source).body
+        if isinstance(node, ast.FunctionDef) and node.name == 'require_historical_v1_policy')
+    lines = source.splitlines(keepends=True)
+    del lines[function.lineno-1:function.end_lineno]
+    path.write_text(''.join(lines))
     with pytest.raises(ValueError, match='did not complete successfully'):
         observe(root, 'dfa-v2-activation', DESIGNATED, binding.active_contract_digest)
 

@@ -99,10 +99,22 @@ def test_stop_only_is_atomic_idempotent_and_real_guard_denies(stop_case, monkeyp
     from api.activity_dfa import require_policy
     from fastapi import HTTPException
     monkeypatch.setattr(science_artifacts, '_SCIENCE_DIR', root / 'data/science')
-    assert require_policy() == stop.active_contract_digest
+    assert _archived_fixture_policy() == stop.active_contract_digest
+    with pytest.raises(HTTPException) as current_denied:
+        require_policy()
+    assert current_denied.value.status_code == 503
+    assert current_denied.value.detail == 'DFA_SCIENCE_POLICY_INACTIVE'
+    from api.activity_dfa import require_historical_v1_policy
+    with pytest.raises(HTTPException) as historical_denied:
+        require_historical_v1_policy()
+    assert historical_denied.value.status_code == 503
+    assert historical_denied.value.detail == 'DFA_SCIENCE_POLICY_INACTIVE'
     changed = materialize_stop(root, stop)
     assert changed == list(stop_paths(SUBJECT))
     assert materialize_stop(root, stop) == []
+    with pytest.raises(HTTPException) as archived_denied:
+        _archived_fixture_policy()
+    assert archived_denied.value.status_code == 503
     base_registry = load_science_registry(original / 'data/science')
     head_registry = load_science_registry(root / 'data/science')
     assert verify_stop_changes(base_registry, head_registry, repository_root=root,
@@ -210,10 +222,28 @@ def test_stop_history_cannot_be_deleted_or_relabelled(stop_case):
 
 
 # Capture the real function before the existing isolated store fixture installs
-# its ordinary test policy stub. These STOP tests restore the real guard.
+# its ordinary test policy stub. Archived lifecycle tests explicitly inject
+# a static fixture validator; the captured current guard remains denied.
 from api import activity_dfa as dfa_service
 from tests.test_activity_dfa import store, confirmed
 _REAL_REQUIRE_POLICY = dfa_service.require_policy
+
+
+def _archived_fixture_policy():
+    """Historical static-contract validator for disposable lifecycle tests only.
+
+    Never changes either current guard's identity or permits a real V1 runtime.
+    """
+    from analysis.science_artifacts import load_policy_contract
+    from analysis.activity_dfa import METHOD_VERSION, digest
+    from fastapi import HTTPException
+    try:
+        contract = load_policy_contract(SUBJECT, require_active=True)
+        assert contract.model_version == METHOD_VERSION
+        assert digest(contract.parameter_values) == 'c9db9df13212d152c5a34ff4ddfb8f08ea5cb32dd98d14207ddbd0ef86386438'
+        return contract.contract_digest
+    except ValueError as exc:
+        raise HTTPException(503,'DFA_SCIENCE_POLICY_INACTIVE') from exc
 
 
 @pytest.mark.parametrize('store', ['sqlite', 'postgresql'], indirect=True)
@@ -225,18 +255,19 @@ def test_stop_race_denies_final_publication_and_preserves_rights(stop_case, stor
     root, _, _, stop, _ = stop_case
     factory, owner = store
     monkeypatch.setattr(science_artifacts, '_SCIENCE_DIR', root / 'data/science')
-    monkeypatch.setattr(dfa_service, 'require_policy', _REAL_REQUIRE_POLICY)
+    monkeypatch.setattr(dfa_service, 'require_policy', _archived_fixture_policy)
     proof, run = confirmed(factory, owner)
     with factory() as db:
         claimed = dfa_service.claim(db)
     ready, release = threading.Event(), threading.Event()
-    real_compute = dfa_service.compute
-    def paused(*args, **kwargs):
-        result = real_compute(*args, **kwargs)
+    supervisor = factory.dfa_supervisor
+    real_finish = supervisor.finish
+    def paused(job,status,value):
+        assert status == 'output' and value['result']['summary']['valid_windows'] > 0
         ready.set()
         assert release.wait(30)
-        return result
-    monkeypatch.setattr(dfa_service, 'compute', paused)
+        return real_finish(job,status,value)
+    monkeypatch.setattr(supervisor, 'finish', paused)
     with ThreadPoolExecutor(max_workers=1) as pool:
         worker = pool.submit(dfa_service.execute, factory, *claimed)
         try:
@@ -247,9 +278,10 @@ def test_stop_race_denies_final_publication_and_preserves_rights(stop_case, stor
         worker.result(timeout=30)
     with factory() as db:
         record = db.get(dfa_service.Run, run['id'])
-        assert record.status == 'failed' and record.error_code == 'processing_not_authorized'
+        assert record.status == 'failed' and record.error_code == 'execution_unavailable'
         assert record.result is None
-        assert db.get(dfa_service.Slot, 1).run_id is None
+        from db.models import ActivityDFAControl
+        assert db.get(ActivityDFAControl, 1).actor['state'] == 'idle'
         assert dfa_service.catalog(db, owner, '123')['policy_active'] is False
         assert any(item['id'] == proof['id'] for item in dfa_service.export(db, owner)['confirmations'])
         dfa_service.change_run(db, owner, '123', run['id'], 'cancel')
@@ -264,7 +296,7 @@ def test_terminal_stop_retains_existing_rights_export(stop_case, store, monkeypa
     root, _, _, stop, _ = stop_case
     factory, owner = store
     monkeypatch.setattr(science_artifacts, '_SCIENCE_DIR', root / 'data/science')
-    monkeypatch.setattr(dfa_service, 'require_policy', _REAL_REQUIRE_POLICY)
+    monkeypatch.setattr(dfa_service, 'require_policy', _archived_fixture_policy)
     _, run = confirmed(factory, owner)
     with factory() as db:
         claim = dfa_service.claim(db)
@@ -275,7 +307,9 @@ def test_terminal_stop_retains_existing_rights_export(stop_case, store, monkeypa
     materialize_stop(root, stop)
     with factory() as db:
         retained = next(item for item in dfa_service.export(db, owner)['runs'] if item['id'] == run['id'])
-        assert retained['result'] == expected
+        assert retained['result'] is None
+        assert db.get(dfa_service.Run, run['id']).result == expected
+        assert dfa_service.export(db, owner)['confirmations']
         dfa_service.erase(db, owner, '123')
         assert list(dfa_service.export(db, owner)['runs']) == []
 

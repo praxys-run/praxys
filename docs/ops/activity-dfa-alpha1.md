@@ -670,3 +670,15 @@ start the supervisor. A structurally valid previous-source identity in the same
 boot and process/mount namespace may retire its exact locally receipted actor
 before database initialization; that retirement receipt grants no launch rights.
 Missing or mismatched receipts leave uncertain actors untouched and deny compute.
+
+
+The synthetic capacity cohort now distinguishes ingress availability from
+accepted-request preemption. Every ingress attempt records readiness, before/
+after durable admission fields, denial reason and any five-second backoff. Only
+an exact capacity refusal with unchanged durable fields can be retried, at most
+three attempts per trial, 300 total attempts and 600 seconds overall. Any
+post-admission failure remains a failure. Report the denial rate and total elapsed
+time alongside 100 accepted preemptions; never label retries as 100/100 ingress
+success. Exit/availability uses the conservative before-transaction bracket;
+post-Popen/PID process-start observations remain separate. These measurements
+cover the documented healthy synthetic cell only, not live capacity or soak.

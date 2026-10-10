@@ -72,3 +72,25 @@ authority polling. Explicit result/authority failures purge both. Actual
 transpiled component tests cover both paths and subsequent denial. No numerical
 functions or scientific acceptance/activation records change. Real native
 rendering remains blocked on the separately recorded DevTools service boundary.
+
+
+### Final validation fixture repair
+
+The exact `04397e0` canonical preflight failed: 4,332 passed, 11 failed,
+53 skipped; it never reached build/UI stages. Its original log and 87 completed
+capacity records remain preserved. Capacity expiry during admission is retained
+as a real ingress refusal, with post-transaction proof required before retry;
+accepted failures cannot be excluded. Historical V1 lifecycle tests now use an
+explicit archived static-contract validator solely in disposable synthetic
+fixtures, while current V2 and historical V1 guards remain denied. Publication
+races pause the actual supervisor publication boundary after worker output;
+STOP hides unauthorized export values while stored data/rights remain deletable.
+Probe tests mutate the actual historical callable and retain strict completion
+and missing-callable rejection. No production controller, numerical function or
+accepted Science/STOP bytes or modes change.
+
+The 53 canonical skips were one MCP module (SDK unavailable), one unrelated
+SQLite-to-PostgreSQL migration test (its distinct destructive scratch database
+variable was unset), and 51 private Stryd dependency tests. DFA PostgreSQL tests
+used the migrated task-owned synthetic database; these skips are not counted as
+passes. Final full preflight and native rendered/compiled evidence remain pending.
