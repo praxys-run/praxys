@@ -1116,6 +1116,9 @@ Page({
       this.setData({ shareImagePath: '', shareCardVisible: false });
     } catch (e) {
       if (pageState._refetchRequestId !== requestId) return;
+      // This request owns the loading state. Settle Coach even when the
+      // canonical background fetch fails and cached metrics remain visible.
+      this.setData({ coachLoading: false, coachFailed: true });
       const err = e as Partial<ApiError>;
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });

@@ -654,14 +654,13 @@
   border-radius: 0;
   padding: 0;
 }
-/* Training pairs Coach with the peer-metrics surface, so the two cards
-   share one silhouette and fill the same comparison row. */
+/* Fill the Analysis comparison row while retaining the shared square receipt. */
 .training-coach-column > .coach-receipt {
   display: flex;
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--radius-xl);
+  border-radius: 0;
 }
 .training-coach-column > .coach-receipt > .coach-body {
   flex: 1;
@@ -1408,3 +1407,10 @@
 .coach-loading span:last-child { width: 65%; }
 
 .coach-key-recommendation .coach-label { font-size: 0.875rem; font-weight: 600; color: var(--foreground); }
+
+/* Receipt controls retain a 44px touch target in every viewport. */
+.coach-receipt .coach-toggle,
+.coach-receipt .coach-feedback-icon,
+.coach-receipt .coach-feedback-cancel,
+.coach-receipt .coach-feedback-send { min-height: 44px; }
+.coach-receipt .coach-feedback-icon { min-width: 44px; }

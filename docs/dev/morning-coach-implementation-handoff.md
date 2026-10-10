@@ -60,7 +60,7 @@ serialization; model selection is simulated. No Azure calls are acceptance evide
 - Visual review: desktop 1440x900; mobile 390x844, English/Chinese and light/dark
 - Primary journey: Today -> key recommendation -> details -> theory links -> feedback comment/cancel; Analysis and Goal receipt comparison
 - Reviewer handoff: local-only - `/tmp/praxys-morning-coach-qa/render/confirm-results.json` with original PNG captures beside it; live web `http://127.0.0.1:5176/today`
-- States checked: ready, missing, stale, AI unavailable, request error; loading skeleton implemented, independent timing review remains
+- States checked by Engineering: ready, missing, stale, AI unavailable. The attempted request-error capture was still loading and is not settled failure/retry evidence. Fresh Quality separately verified actual HTTP 503 and Refresh behavior.
 - Accessibility: keyboard Enter expands disclosure, click closes, focus exercised, reduced motion enabled, no horizontal overflow; exhaustive screen-reader/contrast audit remains Quality work
 - Design system impact: updated PRODUCT.md, DESIGN.md, docs/dev/design-system.md; one shared native receipt replaces page templates
 - Miniapp parity: implementation/typecheck/i18n updated; native render blocked by Tencent authorization failure
@@ -93,3 +93,21 @@ QA when the environment is ready. Browser captures do not substitute for it.
 `paseo.json` predates this work and remains untracked. It must not be deleted,
 committed, excluded or hidden to obtain a clean preflight. Report its dirty-check
 failure truthfully. Engineering retains sole source write ownership until handoff.
+
+
+## Independent Quality repair
+
+Fresh read-only Quality reviewed `d3b09136` and reported 26 independent Python
+probes plus eight initial and five confirmation browser cases. Its actual
+missing/stale/rest/no-plan fixtures, theory links, version payload and settled
+503/Refresh checks are independent evidence, distinct from developer captures.
+
+The follow-up repairs settle Coach loading into retryable failure when the current
+Today or Analysis background dataset fetch fails; superseded failures still cannot
+mutate the replacement request. A focused AST/transpile/VM regression exercises
+both actual page methods. Shared web disclosure/Refresh/feedback controls use a
+44px minimum target, native feedback controls use 88rpx, and Analysis preserves
+the shared square web receipt. Native receipts remain rounded. Exact-head Quality
+recheck follows the repair commit. The first preflight was deliberately stopped at
+31% for this required repair, with no failures observed; its log is retained at
+`/tmp/coach-preflight.log`. It is not a completed or passing preflight.
