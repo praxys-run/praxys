@@ -249,20 +249,12 @@ else:
                 row=db.get(Run,manual['id'])
                 if row.status=='complete': row.status='failed';db.commit()
                 generation=row.generation
-            # A healthy trial starts only with freshly completed real control
-            # readiness. No fixture heartbeat or permission timestamp is forged.
-            health_deadline=min(time.monotonic()+15,overall_deadline)
-            while True:
-                with factory() as db:
-                    health=db.get(Control,1)
-                    fresh=health.ready_until and health.ready_until > datetime.utcnow()+timedelta(seconds=.4)
-                    readiness_sequence=health.readiness_sequence
-                if fresh:break
-                if time.monotonic()>health_deadline:raise AssertionError({'trial':trial,'stage':'fresh_control_readiness','errors':error,'control':supervisor.control_observation})
-                time.sleep(.01)
-            # Expiry during SQLite admission is a real pre-admission refusal,
-            # not an accepted-request preemption failure. Retain every attempt;
-            # bound retries and require a newer completed renewal before retry.
+            # Eligibility is the occupied automatic actor, not a selected
+            # fast readiness window. Attempt admission at the current phase and
+            # retain every refusal/accepted failure under the prospective pulse.
+            with factory() as db:
+                health=db.get(Control,1)
+                readiness_sequence=health.readiness_sequence
             for attempt in range(3):
                 assert len(ingress)<maximum_attempts and time.monotonic()<overall_deadline
                 admitted,entry=admission_attempt(factory,owner,manual['id'],generation,ingress,
@@ -284,19 +276,11 @@ else:
                 backoff_started=time.monotonic()
                 supervisor.stop.wait(5)
                 entry['backoff_elapsed_seconds']=time.monotonic()-backoff_started
-                deadline=min(time.monotonic()+15,overall_deadline)
-                while True:
-                    with factory() as db:
-                        health=db.get(Control,1)
-                        renewed=health.readiness_sequence>readiness_sequence
-                        fresh=health.ready_until and health.ready_until>datetime.utcnow()+timedelta(seconds=.4)
-                        next_sequence=health.readiness_sequence
-                    if renewed and fresh:
-                        readiness_sequence=next_sequence
-                        entry['next_readiness_sequence']=next_sequence
-                        break
-                    if time.monotonic()>deadline:raise AssertionError({'trial':trial,'stage':'renewal_after_refused_admission','errors':error})
-                    time.sleep(.01)
+                # No wait for a selected fresh/fast pulse before retry.
+                with factory() as db:
+                    health=db.get(Control,1)
+                    readiness_sequence=health.readiness_sequence
+                    entry['next_readiness_sequence']=readiness_sequence
             with progress.with_suffix('.ingress.jsonl').open('a') as stream:
                 stream.write(json.dumps(entry)+'\n')
             until=before+5
@@ -338,7 +322,7 @@ else:
         (tmp_path/'capacity.json').write_text(json.dumps(outcomes,indent=2))
         destination=Path(__file__).resolve().parents[1]/'test-screenshots/ui-quality/pr871'
         destination.mkdir(parents=True,exist_ok=True)
-        (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
+        (destination/'synthetic-capacity.json').write_text(json.dumps({'source_head':source_head,'source_bindings':source_bindings,'profile':'one SQLite writer + two bounded control connections (renewal and lifecycle); 125ms start cadence, 250ms SQL admission pulse, no fast-window selection; 650 native RR; post-handshake ignored-TERM automatic fixture; real manual child computation',
             'cohort':'100 accepted durable admissions; pre-admission refusals separately retained, not 100/100 ingress success',
             'measurement_scope':'cohort excluding fixture setup; full pytest duration reported separately',
             'attempts':len(ingress),'maximum_attempts':maximum_attempts,'maximum_seconds':600,
@@ -443,14 +427,17 @@ def test_preemption_requires_committed_priority_not_ingress_or_response(both_ori
         while True:
             with factory() as db:
                 control=db.get(Control,1);actor=control.actor
-                ready=control.readiness_sequence>0 and control.ready_until and control.ready_until>datetime.utcnow()+timedelta(seconds=.5)
+                ready=control.readiness_sequence>0 and control.ready_until and control.ready_until>datetime.utcnow()
             if ready and actor and actor.get('state')=='occupied':break
             assert time.monotonic()<deadline,errors
             time.sleep(.01)
-        if pause_phase!='before_commit':
-            evidence.hold_reason_until_exit=pause_phase=='after_commit_delayed_reason'
-            evidence.park_after_renewal.set()
-            assert evidence.parked.wait(3),'Real completed renewal did not reach synchronization point'
+        # Deterministic boundary regression only: start from an actual
+        # completed renewal, retaining its independent750ms physical timer.
+        # Before-commit expiry deliberately holds renewal until that timer
+        # retires the old group; unparked profile/cohort code never uses this.
+        evidence.hold_reason_until_exit=pause_phase=='after_commit_delayed_reason'
+        evidence.park_after_renewal.set()
+        assert evidence.parked.wait(3),'Real completed renewal did not reach synchronization point'
         # Only this request's commit is paused; renewal and 750ms expiry remain real.
         admitted,entry=admission_attempt(RequestFactory(),owner,manual['id'],generation,ledger,{})
         actor=entry['readiness']['actor']

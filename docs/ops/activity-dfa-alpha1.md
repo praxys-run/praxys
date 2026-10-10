@@ -36,19 +36,20 @@ Missing receipt with an actor or ambiguous launch intent remains blocked. TERM g
 absence observation; a lease, signal delivery or leader exit is not exit proof.
 Unexpected members, identity reuse or unacknowledged launch remain blocked.
 
-Control polling is250ms and local automatic permission expires after750ms without
+Control validation starts no more than8 times/s (125ms minimum interval); its aggregate completion budget is250ms.
+Local automatic permission expires after750ms without
 a completed valid renewal. Current control readiness, generation, drain and queue
 reservation gate durable manual admission. The retirement reactor is independent
 of DB/auth/gate/loading/serialization I/O. Physical exit commits through dedicated
 control before owner cleanup. Admission-to-exit/availability and manual process
 start are separate observations. A post-acceptance capacity failure remains a miss.
 
-The control pool has one connection/zero overflow,100ms checkout,200ms statement
+The control pool has two connections/zero overflow,100ms checkout,200ms statement
 and lock bounds, and1s driver connect timeout. Token acquisition/cold connections
 may exceed the healthy envelope; permission expiry remains local. Supervisor work
 pools are explicitly1/zero-overflow; its unused async engine is still counted.
 One API worker at existing defaults configures20 potential connections, supervisor
-work/async/control3, coordinator0 steady-state after disposal:23 total potential
+work/async/control4, coordinator0 steady-state after disposal:24 total potential
 connections. Coordinator migration/drain pools are transient and must also be
 counted during startup/shutdown. This is accounting, not demonstrated live capacity.
 
@@ -744,3 +745,27 @@ by the ORM identity cache. Equal PostgreSQL 200ms statement/lock deadlines may
 produce statement cancellation (`57014`) or lock timeout (`55P03`); record the
 actual class/code and operation. SQLite lock failure reports BUSY. All remain
 fail-closed without extending local permission.
+
+## SQL admission pulse and ACK boundary
+
+A SQL admission pulse ends250ms after the renewal starts. Publishing after that
+instant leaves an already-expired pulse; local denial does not depend on a
+subsequent cleanup transaction. Readiness publication uses an exact-generation
+conditional update and cannot overwrite a concurrently drained/replaced binding.
+SQL-visible commit and supervisor-observed ACK differ. Admission checked inside
+an eligible pulse stays accepted if its own commit/response crosses expiry or
+supervisor ACK later times out. Physical execution requires a completed current
+ACK within250ms, and only then extends the separate750ms local permission.
+The supported drain/restore/startup-failure operations clear readiness atomically;
+no new host election or binding authority is created.
+
+Starts are bounded to at most8/s (125ms minimum start interval), including failed
+publication attempts. This prospectively doubles the previous4/s active control
+validation rate; include source/rights/Science reads and write contention in
+capacity review. Pulse250ms and start125ms do not guarantee continuous eligibility:
+processing/commit delays above the overlap or failed renewals cause gaps. Keep
+all ingress and refusal rates, admission-check/commit/response brackets, accepted
+outcomes and physical exit/durable availability/post-Popen timings. Selecting
+only fast readiness windows is not general healthy capacity. Focused25ms SQL
+coverage sampling adds up to40 observer reads/s and is an estimate, not a live
+availability certificate. No maximum-input/shared-service/soak capacity is proved.

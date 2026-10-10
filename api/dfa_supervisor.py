@@ -18,6 +18,10 @@ from api.dfa_physical import Lane, PhysicalUnavailable, MAX_OUTPUT, PROFILE
 from db.models import ActivityDFAControl as Control, ActivityDFARun as Run, ActivityDFASyncReceipt as Receipt
 
 
+# At most eight validation starts per second. This overlaps admission pulses
+# when healthy checks complete within125ms, without extending250ms/750ms bounds.
+CONTROL_CADENCE_SECONDS = .125
+
 WORKER_FAILURES = {'timer_invalid','fit_invalid','fit_too_large','rr_limit','frame_limit','elapsed_limit',
     'source_contradiction','source_unsupported','rr_missing','manual_source_changed','automatic_source_changed',
     'ipc_result_limit','numerical_invalid'}
@@ -32,10 +36,12 @@ def manual_admission(db):
     control = db.query(Control).filter_by(id=1).populate_existing().with_for_update().first()
     now = datetime.utcnow()
     if (control is None or not control.enabled or control.drained or not control.incarnation
-            or not control.ready_until or control.ready_until < now):
+            or not control.ready_until or control.ready_until <= now):
         raise HTTPException(503, 'DFA_CAPACITY_UNAVAILABLE', headers={'Retry-After': '5'})
     if control.actor and control.actor.get('state') in ('launching', 'recovery_required'):
         raise HTTPException(503, 'DFA_RECOVERY_REQUIRED')
+    if not isinstance(control.incarnation, dict) or control.incarnation.get('epoch') != control.epoch:
+        raise HTTPException(503, 'DFA_CONTROL_GENERATION_CHANGED')
     if control.actor:
         actor = control.actor
         if actor.get('incarnation') != control.incarnation or actor.get('binding', {}).get('epoch') != str(control.epoch):
@@ -136,6 +142,10 @@ class Supervisor:
         """I/O runs independently. Only completed current checks renew permission."""
         from api import activity_dfa as service
         while not self.stop.is_set():
+            # SQL admission and the independent physical permission are distinct:
+            # publication is actionable only within this validation/commit cycle.
+            # Sample UTC first so its bound cannot exceed the monotonic budget.
+            started_utc = datetime.utcnow()
             started = time.monotonic()
             valid = False
             priority = False
@@ -157,12 +167,28 @@ class Supervisor:
                             priority = True
                             valid = False
                     if valid and time.monotonic() - started < PROFILE['poll_seconds']:
-                        row.ready_until = datetime.utcnow() + timedelta(seconds=PROFILE['permission_seconds'])
-                        row.readiness_sequence += 1
+                        # Publish only against the exact still-bound generation.
+                        # Do not overwrite a concurrent drain/replacement's row
+                        # with readiness derived from an older observation.
+                        guard = db.query(Control).filter_by(id=1, epoch=self.identity['epoch'],
+                            enabled=True, drained=False, readiness_sequence=row.readiness_sequence)
+                        for key, value in self.identity.items():
+                            field = Control.incarnation[key]
+                            guard = guard.filter((field.as_integer() if key=='epoch' else field.as_string()) == value)
+                        updated = guard.update({Control.ready_until: started_utc + timedelta(seconds=PROFILE['poll_seconds']),
+                            Control.readiness_sequence: Control.readiness_sequence+1}, synchronize_session=False)
+                        if updated != 1:
+                            db.rollback()
+                            self.allowed = False
+                            self.retirement_reason = 'permission'
+                            self.control_observation = {'state':'generation_changed', 'duration_seconds':time.monotonic()-started}
+                            self.stop.wait(max(0., CONTROL_CADENCE_SECONDS-(time.monotonic()-started)))
+                            continue
                         db.commit()
                         # The aggregate budget includes the real durable write,
-                        # not only validation before commit. A late commit may
-                        # publish stale readiness, but cannot grant local work.
+                        # not only validation before commit. A late publication's
+                        # SQL deadline is already expired, including before the
+                        # local denial assignment or any best-effort cleanup.
                         if time.monotonic() - started < PROFILE['poll_seconds']:
                             self.permission_until = time.monotonic() + PROFILE['permission_seconds']
                             self.allowed = True
@@ -178,7 +204,7 @@ class Supervisor:
                 self.allowed = False
                 self.retirement_reason = 'permission'
                 self.control_observation = {'state':type(exc).__name__, 'duration_seconds':time.monotonic()-started}
-            self.stop.wait(max(0., PROFILE['poll_seconds'] - (time.monotonic() - started)))
+            self.stop.wait(max(0., CONTROL_CADENCE_SECONDS - (time.monotonic() - started)))
 
     def admit_completion(self):
         from api import activity_dfa as service, dfa_rights

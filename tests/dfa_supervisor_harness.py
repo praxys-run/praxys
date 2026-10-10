@@ -22,7 +22,10 @@ def install(factory, directory: Path, monkeypatch):
         control=db.get(ActivityDFAControl,1)
         if control is None:
             control=ActivityDFAControl(id=1);db.add(control)
-        control.incarnation=IDENTITY;control.enabled=True;control.drained=False
+        # This disposable fixture owns its synthetic global control row. Reset
+        # the matching epoch after negative cases changed it; production never
+        # self-elects or rewrites an incarnation this way.
+        control.incarnation=IDENTITY;control.epoch=IDENTITY['epoch'];control.enabled=True;control.drained=False
         control.ready_until=datetime.utcnow()+timedelta(hours=1)
         db.commit()
     supervisor.allowed = True

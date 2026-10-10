@@ -310,15 +310,20 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
         if run:
             _delete_runs(db, db.query(Run).filter_by(id=run.id))
         _reserve(db, owner)
-        from api.dfa_supervisor import manual_admission
-        admission_id, accepted_at, epoch = manual_admission(db)
-        run = Run(origin="manual", grant_id=grant.id, admission_id=admission_id, accepted_at=accepted_at, execution_epoch=epoch,
+        run = Run(origin="manual", grant_id=grant.id,
                   user_id=owner, activity_id=activity, snapshot_id=ref["snapshot_id"], parse_id=ref["parse_id"],
                   confirmation_id=proof.id if proof else None, recording_ref=ref, input_digest=identity,
                   method_version=METHOD_VERSION, science_contract_digest=policy_digest, phase=phase, retained_bytes=MAX_RESULT_BYTES)
         db.add(run)
         db.flush()
-        result = view(run, db)
+        # The new binding/source/proof was validated under this same owner
+        # transaction. Project queued metadata without repeating source/rights
+        # I/O or reading result bytes while holding global admission control.
+        result = _metadata(db, run, True)
+        db.flush()
+        from api.dfa_supervisor import manual_admission
+        run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
+        result.update(admission_id=run.admission_id, accepted_at=run.accepted_at)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()

@@ -194,3 +194,60 @@ Lock-negative evidence records actual SQLite BUSY or the winning PostgreSQL
 200ms deadline (statement cancellation or lock timeout), with exact DBAPI class
 and code, blocked control UPDATE and unchanged local permission. This does not
 retroactively identify the original failed SQLite admission's exception.
+
+### SQL admission pulse and new-submission correction
+
+SQL readiness is an admission pulse ending 250ms after the renewal cycle starts;
+it is separate from the independent 750ms physical permission. A publication
+visible after that bound is already expired. No eventual cleanup is needed to
+make late publication ineligible, including while local denial awaits commit
+return. Publication is conditional on the exact observed incarnation fields,
+epoch, sequence, enabled and drain state. Cold admission also rejects an
+incarnation/row epoch mismatch. Supported drain/restore/startup failure paths
+atomically clear readiness; changing a host binding outside the supported drain
+protocol is not authorized by this implementation.
+
+A database commit may become visible before the supervisor observes its ACK.
+Inside a valid SQL pulse, a request can therefore be durably accepted while cold
+local permission remains denied or a previous genuine physical permission
+remains unextended. Execution still requires a genuinely completed valid ACK
+inside 250ms. A later ACK failure does not turn that accepted request into a503.
+Likewise, an admission checked inside the pulse may commit after pulse expiry:
+its completed SQL admission remains accepted. Check, server visibility, observed
+commit return, local ACK and response are distinct boundaries. Tests bracket
+server visibility; they do not invent an exact server-commit timestamp or replace
+the real clock to claim equality at expiry.
+
+New preparation and confirmed-computation submissions now construct/flush the
+owner-exact origin grant/run and project queued metadata under the original
+owner/source/rights fence before final refreshed control admission. They do not
+repeat result-disclosure checks under the global control lock. Failed admission
+rolls back new runs/grants/queue changes. Real child cases cover both phases with
+an automatic actor active, matching actor/admission priority, actual manual
+service, physical/durable exit before reuse and response delivery after commit.
+
+The prospective start cadence is 125ms (at most eight validation starts/s), with
+the same 250ms aggregate publication/ACK budget, 200ms PostgreSQL command bounds,
+100ms control checkout and 750ms physical expiry. Compared with the former four
+starts/s this can double active validation/query/write demand; it changes neither
+Science/mathematics nor activation authority. Cadence overlap reduces admission
+gaps only when processing completes quickly enough. Slow/failed cycles still
+produce gaps and refusals; no live capacity or general availability is claimed.
+
+Profile cases use predetermined phase offsets and one ingress each, without
+selecting remaining-pulse>100ms windows. Independent 25ms SQL sampling records
+whole observed intervals and eligible/expired gaps alongside every ingress,
+refusal and accepted result; it adds bounded observational load (up to40 reads/s)
+and has timing/quantization limits. The future100-trial fixture likewise no
+longer waits for selected fast pulses; finite refusal/retry budgets and every
+accepted failure remain binding. No100-trial run is part of this focused repair.
+The original first pulse-profile run's SQLite retry refusal remains retained as
+an unchanged-state pre-admission denial, not relabeled as accepted preemption.
+
+A focused run was interrupted because a synthetic epoch-negative contaminated
+the next fixture's global control epoch. The disposable fixture now restores a
+coherent matching synthetic epoch, and its single-renewal helper has a finite
+wait. Production never obtains that fixture's synthetic initialization authority.
+Earlier failed/interrupted evidence remains separate and is not substituted by
+later focused results. Frozen DFA Science/STOP and numerical objects remain
+unchanged; shared upstream UI still requires fresh rendered evidence.
