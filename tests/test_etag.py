@@ -142,7 +142,7 @@ def test_response_versions_cover_changed_endpoints():
         "morning-coach-today-v15"
     )
     assert ENDPOINT_RESPONSE_VERSIONS["training"] == (
-        "private-plan-boundary-training-v14"
+        "power-zone-observed-runs-training-v15"
     )
     assert ENDPOINT_RESPONSE_VERSIONS["goal"] == "history-first-5k-baseline-v1"
     assert ENDPOINT_RESPONSE_VERSIONS["science"] == "fixed-heat-model-v2"

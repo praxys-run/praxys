@@ -824,6 +824,7 @@ def test_diagnose_cold_start_keeps_stable_array_contracts():
         "distribution_resolution": "unavailable",
         "distribution_complete": False,
         "distribution_coverage_pct": 0,
+        "distribution_excluded_activities": [],
     }
 
 
@@ -990,7 +991,8 @@ def test_diagnose_withholds_conclusions_for_partial_split_evidence():
     messages = [item["message"] for item in result["diagnosis"]]
     assert any("conclusions are withheld" in message for message in messages)
     assert not any("No intervals at or above CP" in message for message in messages)
-    assert result["data_meta"]["distribution_complete"] is False
+    assert result["data_meta"]["distribution_complete"] is True
+    assert [row["activity_id"] for row in result["data_meta"]["distribution_excluded_activities"]] == ["1"]
 
 def test_distribution_requires_ninety_percent_coverage_per_activity():
     """One long covered workout cannot mask a nearly uncovered short one."""

@@ -2,6 +2,7 @@ import type { AiInsightResponse, CoachTheoryRef } from '../../types/api';
 import { setTabBarHidden, setTabBarSelected } from '../../utils/tabbar';
 import type { IAppOption } from '../../app';
 import { apiGet } from '../../utils/api-client';
+import { elapsed } from '../../utils/activity-detail';
 import type { ApiError } from '../../utils/api-client';
 import type {
   AiInsight,
@@ -98,6 +99,9 @@ function buildTrainingTr() {
     distributionHint: t(
       'Sync split or sample data with enough duration coverage to compare against the selected theory.',
     ),
+    zoneExclusionExplanation: t(
+      'These runs have no usable recorded power and are excluded. The comparison covers only included runs.',
+    ),
     volumeMessage: t('No weekly distance history yet'),
     volumeHint: t('Sync recent activities to populate the weekly distance series.'),
     volumePendingMessage: t('Weekly chart temporarily unavailable'),
@@ -109,7 +113,7 @@ function buildTrainingTr() {
     plannedLabel: t('Planned'),
     actualLabel: t('Actual'),
     zoneMethodology: t(
-      'Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates.',
+      'Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities with usable recorded power; runs without power are excluded and listed separately. The comparison describes only included runs. Heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates.',
     ),
     complianceMethodology: t(
       'Compliance is the mean weekly actual-to-planned load ratio across completed weeks where actual and planned load both use exact selected-base inputs and the plan target is positive. Estimated weeks stay in the chart but are excluded from the summary. This is an execution comparison, not a quality, safety, recovery, or readiness score.',
@@ -352,6 +356,9 @@ interface TrainingState {
   // Zone distribution.
   zoneSectionLabel: string;
   zoneRows: ZoneRow[];
+  zoneExclusionsExpanded: boolean;
+  zoneExclusionsLabel: string;
+  zoneExclusions: { activityId: string; date: string; duration: string; detailUrl: string }[];
 
   // Compliance bars.
   complianceSufficient: boolean;
@@ -428,6 +435,9 @@ const initialData: TrainingState = {
 
   zoneSectionLabel: '',
   zoneRows: [],
+  zoneExclusionsExpanded: false,
+  zoneExclusionsLabel: '',
+  zoneExclusions: [],
 
   complianceSufficient: true,
   complianceHintMessage: '',
@@ -748,6 +758,16 @@ function buildState(
       ? tFmt('{0} · {1}', t('Zone distribution'), diagnosis.theory_name)
       : t('Zone distribution'),
     zoneRows,
+    zoneExclusionsExpanded: false,
+    zoneExclusionsLabel: tNamed('Excluded runs: {count}', {
+      count: diagnosis?.data_meta.distribution_excluded_activities?.length ?? 0,
+    }),
+    zoneExclusions: (diagnosis?.data_meta.distribution_excluded_activities ?? []).map((activity) => ({
+      activityId: activity.activity_id,
+      date: activity.date,
+      duration: activity.duration_sec != null ? elapsed(activity.duration_sec) : '',
+      detailUrl: `/pages/activity-detail/index?id=${encodeURIComponent(activity.activity_id)}`,
+    })),
 
     complianceSufficient,
     complianceHintMessage: tr.loadMessage,
@@ -847,6 +867,9 @@ Page<TrainingState & { coachResponse: AiInsightResponse | null; coachLoading: bo
   onCloseDFA() {
     this.setData({ dfaActivityId: '' });
     this.syncDFATabBar();
+  },
+  toggleZoneExclusions() {
+    this.setData({ zoneExclusionsExpanded: !this.data.zoneExclusionsExpanded });
   },
   syncDFATabBar() {
     setTabBarHidden(this, () =>

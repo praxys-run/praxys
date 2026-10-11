@@ -94,6 +94,14 @@ On 2026-10-10, run `38055205151` finished verification at 13:28:02 UTC;
 App Service started its new deployment at 13:29:12 UTC. The earlier two-minute
 polling window ended before the container had switched releases.
 
+### Training response cache
+
+Power-zone population changes bump `TRAINING_RESPONSE_VERSION` in
+`api/daily_brief_freshness.py`. Both HTTP ETags and the materialized training
+response use this salt, so a deployment recomputes exclusions without requiring
+an activity re-sync or a user settings write. The frontend may deploy first:
+the exclusion list is optional while an older API release is still serving.
+
 ### Suspended mobile tabs
 
 The app checks for a replacement service worker when a visible tab resumes,
