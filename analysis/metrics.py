@@ -3449,23 +3449,19 @@ def diagnose_training(
     excluded_distribution_activities: list[dict] = []
     if base == "power" and "activity_id" in distribution_activities.columns:
         # Runs without usable recorded power are outside the power-observed
-        # population. Any usable power keeps a run in scope, even when sparse:
-        # the existing 90% completeness gate still applies to that run.
+        # population. Any positive finite reading keeps a run in scope, even
+        # when sparse or missing timing: the 90% gate still applies below.
         power_activity_ids: set[str] = set()
-        for evidence, value_col, time_col in (
-            (samples, "power_watts", "t_sec"),
-            (splits, "avg_power", "duration_sec"),
+        for evidence, value_col in (
+            (samples, "power_watts"),
+            (splits, "avg_power"),
         ):
             if evidence is None or evidence.empty or not {
-                "activity_id", value_col, time_col,
+                "activity_id", value_col,
             }.issubset(evidence.columns):
                 continue
             values = pd.to_numeric(evidence[value_col], errors="coerce")
-            times = pd.to_numeric(evidence[time_col], errors="coerce")
             valid = values.notna() & np.isfinite(values) & (values > 0)
-            valid &= times.notna() & np.isfinite(times)
-            if time_col == "duration_sec":
-                valid &= times > 0
             power_activity_ids.update(evidence.loc[valid, "activity_id"].astype(str))
         observed_power = distribution_activities["activity_id"].astype(str).isin(
             power_activity_ids,

@@ -566,3 +566,22 @@ def test_all_runs_without_power_report_exclusions_and_no_comparison():
     assert result['data_meta']['distribution_complete'] is False
     assert result['data_meta']['distribution_coverage_pct'] == 0
     assert len(result['data_meta']['distribution_excluded_activities']) == 1
+
+
+@pytest.mark.parametrize('evidence_kind', ['splits', 'samples'])
+def test_recorded_power_with_invalid_timing_still_blocks_comparison(evidence_kind):
+    """An observed power channel with bad timing is incomplete, not absent."""
+    activities = _activities([
+        {'activity_id': 'complete', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+        {'activity_id': 'bad-timing', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+    ])
+    splits = _splits([{'activity_id': 'complete', 'avg_power': 175, 'duration_sec': 100}])
+    samples = None
+    if evidence_kind == 'splits':
+        splits = pd.concat([splits, _splits([{'activity_id': 'bad-timing', 'avg_power': 175, 'duration_sec': None}])], ignore_index=True)
+    else:
+        samples = _samples([{'activity_id': 'bad-timing', 'power_watts': 175, 't_sec': None}])
+    result = diagnose_training(activities, splits, _cp_trend(), samples=samples, current_date=_today())
+    assert result['data_meta']['distribution_complete'] is False
+    assert result['data_meta']['distribution_excluded_activities'] == []
+    assert result['data_meta']['distribution_coverage_pct'] == 50
