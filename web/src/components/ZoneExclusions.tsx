@@ -19,7 +19,7 @@ export default function ZoneExclusions({ excluded = [] }: { excluded?: ExcludedP
   return (
     <div className="mb-4">
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="min-h-11" />}>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="min-h-11 font-data" />}>
           <Info data-icon="inline-start" />
           <Trans>Excluded runs: {count}</Trans>
         </DropdownMenuTrigger>
