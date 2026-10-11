@@ -29,6 +29,6 @@
 .dfa-page-outline { position: absolute; top: 0; height: 100%; border: 2px solid var(--text); box-sizing: border-box; }
 
 .dfa-inline .dfa-sheet { height: auto; max-height: none; overflow: visible; border-radius: 0; }
-.dfa-inline .dfa-scroll { height: auto; overflow: visible; }
+.dfa-inline .dfa-scroll { flex: none; height: auto; overflow: visible; }
 .dfa-inline .dfa-head { padding: 24rpx 0; }
 .dfa-inline .dfa-body { padding: 24rpx 0; }

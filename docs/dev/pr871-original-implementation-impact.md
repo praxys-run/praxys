@@ -78,3 +78,32 @@ The b8411ef capacity and Chromium artifacts remain historical source-bound
 outcomes. Its canonical preflight was interrupted before edits:1467 passed,
 1 skipped; this is not a completed or passing preflight. Fresh expensive final
 validation awaits delta review of the new committed repair batch.
+
+## Native inline layout correction after 9e924f0
+
+Actual synthetic ActivityDetail rendering at `9e924f0` loaded the current manual
+result (120 rows, two origins), but the inline scroll-view had zero height while
+its report body measured 1340.2 CSS pixels. The raw images, component state and
+geometry remain in `.git/pr871-native-chunk-9e924f0-defect-handoff-r1.json`; this
+was visible clipping, not a loading or authorization failure.
+
+The scoped candidate renders the existing body through one shared WXML template:
+inline mode uses an in-flow view owned by ActivityDetail's page scroll, and the
+88vh overlay keeps its existing scroll-view. Inline flex sizing is disabled.
+Body markup, handlers, explicit data bindings, TypeScript, translations, Science
+copy, authorization and numerical sources are preserved. Design system impact:
+none — existing design system already covers this correction.
+
+Local validation: 20 focused native authorization/fixture tests, 348 web tests,
+miniapp typecheck and generated type/i18n/legal checks, web/public build, static
+UI gate, layout detector and diff checks passed. These checks do not establish
+actual native layout, interaction or whole-package compiler success.
+
+Native confirmation is pending safe mirror synchronization. The retained
+official request mock still returns synthetic 503 for an unknown route, and its
+475-part fixture remains ready with the original checksum. The installed API
+contract does not guarantee mock persistence through a full reload. No changed
+source has been synchronized or recompiled while that isolation boundary is
+unproved. Existing before-fix images and all failed native commands are retained.
+The historical canonical/capacity pass remains bound to `9e924f0`; no new-head
+canonical or updated native rendering pass is claimed.

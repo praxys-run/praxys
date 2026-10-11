@@ -1,7 +1,4 @@
-<view class="{{inline ? 'dfa-inline' : 'dfa-overlay'}}" aria-label="{{tr.alpha}}">
-  <view class="dfa-sheet">
-    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button wx:if="{{!inline}}" class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
-    <scroll-view scroll-y="{{!inline}}" class="dfa-scroll">
+<template name="dfa-report-body">
       <view class="dfa-body">
         <state-card wx:if="{{loading}}" type="loading" />
         <block wx:else>
@@ -51,6 +48,16 @@
           <view wx:if="{{deletion}}" class="dfa-section"><text class="dfa-copy">{{deletionText}}</text><button class="dfa-button" bindtap="erase" disabled="{{busy}}">{{tr.confirmDelete}}</button><button class="dfa-button" bindtap="keep">{{tr.keep}}</button></view>
         </block>
       </view>
+</template>
+
+<view class="{{inline ? 'dfa-inline' : 'dfa-overlay'}}" aria-label="{{tr.alpha}}">
+  <view class="dfa-sheet">
+    <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button wx:if="{{!inline}}" class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
+    <view wx:if="{{inline}}" class="dfa-scroll">
+      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
+    </view>
+    <scroll-view wx:else scroll-y="{{true}}" class="dfa-scroll">
+      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
     </scroll-view>
   </view>
 </view>
