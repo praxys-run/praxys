@@ -107,3 +107,33 @@ source has been synchronized or recompiled while that isolation boundary is
 unproved. Existing before-fix images and all failed native commands are retained.
 The historical canonical/capacity pass remains bound to `9e924f0`; no new-head
 canonical or updated native rendering pass is claimed.
+
+## Native compiled-style and flow correction
+
+The exact2e isolated native fixture retained the overlay's88vh sheet even with
+inline property true and body1340.2CSSpx. A single task-only321px base-rule
+diagnostic through the official simulator compiler changed the actual sheet to
+321px. This establishes applied Sass source; selector/computed-style output was
+unavailable and the exact renderer handling of the auto override remains unknown.
+The diagnostic and ineffective modifier attempt are preserved and removed.
+
+The minimal repair defaults the shared sheet to height:auto/max-height:none and
+visible overflow, applying the original88vh/hidden bound only to the overlay
+modifier. The shared body, template bindings, events, TypeScript, Science copy,
+translations, numerical and authorization behavior remain unchanged. Native
+geometry now measures sheet1456.4px and body1340.2px with matching bottom bounds.
+A registered element-targeted touch gesture reaches actual lower report paging,
+window-details and methodology controls. Actual Next interaction loads offset120
+with94rows/page2. Older scrollTo/coordinate-gesture ACKs with unchanged screenshots
+remain insufficient scrolling evidence.
+
+The20focused native authorization/fixture tests, miniapp type/i18n/legal checks,
+layout detector and diff checks pass. Actual console reports DevTools Skyline
+canvas debugging unsupported; blank chart areas are retained, not a chart pass.
+No renderer/config switch or real-device preview was performed. Overlay scrolling,
+expanded details/methodology, bilingual/theme and remaining authorization/context
+states still require bounded native evidence. Official simulator compiler trigger
+is not a whole-package compilation certificate. Historical9e canonical/capacity
+and web captures retain their original provenance; no new canonical run occurred.
+Detailed raw PNGs/logs/geometry and failed commands remain under
+`.git/pr871-native-full-2e026ec-r2/` and the corresponding local native gallery.
