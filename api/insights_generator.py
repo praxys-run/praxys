@@ -57,7 +57,7 @@ def generate_daily_brief(
         eligible = candidates(context)
         raw = llm.chat_json(
             client,
-            system=("Order the eligible evidence for a morning training review. Return ONLY "
+            system=("Order the eligible evidence for a morning training review. Return ONLY a JSON object with "
                     "evidence_ids, interpretation_ids, action_ids arrays. Include every evidence ID, "
                     "choose supported interpretation IDs and exactly one eligible action ID. "
                     "No other fields, prose, values or invented IDs."),
