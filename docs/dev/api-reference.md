@@ -712,7 +712,12 @@ Training analysis and diagnosis.
       { "name": "Threshold", "actual_pct": 15, "target_pct": 8 }
     ],
     "zone_ranges": [{ "name": "Easy", "lower": 0, "upper": 136, "unit": "W" }],
-    "data_meta": { "distribution_resolution": "samples|splits|mixed|activity_averages|unavailable" },
+    "data_meta": {
+      "distribution_resolution": "samples|splits|mixed|activity_averages|unavailable",
+      "distribution_complete": true,
+      "distribution_coverage_pct": 99,
+      "distribution_excluded_activities": [{ "activity_id": "string", "date": "2026-03-22", "duration_sec": 1800, "reason": "no_usable_power" }]
+    },
     "diagnosis": [{ "type": "positive|warning|neutral", "message": "string" }],
     "suggestions": ["string"]
   },
@@ -779,11 +784,17 @@ Training analysis and diagnosis.
 `summary` contains server-computed display metrics so web, miniapp, and legacy
 dashboard consumers do not duplicate training formulas. `current_tsb` is `null`
 until the account has one active CTL time constant of history.
-`distribution_match_pct` is `null` unless every recent activity has at least 90%
+`distribution_match_pct` is `null` unless every included recent activity has at least 90%
 duration coverage from split or timestamped sample intensity and every zone has
 a target. For power-based accounts, the distribution and its coverage denominator
 include only running activities (`running` and subtypes ending in `_running` or
-`_run`); non-running activities do not contribute or block completeness. Garmin
+`_run`) with usable recorded power. Runs without usable split/sample power are
+excluded from the distribution and coverage denominator and listed in
+`diagnosis.data_meta.distribution_excluded_activities` with their activity ID,
+date, duration, and `no_usable_power` reason. Their activity-average power is
+never substituted. Runs with any usable power remain subject to the per-run
+90% completeness gate. The comparison describes only included runs;
+non-running activities do not contribute or block completeness. Garmin
 activities may use their Stryd ConnectIQ samples as power evidence. Timestamped
 samples also require a median cadence of five seconds or
 less. `load_compliance_pct` uses only completed weeks where both actual and

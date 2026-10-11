@@ -18,7 +18,7 @@ msgid " · "
 msgstr " · "
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Analysis.tsx:360
+#: src/pages/Analysis.tsx:364
 msgid "· last {0} weeks"
 msgstr "· 最近 {0} 周"
 
@@ -218,7 +218,7 @@ msgid "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Analysis.tsx:307
+#: src/pages/Analysis.tsx:311
 msgid "{0}-week average"
 msgstr "{0}周平均"
 
@@ -862,11 +862,11 @@ msgstr "活动汇总天气"
 msgid "Actual"
 msgstr "实际"
 
-#: src/pages/Analysis.tsx:289
+#: src/pages/Analysis.tsx:293
 msgid "Actual and planned weekly load across the recent training window."
 msgstr "近期训练窗口内每周实际负荷与计划负荷的对比。"
 
-#: src/pages/Analysis.tsx:286
+#: src/pages/Analysis.tsx:290
 msgid "actual vs planned, avg"
 msgstr "实际/计划比均值"
 
@@ -1197,7 +1197,7 @@ msgid "Analyse recording"
 msgstr "分析活动记录"
 
 #: src/components/AppSidebar.tsx:126
-#: src/pages/Analysis.tsx:350
+#: src/pages/Analysis.tsx:354
 msgid "Analysis"
 msgstr "训练分析"
 
@@ -3500,7 +3500,7 @@ msgid "Detailed activity evidence is unavailable for this day."
 msgstr "当天暂无详细活动证据。"
 
 #: src/components/FeedbackDialog.tsx:638
-#: src/pages/Analysis.tsx:78
+#: src/pages/Analysis.tsx:79
 msgid "Details"
 msgstr "详情"
 
@@ -3544,8 +3544,8 @@ msgstr "DFA α1 描述逐搏间期的相关性。每个后向 120 秒窗口采�
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "诊断 Praxys 管理的训练下发问题，同时不暴露运动员身份或数据来源中的训练信息。"
 
-#: src/pages/Analysis.tsx:356
-#: src/pages/Analysis.tsx:358
+#: src/pages/Analysis.tsx:360
+#: src/pages/Analysis.tsx:362
 msgid "Diagnosis"
 msgstr "诊断"
 
@@ -3689,7 +3689,7 @@ msgstr "距离未确认"
 #~ msgid "Distribution deviates from target"
 #~ msgstr "分布偏离目标"
 
-#: src/pages/Analysis.tsx:254
+#: src/pages/Analysis.tsx:255
 msgid "Distribution match"
 msgstr "分布匹配度"
 
@@ -3698,8 +3698,12 @@ msgstr "分布匹配度"
 #~ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。仅当近期每次活动都有完整的分段或采样强度证据时才会显示。"
 
 #: src/components/ZoneAnalysisCard.tsx:140
-msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
-msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。功率基准仅纳入各类跑步活动；心率和配速基准纳入所有活动。仅当近期每次纳入统计的活动，其有效分段或时间戳采样均覆盖至少 90% 的活动时长时才会显示；采样流还要求中位采样间隔不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。"
+msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities with usable recorded power; runs without power are excluded and listed separately. The comparison describes only included runs. Heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。功率基准仅纳入有可用功率记录的跑步；无功率记录的跑步单独列出，不计入分区比较。比较结果仅代表已计入的跑步。心率和配速基准纳入所有活动。每次纳入统计的活动均须有有效分段或时间戳采样覆盖至少 90% 的活动时长；采样流的中位采样间隔还须不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。"
+
+#: src/components/ZoneAnalysisCard.tsx:140
+#~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+#~ msgstr "分布匹配度使用 Bray-Curtis 相似度比较实际与目标的各训练区间时长占比。功率基准仅纳入各类跑步活动；心率和配速基准纳入所有活动。仅当近期每次纳入统计的活动，其有效分段或时间戳采样均覆盖至少 90% 的活动时长时才会显示；采样流还要求中位采样间隔不超过 5 秒。这些证据门槛是 Praxys 的运行性估算。"
 
 #: src/pages/admin/AdminOps.tsx:460
 msgid "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."
@@ -4278,6 +4282,10 @@ msgstr "达到“可能已适应”的证据进度"
 msgid "Excluded"
 msgstr "不纳入"
 
+#: src/components/ZoneExclusions.tsx:24
+msgid "Excluded runs: {count}"
+msgstr "未计入跑步：{count} 次"
+
 #: src/components/ManagedPlanSettingsCard.tsx:833
 #: src/components/ManagedPlanSettingsCard.tsx:935
 msgid "Execution target"
@@ -4427,7 +4435,7 @@ msgstr "加载失败"
 msgid "Failed to load activities"
 msgstr "加载活动失败"
 
-#: src/pages/Analysis.tsx:168
+#: src/pages/Analysis.tsx:169
 msgid "Failed to load analysis"
 msgstr "分析加载失败"
 
@@ -4987,8 +4995,8 @@ msgstr "最高心率（bpm）"
 msgid "Heart-rate minimum (bpm)"
 msgstr "最低心率（bpm）"
 
-#: src/pages/Analysis.tsx:336
-#: src/pages/Analysis.tsx:339
+#: src/pages/Analysis.tsx:340
+#: src/pages/Analysis.tsx:343
 msgid "Heat adaptation"
 msgstr "热适应"
 
@@ -5747,7 +5755,7 @@ msgstr "公里分段以已记录距离首次达到每公里的采样点为边界
 #~ msgid "km / week, {0}wk avg"
 #~ msgstr "公里 / 周，{0} 周均值"
 
-#: src/pages/Analysis.tsx:306
+#: src/pages/Analysis.tsx:310
 msgid "km/wk"
 msgstr "公里/周"
 
@@ -6038,7 +6046,7 @@ msgstr "负荷与体能"
 
 #: src/components/charts/FitnessFatigueChart.tsx:87
 #: src/components/charts/FitnessFatigueChart.tsx:235
-#: src/pages/Analysis.tsx:234
+#: src/pages/Analysis.tsx:235
 msgid "Load balance"
 msgstr "负荷平衡"
 
@@ -6046,8 +6054,8 @@ msgstr "负荷平衡"
 msgid "Load balance (TSB)"
 msgstr "负荷平衡（TSB）"
 
-#: src/pages/Analysis.tsx:283
 #: src/pages/Analysis.tsx:287
+#: src/pages/Analysis.tsx:291
 msgid "Load compliance"
 msgstr "计划完成度"
 
@@ -6115,7 +6123,7 @@ msgstr "长期与近期模型负荷接近平衡。"
 msgid "Long-term load"
 msgstr "长期负荷"
 
-#: src/pages/Analysis.tsx:230
+#: src/pages/Analysis.tsx:231
 msgid "long-term load above recent load"
 msgstr "长期负荷高于近期负荷"
 
@@ -6123,7 +6131,7 @@ msgstr "长期负荷高于近期负荷"
 #~ msgid "long-term load higher"
 #~ msgstr "长期负荷较高"
 
-#: src/pages/Analysis.tsx:236
+#: src/pages/Analysis.tsx:237
 msgid "Long-term load, recent load, and their modeled balance over time."
 msgstr "长期负荷、近期负荷及两者随时间变化的模型平衡。"
 
@@ -6534,11 +6542,11 @@ msgstr "模式"
 msgid "Model version"
 msgstr "模型版本"
 
-#: src/pages/Analysis.tsx:228
+#: src/pages/Analysis.tsx:229
 msgid "modeled balance (CTL−ATL)"
 msgstr "模型估算平衡（CTL−ATL）"
 
-#: src/pages/Analysis.tsx:233
+#: src/pages/Analysis.tsx:234
 msgid "modeled loads balanced"
 msgstr "模型估算负荷处于平衡"
 
@@ -6681,7 +6689,7 @@ msgstr "接近基准"
 msgid "Near level (−3% to below 3%)"
 msgstr "近似平缓（−3% 至低于 3%）"
 
-#: src/pages/Analysis.tsx:296
+#: src/pages/Analysis.tsx:300
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
 msgstr "需要 2 周已同步的活动数据才能对比计划与实际。还需 {daysToCompare} 天。"
 
@@ -7279,7 +7287,7 @@ msgstr "未找到用户。"
 msgid "No waitlist signups yet."
 msgstr "候补名单里还没人报名。"
 
-#: src/pages/Analysis.tsx:321
+#: src/pages/Analysis.tsx:325
 msgid "No weekly distance history yet"
 msgstr "暂无每周距离历史"
 
@@ -7391,7 +7399,7 @@ msgstr "未连接"
 msgid "Not enough complete beats."
 msgstr "完整搏动数不足。"
 
-#: src/pages/Analysis.tsx:268
+#: src/pages/Analysis.tsx:271
 msgid "Not enough complete intensity data for zone comparison"
 msgstr "完整强度数据不足，暂无法比较分区"
 
@@ -7415,11 +7423,11 @@ msgstr "数据不足，无法显示 CP 趋势"
 #~ msgid "Not enough data yet for accurate fitness tracking"
 #~ msgstr "数据不足，暂无法准确跟踪体能"
 
-#: src/pages/Analysis.tsx:242
+#: src/pages/Analysis.tsx:243
 msgid "Not enough data yet for stable load tracking"
 msgstr "数据不足，暂无法稳定跟踪负荷"
 
-#: src/pages/Analysis.tsx:295
+#: src/pages/Analysis.tsx:299
 msgid "Not enough data yet for weekly load comparison"
 msgstr "数据不足，暂无法对比每周负荷"
 
@@ -7536,7 +7544,7 @@ msgstr "已记录"
 msgid "Observed proxy range"
 msgstr "已观测代理值范围"
 
-#: src/pages/Analysis.tsx:262
+#: src/pages/Analysis.tsx:263
 msgid "Observed time in each intensity zone compared with the selected training theory."
 msgstr "各强度区间的实际时长与所选训练理论对比。"
 
@@ -8081,7 +8089,7 @@ msgstr "正在暂停…"
 msgid "Peak Interval {intensityLabel}"
 msgstr "峰值间歇 {intensityLabel}"
 
-#: src/pages/Analysis.tsx:368
+#: src/pages/Analysis.tsx:372
 msgid "Peer metrics"
 msgstr "训练指标"
 
@@ -9429,7 +9437,7 @@ msgstr "近期 HRV 观测值没有可测波动，因此 Praxys 暂时还无法�
 msgid "Recent load"
 msgstr "近期负荷"
 
-#: src/pages/Analysis.tsx:232
+#: src/pages/Analysis.tsx:233
 msgid "recent load above long-term load"
 msgstr "近期负荷高于长期负荷"
 
@@ -9617,7 +9625,7 @@ msgstr "逐时图线。方向键移动时刻游标，拖选时间范围。"
 msgid "Recorded curves"
 msgstr "已记录曲线"
 
-#: src/pages/Analysis.tsx:310
+#: src/pages/Analysis.tsx:314
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "按不重叠的 7 天区间统计已记录距离，包括没有距离记录的周。"
 
@@ -10237,7 +10245,7 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/pages/ActivityDetail.tsx:327
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
-#: src/pages/Analysis.tsx:171
+#: src/pages/Analysis.tsx:172
 #: src/pages/Goal.tsx:479
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:56
@@ -10426,7 +10434,7 @@ msgstr "复核目标"
 msgid "Review latest version"
 msgstr "查看最新版本"
 
-#: src/pages/Analysis.tsx:353
+#: src/pages/Analysis.tsx:357
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
 msgstr "查看负荷、训练量、热适应和 Praxys Coach 分析。"
 
@@ -10967,7 +10975,7 @@ msgstr "选择子步骤进行编辑。通用结构 v1 只允许一层重复组�
 msgid "Select a day to inspect what entered the estimate."
 msgstr "选择一天，查看当天哪些训练被纳入估算。"
 
-#: src/pages/Analysis.tsx:371
+#: src/pages/Analysis.tsx:375
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "选择一个指标，查看图表或依据。"
 
@@ -11850,7 +11858,7 @@ msgstr "立即同步"
 msgid "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
 msgstr "同步功率数据来源信息，Praxys 才能验证活动功率与阈值功率是否可比。"
 
-#: src/pages/Analysis.tsx:326
+#: src/pages/Analysis.tsx:330
 msgid "Sync recent activities to populate the weekly distance series."
 msgstr "同步近期活动以生成每周距离序列。"
 
@@ -11866,7 +11874,7 @@ msgstr "同步可靠性"
 #~ msgid "Sync sample or split power so workload can contribute."
 #~ msgstr "同步逐秒样本或分段功率后，训练负荷才能计入。"
 
-#: src/pages/Analysis.tsx:269
+#: src/pages/Analysis.tsx:272
 msgid "Sync split or sample data with enough duration coverage to compare against the selected theory."
 msgstr "同步覆盖时长足够的分段或采样数据，以便与所选理论比较。"
 
@@ -12142,7 +12150,7 @@ msgstr "已接受的 Praxys 证据评审支持热环境相关的心血管漂移�
 msgid "The action did not complete."
 msgstr "操作未完成。"
 
-#: src/pages/Analysis.tsx:243
+#: src/pages/Analysis.tsx:244
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，还需要 {daysToPmc} 天历史数据。"
 
@@ -12627,7 +12635,7 @@ msgstr "越野赛道核对已更改"
 msgid "The Trail course review could not be saved."
 msgstr "无法保存越野赛道核对。"
 
-#: src/pages/Analysis.tsx:325
+#: src/pages/Analysis.tsx:329
 msgid "The weekly history will appear after the data service update completes."
 msgstr "数据服务更新完成后，每周历史图表将自动显示。"
 
@@ -12662,6 +12670,10 @@ msgstr "按时间顺序的数据不足，无法评估该关系在后续活动中
 #: src/components/HeatAdaptationPanel.tsx:122
 #~ msgid "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
 #~ msgstr "重复且符合条件的暴露还不够，暂时无法估算你是否适应相似环境。"
+
+#: src/components/ZoneExclusions.tsx:28
+msgid "These runs have no usable recorded power and are excluded. The comparison covers only included runs."
+msgstr "以下跑步未记录可用功率，未纳入统计。分区比较仅覆盖已计入的跑步。"
 
 #: src/components/WorkoutStructureEditor.tsx:180
 #~ msgid "This activity is not supported by the provider."
@@ -13456,7 +13468,7 @@ msgstr "重试"
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "试试其他筛选条件，或等有新报告后再同步。"
 
-#: src/pages/Analysis.tsx:223
+#: src/pages/Analysis.tsx:224
 msgid "TSB"
 msgstr "TSB"
 
@@ -13969,7 +13981,7 @@ msgstr "VO2max"
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max、CP、LTHR、训练状态"
 
-#: src/pages/Analysis.tsx:304
+#: src/pages/Analysis.tsx:308
 msgid "Volume"
 msgstr "里程"
 
@@ -13978,7 +13990,7 @@ msgid "Voluntary experiments that help you inspect your own training history wit
 msgstr "自愿参与的实验，帮助理解个人训练历史，同时不把早期研究包装成建议。"
 
 #. placeholder {0}: data.diagnosis.theory_name
-#: src/pages/Analysis.tsx:258
+#: src/pages/Analysis.tsx:259
 msgid "vs {0}"
 msgstr "对比{0}"
 
@@ -13991,7 +14003,7 @@ msgstr "对比基准 {0}"
 msgid "vs {theoryName}"
 msgstr "对比 {theoryName}"
 
-#: src/pages/Analysis.tsx:259
+#: src/pages/Analysis.tsx:260
 msgid "vs target zones"
 msgstr "对比目标区间"
 
@@ -14123,11 +14135,11 @@ msgstr "截至 {0} 的一周"
 msgid "Weekly average"
 msgstr "周平均"
 
-#: src/pages/Analysis.tsx:320
+#: src/pages/Analysis.tsx:324
 msgid "Weekly chart temporarily unavailable"
 msgstr "每周图表暂时不可用"
 
-#: src/pages/Analysis.tsx:189
+#: src/pages/Analysis.tsx:190
 msgid "Weekly diagnosis ready."
 msgstr "周度诊断已就绪。"
 
@@ -14151,7 +14163,7 @@ msgstr "每周时间上限（分钟）"
 msgid "Weekly training time available"
 msgstr "每周可训练时间"
 
-#: src/pages/Analysis.tsx:308
+#: src/pages/Analysis.tsx:312
 msgid "Weekly volume"
 msgstr "周里程"
 
@@ -14674,7 +14686,7 @@ msgstr "第 3 区（高强度）"
 #~ msgid "Zone Analysis"
 #~ msgstr "区间分析"
 
-#: src/pages/Analysis.tsx:260
+#: src/pages/Analysis.tsx:261
 msgid "Zone distribution"
 msgstr "区间分布"
 

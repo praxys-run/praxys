@@ -160,6 +160,16 @@
           </block>
 
           <block wx:if="{{activeMetric === 'dist'}}">
+            <view wx:if="{{zoneExclusions.length}}" class="train-zone-exclusions">
+              <button class="train-zone-exclusions-trigger" bindtap="toggleZoneExclusions">{{zoneExclusionsLabel}}</button>
+              <view wx:if="{{zoneExclusionsExpanded}}" class="train-zone-exclusions-detail">
+                <text class="ts-muted">{{tr.zoneExclusionExplanation}}</text>
+                <navigator wx:for="{{zoneExclusions}}" wx:key="activityId" url="{{item.detailUrl}}" class="train-zone-exclusions-link">
+                  <text class="ts-value">{{item.date}}</text>
+                  <text class="ts-value">{{item.duration}}</text>
+                </navigator>
+              </view>
+            </view>
             <block wx:if="{{hasZones}}">
               <text class="train-zone-section-label">{{zoneSectionLabel}}</text>
               <view wx:for="{{zoneRows}}" wx:key="name" class="train-zonebar">

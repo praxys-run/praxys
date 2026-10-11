@@ -18,7 +18,7 @@ msgid " · "
 msgstr " · "
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Analysis.tsx:360
+#: src/pages/Analysis.tsx:364
 msgid "· last {0} weeks"
 msgstr "· last {0} weeks"
 
@@ -218,7 +218,7 @@ msgid "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
 
 #. placeholder {0}: data.diagnosis.lookback_weeks
-#: src/pages/Analysis.tsx:307
+#: src/pages/Analysis.tsx:311
 msgid "{0}-week average"
 msgstr "{0}-week average"
 
@@ -863,11 +863,11 @@ msgstr "Activity-summary weather"
 msgid "Actual"
 msgstr "Actual"
 
-#: src/pages/Analysis.tsx:289
+#: src/pages/Analysis.tsx:293
 msgid "Actual and planned weekly load across the recent training window."
 msgstr "Actual and planned weekly load across the recent training window."
 
-#: src/pages/Analysis.tsx:286
+#: src/pages/Analysis.tsx:290
 msgid "actual vs planned, avg"
 msgstr "actual vs planned, avg"
 
@@ -1198,7 +1198,7 @@ msgid "Analyse recording"
 msgstr "Analyse recording"
 
 #: src/components/AppSidebar.tsx:126
-#: src/pages/Analysis.tsx:350
+#: src/pages/Analysis.tsx:354
 msgid "Analysis"
 msgstr "Analysis"
 
@@ -3501,7 +3501,7 @@ msgid "Detailed activity evidence is unavailable for this day."
 msgstr "Detailed activity evidence is unavailable for this day."
 
 #: src/components/FeedbackDialog.tsx:638
-#: src/pages/Analysis.tsx:78
+#: src/pages/Analysis.tsx:79
 msgid "Details"
 msgstr "Details"
 
@@ -3545,8 +3545,8 @@ msgstr "DFA α1 describes correlations in beat intervals. Each trailing 120-seco
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 msgstr "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
 
-#: src/pages/Analysis.tsx:356
-#: src/pages/Analysis.tsx:358
+#: src/pages/Analysis.tsx:360
+#: src/pages/Analysis.tsx:362
 msgid "Diagnosis"
 msgstr "Diagnosis"
 
@@ -3690,7 +3690,7 @@ msgstr "Distance not verified"
 #~ msgid "Distribution deviates from target"
 #~ msgstr "Distribution deviates from target"
 
-#: src/pages/Analysis.tsx:254
+#: src/pages/Analysis.tsx:255
 msgid "Distribution match"
 msgstr "Distribution match"
 
@@ -3699,8 +3699,12 @@ msgstr "Distribution match"
 #~ msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. It appears only when every recent activity has complete split or sample intensity evidence."
 
 #: src/components/ZoneAnalysisCard.tsx:140
-msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
-msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities with usable recorded power; runs without power are excluded and listed separately. The comparison describes only included runs. Heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities with usable recorded power; runs without power are excluded and listed separately. The comparison describes only included runs. Heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+
+#: src/components/ZoneAnalysisCard.tsx:140
+#~ msgid "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
+#~ msgstr "Distribution match uses Bray-Curtis similarity to compare observed and target time-in-zone shares. Power-based training includes only running activities; heart-rate and pace training include all activities. It appears only when every included recent activity has at least 90% duration coverage from valid splits or timestamped samples; sample streams also require a median cadence of 5 seconds or less. These evidence gates are Praxys operational estimates."
 
 #: src/pages/admin/AdminOps.tsx:460
 msgid "Do not replay this item. Its failure is marked non-retryable by the delivery safety policy."
@@ -4271,6 +4275,10 @@ msgstr "Evidence toward Likely adapted"
 msgid "Excluded"
 msgstr "Excluded"
 
+#: src/components/ZoneExclusions.tsx:24
+msgid "Excluded runs: {count}"
+msgstr "Excluded runs: {count}"
+
 #: src/components/ManagedPlanSettingsCard.tsx:833
 #: src/components/ManagedPlanSettingsCard.tsx:935
 msgid "Execution target"
@@ -4420,7 +4428,7 @@ msgstr "Failed to load"
 msgid "Failed to load activities"
 msgstr "Failed to load activities"
 
-#: src/pages/Analysis.tsx:168
+#: src/pages/Analysis.tsx:169
 msgid "Failed to load analysis"
 msgstr "Failed to load analysis"
 
@@ -4980,8 +4988,8 @@ msgstr "Heart-rate maximum (bpm)"
 msgid "Heart-rate minimum (bpm)"
 msgstr "Heart-rate minimum (bpm)"
 
-#: src/pages/Analysis.tsx:336
-#: src/pages/Analysis.tsx:339
+#: src/pages/Analysis.tsx:340
+#: src/pages/Analysis.tsx:343
 msgid "Heat adaptation"
 msgstr "Heat adaptation"
 
@@ -5700,7 +5708,7 @@ msgstr "Kilometer boundaries use the first recorded distance sample to reach eac
 #~ msgid "km / week, {0}wk avg"
 #~ msgstr "km / week, {0}wk avg"
 
-#: src/pages/Analysis.tsx:306
+#: src/pages/Analysis.tsx:310
 msgid "km/wk"
 msgstr "km/wk"
 
@@ -5991,7 +5999,7 @@ msgstr "Load & Fitness"
 
 #: src/components/charts/FitnessFatigueChart.tsx:87
 #: src/components/charts/FitnessFatigueChart.tsx:235
-#: src/pages/Analysis.tsx:234
+#: src/pages/Analysis.tsx:235
 msgid "Load balance"
 msgstr "Load balance"
 
@@ -5999,8 +6007,8 @@ msgstr "Load balance"
 msgid "Load balance (TSB)"
 msgstr "Load balance (TSB)"
 
-#: src/pages/Analysis.tsx:283
 #: src/pages/Analysis.tsx:287
+#: src/pages/Analysis.tsx:291
 msgid "Load compliance"
 msgstr "Load compliance"
 
@@ -6068,7 +6076,7 @@ msgstr "Long-term and recent modeled loads are near balance."
 msgid "Long-term load"
 msgstr "Long-term load"
 
-#: src/pages/Analysis.tsx:230
+#: src/pages/Analysis.tsx:231
 msgid "long-term load above recent load"
 msgstr "long-term load above recent load"
 
@@ -6076,7 +6084,7 @@ msgstr "long-term load above recent load"
 #~ msgid "long-term load higher"
 #~ msgstr "long-term load higher"
 
-#: src/pages/Analysis.tsx:236
+#: src/pages/Analysis.tsx:237
 msgid "Long-term load, recent load, and their modeled balance over time."
 msgstr "Long-term load, recent load, and their modeled balance over time."
 
@@ -6483,11 +6491,11 @@ msgstr "Mode"
 msgid "Model version"
 msgstr "Model version"
 
-#: src/pages/Analysis.tsx:228
+#: src/pages/Analysis.tsx:229
 msgid "modeled balance (CTL−ATL)"
 msgstr "modeled balance (CTL−ATL)"
 
-#: src/pages/Analysis.tsx:233
+#: src/pages/Analysis.tsx:234
 msgid "modeled loads balanced"
 msgstr "modeled loads balanced"
 
@@ -6630,7 +6638,7 @@ msgstr "Near baseline"
 msgid "Near level (−3% to below 3%)"
 msgstr "Near level (−3% to below 3%)"
 
-#: src/pages/Analysis.tsx:296
+#: src/pages/Analysis.tsx:300
 msgid "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
 msgstr "Need 2 weeks of synced activity to compare planned vs actual. {daysToCompare} more days to go."
 
@@ -7224,7 +7232,7 @@ msgstr "No users found."
 msgid "No waitlist signups yet."
 msgstr "No waitlist signups yet."
 
-#: src/pages/Analysis.tsx:321
+#: src/pages/Analysis.tsx:325
 msgid "No weekly distance history yet"
 msgstr "No weekly distance history yet"
 
@@ -7324,7 +7332,7 @@ msgstr "Not connected"
 msgid "Not enough complete beats."
 msgstr "Not enough complete beats."
 
-#: src/pages/Analysis.tsx:268
+#: src/pages/Analysis.tsx:271
 msgid "Not enough complete intensity data for zone comparison"
 msgstr "Not enough complete intensity data for zone comparison"
 
@@ -7348,11 +7356,11 @@ msgstr "Not enough data to show CP trend"
 #~ msgid "Not enough data yet for accurate fitness tracking"
 #~ msgstr "Not enough data yet for accurate fitness tracking"
 
-#: src/pages/Analysis.tsx:242
+#: src/pages/Analysis.tsx:243
 msgid "Not enough data yet for stable load tracking"
 msgstr "Not enough data yet for stable load tracking"
 
-#: src/pages/Analysis.tsx:295
+#: src/pages/Analysis.tsx:299
 msgid "Not enough data yet for weekly load comparison"
 msgstr "Not enough data yet for weekly load comparison"
 
@@ -7469,7 +7477,7 @@ msgstr "Observed"
 msgid "Observed proxy range"
 msgstr "Observed proxy range"
 
-#: src/pages/Analysis.tsx:262
+#: src/pages/Analysis.tsx:263
 msgid "Observed time in each intensity zone compared with the selected training theory."
 msgstr "Observed time in each intensity zone compared with the selected training theory."
 
@@ -8014,7 +8022,7 @@ msgstr "Pausing…"
 msgid "Peak Interval {intensityLabel}"
 msgstr "Peak Interval {intensityLabel}"
 
-#: src/pages/Analysis.tsx:368
+#: src/pages/Analysis.tsx:372
 msgid "Peer metrics"
 msgstr "Peer metrics"
 
@@ -9342,7 +9350,7 @@ msgstr "Recent HRV observations have no measurable variation, so Praxys cannot f
 msgid "Recent load"
 msgstr "Recent load"
 
-#: src/pages/Analysis.tsx:232
+#: src/pages/Analysis.tsx:233
 msgid "recent load above long-term load"
 msgstr "recent load above long-term load"
 
@@ -9530,7 +9538,7 @@ msgstr "Recorded chart. Arrow keys move the time cursor; drag to select a time r
 msgid "Recorded curves"
 msgstr "Recorded curves"
 
-#: src/pages/Analysis.tsx:310
+#: src/pages/Analysis.tsx:314
 msgid "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 msgstr "Recorded distance in non-overlapping seven-day buckets, including weeks with no recorded distance."
 
@@ -10122,7 +10130,7 @@ msgstr "Retrieval is never qualification; only a full activity with explicit dis
 #: src/pages/ActivityDetail.tsx:327
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
-#: src/pages/Analysis.tsx:171
+#: src/pages/Analysis.tsx:172
 #: src/pages/Goal.tsx:479
 #: src/pages/History.tsx:53
 #: src/pages/Labs.tsx:56
@@ -10311,7 +10319,7 @@ msgstr "Review goal"
 msgid "Review latest version"
 msgstr "Review latest version"
 
-#: src/pages/Analysis.tsx:353
+#: src/pages/Analysis.tsx:357
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
 msgstr "Review load, volume, heat adaptation, and Praxys Coach."
 
@@ -10840,7 +10848,7 @@ msgstr "Select a child to edit it. Portable v1 permits one repeat level."
 msgid "Select a day to inspect what entered the estimate."
 msgstr "Select a day to inspect what entered the estimate."
 
-#: src/pages/Analysis.tsx:371
+#: src/pages/Analysis.tsx:375
 msgid "Select a metric to inspect its chart or evidence."
 msgstr "Select a metric to inspect its chart or evidence."
 
@@ -11699,7 +11707,7 @@ msgstr "Sync now"
 msgid "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
 msgstr "Sync power-source metadata so Praxys can verify that activity and threshold power are comparable."
 
-#: src/pages/Analysis.tsx:326
+#: src/pages/Analysis.tsx:330
 msgid "Sync recent activities to populate the weekly distance series."
 msgstr "Sync recent activities to populate the weekly distance series."
 
@@ -11715,7 +11723,7 @@ msgstr "Sync reliability"
 #~ msgid "Sync sample or split power so workload can contribute."
 #~ msgstr "Sync sample or split power so workload can contribute."
 
-#: src/pages/Analysis.tsx:269
+#: src/pages/Analysis.tsx:272
 msgid "Sync split or sample data with enough duration coverage to compare against the selected theory."
 msgstr "Sync split or sample data with enough duration coverage to compare against the selected theory."
 
@@ -11991,7 +11999,7 @@ msgstr "The accepted Praxys evidence review found controlled support for heat-re
 msgid "The action did not complete."
 msgstr "The action did not complete."
 
-#: src/pages/Analysis.tsx:243
+#: src/pages/Analysis.tsx:244
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 
@@ -12473,7 +12481,7 @@ msgstr "The Trail course review changed"
 msgid "The Trail course review could not be saved."
 msgstr "The Trail course review could not be saved."
 
-#: src/pages/Analysis.tsx:325
+#: src/pages/Analysis.tsx:329
 msgid "The weekly history will appear after the data service update completes."
 msgstr "The weekly history will appear after the data service update completes."
 
@@ -12508,6 +12516,10 @@ msgstr "There is not enough chronological history to evaluate whether the relati
 #: src/components/HeatAdaptationPanel.tsx:122
 #~ msgid "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
 #~ msgstr "There is not enough repeated qualifying exposure to estimate acclimatization to similar conditions."
+
+#: src/components/ZoneExclusions.tsx:28
+msgid "These runs have no usable recorded power and are excluded. The comparison covers only included runs."
+msgstr "These runs have no usable recorded power and are excluded. The comparison covers only included runs."
 
 #: src/components/WorkoutStructureEditor.tsx:180
 #~ msgid "This activity is not supported by the provider."
@@ -13298,7 +13310,7 @@ msgstr "Try again"
 msgid "Try another filter or sync again after new reports arrive."
 msgstr "Try another filter or sync again after new reports arrive."
 
-#: src/pages/Analysis.tsx:223
+#: src/pages/Analysis.tsx:224
 msgid "TSB"
 msgstr "TSB"
 
@@ -13811,7 +13823,7 @@ msgstr "VO2max"
 msgid "VO2max, CP, LTHR, training status"
 msgstr "VO2max, CP, LTHR, training status"
 
-#: src/pages/Analysis.tsx:304
+#: src/pages/Analysis.tsx:308
 msgid "Volume"
 msgstr "Volume"
 
@@ -13820,7 +13832,7 @@ msgid "Voluntary experiments that help you inspect your own training history wit
 msgstr "Voluntary experiments that help you inspect your own training history without turning early research into advice."
 
 #. placeholder {0}: data.diagnosis.theory_name
-#: src/pages/Analysis.tsx:258
+#: src/pages/Analysis.tsx:259
 msgid "vs {0}"
 msgstr "vs {0}"
 
@@ -13833,7 +13845,7 @@ msgstr "vs {0} baseline"
 msgid "vs {theoryName}"
 msgstr "vs {theoryName}"
 
-#: src/pages/Analysis.tsx:259
+#: src/pages/Analysis.tsx:260
 msgid "vs target zones"
 msgstr "vs target zones"
 
@@ -13965,11 +13977,11 @@ msgstr "Week ending {0}"
 msgid "Weekly average"
 msgstr "Weekly average"
 
-#: src/pages/Analysis.tsx:320
+#: src/pages/Analysis.tsx:324
 msgid "Weekly chart temporarily unavailable"
 msgstr "Weekly chart temporarily unavailable"
 
-#: src/pages/Analysis.tsx:189
+#: src/pages/Analysis.tsx:190
 msgid "Weekly diagnosis ready."
 msgstr "Weekly diagnosis ready."
 
@@ -13993,7 +14005,7 @@ msgstr "Weekly time limit (minutes)"
 msgid "Weekly training time available"
 msgstr "Weekly training time available"
 
-#: src/pages/Analysis.tsx:308
+#: src/pages/Analysis.tsx:312
 msgid "Weekly volume"
 msgstr "Weekly volume"
 
@@ -14516,7 +14528,7 @@ msgstr "Zone 3 (Hard)"
 #~ msgid "Zone Analysis"
 #~ msgstr "Zone Analysis"
 
-#: src/pages/Analysis.tsx:260
+#: src/pages/Analysis.tsx:261
 msgid "Zone distribution"
 msgstr "Zone distribution"
 
