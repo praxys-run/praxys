@@ -89,6 +89,18 @@ connection modes and from unknown historical overrun causes. Late or failed
 validation still denies permission regardless of an older future physical lease.
 No timer, manual recovery, queue, or capacity acceptance policy changes here.
 
+Queued acquisition rechecks local permission and its actual monotonic expiry after
+rights/source validation, then refreshes the durable control row using
+`populate_existing` and checks permission again before setting running/reading.
+An already denied/expired acquisition or changed epoch/drain leaves the unit queued,
+with no lease or recovery consumed. Owner serialization and the existing query
+budgets remain in place; the added control read does not lock a new authority lane.
+This check does not reserve permission across commit. A denial after the final
+check can still produce a claimed failed attempt; loading/launch, reactor retirement
+and final publication keep their independent fences. Existing automatic recovery
+limits and explicit manual-retry policy are unchanged. This closes preventable
+stale acquisition, not the unexplained historical mid-computation overrun.
+
 ## Verify
 
 Use synthetic data only. Retain failed admissions and interrupted runs. The first

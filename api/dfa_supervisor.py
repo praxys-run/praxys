@@ -279,7 +279,7 @@ class Supervisor:
                 with service.owner_write(db, owner):
                     control = self._bound(db)
                     run = db.query(Run).filter_by(id=run_id, status='queued').with_for_update().first()
-                    if control is None or not self.allowed: return None
+                    if control is None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     if run is None: continue
                     if not service._current(db, run):
                         if dfa_rights.permanently_invalid(db, run):
@@ -289,6 +289,15 @@ class Supervisor:
                             run.expires_at=run.completed_at+timedelta(days=7)
                         db.commit()
                         continue
+                    # Validation can outlast a renewal or local permission. Do
+                    # not consume queued work/recovery for an already denied
+                    # acquisition. Refresh the serialized control facts too;
+                    # _bound uses populate_existing rather than cached ORM data.
+                    if not self.allowed or time.monotonic() >= self.permission_until: return None
+                    control = self._bound(db)
+                    if control is None or not self.allowed or time.monotonic() >= self.permission_until: return None
+                    # This is not a reservation across commit. Work/reactor and
+                    # publication retain their independent late-change fences.
                     run.status, run.progress = 'running', 'reading'
                     run.lease_token = str(uuid4())
                     run.execution_epoch = str(control.epoch)
