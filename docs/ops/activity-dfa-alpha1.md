@@ -1065,3 +1065,72 @@ online backup API after the owned reactor/renewal threads and child lifecycle
 were quiescent and engines disposed; source DB/WAL inventory, backup integrity
 checks and hashes are preserved. No production behavior or capacity profile was
 changed and no full canonical/capacity run is recommended by this narrow proof.
+
+Bounded retirement finalization
+
+An exit-persistence exception after verified physical exit formerly escaped the
+reactor before owner finish. A deterministic real SQLite BUSY cell demonstrated
+that mechanism on1fa: physical idle, SQL occupied and accepted run still running.
+This establishes a repair target; the missing original b6 exception and the e05
+manual overrun cause remain unknown. Neither historical failure is relabelled.
+
+Retirement now captures the actor/job-bound triggering decision and terminal
+outcome before signalling/retiring. An immutable private pending record retains
+the job, verified exit, exact launch predecessor, cancellation token and chosen
+outcome. Local permission is denied and renewal's phase is fenced until that exit
+is durably acknowledged and the existing owner finish completes. No acquisition,
+replacement, recomputation or new recovery allowance is introduced. A delayed
+reason-string red formerly consumed ordinary automatic recovery for real
+priority; the coherent triggering decision now owns that accounting. Later
+reason changes cannot turn a permission-denied manual attempt into successful
+service. Owner finish still validates current rights/source/Science/generation.
+
+Only classified transient exit-persistence failures are retried: SQLite BUSY/
+LOCKED (including extended codes), PostgreSQL55P03/40001/40P01/57014/
+08001/08003/08006, and bounded control-pool checkout timeout. The same exit gets
+at most3 total sequential attempts, fresh control sessions and125ms interruptible
+gaps. No new attempt starts at or after1s from pending creation. This is an
+attempt-start schedule, not a universal deadline for an already unreturned
+driver call or the existing owner transaction. Attempt/error/retry/ACK,
+exhaustion/stop and owner-finish events retain sanitized classes/codes/frames;
+no exception messages, SQL parameters or RR payloads are recorded by this
+runtime recorder. Unknown errors, changed identity, exhaustion, stop or owner
+finish failure retain pending state and stop fail-closed. Numerical failures
+and existing automatic recovery policy are unchanged.
+
+An in-flight old renewal ACK cannot restore local permission across the pending
+phase. A previously issued SQL write may finish only with its original cycle's
+250ms deadline; an already committed pulse can survive until original expiry.
+There is no instantaneous SQL withdrawal guarantee. No new pending-phase renewal
+starts SQL publication. Any manual admission racing that old pulse retains its
+actual outcome and cannot launch until exit ACK plus owner finish.
+
+Every actor projection in work, exit publication and owner finish uses exact
+host/epoch/full predecessor CAS. SQLite's no-op FOR UPDATE is not a fence.
+Launch records its exact local/SQL predecessor before publishing the new actor;
+an unrelated idle actor cannot substitute during retry. JSON object key order
+is irrelevant to equivalent bindings, while changed content remains guarded.
+Owner run writes also CAS generation/status/input/execution epoch. A lost exit
+ACK reconciles the exact already durable idle exit using a fresh same-value CAS
+transaction. Its receipt identifies reconciliation and that transaction's ACK;
+it never fabricates the original server commit timestamp. Owner finish is not
+retried on its own failure and cannot permit reuse before its actual ACK.
+
+The migrated PostgreSQL test template is now cloned into a fresh owned database
+per fixture. Tests require CREATEDB on the isolated test role; production grants
+and configuration are untouched. This prevents independent synthetic host
+fixtures from taking over a prior failed actor in a shared global row. Clones
+are retained rather than cleared/dropped; case manifests identify their template
+and database. Focused evidence is backed up after owned quiescence with SQLite
+online backup/integrity checks and transaction-consistent PostgreSQL dumps.
+The original pytest-220 bytes remain unavailable; metadata/hashes do not recover
+them. All future pytest calls require unique explicit task-owned basetemp outside
+pytest's automatic retention root.
+
+The suite100causal/32inventory/300ingress600s target,3-refusal cap/5s backoff and
+125ms cadence/250ms SQL pulse/750ms physical permission/control2 profile remain
+unchanged. Deterministic controlled cells are not capacity certification. Same
+Quality reviews this immutable patch before root may authorize one canonical
+run; if capacity fails, the next step is a concrete Product/Operations resource
+or acceptance decision rather than another stochastic retry. User miniapp
+acceptance carries; unproved chart/compiler/device parity is not fabricated.

@@ -172,6 +172,10 @@ class Lane:
             raise PhysicalUnavailable("actor_not_retired")
         value = {"incarnation": self.incarnation, "state": "launching", "actor_token": str(uuid4()),
                  "binding": binding, "identity": None, "launch_at": time.monotonic()}
+        # Exact launch predecessor is private immutable evidence for an
+        # unacknowledged child's later verified exit, never arbitrary SQL idle.
+        self.launch_predecessor_json = json.dumps(previous, sort_keys=True)
+        self.launch_token = value["actor_token"]
         self.record(value)
         try:
             self.child = subprocess.Popen([sys.executable, "-E", "-B", "-m", "api.dfa_worker"],

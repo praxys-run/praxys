@@ -145,8 +145,8 @@ class PriorityEvidence:
                         observer.renewals.append(completed)
                         return
                 if name=='allowed':
-                    observer.invalidation=None
                     caller=sys._getframe(1)
+                    if caller.f_code is renewal_code: observer.invalidation=None
                     local=caller.f_locals
                     latest=observer.priorities[-1] if observer.priorities else None
                     active=local.get('active')
@@ -157,7 +157,10 @@ class PriorityEvidence:
                         observer.invalidation={**latest,'iteration_started':local['started'],
                             'before_allowed_false_monotonic':time.monotonic()}
                 if name=='retirement_reason' and value=='priority' and observer.hold_reason_until_exit:
-                    assert observer.retired.wait(5)
+                    # Delay only this derived string, never the coherent local
+                    # decision/state lock or genuine physical permission.
+                    observer.delayed_reason=value
+                    return
                 super().__setattr__(name,value)
                 if name=='control_observation' and value.get('state')=='ready' and observer.renewals:
                     completed=observer.renewals[-1];target=observer.renewal_target;actor=self.lane.actor()
@@ -238,6 +241,9 @@ class PriorityEvidence:
                     'exit_observed_at':exited['exit_observed_at'],
                     'dispatches':[json.loads(json.dumps(d)) for d in observer.retirement_dispatches if d['actor']['actor_token']==actor['actor_token']]})
                 observer.retired.set()
+                if getattr(observer,'delayed_reason',None):
+                    super(type(supervisor),supervisor).__setattr__('retirement_reason',observer.delayed_reason)
+                    observer.delayed_reason=None
             return result
         monkeypatch.setattr(supervisor.lane,'retire',retire)
 

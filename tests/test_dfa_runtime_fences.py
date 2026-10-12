@@ -107,7 +107,11 @@ def test_expired_permission_retires_while_renewal_is_blocked(store, monkeypatch)
         release.set()
         thread.join(5)
         assert not thread.is_alive()
-    assert not errors
+    # This test stops immediately on physical exit, potentially before SQL
+    # finalization. Only that explicit stop is allowed to interrupt the pending
+    # boundary; it is not successful service/publication or an allowed race.
+    assert not errors or (len(errors)==1 and isinstance(errors[0],PhysicalUnavailable)
+        and str(errors[0])=='finalization_stopped' and supervisor.pending is not None)
 
 
 def test_drain_timeout_keeps_both_origin_fence_and_occupied_actor(store):

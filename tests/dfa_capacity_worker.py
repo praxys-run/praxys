@@ -91,6 +91,7 @@ class CapacityWorker:
             entry['error'] = failure(exc)
             raise
         entry['commit_ack_at'] = time.monotonic()
+        entry['receipt'] = deepcopy(value)
         entry['physical_actor_after'] = deepcopy(self.supervisor.lane.actor())
         return value
 
@@ -127,7 +128,9 @@ class CapacityWorker:
                 'cleanup_errors': list(self.cleanup_errors), 'exit_attempts': list(self.exit_attempts),
                 'alive': self.thread.is_alive(), 'stop_set': self.supervisor.stop.is_set(),
                 'unexpected_stop': self.unexpected_stop,
-                'failure_snapshot': getattr(self, 'failure_snapshot', None)}
+                'failure_snapshot': getattr(self, 'failure_snapshot', None),
+                'finalization_events': list(getattr(self.supervisor, 'finalization_events', [])),
+                'finalization_pending': getattr(self.supervisor, 'pending_evidence', lambda: None)()}
 
     def assert_certifiable(self):
         assert not self.errors and not self.cleanup_errors and not self.unexpected_stop, self.evidence()

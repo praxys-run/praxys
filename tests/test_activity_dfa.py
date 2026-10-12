@@ -189,6 +189,22 @@ def store(tmp_path, monkeypatch, request):
     if not url:
         pytest.skip("DFA_TEST_DATABASE_URL selects the isolated migrated PostgreSQL test database")
     monkeypatch.setenv('DATA_DIR', str(tmp_path))
+    if backend == 'postgresql':
+        # Every fixture owns a clean clone of the migrated synthetic template.
+        # A prior failed actor/host is evidence, never an implicit takeover by a
+        # new fixture reusing the same fake incarnation with an empty journal.
+        from sqlalchemy.engine import make_url
+        import json
+        target=make_url(url)
+        case_database='dfa_case_'+uuid4().hex
+        admin=create_engine(target.set(database='postgres'),isolation_level='AUTOCOMMIT')
+        with admin.connect() as connection:
+            quote=connection.dialect.identifier_preparer.quote
+            connection.exec_driver_sql('CREATE DATABASE '+quote(case_database)+' TEMPLATE '+quote(target.database))
+        admin.dispose()
+        (tmp_path/'pg-database.json').write_text(json.dumps({'database':case_database,
+            'template':target.database,'scope':'owned synthetic migrated-template clone; retained after teardown'}))
+        url=target.set(database=case_database)
     engine = create_engine(url)
     if backend == 'sqlite':
         Base.metadata.create_all(engine)

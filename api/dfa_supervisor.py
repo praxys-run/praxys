@@ -1,6 +1,10 @@
 """Pinned, default-disabled Linux supervisor; API processes only admit and read."""
 from __future__ import annotations
 import base64
+from collections import deque
+from copy import deepcopy
+from dataclasses import dataclass
+import traceback
 from datetime import datetime, timedelta
 import json
 import os
@@ -11,7 +15,9 @@ import time
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine, text, cast, String, or_
+from sqlalchemy import create_engine, text, cast, String, or_, func, literal, select, exists, and_
+from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeout
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker, defer
 
 from api.dfa_physical import Lane, PhysicalUnavailable, MAX_OUTPUT, PROFILE
@@ -28,6 +34,56 @@ WORKER_FAILURES = {'timer_invalid','fit_invalid','fit_too_large','rr_limit','fra
 TRANSIENT_FAILURES = {'execution_unavailable','permission_expired','restart_interrupted'}
 SAFE_FAILURES = WORKER_FAILURES | TRANSIENT_FAILURES | {'execution_time_limit','result_limit',
     'authority_changed','binding_changed','ipc_output_invalid','input_changed','input_integrity_failed'}
+
+
+EXIT_PERSISTENCE_ATTEMPTS = 3
+EXIT_PERSISTENCE_START_SECONDS = 1.
+
+
+@dataclass(frozen=True)
+class PendingFinalization:
+    job_json: str
+    actor_json: str
+    predecessor_json: str
+    status: str
+    value_json: str
+    cancellation: threading.Event
+    started: float
+
+
+def _json_equal(db, column, value):
+    if value is None:
+        return or_(column.is_(None), cast(column, String)=='null')
+    encoded = json.dumps(value)
+    if db.get_bind().dialect.name=='postgresql':
+        return cast(column, JSONB)==cast(literal(encoded), JSONB)
+    left=func.json_tree(column).table_valued('fullkey','type','atom').alias()
+    right=func.json_tree(encoded).table_valued('fullkey','type','atom').alias()
+    a=select(left.c.fullkey,left.c.type,left.c.atom)
+    b=select(right.c.fullkey,right.c.type,right.c.atom)
+    return and_(~exists(a.except_(b)),~exists(b.except_(a)))
+
+
+def _same_actor(left, right):
+    return bool(left and right and all(left.get(k)==right.get(k)
+        for k in ('actor_token','binding','incarnation','identity')))
+
+
+def _persistence_error(exc):
+    original = getattr(exc, 'orig', None)
+    code = getattr(original, 'sqlite_errorcode', None)
+    state = getattr(original, 'sqlstate', None)
+    transient = (isinstance(exc, PoolTimeout) or isinstance(exc, OperationalError) and
+        (isinstance(code, int) and code & 255 in (5, 6) or state in
+         ('55P03','40001','40P01','57014','08001','08003','08006')))
+    return {'class':type(exc).__name__, 'sqlite_code':code, 'sqlstate':state,
+            'transient':bool(transient),
+            'reason_code':str(exc) if isinstance(exc,PhysicalUnavailable) and str(exc) in
+                {'exit_not_observed','exit_journal_binding_changed','finish_control_binding_changed',
+                 'finish_actor_binding_changed','finish_exit_not_observed','finish_run_binding_changed',
+                 'finalization_stopped','exit_persistence_start_limit'} else None,
+            'stack':[{'file':f.filename.rsplit('/',1)[-1],
+                'function':f.name,'line':f.lineno} for f in traceback.extract_tb(exc.__traceback__)]}
 
 
 def manual_admission(db):
@@ -136,10 +192,105 @@ class Supervisor:
         # At most two Python I/O continuations including the active job. A
         # cancelled automatic continuation cannot consume the manual slot.
         self.cleanups = []
+        self.retiring = False
+        self.pending = None
+        self.renewal_phase = 0
+        self.permission_decision = None
+        self.finalization_events = deque(maxlen=256)
 
     def _bound(self, db):
         row = db.query(Control).filter_by(id=1).populate_existing().first()
         return row if row and row.incarnation == self.identity and row.epoch == self.identity['epoch'] and row.enabled and not row.drained else None
+
+    def _renewal_current(self, phase):
+        with self.lock:
+            return phase==self.renewal_phase and not self.retiring and self.pending is None
+
+    def _decision(self, job, reason, actor=None):
+        # Called only under the short local state lock. No SQL/hash/file reads.
+        previous = self.permission_decision
+        binding = {k:job[k] for k in ('id','generation','epoch','input')} if job else None
+        if (reason and not self.allowed and previous and previous['reason']
+                and previous['phase']==self.renewal_phase and previous['job']==binding):
+            return previous  # First invalidation owns the trigger until fresh permission.
+        return {'at':time.monotonic(), 'reason':reason,
+            'job':{k:job[k] for k in ('id','generation','epoch','input')} if job else None,
+            'actor':deepcopy(actor), 'phase':self.renewal_phase}
+
+    def _actor_guard(self, db, previous):
+        return db.query(Control).filter_by(id=1, epoch=self.identity['epoch'], enabled=True, drained=False).filter(
+            _json_equal(db, Control.incarnation, self.identity), _json_equal(db, Control.actor, previous))
+
+    def _exit_predecessor(self, previous, actor):
+        if previous==actor:
+            return
+        if _same_actor(previous, actor) and previous.get('state') in ('occupied','retiring','launching'):
+            return
+        with self.lock:
+            active = self.active
+        expected = {k:active[k] for k in ('generation','epoch','input')} if active else None
+        predecessor = (json.loads(self.pending.predecessor_json) if self.pending else
+            json.loads(self.launch_sql_predecessor[1]) if getattr(self,'launch_sql_predecessor',(None,))[0]==actor.get('actor_token') else
+            json.loads(getattr(self.lane,'launch_predecessor_json','null'))
+            if getattr(self.lane,'launch_token',None)==actor.get('actor_token') else None)
+        if (expected!=actor.get('binding') or previous!=predecessor
+                or previous and (previous.get('state')!='idle' or previous.get('incarnation')!=self.identity)):
+            raise PhysicalUnavailable('exit_journal_binding_changed')
+
+    def pending_evidence(self):
+        pending = self.pending
+        if pending is None: return None
+        job=json.loads(pending.job_json)
+        return {'job':{k:job[k] for k in ('id','origin','generation','epoch','input')},
+                'actor':json.loads(pending.actor_json),'status':pending.status,
+                'started':pending.started,'cancelled':pending.cancellation.is_set()}
+
+    def _finalize_pending(self):
+        pending=self.pending
+        job=json.loads(pending.job_json);actor=json.loads(pending.actor_json)
+        if not pending.cancellation.is_set(): raise PhysicalUnavailable('finalization_not_fenced')
+        if actor and actor.get('binding')=={k:job[k] for k in ('generation','epoch','input')}:
+            for attempt in range(1, EXIT_PERSISTENCE_ATTEMPTS+1):
+                if self.stop.is_set():
+                    self.finalization_events.append({'operation':'exit_persistence','event':'stopped','code':'finalization_stopped','at':time.monotonic()})
+                    raise PhysicalUnavailable('finalization_stopped')
+                if time.monotonic()-pending.started>=EXIT_PERSISTENCE_START_SECONDS:
+                    self.finalization_events.append({'operation':'exit_persistence','event':'start_limit','code':'exit_persistence_start_limit','at':time.monotonic()})
+                    raise PhysicalUnavailable('exit_persistence_start_limit')
+                entry={'operation':'exit_persistence','event':'attempt','attempt':attempt,'at':time.monotonic(),
+                       'actor_token':actor['actor_token']}
+                self.finalization_events.append(entry)
+                try:
+                    receipt=self.record_exit()
+                except Exception as exc:
+                    error=_persistence_error(exc)
+                    self.finalization_events.append({**entry,'event':'error','error':error,'at':time.monotonic()})
+                    if not error['transient'] or attempt==EXIT_PERSISTENCE_ATTEMPTS:
+                        self.finalization_events.append({**entry,'event':'exhausted' if error['transient'] else 'unclassified','at':time.monotonic()})
+                        raise
+                    self.finalization_events.append({**entry,'event':'retry','at':time.monotonic()})
+                    if self.stop.wait(CONTROL_CADENCE_SECONDS):
+                        self.finalization_events.append({**entry,'event':'stopped','code':'finalization_stopped','at':time.monotonic()})
+                        raise PhysicalUnavailable('finalization_stopped') from exc
+                else:
+                    self.finalization_events.append({**entry,'event':'ack','receipt':receipt,'at':time.monotonic()})
+                    break
+        if self.stop.is_set():
+            self.finalization_events.append({'operation':'owner_finish','event':'stopped','code':'finalization_stopped','at':time.monotonic()})
+            raise PhysicalUnavailable('finalization_stopped')
+        self.finalization_events.append({'operation':'owner_finish','event':'attempt','at':time.monotonic()})
+        try:
+            self.finish(job,pending.status,json.loads(pending.value_json))
+        except Exception as exc:
+            self.finalization_events.append({'operation':'owner_finish','event':'error','at':time.monotonic(),'error':_persistence_error(exc)})
+            raise
+        self.finalization_events.append({'operation':'owner_finish','event':'ack','at':time.monotonic()})
+        with self.lock:
+            self.active=None
+            self.pending=None
+            self.retiring=False
+            self.renewal_phase+=1
+            self.allowed=False  # Next work requires a new completed renewal.
 
     def renew(self):
         """I/O runs independently. Only completed current checks renew permission."""
@@ -148,6 +299,13 @@ class Supervisor:
             # SQL admission and the independent physical permission are distinct:
             # publication is actionable only within this validation/commit cycle.
             # Sample UTC first so its bound cannot exceed the monotonic budget.
+            with self.lock:
+                phase = self.renewal_phase
+                active = self.active
+                blocked = self.retiring or self.pending is not None
+            if blocked:
+                self.stop.wait(CONTROL_CADENCE_SECONDS)
+                continue
             started_utc = datetime.utcnow()
             started = time.monotonic()
             valid = False
@@ -159,8 +317,6 @@ class Supervisor:
                         db.execute(text("SET LOCAL statement_timeout='200ms'"))
                         db.execute(text("SET LOCAL lock_timeout='200ms'"))
                     row = self._bound(db)
-                    with self.lock:
-                        active = self.active
                     valid = row is not None and len(self.cleanups)<2
                     if active:
                         run = db.query(Run).options(defer(Run.result)).filter_by(id=active['id'],
@@ -169,7 +325,7 @@ class Supervisor:
                         if valid and run.origin == 'automatic' and db.query(Run.id).filter_by(origin='manual', status='queued').first():
                             priority = True
                             valid = False
-                    if valid and time.monotonic() - started < PROFILE['poll_seconds']:
+                    if valid and self._renewal_current(phase) and time.monotonic() - started < PROFILE['poll_seconds']:
                         # Publish only against the exact still-bound generation.
                         # Do not overwrite a concurrent drain/replacement's row
                         # with readiness derived from an older observation.
@@ -182,8 +338,10 @@ class Supervisor:
                             Control.readiness_sequence: Control.readiness_sequence+1}, synchronize_session=False)
                         if updated != 1:
                             db.rollback()
-                            self.allowed = False
-                            self.retirement_reason = 'permission'
+                            with self.lock:
+                                self.permission_decision = self._decision(active, 'permission')
+                                self.allowed = False
+                                self.retirement_reason = 'permission'
                             self.control_observation = {'state':'generation_changed', 'duration_seconds':time.monotonic()-started}
                             self.stop.wait(max(0., CONTROL_CADENCE_SECONDS-(time.monotonic()-started)))
                             continue
@@ -192,20 +350,32 @@ class Supervisor:
                         # not only validation before commit. A late publication's
                         # SQL deadline is already expired, including before the
                         # local denial assignment or any best-effort cleanup.
-                        if time.monotonic() - started < PROFILE['poll_seconds']:
-                            self.permission_until = time.monotonic() + PROFILE['permission_seconds']
-                            self.allowed = True
-                            self.retirement_reason = None
-                        else:
-                            self.allowed = False
-                            self.retirement_reason = 'permission'
+                        decision_actor = self.lane.actor() if active else None
+                        with self.lock:
+                            if (not self.retiring and self.pending is None and phase==self.renewal_phase
+                                    and time.monotonic() - started < PROFILE['poll_seconds']):
+                                self.permission_decision = self._decision(active, None, decision_actor)
+                                self.permission_until = time.monotonic() + PROFILE['permission_seconds']
+                                self.allowed = True
+                                self.retirement_reason = None
+                            else:
+                                self.permission_decision = self._decision(active, 'permission', decision_actor)
+                                self.allowed = False
+                                self.retirement_reason = 'permission'
                     else:
-                        self.allowed = False
-                        self.retirement_reason = 'priority' if priority else 'permission'
-                    self.control_observation = {'state':'ready' if self.allowed else 'denied' if not valid else 'deadline', 'duration_seconds':time.monotonic()-started}
+                        decision_actor = self.lane.actor() if active else None
+                        with self.lock:
+                            self.permission_decision = self._decision(active, 'priority' if priority else 'permission', decision_actor)
+                            self.allowed = False
+                            self.retirement_reason = 'priority' if priority else 'permission'
+                    self.control_observation = {'state':'finalization_pending' if self.retiring or self.pending is not None else 'phase_changed' if phase!=self.renewal_phase else 'ready' if self.allowed else 'denied' if not valid else 'deadline', 'duration_seconds':time.monotonic()-started}
             except Exception as exc:
-                self.allowed = False
-                self.retirement_reason = 'permission'
+                try: decision_actor = self.lane.actor() if active else None
+                except Exception: decision_actor = None
+                with self.lock:
+                    self.permission_decision = self._decision(active, 'permission', decision_actor)
+                    self.allowed = False
+                    self.retirement_reason = 'permission'
                 self.control_observation = {'state':type(exc).__name__, 'duration_seconds':time.monotonic()-started}
             self.stop.wait(max(0., CONTROL_CADENCE_SECONDS - (time.monotonic() - started)))
 
@@ -244,7 +414,7 @@ class Supervisor:
                     if db.query(Run.id).filter_by(user_id=owner, origin='automatic').filter(Run.status.in_(service.ACTIVE)).first():
                         return
                     control = self._bound(db)
-                    if control is None or not self.allowed:
+                    if control is None or not self.allowed or self.retiring or self.pending is not None:
                         return
                     if db.query(Run.id).filter(Run.status.in_(service.ACTIVE)).count() >= service.MAX_ACTIVE_GLOBAL:
                         receipt.disposition = 'capacity_denied'; db.commit(); return
@@ -279,7 +449,7 @@ class Supervisor:
                 with service.owner_write(db, owner):
                     control = self._bound(db)
                     run = db.query(Run).filter_by(id=run_id, status='queued').with_for_update().first()
-                    if control is None or not self.allowed or time.monotonic() >= self.permission_until: return None
+                    if control is None or self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     if run is None: continue
                     if not service._current(db, run):
                         if dfa_rights.permanently_invalid(db, run):
@@ -293,9 +463,9 @@ class Supervisor:
                     # not consume queued work/recovery for an already denied
                     # acquisition. Refresh the serialized control facts too;
                     # _bound uses populate_existing rather than cached ORM data.
-                    if not self.allowed or time.monotonic() >= self.permission_until: return None
+                    if self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     control = self._bound(db)
-                    if control is None or not self.allowed or time.monotonic() >= self.permission_until: return None
+                    if control is None or self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     # This is not a reservation across commit. Work/reactor and
                     # publication retain their independent late-change fences.
                     run.status, run.progress = 'running', 'reading'
@@ -343,30 +513,34 @@ class Supervisor:
             if time.monotonic() - started > service.MAX_EXECUTION_SECONDS:
                 raise ValueError("execution_time_limit")
             binding = {key: job[key] for key in ('generation','epoch','input')}
+            with self.controls() as db:
+                control=self._bound(db)
+                if control is None: raise ValueError('binding_changed')
+                sql_predecessor=deepcopy(control.actor)
+                if sql_predecessor and (sql_predecessor.get('state')!='idle'
+                        or sql_predecessor.get('incarnation')!=self.identity
+                        or sql_predecessor.get('exit_observed_at') is None):
+                    raise ValueError('binding_changed')
             with self.physical_mutex:
                 if cancellation.is_set() or not self.allowed or time.monotonic() > self.permission_until:
                     raise ValueError("permission_expired")
+                local_predecessor=self.lane.actor()
+                if local_predecessor and sql_predecessor is not None and local_predecessor!=sql_predecessor:
+                    raise ValueError('binding_changed')
                 launch_attempted = True
                 cancellation.launch_attempted = True
                 actor, child = self.lane.launch(binding, authorized=True)
+                self.launch_sql_predecessor=(actor['actor_token'],json.dumps(sql_predecessor))
             # Acknowledged local journal is durable before any private bytes flow.
             with self.controls() as db:
                 control = self._bound(db)
                 if control is None or cancellation.is_set():
                     raise ValueError('binding_changed')
                 previous = control.actor
-                guard = db.query(Control).filter_by(id=1, epoch=self.identity['epoch'], enabled=True, drained=False)
-                for key, value in self.identity.items():
-                    field = Control.incarnation[key]
-                    guard = guard.filter((field.as_integer() if key=='epoch' else field.as_string()) == value)
-                if previous is None:
-                    # JSON(None) and SQL NULL both decode as None. Match those
-                    # exact absent encodings; never treat a malformed object as
-                    # an empty predecessor or use unsupported PostgreSQL JSON =.
-                    guard = guard.filter(or_(Control.actor.is_(None), cast(Control.actor, String)=='null'))
-                else:
-                    guard = guard.filter(Control.actor['actor_token'].as_string()==previous['actor_token'],
-                                         Control.actor['state'].as_string()==previous['state'])
+                predecessor=sql_predecessor
+                if previous is not None and previous!=predecessor:
+                    raise ValueError('binding_changed')
+                guard = self._actor_guard(db, previous)
                 # Exit publication may win while this I/O call is blocked. A
                 # late acknowledgement must not overwrite that receipt/new actor.
                 if guard.update({Control.actor:actor}, synchronize_session=False)!=1:
@@ -416,31 +590,35 @@ class Supervisor:
                             pass
 
     def record_exit(self):
-        """Physical availability commits independently from owner cleanup I/O."""
+        """Project only the exact verified exit; an existing receipt is idempotent."""
         actor = self.lane.actor()
-        if actor is None or actor.get('state') != 'idle':
+        pending = self.pending
+        if (actor is None or actor.get('state')!='idle' or actor.get('exit_observed_at') is None
+                or actor.get('incarnation')!=self.identity
+                or actor.get('binding',{}).get('epoch')!=str(self.identity['epoch'])
+                or pending and actor!=json.loads(pending.actor_json)):
             raise PhysicalUnavailable('exit_not_observed')
         with self.controls() as db:
-            if db.get_bind().dialect.name == 'postgresql':
+            if db.get_bind().dialect.name=='postgresql':
                 db.execute(text("SET LOCAL statement_timeout='200ms'"))
                 db.execute(text("SET LOCAL lock_timeout='200ms'"))
-            control = db.query(Control).filter_by(id=1).with_for_update().first()
-            if control is None or control.incarnation != self.identity or control.epoch != self.identity['epoch']:
+            control = db.query(Control).filter_by(id=1).populate_existing().first()
+            if (control is None or control.incarnation!=self.identity or control.epoch!=self.identity['epoch']
+                    or not control.enabled or control.drained):
                 raise PhysicalUnavailable('exit_journal_binding_changed')
-            previous = control.actor
-            if not previous or previous.get('actor_token') != actor['actor_token']:
-                # A bounded acknowledgement query can fail after the local
-                # journal recorded this live supervisor's child. Its verified
-                # exit is safe to project over an empty/idle predecessor only,
-                # after irreversible cancellation fenced further launches and
-                # acknowledgement CAS. Never replace another actor.
-                with self.lock:
-                    active = self.active
-                expected = {key: active[key] for key in ('generation','epoch','input')} if active else None
-                if (expected != actor.get('binding') or previous and previous.get('state') != 'idle'):
-                    raise PhysicalUnavailable('exit_journal_binding_changed')
-            control.actor = actor
+            previous=deepcopy(control.actor)
+            self._exit_predecessor(previous,actor)
+            observed_at=time.monotonic()
+            already_durable=previous==actor
+            if self._actor_guard(db,previous).update({Control.actor:actor},synchronize_session=False)!=1:
+                db.rollback()
+                raise PhysicalUnavailable('exit_journal_binding_changed')
             db.commit()
+            # Same-value CAS also fences a concurrently replaced host/actor on
+            # lost-ACK reconciliation. This ACK is for this fresh transaction,
+            # never a reconstructed timestamp of the original successful commit.
+            return {'kind':'already_durable' if already_durable else 'commit_ack',
+                    'at':time.monotonic(),'observed_at':observed_at,'actor_token':actor['actor_token']}
 
     def finish(self, job, status, value):
         from api import activity_dfa as service
@@ -472,9 +650,31 @@ class Supervisor:
                     run.completed_at = datetime.utcnow() if run.status != 'queued' else None
                     run.expires_at = datetime.utcnow() + timedelta(days=30 if run.status == 'complete' else 7)
                     run.lease_token = run.lease_until = None
-                control = db.query(Control).filter_by(id=1).first()
-                if control and control.incarnation == self.identity:
-                    control.actor = self.lane.actor()
+                if run:
+                    fields = ('result','result_revision','status','progress','retained_bytes','recoveries',
+                              'error_code','completed_at','expires_at','lease_token','lease_until')
+                    values = {getattr(Run,key):getattr(run,key) for key in fields}
+                    db.expunge(run)  # Do not let an id-only ORM flush cross a generation fence.
+                    if db.query(Run).filter_by(id=job['id'],generation=job['generation'],
+                            status='running',execution_epoch=job.get('epoch',str(self.identity['epoch'])),
+                            input_digest=job.get('input',run.input_digest)).update(values,synchronize_session=False)!=1:
+                        raise PhysicalUnavailable('finish_run_binding_changed')
+                control = self._bound(db)
+                if control is None: raise PhysicalUnavailable('finish_control_binding_changed')
+                previous=deepcopy(control.actor)
+                actor=self.lane.actor()
+                if self.pending and actor!=json.loads(self.pending.actor_json):
+                    raise PhysicalUnavailable('finish_actor_binding_changed')
+                if actor is not None:
+                    if actor.get('state')!='idle' or actor.get('exit_observed_at') is None:
+                        raise PhysicalUnavailable('finish_exit_not_observed')
+                    self._exit_predecessor(previous,actor)
+                elif previous is not None:
+                    raise PhysicalUnavailable('finish_actor_binding_changed')
+                if self.pending and previous!=actor:
+                    raise PhysicalUnavailable('finish_actor_binding_changed')
+                if self._actor_guard(db,previous).update({Control.actor:actor},synchronize_session=False)!=1:
+                    raise PhysicalUnavailable('finish_actor_binding_changed')
                 db.commit()
 
     def reconcile_recovery(self):
@@ -524,10 +724,24 @@ class Supervisor:
                 self.cleanups = [thread for thread in self.cleanups if thread.is_alive()]
                 if job:
                     ready = not outputs.empty()
-                    expired = time.monotonic() > self.permission_until or not self.allowed
+                    actor_before = self.lane.actor()
+                    with self.lock:
+                        expired = time.monotonic() > self.permission_until or not self.allowed
+                        decision = deepcopy(self.permission_decision)
                     from api.activity_dfa import MAX_EXECUTION_SECONDS
                     timed_out = time.monotonic() - launched_at > MAX_EXECUTION_SECONDS
                     if expired or timed_out or ready:
+                        trigger_priority = bool(expired and decision and decision['reason']=='priority'
+                            and decision['job']=={k:job[k] for k in ('id','generation','epoch','input')}
+                            and _same_actor(decision['actor'],actor_before))
+                        status, value = outputs.get() if ready else ('failed','execution_unavailable')
+                        if status!='failed_before_spawn' and (expired or timed_out):
+                            status,value = ('failed','execution_time_limit') if timed_out else ('preempted',None) if trigger_priority else ('failed','permission_expired')
+                        chosen_value_json=json.dumps(value)
+                        with self.lock:
+                            self.retiring=True
+                            self.renewal_phase+=1
+                            self.allowed=False
                         self.retired.set()
                         cancellation.set()
                         with self.physical_mutex:
@@ -537,18 +751,17 @@ class Supervisor:
                         # private queue is discarded rather than joined here.
                         if work_thread.is_alive():
                             self.cleanups.append(work_thread)
-                        status, value = outputs.get() if not outputs.empty() else ('failed','execution_unavailable')
-                        if status!='failed_before_spawn' and (expired or timed_out):
-                            status,value = ('failed','execution_time_limit') if timed_out else ('preempted',None) if self.retirement_reason=='priority' else ('failed','permission_expired')
                         actor = self.lane.actor()
-                        if actor and actor.get('binding')=={key:job[key] for key in ('generation','epoch','input')}:
-                            self.record_exit()
-                        elif (getattr(cancellation, 'launch_attempted', False)
-                              or actor and actor.get('state')!='idle'):
-                            raise PhysicalUnavailable('launch_exit_uncertain')
-                        self.finish(job, status, value)
-                        with self.lock:
-                            self.active = None
+                        if not (actor and actor.get('binding')=={key:job[key] for key in ('generation','epoch','input')}):
+                            if (getattr(cancellation,'launch_attempted',False) or actor and actor.get('state')!='idle'):
+                                raise PhysicalUnavailable('launch_exit_uncertain')
+                        self.pending=PendingFinalization(json.dumps(job),json.dumps(actor),
+                            self.launch_sql_predecessor[1] if actor and
+                            getattr(self,'launch_sql_predecessor',(None,))[0]==actor.get('actor_token') else
+                            getattr(self.lane,'launch_predecessor_json','null') if actor and
+                            getattr(self.lane,'launch_token',None)==actor.get('actor_token') else 'null',status,
+                            chosen_value_json,cancellation,time.monotonic())
+                        self._finalize_pending()
                         job = None
                 elif self.allowed and time.monotonic() < self.permission_until:
                     if len(self.cleanups)>=2:
