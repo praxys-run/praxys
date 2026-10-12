@@ -53,7 +53,7 @@ Component({
       const statusText = this.data.failed ? t("Couldn't load Coach. Try again.")
         : this.data.loading ? t('Loading Coach…')
         : response?.ai_available === false ? t('Azure AI insights are temporarily unavailable.')
-        : response?.content_status === 'unavailable' ? t('Coach analysis is unavailable. Training metrics remain available.')
+        : response?.content_status === 'unavailable' ? t("Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.")
         : daily && (!this.data.snapshot || response?.content_status === 'stale') ? t('Coach needs a refreshed training snapshot.')
         : !insight ? t('Coach is waiting for a current analysis.') : '';
       this.setData({

@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:297
+#: src/components/AiInsightsCard.tsx:298
 msgid " · "
 msgstr " · "
 
@@ -36,12 +36,12 @@ msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, one {# activity} other {# activities}}"
 
 #. placeholder {0}: displayedContent.findings.length
-#: src/components/AiInsightsCard.tsx:295
+#: src/components/AiInsightsCard.tsx:296
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, one {# finding} other {# findings}}"
 
 #. placeholder {0}: remainingRecommendations.length
-#: src/components/AiInsightsCard.tsx:299
+#: src/components/AiInsightsCard.tsx:300
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, one {# recommendation} other {# recommendations}}"
 
@@ -1483,8 +1483,8 @@ msgstr "Awaiting triage decision"
 #~ msgid "Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude."
 #~ msgstr "Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude."
 
-#: src/components/AiInsightsCard.tsx:92
-#: src/components/AiInsightsCard.tsx:237
+#: src/components/AiInsightsCard.tsx:93
+#: src/components/AiInsightsCard.tsx:238
 msgid "Azure AI insights are temporarily unavailable."
 msgstr "Azure AI insights are temporarily unavailable."
 
@@ -1751,7 +1751,7 @@ msgstr "Can you access a continuous, nontechnical uphill for at least 3 minutes?
 msgid "Can you access terrain for controlled downhill training?"
 msgstr "Can you access terrain for controlled downhill training?"
 
-#: src/components/AiInsightsCard.tsx:398
+#: src/components/AiInsightsCard.tsx:399
 #: src/components/FeedbackDialog.tsx:784
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
@@ -2184,15 +2184,19 @@ msgstr "Closed"
 msgid "Closed · cap reached"
 msgstr "Closed · cap reached"
 
-#: src/components/AiInsightsCard.tsx:93
-msgid "Coach analysis is unavailable. Training metrics remain available."
-msgstr "Coach analysis is unavailable. Training metrics remain available."
+#: src/components/AiInsightsCard.tsx:94
+msgid "Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available."
+msgstr "Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available."
 
-#: src/components/AiInsightsCard.tsx:95
+#: src/components/AiInsightsCard.tsx:93
+#~ msgid "Coach analysis is unavailable. Training metrics remain available."
+#~ msgstr "Coach analysis is unavailable. Training metrics remain available."
+
+#: src/components/AiInsightsCard.tsx:96
 msgid "Coach is waiting for a current analysis."
 msgstr "Coach is waiting for a current analysis."
 
-#: src/components/AiInsightsCard.tsx:94
+#: src/components/AiInsightsCard.tsx:95
 msgid "Coach needs a refreshed training snapshot."
 msgstr "Coach needs a refreshed training snapshot."
 
@@ -2864,7 +2868,7 @@ msgstr "Couldn't check feedback status. Try again."
 msgid "Couldn't load announcements"
 msgstr "Couldn't load announcements"
 
-#: src/components/AiInsightsCard.tsx:90
+#: src/components/AiInsightsCard.tsx:91
 msgid "Couldn't load Coach. Try again."
 msgstr "Couldn't load Coach. Try again."
 
@@ -2893,7 +2897,7 @@ msgstr "Couldn't save changes."
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "Couldn't save. Check your connection and try again."
 
-#: src/components/AiInsightsCard.tsx:227
+#: src/components/AiInsightsCard.tsx:228
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "Couldn't send feedback. Try again."
@@ -3171,7 +3175,7 @@ msgstr "Data Preferences"
 msgid "Data synced successfully"
 msgstr "Data synced successfully"
 
-#: src/components/AiInsightsCard.tsx:281
+#: src/components/AiInsightsCard.tsx:282
 msgid "Data through"
 msgstr "Data through"
 
@@ -3509,7 +3513,7 @@ msgstr "Details"
 msgid "deterministic"
 msgstr "deterministic"
 
-#: src/components/AiInsightsCard.tsx:255
+#: src/components/AiInsightsCard.tsx:256
 msgid "Deterministic training summary"
 msgstr "Deterministic training summary"
 
@@ -4572,7 +4576,7 @@ msgstr "Feedback Type"
 msgid "Finding"
 msgstr "Finding"
 
-#: src/components/AiInsightsCard.tsx:307
+#: src/components/AiInsightsCard.tsx:308
 msgid "Findings"
 msgstr "Findings"
 
@@ -5051,7 +5055,7 @@ msgstr "Heat safety"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "Heat-adaptation evidence is decaying"
 
-#: src/components/AiInsightsCard.tsx:355
+#: src/components/AiInsightsCard.tsx:356
 msgid "Helpful"
 msgstr "Helpful"
 
@@ -5059,7 +5063,7 @@ msgstr "Helpful"
 msgid "Hide backfill"
 msgstr "Hide backfill"
 
-#: src/components/AiInsightsCard.tsx:291
+#: src/components/AiInsightsCard.tsx:292
 msgid "Hide details"
 msgstr "Hide details"
 
@@ -5690,7 +5694,7 @@ msgstr "Keeping plan…"
 #~ msgid "Kelly female-athlete evidence review"
 #~ msgstr "Kelly female-athlete evidence review"
 
-#: src/components/AiInsightsCard.tsx:278
+#: src/components/AiInsightsCard.tsx:279
 msgid "Key recommendation"
 msgstr "Key recommendation"
 
@@ -6012,7 +6016,7 @@ msgstr "Load balance (TSB)"
 msgid "Load compliance"
 msgstr "Load compliance"
 
-#: src/components/AiInsightsCard.tsx:91
+#: src/components/AiInsightsCard.tsx:92
 msgid "Loading Coach…"
 msgstr "Loading Coach…"
 
@@ -7393,7 +7397,7 @@ msgstr "Not established"
 msgid "Not evaluated"
 msgstr "Not evaluated"
 
-#: src/components/AiInsightsCard.tsx:365
+#: src/components/AiInsightsCard.tsx:366
 msgid "Not helpful"
 msgstr "Not helpful"
 
@@ -7769,7 +7773,7 @@ msgstr "Optional benchmark date"
 msgid "Optional coaching cue"
 msgstr "Optional coaching cue"
 
-#: src/components/AiInsightsCard.tsx:379
+#: src/components/AiInsightsCard.tsx:380
 msgid "Optional comment"
 msgstr "Optional comment"
 
@@ -8435,13 +8439,13 @@ msgstr "Praxys cannot interpret this revision safely."
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 msgstr "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 
-#: src/components/AiInsightsCard.tsx:258
-#: src/components/AiInsightsCard.tsx:266
-#: src/components/AiInsightsCard.tsx:273
+#: src/components/AiInsightsCard.tsx:259
+#: src/components/AiInsightsCard.tsx:267
+#: src/components/AiInsightsCard.tsx:274
 msgid "Praxys Coach"
 msgstr "Praxys Coach"
 
-#: src/components/AiInsightsCard.tsx:254
+#: src/components/AiInsightsCard.tsx:255
 msgid "Praxys Coach insight"
 msgstr "Praxys Coach insight"
 
@@ -9426,7 +9430,7 @@ msgstr "Recently observed footing"
 msgid "Recommendation available"
 msgstr "Recommendation available"
 
-#: src/components/AiInsightsCard.tsx:321
+#: src/components/AiInsightsCard.tsx:322
 msgid "Recommendations"
 msgstr "Recommendations"
 
@@ -9703,7 +9707,7 @@ msgid "References"
 msgstr "References"
 
 #: src/components/ActivityDFA.tsx:229
-#: src/components/AiInsightsCard.tsx:271
+#: src/components/AiInsightsCard.tsx:272
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
@@ -10896,7 +10900,7 @@ msgstr "semantic"
 #~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 #~ msgstr "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 
-#: src/components/AiInsightsCard.tsx:406
+#: src/components/AiInsightsCard.tsx:407
 msgid "Send"
 msgstr "Send"
 
@@ -10919,7 +10923,7 @@ msgstr "Sending an invitation reserves a seat. Self-registration closes automati
 #~ msgid "Sending workouts to {targetLabel}"
 #~ msgstr "Sending workouts to {targetLabel}"
 
-#: src/components/AiInsightsCard.tsx:406
+#: src/components/AiInsightsCard.tsx:407
 msgid "Sending..."
 msgstr "Sending..."
 
@@ -10933,7 +10937,7 @@ msgstr "Sending…"
 msgid "Sensitivity gate"
 msgstr "Sensitivity gate"
 
-#: src/components/AiInsightsCard.tsx:342
+#: src/components/AiInsightsCard.tsx:343
 msgid "Sent"
 msgstr "Sent"
 
@@ -12663,7 +12667,7 @@ msgstr "This imported or older workout has no portable tree. Edit its summary as
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 msgstr "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 
-#: src/components/AiInsightsCard.tsx:209
+#: src/components/AiInsightsCard.tsx:210
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "This insight changed. Refresh the page before sending feedback."
 
@@ -13226,11 +13230,11 @@ msgstr "Training Diagnosis"
 #~ msgid "Training Insights"
 #~ msgstr "Training Insights"
 
-#: src/components/AiInsightsCard.tsx:334
+#: src/components/AiInsightsCard.tsx:335
 msgid "Training methods"
 msgstr "Training methods"
 
-#: src/components/AiInsightsCard.tsx:258
+#: src/components/AiInsightsCard.tsx:259
 msgid "Training metrics"
 msgstr "Training metrics"
 
@@ -13890,8 +13894,8 @@ msgstr "Was the full effort a measured 10K?"
 msgid "Was the full effort a measured 5K?"
 msgstr "Was the full effort a measured 5K?"
 
-#: src/components/AiInsightsCard.tsx:346
-#: src/components/AiInsightsCard.tsx:350
+#: src/components/AiInsightsCard.tsx:347
+#: src/components/AiInsightsCard.tsx:351
 msgid "Was this insight useful?"
 msgstr "Was this insight useful?"
 
@@ -14070,7 +14074,7 @@ msgstr "What this can—and cannot—tell you"
 msgid "What was this full activity?"
 msgstr "What was this full activity?"
 
-#: src/components/AiInsightsCard.tsx:386
+#: src/components/AiInsightsCard.tsx:387
 msgid "What was useful or missing?"
 msgstr "What was useful or missing?"
 
