@@ -250,6 +250,9 @@ def test_running_mode_switch_exit_ack_finish_before_automatic_launch(both_origin
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from tests.dfa_capacity_worker import CapacityWorker
+    from tests.dfa_boundary_evidence import RenewalDecision, safe_binding
+    from api import dfa_rights
+    from api.dfa_supervisor import SAFE_FAILURES
     factory,owner=both_origins;_,manual=confirmed(factory,owner);sup=factory.dfa_supervisor
     url=factory.kw['bind'].url
     args={'timeout':.1} if url.get_backend_name()=='sqlite' else {'connect_timeout':1,'options':'-c statement_timeout=200 -c lock_timeout=200'}
@@ -273,7 +276,41 @@ else:
             command=[sys.executable,'-E','-B','-c',code];kw['pass_fds']=(*kw.get('pass_fds',()),write_fd)
         return actual_popen(command,**kw)
     monkeypatch.setattr(subprocess,'Popen',child)
-    events=[];launches=[];completed=threading.Event();errors=[]
+    events=[];launches=[];completed=threading.Event();errors=[];validations=[];finishes=[];modes=[];exit_receipts=[]
+    renewal=RenewalDecision(sup,monkeypatch)
+    actual_acquire=sup.acquire_job;start_barrier_used=False
+    def acquire():
+        nonlocal start_barrier_used
+        job=actual_acquire()
+        if job and job['origin']=='manual' and not start_barrier_used:
+            start_barrier_used=True
+            events.append(('acquisition_commit_return',time.monotonic()))
+            # acquire_job has exited its owner transaction. Both SQLite and PG
+            # can now publish a genuine control renewal without a writer cycle.
+            renewal.arm();renewal.wait()
+        return job
+    monkeypatch.setattr(sup,'acquire_job',acquire)
+    actual_source_current=service._current
+    def source_current(db,run):
+        before=time.monotonic();result=actual_source_current(db,run)
+        validations.append({'source_call':'_current','before':before,'after':time.monotonic(),
+            'job':safe_binding({'id':run.id,'generation':run.generation,'origin':run.origin,'phase':run.phase}),
+            'current':result,'thread':threading.current_thread().name})
+        return result
+    monkeypatch.setattr(service,'_current',source_current)
+    actual_current=dfa_rights.execution_current
+    def current(db,run):
+        before=time.monotonic();result=actual_current(db,run)
+        validations.append({'source_call':'execution_current','before':before,'after':time.monotonic(),
+            'job':safe_binding({'id':run.id,'generation':run.generation,'origin':run.origin,'phase':run.phase}),
+            'current':result,'thread':threading.current_thread().name})
+        return result
+    monkeypatch.setattr(dfa_rights,'execution_current',current)
+    actual_mode=dfa_rights.account_mode
+    def mode(db,owner):
+        value=actual_mode(db,owner);modes.append({'at':time.monotonic(),'mode':value,
+                                               'thread':threading.current_thread().name});return value
+    monkeypatch.setattr(dfa_rights,'account_mode',mode)
     actual_launch=sup.lane.launch
     def launch(*a,**kw):
         if launches: assert sup.pending is None and sup.active['origin']=='automatic'
@@ -281,10 +318,26 @@ else:
     monkeypatch.setattr(sup.lane,'launch',launch)
     actual_exit=sup.record_exit
     def exited():
-        result=actual_exit();events.append(('exit_ack',time.monotonic()));return result
+        result=actual_exit();events.append(('exit_ack',time.monotonic()))
+        exit_receipts.append({'kind':result['kind'],'at':result['at'],
+            'observed_at':result['observed_at'],'actor':safe_binding(sup.lane.actor())})
+        return result
     monkeypatch.setattr(sup,'record_exit',exited)
     actual_finish=sup.finish
     def finish(job,status,value):
+        with sup.lock:
+            decision=deepcopy(sup.permission_decision);allowed=sup.allowed;deadline=sup.permission_until
+        pending=sup.pending
+        # Snapshot before finish/phase cleanup; never log output payloads.
+        finishes.append({'at':time.monotonic(),'job':safe_binding(job),'status':status,
+            'reason':value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None,
+            'actor':safe_binding(sup.lane.actor()),'allowed':allowed,'permission_until':deadline,
+            'decision':None if decision is None else {'at':decision['at'],'reason':decision['reason'],
+                'phase':decision['phase'],'job':safe_binding(decision['job']),
+                'actor':safe_binding(decision['actor'])},
+            'cancelled':pending.cancellation.is_set() if pending else None,
+            'pending_status':pending.status if pending else None,
+            'last_mode':deepcopy(modes[-1]) if modes else None})
         actual_finish(job,status,value);events.append(('finish_'+job['origin'],time.monotonic()))
         if job['origin']=='automatic':completed.set()
     monkeypatch.setattr(sup,'finish',finish)
@@ -292,6 +345,8 @@ else:
     try:
         assert select.select([read_fd],[],[],5)[0],monitor.evidence()
         assert os.read(read_fd,1)==b'M'
+        events.append(('manual_payload_handshake',time.monotonic()))
+        assert len(launches)==1 and launches[0]['state']=='occupied'
         complete_unit(factory,owner)  # Actual new sync; ON, no manual bypass.
         assert completed.wait(15),monitor.evidence()
         wait_for(lambda:sup.pending is None and sup.active is None)
@@ -301,11 +356,19 @@ else:
             assert auto.status=='complete' and auto.result['summary']['valid_windows']>0
         assert len(launches)==2 and not errors
         first_finish=next(at for event,at in events if event=='finish_manual')
-        assert any(event=='exit_ack' and at<=first_finish for event,at in events)
+        manual_actor=safe_binding(launches[0])['actor']
+        exact_exit=next(receipt for receipt in exit_receipts if receipt['actor']['actor']==manual_actor)
+        assert exact_exit['actor']['binding']==safe_binding(launches[0])['binding']
+        assert launches[0]['launch_at']<=exact_exit['actor']['exit_observed_at']<=exact_exit['at']<=first_finish
+        assert next(value for value in finishes if value['job']['origin']=='manual')['actor']['actor']==manual_actor
         assert first_finish<=launches[1]['launch_at'] and launches[1]['launch_at']>=launches[0]['launch_at']
     finally:
         monitor.close();os.close(read_fd);os.close(write_fd);engine.dispose()
-        (tmp_path/'mode-switch-evidence.json').write_text(__import__('json').dumps({'events':events,'launches':launches,'monitor':monitor.evidence()},indent=2))
+        (tmp_path/'mode-switch-evidence.json').write_text(__import__('json').dumps({
+            'events':events,'launches':[safe_binding(actor) for actor in launches],
+            'monitor':monitor.evidence(),'finishes':finishes,'validations':validations,
+            'mode_evaluations':modes,'renewal_boundary':renewal.events,
+            'exit_receipts':exit_receipts},indent=2))
 
 
 def test_actual_installed_sdk_invalid_input_false_is_unknown(monkeypatch):
