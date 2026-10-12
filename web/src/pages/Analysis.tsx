@@ -13,6 +13,7 @@ import {
 } from '@/components/HeatAdaptationPanel';
 import MetricDetailSheet, { type MetricSheetSize } from '@/components/MetricDetailSheet';
 import ZoneAnalysisCard from '@/components/ZoneAnalysisCard';
+import ZoneExclusions from '@/components/ZoneExclusions';
 import ComplianceChart from '@/components/charts/ComplianceChart';
 import FitnessFatigueChart from '@/components/charts/FitnessFatigueChart';
 import WeeklyVolumeChart from '@/components/charts/WeeklyVolumeChart';
@@ -263,19 +264,22 @@ export default function Analysis() {
       ),
       sheetSize: distributionDetailAvailable ? 'wide' : 'standard',
       detail: (
-        <DataHint
-          sufficient={distributionDetailAvailable}
-          message={t`Not enough complete intensity data for zone comparison`}
-          hint={t`Sync split or sample data with enough duration coverage to compare against the selected theory.`}
-        >
-          <ZoneAnalysisCard
-            distribution={data.diagnosis.distribution}
-            zoneRanges={data.diagnosis.zone_ranges}
-            theoryName={data.diagnosis.theory_name}
-            display={activeDisplay ?? undefined}
-            theoryDescription={data.science_notes?.zones?.description}
-          />
-        </DataHint>
+        <>
+          <ZoneExclusions excluded={data.diagnosis.data_meta.distribution_excluded_activities} />
+          <DataHint
+            sufficient={distributionDetailAvailable}
+            message={t`Not enough complete intensity data for zone comparison`}
+            hint={t`Sync split or sample data with enough duration coverage to compare against the selected theory.`}
+          >
+            <ZoneAnalysisCard
+              distribution={data.diagnosis.distribution}
+              zoneRanges={data.diagnosis.zone_ranges}
+              theoryName={data.diagnosis.theory_name}
+              display={activeDisplay ?? undefined}
+              theoryDescription={data.science_notes?.zones?.description}
+            />
+          </DataHint>
+        </>
       ),
     },
     {

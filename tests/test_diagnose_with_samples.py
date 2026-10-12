@@ -516,3 +516,72 @@ def test_non_running_power_samples_do_not_enable_distribution():
     assert result["data_meta"]["distribution_resolution"] == "unavailable"
     assert result["data_meta"]["distribution_complete"] is False
     assert result["data_meta"]["distribution_coverage_pct"] == 0
+
+
+@pytest.mark.parametrize('evidence_kind', ['splits', 'samples'])
+def test_runs_without_power_are_excluded_and_reported(evidence_kind):
+    """No power is outside this comparison; one complete run remains usable."""
+    activities = _activities([
+        {'activity_id': 'recorded', 'date': _recent(1), 'duration_sec': 100, 'activity_type': 'running', 'distance_km': 1},
+        {'activity_id': 'unrecorded', 'date': _recent(1), 'duration_sec': 100, 'activity_type': 'trail_running', 'distance_km': 1, 'avg_power': 250},
+    ])
+    splits = _splits([
+        {'activity_id': 'recorded', 'duration_sec': 100, 'avg_power': 175 if evidence_kind == 'splits' else None},
+        {'activity_id': 'unrecorded', 'duration_sec': 100, 'avg_power': None},
+    ])
+    samples = _samples([
+        {'activity_id': aid, 't_sec': second, 'power_watts': 175 if aid == 'recorded' else None}
+        for aid in ('recorded', 'unrecorded') for second in range(100)
+    ]) if evidence_kind == 'samples' else None
+    result = diagnose_training(activities, splits, _cp_trend(), samples=samples, current_date=_today())
+    meta = result['data_meta']
+    assert meta['distribution_complete'] is True
+    assert meta['distribution_coverage_pct'] == 100
+    assert meta['distribution_excluded_activities'] == [{
+        'activity_id': 'unrecorded', 'date': _recent(1), 'duration_sec': 100.0, 'reason': 'no_usable_power',
+    }]
+    assert result['consistency']['total_sessions'] == 2
+    assert result['interval_power']['activities_expected'] == 2
+    assert result['interval_power']['evidence_complete'] is False
+
+
+def test_sparse_recorded_power_is_not_excluded_to_make_comparison_pass():
+    activities = _activities([
+        {'activity_id': 'partial', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+        {'activity_id': 'absent', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+    ])
+    splits = _splits([
+        {'activity_id': 'partial', 'duration_sec': 89, 'avg_power': 175},
+        {'activity_id': 'absent', 'duration_sec': 100, 'avg_power': None},
+    ])
+    result = diagnose_training(activities, splits, _cp_trend(), current_date=_today())
+    assert result['data_meta']['distribution_complete'] is False
+    assert result['data_meta']['distribution_coverage_pct'] == 89
+    assert [a['activity_id'] for a in result['data_meta']['distribution_excluded_activities']] == ['absent']
+
+
+def test_all_runs_without_power_report_exclusions_and_no_comparison():
+    activities = _activities([{'activity_id': 'absent', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1}])
+    result = diagnose_training(activities, pd.DataFrame(), _cp_trend(), current_date=_today())
+    assert result['data_meta']['distribution_complete'] is False
+    assert result['data_meta']['distribution_coverage_pct'] == 0
+    assert len(result['data_meta']['distribution_excluded_activities']) == 1
+
+
+@pytest.mark.parametrize('evidence_kind', ['splits', 'samples'])
+def test_recorded_power_with_invalid_timing_still_blocks_comparison(evidence_kind):
+    """An observed power channel with bad timing is incomplete, not absent."""
+    activities = _activities([
+        {'activity_id': 'complete', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+        {'activity_id': 'bad-timing', 'date': _recent(1), 'duration_sec': 100, 'distance_km': 1},
+    ])
+    splits = _splits([{'activity_id': 'complete', 'avg_power': 175, 'duration_sec': 100}])
+    samples = None
+    if evidence_kind == 'splits':
+        splits = pd.concat([splits, _splits([{'activity_id': 'bad-timing', 'avg_power': 175, 'duration_sec': None}])], ignore_index=True)
+    else:
+        samples = _samples([{'activity_id': 'bad-timing', 'power_watts': 175, 't_sec': None}])
+    result = diagnose_training(activities, splits, _cp_trend(), samples=samples, current_date=_today())
+    assert result['data_meta']['distribution_complete'] is False
+    assert result['data_meta']['distribution_excluded_activities'] == []
+    assert result['data_meta']['distribution_coverage_pct'] == 50

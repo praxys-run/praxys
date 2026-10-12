@@ -664,8 +664,11 @@ def _call_azure_context_model(
         with _suppress_openai_sdk_logs():
             response = private_client.chat.completions.create(
                 model=llm.INSIGHT_MODEL,
-                max_completion_tokens=160,
-                temperature=0,
+                **llm.completion_options(
+                    model=llm.INSIGHT_MODEL,
+                    max_completion_tokens=160,
+                    temperature=0,
+                ),
                 timeout=30.0,
                 response_format={"type": "json_object"},
                 messages=[
@@ -673,6 +676,15 @@ def _call_azure_context_model(
                     {"role": "user", "content": request.user_prompt},
                 ],
             )
+            llm.record_token_usage(
+                response,
+                model=llm.INSIGHT_MODEL,
+                insight_type="personal_context",
+            )
+            if getattr(response.choices[0], "finish_reason", None) in {"length", "content_filter"}:
+                logger.warning("Personal-context model response truncated or filtered")
+                llm.record_runtime_provider_failure()
+                return None
             content = response.choices[0].message.content
     except (
         APIError,

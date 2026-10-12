@@ -126,6 +126,28 @@ def test_significant_ctl_change_invalidates_hash():
            compute_dataset_hash(ctx_b, "daily_brief", science_pillars=PILLARS)
 
 
+def test_forecast_threshold_provenance_change_invalidates_hash():
+    a = _ctx_race()
+    b = _ctx_race()
+    a["athlete_profile"]["threshold"] = 260
+    b["athlete_profile"]["threshold"] = 280
+    assert compute_dataset_hash(a, "race_forecast") != compute_dataset_hash(b, "race_forecast")
+
+
+@pytest.mark.parametrize(
+    "insight_type,version_name,context",
+    [
+        ("training_review", "TRAINING_REVIEW_PROMPT_VERSION", _ctx_review),
+        ("race_forecast", "RACE_FORECAST_PROMPT_VERSION", _ctx_race),
+    ],
+)
+def test_grounding_prompt_revision_invalidates_hash(monkeypatch, insight_type, version_name, context):
+    from analysis import insight_hash
+    original = compute_dataset_hash(context(), insight_type)
+    monkeypatch.setattr(insight_hash, version_name, "next-revision")
+    assert original != compute_dataset_hash(context(), insight_type)
+
+
 def test_target_time_change_affects_race_forecast_and_daily_brief():
     ctx_a = _ctx_race()
     ctx_b = _ctx_race()

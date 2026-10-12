@@ -3309,6 +3309,7 @@ def diagnose_training(
             "distribution_resolution": "unavailable",
             "distribution_complete": False,
             "distribution_coverage_pct": 0,
+            "distribution_excluded_activities": [],
         },
     }
 
@@ -3445,6 +3446,45 @@ def diagnose_training(
             distribution_activities = recent[is_running]
         else:
             distribution_activities = recent.iloc[0:0]
+    excluded_distribution_activities: list[dict] = []
+    if base == "power" and "activity_id" in distribution_activities.columns:
+        # Runs without usable recorded power are outside the power-observed
+        # population. Any positive finite reading keeps a run in scope, even
+        # when sparse or missing timing: the 90% gate still applies below.
+        power_activity_ids: set[str] = set()
+        for evidence, value_col in (
+            (samples, "power_watts"),
+            (splits, "avg_power"),
+        ):
+            if evidence is None or evidence.empty or not {
+                "activity_id", value_col,
+            }.issubset(evidence.columns):
+                continue
+            values = pd.to_numeric(evidence[value_col], errors="coerce")
+            valid = values.notna() & np.isfinite(values) & (values > 0)
+            power_activity_ids.update(evidence.loc[valid, "activity_id"].astype(str))
+        observed_power = distribution_activities["activity_id"].astype(str).isin(
+            power_activity_ids,
+        )
+        excluded = distribution_activities[~observed_power].copy()
+        excluded["_excluded_aid"] = excluded["activity_id"].astype(str)
+        for _, activity in excluded.sort_values(
+            ["_date", "_excluded_aid"], ascending=[False, True],
+        ).drop_duplicates(
+            "_excluded_aid",
+        ).iterrows():
+            duration = pd.to_numeric(activity.get("duration_sec"), errors="coerce")
+            excluded_distribution_activities.append({
+                "activity_id": activity["_excluded_aid"],
+                "date": activity["_date"].isoformat(),
+                "duration_sec": (
+                    float(duration)
+                    if pd.notna(duration) and np.isfinite(duration) and duration > 0
+                    else None
+                ),
+                "reason": "no_usable_power",
+            })
+        distribution_activities = distribution_activities[observed_power]
     distribution_recent_ids = (
         set(distribution_activities["activity_id"].astype(str).values)
         if "activity_id" in distribution_activities.columns
@@ -3598,6 +3638,7 @@ def diagnose_training(
             "distribution_resolution": "activity_averages" if total_time > 0 else "unavailable",
             "distribution_complete": distribution_complete,
             "distribution_coverage_pct": coverage_pct,
+            "distribution_excluded_activities": excluded_distribution_activities,
         }
         result["diagnosis"].append({"type": "neutral", "message": message})
         _add_diagnosis_items(
@@ -4006,6 +4047,7 @@ def diagnose_training(
         "distribution_resolution": resolution,
         "distribution_complete": distribution_complete,
         "distribution_coverage_pct": coverage_pct,
+        "distribution_excluded_activities": excluded_distribution_activities,
     }
     result["zone_ranges"] = compute_zones(base, current_cp, bounds, names if zone_names else None)
     result["theory_name"] = theory_name or ("Coggan 5-Zone" if len(bounds) == 4 else f"{n_zones}-Zone")

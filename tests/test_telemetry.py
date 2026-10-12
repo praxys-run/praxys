@@ -403,8 +403,7 @@ def test_record_coach_tokens_emits_split_and_total(fake_meter):
     )
 
     counter = fake_meter.counters["praxys.coach_tokens"]
-    # One increment per token_type — sum stays correct under any
-    # subsequent slice of customDimensions.
+    # Filter one token_type; total already includes prompt and completion.
     types = sorted(c[1]["token_type"] for c in counter.calls)
     assert types == ["completion", "prompt", "total"]
     by_type = {c[1]["token_type"]: c for c in counter.calls}
@@ -425,6 +424,29 @@ def test_record_coach_tokens_skips_zero_amounts(fake_meter):
     )
     assert "praxys.coach_tokens" not in fake_meter.counters or \
         fake_meter.counters["praxys.coach_tokens"].calls == []
+
+
+def test_token_details_are_subsets_not_additional_totals(fake_meter):
+    from types import SimpleNamespace
+    from api import llm
+
+    llm.record_token_usage(SimpleNamespace(usage=SimpleNamespace(
+        prompt_tokens=2000, completion_tokens=500,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=1000, cache_write_tokens=200),
+        completion_tokens_details=SimpleNamespace(reasoning_tokens=300),
+    )), model="gpt-6.1-sol", insight_type="personal_context")
+    totals = {attrs["token_type"]: count for count, attrs in
+              fake_meter.counters["praxys.coach_tokens"].calls}
+    details = {attrs["token_type"]: count for count, attrs in
+               fake_meter.counters["praxys.coach_token_details"].calls}
+    assert totals == {"prompt": 2000, "completion": 500, "total": 2500}
+    assert details == {"cached_prompt": 1000, "cache_write": 200, "reasoning": 300}
+    for counter in fake_meter.counters.values():
+        for _, attrs in counter.calls:
+            assert attrs == {
+                "model": "gpt-6.1-sol", "insight_type": "personal_context",
+                "token_type": attrs["token_type"],
+            }
 
 
 # ---------------------------------------------------------------------------
@@ -738,6 +760,7 @@ def test_run_insights_emits_hash_match_status(fake_meter, monkeypatch):
             translations={},
             meta={
                 "dataset_hash": dataset_hash,
+                "model": llm.INSIGHT_MODEL,
                 GENERATION_PROVENANCE_KEY: build_generation_provenance(
                     "test-model",
                     _FAKE_PILLARS,

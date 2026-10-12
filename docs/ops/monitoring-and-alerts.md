@@ -58,7 +58,8 @@ custom signals in the table below belong to `appi-praxys-backend`.
 
 | Signal | Dimensions | Meaning | Emitter |
 |---|---|---|---|
-| `praxys.coach_tokens` | `insight_type`, `model`, `token_type` | Azure OpenAI tokens consumed (spend) | `record_coach_tokens` |
+| `praxys.coach_tokens` | `insight_type`, `model`, `token_type` | Azure OpenAI prompt, completion and total tokens; filter one type before summing | `record_coach_tokens` |
+| `praxys.coach_token_details` | `insight_type`, `model`, `token_type` | Nonzero cached_prompt, cache_write and reasoning subsets (already included in totals) | `record_coach_tokens` |
 | `praxys.coach_run` | `insight_type`, `status`, `user_id_hash` | Insight-runner outcomes (cache hit rate) | `record_coach_run` |
 | `praxys.coach_error` | `error_class` | Operator-actionable Coach errors (Auth/BadRequest) | `record_coach_error` |
 | `praxys.coach_feedback` | `insight_type`, `dataset_hash`*, `model`, `pillars`*, `vote`, `has_comment`, `comment_length`*, `comment_excerpt`*, `user_id_hash` | Dataset-scoped feedback on generated Coach insights. `*` customEvent only; the metric fallback omits high-cardinality fields. | `record_coach_feedback` |
@@ -149,6 +150,28 @@ customMetrics
          token_type = tostring(customDimensions.token_type)
 | where token_type == "total"
 | summarize tokens = sum(valueSum) by insight_type, bin(timestamp, 1d)
+```
+
+For Azure inference cost estimates, group by model and task and use mutually
+exclusive token categories: `(prompt - cached_prompt - cache_write) * input_rate
++ cached_prompt * cache_read_rate + cache_write * cache_write_rate
++ completion * output_rate`. Rates are per token (divide a per-million quote by
+one million). Reasoning tokens are **already included** in completion. Do not
+sum prompt/completion/total together, or add the detail metric to the totals.
+Missing usage details are unknown, not proof that caching never occurred.
+See [Azure token-category guidance](https://learn.microsoft.com/azure/foundry/openai/how-to/provisioned-throughput-sizing).
+These metrics cover instrumented application calls, not the entire Azure account
+or settled invoices. Translation CI emits only when telemetry is configured.
+No new alert rule or action group accompanies this diagnostic metric.
+
+Cache-write/read and reasoning subsets (last 7d):
+```kql
+customMetrics
+| where timestamp > ago(7d) and name == "praxys.coach_token_details"
+| extend model = tostring(customDimensions.model),
+         insight_type = tostring(customDimensions.insight_type),
+         token_type = tostring(customDimensions.token_type)
+| summarize tokens = sum(valueSum) by model, insight_type, token_type
 ```
 
 Coach cache-hit rate (last 7d):

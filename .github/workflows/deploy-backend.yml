@@ -760,6 +760,55 @@ jobs:
             echo "feedback_publication_enabled=false"
           } >> "${GITHUB_OUTPUT}"
 
+      - name: Switch model routing after verified compatible code
+        if: success() && steps.mode.outputs.sync_config == 'true' && steps.live.outputs.readiness == 'ready'
+        timeout-minutes: 10
+        env:
+          PRAXYS_INSIGHT_MODEL: ${{ vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol' }}
+          PRAXYS_VISION_MODEL: ${{ vars.PRAXYS_VISION_MODEL || vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${PRAXYS_INSIGHT_MODEL}"
+          test -n "${PRAXYS_VISION_MODEL}"
+          timeout 45s az webapp config appsettings set \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings "PRAXYS_INSIGHT_MODEL=${PRAXYS_INSIGHT_MODEL}" \
+                       "PRAXYS_VISION_MODEL=${PRAXYS_VISION_MODEL}" \
+            --output none
+          settings="$(timeout 30s az webapp config appsettings list \
+            --name "${AZURE_BACKEND_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?name=='PRAXYS_INSIGHT_MODEL'||name=='PRAXYS_VISION_MODEL'].{name:name,value:value}" \
+            -o json)"
+          jq -e --arg insight "${PRAXYS_INSIGHT_MODEL}" --arg vision "${PRAXYS_VISION_MODEL}" \
+            '([.[] | select(.name == "PRAXYS_INSIGHT_MODEL") | .value] == [$insight])
+             and ([.[] | select(.name == "PRAXYS_VISION_MODEL") | .value] == [$vision])' \
+            <<< "${settings}" >/dev/null
+          for _ in {1..24}; do
+            version_payload="$(curl -fsS --connect-timeout 5 --max-time 8 \
+              -H 'Cache-Control: no-cache' https://api.praxys.run/api/version 2>/dev/null || true)"
+            ready_payload="$(curl -fsS --connect-timeout 5 --max-time 8 \
+              -H 'Cache-Control: no-cache' https://api.praxys.run/api/health/ready 2>/dev/null || true)"
+            if jq -e --arg version "${PRAXYS_EXPECTED_API_VERSION}" \
+                --arg sha "${PRAXYS_EXPECTED_API_SOURCE_SHA}" \
+                '.version == $version and .source_sha == $sha' \
+                <<< "${version_payload}" >/dev/null 2>&1 \
+              && jq -e --arg insight "${PRAXYS_INSIGHT_MODEL}" --arg vision "${PRAXYS_VISION_MODEL}" \
+                '.status == "ready"
+                 and .ai_models.insight == $insight
+                 and .ai_models.vision == $vision
+                 and .optional_processing.feedback_publication_positive_enable == false
+                 and .optional_processing.feedback_publication_enabled == false' \
+                <<< "${ready_payload}" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Compatible backend did not converge on the requested model routing."
+          exit 1
+
       - name: Restore reviewed feedback publication after verified cutover
         id: publication
         timeout-minutes: 8

@@ -12,6 +12,7 @@ on:
       - 'frontend_server/**'
       - 'scripts/appinsights_boundary.sh'
       - '.github/azure-observability.env'
+      - 'scripts/verify_frontend_deployment.py'
       - '.github/workflows/deploy-frontend-appservice.yml'
   workflow_dispatch:
 
@@ -39,10 +40,13 @@ jobs:
           python -m pytest
           tests/test_frontend_server_spa.py
           tests/test_regional_frontend_config.py
+          tests/test_verify_frontend_deployment.py
           -v
 
   build:
     needs: test
+    outputs:
+      azure_package_id: ${{ steps.azure_package.outputs.artifact-id }}
     if: github.ref == 'refs/heads/main'
     permissions:
       id-token: write
@@ -154,6 +158,7 @@ jobs:
         run: npm --prefix web run build:edgeone
 
       - name: Upload Azure package
+        id: azure_package
         uses: actions/upload-artifact@v7
         with:
           name: frontend-azure-${{ github.run_id }}-${{ github.run_attempt }}
@@ -176,6 +181,8 @@ jobs:
       AZURE_FRONTEND_APP_NAME: praxys-frontend
       AZURE_RESOURCE_GROUP: rg-trainsight
     steps:
+      - uses: actions/checkout@v7
+
       - name: Initialize Azure deployment evidence
         shell: bash
         run: |
@@ -206,7 +213,7 @@ jobs:
       - name: Download Azure package
         uses: actions/download-artifact@v8
         with:
-          name: frontend-azure-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.build.outputs.azure_package_id }}
           path: deploy-pkg
 
       - name: Deploy to praxys-frontend
@@ -219,36 +226,10 @@ jobs:
       - name: Verify Azure deployment
         shell: bash
         run: |
-          set -euo pipefail
-          fetch_matching_health() {
-            local url="$1" output="$2"
-            for _ in {1..12}; do
-              if curl --fail --silent --show-error \
-                --connect-timeout 5 --max-time 15 "${url}" > "${output}" \
-                && test "$(jq -r '.deployed_sha // empty' "${output}")" = "${GITHUB_SHA}"; then
-                return 0
-              fi
-              sleep 10
-            done
-            return 1
-          }
-          origin_health="${RUNNER_TEMP}/azure-origin-health.json"
-          public_health="${RUNNER_TEMP}/azure-public-health.json"
-          fetch_matching_health "https://praxys-frontend.azurewebsites.net/healthz" "${origin_health}"
-          fetch_matching_health "https://www.praxys.run/healthz" "${public_health}"
-          jq -n \
-            --arg status success \
-            --arg sourceSha "${GITHUB_SHA}" \
-            --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --slurpfile origin "${origin_health}" \
-            --slurpfile public "${public_health}" \
-            '{
-              status: $status,
-              sourceSha: $sourceSha,
-              checkedAt: $checkedAt,
-              origin: $origin[0],
-              public: $public[0]
-            }' > "${RUNNER_TEMP}/azure-frontend-deployment.json"
+          python3 scripts/verify_frontend_deployment.py \
+            --dist deploy-pkg/web/dist \
+            --source-sha "${GITHUB_SHA}" \
+            --evidence "${RUNNER_TEMP}/azure-frontend-deployment.json"
 
       - name: Finalize Azure deployment evidence
         if: always()

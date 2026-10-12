@@ -2764,6 +2764,13 @@ export interface DiagnosisFinding {
   message: string;
 }
 
+export interface ExcludedPowerActivity {
+  activity_id: string;
+  date: string;
+  duration_sec: number | null;
+  reason: 'no_usable_power';
+}
+
 export interface DiagnosisData {
   lookback_weeks: number;
   interval_power: {
@@ -2792,6 +2799,8 @@ export interface DiagnosisData {
     distribution_resolution: 'samples' | 'splits' | 'mixed' | 'activity_averages' | 'unavailable';
     distribution_complete: boolean;
     distribution_coverage_pct: number;
+    /** Optional while an older backend serves a rolling deployment. */
+    distribution_excluded_activities?: ExcludedPowerActivity[];
   };
   consistency: {
     weeks_with_gaps: number;

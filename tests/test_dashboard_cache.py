@@ -226,7 +226,7 @@ def test_compute_source_version_is_deterministic(cache_client):
         assert "v=morning-coach-today-v15" in a
         training = compute_source_version(db, user_id, "training")
         assert "samples=0" in training
-        assert "v=private-plan-boundary-training-v14" in training
+        assert "v=power-zone-observed-runs-training-v15" in training
         goal = compute_source_version(db, user_id, "goal")
         assert "v=history-first-5k-baseline-v1" in goal
     finally:

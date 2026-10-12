@@ -7,6 +7,7 @@ import {
   CHINA_PROCESSING_NOTICE_ACKNOWLEDGED_EVENT,
 } from './lib/china-processing'
 import { registerSW } from 'virtual:pwa-register'
+import { watchServiceWorkerUpdates } from './lib/service-worker-update'
 import {
   PRELOAD_RELOAD_KEY,
   PRELOAD_RELOAD_WINDOW_MS,
@@ -36,7 +37,12 @@ window.addEventListener(
 const publicRoute = resolvePublicRoute(window.location.pathname, isChinaFrontendDeployment())
 // New marketing visitors do not need the offline application precache. Existing
 // installations still check for updates; app entry keeps the complete offline cache.
-if (!publicRoute || navigator.serviceWorker?.controller) registerSW({ immediate: true })
+if (!publicRoute || navigator.serviceWorker?.controller) registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    if (registration) watchServiceWorkerUpdates(registration)
+  },
+})
 
 function preloadReloadMarker(): PreloadReloadMarker | null {
   const raw = sessionStorage.getItem(PRELOAD_RELOAD_KEY)
