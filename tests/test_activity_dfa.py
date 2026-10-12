@@ -209,6 +209,20 @@ def store(tmp_path, monkeypatch, request):
     if backend == 'sqlite':
         Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)
+    # Explicit synthetic SDK evaluations, not a production mode bypass.
+    from api import statsig_client
+    from statsig.feature_gate import FeatureGate
+    from statsig.evaluation_details import EvaluationDetails, DataSource
+    factory.dfa_modes = {}
+    monkeypatch.setattr(statsig_client, '_initialized', True)
+    def gate(user, name, log_exposure=False):
+        assert log_exposure is False
+        value = factory.dfa_modes.get(user.user_id, False)
+        if value is None: return False  # Actual SDK error-boundary shape.
+        return FeatureGate(value, name, 'synthetic-rule', 'userID',
+            evaluation_details=EvaluationDetails(1, 1, DataSource.BOOTSTRAP))
+    monkeypatch.setattr(statsig_client.statsig, 'get_feature_gate', gate)
+    monkeypatch.setattr(statsig_client.statsig, 'check_gate', lambda user,name: factory.dfa_modes.get(user.user_id, False) is True)
     monkeypatch.setattr(service, 'require_policy', lambda: 'sha256:'+'a'*64)
     monkeypatch.setattr('api.legal_receipts.user_background_processing_authorized', lambda db, owner: True)
     with factory() as db:
@@ -264,6 +278,7 @@ def prepare(factory, owner):
 
 
 def confirmed(factory, owner):
+    factory.dfa_modes[owner] = False  # Explicit manual-mode fixture setup.
     preparation = prepare(factory, owner)
     with factory() as db:
         proof = service.confirm(db, owner, '123', {

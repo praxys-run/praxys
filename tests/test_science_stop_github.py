@@ -305,7 +305,8 @@ def test_mutate_regression_runner():
     Path(os.environ['GITHUB_ENV']).write_text('CANDIDATE_ROOT=/poisoned\\nPYTHONPATH=/poisoned\\n')
     Path(os.environ['GITHUB_PATH']).write_text('/poisoned/bin\\n')
 ''')
-    subprocess.run([sys.executable, '-m', 'pytest', '-q', str(attack)],
+    subprocess.run([sys.executable, '-m', 'pytest', '-q',
+                    '--basetemp='+str(tmp_path / 'hostile-child-pytest'), str(attack)],
                    cwd=regression / 'candidate', env=regression_env, check=True, capture_output=True, text=True)
     command = [sys.executable, *selected['run'].split()[1:]]
     contaminated = subprocess.run(command, cwd=regression, env=regression_env, capture_output=True, text=True)

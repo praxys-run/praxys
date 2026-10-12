@@ -135,6 +135,9 @@ def catalog(db: Session, owner: str, activity: str) -> dict:
         ActivityDFASyncReceipt.recording_ref["activity_id"].as_string() == activity).order_by(ActivityDFASyncReceipt.created_at.desc()).first()
     automatic_availability = "science_inactive" if not active_policy else "rights_missing" if not processing_authorized else (
         "gate_denied" if not dfa_rights.automatic_gate(db, owner) else receipt.disposition if receipt else "no_new_sync")
+    mode = dfa_rights.account_mode(db, owner)
+    switching = bool(mode != "unavailable" and db.query(Run.id).filter(
+        Run.user_id == owner, Run.status.in_(ACTIVE), Run.origin != mode).first())
     origin_runs = []
     for origin in ("manual", "automatic"):
         latest = db.query(Run).options(defer(Run.result)).filter_by(user_id=owner, activity_id=activity, origin=origin).filter(
@@ -146,6 +149,8 @@ def catalog(db: Session, owner: str, activity: str) -> dict:
             "source_confirmations": [proof_view(p) for p in proofs],
             "latest_run": current_runs[0] if current_runs else (origin_runs[0] if origin_runs else None),
             "origin_runs": origin_runs, "automatic_availability": automatic_availability,
+            "computation_mode": mode, "manual_compute_allowed": mode == "manual" and active_policy and processing_authorized,
+            "mode_transition_pending": switching,
             "availability": availability, "policy_active": active_policy,
             "processing_authorized": processing_authorized, "statement_version": STATEMENT_VERSION}
 
@@ -284,6 +289,8 @@ def _reserve(db: Session, owner: str, retry_run: Run | None = None) -> None:
 def submit(db: Session, owner: str, activity: str, selected: dict, revision: str, confirmation_id: str | None) -> tuple[dict, int]:
     ensure_replayed(db, owner)
     with owner_write(db, owner):
+        from api.dfa_rights import require_manual_mode
+        require_manual_mode(db, owner)
         policy_digest = require_authority(db, owner)
         candidates = _inputs(db, owner, activity)
         if revision != digest(candidates):
@@ -305,6 +312,7 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
         run = db.query(Run).filter_by(user_id=owner, input_digest=identity).first()
         if run and (run.expires_at is None or run.expires_at > datetime.utcnow()):
             result, code = view(run, db), 202 if run.status in ACTIVE else 200
+            require_manual_mode(db, owner)
             db.commit()
             return result, code
         if run:
@@ -322,8 +330,10 @@ def submit(db: Session, owner: str, activity: str, selected: dict, revision: str
         result = _metadata(db, run, True)
         db.flush()
         from api.dfa_supervisor import manual_admission
+        require_manual_mode(db, owner)
         run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
         result.update(admission_id=run.admission_id, accepted_at=run.accepted_at)
+        require_manual_mode(db, owner)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()
@@ -334,6 +344,8 @@ def confirm(db: Session, owner: str, activity: str, payload: dict) -> dict:
     ensure_replayed(db, owner)
     manifest = None
     with owner_write(db, owner):
+        from api.dfa_rights import require_manual_mode
+        require_manual_mode(db, owner)
         require_authority(db, owner)
         run = _owned(db, owner, activity, payload["run_id"])
         if run.phase != "prepare" or run.status != "awaiting_source_confirmation" or not _current(db, run):
@@ -345,6 +357,7 @@ def confirm(db: Session, owner: str, activity: str, payload: dict) -> dict:
         sensor = sensors[0]
         existing = db.query(Confirmation).filter_by(user_id=owner, snapshot_id=run.snapshot_id, parse_id=run.parse_id).first()
         if existing and existing.sensor_ref == sensor["sensor_ref"] and existing.evidence_digest == result["evidence_digest"] and _current_rule(existing):
+            require_manual_mode(db, owner)
             return proof_view(existing)
         if existing:
             manifest = storage.request(owner, "confirmation", existing.id, "source_changed")
@@ -356,6 +369,7 @@ def confirm(db: Session, owner: str, activity: str, payload: dict) -> dict:
         db.add(proof)
         db.flush()
         response = proof_view(proof)
+        require_manual_mode(db, owner)
         db.commit()
     if manifest:
         _complete_manifest(manifest)
@@ -368,6 +382,8 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
     with owner_write(db, owner):
         run = _owned(db, owner, activity, run_id, metadata_only=True)
         if action == "retry":
+            from api.dfa_rights import require_manual_mode
+            require_manual_mode(db, owner)
             require_authority(db, owner)
             if expected_generation != run.generation or run.status not in ("failed", "cancelled", "unavailable") or not _current(db, run):
                 raise HTTPException(409, "DFA_RETRY_CHANGED")
@@ -407,8 +423,10 @@ def change_run(db: Session, owner: str, activity: str, run_id: str, action: str,
             # pending writes before locking the global admission control row.
             db.flush()
             from api.dfa_supervisor import manual_admission
+            require_manual_mode(db, owner)
             run.admission_id, run.accepted_at, run.execution_epoch = manual_admission(db)
             result.update(admission_id=run.admission_id, accepted_at=run.accepted_at)
+            require_manual_mode(db, owner)
         db.commit()
     from api.activity_dfa_dispatch import wake
     wake()

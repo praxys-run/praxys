@@ -9,7 +9,10 @@ function copy() {
   return {
     alpha: t('DFA α1'), manual: t('Manual analysis'), originChanged: t('The selected analysis is no longer authorized. Current available analysis is shown.'),
     sourceLimit: t('Neither recording metadata nor your confirmation verifies the source of every beat interval.'),
-    manualPreference: t('Your manual analysis is shown first when current and authorized. This preference does not establish greater accuracy.'),
+    manualPreference: t('Previously authorized manual analyses keep their original source and method.'),
+    automaticMode: t('Automatic analysis is on. New eligible recordings are analysed after sync; manual analysis is disabled.'),
+    modeUnavailable: t('Analysis mode is unavailable. New analysis is paused.'),
+    modeSwitching: t('Waiting for the previous analysis to stop safely before starting the selected mode.'),
     sources: 'doi:10.3390/s21030821 · doi:10.3390/s22176536',
     description: t('Post-run analysis from ECG chest-strap beat intervals.'), close: t('Close'), refresh: t('Refresh'),
     policy: t('DFA analysis is awaiting scientific activation.'), missing: t('The original recording is not available yet. Sync this activity from your connected platform.'),
@@ -20,7 +23,7 @@ function copy() {
     sensor: t('Choose the chest strap'), statement: t('Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate.'),
     confirm: t('Confirm and analyse'), retry: t('Retry analysis'), cancel: t('Cancel analysis'),
     continuing: t('You can leave this report. Analysis will continue.'), source: t('Source confirmed by you'), timing: t('Estimated time alignment'),
-    unresolved: t('Recording metadata cannot resolve the RR source. Independent manual confirmation may be available.'), ineligible: t('Conflicting source evidence prevents analysis. Confirmation cannot override it.'), automaticUnavailable: t('Automatic analysis is unavailable. Its values are hidden.'), timerBasis: t('Active timer time:'), shortBlocks: t('Short timer blocks without scheduled windows:'), requested: t('Cancellation requested'), valid: t('Valid windows'), support: t('Supported recording time'), coverage: t('Coverage describes which data could be analysed, not measurement accuracy.'),
+    unresolved: t('Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording.'), ineligible: t('Conflicting source evidence prevents analysis. Confirmation cannot override it.'), automaticUnavailable: t('Automatic analysis is unavailable. Its values are hidden.'), timerBasis: t('Active timer time:'), shortBlocks: t('Short timer blocks without scheduled windows:'), requested: t('Cancellation requested'), valid: t('Valid windows'), support: t('Supported recording time'), coverage: t('Coverage describes which data could be analysed, not measurement accuracy.'),
     overview: t('Whole activity coverage'), legend: t('Cobalt: supported · dark: unsupported · pale: paused'), jump: t('Jump to time'),
     heart: t('RR heart rate (bpm)'), power: t('Power (W)'), pace: t('Pace (s/km)'), previous: t('Previous'), next: t('Next'),
     details: t('Window values and quality details'), method: t('How this is calculated'),
@@ -69,7 +72,7 @@ Component({
   properties: { inline: { type: Boolean, value: false }, activityStartMs: { type: Number, value: 0 }, rangeStart: { type: Number, value: 0 }, rangeEnd: { type: Number, value: 0 }, activityId: { type: String, value: '' }, activityDate: { type: String, value: '' } },
   data: {
     origins: [] as { id: string; label: string; origin: string }[], selectedOrigin: '', originChanged:false, assurance: '', currentRunId:'',
-    tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, error:'',
+    tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, canManual:false, error:'',
     timeMax:0, cursorSeconds:0, timeStatus:'', selectedOffset:0, pageOutline:'', catalog:null as DFACatalog|null,
     run:null as DFARun|null, selected:-1, sensorIndex:-1, checked:false, proof:null as DFASourceConfirmation|null,
     retainedProof:null as DFASourceConfirmation|null,
@@ -118,12 +121,13 @@ Component({
         state.auto = false;
         const selected = catalog.inputs.length === 1 ? 0 : -1;
         const retainedProof = selected >= 0 ? catalog.source_confirmations.find(p => p.snapshot_id === catalog.inputs[selected].input.snapshot_id && p.parse_id === catalog.inputs[selected].input.parse_id) ?? null : null;
-        this.setData({catalog, selected, retainedProof, canAnalyse:catalog.policy_active && catalog.processing_authorized, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
+        this.setData({catalog, selected, retainedProof, canAnalyse:catalog.policy_active && catalog.processing_authorized, canManual:catalog.manual_compute_allowed === true, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
           comparators:[copy().heart,copy().power,copy().pace]});
         const origins = (catalog.origin_runs ?? (catalog.latest_run ? [catalog.latest_run] : [])).filter(run => run.freshness === 'current');
         this.setData({origins: origins.map(run => ({id:run.id,origin:run.origin,label:run.origin === 'automatic' ? t('Automatic analysis') : t('Manual analysis')}))});
         const inspected = origins.find(run => run.origin === this.data.selectedOrigin);
-        const preferred = inspected ?? origins.find(run => run.origin === 'manual' && run.status === 'complete')
+        const preferred = inspected ?? origins.find(run => run.origin === catalog.computation_mode && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'manual' && run.status === 'complete')
           ?? origins.find(run => run.origin === 'automatic' && run.status === 'complete')
           ?? origins.find(run => run.origin === 'manual') ?? origins[0] ?? catalog.latest_run;
         this.setData({originChanged:!!preferred && !!this.data.selectedOrigin && !inspected});
@@ -166,7 +170,7 @@ Component({
       } catch { if (ticket === state.epoch) this.setData({error:t('The request failed. Try again.'),active:false,hasResult:false,run:null,...clearedNumbers()}); }
     },
     async launch() {
-      if (this.data.busy || this.data.cooling || !this.data.canAnalyse) return;
+      if (this.data.busy || this.data.cooling || !this.data.canManual) return;
       const catalog = this.data.catalog;
       const input = catalog?.inputs[this.data.selected]?.input;
       if (!catalog || !input) return;
@@ -194,7 +198,7 @@ Component({
     async confirm() {
       const run = this.data.run; const input = this.data.catalog?.inputs[this.data.selected]?.input;
       const sensor = run?.sensors?.[this.data.sensorIndex];
-      if (!run || !sensor || !input || !this.data.checked || this.data.busy || this.data.cooling || !this.data.canAnalyse) return;
+      if (!run || !sensor || !input || !this.data.checked || this.data.busy || this.data.cooling || !this.data.canManual) return;
       const ticket = local(this).epoch;
       this.setData({busy:true,error:''});
       try {
@@ -210,6 +214,7 @@ Component({
     async action(e: WechatMiniprogram.TouchEvent) {
       const run = this.data.run; if (!run || this.data.busy) return;
       const action = String(e.currentTarget.dataset.action);
+      if (action === 'retry' && !this.data.canManual) return;
       this.setData({busy:true});
       try { await this.call(`/runs/${run.id}/${action}`,'POST',action==='retry'?{expected_generation:run.generation}:undefined); await this.refresh(); }
       catch { this.setData({error:t('The request failed. Try again.')}); }

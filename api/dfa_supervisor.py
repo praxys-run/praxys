@@ -190,7 +190,7 @@ class Supervisor:
         self.retired = threading.Event()
         self.retirement_reason = None
         # At most two Python I/O continuations including the active job. A
-        # cancelled automatic continuation cannot consume the manual slot.
+        # cancelled continuation cannot consume the next physical slot.
         self.cleanups = []
         self.retiring = False
         self.pending = None
@@ -309,7 +309,7 @@ class Supervisor:
             started_utc = datetime.utcnow()
             started = time.monotonic()
             valid = False
-            priority = False
+            mode_changed = False
             try:
                 with self.controls() as db:
                     db.info['dfa_read_timeout_ms']=200
@@ -321,10 +321,10 @@ class Supervisor:
                     if active:
                         run = db.query(Run).options(defer(Run.result)).filter_by(id=active['id'],
                             generation=active['generation'], status='running', execution_epoch=str(row.epoch) if row else '').first()
-                        valid = bool(valid and run and service._current(db, run))
-                        if valid and run.origin == 'automatic' and db.query(Run.id).filter_by(origin='manual', status='queued').first():
-                            priority = True
-                            valid = False
+                        from api import dfa_rights
+                        mode = dfa_rights.account_mode(db, run.user_id) if run else 'unavailable'
+                        mode_changed = bool(run and mode != 'unavailable' and mode != run.origin)
+                        valid = bool(valid and run and mode == run.origin and service._current(db, run))
                     if valid and self._renewal_current(phase) and time.monotonic() - started < PROFILE['poll_seconds']:
                         # Publish only against the exact still-bound generation.
                         # Do not overwrite a concurrent drain/replacement's row
@@ -365,9 +365,9 @@ class Supervisor:
                     else:
                         decision_actor = self.lane.actor() if active else None
                         with self.lock:
-                            self.permission_decision = self._decision(active, 'priority' if priority else 'permission', decision_actor)
+                            self.permission_decision = self._decision(active, 'mode_changed' if mode_changed else 'permission', decision_actor)
                             self.allowed = False
-                            self.retirement_reason = 'priority' if priority else 'permission'
+                            self.retirement_reason = 'mode_changed' if mode_changed else 'permission'
                     self.control_observation = {'state':'finalization_pending' if self.retiring or self.pending is not None else 'phase_changed' if phase!=self.renewal_phase else 'ready' if self.allowed else 'denied' if not valid else 'deadline', 'duration_seconds':time.monotonic()-started}
             except Exception as exc:
                 try: decision_actor = self.lane.actor() if active else None
@@ -385,72 +385,111 @@ class Supervisor:
         from analysis.activity_dfa import digest, METHOD_VERSION
         from analysis.dfa_source import source_inventory
         from sync.rr_recording import RRRecordingReader, RecordingRef
+        from sqlalchemy import and_, or_, exists
         with self.factory() as db:
-            receipt = db.query(Receipt).filter_by(disposition='pending').order_by(Receipt.created_at).first()
-            if receipt is None:
+            query = db.query(Receipt.id, Receipt.created_at).filter_by(disposition='pending').filter(
+                ~exists().where(and_(Run.user_id == Receipt.user_id, Run.status.in_(service.ACTIVE))))
+            cursor = getattr(self, 'receipt_cursor', None)
+            if cursor:
+                query = query.filter(or_(Receipt.created_at > cursor[0], and_(Receipt.created_at == cursor[0], Receipt.id > cursor[1])))
+            candidates = query.order_by(Receipt.created_at, Receipt.id).limit(service.MAX_ACTIVE_GLOBAL).all()
+            if not candidates:
+                self.receipt_cursor = None
                 return
-            receipt_id, owner, ref = receipt.id, receipt.user_id, receipt.recording_ref
             db.rollback()
-            with service.owner_write(db, owner):
-                receipt = db.get(Receipt, receipt_id)
-                if not receipt or receipt.disposition != 'pending':
-                    return
-                try:
-                    state = service.storage.authority_state(owner)
-                    if state['deleted'] or any(e['scope'] == 'activity' and e['target'] == ref['activity_id']
-                        for e in state['events'].values()):
-                        raise ValueError('suppressed')
-                    policy = require_policy()
-                    inventory = source_inventory(list(RRRecordingReader(db).iter_recording(RecordingRef(**ref))), ref)
-                    if inventory['outcome'] != 'eligible_metadata_inferred':
-                        receipt.disposition = inventory['outcome']; db.commit(); return
-                    value = dfa_rights.binding(db, owner, ref, 'automatic', policy, completion=receipt, inventory=inventory)
-                    # Associate a later successful receipt only inside its origin.
-                    previous = db.query(Run).filter_by(user_id=owner, origin='automatic', snapshot_id=ref['snapshot_id'], parse_id=ref['parse_id'],
-                                                      science_contract_digest=policy, freshness='current').first()
-                    if previous and service._current(db, previous):
-                        receipt.run_id, receipt.disposition = previous.id, 'unchanged'
-                        db.commit(); return
-                    if db.query(Run.id).filter_by(user_id=owner, origin='automatic').filter(Run.status.in_(service.ACTIVE)).first():
-                        return
-                    control = self._bound(db)
-                    if control is None or not self.allowed or self.retiring or self.pending is not None:
-                        return
-                    if db.query(Run.id).filter(Run.status.in_(service.ACTIVE)).count() >= service.MAX_ACTIVE_GLOBAL:
-                        receipt.disposition = 'capacity_denied'; db.commit(); return
-                    from sqlalchemy import func
-                    used = db.query(func.coalesce(func.sum(Run.retained_bytes), 0)).filter_by(user_id=owner).scalar()
-                    if used + service.MAX_RESULT_BYTES > service.OWNER_QUOTA:
-                        receipt.disposition = 'quota_denied'; db.commit(); return
-                    grant = dfa_rights.create_grant(db, value)
-                    run = Run(user_id=owner, activity_id=ref['activity_id'], snapshot_id=ref['snapshot_id'],
-                        parse_id=ref['parse_id'], origin='automatic', grant_id=grant.id, recording_ref=ref,
-                        input_digest=digest(['automatic', grant.id]), method_version=METHOD_VERSION,
-                        science_contract_digest=policy, phase='compute', execution_epoch=str(control.epoch),
-                        retained_bytes=service.MAX_RESULT_BYTES)
-                    db.add(run); db.flush()
-                    receipt.run_id, receipt.disposition = run.id, 'admitted'
-                except Exception:
-                    receipt.disposition = 'authority_denied'
-                db.commit()
+            for candidate in candidates:
+                self.receipt_cursor = (candidate.created_at, candidate.id)
+                receipt = db.get(Receipt, candidate.id)
+                if receipt is None:
+                    continue
+                receipt_id, owner, ref = receipt.id, receipt.user_id, receipt.recording_ref
+                db.rollback()
+                with service.owner_write(db, owner):
+                    receipt = db.get(Receipt, receipt_id)
+                    if not receipt or receipt.disposition != 'pending':
+                        continue
+                    mode = dfa_rights.account_mode(db, owner)
+                    if mode == 'unavailable':
+                        continue
+                    if mode != 'automatic':
+                        receipt.disposition = 'mode_changed'; db.commit(); continue
+                    if db.query(Run.id).filter_by(user_id=owner).filter(Run.status.in_(service.ACTIVE)).first():
+                        continue
+                    try:
+                        state = service.storage.authority_state(owner)
+                        if state['deleted'] or any(e['scope'] == 'activity' and e['target'] == ref['activity_id']
+                            for e in state['events'].values()):
+                            raise ValueError('suppressed')
+                        policy = require_policy()
+                        inventory = source_inventory(list(RRRecordingReader(db).iter_recording(RecordingRef(**ref))), ref)
+                        if inventory['outcome'] != 'eligible_metadata_inferred':
+                            receipt.disposition = inventory['outcome']; db.commit(); return
+                        if dfa_rights.account_mode(db, owner) != 'automatic':
+                            continue
+                        value = dfa_rights.binding(db, owner, ref, 'automatic', policy, completion=receipt, inventory=inventory)
+                        # Associate a later successful receipt only inside its origin.
+                        previous = db.query(Run).filter_by(user_id=owner, origin='automatic', snapshot_id=ref['snapshot_id'], parse_id=ref['parse_id'],
+                                                          science_contract_digest=policy, freshness='current').first()
+                        if previous and service._current(db, previous):
+                            receipt.run_id, receipt.disposition = previous.id, 'unchanged'
+                            db.commit(); return
+                        if db.query(Run.id).filter_by(user_id=owner, origin='automatic').filter(Run.status.in_(service.ACTIVE)).first():
+                            return
+                        control = self._bound(db)
+                        if control is None or not self.allowed or self.retiring or self.pending is not None:
+                            return
+                        if db.query(Run.id).filter(Run.status.in_(service.ACTIVE)).count() >= service.MAX_ACTIVE_GLOBAL:
+                            receipt.disposition = 'capacity_denied'; db.commit(); return
+                        from sqlalchemy import func
+                        used = db.query(func.coalesce(func.sum(Run.retained_bytes), 0)).filter_by(user_id=owner).scalar()
+                        if used + service.MAX_RESULT_BYTES > service.OWNER_QUOTA:
+                            receipt.disposition = 'quota_denied'; db.commit(); return
+                        if dfa_rights.account_mode(db, owner) != 'automatic':
+                            continue
+                        grant = dfa_rights.create_grant(db, value)
+                        run = Run(user_id=owner, activity_id=ref['activity_id'], snapshot_id=ref['snapshot_id'],
+                            parse_id=ref['parse_id'], origin='automatic', grant_id=grant.id, recording_ref=ref,
+                            input_digest=digest(['automatic', grant.id]), method_version=METHOD_VERSION,
+                            science_contract_digest=policy, phase='compute', execution_epoch=str(control.epoch),
+                            retained_bytes=service.MAX_RESULT_BYTES)
+                        db.add(run); db.flush()
+                        receipt.run_id, receipt.disposition = run.id, 'admitted'
+                    except Exception:
+                        mode = dfa_rights.account_mode(db, owner)
+                        if mode == 'unavailable':
+                            continue
+                        receipt.disposition = 'mode_changed' if mode != 'automatic' else 'authority_denied'
+                    db.commit()
+                    return  # At most one expensive admission per reactor turn.
 
-    def acquire_job(self, *, manual_only=False):
+    def acquire_job(self):
         from api import activity_dfa as service, dfa_rights
-        from sqlalchemy import case
         with self.factory() as db:
             query = db.query(Run.id, Run.user_id).filter_by(status='queued')
-            if manual_only:
-                query = query.filter_by(origin='manual')
-            candidates = query.order_by(
-                case((Run.origin == 'manual', 0), else_=1), Run.created_at).limit(service.MAX_ACTIVE_GLOBAL).all()
+            candidates = query.order_by(Run.created_at, Run.id).limit(service.MAX_ACTIVE_GLOBAL).all()
             db.rollback()
             for candidate in candidates:
                 owner, run_id = candidate.user_id, candidate.id
                 with service.owner_write(db, owner):
                     control = self._bound(db)
-                    run = db.query(Run).filter_by(id=run_id, status='queued').with_for_update().first()
+                    run = db.query(Run).filter_by(id=run_id, user_id=owner, status='queued').with_for_update().first()
                     if control is None or self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     if run is None: continue
+                    mode = dfa_rights.account_mode(db, owner)
+                    if mode == 'unavailable':
+                        continue
+                    if mode != run.origin:
+                        run.status = run.progress = 'cancelled'
+                        run.error_code = 'mode_changed'
+                        run.generation += 1
+                        run.result = run.result_revision = None
+                        run.retained_bytes = 0
+                        run.lease_token = run.lease_until = None
+                        run.completed_at = datetime.utcnow()
+                        run.expires_at = run.completed_at + timedelta(days=7)
+                        db.query(Receipt).filter_by(run_id=run.id).update({'disposition':'mode_changed'})
+                        db.commit()
+                        continue
                     if not service._current(db, run):
                         if dfa_rights.permanently_invalid(db, run):
                             run.status=run.progress='failed';run.freshness='stale'
@@ -466,6 +505,7 @@ class Supervisor:
                     if self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
                     control = self._bound(db)
                     if control is None or self.retiring or self.pending is not None or not self.allowed or time.monotonic() >= self.permission_until: return None
+                    if dfa_rights.account_mode(db, owner) != run.origin: return None
                     # This is not a reservation across commit. Work/reactor and
                     # publication retain their independent late-change fences.
                     run.status, run.progress = 'running', 'reading'
@@ -493,8 +533,9 @@ class Supervisor:
         started = time.monotonic()
         try:
             with self.factory() as db:
-                run = db.query(Run).filter_by(id=job['id'], generation=job['generation'], status='running').first()
-                if run is None or not service._current(db, run):
+                run = db.query(Run).filter_by(id=job['id'], user_id=job['owner'], generation=job['generation'], status='running').first()
+                from api import dfa_rights
+                if run is None or not dfa_rights.execution_current(db, run):
                     raise ValueError('authority_changed')
                 raw = RRRecordingReader(db).raw(RecordingRef(**job['ref']))
                 proof = db.get(service.Confirmation, run.confirmation_id) if run.confirmation_id else None
@@ -513,6 +554,10 @@ class Supervisor:
             if time.monotonic() - started > service.MAX_EXECUTION_SECONDS:
                 raise ValueError("execution_time_limit")
             binding = {key: job[key] for key in ('generation','epoch','input')}
+            with self.factory() as db:
+                current = db.query(Run).filter_by(id=job['id'], user_id=job['owner'], generation=job['generation'], status='running').first()
+                if current is None or not dfa_rights.execution_current(db, current):
+                    raise ValueError('authority_changed')
             with self.controls() as db:
                 control=self._bound(db)
                 if control is None: raise ValueError('binding_changed')
@@ -534,7 +579,7 @@ class Supervisor:
             # Acknowledged local journal is durable before any private bytes flow.
             with self.controls() as db:
                 control = self._bound(db)
-                if control is None or cancellation.is_set():
+                if control is None or cancellation.is_set() or dfa_rights.account_mode(db, job['owner']) != job['origin']:
                     raise ValueError('binding_changed')
                 previous = control.actor
                 predecessor=sql_predecessor
@@ -547,8 +592,8 @@ class Supervisor:
                     raise ValueError('binding_changed')
                 db.commit()
             with self.factory() as db:
-                current=db.query(Run).filter_by(id=job['id'],generation=job['generation'],status='running').first()
-                if current is None or not service._current(db,current):
+                current=db.query(Run).filter_by(id=job['id'],user_id=job['owner'],generation=job['generation'],status='running').first()
+                if current is None or not dfa_rights.execution_current(db,current):
                     raise ValueError('authority_changed')
             if cancellation.is_set() or not self.allowed or time.monotonic()>self.permission_until:
                 raise ValueError('permission_expired')
@@ -625,37 +670,45 @@ class Supervisor:
         from analysis.activity_dfa import digest
         with self.factory() as db:
             with service.owner_write(db, job['owner']):
-                run = db.query(Run).filter_by(id=job['id'], generation=job['generation'], status='running').first()
+                run = db.query(Run).filter_by(id=job['id'], user_id=job['owner'], generation=job['generation'], status='running').first()
                 if run:
-                    current = service._current(db, run) and self._bound(db) is not None
+                    from api import dfa_rights
+                    current = dfa_rights.execution_current(db, run) and self._bound(db) is not None
                     if status == 'output' and current:
                         output = value['result']
                         output['source_assurance'] = 'metadata_inferred' if run.origin == 'automatic' else 'user_confirmed'
                         if run.origin == 'automatic' and value['inventory']['outcome'] != 'eligible_metadata_inferred':
                             current = False
-                        if current:
+                        if current and dfa_rights.account_mode(db, run.user_id) == run.origin:
                             run.result, run.result_revision = output, digest(output)
                             run.status = 'complete' if run.phase == 'compute' else 'awaiting_source_confirmation'
                             run.retained_bytes = len(json.dumps(output).encode())
                     if run.status == 'running':
                         failure = value if status in ('failed','failed_before_spawn') else 'execution_unavailable'
-                        actual_preemption = status=='preempted'
                         retry = (job['origin']=='automatic' and current and
-                            (actual_preemption or failure in TRANSIENT_FAILURES and run.recoveries<1))
+                            failure in TRANSIENT_FAILURES and run.recoveries<1)
                         run.status = 'queued' if retry else 'failed'
-                        if retry and not actual_preemption: run.recoveries+=1
-                        run.error_code = 'preempted' if actual_preemption and retry else failure
+                        if retry: run.recoveries+=1
+                        run.error_code = failure
                         run.retained_bytes = 0 if run.status == 'failed' else run.retained_bytes
                     run.progress = run.status
                     run.completed_at = datetime.utcnow() if run.status != 'queued' else None
                     run.expires_at = datetime.utcnow() + timedelta(days=30 if run.status == 'complete' else 7)
                     run.lease_token = run.lease_until = None
                 if run:
+                    # This final local observation fences mode loss during
+                    # validation; it is not atomic with external rule updates.
+                    mode = dfa_rights.account_mode(db, run.user_id)
+                    if run.status in ('complete', 'awaiting_source_confirmation') and mode != run.origin:
+                        run.result = run.result_revision = None
+                        run.status = run.progress = 'failed'
+                        run.error_code = 'mode_unavailable' if mode == 'unavailable' else 'mode_changed'
+                        run.retained_bytes = 0
                     fields = ('result','result_revision','status','progress','retained_bytes','recoveries',
                               'error_code','completed_at','expires_at','lease_token','lease_until')
                     values = {getattr(Run,key):getattr(run,key) for key in fields}
                     db.expunge(run)  # Do not let an id-only ORM flush cross a generation fence.
-                    if db.query(Run).filter_by(id=job['id'],generation=job['generation'],
+                    if db.query(Run).filter_by(id=job['id'],user_id=job['owner'],generation=job['generation'],
                             status='running',execution_epoch=job.get('epoch',str(self.identity['epoch'])),
                             input_digest=job.get('input',run.input_digest)).update(values,synchronize_session=False)!=1:
                         raise PhysicalUnavailable('finish_run_binding_changed')
@@ -731,12 +784,12 @@ class Supervisor:
                     from api.activity_dfa import MAX_EXECUTION_SECONDS
                     timed_out = time.monotonic() - launched_at > MAX_EXECUTION_SECONDS
                     if expired or timed_out or ready:
-                        trigger_priority = bool(expired and decision and decision['reason']=='priority'
+                        trigger_mode = bool(expired and decision and decision['reason']=='mode_changed'
                             and decision['job']=={k:job[k] for k in ('id','generation','epoch','input')}
                             and _same_actor(decision['actor'],actor_before))
                         status, value = outputs.get() if ready else ('failed','execution_unavailable')
                         if status!='failed_before_spawn' and (expired or timed_out):
-                            status,value = ('failed','execution_time_limit') if timed_out else ('preempted',None) if trigger_priority else ('failed','permission_expired')
+                            status,value = ('failed','execution_time_limit') if timed_out else ('failed','mode_changed') if trigger_mode else ('failed','permission_expired')
                         chosen_value_json=json.dumps(value)
                         with self.lock:
                             self.retiring=True
@@ -766,12 +819,11 @@ class Supervisor:
                 elif self.allowed and time.monotonic() < self.permission_until:
                     if len(self.cleanups)>=2:
                         continue
-                    # Receipt admission loads/decodes automatic RR under the
-                    # producer transaction. Preserve it pending while cleanup
-                    # reserves this reactor/connection for manual selection.
+                    # Preserve receipt loading while post-exit I/O cleanup is
+                    # pending; bounded continuations never select by origin.
                     if not self.cleanups:
                         self.admit_completion()
-                    job = self.acquire_job(manual_only=bool(self.cleanups))
+                    job = self.acquire_job()
                     if job:
                         outputs = queue.Queue(maxsize=1)
                         with self.lock:

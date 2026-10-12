@@ -144,3 +144,25 @@ def get_config(
             config_name,
         )
         return default
+
+
+def recognized_gate(gate_name: str, user: StatsigUser | None) -> bool | None:
+    """Explicit local evaluation only; SDK false/error defaults are unknown."""
+    from statsig.feature_gate import FeatureGate
+    from statsig.evaluation_details import EvaluationDetails, EvaluationReason, DataSource
+    if not _initialized or user is None:
+        return None
+    try:
+        gate = statsig.get_feature_gate(user, gate_name, log_exposure=False)
+        if (not isinstance(gate, FeatureGate) or gate.name != gate_name
+                or type(gate.value) is not bool
+                or not isinstance(gate.evaluation_details, EvaluationDetails)):
+            return None
+        details = gate.evaluation_details
+        if (not isinstance(details.reason, EvaluationReason) or not isinstance(details.source, DataSource)
+                or details.reason != EvaluationReason.none or details.source not in
+                (DataSource.DATASTORE, DataSource.BOOTSTRAP, DataSource.NETWORK, DataSource.STATSIG_NETWORK)):
+            return None
+        return gate.value
+    except Exception:
+        return None

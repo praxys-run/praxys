@@ -60,9 +60,9 @@ test('numeric miniapp chart positions preserve pause width and incumbent ordinal
 
 const input={provider:'garmin',user_id:'synthetic',account_id:'account',activity_id:'activity',snapshot_id:'snapshot',parse_id:'parse',sha256:'a'.repeat(64),parser_version:'fitdecode-0.11.0/praxys-1'};
 const retainedProof={id:'proof',snapshot_id:'snapshot',parse_id:'parse',sensor_ref:'sensor',sensor_label:'Polar H10',statement_version:'dfa-source-attestation-v1',created_at:'2026-09-27T00:00:00',source_assurance:'user_confirmed'};
-const baseRun={id:'run',phase:'compute',status:'complete',generation:1,freshness:'current',progress:'complete',error_code:null,created_at:'2026-09-27T00:00:00',completed_at:'2026-09-27T00:00:01',expires_at:'2026-10-27T00:00:01',method_version:'dfa-alpha1-raw120-v1',science_contract_digest:'sha256:'+'a'.repeat(64),snapshot_id:'snapshot',parse_id:'parse',source_confirmation_id:'proof',result_revision:'revision'};
+const baseRun={id:'run',origin:'manual',phase:'compute',status:'complete',generation:1,freshness:'current',progress:'complete',error_code:null,created_at:'2026-09-27T00:00:00',completed_at:'2026-09-27T00:00:01',expires_at:'2026-10-27T00:00:01',method_version:'dfa-alpha1-raw120-v1',science_contract_digest:'sha256:'+'a'.repeat(64),snapshot_id:'snapshot',parse_id:'parse',source_confirmation_id:'proof',result_revision:'revision'};
 const completed={...baseRun,summary:{valid_windows:1,scheduled_windows:1,window_success_rate:1,supported_time_ratio:.99,short_blocks:0,excluded_reasons:{}},navigation:{start_ms:0,end_ms:120000,timer_blocks:[[0,120000]],support:[[0,119900]],page_size:120,page_anchors:[{offset:0,time_ms:120000}]},page:{offset:0,limit:120,total:1,next_offset:null},windows:[{index:0,block:0,start_ms:0,end_ms:120000,alpha1:.9,hr_bpm:120,r2:.95,reasons:[],flags:[],beat_count:240,coverage_ms:119900,offset_ms:0,offset_width_ms:2000,rr_index_start:0,rr_index_end:239}]};
-function catalog({proofs=[],run=null,processing=true}={}) {return {activity_id:'activity',inputs:[{input,created_at:'2026-09-27T00:00:00'}],catalog_revision:'c'.repeat(64),source_confirmations:proofs,latest_run:run,availability:'ready',policy_active:true,processing_authorized:processing,statement_version:'dfa-source-attestation-v1'};}
+function catalog({proofs=[],run=null,processing=true,mode='manual'}={}) {return {computation_mode:mode,manual_compute_allowed:mode==='manual'&&processing,mode_transition_pending:false,activity_id:'activity',inputs:[{input,created_at:'2026-09-27T00:00:00'}],catalog_revision:'c'.repeat(64),source_confirmations:proofs,latest_run:run,availability:'ready',policy_active:true,processing_authorized:processing,statement_version:'dfa-source-attestation-v1'};}
 function miniComponent(request) {
   let definition;
   compile('../../miniapp/components/dfa-analysis/index.ts',{'../../utils/api-client':{request},'../../utils/i18n':{t:value=>value},'../../utils/theme':{resolveTheme:()=> 'light',chartColors:()=>({reasoning:'blue',tick:'black'})},'../../utils/dfa-navigation':{nearestWindow,timeSupport}},
@@ -219,10 +219,32 @@ test('miniapp failed compute submission retries saved confirmation without anoth
     if (options.method === 'POST' && fail) { fail = false; throw new Error('temporary submission failure'); }
     return baseRun;
   });
-  c.setData({ catalog: catalog(), selected: 0, run: prepared, checked: true, sensorIndex: 0, canAnalyse: true });
+  c.setData({ catalog: catalog(), selected: 0, run: prepared, checked: true, sensorIndex: 0, canAnalyse: true, canManual: true });
   await c.confirm();
   assert.equal(c.data.proof.id, 'proof');
   await c.confirm();
   assert.equal(calls.filter(v => v.path.endsWith('/source-confirmations')).length, 1);
   assert.equal(calls.filter(v => v.method === 'POST' && v.body.source_confirmation_id === 'proof').length, 2);
 });
+
+for (const mode of ['automatic', 'unavailable']) {
+  test(`miniapp ${mode} mode keeps authorized history but blocks compute handlers`, async () => {
+    const calls = [];
+    const history = {...completed, origin: mode === 'automatic' ? 'automatic' : 'manual'};
+    const c = miniComponent(async (path, options) => {
+      calls.push({path, ...options});
+      return path.includes('/runs/') ? history : catalog({run:history,mode});
+    });
+    await c.refresh();
+    assert.equal(c.data.canManual, false);
+    assert.equal(c.data.hasResult, true);
+    assert.equal(c.data.run.origin, history.origin);
+    await c.launch();
+    await c.confirm();
+    await c.action({currentTarget:{dataset:{action:'retry'}}});
+    assert.equal(calls.filter(v=>v.method==='POST').length, 0);
+    await c.action({currentTarget:{dataset:{action:'cancel'}}});
+    assert.equal(calls.filter(v=>v.method==='POST').length, 1);
+    assert.ok(calls.find(v=>v.path.endsWith('/cancel')));
+  });
+}

@@ -165,52 +165,6 @@ def test_same_exit_persistence_recovers_without_reexecution(store,monkeypatch,tm
     finally: cell.close()
 
 
-def test_priority_decision_does_not_wait_for_reason_string(both_origins,monkeypatch,tmp_path):
-    import subprocess
-    factory,owner=both_origins
-    cell=Cell((factory,owner),monkeypatch,tmp_path,'cause',seed_complete=True)
-    # Finish the seed manual unit using the incumbent direct-step fixture, then
-    # explicit owner retry below creates the independently admitted priority.
-    with factory() as db:
-        run=db.get(Run,cell.admitted['id']);assert run.status=='complete'
-        run.status='failed';db.commit();generation=run.generation
-    complete_unit(factory,owner)
-    real_popen=subprocess.Popen
-    def automatic_fixture(command,**kwargs):
-        if command[-2:]==['-m','api.dfa_worker']:
-            command=[sys.executable,'-E','-B','-c',
-                'import sys,signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); sys.stdin.buffer.readline(90*1024*1024+1); time.sleep(60)']
-        return real_popen(command,**kwargs)
-    monkeypatch.setattr(subprocess,'Popen',automatic_fixture)
-    original=type(cell.sup)
-    class DelayedReason(original):
-        def __setattr__(self,name,value):
-            if name=='retirement_reason' and value=='priority':
-                cell.note('reason_string_visibility_delayed')
-                return  # Delayed derived string; actual permission denial occurs.
-            super().__setattr__(name,value)
-    monkeypatch.setattr(cell.sup,'__class__',DelayedReason)
-    actual_finish=cell.sup.finish
-    def finish(job,status,value):
-        actual_finish(job,status,value)
-        if job['origin']=='automatic':cell.sup.stop.set()
-    monkeypatch.setattr(cell.sup,'finish',finish)
-    try:
-        cell.start();wait_for(lambda:bool(cell.target))
-        cell.finished.clear();cell.finish_calls=0
-        cell.current_renewal.clear()
-        assert cell.current_renewal.wait(5)  # Subsequent real commit, no parking/filter.
-        with factory() as db:
-            manual=service.change_run(db,owner,'123',cell.admitted['id'],'retry',generation)
-        cell.note('manual_priority_admitted',admission_id=manual['admission_id'])
-        wait_for(lambda:cell.finished.is_set() or bool(cell.errors))
-        assert all(e['class']=='UnexpectedWorkerReturn' for e in cell.errors)  # Deliberate stop after selected finish.
-        with factory() as db:
-            auto=db.query(Run).filter_by(origin='automatic').one()
-            cell.note('automatic_finish_state',status=auto.status,recoveries=auto.recoveries,error_code=auto.error_code)
-            assert auto.status=='queued' and auto.error_code=='preempted' and auto.recoveries==0
-        assert any(e['event']=='reason_string_visibility_delayed' for e in cell.events)
-    finally:cell.close()
 
 
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
@@ -392,7 +346,9 @@ def test_no_replacement_until_exit_ack_and_owner_finish(both_origins,monkeypatch
     def change(cell):
         pending.set();assert release.wait(5)
     cell=Cell(both_origins,monkeypatch,tmp_path,change=change)
-    complete_unit(cell.factory,cell.owner)
+    from tests.test_dfa_modes import second_owner
+    peer = second_owner(cell.factory)
+    complete_unit(cell.factory,peer)  # Different entitled owner; no same-owner mode conflict.
     try:
         cell.start();assert pending.wait(5)
         assert cell.sup.pending is not None and not cell.sup.allowed

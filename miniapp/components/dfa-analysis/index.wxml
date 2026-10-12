@@ -5,6 +5,9 @@
           <state-card wx:if="{{error}}" type="error" detail="{{error}}" show-retry bindretry="refresh" />
           <text class="dfa-hint">{{tr.sourceLimit}}</text>
           <text class="dfa-hint">{{tr.manualPreference}}</text>
+          <text wx:if="{{catalog.computation_mode === 'automatic'}}" class="dfa-copy" role="status">{{tr.automaticMode}}</text>
+          <text wx:if="{{catalog.computation_mode === 'unavailable'}}" class="dfa-copy" role="status">{{tr.modeUnavailable}}</text>
+          <text wx:if="{{catalog.mode_transition_pending}}" class="dfa-copy" role="status">{{tr.modeSwitching}}</text>
           <text wx:if="{{catalog.automatic_availability === 'source_unresolved'}}" class="dfa-copy">{{tr.unresolved}}</text>
           <text wx:if="{{catalog.automatic_availability === 'source_ineligible'}}" class="dfa-copy">{{tr.ineligible}}</text>
           <text wx:if="{{catalog.automatic_availability === 'gate_denied'}}" class="dfa-copy">{{tr.automaticUnavailable}}</text>
@@ -17,16 +20,16 @@
           <text wx:if="{{cooling}}" class="dfa-copy" role="status">{{tr.cooldown}}</text>
           <text wx:if="{{catalog.availability === 'original_unavailable'}}" class="dfa-copy">{{tr.missing}}</text>
           <picker wx:if="{{catalog.inputs.length > 1}}" range="{{inputLabels}}" value="{{selected}}" bindchange="onRecording"><view class="dfa-button">{{selected >= 0 ? inputLabels[selected] : tr.recording}}</view></picker>
-          <button wx:if="{{selected >= 0 && (!active || run.origin === 'automatic') && (!run || stale || run.origin === 'automatic')}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canAnalyse}}" bindtap="launch">{{run.origin === 'automatic' ? tr.manual : stale || retainedProof ? tr.recalculate : tr.analyse}}</button>
+          <button wx:if="{{selected >= 0 && (!active || run.origin === 'automatic') && (!run || stale || run.origin === 'automatic')}}" class="dfa-button dfa-primary" disabled="{{busy || cooling || !canManual}}" bindtap="launch">{{run.origin === 'automatic' ? tr.manual : stale || retainedProof ? tr.recalculate : tr.analyse}}</button>
           <view wx:if="{{active}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><text class="dfa-hint">{{tr.continuing}}</text><button class="dfa-button" data-action="cancel" bindtap="action" disabled="{{busy}}">{{tr.cancel}}</button></view>
           <text wx:if="{{stale && !active}}" class="dfa-copy">{{status}}</text>
           <view wx:if="{{run.status === 'awaiting_source_confirmation' && !stale}}" class="dfa-section">
             <text class="dfa-heading">{{tr.confirmTitle}}</text><text class="dfa-hint">{{tr.sourceHint}}</text>
             <picker range="{{sensorLabels}}" value="{{sensorIndex}}" bindchange="onSensor"><view class="dfa-button">{{sensorIndex >= 0 ? sensorLabels[sensorIndex] : tr.sensor}}</view></picker>
             <checkbox-group bindchange="onCheck"><label class="dfa-check"><checkbox value="confirmed" checked="{{checked}}" /><text>{{tr.statement}}</text></label></checkbox-group>
-            <button class="dfa-button dfa-primary" disabled="{{!checked || sensorIndex < 0 || busy || cooling || !canAnalyse}}" bindtap="confirm">{{proof ? tr.retry : tr.confirm}}</button>
+            <button class="dfa-button dfa-primary" disabled="{{!checked || sensorIndex < 0 || busy || cooling || !canManual}}" bindtap="confirm">{{proof ? tr.retry : tr.confirm}}</button>
           </view>
-          <view wx:if="{{run && (run.status === 'failed' || run.status === 'unavailable' || run.status === 'cancelled')}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><button wx:if="{{run.origin === 'manual' && run.status !== 'unavailable'}}" class="dfa-button" data-action="retry" bindtap="action" disabled="{{busy || cooling || !canAnalyse || stale}}">{{tr.retry}}</button></view>
+          <view wx:if="{{run && (run.status === 'failed' || run.status === 'unavailable' || run.status === 'cancelled')}}" class="dfa-section"><text class="dfa-copy" role="status">{{status}}</text><button wx:if="{{run.origin === 'manual' && run.status !== 'unavailable'}}" class="dfa-button" data-action="retry" bindtap="action" disabled="{{busy || cooling || !canManual || stale}}">{{tr.retry}}</button></view>
 <view wx:if="{{contextError}}" class="dfa-section"><text class="dfa-hint" role="status">{{contextError}}</text><button class="dfa-button" bindtap="refresh">{{tr.refresh}}</button><button class="dfa-button" bindtap="useHeartRate">{{tr.heart}}</button></view>
           <view wx:if="{{hasResult}}" class="dfa-section">
             <text class="dfa-heading">{{headline}}</text><text class="dfa-hint">{{assurance}} · {{tr.timing}}</text>
@@ -54,10 +57,10 @@
   <view class="dfa-sheet {{inline ? '' : 'dfa-sheet--overlay'}}">
     <view class="dfa-head"><view><text class="dfa-title">{{tr.alpha}}</text><text class="dfa-hint">{{tr.description}}</text><text class="dfa-hint ts-value">{{activityDate}}</text></view><button wx:if="{{!inline}}" class="dfa-button dfa-close" bindtap="close" aria-label="{{tr.close}}">{{tr.close}}</button></view>
     <view wx:if="{{inline}}" class="dfa-scroll">
-      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
+      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, canManual, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
     </view>
     <scroll-view wx:else scroll-y="{{true}}" class="dfa-scroll">
-      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
+      <template is="dfa-report-body" data="{{active, activityStartMs, assurance, busy, canAnalyse, canManual, catalog, checked, comparator, comparatorSeries, comparators, contextError, cooling, cursorSeconds, dates, deletion, deletionText, error, exclusions, hasResult, headline, inputLabels, loading, navigation, offset, originChanged, origins, pageIndex, pageLabels, pageOutline, pages, proof, retainedProof, rows, run, selected, selectedOrigin, sensorIndex, sensorLabels, series, shortBlocks, showDetails, showScience, stale, status, support, theme, timeMax, timeStatus, timerBasis, times, tr, valid}}" />
     </scroll-view>
   </view>
 </view>

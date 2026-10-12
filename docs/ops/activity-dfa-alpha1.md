@@ -1,6 +1,8 @@
 # Activity DFA V2 operations
 
-**Summary:** Keep V2 inactive by default, pin the Linux supervisor, and require physical exit before reuse.
+**Summary:** Keep V2 inactive by default, enforce account-scoped mutually exclusive compute modes, pin the Linux supervisor, and require physical exit before reuse.
+
+**Current requirement:** The user superseded simultaneous manual/automatic computation and manual-priority preemption on2026-10-12. AUTO ON disables manual computation; recognized AUTO OFF permits manual computation only with current Science/rights/source authority. The historical100-preemption requirement and results below are superseded evidence, not current acceptance or retroactive passes.
 
 **Use when:** Preparing reviewed inactive source, diagnosing origin/queue/retirement state, or restoring synthetic/authorized data.
 
@@ -37,7 +39,7 @@ absence observation; a lease, signal delivery or leader exit is not exit proof.
 Unexpected members, identity reuse or unacknowledged launch remain blocked.
 
 Control validation starts no more than8 times/s (125ms minimum interval); its aggregate completion budget is250ms.
-Local automatic permission expires after750ms without
+Local execution permission expires after750ms without
 a completed valid renewal. Current control readiness, generation, drain and queue
 reservation gate durable manual admission. The retirement reactor is independent
 of DB/auth/gate/loading/serialization I/O. Physical exit commits through dedicated
@@ -1141,3 +1143,83 @@ SQL NULL and JSON null both decode to an absent predecessor; this equivalence
 does not permit a captured idle actor to change to either null encoding before
 ACK. Such a change refuses ACK and payload delivery, retires the physical child,
 and leaves the changed SQL projection untouched under the existing exit fence.
+
+
+## Account-scoped mutually exclusive computation (2026-10-12)
+
+The effective mode is the existing server-evaluated `activity_dfa_automatic`
+account feature gate, not whether an automatic job happens to be running and not
+the global `ActivityDFAControl.enabled` host switch. No new checkbox/setting,
+Science activation, production gate enablement or deployment is introduced.
+
+The additive `recognized_gate` evaluator requires the installed SDK FeatureGate
+object with the expected name, actual boolean value and typed, recognized
+EvaluationDetails. Bare false/error-boundary results, default/missing details,
+Uninitialized/Unrecognized/Unsupported/error, local override or unknown provenance
+are UNKNOWN. Exposure logging is disabled for this evaluation. Other generic
+Statsig callers retain their existing boolean/config fallback behavior. This is
+fresh local SDK evaluation at each boundary, not a new TTL or an atomic external
+rules+SQL transaction; SDK rule propagation is independent.
+
+Recognized ON admits only eligible new successful daily-sync automatic work.
+Manual submit (including preparation/idempotent POST), source confirmation and
+retry reject409/DFA_MANUAL_DISABLED_AUTO_MODE. Recognized OFF allows explicit
+manual work only under actual V2, processing, source and confirmation rights;
+V1 remains stopped/V2 remains inactive in the real tree. UNKNOWN rejects new
+computation503/DFA_MODE_UNAVAILABLE, defers queued units without permanent mode
+invalidation, and retires running work fail-closed. Cancel/delete/revoke and
+historical manual read authority stay independent. Automatic numeric reads
+require recognized ON as well as their existing rights/Science/source binding.
+Origins/grants/results are immutable and never converted or shared numerically.
+
+Known opposite-mode queued work is terminally fenced as mode_changed without
+consuming recovery. Observed running-mode loss prevents publication; late output
+cannot cross generation/source/rights/Science/STOP fences. Flip-back never
+silently resurrects terminal attempts/receipts. Manual retry remains an explicit
+owner action; ordinary automatic transient recovery remains bounded as before.
+
+Pending receipts are selected in bounded created_at/id pages, excluding owners
+with active work before RR decoding. Unknown owners are skipped with a runtime
+cursor, not a perpetual oldest-only barrier; at most one expensive admission is
+performed per reactor turn. Queued jobs are ordered neutrally by created_at/id.
+A's ON automatic work never disables B's OFF manual entitlement. Accepted B work
+can queue; there is no immediate manual start/preemption/five-second yield promise.
+
+The global physical lane still permits one execution. Mode-switch replacement
+waits for exact verified exit, durable exit ACK and owner finish. Immutable pending
+outcome, retry-only-classified exit persistence (MAX3/125ms gaps/no new start after1s),
+phase-fenced readiness, full actor/predecessor/incarnation/epoch CAS, lost-ACK
+reconciliation, max2 cancelled I/O continuations and exit-before-reuse remain.
+Cleanup selection is origin-neutral; receipt decoding stays held while post-exit
+I/O cleanup is present.125/250/750 runtime bounds and pool configuration do not change.
+
+Mode checks occur at request/final admission, queued acquisition, prelaunch/ACK/
+payload, renewal and final publication. Mode reads use no_autoflush so reading
+account metadata cannot accidentally flush partly chosen Run output ahead of its
+required generation/status/input/epoch CAS. Owner recheck protects an owner changed
+after the queue snapshot. No final check reserves external mode across commit:
+raced durable admissions/outcomes are retained and later execution stays fenced.
+
+Both clients use advisory computation_mode/manual_compute_allowed and derived
+mode_transition_pending. Disable compute/confirm/retry in ON/UNKNOWN, explain
+unavailable source instead of offering ON manual bypass, and keep authorized
+history/report/origin/context/methodology behavior. No design-system change,
+renderer switch or native/device action; prior miniapp acceptance carries with
+honest historical chart/compiler/device limitations.
+
+The active100/strict-priority/coexistence tests were replaced by finite mode
+contract and retained lifecycle/rights/source tests. Exact prior15c source is
+archived under the task evidence superseded-source inventory; historical9e pass,
+e05/b6/15c failures stay at their original heads/contracts. Generic accepted-service
+failure retention, physical proof and denial accounting stay tested. No capacity
+certificate is claimed by finite mode tests.
+
+The unrelated nested Science isolation regression subprocess now receives its
+own unique sibling --basetemp, preserving other pytest options and the hostile/
+fresh-runner checks. Earlier inherited-parent-basetemp exit4 and all original
+logs remain retained. No old traceback or deleted pytest220 bytes are recovered
+by this change. All pytest invocations use unique task-owned basetemps outside
+retention roots, consistent SQLite backups/integrity and owned PG clone archives.
+
+Implementation remains subject to SAME Quality exact-head review before root
+schedules the new-contract canonical run/publication/current remote CI admission.

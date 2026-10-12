@@ -4685,6 +4685,7 @@ export interface DFARun {
 export interface DFACatalog {
   activity_id: string; inputs: { input: DFAInput; created_at: string }[];
   catalog_revision: string; source_confirmations: DFASourceConfirmation[];
+  computation_mode: 'automatic' | 'manual' | 'unavailable'; manual_compute_allowed: boolean; mode_transition_pending: boolean;
   automatic_availability?: string; origin_runs?: DFARun[]; latest_run: DFARun | null; availability: 'ready' | 'original_unavailable' | 'provider_unsupported' | 'activity_type_unsupported';
   policy_active: boolean; processing_authorized: boolean; statement_version: string;
 }

@@ -1066,10 +1066,12 @@ def write_dfa_sync_completion(db: Session, job, item, snapshots) -> None:
         disposition = 'pending'
         try:
             from api.dfa_automatic import require_policy
-            from api.dfa_rights import current_sync_grant, processing_receipt, automatic_gate
+            from api.dfa_rights import current_sync_grant, processing_receipt, account_mode
             require_policy(); processing_receipt(db, job.user_id)
             current_sync_grant(db, job.user_id, job.account_id)
-            if not automatic_gate(db, job.user_id):
+            # Unknown mode preserves the successful unit pending; the
+            # supervisor cannot admit it until a recognized ON evaluation.
+            if account_mode(db, job.user_id) == 'manual':
                 disposition = 'gate_denied'
         except Exception:
             disposition = 'authority_denied'

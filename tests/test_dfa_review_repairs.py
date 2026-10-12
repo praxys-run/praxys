@@ -155,11 +155,8 @@ def test_permanent_automatic_failure_is_terminal_not_preemption(both_origins):
     assert supervisor.acquire_job() is None
 
 
-def test_transient_automatic_retry_is_bounded_and_preemption_separate(both_origins):
+def test_transient_automatic_retry_is_bounded(both_origins):
     factory,owner=both_origins;supervisor,job=automatic_job(factory,owner)
-    supervisor.finish(job,'preempted',None)
-    job=supervisor.acquire_job()
-    with factory() as db:assert db.get(Run,job['id']).recoveries==0
     supervisor.finish(job,'failed','execution_unavailable')
     job=supervisor.acquire_job()
     supervisor.finish(job,'failed','execution_unavailable')

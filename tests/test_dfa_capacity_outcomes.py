@@ -99,9 +99,10 @@ def observe(cell,admitted,entry):
                               cell.transitions,cell.available,cell.deadline,cell.errors)
 
 
-def test_denial_retirement_backoff_idle_acceptance_completes(outcome_cell):
-    c=outcome_cell;c.start(True)
-    initial=workload_eligibility(c.factory,c.owner);assert initial['eligible']
+def test_drain_denial_backoff_idle_manual_acceptance_completes(outcome_cell):
+    c=outcome_cell;c.start(False)
+    initial=workload_eligibility(c.factory,c.owner)
+    assert not initial['eligible'] and initial['actor']['state']=='idle'
     # Explicit durable drain boundary, not an explanation of original32f loss.
     with c.factory() as db:
         control=db.get(Control,1);control.drained=True;control.ready_until=datetime.utcnow();db.commit()
@@ -119,110 +120,11 @@ def test_denial_retirement_backoff_idle_acceptance_completes(outcome_cell):
     assert result['post_popen_start_upper_seconds'] is not None and not result['required_preemption']
 
 
-def test_denial_still_occupied_requalified_causal_preemption(outcome_cell):
-    c=outcome_cell;c.start(True);initial=workload_eligibility(c.factory,c.owner);assert initial['eligible']
-    forced=[False]
-    def expired_pulse_once(db):
-        if not forced[0]:
-            # Actual SQL expiry inside the negative request transaction; it
-            # rolls back with503. Never extends/forges physical permission.
-            forced[0]=True
-            db.execute(update(Control).where(Control.id==1).values(ready_until=datetime.utcnow()-timedelta(seconds=1)))
-    requests=observed_requests(c.factory,expired_pulse_once)
-    admitted,denial=attempt(c,requests,initial);assert admitted is None and denial['no_durable_acceptance']
-    before=time.monotonic();c.supervisor.stop.wait(5);denial['backoff_elapsed_seconds']=time.monotonic()-before
-    eligibility=workload_eligibility(c.factory,c.owner)
-    assert eligibility['eligible'] and eligibility['actor']['actor_token']==initial['actor']['actor_token']
-    admitted,entry=attempt(c,requests,eligibility);assert admitted
-    result=observe(c,admitted,entry)
-    assert result['classification']=='causal_preemption' and result['required_preemption']
-
-
-def test_retirement_during_commit_is_retained_race(outcome_cell):
-    c=outcome_cell;c.start(True);eligibility=workload_eligibility(c.factory,c.owner);assert eligibility['eligible']
-    requests=observed_requests(c.factory)
-    # Real transaction is held until the independent real renewal/retirement
-    # reacts; no parked control or fabricated deadline/permission.
-    def before_commit(db):
-        db.flush()
-        assert c.evidence.retired.wait(4)
-    event.listen(requests.class_,'before_commit',before_commit)
-    try:
-        for ingress in range(3):
-            eligibility=workload_eligibility(c.factory,c.owner)
-            assert eligibility['eligible']
-            admitted,entry=attempt(c,requests,eligibility)
-            if admitted:break
-            before=time.monotonic();c.supervisor.stop.wait(5)
-            entry['backoff_elapsed_seconds']=time.monotonic()-before
-    finally:event.remove(requests.class_,'before_commit',before_commit)
-    assert admitted
-    result=observe(c,admitted,entry)
-    assert result['classification']=='retirement_race' and not result['required_preemption']
-    assert result['service']=='complete'
-    assert result['retirement_within_budget']
-    assert result['physical_exit_upper_seconds']<=result['durable_availability_upper_seconds']<=5
-    assert result['retirement_order']['physical_exit_observed_at']<=entry['sql_commit_call_begin']
-    # Mutate only retained observation copies AFTER actual accepted service.
-    # These are deliberate evidence-negative cases, never capacity outcomes.
-    actor=entry['eligibility']['actor']
-    result['deliberately_mutated_evidence_negatives']=[]
-    for defect in ('missing_exit','missing_availability','locked_token','locked_binding','locked_incarnation',
-                   'missing_commit','missing_commit_begin','missing_commit_ack','overbudget','ack_only_order',
-                   'retirement_token','retirement_binding','retirement_incarnation','admission_id','admission_generation','admission_input'):
-        damaged=deepcopy(entry);available=dict(c.available);evidence=copy(c.evidence)
-        evidence.retirements=deepcopy(c.evidence.retirements)
-        if defect=='missing_exit':evidence.retirements[0].pop('exit_observed_at')
-        elif defect=='missing_availability':available.pop(actor['actor_token'])
-        elif defect=='locked_token':damaged['locked_admission']['actor']['actor_token']='other'
-        elif defect=='locked_binding':damaged['locked_admission']['actor']['binding']['input']='other'
-        elif defect=='locked_incarnation':damaged['locked_admission']['actor']['incarnation']={}
-        elif defect=='missing_commit':damaged.pop('sql_commit_call_begin')
-        elif defect=='missing_commit_begin':damaged.pop('commit_begin')
-        elif defect=='missing_commit_ack':damaged.pop('commit_ack')
-        elif defect=='overbudget':damaged['before_monotonic']-=6
-        elif defect=='ack_only_order':
-            damaged['sql_commit_call_begin']=damaged['commit_begin']
-        if defect=='retirement_token':evidence.retirements[0]['actor_snapshot']['actor_token']='other'
-        elif defect=='retirement_binding':evidence.retirements[0]['actor_snapshot']['binding']['input']='other'
-        elif defect=='retirement_incarnation':evidence.retirements[0]['actor_snapshot']['incarnation']={}
-        elif defect=='admission_id':damaged['transaction_subject']['admission_id']='other'
-        elif defect=='admission_generation':damaged['transaction_subject']['generation']+=1
-        elif defect=='admission_input':damaged['transaction_subject']['input_digest']='other'
-        negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
-        classify_occupied(negative,admitted,actor,damaged['locked_admission']['actor'],
-                          damaged,evidence,available)
-        result['deliberately_mutated_evidence_negatives'].append({'defect':defect,'result':negative})
-        assert negative['classification']=='insufficient_retirement_evidence',(defect,negative)
-        assert negative['service']=='complete' and not negative['required_preemption']
-    assert entry['outcome']=='accepted' and entry['accepted_observation'] is result
 
 
 
-def test_actual_postcommit_retirement_before_ack_remains_causal(outcome_cell):
-    c=outcome_cell;c.start(True)
-    requests=observed_requests(c.factory)
-    def after_commit(db):
-        assert c.evidence.retired.wait(4)
-    event.listen(requests.class_,'after_commit',after_commit)
-    try:
-        eligibility=workload_eligibility(c.factory,c.owner);assert eligibility['eligible']
-        admitted,entry=attempt(c,requests,eligibility);assert admitted
-    finally:event.remove(requests.class_,'after_commit',after_commit)
-    result=observe(c,admitted,entry)
-    assert result['service']=='complete' and result['required_preemption']
-    assert result['classification']=='causal_preemption'
-    assert result['causal_receipt']['exit_observed_at']<entry['commit_ack']
-    # A matching retirement with broken priority binding is insufficient,
-    # irrespective of actual successful service and pre-ACK physical exit.
-    evidence=copy(c.evidence);evidence.retirements=deepcopy(c.evidence.retirements)
-    evidence.retirements[0]['priority_invalidation']['active_binding']['input']='other'
-    negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
-    classify_occupied(negative,admitted,eligibility['actor'],entry['locked_admission']['actor'],
-                      entry,evidence,c.available)
-    assert negative['classification']=='insufficient_retirement_evidence'
-    assert negative['evidence_failure']=='invalid_committed_priority'
-    result['deliberately_mutated_evidence_negative']=negative
+
+
 
 def test_real_accepted_worker_failure_remains_observed(outcome_cell):
     c=outcome_cell;c.force_bad_manual=True;c.start(False)
@@ -249,62 +151,3 @@ def test_predeclared_workloads_have_distinct_true_provenance(both_origins):
             assert db.get(GarminConnectIQItem,item['item_id']).status=='complete'
             receipt=db.get(ActivityDFASyncReceipt,item['receipt_id'])
             assert receipt.disposition=='pending' and receipt.run_id is None
-
-
-def test_genuine_already_retiring_service_is_not_priority_positive(outcome_cell):
-    c=outcome_cell;c.start(True)
-    # Explicit synthetic drain/recovery ordering, not a diagnosis of1e's
-    # unexplained overrun and never used to qualify the unparked cohort.
-    with c.factory() as db:
-        control=db.get(Control,1);control.drained=True;control.ready_until=datetime.utcnow();db.commit()
-    wait(lambda:(c.supervisor.lane.actor() or {}).get('state')=='retiring',c.deadline,c.errors)
-    with c.factory() as db:db.get(Control,1).drained=False;db.commit()
-    wait(lambda:c.supervisor.control_observation['state']=='ready',c.deadline,c.errors)
-    from tests.dfa_capacity_measurement import fresh_physical_eligibility
-    eligibility=fresh_physical_eligibility(c.factory,c.owner,c.supervisor)
-    assert eligibility['actor']['state']=='retiring',eligibility
-    requests=observed_requests(c.factory,supervisor=c.supervisor)
-    admitted,entry=attempt(c,requests,eligibility);assert admitted,entry
-    result=observe_acceptance(c.factory,c.owner,admitted,entry,c.manual_input,c.evidence,
-        c.transitions,c.available,c.deadline,c.errors,allow_existing_retirement=True)
-    assert result['service_success'] and not result['reuse_violations'],result
-    assert result['classification']=='already_retiring_service' and not result['required_preemption'],result
-    assert result['retirement_within_budget'] and result['manual_physical_exit'] and result['manual_durable_available_at'],result
-    result['forced_boundary']='actual committed drain -> actual retiring -> committed recovery -> one ingress'
-    result['deliberately_mutated_retiring_negatives']=[]
-    for defect in ('entry_only','journal_only','late_term','wrong_identity','wrong_token','wrong_binding',
-                   'missing_commit','exit_before_ack_only','missing_availability','missing_exit','overbudget',
-                   'locked_identity','missing_identity','zombie_member','missing_dispatch_identity',
-                   'all_missing_binding_input','all_null_incarnation_source'):
-        damaged=deepcopy(entry);retirements=deepcopy(c.evidence.retirements);available=dict(c.available)
-        initial=deepcopy(eligibility['actor'])
-        matching=next(r for r in retirements if r['actor_token']==eligibility['actor']['actor_token'])
-        dispatch=matching['dispatches'][0]
-        if defect=='entry_only':matching['dispatches']=[]
-        elif defect=='journal_only':dispatch.pop('term_dispatch_completed_at')
-        elif defect=='late_term':dispatch['term_dispatch_completed_at']=entry['commit_ack']+1
-        elif defect=='wrong_identity':dispatch['dispatch_identity']['start']='other'
-        elif defect=='wrong_token':dispatch['actor']['actor_token']='other'
-        elif defect=='wrong_binding':dispatch['actor']['binding']['input']='other'
-        elif defect=='missing_commit':damaged.pop('sql_commit_call_begin')
-        elif defect=='exit_before_ack_only':
-            matching['dispatches']=[]
-            matching['exit_observed_at']=(entry['sql_commit_call_begin']+entry['commit_ack'])/2
-        elif defect=='missing_availability':available.pop(eligibility['actor']['actor_token'])
-        elif defect=='missing_exit':matching.pop('exit_observed_at')
-        elif defect=='locked_identity':damaged['locked_admission']['actor']['identity']['start']='other'
-        elif defect=='missing_identity':dispatch['actor'].pop('identity')
-        elif defect=='zombie_member':dispatch['live_members'][0]['state']='Z'
-        elif defect=='missing_dispatch_identity':dispatch.pop('dispatch_identity')
-        elif defect in ('all_missing_binding_input','all_null_incarnation_source'):
-            for actor_copy in (initial,damaged['locked_admission']['actor'],matching['actor_snapshot'],dispatch['actor']):
-                if defect=='all_missing_binding_input':actor_copy['binding'].pop('input')
-                else:actor_copy['incarnation']['source']=None
-        else:available[eligibility['actor']['actor_token']]=entry['before_monotonic']+6
-        evidence=copy(c.evidence);evidence.retirements=retirements
-        negative={'service':result['service'],'manual_input_digest':c.manual_input,'required_preemption':False}
-        classify_occupied(negative,admitted,initial,damaged['locked_admission']['actor'],
-            damaged,evidence,available,allow_existing_retirement=True)
-        assert negative['classification']=='insufficient_retirement_evidence',(defect,negative)
-        assert not negative['required_preemption']
-        result['deliberately_mutated_retiring_negatives'].append({'defect':defect,'observation':negative})

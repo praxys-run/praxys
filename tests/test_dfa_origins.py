@@ -27,7 +27,6 @@ def both_origins(store, monkeypatch, tmp_path):
     expected=artifacts.build_policy_contract(project_active_registry(registry,'sdr-activity-dfa-alpha1-v2'),'sdr-activity-dfa-alpha1-v2').contract_digest
     factory,owner=store
     monkeypatch.setattr(service,'require_policy',REAL_POLICY)
-    monkeypatch.setattr(dfa_rights,'automatic_gate',lambda db,owner:True)
     with synthetic_v2_registry(root,'projected-active',expected) as (science,contract):
         monkeypatch.setattr(artifacts,'_SCIENCE_DIR',science)
         with factory() as db:
@@ -51,7 +50,8 @@ def both_origins(store, monkeypatch, tmp_path):
         yield factory,owner
 
 
-def complete_unit(factory,owner,kind='daily',success=True):
+def complete_unit(factory,owner,kind='daily',success=True,mode=True):
+    factory.dfa_modes[owner] = mode  # Explicit automatic-mode synthetic sync.
     with factory() as db:
         job=GarminConnectIQJob(user_id=owner,account_id='account',credential_generation='synthetic',region='international',kind=kind)
         db.add(job);db.flush()
@@ -86,6 +86,7 @@ def test_duplicate_partial_backfill_and_independent_raw_results(both_origins,mon
         proof,manual=confirmed(factory,owner)
         with factory() as db: claimed=service.claim(db)
         service.execute(factory,*claimed)
+        factory.dfa_modes[owner] = True  # History keeps independent origins after sequential execution.
         with factory() as db:
             auto=service.read_run(db,owner,'123',auto_id,0,1000)
             manual=service.read_run(db,owner,'123',manual['id'],0,1000)

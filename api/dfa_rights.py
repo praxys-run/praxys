@@ -25,9 +25,33 @@ def processing_receipt(db: Session, owner: str) -> str:
 
 
 def automatic_gate(db: Session, owner: str) -> bool:
-    from api.statsig_client import check_gate, get_statsig_user_for_account
-    return check_gate('activity_dfa_automatic', get_statsig_user_for_account(
-        db, user_id=owner, training_base=None, language=None))
+    # Automatic numeric disclosure also requires a recognized current ON,
+    # while manual history remains independent of computation mode.
+    return account_mode(db, owner) == 'automatic'
+
+
+def account_mode(db: Session, owner: str) -> str:
+    from api.statsig_client import recognized_gate, get_statsig_user_for_account
+    # A fresh mode read must never flush partially selected Run outcome fields
+    # before their generation/status/input/epoch CAS. This is not a mode cache.
+    with db.no_autoflush:
+        value = recognized_gate('activity_dfa_automatic', get_statsig_user_for_account(
+            db, user_id=owner, training_base=None, language=None))
+    return 'automatic' if value is True else 'manual' if value is False else 'unavailable'
+
+
+def require_manual_mode(db: Session, owner: str) -> None:
+    mode = account_mode(db, owner)
+    if mode == 'unavailable':
+        raise HTTPException(503, 'DFA_MODE_UNAVAILABLE')
+    if mode != 'manual':
+        raise HTTPException(409, 'DFA_MANUAL_DISABLED_AUTO_MODE')
+
+
+def execution_current(db: Session, run) -> bool:
+    # Historical read authority is deliberately independent of compute mode.
+    from api import activity_dfa as service
+    return account_mode(db, run.user_id) == run.origin and service._current(db, run)
 
 
 def current_sync_grant(db: Session, owner: str, account: str):
