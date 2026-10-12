@@ -110,3 +110,101 @@ def test_entry_replacement_before_metadata_is_denied(tmp_path, monkeypatch, repl
         return original(path, *args, **kwargs)
     monkeypatch.setattr(Path, 'stat', replace_then_stat)
     with pytest.raises(ValueError): dfa_policy.fingerprint(tmp_path)
+
+
+@pytest.mark.parametrize('boundary', ['queued_directory', 'nested_ancestor', 'root_read', 'cache_return', 'directory_identity'])
+def test_warmed_cache_rejects_directory_substitution(tmp_path, monkeypatch, boundary):
+    import shutil
+    science = tmp_path / 'science'
+    nested = science / 'outer' / 'inner'
+    nested.mkdir(parents=True)
+    file = nested / 'content';file.write_bytes(b'identical');file.chmod(0o640)
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', science)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    contract = object()
+    monkeypatch.setattr(artifacts, 'load_policy_contract', lambda *args, **kwargs: contract)
+    assert dfa_policy.validated_contract('synthetic') is contract
+    subject = science if boundary == 'root_read' else science / 'outer'
+    target = tmp_path / 'identical-target'
+    shutil.copytree(subject, target)
+    replaced = False
+    def replace():
+        nonlocal replaced
+        if replaced: return
+        replaced = True
+        subject.rename(tmp_path / 'detached')
+        if boundary == 'directory_identity': shutil.copytree(target, subject)
+        else: subject.symlink_to(target, target_is_directory=True)
+    real_scan = os.scandir
+    def scan(path):
+        # Replacement occurs after classification/queueing, immediately before
+        # a queued scan, or after its ancestor was already traversed.
+        trigger = science / 'outer' if boundary in ('queued_directory', 'directory_identity') else nested
+        if boundary in ('queued_directory', 'nested_ancestor', 'directory_identity') and Path(path) == trigger:
+            replace()
+        return real_scan(path)
+    if boundary in ('queued_directory', 'nested_ancestor', 'directory_identity'):
+        monkeypatch.setattr(os, 'scandir', scan)
+    elif boundary == 'root_read':
+        original = Path.read_bytes
+        def read(path):
+            if path == file: replace()
+            return original(path)
+        monkeypatch.setattr(Path, 'read_bytes', read)
+    else:
+        lock = dfa_policy._lock
+        class ReplaceAtCacheBoundary:
+            def __enter__(self): lock.acquire();replace()
+            def __exit__(self, *args): lock.release()
+        monkeypatch.setattr(dfa_policy, '_lock', ReplaceAtCacheBoundary())
+    with pytest.raises(ValueError): dfa_policy.validated_contract('synthetic')
+    assert replaced
+
+
+def test_configured_root_symlink_is_denied_before_cache_use(tmp_path, monkeypatch):
+    root = tmp_path / 'real';root.mkdir();(root / 'content').write_bytes(b'value')
+    alias = tmp_path / 'alias';alias.symlink_to(root, target_is_directory=True)
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', root)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    calls = []
+    def validator(*args, **kwargs): calls.append(True);return object()
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    dfa_policy.validated_contract('synthetic')
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', alias)
+    with pytest.raises(ValueError, match='symlink'): dfa_policy.validated_contract('synthetic')
+    assert len(calls) == 1
+
+
+def test_outer_root_ancestor_substitution_is_denied(tmp_path, monkeypatch):
+    import shutil
+    outer = tmp_path / 'container';root = outer / 'science';root.mkdir(parents=True)
+    file = root / 'content';file.write_bytes(b'identical')
+    target = tmp_path / 'identical-container';shutil.copytree(outer, target)
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', root)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    contract = object()
+    monkeypatch.setattr(artifacts, 'load_policy_contract', lambda *args, **kwargs: contract)
+    dfa_policy.validated_contract('synthetic')
+    original = Path.read_bytes
+    def read(path):
+        if path == file:
+            outer.rename(tmp_path / 'detached-container')
+            outer.symlink_to(target, target_is_directory=True)
+        return original(path)
+    monkeypatch.setattr(Path, 'read_bytes', read)
+    with pytest.raises(ValueError, match='symlink'): dfa_policy.validated_contract('synthetic')
+
+
+def test_scandir_handle_is_closed_when_traversal_rejects(tmp_path, monkeypatch):
+    (tmp_path / 'link').symlink_to(tmp_path / 'missing')
+    original = os.scandir
+    closed = []
+    class TrackedScan:
+        def __init__(self, path): self.scan = original(path)
+        def __enter__(self): return self.scan.__enter__()
+        def __exit__(self, *args):
+            try: return self.scan.__exit__(*args)
+            finally: closed.append(True)
+    monkeypatch.setattr(os, 'scandir', TrackedScan)
+    with pytest.raises(ValueError, match='symlink'): dfa_policy.fingerprint(tmp_path)
+    assert closed == [True]

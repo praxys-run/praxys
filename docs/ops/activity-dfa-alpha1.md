@@ -66,6 +66,15 @@ observation per file, preserving the ordered path/mode/content digest and the
 4,096-file/32-MiB bounds. It does not cache metadata, add a TTL, or reuse rights
 across calls. STOP/content/mode/validator changes still invalidate the common
 contract cache; initial validation remains bracketed by two matching fingerprints.
+Directory paths, including the configured root's ancestors, are freshly checked
+without following their final symlink component. Directory device/inode identities
+are checked after traversal and byte reads, and again inside the cache lock before
+acceptance. The root is normalized without resolving symlink aliases. Queued
+symlink substitution or directory replacement is denied even when target bytes
+and modes are identical. Scan handles are context-managed and closed on rejection.
+These checks fence observed replacements; they do not make the tree an atomic
+filesystem snapshot or detect an unobserved transient replacement restored between
+checks.
 Origin grants, negative journals, current processing/channel rights, sources and
 control generation remain checked inside the existing transaction path.
 
