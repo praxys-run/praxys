@@ -1004,3 +1004,36 @@ unproved. The361.617ms strict-cell renewal overrun and earlier341.986ms overrun
 have unknown causes. No runtime defect or retrospective repair is claimed.
 The new observers add local timestamp/frame/journal observations; their overhead
 is not quantified and focused forced-boundary results are not a capacity claim.
+
+Capacity reactor failure retention (b6 follow-up)
+
+The b6 committed-head canonical attempt failed its100-causal target after8
+requests:2 accepted/complete causal services and6 unchanged pre-admission
+refusals. Those accepted outcomes remain valid; neither denial nor interrupted
+backoff is an accepted service failure. The final actor had verified physical
+exit while SQL still showed occupied and its automatic run remained running.
+The retained artifacts omitted the caught reactor exception and exact exit
+publication attempt, so an exit-commit failure is not an established original
+cause. b6 remains failed; this harness repair makes no availability-cure claim.
+
+Capacity now uses a shared test-only worker lifecycle recorder. It retains
+exception class and stack frame file/function/line, without exception messages,
+source text or locals; monotonic start/exit/stop-issuer events; and exit-publication
+attempt/ACK/error brackets. A one-time failure snapshot uses the bounded reserved
+control connection and records only actor/binding and run status metadata.
+New ingress/qualification is refused after known worker termination or stop;
+a stop-interrupted5s backoff cannot proceed into another request. These checks
+are not permission reservations. An admission racing termination still reaches
+the existing accepted-service observer and is retained before classification.
+Unexpected worker exception/return/stop fails certification independently of the
+100 target. Requested cleanup is separate; cleanup errors cannot erase a primary
+failure. The final ledger includes both error channels, physical transitions and
+successful durable-exit receipt times. A ledger-write error retains the primary
+exception as the raised failure and the retention error as its cause.
+
+Focused injected reactor and actual reactor exit-commit failures exercise this
+shared path; they do not identify the historical exception. They also cover
+stop-before-ingress, interrupted backoff, accepted failed SQL status after a
+racing worker exception, normal requested shutdown and cleanup failure retention.
+Production renewal, permissions, rights, recovery, timing, pools and all cohort
+limits are unchanged. No new full capacity/canonical run accompanies this repair.

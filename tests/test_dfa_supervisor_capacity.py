@@ -16,6 +16,7 @@ from tests.test_activity_dfa import store, confirmed
 from api import activity_dfa as service
 from db.models import ActivityDFARun as Run, ActivityDFAControl as Control
 from tests.dfa_capacity_measurement import observed_requests, workload_eligibility, observe_acceptance
+from tests.dfa_capacity_worker import CapacityWorker, WorkerUnavailable, failure
 
 
 def admission_snapshot(factory, run_id):
@@ -341,7 +342,8 @@ else:
     source_paths = {path.relative_to(root).as_posix()
         for family in ('api','analysis','sync','db') for path in (root/family).rglob('*.py')}
     source_paths.update({'tests/test_dfa_supervisor_capacity.py','tests/dfa_supervisor_harness.py',
-                         'tests/test_activity_dfa.py','tests/test_dfa_origins.py','tests/dfa_capacity_measurement.py'})
+                         'tests/test_activity_dfa.py','tests/test_dfa_origins.py','tests/dfa_capacity_measurement.py',
+                         'tests/dfa_capacity_worker.py'})
     source_bindings={name:sha256((root/name).read_bytes()).hexdigest() for name in sorted(source_paths)}
     admission_denials=[]
     ingress=[]
@@ -362,21 +364,21 @@ else:
         real_record(value)
         transitions.append(json.loads(json.dumps(value)))
     monkeypatch.setattr(supervisor.lane,'record',record)
+    lifecycle=CapacityWorker(supervisor,error)
     real_record_exit=supervisor.record_exit
     def record_exit():
-        real_record_exit()
+        lifecycle.record_exit(real_record_exit)
         value=supervisor.lane.actor()
         committed_exits[value['actor_token']]=time.monotonic()
     monkeypatch.setattr(supervisor,'record_exit',record_exit)
-    def run():
-        try:supervisor.run()
-        except Exception as exc:error.append(str(exc))
-    worker=threading.Thread(target=run,daemon=True);worker.start()
+    lifecycle.start()
     try:
         # Predeclared300 ingress slots, including refusals and supplemental
         # idle/race admissions; never replenish terminal runs or resample a
         # genuinely failed accepted request. Stop early only at the stated goal.
         for trial in range(maximum_attempts):
+            if not lifecycle.ingress_allowed():
+                coverage_reason='supervisor_terminated';break
             if len(outcomes)>=100: break
             if len(ingress)>=maximum_attempts or time.monotonic()>=overall_deadline:
                 coverage_reason='whole_run_budget';break
@@ -386,11 +388,15 @@ else:
                 generation=row.generation;manual_input=row.input_digest
             admitted=None
             for attempt in range(3):
+                if not lifecycle.ingress_allowed():
+                    coverage_reason='supervisor_terminated';break
                 if len(ingress)>=maximum_attempts or time.monotonic()>=overall_deadline:
                     coverage_reason='whole_run_budget';break
                 qualification_deadline=min(time.monotonic()+15,overall_deadline)
                 previous_state=None
                 while True:
+                    if not lifecycle.ingress_allowed():
+                        coverage_reason='supervisor_terminated';break
                     eligibility=workload_eligibility(factory,owner)
                     signature=(eligibility['actor'],eligibility['automatic_states'])
                     if signature!=previous_state:
@@ -404,9 +410,14 @@ else:
                     startup_evidence=priority_evidence.startup_launch(eligibility['actor'])
                 # Requalify exact actor/workload every ingress, including after
                 # a denial. Do not select a favourable SQL pulse or duration.
-                admitted,entry=admission_attempt(requests,owner,manual['id'],generation,ingress,
-                    {'trial':trial,'attempt':attempt,'eligibility':eligibility,
-                     'cohort_elapsed_seconds':time.monotonic()-overall_started})
+                if not lifecycle.ingress_allowed():
+                    coverage_reason='supervisor_terminated';break
+                try:
+                    admitted,entry=lifecycle.guarded_ingress(admission_attempt, requests,owner,manual['id'],generation,ingress,
+                        {'trial':trial,'attempt':attempt,'eligibility':eligibility,
+                         'cohort_elapsed_seconds':time.monotonic()-overall_started})
+                except WorkerUnavailable:
+                    coverage_reason='supervisor_terminated';break
                 if admitted:
                     observation=observe_acceptance(factory,owner,admitted,entry,manual_input,
                         priority_evidence,transitions,committed_exits,overall_deadline,error,allow_existing_retirement=True)
@@ -437,13 +448,17 @@ else:
                 entry['backoff_requested_seconds']=5
                 if time.monotonic()+5>overall_deadline:
                     coverage_reason='whole_run_budget';break
-                backoff_started=time.monotonic();supervisor.stop.wait(5)
-                entry['backoff_elapsed_seconds']=time.monotonic()-backoff_started
+                backoff=lifecycle.backoff(5)
+                entry['backoff_elapsed_seconds']=backoff['elapsed_seconds']
+                entry['backoff_interrupted']=backoff['interrupted']
+                if not backoff['ingress_allowed_after']:
+                    coverage_reason='supervisor_terminated';break
             if coverage_reason:break
         for previous,next_actor in zip(transitions,transitions[1:]):
             if next_actor['state']=='launching' and previous.get('actor_token') != next_actor.get('actor_token'):
                 assert previous['state']=='idle'
                 assert next_actor['launch_at']>=previous['exit_observed_at']
+        lifecycle.assert_certifiable()
         assert time.monotonic()<=overall_deadline
         assert len(outcomes)==100, {'required_preemptions':len(outcomes),'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason}
         assert all(row['classification'] in ('causal_preemption','retirement_race','already_retiring_service','idle_service') for row in accepted_outcomes),accepted_outcomes
@@ -462,9 +477,15 @@ else:
             'ingress_attempts':ingress,'pre_admission_denials':admission_denials,
             'trials':outcomes,'unproved':['raw-loading preemption','maximum-input/native-compute preemption','output-transfer preemption','Azure/API/sync contention','60-minute mixed-load soak','cross-host placement/handover']},indent=2))
     finally:
+        primary=sys.exc_info()[1]
+        lifecycle.close()
         try:
             progress.with_suffix('.ingress-final.json').write_text(json.dumps({
                 'source_head':source_head,'source_bindings':source_bindings,'attempts':ingress,
+                'worker_terminal':lifecycle.evidence(),
+                'primary_error':failure(primary) if primary else None,
+                'committed_exits':committed_exits,'physical_transitions':transitions,
+                'terminal_snapshot':lifecycle.snapshot(),
                 'completion_plan':completion_plan,'eligibility_observations':eligibility_observations,
                 'accepted_outcomes':accepted_outcomes,'coverage_reason':coverage_reason,
                 'renewal_decisions':priority_evidence.renewal_decisions,
@@ -475,9 +496,14 @@ else:
                 'required_causal_preemptions':len(outcomes),
                 'elapsed_seconds':time.monotonic()-overall_started,
                 'denial_rate':len(admission_denials)/len(ingress) if ingress else None},indent=2))
+        except BaseException as retention_error:
+            # A ledger I/O error cannot replace the already retained primary.
+            if primary is not None:
+                raise primary.with_traceback(primary.__traceback__) from retention_error
+            raise
         finally:
-            supervisor.stop.set();worker.join(timeout=10)
-            assert not worker.is_alive(),error
+            if primary is None:
+                lifecycle.assert_certifiable()
 
 
 
