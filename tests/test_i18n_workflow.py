@@ -24,6 +24,98 @@ def test_model_rollout_is_workflow_owned_with_mini_translation_retained():
     assert '"PRAXYS_VISION_MODEL=${PRAXYS_VISION_MODEL}"' in backend
 
 
+def test_model_routing_waits_for_verified_code_and_failures_do_not_switch():
+    workflow = yaml.load(
+        (ROOT / ".github/workflows/deploy-backend.yml").read_text(), Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["deploy"]["steps"]
+    names = [step.get("name") for step in steps]
+    switch = next(step for step in steps if step.get("name") ==
+                  "Switch model routing after verified compatible code")
+    sync = next(step for step in steps if step.get("name") == "Sync App Service settings")
+    assert "PRAXYS_INSIGHT_MODEL" not in sync["run"]
+    assert "PRAXYS_VISION_MODEL" not in sync["run"]
+    assert names.index("Deploy to App Service") < names.index("Verify deployed backend cutover")
+    assert names.index("Verify deployed backend cutover") < names.index(switch["name"])
+    assert names.index(switch["name"]) < names.index(
+        "Restore reviewed feedback publication after verified cutover",
+    )
+    assert switch["if"] == (
+        "success() && steps.mode.outputs.sync_config == 'true' "
+        "&& steps.live.outputs.readiness == 'ready'"
+    )
+    assert "always()" not in switch["if"]
+    assert ".ai_models.insight == $insight" in switch["run"]
+    assert ".ai_models.vision == $vision" in switch["run"]
+    assert ".source_sha == $sha" in switch["run"]
+    assert "PRAXYS_DISABLE_BACKGROUND_AI" not in switch["run"]
+
+
+@pytest.mark.parametrize("model_matches,sha_matches,expected", [
+    (True, True, 0), (False, True, 1), (True, False, 1),
+])
+def test_model_switch_checks_running_process_and_preserves_emergency_stop(
+    tmp_path, model_matches, sha_matches, expected,
+):
+    workflow = yaml.load(
+        (ROOT / ".github/workflows/deploy-backend.yml").read_text(), Loader=yaml.BaseLoader,
+    )
+    step = next(step for step in workflow["jobs"]["deploy"]["steps"]
+                if step.get("name") == "Switch model routing after verified compatible code")
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    stubs = {
+        "az": '#!/bin/sh\ncase "$*" in\n'
+              '*"appsettings set"*) printf "%s\\n" "$*" >> "$SWITCH_AUDIT";;\n'
+              '*"appsettings list"*) printf "%s\\n" "$MODEL_SETTINGS";;\n'
+              '*) exit 7;;\nesac\n',
+        "curl": '#!/bin/sh\ncase "$*" in\n'
+                '*"/api/version"*) printf "%s\\n" "$VERSION_PAYLOAD";;\n'
+                '*"/api/health/ready"*) printf "%s\\n" "$READY_PAYLOAD";;\n'
+                '*) exit 7;;\nesac\n',
+        "sleep": "#!/bin/sh\nexit 0\n",
+    }
+    for name, source in stubs.items():
+        path = binary / name
+        path.write_text(source)
+        path.chmod(0o755)
+    audit = tmp_path / "writes"
+    env = {
+        **os.environ, "PATH": f"{binary}:{os.environ['PATH']}",
+        "AZURE_BACKEND_APP_NAME": "test-app", "AZURE_RESOURCE_GROUP": "test-group",
+        "PRAXYS_INSIGHT_MODEL": "gpt-6.1-sol", "PRAXYS_VISION_MODEL": "gpt-6.1-sol",
+        "PRAXYS_EXPECTED_API_VERSION": "test-version", "PRAXYS_EXPECTED_API_SOURCE_SHA": "test-sha",
+        "SWITCH_AUDIT": str(audit),
+        "MODEL_SETTINGS": json.dumps([
+            {"name": name, "value": "gpt-6.1-sol"}
+            for name in ("PRAXYS_INSIGHT_MODEL", "PRAXYS_VISION_MODEL")
+        ]),
+        "VERSION_PAYLOAD": json.dumps({
+            "version": "test-version", "source_sha": "test-sha" if sha_matches else "old-sha",
+        }),
+        "READY_PAYLOAD": json.dumps({
+            "status": "ready",
+            "ai_models": {key: "gpt-6.1-sol" if model_matches else "gpt-5.4"
+                          for key in ("insight", "vision")},
+            "optional_processing": {
+                "background_ai_kill_switch": True,
+                "background_ai_enabled": False,
+                "feedback_publication_positive_enable": False,
+                "feedback_publication_enabled": False,
+            },
+        }),
+    }
+    result = subprocess.run(
+        ["bash", "-c", step["run"]], env=env, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == expected, result.stderr
+    writes = audit.read_text()
+    assert "PRAXYS_INSIGHT_MODEL=gpt-6.1-sol" in writes
+    assert "PRAXYS_VISION_MODEL=gpt-6.1-sol" in writes
+    assert "PRAXYS_DISABLE_BACKGROUND_AI" not in writes
+    assert "PRAXYS_ENABLE_FEEDBACK_PUBLICATION" not in writes
+
+
 def _step(name: str) -> str:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     marker = f"      - name: {name}"

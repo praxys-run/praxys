@@ -106,9 +106,15 @@ closed. The deployment API version remains `2025-04-01-preview`.
 
 GitHub Actions variables own routing: `PRAXYS_INSIGHT_MODEL`,
 `PRAXYS_VISION_MODEL`, and `TRANSLATE_REVIEW_MODEL`. Unset variables use the
-defaults above. A normal configuration-sync backend deployment writes the first
-two to **`trainsight-app`**; translation reads its variable on the next workflow
-run. Do not manually switch the live App Service before compatible code lands.
+defaults above. Configuration sync preserves old routing until the package
+deployment and exact-source-SHA/core-readiness verification succeed. Only then
+does a separate step write the first two settings to **`trainsight-app`** and
+verify the running process reports both requested names in readiness
+`ai_models`, with publication still quiesced. A failure before code cutover
+never executes that routing step; a failure to converge afterward fails the
+deployment and withholds publication restoration. Translation reads its variable
+on the next workflow run. Do not manually switch the live App Service before
+compatible code lands.
 Retain both `gpt-5.4` and `gpt-5.4-mini` deployments. To roll back model routing,
 set all three strong-model variables to `gpt-5.4` and dispatch the backend
 deployment with `sync_config=true`. No emergency-stop setting is changed.
