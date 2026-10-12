@@ -58,6 +58,28 @@ pipes. The supervisor alone publishes; actor/token/epoch/generation/input and
 nested result schemas/size are checked. Same-container processes share an OS/cloud
 identity; environment filtering does not establish separate managed-identity isolation.
 
+## Renewal validation cost
+
+Every renewal still observes the entire Science tree's current file bytes and
+permission bits. The fingerprint uses `scandir` entry types and one fresh metadata
+observation per file, preserving the ordered path/mode/content digest and the
+4,096-file/32-MiB bounds. It does not cache metadata, add a TTL, or reuse rights
+across calls. STOP/content/mode/validator changes still invalidate the common
+contract cache; initial validation remains bracketed by two matching fingerprints.
+Origin grants, negative journals, current processing/channel rights, sources and
+control generation remain checked inside the existing transaction path.
+
+Read/validation cost and the later control write can both consume the aggregate
+250ms budget. A 200ms per-command limit is not a guarantee that the whole cycle
+finishes within 250ms. SQLAlchemy's logical transaction also does not prove a
+SQLite read-to-write lock upgrade: with the diagnostic fixture's default SQLite
+driver, SELECT leaves DBAPI `in_transaction` false until the write. PostgreSQL
+starts a transaction before these reads; its guarded control UPDATE can wait on
+a competing producer row lock. Keep these observations separate from deployed
+connection modes and from unknown historical overrun causes. Late or failed
+validation still denies permission regardless of an older future physical lease.
+No timer, manual recovery, queue, or capacity acceptance policy changes here.
+
 ## Verify
 
 Use synthetic data only. Retain failed admissions and interrupted runs. The first
