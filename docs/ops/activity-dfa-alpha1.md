@@ -1037,3 +1037,31 @@ stop-before-ingress, interrupted backoff, accepted failed SQL status after a
 racing worker exception, normal requested shutdown and cleanup failure retention.
 Production renewal, permissions, rights, recovery, timing, pools and all cohort
 limits are unchanged. No new full capacity/canonical run accompanies this repair.
+
+Controlled-evidence correction and mid-run amendment
+
+The original cf98bbc injected exit-commit case failed during startup
+`reconcile_recovery`: physical and SQL actors were already idle, and its recorded
+stop issuer was monitor cleanup. It proved error retention at startup only.
+Any earlier handoff describing that receipt as mid-run physical-idle/SQL-occupied
+or reactor-finally stop evidence is superseded. Original test/output remain
+preserved; they are not relabelled. The original pytest-220 database bytes remain
+unavailable; retained extracts and hashes do not recover those bytes.
+
+The amended test lets startup reconciliation pass, then binds its injection to
+a distinct real work-launched actor after the occupied SQL acknowledgement.
+Actor token, incarnation, binding and PID/PGID/process-start identity must match.
+Only that actor's post-physical-exit `record_exit` commit fails. The test asserts
+physical idle with exit evidence and the independently committed same SQL actor
+still occupied, attempted exit publication without ACK, reactor `run` finally
+stop before monitor cleanup, interrupted backoff and zero subsequent guarded
+requests. The already API-admitted unit retains its actual bounded observation
+(running/timeout in this controlled run), and certification fails. This is a
+mechanism regression, not proof of the missing original b6 exception or cause.
+
+This bounded run used a unique explicit task-owned `--basetemp` outside pytest's
+automatic retention root. New scratch databases were backed up through SQLite's
+online backup API after the owned reactor/renewal threads and child lifecycle
+were quiescent and engines disposed; source DB/WAL inventory, backup integrity
+checks and hashes are preserved. No production behavior or capacity profile was
+changed and no full canonical/capacity run is recommended by this narrow proof.
