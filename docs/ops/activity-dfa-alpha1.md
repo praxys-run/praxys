@@ -1134,3 +1134,10 @@ Quality reviews this immutable patch before root may authorize one canonical
 run; if capacity fails, the next step is a concrete Product/Operations resource
 or acceptance decision rather than another stochastic retry. User miniapp
 acceptance carries; unproved chart/compiler/device parity is not fabricated.
+
+Launch ACK compares the current SQL actor to the captured predecessor
+unconditionally and CASes against that captured operand. Legitimate initial
+SQL NULL and JSON null both decode to an absent predecessor; this equivalence
+does not permit a captured idle actor to change to either null encoding before
+ACK. Such a change refuses ACK and payload delivery, retires the physical child,
+and leaves the changed SQL projection untouched under the existing exit fence.

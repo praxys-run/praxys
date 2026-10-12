@@ -538,9 +538,9 @@ class Supervisor:
                     raise ValueError('binding_changed')
                 previous = control.actor
                 predecessor=sql_predecessor
-                if previous is not None and previous!=predecessor:
+                if previous!=predecessor:
                     raise ValueError('binding_changed')
-                guard = self._actor_guard(db, previous)
+                guard = self._actor_guard(db, predecessor)
                 # Exit publication may win while this I/O call is blocked. A
                 # late acknowledgement must not overwrite that receipt/new actor.
                 if guard.update({Control.actor:actor}, synchronize_session=False)!=1:
