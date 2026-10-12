@@ -2878,6 +2878,13 @@ Daily response metadata includes typed `content_status` (`ready`, `pending`,
 `translations.en`/`translations.zh`. Theory destinations are `/science#<pillar>`
 and `/pages/science/index?pillar=<pillar>`; they remain visible outside details.
 
+When `ai_available` is true but daily `content_status` is `unavailable`, the
+current snapshot has a recorded generation failure or exhausted generation
+budget. Reading this endpoint again does not generate content. Both clients
+hide the read-only refresh action in this state and direct the athlete to sync
+data to retry generation (subject to the daily budget). Refresh remains
+available for pending/stale content and failed reads.
+
 Daily model output contains only `evidence_ids`, `interpretation_ids`, and
 `action_ids`. Eligible candidates come from existing metrics and canonical
 Today actions. Extra fields, unknown IDs, unsupported combinations, missing

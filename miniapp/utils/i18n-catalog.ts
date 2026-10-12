@@ -392,7 +392,7 @@ export const I18N_CATALOG: Record<Locale, Record<string, string>> = {
     "Close setup": "收起配置",
     "Closed": "已关闭",
     "Closed · cap reached": "已关闭 · 名额已满",
-    "Coach analysis is unavailable. Training metrics remain available.": "Coach 分析暂不可用，仍可查看训练指标。",
+    "Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.": "Coach 分析生成失败，可同步数据后重试。训练指标仍可查看。",
     "Coach is waiting for a current analysis.": "Coach 正在等待当前分析结果。",
     "Coach needs a refreshed training snapshot.": "请刷新训练数据后查看 Coach。",
     "Coach useful-vote rate": "Coach 有用投票率",

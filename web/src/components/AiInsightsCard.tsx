@@ -13,6 +13,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { Link } from 'react-router-dom';
 import type { CoachTheoryRef } from '@/types/api';
 import { linkifyScienceTerms } from '@/lib/science-links';
+import { Button } from '@/components/ui/button';
 
 /**
  * Deterministic content rendered separately when no Azure AI insight exists.
@@ -90,7 +91,7 @@ export default function AiInsightsCard({
   const statusText = error ? i18n._(msg`Couldn't load Coach. Try again.`)
     : loading ? i18n._(msg`Loading Coach…`)
     : aiUnavailable ? i18n._(msg`Azure AI insights are temporarily unavailable.`)
-    : data?.content_status === 'unavailable' ? i18n._(msg`Coach analysis is unavailable. Training metrics remain available.`)
+    : data?.content_status === 'unavailable' ? i18n._(msg`Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.`)
     : daily && (!snapshot || data?.content_status === 'stale') ? i18n._(msg`Coach needs a refreshed training snapshot.`)
     : !insight && fetchInsight ? i18n._(msg`Coach is waiting for a current analysis.`) : '';
   const rawDatasetHash = insight?.meta.dataset_hash;
@@ -265,10 +266,10 @@ export default function AiInsightsCard({
         {statusText && <div role={error ? 'alert' : 'status'} className="coach-status">
           <p><strong><Trans>Praxys Coach</Trans></strong> — {statusText}</p>
           {loading && <div className="coach-loading" aria-hidden="true"><span /><span /><span /></div>}
-          {!loading && !aiUnavailable && <button type="button" className="coach-toggle" onClick={() => {
+          {!loading && !aiUnavailable && (error || data?.content_status !== 'unavailable') && <Button type="button" variant="outline" className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
             if (onFeedbackStale) void onFeedbackStale();
             void refetch();
-          }}><Trans>Refresh</Trans></button>}
+          }}><Trans>Refresh</Trans></Button>}
         </div>}
         <h2 className="coach-headline">{content ? displayedContent.headline : <Trans>Praxys Coach</Trans>}</h2>
         {displayedContent.summary && (

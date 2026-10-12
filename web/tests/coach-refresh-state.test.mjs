@@ -3,6 +3,73 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+async function renderCoach({ status = 'unavailable', error = null, loading = false, aiAvailable = true } = {}) {
+  const source = await readFile(new URL('../src/components/AiInsightsCard.tsx', import.meta.url), 'utf8');
+  const code = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const modules = {
+    '@/hooks/useApi': { useApi: () => ({
+      data: { content_status: status, ai_available: aiAvailable, snapshot: 'synthetic' },
+      error, loading, stale: false, refetch: async () => {},
+    }) },
+    '@lingui/core/macro': { msg: strings => strings.join('') },
+    '@lingui/react/macro': {
+      useLingui: () => ({ i18n: { _: value => value } }),
+      Trans: ({ children }) => children,
+      Plural: () => null,
+    },
+    '@/contexts/LocaleContext': { useLocale: () => ({ locale: 'en' }) },
+    'react-router-dom': { Link: ({ children }) => children },
+    '@/lib/science-links': { linkifyScienceTerms: text => text },
+    '@/components/ui/button': { Button: ({ variant, ...props }) => React.createElement('button', props) },
+  };
+  const sandbox = { exports: {}, require: name => modules[name] ?? require(name) };
+  vm.runInNewContext(code, sandbox);
+  return renderToStaticMarkup(React.createElement(sandbox.exports.default, {
+    insightType: 'daily_brief', snapshot: 'synthetic',
+    fallback: { headline: 'Synthetic training metrics' },
+  }));
+}
+
+test('failed generation preserves metrics and explains retry without a read-only refresh', async () => {
+  const html = await renderCoach();
+  assert.match(html, /Sync your data to try again/);
+  assert.match(html, /Synthetic training metrics/);
+  assert.doesNotMatch(html, /<button/);
+});
+
+test('refresh stays actionable for pending, stale and failed reads, but not provider outages or loading', async () => {
+  for (const state of [{ status: 'pending' }, { status: 'stale' }, { error: 'HTTP 503' }]) {
+    const html = await renderCoach(state);
+    assert.match(html, /<button[^>]*cursor-pointer[^>]*>Refresh<\/button>/);
+    assert.match(html, /min-h-11 min-w-11/);
+  }
+  assert.doesNotMatch(await renderCoach({ aiAvailable: false }), /<button/);
+  assert.doesNotMatch(await renderCoach({ loading: true }), /<button/);
+});
+
+test('miniapp refresh has the same failure, outage and loading semantics', async () => {
+  const wxml = await readFile(new URL('../../miniapp/components/coach-receipt/index.wxml', import.meta.url), 'utf8');
+  const condition = wxml.match(/wx:if="{{([^}]+)}}"[^>]+bindtap="refresh"/)?.[1];
+  assert.ok(condition);
+  const visible = values => vm.runInNewContext(condition, {
+    loading: false, failed: false,
+    response: { ai_available: true, content_status: 'unavailable' },
+    ...values,
+  });
+  assert.equal(visible({}), false);
+  assert.equal(visible({ failed: true }), true);
+  assert.equal(visible({ response: { ai_available: true, content_status: 'stale' } }), true);
+  assert.equal(visible({ response: { ai_available: false } }), false);
+  assert.equal(visible({ loading: true, failed: true }), false);
+});
 
 async function loadRefetch(pageName, apiGet) {
   const filename = new URL(`../../miniapp/pages/${pageName}/index.ts`, import.meta.url);

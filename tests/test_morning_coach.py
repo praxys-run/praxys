@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+import json
 from types import SimpleNamespace
 
 import pandas as pd
@@ -42,6 +43,38 @@ def context() -> dict:
 def selection(eligible: dict) -> dict:
     return {'evidence_ids': list(eligible['evidence']), 'interpretation_ids': list(eligible['interpretations']),
             'action_ids': list(eligible['actions'])}
+
+
+def test_daily_generator_satisfies_provider_json_mode_requirement(monkeypatch):
+    ctx = context()
+    chosen = selection(coach.candidates(ctx))
+    requests = []
+
+    def create(**kwargs):
+        requests.append(kwargs)
+        if 'json' not in ' '.join(message['content'] for message in kwargs['messages']).lower():
+            raise ValueError('JSON mode requires a JSON instruction in messages')
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(chosen)))],
+        )
+
+    monkeypatch.setattr(llm, 'get_client', lambda: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
+    monkeypatch.setattr(llm, 'begin_runtime_provider_attempt', lambda: None)
+    monkeypatch.setattr(llm, 'record_runtime_provider_success', lambda _: None)
+    monkeypatch.setattr(llm, 'record_runtime_provider_failure', lambda: None)
+
+    result = insights_generator.generate_daily_brief(ctx, {})
+
+    assert result is not None
+    assert len(requests) == 1
+    assert requests[0]['response_format'] == {'type': 'json_object'}
+    assert result['translations']['en']['headline']
+    assert result['translations']['zh']['headline']
+    expected = payload(ctx)
+    for key in ('headline', 'summary', 'findings', 'recommendations', 'translations'):
+        assert result[key] == expected[key]
+    assert result['meta_extra'][coach.CONTRACT_KEY]['snapshot'] == ctx['coach_snapshot']
 
 
 def payload(ctx: dict) -> dict:
