@@ -115,7 +115,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     env:
-      TRANSLATE_MODEL: ${{ vars.TRANSLATE_MODEL || 'gpt-5.4-mini' }}
+      TRANSLATE_MODEL: ${{ vars.TRANSLATE_MODEL || 'gpt-6-luna' }}
       TRANSLATE_REVIEW_MODEL: ${{ vars.TRANSLATE_REVIEW_MODEL || 'gpt-6.1-sol' }}
     permissions:
       actions: write

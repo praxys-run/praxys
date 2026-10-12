@@ -411,10 +411,12 @@ def completion_options(
 ) -> dict[str, Any]:
     """Return model-compatible options, including a bounded reasoning budget.
 
-    GPT-6.1 Sol deployment names must retain the ``gpt-6.1-sol`` prefix.
+    GPT-6.1 Sol and GPT-6 Luna deployments must retain their model-name prefixes.
     Older deployments keep their existing sampling and token limits for rollback.
     """
-    if model == "gpt-6.1-sol" or model.startswith("gpt-6.1-sol-"):
+    if model in {"gpt-6.1-sol", "gpt-6-luna"} or model.startswith(
+        ("gpt-6.1-sol-", "gpt-6-luna-")
+    ):
         # GPT-6.1 Sol rejects temperature and effort=none. Short classifiers
         # need room for reasoning as well as the visible JSON response.
         return {

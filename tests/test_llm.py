@@ -9,15 +9,19 @@ from api import llm
 from scripts import translate_missing
 
 
-@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6.1-sol-canary"])
+@pytest.mark.parametrize("model", [
+    "gpt-6.1-sol", "gpt-6.1-sol-canary", "gpt-6-luna", "gpt-6-luna-canary",
+])
 @pytest.mark.parametrize("budget,expected", [(80, 2048), (160, 2048), (4096, 4096)])
-def test_sol_request_profile(model: str, budget: int, expected: int) -> None:
+def test_reasoning_request_profile(model: str, budget: int, expected: int) -> None:
     assert llm.completion_options(
         model=model, max_completion_tokens=budget, temperature=0,
     ) == {"max_completion_tokens": expected, "reasoning_effort": "low"}
 
 
-@pytest.mark.parametrize("model", ["gpt-5.4", "gpt-5.4-mini", "custom-deployment"])
+@pytest.mark.parametrize("model", [
+    "gpt-5.4", "gpt-5.4-mini", "custom-deployment", "gpt-6-lunar",
+])
 def test_rollback_request_profile(model: str) -> None:
     assert llm.completion_options(
         model=model, max_completion_tokens=80, temperature=0.3,

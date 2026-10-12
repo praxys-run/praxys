@@ -38,7 +38,7 @@ Usage:
 Environment:
     AZURE_AI_ENDPOINT         Azure OpenAI resource base, e.g.
                               https://<resource>.cognitiveservices.azure.com/
-    TRANSLATE_MODEL           Deployment for new strings (default: gpt-5.4-mini).
+    TRANSLATE_MODEL           Deployment for new strings (default: gpt-6-luna).
     TRANSLATE_REVIEW_MODEL    Stronger deployment for native-language review
                               (default: gpt-6.1-sol).
     AZURE_OPENAI_API_VERSION  API version (default: 2025-04-01-preview).
@@ -75,7 +75,7 @@ except ImportError:
     DefaultAzureCredential = None
     get_bearer_token_provider = None
 
-MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-5.4-mini")
+MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-6-luna")
 REVIEW_MODEL = os.environ.get("TRANSLATE_REVIEW_MODEL", "gpt-6.1-sol")
 API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 

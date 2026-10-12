@@ -13,10 +13,10 @@ ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "i18n.yml"
 
 
-def test_model_rollout_is_workflow_owned_with_mini_translation_retained():
+def test_model_rollout_is_workflow_owned_with_luna_translation():
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "vars.TRANSLATE_REVIEW_MODEL || 'gpt-6.1-sol'" in workflow
-    assert "vars.TRANSLATE_MODEL || 'gpt-5.4-mini'" in workflow
+    assert "vars.TRANSLATE_MODEL || 'gpt-6-luna'" in workflow
     backend = (ROOT / ".github/workflows/deploy-backend.yml").read_text(encoding="utf-8")
     assert "vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol'" in backend
     assert "vars.PRAXYS_VISION_MODEL || vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol'" in backend
