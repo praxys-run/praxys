@@ -16,6 +16,9 @@ from tests.test_dfa_origins import both_origins
 from tests.test_dfa_capacity_outcomes import outcome_cell, attempt, observe
 from tests.test_dfa_admission_contention import new_submission_attempt
 from tests.dfa_capacity_measurement import observed_requests, fresh_physical_eligibility, observe_acceptance
+from tests.dfa_boundary_evidence import safe_binding,boundary_junit
+
+pytestmark=pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 
 
 def completed_idle(cell):
@@ -24,7 +27,7 @@ def completed_idle(cell):
     admitted,entry=attempt(cell,requests,fresh_physical_eligibility(cell.factory,cell.owner,cell.supervisor))
     assert admitted,entry
     result=observe(cell,admitted,entry)
-    assert result['service_success'] and result['manual_physical_exit'] and result['manual_durable_available_at'],result
+    assert result['service_success'] and result['manual_payload_handshake'] and result['manual_physical_exit'] and result['manual_durable_available_at'],cell.diagnostic.compact(alive=cell.worker.is_alive())
     return admitted,entry,result
 
 
@@ -77,12 +80,16 @@ def test_new_submit_postcommit_503_is_accepted_and_fully_observed(outcome_cell,m
         scoped.setattr(activity_dfa_dispatch,'wake',response_error)
         admitted,entry=new_submission_attempt(requests,c.owner,catalog,confirmation if phase=='compute' else None,
             c.attempts,{'phase':phase,'eligibility':fresh_physical_eligibility(c.factory,c.owner,c.supervisor)})
-    assert admitted and entry['outcome']=='accepted_error' and entry['http_status']==503,entry
+    c.diagnostic.note('admission_return',job=safe_binding(admitted),
+                      outcome=entry.get('outcome'),http_status=entry.get('http_status'))
+    assert admitted,entry
     with c.factory() as db:manual_input=db.get(Run,admitted['id']).input_digest
     expected='awaiting_source_confirmation' if phase=='prepare' else 'complete'
     result=observe_acceptance(c.factory,c.owner,admitted,entry,manual_input,c.evidence,c.transitions,
         c.available,c.deadline,c.errors,terminal_status=expected)
-    assert result['service_success'] and result['authorization_current'],result
+    c.retain(admitted,result)
+    assert entry['outcome']=='accepted_error' and entry['http_status']==503,c.diagnostic.compact()
+    assert result['service_success'] and result['authorization_current'] and result['manual_payload_handshake'],c.diagnostic.compact(alive=c.worker.is_alive())
     assert result['manual_actor'] and result['manual_physical_exit'] and result['manual_durable_available_at'],result
     assert not result['reuse_violations'] and result['response_outcome']=='accepted_error',result
     assert not result['required_preemption']  # These are idle service/error-accounting cells.

@@ -17,6 +17,7 @@ from db.models import ActivityDFAControl as Control, ActivityDFARun as Run
 from tests.test_activity_dfa import store, confirmed
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.dfa_capacity_worker import CapacityWorker, failure
+from tests.dfa_boundary_evidence import StartupEvidence,safe_binding,boundary_junit
 
 
 def wait_for(predicate, seconds=8):
@@ -56,6 +57,7 @@ class Cell:
                 caller = sys._getframe(1)
                 result = super().commit()
                 if caller.f_code is renew_code:
+                    cell.note('renewal_sql_ack')
                     cell.current_renewal.set()
                     if cell.renew_commit_callback and cell.target:
                         cell.renew_commit_callback()
@@ -80,6 +82,9 @@ class Cell:
             actor = self.sup.lane.actor()
             matching = self.target and actor['actor_token']==self.target['actor_token']
             if matching:
+                assert actor['state']=='idle' and actor.get('exit_observed_at') is not None
+                assert actor['binding']==self.target['binding'] and actor['identity']==self.target['identity']
+                self.note('verified_target_exit',actor=deepcopy(actor))
                 self.note('exit_attempt', actor=deepcopy(actor))
                 if mode in ('lock_release','persistent') and self.blocker is None and not any(e['event']=='lock_released' for e in self.events):
                     self.blocker = self.factory.kw['bind'].connect()
@@ -88,7 +93,9 @@ class Cell:
                         self.blocker.begin()
                         self.blocker.execute(text('SELECT id FROM activity_dfa_control WHERE id=1 FOR UPDATE'))
                     self.note('real_control_lock')
-                if mode=='unknown': raise RuntimeError('controlled_unknown_exit_error')
+                if mode=='unknown':
+                    self.note('unknown_fault_applied')
+                    raise RuntimeError('controlled_unknown_exit_error')
             try:
                 return self.monitor.record_exit(actual_exit)
             except Exception as exc:
@@ -96,7 +103,10 @@ class Cell:
                     self.note('exit_error', error=failure(exc), sqlite_code=getattr(getattr(exc,'orig',None),'sqlite_errorcode',None), sqlstate=getattr(getattr(exc,'orig',None),'sqlstate',None))
                     if mode=='lock_release':
                         self.release_lock()
-                        if change: change(self)
+                        if change:
+                            self.note('change_callback_entered')
+                            change(self)
+                            self.note('change_callback_returned')
                 raise
         monkeypatch.setattr(self.sup,'record_exit',exited)
         actual_finish=self.sup.finish
@@ -118,9 +128,15 @@ class Cell:
             self.renewals.append(threading.current_thread());actual_renew()
         monkeypatch.setattr(self.sup,'renew',renew)
         self.sup.allowed=False;self.sup.permission_until=0.
+        self.diagnostic=StartupEvidence(self.sup,monkeypatch)
+        self.diagnostic.note('admitted_entry',job=safe_binding(self.admitted))
 
     def note(self,event,**fields):
         self.events.append({'event':event,'at':time.monotonic(),**fields})
+        safe={k:deepcopy(fields[k]) for k in ('status','change','sqlite_code','sqlstate','error') if k in fields}
+        if 'actor' in fields:safe['actor']=safe_binding(fields['actor'])
+        if 'job_binding' in fields:safe['job']=safe_binding(fields['job_binding'])
+        self.diagnostic.note(event,**safe)
 
     def release_lock(self):
         if self.blocker:
@@ -134,13 +150,49 @@ class Cell:
 
     def start(self): self.monitor.start()
 
+    def wait_error(self):
+        try:
+            wait_for(lambda:bool(self.errors) or self.finished.is_set())
+        except BaseException as exc:
+            self.diagnostic.error(exc)
+            raise AssertionError(self.diagnostic.compact(alive=self.monitor.thread.is_alive(),
+                target=self.target,finished=self.finished.is_set())) from exc
+        assert self.errors, self.diagnostic.compact(alive=self.monitor.thread.is_alive(),
+            target=self.target,finished=self.finished.is_set())
+        assert any(e['event']=='occupied_commit_ack' for e in self.events),self.diagnostic.compact()
+        assert any(e['event']=='verified_target_exit' for e in self.events),self.diagnostic.compact()
+
     def close(self):
-        self.release_lock();self.monitor.close()
-        for thread in self.renewals: thread.join(5)
-        joined=all(not thread.is_alive() for thread in self.renewals)
-        self.sup.lane.retire();self.engine.dispose();self.factory.kw['bind'].dispose()
-        (self.path/'finalization-evidence.json').write_text(json.dumps({'mode':self.mode,'events':self.events,'monitor':self.monitor.evidence(),'runtime_finalization':list(getattr(self.sup,'finalization_events',[])),'pending':getattr(self.sup,'pending_evidence',lambda:None)(),'launches':self.launches,'finish_calls':self.finish_calls,'state':self.state(),'renewals_joined':joined},indent=2))
-        assert joined
+        snapshot_error=None
+        try:
+            try:
+                for event in list(self.sup.finalization_events)[-16:]:
+                    self.diagnostic.note('runtime_finalization',**{k:deepcopy(event[k]) for k in
+                        ('operation','attempt','code','error') if k in event},
+                        transition=event['event'],observed_at=event['at'])
+                # Before any cleanup/owner-erasure: retain observed durable
+                # status, never infer a historical reason from current state.
+                state=self.state()['run']
+                state.pop('id',None)
+                self.diagnostic.accepted(self.admitted,{'last_state':state,'service':state['status']})
+            except BaseException as exc:
+                snapshot_error=exc
+                self.diagnostic.error(exc,cleanup=True)
+            # Diagnostic collection is never allowed to skip owned shutdown.
+            self.release_lock();self.monitor.close()
+            for thread in self.renewals: thread.join(5)
+            joined=all(not thread.is_alive() for thread in self.renewals)
+            self.sup.lane.retire();self.engine.dispose();self.factory.kw['bind'].dispose()
+            (self.path/'finalization-evidence.json').write_text(json.dumps({'mode':self.mode,'events':self.events,'monitor':self.monitor.evidence(),'runtime_finalization':list(getattr(self.sup,'finalization_events',[])),'pending':getattr(self.sup,'pending_evidence',lambda:None)(),'launches':self.launches,'finish_calls':self.finish_calls,'state':self.state() if snapshot_error is None else None,'state_error':failure(snapshot_error) if snapshot_error else None,'renewals_joined':joined},indent=2))
+            assert joined
+            if snapshot_error is not None:raise snapshot_error
+        except BaseException as exc:
+            if exc is not snapshot_error:self.diagnostic.error(exc,cleanup=True)
+            raise
+        finally:
+            self.diagnostic.primary_errors.extend(self.errors[:4])
+            self.diagnostic.cleanup_errors.extend(self.monitor.cleanup_errors[:4])
+            self.diagnostic.emit(alive=self.monitor.thread.is_alive(),target=self.target,finished=self.finished.is_set())
 
 
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
@@ -186,13 +238,19 @@ def test_unavailable_exit_stops_without_reuse(store,monkeypatch,tmp_path,mode):
 
 
 @pytest.mark.parametrize('action',['stop','start_limit'])
-def test_pending_stop_and_scheduling_limit_do_not_start_more_work(store,monkeypatch,tmp_path,action):
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+def test_pending_stop_and_scheduling_limit_do_not_start_more_work(both_origins,monkeypatch,tmp_path,action):
     def change(cell):
         if action=='stop':cell.sup.stop.set()
         else:time.sleep(1.02)  # Real elapsed time, never substituted freshness.
-    cell=Cell(store,monkeypatch,tmp_path,change=change)
+        cell.note('scheduling_fault_applied',change=action)
+    cell=Cell(both_origins,monkeypatch,tmp_path,change=change)
     try:
-        cell.start();wait_for(lambda:bool(cell.errors))
+        cell.start();cell.wait_error()
+        assert any(e['event']=='scheduling_fault_applied' for e in cell.events),cell.diagnostic.compact()
+        terminal='stopped' if action=='stop' else 'start_limit'
+        code='finalization_stopped' if action=='stop' else 'exit_persistence_start_limit'
+        assert any(e['event']==terminal and e.get('code')==code for e in cell.sup.finalization_events),cell.diagnostic.compact()
         attempts=[e for e in cell.sup.finalization_events if e['operation']=='exit_persistence' and e['event']=='attempt']
         assert len(attempts)==1 and len(cell.launches)==1 and cell.finish_calls==0
         assert cell.state()['run']['status']=='running'
@@ -202,7 +260,7 @@ def test_pending_stop_and_scheduling_limit_do_not_start_more_work(store,monkeypa
 
 @pytest.mark.parametrize('change',['actor','epoch','incarnation'])
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
-def test_exit_projection_cas_rejects_changed_predecessor(store,monkeypatch,tmp_path,change):
+def test_exit_projection_cas_rejects_changed_predecessor(both_origins,monkeypatch,tmp_path,change):
     def install(cell):
         actual=cell.sup._actor_guard
         once=[]
@@ -218,12 +276,19 @@ def test_exit_projection_cas_rejects_changed_predecessor(store,monkeypatch,tmp_p
                 cell.note('predecessor_changed_after_read',change=change)
             return actual(db,previous)
         monkeypatch.setattr(cell.sup,'_actor_guard',raced)
-    cell=Cell(store,monkeypatch,tmp_path,change=install)
+    cell=Cell(both_origins,monkeypatch,tmp_path,change=install)
     try:
-        cell.start();wait_for(lambda:bool(cell.errors))
+        cell.start();cell.wait_error()
         assert cell.finish_calls==0 and len(cell.launches)==1
         assert cell.state()['run']['status']=='running'
         assert any(e['event']=='predecessor_changed_after_read' for e in cell.events)
+        assert cell.sup.pending is not None and not cell.sup.allowed
+        assert any(e['event']=='error' and e['operation']=='exit_persistence'
+            and e['error']['reason_code']=='exit_journal_binding_changed'
+            for e in cell.sup.finalization_events),cell.diagnostic.compact()
+        state=cell.state()
+        assert state['actor']['state']=='occupied'  # Exit projection did not overwrite replacement.
+        if change=='actor':assert state['actor']['actor_token']=='different-synthetic-actor'
     finally:cell.close()
 
 

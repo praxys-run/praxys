@@ -7,6 +7,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import create_engine,event,text,update
 from sqlalchemy.orm import sessionmaker
+from tests.dfa_boundary_evidence import StartupEvidence,safe_binding,boundary_junit
+from tests.dfa_capacity_worker import failure
 from api import activity_dfa as service
 from db.models import ActivityDFAControl as Control,ActivityDFARun as Run
 from tests.test_activity_dfa import store,confirmed
@@ -24,19 +26,38 @@ def outcome_cell(both_origins,monkeypatch):
     supervisor=factory.dfa_supervisor
     supervisor.allowed=False;supervisor.permission_until=0.
     with factory() as db:db.get(Control,1).ready_until=datetime.utcnow();db.commit()
-    engine=create_engine(factory.kw['bind'].url,pool_size=2,max_overflow=0,pool_timeout=.1,connect_args={'timeout':.1})
+    backend=factory.kw['bind'].dialect.name
+    args={'timeout':.1} if backend=='sqlite' else {'options':'-c lock_timeout=200 -c statement_timeout=200'}
+    engine=create_engine(factory.kw['bind'].url,pool_size=2,max_overflow=0,pool_timeout=.1,connect_args=args)
+    diagnostic=StartupEvidence(supervisor,monkeypatch)
     supervisor.controls=sessionmaker(bind=engine)
     evidence=PriorityEvidence(supervisor,monkeypatch)
+    work_code=supervisor.work.__func__.__code__
+    renew_code=supervisor.renew.__func__.__code__
+    class Controls(supervisor.controls.class_):
+        def commit(self):
+            caller=sys._getframe(1)
+            result=super().commit()
+            if caller.f_code is work_code:
+                diagnostic.note('occupied_sql_ack',actor=safe_binding(caller.f_locals['actor']))
+            if caller.f_code is renew_code:diagnostic.note('renewal_sql_ack')
+            return result
+    supervisor.controls=sessionmaker(class_=Controls,**supervisor.controls.kw)
     initial=supervisor.lane.actor();transitions=[initial] if initial else [];available={};errors=[];attempts=[]
     actual_record=supervisor.lane.record
-    def record(actor):actual_record(actor);transitions.append(json.loads(json.dumps(actor)))
+    def record(actor):
+        actual_record(actor);transitions.append(json.loads(json.dumps(actor)))
+        diagnostic.note('physical_'+actor['state'],actor=safe_binding(actor))
     monkeypatch.setattr(supervisor.lane,'record',record)
     actual_exit=supervisor.record_exit
-    def record_exit():actual_exit();available[supervisor.lane.actor()['actor_token']]=time.monotonic()
+    def record_exit():
+        result=actual_exit();available[supervisor.lane.actor()['actor_token']]=time.monotonic()
+        diagnostic.note('exit_sql_ack',actor=safe_binding(supervisor.lane.actor()))
+        return result
     monkeypatch.setattr(supervisor,'record_exit',record_exit)
     cell=SimpleNamespace(factory=factory,owner=owner,manual=manual,manual_input=manual_input,supervisor=supervisor,
         evidence=evidence,transitions=transitions,available=available,errors=errors,attempts=attempts,
-        deadline=time.monotonic()+25,force_bad_manual=False)
+        deadline=time.monotonic()+25,force_bad_manual=False,diagnostic=diagnostic)
     read_fd,write_fd=os.pipe();real_popen=subprocess.Popen
     code=f'''import io,json,os,signal,sys,time
 signal.signal(signal.SIGTERM,signal.SIG_IGN)
@@ -46,6 +67,7 @@ if payload['origin']=='automatic':
     os.write({write_fd},b'A')
     while True:time.sleep(.01)
 else:
+    os.write({write_fd},b'M')
     signal.signal(signal.SIGTERM,signal.SIG_DFL)
     if __FORCE_BAD_MANUAL__:
         payload['raw_fit']='AA=='
@@ -62,7 +84,8 @@ else:
     monkeypatch.setattr(subprocess,'Popen',child)
     def run():
         try:supervisor.run()
-        except Exception as exc:errors.append(type(exc).__name__)
+        except Exception as exc:
+            errors.append(failure(exc));diagnostic.error(exc)
     def start(automatic):
         if automatic:complete_unit(factory,owner)
         cell.worker=threading.Thread(target=run);cell.worker.start()
@@ -71,32 +94,50 @@ else:
             assert os.read(read_fd,1)==b'A'
         wait(lambda:supervisor.control_observation['state']=='ready',cell.deadline,errors)
     cell.start=start
+    def retain(admitted,result):
+        if select.select([read_fd],[],[],0)[0]:
+            marker=os.read(read_fd,1)
+            diagnostic.note('payload_handshake_observed',manual=marker==b'M')
+            result['manual_payload_handshake']=marker==b'M'
+        else:result['manual_payload_handshake']=False
+        diagnostic.accepted(admitted,result)
+        return result
+    cell.retain=retain
     try:yield cell
     finally:
-        supervisor.stop.set()
-        if hasattr(cell,'worker'):cell.worker.join(10);assert not cell.worker.is_alive()
-        os.close(read_fd);os.close(write_fd);engine.dispose()
-        root=Path(__file__).resolve().parents[1]
-        (root/f'.git/pr871-capacity-outcome-{time.time_ns()}.json').write_text(json.dumps({
-            'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-            'attempts':attempts,'renewal_decisions':evidence.renewal_decisions,'retirements':evidence.retirements,
-            'transitions':transitions,'errors':errors,'scope':'bounded forced boundaries; no operational capacity certificate'},indent=2))
+        try:
+            supervisor.stop.set()
+            if hasattr(cell,'worker'):cell.worker.join(10);assert not cell.worker.is_alive()
+            os.close(read_fd);os.close(write_fd);engine.dispose()
+            root=Path(__file__).resolve().parents[1]
+            (root/f'.git/pr871-capacity-outcome-{time.time_ns()}.json').write_text(json.dumps({
+                'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+                'attempts':attempts,'renewal_decisions':evidence.renewal_decisions,'retirements':evidence.retirements,
+                'transitions':transitions,'errors':errors,'scope':'controlled first-renewal boundaries; no operational capacity certificate'},indent=2))
+        except BaseException as exc:
+            diagnostic.error(exc,cleanup=True)
+            raise
+        finally:diagnostic.emit(alive=cell.worker.is_alive() if hasattr(cell,'worker') else None)
 
 
 def wait(predicate,deadline,errors):
     while not predicate():
+        assert not errors,errors
         assert time.monotonic()<deadline,errors
         time.sleep(.005)
 
 
 def attempt(cell,requests,eligibility):
-    return admission_attempt(requests,cell.owner,cell.manual['id'],cell.manual['generation'],cell.attempts,
+    admitted,entry=admission_attempt(requests,cell.owner,cell.manual['id'],cell.manual['generation'],cell.attempts,
                              {'eligibility':eligibility,'attempt':len(cell.attempts)})
+    cell.diagnostic.note('admission_return',job=safe_binding(admitted),outcome=entry.get('outcome'),
+                         http_status=entry.get('http_status'))
+    return admitted,entry
 
 
 def observe(cell,admitted,entry):
-    return observe_acceptance(cell.factory,cell.owner,admitted,entry,cell.manual_input,cell.evidence,
-                              cell.transitions,cell.available,cell.deadline,cell.errors)
+    return cell.retain(admitted,observe_acceptance(cell.factory,cell.owner,admitted,entry,cell.manual_input,cell.evidence,
+                              cell.transitions,cell.available,cell.deadline,cell.errors))
 
 
 def test_drain_denial_backoff_idle_manual_acceptance_completes(outcome_cell):
