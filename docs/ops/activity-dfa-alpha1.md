@@ -1223,3 +1223,17 @@ retention roots, consistent SQLite backups/integrity and owned PG clone archives
 
 Implementation remains subject to SAME Quality exact-head review before root
 schedules the new-contract canonical run/publication/current remote CI admission.
+
+### Final recovery mode fence
+
+A failed automatic attempt may propose its existing bounded transient recovery
+only while its account remains in automatic mode at the final fresh execution
+observation. Explicit OFF or unavailable/UNKNOWN at that boundary makes the
+attempt terminal with `mode_changed` or `mode_unavailable`, clears its lease and
+result, and preserves its prior recovery count. Later ON cannot resurrect that
+terminal attempt. This fence also retains exact Run/actor CAS and verified-exit
+requirements. It does not change deferral of ordinary queued work on UNKNOWN,
+manual explicit retries, or the recovery budget. External mode evaluation is
+not atomic with the SQL commit; changes after the last observation remain a
+race subject to subsequent execution fences. This repair does not establish
+the causes or cure of historical capacity failures.

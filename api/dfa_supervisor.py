@@ -673,6 +673,8 @@ class Supervisor:
                 run = db.query(Run).filter_by(id=job['id'], user_id=job['owner'], generation=job['generation'], status='running').first()
                 if run:
                     from api import dfa_rights
+                    prior_recoveries = run.recoveries
+                    recovery_proposed = False
                     current = dfa_rights.execution_current(db, run) and self._bound(db) is not None
                     if status == 'output' and current:
                         output = value['result']
@@ -688,6 +690,7 @@ class Supervisor:
                         retry = (job['origin']=='automatic' and current and
                             failure in TRANSIENT_FAILURES and run.recoveries<1)
                         run.status = 'queued' if retry else 'failed'
+                        recovery_proposed = retry
                         if retry: run.recoveries+=1
                         run.error_code = failure
                         run.retained_bytes = 0 if run.status == 'failed' else run.retained_bytes
@@ -699,11 +702,16 @@ class Supervisor:
                     # This final local observation fences mode loss during
                     # validation; it is not atomic with external rule updates.
                     mode = dfa_rights.account_mode(db, run.user_id)
-                    if run.status in ('complete', 'awaiting_source_confirmation') and mode != run.origin:
+                    if (run.status in ('complete', 'awaiting_source_confirmation') or recovery_proposed) and mode != run.origin:
                         run.result = run.result_revision = None
                         run.status = run.progress = 'failed'
                         run.error_code = 'mode_unavailable' if mode == 'unavailable' else 'mode_changed'
                         run.retained_bytes = 0
+                        if recovery_proposed:
+                            # A recovery slot is consumed only by an authorized
+                            # continuation, never by a fenced running attempt.
+                            run.recoveries = prior_recoveries
+                            run.completed_at = datetime.utcnow()
                     fields = ('result','result_revision','status','progress','retained_bytes','recoveries',
                               'error_code','completed_at','expires_at','lease_token','lease_until')
                     values = {getattr(Run,key):getattr(run,key) for key in fields}
