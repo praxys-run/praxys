@@ -20,7 +20,7 @@ msgstr " · "
 #. placeholder {0}: data.diagnosis.lookback_weeks
 #: src/pages/Analysis.tsx:364
 msgid "· last {0} weeks"
-msgstr "· 最近 {0} 周"
+msgstr "·最近{0}周"
 
 #: src/pages/Setup.tsx:707
 msgid "(Garmin rate limits apply)"
@@ -33,7 +33,7 @@ msgstr "（可选）"
 #. placeholder {0}: bin.reference_power_activity_count
 #: src/pages/LabsEnvironment.tsx:629
 msgid "{0, plural, one {# activity} other {# activities}}"
-msgstr "{0, plural, other {# 项活动}}"
+msgstr "{0, plural, other {# 次活动}}"
 
 #. placeholder {0}: displayedContent.findings.length
 #: src/components/AiInsightsCard.tsx:296
@@ -74,7 +74,7 @@ msgstr "{0} / {thresholdMinutes} 分钟"
 #. placeholder {1}: history.recent_maximum_session_ascent_meters
 #: src/components/TrailCourseReview.tsx:2095
 msgid "{0} comparable sessions · {1} m maximum observed ascent"
-msgstr "{0} 次可比训练 · 单次已观察最大爬升 {1} 米"
+msgstr "{0} 次可比训练 · 已记录的单次最大爬升 {1} 米"
 
 #. placeholder {0}: history.comparable_descent_sessions_within_window
 #. placeholder {1}: history.recent_maximum_session_descent_meters
@@ -421,11 +421,11 @@ msgstr "<0>科学有据。</0> 不靠噱头。"
 
 #: src/pages/Login.tsx:278
 msgid "<0>Diagnosis & forecast</0> you can verify."
-msgstr "<0>诊断与预测</0>，经得起验证。"
+msgstr "可验证的<0>诊断与预测</0>。"
 
 #: src/pages/Login.tsx:270
 msgid "<0>Today's signal</0> · go, modify, or rest."
-msgstr "<0>今日信号</0> · 按计划训练、调整，或休息。"
+msgstr "<0>今日信号</0>：训练、调整或休息。"
 
 #: src/pages/Login.tsx:508
 msgid "<0>You're on the list.</0> We'll reach out from <1>{SUPPORT_EMAIL}</1> when a slot opens."
@@ -1144,7 +1144,7 @@ msgstr "允许 Praxys 将本次反馈中去除个人信息后的文字摘要发�
 
 #: src/pages/McpAuthorization.tsx:160
 msgid "Allow structured plan context?"
-msgstr "允许访问结构化计划个性化信息？"
+msgstr "允许访问结构化计划信息？"
 
 #: src/components/PersonalContextPanel.tsx:1362
 #~ msgid "Allowed for this item"
@@ -1547,7 +1547,7 @@ msgstr "同步全部历史数据"
 
 #: src/pages/Settings.tsx:853
 msgid "Backfill..."
-msgstr "同步历史数据中…"
+msgstr "同步历史数据…"
 
 #: src/pages/admin/AdminOps.tsx:732
 msgid "Background sync"
@@ -2233,7 +2233,7 @@ msgstr "已为 {1} 创建邀请码 {0}。邮件未发送，请复制邀请码或
 
 #: src/pages/LabsEnvironment.tsx:775
 msgid "Combine air temperature and relative humidity using the same Stull estimate as the experiment."
-msgstr "使用与实验相同的 Stull 估算式，将气温和相对湿度合并为代理值。"
+msgstr "采用与实验相同的 Stull 估算式，根据气温和相对湿度计算。"
 
 #: src/pages/Goal.tsx:379
 msgid "Comfortable"
@@ -2258,7 +2258,7 @@ msgstr "可比的越野、爬升或路面训练历史不足。"
 
 #: src/pages/LabsEnvironment.tsx:590
 msgid "Comparable-power activity support"
-msgstr "可比功率活动支持"
+msgstr "可比功率活动的数据支撑"
 
 #. placeholder {0}: others.length
 #: src/components/WorkoutStructureEditor.tsx:1929
@@ -2614,7 +2614,7 @@ msgstr "已设置持续提升目标"
 
 #: src/pages/LabsEnvironment.tsx:1294
 msgid "Continuous Stryd sample power"
-msgstr "连续 Stryd 采样功率"
+msgstr "Stryd 连续采样功率"
 
 #: src/pages/LabsEnvironment.tsx:82
 msgid "Continuous Stryd sample power is missing from too much of the eligible history."
@@ -3752,7 +3752,7 @@ msgstr "下载 Praxys 账号数据导出文件，其中包含当前已保存的�
 
 #: src/pages/McpAuthorization.tsx:237
 msgid "Draft one change for your review"
-msgstr "起草一项更改供你审核"
+msgstr "拟定一项修改，供你审阅"
 
 #: src/components/WorkoutStructureEditor.tsx:1654
 msgid "Drag the range or type exact values."
@@ -3862,7 +3862,7 @@ msgstr "例如：上坡发力"
 
 #: src/pages/LabsEnvironment.tsx:652
 msgid "Each activity counts once per environmental range. The comparable-power range is centered on your typical eligible stable training workload; raw sample points alone do not count."
-msgstr "每个环境区间内，每次活动只计一次。可比功率范围以符合条件的稳定训练负荷中位数为中心；仅有原始采样点不计入。"
+msgstr "每次活动在每个环境区间内只计一次。可比功率范围以符合条件的稳定训练中的典型负荷水平为中心；原始采样点本身不计入。"
 
 #: src/pages/LabsEnvironment.tsx:624
 #~ msgid "Each activity counts once per range. A qualifying activity needs an accepted stable segment averaging 75–85% of its pre-activity Stryd Critical Power; raw sample points alone do not count."
@@ -3870,7 +3870,7 @@ msgstr "每个环境区间内，每次活动只计一次。可比功率范围以
 
 #: src/pages/Labs.tsx:44
 msgid "Each experiment has its own consent, data requirements, limitations, and withdrawal controls."
-msgstr "每项实验都有独立的同意流程、数据要求、局限说明和退出控制。"
+msgstr "每项实验都有各自的同意流程、数据要求、局限说明和退出选项。"
 
 #: src/components/FeedbackDialog.tsx:359
 msgid "Each image must be under 5 MB."
@@ -4351,7 +4351,7 @@ msgstr "导出我的越野计划数据"
 
 #: src/components/trail-course-review/copy.tsx:309
 msgid "Exposed"
-msgstr "暴露"
+msgstr "无遮挡"
 
 #: src/components/HeatAdaptationPanel.tsx:265
 #~ msgid "Exposure days"
@@ -4589,7 +4589,7 @@ msgstr "解读要点"
 
 #: src/components/trail-course-review/copy.tsx:281
 msgid "Finish the event"
-msgstr "完成赛事"
+msgstr "完成比赛"
 
 #: src/components/WorkoutStructureEditor.tsx:1057
 #~ msgid "Finish the required step fields to preview compatibility."
@@ -5068,7 +5068,7 @@ msgstr "有帮助"
 
 #: src/pages/Settings.tsx:853
 msgid "Hide backfill"
-msgstr "收起历史同步"
+msgstr "收起历史数据同步"
 
 #: src/components/AiInsightsCard.tsx:292
 msgid "Hide details"
@@ -5146,7 +5146,7 @@ msgstr "历史斜率"
 
 #: src/pages/Settings.tsx:879
 msgid "Historical sync may take several minutes"
-msgstr "历史同步可能需要几分钟"
+msgstr "同步历史数据可能需要几分钟"
 
 #: src/components/GoalBaselinePanel.tsx:127
 #: src/components/GoalBaselinePanel.tsx:523
@@ -5217,7 +5217,7 @@ msgstr "如何解读此实验"
 #: src/pages/Settings.tsx:1265
 #: src/pages/Setup.tsx:806
 msgid "How your zones and training load are calculated"
-msgstr "区间和训练负荷的计算方式"
+msgstr "训练区间和训练负荷的计算方式"
 
 #: src/components/WorkoutStructureEditor.tsx:1494
 msgid "hr"
@@ -5588,7 +5588,7 @@ msgstr "邀请码"
 
 #: src/pages/Login.tsx:597
 msgid "Invitation code (optional)"
-msgstr "邀请码（可选）"
+msgstr "邀请码（选填）"
 
 #: src/pages/admin/AdminUsers.tsx:684
 msgid "Invitation codes"
@@ -7265,7 +7265,7 @@ msgstr "暂无可显示的工单"
 
 #: src/pages/ActivityDetail.tsx:98
 msgid "No time-series samples are stored."
-msgstr "这次活动没有保存逐时采样。"
+msgstr "未保存时间序列采样数据。"
 
 #: src/pages/ActivityDetail.tsx:249
 #~ msgid "No time-series samples were stored. Any available summaries and laps are shown below."
@@ -7293,7 +7293,7 @@ msgstr "候补名单里还没人报名。"
 
 #: src/pages/Analysis.tsx:325
 msgid "No weekly distance history yet"
-msgstr "暂无每周距离历史"
+msgstr "暂无周里程历史数据"
 
 #: src/components/ActivityDFA.tsx:263
 msgid "No windows passed the analysis checks."
@@ -8432,7 +8432,7 @@ msgstr "功率指标、阈值功率、训练计划"
 
 #: src/pages/LabsEnvironment.tsx:1293
 msgid "Power regime"
-msgstr "功率数据体系"
+msgstr "功率数据类型"
 
 #: src/components/HeatAdaptationPanel.tsx:108
 msgid "Power samples"
@@ -8601,7 +8601,7 @@ msgstr "Praxys 尚未找到合格的 5 公里历史证据。"
 
 #: src/components/StatusBanner.tsx:47
 msgid "Praxys is experiencing a major service outage."
-msgstr "Praxys 正在经历大范围服务中断。"
+msgstr "Praxys 目前出现大范围服务中断。"
 
 #: src/components/StatusBanner.tsx:49
 msgid "Praxys is experiencing a partial service outage."
@@ -9265,7 +9265,7 @@ msgstr "读取结构化字段"
 
 #: src/pages/McpAuthorization.tsx:235
 msgid "Read structured fields and draft one change"
-msgstr "读取结构化字段并起草一项更改"
+msgstr "读取结构化字段并拟定一项修改"
 
 #: src/components/HeatAdaptationPanel.tsx:683
 msgid "Read the active heat model"
@@ -9351,7 +9351,7 @@ msgstr "恢复规律训练"
 
 #: src/components/trail-course-review/copy.tsx:282
 msgid "Rebuild training consistency"
-msgstr "恢复训练规律"
+msgstr "恢复规律训练"
 
 #: src/components/HeatAdaptationPanel.tsx:140
 msgid "Rebuilding"
@@ -10440,7 +10440,7 @@ msgstr "查看最新版本"
 
 #: src/pages/Analysis.tsx:357
 msgid "Review load, volume, heat adaptation, and Praxys Coach."
-msgstr "查看负荷、训练量、热适应和 Praxys Coach 分析。"
+msgstr "查看训练负荷、里程、热适应和 Praxys Coach 分析。"
 
 #: src/components/GoalBaselinePanel.tsx:535
 msgid "Review optional test"
@@ -10944,7 +10944,7 @@ msgstr "无法显示截图"
 
 #: src/components/trail-course-review/copy.tsx:313
 msgid "Seasonal expectation"
-msgstr "季节预期"
+msgstr "根据季节推测"
 
 #: src/pages/admin/AdminUsers.tsx:436
 msgid "Seat cap"
@@ -11017,7 +11017,7 @@ msgstr "自助注册"
 
 #: src/components/trail-course-review/copy.tsx:319
 msgid "Self-supported"
-msgstr "自助"
+msgstr "自行补给"
 
 #: src/components/WorkoutStructureEditor.tsx:146
 msgid "semantic"
@@ -11209,7 +11209,7 @@ msgstr "只分享可能改变训练计划的信息。Praxys 会将其保密，�
 
 #: src/components/trail-course-review/copy.tsx:307
 msgid "Sheltered"
-msgstr "遮蔽"
+msgstr "有遮挡"
 
 #: src/pages/Today.tsx:309
 msgid "Shorten the session if fatigue develops"
@@ -11465,7 +11465,7 @@ msgstr "按分段加权的天气"
 
 #: src/pages/Login.tsx:261
 msgid "Sports science that <0>meets you</0> where you are."
-msgstr "让你<0>轻松上手</0>的运动科学。"
+msgstr "运动科学，<0>从你的实际状态出发</0>。"
 
 #: src/pages/Today.tsx:119
 msgid "stable"
@@ -11864,7 +11864,7 @@ msgstr "同步功率数据来源信息，Praxys 才能验证活动功率与阈�
 
 #: src/pages/Analysis.tsx:330
 msgid "Sync recent activities to populate the weekly distance series."
-msgstr "同步近期活动以生成每周距离序列。"
+msgstr "同步近期活动，补充周里程数据。"
 
 #: src/components/HeatAdaptationPanel.tsx:40
 msgid "Sync recent training to start estimating the conditions represented in your heat evidence."
@@ -12388,7 +12388,7 @@ msgstr "旧版训练摘要需要时长和功率区间，才能在不依赖平台
 
 #: src/pages/LabsEnvironment.tsx:1313
 msgid "The line is a historical model inside supported ranges only. A blank range means comparable stable workload did not pass the display floor; Praxys does not estimate or connect through it. The shaded band shows aggregate uncertainty where the curve is supported. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain. Wind, solar load, clothing, hydration, fatigue, and other unmeasured conditions can still differ between runs."
-msgstr "曲线仅显示在支持充足的历史区间。空白区间表示可比稳定负荷未达到显示门槛；Praxys 不会在其中估算，也不会跨越连接。阴影带表示曲线支持区间内的汇总不确定性。它不是个人因果系数，也不会外推到观测范围之外。不同活动之间的风、太阳辐射、衣着、补水、疲劳及其他未测量条件仍可能不同。"
+msgstr "曲线基于历史数据建模，仅在数据支持充足的区间显示。空白区间表示可比的稳定负荷数据未达到显示门槛；Praxys 不会在这些区间内估算，也不会跨过空白连接曲线。阴影带表示有数据支持的曲线区间内的整体不确定性。该模型无法确定个人的因果系数，也不会外推到已观测范围之外。不同跑步活动之间，风、太阳辐射、衣着、补水、疲劳及其他未测量条件仍可能不同。"
 
 #: src/pages/Labs.tsx:711
 #~ msgid "The line is a historical model inside the central supported range only. The shaded band shows aggregate uncertainty. It does not identify a causal personal coefficient and never extrapolates beyond your observed domain."
@@ -12641,7 +12641,7 @@ msgstr "无法保存越野赛道核对。"
 
 #: src/pages/Analysis.tsx:329
 msgid "The weekly history will appear after the data service update completes."
-msgstr "数据服务更新完成后，每周历史图表将自动显示。"
+msgstr "数据服务更新完成后，即可查看周里程历史数据。"
 
 #: src/components/WorkoutStructureEditor.tsx:184
 #~ msgid "The workout structure is not a supported portable version."
@@ -12903,7 +12903,7 @@ msgstr "尚未针对当前版本评估此模块。"
 
 #: src/components/trail-course-review/copy.tsx:243
 msgid "This module would be omitted from generation unless its linked reason is resolved."
-msgstr "如未解决所链接原因，生成时将省略此模块。"
+msgstr "相关原因未解决前，生成时不会纳入此模块。"
 
 #: src/pages/Status.tsx:233
 msgid "This page refreshes automatically every 30 seconds."
@@ -12911,7 +12911,7 @@ msgstr "本页面每 30 秒自动刷新。"
 
 #: src/pages/Settings.tsx:1653
 msgid "This permanently deletes your account, synced training data, plans, settings, platform connections, encrypted credentials, and any Garmin tokenstore on this device. You will be signed out immediately."
-msgstr "这会永久删除账号、已同步的训练数据、计划、设置、平台连接、加密凭据，以及此设备上的 Garmin 登录令牌。删除后会立即退出登录。"
+msgstr "这会永久删除账号、已同步的训练数据、计划、设置、平台连接、加密凭据，以及此设备上保存的 Garmin 令牌数据。删除后会立即退出登录。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1331
 msgid "This permission is separate from managed delivery. Review the exact boundary before opting in."
@@ -13975,7 +13975,7 @@ msgstr "查看汇总"
 
 #: src/pages/Settings.tsx:724
 msgid "Viewing configuration (read-only demo)"
-msgstr "查看配置（只读演示）"
+msgstr "查看设置（演示模式，不可修改）"
 
 #: src/lib/display-labels.ts:46
 msgid "VO2max"
@@ -14141,7 +14141,7 @@ msgstr "周平均"
 
 #: src/pages/Analysis.tsx:324
 msgid "Weekly chart temporarily unavailable"
-msgstr "每周图表暂时不可用"
+msgstr "周里程图表暂不可用"
 
 #: src/pages/Analysis.tsx:190
 msgid "Weekly diagnosis ready."
@@ -14501,7 +14501,7 @@ msgstr "已有较早的 5 公里证据。Praxys 会保留它，也可以选择�
 
 #: src/pages/Login.tsx:121
 msgid "You must accept the Terms of Service to register."
-msgstr "注册前须接受服务条款。"
+msgstr "请先同意服务条款再注册。"
 
 #: src/components/FeedbackDialog.tsx:502
 msgid "You've sent several reports recently — please wait a few minutes before sending more."
@@ -14613,7 +14613,7 @@ msgstr "你的部分历史环境响应曲线"
 
 #: src/pages/LabsEnvironment.tsx:1316
 msgid "Your personal comparable-power range controls where the curve can be displayed. The fitted model still uses every otherwise eligible stable segment from 65–95% CP, so the display range does not discard broader model data."
-msgstr "个人可比功率范围只决定曲线可显示的区间。拟合模型仍会使用 65–95% CP 内所有其他条件均符合要求的稳定区段，因此显示范围不会丢弃更广范围的模型数据。"
+msgstr "个人可比功率范围只决定曲线在哪些区间显示。模型拟合仍使用 65–95% CP 内满足其他条件的所有稳定区段，因此不会因显示范围受限而舍弃更大范围内的建模数据。"
 
 #: src/pages/admin/AdminUsers.tsx:829
 msgid "Your Praxys invitation"
@@ -14656,11 +14656,11 @@ msgstr "计算过程中源数据发生了变化。"
 
 #: src/pages/Settings.tsx:1214
 msgid "Your Strava API Client ID"
-msgstr "你的 Strava API 客户端 ID"
+msgstr "Strava API 客户端 ID"
 
 #: src/pages/Settings.tsx:1224
 msgid "Your Strava API Client Secret"
-msgstr "你的 Strava API 客户端密钥"
+msgstr "Strava API 客户端密钥"
 
 #: src/components/TrailCourseReview.tsx:1106
 msgid "Your symptoms, schedule, history, or terrain access blocks a proposal for now"
@@ -14999,11 +14999,11 @@ msgstr "多日赛事"
 
 #: src/components/trail-course-review/copy.tsx:244
 msgid "如未解决所链接原因，生成时将省略此模块。"
-msgstr "如未解决所链接原因，生成时将省略此模块。"
+msgstr "相关原因未解决前，生成时不会纳入此模块。"
 
 #: src/components/trail-course-review/copy.tsx:313
 msgid "季节预期"
-msgstr "季节预期"
+msgstr "根据季节推测"
 
 #: src/components/trail-course-review/copy.tsx:418
 msgid "它超出非超长距离单日策略范围。"
@@ -15011,7 +15011,7 @@ msgstr "它超出非超长距离单日策略范围。"
 
 #: src/components/trail-course-review/copy.tsx:281
 msgid "完成赛事"
-msgstr "完成赛事"
+msgstr "完成比赛"
 
 #: src/components/trail-course-review/copy.tsx:568
 msgid "对照近期历史查看请求"
@@ -15140,7 +15140,7 @@ msgstr "恢复待保存更改"
 
 #: src/components/trail-course-review/copy.tsx:282
 msgid "恢复训练规律"
-msgstr "恢复训练规律"
+msgstr "恢复规律训练"
 
 #: src/components/trail-course-review/copy.tsx:314
 msgid "我的假设"
@@ -15322,7 +15322,7 @@ msgstr "暂时无法检查这些信息"
 
 #: src/components/trail-course-review/copy.tsx:309
 msgid "暴露"
-msgstr "暴露"
+msgstr "无遮挡"
 
 #: src/components/trail-course-review/copy.tsx:193
 msgid "更多操作"
@@ -15399,7 +15399,7 @@ msgstr "来源版本"
 #: src/components/trail-course-review/copy.tsx:255
 #: src/components/trail-course-review/copy.tsx:262
 msgid "来自你的活动历史"
-msgstr "来自你的活动历史"
+msgstr "来自历史活动记录"
 
 #: src/components/trail-course-review/copy.tsx:286
 msgid "松散碎石"
@@ -15692,7 +15692,7 @@ msgstr "胃肠不适是否曾让你改变计划？"
 
 #: src/components/trail-course-review/copy.tsx:319
 msgid "自助"
-msgstr "自助"
+msgstr "自行补给"
 
 #: src/components/trail-course-review/copy.tsx:556
 msgid "补充下一项训练信息"
@@ -15889,7 +15889,7 @@ msgstr "连接已恢复。请先查看当前服务端版本，再恢复待保存
 
 #: src/components/trail-course-review/copy.tsx:307
 msgid "遮蔽"
-msgstr "遮蔽"
+msgstr "有遮挡"
 
 #: src/components/trail-course-review/copy.tsx:323
 msgid "部分站点"
