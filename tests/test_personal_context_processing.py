@@ -434,6 +434,18 @@ def test_ai_request_is_minimized_untrusted_and_receipt_backed(
         assert injection not in caplog.text
         call = fake.completions.last_call
         assert call is not None
+        from api import llm
+        assert call["model"] == llm.INSIGHT_MODEL
+        assert call["timeout"] == 30.0
+        assert {
+            key: call[key] for key in llm.completion_options(
+                model=llm.INSIGHT_MODEL, max_completion_tokens=160, temperature=0,
+            )
+        } == llm.completion_options(
+            model=llm.INSIGHT_MODEL, max_completion_tokens=160, temperature=0,
+        )
+        if llm.INSIGHT_MODEL.startswith("gpt-6.1-sol"):
+            assert "temperature" not in call
         assert "tools" not in call
         assert call["messages"][0]["content"] == SYSTEM_PROMPT
         assert hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest() == (

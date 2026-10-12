@@ -25,8 +25,8 @@ from api import llm
 
 logger = logging.getLogger(__name__)
 
-# Reuse the reasoning deployment by default — the gpt-5.x / gpt-4o families are
-# multimodal. Override with PRAXYS_VISION_MODEL if the vision deployment differs.
+# Reuse the multimodal insight deployment. Override with PRAXYS_VISION_MODEL
+# if the vision deployment differs.
 VISION_MODEL = os.environ.get("PRAXYS_VISION_MODEL", llm.INSIGHT_MODEL)
 
 # Defensive cap on images sent to the model (the route already enforces
@@ -96,7 +96,8 @@ def analyze_images(images: list[tuple[bytes, str]]) -> dict | None:
         # Richer budget: the description helps an authorized support engineer
         # diagnose the private screenshot without copying it to a public issue.
         max_completion_tokens=1200,
-        # Deterministic: triage/classification shouldn't vary run-to-run.
+        # Applied only to deployments supporting temperature; safety rests
+        # on validation and fail-closed publication gates, not sampling.
         temperature=0.0,
         images=data_urls,
         insight_type="feedback_vision",

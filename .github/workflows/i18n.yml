@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TRANSLATE_MODEL: ${{ vars.TRANSLATE_MODEL || 'gpt-5.4-mini' }}
-      TRANSLATE_REVIEW_MODEL: ${{ vars.TRANSLATE_REVIEW_MODEL || 'gpt-5.4' }}
+      TRANSLATE_REVIEW_MODEL: ${{ vars.TRANSLATE_REVIEW_MODEL || 'gpt-6.1-sol' }}
     permissions:
       actions: write
       contents: write

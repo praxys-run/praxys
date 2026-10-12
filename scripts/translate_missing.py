@@ -40,7 +40,7 @@ Environment:
                               https://<resource>.cognitiveservices.azure.com/
     TRANSLATE_MODEL           Deployment for new strings (default: gpt-5.4-mini).
     TRANSLATE_REVIEW_MODEL    Stronger deployment for native-language review
-                              (default: gpt-5.4).
+                              (default: gpt-6.1-sol).
     AZURE_OPENAI_API_VERSION  API version (default: 2025-04-01-preview).
 
 Auth uses DefaultAzureCredential — in CI this resolves through OIDC federation
@@ -76,7 +76,7 @@ except ImportError:
     get_bearer_token_provider = None
 
 MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-5.4-mini")
-REVIEW_MODEL = os.environ.get("TRANSLATE_REVIEW_MODEL", "gpt-5.4")
+REVIEW_MODEL = os.environ.get("TRANSLATE_REVIEW_MODEL", "gpt-6.1-sol")
 API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 
 # Lingui XML tag references (the numbered variant — <0>, </0>, <1/>). These
@@ -471,14 +471,19 @@ def _complete(
     Uses `max_completion_tokens` (not `max_tokens`) because GPT-5 and o-series
     deployments reject the deprecated argument name.
     """
+    from api import llm
+
     resp = client.chat.completions.create(
         model=model,
-        max_completion_tokens=max_tokens,
+        **llm.completion_options(model=model, max_completion_tokens=max_tokens),
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
     )
+    llm.record_token_usage(resp, model=model, insight_type="translation")
+    if getattr(resp.choices[0], "finish_reason", None) in {"length", "content_filter"}:
+        raise ValueError("model translation was truncated or filtered")
     return resp.choices[0].message.content or ""
 
 
@@ -491,17 +496,23 @@ def _complete_json(
     max_tokens: int = 4096,
 ) -> dict[str, Any]:
     """Request one JSON object and reject malformed model output explicitly."""
+    from api import llm
+
     last_error: str | None = None
     for _attempt in range(2):
         resp = client.chat.completions.create(
             model=model,
-            max_completion_tokens=max_tokens,
+            **llm.completion_options(model=model, max_completion_tokens=max_tokens),
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
         )
+        llm.record_token_usage(resp, model=model, insight_type="translation_review")
+        if getattr(resp.choices[0], "finish_reason", None) in {"length", "content_filter"}:
+            last_error = "response was truncated or filtered"
+            continue
         raw = resp.choices[0].message.content or ""
         try:
             parsed = json.loads(raw)

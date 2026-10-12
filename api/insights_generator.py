@@ -58,7 +58,7 @@ def generate_daily_brief(
         raw = llm.chat_json(
             client,
             system=("Order the eligible evidence for a morning training review. Return ONLY "
-                    "evidence_ids, interpretation_ids, action_ids arrays. Include every evidence ID, "
+                    "a JSON object with evidence_ids, interpretation_ids, action_ids arrays. Include every evidence ID, "
                     "choose supported interpretation IDs and exactly one eligible action ID. "
                     "No other fields, prose, values or invented IDs."),
             user=json.dumps({k: eligible[k] for k in ("evidence", "interpretations", "actions")}),
@@ -208,6 +208,15 @@ def _frame_intro(context: dict) -> str:
         f"- Recovery model: {recovery}\n"
         f"- Race-prediction model: {prediction}\n"
         f"- Zone framework: {zones}\n"
+        "\nEvidence-grounding rules:\n"
+        "- Related power fields may come from different sources, dates or models. "
+        "Name each field's provenance when they disagree; do not unify, overwrite, "
+        "or declare one authoritative without explicit supporting evidence.\n"
+        "- Missing load data is not zero training. Do not infer inactivity from "
+        "zero aggregates when contributing load measurements are missing.\n"
+        "- Do not invent numeric CP milestones or additional training doses. "
+        "Use a numeric target only when supplied explicitly with a compatible "
+        "source and meaning; otherwise recommend checking the evidence first.\n"
     )
 
 
@@ -226,8 +235,9 @@ def _training_review_system(context: dict) -> str:
         "Never infer interval intensity or zone distribution from activity "
         "averages in any training base.\n\n"
         "Recommendations rules — next-cycle structural, consistent with the goal:\n"
-        "- Concrete next-cycle actions ('add 1x supra-CP session/week', "
-        "  'cut volume 15% next 2 weeks').\n"
+        "- Concrete next-cycle actions grounded in the supplied evidence. "
+        "Do not prescribe a new session frequency or load percentage when "
+        "current dosage and recovery evidence are missing.\n"
         "- Stay consistent with the goal mode: if a race is set, don't propose "
         "  brand-new training blocks that wouldn't finish before race day.\n"
         "- 0-3 entries. Pick highest-impact only.\n"
@@ -247,8 +257,8 @@ def _race_forecast_system(context: dict) -> str:
         "narrative around CP milestones instead.\n\n"
         "Recommendations rules — gap-closing, scoped to this page:\n"
         "- Specifically about closing the gap to the race target OR hitting the "
-        "  next CP milestone: a concrete CP target, a weekly load shift, race "
-        "  pacing, race-week prep.\n"
+        "  next supplied CP milestone: an explicitly supplied compatible target, "
+        "  an evidence-supported load shift, race pacing, race-week prep.\n"
         "- Do NOT recommend abstract training blocks that don't tie back to the "
         "  goal numbers in front of the athlete.\n"
         "- 0-3 entries. If the trend already projects on-target, 0-1 is fine.\n"

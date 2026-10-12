@@ -23,7 +23,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-TRAINING_REVIEW_PROMPT_VERSION = "evidence-gated-diagnosis-v2"
+TRAINING_REVIEW_PROMPT_VERSION = "source-grounded-diagnosis-v3"
+RACE_FORECAST_PROMPT_VERSION = "source-grounded-forecast-v1"
 
 
 def compute_dataset_hash(
@@ -79,6 +80,9 @@ def compute_dataset_hash(
         ap = context.get("athlete_profile", {}) or {}
         goal = ap.get("goal") or {}
         proj = {
+            "prompt_version": RACE_FORECAST_PROMPT_VERSION,
+            "threshold": ap.get("threshold"),
+            "race_countdown": cf.get("race_countdown"),
             "cp_current": _round(cp_trend.get("current"), 1.0),
             "cp_direction": cp_trend.get("direction"),
             "cp_slope": _round(cp_trend.get("slope_per_month"), 0.5),

@@ -23,6 +23,33 @@ PILLARS = {
 }
 
 
+def test_narrative_prompts_preserve_source_disagreement_and_missing_evidence():
+    for prompt in (
+        insights_generator._training_review_system({}),
+        insights_generator._race_forecast_system({}),
+    ):
+        assert "do not unify, overwrite" in prompt
+        assert "Missing load data is not zero training" in prompt
+        assert "Do not invent numeric CP milestones or additional training doses" in prompt
+
+
+def test_daily_selection_request_mentions_json_for_provider_json_mode(monkeypatch):
+    from tests.test_morning_coach import context
+
+    captured = []
+    monkeypatch.setattr(llm, "get_client", lambda: object())
+
+    def chat(_client, **kwargs):
+        captured.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(llm, "chat_json", chat)
+    insights_generator.generate_daily_brief(context(), {})
+    assert len(captured) == 1
+    assert "JSON object" in captured[0]["system"]
+    assert captured[0]["retry"] == 0
+
+
 def _fake_context() -> dict:
     return {
         "athlete_profile": {

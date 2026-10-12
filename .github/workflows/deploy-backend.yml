@@ -452,6 +452,8 @@ jobs:
         if: steps.mode.outputs.sync_config == 'true'
         env:
           AZURE_AI_ENDPOINT: ${{ vars.AZURE_AI_ENDPOINT }}
+          PRAXYS_INSIGHT_MODEL: ${{ vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol' }}
+          PRAXYS_VISION_MODEL: ${{ vars.PRAXYS_VISION_MODEL || vars.PRAXYS_INSIGHT_MODEL || 'gpt-6.1-sol' }}
           KEY_VAULT_URL: ${{ vars.KEY_VAULT_URL }}
           KEY_VAULT_KEY_NAME: ${{ vars.KEY_VAULT_KEY_NAME }}
           PRAXYS_JWT_SECRET: ${{ secrets.PRAXYS_JWT_SECRET }}
@@ -512,6 +514,8 @@ jobs:
           fi
           app_settings=(
             "AZURE_AI_ENDPOINT=${AZURE_AI_ENDPOINT}"
+            "PRAXYS_INSIGHT_MODEL=${PRAXYS_INSIGHT_MODEL}"
+            "PRAXYS_VISION_MODEL=${PRAXYS_VISION_MODEL}"
             "KEY_VAULT_URL=${KEY_VAULT_URL}"
             "KEY_VAULT_KEY_NAME=${KEY_VAULT_KEY_NAME}"
             "PRAXYS_JWT_SECRET=${PRAXYS_JWT_SECRET}"

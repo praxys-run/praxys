@@ -3998,7 +3998,7 @@ def test_challenger_prompt_is_recorded_but_never_acts(
     assert decision.output_json["challenger"] == {
         "prompt_version": "v2",
         "prompt_hash": decision.output_json["challenger"]["prompt_hash"],
-        "model": "gpt-5.4",
+        "model": ft.llm.INSIGHT_MODEL,
         "available": True,
         "kind": "bug",
         "agent_eligible": True,

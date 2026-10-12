@@ -9,6 +9,112 @@ from api import llm
 from scripts import translate_missing
 
 
+@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6.1-sol-canary"])
+@pytest.mark.parametrize("budget,expected", [(80, 2048), (160, 2048), (4096, 4096)])
+def test_sol_request_profile(model: str, budget: int, expected: int) -> None:
+    assert llm.completion_options(
+        model=model, max_completion_tokens=budget, temperature=0,
+    ) == {"max_completion_tokens": expected, "reasoning_effort": "low"}
+
+
+@pytest.mark.parametrize("model", ["gpt-5.4", "gpt-5.4-mini", "custom-deployment"])
+def test_rollback_request_profile(model: str) -> None:
+    assert llm.completion_options(
+        model=model, max_completion_tokens=80, temperature=0.3,
+    ) == {"max_completion_tokens": 80, "temperature": 0.3}
+    assert llm.completion_options(
+        model=model, max_completion_tokens=80,
+    ) == {"max_completion_tokens": 80}
+
+
+def test_sol_multimodal_request_keeps_images_and_json_contract(monkeypatch) -> None:
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            usage=None,
+            choices=[SimpleNamespace(
+                finish_reason="stop", message=SimpleNamespace(content='{"ok": true}'),
+            )],
+        )
+
+    client = SimpleNamespace(chat=SimpleNamespace(
+        completions=SimpleNamespace(create=create),
+    ))
+    assert llm.chat_json(
+        client, system="system", user="describe", model="gpt-6.1-sol",
+        images=["data:image/png;base64,synthetic"], max_completion_tokens=1200,
+        temperature=0, retry=0,
+    ) == {"ok": True}
+    assert len(calls) == 1
+    call = calls[0]
+    assert "temperature" not in call
+    assert call["reasoning_effort"] == "low"
+    assert call["max_completion_tokens"] == 2048
+    assert call["response_format"] == {"type": "json_object"}
+    assert call["messages"][1]["content"] == [
+        {"type": "text", "text": "describe"},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,synthetic"}},
+    ]
+
+
+@pytest.mark.parametrize("finish_reason", ["length", "content_filter"])
+def test_truncated_valid_json_fails_closed_and_records_all_attempts(
+    monkeypatch, finish_reason: str,
+) -> None:
+    usage_calls = []
+    provider_calls = []
+    monkeypatch.setattr(llm, "record_token_usage", lambda *a, **kw: usage_calls.append(kw))
+
+    def create(**kwargs):
+        provider_calls.append(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(
+                finish_reason=finish_reason,
+                message=SimpleNamespace(content='{"safe_to_publish": true}'),
+            )],
+        )
+
+    client = SimpleNamespace(chat=SimpleNamespace(
+        completions=SimpleNamespace(create=create),
+    ))
+    assert llm.chat_json(
+        client, system="system", user="user", model="gpt-6.1-sol",
+        max_completion_tokens=80, retry=1,
+    ) is None
+    assert len(provider_calls) == len(usage_calls) == 2
+    assert llm.runtime_ai_available() is False
+
+
+@pytest.mark.parametrize("finish_reason", ["length", "content_filter"])
+def test_private_classifier_rejects_truncated_valid_json_without_payload_logs(
+    monkeypatch, caplog, finish_reason,
+) -> None:
+    from api import personal_context_processing as personal
+    narrative = "private synthetic narrative"
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(usage=None, choices=[SimpleNamespace(
+            finish_reason=finish_reason,
+            message=SimpleNamespace(content='{"outcome":"no_change","reason_code":'
+                                    '"current_plan_supported","proposal_scope":"none","uncertainty":"high"}'),
+        )])
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    request = personal.AiContextRequest(
+        purpose="plan_adjustment", allowed_proposal_scope="week",
+        system_prompt=personal.SYSTEM_PROMPT, user_prompt=narrative, disclosures=(),
+    )
+    assert personal._call_azure_context_model(client, request) is None
+    assert len(calls) == 1
+    assert narrative not in caplog.text
+    assert calls[0]["timeout"] == 30.0
+    assert "tools" not in calls[0]
+
+
 def _confirm_provider_recovery() -> None:
     attempt = llm.begin_runtime_provider_attempt()
     assert attempt is not None

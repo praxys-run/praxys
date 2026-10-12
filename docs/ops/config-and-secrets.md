@@ -53,7 +53,9 @@ the SPA and ship to browsers)
 | `STATSIG_ENV` (`production`) | Shared Statsig environment tier. The deploy workflows default production when the variable is absent. | App Service setting + frontend build |
 | `AZURE_AI_ENDPOINT` | Azure OpenAI endpoint for production insights, feedback triage, and i18n. Keep the trailing `/`. Agentic Workflows use GitHub Copilot-hosted inference instead. | App Service setting + `i18n.yml` |
 | `TRANSLATE_MODEL` (`gpt-5.4-mini`) | Optional deployment override for translating newly extracted UI strings and science copy. | `i18n.yml`; script default applies when unset |
-| `TRANSLATE_REVIEW_MODEL` (`gpt-5.4`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
+| `PRAXYS_INSIGHT_MODEL` (`gpt-6.1-sol`) | Main deployment for Coach, feedback triage/publication privacy review, and personal-context classification. | App Service setting via `deploy-backend.yml`; code default applies locally |
+| `PRAXYS_VISION_MODEL` (defaults to `PRAXYS_INSIGHT_MODEL`) | Multimodal deployment for private screenshot descriptions and sensitivity classification. | App Service setting via `deploy-backend.yml` |
+| `TRANSLATE_REVIEW_MODEL` (`gpt-6.1-sol`) | Optional stronger deployment override for the weekly native-Chinese catalog review. | `i18n.yml`; script default applies when unset |
 | `KEY_VAULT_URL` / `KEY_VAULT_KEY_NAME` | Key Vault + RSA key name | App Service setting |
 | `PRAXYS_FEEDBACK_BLOB_ACCOUNT_URL` (`https://stperftrainsight.blob.core.windows.net`) | Private Blob store for feedback screenshots and 14-day Labs/personal-context deletion markers (keyless via MI) | App Service setting (backend) |
 | `PRAXYS_FEEDBACK_BLOB_CONTAINER` (`feedback-screenshots`) | Private container for screenshots and restore-safe privacy deletion markers | App Service setting (backend) |
@@ -75,6 +77,53 @@ the SPA and ship to browsers)
 | `PRAXYS_REVIEW_POLICY_APP_SLUG` | Expected URL slug for the independent App, without `[bot]`; lets pre-credential evaluation recognize only that App's prior blocking reviews and verifies every minted privileged identity. | `selective-review.yml`, `selective-review-emergency-stop.yml`, `science-approval-ledger.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_ENABLED` | Master enable; absent/anything except `true` keeps every PR review-required. | `selective-review.yml` |
 | `PRAXYS_SELECTIVE_REVIEW_KILL_SWITCH` | Emergency stop; `true` disables approval even when the master enable and class promotion are active. | `selective-review.yml` |
+
+### Azure model provisioning and rollback
+
+The model inventory is in [environment.md](./environment.md). The
+`gpt-6.1-sol` deployment was provisioned on 2026-10-12 in the existing
+`praxys-ai-resource` account, West US 3: OpenAI model version `2026-09-29`,
+GlobalStandard, capacity 150. Provisioning alone **does not switch callers**.
+The production routing change remains pending the compatible code deployment
+through protected `main`; never set a GPT-6.1 deployment on the old code,
+which sends unsupported `temperature`.
+
+To provision the same deployment in another authorized environment, check
+regional model availability and quota, then create an Azure OpenAI deployment
+with that model/version/SKU and capacity appropriate to the environment. Its
+deployment name must be `gpt-6.1-sol` or start with `gpt-6.1-sol-`, because
+`api.llm.completion_options` selects the request profile by deployment name.
+Verify deployment provisioning is `Succeeded` before changing routing.
+Authentication remains managed identity / OIDC; no new API keys or RBAC grants
+are required on the existing account.
+
+The shared request profile omits `temperature`, uses `reasoning_effort=low`,
+and reserves at least 2048 completion tokens for bounded classifiers (reasoning
+and visible output share that limit). Existing GPT-5.4 and GPT-5.4-mini request
+profiles keep their original sampling and limits. Short classifications still
+undergo strict schema/privacy checks; truncated or filtered responses fail
+closed. The deployment API version remains `2025-04-01-preview`.
+
+GitHub Actions variables own routing: `PRAXYS_INSIGHT_MODEL`,
+`PRAXYS_VISION_MODEL`, and `TRANSLATE_REVIEW_MODEL`. Unset variables use the
+defaults above. A normal configuration-sync backend deployment writes the first
+two to **`trainsight-app`**; translation reads its variable on the next workflow
+run. Do not manually switch the live App Service before compatible code lands.
+Retain both `gpt-5.4` and `gpt-5.4-mini` deployments. To roll back model routing,
+set all three strong-model variables to `gpt-5.4` and dispatch the backend
+deployment with `sync_config=true`. No emergency-stop setting is changed.
+
+Cached insights from another model regenerate on the next eligible generation
+with new sync rows (daily eligibility is checked separately), subject to the
+existing per-user daily attempt cap. Old persisted insights are not deleted,
+and a model switch does not bypass consent, source-revision or lifecycle fences.
+GPT-5.4-mini remains the inexpensive first-pass translation model.
+Copilot-hosted Agentic Workflow engines are a separate service and are not
+changed by this Azure migration.
+Training-plan CSV loading and the deterministic plan validator do not call
+Azure and therefore have no model to migrate. Narrative grounding explicitly
+preserves conflicting field provenance and rejects invented numeric milestones
+or unsupported training doses; no metric formula or scientific constant changes.
 
 ### Protected China environment and OIDC
 
