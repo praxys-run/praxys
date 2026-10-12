@@ -237,6 +237,7 @@ def _run(db: Session, user_id: str, *, has_new_rows: bool = True) -> dict:
                 )
                 if (
                     existing is not None
+                    and (existing.meta or {}).get("model") == llm.INSIGHT_MODEL
                     and (existing.meta or {}).get("input_hash" if itype == "daily_brief" else "dataset_hash") == new_hash
                     and _generation_started_at(existing.meta) is not None
                     and (itype != "daily_brief" or _valid_daily(existing, new_hash))

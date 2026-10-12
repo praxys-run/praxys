@@ -232,12 +232,16 @@ def record_coach_tokens(
     model: str,
     prompt_tokens: int,
     completion_tokens: int,
+    cached_prompt_tokens: int = 0,
+    cache_write_tokens: int = 0,
+    reasoning_tokens: int = 0,
 ) -> None:
     """Record token usage from a successful Azure OpenAI completion.
 
-    Emits one increment per token-type so a single KQL ``sum(value)`` call
-    reproduces total spend; the ``token_type`` dimension lets operators
-    split prompt vs. completion when looking for prompt-bloat regressions.
+    Filter by token_type before summing: prompt/completion are already included
+    in total. Cache and reasoning subsets use a separate metric so existing
+    token-total queries remain unchanged. Reasoning is included in completion;
+    cache reads/writes are included in prompt, not additional input tokens.
     """
     counter = _counter("praxys.coach_tokens", "Azure OpenAI tokens consumed by Coach")
     if counter is None:
@@ -251,6 +255,20 @@ def record_coach_tokens(
         total = (prompt_tokens or 0) + (completion_tokens or 0)
         if total:
             counter.add(total, {**base, "token_type": "total"})
+        details = {
+            "cached_prompt": cached_prompt_tokens,
+            "cache_write": cache_write_tokens,
+            "reasoning": reasoning_tokens,
+        }
+        if any(details.values()):
+            detail_counter = _counter(
+                "praxys.coach_token_details",
+                "Cache and reasoning subsets of Azure OpenAI token usage",
+            )
+            if detail_counter is not None:
+                for token_type, amount in details.items():
+                    if amount:
+                        detail_counter.add(amount, {**base, "token_type": token_type})
     except Exception:
         # Telemetry must never break the caller. Log once and swallow.
         logger.debug("record_coach_tokens failed", exc_info=True)

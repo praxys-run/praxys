@@ -1,8 +1,10 @@
 """Unit tests for scripts/translate_missing.py placeholder validator + glossary."""
 import json
 import os
+import runpy
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -31,6 +33,59 @@ from translate_missing import (  # noqa: E402
     translate_batch,
     write_po,
 )
+
+
+@pytest.mark.parametrize("json_mode", [False, True])
+@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.4-mini"])
+def test_translation_request_model_profiles(monkeypatch, json_mode, model):
+    from api import llm
+    calls = []
+    monkeypatch.setattr(llm, "record_token_usage", lambda *_a, **_kw: None)
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(choices=[SimpleNamespace(
+            finish_reason="stop", message=SimpleNamespace(content='{"ok": true}'),
+        )])
+
+    client = SimpleNamespace(chat=SimpleNamespace(
+        completions=SimpleNamespace(create=create),
+    ))
+    complete = tm._complete_json if json_mode else tm._complete
+    complete(client, "system", "user", model=model, max_tokens=80)
+    assert len(calls) == 1
+    assert "temperature" not in calls[0]
+    assert calls[0]["max_completion_tokens"] == (80 if model == "gpt-5.4-mini" else 2048)
+    assert calls[0].get("reasoning_effort") == (None if model == "gpt-5.4-mini" else "low")
+
+
+@pytest.mark.parametrize("override", [None, "gpt-5.4-mini", "gpt-6-luna-canary"])
+def test_translation_default_and_explicit_rollback(monkeypatch, override):
+    monkeypatch.delenv("TRANSLATE_MODEL", raising=False)
+    monkeypatch.delenv("TRANSLATE_REVIEW_MODEL", raising=False)
+    if override is not None:
+        monkeypatch.setenv("TRANSLATE_MODEL", override)
+    namespace = runpy.run_path(str(ROOT / "scripts" / "translate_missing.py"))
+    assert namespace["MODEL"] == (override or "gpt-6-luna")
+    assert namespace["REVIEW_MODEL"] == "gpt-6.1-sol"
+
+
+@pytest.mark.parametrize("json_mode", [False, True])
+@pytest.mark.parametrize("finish_reason", ["length", "content_filter"])
+@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna"])
+def test_translation_rejects_truncated_valid_output(monkeypatch, json_mode, finish_reason, model):
+    from api import llm
+    recorded = []
+    monkeypatch.setattr(llm, "record_token_usage", lambda *_a, **kw: recorded.append(kw))
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **_kwargs: SimpleNamespace(choices=[SimpleNamespace(
+            finish_reason=finish_reason, message=SimpleNamespace(content='{"ok": true}'),
+        )]),
+    )))
+    complete = tm._complete_json if json_mode else tm._complete
+    with pytest.raises(ValueError, match="truncated or filtered"):
+        complete(client, "system", "user", model=model)
+    assert len(recorded) == (2 if json_mode else 1)
 
 
 class TestPOEmission:

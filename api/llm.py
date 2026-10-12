@@ -7,7 +7,7 @@ returns None — callers report AI unavailability; deterministic metrics remain 
 
 Two model deployment names are exposed:
 - ``INSIGHT_MODEL`` (env ``PRAXYS_INSIGHT_MODEL``): reasoning model used by the
-  post-sync insight generator. Default ``gpt-5.4``.
+  post-sync insight generator. Default ``gpt-6.1-sol``.
 - ``TRANSLATE_MODEL`` (env ``TRANSLATE_MODEL``): smaller model used by the
   i18n translation script. Default ``gpt-5.4-mini``.
 
@@ -31,7 +31,7 @@ import portalocker
 
 logger = logging.getLogger(__name__)
 
-INSIGHT_MODEL = os.environ.get("PRAXYS_INSIGHT_MODEL", "gpt-5.4")
+INSIGHT_MODEL = os.environ.get("PRAXYS_INSIGHT_MODEL", "gpt-6.1-sol")
 TRANSLATE_MODEL = os.environ.get("TRANSLATE_MODEL", "gpt-5.4-mini")
 API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 _provider_health_lock = threading.Lock()
@@ -403,6 +403,52 @@ def runtime_ai_available() -> bool:
 get_client.cache_clear = _get_cached_client.cache_clear  # type: ignore[attr-defined]
 
 
+def completion_options(
+    *,
+    model: str,
+    max_completion_tokens: int,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    """Return model-compatible options, including a bounded reasoning budget.
+
+    GPT-6.1 Sol and GPT-6 Luna deployments must retain their model-name prefixes.
+    Older deployments keep their existing sampling and token limits for rollback.
+    """
+    if model in {"gpt-6.1-sol", "gpt-6-luna"} or model.startswith(
+        ("gpt-6.1-sol-", "gpt-6-luna-")
+    ):
+        # GPT-6.1 Sol rejects temperature and effort=none. Short classifiers
+        # need room for reasoning as well as the visible JSON response.
+        return {
+            "max_completion_tokens": max(2048, max_completion_tokens),
+            "reasoning_effort": "low",
+        }
+    options: dict[str, Any] = {"max_completion_tokens": max_completion_tokens}
+    if temperature is not None:
+        options["temperature"] = temperature
+    return options
+
+
+def record_token_usage(response: Any, *, model: str, insight_type: str) -> None:
+    """Record payload-free token totals and their billable/cache subsets."""
+    from api import telemetry
+
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    prompt_details = getattr(usage, "prompt_tokens_details", None)
+    completion_details = getattr(usage, "completion_tokens_details", None)
+    telemetry.record_coach_tokens(
+        insight_type=insight_type,
+        model=model,
+        prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+        completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+        cached_prompt_tokens=int(getattr(prompt_details, "cached_tokens", 0) or 0),
+        cache_write_tokens=int(getattr(prompt_details, "cache_write_tokens", 0) or 0),
+        reasoning_tokens=int(getattr(completion_details, "reasoning_tokens", 0) or 0),
+    )
+
+
 def chat_json(
     client: Any,
     *,
@@ -488,8 +534,11 @@ def chat_json(
         try:
             resp = client.chat.completions.create(
                 model=model,
-                max_completion_tokens=max_completion_tokens,
-                temperature=temperature,
+                **completion_options(
+                    model=model,
+                    max_completion_tokens=max_completion_tokens,
+                    temperature=temperature,
+                ),
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system},
@@ -498,14 +547,9 @@ def chat_json(
             )
             # ``resp.usage`` is None on streaming responses; we don't stream
             # but guarding keeps telemetry robust if a future caller flips it.
-            usage = getattr(resp, "usage", None)
-            if usage is not None:
-                telemetry.record_coach_tokens(
-                    insight_type=itype,
-                    model=model,
-                    prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
-                    completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
-                )
+            record_token_usage(resp, model=model, insight_type=itype)
+            if getattr(resp.choices[0], "finish_reason", None) in {"length", "content_filter"}:
+                raise ValueError("chat_json response was truncated or filtered")
             content = resp.choices[0].message.content or ""
             parsed = json.loads(content)
             if not isinstance(parsed, dict):

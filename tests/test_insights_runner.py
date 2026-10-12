@@ -449,6 +449,33 @@ def test_skips_when_hash_matches(db_session, stub_context, stub_pillars, monkeyp
     assert fake.chat.completions.call_count == initial_calls  # unchanged
 
 
+def test_model_upgrade_and_rollback_regenerate_without_bypassing_caps(
+    db_session, stub_context, stub_pillars, monkeypatch,
+):
+    fake = _FakeClient(json.dumps(_bilingual_response()))
+    monkeypatch.setattr(llm, "get_client", lambda: fake)
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "16")
+    for model in ("gpt-5.4", "gpt-6.1-sol", "gpt-5.4"):
+        monkeypatch.setattr(llm, "INSIGHT_MODEL", model)
+        result = insights_runner.run_insights_for_user(
+            USER_ID, db_session, {"activities": 5}, _session=db_session,
+        )
+        assert all(status == "generated" for status in result.values()), result
+        rows = db_session.query(AiInsight).filter(
+            AiInsight.insight_type.in_(["training_review", "race_forecast"]),
+        ).all()
+        assert len(rows) == 2
+        assert all(row.meta["model"] == model for row in rows)
+    assert fake.chat.completions.call_count == 6
+    monkeypatch.setattr(llm, "INSIGHT_MODEL", "gpt-6.1-sol")
+    monkeypatch.setenv("PRAXYS_INSIGHT_DAILY_CAP", "1")
+    result = insights_runner.run_insights_for_user(
+        USER_ID, db_session, {"activities": 5}, _session=db_session,
+    )
+    assert all(status == "cap_reached" for status in result.values()), result
+    assert fake.chat.completions.call_count == 6
+
+
 def test_pillar_swap_invalidates_hash_and_regenerates(db_session, stub_context, monkeypatch):
     fake = _FakeClient(json.dumps(_bilingual_response()))
     monkeypatch.setattr(llm, "get_client", lambda: fake)

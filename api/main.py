@@ -621,6 +621,7 @@ def _health_ready_sync(response: Response, timing: _ReadinessTiming):
             "privacy_controls": "invalid",
         }
     china_processing = china_processing_status()
+    from api import llm, feedback_vision
     from api.activity_dfa import require_policy
 
     with timing.stage("dfa_policy", cpu=True) as policy_outcome:
@@ -634,6 +635,10 @@ def _health_ready_sync(response: Response, timing: _ReadinessTiming):
         "status": "ready",
         "database": "ok",
         "optional_processing": processing,
+        "ai_models": {
+            "insight": llm.INSIGHT_MODEL,
+            "vision": feedback_vision.VISION_MODEL,
+        },
         "china_processing": china_processing,
         "miniapp_processing": miniapp_processing_status(),
         "dfa_policy": {

@@ -45,7 +45,7 @@ def ready_env(monkeypatch, tmp_path):
 
 def test_health_ready_ok(ready_env, monkeypatch):
     from fastapi import HTTPException
-    from api import activity_dfa
+    from api import activity_dfa, llm, feedback_vision
 
     def inactive_policy():
         raise HTTPException(503, 'DFA_SCIENCE_POLICY_INACTIVE')
@@ -58,6 +58,7 @@ def test_health_ready_ok(ready_env, monkeypatch):
     assert r.json() == {
         "status": "ready",
         "database": "ok",
+        "ai_models": {"insight": llm.INSIGHT_MODEL, "vision": feedback_vision.VISION_MODEL},
         "dfa_policy": {"policy_active": False, "contract_digest": None},
         "optional_processing": {
             "background_ai_enabled": False,
@@ -77,6 +78,20 @@ def test_health_ready_ok(ready_env, monkeypatch):
             "enabled": False,
             "disabled": True,
         },
+    }
+
+
+def test_readiness_reports_loaded_model_routing_not_mutated_environment(ready_env, monkeypatch):
+    from api import llm, feedback_vision
+    client, _ = ready_env
+    monkeypatch.setattr(llm, "INSIGHT_MODEL", "gpt-6.1-sol")
+    monkeypatch.setattr(feedback_vision, "VISION_MODEL", "gpt-6.1-sol-vision")
+    monkeypatch.setenv("PRAXYS_INSIGHT_MODEL", "gpt-5.4")
+    monkeypatch.setenv("PRAXYS_VISION_MODEL", "gpt-5.4")
+    response = client.get("/api/health/ready")
+    assert response.status_code == 200
+    assert response.json()["ai_models"] == {
+        "insight": "gpt-6.1-sol", "vision": "gpt-6.1-sol-vision",
     }
 
 

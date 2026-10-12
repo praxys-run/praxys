@@ -28,6 +28,10 @@
 | Log Analytics workspace | `log-trainsight` (shared storage, 30-day retention; queries must retain component scope / `_ResourceId`) | `.github/azure-observability.env`; live config verified 2026-08-22 |
 | Perf-baseline storage | `stperftrainsight` (RG `rg-trainsight`, East Asia) | `docs/perf-baselines/ci-setup.md` |
 | CI/deploy app registration | `trainsight-cicd` — appId `d3deb736-e95d-400e-b5a5-c2f76b23ae25` (OIDC federated creds `github-deploy`, `i18n`) | live `az ad app` |
+| Azure OpenAI account | `praxys-ai-resource` (West US 3, endpoint `https://praxys-ai-resource.cognitiveservices.azure.com/`) | `AZURE_AI_ENDPOINT`; live Azure deployment readback |
+| New strong-model deployment | `gpt-6.1-sol`, OpenAI `2026-09-29`, GlobalStandard capacity 150; provisioned 2026-10-12, routing pending compatible protected-main deployment | live Azure deployment readback; [model rollout](./config-and-secrets.md#azure-model-provisioning-and-rollback) |
+| New translation deployment | `gpt-6-luna`, OpenAI `2026-09-22`, GlobalStandard capacity 10; provisioned and synthetic-verified 2026-10-12, routing pending compatible protected-main translation workflow | live Azure deployment readback; [model rollout](./config-and-secrets.md#azure-model-provisioning-and-rollback) |
+| Retained Azure deployments | `gpt-5.4` (`2026-03-05`, strong-model rollback) and `gpt-5.4-mini` (`2026-03-17`, translation rollback), both GlobalStandard capacity 150 | live Azure deployment readback |
 
 ## Dormant regional delivery target
 

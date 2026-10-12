@@ -4,6 +4,18 @@ All endpoints are under the `/api/` prefix. The API server runs on `http://local
 
 **Authentication:** All data endpoints require `Authorization: Bearer <token>` in the request header. Tokens are obtained via `POST /api/auth/login`.
 
+## Operational readiness
+
+`GET /api/health/ready` is a public, non-cacheable core-readiness probe. On
+success it reports database reachability and bounded processing-control state.
+Its `ai_models` object contains only the deployment names actually loaded by the
+running process: `{"insight": "gpt-6.1-sol", "vision": "gpt-6.1-sol"}` (names
+may differ for overrides or rollback). This is routing metadata, not proof that
+inference is healthy or enabled, and it never includes endpoints, credentials,
+prompts, or athlete data. Deployments verify it after changing model settings,
+alongside the exact source SHA from `GET /api/version`. An AI emergency stop
+does not make core database readiness fail.
+
 ## Auth
 
 ### POST /api/auth/register
