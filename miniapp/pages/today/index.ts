@@ -16,6 +16,7 @@ import { coachToggleLabel, fetchInsight } from '../../utils/insights';
 import { recordProductEventOnce } from '../../utils/product-events';
 import { copyUrlToClipboard } from '../../utils/markdown';
 import { shouldShowMetricProvenance } from '../../utils/format';
+import { todayAdviceKey } from '../../utils/today-advice';
 import {
   buildShareMessage,
   buildTimelineMessage,
@@ -29,19 +30,21 @@ interface SignalMeta {
   color: 'green' | 'amber' | 'red';
 }
 
-// Mirrors web/src/components/SignalHero.tsx — same labels, subtitles,
-// and color buckets so the visual status reads identically across web
-// and mini. Subtitles route through t() so they read in the active
-// locale; the labels themselves stay in English (GO/EASY/REST/…) as
-// short status glyphs that read identically across locales.
+// Match Today's guidance labels, subtitles and semantic colors on the web.
+// The badge expresses guidance; the separate plan line says whether a
+// workout is scheduled. Both labels and subtitles respect the active locale.
 function signalMeta(): Record<string, SignalMeta> {
   return {
-    follow_plan: { label: 'GO', subtitle: t('Follow Plan'), color: 'green' },
-    unscheduled: { label: 'NO PLAN', subtitle: t('No Workout Scheduled'), color: 'amber' },
-    easy: { label: 'EASY', subtitle: t('Go Easy'), color: 'amber' },
-    modify: { label: 'MODIFY', subtitle: t('Adjust Workout'), color: 'amber' },
-    reduce_intensity: { label: 'CAUTION', subtitle: t('Reduce Intensity'), color: 'amber' },
-    rest: { label: 'REST', subtitle: t('Recovery Day'), color: 'red' },
+    follow_plan: { label: t('GO'), subtitle: t('Follow Plan'), color: 'green' },
+    unscheduled: { label: t('NO PLAN'), subtitle: t('No Workout Scheduled'), color: 'amber' },
+    easy: { label: t('EASY'), subtitle: t('Go Easy'), color: 'amber' },
+    modify: { label: t('MODIFY'), subtitle: t('Adjust Workout'), color: 'amber' },
+    reduce_intensity: { label: t('CAUTION'), subtitle: t('Reduce Intensity'), color: 'amber' },
+    rest: { label: t('REST'), subtitle: t('Recovery Day'), color: 'red' },
+    unscheduled_go: { label: t('GO'), subtitle: t('Train to your broader plan'), color: 'green' },
+    unscheduled_easy: { label: t('EASY'), subtitle: t('Go Easy'), color: 'amber' },
+    unscheduled_rest: { label: t('REST'), subtitle: t('Recovery Day'), color: 'red' },
+    unscheduled_unknown: { label: t('CAUTION'), subtitle: t('Recovery data incomplete'), color: 'amber' },
   };
 }
 
@@ -228,7 +231,7 @@ function buildCoachReceipt(
   const attribution = [recoveryName, loadName].filter((s): s is string => !!s).join(' · ');
   return {
     stamp: '',
-    headline: (signalMeta()[response.signal.recommendation] ?? signalMeta().follow_plan).subtitle,
+    headline: (signalMeta()[todayAdviceKey(response.signal, response.recovery_analysis)] ?? signalMeta().follow_plan).subtitle,
     summary: localizedRecoverySummary(response.recovery_analysis),
     hasFindings: false,
     findings: [],
@@ -566,7 +569,7 @@ function buildRenderState(
     return {};
   }
 
-  const meta = signalMeta()[response.signal.recommendation] ?? signalMeta().follow_plan;
+  const meta = signalMeta()[todayAdviceKey(response.signal, response.recovery_analysis)] ?? signalMeta().follow_plan;
 
   // Eyebrow date now comes from the server's `as_of_date` (parsed as
   // local-calendar) rather than `new Date()` — see buildStalenessText
@@ -725,6 +728,7 @@ function buildTranslations() {
 
 interface RefreshState {
   refreshing: boolean;
+  coachSyncFailed: boolean;
   /** Whether the share card image is currently shown. Toggled by the
    *  FAB — the card only appears on demand, not on every page load. */
   shareCardVisible: boolean;
@@ -750,6 +754,7 @@ const initialData: RenderState & RefreshState = {
   staleShowAnywayLabel: '',
   staleDismissed: false,
   staleSyncing: false,
+  coachSyncFailed: false,
   loading: true,
   errorMessage: '',
   hasResponse: false,
@@ -976,18 +981,19 @@ Page({
    *  sync, the banner correctly stays up. The five-minute deadline covers
    *  first-time backfill plus the two durable insight-generation calls;
    *  a bare 6s sleep would re-arm the button before sync
-   *  could plausibly finish. Errors swallow at this layer because the
-   *  failure mode the user cares about — "did the data refresh?" —
-   *  is observable from the banner staying or going away. */
+   *  could plausibly finish. A rejected sync remains visible in Coach,
+   *  retains the current metrics, and lets the user retry explicitly. */
   async onStaleSyncNow() {
     if (this.data.staleSyncing) return;
-    this.setData({ staleSyncing: true });
+    this.setData({ staleSyncing: true, coachSyncFailed: false });
     try {
       try {
         await apiPost('/api/sync');
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn('[today] manual sync kick failed; refetching anyway:', e);
+        console.warn('[today] manual sync kick failed:', e);
+        this.setData({ coachSyncFailed: true });
+        return;
       }
       const deadline = Date.now() + 300_000;
       while (Date.now() < deadline) {
@@ -1031,7 +1037,7 @@ Page({
     const response = (this as unknown as Record<string, any>)._todayResponse;
     if (!response) return;
     const theme = this.data.chartTheme;
-    const meta = signalMeta()[response.signal?.recommendation] ?? signalMeta().follow_plan;
+    const meta = signalMeta()[todayAdviceKey(response.signal, response.recovery_analysis)] ?? signalMeta().follow_plan;
     // The receipt and share card use the same deterministic signal reason.
     const coach = this.data.coach;
     const shareReason = coach?.headline || response.signal?.reason || '';

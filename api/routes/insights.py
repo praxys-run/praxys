@@ -41,6 +41,7 @@ class InsightFinding(BaseModel):
 
     type: Literal["positive", "warning", "neutral"]
     text: str = Field(min_length=1, max_length=1000)
+    kind: Literal["insight", "observation"] | None = None
 
     @field_validator("text")
     @classmethod
@@ -103,6 +104,8 @@ class InsightTranslations(BaseModel):
             for en_finding, zh_finding in zip(self.en.findings, self.zh.findings)
         ):
             raise ValueError("finding types must match across languages")
+        if any(en.kind != zh.kind for en, zh in zip(self.en.findings, self.zh.findings)):
+            raise ValueError("finding kinds must match across languages")
         return self
 
 
@@ -190,7 +193,7 @@ def _serialize_insight(
     if isinstance(row.findings, list):
         for finding in row.findings:
             try:
-                findings.append(InsightFinding.model_validate(finding).model_dump())
+                findings.append(InsightFinding.model_validate(finding).model_dump(exclude_none=True))
             except (TypeError, ValueError):
                 continue
 
@@ -268,7 +271,7 @@ def push_insight(
         .first()
     )
 
-    findings_dicts = [f.model_dump() for f in body.findings]
+    findings_dicts = [f.model_dump(exclude_none=True) for f in body.findings]
     client_meta = dict(body.meta)
     client_meta.pop(GENERATION_PROVENANCE_KEY, None)
     client_meta.pop(DAILY_BRIEF_FRESHNESS_KEY, None)
@@ -428,7 +431,7 @@ def submit_insight_feedback(
 
 def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapshot: str | None) -> dict:
     """Serve only verified, current, server-rendered daily content."""
-    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs
+    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs, CONTENT_VERSION
     from api.stryd_access import stryd_connection_enabled
     from api.packs import RequestContext
     from db.models import AiInsight
@@ -437,7 +440,7 @@ def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapsh
     enabled = stryd_connection_enabled(db, user_id=current_user_id)
     before = current_snapshot(db, data_user_id, enabled)
     refs = theory_refs(RequestContext(user_id=data_user_id, db=db, include_stryd_plan=enabled).science)
-    response = {"insight": None, "ai_available": available(db, data_user_id),
+    response = {"insight": None, "ai_available": available(db, data_user_id), "content_version": CONTENT_VERSION,
                 "content_status": "pending", "snapshot": before, "theory_refs": refs}
     if not response["ai_available"]:
         response["content_status"] = "unavailable"
@@ -494,6 +497,7 @@ def get_insights(
             insights = {}
             daily.update(content_status="unavailable", ai_available=False)
     return {"ai_available": daily["ai_available"], "insights": insights,
+            "content_version": daily["content_version"],
             "content_status": daily["content_status"], "snapshot": daily["snapshot"],
             "theory_refs": daily["theory_refs"]}
 

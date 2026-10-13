@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/AiInsightsCard.tsx:298
+#: src/components/AiInsightsCard.tsx:352
 msgid " · "
 msgstr " · "
 
@@ -36,12 +36,12 @@ msgid "{0, plural, one {# activity} other {# activities}}"
 msgstr "{0, plural, other {# 项活动}}"
 
 #. placeholder {0}: displayedContent.findings.length
-#: src/components/AiInsightsCard.tsx:296
+#: src/components/AiInsightsCard.tsx:350
 msgid "{0, plural, one {# finding} other {# findings}}"
 msgstr "{0, plural, other {# 条发现}}"
 
 #. placeholder {0}: remainingRecommendations.length
-#: src/components/AiInsightsCard.tsx:300
+#: src/components/AiInsightsCard.tsx:354
 msgid "{0, plural, one {# recommendation} other {# recommendations}}"
 msgstr "{0, plural, other {# 条建议}}"
 
@@ -354,7 +354,7 @@ msgid "{minutes} effective min"
 msgstr "等效热暴露 {minutes} 分钟"
 
 #: src/components/RecoveryPanel.tsx:159
-#: src/pages/Today.tsx:599
+#: src/pages/Today.tsx:631
 msgid "{observationCount}-observation Trend"
 msgstr "{observationCount}次观测趋势"
 
@@ -678,7 +678,7 @@ msgstr "关于这份计划"
 #~ msgid "above"
 #~ msgstr "高于"
 
-#: src/pages/Today.tsx:126
+#: src/pages/Today.tsx:141
 msgid "above baseline"
 msgstr "高于基线"
 
@@ -941,7 +941,7 @@ msgid "Adjudicated"
 msgstr "已人工判定"
 
 #: src/components/SignalHero.tsx:23
-#: src/pages/Today.tsx:76
+#: src/pages/Today.tsx:83
 msgid "Adjust Workout"
 msgstr "调整训练"
 
@@ -1482,8 +1482,8 @@ msgstr "等待分诊判断"
 #~ msgid "Axes show separate units; pace rises as seconds per km fall. Position compares shape, not magnitude."
 #~ msgstr "双轴单位不同；每公里秒数越少，配速曲线越高。曲线位置只用于比较走势，不比较数值大小。"
 
-#: src/components/AiInsightsCard.tsx:93
-#: src/components/AiInsightsCard.tsx:238
+#: src/components/AiInsightsCard.tsx:137
+#: src/components/AiInsightsCard.tsx:284
 msgid "Azure AI insights are temporarily unavailable."
 msgstr "Azure AI 洞察暂时不可用。"
 
@@ -1619,7 +1619,7 @@ msgstr "开始前，请确认"
 #~ msgid "below"
 #~ msgstr "低于"
 
-#: src/pages/Today.tsx:127
+#: src/pages/Today.tsx:142
 msgid "below baseline"
 msgstr "低于基线"
 
@@ -1750,7 +1750,7 @@ msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线
 msgid "Can you access terrain for controlled downhill training?"
 msgstr "你能使用适合受控下坡训练的路线吗？"
 
-#: src/components/AiInsightsCard.tsx:399
+#: src/components/AiInsightsCard.tsx:462
 #: src/components/FeedbackDialog.tsx:784
 #: src/components/GoalBaselinePanel.tsx:169
 #: src/components/GoalBaselinePanel.tsx:558
@@ -1838,7 +1838,8 @@ msgid "Category"
 msgstr "类别"
 
 #: src/components/SignalHero.tsx:24
-#: src/pages/Today.tsx:65
+#: src/pages/Today.tsx:68
+#: src/pages/Today.tsx:73
 msgid "CAUTION"
 msgstr "注意"
 
@@ -2183,7 +2184,7 @@ msgstr "已关闭"
 msgid "Closed · cap reached"
 msgstr "已关闭 · 名额已满"
 
-#: src/components/AiInsightsCard.tsx:94
+#: src/components/AiInsightsCard.tsx:138
 msgid "Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available."
 msgstr "Coach 分析生成失败，可同步数据后重试。训练指标仍可查看。"
 
@@ -2191,13 +2192,17 @@ msgstr "Coach 分析生成失败，可同步数据后重试。训练指标仍可
 #~ msgid "Coach analysis is unavailable. Training metrics remain available."
 #~ msgstr "Coach 分析暂不可用，仍可查看训练指标。"
 
-#: src/components/AiInsightsCard.tsx:96
+#: src/components/AiInsightsCard.tsx:141
 msgid "Coach is waiting for a current analysis."
 msgstr "Coach 正在等待当前分析结果。"
 
-#: src/components/AiInsightsCard.tsx:95
+#: src/components/AiInsightsCard.tsx:140
 msgid "Coach needs a refreshed training snapshot."
 msgstr "请刷新训练数据后查看 Coach。"
+
+#: src/components/AiInsightsCard.tsx:139
+msgid "Coach needs an updated analysis. Sync your data to regenerate it."
+msgstr "Coach 需要更新解读，同步数据后可重新生成。"
 
 #: src/pages/admin/AdminOps.tsx:1448
 msgid "Coach useful-vote rate"
@@ -2867,7 +2872,7 @@ msgstr "无法查看反馈状态，请重试。"
 msgid "Couldn't load announcements"
 msgstr "无法加载公告"
 
-#: src/components/AiInsightsCard.tsx:91
+#: src/components/AiInsightsCard.tsx:135
 msgid "Couldn't load Coach. Try again."
 msgstr "无法加载 Coach，请重试。"
 
@@ -2896,7 +2901,7 @@ msgstr "无法保存更改。"
 #~ msgid "Couldn't save. Check your connection and try again."
 #~ msgstr "保存失败。请检查网络连接后重试。"
 
-#: src/components/AiInsightsCard.tsx:228
+#: src/components/AiInsightsCard.tsx:274
 #: src/components/TodayDecisionCheck.tsx:129
 msgid "Couldn't send feedback. Try again."
 msgstr "反馈发送失败，请重试。"
@@ -2904,6 +2909,11 @@ msgstr "反馈发送失败，请重试。"
 #: src/components/FeedbackDialog.tsx:511
 msgid "Couldn't send your feedback. Please try again."
 msgstr "反馈发送失败，请重试。"
+
+#: src/components/AiInsightsCard.tsx:133
+#: src/pages/Today.tsx:527
+msgid "Couldn't sync data. Try again."
+msgstr "数据同步失败，请重试。"
 
 #: src/pages/admin/AdminFeedback.tsx:290
 msgid "Couldn't update feedback."
@@ -3146,7 +3156,7 @@ msgstr "骑行"
 msgid "Daily brief"
 msgstr "每日简报"
 
-#: src/pages/Today.tsx:417
+#: src/pages/Today.tsx:436
 msgid "daily score"
 msgstr "每日评分"
 
@@ -3174,7 +3184,7 @@ msgstr "数据偏好"
 msgid "Data synced successfully"
 msgstr "数据同步成功"
 
-#: src/components/AiInsightsCard.tsx:282
+#: src/components/AiInsightsCard.tsx:336
 msgid "Data through"
 msgstr "数据截至"
 
@@ -3512,7 +3522,7 @@ msgstr "详情"
 msgid "deterministic"
 msgstr "确定"
 
-#: src/components/AiInsightsCard.tsx:256
+#: src/components/AiInsightsCard.tsx:306
 msgid "Deterministic training summary"
 msgstr "确定性训练摘要"
 
@@ -3762,7 +3772,7 @@ msgstr "拖动区间，或输入精确值。"
 msgid "Drive your zone calculations and training load. Values come from connected sources; pick which source to use when you have more than one."
 msgstr "用于计算训练区间和训练负荷。数值来自已连接的数据来源；如果有多个，可选择使用哪个来源。"
 
-#: src/pages/Today.tsx:303
+#: src/pages/Today.tsx:318
 msgid "Drop intensity by one zone"
 msgstr "强度下调一个区间"
 
@@ -3770,7 +3780,7 @@ msgstr "强度下调一个区间"
 #~ msgid "Drop intensity by one zone\" \"降低一个训练区间的强度"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:295
+#: src/pages/Today.tsx:310
 msgid "Drop to easy run (keep power in recovery zone)"
 msgstr "改为轻松跑（功率保持在恢复区间）"
 
@@ -3906,7 +3916,8 @@ msgid "Easy"
 msgstr "轻松跑"
 
 #: src/components/SignalHero.tsx:22
-#: src/pages/Today.tsx:63
+#: src/pages/Today.tsx:66
+#: src/pages/Today.tsx:71
 msgid "EASY"
 msgstr "轻松"
 
@@ -4431,7 +4442,7 @@ msgstr "导出数据失败（HTTP {0}）"
 msgid "Failed to generate invitation code."
 msgstr "生成邀请码失败。"
 
-#: src/pages/Today.tsx:349
+#: src/pages/Today.tsx:367
 msgid "Failed to load"
 msgstr "加载失败"
 
@@ -4504,7 +4515,7 @@ msgstr "次失败"
 msgid "Fainting or near-fainting"
 msgstr "晕厥或接近晕厥"
 
-#: src/pages/Today.tsx:121
+#: src/pages/Today.tsx:136
 msgid "falling"
 msgstr "下降"
 
@@ -4583,7 +4594,7 @@ msgstr "反馈类型"
 msgid "Finding"
 msgstr "发现"
 
-#: src/components/AiInsightsCard.tsx:308
+#: src/components/AiInsightsCard.tsx:362
 msgid "Findings"
 msgstr "解读要点"
 
@@ -4655,7 +4666,7 @@ msgid "Fluids only"
 msgstr "仅液体"
 
 #: src/components/SignalHero.tsx:20
-#: src/pages/Today.tsx:73
+#: src/pages/Today.tsx:80
 msgid "Follow Plan"
 msgstr "按计划训练"
 
@@ -4737,11 +4748,11 @@ msgstr "周五"
 msgid "Friday"
 msgstr "星期五"
 
-#: src/pages/Today.tsx:546
+#: src/pages/Today.tsx:576
 msgid "From {dataAsOfLabel}"
 msgstr "数据截至 {dataAsOfLabel}"
 
-#: src/pages/Today.tsx:174
+#: src/pages/Today.tsx:189
 msgid "from {label}"
 msgstr "来自 {label}"
 
@@ -4886,12 +4897,14 @@ msgid "GitHub isn't configured. Nothing to sync."
 msgstr "未配置 GitHub，无需同步。"
 
 #: src/components/SignalHero.tsx:20
-#: src/pages/Today.tsx:61
+#: src/pages/Today.tsx:64
+#: src/pages/Today.tsx:70
 msgid "GO"
 msgstr "开练"
 
 #: src/components/SignalHero.tsx:22
-#: src/pages/Today.tsx:75
+#: src/pages/Today.tsx:82
+#: src/pages/Today.tsx:87
 msgid "Go Easy"
 msgstr "轻松训练"
 
@@ -5062,7 +5075,7 @@ msgstr "高温安全"
 #~ msgid "Heat-adaptation evidence is decaying"
 #~ msgstr "热适应证据正在衰减"
 
-#: src/components/AiInsightsCard.tsx:356
+#: src/components/AiInsightsCard.tsx:419
 msgid "Helpful"
 msgstr "有帮助"
 
@@ -5070,7 +5083,7 @@ msgstr "有帮助"
 msgid "Hide backfill"
 msgstr "收起历史同步"
 
-#: src/components/AiInsightsCard.tsx:292
+#: src/components/AiInsightsCard.tsx:346
 msgid "Hide details"
 msgstr "收起详情"
 
@@ -5259,7 +5272,7 @@ msgstr "HRV 分析"
 #~ msgid "HRV below your Praxys caution band\" \"HRV 低于您的 Praxys 警戒区间"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:274
+#: src/pages/Today.tsx:289
 msgid "HRV is above your personal reference band. Follow the plan as written."
 msgstr "HRV 高于你的个人参考区间。按计划训练。"
 
@@ -5268,11 +5281,11 @@ msgstr "HRV 高于你的个人参考区间。按计划训练。"
 #~ msgstr ""
 
 #: src/components/RecoveryPanel.tsx:18
-#: src/pages/Today.tsx:223
+#: src/pages/Today.tsx:238
 msgid "HRV is above your Praxys reference band"
 msgstr "HRV 高于你的 Praxys 参考区间"
 
-#: src/pages/Today.tsx:260
+#: src/pages/Today.tsx:275
 msgid "HRV is below your personal caution band. Keep today easy to support recovery."
 msgstr "HRV 低于你的个人警戒区间。今天轻松练，帮助恢复。"
 
@@ -5280,7 +5293,7 @@ msgstr "HRV 低于你的个人警戒区间。今天轻松练，帮助恢复。"
 #~ msgid "HRV is below your personal caution band. Keep today easy to support recovery.\" \"HRV 低于您的个人警戒区间。今天保持轻松，以支持恢复。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:258
+#: src/pages/Today.tsx:273
 msgid "HRV is below your personal caution band. Treat this as a recovery signal, not a diagnosis."
 msgstr "HRV 低于你的个人警戒区间。这是恢复信号，不是诊断。"
 
@@ -5289,7 +5302,7 @@ msgstr "HRV 低于你的个人警戒区间。这是恢复信号，不是诊断�
 #~ msgstr ""
 
 #: src/components/RecoveryPanel.tsx:20
-#: src/pages/Today.tsx:227
+#: src/pages/Today.tsx:242
 msgid "HRV is below your Praxys caution band"
 msgstr "HRV 低于你的 Praxys 警戒区间"
 
@@ -5301,12 +5314,12 @@ msgstr "HRV 低于你的 Praxys 警戒区间"
 #~ msgid "HRV is normal but modeled load balance is low (TSB {tsb}). Modify the hard session.\" \"HRV 正常，但模型估算的负荷平衡偏低（TSB {tsb}）。请调整高强度训练。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:262
+#: src/pages/Today.tsx:277
 msgid "HRV is within your personal reference band, but modeled load balance is low (TSB {tsb}). Modify the hard session."
 msgstr "HRV 处于你的个人参考区间内，但模型估算的负荷平衡偏低（TSB {tsb}）。调整高强度训练。"
 
 #: src/components/RecoveryPanel.tsx:19
-#: src/pages/Today.tsx:225
+#: src/pages/Today.tsx:240
 msgid "HRV is within your Praxys reference band"
 msgstr "HRV 处于你的 Praxys 参考区间内"
 
@@ -5318,11 +5331,11 @@ msgstr "HRV 处于你的 Praxys 参考区间内"
 #~ msgid "HRV rolling mean is declining. Reduce intensity as a conservative coaching adjustment.\" \"HRV 滚动均值正在下降。作为保守的训练调整，请降低强度。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:264
+#: src/pages/Today.tsx:279
 msgid "HRV rolling mean is lower than its prior window. Reduce intensity as a conservative coaching adjustment."
 msgstr "HRV 滚动均值低于前一个窗口。保守起见，降低强度。"
 
-#: src/pages/Today.tsx:266
+#: src/pages/Today.tsx:281
 msgid "HRV rolling mean is lower than its prior window. Stay easy today."
 msgstr "HRV 滚动均值低于前一窗口。今天轻松训练。"
 
@@ -5334,7 +5347,7 @@ msgstr "HRV 滚动均值低于前一窗口。今天轻松训练。"
 #~ msgid "HRV trend is declining. Stay easy today.\" \"HRV 趋势正在下降。今天保持轻松。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:268
+#: src/pages/Today.tsx:283
 msgid "HRV variability is high (CV {cv}%), above the selected coaching caution threshold."
 msgstr "HRV 变异性偏高（CV {cv}%），高于所设训练警戒阈值。"
 
@@ -5507,7 +5520,7 @@ msgid "instructions"
 msgstr "说明"
 
 #: src/components/RecoveryPanel.tsx:21
-#: src/pages/Today.tsx:230
+#: src/pages/Today.tsx:245
 msgid "Insufficient current HRV data for comparison"
 msgstr "当前 HRV 数据不足，无法比较"
 
@@ -5680,7 +5693,7 @@ msgstr "判断已记录。此反馈尚未关联 GitHub 议题。"
 msgid "Jump to time"
 msgstr "跳转时间"
 
-#: src/pages/Today.tsx:291
+#: src/pages/Today.tsx:306
 msgid "Keep any optional movement easy and short"
 msgstr "如有可选活动，请保持轻松且简短"
 
@@ -5741,7 +5754,7 @@ msgstr "正在保留计划…"
 #~ msgid "Kelly female-athlete evidence review"
 #~ msgstr "Kelly 女性运动员证据综述"
 
-#: src/components/AiInsightsCard.tsx:279
+#: src/components/AiInsightsCard.tsx:333
 msgid "Key recommendation"
 msgstr "关键建议"
 
@@ -6063,7 +6076,7 @@ msgstr "负荷平衡（TSB）"
 msgid "Load compliance"
 msgstr "计划完成度"
 
-#: src/components/AiInsightsCard.tsx:92
+#: src/components/AiInsightsCard.tsx:136
 msgid "Loading Coach…"
 msgstr "正在加载 Coach…"
 
@@ -6214,7 +6227,7 @@ msgstr "大范围服务中断"
 msgid "Major service outage"
 msgstr "大范围服务中断"
 
-#: src/pages/Today.tsx:293
+#: src/pages/Today.tsx:308
 msgid "Make today a full recovery day and reassess the hard session tomorrow"
 msgstr "今天作为恢复日，明天再评估高强度训练"
 
@@ -6576,7 +6589,7 @@ msgid "Modified"
 msgstr "已调整"
 
 #: src/components/SignalHero.tsx:23
-#: src/pages/Today.tsx:64
+#: src/pages/Today.tsx:67
 msgid "MODIFY"
 msgstr "调整"
 
@@ -6610,7 +6623,7 @@ msgstr "更多操作"
 msgid "More curves"
 msgstr "更多曲线"
 
-#: src/pages/Today.tsx:254
+#: src/pages/Today.tsx:269
 msgid "More historical HRV observations are needed before Praxys can form a personal recovery band. Follow the plan without an HRV-based adjustment."
 msgstr "需要更多历史 HRV 观测值才能建立个人恢复区间。请按计划训练，暂不进行基于 HRV 的调整。"
 
@@ -6681,7 +6694,7 @@ msgstr "我的假设"
 msgid "Navigation device"
 msgstr "导航设备"
 
-#: src/pages/Today.tsx:125
+#: src/pages/Today.tsx:140
 msgid "near baseline"
 msgstr "接近基准"
 
@@ -6754,7 +6767,7 @@ msgstr "需审核"
 msgid "Needs review: {0}. Failed: {1}. Critical: {2}. High: {3}."
 msgstr "待审核：{0}。失败：{1}。严重：{2}。高优先级：{3}。"
 
-#: src/pages/Today.tsx:428
+#: src/pages/Today.tsx:447
 msgid "negative balance"
 msgstr "负平衡"
 
@@ -6967,12 +6980,12 @@ msgstr "目前尚无符合条件的环境范围"
 msgid "No curve is available yet"
 msgstr "暂时无法生成曲线"
 
-#: src/pages/Today.tsx:396
-#: src/pages/Today.tsx:409
-#: src/pages/Today.tsx:412
 #: src/pages/Today.tsx:415
-#: src/pages/Today.tsx:418
-#: src/pages/Today.tsx:599
+#: src/pages/Today.tsx:428
+#: src/pages/Today.tsx:431
+#: src/pages/Today.tsx:434
+#: src/pages/Today.tsx:437
+#: src/pages/Today.tsx:631
 msgid "no data"
 msgstr "暂无数据"
 
@@ -7069,7 +7082,7 @@ msgstr "当前没有需要运维处理的托管下发任务。"
 msgid "No MFA"
 msgstr "无需 MFA"
 
-#: src/pages/Today.tsx:522
+#: src/pages/Today.tsx:552
 msgid "No new HRV, sleep, or activity since."
 msgstr "此后无新的 HRV、睡眠或活动数据。"
 
@@ -7082,7 +7095,7 @@ msgid "No overlay"
 msgstr "不叠加"
 
 #: src/components/SignalHero.tsx:21
-#: src/pages/Today.tsx:62
+#: src/pages/Today.tsx:65
 msgid "NO PLAN"
 msgstr "无计划"
 
@@ -7307,7 +7320,7 @@ msgstr "无训练安排"
 msgid "No workout is present on {target}."
 msgstr "{target} 上没有此训练。"
 
-#: src/pages/Today.tsx:242
+#: src/pages/Today.tsx:257
 msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session."
 msgstr "今天没有安排训练，且 HRV 低于你的个人警戒区间。今天以恢复为主，不要额外加高强度训练。"
 
@@ -7315,7 +7328,7 @@ msgstr "今天没有安排训练，且 HRV 低于你的个人警戒区间。今�
 #~ msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session.\" \"今天没有安排训练，且 HRV 低于您的个人警戒区间。请以恢复为主，不要额外增加高强度训练。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:244
+#: src/pages/Today.tsx:259
 msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today."
 msgstr "今天没有安排训练，且负荷平衡偏低（TSB {tsb}）。今天不要额外加强度。"
 
@@ -7323,7 +7336,7 @@ msgstr "今天没有安排训练，且负荷平衡偏低（TSB {tsb}）。今天
 #~ msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today.\" \"今天没有安排训练，且模型估算的负荷平衡偏低（TSB {tsb}）。今天不要额外增加强度。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:246
+#: src/pages/Today.tsx:261
 msgid "No workout is scheduled. Add a session only if it fits your broader plan."
 msgstr "今天没有安排训练。仅在符合整体计划时增加训练。"
 
@@ -7332,11 +7345,11 @@ msgstr "今天没有安排训练。仅在符合整体计划时增加训练。"
 #~ msgstr ""
 
 #: src/components/SignalHero.tsx:21
-#: src/pages/Today.tsx:74
+#: src/pages/Today.tsx:81
 msgid "No Workout Scheduled"
 msgstr "今日无训练安排"
 
-#: src/pages/Today.tsx:430
+#: src/pages/Today.tsx:449
 msgid "No workout scheduled."
 msgstr "今日无训练安排。"
 
@@ -7439,7 +7452,7 @@ msgstr "数据不足，暂无法对比每周负荷"
 msgid "Not enough interval coverage."
 msgstr "逐搏间期的时间覆盖不足。"
 
-#: src/pages/Today.tsx:424
+#: src/pages/Today.tsx:443
 msgid "not enough load history"
 msgstr "负荷历史不足"
 
@@ -7464,7 +7477,7 @@ msgstr "尚未建立"
 msgid "Not evaluated"
 msgstr "尚未评估"
 
-#: src/components/AiInsightsCard.tsx:366
+#: src/components/AiInsightsCard.tsx:429
 msgid "Not helpful"
 msgstr "帮助不大"
 
@@ -7840,7 +7853,7 @@ msgstr "可选基准测试日期"
 msgid "Optional coaching cue"
 msgstr "可选教练提示"
 
-#: src/components/AiInsightsCard.tsx:380
+#: src/components/AiInsightsCard.tsx:443
 msgid "Optional comment"
 msgstr "可选备注"
 
@@ -7949,7 +7962,7 @@ msgstr "叠加对照"
 msgid "Overlay recorded metric"
 msgstr "选择叠加的逐时指标"
 
-#: src/pages/Today.tsx:414
+#: src/pages/Today.tsx:433
 msgid "overnight score"
 msgstr "夜间评分"
 
@@ -8268,7 +8281,7 @@ msgstr "计划起点上下文已变化"
 msgid "Planned"
 msgstr "计划"
 
-#: src/pages/Today.tsx:607
+#: src/pages/Today.tsx:639
 msgid "Planned · Today"
 msgstr "今日计划"
 
@@ -8355,7 +8368,7 @@ msgstr "泳池"
 #~ msgid "positive"
 #~ msgstr "状态良好"
 
-#: src/pages/Today.tsx:425
+#: src/pages/Today.tsx:444
 msgid "positive balance"
 msgstr "正平衡"
 
@@ -8514,13 +8527,13 @@ msgstr "Praxys 无法安全解释当前版本。"
 msgid "Praxys checks the required environment, Stryd power, heart-rate, and Critical Power coverage before showing enrollment consent or starting analysis."
 msgstr "Praxys 会在显示参与同意内容或开始分析前，检查所需环境，以及 Stryd 功率、心率和阈值功率的数据覆盖情况。"
 
-#: src/components/AiInsightsCard.tsx:259
-#: src/components/AiInsightsCard.tsx:267
-#: src/components/AiInsightsCard.tsx:274
+#: src/components/AiInsightsCard.tsx:309
+#: src/components/AiInsightsCard.tsx:317
+#: src/components/AiInsightsCard.tsx:328
 msgid "Praxys Coach"
 msgstr "Praxys 教练"
 
-#: src/components/AiInsightsCard.tsx:255
+#: src/components/AiInsightsCard.tsx:305
 msgid "Praxys Coach insight"
 msgstr "Praxys 教练解读"
 
@@ -8920,7 +8933,7 @@ msgstr "补充说明（选填）"
 msgid "Private submission"
 msgstr "私密提交"
 
-#: src/pages/Today.tsx:313
+#: src/pages/Today.tsx:328
 msgid "Proceed but monitor heart-rate drift during the session"
 msgstr "继续训练，但注意观察训练中的心率漂移"
 
@@ -9066,11 +9079,11 @@ msgstr "同步最新活动、功率数据和恢复指标"
 msgid "Purpose"
 msgstr "用途"
 
-#: src/pages/Today.tsx:305
+#: src/pages/Today.tsx:320
 msgid "Push {workout} to tomorrow"
 msgstr "将 {workout} 推迟到明天"
 
-#: src/pages/Today.tsx:297
+#: src/pages/Today.tsx:312
 msgid "Push {workout} to tomorrow if tomorrow is rest/easy"
 msgstr "如果明天安排休息或轻松训练，把 {workout} 挪到明天"
 
@@ -9288,7 +9301,7 @@ msgid "Read-only accounts that mirror your dashboard data."
 msgstr "镜像主页数据的只读账号。"
 
 #: src/components/RecoveryPanel.tsx:199
-#: src/pages/Today.tsx:603
+#: src/pages/Today.tsx:635
 msgid "Readiness"
 msgstr "准备度"
 
@@ -9428,7 +9441,7 @@ msgstr "近期训练经历"
 #~ msgid "Recent heat cadence"
 #~ msgstr "近期热暴露节奏"
 
-#: src/pages/Today.tsx:252
+#: src/pages/Today.tsx:267
 msgid "Recent HRV observations have no measurable variation, so Praxys cannot form a reliable recovery band yet. Follow the plan without an HRV-based adjustment."
 msgstr "近期 HRV 观测值没有可测变化，Praxys 暂时无法建立可靠的恢复区间。请按计划训练，暂不进行基于 HRV 的调整。"
 
@@ -9517,7 +9530,7 @@ msgstr "近期记录到的路面"
 msgid "Recommendation available"
 msgstr "有建议可供查看"
 
-#: src/components/AiInsightsCard.tsx:322
+#: src/components/AiInsightsCard.tsx:385
 msgid "Recommendations"
 msgstr "建议"
 
@@ -9712,12 +9725,17 @@ msgstr "恢复未能完成。请刷新队列后重试。"
 msgid "Recovery could not start because the delivery state changed. Review the refreshed queue."
 msgstr "恢复未能开始，因为下发状态已变更。请查看已刷新的队列。"
 
-#: src/pages/Today.tsx:563
+#: src/pages/Today.tsx:593
 msgid "Recovery data hasn't synced yet. Showing the latest reading from {recoveryLatestLabel}."
 msgstr "恢复数据尚未同步，当前显示最近一次读数（{recoveryLatestLabel}）。"
 
+#: src/pages/Today.tsx:89
+msgid "Recovery data incomplete"
+msgstr "恢复数据待补齐"
+
 #: src/components/SignalHero.tsx:25
-#: src/pages/Today.tsx:78
+#: src/pages/Today.tsx:85
+#: src/pages/Today.tsx:88
 msgid "Recovery Day"
 msgstr "恢复日"
 
@@ -9729,7 +9747,7 @@ msgstr "恢复分析需要兼容设备（例如 Oura Ring 或支持 HRV 的胸�
 #~ msgid "Recovery requires current HRV data from a compatible device (for example Oura Ring or an HRV-capable chest strap). Connect or sync one to enable recovery status and suggestions.\" \"恢复评估需要兼容设备提供的当前 HRV 数据（例如 Oura Ring 或支持 HRV 的心率带）。连接或同步设备后即可启用恢复状态和建议。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:256
+#: src/pages/Today.tsx:271
 msgid "Recovery requires current HRV data. Connect or sync an HRV-capable device to receive recovery suggestions."
 msgstr "恢复分析需要当前 HRV 数据。请连接或同步支持 HRV 的设备以获取恢复建议。"
 
@@ -9741,7 +9759,7 @@ msgstr "恢复分析需要当前 HRV 数据。请连接或同步支持 HRV 的�
 #~ msgid "Recovery requires HRV data from a compatible device (for example Oura Ring or an HRV-capable chest strap). Connect one to enable recovery status and suggestions."
 #~ msgstr "恢复需要来自兼容设备的 HRV 数据（例如 Oura Ring 或支持 HRV 的心率带）。连接一个设备以启用恢复状态和建议。"
 
-#: src/pages/Today.tsx:276
+#: src/pages/Today.tsx:291
 msgid "Recovery signals are within their recent reference bands. Follow the plan as written."
 msgstr "恢复信号都在近期参考区间内。按计划训练。"
 
@@ -9787,7 +9805,7 @@ msgid "Redirecting..."
 msgstr "跳转中…"
 
 #: src/components/SignalHero.tsx:24
-#: src/pages/Today.tsx:77
+#: src/pages/Today.tsx:84
 msgid "Reduce Intensity"
 msgstr "降低强度"
 
@@ -9806,7 +9824,7 @@ msgid "References"
 msgstr "参考文献"
 
 #: src/components/ActivityDFA.tsx:229
-#: src/components/AiInsightsCard.tsx:272
+#: src/components/AiInsightsCard.tsx:326
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
 #: src/pages/Status.tsx:155
@@ -9817,7 +9835,7 @@ msgstr "刷新"
 msgid "Refresh delivery state"
 msgstr "刷新下发状态"
 
-#: src/pages/Today.tsx:508
+#: src/pages/Today.tsx:538
 msgid "Refresh failed"
 msgstr "刷新失败"
 
@@ -10150,11 +10168,12 @@ msgid "Rest"
 msgstr "休息"
 
 #: src/components/SignalHero.tsx:25
-#: src/pages/Today.tsx:66
+#: src/pages/Today.tsx:69
+#: src/pages/Today.tsx:72
 msgid "REST"
 msgstr "休息"
 
-#: src/pages/Today.tsx:248
+#: src/pages/Today.tsx:263
 msgid "Rest day scheduled. Follow the plan and prioritize recovery."
 msgstr "已安排休息日。按计划休息并优先恢复。"
 
@@ -10166,7 +10185,7 @@ msgstr "已安排休息日。按计划休息并优先恢复。"
 #~ msgid "Rest day. No workout scheduled."
 #~ msgstr "休息日。今日无训练安排。"
 
-#: src/pages/Today.tsx:289
+#: src/pages/Today.tsx:304
 msgid "Rest, walk, or do gentle mobility"
 msgstr "休息、散步或做些轻柔的活动度练习"
 
@@ -10174,7 +10193,7 @@ msgstr "休息、散步或做些轻柔的活动度练习"
 #~ msgid "Rest, walk, or do gentle mobility\" \"休息、散步或进行轻柔的活动度练习"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:272
+#: src/pages/Today.tsx:287
 msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
 msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作为诊断依据。"
 
@@ -10257,8 +10276,8 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/pages/LabsEnvironment.tsx:1105
 #: src/pages/McpAuthorization.tsx:202
 #: src/pages/Settings.tsx:356
-#: src/pages/Today.tsx:352
-#: src/pages/Today.tsx:511
+#: src/pages/Today.tsx:370
+#: src/pages/Today.tsx:541
 msgid "Retry"
 msgstr "重试"
 
@@ -10609,7 +10628,7 @@ msgstr "撤销此来源确认并删除依赖它的分析结果？原始活动记
 msgid "Revoked"
 msgstr "已撤销"
 
-#: src/pages/Today.tsx:600
+#: src/pages/Today.tsx:632
 msgid "RHR"
 msgstr "静息心率"
 
@@ -10617,7 +10636,7 @@ msgstr "静息心率"
 msgid "Right axis"
 msgstr "右轴"
 
-#: src/pages/Today.tsx:120
+#: src/pages/Today.tsx:135
 msgid "rising"
 msgstr "上升"
 
@@ -10704,7 +10723,7 @@ msgstr "跑步"
 #~ msgid "Run <0>/praxys:{skillName}</0> in Claude Code for deeper analysis"
 #~ msgstr "在 Claude Code 中运行 <0>/praxys:{skillName}</0> 获取深入分析"
 
-#: src/pages/Today.tsx:299
+#: src/pages/Today.tsx:314
 msgid "Run as planned but cap at low end of power range"
 msgstr "按计划跑步，但将功率控制在目标范围下限"
 
@@ -10712,7 +10731,7 @@ msgstr "按计划跑步，但将功率控制在目标范围下限"
 #~ msgid "Run as planned but cap at low end of power range\" \"按计划训练，但将功率控制在目标区间下限"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:307
+#: src/pages/Today.tsx:322
 msgid "Run as planned but monitor how you feel"
 msgstr "按计划跑步，但请留意身体感受"
 
@@ -10720,7 +10739,7 @@ msgstr "按计划跑步，但请留意身体感受"
 #~ msgid "Run as planned but monitor how you feel\" \"按计划训练，但留意身体感受"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:311
+#: src/pages/Today.tsx:326
 msgid "Run easy instead"
 msgstr "改为轻松跑"
 
@@ -11027,7 +11046,7 @@ msgstr "步骤类型"
 #~ msgid "Semantics describe the portable step. Labels and instructions preserve your own wording; Praxys never infers a warm-up, cool-down, or repeat from it."
 #~ msgstr "语义描述可移植的步骤。标签和说明保留你的措辞；Praxys 不会从中推断热身、放松或重复组。"
 
-#: src/components/AiInsightsCard.tsx:407
+#: src/components/AiInsightsCard.tsx:470
 msgid "Send"
 msgstr "发送"
 
@@ -11050,7 +11069,7 @@ msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动
 #~ msgid "Sending workouts to {targetLabel}"
 #~ msgstr "正在向{targetLabel}发送训练"
 
-#: src/components/AiInsightsCard.tsx:407
+#: src/components/AiInsightsCard.tsx:470
 msgid "Sending..."
 msgstr "发送中…"
 
@@ -11064,7 +11083,7 @@ msgstr "发送中…"
 msgid "Sensitivity gate"
 msgstr "敏感信息门槛"
 
-#: src/components/AiInsightsCard.tsx:343
+#: src/components/AiInsightsCard.tsx:406
 msgid "Sent"
 msgstr "已发送"
 
@@ -11211,7 +11230,7 @@ msgstr "只分享可能改变训练计划的信息。Praxys 会将其保密，�
 msgid "Sheltered"
 msgstr "遮蔽"
 
-#: src/pages/Today.tsx:309
+#: src/pages/Today.tsx:324
 msgid "Shorten the session if fatigue develops"
 msgstr "如果感到疲劳，就缩短训练"
 
@@ -11259,7 +11278,7 @@ msgstr "不应标记为 agent-ready：触发敏感或隐私限制"
 #~ msgid "Show {0} more workouts"
 #~ msgstr "显示另外 {0} 项训练"
 
-#: src/pages/Today.tsx:538
+#: src/pages/Today.tsx:568
 msgid "Show anyway"
 msgstr "仍要查看"
 
@@ -11275,7 +11294,7 @@ msgstr "展开方法论详情"
 msgid "Showing"
 msgstr "显示第"
 
-#: src/pages/Today.tsx:510
+#: src/pages/Today.tsx:540
 msgid "Showing the last available data."
 msgstr "当前显示的是最近一次可用数据。"
 
@@ -11283,7 +11302,7 @@ msgstr "当前显示的是最近一次可用数据。"
 #~ msgid "Showing the last available data.\" \"正在显示最近一次可用数据。"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:519
+#: src/pages/Today.tsx:549
 msgid "Showing yesterday's snapshot. Last reading {dataAsOfLabel}."
 msgstr "显示的是昨天的快照。最近一次读数 {dataAsOfLabel}。"
 
@@ -11322,7 +11341,7 @@ msgid "Skip for now"
 msgstr "先跳过"
 
 #: src/components/RecoveryPanel.tsx:190
-#: src/pages/Today.tsx:601
+#: src/pages/Today.tsx:633
 msgid "Sleep"
 msgstr "睡眠"
 
@@ -11332,7 +11351,7 @@ msgstr "睡眠"
 msgid "Sleep Score"
 msgstr "睡眠评分"
 
-#: src/pages/Today.tsx:270
+#: src/pages/Today.tsx:285
 msgid "Sleep score is low ({sleep}). Consider reducing today's intensity."
 msgstr "睡眠评分偏低（{sleep}）。考虑降低今天的训练强度。"
 
@@ -11352,7 +11371,7 @@ msgstr "睡眠得分、HRV、准备度"
 msgid "Sleep, HRV, readiness"
 msgstr "睡眠、HRV、准备度"
 
-#: src/pages/Today.tsx:427
+#: src/pages/Today.tsx:446
 msgid "slightly negative"
 msgstr "轻微负平衡"
 
@@ -11360,7 +11379,7 @@ msgstr "轻微负平衡"
 #~ msgid "slightly negative\" \"轻度负平衡"
 #~ msgstr ""
 
-#: src/pages/Today.tsx:426
+#: src/pages/Today.tsx:445
 msgid "slightly positive"
 msgstr "轻微正平衡"
 
@@ -11467,7 +11486,7 @@ msgstr "按分段加权的天气"
 msgid "Sports science that <0>meets you</0> where you are."
 msgstr "让你<0>轻松上手</0>的运动科学。"
 
-#: src/pages/Today.tsx:119
+#: src/pages/Today.tsx:134
 msgid "stable"
 msgstr "平稳"
 
@@ -11763,7 +11782,11 @@ msgstr "可分析"
 msgid "Supported recording time"
 msgstr "可分析时段覆盖率"
 
-#: src/pages/Today.tsx:301
+#: src/components/AiInsightsCard.tsx:374
+msgid "Supporting observations"
+msgstr "支撑观测"
+
+#: src/pages/Today.tsx:316
 msgid "Swap {workout} for easy run"
 msgstr "将 {workout} 改为轻松跑"
 
@@ -11837,6 +11860,10 @@ msgstr "全部同步"
 msgid "Sync complete! Your data is ready."
 msgstr "同步完成！数据已就绪。"
 
+#: src/pages/Today.tsx:538
+msgid "Sync failed"
+msgstr "同步失败"
+
 #: src/pages/admin/AdminFeedback.tsx:382
 msgid "Sync failed."
 msgstr "同步失败。"
@@ -11853,8 +11880,9 @@ msgstr "同步起始日期："
 msgid "Sync history"
 msgstr "同步历史数据"
 
-#: src/pages/Today.tsx:531
-#: src/pages/Today.tsx:553
+#: src/components/AiInsightsCard.tsx:322
+#: src/pages/Today.tsx:561
+#: src/pages/Today.tsx:583
 msgid "Sync now"
 msgstr "立即同步"
 
@@ -11928,8 +11956,10 @@ msgstr "同步中"
 msgid "Syncing..."
 msgstr "同步中…"
 
-#: src/pages/Today.tsx:531
-#: src/pages/Today.tsx:553
+#: src/components/AiInsightsCard.tsx:134
+#: src/components/AiInsightsCard.tsx:322
+#: src/pages/Today.tsx:561
+#: src/pages/Today.tsx:583
 msgid "Syncing…"
 msgstr "同步中…"
 
@@ -12358,7 +12388,7 @@ msgstr "上次新方案检查未完成，尚未确认安全停止结果。"
 #~ msgid "The last qualifying block is beyond the initial retention window, so retained evidence is declining. The range shown here describes current qualifying evidence, not that prior block."
 #~ msgstr "距上一个符合条件的训练区块已超过初始保留窗口，因此保留证据正在下降。此处显示的范围仅描述当前符合条件的证据，并非先前训练区块的环境范围。"
 
-#: src/pages/Today.tsx:250
+#: src/pages/Today.tsx:265
 msgid "The latest HRV reading is out of date. Follow the plan without an HRV-based recovery adjustment."
 msgstr "最新 HRV 读数已过时。按计划训练，不做基于 HRV 的恢复调整。"
 
@@ -12821,7 +12851,7 @@ msgstr "此导入或旧版训练没有便携结构树。可按原样编辑摘要
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
 msgstr "无法安全编辑此导入结构。请先复制为受支持的 Praxys 训练。"
 
-#: src/components/AiInsightsCard.tsx:210
+#: src/components/AiInsightsCard.tsx:256
 msgid "This insight changed. Refresh the page before sending feedback."
 msgstr "这条解读已更新。请先刷新页面，再提交反馈。"
 
@@ -13250,8 +13280,8 @@ msgstr "距目标"
 #: src/components/charts/FitnessFatigueChart.tsx:283
 #: src/components/HeatAdaptationPanel.tsx:193
 #: src/components/RecoveryPanel.tsx:136
-#: src/pages/Today.tsx:25
-#: src/pages/Today.tsx:505
+#: src/pages/Today.tsx:28
+#: src/pages/Today.tsx:535
 msgid "Today"
 msgstr "今日"
 
@@ -13283,7 +13313,7 @@ msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 
 msgid "Today's <0>{distLabel}</0> prediction is <1>{predicted}</1>. {abbrev} is <2>{dirLabel}</2>."
 msgstr "今日 <0>{distLabel}</0> 预计成绩为 <1>{predicted}</1>。{abbrev} 呈 <2>{dirLabel}</2>趋势。"
 
-#: src/pages/Today.tsx:444
+#: src/pages/Today.tsx:463
 msgid "Today's recommendation combines the scheduled workout with Praxys operational adaptations of your active recovery and load models. HRV requires a current reading, while TSB is modeled load balance rather than a direct measure of fatigue. Praxys TSB display labels and the one-CTL-window history gate are operational estimates, not validated cutoffs. These coaching guardrails are not a medical diagnosis."
 msgstr "今日建议将计划训练与 Praxys 对当前恢复模型和负荷模型的操作性调整相结合。HRV 需要最新读数，而 TSB 是模型化的负荷平衡，并非疲劳的直接测量。Praxys 的 TSB 显示标签和一个 CTL 时间常数的历史门槛属于操作性估算，并非经验证的阈值。这些训练指导不构成医疗诊断。"
 
@@ -13367,6 +13397,10 @@ msgstr "此情况暂不支持越野计划"
 msgid "Trail running"
 msgstr "越野跑"
 
+#: src/pages/Today.tsx:86
+msgid "Train to your broader plan"
+msgstr "结合整体计划训练"
+
 #: src/components/GoalEditor.tsx:47
 msgid "Train toward a specific race date"
 msgstr "围绕某场比赛备赛"
@@ -13388,11 +13422,15 @@ msgstr "训练诊断"
 #~ msgid "Training Insights"
 #~ msgstr "训练解读"
 
-#: src/components/AiInsightsCard.tsx:335
+#: src/components/AiInsightsCard.tsx:362
+msgid "Training interpretation"
+msgstr "训练解读"
+
+#: src/components/AiInsightsCard.tsx:398
 msgid "Training methods"
 msgstr "训练方法"
 
-#: src/components/AiInsightsCard.tsx:259
+#: src/components/AiInsightsCard.tsx:309
 msgid "Training metrics"
 msgstr "训练指标"
 
@@ -13999,7 +14037,7 @@ msgid "vs {0}"
 msgstr "对比{0}"
 
 #. placeholder {0}: hrv.baseline_mean_ln.toFixed(2)
-#: src/pages/Today.tsx:396
+#: src/pages/Today.tsx:415
 msgid "vs {0} baseline"
 msgstr "对比基准 {0}"
 
@@ -14052,8 +14090,8 @@ msgstr "这次完整努力是实测 10K 吗？"
 msgid "Was the full effort a measured 5K?"
 msgstr "这是否是一次距离准确的完整 5 公里？"
 
-#: src/components/AiInsightsCard.tsx:347
-#: src/components/AiInsightsCard.tsx:351
+#: src/components/AiInsightsCard.tsx:410
+#: src/components/AiInsightsCard.tsx:414
 msgid "Was this insight useful?"
 msgstr "这条解读有帮助吗？"
 
@@ -14232,7 +14270,7 @@ msgstr "它能说明什么，又不能说明什么"
 msgid "What was this full activity?"
 msgstr "这次完整活动属于哪种情况？"
 
-#: src/components/AiInsightsCard.tsx:387
+#: src/components/AiInsightsCard.tsx:450
 msgid "What was useful or missing?"
 msgstr "哪些内容有帮助，或还缺少什么？"
 

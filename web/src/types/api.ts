@@ -3747,6 +3747,8 @@ export interface ActivityResearchDatasetResponse {
 export interface AiInsightFinding {
   type: 'positive' | 'warning' | 'neutral';
   text: string;
+  /** Daily Coach distinguishes interpretation from its supporting observations. */
+  kind?: 'insight' | 'observation';
 }
 
 export interface AiInsightTranslation {
@@ -3848,6 +3850,8 @@ export interface AiInsight {
 
 export interface AiInsightResponse {
   content_status: CoachContentStatus;
+  /** Current server-owned rendering contract; older servers may omit it. */
+  content_version?: string;
   snapshot?: string | null;
   theory_refs?: CoachTheoryRef[];
   insight: AiInsight | null;
@@ -3856,6 +3860,7 @@ export interface AiInsightResponse {
 
 export type AiInsightsResponse = {
   content_status: CoachContentStatus;
+  content_version?: string;
   snapshot?: string | null;
   theory_refs?: CoachTheoryRef[];
   insights: Partial<Record<string, AiInsight>>;

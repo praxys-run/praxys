@@ -6,8 +6,12 @@ interface Receipt {
   headline: string;
   summary?: string;
   stamp?: string;
-  findings: { text: string; tone?: string }[];
+  findings: { text: string; tone?: string; kind?: 'insight' | 'observation'; parts?: { text: string; numeric: boolean }[] }[];
   recommendations: { text: string }[];
+}
+
+function textParts(text: string): { text: string; numeric: boolean }[] {
+  return text.split(/(\d+(?:[.,:–-]\d+)*)/g).filter(Boolean).map(part => ({ text: part, numeric: /^\d/.test(part) }));
 }
 
 Component({
@@ -20,52 +24,72 @@ Component({
     theoryRefs: { type: Array, value: [] as CoachTheoryRef[] },
     loading: { type: Boolean, value: false },
     failed: { type: Boolean, value: false },
+    canRegenerate: { type: Boolean, value: false },
+    regenerating: { type: Boolean, value: false },
+    syncFailed: { type: Boolean, value: false },
   },
   data: {
     receipt: null as Receipt | null,
     isAi: false, detailsOpen: false, detailLabel: '', primaryAction: '',
     remaining: [] as { text: string }[], refs: [] as CoachTheoryRef[],
-    statusText: '', datasetHash: '', vote: '', contentVersion: '', dataAsOf: '',
-    tr: { coach: '', metrics: '', key: '', findings: '', recommendations: '', refresh: '', dataThrough: '', methods: '' },
+    interpretations: [] as Receipt['findings'], observations: [] as Receipt['findings'],
+    statusText: '', datasetHash: '', vote: '', contentVersion: '', dataAsOf: '', needsGeneration: false,
+    tr: { coach: '', metrics: '', key: '', findings: '', observations: '', recommendations: '', refresh: '', dataThrough: '', methods: '', sync: '', syncing: '' },
   },
   observers: {
-    'response, fallback, snapshot, theoryRefs, loading, failed'() { this.rebuild(); },
+    'response, fallback, snapshot, theoryRefs, loading, failed, canRegenerate, regenerating, syncFailed'() { this.rebuild(); },
   },
   lifetimes: { attached() { this.rebuild(); } },
   methods: {
     rebuild() {
       const response = this.data.response as AiInsightResponse | null;
       const daily = this.data.insightType === 'daily_brief';
+      const refreshState = this as unknown as { _lastSnapshotRefresh?: string };
+      if (response?.content_status === 'ready') refreshState._lastSnapshotRefresh = '';
+      if (daily && !this.data.loading && !this.data.failed && this.data.snapshot
+          && response?.ai_available !== false && response?.content_status === 'stale'
+          && response.snapshot !== this.data.snapshot) {
+        const identity = `${this.data.snapshot}:${response.snapshot ?? 'unstable'}`;
+        if (refreshState._lastSnapshotRefresh !== identity) {
+          refreshState._lastSnapshotRefresh = identity;
+          void Promise.resolve().then(() => this.triggerEvent('refresh'));
+        }
+      }
       const coherent = !daily || (Boolean(this.data.snapshot)
         && response?.snapshot === this.data.snapshot && response.content_status === 'ready'
         && response.insight?.snapshot === this.data.snapshot
-        && response.insight.content_version === 'morning-coach-v2');
-      const insight = coherent && !this.data.loading && !this.data.failed ? response?.insight ?? null : null;
+        && response.insight.content_version === (response.content_version ?? 'morning-coach-v2'));
+      const insight = coherent && response?.ai_available !== false && !this.data.loading && !this.data.failed ? response?.insight ?? null : null;
       const view = insight ? localizedInsight(insight, detectLocale()) : null;
       const receipt: Receipt | null = view ? {
         headline: view.headline, summary: view.summary,
         stamp: insight?.as_of_date ?? insight?.generated_at?.slice(0, 10) ?? '',
-        findings: view.findings.map(f => ({ text: f.text, tone: f.type })),
+        findings: view.findings.map(f => ({ text: f.text, tone: f.type, kind: f.kind })),
         recommendations: view.recommendations.map(text => ({ text })),
       } : this.data.loading ? null : this.data.fallback as Receipt | null;
       const remaining = receipt?.recommendations.slice(1) ?? [];
+      const interpretations = receipt?.findings.filter(f => f.kind === 'insight' || (!daily && f.kind !== 'observation')).map(f => ({ ...f, parts: textParts(f.text) })) ?? [];
+      const observations = receipt?.findings.filter(f => f.kind === 'observation' || (daily && f.kind !== 'insight')).map(f => ({ ...f, parts: textParts(f.text) })) ?? [];
       const feedback = insightFeedbackState(insight);
-      const statusText = this.data.failed ? t("Couldn't load Coach. Try again.")
+      const needsGeneration = daily && Boolean(this.data.snapshot) && (response?.content_status === 'unavailable'
+        || (response?.content_status === 'stale' && response.snapshot === this.data.snapshot));
+      const statusText = this.data.regenerating ? t('Syncing…') : this.data.syncFailed ? t("Couldn't sync data. Try again.") : this.data.failed ? t("Couldn't load Coach. Try again.")
         : this.data.loading ? t('Loading Coach…')
         : response?.ai_available === false ? t('Azure AI insights are temporarily unavailable.')
         : response?.content_status === 'unavailable' ? t("Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.")
+        : needsGeneration ? t('Coach needs an updated analysis. Sync your data to regenerate it.')
         : daily && (!this.data.snapshot || response?.content_status === 'stale') ? t('Coach needs a refreshed training snapshot.')
         : !insight ? t('Coach is waiting for a current analysis.') : '';
       this.setData({
-        receipt, isAi: Boolean(insight), detailsOpen: false, remaining,
+        receipt, isAi: Boolean(insight), detailsOpen: false, remaining, interpretations, observations,
         primaryAction: receipt?.recommendations[0]?.text ?? '',
         detailLabel: coachToggleLabel(receipt?.findings.length ?? 0, remaining.length, false),
-        refs: response?.theory_refs ?? this.data.theoryRefs, statusText,
+        refs: response?.theory_refs ?? this.data.theoryRefs, statusText, needsGeneration,
         datasetHash: feedback.datasetHash, vote: feedback.vote,
         contentVersion: insight?.content_version ?? '', dataAsOf: insight?.data_as_of?.slice(0, 10) ?? '',
         tr: { coach: t('Praxys Coach'), metrics: t('Training metrics'), key: t('Key recommendation'),
-          findings: t('Findings'), recommendations: t('Recommendations'), refresh: t('Refresh'),
-          dataThrough: t('Data through'), methods: t('Training methods') },
+          findings: daily ? t('Training interpretation') : t('Findings'), observations: t('Supporting observations'), recommendations: t('Recommendations'), refresh: t('Refresh'),
+          dataThrough: t('Data through'), methods: t('Training methods'), sync: t('Sync now'), syncing: t('Syncing…') },
       });
     },
     toggle() {
@@ -75,6 +99,7 @@ Component({
       if (open) this.triggerEvent('detailsopen');
     },
     refresh() { this.triggerEvent('refresh'); },
+    regenerate() { if (!this.data.regenerating) this.triggerEvent('regenerate'); },
     stale() { this.triggerEvent('refresh'); },
     openTheory(event: WechatMiniprogram.TouchEvent) {
       const pillar = String(event.currentTarget.dataset.pillar ?? '');

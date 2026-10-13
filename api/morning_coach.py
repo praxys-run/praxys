@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from analysis.config import is_praxys_plan_source
 from db.cache_revision import SCOPES, get_revisions
 
-CONTENT_VERSION = "morning-coach-v2"
+CONTENT_VERSION = "morning-coach-v3"
 CONTRACT_KEY = "_morning_coach"
+MAX_DAILY_INSIGHTS = 3
 
 
 def digest(value: Any) -> str:
@@ -116,6 +117,52 @@ def _platform_name(plan: dict) -> str:
     return {"stryd": "Stryd", "garmin": "Garmin"}.get(str(plan.get("source", "")).strip().casefold(), "External")
 
 
+def _guidance_meaning(context: dict, evidence: dict) -> dict:
+    """Explain an already-computed Today rule without selecting a new action.
+
+    Reuses daily_training_signal's existing operational guardrails. HRV is
+    monitoring context, not a guarantee (doi:10.1016/j.jsams.2021.04.012);
+    modeled load is not a personal injury threshold (doi:10.1123/ijspp.2019-0864).
+    """
+    signal = context.get("today_signal") or {}
+    reason = signal.get("reason_code") or ""
+    if reason == "rest_scheduled":
+        en, zh = ("The plan has already allocated today to recovery. A favorable reading does not replace that scheduled rest.",
+                  "整体计划已把今天安排为恢复日；即使某项恢复读数较好，也仍按这个休息安排执行。")
+    elif reason in {"unscheduled_hrv_caution", "hrv_below_hard", "hrv_below_easy"}:
+        en, zh = ("HRV is below the selected model's personal caution band. That is why today's guidance prioritizes recovery or easy movement over adding intensity.",
+                  "HRV 低于所选模型的个人谨慎区间，因此今日建议优先恢复或轻松活动，避免临时增加强度。")
+    elif reason in {"unscheduled_high_load", "high_load_hard"}:
+        en, zh = ("The existing Today rule flags low modeled load balance. This is why the recommendation limits intensity, even when HRV is within its reference band.",
+                  "当前今日规则已触发建模负荷的谨慎提示；即使 HRV 处于参考范围，也按主建议控制训练强度。")
+    elif reason.startswith("hrv_declining") or reason == "hrv_variability_high":
+        en, zh = ("The selected model has flagged the recent HRV trend or variability. Today's conservative adjustment responds to that pattern rather than to one isolated reading.",
+                  "所选模型已对近期 HRV 趋势或波动发出谨慎提示；今天的调整依据这段记录，而不是只看某一次读数。")
+    elif reason in {"sleep_low_hard", "resting_hr_elevated_hard"}:
+        en, zh = ("A secondary recovery observation has triggered the existing hard-session adjustment. Use the main recommendation to adapt execution and check how you feel as you begin.",
+                  "一项辅助恢复观测触发了既有的高强度课程调整规则。按主建议调整执行，开始训练时留意身体感受。")
+    elif reason.startswith("hrv_") and reason != "hrv_above_baseline":
+        en, zh = ("A usable HRV recovery classification is not available. Today's plan guidance therefore carries no HRV-based recovery adjustment; sync the missing observations before relying on that assessment.",
+                  "当前尚无可用的 HRV 恢复分类，因此今天的计划建议没有加入 HRV 恢复调整。补齐观测后，再结合恢复评估判断。")
+    elif reason == "unscheduled_open":
+        state = context.get("recovery_state") or {}
+        if evidence["recovery.hrv"]["current"] and state.get("status") in {"normal", "fresh"}:
+            en, zh = ("Today's HRV assessment has not triggered the selected recovery model's caution response. An empty workout calendar does not itself call for rest: consider a session in the context of your broader plan and how you feel.",
+                      "今天的 HRV 评估未触发所选恢复模型的谨慎提示。课表为空本身不代表需要休息，可结合整体计划和身体感受安排今天的训练。")
+        else:
+            en, zh = ("An empty workout calendar says nothing about recovery readiness. The current HRV classification is incomplete; consider the broader plan and how you feel while completing the recovery record.",
+                      "课表为空并不表示恢复状态好或差。当前 HRV 恢复分类尚不完整，可先结合整体计划和身体感受判断，并补齐恢复记录。")
+    elif signal.get("recommendation") == "follow_plan":
+        en, zh = ("The existing Today rule has kept the scheduled workout unchanged. Use the planned session as the starting point, then monitor how you feel during execution.",
+                  "既有今日规则保留了已安排的课程。先以这节计划课为依据，执行时继续留意身体感受。")
+    else:
+        en, zh = ("Use today's main recommendation alongside the broader training plan and how you feel; the workout calendar alone does not explain the recovery assessment.",
+                  "把今日主建议与整体训练计划和身体感受一起考虑；课表是否有课程，本身不能解释恢复评估。")
+    caution = reason != "rest_scheduled" and (signal.get("recommendation") in {"rest", "easy", "modify", "reduce_intensity"}
+                                               or reason in {"unscheduled_hrv_caution", "unscheduled_high_load"})
+    return {"en": en, "zh": zh, "type": "warning" if caution else "neutral"}
+
+
 def candidates(context: dict) -> dict:
     """Build eligible observations and actions before model selection.
 
@@ -193,6 +240,17 @@ def candidates(context: dict) -> dict:
         "en": f"Modeled load on {as_of}: {load_text}. Read TSB as modeled load balance alongside recovery observations." if load_parts else "Current modeled load awaits training data.",
         "zh": f"{as_of} 的建模负荷：{load_text}。TSB 表示建模负荷平衡，可结合恢复观测一起参考。" if load_parts else "当前建模负荷解读等待训练数据补齐。",
     }
+    if all(isinstance(fitness.get(key), (int, float)) and not isinstance(fitness[key], bool)
+           and math.isfinite(fitness[key]) for key in ("ctl", "atl", "tsb")):
+        # Descriptive comparison of the existing Banister model outputs; no new
+        # cutoff, fatigue diagnosis, or workout prescription is introduced.
+        relation_en, relation_zh = (("higher than", "高于") if fitness["atl"] > fitness["ctl"] else
+                                    ("lower than", "低于") if fitness["atl"] < fitness["ctl"] else ("equal to", "等于"))
+        interpretations["load.context"] = {
+            "requires": ["load.current"],
+            "en": f"ATL is {relation_en} CTL in the current model, comparing recent training pressure with its longer-term reference. Use this alongside recovery and today's main recommendation when deciding how to execute the session.",
+            "zh": f"当前模型中 ATL {relation_zh} CTL，反映近期训练压力与较长期参考的关系。执行今天的训练时，可把这条负荷背景与恢复情况和主建议一起考虑。",
+        }
     start = as_of - timedelta(days=6)
     sessions = [s for s in (context.get("recent_training") or {}).get("sessions", [])
                 if (d := _day(s.get("date"))) is not None and d <= as_of]
@@ -213,6 +271,13 @@ def candidates(context: dict) -> dict:
             "en": f"Latest recorded workout: {str(last['date'])[:10]}" + (f", {distance_last:g} km." if distance_last is not None else "; distance unavailable."),
             "zh": f"最近已记录训练：{str(last['date'])[:10]}" + (f"，{distance_last:g} km。" if distance_last is not None else "；距离不可用。"),
         }
+        if last in week and distance_last is not None and distance and sum(v for v in distances if v is not None) > 0:
+            share = distance_last / sum(v for v in distances if v is not None) * 100
+            interpretations["training.recent_share"] = {
+                "requires": ["training.week", "training.recent"],
+                "en": f"The latest session accounts for {share:.0f}% of the recorded seven-day distance. It is useful context for today's course: review that session's execution and how you feel alongside the broader plan.",
+                "zh": f"最近这次训练占近七天已记录距离的 {share:.0f}%。安排今天的课程时，可以先回看这次训练的执行情况和身体感受，再结合整体计划判断。",
+            }
         # Descriptive split evidence only. Select the longest measured power
         # split; never infer a zone, recovery cost or dose from activity avg_power.
         splits = [s for s in (last.get("splits") or []) if isinstance(s, dict)
@@ -238,7 +303,7 @@ def candidates(context: dict) -> dict:
         "modify": ("Modify today's session according to the Today signal.", "按今日信号调整今天的训练。"),
         "reduce_intensity": ("Reduce today's training intensity.", "降低今天的训练强度。"),
         "follow_plan": ("Follow today's scheduled workout.", "按今天已安排的训练执行。"),
-        "unscheduled": ("Review the training plan before adding a session.", "添加训练前先查看训练计划。"),
+        "unscheduled": ("If a session fits your broader plan, train to that plan and check how you feel as you start.", "如今天的训练符合整体计划，可以按计划训练；开始时留意身体感受。"),
     }
     if rec not in actions_by_signal or (canonical_plan is None and rec != "unscheduled"):
         raise ValueError("incoherent_canonical_action")
@@ -311,6 +376,7 @@ def candidates(context: dict) -> dict:
         evidence["training.week"]["zh"] += "进一步的负荷解读等待逐次训练数据补齐。"
     sleep_value = _number(state.get("sleep_score"), score=True) if evidence["recovery.sleep"]["current"] else None
     return {"evidence": evidence, "interpretations": interpretations,
+            "guidance_meaning": _guidance_meaning(context, evidence),
             "actions": {f"today.{rec}": {"en": action[0], "zh": action[1]}},
             "recovery_summary": recovery_summary,
             "missing_recovery": bool(missing["en"]),
@@ -340,12 +406,17 @@ def render_selection(raw: object, eligible: dict) -> dict:
     for key in raw["interpretation_ids"]:
         if not set(eligible["interpretations"][key]["requires"]) <= set(raw["evidence_ids"]):
             raise ValueError("unsupported_interpretation")
+    # Keep the canonical guidance first, then the model's highest-priority
+    # supported interpretations. Observations remain available separately.
+    finding_ids = [key for key in raw["interpretation_ids"]
+                   if "short_en" not in eligible["interpretations"][key]][:MAX_DAILY_INSIGHTS - 1]
     translations = {}
     for lang in ("en", "zh"):
         recovery = eligible["recovery_summary"][lang]
         # At most two compact supported trend clauses; observations and their
         # individual dates remain fully available in the findings.
-        trend_phrases = [eligible["interpretations"][key][f"short_{lang}"] for key in raw["interpretation_ids"]]
+        trend_phrases = [eligible["interpretations"][key][f"short_{lang}"] for key in raw["interpretation_ids"]
+                        if f"short_{lang}" in eligible["interpretations"][key]]
         if trend_phrases:
             trends = ("; " if lang == "en" else "，").join(trend_phrases)
             recovery = ((recovery + ("; " if lang == "en" else "；")) if eligible["missing_recovery"] else "") + trends
@@ -357,17 +428,23 @@ def render_selection(raw: object, eligible: dict) -> dict:
         if sleep is not None:
             recovery += f"; sleep score {sleep:g}" if lang == "en" else f"，睡眠评分为 {sleep:g}"
         recovery += "." if lang == "en" else "。"
-        findings = []
-        recovery_added = False
+        meaning = eligible["guidance_meaning"]
+        findings = [{"kind": "insight", "type": meaning["type"], "text": meaning[lang]}]
+        findings.extend({"kind": "insight", "type": "neutral", "text": eligible["interpretations"][key][lang]}
+                        for key in finding_ids)
+        # Three bounded groups preserve all required observations and gaps.
+        # Recovery trend missingness belongs with recovery, while course
+        # references stay alongside recorded training rather than creating
+        # extra rows for each available measurement or external plan.
+        observation_groups: list[list[str]] = [[], [], []]
         for key in raw["evidence_ids"]:
-            if key.startswith("recovery."):
-                if not recovery_added:
-                    findings.append({"type": "neutral", "text": " ".join(
-                        eligible["evidence"][f"recovery.{metric}"][lang]
-                        for metric in ("sleep", "hrv", "rhr"))})
-                    recovery_added = True
-            else:
-                findings.append({"type": "neutral", "text": eligible["evidence"][key][lang]})
+            group = 0 if key.startswith(("recovery.", "trend.")) else 1 if key.startswith("load.") else 2
+            observation_groups[group].append(eligible["evidence"][key][lang])
+        labels = ("Recovery", "Training load", "Recorded training and today's course") if lang == "en" else ("恢复状态", "训练负荷", "训练记录与今日安排")
+        for label, texts in zip(labels, observation_groups):
+            if texts:
+                findings.append({"kind": "observation", "type": "neutral",
+                                 "text": label + (": " if lang == "en" else "：") + " ".join(texts)})
         translations[lang] = {
             "headline": "Recovery and training today" if lang == "en" else "今日恢复与训练",
             "summary": " ".join((recovery, eligible["week_summary"][lang], eligible["plan_summary"][lang])),
