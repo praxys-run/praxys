@@ -234,6 +234,31 @@ def test_daily_response_declares_the_contract_and_keeps_finding_kinds(db):
     assert any(f['kind'] == 'observation' for f in response['insight']['translations']['zh']['findings'])
 
 
+def test_long_verified_daily_groups_survive_route_serialization_in_both_languages(db):
+    ctx = context()
+    ctx.update(planned_today=None, include_stryd_plan=False,
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'},
+               external_planned_today=[external_course(source='garmin', planned_distance_km=10 + i)
+                                       for i in range(25)])
+    row, ctx = store(db, ctx)
+    observations = [f for f in row.findings if f['kind'] == 'observation']
+    assert len(observations) == 3
+    for lang in ('en', 'zh'):
+        assert any(len(f['text']) > 1000 for f in row.translations[lang]['findings'])
+    response = insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)
+    assert response['content_status'] == 'ready'
+    assert response['insight']['findings'] == row.findings
+    assert response['insight']['translations'] == row.translations
+    # Longer groups do not relax external input or legacy serialization.
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        insights.InsightFinding.model_validate(observations[-1])
+    row.meta.pop(coach.CONTRACT_KEY)
+    serialized = insights._serialize_insight(row, db, feedback_allowed=False)
+    assert serialized['translations'] == {}
+    assert all(len(f['text']) <= 1000 for f in serialized['findings'])
+
+
 def test_finding_kinds_must_align_across_translations():
     from pydantic import ValidationError
     result = payload(context())

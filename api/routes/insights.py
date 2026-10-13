@@ -109,6 +109,25 @@ class InsightTranslations(BaseModel):
         return self
 
 
+class DailyCoachFinding(InsightFinding):
+    """Preserve grouped server-rendered evidence without the public prose cap."""
+
+    text: str = Field(min_length=1)
+
+
+class DailyCoachTranslation(InsightTranslation):
+    """Localize the verified server-owned daily finding groups."""
+
+    findings: list[DailyCoachFinding] = Field(default_factory=list)
+
+
+class DailyCoachTranslations(InsightTranslations):
+    """Keep daily language alignment while allowing complete evidence groups."""
+
+    en: DailyCoachTranslation | None = None
+    zh: DailyCoachTranslation | None = None
+
+
 class PushInsightRequest(BaseModel):
     """Strict contract for durable generated insights."""
 
@@ -181,9 +200,18 @@ def _serialize_insight(
             meta,
         )
 
+    # The public push contract remains bounded. Only a provenance-verified,
+    # server-rendered daily receipt may contain grouped evidence longer than
+    # that single-finding prose limit; never silently discard its caveats.
+    from api.morning_coach import CONTRACT_KEY, validate_stored
+    contract = (row.meta or {}).get(CONTRACT_KEY) if isinstance(row.meta, dict) else None
+    verified_daily = (row.insight_type == "daily_brief" and isinstance(contract, dict)
+                      and validate_stored(row, contract.get("snapshot")))
+    translation_model = DailyCoachTranslations if verified_daily else InsightTranslations
+    finding_model = DailyCoachFinding if verified_daily else InsightFinding
     translations: dict[str, Any] = {}
     try:
-        translations = InsightTranslations.model_validate(row.translations).model_dump(exclude_none=True)
+        translations = translation_model.model_validate(row.translations).model_dump(exclude_none=True)
     except (TypeError, ValueError):
         # Legacy rows may predate the bilingual schema. Top-level English
         # fields still render after normalization below.
@@ -193,7 +221,7 @@ def _serialize_insight(
     if isinstance(row.findings, list):
         for finding in row.findings:
             try:
-                findings.append(InsightFinding.model_validate(finding).model_dump(exclude_none=True))
+                findings.append(finding_model.model_validate(finding).model_dump(exclude_none=True))
             except (TypeError, ValueError):
                 continue
 

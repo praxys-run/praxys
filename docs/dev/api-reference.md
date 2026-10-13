@@ -2937,6 +2937,9 @@ canonical guidance, and this cap does not remove supporting observations.
 Supporting observations occupy at most three groups: recovery and recovery-trend
 gaps; modeled load; recorded training and today's course references. The renderer
 preserves every eligible observation and its dates/missingness inside these groups.
+Provenance-verified server-rendered daily groups may exceed the single-finding
+prose limit so complete dates and course caveats survive serialization. The
+1,000-character public finding input limit and legacy normalization stay unchanged.
 No new training dose or
 clinical conclusion is introduced.
  The authenticated AI context
