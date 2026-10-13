@@ -4,6 +4,8 @@ def assert_pending_binding(attempt):
     """Shared service-ledger check of three independently frozen sources."""
     finish=attempt.get('finish');trigger=attempt.get('trigger')
     assert finish and trigger,'pending_compare_sources_missing'
+    assert trigger['occupied_ack_captured_at_selection'] is True,'occupied_ack_missing_at_selection'
+    assert attempt.get('occupied_ack') and attempt['occupied_ack']['at']<=trigger['at'],'occupied_ack_after_selection_or_missing'
     pending=finish.get('pending_snapshot')
     assert pending and not pending['missing_fields'],'pending_snapshot_incomplete'
     assert pending['job']==finish['job']==attempt['claim']['job']==trigger['job'],'pending_job_binding_changed'

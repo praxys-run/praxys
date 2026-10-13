@@ -16,7 +16,7 @@ from api import activity_dfa as service
 from db.models import ActivityDFARun as Run, ActivityDFAControl as Control, GarminFitSnapshot
 from tests.test_activity_dfa import store
 from tests.test_dfa_origins import both_origins, complete_unit
-from tests.test_dfa_supervisor_capacity import PriorityEvidence
+from tests.dfa_active_capture import ActiveRenewalEvidence, capture_job, capture_actor
 from tests.dfa_capacity_measurement import lifecycle_observations
 from tests.dfa_boundary_evidence import StartupEvidence, RenewalDecision, safe_binding, boundary_junit
 from tests.dfa_attempt_evidence import assert_attempt_ledger
@@ -45,17 +45,17 @@ class Cell:
         args = {'timeout': .1} if backend == 'sqlite' else {'connect_timeout': 1, 'options': '-c statement_timeout=200 -c lock_timeout=200'}
         self.engine = create_engine(factory.kw['bind'].url, pool_size=2, max_overflow=0, pool_timeout=.1, connect_args=args)
         self.sup.controls = sessionmaker(bind=self.engine)
-        self.proof = PriorityEvidence(self.sup, monkeypatch)
         self.actors, self.availability = lifecycle_observations(self.sup, monkeypatch)
         self.events, self.threads, self.errors = [], [], []
         self.diagnostic=StartupEvidence(self.sup,monkeypatch)
         self.diagnostic.synchronize_acquisition=False
-        self.attempts=[]
+        self.proof=ActiveRenewalEvidence(self.sup,factory,monkeypatch)
+        self.raw_fault_events=[]
         self.first_execution_denial=False
         self.fault_armed_at=self.fault_started=None
         self.fault_injected=False
         self.fault_target=None
-        self.fault_decision=RenewalDecision(self.sup,monkeypatch)
+        self.fault_decision=self.proof.first_occupied_cycle
         self.install_attempt_observers(monkeypatch)
         actual = self.sup.renew
         def renew():
@@ -71,108 +71,55 @@ class Cell:
     def safe_state(self):
         return {k:v for k,v in self.snapshot().items() if k!='id'}
 
+    @property
+    def attempts(self):
+        return self.proof.export_attempts()
+
     def install_attempt_observers(self, monkeypatch):
-        cell=self;sup=self.sup
-        actual_finish=sup.finish;actual_bound=sup._bound;actual_current=service._current
-        actual_work=sup.work;work_code=actual_work.__func__.__code__;renew_code=sup.renew.__func__.__code__
-        run_code=sup.run.__func__.__code__
-        def current(db,run):
-            result=actual_current(db,run)
-            cell.diagnostic.note('acquisition_validation',current=result,
-                job=safe_binding({'id':run.id,'generation':run.generation,'epoch':run.execution_epoch,
-                                  'input':run.input_digest,'origin':run.origin,'phase':run.phase}))
-            return result
-        monkeypatch.setattr(service,'_current',current)
-        def claim_observed(job,started):
-            assert job['id']==cell.id, 'claim belongs to another unit'
-            state=cell.safe_state();binding=safe_binding(job)
-            validations=[e for e in cell.diagnostic.events if e['at']>=started]
-            current=any(e['event']=='acquisition_validation' and e['current'] and e['job']==binding for e in validations)
-            mode=next((e['mode'] for e in reversed(validations) if e['event']=='account_mode_validation'),None)
-            claim={'at':time.monotonic(),'job':binding,'state':state,'current':current,'mode':mode}
-            cell.attempts.append({'claim':claim,'occupied_ack':None,'finish':None,'finish_ack':None})
-            cell.diagnostic.note('attempt_claim',**claim)
-        cell.diagnostic.claim_observer=claim_observed
-        class Controls(sup.controls.class_):
-            def commit(session):
-                caller=sys._getframe(1)
-                result=super().commit()
-                if caller.f_code is work_code:
-                    actor=deepcopy(caller.f_locals['actor']);entry=cell.attempts[-1]
-                    entry['occupied_ack']={'at':time.monotonic(),'actor':safe_binding(actor)}
-                    cell.diagnostic.note('attempt_occupied_ack',**entry['occupied_ack'])
-                    if cell.first_execution_denial and len(cell.attempts)==1:
-                        cell.fault_armed_at=time.monotonic()
-                if (caller.f_code is renew_code and cell.fault_started==caller.f_locals['started']
-                        and cell.fault_target and cell.fault_target['matched']):
-                    active=safe_binding(caller.f_locals['active']);actor=safe_binding(sup.lane.actor())
-                    # Do not qualify a later/global renewal after the target retired.
-                    if active==cell.fault_target['job'] and actor==cell.fault_target['actor']:
-                        cell.fault_injected=True
-                        cell.diagnostic.note('scheduling_fault_applied',delay_seconds=.30,
-                            job=active,actor=actor,cycle_started=cell.fault_started)
-                        time.sleep(.30)
-                    else:cell.diagnostic.note('setup_failed',code='occupied_target_lost_before_control_ack')  # Real ACK delay, not a replaced clock or lease.
-                return result
-        sup.controls=sessionmaker(class_=Controls,**sup.controls.kw)
-        def bound(db):
-            caller=sys._getframe(1);row=actual_bound(db)
-            if (caller.f_code is renew_code and cell.fault_armed_at is not None and cell.fault_started is None
-                    and caller.f_locals['started']>=cell.fault_armed_at):
-                # Pin the first eligible cycle even on a mismatch: never search
-                # for a later favourable actor, epoch, phase or permission pulse.
-                cell.fault_started=caller.f_locals['started']
-                job=safe_binding(caller.f_locals['active']);actor=safe_binding(sup.lane.actor())
-                expected=cell.attempts[0]
-                matched=bool(row and len(cell.attempts)==1 and job==expected['claim']['job']
-                    and actor==expected['occupied_ack']['actor'] and actor['state']=='occupied'
-                    and safe_binding(row.actor)==actor and row.incarnation==sup.identity)
-                cell.fault_target={'matched':matched,'job':job,'actor':actor,'cycle_started':cell.fault_started}
-                if matched:cell.fault_decision.arm()
-                else:cell.diagnostic.note('setup_failed',code='first_occupied_cycle_binding_lost')
-            return row
-        monkeypatch.setattr(sup,'_bound',bound)
+        cell=self;observer=self.proof;sup=self.sup
+        def occupied_released(job,actor,returned):
+            # Actual occupied commit AND Session exit precede arming. No owner
+            # writer is held while the prospective real cycle runs.
+            if self.first_execution_denial and len(observer.raw_attempts)==1:
+                assert self.fault_armed_at is None,'duplicate_occupied_release'
+                self.fault_armed_at=time.monotonic()
+                self.fault_decision.arm(job,actor,self.fault_armed_at)
+        observer.on_work_controls_exit=occupied_released
+        def bound(fields):
+            if not self.first_execution_denial or self.fault_armed_at is None or self.fault_started is not None:return
+            if fields['started']<self.fault_armed_at:return
+            self.fault_started=fields['started']
+            first=observer.raw_attempts[0];actor=first['occupied'][1] if first['occupied'] else None
+            matched=bool(len(observer.raw_attempts)==1 and fields['job']==first['job'] and actor is not None
+                and fields['actor']==actor and fields['sql_actor']==actor and actor.state=='occupied')
+            self.fault_target={'matched':matched,'job':fields['job'],'actor':fields['actor'],'cycle_started':self.fault_started}
+            assert matched,'first_occupied_cycle_binding_lost'
+        observer.on_active_bound=bound
+        def committed(kind,fields):
+            if kind!='renew' or self.fault_started!=fields['started']:return
+            assert self.fault_target and self.fault_target['matched'],'missing_exact_fault_target'
+            self.fault_injected=True
+            self.raw_fault_events.append((time.monotonic(),self.fault_started,self.fault_target['job'],self.fault_target['actor']))
+            # Declared control ACK fault only; observer formatting is deferred.
+            observer.resource('fixture_control_ack_delay','start')
+            try:time.sleep(.30)
+            finally:observer.resource('fixture_control_ack_delay','end')
+        observer.on_sql_commit=committed
+        actual_work=sup.work
         def work(job, outputs, cancellation=None):
             class Delivered:
-                def put(_, value):
-                    if cell.first_execution_denial and len(cell.attempts)==1 and value[0]=='output':
-                        # Hold only delivery of the genuine numerical result in the fault
-                        # case. Renewal continues; its original clocks decide retirement.
-                        cell.diagnostic.note('result_delivery_boundary',status=value[0])
-                        assert cell.fault_decision.event.wait(2), cell.diagnostic.compact()
+                def put(_,value):
+                    if cell.first_execution_denial and len(observer.raw_attempts)==1 and value[0]=='output':
+                        assert cell.fault_decision.event.wait(2),'first_fault_decision_missing'
                         with sup.lock:assert sup.allowed is False
-                    outputs.put(value)
-            actual_work(job,Delivered(),cancellation)
+                    return outputs.put(value)
+            return actual_work(job,Delivered(),cancellation)
         monkeypatch.setattr(sup,'work',work)
-        def finish(job,status,value):
-            if not cell.attempts:return actual_finish(job,status,value)
-            entry=cell.attempts[-1];pending=sup.pending;actor=sup.lane.actor()
-            frame=sys._getframe(1)
-            for _ in range(4):
-                if frame.f_code is run_code or frame.f_back is None:break
-                frame=frame.f_back
-            trigger=None
-            if frame.f_code is run_code:
-                trigger={'expired':frame.f_locals['expired'],'timed_out':frame.f_locals['timed_out'],
-                    'decision':StartupEvidence.decision(frame.f_locals['decision']),
-                    'actor':safe_binding(frame.f_locals['actor_before'])}
-            reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable','restart_interrupted'} else None
-            chosen=json.loads(pending.value_json) if pending else None
-            entry['finish']={'at':time.monotonic(),'job':safe_binding(job),'status':status,'reason':reason,
-                'pending_status':pending.status if pending else None,'pending_reason':chosen if isinstance(chosen,str) and chosen==reason else None,
-                'pending_actor':safe_binding(json.loads(pending.actor_json)) if pending else None,
-                'pending_job':safe_binding(json.loads(pending.job_json)) if pending else None,
-                'cancelled':pending.cancellation.is_set() if pending else None,'actor':safe_binding(actor),
-                'exit_ack_at':cell.availability.get(actor['actor_token']) if actor else None,
-                'before':cell.safe_state(),'trigger':trigger,'current':None,'mode':None}
-            cell.diagnostic.note('attempt_finish',**entry['finish'])
-            began=time.monotonic();actual_finish(job,status,value)
-            validations=[e for e in cell.diagnostic.events if e['at']>=began]
-            entry['finish']['current']=any(e['event']=='execution_validation' and e['current'] for e in validations)
-            entry['finish']['mode']=next((e['mode'] for e in reversed(validations) if e['event']=='account_mode_validation'),None)
-            entry['finish_ack']={'at':time.monotonic(),'after':cell.safe_state()}
-            cell.diagnostic.note('attempt_finish_ack',**entry['finish_ack'])
-        monkeypatch.setattr(sup,'finish',finish)
+
+    def fault_events(self):
+        return [{'event':'scheduling_fault_applied','at':at,'cycle_started':started,
+                 'job':self.proof.safe_job(job),'actor':self.proof.safe_actor(actor),'delay_seconds':.30}
+                for at,started,job,actor in self.raw_fault_events]
 
     def record(self, kind, **fields):
         self.events.append({'kind': kind, 'at': time.monotonic(), **fields})
@@ -237,6 +184,7 @@ class Cell:
         self.sup.stop.set()
         for thread in list(self.threads): thread.join(10)
         joined = all(not thread.is_alive() for thread in self.threads)
+        self.proof.close()
         OUT.mkdir(exist_ok=True)
         (OUT / f'{self.name}-{self.backend}-{time.time_ns()}.json').write_text(json.dumps({
             'outcome': self.outcome, 'case': self.name, 'backend': self.backend,
@@ -246,6 +194,7 @@ class Cell:
             'renewal_decisions': self.proof.renewal_decisions, 'completed_renewals': self.proof.renewals,
             'actors': self.actors, 'availability': self.availability,
             'errors': self.errors, 'all_owned_threads_joined': joined, 'attempts':self.attempts,
+            'active_capture':json.loads(self.proof.compact()),'fault_events':self.fault_events(),
             'scope': 'deterministic acquisition test; no capacity certificate; owned renewal phase stop/join and real reactor restart disclosed'}, indent=2))
         # Preserve failure evidence before cleanup assertions can interrupt it.
         assert joined, self.errors
@@ -267,6 +216,7 @@ def cell(both_origins, monkeypatch, request):
         finally:
             value.diagnostic.emit(alive=any(t.is_alive() for t in value.threads))
             request.node.user_properties.append(('dfa_attempts',json.dumps(value.attempts,separators=(',',':'))))
+            value.proof.emit()
 
 
 @pytest.mark.parametrize('store', ['sqlite'], indirect=True)
@@ -448,7 +398,7 @@ def test_claimed_attempt_accounting_no_recovery_and_first_execution_denial(cell,
     assert cell.snapshot()['recoveries']==(1 if first_denial else 0)
     if first_denial:
         assert cell.fault_injected and cell.fault_target['matched'] and cell.fault_decision.observation is not None
-        fault=next(e for e in cell.diagnostic.terminal_events if e['event']=='scheduling_fault_applied')
+        fault=next(e for e in cell.fault_events() if e['event']=='scheduling_fault_applied')
         first=cell.attempts[0]
         assert fault['job']==first['claim']['job'] and fault['actor']==first['occupied_ack']['actor']
         assert first['occupied_ack']['at']<=fault['cycle_started']<=fault['at']<first['finish']['trigger']['decision']['at']

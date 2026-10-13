@@ -66,6 +66,32 @@ class PrimitiveSignal:
         return self.ready
 
 
+class FirstOccupiedCycle:
+    """One prospective post-release cycle, including first denial/exception.
+
+    Capture uses the shared observer's immutable primitives. No renewal is
+    parked and no later successful cycle can replace the first outcome.
+    """
+    def __init__(self,observer):
+        self.observer=observer;self.target=None;self.cycle=None;self.raw=None
+        self.event=PrimitiveSignal()
+    def arm(self,job,actor,released_at):
+        assert self.target is None,'duplicate_occupied_cycle_arm'
+        self.target=(job,actor,released_at)
+    def started(self,cycle):
+        if self.target is not None and self.cycle is None and cycle['start']>=self.target[2]:
+            self.cycle=cycle
+    def completed(self,cycle):
+        if cycle is self.cycle and self.raw is None:
+            outcome=cycle.get('outcome')
+            errors=tuple(row for row in cycle['critical'] if row[0].endswith('error'))
+            self.raw=(cycle['start'],cycle['end'],cycle['job'],cycle['actor'],outcome,errors)
+            self.event.set()
+    @property
+    def observation(self):
+        return decision_values(self.raw[4][3][2],self.observer.keys) if self.raw and self.raw[4] else None
+
+
 class RawFinishObservation:
     def __init__(self, job, number, render):
         self.job,self.number,self.render=job,number,render
@@ -96,6 +122,9 @@ class ActiveRenewalEvidence:
         self.dropped=0;self.resource_dropped=0;self.actor=None
         self.error_dropped=0;self.stop_dropped=0
         self.cold_values={}
+        self.raw_operations=[];self.operation_dropped=0;self.unbound_selections=[]
+        self.on_occupied_ack_raw=self.on_work_controls_exit=None
+        self.first_occupied_cycle=FirstOccupiedCycle(self)
         self.on_occupied_ack=self.on_active_bound=self.on_sql_commit=self.on_finish_observed=None
         observer=self
         original_class=type(supervisor)
@@ -117,6 +146,7 @@ class ActiveRenewalEvidence:
                     observer.event(c,'observation',state,duration,entered,returned)
                     c['outcome']=(state,duration,returned,
                         (self.allowed,self.permission_until,capture_decision(self.permission_decision,observer.keys)))
+                    if c['end'] is not None:observer.first_occupied_cycle.completed(c)
                     if not self.allowed and c['job'] is not None:
                         previous=observer.raw_cycles[-2] if len(observer.raw_cycles)>1 else None
                         for item in (previous,c):
@@ -135,6 +165,7 @@ class ActiveRenewalEvidence:
                        'events':[],'critical':[],'dropped':0,'end':None}
                     if len(observer.raw_cycles)==12:observer.raw_cycles.pop(1);observer.dropped+=1
                     observer.raw_cycles.append(c);observer.local.cycle=c
+                    observer.first_occupied_cycle.started(c)
                 else:c=None
                 session._capture_cycle=c
                 called=time.monotonic()
@@ -146,47 +177,80 @@ class ActiveRenewalEvidence:
             def execute(session,statement,*args,**kwargs):
                 entered=time.monotonic();c=getattr(session,'_capture_cycle',None)
                 update=bool(getattr(statement,'is_update',False) and getattr(getattr(statement,'table',None),'name',None)=='activity_dfa_control')
+                category='control_update' if update else 'select' if getattr(statement,'is_select',False) else 'other'
+                observer.operation('controls','execute',category,'entry',entered,session=session)
                 if update:observer.event(c,'sql_update_invoked',entered)
                 called=time.monotonic()
                 try:result=super().execute(statement,*args,**kwargs)
                 except BaseException as exc:
-                    returned=time.monotonic()
+                    returned=time.monotonic();observer.operation('controls','execute',category,'error',returned,observer.raw_error(exc),session)
                     observer.event(c,'sql_update_error' if update else 'sql_error',observer.raw_error(exc),entered,called,returned,time.monotonic());raise
                 returned=time.monotonic()
+                observer.operation('controls','execute',category,'return',returned,session=session)
                 if update:observer.event(c,'sql_update_return',result.rowcount,entered,called,returned,time.monotonic())
                 setting={"SET LOCAL statement_timeout='200ms'":'statement_timeout_ms',"SET LOCAL lock_timeout='200ms'":'lock_timeout_ms'}.get(getattr(statement,'text',None))
                 if setting:observer.event(c,'timeout_setting_return',setting,200,returned)
                 return result
             def commit(session):
                 entered=time.monotonic();c=getattr(session,'_capture_cycle',None)
+                observer.operation('controls','commit',None,'entry',entered,session=session)
                 observer.event(c,'commit_invoked',entered)
                 called=time.monotonic()
                 try:result=super().commit()
                 except BaseException as exc:
-                    returned=time.monotonic();observer.event(c,'commit_error',observer.raw_error(exc),entered,called,returned,time.monotonic());raise
+                    returned=time.monotonic();observer.operation('controls','commit',None,'error',returned,observer.raw_error(exc),session);observer.event(c,'commit_error',observer.raw_error(exc),entered,called,returned,time.monotonic());raise
                 returned=time.monotonic()  # BEFORE capture or any fixture callback.
+                observer.operation('controls','commit',None,'return',returned,session=session)
                 observer.event(c,'sql_commit_return',returned,entered,called)
                 if getattr(observer.local,'work',False) and observer.local.actor is not None:
                     a=observer.local.attempt;a['occupied']=(returned,observer.local.actor)
+                    observer.operation('controls','occupied_capture',None,'published',time.monotonic(),session=session)
+                    if observer.on_occupied_ack_raw:observer.on_occupied_ack_raw(a['job'],observer.local.actor,returned)
                     if observer.on_occupied_ack:
                         # Work thread, outside timed renewal/supervisor lock.
-                        observer.on_occupied_ack(observer.job_dict(a['job']),observer.actor_dict(observer.local.actor))
+                        try:observer.on_occupied_ack(observer.job_dict(a['job']),observer.actor_dict(observer.local.actor))
+                        except BaseException as exc:
+                            observer.operation('controls','occupied_callback',None,'error',time.monotonic(),observer.raw_error(exc),session);raise
+                        observer.operation('controls','occupied_callback',None,'published',time.monotonic(),session=session)
                 if observer.on_sql_commit:
                     if c is not None:observer.on_sql_commit('renew',{'started':c['start']})
                     elif getattr(observer.local,'exit',False):observer.on_sql_commit('exit',{'actor':observer.actor_dict(observer.actor)})
                 ack=time.monotonic();observer.event(c,'commit_return_ack',ack,entered,called,returned,time.monotonic())
                 return result
             def __exit__(session,*args):
-                entered=time.monotonic();c=getattr(session,'_capture_cycle',None);called=time.monotonic()
+                entered=time.monotonic();c=getattr(session,'_capture_cycle',None);observer.operation('controls','session_exit',None,'entry',entered,session=session);called=time.monotonic()
                 try:result=super().__exit__(*args)
                 except BaseException as exc:
-                    returned=time.monotonic();observer.event(c,'session_exit_error',observer.raw_error(exc),entered,called,returned,time.monotonic());raise
+                    returned=time.monotonic()
+                    if c is not None:c['end']=returned
+                    observer.event(c,'session_exit_error',observer.raw_error(exc),entered,called,returned,time.monotonic());raise
                 returned=time.monotonic();observer.event(c,'session_exit_return',entered,called,returned,time.monotonic())
-                if c is not None:c['end']=returned
+                observer.operation('controls','session_exit',None,'return',returned,session=session)
+                if c is not None:
+                    c['end']=returned
+                    if c.get('outcome') is not None:observer.first_occupied_cycle.completed(c)
+                if getattr(observer.local,'work',False) and observer.local.actor is not None and observer.on_work_controls_exit:
+                    try:observer.on_work_controls_exit(observer.local.attempt['job'],observer.local.actor,returned)
+                    except BaseException as exc:
+                        observer.operation('controls','released_callback',None,'error',time.monotonic(),observer.raw_error(exc),session);raise
+                    observer.operation('controls','released_callback',None,'published',time.monotonic(),session=session)
                 return result
         monkeypatch.setattr(supervisor,'controls',sessionmaker(class_=Controls,**supervisor.controls.kw))
 
         class Owners(supervisor.factory.class_):
+            def execute(session,statement,*args,**kwargs):
+                entered=time.monotonic();category='update' if getattr(statement,'is_update',False) else 'select' if getattr(statement,'is_select',False) else 'other'
+                observer.operation('owner','execute',category,'entry',entered,session=session)
+                try:result=super().execute(statement,*args,**kwargs)
+                except BaseException as exc:
+                    returned=time.monotonic();observer.operation('owner','execute',category,'error',returned,observer.raw_error(exc),session);raise
+                returned=time.monotonic();observer.operation('owner','execute',category,'return',returned,session=session);return result
+            def __exit__(session,*args):
+                entered=time.monotonic();observer.operation('owner','session_exit',None,'entry',entered,session=session)
+                try:result=super().__exit__(*args)
+                except BaseException as exc:
+                    returned=time.monotonic();observer.operation('owner','session_exit',None,'error',returned,observer.raw_error(exc),session);raise
+                returned=time.monotonic();observer.operation('owner','session_exit',None,'return',returned,session=session);return result
             def commit(session):
                 # Existing owner transaction only: cached primitive values are
                 # frozen BEFORE expiry-on-commit; no supplementary SQL session.
@@ -194,8 +258,11 @@ class ActiveRenewalEvidence:
                 state=observer.capture_state(model) if model is not None else None
                 binding=observer.model_binding(model) if model is not None else None
                 entered=time.monotonic()
-                result=super().commit()
-                returned=time.monotonic()
+                observer.operation('owner','commit',None,'entry',entered,session=session)
+                try:result=super().commit()
+                except BaseException as exc:
+                    returned=time.monotonic();observer.operation('owner','commit',None,'error',returned,observer.raw_error(exc),session);raise
+                returned=time.monotonic();observer.operation('owner','commit',None,'return',returned,session=session)
                 op=getattr(observer.local,'operation',None)
                 if op in ('acquire','finish'):
                     observer.local.owner_ack=(state,entered,returned)
@@ -370,7 +437,10 @@ class ActiveRenewalEvidence:
             observer.threads.append(threading.current_thread());observer.local.renew=True;observer.local.cycle=None
             try:return actual_renew()
             except BaseException as exc:observer.keep_error(exc);raise
-            finally:observer.raw_returns.append(time.monotonic());observer.local.renew=False
+            finally:
+                returned=time.monotonic();c=observer.local.cycle
+                if c is not None and c['end'] is not None:observer.first_occupied_cycle.completed(c)
+                observer.raw_returns.append(returned);observer.local.renew=False
         monkeypatch.setattr(supervisor,'renew',renew)
         actual_stop=supervisor.stop.set
         def stop():
@@ -389,18 +459,23 @@ class ActiveRenewalEvidence:
         """Cold reactor boundary: primitive exact-attempt snapshot only."""
         from api.dfa_supervisor import SAFE_FAILURES
         j=capture_job(job)
-        matches=[a for a in self.raw_attempts if a['job']==j]
-        assert matches,'retirement_claim_binding_missing'
-        a=matches[-1]
         physical=capture_actor(actor,self.keys)
-        assert a['occupied'] and physical is not None,'retirement_occupied_binding_missing'
-        assert physical.token==a['occupied'][1].token and physical.binding==a['occupied'][1].binding,'retirement_actor_binding_changed'
         reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None
         snapshot=(time.monotonic(),expired,timed_out,ready,status,reason,capture_decision(decision,self.keys),physical,
-            SelectedValue(status,j.phase,encoded if status=='output' and isinstance(encoded,str) else None,reason),j)
+            SelectedValue(status,j.phase if j else None,encoded if status=='output' and isinstance(encoded,str) else None,reason),j)
+        matches=[a for a in self.raw_attempts if a['job']==j]
+        if not matches:
+            if len(self.unbound_selections)<4:self.unbound_selections.append((*snapshot,False))
+            raise AssertionError('retirement_claim_binding_missing')
+        a=matches[-1]
+        snapshot=(*snapshot,a['occupied'] is not None)
         if a['trigger'] is None:a['trigger']=snapshot
         elif len(a['cleanup_retirements'])<4:a['cleanup_retirements'].append(snapshot)
         else:a['cleanup_retirements_dropped']+=1
+        # A missing ACK is exported as partial provenance, never a reason to
+        # erase the FIRST reactor choice or reconstruct it after cleanup.
+        if a['occupied'] is not None and physical is not None:
+            assert physical.token==a['occupied'][1].token and physical.binding==a['occupied'][1].binding,'retirement_actor_binding_changed'
 
     @staticmethod
     def capture_value(status,value,phase):
@@ -517,6 +592,38 @@ class ActiveRenewalEvidence:
         if name.endswith('error') or name=='observation':
             if len(c['critical'])<8:c['critical'].append(row)
 
+    def operation(self,scope,name,category,stage,at,error=None,session=None):
+        a=getattr(self.local,'attempt',None) if getattr(self.local,'work',False) else None
+        c=getattr(self.local,'cycle',None) if getattr(self.local,'renew',False) else None
+        row=(scope,name,category,stage,at,id(session) if session is not None else None,
+            c['job'] if c else a['job'] if a else None,a['number'] if a else None,error,threading.get_ident())
+        if len(self.raw_operations)<96:self.raw_operations.append(row)
+        elif stage=='error':self.raw_operations.pop(1);self.raw_operations.append(row);self.operation_dropped+=1
+        else:self.operation_dropped+=1
+
+    @property
+    def operations(self):
+        return [{'scope':s,'operation':n,'category':c,'stage':v,'at':t,'session':i,'job':self.safe_job(j),'attempt':a,
+                 'error':self.render_error(e) if e else None,'thread':thread} for s,n,c,v,t,i,j,a,e,thread in tuple(self.raw_operations)]
+
+    @property
+    def renewals(self):
+        return [{'completed_at':e['at'],'permission_granted_at':d['at'],'permission_until':c['after']['deadline']}
+                for c in self.cycles if c['after'] and c['after']['allowed']
+                for d in [c['after']['decision']] if d for e in c['events'] if e['event']=='commit_return_ack']
+
+    @property
+    def renewal_decisions(self):
+        return [{'at':c['after']['decision']['at'],'allowed':c['after']['allowed'],'permission_until':c['after']['deadline'],
+                 'sqlite_errorcode':next((e['error']['sqlite_errorcode'] for e in c['events'] if e['event'].endswith('error')),None)}
+                for c in self.cycles if c['after'] and c['after']['decision']]
+
+    @property
+    def retirements(self):
+        return [{'actor_token':a['trigger'][7].token,'started_monotonic':a['trigger'][0],
+                 'exit_observed_at':a['finish'].actor.exit if a['finish'] and a['finish'].actor else None}
+                for a in tuple(self.raw_attempts) if a['trigger'] and a['trigger'][7]]
+
     def resource(self,name,action):
         if len(self.raw_resources)<64:self.raw_resources.append((name,action,time.monotonic()))
         else:self.resource_dropped+=1
@@ -561,7 +668,7 @@ class ActiveRenewalEvidence:
         if t is None:return None
         return {'at':t[0],'expired':t[1],'timed_out':t[2],'output_ready':t[3],
             'selected_status':t[4],'selected_reason':t[5],'decision':self.safe_decision(t[6]),'actor':self.safe_actor(t[7]),
-            'value':self.selected_value_dict(t[8]),'job':self.safe_job(t[9])}
+            'value':self.selected_value_dict(t[8]),'job':self.safe_job(t[9]),'occupied_ack_captured_at_selection':t[10]}
     def selected_value_dict(self,source):
         # Source is a frozen failure scalar or runtime's immutable chosen JSON
         # string made BEFORE its locks. Parse/hash only on this cold path.
@@ -605,6 +712,9 @@ class ActiveRenewalEvidence:
             row=self.render_attempt(p)
             required=('claim_state','occupied','trigger','exit_ack','finish','ack_at','after')
             missing=[k for k in required if raw[k] is None]
+            if raw['trigger'] is not None:
+                if raw['trigger'][7] is None:missing.append('selection.actor')
+                if not raw['trigger'][10] or raw['occupied'] is None or raw['occupied'][0]>raw['trigger'][0]:missing.append('selection.occupied_ack_before_selection')
             if raw['finish'] is not None:missing.extend('pending.'+k for k in raw['finish'].pending.missing)
             row['cleanup_retirements']=[{'event':'subsequent_cleanup_retirement_capture',**self.render_trigger(t)} for t in tuple(raw['cleanup_retirements'])]
             row['cleanup_retirements_dropped']=raw['cleanup_retirements_dropped']
@@ -666,6 +776,8 @@ class ActiveRenewalEvidence:
     def compact(self):
         import json
         out={'scope':'bounded primitive capture; nonzero observer overhead, no availability proof',
+            'operations':self.operations,'dropped_operations':self.operation_dropped,
+            'unbound_selections':[self.render_trigger(t) for t in tuple(self.unbound_selections)],
             'cycles':self.cycles,'retained_denial_cycles':[self.render_cycle(c) for c in tuple(self.retained)],
             'dropped_cycles':self.dropped,'attempts':self.export_attempts(),'resources':self.resources,
             'dropped_resource_events':self.resource_dropped,'errors':[*self.errors,*[self.render_error(e) for e in tuple(self.raw_errors)]],
@@ -673,6 +785,10 @@ class ActiveRenewalEvidence:
             'cleanup_errors':self.cleanup_errors,'owned_joined':getattr(self,'joined',None),
             'renewal_returns':list(self.raw_returns),'stops':[{'at':t,'issuer':{'file':f.rsplit('/',1)[-1],'function':n,'line':l}} for t,f,n,l in tuple(self.raw_stops)]}
         encoded=json.dumps(out,separators=(',',':'))
+        while len(encoded.encode())>60000 and len(out['operations'])>8:
+            index=next((i for i,row in enumerate(out['operations']) if row['stage']!='error'),None)
+            if index is None:break
+            out['operations'].pop(index);out['dropped_operations']+=1;encoded=json.dumps(out,separators=(',',':'))
         while len(encoded.encode())>60000 and len(out['cycles'])>1:
             out['cycles'].pop(1);out['dropped_cycles']+=1;encoded=json.dumps(out,separators=(',',':'))
         assert len(encoded.encode())<65536,'active evidence bound exceeded'

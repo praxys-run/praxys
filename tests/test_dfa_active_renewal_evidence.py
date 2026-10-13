@@ -1,5 +1,6 @@
 """Actual observer wrappers with declared transport outcomes; no service proof."""
 import ast
+import json
 from pathlib import Path
 from types import SimpleNamespace
 import threading
@@ -15,7 +16,7 @@ from tests.dfa_boundary_evidence import ActiveRenewalEvidence,OccupiedTarget,bou
 from tests.dfa_active_capture import capture_actor,capture_decision,PrimitiveSignal
 
 
-def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='exact',origin='manual',mode_callback=False,retirement=False,during_finish=None):
+def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='exact',origin='manual',mode_callback=False,retirement=False,during_finish=None,commit_return_hold=None):
     factory,_=store;sup=factory.dfa_supervisor
     job={'id':'synthetic-transport-only','generation':1,'epoch':'1','input':'a'*64,'origin':origin,'phase':'compute'}
     actor={'actor_token':'synthetic-actor','binding':{k:job[k] for k in ('generation','epoch','input')},
@@ -90,6 +91,14 @@ def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='ex
     monkeypatch.setattr(dfa_rights,'execution_current',lambda db,run:False)
     monkeypatch.setattr(service,'_current',lambda db,run:False)
     monkeypatch.setattr(dfa_rights,'account_mode',lambda db,owner:'unavailable')
+    if commit_return_hold:
+        class CommitReturn(sup.controls.class_):
+            def commit(session):
+                result=super().commit()
+                commit_return_hold[0].set()
+                assert commit_return_hold[1].wait(2),'declared commit-return hold not released'
+                return result
+        sup.controls=sessionmaker(class_=CommitReturn,**sup.controls.kw)
     e=ActiveRenewalEvidence(sup,factory,monkeypatch);holder['observer']=e
     e.mode_callback_events=mode_events
     return e,job,actor,marker,original,calls
@@ -514,3 +523,129 @@ def test_actual_pending_snapshot_falsifies_shared_service_ledger(store,monkeypat
             assert 'canary' not in e.compact()
         finally:e.emit()
     assert store[0].dfa_supervisor.lane.retire==original_retire
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+def test_actual_selection_before_occupied_publication_is_immutable_partial(store,monkeypatch):
+    """Declared negative transport: no permission/service/physical PID proof."""
+    from api.dfa_supervisor import Supervisor
+    from tests.dfa_attempt_evidence import assert_pending_binding
+    from copy import deepcopy
+    barrier=(threading.Event(),threading.Event())
+    with monkeypatch.context() as patch:
+        e,template,actor,marker,_,_=transport(store,patch,retirement=True,commit_return_hold=barrier)
+        thread=None;frozen=[]
+        def reactor(self):
+            nonlocal thread
+            job=self.acquire_job()
+            thread,errors=invoke_thread(lambda:self.work(job,object()))
+            assert barrier[0].wait(2)
+            actor_before=actor;expired=True;timed_out=False;ready=False;status='failed';value='permission_expired'
+            decision=self._decision(job,'permission',actor)
+            assert self.lane.retire() is marker
+            first=e.raw_attempts[0]['trigger'];frozen.append(first)
+            assert first is not None and first[10] is False and e.raw_attempts[0]['occupied'] is None
+            barrier[1].set();thread.join(3);assert not thread.is_alive() and not errors
+            assert e.raw_attempts[0]['trigger'] is first and e.raw_attempts[0]['occupied'] is not None
+            before=deepcopy(e.render_trigger(first))
+            self.finish(job,status,value)
+            expired=False;ready=True;status='output';value=None
+            assert self.lane.retire() is marker
+            assert e.render_trigger(first)==before
+        patch.setattr(Supervisor,'run',reactor)
+        try:
+            e.sup.run();row=e.export_attempts()[0]
+            assert row['publication']=='FAILED' and not row['successful_provenance']
+            assert row['observation_error']['class']=='AssertionError'
+            assert 'selection.occupied_ack_before_selection' in row['missing_fields']
+            with pytest.raises(AssertionError,match='occupied_ack_missing_at_selection'):assert_pending_binding(row)
+            assert len(row['cleanup_retirements'])==1
+        finally:
+            barrier[1].set()
+            if thread:thread.join(3);assert not thread.is_alive()
+            e.emit()
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+@pytest.mark.parametrize('binding',['actor','job','generation','epoch','missing_actor'])
+def test_actual_retirement_binding_rejection_still_exports_first_choice(store,monkeypatch,binding):
+    from api.dfa_supervisor import Supervisor
+    with monkeypatch.context() as patch:
+        e,template,actor,marker,_,_=transport(store,patch,retirement=True)
+        def reactor(self):
+            job=self.acquire_job();self.work(job,object())
+            actor_before=dict(actor);expired=True;timed_out=False;ready=False;status='failed';value='permission_expired'
+            decision=self._decision(job,'permission',actor)
+            if binding=='actor':actor_before['actor_token']='wrong'
+            if binding=='missing_actor':actor_before=None
+            if binding=='job':job=dict(job,id='wrong')
+            if binding=='generation':job=dict(job,generation=99)
+            if binding=='epoch':job=dict(job,epoch='99')
+            assert self.lane.retire() is marker
+        patch.setattr(Supervisor,'run',reactor)
+        try:
+            e.sup.run();data=json.loads(e.compact())
+            if binding in ('job','generation','epoch'):
+                assert data['unbound_selections'][0]['selected_reason']=='permission_expired'
+                assert data['errors'][0]['class']=='AssertionError'
+            else:
+                assert data['attempts'][0]['trigger']['selected_reason']=='permission_expired'
+                assert not data['attempts'][0]['successful_provenance']
+                if binding=='actor':assert data['errors'][0]['class']=='AssertionError'
+        finally:e.emit()
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+def test_actual_occupied_callback_exception_has_separate_commit_exit_publication(store,monkeypatch):
+    e,job,actor,marker,_,_=transport(store,monkeypatch)
+    original=RuntimeError('PRIVATE_CREDENTIAL RR SQL_PARAMS')
+    def callback(*args):raise original
+    e.on_occupied_ack=callback
+    try:
+        e.sup.acquire_job()
+        with pytest.raises(RuntimeError) as caught:e.sup.work(job,object())
+        assert caught.value is original
+        assert e.raw_attempts[0]['occupied'] is not None
+        ops=e.operations
+        returned=next(x for x in ops if x['scope']=='controls' and x['operation']=='commit' and x['stage']=='return')
+        error=next(x for x in ops if x['operation']=='occupied_callback' and x['stage']=='error')
+        exited=next(x for x in ops if x['scope']=='controls' and x['operation']=='session_exit' and x['stage']=='return')
+        assert returned['at']<=error['at']<=exited['at']
+        assert error['error']['class']=='RuntimeError' and error['session']==returned['session']==exited['session']
+        assert 'PRIVATE_CREDENTIAL' not in e.compact() and 'SQL_PARAMS' not in e.compact()
+    finally:e.emit()
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+@pytest.mark.parametrize('close_error',[False,True])
+def test_actual_first_postoccupied_cycle_retains_denial_close_error_and_no_reselection(store,monkeypatch,close_error):
+    from tests.dfa_active_capture import capture_job,capture_actor
+    e,job,actor,marker,_,_=transport(store,monkeypatch)
+    original=RuntimeError('PRIVATE_CYCLE_CREDENTIAL')
+    try:
+        e.sup.acquire_job();e.sup.work(job,object())
+        e.sup.active=job  # Declared transport state, no positive permission.
+        first=e.first_occupied_cycle
+        first.arm(capture_job(job),capture_actor(actor,e.keys),time.monotonic())
+        actual=e.sup.controls
+        if close_error:
+            class Closing(actual.class_):
+                def close(session):super().close();raise original
+            monkeypatch.setattr(e.sup,'controls',sessionmaker(class_=Closing,**actual.kw))
+            thread,errors=invoke_thread(e.sup.renew);thread.join(3)
+            assert not thread.is_alive() and errors==[original]
+        else:
+            thread,errors=invoke_thread(e.sup.renew);thread.join(3)
+            assert not thread.is_alive() and not errors
+        assert first.event.is_set() and first.observation['reason']=='permission'
+        frozen=first.raw
+        assert frozen[1] is not None and frozen[4][3][0] is False
+        assert bool(frozen[5])==close_error
+        monkeypatch.setattr(e.sup,'controls',actual)
+        actor['state']='changed_after_capture'
+        thread,errors=invoke_thread(e.sup.renew);thread.join(3)
+        assert not thread.is_alive() and not errors
+        assert first.raw is frozen and first.observation['actor']['state']=='occupied'
+        with pytest.raises(AssertionError,match='duplicate'):first.arm(capture_job(job),capture_actor(actor,e.keys),time.monotonic())
+        assert 'PRIVATE_CYCLE_CREDENTIAL' not in e.compact()
+    finally:e.sup.stop.set();e.close();e.emit()

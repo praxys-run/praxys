@@ -9,11 +9,12 @@ from sqlalchemy import create_engine,event,text,update
 from sqlalchemy.orm import sessionmaker
 from tests.dfa_boundary_evidence import StartupEvidence,safe_binding,boundary_junit
 from tests.dfa_capacity_worker import failure
+from tests.dfa_active_capture import ActiveRenewalEvidence
 from api import activity_dfa as service
 from db.models import ActivityDFAControl as Control,ActivityDFARun as Run
 from tests.test_activity_dfa import store,confirmed
 from tests.test_dfa_origins import both_origins,complete_unit
-from tests.test_dfa_supervisor_capacity import admission_attempt,PriorityEvidence,predeclare_automatic_completions
+from tests.test_dfa_supervisor_capacity import admission_attempt,predeclare_automatic_completions
 from tests.dfa_capacity_measurement import observed_requests,workload_eligibility,observe_acceptance,classify_occupied
 
 
@@ -31,18 +32,7 @@ def outcome_cell(both_origins,monkeypatch):
     engine=create_engine(factory.kw['bind'].url,pool_size=2,max_overflow=0,pool_timeout=.1,connect_args=args)
     diagnostic=StartupEvidence(supervisor,monkeypatch)
     supervisor.controls=sessionmaker(bind=engine)
-    evidence=PriorityEvidence(supervisor,monkeypatch)
-    work_code=supervisor.work.__func__.__code__
-    renew_code=supervisor.renew.__func__.__code__
-    class Controls(supervisor.controls.class_):
-        def commit(self):
-            caller=sys._getframe(1)
-            result=super().commit()
-            if caller.f_code is work_code:
-                diagnostic.note('occupied_sql_ack',actor=safe_binding(caller.f_locals['actor']))
-            if caller.f_code is renew_code:diagnostic.note('renewal_sql_ack')
-            return result
-    supervisor.controls=sessionmaker(class_=Controls,**supervisor.controls.kw)
+    evidence=ActiveRenewalEvidence(supervisor,factory,monkeypatch)
     initial=supervisor.lane.actor();transitions=[initial] if initial else [];available={};errors=[];attempts=[]
     actual_record=supervisor.lane.record
     def record(actor):
@@ -108,6 +98,7 @@ else:
         try:
             supervisor.stop.set()
             if hasattr(cell,'worker'):cell.worker.join(10);assert not cell.worker.is_alive()
+            evidence.close()
             os.close(read_fd);os.close(write_fd);engine.dispose()
             root=Path(__file__).resolve().parents[1]
             (root/f'.git/pr871-capacity-outcome-{time.time_ns()}.json').write_text(json.dumps({
@@ -117,7 +108,9 @@ else:
         except BaseException as exc:
             diagnostic.error(exc,cleanup=True)
             raise
-        finally:diagnostic.emit(alive=cell.worker.is_alive() if hasattr(cell,'worker') else None)
+        finally:
+            evidence.emit()
+            diagnostic.emit(alive=cell.worker.is_alive() if hasattr(cell,'worker') else None)
 
 
 def wait(predicate,deadline,errors):
@@ -140,6 +133,7 @@ def observe(cell,admitted,entry):
                               cell.transitions,cell.available,cell.deadline,cell.errors))
 
 
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 def test_drain_denial_backoff_idle_manual_acceptance_completes(outcome_cell):
     c=outcome_cell;c.start(False)
     initial=workload_eligibility(c.factory,c.owner)
@@ -167,6 +161,7 @@ def test_drain_denial_backoff_idle_manual_acceptance_completes(outcome_cell):
 
 
 
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 def test_real_accepted_worker_failure_remains_observed(outcome_cell):
     c=outcome_cell;c.force_bad_manual=True;c.start(False)
     eligibility=workload_eligibility(c.factory,c.owner)
