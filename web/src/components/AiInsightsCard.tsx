@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { apiFetch, getAuthHeaders, useApi } from '@/hooks/useApi';
 import type {
@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import type { CoachTheoryRef } from '@/types/api';
 import { linkifyScienceTerms } from '@/lib/science-links';
 import { Button } from '@/components/ui/button';
+import { createDailyCoachRefetchInterval, needsCoachSnapshotRefresh } from '@/lib/coach-refresh';
 
 /**
  * Deterministic content rendered separately when no Azure AI insight exists.
@@ -47,6 +48,9 @@ interface Props {
   onFeedbackStale?: () => void | Promise<void>;
   /** Disable the insight request while retaining separately labelled deterministic content. */
   fetchInsight?: boolean;
+  /** Explicit sync action for content that requires fresh generation. */
+  onRegenerate?: () => void | Promise<void>;
+  regenerating?: boolean;
 }
 
 function coachText(text: string): ReactNode {
@@ -64,14 +68,47 @@ export default function AiInsightsCard({
   onDetailsOpen,
   onFeedbackStale,
   fetchInsight = true,
+  onRegenerate,
+  regenerating = false,
 }: Props) {
   const daily = insightType === 'daily_brief';
-  const { data, refetch, loading, stale, error } = useApi<AiInsightResponse>(
+  const refetchInterval = useMemo(() => snapshot && daily
+    ? createDailyCoachRefetchInterval() : 0, [snapshot, daily]);
+  const { data, refetch: refetchInsight, loading, error } = useApi<AiInsightResponse>(
     `/api/insights/${insightType}${daily && snapshot ? `?snapshot=${encodeURIComponent(snapshot)}` : ''}`,
-    { enabled: fetchInsight && (!daily || Boolean(snapshot)), refetchOnMount: 'always', refetchOnWindowFocus: 'always' },
+    { enabled: fetchInsight && (!daily || Boolean(snapshot)), refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval },
   );
   const { locale } = useLocale();
   const { i18n } = useLingui();
+  const lastSnapshotRefresh = useRef('');
+
+  useEffect(() => {
+    if (!daily || !fetchInsight || !data || !onFeedbackStale) return;
+    if (data.content_status === 'ready') lastSnapshotRefresh.current = '';
+    if (!needsCoachSnapshotRefresh(data, snapshot)) return;
+    const identity = `${snapshot}:${data.snapshot ?? 'unstable'}`;
+    if (lastSnapshotRefresh.current === identity) return;
+    lastSnapshotRefresh.current = identity;
+    void Promise.resolve().then(onFeedbackStale).catch(() => undefined);
+  }, [daily, fetchInsight, data, snapshot, onFeedbackStale]);
+
+  useEffect(() => {
+    if (!fetchInsight || typeof refetchInterval !== 'function') return;
+    const restart = () => {
+      if (document.visibilityState === 'visible') refetchInterval.restart();
+    };
+    window.addEventListener('focus', restart);
+    document.addEventListener('visibilitychange', restart);
+    return () => {
+      window.removeEventListener('focus', restart);
+      document.removeEventListener('visibilitychange', restart);
+    };
+  }, [fetchInsight, refetchInterval]);
+
+  const refetch = async () => {
+    if (typeof refetchInterval === 'function') refetchInterval.restart();
+    await refetchInsight();
+  };
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [feedbackVote, setFeedbackVote] = useState<InsightFeedbackVote | null>(null);
@@ -81,17 +118,25 @@ export default function AiInsightsCard({
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackStale, setFeedbackStale] = useState(false);
   const [feedbackError, setFeedbackError] = useState('');
+  const [regenerationFailed, setRegenerationFailed] = useState(false);
 
   const coherent = !daily || (Boolean(snapshot) && data?.snapshot === snapshot
     && data?.content_status === 'ready' && data.insight?.snapshot === snapshot
-    && data.insight?.content_version === 'morning-coach-v2');
-  const insight = fetchInsight && coherent && !stale && !error && !loading ? data?.insight : null;
+    && data.insight?.content_version === (data.content_version ?? 'morning-coach-v2'));
+  // Query cache age schedules revalidation; the server's content status and
+  // snapshot contract decide whether the returned Coach content is current.
+  const insight = fetchInsight && coherent && data?.ai_available !== false && !error && !loading ? data?.insight : null;
   const aiUnavailable = fetchInsight && data?.ai_available === false;
+  const needsGeneration = daily && Boolean(snapshot) && (data?.content_status === 'unavailable'
+    || (data?.content_status === 'stale' && data.snapshot === snapshot));
   const refs = insight?.theory_refs ?? data?.theory_refs ?? theoryRefs ?? [];
-  const statusText = error ? i18n._(msg`Couldn't load Coach. Try again.`)
+  const statusText = regenerationFailed ? i18n._(msg`Couldn't sync data. Try again.`)
+    : regenerating ? i18n._(msg`Syncing…`)
+    : error ? i18n._(msg`Couldn't load Coach. Try again.`)
     : loading ? i18n._(msg`Loading Coach…`)
     : aiUnavailable ? i18n._(msg`Azure AI insights are temporarily unavailable.`)
     : data?.content_status === 'unavailable' ? i18n._(msg`Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.`)
+    : needsGeneration ? i18n._(msg`Coach needs an updated analysis. Sync your data to regenerate it.`)
     : daily && (!snapshot || data?.content_status === 'stale') ? i18n._(msg`Coach needs a refreshed training snapshot.`)
     : !insight && fetchInsight ? i18n._(msg`Coach is waiting for a current analysis.`) : '';
   const rawDatasetHash = insight?.meta.dataset_hash;
@@ -123,6 +168,7 @@ export default function AiInsightsCard({
     setFeedbackOpen(false);
     setFeedbackComment('');
     setFeedbackError('');
+    setRegenerationFailed(false);
   }
 
   // Prefer the active-locale translation when present; fall back to
@@ -244,6 +290,10 @@ export default function AiInsightsCard({
   };
 
   const remainingRecommendations = displayedContent.recommendations.slice(1);
+  const interpretationFindings = displayedContent.findings.filter(finding =>
+    finding.kind === 'insight' || (!daily && finding.kind !== 'observation'));
+  const observations = displayedContent.findings.filter(finding =>
+    finding.kind === 'observation' || (daily && finding.kind !== 'insight'));
   const hasDetails = displayedContent.findings.length > 0 || remainingRecommendations.length > 0;
   const toggleDetails = () => {
     if (!detailsOpen) onDetailsOpen?.();
@@ -263,10 +313,14 @@ export default function AiInsightsCard({
         )}
       </div>
       <div className="coach-body">
-        {statusText && <div role={error ? 'alert' : 'status'} className="coach-status">
+        {statusText && <div role={error || regenerationFailed ? 'alert' : 'status'} className="coach-status">
           <p><strong><Trans>Praxys Coach</Trans></strong> — {statusText}</p>
-          {loading && <div className="coach-loading" aria-hidden="true"><span /><span /><span /></div>}
-          {!loading && !aiUnavailable && (error || data?.content_status !== 'unavailable') && <Button type="button" variant="outline" className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
+          {(loading || regenerating) && <div className="coach-loading" aria-hidden="true"><span /><span /><span /></div>}
+          {!loading && !aiUnavailable && needsGeneration && onRegenerate ? <Button type="button" variant="outline" disabled={regenerating} className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
+            setRegenerationFailed(false);
+            void Promise.resolve().then(onRegenerate).catch(() => setRegenerationFailed(true));
+          }}>{regenerating ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}</Button>
+          : !loading && !regenerating && !aiUnavailable && (error || (!needsGeneration && data?.content_status !== 'unavailable')) && <Button type="button" variant="outline" className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
             if (onFeedbackStale) void onFeedbackStale();
             void refetch();
           }}><Trans>Refresh</Trans></Button>}
@@ -303,11 +357,11 @@ export default function AiInsightsCard({
             )}
           </button>
         )}
-        {detailsOpen && displayedContent.findings.length > 0 && (
+        {detailsOpen && interpretationFindings.length > 0 && (
           <>
-            <p className="coach-label"><Trans>Findings</Trans></p>
+            <p className="coach-label">{daily ? <Trans>Training interpretation</Trans> : <Trans>Findings</Trans>}</p>
             <ul className="coach-list">
-              {displayedContent.findings.map((finding, index) => (
+              {interpretationFindings.map((finding, index) => (
                 <li key={index} className={`coach-row coach-row-${finding.type}`}>
                   <span className="coach-tag" aria-hidden="true">[{finding.type === 'positive' ? '+' : finding.type === 'warning' ? '!' : '·'}]</span>
                   <span className="coach-text">{linkifyScienceTerms(finding.text)}</span>
@@ -316,6 +370,15 @@ export default function AiInsightsCard({
             </ul>
           </>
         )}
+        {detailsOpen && observations.length > 0 && <>
+          <p className="coach-label"><Trans>Supporting observations</Trans></p>
+          <ul className="coach-list">
+            {observations.map((finding, index) => <li key={index} className={`coach-row coach-row-${finding.type}`}>
+              <span className="coach-tag" aria-hidden="true">[·]</span>
+              <span className="coach-text">{linkifyScienceTerms(finding.text)}</span>
+            </li>)}
+          </ul>
+        </>}
         {detailsOpen && remainingRecommendations.length > 0 && (
           <>
             {displayedContent.findings.length > 0 && <hr className="coach-rule" />}

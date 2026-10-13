@@ -110,7 +110,7 @@
         Deterministic training summary. It uses the same canonical
         signal as the verdict, with progressive disclosure for alternatives.
       -->
-      <coach-receipt insight-type="daily_brief" response="{{coachResponse}}" fallback="{{coach}}" loading="{{coachLoading}}" failed="{{coachFailed}}" snapshot="{{coachSnapshot}}" theory-refs="{{coachTheoryRefs}}" bindrefresh="onCoachFeedbackStale" />
+      <coach-receipt insight-type="daily_brief" response="{{coachResponse}}" fallback="{{coach}}" loading="{{coachLoading}}" failed="{{coachFailed}}" snapshot="{{coachSnapshot}}" theory-refs="{{coachTheoryRefs}}" bindrefresh="onCoachFeedbackStale" can-regenerate="{{true}}" regenerating="{{staleSyncing}}" sync-failed="{{coachSyncFailed}}" bindregenerate="onStaleSyncNow" />
 
       <!--
         Supporting cells: a flat 2-col grid mirroring web's PR #238

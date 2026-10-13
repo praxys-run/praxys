@@ -169,6 +169,7 @@ def _build_context_from_data(
     recovery = signal.get("recovery", {})
     recovery_analysis = data.get("recovery_analysis", {})
     recovery_state = {
+        "status": recovery_analysis.get("status"),
         "readiness": (
             None if recovery_analysis.get("readiness_is_stale")
             else recovery_analysis.get("readiness_score")

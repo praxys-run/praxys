@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 import { useApi, apiFetch, getAuthHeaders } from '@/hooks/useApi';
 import type { RecoveryAnalysis, TodayResponse, TrainingSignal } from '@/types/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -13,6 +15,7 @@ import TodayDecisionCheck from '@/components/TodayDecisionCheck';
 import ScienceNote from '@/components/ScienceNote';
 import { recordProductEventOnce } from '@/lib/product-events';
 import { shouldShowMetricProvenance } from '@/lib/format';
+import { todayAdviceKey, type TodayAdviceKey } from '@/lib/today-advice';
 
 
 // Skeleton mirrors the today-spread layout shape so the page doesn't flash
@@ -57,36 +60,48 @@ function TodaySkeleton() {
   );
 }
 
-const VERDICT_LABEL: Record<TrainingSignal['recommendation'], MessageDescriptor> = {
+const VERDICT_LABEL: Record<TodayAdviceKey, MessageDescriptor> = {
   follow_plan: msg`GO`,
   unscheduled: msg`NO PLAN`,
   easy: msg`EASY`,
   modify: msg`MODIFY`,
   reduce_intensity: msg`CAUTION`,
   rest: msg`REST`,
+  unscheduled_go: msg`GO`,
+  unscheduled_easy: msg`EASY`,
+  unscheduled_rest: msg`REST`,
+  unscheduled_unknown: msg`CAUTION`,
 };
 
 // Subtitle casing intentionally matches SignalHero.tsx's existing strings
 // (title case: "Go Easy", "Follow Plan", etc.) so the same translation
 // catalogue entries cover both surfaces — no duplicate zh keys.
-const VERDICT_SUBTITLE: Record<TrainingSignal['recommendation'], MessageDescriptor> = {
+const VERDICT_SUBTITLE: Record<TodayAdviceKey, MessageDescriptor> = {
   follow_plan: msg`Follow Plan`,
   unscheduled: msg`No Workout Scheduled`,
   easy: msg`Go Easy`,
   modify: msg`Adjust Workout`,
   reduce_intensity: msg`Reduce Intensity`,
   rest: msg`Recovery Day`,
+  unscheduled_go: msg`Train to your broader plan`,
+  unscheduled_easy: msg`Go Easy`,
+  unscheduled_rest: msg`Recovery Day`,
+  unscheduled_unknown: msg`Recovery data incomplete`,
 };
 
 type SignalTone = 'green' | 'amber' | 'red';
 
-const VERDICT_TONE: Record<TrainingSignal['recommendation'], SignalTone> = {
+const VERDICT_TONE: Record<TodayAdviceKey, SignalTone> = {
   follow_plan: 'green',
   unscheduled: 'amber',
   easy: 'amber',
   modify: 'amber',
   reduce_intensity: 'amber',
   rest: 'red',
+  unscheduled_go: 'green',
+  unscheduled_easy: 'amber',
+  unscheduled_rest: 'red',
+  unscheduled_unknown: 'amber',
 };
 
 // Glow color is theme-aware via CSS custom properties — see :root / .dark in
@@ -317,6 +332,8 @@ function localizedSignalAlternatives(signal: TrainingSignal, i18n: I18n): string
   }).filter(Boolean);
 }
 export default function Today() {
+  const { isDemo } = useAuth();
+  const queryClient = useQueryClient();
   const { data, loading, error, refetch } = useApi<TodayResponse>('/api/today');
   const { locale } = useLocale();
   const { i18n } = useLingui();
@@ -328,6 +345,7 @@ export default function Today() {
   // the rest of the page.
   const [dismissed, setDismissed] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
   useEffect(() => {
     if (!data?.as_of_date) return undefined;
@@ -383,9 +401,10 @@ export default function Today() {
     ? formatIsoDateShort(ra.latest_date, locale)
     : null;
 
-  const verdictText = i18n._(VERDICT_LABEL[signal.recommendation] ?? VERDICT_LABEL.follow_plan);
-  const verdictSubtitle = i18n._(VERDICT_SUBTITLE[signal.recommendation] ?? VERDICT_SUBTITLE.follow_plan);
-  const signalTone = VERDICT_TONE[signal.recommendation] ?? 'amber';
+  const advice = todayAdviceKey(signal, ra);
+  const verdictText = i18n._(VERDICT_LABEL[advice]);
+  const verdictSubtitle = i18n._(VERDICT_SUBTITLE[advice]);
+  const signalTone = VERDICT_TONE[advice];
   const tone = TONE_CLASSES[signalTone];
   const hrv = ra?.hrv ?? null;
   const trendArrow = hrv ? TREND_ARROW[hrv.trend] : '—';
@@ -470,11 +489,13 @@ export default function Today() {
   // post-sync; matches the L3 cache's date-salt invalidation latency.
   const handleSyncNow = async () => {
     setSyncing(true);
+    setSyncError('');
     try {
-      await apiFetch('/api/sync', {
+      const syncResponse = await apiFetch('/api/sync', {
         method: 'POST',
         headers: getAuthHeaders() as Record<string, string>,
       });
+      if (!syncResponse.ok) throw new Error(`HTTP ${syncResponse.status}`);
       const deadline = Date.now() + 300_000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2_000));
@@ -495,6 +516,15 @@ export default function Today() {
         }
       }
       await refetch();
+      // A no-op sync can generate Coach without changing the Today snapshot.
+      // Refresh the mounted receipt even when its query key stays identical.
+      await queryClient.invalidateQueries({
+        type: 'active',
+        predicate: ({ queryKey }) => typeof queryKey[0] === 'string'
+          && queryKey[0].startsWith('/api/insights/daily_brief'),
+      });
+    } catch {
+      setSyncError(i18n._(msg`Couldn't sync data. Try again.`));
     } finally {
       setSyncing(false);
     }
@@ -503,12 +533,12 @@ export default function Today() {
   return (
     <div className={`today-spread ${showStaleBanner ? 'sync-stale' : ''}`.trim()}>
       <h1 className="today-eyebrow font-data"><Trans>Today</Trans> · {dateStr}</h1>
-      {error && (
+      {(error || syncError) && (
         <Alert variant="destructive" className="today-refresh-error">
-          <AlertTitle><Trans>Refresh failed</Trans></AlertTitle>
+          <AlertTitle>{syncError ? <Trans>Sync failed</Trans> : <Trans>Refresh failed</Trans>}</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-3">
-            <span><Trans>Showing the last available data.</Trans></span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}><Trans>Retry</Trans></Button>
+            <span>{syncError || <Trans>Showing the last available data.</Trans>}</span>
+            <Button variant="outline" size="sm" onClick={syncError ? handleSyncNow : () => refetch()}><Trans>Retry</Trans></Button>
           </AlertDescription>
         </Alert>
       )}
@@ -526,7 +556,7 @@ export default function Today() {
             <Button
               size="sm"
               onClick={handleSyncNow}
-              disabled={syncing}
+              disabled={syncing || isDemo}
             >
               {syncing ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}
             </Button>
@@ -548,7 +578,7 @@ export default function Today() {
             type="button"
             className="stale-chip-link"
             onClick={handleSyncNow}
-            disabled={syncing}
+            disabled={syncing || isDemo}
           >
             {syncing ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}
           </button>
@@ -579,6 +609,8 @@ export default function Today() {
       </div>
       {/* Coach is bound to this verified canonical Today snapshot. */}
       <AiInsightsCard
+        onRegenerate={isDemo ? undefined : handleSyncNow}
+        regenerating={syncing}
         insightType="daily_brief"
         snapshot={data.coach_snapshot}
         theoryRefs={data.theory_refs}

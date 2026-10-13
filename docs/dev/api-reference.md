@@ -2926,7 +2926,23 @@ same-day signal.
 
 ### POST /api/insights/{insight_type}/feedback
 
-Daily content uses the `morning-coach-v2` templates. The authenticated AI context
+Daily content uses the `morning-coach-v3` templates. The daily response declares the current
+`content_version`; clients compare it with the returned insight version. Daily
+findings carry optional `kind: "insight" | "observation"`: interpreted findings
+explain the existing Today rule and selected load/recent-session context, while
+observations preserve the dated supporting data. Daily interpreted findings are
+capped at three: canonical guidance first, followed by at most two supported
+interpretations in model-selected order. There is no minimum beyond the
+canonical guidance, and this cap does not remove supporting observations.
+Supporting observations occupy at most three groups: recovery and recovery-trend
+gaps; modeled load; recorded training and today's course references. The renderer
+preserves every eligible observation and its dates/missingness inside these groups.
+Provenance-verified server-rendered daily groups may exceed the single-finding
+prose limit so complete dates and course caveats survive serialization. The
+1,000-character public finding input limit and legacy normalization stay unchanged.
+No new training dose or
+clinical conclusion is introduced.
+ The authenticated AI context
 includes `external_planned_today` separately from canonical `planned_today`;
 external observations come from same-day provider-visible rows in `all_plans`.
 Praxys-owned sessions and scheduled rest retain canonical authority. On an empty
@@ -2938,7 +2954,7 @@ recorded split power with provenance rather than activity-average intensity.
 Submit one vote for the exact generated Coach insight the authenticated user saw.
 Uses the current user's id (not demo-source data) and supports `training_review`
 or `race_forecast`. Daily feedback additionally requires `snapshot` and
-`content_version: "morning-coach-v2"`. For daily content `dataset_hash` is the
+`content_version: "morning-coach-v3"`. For daily content `dataset_hash` is the
 exact emitted content digest, separate from `meta.input_hash` (generation input
 identity). Changing selection order or content creates a different feedback
 version even for identical sources. Under source-write exclusion, the endpoint
