@@ -12,14 +12,22 @@ class RenewalDecision:
         from tests.dfa_active_capture import PrimitiveSignal,capture_decision
         self.event = PrimitiveSignal()
         self.armed = False
-        self.observation = None
         self.raw_observation = None
+        self.decision_error = None
         self.actor_keys=tuple(sorted(supervisor.identity))
         self.events = []
         actual = supervisor._decision
 
         def decision(job, reason, actor=None):
-            value = actual(job, reason, actor)
+            try:
+                value = actual(job, reason, actor)
+            except BaseException as exc:
+                if self.armed:
+                    self.armed = False
+                    # Scalar class only; never retain exception message/locals.
+                    self.decision_error = type(exc).__name__
+                    self.event.set()
+                raise
             if self.armed:
                 self.armed = False
                 self.raw_observation = capture_decision(value,self.actor_keys)
@@ -35,14 +43,29 @@ class RenewalDecision:
     def arm(self):
         with self.supervisor.lock:
             self.event.clear()
-            self.observation = None
             self.raw_observation = None
+            self.decision_error = None
             self.armed = True
             self.events.append({'event': 'barrier_armed', 'at': time.monotonic()})
 
+    def first_decision(self):
+        """COLD snapshot of the first captured decision, or explicit None.
+
+        No positive wait is required. A new dict is reconstructed on every
+        access from immutable primitives; before-event access caches nothing.
+        Rearming begins a new attempt; later cycles cannot replace the first.
+        """
+        from tests.dfa_active_capture import decision_values
+        return decision_values(self.raw_observation, self.actor_keys)
+
+    @property
+    def observation(self):
+        """Compatibility alias for callers inspecting success OR denial."""
+        return self.first_decision()
+
     def wait(self):
         assert self.event.wait(2), self.events
-        from tests.dfa_active_capture import capture_decision,decision_values
+        from tests.dfa_active_capture import capture_decision
         with self.supervisor.lock:
             raw=self.raw_observation
             current=capture_decision(self.supervisor.permission_decision,self.actor_keys)
@@ -50,9 +73,9 @@ class RenewalDecision:
             deadline = self.supervisor.permission_until
         # A first denial fails this positive; never select a later favourable
         # cycle, manufacture permission, or extend the runtime lease.
+        assert self.decision_error is None and raw is not None, (self.events, self.decision_error)
         assert raw.reason is None and allowed and current == raw, self.events
         # Formatting is outside the supervisor lock and timed renewal.
-        self.observation=decision_values(raw,self.actor_keys)
         assert time.monotonic() < deadline, self.events
         self.events.append({'event': 'completed_renewal_observed',
                             'at': time.monotonic(), 'permission_until': deadline})
@@ -210,6 +233,8 @@ class StartupEvidence:
             'events':self.events, 'terminal_events':self.terminal_events,
             'dropped_events':self.dropped, 'outcomes':self.outcomes,
             'primary_errors':self.primary_errors, 'cleanup_errors':self.cleanup_errors,
+            'first_decision':self.decision(self.renewal.first_decision()),
+            'first_decision_error':self.renewal.decision_error,
             'renewal_events':self.renewal.events, 'alive':alive, 'target':safe_binding(target),
             'finished':finished}, separators=(',', ':'))
 

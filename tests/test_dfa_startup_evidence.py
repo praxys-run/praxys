@@ -31,7 +31,7 @@ def test_first_real_denial_and_cleanup_error_keep_sanitized_evidence(
         cell.start()
         wait_for(lambda:bool(cell.errors))
         assert armed==[True]
-        assert cell.diagnostic.renewal.observation['reason']=='permission'
+        assert cell.diagnostic.renewal.first_decision()['reason']=='permission'
         assert not cell.sup.allowed and cell.target is None and not cell.launches
         assert not any(e['event']=='first_completed_renewal' for e in cell.diagnostic.events)
         with pytest.raises(AssertionError):cell.wait_error()
@@ -52,6 +52,8 @@ def test_first_real_denial_and_cleanup_error_keep_sanitized_evidence(
         # Re-emit to the actual JUnit capture rather than leave only capsys data.
         print(line)
     finally:
+        # Export even if setup assertions fail before the cleanup injection.
+        cell.diagnostic.emit(target=cell.target, finished=cell.finished.is_set())
         cell.release_lock();cell.monitor.close()
         for thread in cell.renewals:thread.join(5)
         assert all(not thread.is_alive() for thread in cell.renewals)
