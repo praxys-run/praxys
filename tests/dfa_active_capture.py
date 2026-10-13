@@ -12,7 +12,10 @@ Job = namedtuple('Job', 'id generation epoch input origin phase')
 Actor = namedtuple('Actor', 'token binding identity incarnation state launch start term exit')
 Decision = namedtuple('Decision', 'at reason phase job actor')
 State = namedtuple('State', 'status generation recoveries execution_epoch input_digest origin error_code lease result_present missing')
-Finish = namedtuple('Finish', 'at status reason pending_status pending_reason actor cancelled before current mode')
+SelectedValue = namedtuple('SelectedValue', 'status phase encoded failure')
+Value = namedtuple('Value', 'kind reason digest valid_windows missing')
+Pending = namedtuple('Pending', 'at job actor status cancelled value missing errors')
+Finish = namedtuple('Finish', 'at job status reason value pending actor before current mode')
 Published = namedtuple('Published', 'number job claim_at claim_state claim_current claim_mode occupied trigger exit_ack finish ack_at after')
 
 
@@ -92,6 +95,7 @@ class ActiveRenewalEvidence:
         self.errors=[];self.cleanup_errors=[];self.threads=[]
         self.dropped=0;self.resource_dropped=0;self.actor=None
         self.error_dropped=0;self.stop_dropped=0
+        self.cold_values={}
         self.on_occupied_ack=self.on_active_bound=self.on_sql_commit=self.on_finish_observed=None
         observer=self
         original_class=type(supervisor)
@@ -301,7 +305,7 @@ class ActiveRenewalEvidence:
                 try:
                     v=f.f_locals
                     observer.capture_retirement(v['job'],v['expired'],v['timed_out'],v['ready'],v['status'],
-                        v.get('value'),v['decision'],v['actor_before'])
+                        v.get('value'),v['decision'],v['actor_before'],v.get('chosen_value_json'))
                 except BaseException as exc:
                     # Observation failure is retained; original retirement still
                     # receives exactly its original arguments and exception path.
@@ -319,20 +323,22 @@ class ActiveRenewalEvidence:
         actual_finish=supervisor.finish
         def finish(job,status,value):
             from api.dfa_supervisor import SAFE_FAILURES
+            entered=time.monotonic()
             rawjob=capture_job(job)
             a=observer.raw_attempts[-1] if observer.raw_attempts and observer.raw_attempts[-1]['job']==rawjob else None
             observer.local.operation='finish';observer.local.model=None;observer.local.owner_ack=None
             observer.local.current=False;observer.local.mode=None
             observer.local.before_state=None;observer.local.before_binding=None;observer.local.owner_binding=None
             reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None
-            p=supervisor.pending
-            pending=(p.status,p.cancellation.is_set()) if p else (None,None)
-            entered=time.monotonic()
+            # COLD entry, before original finish mutates any output or pending.
+            pending=observer.capture_pending(supervisor.pending)
+            argument_value=observer.capture_value(status,value,rawjob.phase)
+            argument_actor=observer.actor
             try:result=actual_finish(job,status,value)
             except BaseException as exc:
                 returned=time.monotonic()
                 if a:
-                    a['finish']=Finish(entered,status,reason,pending[0],reason,observer.actor,pending[1],observer.local.before_state,observer.local.current,observer.local.mode)
+                    a['finish']=Finish(entered,rawjob,status,reason,argument_value,pending,argument_actor,observer.local.before_state,observer.local.current,observer.local.mode)
                     if observer.local.owner_ack:a['after'],_,a['ack_at']=observer.local.owner_ack
                     observer.finish_observations[a['number']-1].fail(observer.raw_error(exc))
                 raise
@@ -341,7 +347,7 @@ class ActiveRenewalEvidence:
             if a:
                 try:
                     before=observer.local.before_state
-                    a['finish']=Finish(entered,status,reason,pending[0],reason,observer.actor,pending[1],before,observer.local.current,observer.local.mode)
+                    a['finish']=Finish(entered,rawjob,status,reason,argument_value,pending,argument_actor,before,observer.local.current,observer.local.mode)
                     if observer.local.owner_ack:a['after'],_,a['ack_at']=observer.local.owner_ack
                     assert observer.local.before_binding==rawjob,'finish_model_binding_missing_or_changed'
                     assert before is not None and before.lease,'finish_before_lease_missing'
@@ -349,6 +355,10 @@ class ActiveRenewalEvidence:
                     assert observer.local.owner_binding==rawjob,'finish_commit_binding_changed'
                     assert not observer.finish_observations[a['number']-1].done.is_set(),'prior_observation_failed'
                     published=Published(*(a[k] for k in Published._fields))
+                    assert not pending.missing,'pending_snapshot_incomplete'
+                    if a['trigger'] is not None:
+                        from tests.dfa_attempt_evidence import assert_pending_binding
+                        assert_pending_binding(observer.render_attempt(published))
                     observation=observer.finish_observations[a['number']-1];observation.publish(published)
                     if observer.on_finish_observed:observer.on_finish_observed(published)
                 except BaseException as exc:
@@ -375,7 +385,7 @@ class ActiveRenewalEvidence:
             return actual_stop()
         monkeypatch.setattr(supervisor.stop,'set',stop)
 
-    def capture_retirement(self,job,expired,timed_out,ready,status,value,decision,actor):
+    def capture_retirement(self,job,expired,timed_out,ready,status,value,decision,actor,encoded=None):
         """Cold reactor boundary: primitive exact-attempt snapshot only."""
         from api.dfa_supervisor import SAFE_FAILURES
         j=capture_job(job)
@@ -386,10 +396,96 @@ class ActiveRenewalEvidence:
         assert a['occupied'] and physical is not None,'retirement_occupied_binding_missing'
         assert physical.token==a['occupied'][1].token and physical.binding==a['occupied'][1].binding,'retirement_actor_binding_changed'
         reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None
-        snapshot=(time.monotonic(),expired,timed_out,ready,status,reason,capture_decision(decision,self.keys),physical)
+        snapshot=(time.monotonic(),expired,timed_out,ready,status,reason,capture_decision(decision,self.keys),physical,
+            SelectedValue(status,j.phase,encoded if status=='output' and isinstance(encoded,str) else None,reason),j)
         if a['trigger'] is None:a['trigger']=snapshot
         elif len(a['cleanup_retirements'])<4:a['cleanup_retirements'].append(snapshot)
         else:a['cleanup_retirements_dropped']+=1
+
+    @staticmethod
+    def capture_value(status,value,phase):
+        # Cold only. Bound the canonical private envelope, export its digest and
+        # allowlisted failure/actual numerical summary, never numerical payload.
+        import json,hashlib
+        from api.dfa_supervisor import SAFE_FAILURES
+        from api.activity_dfa import MAX_RESULT_BYTES
+        if status in ('failed','failed_before_spawn'):
+            if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'}:
+                digest=hashlib.sha256(json.dumps(value).encode()).hexdigest()
+                return Value('failure',value,digest,None,())
+            return Value('invalid_failure',None,None,None,('value.reason',))
+        if status!='output':return Value('invalid_status',None,None,None,('value.status',))
+        try:
+            assert isinstance(value,dict) and isinstance(value.get('result'),dict)
+            result=value['result'];windows=None
+            if phase=='compute':
+                windows=result['summary']['valid_windows']
+                assert type(windows) is int and windows>=0
+            elif phase!='prepare':raise ValueError('unsupported_phase')
+            encoded=json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+            assert len(encoded)<=MAX_RESULT_BYTES
+            return Value('output',None,hashlib.sha256(encoded).hexdigest(),windows,())
+        except (KeyError,TypeError,ValueError,AssertionError,RecursionError):
+            return Value('invalid_output',None,None,None,('value.envelope',))
+
+    def capture_pending(self,p):
+        import json,re
+        from api import dfa_ipc
+        at=time.monotonic();missing=[];errors=[]
+        if p is None:return Pending(at,None,None,None,None,None,('pending',),())
+        def decode(field):
+            try:
+                raw=getattr(p,field)
+                assert isinstance(raw,str) and len(raw.encode())<=65536
+                return dfa_ipc.loads(raw.encode())
+            except BaseException as exc:
+                missing.append(field);errors.append(self.raw_error(exc));return None
+        job_value=decode('job_json');actor_value=decode('actor_json')
+        value=None
+        try:
+            raw=p.value_json
+            from api.activity_dfa import MAX_RESULT_BYTES
+            assert isinstance(raw,str) and len(raw.encode())<=MAX_RESULT_BYTES
+            value=dfa_ipc.loads(raw.encode())
+        except BaseException as exc:missing.append('value_json');errors.append(self.raw_error(exc))
+        job=None;actor=None
+        if isinstance(job_value,dict):
+            required=('id','generation','epoch','input','origin','phase')
+            for key in required:
+                v=job_value.get(key)
+                good=type(v) is int and v>0 if key=='generation' else isinstance(v,str) and 0<len(v)<=256
+                if key=='input':good=isinstance(v,str) and re.fullmatch('[0-9a-f]{64}',v) is not None
+                if key=='epoch':good=isinstance(v,str) and v.isdigit()
+                if key=='origin':good=v in ('manual','automatic')
+                if key=='phase':good=v in ('compute','prepare')
+                if not good:missing.append('job.'+key);job_value[key]=None
+            job=capture_job(job_value)
+        else:missing.append('job')
+        if isinstance(actor_value,dict):
+            for field in ('actor_token','binding','identity','incarnation','state','exit_observed_at'):
+                if actor_value.get(field) is None:missing.append('actor.'+field)
+            try:
+                assert isinstance(actor_value.get('binding'),dict)
+                dfa_ipc.binding(actor_value['binding'])
+                identity=actor_value.get('identity')
+                assert isinstance(identity,dict) and all(type(identity.get(k)) is int and identity[k]>0 for k in ('pid','pgid'))
+                assert isinstance(identity.get('start'),str) and identity['start'].isdigit() and len(identity['start'])<=128
+                assert identity.get('state') is None or isinstance(identity['state'],str) and len(identity['state'])==1
+                assert isinstance(actor_value.get('actor_token'),str) and 0<len(actor_value['actor_token'])<=256
+                assert actor_value.get('state') in ('idle','occupied','retiring','recovery_required')
+                assert type(actor_value.get('exit_observed_at')) in (int,float)
+                assert isinstance(actor_value.get('incarnation'),dict) and set(actor_value['incarnation'])==set(self.keys)
+                actor=capture_actor(actor_value,self.keys)
+            except BaseException as exc:missing.append('actor.shape');errors.append(self.raw_error(exc))
+        else:missing.append('actor')
+        try:status=getattr(p,'status',None)
+        except BaseException as exc:status=None;missing.append('status');errors.append(self.raw_error(exc))
+        if status not in ('output','failed','failed_before_spawn'):missing.append('status');status=None
+        try:cancelled=p.cancellation.is_set();assert type(cancelled) is bool
+        except BaseException as exc:cancelled=None;missing.append('cancellation');errors.append(self.raw_error(exc))
+        captured=self.capture_value(status,value,job.phase if job else None)
+        missing.extend(captured.missing)
+        return Pending(at,job,actor,status,cancelled,captured,tuple(missing),tuple(errors))
 
     @staticmethod
     def model_binding(run):
@@ -464,15 +560,42 @@ class ActiveRenewalEvidence:
     def render_trigger(self,t):
         if t is None:return None
         return {'at':t[0],'expired':t[1],'timed_out':t[2],'output_ready':t[3],
-            'selected_status':t[4],'selected_reason':t[5],'decision':self.safe_decision(t[6]),'actor':self.safe_actor(t[7])}
+            'selected_status':t[4],'selected_reason':t[5],'decision':self.safe_decision(t[6]),'actor':self.safe_actor(t[7]),
+            'value':self.selected_value_dict(t[8]),'job':self.safe_job(t[9])}
+    def selected_value_dict(self,source):
+        # Source is a frozen failure scalar or runtime's immutable chosen JSON
+        # string made BEFORE its locks. Parse/hash only on this cold path.
+        from api import dfa_ipc
+        from api.activity_dfa import MAX_RESULT_BYTES
+        key=id(source)
+        if key not in self.cold_values:
+            if source.status=='output':
+                try:
+                    assert isinstance(source.encoded,str) and len(source.encoded.encode())<=MAX_RESULT_BYTES
+                    value=dfa_ipc.loads(source.encoded.encode())
+                    captured=self.capture_value(source.status,value,source.phase)
+                except BaseException:captured=Value('invalid_output',None,None,None,('selected.value_json',))
+            else:captured=self.capture_value(source.status,source.failure,source.phase)
+            assert len(self.cold_values)<20,'selected_value_cache_bound'
+            self.cold_values[key]=captured
+        return self.value_dict(self.cold_values[key])
+    @staticmethod
+    def value_dict(v):
+        return None if v is None else {'kind':v.kind,'reason':v.reason,'sha256':v.digest,'valid_windows':v.valid_windows,'missing_fields':v.missing}
+    def pending_dict(self,p):
+        return {'at':p.at,'job':self.safe_job(p.job),'actor':self.safe_actor(p.actor),'status':p.status,
+            'cancelled':p.cancelled,'value':self.value_dict(p.value),'missing_fields':p.missing,
+            'observation_errors':[self.render_error(e) for e in p.errors]}
     def render_attempt(self,p):
         trigger=self.render_trigger(p.trigger)
         f=p.finish;exit_ack=p.exit_ack
         return {'attempt':p.number,'claim':{'at':p.claim_at,'job':self.safe_job(p.job),'state':self.state_dict(p.claim_state),'current':p.claim_current,'mode':p.claim_mode},
             'occupied_ack':{'at':p.occupied[0],'actor':self.safe_actor(p.occupied[1])} if p.occupied else None,
             'trigger':trigger,'exit_ack':{'at':exit_ack[0],'kind':exit_ack[1],'actor':self.safe_actor(exit_ack[2])} if exit_ack else None,
-            'finish':{'at':f.at,'job':self.safe_job(p.job),'status':f.status,'reason':f.reason,'pending_status':f.pending_status,'pending_reason':f.pending_reason,
-                'pending_job':self.safe_job(p.job),'pending_actor':self.safe_actor(f.actor),'actor':self.safe_actor(f.actor),'cancelled':f.cancelled,
+            'finish':{'at':f.at,'job':self.safe_job(f.job),'status':f.status,'reason':f.reason,'value':self.value_dict(f.value),
+                'pending_snapshot':self.pending_dict(f.pending),'pending_status':f.pending.status,
+                'pending_reason':f.pending.value.reason if f.pending.value else None,
+                'pending_job':self.safe_job(f.pending.job),'pending_actor':self.safe_actor(f.pending.actor),'actor':self.safe_actor(f.actor),'cancelled':f.pending.cancelled,
                 'before':self.state_dict(f.before),'trigger':trigger,'exit_ack_at':exit_ack[0] if exit_ack else None,'current':f.current,'mode':f.mode} if f else None,
             'finish_ack':{'at':p.ack_at,'after':self.state_dict(p.after)}}
     def export_attempts(self):
@@ -482,6 +605,7 @@ class ActiveRenewalEvidence:
             row=self.render_attempt(p)
             required=('claim_state','occupied','trigger','exit_ack','finish','ack_at','after')
             missing=[k for k in required if raw[k] is None]
+            if raw['finish'] is not None:missing.extend('pending.'+k for k in raw['finish'].pending.missing)
             row['cleanup_retirements']=[{'event':'subsequent_cleanup_retirement_capture',**self.render_trigger(t)} for t in tuple(raw['cleanup_retirements'])]
             row['cleanup_retirements_dropped']=raw['cleanup_retirements_dropped']
             row['publication']='FAILED' if observation.error is not None else 'PARTIAL' if missing or observation.record is None else 'PUBLISHED'

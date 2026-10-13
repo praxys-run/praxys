@@ -1,5 +1,24 @@
 """Exact acquisition-test attempt accounting, never an availability certificate."""
 
+def assert_pending_binding(attempt):
+    """Shared service-ledger check of three independently frozen sources."""
+    finish=attempt.get('finish');trigger=attempt.get('trigger')
+    assert finish and trigger,'pending_compare_sources_missing'
+    pending=finish.get('pending_snapshot')
+    assert pending and not pending['missing_fields'],'pending_snapshot_incomplete'
+    assert pending['job']==finish['job']==attempt['claim']['job']==trigger['job'],'pending_job_binding_changed'
+    assert pending['actor']==finish['actor'],'pending_actor_binding_changed'
+    actor=trigger['actor']
+    assert actor and pending['actor'],'pending_selected_actor_missing'
+    for key in ('actor','binding','identity','incarnation'):
+        assert pending['actor'][key]==actor[key],'pending_selected_actor_changed'
+    assert pending['status']==finish['status']==trigger['selected_status'],'pending_status_changed'
+    assert pending['value'] and not pending['value']['missing_fields'],'pending_value_incomplete'
+    assert pending['value']==finish['value']==trigger['value'],'pending_value_changed'
+    assert pending['value']['reason']==finish['reason']==trigger['selected_reason'],'pending_reason_changed'
+    assert pending['cancelled'] is True,'pending_not_cancelled'
+
+
 def assert_attempt_ledger(attempts, binding, before_recoveries=0):
     from api.dfa_supervisor import TRANSIENT_FAILURES
     assert attempts, 'missing claim provenance'
@@ -58,3 +77,9 @@ def assert_attempt_ledger(attempts, binding, before_recoveries=0):
     assert attempts[-1]['finish_ack']['after']['status']=='complete'
     assert len(attempts)==recoveries-before_recoveries+1, 'unaccounted execution'
     return recoveries
+
+
+def assert_active_attempt_ledger(attempts,binding,before_recoveries=0):
+    """Active capture requires independent pending sources, with no fallback."""
+    for attempt in attempts:assert_pending_binding(attempt)
+    return assert_attempt_ledger(attempts,binding,before_recoveries)

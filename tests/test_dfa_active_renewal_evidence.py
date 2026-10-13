@@ -15,15 +15,23 @@ from tests.dfa_boundary_evidence import ActiveRenewalEvidence,OccupiedTarget,bou
 from tests.dfa_active_capture import capture_actor,capture_decision,PrimitiveSignal
 
 
-def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='exact',origin='manual',mode_callback=False,retirement=False):
+def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='exact',origin='manual',mode_callback=False,retirement=False,during_finish=None):
     factory,_=store;sup=factory.dfa_supervisor
-    job={'id':'synthetic-transport-only','generation':1,'epoch':'1','input':'synthetic-input','origin':origin,'phase':'compute'}
+    job={'id':'synthetic-transport-only','generation':1,'epoch':'1','input':'a'*64,'origin':origin,'phase':'compute'}
     actor={'actor_token':'synthetic-actor','binding':{k:job[k] for k in ('generation','epoch','input')},
-        'identity':{'pid':1,'pgid':1,'start':'synthetic','state':'R'},'incarnation':dict(sup.identity),
+        'identity':{'pid':1,'pgid':1,'start':'1','state':'R'},'incarnation':dict(sup.identity),
         'state':'occupied','launch_at':1.,'process_start_observed_at':1.1,'term_at':None,'exit_observed_at':None}
+    # Prospective actual pending object, declared negative transport only.
+    # No observer fields are seeded and no numerical/runtime authority created.
+    import json
+    from api.dfa_supervisor import PendingFinalization
+    cancelled=threading.Event();cancelled.set()
+    pending_actor=dict(actor,state='idle',term_at=2.,exit_observed_at=3.)
+    sup.pending=PendingFinalization(json.dumps(job),json.dumps(pending_actor),'null',
+        'failed',json.dumps('execution_unavailable'),cancelled,time.monotonic())
     marker=object();original=RuntimeError('private transport canary');calls=[];holder={}
     def model(status):return SimpleNamespace(id=job['id'],phase='compute',status=status,generation=1,recoveries=0,execution_epoch='1',
-        input_digest='synthetic-input',origin=origin,error_code='execution_unavailable',
+        input_digest=job['input'],origin=origin,error_code='execution_unavailable',
         lease_token='synthetic-lease' if status=='running' else None,result=None)
     def acquire():
         with sup.factory() as db:
@@ -36,6 +44,7 @@ def transport(store,monkeypatch,kind='return',hold=None,closing=None,binding='ex
         return marker
     def finish(received,status,value):
         calls.append(('finish',received,status,value))
+        if during_finish:during_finish(sup,received,status,value)
         if kind=='raise':raise original
         run=model('running')
         if binding=='wrong':run.id='wrong'
@@ -426,6 +435,82 @@ def test_actual_retire_wrapper_first_snapshot_survives_finish_exception_and_clea
                 assert record['trigger']['selected_reason']=='permission_expired'
                 assert record['cleanup_retirements'][0]['event']=='subsequent_cleanup_retirement_capture'
             assert len([c for c in calls if c[0]=='retire'])==4
+            assert 'canary' not in e.compact()
+        finally:e.emit()
+    assert store[0].dfa_supervisor.lane.retire==original_retire
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+@pytest.mark.parametrize('change',['valid','job','generation','input','epoch','actor','reason','unknown_value','status','absent','partial','invalid_job_json','invalid_actor_json','invalid_value_json','output_value','mutate'])
+def test_actual_pending_snapshot_falsifies_shared_service_ledger(store,monkeypatch,change):
+    import json
+    from dataclasses import replace
+    from api.dfa_supervisor import Supervisor,PendingFinalization
+    from tests.dfa_attempt_evidence import assert_pending_binding
+    original_retire=store[0].dfa_supervisor.lane.retire
+    with monkeypatch.context() as patch:
+        mutation=[]
+        def mutate_after_entry(sup,job,status,value):
+            if change!='mutate':return
+            pending=sup.pending;pending.cancellation.clear()
+            object.__setattr__(pending,'job_json',json.dumps(dict(job,generation=99)))
+            object.__setattr__(pending,'actor_json','null')
+            object.__setattr__(pending,'value_json',json.dumps('execution_unavailable'))
+            object.__setattr__(pending,'status','output')
+            mutation.append(True)
+        e,template,actor,marker,_,calls=transport(store,patch,retirement=True,during_finish=mutate_after_entry)
+        def reactor(self):
+            job=self.acquire_job();self.work(job,object())
+            actor_before=dict(actor);expired=True;timed_out=False;ready=False;status='failed';value='permission_expired'
+            if change=='output_value':
+                # Controlled envelope comparison negative, never numerical
+                # service/authority. Original argument/envelope stay untouched.
+                expired=False;ready=True;status='output'
+                value={'binding':dict(actor['binding']),'actor_token':actor['actor_token'],
+                    'inventory':{},'result':{'summary':{'valid_windows':1}}}
+            chosen_value_json=json.dumps(value)
+            decision=self._decision(job,'permission',actor_before)
+            assert self.lane.retire() is marker
+            actor.update(state='idle',term_at=time.monotonic(),exit_observed_at=time.monotonic())
+            self.lane.record(actor)
+            cancellation=threading.Event();cancellation.set()
+            actual_job=dict(job);actual_actor=json.loads(json.dumps(actor));actual_value=value;actual_status=status
+            if change=='job':actual_job['id']='different-job'
+            if change=='generation':actual_job['generation']+=1
+            if change=='input':actual_job['input']='f'*64
+            if change=='epoch':actual_job['epoch']='2'
+            if change=='actor':actual_actor['actor_token']='different-actor'
+            if change=='output_value':
+                actual_value=json.loads(json.dumps(value));actual_value['result']['summary']['valid_windows']=2
+            if change=='reason':actual_value='execution_unavailable'
+            if change=='unknown_value':actual_value='private pending canary'
+            if change=='status':actual_status='output'
+            pending=PendingFinalization(json.dumps(actual_job),json.dumps(actual_actor),'null',actual_status,json.dumps(actual_value),cancellation,time.monotonic())
+            if change=='absent':pending=None
+            if change=='partial':pending=SimpleNamespace(status=status,cancellation=cancellation)
+            if change=='invalid_job_json':pending=replace(pending,job_json='{')
+            if change=='invalid_actor_json':pending=replace(pending,actor_json='{')
+            if change=='invalid_value_json':pending=replace(pending,value_json='{')
+            self.pending=pending
+            assert self.finish(job,status,value) is marker
+        patch.setattr(Supervisor,'run',reactor)
+        try:
+            e.sup.run()
+            row=json.loads(e.compact())['attempts'][0]
+            if change in ('valid','mutate'):
+                assert_pending_binding(row)
+                assert row['finish']['pending_reason']=='permission_expired'
+                assert row['finish']['pending_snapshot']['cancelled'] is True
+                assert json.loads(json.dumps(e.completed(template)['finish']['pending_snapshot']))==row['finish']['pending_snapshot']
+                assert bool(mutation)==(change=='mutate')
+            else:
+                with pytest.raises(AssertionError):assert_pending_binding(row)
+                assert row['publication']=='FAILED' and not row['successful_provenance']
+                assert row['observation_error']['class']=='AssertionError'
+                assert row['finish']['reason']==row['trigger']['selected_reason']
+                assert row['finish']['value']==row['trigger']['value']
+            assert calls[-1][0]=='finish' and calls[-1][1]==template
+            assert calls[-1][2]==row['finish']['status']
             assert 'canary' not in e.compact()
         finally:e.emit()
     assert store[0].dfa_supervisor.lane.retire==original_retire

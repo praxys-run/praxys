@@ -385,7 +385,7 @@ else:
             assert old.status=='failed' and old.result is None and old.recoveries==0
             assert auto.status=='complete' and auto.result['summary']['valid_windows']>0
         assert not errors
-        from tests.dfa_attempt_evidence import assert_attempt_ledger
+        from tests.dfa_attempt_evidence import assert_active_attempt_ledger as assert_attempt_ledger
         automatic_attempts=active_evidence.published_attempts('automatic')
         recovered=assert_attempt_ledger(automatic_attempts,automatic_attempts[0]['claim']['job'])
         assert len(launches)==1+len(automatic_attempts)
