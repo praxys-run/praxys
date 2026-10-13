@@ -20,6 +20,8 @@ from db.models import (User, Activity, TermsAcceptanceReceipt, UserConnection,
 from db import sync_writer
 from tests.test_activity_dfa import store, confirmed, synthetic_fit
 from tests.test_dfa_origins import both_origins, complete_unit
+from tests.dfa_boundary_evidence import ActiveRenewalEvidence, boundary_junit
+from tests.dfa_active_capture import capture_decision,decision_values
 from tests.test_dfa_finalization import Cell, wait_for
 
 
@@ -118,6 +120,7 @@ def test_off_double_click_one_unit_real_compute_and_history_on(both_origins):
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 def test_unknown_defers_queued_known_flip_fences_without_resurrection(both_origins):
     factory,owner=both_origins;_,manual=confirmed(factory,owner);sup=factory.dfa_supervisor
+    actor_keys=tuple(sorted(sup.identity))
     with factory() as db:
         before={k:getattr(db.get(Run,manual['id']),k) for k in ('status','generation','recoveries','lease_token')}
     factory.dfa_modes[owner]=None
@@ -244,6 +247,34 @@ def test_mode_flip_after_actual_raw_read_refuses_physical_start(both_origins,mon
     with factory() as db: assert db.get(Run,manual['id']).result is None
 
 
+def mode_finish_callback(sup,actual_finish,events,finishes,modes):
+    """Actual mode-fixture callback; transport tests share this exact scope."""
+    import threading,time
+    from api.dfa_supervisor import SAFE_FAILURES
+    from tests.dfa_boundary_evidence import safe_binding
+    actor_keys=tuple(sorted(sup.identity))  # Exact prospective identity schema.
+    def finish(job,status,value):
+        with sup.lock:
+            raw_decision=capture_decision(sup.permission_decision,actor_keys)
+            allowed=sup.allowed;deadline=sup.permission_until
+        decision=decision_values(raw_decision,actor_keys)
+        pending=sup.pending
+        # Snapshot before finish/phase cleanup; never log output payloads.
+        finishes.append({'at':time.monotonic(),'job':safe_binding(job),'status':status,
+            'reason':value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None,
+            'actor':safe_binding(sup.lane.actor()),'allowed':allowed,'permission_until':deadline,
+            'decision':None if decision is None else {'at':decision['at'],'reason':decision['reason'],
+                'phase':decision['phase'],'job':safe_binding(decision['job']),
+                'actor':safe_binding(decision['actor'])},
+            'cancelled':pending.cancellation.is_set() if pending else None,
+            'pending_status':pending.status if pending else None,
+            'last_mode':deepcopy(modes[-1]) if modes else None})
+        result=actual_finish(job,status,value)
+        events.append(('finish_'+job['origin'],time.monotonic()))
+        return result
+    return finish
+
+
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 def test_running_mode_switch_exit_ack_finish_before_automatic_launch(both_origins,monkeypatch,tmp_path):
     import io,os,select,subprocess,sys,threading,time
@@ -278,9 +309,9 @@ else:
     monkeypatch.setattr(subprocess,'Popen',child)
     events=[];launches=[];completed=threading.Event();errors=[];validations=[];finishes=[];modes=[];exit_receipts=[]
     renewal=RenewalDecision(sup,monkeypatch)
-    actual_acquire=sup.acquire_job;start_barrier_used=False
+    actual_acquire=sup.acquire_job;start_barrier_used=False;automatic_barrier_used=False
     def acquire():
-        nonlocal start_barrier_used
+        nonlocal start_barrier_used,automatic_barrier_used
         job=actual_acquire()
         if job and job['origin']=='manual' and not start_barrier_used:
             start_barrier_used=True
@@ -288,11 +319,16 @@ else:
             # acquire_job has exited its owner transaction. Both SQLite and PG
             # can now publish a genuine control renewal without a writer cycle.
             renewal.arm();renewal.wait()
+        elif job and job['origin']=='automatic' and not automatic_barrier_used:
+            automatic_barrier_used=True
+            events.append(('automatic_acquisition_commit_return',time.monotonic()))
+            renewal.arm();renewal.wait()  # ONE first decision; no later-cycle selector.
         return job
     monkeypatch.setattr(sup,'acquire_job',acquire)
     actual_source_current=service._current
     def source_current(db,run):
         before=time.monotonic();result=actual_source_current(db,run)
+        if getattr(getattr(sup,'_test_renewal_capture',None),'renew',False):return result
         validations.append({'source_call':'_current','before':before,'after':time.monotonic(),
             'job':safe_binding({'id':run.id,'generation':run.generation,'origin':run.origin,'phase':run.phase}),
             'current':result,'thread':threading.current_thread().name})
@@ -301,6 +337,7 @@ else:
     actual_current=dfa_rights.execution_current
     def current(db,run):
         before=time.monotonic();result=actual_current(db,run)
+        if getattr(getattr(sup,'_test_renewal_capture',None),'renew',False):return result
         validations.append({'source_call':'execution_current','before':before,'after':time.monotonic(),
             'job':safe_binding({'id':run.id,'generation':run.generation,'origin':run.origin,'phase':run.phase}),
             'current':result,'thread':threading.current_thread().name})
@@ -308,7 +345,9 @@ else:
     monkeypatch.setattr(dfa_rights,'execution_current',current)
     actual_mode=dfa_rights.account_mode
     def mode(db,owner):
-        value=actual_mode(db,owner);modes.append({'at':time.monotonic(),'mode':value,
+        value=actual_mode(db,owner)
+        if getattr(getattr(sup,'_test_renewal_capture',None),'renew',False):return value
+        modes.append({'at':time.monotonic(),'mode':value,
                                                'thread':threading.current_thread().name});return value
     monkeypatch.setattr(dfa_rights,'account_mode',mode)
     actual_launch=sup.lane.launch
@@ -323,38 +362,34 @@ else:
             'observed_at':result['observed_at'],'actor':safe_binding(sup.lane.actor())})
         return result
     monkeypatch.setattr(sup,'record_exit',exited)
-    actual_finish=sup.finish
-    def finish(job,status,value):
-        with sup.lock:
-            decision=deepcopy(sup.permission_decision);allowed=sup.allowed;deadline=sup.permission_until
-        pending=sup.pending
-        # Snapshot before finish/phase cleanup; never log output payloads.
-        finishes.append({'at':time.monotonic(),'job':safe_binding(job),'status':status,
-            'reason':value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None,
-            'actor':safe_binding(sup.lane.actor()),'allowed':allowed,'permission_until':deadline,
-            'decision':None if decision is None else {'at':decision['at'],'reason':decision['reason'],
-                'phase':decision['phase'],'job':safe_binding(decision['job']),
-                'actor':safe_binding(decision['actor'])},
-            'cancelled':pending.cancellation.is_set() if pending else None,
-            'pending_status':pending.status if pending else None,
-            'last_mode':deepcopy(modes[-1]) if modes else None})
-        actual_finish(job,status,value);events.append(('finish_'+job['origin'],time.monotonic()))
-        if job['origin']=='automatic':completed.set()
+    finish=mode_finish_callback(sup,sup.finish,events,finishes,modes)
     monkeypatch.setattr(sup,'finish',finish)
-    monitor=CapacityWorker(sup,errors);monitor.start()
+    monitor=CapacityWorker(sup,errors)
+    active_evidence=ActiveRenewalEvidence(sup,factory,monkeypatch)
+    def observed(record):
+        if record.job.origin=='automatic' and record.after.status in ('complete','failed','cancelled'):
+            completed.set()  # Immutable exact-attempt record is already published.
+    active_evidence.on_finish_observed=observed
+    monitor.start()
     try:
-        assert select.select([read_fd],[],[],5)[0],monitor.evidence()
+        assert select.select([read_fd],[],[],5)[0],active_evidence.compact()
         assert os.read(read_fd,1)==b'M'
         events.append(('manual_payload_handshake',time.monotonic()))
         assert len(launches)==1 and launches[0]['state']=='occupied'
         complete_unit(factory,owner)  # Actual new sync; ON, no manual bypass.
-        assert completed.wait(15),monitor.evidence()
+        wait_for(lambda:completed.is_set() or bool(errors) or active_evidence.failed,15)
+        assert completed.is_set() and not errors and not active_evidence.failed,active_evidence.compact()
         wait_for(lambda:sup.pending is None and sup.active is None)
         with factory() as db:
             old=db.get(Run,manual['id']);auto=db.query(Run).filter_by(user_id=owner,origin='automatic').one()
             assert old.status=='failed' and old.result is None and old.recoveries==0
             assert auto.status=='complete' and auto.result['summary']['valid_windows']>0
-        assert len(launches)==2 and not errors
+        assert not errors
+        from tests.dfa_attempt_evidence import assert_attempt_ledger
+        automatic_attempts=active_evidence.published_attempts('automatic')
+        recovered=assert_attempt_ledger(automatic_attempts,automatic_attempts[0]['claim']['job'])
+        assert len(launches)==1+len(automatic_attempts)
+        with factory() as db:assert db.get(Run,auto.id).recoveries==recovered
         first_finish=next(at for event,at in events if event=='finish_manual')
         manual_actor=safe_binding(launches[0])['actor']
         exact_exit=next(receipt for receipt in exit_receipts if receipt['actor']['actor']==manual_actor)
@@ -363,7 +398,16 @@ else:
         assert next(value for value in finishes if value['job']['origin']=='manual')['actor']['actor']==manual_actor
         assert first_finish<=launches[1]['launch_at'] and launches[1]['launch_at']>=launches[0]['launch_at']
     finally:
-        monitor.close();os.close(read_fd);os.close(write_fd);engine.dispose()
+        primary=sys.exc_info()[1]
+        if primary is not None:active_evidence.errors.append(active_evidence.error(primary))
+        try:
+            monitor.close();active_evidence.close()
+        except BaseException as exc:
+            active_evidence.cleanup_errors.append(active_evidence.error(exc))
+            raise
+        finally:
+            active_evidence.emit()
+            os.close(read_fd);os.close(write_fd);engine.dispose()
         (tmp_path/'mode-switch-evidence.json').write_text(__import__('json').dumps({
             'events':events,'launches':[safe_binding(actor) for actor in launches],
             'monitor':monitor.evidence(),'finishes':finishes,'validations':validations,

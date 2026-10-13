@@ -9,9 +9,12 @@ from copy import deepcopy
 class RenewalDecision:
     def __init__(self, supervisor, monkeypatch):
         self.supervisor = supervisor
-        self.event = threading.Event()
+        from tests.dfa_active_capture import PrimitiveSignal,capture_decision
+        self.event = PrimitiveSignal()
         self.armed = False
         self.observation = None
+        self.raw_observation = None
+        self.actor_keys=tuple(sorted(supervisor.identity))
         self.events = []
         actual = supervisor._decision
 
@@ -19,7 +22,7 @@ class RenewalDecision:
             value = actual(job, reason, actor)
             if self.armed:
                 self.armed = False
-                self.observation = deepcopy(value)
+                self.raw_observation = capture_decision(value,self.actor_keys)
                 self.events.append({'event': 'first_renewal_decision',
                                     'at': time.monotonic(), 'reason': reason,
                                     'phase': value['phase']})
@@ -33,19 +36,23 @@ class RenewalDecision:
         with self.supervisor.lock:
             self.event.clear()
             self.observation = None
+            self.raw_observation = None
             self.armed = True
             self.events.append({'event': 'barrier_armed', 'at': time.monotonic()})
 
     def wait(self):
         assert self.event.wait(2), self.events
+        from tests.dfa_active_capture import capture_decision,decision_values
         with self.supervisor.lock:
-            value = deepcopy(self.observation)
-            current = deepcopy(self.supervisor.permission_decision)
+            raw=self.raw_observation
+            current=capture_decision(self.supervisor.permission_decision,self.actor_keys)
             allowed = self.supervisor.allowed
             deadline = self.supervisor.permission_until
         # A first denial fails this positive; never select a later favourable
         # cycle, manufacture permission, or extend the runtime lease.
-        assert value['reason'] is None and allowed and current == value, self.events
+        assert raw.reason is None and allowed and current == raw, self.events
+        # Formatting is outside the supervisor lock and timed renewal.
+        self.observation=decision_values(raw,self.actor_keys)
         assert time.monotonic() < deadline, self.events
         self.events.append({'event': 'completed_renewal_observed',
                             'at': time.monotonic(), 'permission_until': deadline})
@@ -81,6 +88,7 @@ class StartupEvidence:
     def __init__(self, supervisor, monkeypatch):
         from api import dfa_rights
         from api.dfa_supervisor import SAFE_FAILURES
+        from tests.dfa_active_capture import capture_decision,decision_values
         self.supervisor = supervisor
         self.events, self.outcomes = [], []
         self.terminal_events = []
@@ -122,6 +130,7 @@ class StartupEvidence:
         def current(db, run):
             started = time.monotonic()
             result = actual_current(db, run)
+            if getattr(getattr(supervisor,'_test_renewal_capture',None),'renew',False):return result
             self.note('execution_validation', started=started, current=result,
                       job=safe_binding({'id':run.id, 'generation':run.generation,
                                         'epoch':run.execution_epoch, 'origin':run.origin,
@@ -130,13 +139,15 @@ class StartupEvidence:
 
         def mode(db, owner):
             result = actual_mode(db, owner)
+            if getattr(getattr(supervisor,'_test_renewal_capture',None),'renew',False):return result
             self.note('account_mode_validation', owner=safe_binding({'id':owner}), mode=result)
             return result
 
         def finish(job, status, value):
             with supervisor.lock:
-                decision = self.decision(supervisor.permission_decision)
+                raw_decision = capture_decision(supervisor.permission_decision,self.renewal.actor_keys)
                 allowed, deadline = supervisor.allowed, supervisor.permission_until
+            decision=self.decision(decision_values(raw_decision,self.renewal.actor_keys))
             pending = supervisor.pending
             self.note('finish_entered', job=safe_binding(job), status=status,
                       reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable'} else None,
@@ -328,6 +339,69 @@ class FirstRenewalOutcome:
         return self.persisted
 
 
+class OccupiedTarget:
+    """One exact post-commit actor; rejection never selects a later replacement."""
+    def __init__(self, job, identity):
+        self.job, self.identity = deepcopy(job), deepcopy(identity)
+        self.actor = None
+        self.seen = False
+
+    def acknowledge(self, job, actor):
+        assert not self.seen, 'duplicate_or_replacement_occupied_target'
+        self.seen = True
+        assert actor is not None and actor.get('state')=='occupied', 'missing_occupied_target'
+        assert all(job.get(k)==self.job.get(k) for k in ('id','generation','origin','phase')), 'wrong_job_target'
+        assert str(job['epoch'])==str(self.identity['epoch']), 'wrong_job_epoch'
+        assert actor.get('binding')=={k:job[k] for k in ('generation','epoch','input')}, 'wrong_actor_binding'
+        assert actor.get('incarnation')==self.identity, 'wrong_actor_incarnation'
+        assert actor.get('actor_token') and all(actor.get('identity',{}).get(k) is not None for k in ('pid','pgid','start')), 'missing_actor_identity'
+        self.actor=deepcopy(actor)
+        return deepcopy(self.actor)
+
+
+class FinishObservation:
+    """Immutable exact-attempt publication precedes its observation signal."""
+    def __init__(self, binding, attempt):
+        self.binding, self.attempt = deepcopy(binding), attempt
+        self.done = threading.Event()
+        self.lock = threading.Lock()
+        self.record = self.error_record = None
+
+    def publish(self, value):
+        try:
+            assert value['claim']['job']==self.binding and value['attempt']==self.attempt,'wrong_finish_observation_binding'
+            encoded=json.dumps(value,separators=(',',':'))
+            with self.lock:
+                assert not self.done.is_set(),'duplicate_finish_observation'
+                self.record=encoded
+                self.done.set()
+        except BaseException as exc:
+            self.fail(FirstRenewalOutcome.error(exc))
+            raise
+
+    def fail(self, error):
+        with self.lock:
+            self.error_record=json.dumps(error,separators=(',',':'))
+            self.done.set()
+
+    def require(self):
+        with self.lock:
+            assert self.done.is_set(),'finish_observation_not_complete'
+            assert self.error_record is None,'finish_observation_failed '+str(self.error_record)
+            assert self.record is not None,'finish_observation_record_missing'
+            return json.loads(self.record)
+
+    def metadata(self):
+        from hashlib import sha256
+        with self.lock:
+            return {'binding':deepcopy(self.binding),'attempt':self.attempt,'done':self.done.is_set(),
+                'record_sha256':sha256(self.record.encode()).hexdigest() if self.record else None,
+                'error':json.loads(self.error_record) if self.error_record else None}
+
+
+from tests.dfa_active_capture import ActiveRenewalEvidence
+
+
 @pytest.fixture(autouse=True)
 def boundary_junit(monkeypatch, record_property):
     """Only imported by the affected fixture modules; no workflow changes."""
@@ -336,3 +410,8 @@ def boundary_junit(monkeypatch, record_property):
         try:record_property('dfa_boundary',self.compact(**fields))
         finally:actual(self,**fields)
     monkeypatch.setattr(StartupEvidence,'emit',emit)
+    active=ActiveRenewalEvidence.emit
+    def active_emit(self):
+        try:record_property('dfa_active_renewal',self.compact())
+        finally:active(self)
+    monkeypatch.setattr(ActiveRenewalEvidence,'emit',active_emit)

@@ -17,7 +17,8 @@ from db.models import ActivityDFAControl as Control, ActivityDFARun as Run
 from tests.test_activity_dfa import store, confirmed
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.dfa_capacity_worker import CapacityWorker, failure
-from tests.dfa_boundary_evidence import StartupEvidence,safe_binding,boundary_junit
+from tests.dfa_boundary_evidence import StartupEvidence,ActiveRenewalEvidence,OccupiedTarget,safe_binding,boundary_junit
+from tests.dfa_active_capture import PrimitiveSignal,capture_actor
 
 
 def wait_for(predicate, seconds=8):
@@ -27,8 +28,15 @@ def wait_for(predicate, seconds=8):
         time.sleep(.005)
 
 
+def require_complete_output(pending):
+    """Check the real validated IPC envelope before a COMPLETE-service fault."""
+    assert pending.status=='output','COMPLETE_SERVICE_BOUNDARY_NOT_REACHED'
+    count=json.loads(pending.value_json)['result']['summary']['valid_windows']
+    assert type(count) is int and count>0,'COMPLETE_NUMERICAL_OUTPUT_NOT_REACHED'
+
+
 class Cell:
-    def __init__(self, store, monkeypatch, tmp_path, mode='lock_release', change=None, seed_complete=False):
+    def __init__(self, store, monkeypatch, tmp_path, mode='lock_release', change=None, seed_complete=False, require_output=False, active_fault=None):
         self.factory, self.owner = store
         self.sup = self.factory.dfa_supervisor
         _, self.admitted = confirmed(self.factory, self.owner)
@@ -38,77 +46,36 @@ class Cell:
         self.path, self.mode, self.change = tmp_path, mode, change
         self.target = None
         self.renew_commit_callback = None
-        self.current_renewal = threading.Event()
-        renew_code = self.sup.renew.__func__.__code__
+        self.current_renewal = PrimitiveSignal()
         self.events, self.renewals, self.launches = [], [], []
         self.blocker = None
         self.finish_calls = 0
         self.finished = threading.Event()
         self.errors = []
+        self.active_fault=active_fault
+        self.active_cycle=None
+        self.active_fault_done=PrimitiveSignal()
+        self.active_fault_marker=False
         backend = self.factory.kw['bind'].dialect.name
         args = {'timeout': .1} if backend=='sqlite' else {'options':'-c lock_timeout=200 -c statement_timeout=200'}
         self.engine = create_engine(self.factory.kw['bind'].url, pool_size=2, max_overflow=0, pool_timeout=.1, connect_args=args)
         actual_exit = self.sup.record_exit
-        actual_work_code = self.sup.work.__func__.__code__
-        exit_code = actual_exit.__func__.__code__
         cell = self
         class Controls(Session):
-            def commit(self):
-                caller = sys._getframe(1)
-                result = super().commit()
-                if caller.f_code is renew_code:
-                    cell.note('renewal_sql_ack')
-                    cell.current_renewal.set()
-                    if cell.renew_commit_callback and cell.target:
-                        cell.renew_commit_callback()
-                if caller.f_code is actual_work_code:
-                    cell.target = deepcopy(caller.f_locals['actor'])
-                    cell.note('occupied_commit_ack', actor=cell.target)
-                if caller.f_code is exit_code and cell.target and caller.f_locals['actor']['actor_token']==cell.target['actor_token']:
-                    cell.note('exit_commit_ack', actor=deepcopy(caller.f_locals['actor']))
-                    if mode=='lost_ack' and not any(e['event']=='lost_ack' for e in cell.events):
-                        cell.note('lost_ack')
-                        if backend=='postgresql':
-                            from psycopg.errors import ConnectionFailure
-                            error=ConnectionFailure('synthetic lost ACK after actual commit')
-                        else:
-                            error=sqlite3.OperationalError('synthetic lost ACK')
-                            error.sqlite_errorcode=sqlite3.SQLITE_BUSY
-                        raise OperationalError('redacted',{},error)
-                return result
+            def execute(session, statement, *a, **kw):
+                try:return super().execute(statement,*a,**kw)
+                except OperationalError:
+                    if cell.active_fault=='lock' and cell.blocker is not None:
+                        cell.active_lock_exception_at=time.monotonic()
+                        cell.blocker.rollback();cell.blocker.close();cell.blocker=None
+                        cell.active_evidence.resource('control_lock','end')
+                    raise
         self.sup.controls = sessionmaker(class_=Controls, bind=self.engine)
         self.monitor = CapacityWorker(self.sup, self.errors)
-        def exited():
-            actor = self.sup.lane.actor()
-            matching = self.target and actor['actor_token']==self.target['actor_token']
-            if matching:
-                assert actor['state']=='idle' and actor.get('exit_observed_at') is not None
-                assert actor['binding']==self.target['binding'] and actor['identity']==self.target['identity']
-                self.note('verified_target_exit',actor=deepcopy(actor))
-                self.note('exit_attempt', actor=deepcopy(actor))
-                if mode in ('lock_release','persistent') and self.blocker is None and not any(e['event']=='lock_released' for e in self.events):
-                    self.blocker = self.factory.kw['bind'].connect()
-                    if backend=='sqlite': self.blocker.exec_driver_sql('BEGIN IMMEDIATE')
-                    else:
-                        self.blocker.begin()
-                        self.blocker.execute(text('SELECT id FROM activity_dfa_control WHERE id=1 FOR UPDATE'))
-                    self.note('real_control_lock')
-                if mode=='unknown':
-                    self.note('unknown_fault_applied')
-                    raise RuntimeError('controlled_unknown_exit_error')
-            try:
-                return self.monitor.record_exit(actual_exit)
-            except Exception as exc:
-                if matching:
-                    self.note('exit_error', error=failure(exc), sqlite_code=getattr(getattr(exc,'orig',None),'sqlite_errorcode',None), sqlstate=getattr(getattr(exc,'orig',None),'sqlstate',None))
-                    if mode=='lock_release':
-                        self.release_lock()
-                        if change:
-                            self.note('change_callback_entered')
-                            change(self)
-                            self.note('change_callback_returned')
-                raise
-        monkeypatch.setattr(self.sup,'record_exit',exited)
+        self.actual_exit=actual_exit
+        self.require_output=require_output
+        self.backend=backend
+        monkeypatch.setattr(self.sup,'record_exit',self.record_exit)
         actual_finish=self.sup.finish
         def finished(job,status,value):
             self.finish_calls+=1
@@ -130,6 +97,117 @@ class Cell:
         self.sup.allowed=False;self.sup.permission_until=0.
         self.diagnostic=StartupEvidence(self.sup,monkeypatch)
         self.diagnostic.note('admitted_entry',job=safe_binding(self.admitted))
+        self.active_evidence=ActiveRenewalEvidence(self.sup,self.factory,monkeypatch)
+        target=OccupiedTarget(self.admitted,self.sup.identity)
+        self.target_primitive=None
+        expected_inc=(len(self.sup.identity),tuple(self.sup.identity[k] for k in self.active_evidence.keys))
+        def occupied(job,actor):
+            self.target=target.acknowledge(job,actor)
+            self.target_primitive=capture_actor(self.target,self.active_evidence.keys)
+            self.note('occupied_commit_ack',actor=self.target)
+        self.active_evidence.on_occupied_ack=occupied
+        self.active_evidence.on_sql_commit=self.control_committed
+        if active_fault:
+            def bound(fields):
+                if self.target is None or self.active_cycle is not None:return
+                # Pin first post-ACK cycle BEFORE checking it. A mismatch cannot
+                # be qualified away by a later favourable cycle/replacement.
+                self.active_cycle=fields['started']
+                actor=fields['actor']
+                assert actor==self.target_primitive and fields['sql_actor']==actor and actor.state=='occupied','FIRST_ACTIVE_TARGET_MISMATCH'
+                assert fields['job'] and fields['job'].id==self.admitted['id']
+                assert fields['incarnation']==expected_inc and fields['epoch']==self.sup.identity['epoch']
+                self.active_fault_marker=True
+                self.events.append({'event':'first_active_fault_target','at':time.monotonic()})
+                if active_fault=='lock':
+                    self.blocker=self.factory.kw['bind'].connect()
+                    if backend=='sqlite':self.blocker.exec_driver_sql('BEGIN IMMEDIATE')
+                    else:
+                        self.blocker.begin()
+                        self.blocker.execute(text('SELECT id FROM activity_dfa_control WHERE id=1 FOR UPDATE'))
+                    self.active_evidence.resource('control_lock','start')
+            self.active_evidence.on_active_bound=bound
+            actual_decision=self.sup._decision
+            def decision(job,reason,actor=None):
+                value=actual_decision(job,reason,actor)
+                if self.active_cycle is not None and job and job['id']==self.admitted['id']:
+                    self.active_fault_done.set()
+                return value
+            monkeypatch.setattr(self.sup,'_decision',decision)
+            actual_work=self.sup.work
+            def work(job,outputs,cancellation=None):
+                class Delivered:
+                    def put(_,value):
+                        def deliver():
+                            if value[0]=='output':
+                                self.active_evidence.resource('result_delivery','start')
+                                try:
+                                    assert self.active_fault_done.wait(2),'FIRST_ACTIVE_FAULT_NOT_OBSERVED'
+                                    with self.sup.lock:assert not self.sup.allowed
+                                finally:self.active_evidence.resource('result_delivery','end')
+                            return outputs.put(value)
+                        return self.active_evidence.deliver(deliver)
+                return actual_work(job,Delivered(),cancellation)
+            monkeypatch.setattr(self.sup,'work',work)
+
+    def record_exit(self):
+        actor = self.sup.lane.actor()
+        matching = self.target and actor['actor_token']==self.target['actor_token']
+        if matching:
+            assert actor['state']=='idle' and actor.get('exit_observed_at') is not None
+            assert actor['binding']==self.target['binding'] and actor['identity']==self.target['identity']
+            self.note('verified_target_exit',actor=deepcopy(actor))
+            self.note('exit_attempt', actor=deepcopy(actor))
+            if self.require_output:
+                require_complete_output(self.sup.pending)
+            if self.mode in ('lock_release','persistent') and self.blocker is None and not any(e['event']=='lock_released' for e in self.events):
+                self.blocker = self.factory.kw['bind'].connect()
+                if self.backend=='sqlite': self.blocker.exec_driver_sql('BEGIN IMMEDIATE')
+                else:
+                    self.blocker.begin()
+                    self.blocker.execute(text('SELECT id FROM activity_dfa_control WHERE id=1 FOR UPDATE'))
+                self.note('real_control_lock')
+                self.active_evidence.resource('control_lock','start')
+            if self.mode=='unknown':
+                self.note('unknown_fault_applied')
+                raise RuntimeError('controlled_unknown_exit_error')
+        try:
+            return self.monitor.record_exit(self.actual_exit)
+        except Exception as exc:
+            if matching:
+                self.note('exit_error', error=failure(exc), sqlite_code=getattr(getattr(exc,'orig',None),'sqlite_errorcode',None), sqlstate=getattr(getattr(exc,'orig',None),'sqlstate',None))
+                if self.mode=='lock_release':
+                    self.release_lock()
+                    if self.change:
+                        self.note('change_callback_entered')
+                        self.change(self)
+                        self.note('change_callback_returned')
+            raise
+
+    def control_committed(self,operation,fields):
+        if operation=='renew':
+            self.events.append({'event':'renewal_sql_ack','at':time.monotonic()})
+            if self.active_fault=='late_ack' and self.active_cycle==fields['started']:
+                self.active_evidence.resource('local_ack','start')
+                self.events.append({'event':'active_durable_sql_before_delayed_local_ack','at':time.monotonic()})
+                time.sleep(.30)
+                self.active_evidence.resource('local_ack','end')
+            self.current_renewal.set()
+            if self.renew_commit_callback and self.target:self.renew_commit_callback()
+        elif operation=='exit' and self.target and fields['actor']['actor_token']==self.target['actor_token']:
+            self.note('exit_commit_ack',actor=fields['actor'])
+            if self.mode=='lost_ack' and not any(e['event']=='lost_ack' for e in self.events):
+                if self.require_output:
+                    require_complete_output(self.sup.pending)
+                self.note('lost_ack_selected_outcome',status=self.sup.pending.status)
+                self.note('lost_ack')
+                if self.backend=='postgresql':
+                    from psycopg.errors import ConnectionFailure
+                    error=ConnectionFailure('synthetic lost ACK after actual commit')
+                else:
+                    error=sqlite3.OperationalError('synthetic lost ACK')
+                    error.sqlite_errorcode=sqlite3.SQLITE_BUSY
+                raise OperationalError('redacted',{},error)
 
     def note(self,event,**fields):
         self.events.append({'event':event,'at':time.monotonic(),**fields})
@@ -142,6 +220,7 @@ class Cell:
         if self.blocker:
             self.blocker.rollback();self.blocker.close();self.blocker=None
             self.note('lock_released')
+            self.active_evidence.resource('control_lock','end')
 
     def state(self):
         with self.factory() as db:
@@ -149,6 +228,11 @@ class Cell:
             return {'run':{k:getattr(run,k) for k in ('id','status','progress','generation','recoveries','error_code')},'actor':deepcopy(control.actor)}
 
     def start(self): self.monitor.start()
+
+    def wait_finish_record(self):
+        wait_for(lambda:bool(self.errors) or self.active_evidence.observation_ready(self.admitted))
+        assert not self.errors,self.active_evidence.compact()
+        return self.active_evidence.completed(self.admitted)
 
     def wait_error(self):
         try:
@@ -163,6 +247,8 @@ class Cell:
         assert any(e['event']=='verified_target_exit' for e in self.events),self.diagnostic.compact()
 
     def close(self):
+        primary=sys.exc_info()[1]
+        if primary is not None:self.active_evidence.errors.append(self.active_evidence.error(primary))
         snapshot_error=None
         try:
             try:
@@ -180,6 +266,7 @@ class Cell:
                 self.diagnostic.error(exc,cleanup=True)
             # Diagnostic collection is never allowed to skip owned shutdown.
             self.release_lock();self.monitor.close()
+            self.active_evidence.close()
             for thread in self.renewals: thread.join(5)
             joined=all(not thread.is_alive() for thread in self.renewals)
             self.sup.lane.retire();self.engine.dispose();self.factory.kw['bind'].dispose()
@@ -193,16 +280,17 @@ class Cell:
             self.diagnostic.primary_errors.extend(self.errors[:4])
             self.diagnostic.cleanup_errors.extend(self.monitor.cleanup_errors[:4])
             self.diagnostic.emit(alive=self.monitor.thread.is_alive(),target=self.target,finished=self.finished.is_set())
+            self.active_evidence.emit()
 
 
 @pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
 @pytest.mark.parametrize('mode',['lock_release','lost_ack'])
 def test_same_exit_persistence_recovers_without_reexecution(store,monkeypatch,tmp_path,mode):
-    cell=Cell(store,monkeypatch,tmp_path,mode)
+    cell=Cell(store,monkeypatch,tmp_path,mode,require_output=True)
     try:
         cell.start()
-        wait_for(lambda:cell.finished.is_set() or bool(cell.errors))
-        assert cell.finished.is_set(), cell.monitor.evidence()
+        record=cell.wait_finish_record()
+        assert record['finish_ack']['after']['status']=='complete',cell.active_evidence.compact()
         assert not cell.errors
         assert cell.finish_calls==1 and len(cell.launches)==1
         state=cell.state();assert state['run']['status']=='complete'
@@ -215,6 +303,74 @@ def test_same_exit_persistence_recovers_without_reexecution(store,monkeypatch,tm
             view=service.read_run(db,cell.owner,'123',cell.admitted['id'],0,120)
             assert view['status']=='complete' and view['freshness']=='current'
     finally: cell.close()
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+def test_uninjected_active_numerical_service_control(store,monkeypatch,tmp_path):
+    cell=Cell(store,monkeypatch,tmp_path,mode='none')
+    try:
+        cell.start();record=cell.wait_finish_record()
+        assert record['finish_ack']['after']['status']=='complete',cell.active_evidence.compact()
+        assert cell.state()['run']['status']=='complete',cell.active_evidence.compact()
+        with cell.factory() as db:
+            view=service.read_run(db,cell.owner,'123',cell.admitted['id'],0,120)
+            assert view['freshness']=='current' and view['summary']['valid_windows']>0
+        assert cell.active_evidence.attempts[0]['trigger']['selected_status']=='output'
+        assert cell.finish_calls==1 and len(cell.launches)==1
+    finally:cell.close()
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+@pytest.mark.parametrize('active_fault',['lock','late_ack'])
+def test_real_active_denial_preserved_through_lost_ack(store,monkeypatch,tmp_path,active_fault):
+    # A declared failed-service negative, NEVER the COMPLETE-service positive.
+    cell=Cell(store,monkeypatch,tmp_path,mode='lost_ack',active_fault=active_fault)
+    try:
+        cell.start();attempt=cell.wait_finish_record()
+        assert cell.active_fault_marker and not cell.errors,cell.active_evidence.compact()
+        assert attempt['trigger']['selected_status']=='failed' and attempt['trigger']['expired']
+        assert not attempt['trigger']['timed_out']
+        assert attempt['finish']['pending_status']=='failed' and attempt['finish']['pending_reason']=='permission_expired'
+        assert attempt['finish']['status']=='failed' and attempt['finish']['reason']=='permission_expired'
+        assert attempt['finish_ack']['after']['status']=='failed' and attempt['finish_ack']['after']['recoveries']==0
+        assert not attempt['finish_ack']['after']['lease_token_hash'] and not attempt['finish_ack']['after']['result_present']
+        assert any(e['event']=='lost_ack' for e in cell.events)
+        assert attempt['exit_ack']['kind']=='already_durable'
+        assert attempt['occupied_ack']['actor']['actor']==attempt['finish']['actor']['actor']
+        assert attempt['finish']['actor']['exit_observed_at']<=attempt['exit_ack']['at']<=attempt['finish']['at']
+        cycle=cell.active_evidence.cycle_at(cell.active_cycle)
+        if active_fault=='lock':
+            error=next(e['error'] for e in cycle['events'] if e['event']=='sql_update_error')
+            assert error['class']=='OperationalError'
+            assert cycle['job']==attempt['claim']['job']
+            assert cycle['actor']==attempt['occupied_ack']['actor']
+            assert any(e['event']=='bound_return' and e['sql_actor']==attempt['occupied_ack']['actor'] for e in cycle['events'])
+            update=next(e for e in cycle['events'] if e['event']=='sql_update_invoked')
+            denied=next(e for e in cycle['events'] if e['event']=='sql_update_error')
+            held=[e for e in cell.active_evidence.resources if e['resource']=='control_lock']
+            assert len(held)==2 and held[0]['action']=='start' and held[1]['action']=='end'
+            assert held[0]['at']<=update['at']<=held[1]['at']<=denied['at']
+            assert any(e['event']=='mode_return' and e['result']=='manual' for e in cycle['events'])
+            assert any(e['event']=='source_return' and e['result'] is True for e in cycle['events'])
+            if cell.engine.dialect.name=='sqlite':assert error['sqlite_errorcode']==sqlite3.SQLITE_BUSY
+            else:
+                settings={e['setting']:e['milliseconds'] for e in cycle['events'] if e['event']=='timeout_setting_return'}
+                assert settings=={'statement_timeout_ms':200,'lock_timeout_ms':200}
+                assert error['sqlstate'] in ('57014','55P03')
+                #57014 alone cannot identify an external cancel issuer. Prove
+                # exact control UPDATE/held-lock correlation, not that issuer.
+                cell.diagnostic.note('pg_control_denial_scope',sqlstate=error['sqlstate'],
+                    query_cancel_issuer='unavailable' if error['sqlstate']=='57014' else None)
+        else:
+            updated=next(e for e in cycle['events'] if e['event']=='sql_update_return')
+            sql_ack=next(e for e in cycle['events'] if e['event']=='sql_commit_return')
+            return_ack=next(e for e in cycle['events'] if e['event']=='commit_return_ack')
+            held=[e for e in cell.active_evidence.resources if e['resource']=='local_ack']
+            assert len(held)==2 and updated['rowcount']==1
+            assert sql_ack['at']<=held[0]['at']<held[1]['at']<=return_ack['at']
+            assert cycle['duration']>=.30
+        assert not cycle['after']['allowed'] and len(cell.launches)==1 and cell.finish_calls==1
+    finally:cell.close()
 
 
 
