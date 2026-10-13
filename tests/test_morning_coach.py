@@ -14,7 +14,8 @@ from sqlalchemy.orm import sessionmaker
 
 from api import insights_generator, insights_runner, llm, morning_coach as coach
 from api.insight_feedback import GENERATION_PROVENANCE_KEY, build_generation_provenance
-from api.routes import insights
+# Load route aliases before the fixture patches the dynamic runner helper.
+from api.routes import insights, today
 from db.cache_revision import SCOPES, bump_revisions, get_revisions
 from db.models import AiInsight, AiInsightFeedback, Base, User
 
@@ -101,6 +102,18 @@ def db(tmp_path, monkeypatch):
     db.close()
     engine.dispose()
 
+
+
+def test_fixture_access_patch_does_not_replace_today_route_authority(db, monkeypatch):
+    from api import stryd_access
+    # The runner fixture deliberately disables private course references.
+    assert not stryd_access.stryd_connection_enabled(db, user_id=OWNER)
+    # The real route alias must still execute the actual owner/demo check.
+    monkeypatch.setattr('api.statsig_client.check_gate', lambda *args: True)
+    assert today.stryd_connection_enabled(db, user_id=OWNER)
+    db.get(User, OWNER).is_demo = True
+    db.commit()
+    assert not today.stryd_connection_enabled(db, user_id=OWNER)
 
 def store(db, ctx=None):
     ctx = ctx or context()
