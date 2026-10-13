@@ -177,6 +177,11 @@ class PriorityEvidence:
         class ObservedSession(Session):
             def commit(self):
                 caller=sys._getframe(1)
+                # Narrow test observers may wrap commit; find the real renewal
+                # frame without treating the wrapper's locals as authority.
+                for _ in range(3):
+                    if caller.f_code is renewal_code or caller.f_back is None:break
+                    caller=caller.f_back
                 local=caller.f_locals
                 # Capture already-loaded metadata before commit expires ORM
                 # state. Observation adds no DB reads or permission decisions.

@@ -255,8 +255,9 @@ def lifecycle_observations(supervisor,monkeypatch):
     def record(actor):
         actual_record(actor);transitions.append(deepcopy(actor))
     def exited():
-        actual_exit();actor=supervisor.lane.actor()
+        result=actual_exit();actor=supervisor.lane.actor()
         if actor and actor.get('state')=='idle':availability[actor['actor_token']]=time.monotonic()
+        return result
     monkeypatch.setattr(supervisor.lane,'record',record);monkeypatch.setattr(supervisor,'record_exit',exited)
     return transitions,availability
 

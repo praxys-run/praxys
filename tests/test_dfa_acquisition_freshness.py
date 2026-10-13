@@ -4,6 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 import hashlib
 import json
+import sys
 import queue
 import threading
 import time
@@ -17,6 +18,9 @@ from tests.test_activity_dfa import store
 from tests.test_dfa_origins import both_origins, complete_unit
 from tests.test_dfa_supervisor_capacity import PriorityEvidence
 from tests.dfa_capacity_measurement import lifecycle_observations
+from tests.dfa_boundary_evidence import StartupEvidence, RenewalDecision, safe_binding, boundary_junit
+from tests.dfa_attempt_evidence import assert_attempt_ledger
+from api.dfa_supervisor import SAFE_FAILURES
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / '.git/pr871-acquisition-freshness-r1'
@@ -44,6 +48,15 @@ class Cell:
         self.proof = PriorityEvidence(self.sup, monkeypatch)
         self.actors, self.availability = lifecycle_observations(self.sup, monkeypatch)
         self.events, self.threads, self.errors = [], [], []
+        self.diagnostic=StartupEvidence(self.sup,monkeypatch)
+        self.diagnostic.synchronize_acquisition=False
+        self.attempts=[]
+        self.first_execution_denial=False
+        self.fault_armed_at=self.fault_started=None
+        self.fault_injected=False
+        self.fault_target=None
+        self.fault_decision=RenewalDecision(self.sup,monkeypatch)
+        self.install_attempt_observers(monkeypatch)
         actual = self.sup.renew
         def renew():
             self.threads.append(threading.current_thread())
@@ -53,6 +66,113 @@ class Cell:
         self.backend = backend
         self.outcome = 'failed'
         self.before = self.snapshot()
+        self.diagnostic.note('automatic_admitted_entry',job=safe_binding(self.before))
+
+    def safe_state(self):
+        return {k:v for k,v in self.snapshot().items() if k!='id'}
+
+    def install_attempt_observers(self, monkeypatch):
+        cell=self;sup=self.sup
+        actual_finish=sup.finish;actual_bound=sup._bound;actual_current=service._current
+        actual_work=sup.work;work_code=actual_work.__func__.__code__;renew_code=sup.renew.__func__.__code__
+        run_code=sup.run.__func__.__code__
+        def current(db,run):
+            result=actual_current(db,run)
+            cell.diagnostic.note('acquisition_validation',current=result,
+                job=safe_binding({'id':run.id,'generation':run.generation,'epoch':run.execution_epoch,
+                                  'input':run.input_digest,'origin':run.origin,'phase':run.phase}))
+            return result
+        monkeypatch.setattr(service,'_current',current)
+        def claim_observed(job,started):
+            assert job['id']==cell.id, 'claim belongs to another unit'
+            state=cell.safe_state();binding=safe_binding(job)
+            validations=[e for e in cell.diagnostic.events if e['at']>=started]
+            current=any(e['event']=='acquisition_validation' and e['current'] and e['job']==binding for e in validations)
+            mode=next((e['mode'] for e in reversed(validations) if e['event']=='account_mode_validation'),None)
+            claim={'at':time.monotonic(),'job':binding,'state':state,'current':current,'mode':mode}
+            cell.attempts.append({'claim':claim,'occupied_ack':None,'finish':None,'finish_ack':None})
+            cell.diagnostic.note('attempt_claim',**claim)
+        cell.diagnostic.claim_observer=claim_observed
+        class Controls(sup.controls.class_):
+            def commit(session):
+                caller=sys._getframe(1)
+                result=super().commit()
+                if caller.f_code is work_code:
+                    actor=deepcopy(caller.f_locals['actor']);entry=cell.attempts[-1]
+                    entry['occupied_ack']={'at':time.monotonic(),'actor':safe_binding(actor)}
+                    cell.diagnostic.note('attempt_occupied_ack',**entry['occupied_ack'])
+                    if cell.first_execution_denial and len(cell.attempts)==1:
+                        cell.fault_armed_at=time.monotonic()
+                if (caller.f_code is renew_code and cell.fault_started==caller.f_locals['started']
+                        and cell.fault_target and cell.fault_target['matched']):
+                    active=safe_binding(caller.f_locals['active']);actor=safe_binding(sup.lane.actor())
+                    # Do not qualify a later/global renewal after the target retired.
+                    if active==cell.fault_target['job'] and actor==cell.fault_target['actor']:
+                        cell.fault_injected=True
+                        cell.diagnostic.note('scheduling_fault_applied',delay_seconds=.30,
+                            job=active,actor=actor,cycle_started=cell.fault_started)
+                        time.sleep(.30)
+                    else:cell.diagnostic.note('setup_failed',code='occupied_target_lost_before_control_ack')  # Real ACK delay, not a replaced clock or lease.
+                return result
+        sup.controls=sessionmaker(class_=Controls,**sup.controls.kw)
+        def bound(db):
+            caller=sys._getframe(1);row=actual_bound(db)
+            if (caller.f_code is renew_code and cell.fault_armed_at is not None and cell.fault_started is None
+                    and caller.f_locals['started']>=cell.fault_armed_at):
+                # Pin the first eligible cycle even on a mismatch: never search
+                # for a later favourable actor, epoch, phase or permission pulse.
+                cell.fault_started=caller.f_locals['started']
+                job=safe_binding(caller.f_locals['active']);actor=safe_binding(sup.lane.actor())
+                expected=cell.attempts[0]
+                matched=bool(row and len(cell.attempts)==1 and job==expected['claim']['job']
+                    and actor==expected['occupied_ack']['actor'] and actor['state']=='occupied'
+                    and safe_binding(row.actor)==actor and row.incarnation==sup.identity)
+                cell.fault_target={'matched':matched,'job':job,'actor':actor,'cycle_started':cell.fault_started}
+                if matched:cell.fault_decision.arm()
+                else:cell.diagnostic.note('setup_failed',code='first_occupied_cycle_binding_lost')
+            return row
+        monkeypatch.setattr(sup,'_bound',bound)
+        def work(job, outputs, cancellation=None):
+            class Delivered:
+                def put(_, value):
+                    if cell.first_execution_denial and len(cell.attempts)==1 and value[0]=='output':
+                        # Hold only delivery of the genuine numerical result in the fault
+                        # case. Renewal continues; its original clocks decide retirement.
+                        cell.diagnostic.note('result_delivery_boundary',status=value[0])
+                        assert cell.fault_decision.event.wait(2), cell.diagnostic.compact()
+                        with sup.lock:assert sup.allowed is False
+                    outputs.put(value)
+            actual_work(job,Delivered(),cancellation)
+        monkeypatch.setattr(sup,'work',work)
+        def finish(job,status,value):
+            if not cell.attempts:return actual_finish(job,status,value)
+            entry=cell.attempts[-1];pending=sup.pending;actor=sup.lane.actor()
+            frame=sys._getframe(1)
+            for _ in range(4):
+                if frame.f_code is run_code or frame.f_back is None:break
+                frame=frame.f_back
+            trigger=None
+            if frame.f_code is run_code:
+                trigger={'expired':frame.f_locals['expired'],'timed_out':frame.f_locals['timed_out'],
+                    'decision':StartupEvidence.decision(frame.f_locals['decision']),
+                    'actor':safe_binding(frame.f_locals['actor_before'])}
+            reason=value if isinstance(value,str) and value in SAFE_FAILURES|{'mode_changed','mode_unavailable','restart_interrupted'} else None
+            chosen=json.loads(pending.value_json) if pending else None
+            entry['finish']={'at':time.monotonic(),'job':safe_binding(job),'status':status,'reason':reason,
+                'pending_status':pending.status if pending else None,'pending_reason':chosen if isinstance(chosen,str) and chosen==reason else None,
+                'pending_actor':safe_binding(json.loads(pending.actor_json)) if pending else None,
+                'pending_job':safe_binding(json.loads(pending.job_json)) if pending else None,
+                'cancelled':pending.cancellation.is_set() if pending else None,'actor':safe_binding(actor),
+                'exit_ack_at':cell.availability.get(actor['actor_token']) if actor else None,
+                'before':cell.safe_state(),'trigger':trigger,'current':None,'mode':None}
+            cell.diagnostic.note('attempt_finish',**entry['finish'])
+            began=time.monotonic();actual_finish(job,status,value)
+            validations=[e for e in cell.diagnostic.events if e['at']>=began]
+            entry['finish']['current']=any(e['event']=='execution_validation' and e['current'] for e in validations)
+            entry['finish']['mode']=next((e['mode'] for e in reversed(validations) if e['event']=='account_mode_validation'),None)
+            entry['finish_ack']={'at':time.monotonic(),'after':cell.safe_state()}
+            cell.diagnostic.note('attempt_finish_ack',**entry['finish_ack'])
+        monkeypatch.setattr(sup,'finish',finish)
 
     def record(self, kind, **fields):
         self.events.append({'kind': kind, 'at': time.monotonic(), **fields})
@@ -61,15 +181,17 @@ class Cell:
         with self.factory() as db:
             run = db.get(Run, self.id)
             if run is None: return {'status': 'erased'}
-            return {key: getattr(run, key) for key in ('id','origin','phase','status','progress','generation','recoveries','error_code','execution_epoch')} | {
+            return {key: getattr(run, key) for key in ('id','origin','phase','status','progress','generation','recoveries','error_code','execution_epoch','input_digest')} | {
                 'lease_token_present': run.lease_token is not None, 'lease_until': str(run.lease_until) if run.lease_until else None,
-                'result_present': run.result is not None}
+                'result_present': run.result is not None,
+                'lease_token_hash':hashlib.sha256(run.lease_token.encode()).hexdigest() if run.lease_token else None}
 
     def start_renew(self):
         self.sup.stop.clear()
         thread = threading.Thread(target=self.sup.renew, name='dfa-control')
+        self.diagnostic.renewal.arm()
         thread.start()
-        wait_for(lambda: bool(self.proof.renewals) and self.sup.allowed)
+        self.diagnostic.renewal.wait()
         self.record('genuine_completed_renewal', receipt=deepcopy(self.proof.renewals[-1]))
         return thread
 
@@ -86,6 +208,9 @@ class Cell:
         # The negative phase's owned renewal loop is terminated, not parked.
         # Restart the actual reactor: it must obtain fresh completed checks.
         self.stop_renew()
+        self.diagnostic.synchronize_acquisition=True
+        self.diagnostic.renew_each_acquisition=True
+        self.diagnostic.used=False
         self.sup.stop.clear()
         def run():
             try: self.sup.run()
@@ -99,11 +224,12 @@ class Cell:
             assert view['freshness'] == 'current' and view['summary']['valid_windows'] > 0
             actor = db.get(Control, 1).actor
         assert actor['state'] == 'idle' and actor['actor_token'] in self.availability
-        assert self.snapshot()['recoveries'] == 0
+        recovered=assert_attempt_ledger(self.attempts,self.attempts[0]['claim']['job'])
+        assert self.snapshot()['recoveries']==recovered
         launched = next(a for a in self.actors if a.get('state') == 'occupied')
         assert launched['process_start_observed_at'] >= launched['launch_at']
-        denial_at = next(e['decision']['at'] for e in self.events if e['kind'] == 'actual_control_busy_denial')
-        assert any(r['completed_at'] > denial_at and r['permission_granted_at'] <= launched['launch_at'] for r in self.proof.renewals)
+        denials=[e['decision']['at'] for e in self.events if e['kind']=='actual_control_busy_denial']
+        if denials:assert any(r['completed_at']>denials[0] and r['permission_granted_at']<=launched['launch_at'] for r in self.proof.renewals)
         assert self.availability[actor['actor_token']] >= actor['exit_observed_at']
         self.record('same_queued_unit_authorized_complete', state=self.snapshot(), actor=actor)
 
@@ -119,7 +245,7 @@ class Cell:
             'before': self.before, 'after': self.snapshot(), 'events': self.events,
             'renewal_decisions': self.proof.renewal_decisions, 'completed_renewals': self.proof.renewals,
             'actors': self.actors, 'availability': self.availability,
-            'errors': self.errors, 'all_owned_threads_joined': joined,
+            'errors': self.errors, 'all_owned_threads_joined': joined, 'attempts':self.attempts,
             'scope': 'deterministic acquisition test; no capacity certificate; owned renewal phase stop/join and real reactor restart disclosed'}, indent=2))
         # Preserve failure evidence before cleanup assertions can interrupt it.
         assert joined, self.errors
@@ -132,7 +258,15 @@ def cell(both_origins, monkeypatch, request):
     factory, owner = both_origins
     value = Cell(factory, owner, monkeypatch, request.node.name.split('[')[0])
     try: yield value
-    finally: value.close()
+    except BaseException as exc:
+        value.diagnostic.error(exc);raise
+    finally:
+        try:value.close()
+        except BaseException as exc:
+            value.diagnostic.error(exc,cleanup=True);raise
+        finally:
+            value.diagnostic.emit(alive=any(t.is_alive() for t in value.threads))
+            request.node.user_properties.append(('dfa_attempts',json.dumps(value.attempts,separators=(',',':'))))
 
 
 @pytest.mark.parametrize('store', ['sqlite'], indirect=True)
@@ -302,3 +436,41 @@ def test_denial_after_final_check_is_failed_attempt_not_deferral(cell):
     assert state['status']=='queued' and state['recoveries']==1 and not state['result_present']
     cell.record('late_race_claimed_attempt_failed', status=status, error=error, state=state, service_success=False)
     cell.outcome = 'passed_negative_failed_service'
+
+
+@pytest.mark.parametrize('store',['sqlite','postgresql'],indirect=True)
+@pytest.mark.parametrize('first_denial',[False,True])
+def test_claimed_attempt_accounting_no_recovery_and_first_execution_denial(cell,first_denial,request):
+    cell.start_renew()
+    cell.first_execution_denial=first_denial
+    cell.complete_same_unit()
+    assert len(cell.attempts)==(2 if first_denial else 1)
+    assert cell.snapshot()['recoveries']==(1 if first_denial else 0)
+    if first_denial:
+        assert cell.fault_injected and cell.fault_target['matched'] and cell.fault_decision.observation is not None
+        fault=next(e for e in cell.diagnostic.terminal_events if e['event']=='scheduling_fault_applied')
+        first=cell.attempts[0]
+        assert fault['job']==first['claim']['job'] and fault['actor']==first['occupied_ack']['actor']
+        assert first['occupied_ack']['at']<=fault['cycle_started']<=fault['at']<first['finish']['trigger']['decision']['at']
+        assert first['finish']['trigger']['decision']['at']<=first['finish']['actor']['exit_observed_at']
+        assert cell.attempts[0]['finish']['status']=='failed'
+        assert cell.attempts[0]['finish']['reason']=='permission_expired'
+        # Falsify using the actual captured two-attempt lifecycle, not a copied
+        # helper implementation or fabricated successful claim/authority.
+        mutations=[('missing_claim',lambda a:a[0].update(claim=None)),
+                   ('claim_binding',lambda a:a[0]['claim']['state'].update(input_digest='different')),
+                   ('claim_lease',lambda a:a[0]['claim']['state'].update(lease_token_hash=None)),
+                   ('occupied_ack',lambda a:a[0].update(occupied_ack=None)),
+                   ('selected_reason',lambda a:a[0]['finish'].update(reason=None)),
+                   ('permission_decision',lambda a:a[0]['finish']['trigger'].update(decision=None)),
+                   ('failure_actor',lambda a:a[0]['finish']['trigger']['actor'].update(actor='other')),
+                   ('pending_binding',lambda a:a[0]['finish'].update(pending_actor=None)),
+                   ('physical_identity',lambda a:(a[0]['finish']['actor'].update(identity=None),a[0]['occupied_ack']['actor'].update(identity=None))),
+                   ('exit_ack',lambda a:a[0]['finish'].update(exit_ack_at=None)),
+                   ('owner_finish_ack',lambda a:a[0].update(finish_ack=None)),
+                   ('extra_recovery',lambda a:a[0]['finish_ack']['after'].update(recoveries=2))]
+        for name,mutate in mutations:
+            invalid=deepcopy(cell.attempts);mutate(invalid)
+            with pytest.raises(AssertionError):assert_attempt_ledger(invalid,cell.attempts[0]['claim']['job'])
+        request.node.user_properties.append(('dfa_missing_provenance_checks',json.dumps([name for name,_ in mutations])))
+    cell.outcome='passed_controlled_attempt_contract'

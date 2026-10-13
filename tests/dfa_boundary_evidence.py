@@ -64,6 +64,8 @@ def safe_binding(value):
         result['binding'] = deepcopy(value.get('binding'))
         result['state'] = value.get('state')
         result['identity'] = deepcopy(value.get('identity'))
+        if value.get('incarnation') is not None:
+            result['incarnation'] = sha256(json.dumps(value['incarnation'],sort_keys=True).encode()).hexdigest()
         for key in ('launch_at', 'process_start_observed_at', 'term_at', 'exit_observed_at'):
             result[key] = value.get(key)
     return result
@@ -85,6 +87,9 @@ class StartupEvidence:
         self.primary_errors, self.cleanup_errors = [], []
         self.dropped = 0
         self.used = False
+        self.claim_observer = None
+        self.synchronize_acquisition = True
+        self.renew_each_acquisition = False
         self.renewal = RenewalDecision(supervisor, monkeypatch)
         actual_acquire = supervisor.acquire_job
         actual_finish = supervisor.finish
@@ -92,10 +97,14 @@ class StartupEvidence:
         actual_mode = dfa_rights.account_mode
 
         def acquire():
+            started=time.monotonic()
             job = actual_acquire()
-            if job and not self.used:
+            if job and self.claim_observer:self.claim_observer(job,started)
+            if job and (not self.used or self.renew_each_acquisition):
                 self.used = True
                 self.note('acquisition_return', job=safe_binding(job))
+                if not self.synchronize_acquisition:
+                    return job
                 try:
                     assert str(job['epoch']) == str(supervisor.identity['epoch'])
                     self.renewal.arm()
@@ -157,6 +166,8 @@ class StartupEvidence:
     def note(self, event, **fields):
         value={'event':event, 'at':time.monotonic(), **deepcopy(fields)}
         if event in {'setup_failed','finish_entered','finish_ack','verified_target_exit',
+                     'attempt_claim','attempt_occupied_ack','attempt_finish','attempt_finish_ack',
+                     'first_renewal_outcome',
                      'scheduling_fault_applied','predecessor_changed_after_read','runtime_finalization'}:
             # Reserve bounded space for immutable terminal observations even
             # if ordinary repeated validation records exhaust the trace limit.
@@ -195,6 +206,126 @@ class StartupEvidence:
         # Human-readable captured log; boundary_junit also persists properties
         # regardless of the runner's optional stdout logging configuration.
         print('DFA_BOUNDARY_EVIDENCE '+self.compact(**fields), flush=True)
+
+
+class FirstRenewalOutcome:
+    """Observe one complete real renewal, including exception/denial; never retry it.
+
+    A control observation can precede Session exit. Stop after the first cycle
+    observation, retain any same-cycle close exception, and require thread return
+    before certifying the completed outcome; never start another cycle.
+    """
+    def __init__(self, supervisor, factory, monkeypatch):
+        self.supervisor, self.factory, self.monkeypatch = supervisor, factory, monkeypatch
+        self.first = None
+        self.cycle_started=None
+        self.observations=[]
+        self.stop_at=None
+        self.sql, self.assignments, self.errors = [], [], []
+        self.cleanup_errors = []
+        self.thread = None
+
+    def observe(self, scoped):
+        import sys
+        from hashlib import sha256
+        from tests.dfa_capacity_worker import failure
+        observer = self
+        original_class = type(self.supervisor)
+        renewal_code = self.supervisor.renew.__func__.__code__
+        class Observed(original_class):
+            def __setattr__(self, name, value):
+                caller = sys._getframe(1)
+                super().__setattr__(name, value)
+                if caller.f_code is not renewal_code:return
+                cycle=caller.f_locals['started']
+                if observer.cycle_started is not None and cycle!=observer.cycle_started:
+                    observer.errors.append({'class':'UnexpectedSecondRenewalCycle'});return
+                if name in ('allowed', 'permission_until', 'permission_decision'):
+                    observer.assignments.append({'field':name, 'at':time.monotonic(),
+                        'value':StartupEvidence.decision(value) if name=='permission_decision' else value})
+                if name == 'control_observation':
+                    exc = caller.f_locals.get('exc')
+                    observer.cycle_started=cycle
+                    observer.first = {'at':time.monotonic(), 'observation':deepcopy(value),
+                        'allowed':self.allowed, 'permission_until':self.permission_until,
+                        'decision':StartupEvidence.decision(self.permission_decision),
+                        'error':observer.error(exc) if exc else None,
+                        'stop_issuer':'test_first_cycle_observation'}
+                    if observer.stop_at is None:
+                        self.stop.set();observer.stop_at=time.monotonic()
+                    observer.first['stop_requested_at']=observer.stop_at
+                    observer.observations.append(deepcopy(observer.first))
+        scoped.setattr(self.supervisor, '__class__', Observed)
+        class Controls(self.supervisor.controls.class_):
+            def commit(session):
+                caller = sys._getframe(1)
+                row = caller.f_locals.get('row') if caller.f_code is renewal_code else None
+                if row is not None:
+                    observer.sql.append({'event':'invoked','at':time.monotonic(),
+                        'epoch':row.epoch, 'incarnation':sha256(json.dumps(row.incarnation,sort_keys=True).encode()).hexdigest(),
+                        'expected_sequence':row.readiness_sequence+1})
+                try:
+                    result = super().commit()
+                except BaseException as exc:
+                    if row is not None:observer.sql.append({'event':'error','at':time.monotonic(),'error':observer.error(exc)})
+                    raise
+                if row is not None:observer.sql.append({'event':'ack','at':time.monotonic()})
+                return result
+        from sqlalchemy.orm import sessionmaker
+        scoped.setattr(self.supervisor,'controls',sessionmaker(class_=Controls,**self.supervisor.controls.kw))
+
+    @staticmethod
+    def error(exc):
+        from tests.dfa_capacity_worker import failure
+        origin=getattr(exc,'orig',exc)
+        return {**failure(exc),'sqlite_errorcode':getattr(origin,'sqlite_errorcode',None),
+                'sqlstate':getattr(origin,'sqlstate',None)}
+
+    def capture_sql(self):
+        from db.models import ActivityDFAControl as Control
+        from hashlib import sha256
+        with self.factory() as db:
+            row=db.get(Control,1)
+            return {'epoch':row.epoch,'incarnation':sha256(json.dumps(row.incarnation,sort_keys=True).encode()).hexdigest(),
+                    'sequence':row.readiness_sequence,'deadline':row.ready_until.isoformat() if row.ready_until else None}
+
+    def run(self):
+        from tests.dfa_capacity_worker import failure
+        with self.monkeypatch.context() as scoped:
+            self.observe(scoped)
+            self.supervisor.stop.clear()
+            def renew():
+                try:self.supervisor.renew()
+                except BaseException as exc:self.errors.append(failure(exc))
+                finally:self.returned_at=time.monotonic()
+            self.thread=threading.Thread(target=renew,name='first-real-renewal')
+            self.thread.start();self.thread.join(3)
+            if self.thread.is_alive():
+                self.errors.append({'exception_class':'FirstRenewalDidNotTerminate'})
+                self.supervisor.stop.set();self.thread.join(1)
+            # Snapshot is supplemental. First outcome survives snapshot failure.
+            try:self.persisted=self.capture_sql() if not self.thread.is_alive() else None
+            except BaseException as exc:
+                self.persisted=None;self.cleanup_errors.append(failure(exc))
+        if not self.thread.is_alive():self.supervisor.stop.clear()
+        return self
+
+    def evidence(self):
+        return {'scope':'first completed renewal, not natural availability',
+                'first':self.first,'cycle_observations':self.observations[:3],
+                'returned_at':getattr(self,'returned_at',None),
+                'sql':self.sql[:4], 'assignments':self.assignments[:8],
+                'persisted':getattr(self,'persisted',None),'errors':self.errors[:2],
+                'cleanup_errors':self.cleanup_errors[:2],
+                'worker_alive':self.thread.is_alive() if self.thread else None}
+
+    def require_ready(self):
+        detail=json.dumps(self.evidence(),separators=(',',':'))
+        assert self.first and not self.thread.is_alive() and not self.errors and not self.cleanup_errors, detail
+        assert self.first['allowed'] and self.first['observation']['state']=='ready', 'FIRST_RENEWAL_SETUP_FAILURE '+detail
+        assert self.first['decision']['reason'] is None and self.sql[-1]['event']=='ack', detail
+        assert time.monotonic()<self.first['permission_until'], detail
+        return self.persisted
 
 
 @pytest.fixture(autouse=True)
