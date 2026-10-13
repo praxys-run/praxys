@@ -27,7 +27,7 @@ def context() -> dict:
         'as_of_date': today.isoformat(), 'include_stryd_plan': False,
         'coach_snapshot': coach.snapshot_identity(OWNER, dict.fromkeys(SCOPES, 0), today.isoformat(), False),
         'data_as_of': f'{today}T12:00:00Z',
-        'recovery_state': {'sleep_score': 80, 'hrv_ms': 54.0, 'resting_hr': 48,
+        'recovery_state': {'status': 'normal', 'sleep_score': 80, 'hrv_ms': 54.0, 'resting_hr': 48,
                            'hrv_trend': 'stable', 'rhr_trend': 'stable',
                            'metric_dates': dict.fromkeys(('sleep', 'hrv', 'rhr'), today.isoformat())},
         'current_fitness': {'ctl': 45, 'atl': 50, 'tsb': -5},
@@ -132,11 +132,154 @@ def test_current_summary_has_recovery_trends_load_and_plan():
     assert len(result['meta_extra']['theory_refs']) == 2
 
 
+def test_interpretation_explains_today_and_retains_all_observations():
+    ctx = context()
+    ctx.update(planned_today=None, today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    result = payload(ctx)
+    insights = [f for f in result['findings'] if f['kind'] == 'insight']
+    observations = [f for f in result['findings'] if f['kind'] == 'observation']
+    assert 'empty workout calendar does not itself call for rest' in insights[0]['text']
+    assert any('ATL is higher than CTL' in f['text'] for f in insights)
+    assert any('seven-day distance' in f['text'] for f in insights)
+    assert any('Sleep score: 80' in f['text'] for f in observations)
+    assert any('No Praxys-managed workout' in f['text'] for f in observations)
+    assert ctx['planned_today'] is None
+    assert '课表为空本身不代表需要休息' in result['translations']['zh']['findings'][0]['text']
+
+
+def test_model_cannot_omit_the_meaning_of_the_canonical_guidance():
+    ctx = context()
+    eligible = coach.candidates(ctx)
+    chosen = selection(eligible)
+    chosen['interpretation_ids'] = []
+    result = coach.render_selection(chosen, eligible)
+    assert result['findings'][0]['kind'] == 'insight'
+    assert 'scheduled workout unchanged' in result['findings'][0]['text']
+    assert any(f['kind'] == 'observation' for f in result['findings'])
+
+
+def test_daily_insights_are_capped_without_padding_or_dropping_observations():
+    eligible = coach.candidates(context())
+    # Simulate an expanded future candidate pool so the bound is enforced,
+    # rather than merely counting today's existing candidate types.
+    for index in range(5):
+        eligible['interpretations'][f'extra.{index}'] = {
+            'en': f'Supported interpretation {index}.',
+            'zh': f'支撑解读 {index}。', 'requires': ['training.week'],
+        }
+    chosen = selection(eligible)
+    chosen['interpretation_ids'] = [f'extra.{index}' for index in range(5)]
+    result = coach.render_selection(chosen, eligible)
+    for lang in ('en', 'zh'):
+        findings = result['translations'][lang]['findings']
+        interpreted = [f for f in findings if f['kind'] == 'insight']
+        assert len(interpreted) == coach.MAX_DAILY_INSIGHTS == 3
+        assert interpreted[0]['text'] == eligible['guidance_meaning'][lang]
+        assert [f['text'] for f in interpreted[1:]] == [
+            eligible['interpretations'][f'extra.{index}'][lang] for index in range(2)]
+        assert any(f['kind'] == 'observation' for f in findings)
+    observations = [f for f in result['findings'] if f['kind'] == 'observation']
+    chosen['interpretation_ids'] = []
+    sparse = coach.render_selection(chosen, eligible)
+    assert len([f for f in sparse['findings'] if f['kind'] == 'insight']) == 1
+    assert [f for f in sparse['findings'] if f['kind'] == 'observation'] == observations
+
+
+def test_missing_recovery_and_incomplete_distance_do_not_acquire_insights():
+    ctx = context()
+    ctx.update(planned_today=None, today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
+    ctx['recovery_state']['hrv_ms'] = None
+    ctx['recent_training']['sessions'][0]['distance_km'] = None
+    eligible = coach.candidates(ctx)
+    assert 'training.recent_share' not in eligible['interpretations']
+    result = payload(ctx)
+    assert 'classification is incomplete' in result['findings'][0]['text']
+    assert 'has not triggered' not in result['findings'][0]['text']
+
+
+@pytest.mark.parametrize('missing', [False, True])
+def test_observations_have_three_groups_preserving_dates_gaps_and_course_references(missing):
+    ctx = context()
+    ctx.update(planned_today=None, include_stryd_plan=True,
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'},
+               external_planned_today=[external_course(), external_course(source='garmin')])
+    if missing:
+        ctx['recovery_state']['hrv_ms'] = None
+        ctx['recovery_state']['metric_dates']['rhr'] = str(date.today() - timedelta(days=3))
+        ctx['recent_training']['sessions'][0]['distance_km'] = None
+        ctx['recent_training']['sessions'][0]['rss'] = None
+    eligible = coach.candidates(ctx)
+    rendered = coach.render_selection(selection(eligible), eligible)
+    for lang in ('en', 'zh'):
+        observations = [f for f in rendered['translations'][lang]['findings'] if f['kind'] == 'observation']
+        assert len(observations) == 3
+        texts = [f['text'] for f in observations]
+        for key, evidence in eligible['evidence'].items():
+            group = 0 if key.startswith(('recovery.', 'trend.')) else 1 if key.startswith('load.') else 2
+            assert texts[group].count(evidence[lang]) == 1
+        assert str(date.today()) in texts[0]
+        assert 'Stryd' in texts[2] and 'Garmin' in texts[2]
+        if missing:
+            assert eligible['evidence']['trend.hrv'][lang] in texts[0]
+            assert eligible['evidence']['recovery.rhr'][lang] in texts[0]
+            assert eligible['evidence']['training.week'][lang] in texts[2]
+
+
+def test_daily_response_declares_the_contract_and_keeps_finding_kinds(db):
+    _, ctx = store(db)
+    response = insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)
+    assert response['content_version'] == coach.CONTENT_VERSION
+    assert response['insight']['content_version'] == response['content_version']
+    assert response['insight']['findings'][0]['kind'] == 'insight'
+    assert any(f['kind'] == 'observation' for f in response['insight']['translations']['zh']['findings'])
+
+
+def test_long_verified_daily_groups_survive_route_serialization_in_both_languages(db):
+    ctx = context()
+    ctx.update(planned_today=None, include_stryd_plan=False,
+               today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'},
+               external_planned_today=[external_course(source='garmin', planned_distance_km=10 + i)
+                                       for i in range(25)])
+    row, ctx = store(db, ctx)
+    observations = [f for f in row.findings if f['kind'] == 'observation']
+    assert len(observations) == 3
+    for lang in ('en', 'zh'):
+        assert any(len(f['text']) > 1000 for f in row.translations[lang]['findings'])
+    response = insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)
+    assert response['content_status'] == 'ready'
+    assert response['insight']['findings'] == row.findings
+    assert response['insight']['translations'] == row.translations
+    # Longer groups do not relax external input or legacy serialization.
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        insights.InsightFinding.model_validate(observations[-1])
+    row.meta.pop(coach.CONTRACT_KEY)
+    serialized = insights._serialize_insight(row, db, feedback_allowed=False)
+    assert serialized['translations'] == {}
+    assert all(len(f['text']) <= 1000 for f in serialized['findings'])
+
+
+def test_finding_kinds_must_align_across_translations():
+    from pydantic import ValidationError
+    result = payload(context())
+    result['translations']['zh']['findings'][0]['kind'] = 'observation'
+    with pytest.raises(ValidationError, match='finding kinds must match'):
+        insights.InsightTranslations.model_validate(result['translations'])
+
+
+def test_unknown_unscheduled_reason_does_not_acquire_a_scheduled_workout():
+    ctx = context()
+    ctx.update(planned_today=None, today_signal={'recommendation': 'unscheduled', 'reason_code': 'future_reason'})
+    result = payload(ctx)
+    assert 'scheduled workout unchanged' not in result['findings'][0]['text']
+    assert ctx['planned_today'] is None
+
+
 @pytest.mark.parametrize('signal,reason,plan,expected', [
     ('rest', 'rest_scheduled', {'workout_type': 'rest'}, 'Keep today for recovery.'),
     ('rest', 'hrv_below_hard', {'workout_type': 'intervals'}, 'Keep today for recovery.'),
     ('easy', 'hrv_below_easy', {'workout_type': 'easy'}, "Keep today's session easy."),
-    ('unscheduled', 'unscheduled_open', None, 'Review the training plan before adding a session.'),
+    ('unscheduled', 'unscheduled_open', None, 'If a session fits your broader plan, train to that plan and check how you feel as you start.'),
     ('unscheduled', 'unscheduled_hrv_caution', None, 'Rest, walk, or do gentle mobility.'),
 ])
 def test_canonical_action_cannot_be_overridden(signal, reason, plan, expected):

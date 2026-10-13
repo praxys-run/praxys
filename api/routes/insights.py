@@ -41,6 +41,7 @@ class InsightFinding(BaseModel):
 
     type: Literal["positive", "warning", "neutral"]
     text: str = Field(min_length=1, max_length=1000)
+    kind: Literal["insight", "observation"] | None = None
 
     @field_validator("text")
     @classmethod
@@ -103,7 +104,28 @@ class InsightTranslations(BaseModel):
             for en_finding, zh_finding in zip(self.en.findings, self.zh.findings)
         ):
             raise ValueError("finding types must match across languages")
+        if any(en.kind != zh.kind for en, zh in zip(self.en.findings, self.zh.findings)):
+            raise ValueError("finding kinds must match across languages")
         return self
+
+
+class DailyCoachFinding(InsightFinding):
+    """Preserve grouped server-rendered evidence without the public prose cap."""
+
+    text: str = Field(min_length=1)
+
+
+class DailyCoachTranslation(InsightTranslation):
+    """Localize the verified server-owned daily finding groups."""
+
+    findings: list[DailyCoachFinding] = Field(default_factory=list)
+
+
+class DailyCoachTranslations(InsightTranslations):
+    """Keep daily language alignment while allowing complete evidence groups."""
+
+    en: DailyCoachTranslation | None = None
+    zh: DailyCoachTranslation | None = None
 
 
 class PushInsightRequest(BaseModel):
@@ -178,9 +200,18 @@ def _serialize_insight(
             meta,
         )
 
+    # The public push contract remains bounded. Only a provenance-verified,
+    # server-rendered daily receipt may contain grouped evidence longer than
+    # that single-finding prose limit; never silently discard its caveats.
+    from api.morning_coach import CONTRACT_KEY, validate_stored
+    contract = (row.meta or {}).get(CONTRACT_KEY) if isinstance(row.meta, dict) else None
+    verified_daily = (row.insight_type == "daily_brief" and isinstance(contract, dict)
+                      and validate_stored(row, contract.get("snapshot")))
+    translation_model = DailyCoachTranslations if verified_daily else InsightTranslations
+    finding_model = DailyCoachFinding if verified_daily else InsightFinding
     translations: dict[str, Any] = {}
     try:
-        translations = InsightTranslations.model_validate(row.translations).model_dump(exclude_none=True)
+        translations = translation_model.model_validate(row.translations).model_dump(exclude_none=True)
     except (TypeError, ValueError):
         # Legacy rows may predate the bilingual schema. Top-level English
         # fields still render after normalization below.
@@ -190,7 +221,7 @@ def _serialize_insight(
     if isinstance(row.findings, list):
         for finding in row.findings:
             try:
-                findings.append(InsightFinding.model_validate(finding).model_dump())
+                findings.append(finding_model.model_validate(finding).model_dump(exclude_none=True))
             except (TypeError, ValueError):
                 continue
 
@@ -268,7 +299,7 @@ def push_insight(
         .first()
     )
 
-    findings_dicts = [f.model_dump() for f in body.findings]
+    findings_dicts = [f.model_dump(exclude_none=True) for f in body.findings]
     client_meta = dict(body.meta)
     client_meta.pop(GENERATION_PROVENANCE_KEY, None)
     client_meta.pop(DAILY_BRIEF_FRESHNESS_KEY, None)
@@ -428,7 +459,7 @@ def submit_insight_feedback(
 
 def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapshot: str | None) -> dict:
     """Serve only verified, current, server-rendered daily content."""
-    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs
+    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs, CONTENT_VERSION
     from api.stryd_access import stryd_connection_enabled
     from api.packs import RequestContext
     from db.models import AiInsight
@@ -437,7 +468,7 @@ def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapsh
     enabled = stryd_connection_enabled(db, user_id=current_user_id)
     before = current_snapshot(db, data_user_id, enabled)
     refs = theory_refs(RequestContext(user_id=data_user_id, db=db, include_stryd_plan=enabled).science)
-    response = {"insight": None, "ai_available": available(db, data_user_id),
+    response = {"insight": None, "ai_available": available(db, data_user_id), "content_version": CONTENT_VERSION,
                 "content_status": "pending", "snapshot": before, "theory_refs": refs}
     if not response["ai_available"]:
         response["content_status"] = "unavailable"
@@ -494,6 +525,7 @@ def get_insights(
             insights = {}
             daily.update(content_status="unavailable", ai_available=False)
     return {"ai_available": daily["ai_available"], "insights": insights,
+            "content_version": daily["content_version"],
             "content_status": daily["content_status"], "snapshot": daily["snapshot"],
             "theory_refs": daily["theory_refs"]}
 

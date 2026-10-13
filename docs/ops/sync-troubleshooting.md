@@ -12,6 +12,28 @@ and direct actions return 404. Do not add a broader rule while troubleshooting.
 Domain detail lives in [`docs/dev/gotchas.md`](../dev/gotchas.md) → "Garmin sync";
 this is the operational quick-path.
 
+## Coach returns after reload, then disappears
+
+The service worker excludes API data. Distinguish browser query cache age from
+the server's daily content status. `/api/today` supplies `coach_snapshot` and
+`/api/insights/daily_brief?snapshot=...` validates that identity before serving
+Coach. A different returned snapshot requires re-reading Today; the clients
+automatically retry that snapshot pair once. `stale` with an unchanged snapshot
+means the stored daily content requires regeneration, not another cached read.
+
+Daily rendering contract `morning-coach-v3` separates interpreted findings from
+observations using optional `finding.kind`, and the response declares its
+current `content_version`. Existing v2 records regenerate on the next eligible
+sync, including a sync with no new rows. No database migration or AI runtime
+switch change is required. The explicit Today **Sync now** action uses the
+existing authenticated sync path and call budget. During an AI outage, Coach
+remains unavailable and separately labelled training metrics continue.
+
+Verify the authenticated current snapshot, daily content status and sync/run
+outcome without exporting user training payloads or credentials. A hard reload
+can temporarily replace a stale page snapshot; it does not repair a failed
+generation or authorize bypassing processing controls.
+
 ## #1 cause: the Garmin auth gate (`auth_required`)
 
 By far the most common incident. Garmin/Cloudflare bot-detection trips the

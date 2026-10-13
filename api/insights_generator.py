@@ -59,7 +59,9 @@ def generate_daily_brief(
             client,
             system=("Order the eligible evidence for a morning training review. Return ONLY a JSON object with "
                     "evidence_ids, interpretation_ids, action_ids arrays. Include every evidence ID, "
-                    "choose supported interpretation IDs and exactly one eligible action ID. "
+                    "choose supported interpretation IDs that explain what the observations mean for today's training, "
+                    "order them by relevance to today's decision and do not add interpretations just to fill space, "
+                    "prefer load context and recent-session context when eligible, and choose exactly one eligible action ID. "
                     "No other fields, prose, values or invented IDs."),
             user=json.dumps({k: eligible[k] for k in ("evidence", "interpretations", "actions")}),
             model=llm.INSIGHT_MODEL, insight_type="daily_brief", retry=0,

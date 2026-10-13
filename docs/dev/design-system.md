@@ -199,3 +199,22 @@ Praxys-managed training is authoritative, including scheduled rest. External
 courses are platform-labelled references, with conditional advice using recorded
 targets. Expanded findings may describe measured splits without assigning zones
 or recovery costs from a power value alone.
+
+
+Expanded daily details show **Training interpretation / 训练解读** before
+**Supporting observations / 支撑观测**. Show at most three interpretations,
+including the canonical Today guidance first and up to two selected supporting
+interpretations. Fewer are welcome when evidence is limited; never pad to three.
+The interpretation connects the existing
+Today rule to its practical meaning; observations retain measurements, dates and
+recorded-history coverage in at most three groups: recovery (including missing
+trend assessments), modeled training load, and recorded training / today's
+course references. Keep missing or stale-data caveats inside the relevant group.
+A calendar with no workout must not replace the
+training-guidance badge with a plan-presence badge. Missing recovery evidence
+remains visible as limited guidance.
+
+Query cache expiry schedules revalidation; it is not a scientific freshness
+verdict. A changed Coach snapshot refreshes Today once for that snapshot pair.
+Content that is outdated at an already-matching snapshot needs generation, so
+offer an explicit sync action rather than repeated read-only Refresh calls.

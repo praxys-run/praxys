@@ -304,6 +304,11 @@ The component is deliberately *minimal* — it adds reasoning depth without clai
 
 ## Morning Coach receipt
 
+Daily expanded details separate **Training interpretation / 训练解读** from
+**Supporting observations / 支撑观测**, in that order. Keep both as flat groups
+inside the existing receipt. The Today badge expresses the existing training
+guidance; workout presence belongs in the separate plan line.
+
 The approved receipt order is Praxys Coach and applicable server date, headline,
 two-to-three-sentence recovery-bearing summary, **Key recommendation / 关键建议**,
 optional details disclosure, always-visible structured theory links, then exact
