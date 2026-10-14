@@ -1,0 +1,1526 @@
+{
+  "schema_version": 1,
+  "review_id": "evidence-trail-running-program-v1",
+  "searched_on": "2026-09-14",
+  "transport": "Canonical chrome-devtools-mcp 1.6.0; isolated headless public Chrome via JSON-RPC stdio; navigate_page and evaluate_script; no signed-in sessions",
+  "endpoint": "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
+  "design": "Bounded rigorous evidence appraisal with targeted source verification; not an exhaustive systematic review",
+  "query_notes": [
+    "Default API ordering; no claim that unretrieved hits were screened.",
+    "Initial sort=RELEVANCE requests returned version-only bodies and were treated as failed queries, not zero findings. All ten discovery queries were rerun without sort.",
+    "Broad and refined queries remained noisy; exact source searches and prior-record citation tracking supplied targeted adult evidence. Multi-identifier discovery returned only one record and was not relied on for verification; each cited identifier was checked separately or by an exact-title result.",
+    "PMID 31799368 and 27479827 were excluded after metadata proved unrelated; no claims depend on them.",
+    "The stair-source erratum PMID 28222059 was discovered at metadata level; no unverified corrected quantitative result is used."
+  ],
+  "queries": [
+    {
+      "domain_or_purpose": "general-base",
+      "query": "TITLE_ABS:(trail running) AND TITLE_ABS:(training OR determinants OR performance) AND (REVIEW:Y OR TITLE_ABS:(systematic review)) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28trail+running%29+AND+TITLE_ABS%3A%28training+OR+determinants+OR+performance%29+AND+%28REVIEW%3AY+OR+TITLE_ABS%3A%28systematic+review%29%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 11,
+      "retrieved_count": 11,
+      "retrieved_ids": [
+        "41718076",
+        "41635506",
+        "42114829",
+        "41079051",
+        "38324270",
+        "33508776",
+        "35022162",
+        "37535248",
+        "33538997",
+        "34071815",
+        "30707947"
+      ],
+      "selected_ids": [
+        "33508776"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "sparse-history",
+      "query": "TITLE_ABS:(running) AND TITLE_ABS:(training load OR training progression) AND TITLE_ABS:(injury OR novice) AND (REVIEW:Y OR TITLE_ABS:(randomized)) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28running%29+AND+TITLE_ABS%3A%28training+load+OR+training+progression%29+AND+TITLE_ABS%3A%28injury+OR+novice%29+AND+%28REVIEW%3AY+OR+TITLE_ABS%3A%28randomized%29%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 5,
+      "retrieved_count": 5,
+      "retrieved_ids": [
+        "38291782",
+        "34543419",
+        "29895234",
+        "27107810",
+        "28224442"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "downhill-strength",
+      "query": "TITLE_ABS:(downhill running) AND TITLE_ABS:(eccentric OR adaptation OR repeated bout OR strength) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28downhill+running%29+AND+TITLE_ABS%3A%28eccentric+OR+adaptation+OR+repeated+bout+OR+strength%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 363,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "41244004",
+        "42596082",
+        "41590954",
+        "39992182",
+        "42647178",
+        "42536523",
+        "41209300",
+        "42427256",
+        "41630123",
+        "42483104",
+        "41323871",
+        "38921863",
+        "42521198",
+        "39934627",
+        "41726103",
+        "40411707",
+        "42269175",
+        "39917273",
+        "41028099",
+        "40400783"
+      ],
+      "selected_ids": [
+        "39992182",
+        "38921863"
+      ],
+      "unretrieved_hits_not_screened": 343
+    },
+    {
+      "domain_or_purpose": "no-equipment",
+      "query": "TITLE_ABS:(bodyweight OR home-based OR elastic resistance) AND TITLE_ABS:(strength training) AND TITLE_ABS:(systematic review OR meta-analysis) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28bodyweight+OR+home-based+OR+elastic+resistance%29+AND+TITLE_ABS%3A%28strength+training%29+AND+TITLE_ABS%3A%28systematic+review+OR+meta-analysis%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1194,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "42698552",
+        "PMC13567585",
+        "42703190",
+        "42484554",
+        "42708805",
+        "42676087",
+        "42410632",
+        "42223143",
+        "42245548",
+        "42712402",
+        "42321444",
+        "42473844",
+        "41951916",
+        "42549104",
+        "42343406",
+        "42468010",
+        "42323824",
+        "42570706",
+        "42496380",
+        "41133592"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 1174
+    },
+    {
+      "domain_or_purpose": "stairs-treadmill",
+      "query": "TITLE_ABS:(stair climbing OR uphill training OR incline treadmill) AND TITLE_ABS:(aerobic OR endurance OR training) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28stair+climbing+OR+uphill+training+OR+incline+treadmill%29+AND+TITLE_ABS%3A%28aerobic+OR+endurance+OR+training%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 58,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "42679002",
+        "42244388",
+        "41095078",
+        "35311722",
+        "36036381",
+        "37293410",
+        "36592654",
+        "31524783",
+        "38486632",
+        "37583712",
+        "37947080",
+        "37038368",
+        "30842893",
+        "31453532",
+        "22233967",
+        "29985226",
+        "34363745",
+        "36556297",
+        "31477333",
+        "22572926"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 38
+    },
+    {
+      "domain_or_purpose": "double-session",
+      "query": "TITLE_ABS:(concurrent training) AND TITLE_ABS:(systematic review OR meta-analysis) AND TITLE_ABS:(interference OR recovery OR order) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28concurrent+training%29+AND+TITLE_ABS%3A%28systematic+review+OR+meta-analysis%29+AND+TITLE_ABS%3A%28interference+OR+recovery+OR+order%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 51,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "42038220",
+        "41734815",
+        "41919960",
+        "42539642",
+        "42527160",
+        "41669271",
+        "PPR1150319",
+        "41900900",
+        "41762427",
+        "39060741",
+        "37847373",
+        "42394842",
+        "PPR1160152",
+        "37948036",
+        "PPR1268068",
+        "36429528",
+        "40455651",
+        "35476184",
+        "40687235",
+        "34757594"
+      ],
+      "selected_ids": [
+        "41762427",
+        "34757594"
+      ],
+      "unretrieved_hits_not_screened": 31
+    },
+    {
+      "domain_or_purpose": "first-finish",
+      "query": "TITLE_ABS:(run walk OR run-walk OR first-time marathon) AND TITLE_ABS:(training OR performance OR fatigue) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28run+walk+OR+run-walk+OR+first-time+marathon%29+AND+TITLE_ABS%3A%28training+OR+performance+OR+fatigue%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 335,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "41469146",
+        "42712078",
+        "42364441",
+        "41843336",
+        "42646883",
+        "42482233",
+        "PPR1135361",
+        "41128270",
+        "42137179",
+        "42303557",
+        "39637993",
+        "40583932",
+        "39501476",
+        "40375575",
+        "39947644",
+        "40016936",
+        "41334713",
+        "42460269",
+        "40025365",
+        "40104682"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 315
+    },
+    {
+      "domain_or_purpose": "fifty-km",
+      "query": "TITLE_ABS:(50 km OR 50-km OR ultramarathon) AND TITLE_ABS:(training OR preparation OR pacing) AND (REVIEW:Y OR TITLE_ABS:(prospective)) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%2850+km+OR+50-km+OR+ultramarathon%29+AND+TITLE_ABS%3A%28training+OR+preparation+OR+pacing%29+AND+%28REVIEW%3AY+OR+TITLE_ABS%3A%28prospective%29%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 2857,
+      "retrieved_count": 20,
+      "retrieved_ids": [
+        "PPR1243156",
+        "PPR1239947",
+        "41616722",
+        "42583169",
+        "PPR1275080",
+        "PPR1310147",
+        "41022448",
+        "PPR1187087",
+        "42584018",
+        "PPR1237892",
+        "42043519",
+        "42089496",
+        "41483053",
+        "42592678",
+        "42645673",
+        "42350013",
+        "41887449",
+        "42683123",
+        "42634896",
+        "42189456"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 2837
+    },
+    {
+      "domain_or_purpose": "progression-restart",
+      "query": "TITLE_ABS:(endurance OR runners) AND TITLE_ABS:(detraining OR training progression OR training interruption) AND (REVIEW:Y OR TITLE_ABS:(systematic review)) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28endurance+OR+runners%29+AND+TITLE_ABS%3A%28detraining+OR+training+progression+OR+training+interruption%29+AND+%28REVIEW%3AY+OR+TITLE_ABS%3A%28systematic+review%29%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 0,
+      "retrieved_count": 0,
+      "retrieved_ids": [],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "fuel-taper",
+      "query": "TITLE_ABS:(ultramarathon nutrition OR endurance taper OR tapering endurance) AND (REVIEW:Y OR TITLE_ABS:(position stand OR meta-analysis)) AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%28ultramarathon+nutrition+OR+endurance+taper+OR+tapering+endurance%29+AND+%28REVIEW%3AY+OR+TITLE_ABS%3A%28position+stand+OR+meta-analysis%29%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 4,
+      "retrieved_count": 4,
+      "retrieved_ids": [
+        "38800277",
+        "31715047",
+        "32044211",
+        "8352030"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "general-base-refined",
+      "query": "TITLE_ABS:\"trail running\" AND (TITLE_ABS:\"performance\" OR TITLE_ABS:\"training\") AND (TITLE_ABS:\"review\") AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%22trail+running%22+AND+%28TITLE_ABS%3A%22performance%22+OR+TITLE_ABS%3A%22training%22%29+AND+%28TITLE_ABS%3A%22review%22%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 12,
+      "retrieved_count": 12,
+      "retrieved_ids": [
+        "42544120",
+        "42047663",
+        "42570247",
+        "41718076",
+        "42114829",
+        "41635506",
+        "33508776",
+        "35022162",
+        "35141547",
+        "33538997",
+        "37535248",
+        "35122632"
+      ],
+      "selected_ids": [
+        "33508776"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "sparse-history-refined",
+      "query": "TITLE_ABS:\"running\" AND (TITLE_ABS:\"training load\" OR TITLE_ABS:\"training progression\") AND (TITLE_ABS:\"injury\" OR TITLE_ABS:\"injuries\") AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%22running%22+AND+%28TITLE_ABS%3A%22training+load%22+OR+TITLE_ABS%3A%22training+progression%22%29+AND+%28TITLE_ABS%3A%22injury%22+OR+TITLE_ABS%3A%22injuries%22%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 106,
+      "retrieved_count": 30,
+      "retrieved_ids": [
+        "42221209",
+        "42181776",
+        "42170146",
+        "42085374",
+        "40772114",
+        "42712612",
+        "41239840",
+        "41758294",
+        "42012153",
+        "41479618",
+        "42298171",
+        "42136074",
+        "41668949",
+        "41812060",
+        "42413555",
+        "41993124",
+        "39976375",
+        "39228778",
+        "38291782",
+        "41668934",
+        "40937318",
+        "41718076",
+        "41802435",
+        "39330738",
+        "40125315",
+        "39992183",
+        "39142646",
+        "36200967",
+        "35484612",
+        "36006082"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 76
+    },
+    {
+      "domain_or_purpose": "downhill-strength-refined",
+      "query": "TITLE_ABS:\"downhill running\" AND (TITLE_ABS:\"eccentric\" OR TITLE_ABS:\"preconditioning\" OR TITLE_ABS:\"repeated bout\") AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%22downhill+running%22+AND+%28TITLE_ABS%3A%22eccentric%22+OR+TITLE_ABS%3A%22preconditioning%22+OR+TITLE_ABS%3A%22repeated+bout%22%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 208,
+      "retrieved_count": 30,
+      "retrieved_ids": [
+        "41244004",
+        "41209300",
+        "41726103",
+        "38921863",
+        "42427256",
+        "40775252",
+        "40566712",
+        "39934627",
+        "39992182",
+        "40411707",
+        "42269175",
+        "40400783",
+        "35225166",
+        "PPR951577",
+        "37429884",
+        "39917273",
+        "39771010",
+        "41975791",
+        "36979148",
+        "38185480",
+        "38995445",
+        "38130917",
+        "37486763",
+        "38735625",
+        "39467485",
+        "39376896",
+        "36222183",
+        "38085619",
+        "38053947",
+        "35507975"
+      ],
+      "selected_ids": [
+        "38921863",
+        "39992182"
+      ],
+      "unretrieved_hits_not_screened": 178
+    },
+    {
+      "domain_or_purpose": "no-equipment-refined",
+      "query": "(TITLE_ABS:\"elastic resistance\" OR TITLE_ABS:\"bodyweight\") AND TITLE_ABS:\"strength\" AND TITLE_ABS:\"review\" AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22elastic+resistance%22+OR+TITLE_ABS%3A%22bodyweight%22%29+AND+TITLE_ABS%3A%22strength%22+AND+TITLE_ABS%3A%22review%22+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 49,
+      "retrieved_count": 30,
+      "retrieved_ids": [
+        "41849658",
+        "40043086",
+        "41812594",
+        "41535482",
+        "41515221",
+        "42611173",
+        "42034350",
+        "40843825",
+        "40861009",
+        "38845163",
+        "41755895",
+        "39108442",
+        "35202063",
+        "40990157",
+        "39811024",
+        "36662121",
+        "32953119",
+        "32750124",
+        "40839149",
+        "40990154",
+        "35652939",
+        "35836177",
+        "35913269",
+        "38179388",
+        "30815258",
+        "35055695",
+        "33043011",
+        "28032811",
+        "36346721",
+        "32155096"
+      ],
+      "selected_ids": [
+        "30815258"
+      ],
+      "unretrieved_hits_not_screened": 19
+    },
+    {
+      "domain_or_purpose": "stairs-treadmill-refined",
+      "query": "(TITLE_ABS:\"stair climbing\" OR TITLE_ABS:\"stair descending\") AND TITLE_ABS:\"training\" AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22stair+climbing%22+OR+TITLE_ABS%3A%22stair+descending%22%29+AND+TITLE_ABS%3A%22training%22+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 312,
+      "retrieved_count": 30,
+      "retrieved_ids": [
+        "41562268",
+        "42393677",
+        "40359389",
+        "41951210",
+        "41534474",
+        "39335739",
+        "42614459",
+        "40786369",
+        "PPR1272076",
+        "41140974",
+        "42381093",
+        "PPR1043774",
+        "40644234",
+        "41899860",
+        "42169437",
+        "39590559",
+        "42382858",
+        "39563107",
+        "41639287",
+        "42338581",
+        "40855716",
+        "40656902",
+        "42450889",
+        "41772995",
+        "41950555",
+        "41613017",
+        "41606964",
+        "40913677",
+        "39587826",
+        "41353887"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 282
+    },
+    {
+      "domain_or_purpose": "double-session-refined",
+      "query": "TITLE_ABS:\"concurrent training\" AND TITLE_ABS:\"meta-analysis\" AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%22concurrent+training%22+AND+TITLE_ABS%3A%22meta-analysis%22+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 64,
+      "retrieved_count": 30,
+      "retrieved_ids": [
+        "41927039",
+        "42038220",
+        "41734815",
+        "42040592",
+        "42570706",
+        "42679419",
+        "42527160",
+        "41321499",
+        "40691799",
+        "39791640",
+        "41862856",
+        "42455405",
+        "41435686",
+        "PPR1161244",
+        "41731443",
+        "41011088",
+        "39064615",
+        "40218073",
+        "38187085",
+        "40943888",
+        "37215175",
+        "40427956",
+        "39308824",
+        "39758295",
+        "37780628",
+        "37847373",
+        "39794384",
+        "PPR850528",
+        "42323776",
+        "PPR819700"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 34
+    },
+    {
+      "domain_or_purpose": "first-finish-refined",
+      "query": "(TITLE_ABS:\"run-walk\" OR TITLE_ABS:\"run walk\") AND TITLE_ABS:\"marathon\" AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22run-walk%22+OR+TITLE_ABS%3A%22run+walk%22%29+AND+TITLE_ABS%3A%22marathon%22+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 3,
+      "retrieved_count": 3,
+      "retrieved_ids": [
+        "25467199",
+        "21483316",
+        "1483435"
+      ],
+      "selected_ids": [
+        "25467199"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "fifty-km-refined",
+      "query": "(TITLE_ABS:\"50-km\" OR TITLE_ABS:\"50 km\" OR TITLE_ABS:\"ultramarathon\") AND (TITLE_ABS:\"training\" OR TITLE_ABS:\"nutrition\") AND (TITLE_ABS:\"review\" OR TITLE_ABS:\"position stand\") AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%2250-km%22+OR+TITLE_ABS%3A%2250+km%22+OR+TITLE_ABS%3A%22ultramarathon%22%29+AND+%28TITLE_ABS%3A%22training%22+OR+TITLE_ABS%3A%22nutrition%22%29+AND+%28TITLE_ABS%3A%22review%22+OR+TITLE_ABS%3A%22position+stand%22%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 16,
+      "retrieved_count": 16,
+      "retrieved_ids": [
+        "40710785",
+        "42047663",
+        "PPR1243156",
+        "38952700",
+        "41900531",
+        "41615405",
+        "36695958",
+        "36251066",
+        "30943823",
+        "31702720",
+        "34630159",
+        "33551836",
+        "33122315",
+        "IND606229094",
+        "32077066",
+        "23669089"
+      ],
+      "selected_ids": [
+        "30943823"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "progression-restart-refined",
+      "query": "TITLE_ABS:\"detraining\" AND TITLE_ABS:\"endurance\" AND TITLE_ABS:\"review\" AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%22detraining%22+AND+TITLE_ABS%3A%22endurance%22+AND+TITLE_ABS%3A%22review%22+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 14,
+      "retrieved_count": 14,
+      "retrieved_ids": [
+        "42730845",
+        "37821393",
+        "41783454",
+        "40475715",
+        "35968278",
+        "35005045",
+        "33676172",
+        "28465945",
+        "17947300",
+        "26284158",
+        "17123325",
+        "10966148",
+        "17650153",
+        "2691004"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "fuel-taper-refined",
+      "query": "(TITLE_ABS:\"tapering\" AND TITLE_ABS:\"endurance\" AND TITLE_ABS:\"meta-analysis\") OR (TITLE_ABS:\"ultramarathon\" AND TITLE_ABS:\"nutrition\" AND TITLE_ABS:\"position stand\") AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22tapering%22+AND+TITLE_ABS%3A%22endurance%22+AND+TITLE_ABS%3A%22meta-analysis%22%29+OR+%28TITLE_ABS%3A%22ultramarathon%22+AND+TITLE_ABS%3A%22nutrition%22+AND+TITLE_ABS%3A%22position+stand%22%29+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 0,
+      "retrieved_count": 0,
+      "retrieved_ids": [],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "exact-prior-new-candidates",
+      "query": "EXT_ID:33508776 OR EXT_ID:41843416 OR EXT_ID:29249083 OR EXT_ID:33037592 OR EXT_ID:8887208 OR EXT_ID:29751254 OR EXT_ID:23437093 OR EXT_ID:34757594 OR EXT_ID:37163550 OR EXT_ID:31799368 OR EXT_ID:38344385 OR EXT_ID:31802395 OR EXT_ID:38627351 OR EXT_ID:39992182 OR EXT_ID:38921863 OR EXT_ID:40623829 OR EXT_ID:17940147 AND FIRST_PDATE:[1900-01-01 TO 2026-09-14]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33508776+OR+EXT_ID%3A41843416+OR+EXT_ID%3A29249083+OR+EXT_ID%3A33037592+OR+EXT_ID%3A8887208+OR+EXT_ID%3A29751254+OR+EXT_ID%3A23437093+OR+EXT_ID%3A34757594+OR+EXT_ID%3A37163550+OR+EXT_ID%3A31799368+OR+EXT_ID%3A38344385+OR+EXT_ID%3A31802395+OR+EXT_ID%3A38627351+OR+EXT_ID%3A39992182+OR+EXT_ID%3A38921863+OR+EXT_ID%3A40623829+OR+EXT_ID%3A17940147+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-09-14%5D&format=json&resultType=core&pageSize=30",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "17940147"
+      ],
+      "selected_ids": [
+        "17940147"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "33508776",
+      "query": "EXT_ID:33508776",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33508776&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "33508776"
+      ],
+      "selected_ids": [
+        "33508776"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "41843416",
+      "query": "EXT_ID:41843416",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A41843416&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "41843416"
+      ],
+      "selected_ids": [
+        "41843416"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "29249083",
+      "query": "EXT_ID:29249083",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A29249083&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "29249083"
+      ],
+      "selected_ids": [
+        "29249083"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "33037592",
+      "query": "EXT_ID:33037592",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33037592&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "33037592"
+      ],
+      "selected_ids": [
+        "33037592"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "8887208",
+      "query": "EXT_ID:8887208",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A8887208&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "8887208"
+      ],
+      "selected_ids": [
+        "8887208"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "29751254",
+      "query": "EXT_ID:29751254",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A29751254&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "29751254"
+      ],
+      "selected_ids": [
+        "29751254"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "23437093",
+      "query": "EXT_ID:23437093",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A23437093&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "23437093"
+      ],
+      "selected_ids": [
+        "23437093"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "34757594",
+      "query": "EXT_ID:34757594",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A34757594&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "34757594"
+      ],
+      "selected_ids": [
+        "34757594"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "37163550",
+      "query": "EXT_ID:37163550",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A37163550&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "37163550"
+      ],
+      "selected_ids": [
+        "37163550"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "31799368",
+      "query": "EXT_ID:31799368",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31799368&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31799368"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "38344385",
+      "query": "EXT_ID:38344385",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38344385&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "38344385"
+      ],
+      "selected_ids": [
+        "38344385"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "31802395",
+      "query": "EXT_ID:31802395",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31802395&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31802395"
+      ],
+      "selected_ids": [
+        "31802395"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "38627351",
+      "query": "EXT_ID:38627351",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38627351&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "38627351"
+      ],
+      "selected_ids": [
+        "38627351"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "39992182",
+      "query": "EXT_ID:39992182",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A39992182&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "39992182"
+      ],
+      "selected_ids": [
+        "39992182"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "38921863",
+      "query": "EXT_ID:38921863",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38921863&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "38921863"
+      ],
+      "selected_ids": [
+        "38921863"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "40623829",
+      "query": "EXT_ID:40623829",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A40623829&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "40623829"
+      ],
+      "selected_ids": [
+        "40623829"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "17940147",
+      "query": "EXT_ID:17940147",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A17940147&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "17940147"
+      ],
+      "selected_ids": [
+        "17940147"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "25467199",
+      "query": "EXT_ID:25467199",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A25467199&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "25467199"
+      ],
+      "selected_ids": [
+        "25467199"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "30815258",
+      "query": "EXT_ID:30815258",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A30815258&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "30815258"
+      ],
+      "selected_ids": [
+        "30815258"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "30943823",
+      "query": "EXT_ID:30943823",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A30943823&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "30943823"
+      ],
+      "selected_ids": [
+        "30943823"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "31702720",
+      "query": "EXT_ID:31702720",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31702720&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31702720"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "31642726",
+      "query": "EXT_ID:31642726",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31642726&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31642726"
+      ],
+      "selected_ids": [
+        "31642726"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "41762427",
+      "query": "EXT_ID:41762427",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A41762427&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "41762427"
+      ],
+      "selected_ids": [
+        "41762427"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "27479827",
+      "query": "EXT_ID:27479827",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A27479827&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "27479827"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "ultra-position-stand-title",
+      "query": "TITLE:\"International Society of Sports Nutrition position stand\" AND TITLE:\"ultra-marathon\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22International+Society+of+Sports+Nutrition+position+stand%22+AND+TITLE%3A%22ultra-marathon%22&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31699159"
+      ],
+      "selected_ids": [
+        "31699159"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "stair-fitness-title",
+      "query": "TITLE:\"Brief Intense Stair Climbing Improves Cardiorespiratory Fitness\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Brief+Intense+Stair+Climbing+Improves+Cardiorespiratory+Fitness%22&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 2,
+      "retrieved_count": 2,
+      "retrieved_ids": [
+        "28009784",
+        "28222059"
+      ],
+      "selected_ids": [
+        "28009784"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "fuel-training-title",
+      "query": "TITLE:\"Training the gut\" AND TITLE_ABS:\"athletes\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Training+the+gut%22+AND+TITLE_ABS%3A%22athletes%22&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 2,
+      "retrieved_count": 2,
+      "retrieved_ids": [
+        "28332114",
+        "16640953"
+      ],
+      "selected_ids": [
+        "28332114"
+      ],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "fifty-distance-title",
+      "query": "TITLE_ABS:\"50-km ultramarathon\" AND TITLE_ABS:\"training\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE_ABS%3A%2250-km+ultramarathon%22+AND+TITLE_ABS%3A%22training%22&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "31715047"
+      ],
+      "selected_ids": [],
+      "unretrieved_hits_not_screened": 0
+    },
+    {
+      "domain_or_purpose": "taper-source-exact",
+      "query": "EXT_ID:37163550",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A37163550&format=json&resultType=core&pageSize=20",
+      "http_status": 200,
+      "hit_count": 1,
+      "retrieved_count": 1,
+      "retrieved_ids": [
+        "37163550"
+      ],
+      "selected_ids": [
+        "37163550"
+      ],
+      "unretrieved_hits_not_screened": 0
+    }
+  ],
+  "selected_sources": [
+    {
+      "citation_id": "de-waal-2021-performance-review",
+      "pmid": "33508776",
+      "doi": "10.1123/ijspp.2020-0812",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:33508776&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:33508776",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33508776&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "c141bdc6ffc71b98c7450c21e9abd56e31f22f08c95e2d07848a7370fe6407a9"
+    },
+    {
+      "citation_id": "currier-2026-resistance-position-stand",
+      "pmid": "41843416",
+      "doi": "10.1249/mss.0000000000003897",
+      "pmcid": "PMC12965823",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:41843416&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC12965823/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "METHODS",
+        "RESULTS",
+        "DISCUSSION",
+        "Supplementary Material",
+        "Footnotes"
+      ],
+      "actual_metadata_query": "EXT_ID:41843416",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A41843416&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "07cda11a277083153e67ae9cae667e0ced47cc98057d6f1edce5f8554ec7824c",
+      "fulltext_section_extraction_file_sha256": "5202f5173b1548847df8e9f790d11100a5ed6611bb076187c52cf16345deb86d"
+    },
+    {
+      "citation_id": "blagrove-2018-running-strength",
+      "pmid": "29249083",
+      "doi": "10.1007/s40279-017-0835-7",
+      "pmcid": "PMC5889786",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:29249083&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC5889786/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Key Points",
+        "Introduction",
+        "Methods",
+        "Results",
+        "Discussion",
+        "Conclusion and Future Research",
+        "Compliance with ethical standards",
+        "Contributor Information"
+      ],
+      "actual_metadata_query": "EXT_ID:29249083",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A29249083&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "e9d06bb67689a8ac096d4ad2b0df36fbc2bbf4d7077fc8106540bac9089fb5a0",
+      "fulltext_section_extraction_file_sha256": "8eb2e2be1aed5940c2816ff3bb9c5065383e749fb813b106c51a843fdecad16f"
+    },
+    {
+      "citation_id": "bontemps-2020-downhill-review",
+      "pmid": "33037592",
+      "doi": "10.1007/s40279-020-01355-z",
+      "pmcid": "PMC7674385",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:33037592&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7674385/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Key Points",
+        "Introduction",
+        "Muscular Alterations Following Downhill Running",
+        "Factors Influencing The Magnitude of Muscle Damage Following Downhill Running",
+        "Adaptation Strategies to Downhill Running",
+        "Conclusion",
+        "Declarations"
+      ],
+      "actual_metadata_query": "EXT_ID:33037592",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33037592&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "a4b771329f257b71d9c2bb47e4ec4bfd79c1489eee08e2cfe4f591698ef9fc1a",
+      "fulltext_section_extraction_file_sha256": "6ad1e503ff0efbe5b199404eb9c248bfc88840d1ab234f338bffa8d05e25b3a1"
+    },
+    {
+      "citation_id": "eston-1996-eccentric-preconditioning",
+      "pmid": "8887208",
+      "doi": "10.1080/02640419608727714",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:8887208&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:8887208",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A8887208&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "2153e2a3234c606c6433dfc8ddbe1f851e87a6fc94f91fb3750d1006749b701f"
+    },
+    {
+      "citation_id": "lima-2018-isometric-preconditioning",
+      "pmid": "29751254",
+      "doi": "10.1016/j.humov.2018.05.002",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:29751254&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:29751254",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A29751254&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "609a00a186d7f1d484d9da881c6820e79c0336ff30b30aabe72d6b53a21f2c1c"
+    },
+    {
+      "citation_id": "paschalis-2013-stair-descending",
+      "pmid": "23437093",
+      "doi": "10.1371/journal.pone.0056218",
+      "pmcid": "PMC3578864",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:23437093&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC3578864/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Introduction",
+        "Methods",
+        "Results",
+        "Discussion"
+      ],
+      "actual_metadata_query": "EXT_ID:23437093",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A23437093&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "aec2b5c308d0ef4ccfd4811d3314c6f64a66068075a8fc894e696ac3d1527f21",
+      "fulltext_section_extraction_file_sha256": "2bc45f43727fc00e32f1ef6d277d5200b652526cd878ecab1ca38e546900d246"
+    },
+    {
+      "citation_id": "schumann-2022-concurrent-training",
+      "pmid": "34757594",
+      "doi": "10.1007/s40279-021-01587-7",
+      "pmcid": "PMC8891239",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:34757594&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8891239/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Key Points",
+        "Introduction",
+        "Methods",
+        "Results",
+        "Discussion",
+        "Conclusion",
+        "Supplementary Information",
+        "Acknowledgements",
+        "Declarations"
+      ],
+      "actual_metadata_query": "EXT_ID:34757594",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A34757594&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "952da1f5e9fb2a9675093112276ff0820047f8f116331bc3172b4a3266c9f5a5",
+      "fulltext_section_extraction_file_sha256": "04952bb4573a6a30e5fcc6ca78f2cfcad0d9f357e007aab7c46785cfc5ddb9b5"
+    },
+    {
+      "citation_id": "wang-2023",
+      "pmid": "37163550",
+      "doi": "10.1371/journal.pone.0282838",
+      "pmcid": "PMC10171681",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:37163550&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10171681/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Introduction",
+        "Methods",
+        "Results",
+        "Discussion",
+        "Conclusion",
+        "Supporting information"
+      ],
+      "actual_metadata_query": "EXT_ID:37163550",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A37163550&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "86baee383fd356e2e4fc8baf4a1c433ee65f2b9f2295e46c49ba456e1bb8856a",
+      "fulltext_section_extraction_file_sha256": "d5899174baa0267d0df21b0c198129240cfdc1f379913d1b93eb85a3ea01fa5d"
+    },
+    {
+      "citation_id": "barbieri-2023",
+      "pmid": "38344385",
+      "doi": "10.3389/fphys.2023.1334766",
+      "pmcid": "PMC10853933",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:38344385&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10853933/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "1 Introduction",
+        "2 Methods",
+        "3 Results",
+        "4 Discussion",
+        "5 Practical application"
+      ],
+      "actual_metadata_query": "EXT_ID:38344385",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38344385&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "24824e6c592567be6b5f4541712078a3d4d9ef041fcd07215251e79270ad5319",
+      "fulltext_section_extraction_file_sha256": "db8a70ae58a0e031a5e0d42c9de0bd7e7742e60d02f743d935119eb3a6b4ba5a"
+    },
+    {
+      "citation_id": "van-hooren-2020-treadmill-biomechanics",
+      "pmid": "31802395",
+      "doi": "10.1007/s40279-019-01237-z",
+      "pmcid": "PMC7069922",
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:31802395&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:31802395",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31802395&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "a2e7e49dbd39b27e5ec0e3bd40b4acb816fc229a16c8d8ef1869c5a6cfd56711"
+    },
+    {
+      "citation_id": "llanos-lagos-2024",
+      "pmid": "38627351",
+      "doi": "10.1007/s40279-024-02018-z",
+      "pmcid": "PMC11258194",
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:38627351&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:38627351",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38627351&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "a1d623260fb55614d86420cb2f737b8ace6871bf709bf27bbab8feacbb70a3ea"
+    },
+    {
+      "citation_id": "bontemps-2025-downhill-fatigue",
+      "pmid": "39992182",
+      "doi": "10.1002/ejsc.12240",
+      "pmcid": "PMC11849091",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:39992182&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC11849091/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "INTRODUCTION",
+        "METHODS",
+        "RESULTS",
+        "DISCUSSION",
+        "LIMITATIONS",
+        "CONCLUSION",
+        "AUTHOR CONTRIBUTIONS",
+        "CONFLICT OF INTEREST STATEMENT",
+        "ACKNOWLEDGEMENTS"
+      ],
+      "actual_metadata_query": "EXT_ID:39992182",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A39992182&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "45ac0dddff956b707bbf09590e0ba1e4ed98abc54a4136af7a7bcecdfee66bc5",
+      "fulltext_section_extraction_file_sha256": "2d55c69d956f42c47328ba1dee81b641906e6cfffe0989ffe7f4fdf927dd299a"
+    },
+    {
+      "citation_id": "tallis-2024-downhill-female",
+      "pmid": "38921863",
+      "doi": "10.3390/sports12060169",
+      "pmcid": "PMC11209549",
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:38921863&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:38921863",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A38921863&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "419c0bd40ae9d6fa7a6a10a30fe4e4acd230f929740f072ebc1d4c47ff1016fc"
+    },
+    {
+      "citation_id": "frandsen-2025",
+      "pmid": "40623829",
+      "doi": "10.1136/bjsports-2024-109380",
+      "pmcid": "PMC12421110",
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:40623829&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:40623829",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A40623829&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "60ebdc7e652f47a3525ffc2f5f7d9112dd54741f7c8c3baca23492c705ae0eee"
+    },
+    {
+      "citation_id": "buist-2008",
+      "pmid": "17940147",
+      "doi": "10.1177/0363546507307505",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:17940147&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:17940147",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A17940147&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "f01c815e86ac3343a6714d922ef7e17f14b7fb4702b4585c7042361a6021fb9d"
+    },
+    {
+      "citation_id": "hottenrott-2016-run-walk",
+      "pmid": "25467199",
+      "doi": "10.1016/j.jsams.2014.11.010",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:25467199&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:25467199",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A25467199&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "d347a8c6c12cc30ac13c29540b03d61ca680e485993f500014bccc49c4fe2d6d"
+    },
+    {
+      "citation_id": "lopes-2019-elastic-resistance",
+      "pmid": "30815258",
+      "doi": "10.1177/2050312119831116",
+      "pmcid": "PMC6383082",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:30815258&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6383082/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Introduction",
+        "Methods",
+        "Results",
+        "Discussion",
+        "Conclusion",
+        "Supplemental Material"
+      ],
+      "actual_metadata_query": "EXT_ID:30815258",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A30815258&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "0b49e9873f1259edad2d6c92bf7368489c937637787dc3867767f379c785dd57",
+      "fulltext_section_extraction_file_sha256": "f07735226328c6667f9cfc58a6d29b2c8e71214cdfc888723ce2ac4e3178ff53"
+    },
+    {
+      "citation_id": "costa-2019-ultramarathon-nutrition",
+      "pmid": "30943823",
+      "doi": "10.1123/ijsnem.2018-0255",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:30943823&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:30943823",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A30943823&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "395e8d2b7890f0cbca22915807c678c17dd22de15dcf72941c631f6d8afd7c76"
+    },
+    {
+      "citation_id": "toresdahl-2020",
+      "pmid": "31642726",
+      "doi": "10.1177/1941738119877180",
+      "pmcid": "PMC6931177",
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:31642726&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:31642726",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A31642726&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "4c5fceed9907c998608e9738d968a9bac3e8d9445e89bb1cac8c70f811bdbe04"
+    },
+    {
+      "citation_id": "concurrent-2026-umbrella",
+      "pmid": "41762427",
+      "doi": "10.1007/s40279-026-02401-y",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:41762427&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "EXT_ID:41762427",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A41762427&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "96156d1493a44abcbf033b625f0d4f328f7b5e75903ef4a6b26a58ce73d49a99"
+    },
+    {
+      "citation_id": "tiller-2019-ultra-nutrition",
+      "pmid": "31699159",
+      "doi": "10.1186/s12970-019-0312-9",
+      "pmcid": "PMC6839090",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:31699159&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6839090/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Background",
+        "Evidence statements",
+        "Considerations for training",
+        "Considerations for racing",
+        "Summary",
+        "Acknowledgements",
+        "Abbreviations",
+        "Authors’ contributions",
+        "Funding",
+        "Availability of data and materials",
+        "Ethics approval and consent to participate",
+        "Consent for publication",
+        "Competing interests",
+        "Footnotes",
+        "Contributor Information"
+      ],
+      "actual_metadata_query": "TITLE:\"International Society of Sports Nutrition position stand\" AND TITLE:\"ultra-marathon\"",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22International+Society+of+Sports+Nutrition+position+stand%22+AND+TITLE%3A%22ultra-marathon%22&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "7e3bc52ebeb078d2b7462819c56e45c8b8b5b42514d3ce990b25a8adf63774a6",
+      "fulltext_section_extraction_file_sha256": "bb503864b14ad43f1d9b470d2363e09b650c452ed7c64973ba7643b471591fbe"
+    },
+    {
+      "citation_id": "jeukendrup-2017-gut-training",
+      "pmid": "28332114",
+      "doi": "10.1007/s40279-017-0690-6",
+      "pmcid": "PMC5371619",
+      "verified_on": "2026-09-14",
+      "level": "full-text",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:28332114&format=json&resultType=core",
+      "fulltext_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC5371619/fullTextXML",
+      "read_scope": "Relevant method, result, interpretation and limitation paragraphs; not every reference or supplement",
+      "available_sections": [
+        "Training the Gut",
+        "Gastric Emptying and “Stomach Training”",
+        "Intestinal Sugar Transport",
+        "Carbohydrate Transporters and Glucose Transport During Exercise",
+        "Regulation of Intestinal Glucose Transport",
+        "Regulation of Absorption in Athletes",
+        "Gastrointestinal Problems",
+        "Practical Implications and Conclusions",
+        "Acknowledgements"
+      ],
+      "actual_metadata_query": "TITLE:\"Training the gut\" AND TITLE_ABS:\"athletes\"",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Training+the+gut%22+AND+TITLE_ABS%3A%22athletes%22&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "a2151a8509beab4b803ecfd2267d543eb4848083c4a833eb9499f96626bc52a6",
+      "fulltext_section_extraction_file_sha256": "089e7372e0f1649383c9414037cab23499016e990eee508c710ea8b77e9be9b4"
+    },
+    {
+      "citation_id": "allison-2017-stair-climbing",
+      "pmid": "28009784",
+      "doi": "10.1249/mss.0000000000001188",
+      "pmcid": null,
+      "verified_on": "2026-09-14",
+      "level": "abstract",
+      "metadata_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:28009784&format=json&resultType=core",
+      "fulltext_url": null,
+      "read_scope": "Indexed title, authors, DOI, publication year and full indexed abstract only",
+      "available_sections": [],
+      "actual_metadata_query": "TITLE:\"Brief Intense Stair Climbing Improves Cardiorespiratory Fitness\"",
+      "actual_metadata_request_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Brief+Intense+Stair+Climbing+Improves+Cardiorespiratory+Fitness%22&format=json&resultType=core&pageSize=20",
+      "metadata_record_canonical_json_sha256": "7d289cc7091673c9aa8c061b2a07ae2a58bcd647ca1c931b1117b58c99d6d826"
+    }
+  ],
+  "not_claimed": [
+    "Independent duplicate screening",
+    "Full databases searched beyond Europe PMC indexed records and public PMC text",
+    "Prospective registration",
+    "Meta-analysis or exhaustive negative evidence conclusion"
+  ]
+}
