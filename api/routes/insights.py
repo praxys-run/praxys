@@ -206,7 +206,7 @@ def _serialize_insight(
     from api.morning_coach import CONTRACT_KEY, validate_stored
     contract = (row.meta or {}).get(CONTRACT_KEY) if isinstance(row.meta, dict) else None
     verified_daily = (row.insight_type == "daily_brief" and isinstance(contract, dict)
-                      and validate_stored(row, contract.get("snapshot")))
+                      and validate_stored(row, contract.get("snapshot"), require_current=False))
     translation_model = DailyCoachTranslations if verified_daily else InsightTranslations
     finding_model = DailyCoachFinding if verified_daily else InsightFinding
     translations: dict[str, Any] = {}
@@ -458,8 +458,8 @@ def submit_insight_feedback(
     return {"accepted": True, "duplicate": False, "feedback": feedback}
 
 def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapshot: str | None) -> dict:
-    """Serve only verified, current, server-rendered daily content."""
-    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs, CONTENT_VERSION
+    """Keep verified historical receipts readable without presenting them as current."""
+    from api.morning_coach import available, current_snapshot, validate_stored, theory_refs, CONTENT_VERSION, CONTRACT_KEY
     from api.stryd_access import stryd_connection_enabled
     from api.packs import RequestContext
     from db.models import AiInsight
@@ -483,6 +483,11 @@ def _daily_response(db: Session, current_user_id: str, data_user_id: str, snapsh
             response["content_status"] = "ready"
         else:
             response["content_status"] = "stale"
+            contract = (row.meta or {}).get(CONTRACT_KEY)
+            if (isinstance(contract, dict)
+                    and (enabled or contract.get("include_stryd") is False)
+                    and validate_stored(row, contract.get("snapshot"), require_current=False)):
+                response["insight"] = _serialize_insight(row, db, feedback_allowed=False)
     if response["insight"] is None:
         budget = db.query(AiInsight).filter_by(user_id=data_user_id, insight_type="_generation_budget").first()
         if budget is not None and (budget.meta or {}).get("daily_failure_snapshot") == before:

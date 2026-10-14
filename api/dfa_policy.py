@@ -1,17 +1,30 @@
 """Cache validated immutable Science content; every call rehashes bytes and modes.
 
-This caches only the common scientific contract, never origin rights or results.
+This caches common contract validation, including rejections, never origin rights
+or results. A cached rejection never confers execution or publication authority.
 Any STOP, approval, contract, evidence, file-mode or validator change invalidates
 it immediately. Two matching tree observations bracket first validation.
 """
+from __future__ import annotations
+
+from dataclasses import dataclass
 import hashlib
 import os
 import stat
 from pathlib import Path
 import threading
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from analysis.science_artifacts import SciencePolicyContract
 
 _lock=threading.Lock()
 _cached=None
+
+
+@dataclass(frozen=True)
+class _ValidationRejection:
+    message: str
 
 
 def _directory_identity(path: Path):
@@ -73,7 +86,8 @@ def fingerprint(root: Path) -> str:
     return _observe(root)[0]
 
 
-def validated_contract(subject):
+def validated_contract(subject: str) -> SciencePolicyContract:
+    """Reuse validation only while fresh Science bytes, modes and validator match."""
     global _cached
     from analysis import science_artifacts as artifacts
     root=Path(os.path.abspath(artifacts._SCIENCE_DIR))
@@ -83,11 +97,20 @@ def validated_contract(subject):
     with _lock:
         _check_directories(directories)
         if _cached and _cached[0]==key:
+            if isinstance(_cached[1], _ValidationRejection):
+                raise ValueError(_cached[1].message)
             return _cached[1]
-        contract=validator(subject,require_active=True)
+        try:
+            contract=validator(subject,require_active=True)
+        except ValueError as exc:
+            # Inactive policies are expected denials, not a reason for every
+            # concurrent readiness probe to repeat full registry validation.
+            contract=_ValidationRejection(str(exc))
         confirmed,confirmed_directories=_observe(root)
         if confirmed!=observed: raise ValueError('Science changed during validation')
         _check_directories(directories)
         _check_directories(confirmed_directories)
         _cached=(key,contract)
+        if isinstance(contract, _ValidationRejection):
+            raise ValueError(contract.message)
         return contract

@@ -670,10 +670,13 @@
   color: var(--card);
   padding: 7px 12px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   justify-content: space-between;
   align-items: baseline;
 }
 .coach-receipt > .coach-banner > .coach-mark {
+  flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -683,7 +686,6 @@
 .coach-receipt > .coach-banner > .coach-stamp {
   font-family: var(--font-mono);
   font-size: 10px;
-  opacity: 0.85;
   letter-spacing: 0.06em;
 }
 .coach-receipt > .coach-body {

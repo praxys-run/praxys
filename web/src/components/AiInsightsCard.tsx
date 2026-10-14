@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { apiFetch, getAuthHeaders, useApi } from '@/hooks/useApi';
+import { apiFetch, getAuthCacheScope, getAuthHeaders, useApi } from '@/hooks/useApi';
 import type {
   AiInsightResponse,
   AiInsightFinding,
@@ -74,10 +74,20 @@ export default function AiInsightsCard({
   const daily = insightType === 'daily_brief';
   const refetchInterval = useMemo(() => snapshot && daily
     ? createDailyCoachRefetchInterval() : 0, [snapshot, daily]);
-  const { data, refetch: refetchInsight, loading, error } = useApi<AiInsightResponse>(
+  const { data: fetchedData, refetch: refetchInsight, loading, error, errorStatus } = useApi<AiInsightResponse>(
     `/api/insights/${insightType}${daily && snapshot ? `?snapshot=${encodeURIComponent(snapshot)}` : ''}`,
     { enabled: fetchInsight && (!daily || Boolean(snapshot)), refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval },
   );
+  const scope = getAuthCacheScope();
+  const [retained, setRetained] = useState<{ scope: string; type: string; data: AiInsightResponse } | null>(null);
+  const accessDenied = errorStatus === 401 || errorStatus === 403 || errorStatus === 428;
+  const retainedData = retained?.scope === scope && retained.type === insightType ? retained.data : null;
+  if (fetchInsight && !accessDenied && fetchedData) {
+    if (retainedData !== fetchedData) setRetained({ scope, type: insightType, data: fetchedData });
+  } else if (retained && (!fetchInsight || accessDenied || !retainedData)) {
+    setRetained(null);
+  }
+  const data = fetchedData ?? ((loading || error) ? retainedData : null);
   const { locale } = useLocale();
   const { i18n } = useLingui();
   const lastSnapshotRefresh = useRef('');
@@ -120,12 +130,15 @@ export default function AiInsightsCard({
   const [feedbackError, setFeedbackError] = useState('');
   const [regenerationFailed, setRegenerationFailed] = useState(false);
 
-  const coherent = !daily || (Boolean(snapshot) && data?.snapshot === snapshot
-    && data?.content_status === 'ready' && data.insight?.snapshot === snapshot
-    && data.insight?.content_version === (data.content_version ?? 'morning-coach-v2'));
+  const historical = daily && data?.content_status === 'stale'
+    && data.insight?.feedback_allowed === false && Boolean(data.insight.generated_at);
+  const coherent = !daily || (Boolean(snapshot) && (data?.snapshot === snapshot || loading || Boolean(error))
+    && (historical || (data?.content_status === 'ready' && data.insight?.snapshot === data.snapshot
+      && data.insight?.content_version === (data.content_version ?? 'morning-coach-v2'))));
   // Query cache age schedules revalidation; the server's content status and
   // snapshot contract decide whether the returned Coach content is current.
-  const insight = fetchInsight && coherent && data?.ai_available !== false && !error && !loading ? data?.insight : null;
+  const insight = fetchInsight && coherent && data?.ai_available !== false && !accessDenied ? data?.insight : null;
+  const previousInsight = daily && Boolean(insight) && (historical || data?.snapshot !== snapshot || Boolean(error));
   const aiUnavailable = fetchInsight && data?.ai_available === false;
   const needsGeneration = daily && Boolean(snapshot) && (data?.content_status === 'unavailable'
     || (data?.content_status === 'stale' && data.snapshot === snapshot));
@@ -136,11 +149,12 @@ export default function AiInsightsCard({
     : loading ? i18n._(msg`Loading Coach…`)
     : aiUnavailable ? i18n._(msg`Azure AI insights are temporarily unavailable.`)
     : data?.content_status === 'unavailable' ? i18n._(msg`Coach analysis couldn't be generated. Sync your data to try again. Training metrics remain available.`)
+    : previousInsight ? i18n._(msg`Showing the previous insight. Sync your data for a new analysis.`)
     : needsGeneration ? i18n._(msg`Coach needs an updated analysis. Sync your data to regenerate it.`)
     : daily && (!snapshot || data?.content_status === 'stale') ? i18n._(msg`Coach needs a refreshed training snapshot.`)
     : !insight && fetchInsight ? i18n._(msg`Coach is waiting for a current analysis.`) : '';
   const rawDatasetHash = insight?.meta.dataset_hash;
-  const datasetHash = insight?.feedback_allowed !== false
+  const datasetHash = !previousInsight && !loading && !error && insight?.feedback_allowed !== false
     && typeof rawDatasetHash === 'string'
     && /^[0-9a-f]{64}$/.test(rawDatasetHash)
     ? rawDatasetHash
@@ -184,7 +198,10 @@ export default function AiInsightsCard({
         summary: localized.summary,
         findings: localized.findings ?? insight!.findings ?? [],
         recommendations: localized.recommendations ?? insight!.recommendations ?? [],
-        stamp: insight!.as_of_date ?? insight!.generated_at?.slice(0, 10),
+        stamp: insight!.generated_at ? new Date(insight!.generated_at).toLocaleString(
+          locale === 'zh' ? 'zh-CN' : 'en-GB',
+          { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false },
+        ) : '',
         isAi: true,
       }
     : fallback && !loading
@@ -309,14 +326,17 @@ export default function AiInsightsCard({
           {displayedContent.isAi || !content ? <Trans>Praxys Coach</Trans> : <Trans>Training metrics</Trans>}
         </span>
         {displayedContent.stamp && (
-          <span className="coach-stamp font-data">{displayedContent.stamp}</span>
+          <span className="coach-stamp">
+            {displayedContent.isAi && <>{previousInsight && <><Trans>Previous insight</Trans>{' · '}</>}<Trans>Generated</Trans>{' '}</>}
+            <span className="font-data">{displayedContent.stamp}</span>
+          </span>
         )}
       </div>
       <div className="coach-body">
         {statusText && <div role={error || regenerationFailed ? 'alert' : 'status'} className="coach-status">
           <p><strong><Trans>Praxys Coach</Trans></strong> — {statusText}</p>
           {(loading || regenerating) && <div className="coach-loading" aria-hidden="true"><span /><span /><span /></div>}
-          {!loading && !aiUnavailable && needsGeneration && onRegenerate ? <Button type="button" variant="outline" disabled={regenerating} className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
+          {!loading && !error && !aiUnavailable && needsGeneration && onRegenerate ? <Button type="button" variant="outline" disabled={regenerating} className="min-h-11 min-w-11 cursor-pointer rounded-none" onClick={() => {
             setRegenerationFailed(false);
             void Promise.resolve().then(onRegenerate).catch(() => setRegenerationFailed(true));
           }}>{regenerating ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}</Button>

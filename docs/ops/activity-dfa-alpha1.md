@@ -68,6 +68,13 @@ observation per file, preserving the ordered path/mode/content digest and the
 4,096-file/32-MiB bounds. It does not cache metadata, add a TTL, or reuse rights
 across calls. STOP/content/mode/validator changes still invalidate the common
 contract cache; initial validation remains bracketed by two matching fingerprints.
+Unchanged `ValueError` contract rejections are also memoized under that same
+content/subject/validator key, without retaining exception tracebacks. Every call
+still rehashes bytes and modes and rechecks directory identities before reusing a
+denial; a changed tree must undergo validation again. A rejection is published to
+the cache only after the same two-observation bracket as a valid contract.
+Filesystem/other unexpected failures are not memoized. No rejection grants
+execution or publication authority, and this does not cache account rights.
 Directory paths, including the configured root's ancestors, are freshly checked
 without following their final symlink component. Directory device/inode identities
 are checked after traversal and byte reads, and again inside the cache lock before

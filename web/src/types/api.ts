@@ -3849,6 +3849,7 @@ export interface AiInsight {
 }
 
 export interface AiInsightResponse {
+  /** Stale may retain a verified historical insight, with feedback disabled. */
   content_status: CoachContentStatus;
   /** Current server-owned rendering contract; older servers may omit it. */
   content_version?: string;

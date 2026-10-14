@@ -1,13 +1,13 @@
 <view class="coach-receipt">
   <view class="coach-banner">
     <text class="coach-mark">{{isAi || !receipt ? tr.coach : tr.metrics}}</text>
-    <text wx:if="{{receipt.stamp}}" class="coach-stamp ts-value">{{receipt.stamp}}</text>
+    <text wx:if="{{receipt.stamp}}" class="coach-stamp"><block wx:if="{{isAi}}"><block wx:if="{{previousInsight}}">{{tr.previous}} · </block>{{tr.generated}} </block><text class="ts-value">{{receipt.stamp}}</text></text>
   </view>
   <view class="coach-body">
     <view wx:if="{{statusText}}" class="coach-status" aria-role="status">
       <text>{{tr.coach}} — {{statusText}}</text>
       <view wx:if="{{loading || regenerating}}" class="coach-loading" aria-hidden="true"><view /><view /><view /></view>
-      <button wx:if="{{!loading && response.ai_available !== false && (needsGeneration || syncFailed) && canRegenerate}}" class="coach-toggle" disabled="{{regenerating}}" bindtap="regenerate">{{regenerating ? tr.syncing : tr.sync}}</button>
+      <button wx:if="{{!loading && !failed && response.ai_available !== false && (needsGeneration || syncFailed) && canRegenerate}}" class="coach-toggle" disabled="{{regenerating}}" bindtap="regenerate">{{regenerating ? tr.syncing : tr.sync}}</button>
       <button wx:elif="{{!loading && !regenerating && response.ai_available !== false && (failed || (!needsGeneration && response.content_status !== 'unavailable'))}}" class="coach-toggle" bindtap="refresh">{{tr.refresh}}</button>
     </view>
     <block wx:if="{{receipt}}">

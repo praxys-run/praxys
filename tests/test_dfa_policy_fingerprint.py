@@ -208,3 +208,128 @@ def test_scandir_handle_is_closed_when_traversal_rejects(tmp_path, monkeypatch):
     monkeypatch.setattr(os, 'scandir', TrackedScan)
     with pytest.raises(ValueError, match='symlink'): dfa_policy.fingerprint(tmp_path)
     assert closed == [True]
+
+
+def test_concurrent_denials_validate_unchanged_science_once(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', tmp_path)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    calls = []
+    entered, release = threading.Event(), threading.Event()
+
+    def validator(subject: str, *, require_active: bool) -> None:
+        calls.append(subject)
+        assert require_active
+        entered.set()
+        assert release.wait(5)
+        raise ValueError('Science contract is not active')
+
+    def probe() -> None:
+        with pytest.raises(ValueError, match='not active'):
+            dfa_policy.validated_contract('synthetic')
+
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        first = pool.submit(probe)
+        try:
+            assert entered.wait(5)
+            rest = [pool.submit(probe) for _ in range(5)]
+        finally:
+            release.set()
+        for future in [first, *rest]:
+            future.result(timeout=5)
+    assert calls == ['synthetic']
+
+
+@pytest.mark.parametrize('mutation', ['bytes_same_size_mtime', 'mode', 'add', 'remove', 'validator', 'subject'])
+def test_denial_cache_revalidates_fresh_science(tmp_path, monkeypatch, mutation) -> None:
+    file = tmp_path / 'STOP'
+    file.write_bytes(b'no!')
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', tmp_path)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    calls = []
+
+    def validator(subject: str, *, require_active: bool) -> object:
+        calls.append(subject)
+        if len(calls) == 1:
+            raise ValueError('Science contract is not active')
+        return object()
+
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    for _ in range(2):
+        with pytest.raises(ValueError, match='not active'):
+            dfa_policy.validated_contract('synthetic')
+    assert calls == ['synthetic']
+    before = file.stat()
+    subject = 'synthetic'
+    if mutation == 'bytes_same_size_mtime':
+        file.write_bytes(b'yes')
+        os.utime(file, ns=(before.st_atime_ns, before.st_mtime_ns))
+    elif mutation == 'mode':
+        file.chmod((before.st_mode & 0o777) ^ 0o100)
+    elif mutation == 'add':
+        (tmp_path / 'new').write_bytes(b'new')
+    elif mutation == 'remove':
+        file.unlink()
+    elif mutation == 'validator':
+        monkeypatch.setattr(artifacts, 'load_policy_contract',
+                            lambda *args, **kwargs: validator(*args, **kwargs))
+    else:
+        subject = 'replacement'
+    assert dfa_policy.validated_contract(subject) is not None
+    assert len(calls) == 2
+
+
+def test_rejection_during_tree_change_is_not_cached(tmp_path, monkeypatch) -> None:
+    file = tmp_path / 'STOP'
+    file.write_bytes(b'no')
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', tmp_path)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+
+    def validator(subject: str, *, require_active: bool) -> None:
+        file.write_bytes(b'changed')
+        raise ValueError('Science contract is not active')
+
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    with pytest.raises(ValueError, match='changed during validation'):
+        dfa_policy.validated_contract('synthetic')
+    assert dfa_policy._cached is None
+
+
+def test_transient_validator_failure_is_not_cached(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(artifacts, '_SCIENCE_DIR', tmp_path)
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    calls = []
+
+    def validator(subject: str, *, require_active: bool) -> object:
+        calls.append(subject)
+        if len(calls) == 1:
+            raise OSError('temporary read failure')
+        return object()
+
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    with pytest.raises(OSError, match='temporary read failure'):
+        dfa_policy.validated_contract('synthetic')
+    assert dfa_policy._cached is None
+    assert dfa_policy.validated_contract('synthetic') is not None
+    assert len(calls) == 2
+
+
+def test_real_inactive_policy_remains_denied_without_repeated_registry_loads(monkeypatch) -> None:
+    from fastapi import HTTPException
+    from api.activity_dfa import require_policy
+
+    monkeypatch.setattr(dfa_policy, '_cached', None)
+    real_validator = artifacts.load_policy_contract
+    calls = []
+
+    def validator(subject: str, *, require_active: bool):
+        calls.append(subject)
+        return real_validator(subject, require_active=require_active)
+
+    monkeypatch.setattr(artifacts, 'load_policy_contract', validator)
+    for _ in range(3):
+        with pytest.raises(HTTPException) as denied:
+            require_policy()
+        assert denied.value.status_code == 503
+        assert denied.value.detail == 'DFA_SCIENCE_POLICY_INACTIVE'
+    assert calls == ['sdr-activity-dfa-alpha1-v2']
