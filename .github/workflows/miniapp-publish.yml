@@ -202,7 +202,7 @@ jobs:
           fi
 
       - if: steps.gate.outputs.publish == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: '24.11.0'
           cache: 'npm'
