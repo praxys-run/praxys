@@ -781,7 +781,7 @@ msgstr "活跃事件：{0}"
 
 #: src/components/ActivityDFA.tsx:278
 msgid "Active timer time:"
-msgstr "计时器有效时间："
+msgstr "实际计时时长："
 
 #: src/components/PersonalContextPanel.tsx:1084
 #: src/components/PersonalContextPanel.tsx:1265
@@ -1223,7 +1223,7 @@ msgstr "暂时无法分析。请刷新活动记录或重试。"
 
 #: src/components/ActivityDFA.tsx:225
 msgid "Analysis mode is unavailable. New analysis is paused."
-msgstr "暂时无法确认分析模式，已暂停新的分析。"
+msgstr "分析模式不可用，已暂停新的分析。"
 
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
@@ -1395,7 +1395,7 @@ msgstr "自动分析"
 
 #: src/components/ActivityDFA.tsx:224
 msgid "Automatic analysis is on. New eligible recordings are analysed after sync; manual analysis is disabled."
-msgstr "自动分析已开启。同步后会分析符合条件的新记录，无需手动分析。"
+msgstr "自动分析已开启。同步后会分析符合条件的新记录，手动分析已禁用。"
 
 #: src/components/ActivityDFA.tsx:230
 #: src/components/ActivityDFA.tsx:243
@@ -2467,7 +2467,7 @@ msgstr "传感器来源证据存在矛盾，无法分析。"
 
 #: src/components/ActivityDFA.tsx:229
 msgid "Conflicting source evidence prevents analysis. Confirmation cannot override it."
-msgstr "来源证据冲突，无法分析。确认不能覆盖此冲突。"
+msgstr "来源证据存在冲突，无法分析。即使确认，也无法解除这一限制。"
 
 #: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
@@ -8903,7 +8903,7 @@ msgstr "上一时间段"
 
 #: src/components/ActivityDFA.tsx:244
 msgid "Previously authorized manual analyses keep their original source and method."
-msgstr "已获授权的历史手动分析保留原来的来源和方法。"
+msgstr "此前已授权的手动分析会保留原有来源和分析方法。"
 
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
 #: src/pages/Settings.tsx:1013
@@ -9727,7 +9727,7 @@ msgstr "采样时钟与活动时长不一致。"
 
 #: src/components/ActivityDFA.tsx:228
 msgid "Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording."
-msgstr "记录元数据无法确定 RR 来源，这条记录暂时无法自动分析。"
+msgstr "无法根据记录的元数据确定 RR 来源，这条记录无法自动分析。"
 
 #: src/components/ActivityDFA.tsx:223
 #~ msgid "Recording metadata cannot resolve the RR source. Independent manual confirmation may be available."
@@ -11485,7 +11485,7 @@ msgstr "来源 CP 估计"
 
 #: src/components/ActivityDFA.tsx:275
 msgid "Source inferred from recording metadata"
-msgstr "来源根据记录元数据推断"
+msgstr "来源由记录元数据推断得出"
 
 #: src/pages/ActivityDetail.tsx:179
 #~ msgid "Source laps only · not an overall trend"
@@ -12671,7 +12671,7 @@ msgstr "保存结果尚不确定。恢复待保存更改前，请先查看最新
 
 #: src/components/ActivityDFA.tsx:236
 msgid "The selected analysis is no longer authorized. Current available analysis is shown."
-msgstr "所选分析已不再获授权。现显示当前可用分析。"
+msgstr "所选分析的授权已失效，现已显示当前可用的分析。"
 
 #: src/components/HeatAdaptationPanel.tsx:439
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
@@ -14117,7 +14117,7 @@ msgstr "对比目标区间"
 
 #: src/components/ActivityDFA.tsx:226
 msgid "Waiting for the previous analysis to stop safely before starting the selected mode."
-msgstr "正在等待上一项分析安全停止，然后按当前模式继续。"
+msgstr "正在等待上一项分析安全停止，之后将启用所选模式。"
 
 #: src/components/ActivityDFA.tsx:254
 msgid "Waiting to analyse this recording…"
@@ -14577,7 +14577,7 @@ msgstr "可离开此页面，稍后再回来。分析运行期间无需任何操
 
 #: src/components/ActivityDFA.tsx:255
 msgid "You can leave this report. Analysis will continue."
-msgstr "你可以离开本报告，分析将继续。"
+msgstr "可以离开此报告，分析会继续。"
 
 #: src/components/WorkoutStructureEditor.tsx:1983
 msgid "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
