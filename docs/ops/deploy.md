@@ -56,6 +56,34 @@ The configuration path still waits for App Service management-write recycle
 before ZipDeploy. The B1 plan has no slots. PostgreSQL uses its configured PITR;
 there is no unsupported on-demand Burstable-tier snapshot.
 
+### Backend published but verification timed out (2026-10-14)
+
+Run `38489393550` published `9f081ef` at 00:41:37 UTC, but verification timed
+out at 00:51:49. The running container finally passed platform warmup at
+00:56:24. Treat package publication and application readiness as separate
+outcomes; verify `/api/version` and `/api/health/ready` rather than immediately
+redeploying a package already reported active by Kudu.
+
+The B1 plan averaged 97–100% CPU during 00:25–00:55 UTC. Oryx built on the
+App Service worker, and a subsequent restart repeated archive extraction and
+startup; one container exceeded its 230-second platform startup limit.
+Readiness telemetry identified another amplifier: 24 `dfa_policy` observations
+included a maximum wall duration of 257,339 ms, versus 2,131 ms maximum thread
+CPU time. The database and thread-dispatch stages were not the dominant delay.
+The inactive DFA contract was rejected repeatedly because only successful
+contract validation had been cached. Repeated probes serialized full registry
+validation behind the policy lock, despite returning a healthy core API state
+with DFA inactive.
+
+The policy cache now reuses content-bound validation rejections, retaining fresh
+byte/mode/directory checks and fail-closed scientific authority. This removes
+repeated registry validation for an unchanged inactive policy; it does not
+establish a startup-latency guarantee on the constrained plan. Diagnose remaining
+CPU/build pressure separately. Do not activate DFA, relax readiness predicates,
+resize the plan, or restore external feedback publication as an implicit
+deployment recovery. This failed run left feedback publication quiesced; its
+restoration remains a separately verified deployment action.
+
 ## Frontend
 
 The workflow builds the filing-free `.run` bundle first and copies it into the
