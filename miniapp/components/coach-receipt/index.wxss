@@ -1,6 +1,6 @@
 .coach-receipt { border: 1rpx solid var(--border); border-radius: 24rpx; overflow: hidden; background: var(--surface); margin: 24rpx 0; }
-.coach-banner { display: flex; justify-content: space-between; gap: 16rpx; padding: 24rpx 32rpx; background: var(--accent-cobalt); color: var(--surface); }
-.coach-mark { font-weight: 600; }
+.coach-banner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16rpx; padding: 24rpx 32rpx; background: var(--accent-cobalt); color: var(--surface); }
+.coach-mark { flex-shrink: 0; font-weight: 600; }
 .coach-body { padding: 32rpx; }
 .coach-headline { display: block; font-size: 36rpx; font-weight: 600; line-height: 1.4; }
 .coach-summary, .coach-text, .coach-status { display: block; font-size: 28rpx; line-height: 1.65; margin-top: 16rpx; color: var(--text); }

@@ -2873,9 +2873,19 @@ Trigger sync for all configured sources.
 Returns multi-week `training_review`, goal-feasibility `race_forecast`, and
 snapshot-bound morning `daily_brief`. Daily reads require
 `?snapshot=<TodayResponse.coach_snapshot>` on both list and individual endpoints.
-Missing, mismatched, stale or unverifiable snapshots suppress daily content.
-Legacy daily rows, untrusted provenance and unsupported content versions are
-never rendered. Both endpoints return
+Missing or mismatched request snapshots suppress daily content until Today is
+re-read. When the request matches Today, verified historical v2/v3 daily rows
+remain readable across date, source-revision and supported-template changes.
+They return `content_status=stale` with an `insight` whose own snapshot,
+version, source date, generation timestamp and theory references remain original;
+`feedback_allowed=false`. The response-level snapshot/version describe the
+current server contract, not the historical insight. Both clients label these
+receipts as previous insights with their actual generation date/time, retain
+them during refresh or transient failure, and replace them on a successful
+read. This is independent of the page-level data-freshness warning.
+Unverifiable legacy prose, untrusted provenance, unsupported content versions,
+withdrawn processing consent and revoked source visibility still prevent display.
+Both endpoints return
 `ai_available`; it is `false` while the emergency stop is active, the Azure
 client cannot be initialized, or an authentication, rate-limit, transport, or
 provider failure remains unconfirmed as recovered. Only a successfully parsed
@@ -2890,7 +2900,8 @@ Daily response metadata includes typed `content_status` (`ready`, `pending`,
 `translations.en`/`translations.zh`. Theory destinations are `/science#<pillar>`
 and `/pages/science/index?pillar=<pillar>`; they remain visible outside details.
 
-When `ai_available` is true but daily `content_status` is `unavailable`, the
+When `ai_available` is true but daily `content_status` is `unavailable` and no
+readable historical receipt exists, the
 current snapshot has a recorded generation failure or exhausted generation
 budget. Reading this endpoint again does not generate content. Both clients
 hide the read-only refresh action in this state and direct the athlete to sync

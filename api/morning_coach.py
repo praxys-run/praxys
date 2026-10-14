@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -386,8 +386,11 @@ def candidates(context: dict) -> dict:
             "theory_refs": theory_refs(context.get("science") or {})}
 
 
-def render_selection(raw: object, eligible: dict) -> dict:
+def render_selection(raw: object, eligible: dict, *, content_version: str = CONTENT_VERSION) -> dict:
     """Reject free text, ineligible IDs and unsupported ID combinations."""
+    if content_version not in {"morning-coach-v2", CONTENT_VERSION}:
+        raise ValueError("unsupported_content_version")
+    historical_v2 = content_version == "morning-coach-v2"
     keys = {"evidence_ids": "evidence", "interpretation_ids": "interpretations", "action_ids": "actions"}
     if not isinstance(raw, dict) or set(raw) != set(keys):
         raise ValueError("selection_fields")
@@ -428,23 +431,36 @@ def render_selection(raw: object, eligible: dict) -> dict:
         if sleep is not None:
             recovery += f"; sleep score {sleep:g}" if lang == "en" else f"，睡眠评分为 {sleep:g}"
         recovery += "." if lang == "en" else "。"
-        meaning = eligible["guidance_meaning"]
-        findings = [{"kind": "insight", "type": meaning["type"], "text": meaning[lang]}]
+        meaning = eligible.get("guidance_meaning")
+        findings = [] if historical_v2 else [
+            {"kind": "insight", "type": meaning["type"], "text": meaning[lang]}]
         findings.extend({"kind": "insight", "type": "neutral", "text": eligible["interpretations"][key][lang]}
                         for key in finding_ids)
         # Three bounded groups preserve all required observations and gaps.
         # Recovery trend missingness belongs with recovery, while course
         # references stay alongside recorded training rather than creating
         # extra rows for each available measurement or external plan.
-        observation_groups: list[list[str]] = [[], [], []]
-        for key in raw["evidence_ids"]:
-            group = 0 if key.startswith(("recovery.", "trend.")) else 1 if key.startswith("load.") else 2
-            observation_groups[group].append(eligible["evidence"][key][lang])
-        labels = ("Recovery", "Training load", "Recorded training and today's course") if lang == "en" else ("恢复状态", "训练负荷", "训练记录与今日安排")
-        for label, texts in zip(labels, observation_groups):
-            if texts:
-                findings.append({"kind": "observation", "type": "neutral",
-                                 "text": label + (": " if lang == "en" else "：") + " ".join(texts)})
+        if historical_v2:
+            recovery_added = False
+            for key in raw["evidence_ids"]:
+                if key.startswith("recovery."):
+                    if not recovery_added:
+                        findings.append({"type": "neutral", "text": " ".join(
+                            eligible["evidence"][f"recovery.{metric}"][lang]
+                            for metric in ("sleep", "hrv", "rhr"))})
+                        recovery_added = True
+                else:
+                    findings.append({"type": "neutral", "text": eligible["evidence"][key][lang]})
+        else:
+            observation_groups: list[list[str]] = [[], [], []]
+            for key in raw["evidence_ids"]:
+                group = 0 if key.startswith(("recovery.", "trend.")) else 1 if key.startswith("load.") else 2
+                observation_groups[group].append(eligible["evidence"][key][lang])
+            labels = ("Recovery", "Training load", "Recorded training and today's course") if lang == "en" else ("恢复状态", "训练负荷", "训练记录与今日安排")
+            for label, texts in zip(labels, observation_groups):
+                if texts:
+                    findings.append({"kind": "observation", "type": "neutral",
+                                     "text": label + (": " if lang == "en" else "：") + " ".join(texts)})
         translations[lang] = {
             "headline": "Recovery and training today" if lang == "en" else "今日恢复与训练",
             "summary": " ".join((recovery, eligible["week_summary"][lang], eligible["plan_summary"][lang])),
@@ -467,23 +483,28 @@ def bind_payload(payload: dict, context: dict, selection: dict, eligible: dict) 
     return payload
 
 
-def validate_stored(row: Any, expected_snapshot: str | None) -> bool:
-    """Verify trusted provenance and exact re-rendered bilingual content."""
+def validate_stored(row: Any, expected_snapshot: str | None, *, require_current: bool = True) -> bool:
+    """Verify provenance and exact content; historical reads do not grant currentness."""
     from api.insight_feedback import GENERATION_PROVENANCE_KEY
     try:
         meta = row.meta
         contract = meta[CONTRACT_KEY]
         provenance = meta[GENERATION_PROVENANCE_KEY]
+        version = contract["version"]
         if (not expected_snapshot or contract["snapshot"] != expected_snapshot
-                or contract["version"] != CONTENT_VERSION
-                or meta["content_version"] != CONTENT_VERSION
-                or contract["as_of_date"] != date.today().isoformat()
+                or version not in {"morning-coach-v2", CONTENT_VERSION}
+                or meta["content_version"] != version
+                or (require_current and (version != CONTENT_VERSION
+                                         or contract["as_of_date"] != date.today().isoformat()))
+                or date.fromisoformat(contract["as_of_date"]) > date.today()
+                or not isinstance(row.generated_at, datetime)
                 or meta["input_hash"] != expected_snapshot
                 or not provenance.get("run_started_at")
                 or set(provenance["source_revisions"]) != set(SCOPES)
-                or snapshot_identity(row.user_id, provenance["source_revisions"], contract["as_of_date"], contract["include_stryd"]) != expected_snapshot):
+                or digest([version, row.user_id, contract["as_of_date"],
+                           provenance["source_revisions"], contract["include_stryd"]]) != expected_snapshot):
             return False
-        rendered = render_selection(contract["selection"], contract["candidates"])
+        rendered = render_selection(contract["selection"], contract["candidates"], content_version=version)
         if any(getattr(row, k) != v for k, v in rendered.items()):
             return False
         return meta["dataset_hash"] == digest([contract, rendered])

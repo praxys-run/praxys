@@ -25,7 +25,8 @@ export function createDailyCoachRefetchInterval(): CoachRefetchInterval {
     const response = state.data as AiInsightResponse | undefined;
     if (state.error || !response?.ai_available || response.content_status !== 'pending') {
       pendingDeadline = null;
-      return !state.error && response?.ai_available && response.content_status === 'ready'
+      return !state.error && response?.ai_available && (response.content_status === 'ready'
+        || (response.content_status === 'stale' && Boolean(response.insight)))
         ? 60_000 : false;
     }
     // Start when pending is first observed, and retain the deadline across

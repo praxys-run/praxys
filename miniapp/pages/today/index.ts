@@ -1078,13 +1078,12 @@ Page({
       : 0;
     const requestId = previousRequestId + 1;
     pageState._refetchRequestId = requestId;
-    this.setData({ coachLoading: true, coachResponse: null, coachFailed: false });
+    this.setData({ coachLoading: true, coachFailed: false });
     this.setData(background
       ? { errorMessage: '' }
       : { loading: true, errorMessage: '' });
     try {
-      // Today guidance is deterministic. Fetch only the canonical signal;
-      // generated daily prose is intentionally not requested.
+      // Refresh the canonical signal before checking the retained Coach receipt.
       const response = await apiGet<TodayResponse>('/api/today');
       if (pageState._refetchRequestId !== requestId) return;
       // Cache raw response so renderShareCard / onStaleShowAnyway can
@@ -1108,9 +1107,10 @@ Page({
         const coachResponse = await fetchInsight('daily_brief', response.coach_snapshot);
         if (pageState._refetchRequestId !== requestId) return;
         this.setData({ coachResponse, coachLoading: false });
-      } catch {
+      } catch (e) {
         if (pageState._refetchRequestId !== requestId) return;
-        this.setData({ coachLoading: false, coachFailed: true });
+        const denied = [401, 403, 428].includes((e as Partial<ApiError>)?.status ?? 0);
+        this.setData({ coachLoading: false, coachFailed: true, ...(denied ? { coachResponse: null } : {}) });
       }
 
       if (todayPageVisible) {
@@ -1123,17 +1123,21 @@ Page({
     } catch (e) {
       if (pageState._refetchRequestId !== requestId) return;
       // This request owns the loading state. Settle Coach even when the
-      // canonical background fetch fails and cached metrics remain visible.
+      // canonical fetch fails and cached metrics remain visible.
       this.setData({ coachLoading: false, coachFailed: true });
       const err = e as Partial<ApiError>;
+      if ([401, 403, 428].includes(err?.status ?? 0) || err?.code === 'UNAUTHENTICATED') {
+        this.setData({ coachResponse: null, hasResponse: false });
+      }
       if (err?.code === 'UNAUTHENTICATED') {
         this.setData({ loading: false });
         return;
       }
       const detail = err?.detail ?? String(e);
-      if (background) {
+      if (this.data.hasResponse) {
         // eslint-disable-next-line no-console
-        console.warn('[today] background refresh failed; keeping cached Today response:', detail);
+        console.warn('[today] refresh failed; keeping cached Today response:', detail);
+        this.setData({ loading: false });
         return;
       }
       this.setData({ loading: false, errorMessage: detail, hasResponse: false });

@@ -188,8 +188,15 @@ feedback on content identity changes. Remove install promotions from receipts.
 
 Loading, failure/retry, stale, pending and AI-unavailable states are explicit.
 Deterministic fallback content stays labelled **Training metrics** and never
-claims to be Coach. Daily content must match the Today snapshot, server date and
-supported template version; no legacy prose fallback. Applicable selected
+claims to be Coach. Current daily content must match the Today snapshot, server
+date and current template version. Verified historical v2/v3 receipts remain
+readable, labelled **Previous insight / 上次解读** with their actual generation
+date/time (**Generated / 生成于**), original data date and original theory links.
+Keep the receipt during refresh or transient failure; a successful response
+replaces it. Do not retain content across authentication scopes or after access
+revocation. Historical display does not enable feedback or bypass consent,
+source eligibility or exact content/provenance validation; no unverified legacy
+prose fallback. Page-level data-freshness warnings remain independent. Applicable selected
 recovery/load theory links remain visible even when AI is unavailable.
 
 Coach voice guides through observations, supported meaning and a useful next
@@ -216,5 +223,6 @@ remains visible as limited guidance.
 
 Query cache expiry schedules revalidation; it is not a scientific freshness
 verdict. A changed Coach snapshot refreshes Today once for that snapshot pair.
-Content that is outdated at an already-matching snapshot needs generation, so
+Content that is outdated at an already-matching snapshot remains visible if
+verified, but needs generation to become current, so
 offer an explicit sync action rather than repeated read-only Refresh calls.

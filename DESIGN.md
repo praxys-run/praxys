@@ -309,7 +309,7 @@ Daily expanded details separate **Training interpretation / 训练解读** from
 inside the existing receipt. The Today badge expresses the existing training
 guidance; workout presence belongs in the separate plan line.
 
-The approved receipt order is Praxys Coach and applicable server date, headline,
+The approved receipt order is Praxys Coach and actual generation date/time, headline,
 two-to-three-sentence recovery-bearing summary, **Key recommendation / 关键建议**,
 optional details disclosure, always-visible structured theory links, then exact
 content feedback. Source freshness is separately labelled **Data through / 数据截至**.
@@ -328,8 +328,12 @@ full-width presentation and buttons. Keep summary and action untruncated. Findin
 and remaining recommendations default closed, omit empty disclosures and do not
 duplicate the key recommendation. Content changes reset disclosure and feedback.
 
-Server date and source snapshot govern freshness. Stale/error/loading states never
-retain prior feedback as current; errors have retry. AI unavailability stays explicit
+Server date and source snapshot govern currentness, not historical readability.
+Keep verified historical content visible with **Previous insight / 上次解读** and
+**Generated / 生成于** beside its actual generation date/time, including during
+refresh and transient failure. Page-level data-age warnings stay independent.
+Historical/stale/error/loading states never retain prior feedback as current;
+errors have retry. AI unavailability stays explicit
 alongside Training metrics. Applicable selected recovery/load theory links remain
 outside disclosures and are visible in deterministic states. Receipts contain no
 plugin-install promotion. Daily text is bilingual server-owned; model prose cannot

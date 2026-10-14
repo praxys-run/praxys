@@ -486,11 +486,13 @@ def test_split_finding_uses_only_recorded_splits_with_provenance():
     assert 'training.split' not in coach.candidates(ctx)['evidence']
 
 
-def test_old_content_version_is_rejected(db, monkeypatch):
-    with monkeypatch.context() as patch:
-        patch.setattr(coach, 'CONTENT_VERSION', 'morning-coach-v1')
-        row, ctx = store(db)
+def test_unknown_content_version_is_rejected_even_for_historical_reads(db):
+    row, ctx = store(db)
+    meta = deepcopy(row.meta)
+    meta[coach.CONTRACT_KEY]['version'] = meta['content_version'] = 'morning-coach-v1'
+    row.meta = meta
     assert not coach.validate_stored(row, coach.current_snapshot(db, OWNER, False))
+    assert not coach.validate_stored(row, ctx['coach_snapshot'], require_current=False)
 
 
 def test_recovery_loader_rejects_nonfinite_future_and_invalid_scores():
@@ -554,7 +556,7 @@ def test_stored_provenance_content_and_owner_are_required(db):
     assert not coach.validate_stored(row, ctx['coach_snapshot'])
 
 
-def test_daily_read_rejects_missing_stale_and_foreign_snapshot(db):
+def test_daily_read_rejects_foreign_requests_but_retains_verified_old_content(db):
     row, ctx = store(db)
     response = insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)
     assert response['content_status'] == 'ready'
@@ -565,18 +567,154 @@ def test_daily_read_rejects_missing_stale_and_foreign_snapshot(db):
     bump_revisions(db, OWNER, ['recovery']); db.commit()
     assert insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)['content_status'] == 'stale'
     current = coach.current_snapshot(db, OWNER, False)
+    historical = insights.get_insight('daily_brief', current, OWNER, OWNER, db)
+    assert historical['content_status'] == 'stale'
+    assert historical['snapshot'] == current
+    assert historical['insight']['snapshot'] == ctx['coach_snapshot']
+    assert historical['insight']['headline'] == row.headline
+    assert historical['insight']['feedback_allowed'] is False
+
+
+def historical_receipt(db, version=coach.CONTENT_VERSION, include_stryd=False):
+    """Store a dated receipt, including a frozen example of the original v2 format."""
+    row, ctx = store(db)
+    meta = deepcopy(row.meta)
+    contract = meta[coach.CONTRACT_KEY]
+    contract.update(version=version, as_of_date=str(date.today()-timedelta(days=1)),
+                    include_stryd=include_stryd)
+    if version == 'morning-coach-v2':
+        contract['candidates'] = {
+            'evidence': {
+                'recovery.sleep': {'en': 'Sleep 80.', 'zh': '睡眠评分 80。'},
+                'recovery.hrv': {'en': 'HRV 54.', 'zh': 'HRV 54。'},
+                'recovery.rhr': {'en': 'Resting HR 48.', 'zh': '静息心率 48。'},
+            },
+            'interpretations': {}, 'actions': {'today.easy': {'en': 'Run easy.', 'zh': '轻松跑。'}},
+            'recovery_summary': {'en': 'Recovery normal', 'zh': '恢复正常'},
+            'week_summary': {'en': 'One recorded session.', 'zh': '记录了 1 次训练。'},
+            'plan_summary': {'en': 'Easy run planned.', 'zh': '已安排轻松跑。'},
+            'missing_recovery': False, 'theory_refs': meta['theory_refs'],
+        }
+        contract['selection'] = {
+            'evidence_ids': ['recovery.sleep', 'recovery.hrv', 'recovery.rhr'],
+            'interpretation_ids': [], 'action_ids': ['today.easy'],
+        }
+        row.translations = {
+            'en': {'headline': 'Recovery and training today',
+                   'summary': 'Recovery normal. One recorded session. Easy run planned.',
+                   'findings': [{'type': 'neutral', 'text': 'Sleep 80. HRV 54. Resting HR 48.'}],
+                   'recommendations': ['Run easy.']},
+            'zh': {'headline': '今日恢复与训练', 'summary': '恢复正常。 记录了 1 次训练。 已安排轻松跑。',
+                   'findings': [{'type': 'neutral', 'text': '睡眠评分 80。 HRV 54。 静息心率 48。'}],
+                   'recommendations': ['轻松跑。']},
+        }
+        for key, value in row.translations['en'].items():
+            setattr(row, key, value)
+    contract['snapshot'] = coach.digest([
+        version, OWNER, contract['as_of_date'],
+        meta[GENERATION_PROVENANCE_KEY]['source_revisions'], include_stryd,
+    ])
+    meta['input_hash'] = contract['snapshot']
+    meta['content_version'] = version
+    meta[GENERATION_PROVENANCE_KEY]['run_started_at'] = (
+        datetime.now()-timedelta(days=1)).isoformat()
+    meta['dataset_hash'] = coach.digest([contract, {
+        key: getattr(row, key) for key in ('headline', 'summary', 'findings', 'recommendations', 'translations')
+    }])
+    row.meta = meta
+    row.generated_at = datetime.now()-timedelta(days=1)
+    db.commit()
+    return row
+
+
+@pytest.mark.parametrize('version', ['morning-coach-v2', coach.CONTENT_VERSION])
+def test_prior_day_receipts_survive_version_and_source_changes_without_becoming_current(db, version):
+    row = historical_receipt(db, version)
+    old_snapshot = row.meta[coach.CONTRACT_KEY]['snapshot']
+    bump_revisions(db, OWNER, ['recovery', 'plans']); db.commit()
+    current = coach.current_snapshot(db, OWNER, False)
+    assert not coach.validate_stored(row, current)
+    assert coach.validate_stored(row, old_snapshot, require_current=False)
+    for response in (
+        insights.get_insight('daily_brief', current, OWNER, OWNER, db),
+        insights.get_insights(current, OWNER, OWNER, db),
+    ):
+        receipt = response.get('insight') or response['insights']['daily_brief']
+        assert response['content_status'] == 'stale'
+        assert response['content_version'] == coach.CONTENT_VERSION
+        assert receipt['snapshot'] == old_snapshot
+        assert receipt['content_version'] == version
+        assert receipt['translations'] == row.translations
+        assert receipt['generated_at'].startswith(str(date.today()-timedelta(days=1)))
+        assert receipt['feedback_allowed'] is False
+
+
+@pytest.mark.parametrize('mutation', ['headline', 'translations', 'provenance', 'digest', 'owner'])
+def test_historical_reads_still_reject_corrupt_or_foreign_content(db, mutation):
+    row = historical_receipt(db)
+    if mutation == 'headline':
+        row.headline = 'Untrusted replacement'
+    elif mutation == 'translations':
+        row.translations = {}
+    elif mutation == 'owner':
+        meta = deepcopy(row.meta)
+        contract = meta[coach.CONTRACT_KEY]
+        contract['snapshot'] = meta['input_hash'] = coach.digest([
+            coach.CONTENT_VERSION, 'different-owner', contract['as_of_date'],
+            meta[GENERATION_PROVENANCE_KEY]['source_revisions'], False,
+        ])
+        row.meta = meta
+    else:
+        meta = deepcopy(row.meta)
+        if mutation == 'provenance':
+            meta.pop(GENERATION_PROVENANCE_KEY)
+        else:
+            meta['dataset_hash'] = 'bad'
+        row.meta = meta
+    db.commit()
+    current = coach.current_snapshot(db, OWNER, False)
     assert insights.get_insight('daily_brief', current, OWNER, OWNER, db)['insight'] is None
 
 
-def test_read_fails_closed_when_source_changes_during_serialization(db, monkeypatch):
-    row, ctx = store(db)
+@pytest.mark.parametrize('authority', ['terms', 'inactive', 'unavailable', 'stryd'])
+def test_historical_receipt_never_bypasses_current_authority(db, monkeypatch, authority):
+    historical_receipt(db, include_stryd=authority == 'stryd')
+    if authority == 'terms':
+        db.get(User, OWNER).terms_version = 'old'
+    elif authority == 'inactive':
+        db.get(User, OWNER).is_active = False
+    elif authority == 'unavailable':
+        monkeypatch.setattr(llm, 'runtime_ai_available', lambda: False)
+    db.commit()
+    current = coach.current_snapshot(db, OWNER, False)
+    assert insights.get_insight('daily_brief', current, OWNER, OWNER, db)['insight'] is None
+
+
+def test_failed_new_generation_does_not_replace_a_readable_receipt(db):
+    row = historical_receipt(db)
+    current = coach.current_snapshot(db, OWNER, False)
+    db.add(AiInsight(user_id=OWNER, insight_type='_generation_budget', headline='', summary='',
+                     findings=[], recommendations=[], translations={}, meta={'daily_failure_snapshot': current}))
+    db.commit()
+    response = insights.get_insight('daily_brief', current, OWNER, OWNER, db)
+    assert response['content_status'] == 'stale'
+    assert response['insight']['headline'] == row.headline
+
+
+@pytest.mark.parametrize('historical', [False, True])
+def test_read_fails_closed_when_source_changes_during_serialization(db, monkeypatch, historical):
+    if historical:
+        historical_receipt(db)
+    else:
+        store(db)
+    snapshot = coach.current_snapshot(db, OWNER, False)
     original = insights._serialize_insight
     def serialize(*a, **k):
         response = original(*a, **k)
         bump_revisions(db, OWNER, ['plans']); db.commit()
         return response
     monkeypatch.setattr(insights, '_serialize_insight', serialize)
-    response = insights.get_insight('daily_brief', ctx['coach_snapshot'], OWNER, OWNER, db)
+    response = insights.get_insight('daily_brief', snapshot, OWNER, OWNER, db)
     assert response['content_status'] == 'stale' and response['insight'] is None
 
 
@@ -615,6 +753,20 @@ def setup_runner(monkeypatch):
     monkeypatch.setattr('api.ai.build_training_context', lambda **k: deepcopy(ctx))
     monkeypatch.setattr(llm, 'chat_json', lambda *a, **k: selection(coach.candidates(ctx)))
     return ctx
+
+
+@pytest.mark.parametrize('version', ['morning-coach-v2', coach.CONTENT_VERSION])
+def test_historical_display_does_not_skip_new_generation(db, monkeypatch, version):
+    previous = historical_receipt(db, version)
+    previous_generated_at = previous.generated_at
+    setup_runner(monkeypatch)
+    result = insights_runner.run_insights_for_user(OWNER, db, {}, _session=db)
+    assert result['daily_brief'] == 'generated'
+    current = coach.current_snapshot(db, OWNER, False)
+    response = insights.get_insight('daily_brief', current, OWNER, OWNER, db)
+    assert response['content_status'] == 'ready'
+    assert response['insight']['feedback_allowed'] is True
+    assert previous.generated_at > previous_generated_at
 
 
 def test_no_new_rows_generates_daily_once_and_rollover_generates_again(db, monkeypatch):

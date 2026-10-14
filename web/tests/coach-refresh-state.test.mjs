@@ -10,15 +10,16 @@ import { createDailyCoachRefetchInterval, needsCoachSnapshotRefresh } from '../s
 
 const require = createRequire(import.meta.url);
 
-async function renderCoach({ status = 'unavailable', error = null, loading = false, aiAvailable = true, stale = false, insight = null, snapshot = 'synthetic', responseSnapshot = 'synthetic', contentVersion, regenerate = false } = {}) {
+async function renderCoach({ status = 'unavailable', error = null, errorStatus = null, loading = false, aiAvailable = true, stale = false, insight = null, snapshot = 'synthetic', responseSnapshot = 'synthetic', contentVersion, regenerate = false } = {}) {
   const source = await readFile(new URL('../src/components/AiInsightsCard.tsx', import.meta.url), 'utf8');
   const code = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
+  const response = { content_status: status, ai_available: aiAvailable, snapshot: responseSnapshot, insight, content_version: contentVersion };
   const modules = {
-    '@/hooks/useApi': { useApi: () => ({
-      data: { content_status: status, ai_available: aiAvailable, snapshot: responseSnapshot, insight, content_version: contentVersion },
-      error, loading, stale, refetch: async () => {},
+    '@/hooks/useApi': { getAuthCacheScope: () => 'synthetic-account', useApi: () => ({
+      data: response,
+      error, errorStatus, loading, stale, refetch: async () => {},
     }) },
     '@lingui/core/macro': { msg: strings => strings.join('') },
     '@lingui/react/macro': {
@@ -43,6 +44,8 @@ async function renderCoach({ status = 'unavailable', error = null, loading = fal
 
 const readyInsight = {
   snapshot: 'synthetic', content_version: 'morning-coach-v2',
+  generated_at: '2026-10-13T14:45:00Z', as_of_date: '2026-10-14',
+  feedback_allowed: true,
   headline: 'Current Coach summary', summary: 'Synthetic recovery observations.',
   findings: [], recommendations: ['Follow the planned session.'], meta: {},
   translations: { en: {
@@ -64,9 +67,10 @@ test('the server rendering version remains authoritative across application upda
   assert.doesNotMatch(await renderCoach({ status: 'ready', insight, contentVersion: 'morning-coach-v2' }), /Current Coach summary/);
 });
 
-test('server freshness, snapshot, version and failed reads still exclude Coach content', async () => {
+test('unverified stale content, outages, mismatched snapshots and revoked access still exclude Coach', async () => {
   for (const state of [
-    { status: 'stale' }, { status: 'unavailable' }, { aiAvailable: false }, { error: 'HTTP 503' },
+    { status: 'stale' }, { status: 'unavailable' }, { aiAvailable: false },
+    ...[401, 403, 428].map(errorStatus => ({ error: 'Access denied', errorStatus })),
     { snapshot: 'replacement' },
     { insight: { ...readyInsight, content_version: 'old' } },
   ]) {
@@ -74,6 +78,97 @@ test('server freshness, snapshot, version and failed reads still exclude Coach c
     assert.doesNotMatch(html, /Current Coach summary/);
     assert.match(html, /Synthetic training metrics/);
   }
+});
+
+test('verified historical Coach survives date, snapshot and renderer-version changes with its generation time', async () => {
+  const html = await renderCoach({ status: 'stale', contentVersion: 'morning-coach-v3',
+    insight: { ...readyInsight, snapshot: 'previous', feedback_allowed: false } });
+  assert.match(html, /Current Coach summary/);
+  assert.match(html, /Previous insight/);
+  assert.match(html, /Generated/);
+  assert.match(html, /Showing the previous insight/);
+  assert.doesNotMatch(html, /needs an updated analysis/);
+  assert.match(html, /13\/10\/2026/);
+  assert.doesNotMatch(html, /14\/10\/2026/);
+  assert.doesNotMatch(html, /Was this helpful/);
+});
+
+test('a transient refresh failure or loading state retains the last verified Coach instead of replacing it', async () => {
+  for (const state of [{ error: 'HTTP 503' }, { loading: true }, { regenerate: true }]) {
+    const html = await renderCoach({ status: 'ready', insight: readyInsight, ...state });
+    assert.match(html, /Current Coach summary/);
+    assert.doesNotMatch(html, /Synthetic training metrics/);
+    assert.match(html, /Generated/);
+  }
+});
+
+test('a failed historical read offers refresh, not an unnecessary new generation', async () => {
+  const html = await renderCoach({ status: 'stale', error: 'HTTP 503', regenerate: true,
+    insight: { ...readyInsight, snapshot: 'previous', feedback_allowed: false } });
+  assert.match(html, /Current Coach summary/);
+  assert.match(html, />Refresh<\/button>/);
+  assert.doesNotMatch(html, />Sync now<\/button>/);
+});
+
+test('mounted Coach retains content across snapshot revalidation, replaces it on success, and isolates accounts', async () => {
+  const source = await readFile(new URL('../src/components/AiInsightsCard.tsx', import.meta.url), 'utf8');
+  const code = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const slots = [];
+  let cursor = 0;
+  let changed = false;
+  let scope = 'first-account';
+  let state = { data: { content_status: 'ready', ai_available: true, snapshot: 'synthetic', insight: readyInsight } };
+  const modules = {
+    react: {
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in slots)) slots[index] = initial;
+        return [slots[index], value => { slots[index] = value; changed = true; }];
+      },
+      useRef(initial) {
+        const index = cursor++;
+        return slots[index] ??= { current: initial };
+      },
+      useMemo: fn => fn(), useEffect() {}, useLayoutEffect() {},
+    },
+    '@/hooks/useApi': { getAuthCacheScope: () => scope, useApi: () => state },
+    '@lingui/core/macro': { msg: strings => strings.join('') },
+    '@lingui/react/macro': { Trans: ({ children }) => children, Plural: () => null, useLingui: () => ({ i18n: { _: value => value } }) },
+    '@/contexts/LocaleContext': { useLocale: () => ({ locale: 'en' }) },
+    'react-router-dom': { Link: ({ children }) => children },
+    '@/lib/science-links': { linkifyScienceTerms: text => text },
+    '@/lib/coach-refresh': { createDailyCoachRefetchInterval, needsCoachSnapshotRefresh },
+    '@/components/ui/button': { Button: ({ variant, ...props }) => React.createElement('button', props) },
+  };
+  const sandbox = { exports: {}, require: name => modules[name] ?? require(name) };
+  vm.runInNewContext(code, sandbox);
+  const render = snapshot => {
+    let tree;
+    for (let pass = 0; pass < 10; pass += 1) {
+      cursor = 0; changed = false;
+      tree = sandbox.exports.default({ insightType: 'daily_brief', snapshot });
+      if (!changed) return renderToStaticMarkup(tree);
+    }
+    throw new Error('Coach did not settle');
+  };
+  assert.match(render('synthetic'), /Current Coach summary/);
+  state = { data: null, loading: true };
+  assert.match(render('next'), /Current Coach summary/);
+  assert.match(render('next'), /Previous insight/);
+  state = { data: null, error: 'Network interrupted' };
+  assert.match(render('next'), /Current Coach summary/);
+  const replacement = { ...readyInsight, snapshot: 'next',
+    translations: { en: { ...readyInsight.translations.en, headline: 'New successful analysis' } } };
+  state = { data: { content_status: 'ready', ai_available: true, snapshot: 'next', insight: replacement } };
+  assert.match(render('next'), /New successful analysis/);
+  assert.doesNotMatch(render('next'), /Current Coach summary/);
+  state = { data: null, loading: true };
+  scope = 'second-account';
+  assert.doesNotMatch(render('next'), /New successful analysis|Current Coach summary/);
+  scope = 'first-account';
+  assert.doesNotMatch(render('next'), /New successful analysis/);
 });
 
 test('Today sync rereads the mounted Coach even when the training snapshot is unchanged', async () => {
@@ -217,7 +312,7 @@ test('miniapp rejected sync retains metrics, shows failure and allows an explici
   vm.runInNewContext(code, sandbox);
   const receipt = {
     data: { ...target.data, loading: false, regenerating: false, insightType: 'daily_brief', snapshot: 'synthetic',
-      syncFailed: target.data.coachSyncFailed, fallback: metrics,
+      syncFailed: target.data.coachSyncFailed, failed: false, fallback: metrics,
       response: { content_status: 'stale', snapshot: 'synthetic', ai_available: true }, canRegenerate: true },
     setData(patch) { Object.assign(this.data, patch); },
   };
@@ -245,7 +340,7 @@ for (const name of ['today', 'analysis']) {
     const target = page();
     await refetch.call(target, { background: true });
     assert.equal(target.data.hasResponse, true);
-    assert.equal(target.data.coachResponse, null);
+    assert.equal(target.data.coachResponse?.content_status ?? null, name === 'today' ? 'ready' : null);
     assert.equal(target.data.coachLoading, false);
     assert.equal(target.data.coachFailed, true);
   });
@@ -265,3 +360,95 @@ for (const name of ['today', 'analysis']) {
     assert.equal(target.data.coachFailed, false);
   });
 }
+
+for (const status of [401, 403, 428]) {
+  test(`miniapp Today clears retained Coach when refresh revokes access (${status})`, async () => {
+    const refetch = await loadRefetch('today', async () => { throw { status }; });
+    for (const background of [false, true]) {
+      const target = page();
+      await refetch.call(target, { background });
+      assert.equal(target.data.coachResponse, null);
+      assert.equal(target.data.hasResponse, false);
+      assert.equal(target.data.coachFailed, true);
+    }
+  });
+}
+
+test('miniapp foreground refresh failure keeps the parent page and its historical Coach visible with read-only retry', async () => {
+  const refetch = await loadRefetch('today', async () => {
+    throw { code: 'NETWORK_ERROR', detail: 'Synthetic failure' };
+  });
+  const target = page();
+  const historical = { content_status: 'stale', ai_available: true, insight: { ...readyInsight, feedback_allowed: false } };
+  target.data.coachResponse = historical;
+  await refetch.call(target);
+  assert.equal(target.data.hasResponse, true);
+  assert.equal(target.data.loading, false);
+  assert.equal(target.data.errorMessage, '');
+  assert.equal(target.data.coachResponse, historical);
+  assert.equal(target.data.coachFailed, true);
+  assert.equal(target.data.coachLoading, false);
+  const pageWxml = await readFile(new URL('../../miniapp/pages/today/index.wxml', import.meta.url), 'utf8');
+  const blockingConditions = [...pageWxml.matchAll(/<block wx:(?:if|elif)="{{([^}]+)}}">/g)].slice(0, 3);
+  assert.equal(blockingConditions.length, 3);
+  assert.ok(blockingConditions.every(([, condition]) => !vm.runInNewContext(condition, target.data)));
+  const receiptWxml = await readFile(new URL('../../miniapp/components/coach-receipt/index.wxml', import.meta.url), 'utf8');
+  const refreshCondition = receiptWxml.match(/wx:elif="{{([^}]+)}}"[^>]+bindtap="refresh"/)?.[1];
+  assert.ok(refreshCondition);
+  assert.equal(vm.runInNewContext(refreshCondition, {
+    loading: target.data.coachLoading, failed: target.data.coachFailed, regenerating: false,
+    response: historical, needsGeneration: true,
+  }), true);
+
+  const empty = page();
+  empty.data.hasResponse = false;
+  empty.data.coachResponse = null;
+  await refetch.call(empty);
+  assert.equal(empty.data.hasResponse, false);
+  assert.equal(empty.data.errorMessage, 'Synthetic failure');
+});
+
+test('historical Coach keeps polling so a successful replacement can appear without another sync', () => {
+  const interval = createDailyCoachRefetchInterval();
+  assert.equal(interval({ state: { data: { content_status: 'stale', ai_available: true, insight: readyInsight }, error: null } }), 60_000);
+  assert.equal(interval({ state: { data: { content_status: 'stale', ai_available: true, insight: null }, error: null } }), false);
+});
+
+test('miniapp receipt retains verified historical content and timestamp through loading and failed refresh', async () => {
+  const source = await readFile(new URL('../../miniapp/components/coach-receipt/index.ts', import.meta.url), 'utf8');
+  const code = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  let definition;
+  const sandbox = { exports: {}, Component: value => { definition = value; }, require: name => {
+    if (name === '../../utils/i18n') return { t: text => text, detectLocale: () => 'en' };
+    if (name === '../../utils/insights') return {
+      coachToggleLabel: () => '', localizedInsight: insight => insight.translations.en,
+      insightFeedbackState: insight => ({ datasetHash: insight?.feedback_allowed ? insight.meta.dataset_hash : '', vote: '' }),
+    };
+    throw new Error(`Unexpected module ${name}`);
+  } };
+  vm.runInNewContext(code, sandbox);
+  const originalRefs = [{ pillar: 'load', theory_id: 'original', label: 'Original method' }];
+  const component = {
+    data: {
+      ...definition.data, insightType: 'daily_brief', snapshot: 'synthetic',
+      response: { ai_available: true, snapshot: 'synthetic', content_status: 'stale', content_version: 'morning-coach-v3',
+        insight: { ...readyInsight, snapshot: 'previous', feedback_allowed: false, theory_refs: originalRefs,
+          meta: { dataset_hash: 'a'.repeat(64) } } },
+    },
+    setData(patch) { Object.assign(this.data, patch); },
+  };
+  for (const state of [{}, { loading: true }, { loading: false, failed: true }]) {
+    Object.assign(component.data, state);
+    definition.methods.rebuild.call(component);
+    assert.equal(component.data.receipt.headline, readyInsight.headline);
+    assert.equal(component.data.previousInsight, true);
+    assert.match(component.data.receipt.stamp, /13\/10\/2026/);
+    assert.equal(component.data.datasetHash, '');
+    assert.equal(component.data.refs, originalRefs);
+  }
+  component.data.response = { ai_available: false, content_status: 'unavailable', insight: null };
+  definition.methods.rebuild.call(component);
+  assert.equal(component.data.isAi, false);
+});
