@@ -458,3 +458,7 @@ claude plugin install praxys
 ```
 
 Users authenticate via `~/.trainsight/token` (cached JWT from login).
+
+## PR871 inactive supervisor implementation
+
+The backend workflow owns `python -m api.runtime_startup` as its startup command. The initial API worker count is one and the DFA candidate defaults disabled. Enabled or active DFA replacement is blocked by the inactive installer; consult `docs/ops/activity-dfa-alpha1.md` for separately authorized physical drain, exact environment termination and handover.

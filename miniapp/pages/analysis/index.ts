@@ -861,8 +861,7 @@ Page<TrainingState & { coachResponse: AiInsightResponse | null; coachLoading: bo
     coachSnapshot: '', coachTheoryRefs: [] as CoachTheoryRef[], ...initialData, tr: buildTrainingTr(), dfaActivityId: '', dfaActivityDate: '' },
 
   onOpenDFA(event: WechatMiniprogram.CustomEvent<{ activityId: string; activityDate: string }>) {
-    this.setData({ dfaActivityId: event.detail.activityId, dfaActivityDate:event.detail.activityDate });
-    this.syncDFATabBar();
+    wx.navigateTo({url:`/pages/activity-detail/index?id=${encodeURIComponent(event.detail.activityId)}&section=dfa`});
   },
   onCloseDFA() {
     this.setData({ dfaActivityId: '' });

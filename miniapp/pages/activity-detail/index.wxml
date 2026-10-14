@@ -133,6 +133,7 @@
           </view>
         </view>
 
+        <view id="activity-dfa" class="activity-page__section"><dfa-analysis id="activity-report-dfa" inline="{{true}}" activity-id="{{id}}" activity-date="{{response.activity.date}}" activity-start-ms="{{dfaStartMs}}" range-start="{{rangeStart}}" range-end="{{rangeEnd}}" bindinterval="onDfaInterval" /></view>
         <view wx:if="{{view.savedCount}}" id="activity-saved" class="activity-page__section activity-page__saved">
           <button class="activity-page__saved-toggle" bindtap="onToggleSaved" aria-expanded="{{savedOpen}}">
             <text class="ts-value">{{view.savedLabel}}</text>

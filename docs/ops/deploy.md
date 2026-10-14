@@ -283,3 +283,7 @@ application entry, charts, and full application catalogs. A fresh public session
 does not download the full PWA precache; registration on app entry preserves
 application offline caching. Recheck both cold public navigation and controlled
 application refresh after changes to the build or Service Worker.
+
+## PR871 inactive supervisor implementation
+
+DFA uses `python -m api.runtime_startup`, with `PRAXYS_DFA_SUPERVISOR_ENABLED` unset/false. The backend installer rejects enabled supervisor settings before its first recycling mutation and rejects active V2 source. It supports inactive installation only. Before a separately authorized active replacement, execute `python -m api.dfa_drain` in the exact bound environment, retain the verified exit receipt, then disable the candidate setting. This PR does not automate active rollout or host handover; never use feedback quiescence as DFA drain.

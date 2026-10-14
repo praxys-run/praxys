@@ -287,16 +287,12 @@ async def lifespan(app: FastAPI):
 
         start_dispatcher()
         start_publication_reconciler()
-        from api.activity_dfa_dispatch import start as start_dfa_dispatcher
-        start_dfa_dispatcher()
         if scheduler_enabled:
             from db.sync_scheduler import start_scheduler
 
             start_scheduler()
         yield
     finally:
-        from api.activity_dfa_dispatch import stop as stop_dfa_dispatcher
-        stop_dfa_dispatcher()
         try:
             from api.feedback_publication import stop_publication_reconciler
 

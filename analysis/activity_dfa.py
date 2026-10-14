@@ -18,9 +18,9 @@ import numpy as np
 METHOD_VERSION = "dfa-alpha1-raw120-v1"
 STATEMENT_VERSION = "dfa-source-attestation-v1"
 SOURCE_VERSION = "ecg-native-attestation-v1"
-SDR_ID = "sdr-activity-dfa-alpha1-v1"
+SDR_ID = "sdr-activity-dfa-alpha1-v2"
 # Entire fixed recipe mapping; activation may change signed state, never this math.
-POLICY_PARAMETER_DIGEST = "c9db9df13212d152c5a34ff4ddfb8f08ea5cb32dd98d14207ddbd0ef86386438"
+POLICY_PARAMETER_DIGEST = "5d9546b667db0e3425238806ff951dbc6de1b9c15b5e803ce615c6f3a5439aa9"
 WINDOW_MS = 120_000
 STEP_MS = 5_000
 MIN_BEATS = 200

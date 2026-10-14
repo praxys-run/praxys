@@ -165,11 +165,11 @@ def _delete_user_owned_rows(
       is deleted, while marker/digest delivery evidence is detached and retained.
     """
     from db.models import (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
-                           GarminConnectIQJob, GarminFitSnapshot)
+                           GarminConnectIQJob, GarminFitSnapshot, ActivityDFASyncGrant)
     from api.activity_dfa import _erase
     _erase(db, {"user_id": user_id, "scope": "owner", "target_id": user_id,
-                "requested_at": datetime.utcnow().isoformat()})
-    for model in (GarminFitChunk, GarminFitParse, GarminConnectIQItem,
+                "requested_at": datetime.max.isoformat()})
+    for model in (ActivityDFASyncGrant, GarminFitChunk, GarminFitParse, GarminConnectIQItem,
                   GarminConnectIQJob, GarminFitSnapshot):
         db.query(model).filter_by(user_id=user_id).delete(synchronize_session=False)
 

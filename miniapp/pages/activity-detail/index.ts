@@ -266,12 +266,16 @@ Page({
     cursor: 0,
     savedOpen: false,
     dataOpen: false,
-    scrollTarget: '',
+    scrollTarget: '', dfaStartMs: 0,
   },
 
+  onDfaInterval(event: WechatMiniprogram.CustomEvent<{startMs:number;endMs:number}>) {
+    if (!this.data.dfaStartMs) return;
+    this.setData({rangeStart:(event.detail.startMs-this.data.dfaStartMs)/1000,rangeEnd:(event.detail.endMs-this.data.dfaStartMs)/1000});
+  },
   onLoad(options: Record<string, string>) {
     const id = decodeURIComponent(options.id || '');
-    this.setData({ id });
+    this.setData({ id, scrollTarget: options.section === 'dfa' ? 'activity-dfa' : '' });
     if (id) void this.fetchDetail(id);
     else this.setData({ loading: false, notFound: true });
   },
@@ -321,6 +325,7 @@ Page({
         secondaryLabel: secondary ? metricLabel(secondary) : '',
         overlayOptions: this.overlayChoices(metrics, primary),
         overlayIndex: secondary ? 1 : 0,
+        dfaStartMs: response.time_origin === 'activity_start' && response.activity.start_time.utc ? Date.parse(response.activity.start_time.utc) : 0,
         fullStart, fullEnd, rangeStart: fullStart, rangeEnd: fullEnd, cursor: fullStart,
         splitMode: response.activity.splits.length ? 'recorded' : 'kilometers',
         selected: null, selectedText: '', savedOpen: false, dataOpen: false,

@@ -140,3 +140,7 @@ prerequisites.
 
 ---
 _Last reviewed: 2026-08-29 · Owner: Operations_
+
+## PR871 inactive supervisor implementation
+
+PR871 adds a default-disabled supervisor candidate and observed incarnation checks. No live placement was established by source implementation. Source SHA, instance identifier, nonce, boot and namespaces must match the separately authorized durable binding. Missing or changed identity denies execution; no heartbeat takeover. The backend installer is restricted to inactive source and an unset/false supervisor setting.

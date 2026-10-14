@@ -1,6 +1,9 @@
 """Fresh STOP source authentication is separate from candidate execution."""
 from dataclasses import replace
+import json
+import shlex
 import shutil
+import subprocess
 
 import pytest
 
@@ -10,6 +13,61 @@ from analysis.science_stop_github import authenticated_stop_context, fetch_stop_
 from tests.test_science_activation import commit
 from tests.test_science_implementation_stop import stop_case, accepted_active_baseline
 from tests.test_science_policy_probe import probe_candidates
+
+
+
+def _hostile_pytest_environment(parent):
+    """Copy child env, removing only inherited basetemp option tokens.
+
+    Pytest validates environment options before CLI overrides. Malformed input
+    stays an error; tokens after -- are literals and must not be rewritten.
+    """
+    __tracebackhide__ = True  # Do not expose the inherited env in pytest argument reprs.
+    child = dict(parent)
+    if 'PYTEST_ADDOPTS' not in child:
+        return child
+    tokens = shlex.split(child['PYTEST_ADDOPTS'])
+    kept = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token == '--':
+            kept.extend(tokens[index:])
+            break
+        if token == '--basetemp':
+            if index + 1 == len(tokens) or not tokens[index + 1] or tokens[index + 1].startswith('-'):
+                raise ValueError('Inherited --basetemp requires a non-option path')
+            index += 2
+        elif token.startswith('--basetemp='):
+            if not token.removeprefix('--basetemp='):
+                raise ValueError('Inherited --basetemp requires a nonempty path')
+            index += 1
+        else:
+            kept.append(token)
+            index += 1
+    child['PYTEST_ADDOPTS'] = shlex.join(kept)
+    return child
+
+
+def _run_hostile_pytest(command, *, cwd, environment, evidence):
+    """Persist synthetic child output before raising, never its parent env."""
+    __tracebackhide__ = True  # Sanitized receipts retain diagnostics; env stays private.
+    child = _hostile_pytest_environment(environment)
+    result = subprocess.run(command, cwd=cwd, env=child, capture_output=True, text=True)
+    output = {'returncode': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr,
+              'scope': 'owned synthetic hostile pytest child; no parent environment dump'}
+    # Retain diagnostic output while excluding inherited credential values, even
+    # if a failing fixture/plugin happens to print one. Never serialize the env.
+    secrets = {value for name, value in environment.items() if value and any(
+        word in name.upper() for word in ('SECRET', 'TOKEN', 'PASSWORD', 'CREDENTIAL',
+                                          'API_KEY', 'PRIVATE_KEY', 'CONNECTION_STRING'))}
+    for value in sorted(secrets, key=len, reverse=True):
+        for field in ('stdout', 'stderr'):
+            output[field] = output[field].replace(value, '[REDACTED]')
+    evidence.write_text(json.dumps(output, indent=2))
+    result.stdout, result.stderr = output['stdout'], output['stderr']
+    result.check_returncode()
+    return result
 
 
 def _copy_repository(source, destination):
@@ -305,16 +363,22 @@ def test_mutate_regression_runner():
     Path(os.environ['GITHUB_ENV']).write_text('CANDIDATE_ROOT=/poisoned\\nPYTHONPATH=/poisoned\\n')
     Path(os.environ['GITHUB_PATH']).write_text('/poisoned/bin\\n')
 ''')
-    subprocess.run([sys.executable, '-m', 'pytest', '-q', str(attack)],
-                   cwd=regression / 'candidate', env=regression_env, check=True, capture_output=True, text=True)
+    _run_hostile_pytest([sys.executable, '-m', 'pytest', '-q',
+                        '--basetemp='+str(tmp_path / 'hostile-child-pytest'), str(attack)],
+                       cwd=regression / 'candidate', environment=regression_env,
+                       evidence=tmp_path / 'hostile-child-evidence.json')
     command = [sys.executable, *selected['run'].split()[1:]]
     contaminated = subprocess.run(command, cwd=regression, env=regression_env, capture_output=True, text=True)
+    (tmp_path / 'contaminated-probe-evidence.json').write_text(json.dumps(
+        {'returncode': contaminated.returncode, 'stdout': contaminated.stdout, 'stderr': contaminated.stderr}))
     assert contaminated.returncode != 0 and 'Policy observer did not complete successfully' in contaminated.stderr
     assert '/poisoned' in Path(regression_env['GITHUB_ENV']).read_text()
     probe, probe_env = fresh_job('probe-runner')
     assert not Path(probe_env['GITHUB_ENV']).exists() and not Path(probe_env['GITHUB_PATH']).exists()
     assert git(probe / 'candidate', 'status', '--porcelain') == b''
     clean = subprocess.run(command, cwd=probe, env=probe_env, capture_output=True, text=True)
+    (tmp_path / 'fresh-probe-evidence.json').write_text(json.dumps(
+        {'returncode': clean.returncode, 'stdout': clean.stdout, 'stderr': clean.stderr}))
     assert clean.returncode == 0, clean.stderr
     assert json.loads(clean.stdout)['controller_completed'] is True
     assert json.loads(clean.stdout)['observation']['http_status'] == 503

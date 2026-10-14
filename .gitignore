@@ -92,3 +92,6 @@ docs/perf-baselines/*/*/img/
 
 # Private restore-safe DFA erasure requests; never publish owner references.
 /data/activity_dfa_deletion_manifests/
+
+# Independent private DFA negative authority must never be published.
+/data/activity_dfa_authority/

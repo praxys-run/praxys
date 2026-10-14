@@ -81,6 +81,7 @@ def store(value: dict) -> None:
 def request(user_id: str, scope: str, target_id: str, reason: str) -> dict:
     value = {"id": str(uuid4()), "user_id": user_id, "scope": scope, "target_id": target_id,
              "reason": reason, "requested_at": datetime.utcnow().isoformat(), "completed_at": None}
+    record_negative(user_id, reason, scope, target_id)
     store(value)
     return value
 
@@ -143,3 +144,127 @@ def iter_active(user_id: str | None = None):
             discard(value)
         else:
             yield value
+
+
+def _authority_key(owner: str) -> str:
+    return 'activity-dfa-authority/' + hashlib.sha256(owner.encode()).hexdigest() + '.json'
+
+
+def authority_state(owner: str) -> dict:
+    """Independent negative authority is not restored from the SQL backup.
+
+    Absence is an empty negative journal, never positive processing authority.
+    No completed negative marker expires automatically.
+    """
+    key = _authority_key(owner)
+    empty = {'schema': 1, 'sequence': 0, 'deleted': False, 'events': {}, 'epoch': 'missing'}
+    try:
+        if feedback_storage.private_blob_enabled():
+            from azure.core.exceptions import ResourceNotFoundError
+            try:
+                raw = feedback_storage.private_container_client().get_blob_client(key).download_blob().readall()
+            except ResourceNotFoundError:
+                return empty
+        else:
+            path = _root().parent / 'activity_dfa_authority' / key.split('/')[-1]
+            if not path.exists():
+                return empty
+            raw = path.read_bytes()
+        value = json.loads(raw)
+        if (set(value) != set(empty) or value['schema'] != 1 or type(value['sequence']) is not int
+                or type(value['deleted']) is not bool or not isinstance(value['events'], dict)):
+            raise ValueError('invalid journal')
+        return value
+    except Exception as exc:
+        raise StorageError('dfa_authority_unavailable') from exc
+
+
+def record_negative(owner: str, operation: str, scope: str, target: str) -> dict:
+    """Report durability failure consistently; no caller may acknowledge erasure."""
+    try:
+        return _record_negative(owner, operation, scope, target)
+    except StorageError:
+        raise
+    except Exception as exc:
+        raise StorageError('dfa_authority_write_unavailable') from exc
+
+
+def _record_negative(owner: str, operation: str, scope: str, target: str) -> dict:
+    """Append negative authority before exposing a SQL rights/source transition."""
+    from db.account_lifecycle import account_lifecycle_lease
+    import portalocker
+    with account_lifecycle_lease(owner, timeout_seconds=30):
+        key = _authority_key(owner)
+        directory = _root().parent / 'activity_dfa_authority'
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        path = directory / key.split('/')[-1]
+        # Local cross-process serialization; production additionally uses ETag
+        # compare-and-swap so distinct hosts cannot lose a negative event.
+        with portalocker.Lock(str(path) + '.lock', timeout=30):
+            for attempt in range(5):
+                client, etag = None, None
+                if feedback_storage.private_blob_enabled():
+                    from azure.core.exceptions import ResourceNotFoundError, ResourceModifiedError, ResourceExistsError
+                    from azure.core import MatchConditions
+                    client = feedback_storage.private_container_client().get_blob_client(key)
+                    try:
+                        etag = client.get_blob_properties().etag
+                    except ResourceNotFoundError:
+                        pass
+                state = authority_state(owner)
+                if state['epoch'] == 'missing':
+                    state['epoch'] = str(uuid4())
+                state['sequence'] += 1
+                state['events'][hashlib.sha256(json.dumps([operation,scope,target],separators=(',',':')).encode()).hexdigest()] = {'sequence': state['sequence'], 'operation': operation,
+                                               'scope': scope, 'target': target}
+                if operation == 'account_deletion':
+                    state['deleted'] = True
+                if operation == 'restore':
+                    state['epoch'] = str(uuid4())
+                payload = json.dumps(state, separators=(',', ':'), sort_keys=True).encode()
+                if client:
+                    try:
+                        kwargs = {'overwrite': etag is not None}
+                        if etag:
+                            kwargs.update(etag=etag, match_condition=MatchConditions.IfNotModified)
+                        client.upload_blob(payload, **kwargs)
+                        return state
+                    except (ResourceModifiedError, ResourceExistsError):
+                        continue
+                temporary = path.with_suffix('.' + uuid4().hex + '.tmp')
+                with temporary.open('xb') as stream:
+                    os.chmod(temporary, 0o600)
+                    stream.write(payload); stream.flush(); os.fsync(stream.fileno())
+                os.replace(temporary, path)
+                fd = os.open(directory, os.O_DIRECTORY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+                return state
+    raise StorageError('dfa_authority_write_conflict')
+
+
+def authority_revision(owner: str, origin: str, ref: dict, confirmation_id: str | None = None) -> str:
+    from analysis.activity_dfa import digest
+    state = authority_state(owner)
+    if state['deleted']:
+        raise StorageError('dfa_owner_deleted')
+    if state['epoch'] == 'missing':
+        raise StorageError('dfa_authority_missing')
+    events = []
+    for event in state['events'].values():
+        scope, target = event['scope'], event['target']
+        applies = (scope == 'owner' or scope == 'origin' and target == origin
+                   or scope == 'activity' and target == ref['activity_id']
+                   or scope == 'snapshot' and target == ref['snapshot_id']
+                   or scope == 'confirmation' and target == confirmation_id)
+        if applies:
+            events.append(event)
+    return digest([state['epoch'], sorted(events, key=lambda value: value['sequence'])])
+
+
+def establish_for_explicit_manual_action(owner: str) -> None:
+    """Create the independent store only during a fresh explicit owner action."""
+    if authority_state(owner)['epoch'] == 'missing':
+        record_negative(owner, 'authority_store_initialized', 'owner', owner)

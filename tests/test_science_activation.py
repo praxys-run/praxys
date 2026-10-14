@@ -467,11 +467,12 @@ def test_raw_dfa_omitted_review_date_fails_full_composite_without_publication(tm
     context.require_reviewed_tree(binding, root)
 
 
-def test_raw_dfa_null_review_date_materializes_replays_and_real_guard_accepts(tmp_path, monkeypatch):
+def test_raw_dfa_null_review_date_materializes_archived_contract_and_current_guards_deny(tmp_path, monkeypatch):
     from datetime import date, datetime, timezone
     from analysis import science_artifacts, science_approval_workflow as workflow
-    from analysis.activity_dfa import METHOD_VERSION, POLICY_PARAMETER_DIGEST, digest
+    from analysis.activity_dfa import METHOD_VERSION, digest
     from api.activity_dfa import require_policy
+    historical_parameters = 'c9db9df13212d152c5a34ff4ddfb8f08ea5cb32dd98d14207ddbd0ef86386438'
     from fastapi import HTTPException
     class ExecutionDate(date):
         @classmethod
@@ -525,8 +526,14 @@ def test_raw_dfa_null_review_date_materializes_replays_and_real_guard_accepts(tm
     assert contract.contract_digest == binding.active_contract_digest
     assert contract.source_decision_digest == expected_decision_digest
     assert contract.model_version == METHOD_VERSION
-    assert digest({k: v.value for k, v in contract.parameters.items()}) == POLICY_PARAMETER_DIGEST
-    assert require_policy() == binding.active_contract_digest
+    assert digest({k: v.value for k, v in contract.parameters.items()}) == historical_parameters
+    # Archived contract acceptance is static fixture validation, not authority
+    # for the current V2 guard or the permanently denied V1 callable.
+    from api.activity_dfa import require_historical_v1_policy
+    for guard in (require_policy, require_historical_v1_policy):
+        with pytest.raises(HTTPException) as denied:
+            guard()
+        assert denied.value.status_code == 503
     verify_science_approval_changes(base, science, [comment],
         {'synthetic-raw-dfa-reviewer': 'admin'}, activation_context=context)
     context.verify_replay(binding, approvals, root)

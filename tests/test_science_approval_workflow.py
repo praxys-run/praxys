@@ -64,6 +64,13 @@ def fresh_ledger_checkouts(tmp_path):
     archive = subprocess.check_output(["git", "archive", "HEAD"], cwd=_ROOT)
     with tarfile.open(fileobj=io.BytesIO(archive)) as source:
         source.extractall(trusted, filter="data")
+    # Keep this generic bytecode fixture on the historical V1-only registry.
+    from analysis.science_admission_amendment import prune_designated_fixture_closure
+    science = trusted / "data/science"
+    prune_designated_fixture_closure(science)
+    (science / "REGISTRY.md").write_text(
+        render_registry_index(load_science_registry(science)), encoding="utf-8"
+    )
     from tests.test_science_activation import commit
     subprocess.run(["git", "init", "-q"], cwd=trusted, check=True)
     revision = commit(trusted, "synthetic unchanged trusted stopped baseline")

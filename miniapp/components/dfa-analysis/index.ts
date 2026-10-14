@@ -7,7 +7,12 @@ import type { LineSeries } from '../line-chart/index';
 
 function copy() {
   return {
-    alpha: t('DFA α1'),
+    alpha: t('DFA α1'), manual: t('Manual analysis'), originChanged: t('The selected analysis is no longer authorized. Current available analysis is shown.'),
+    sourceLimit: t('Neither recording metadata nor your confirmation verifies the source of every beat interval.'),
+    manualPreference: t('Previously authorized manual analyses keep their original source and method.'),
+    automaticMode: t('Automatic analysis is on. New eligible recordings are analysed after sync; manual analysis is disabled.'),
+    modeUnavailable: t('Analysis mode is unavailable. New analysis is paused.'),
+    modeSwitching: t('Waiting for the previous analysis to stop safely before starting the selected mode.'),
     sources: 'doi:10.3390/s21030821 · doi:10.3390/s22176536',
     description: t('Post-run analysis from ECG chest-strap beat intervals.'), close: t('Close'), refresh: t('Refresh'),
     policy: t('DFA analysis is awaiting scientific activation.'), missing: t('The original recording is not available yet. Sync this activity from your connected platform.'),
@@ -17,14 +22,19 @@ function copy() {
     sourceHint: t('The file records a compatible chest strap, but does not directly identify the source of its beat intervals.'),
     sensor: t('Choose the chest strap'), statement: t('Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate.'),
     confirm: t('Confirm and analyse'), retry: t('Retry analysis'), cancel: t('Cancel analysis'),
-    continuing: t('You can close this panel. Analysis will continue.'), source: t('Source confirmed by you'), timing: t('Estimated time alignment'),
-    valid: t('Valid windows'), support: t('Supported recording time'), coverage: t('Coverage describes which data could be analysed, not measurement accuracy.'),
+    continuing: t('You can leave this report. Analysis will continue.'), source: t('Source confirmed by you'), timing: t('Estimated time alignment'),
+    unresolved: t('Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording.'), ineligible: t('Conflicting source evidence prevents analysis. Confirmation cannot override it.'), automaticUnavailable: t('Automatic analysis is unavailable. Its values are hidden.'), timerBasis: t('Active timer time:'), shortBlocks: t('Short timer blocks without scheduled windows:'), requested: t('Cancellation requested'), valid: t('Valid windows'), support: t('Supported recording time'), coverage: t('Coverage describes which data could be analysed, not measurement accuracy.'),
     overview: t('Whole activity coverage'), legend: t('Cobalt: supported · dark: unsupported · pale: paused'), jump: t('Jump to time'),
     heart: t('RR heart rate (bpm)'), power: t('Power (W)'), pace: t('Pace (s/km)'), previous: t('Previous'), next: t('Next'),
     details: t('Window values and quality details'), method: t('How this is calculated'),
     science: t('DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds.'),
     revoke: t('Revoke source confirmation'), erase: t('Delete DFA analysis'), confirmDelete: t('Confirm deletion'), keep: t('Keep data'),
   };
+}
+function clearedNumbers() {
+  return {rows:[],series:[],comparatorSeries:[],times:[],dates:[],navigation:[],valid:'',support:'',
+    timerBasis:'',shortBlocks:0,timeMax:0,cursorSeconds:0,timeStatus:'',selectedOffset:0,pageOutline:'',
+    pageLabels:[],pageIndex:0,pages:0,exclusions:[]};
 }
 function elapsed(ms: number, start = 0): string {
   const s = Math.max(0, Math.round((ms-start)/1000));
@@ -59,25 +69,29 @@ function stop(component: object) {
 
 Component({
   options: { addGlobalClass: true },
-  properties: { activityId: { type: String, value: '' }, activityDate: { type: String, value: '' } },
+  properties: { inline: { type: Boolean, value: false }, activityStartMs: { type: Number, value: 0 }, rangeStart: { type: Number, value: 0 }, rangeEnd: { type: Number, value: 0 }, activityId: { type: String, value: '' }, activityDate: { type: String, value: '' } },
   data: {
-    tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, error:'',
+    origins: [] as { id: string; label: string; origin: string }[], selectedOrigin: '', originChanged:false, assurance: '', currentRunId:'',
+    tr: copy(), theme: resolveTheme(), loading:true, busy:false, cooling:false, canAnalyse:false, canManual:false, error:'',
     timeMax:0, cursorSeconds:0, timeStatus:'', selectedOffset:0, pageOutline:'', catalog:null as DFACatalog|null,
     run:null as DFARun|null, selected:-1, sensorIndex:-1, checked:false, proof:null as DFASourceConfirmation|null,
     retainedProof:null as DFASourceConfirmation|null,
-    offset:0, status:'', active:false, stale:false, hasResult:false, headline:'', valid:'', support:'',
+    timerBasis:'', shortBlocks:0, offset:0, status:'', active:false, stale:false, hasResult:false, headline:'', valid:'', support:'',
     inputLabels:[] as string[], sensorLabels:[] as string[], times:[] as number[], dates:[] as string[], series:[] as LineSeries[],
     comparatorSeries:[] as LineSeries[], comparator:0, comparators:[] as string[],
     navigation:[] as {style:string; kind:string}[], pageLabels:[] as string[], pageIndex:0, pages:0,
-    rows:[] as {id:number; time:string; alpha:string; value:string; quality:string; coverage:string}[],
+    rows:[] as {id:number; startMs:number; endMs:number; time:string; alpha:string; value:string; quality:string; coverage:string}[],
     exclusions:[] as string[], showDetails:false, showScience:false, deletion:'', deletionText:'', contextError:'',
+  },
+  observers: {
+    'rangeStart, rangeEnd'() { if (this.data.hasResult && this.data.run) void this.showResult(this.data.run); },
   },
   lifetimes: {
     attached() { void this.refresh(); },
     detached() { local(this).visible = false; stop(this); internals.delete(this); },
   },
   pageLifetimes: {
-    hide() { local(this).visible = false; stop(this); this.setData({loading:true, run:null}); },
+    hide() { local(this).visible = false; stop(this); this.setData({loading:true,run:null,hasResult:false,...clearedNumbers()}); },
     show() { local(this).visible = true; void this.refresh(); },
   },
   methods: {
@@ -100,40 +114,63 @@ Component({
     },
     async refresh() {
       stop(this); const state = local(this); const ticket = state.epoch;
-      this.setData({loading:true, busy:false, error:'', run:null, active:false, stale:false, hasResult:false, rows:[], comparatorSeries:[], proof:null, retainedProof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
+      this.setData({...clearedNumbers(),loading:true, busy:false, error:'', run:null, active:false, stale:false, hasResult:false, rows:[], comparatorSeries:[], proof:null, retainedProof:null, checked:false, sensorIndex:-1, tr:copy(), theme:resolveTheme()});
       try {
         const catalog = await this.call<DFACatalog>('');
         if (ticket !== state.epoch || !state.visible) return;
-        const initialEntry = state.auto; state.auto = false;
+        state.auto = false;
         const selected = catalog.inputs.length === 1 ? 0 : -1;
         const retainedProof = selected >= 0 ? catalog.source_confirmations.find(p => p.snapshot_id === catalog.inputs[selected].input.snapshot_id && p.parse_id === catalog.inputs[selected].input.parse_id) ?? null : null;
-        this.setData({catalog, selected, retainedProof, canAnalyse:catalog.policy_active && catalog.processing_authorized, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
+        this.setData({catalog, selected, retainedProof, canAnalyse:catalog.policy_active && catalog.processing_authorized, canManual:catalog.manual_compute_allowed === true, loading:false, inputLabels:catalog.inputs.map((v,i) => `${i+1} · ${v.created_at.replace('T',' ').slice(0,19)}`),
           comparators:[copy().heart,copy().power,copy().pace]});
-        if (catalog.latest_run && catalog.inputs.length === 1) await this.loadRun(catalog.latest_run.id);
-        else if (initialEntry && catalog.policy_active && catalog.processing_authorized && catalog.inputs.length === 1 && !catalog.source_confirmations.some(p => p.snapshot_id === catalog.inputs[0].input.snapshot_id && p.parse_id === catalog.inputs[0].input.parse_id)) { await this.launch(); }
+        const origins = (catalog.origin_runs ?? (catalog.latest_run ? [catalog.latest_run] : [])).filter(run => run.freshness === 'current');
+        this.setData({origins: origins.map(run => ({id:run.id,origin:run.origin,label:run.origin === 'automatic' ? t('Automatic analysis') : t('Manual analysis')}))});
+        const inspected = origins.find(run => run.origin === this.data.selectedOrigin);
+        const preferred = inspected ?? origins.find(run => run.origin === catalog.computation_mode && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'manual' && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'automatic' && run.status === 'complete')
+          ?? origins.find(run => run.origin === 'manual') ?? origins[0] ?? catalog.latest_run;
+        this.setData({originChanged:!!preferred && !!this.data.selectedOrigin && !inspected});
+        if (preferred) {
+          this.setData({selectedOrigin:preferred.origin, selected:catalog.inputs.findIndex(input => input.input.snapshot_id === preferred.snapshot_id)});
+          await this.loadRun(preferred.id);
+        }
+
       } catch { if (ticket === state.epoch) this.setData({loading:false,error:t('The request failed. Try again.')}); }
+    },
+    async onOrigin(e: WechatMiniprogram.TouchEvent) {
+      const chosen = this.data.origins.find(item => item.id === String(e.currentTarget.dataset.id));
+      if (!chosen) return;
+      stop(this); this.setData({selectedOrigin:chosen.origin,originChanged:false,offset:0,run:null,rows:[],series:[],comparatorSeries:[],hasResult:false});
+      await this.loadRun(chosen.id);
+    },
+    selectInterval(e: WechatMiniprogram.TouchEvent) {
+      if (this.properties.activityStartMs) this.triggerEvent('interval', {startMs:Number(e.currentTarget.dataset.start),endMs:Number(e.currentTarget.dataset.end)});
     },
     async loadRun(id: string) {
       const state = local(this); const ticket = state.epoch;
+      this.setData({currentRunId:id});
       try {
         const run = await this.call<DFARun>(`/runs/${id}?offset=${this.data.offset}&limit=120`);
         if (ticket !== state.epoch || !state.visible) return;
-        const active = run.status === 'queued' || run.status === 'running';
+        const active = run.status === 'queued' || run.status === 'running' || run.status === 'cancellation_requested';
         let status = run.status === 'queued' ? t('Waiting to analyse this recording…') : run.status === 'running'
           ? run.phase === 'prepare' ? t('Checking beat intervals and chest-strap evidence…') : t('Calculating valid windows…')
           : run.status === 'cancelled' ? t('Analysis was cancelled.') : reason(run.error_code ?? '');
-        if (run.freshness === 'stale') status = t('The recording or method has changed. Recalculate to see current results.');
-        this.setData({run, active, status, stale:run.freshness === 'stale', hasResult:this.data.canAnalyse && run.status === 'complete' && run.freshness === 'current',
+        if (run.status === 'cancellation_requested') status = t('Cancellation requested');
+        else if (run.freshness === 'stale') status = t('The recording or method has changed. Recalculate to see current results.');
+        this.setData({assurance:run.source_assurance === 'metadata_inferred' ? t('Source inferred from recording metadata') : t('Source confirmed by you'), run, active, status, stale:run.freshness === 'stale', hasResult:this.data.canAnalyse && run.status === 'complete' && run.freshness === 'current',
           sensorLabels:run.sensors?.map(s => s.label) ?? [], sensorIndex:run.sensors?.length === 1 ? 0 : this.data.sensorIndex});
         if (this.data.canAnalyse && run.status === 'complete' && run.freshness === 'current') await this.showResult(run);
-        if (active) {
+        else this.setData(clearedNumbers());
+        if (active || run.origin === 'automatic' && run.status === 'complete') {
           const age = Date.now()-Date.parse(run.created_at.endsWith('Z') ? run.created_at : run.created_at+'Z');
           state.timer = setTimeout(() => { void this.loadRun(id); }, Math.max(age < 60000 ? 3000 : 10000, (run.retry_after_seconds??0)*1000));
         }
-      } catch { if (ticket === state.epoch) this.setData({error:t('The request failed. Try again.'),active:false}); }
+      } catch { if (ticket === state.epoch) this.setData({error:t('The request failed. Try again.'),active:false,hasResult:false,run:null,...clearedNumbers()}); }
     },
     async launch() {
-      if (this.data.busy || this.data.cooling || !this.data.canAnalyse) return;
+      if (this.data.busy || this.data.cooling || !this.data.canManual) return;
       const catalog = this.data.catalog;
       const input = catalog?.inputs[this.data.selected]?.input;
       if (!catalog || !input) return;
@@ -161,7 +198,7 @@ Component({
     async confirm() {
       const run = this.data.run; const input = this.data.catalog?.inputs[this.data.selected]?.input;
       const sensor = run?.sensors?.[this.data.sensorIndex];
-      if (!run || !sensor || !input || !this.data.checked || this.data.busy || this.data.cooling || !this.data.canAnalyse) return;
+      if (!run || !sensor || !input || !this.data.checked || this.data.busy || this.data.cooling || !this.data.canManual) return;
       const ticket = local(this).epoch;
       this.setData({busy:true,error:''});
       try {
@@ -177,6 +214,7 @@ Component({
     async action(e: WechatMiniprogram.TouchEvent) {
       const run = this.data.run; if (!run || this.data.busy) return;
       const action = String(e.currentTarget.dataset.action);
+      if (action === 'retry' && !this.data.canManual) return;
       this.setData({busy:true});
       try { await this.call(`/runs/${run.id}/${action}`,'POST',action==='retry'?{expected_generation:run.generation}:undefined); await this.refresh(); }
       catch { this.setData({error:t('The request failed. Try again.')}); }
@@ -194,17 +232,32 @@ Component({
       this.setData({contextError:'', rows:[], comparatorSeries:[]});
       if (this.data.comparator !== 0) {
         try { context = await this.call<DFAContext>(`/runs/${run.id}/context?offset=${this.data.offset}&limit=120&result_revision=${run.result_revision}`); }
-        catch { if (ticket===local(this).epoch) this.setData({contextError:t('Context changed or is unavailable. Refresh to reload it.')}); }
-        if (ticket!==local(this).epoch) return;
+        catch (error) {
+          if (ticket!==local(this).epoch) return;
+          const failure = error as ApiError;
+          const invalid = [401,403,404,410].includes(failure.status)
+            || ['DFA_RESULT_CHANGED','DFA_RESULT_EXPIRED','DFA_SCIENCE_POLICY_INACTIVE',
+              'DFA_AUTHORITY_RECONCILIATION_REQUIRED','DFA_RESTORE_REPLAY_UNAVAILABLE'].includes(failure.detail);
+          this.setData({contextError:t('Context changed or is unavailable. Refresh to reload it.')});
+          if (invalid) {
+            this.setData({hasResult:false,run:null,...clearedNumbers()});
+            return;
+          }
+          // An unavailable overlay does not invalidate independently authorized alpha.
+        }
+        if (ticket!==local(this).epoch || !local(this).visible || !this.data.hasResult
+            || this.data.run?.id!==run.id || this.data.run?.result_revision!==run.result_revision
+            || this.data.run?.freshness!=='current') return;
       }
       const windows = run.windows ?? [];
       const times:number[] = []; const dates:string[] = [], alpha:(number|null)[] = [], comp:(number|null)[] = [];
       const rows = windows.map((w,i) => {
         const overlay = context?.result_revision===run.result_revision && context.offset===this.data.offset ? context.windows.find(v=>v.index===w.index):undefined;
         const value = this.data.comparator===0 ? w.hr_bpm : this.data.comparator===1 ? overlay?.power_watts : overlay?.pace_sec_km;
-        if (i && windows[i-1].block!==w.block) { times.push(w.start_ms); dates.push(elapsed(w.start_ms,nav.start_ms)); alpha.push(null); comp.push(null); }
-        times.push(w.end_ms); dates.push(elapsed(w.end_ms,nav.start_ms)); alpha.push(w.alpha1); comp.push(value ?? null);
-        return {id:w.index,time:`${elapsed(w.start_ms,nav.start_ms)}–${elapsed(w.end_ms,nav.start_ms)}`,alpha:w.alpha1?.toFixed(2)??'—',
+        const shown = !this.properties.activityStartMs || this.properties.rangeEnd <= this.properties.rangeStart || (w.end_ms >= this.properties.activityStartMs + this.properties.rangeStart*1000 && w.end_ms <= this.properties.activityStartMs + this.properties.rangeEnd*1000);
+        if (shown && i && windows[i-1].block!==w.block) { times.push(w.start_ms); dates.push(elapsed(w.start_ms,nav.start_ms)); alpha.push(null); comp.push(null); }
+        if (shown) { times.push(w.end_ms); dates.push(elapsed(w.end_ms,nav.start_ms)); alpha.push(w.alpha1); comp.push(value ?? null); }
+        return {id:w.index,startMs:w.start_ms,endMs:w.end_ms,time:`${elapsed(w.start_ms,nav.start_ms)}–${elapsed(w.end_ms,nav.start_ms)}`,alpha:w.alpha1?.toFixed(2)??'—',
           value:value?.toFixed(1)??'—',quality:[...w.reasons,...w.flags].map(reason).join(' ')||t('No issues detected by these checks.'),coverage:`${w.beat_count} · ${(w.coverage_ms/1200).toFixed(1)}%`};
       });
       this.setData({timeMax:Math.ceil(duration/1000),cursorSeconds:Math.round(((windows[0]?.end_ms??nav.start_ms)-nav.start_ms)/1000),
@@ -212,6 +265,7 @@ Component({
         comparatorSeries:[{label:this.data.comparators[this.data.comparator],color:colors.tick,values:comp}],
         pageLabels:nav.page_anchors.map(p=>elapsed(p.time_ms,nav.start_ms)),pageIndex:Math.floor(this.data.offset/120),pages:nav.page_anchors.length,
         headline:summary.valid_windows?t('Usable windows are ready to inspect.'):t('No windows passed the analysis checks.'),
+        timerBasis:elapsed(nav.timer_blocks.reduce((sum,[a,b])=>sum+b-a,0)),shortBlocks:summary.short_blocks,
         valid:`${summary.valid_windows} / ${summary.scheduled_windows}`,support:`${((summary.supported_time_ratio??0)*100).toFixed(1)}%`,
         exclusions:Object.entries(summary.excluded_reasons).map(([code,count])=>`${reason(code)} ${count}`)});
       this.updateTime(this.data.cursorSeconds);
@@ -234,8 +288,11 @@ Component({
       stop(this); this.setData({offset:Number(e.detail.value)*120,hasResult:false}); await this.loadRun(run.id);
     },
     async onComparator(e: WechatMiniprogram.PickerChange) {
-      stop(this); this.setData({comparator:Number(e.detail.value),rows:[],comparatorSeries:[],contextError:''}); if (this.data.run) await this.showResult(this.data.run);
+      const id=this.data.run?.id || this.data.currentRunId;
+      stop(this); this.setData({comparator:Number(e.detail.value),run:null,hasResult:false,...clearedNumbers(),contextError:''});
+      if (id) await this.loadRun(id);
     },
+    async useHeartRate() { await this.onComparator({detail:{value:'0'}} as WechatMiniprogram.PickerChange); },
     details() { this.setData({showDetails:!this.data.showDetails}); },
     science() { this.setData({showScience:!this.data.showScience}); },
     deletePrompt(e: WechatMiniprogram.TouchEvent) {

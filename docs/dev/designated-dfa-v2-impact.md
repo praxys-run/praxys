@@ -56,3 +56,246 @@ STOP/full CLI and strict source/linkage/terminality negatives. Runtime/API/db/sy
 scientific values, canonical data, UI, dependencies, plugin and preflight script
 remain outside the correction. The changed exact head requires its own canonical
 preflight and fresh independent specialist/Trust/Quality review.
+
+### cc49 delta regression repair
+
+API startup now separates structurally proposed identity, observed compute
+identity and receipt-only local retirement. Invalid/stale candidates preserve
+API-only startup; unresolved actors deny supervisor startup. Negative receipt
+cases cover both launching and running journals. Coordinator tests cover
+malformed/absent/stale candidates and inherited-group retirement before cold DB
+initialization.
+
+Native context-only network, overlay and samples-revision failures retain
+independently authorized alpha with unavailable comparator values and continuing
+authority polling. Explicit result/authority failures purge both. Actual
+transpiled component tests cover both paths and subsequent denial. No numerical
+functions or scientific acceptance/activation records change. Real native
+rendering remains blocked on the separately recorded DevTools service boundary.
+
+
+### Final validation fixture repair
+
+The exact `04397e0` canonical preflight failed: 4,332 passed, 11 failed,
+53 skipped; it never reached build/UI stages. Its original log and 87 completed
+capacity records remain preserved. Capacity expiry during admission is retained
+as a real ingress refusal, with post-transaction proof required before retry;
+accepted failures cannot be excluded. Historical V1 lifecycle tests now use an
+explicit archived static-contract validator solely in disposable synthetic
+fixtures, while current V2 and historical V1 guards remain denied. Publication
+races pause the actual supervisor publication boundary after worker output;
+STOP hides unauthorized export values while stored data/rights remain deletable.
+Probe tests mutate the actual historical callable and retain strict completion
+and missing-callable rejection. No production controller, numerical function or
+accepted Science/STOP bytes or modes change.
+
+The 53 canonical skips were one MCP module (SDK unavailable), one unrelated
+SQLite-to-PostgreSQL migration test (its distinct destructive scratch database
+variable was unset), and 51 private Stryd dependency tests. DFA PostgreSQL tests
+used the migrated task-owned synthetic database; these skips are not counted as
+passes. Final full preflight and native rendered/compiled evidence remain pending.
+
+
+### Accepted-preemption causal evidence
+
+Test-only instrumentation binds the real committed queued-manual priority
+selection (admission ID, generation, epoch and sequence) to the occupied
+automatic actor token and the priority cause at physical retirement start.
+Permission expiry before the admission commit is rejected even if exit follows
+pre-ingress. Real process/transaction tests cover that negative case and fast
+post-commit retirement before response delivery, plus mismatched receipt fields.
+Retirement/availability and process-start remain separate; production code,
+750ms expiry and accepted Science/STOP bytes and modes are unchanged. The revised
+100-trial measurement and full preflight await independent delta clearance.
+
+
+### Control-observation interleaving correction
+
+The exact `54eeafe` preflight failed with 4,347 passed, two capacity-test failures
+and 53 skips; it never reached build/UI stages. One real committed priority
+selection preceded retirement while the diagnostic reason assignment lagged the
+actual permission invalidation. The positive fixture also encountered SQLite
+renewal contention before its commit. Test-only observation now binds the
+actual `allowed=False` write in the real renewal iteration to its fresh committed
+manual selection and matching actor, with permission still disabled at retirement
+start. Expiry and exception invalidations have no such evidence and remain
+rejected. The deterministic positive fixtures synchronize from a completed real
+renewal without changing the independent watchdog; benchmark execution remains
+unsynchronized. A delayed-reason positive case and the before-commit negative
+case cover the interleaving. Runtime/client/Science code and modes are unchanged.
+
+### Admission contention repair after latest-main integration
+
+The failed exact `15ebd0b` preflight (4,349 passed, one failed, 53 skipped)
+remains bound to base `8f0f5db`. Its seventh admission was accepted and its
+physical retirement occurred within five seconds, but lacked the required
+matching committed-priority cause. It is a failed causal cohort, not evidence
+of a five-second physical yield miss. A bounded PostgreSQL comparison also
+observed aggregate renewal exceeding 250ms; replacing SQLite is insufficient.
+Neither the original SQLite exception nor a PostgreSQL lock-timeout cause was
+established. Diagnostic overhead and a retained fixture cleanup failure limit
+those observations.
+
+Retry now performs current owner, rights, source and generation checks inside
+the original serialized owner transaction, defers the prior result payload,
+clears its result/revision, and returns queued metadata only. Metadata projection
+and pending writes finish before the global control admission mutation and
+commit. No authority check is moved outside the serialization fence. Current
+grant reconstruction performs the fresh processing/Science/origin/journal checks
+once, explicitly comparing the run's contract; `_current` no longer repeats
+that reconstruction's processing and Science checks. Renewal uses its one
+observed priority query for both permission invalidation and reason reporting.
+
+The supervisor control pool has two bounded connections, for renewal and the
+spawn/exit acknowledgement capacity. Cancelled acknowledgement and exit
+projection can race; exact actor CAS preserves the winning receipt, and the
+existing pool/command bounds still apply. SQLite control I/O uses a separate pool
+with the repository's durability pragmas and a 100ms busy timeout; PostgreSQL
+retains 200ms statement/lock deadlines and 100ms checkout. The 250ms poll and
+750ms local expiry are unchanged. The prospective synthetic capacity profile
+names both control connections; its causal, refusal, accepted-failure and
+finite-budget assertions are unchanged. No 100-trial rerun is part of this
+repair's focused verification.
+
+New bounded cells run one ingress per database, retain every acceptance/refusal
+and terminal failure, observe actual commit/error outcomes and separate physical
+exit/durable availability, delay response delivery only after commit, and require
+real manual completion and exit/availability before reuse. Negative tests cover
+rights/source/generation changes, stale-result response denial and late child
+publication. PostgreSQL fixture cleanup deletes only the fixture owner's sync
+children/connections before that owner. A new migrated scratch database separates
+prospective evidence from the earlier diagnostic's retained orphaned synthetic
+owner; earlier failures are neither erased nor counted as passing cells.
+
+Latest main was ordinarily merged at `157d42c` with base `e646278`. The two locale
+conflicts preserve incoming Coach entries and existing DFA translations. Shared
+CSS and the native Analysis page changed upstream, so complete historical web
+hash equivalence no longer establishes merged rendered behavior. Fresh affected
+web rendering and native compilation/rendering remain separate evidence gaps;
+native calls remain paused pending external DevTools recovery. No frozen DFA
+Science/STOP or numerical source changes are included in this repair.
+
+Renewal's aggregate 250ms budget now includes actual commit completion. If that
+completion is late, local permission is denied and its previous deadline is
+not extended; durable readiness alone cannot authorize the physical reactor.
+Real SQLite BUSY and PostgreSQL lock-timeout tests exercise this failure path
+with independent connections; delayed completed-commit negatives preserve the
+same aggregate budget. The earlier combined focused run's cold-SDK regression
+was an actual fallback factory error with a mocked uninitialized `SessionLocal`;
+it was corrected using the existing configured database-URL resolver, while
+keeping the orphan-retirement-before-initialization regression intact.
+
+Because response metadata can load Control before admission, admission refreshes
+the actual `FOR UPDATE` row rather than trusting the ORM identity cache. A real
+independent PostgreSQL drain committed after projection denies admission and
+leaves generation, sequence and admission unchanged. The prospective cells
+start locally denied and require a new real completed renewal; the legacy
+fixture's long direct-step permission does not authorize their physical launch.
+Lock-negative evidence records actual SQLite BUSY or the winning PostgreSQL
+200ms deadline (statement cancellation or lock timeout), with exact DBAPI class
+and code, blocked control UPDATE and unchanged local permission. This does not
+retroactively identify the original failed SQLite admission's exception.
+
+### SQL admission pulse and new-submission correction
+
+SQL readiness is an admission pulse ending 250ms after the renewal cycle starts;
+it is separate from the independent 750ms physical permission. A publication
+visible after that bound is already expired. No eventual cleanup is needed to
+make late publication ineligible, including while local denial awaits commit
+return. Publication is conditional on the exact observed incarnation fields,
+epoch, sequence, enabled and drain state. Cold admission also rejects an
+incarnation/row epoch mismatch. Supported drain/restore/startup failure paths
+atomically clear readiness; changing a host binding outside the supported drain
+protocol is not authorized by this implementation.
+
+A database commit may become visible before the supervisor observes its ACK.
+Inside a valid SQL pulse, a request can therefore be durably accepted while cold
+local permission remains denied or a previous genuine physical permission
+remains unextended. Execution still requires a genuinely completed valid ACK
+inside 250ms. A later ACK failure does not turn that accepted request into a503.
+Likewise, an admission checked inside the pulse may commit after pulse expiry:
+its completed SQL admission remains accepted. Check, server visibility, observed
+commit return, local ACK and response are distinct boundaries. Tests bracket
+server visibility; they do not invent an exact server-commit timestamp or replace
+the real clock to claim equality at expiry.
+
+New preparation and confirmed-computation submissions now construct/flush the
+owner-exact origin grant/run and project queued metadata under the original
+owner/source/rights fence before final refreshed control admission. They do not
+repeat result-disclosure checks under the global control lock. Failed admission
+rolls back new runs/grants/queue changes. Real child cases cover both phases with
+an automatic actor active, matching actor/admission priority, actual manual
+service, physical/durable exit before reuse and response delivery after commit.
+
+The prospective start cadence is 125ms (at most eight validation starts/s), with
+the same 250ms aggregate publication/ACK budget, 200ms PostgreSQL command bounds,
+100ms control checkout and 750ms physical expiry. Compared with the former four
+starts/s this can double active validation/query/write demand; it changes neither
+Science/mathematics nor activation authority. Cadence overlap reduces admission
+gaps only when processing completes quickly enough. Slow/failed cycles still
+produce gaps and refusals; no live capacity or general availability is claimed.
+
+Profile cases use predetermined phase offsets and one ingress each, without
+selecting remaining-pulse>100ms windows. Independent 25ms SQL sampling records
+whole observed intervals and eligible/expired gaps alongside every ingress,
+refusal and accepted result; it adds bounded observational load (up to40 reads/s)
+and has timing/quantization limits. The future100-trial fixture likewise no
+longer waits for selected fast pulses; finite refusal/retry budgets and every
+accepted failure remain binding. No100-trial run is part of this focused repair.
+The original first pulse-profile run's SQLite retry refusal remains retained as
+an unchanged-state pre-admission denial, not relabeled as accepted preemption.
+
+A focused run was interrupted because a synthetic epoch-negative contaminated
+the next fixture's global control epoch. The disposable fixture now restores a
+coherent matching synthetic epoch, and its single-renewal helper has a finite
+wait. Production never obtains that fixture's synthetic initialization authority.
+Earlier failed/interrupted evidence remains separate and is not substituted by
+later focused results. Frozen DFA Science/STOP and numerical objects remain
+unchanged; shared upstream UI still requires fresh rendered evidence.
+
+### Physical exit versus cancelled Python continuation
+
+`644b1c4`/base`e646278` failed canonical validation with4498 passed,1 failed,
+53 skipped in2511.37s. Capacity retained15 ingress/5 pre-admission denials/
+10 accepted/9 completed; the tenth manual request did not complete after
+`loading_or_ipc_not_retired`. Matching committed priority and group exit were
+observed. Exact historical worker stack was not captured. A source-bound
+12-step diagnostic did not reproduce the lingering worker. Ordinary merge
+`5c06a05`/base`4faac47` changed only an unrelated research document, without
+conflicts or lifecycle/policy changes. Original evidence keeps its644/e646 binding.
+
+The repair separates physical exclusion from private Python cleanup, with an
+irreversible per-job cancellation event, fenced intent/actor writes, existing
+verified group retirement and current publication authority. The old result
+queue never becomes the new job's queue. Cleanup capacity is bounded to two
+continuations total; automatic loads wait while cancelled cleanup remains so
+manual work can use the second slot. Exhaustion denies new completed readiness
+and execution while already accepted requests remain queued. Worker-owned pipe
+closure avoids blocking the retirement reactor on buffered-reader locks.
+
+No formula, Science/STOP object, authority grant, output bound, SQL pulse,750ms
+physical expiry,125ms cadence, connection count or deployment activation changes.
+Deterministic real SQLite/PostgreSQL cases distinguish actual pipe/group exit
+from deliberately held Python continuation, delayed raw-loading return and late
+actor acknowledgement; they are boundary regressions rather than reconstructed
+historical causation or a replacement100-trial certificate. Unbounded driver/
+storage stalls exhausting both slots remain an explicit capacity/recovery limit.
+
+### Prospective measurement correction after32f
+
+The failed32f certificate is preserved under its actual base4faac47.
+Normal merge0bc8796/base4f3103c adds upstream running-only powerzone
+statistics/copy/tests, with no conflicts or changes to DFA runtime, its frozen
+math or Science/STOP objects. A fresh affected rendered check remains required
+after eventual successful canonical validation.
+
+Test-only measurement now requalifies exact workload before every ingress,
+observes all durable acceptances before cohort classification, captures existing
+locked-control/real commit/ACK observations and retains idle/race/failure outcomes.
+A predeclared finite32-unit distinct successful synthetic daily-completion plan
+provides independent provenance without resetting terminal automatic rows.
+No accepted failure is replaced and all attempts/qualification/setup time count
+inside300 ingress/600s. The target remains100 complete causally proven accepted
+preemptions, not100 mixed successes. Missing workload/ambiguous evidence/budget
+exhaustion reports insufficiency; real service or latency failures remain failures.
+The runtime and its125/250/750ms/2-control-connection boundaries are unchanged.

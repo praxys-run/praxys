@@ -23,7 +23,8 @@ NATIVE_FIELDS = {
     21: {0: ("event", 0, 1), 1: ("event_type", 0, 1),
          4: ("event_group", 2, 1), 253: ("timestamp", 134, 4)},
     23: {0: ("device_index", 2, 1), 2: ("manufacturer", 132, 2),
-         4: ("product", 132, 2), 27: ("product_name", 7, None)},
+         4: ("product", 132, 2), 1: ("device_type", 2, 1),
+         25: ("source_type", 0, 1), 27: ("product_name", 7, None)},
     78: {0: ("time", 132, None)},
 }
 NATIVE_MESSAGES = set(NATIVE_FIELDS)
@@ -170,5 +171,8 @@ def decode(raw: bytes, check: Callable[[], None] = lambda: None) -> Iterator[dic
 def read_timeout(db: Session) -> None:
     """Bound each current transaction, including reads after a heartbeat commit."""
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SET LOCAL statement_timeout = '30s'"))
-        db.execute(text("SET LOCAL lock_timeout = '30s'"))
+        budget = min(30000, int(db.info.get('dfa_read_timeout_ms', 30000)))
+        if budget < 1:
+            raise ValueError('Invalid DFA read timeout')
+        db.execute(text(f"SET LOCAL statement_timeout = '{budget}ms'"))
+        db.execute(text(f"SET LOCAL lock_timeout = '{budget}ms'"))

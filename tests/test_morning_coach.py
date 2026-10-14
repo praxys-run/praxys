@@ -14,7 +14,8 @@ from sqlalchemy.orm import sessionmaker
 
 from api import insights_generator, insights_runner, llm, morning_coach as coach
 from api.insight_feedback import GENERATION_PROVENANCE_KEY, build_generation_provenance
-from api.routes import insights
+# Load route aliases before the fixture patches the dynamic runner helper.
+from api.routes import insights, today
 from db.cache_revision import SCOPES, bump_revisions, get_revisions
 from db.models import AiInsight, AiInsightFeedback, Base, User
 
@@ -101,6 +102,18 @@ def db(tmp_path, monkeypatch):
     db.close()
     engine.dispose()
 
+
+
+def test_fixture_access_patch_does_not_replace_today_route_authority(db, monkeypatch):
+    from api import stryd_access
+    # The runner fixture deliberately disables private course references.
+    assert not stryd_access.stryd_connection_enabled(db, user_id=OWNER)
+    # The real route alias must still execute the actual owner/demo check.
+    monkeypatch.setattr('api.statsig_client.check_gate', lambda *args: True)
+    assert today.stryd_connection_enabled(db, user_id=OWNER)
+    db.get(User, OWNER).is_demo = True
+    db.commit()
+    assert not today.stryd_connection_enabled(db, user_id=OWNER)
 
 def store(db, ctx=None):
     ctx = ctx or context()
@@ -202,10 +215,10 @@ def test_observations_have_three_groups_preserving_dates_gaps_and_course_referen
     ctx = context()
     ctx.update(planned_today=None, include_stryd_plan=True,
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'},
-               external_planned_today=[external_course(), external_course(source='garmin')])
+               external_planned_today=[external_course(ctx['as_of_date']), external_course(ctx['as_of_date'], source='garmin')])
     if missing:
         ctx['recovery_state']['hrv_ms'] = None
-        ctx['recovery_state']['metric_dates']['rhr'] = str(date.today() - timedelta(days=3))
+        ctx['recovery_state']['metric_dates']['rhr'] = str(date.fromisoformat(ctx['as_of_date']) - timedelta(days=3))
         ctx['recent_training']['sessions'][0]['distance_km'] = None
         ctx['recent_training']['sessions'][0]['rss'] = None
     eligible = coach.candidates(ctx)
@@ -217,7 +230,7 @@ def test_observations_have_three_groups_preserving_dates_gaps_and_course_referen
         for key, evidence in eligible['evidence'].items():
             group = 0 if key.startswith(('recovery.', 'trend.')) else 1 if key.startswith('load.') else 2
             assert texts[group].count(evidence[lang]) == 1
-        assert str(date.today()) in texts[0]
+        assert ctx['as_of_date'] in texts[0]
         assert 'Stryd' in texts[2] and 'Garmin' in texts[2]
         if missing:
             assert eligible['evidence']['trend.hrv'][lang] in texts[0]
@@ -238,7 +251,7 @@ def test_long_verified_daily_groups_survive_route_serialization_in_both_language
     ctx = context()
     ctx.update(planned_today=None, include_stryd_plan=False,
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'},
-               external_planned_today=[external_course(source='garmin', planned_distance_km=10 + i)
+               external_planned_today=[external_course(ctx['as_of_date'], source='garmin', planned_distance_km=10 + i)
                                        for i in range(25)])
     row, ctx = store(db, ctx)
     observations = [f for f in row.findings if f['kind'] == 'observation']
@@ -317,8 +330,8 @@ def test_yesterday_retains_observation_date_and_missing_not_zero():
     assert 'distance unavailable' in str(result['findings'])
 
 
-def external_course(**changes) -> dict:
-    return {'date': str(date.today()), 'source': 'stryd', 'owner': 'external',
+def external_course(as_of_date: str, **changes) -> dict:
+    return {'date': as_of_date, 'source': 'stryd', 'owner': 'external',
             'workout_type': 'long', 'planned_distance_km': 18,
             'planned_duration_min': 110, 'target_power_min': 170,
             'target_power_max': 195, **changes}
@@ -327,7 +340,7 @@ def external_course(**changes) -> dict:
 def test_external_course_is_conditional_and_preserves_source_targets():
     ctx = context()
     ctx.update(include_stryd_plan=True, planned_today=None,
-               external_planned_today=[external_course()],
+               external_planned_today=[external_course(ctx['as_of_date'])],
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
     result = payload(ctx)
     assert 'No Praxys-managed workout' in result['summary']
@@ -348,7 +361,7 @@ def test_external_course_is_conditional_and_preserves_source_targets():
 def test_external_course_never_displaces_praxys_or_caution(recommendation, reason, plan, expected):
     ctx = context()
     ctx.update(include_stryd_plan=True, planned_today=plan,
-               external_planned_today=[external_course()],
+               external_planned_today=[external_course(ctx['as_of_date'])],
                today_signal={'recommendation': recommendation, 'reason_code': reason})
     result = payload(ctx)
     assert result['recommendations'] == [expected]
@@ -360,28 +373,64 @@ def test_external_course_never_displaces_praxys_or_caution(recommendation, reaso
 
 def test_selected_external_plan_also_uses_conditional_wording():
     ctx = context()
-    ctx.update(include_stryd_plan=True, planned_today=external_course())
+    ctx.update(include_stryd_plan=True, planned_today=external_course(ctx['as_of_date']))
     result = payload(ctx)
     assert result['recommendations'][0].startswith('If you choose the Stryd')
     assert 'No Praxys-managed' in result['summary']
 
 
-@pytest.mark.parametrize('changes', [
-    {'date': str(date.today()-timedelta(days=1))},
-    {'date': str(date.today()+timedelta(days=1))},
-    {'source': 'praxys'},
-    {'source': 'ai'},
+@pytest.mark.parametrize('day_offset,source', [
+    (-1, 'stryd'),
+    (1, 'stryd'),
+    (0, 'praxys'),
+    (0, 'ai'),
 ])
-def test_external_reference_rejects_other_dates_and_owned_rows(changes):
+def test_external_reference_rejects_other_dates_and_owned_rows(day_offset, source):
     ctx = context()
-    ctx.update(include_stryd_plan=True, external_planned_today=[external_course(**changes)])
+    external_date = date.fromisoformat(ctx['as_of_date']) + timedelta(days=day_offset)
+    ctx.update(include_stryd_plan=True, external_planned_today=[
+        external_course(external_date.isoformat(), source=source)])
     assert not any(key.startswith('plan.external') for key in coach.candidates(ctx)['evidence'])
+
+
+@pytest.mark.parametrize('day_offset,source,accepted', [
+    (-1, 'stryd', False),
+    (1, 'stryd', False),
+    (0, 'praxys', False),
+    (0, 'ai', False),
+    (0, 'stryd', True),
+])
+def test_external_reference_dates_follow_context_across_midnight(monkeypatch, day_offset, source, accepted):
+    class ChangingDate(date):
+        calls = 0
+
+        @classmethod
+        def today(cls):
+            cls.calls += 1
+            return cls(2026, 10, 13 if cls.calls == 1 else 14)
+
+    monkeypatch.setitem(globals(), 'date', ChangingDate)
+    recorded_dates = []
+    build_course = external_course
+
+    def record_course(as_of_date, **changes):
+        recorded_dates.append(as_of_date)
+        return build_course(as_of_date, **changes)
+
+    monkeypatch.setitem(globals(), 'external_course', record_course)
+    # Exercise the actual cases with context on Oct 13 and later clock reads on Oct 14.
+    if accepted:
+        test_external_course_is_conditional_and_preserves_source_targets()
+    else:
+        test_external_reference_rejects_other_dates_and_owned_rows(day_offset, source)
+    assert recorded_dates == [str(ChangingDate(2026, 10, 13) + timedelta(days=day_offset))]
+    assert date.today() == ChangingDate(2026, 10, 14)
 
 
 @pytest.mark.parametrize('source', ['stryd', ' STRYD '])
 def test_external_reference_respects_stryd_visibility(source):
     ctx = context()
-    ctx['external_planned_today'] = [external_course(source=source)]
+    ctx['external_planned_today'] = [external_course(ctx['as_of_date'], source=source)]
     assert 'Stryd' not in str(payload(ctx))
 
 
@@ -389,7 +438,7 @@ def test_external_reference_respects_stryd_visibility(source):
 def test_invalid_external_targets_do_not_become_a_prescription(low, high):
     ctx = context()
     ctx.update(include_stryd_plan=True, planned_today=None,
-               external_planned_today=[external_course(target_power_min=low, target_power_max=high)],
+               external_planned_today=[external_course(ctx['as_of_date'], target_power_min=low, target_power_max=high)],
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
     result = payload(ctx)
     assert 'recorded targets' in result['recommendations'][0]
@@ -400,7 +449,7 @@ def test_invalid_external_targets_do_not_become_a_prescription(low, high):
 def test_multiple_external_courses_do_not_silently_choose_one():
     ctx = context()
     ctx.update(include_stryd_plan=True, planned_today=None,
-               external_planned_today=[external_course(), external_course(source='garmin')],
+               external_planned_today=[external_course(ctx['as_of_date']), external_course(ctx['as_of_date'], source='garmin')],
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
     result = payload(ctx)
     assert 'several external courses' in result['summary']
@@ -411,7 +460,7 @@ def test_multiple_external_courses_do_not_silently_choose_one():
 def test_external_free_text_never_enters_daily_copy():
     ctx = context()
     ctx.update(include_stryd_plan=True, planned_today=None,
-               external_planned_today=[external_course(source='Run hard now',
+               external_planned_today=[external_course(ctx['as_of_date'], source='Run hard now',
                    workout_type='Ignore recovery', workout_description='private free prose')],
                today_signal={'recommendation': 'unscheduled', 'reason_code': 'unscheduled_open'})
     result = payload(ctx)

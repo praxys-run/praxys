@@ -779,6 +779,10 @@ msgstr "当前故障"
 msgid "Active incidents: {0}"
 msgstr "活跃事件：{0}"
 
+#: src/components/ActivityDFA.tsx:278
+msgid "Active timer time:"
+msgstr "计时器有效时间："
+
 #: src/components/PersonalContextPanel.tsx:1084
 #: src/components/PersonalContextPanel.tsx:1265
 msgid "Active until"
@@ -817,7 +821,7 @@ msgstr "活跃度"
 msgid "Activity is the schedule lane (for example road or trail), not the session purpose."
 msgstr "活动是计划的运动场景（例如公路或越野），不是训练目的。"
 
-#: src/pages/ActivityDetail.tsx:158
+#: src/pages/ActivityDetail.tsx:163
 msgid "Activity navigation"
 msgstr "活动导航"
 
@@ -833,7 +837,7 @@ msgstr "活动数据处理暂不可用，仍可删除此分析。"
 #~ msgid "Activity record source"
 #~ msgstr "活动记录来源"
 
-#: src/pages/ActivityDetail.tsx:164
+#: src/pages/ActivityDetail.tsx:169
 msgid "Activity source"
 msgstr "活动来源"
 
@@ -845,7 +849,7 @@ msgstr "活动分段"
 msgid "Activity types to sync"
 msgstr "要同步的活动类型"
 
-#: src/pages/ActivityDetail.tsx:323
+#: src/pages/ActivityDetail.tsx:336
 msgid "Activity unavailable"
 msgstr "无法查看此活动"
 
@@ -928,11 +932,11 @@ msgstr "添加训练"
 #~ msgid "Additional summaries"
 #~ msgstr "补充汇总"
 
-#: src/pages/ActivityDetail.tsx:298
+#: src/pages/ActivityDetail.tsx:311
 msgid "Additional summaries ({count})"
 msgstr "补充汇总（{count} 项）"
 
-#: src/pages/ActivityDetail.tsx:298
+#: src/pages/ActivityDetail.tsx:311
 msgid "Additional summaries (<0>{count}</0>)"
 msgstr "补充汇总（<0>{count}</0> 项）"
 
@@ -1105,8 +1109,8 @@ msgstr "全部"
 msgid "All {0} linked ticket(s) already up to date."
 msgstr "{0} 个关联工单均已是最新状态。"
 
-#: src/pages/ActivityDetail.tsx:159
-#: src/pages/ActivityDetail.tsx:321
+#: src/pages/ActivityDetail.tsx:164
+#: src/pages/ActivityDetail.tsx:334
 msgid "All activities"
 msgstr "返回全部活动"
 
@@ -1164,7 +1168,7 @@ msgstr "已有邀请码？"
 #~ msgstr "同时发送补充说明"
 
 #: src/components/ActivityTraceChart.tsx:98
-#: src/pages/ActivityDetail.tsx:87
+#: src/pages/ActivityDetail.tsx:88
 msgid "Altitude"
 msgstr "海拔"
 
@@ -1192,7 +1196,7 @@ msgstr "其他计划源与 Praxys 计划有重叠。建议一次只使用一个�
 msgid "An unexpected error occurred."
 msgstr "发生了意外错误。"
 
-#: src/components/ActivityDFA.tsx:242
+#: src/components/ActivityDFA.tsx:252
 msgid "Analyse recording"
 msgstr "分析活动记录"
 
@@ -1201,7 +1205,7 @@ msgstr "分析活动记录"
 msgid "Analysis"
 msgstr "训练分析"
 
-#: src/pages/ActivityDetail.tsx:160
+#: src/pages/ActivityDetail.tsx:165
 msgid "Analysis / Activity record"
 msgstr "分析 / 活动记录"
 
@@ -1213,19 +1217,27 @@ msgstr "分析 / 活动记录"
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
 msgstr "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
 
-#: src/components/ActivityDFA.tsx:166
+#: src/components/ActivityDFA.tsx:160
 msgid "Analysis is unavailable. Refresh the recording or try again."
 msgstr "暂时无法分析。请刷新活动记录或重试。"
+
+#: src/components/ActivityDFA.tsx:225
+msgid "Analysis mode is unavailable. New analysis is paused."
+msgstr "暂时无法确认分析模式，已暂停新的分析。"
 
 #: src/pages/LabsEnvironment.tsx:1204
 msgid "Analysis needs a manual retry"
 msgstr "分析需要手动重试"
 
+#: src/components/ActivityDFA.tsx:237
+msgid "Analysis origin"
+msgstr "分析来源"
+
 #: src/pages/LabsEnvironment.tsx:268
 msgid "Analysis request saved"
 msgstr "分析请求已保存"
 
-#: src/components/ActivityDFA.tsx:260
+#: src/components/ActivityDFA.tsx:271
 msgid "Analysis was cancelled."
 msgstr "分析已取消。"
 
@@ -1286,7 +1298,7 @@ msgstr "允许访问"
 msgid "Arbitrary 5K segments, best splits, or fast sections inside easy, long, or mixed runs never count as baseline evidence."
 msgstr "任意 5 公里片段、最佳分段，以及轻松跑、长跑或混合训练中的快速段，都不能作为基线证据。"
 
-#: src/components/ActivityDFA.tsx:327
+#: src/components/ActivityDFA.tsx:341
 msgid "Artefacts and recording devices"
 msgstr "伪差与记录设备"
 
@@ -1333,7 +1345,7 @@ msgstr "尝试次数"
 msgid "Attempts {0}"
 msgstr "尝试 {0} 次"
 
-#: src/components/ActivityDFA.tsx:163
+#: src/components/ActivityDFA.tsx:157
 msgid "Atypical value; no physiological conclusion."
 msgstr "数值不典型，不作生理判断。"
 
@@ -1376,6 +1388,19 @@ msgstr "此项无法自动恢复。"
 #: src/pages/admin/AdminOps.tsx:481
 msgid "Automated recovery unavailable"
 msgstr "自动恢复不可用"
+
+#: src/components/ActivityDFA.tsx:240
+msgid "Automatic analysis"
+msgstr "自动分析"
+
+#: src/components/ActivityDFA.tsx:224
+msgid "Automatic analysis is on. New eligible recordings are analysed after sync; manual analysis is disabled."
+msgstr "自动分析已开启。同步后会分析符合条件的新记录，无需手动分析。"
+
+#: src/components/ActivityDFA.tsx:230
+#: src/components/ActivityDFA.tsx:243
+msgid "Automatic analysis is unavailable. Its values are hidden."
+msgstr "自动分析不可用，其数值已隐藏。"
 
 #: src/pages/admin/AdminOps.tsx:1244
 msgid "Automatic delivery is within policy, or athlete-owned conflicts remain in the athlete workflow."
@@ -1443,26 +1468,26 @@ msgstr "可训练地形"
 msgid "Available training plans could not be loaded."
 msgstr "无法加载可用的训练计划。"
 
-#: src/pages/ActivityDetail.tsx:120
-#: src/pages/ActivityDetail.tsx:124
+#: src/pages/ActivityDetail.tsx:121
+#: src/pages/ActivityDetail.tsx:125
 msgid "Average heart rate"
 msgstr "平均心率"
 
-#: src/pages/ActivityDetail.tsx:117
-#: src/pages/ActivityDetail.tsx:125
+#: src/pages/ActivityDetail.tsx:118
+#: src/pages/ActivityDetail.tsx:126
 msgid "Average pace"
 msgstr "平均配速"
 
-#: src/pages/ActivityDetail.tsx:119
-#: src/pages/ActivityDetail.tsx:123
+#: src/pages/ActivityDetail.tsx:120
+#: src/pages/ActivityDetail.tsx:124
 msgid "Average power"
 msgstr "平均功率"
 
-#: src/components/ActivityCard.tsx:50
+#: src/components/ActivityCard.tsx:47
 msgid "Avg HR"
 msgstr "平均心率"
 
-#: src/components/ActivityCard.tsx:49
+#: src/components/ActivityCard.tsx:46
 msgid "Avg Power"
 msgstr "平均功率"
 
@@ -1537,7 +1562,7 @@ msgstr "返回 Praxys"
 msgid "Back to sign in"
 msgstr "返回登录"
 
-#: src/pages/ActivityDetail.tsx:241
+#: src/pages/ActivityDetail.tsx:246
 msgid "Back to split table"
 msgstr "返回分段表"
 
@@ -1606,7 +1631,7 @@ msgstr "基线已就绪"
 msgid "Baseline source"
 msgstr "基线来源"
 
-#: src/components/ActivityDFA.tsx:160
+#: src/components/ActivityDFA.tsx:154
 msgid "Beat intervals outside the supported range."
 msgstr "逐搏间期超出支持范围。"
 
@@ -1726,7 +1751,7 @@ msgid "by"
 msgstr "作者"
 
 #: src/components/ActivityTraceChart.tsx:96
-#: src/pages/ActivityDetail.tsx:85
+#: src/pages/ActivityDetail.tsx:86
 msgid "Cadence"
 msgstr "步频"
 
@@ -1734,7 +1759,7 @@ msgstr "步频"
 msgid "Calculate proxy"
 msgstr "计算代理值"
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:254
 msgid "Calculating valid windows…"
 msgstr "正在计算有效窗口…"
 
@@ -1777,7 +1802,7 @@ msgstr "你能使用适合受控下坡训练的路线吗？"
 msgid "Cancel"
 msgstr "取消"
 
-#: src/components/ActivityDFA.tsx:246
+#: src/components/ActivityDFA.tsx:256
 msgid "Cancel analysis"
 msgstr "取消分析"
 
@@ -1788,6 +1813,10 @@ msgstr "取消并退出"
 #: src/pages/Science.tsx:463
 msgid "Cancel preview"
 msgstr "取消预览"
+
+#: src/components/ActivityDFA.tsx:270
+msgid "Cancellation requested"
+msgstr "已请求取消"
 
 #: src/pages/admin/AdminFeedback.tsx:586
 #: src/pages/admin/AdminFeedback.tsx:609
@@ -1918,7 +1947,7 @@ msgstr "查看状态"
 msgid "Check the current inputs again before generating a new proposal."
 msgstr "请使用当前输入重新检查，再生成新方案。"
 
-#: src/pages/ActivityDetail.tsx:326
+#: src/pages/ActivityDetail.tsx:339
 msgid "Check your connection and retry. No stale record is shown."
 msgstr "检查网络后重试；这里不会显示过期的记录。"
 
@@ -1926,7 +1955,7 @@ msgstr "检查网络后重试；这里不会显示过期的记录。"
 msgid "Check your credentials in the connection step, then try again."
 msgstr "请在连接步骤检查账号信息，然后重试。"
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:254
 msgid "Checking beat intervals and chest-strap evidence…"
 msgstr "正在检查逐搏间期与胸带来源…"
 
@@ -1993,7 +2022,7 @@ msgstr "选择比赛目标、持续追踪进步，或使用 5 公里基线试点
 msgid "Choose a recent workout"
 msgstr "选择近期训练"
 
-#: src/components/ActivityDFA.tsx:238
+#: src/components/ActivityDFA.tsx:248
 msgid "Choose a recording"
 msgstr "选择活动记录"
 
@@ -2016,7 +2045,7 @@ msgstr "请先选择训练计划。"
 #~ msgid "Choose an accepted plan purpose first."
 #~ msgstr "请先选择已接受的计划用途。"
 
-#: src/components/ActivityDFA.tsx:279
+#: src/components/ActivityDFA.tsx:293
 msgid "Choose an activity time"
 msgstr "选择活动时间"
 
@@ -2087,8 +2116,8 @@ msgstr "选择首选数据来源"
 #~ msgid "Choose the accepted 5K purpose in Training. It remains independent from the current Goal unless you explicitly link it."
 #~ msgstr "在训练页选择已接受的 5 公里计划用途。除非明确关联，否则它与当前目标保持独立。"
 
-#: src/components/ActivityDFA.tsx:251
-#: src/components/ActivityDFA.tsx:251
+#: src/components/ActivityDFA.tsx:261
+#: src/components/ActivityDFA.tsx:261
 msgid "Choose the chest strap"
 msgstr "选择心率胸带"
 
@@ -2216,7 +2245,7 @@ msgstr "Coach 有用投票率"
 msgid "Coaching is suggestion-only. Praxys will not change a workout from recovery signals."
 msgstr "当前仅提供建议。Praxys 不会根据恢复信号修改训练。"
 
-#: src/components/ActivityDFA.tsx:294
+#: src/components/ActivityDFA.tsx:308
 msgid "Cobalt: supported · dark: unsupported · pale: paused"
 msgstr "钴蓝：可分析 · 深色：不可分析 · 浅色：暂停"
 
@@ -2274,7 +2303,7 @@ msgstr "比较其他平台（{0}）"
 msgid "Compare the request with recent history"
 msgstr "对照近期历史查看请求"
 
-#: src/components/ActivityDFA.tsx:300
+#: src/components/ActivityDFA.tsx:314
 msgid "Compare with"
 msgstr "对照指标"
 
@@ -2347,7 +2376,7 @@ msgstr "环境、支持与补给"
 msgid "Configure your training system"
 msgstr "设置训练系统"
 
-#: src/components/ActivityDFA.tsx:258
+#: src/components/ActivityDFA.tsx:268
 msgid "Confirm and analyse"
 msgstr "确认并分析"
 
@@ -2355,8 +2384,8 @@ msgstr "确认并分析"
 msgid "Confirm applicability and availability before generating a proposal."
 msgstr "生成方案前，先确认适用条件和可训练时间。"
 
-#: src/components/ActivityDFA.tsx:332
-#: src/components/ActivityDFA.tsx:333
+#: src/components/ActivityDFA.tsx:346
+#: src/components/ActivityDFA.tsx:347
 #: src/components/trail-course-review/copy.tsx:219
 #: src/components/trail-course-review/states.tsx:254
 msgid "Confirm deletion"
@@ -2399,7 +2428,7 @@ msgstr "确认管理边界后，Praxys 才会写入 {targetLabel}。"
 msgid "Confirm the reviewed adult scope first."
 msgstr "请先确认经过审查的成人范围。"
 
-#: src/components/ActivityDFA.tsx:248
+#: src/components/ActivityDFA.tsx:258
 msgid "Confirm the source for this activity"
 msgstr "确认本次活动的数据来源"
 
@@ -2432,9 +2461,13 @@ msgstr "冲突 <0>{0}</0>"
 msgid "Conflict retained"
 msgstr "冲突已保留"
 
-#: src/components/ActivityDFA.tsx:157
+#: src/components/ActivityDFA.tsx:151
 msgid "Conflicting sensor evidence prevents analysis."
 msgstr "传感器来源证据存在矛盾，无法分析。"
+
+#: src/components/ActivityDFA.tsx:229
+msgid "Conflicting source evidence prevents analysis. Confirmation cannot override it."
+msgstr "来源证据冲突，无法分析。确认不能覆盖此冲突。"
 
 #: src/components/GoalBaselinePanel.tsx:590
 msgid "Confusion or loss of coordination"
@@ -2545,7 +2578,7 @@ msgstr "已开启保守自动调整"
 msgid "Context and dependent private traces deleted."
 msgstr "这条信息及其关联的私密记录已删除。"
 
-#: src/components/ActivityDFA.tsx:303
+#: src/components/ActivityDFA.tsx:317
 msgid "Context changed or is unavailable. Refresh to reload it."
 msgstr "配速或功率数据已变化或暂不可用，请刷新。"
 
@@ -2769,7 +2802,7 @@ msgstr "计划加载失败"
 msgid "Could not load the managed-window preview."
 msgstr "无法加载托管窗口预览。"
 
-#: src/pages/ActivityDetail.tsx:323
+#: src/pages/ActivityDetail.tsx:336
 msgid "Could not load this activity"
 msgstr "无法加载此活动"
 
@@ -2948,7 +2981,7 @@ msgstr "赛道核对已保存。请按当前版本逐节确认。"
 msgid "Course-specific work cannot be bounded from observed experience."
 msgstr "无法依据已观察经历约束赛道专项训练。"
 
-#: src/components/ActivityDFA.tsx:267
+#: src/components/ActivityDFA.tsx:281
 msgid "Coverage describes which data could be analysed, not measurement accuracy."
 msgstr "覆盖率表示哪些数据可以分析，不代表测量准确率。"
 
@@ -3140,10 +3173,10 @@ msgstr "自定义措辞"
 msgid "Custom workout purpose"
 msgstr "自定义训练目的"
 
-#: src/components/ActivityCard.tsx:29
+#: src/components/ActivityCard.tsx:26
 #: src/components/UpcomingPlanCard.tsx:567
 #: src/components/WorkoutPlanEditor.tsx:445
-#: src/pages/ActivityDetail.tsx:76
+#: src/pages/ActivityDetail.tsx:77
 #: src/pages/Setup.tsx:171
 msgid "Cycling"
 msgstr "骑行"
@@ -3304,7 +3337,7 @@ msgstr "删除"
 msgid "Delete account"
 msgstr "删除账号"
 
-#: src/components/ActivityDFA.tsx:331
+#: src/components/ActivityDFA.tsx:345
 msgid "Delete DFA analysis"
 msgstr "删除 DFA 分析"
 
@@ -3325,7 +3358,7 @@ msgstr "永久删除"
 msgid "Delete retained history"
 msgstr "删除保留历史记录"
 
-#: src/components/ActivityDFA.tsx:332
+#: src/components/ActivityDFA.tsx:346
 msgid "Delete this activity’s DFA results and source confirmations? The original FIT will remain."
 msgstr "删除本次活动的 DFA 结果及来源确认？原始 FIT 文件会保留。"
 
@@ -3530,7 +3563,7 @@ msgstr "确定性训练摘要"
 msgid "Developing"
 msgstr "形成中"
 
-#: src/components/ActivityDFA.tsx:230
+#: src/components/ActivityDFA.tsx:227
 msgid "DFA analysis is awaiting scientific activation."
 msgstr "DFA 分析正在等待科学审核启用。"
 
@@ -3538,19 +3571,19 @@ msgstr "DFA 分析正在等待科学审核启用。"
 msgid "DFA analysis is not yet available for this activity’s connected platform."
 msgstr "本次活动所属的同步平台暂不支持 DFA 分析。"
 
-#: src/components/ActivityDFA.tsx:163
+#: src/components/ActivityDFA.tsx:157
 msgid "DFA cannot be estimated in this window."
 msgstr "此窗口无法估算 DFA。"
 
-#: src/components/ActivityCard.tsx:72
+#: src/components/ActivityCard.tsx:69
 msgid "DFA α1"
 msgstr "DFA α1"
 
-#: src/components/ActivityDFA.tsx:305
+#: src/components/ActivityDFA.tsx:319
 msgid "DFA α1 by window end time"
 msgstr "按窗口结束时间查看 DFA α1"
 
-#: src/components/ActivityDFA.tsx:328
+#: src/components/ActivityDFA.tsx:342
 msgid "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
 msgstr "DFA α1 描述逐搏间期的相关性。每个后向 120 秒窗口采用 4–16 拍尺度，不插值或校正伪差。至少需要 200 个完整逐搏间期及 98% 的时间覆盖。时间和质量限制是 Praxys 的保守规则，并非经验证的生理阈值。低心率可能导致搏动数不足。结果不用于判断疲劳或确定个人训练阈值。"
 
@@ -3659,7 +3692,7 @@ msgstr "显示偏好"
 msgid "Dist"
 msgstr "距离"
 
-#: src/components/ActivityCard.tsx:44
+#: src/components/ActivityCard.tsx:41
 #: src/components/AdoptedPlanDetails.tsx:57
 #: src/components/charts/WeeklyVolumeChart.tsx:89
 #: src/components/charts/WeeklyVolumeChart.tsx:98
@@ -3667,8 +3700,8 @@ msgstr "距离"
 #: src/components/WorkoutStructureEditor.tsx:817
 #: src/components/WorkoutStructureEditor.tsx:1437
 #: src/components/WorkoutStructureEditor.tsx:1486
-#: src/pages/ActivityDetail.tsx:115
-#: src/pages/ActivityDetail.tsx:266
+#: src/pages/ActivityDetail.tsx:116
+#: src/pages/ActivityDetail.tsx:271
 #: src/pages/Settings.tsx:1438
 msgid "Distance"
 msgstr "距离"
@@ -3805,11 +3838,11 @@ msgstr "复制训练"
 msgid "Durable preference"
 msgstr "长期偏好"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 #: src/components/SplitBreakdown.tsx:48
 #: src/components/WorkoutStructureEditor.tsx:810
-#: src/pages/ActivityDetail.tsx:116
-#: src/pages/ActivityDetail.tsx:267
+#: src/pages/ActivityDetail.tsx:117
+#: src/pages/ActivityDetail.tsx:272
 msgid "Duration"
 msgstr "时长"
 
@@ -3886,11 +3919,11 @@ msgstr "每项实验都有独立的同意流程、数据要求、局限说明和
 msgid "Each image must be under 5 MB."
 msgstr "每张图片需小于 5 MB。"
 
-#: src/pages/ActivityDetail.tsx:254
+#: src/pages/ActivityDetail.tsx:259
 msgid "Each kilometer"
 msgstr "每公里"
 
-#: src/pages/ActivityDetail.tsx:260
+#: src/pages/ActivityDetail.tsx:265
 msgid "Each kilometer unavailable:"
 msgstr "无法按每公里查看："
 
@@ -3898,7 +3931,7 @@ msgstr "无法按每公里查看："
 #~ msgid "Each pillar runs a published theory you can read, verify, and swap. Praxys interprets your data through whichever framework you choose."
 #~ msgstr "每个支柱运行一套已发表的理论，您可以阅读、验证、随时更换。Praxys 通过您选择的理论框架解读训练数据。"
 
-#: src/components/ActivityDFA.tsx:319
+#: src/components/ActivityDFA.tsx:333
 msgid "Each row represents a 120-second window."
 msgstr "每行代表一个 120 秒窗口。"
 
@@ -3929,7 +3962,7 @@ msgstr "轻松跑"
 msgid "Easy Run"
 msgstr "轻松跑"
 
-#: src/components/ActivityDFA.tsx:327
+#: src/components/ActivityDFA.tsx:341
 msgid "ECG chest-strap validation"
 msgstr "ECG 心率胸带验证"
 
@@ -3976,7 +4009,7 @@ msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
 #~ msgstr ""
 
-#: src/components/ActivityCard.tsx:51
+#: src/components/ActivityCard.tsx:48
 msgid "Elev"
 msgstr "爬升"
 
@@ -3988,7 +4021,7 @@ msgstr "爬升"
 #~ msgid "Elevated"
 #~ msgstr "升高"
 
-#: src/pages/ActivityDetail.tsx:128
+#: src/pages/ActivityDetail.tsx:129
 msgid "Elevation gain"
 msgstr "累计爬升"
 
@@ -4190,7 +4223,7 @@ msgstr "按目标估算"
 msgid "Estimated psychrometric wet-bulb proxy"
 msgstr "估算的湿球温度代理值"
 
-#: src/components/ActivityDFA.tsx:264
+#: src/components/ActivityDFA.tsx:275
 msgid "Estimated time alignment"
 msgstr "时间对齐为估算值"
 
@@ -4630,7 +4663,7 @@ msgstr "首次完成、提升成绩和恢复规律跑步，适用的证据不同
 #~ msgid "First lap"
 #~ msgstr "首圈"
 
-#: src/pages/ActivityDetail.tsx:169
+#: src/pages/ActivityDetail.tsx:174
 msgid "First recorded split"
 msgstr "首个记录分段"
 
@@ -4700,7 +4733,7 @@ msgstr "可用于训练的路面"
 #~ msgstr "竞技状态 (TSB)"
 
 #: src/components/ActivityTraceChart.tsx:105
-#: src/pages/ActivityDetail.tsx:94
+#: src/pages/ActivityDetail.tsx:95
 msgid "Form power"
 msgstr "跑姿功率"
 
@@ -4760,7 +4793,7 @@ msgstr "来自 {label}"
 msgid "From activities"
 msgstr "来自活动"
 
-#: src/pages/ActivityDetail.tsx:258
+#: src/pages/ActivityDetail.tsx:263
 msgid "From recorded distance"
 msgstr "根据已记录距离划分"
 
@@ -4912,7 +4945,7 @@ msgstr "轻松训练"
 msgid "Go to dashboard"
 msgstr "前往主页"
 
-#: src/components/ActivityDFA.tsx:293
+#: src/components/ActivityDFA.tsx:307
 msgid "Go to selected time"
 msgstr "跳转到所选时间"
 
@@ -4950,7 +4983,7 @@ msgstr "目标类型"
 #~ msgstr "体能与恢复平衡良好。已准备好进行高质量训练。"
 
 #: src/components/ActivityTraceChart.tsx:99
-#: src/pages/ActivityDetail.tsx:88
+#: src/pages/ActivityDetail.tsx:89
 msgid "Grade"
 msgstr "坡度"
 
@@ -4963,7 +4996,7 @@ msgid "Grade-specific training"
 msgstr "坡度专项训练"
 
 #: src/components/ActivityTraceChart.tsx:101
-#: src/pages/ActivityDetail.tsx:90
+#: src/pages/ActivityDetail.tsx:91
 msgid "Ground contact time"
 msgstr "触地时间"
 
@@ -4985,8 +5018,8 @@ msgid "Have an invitation code?"
 msgstr "有邀请码？"
 
 #: src/components/ActivityTraceChart.tsx:94
-#: src/pages/ActivityDetail.tsx:83
-#: src/pages/ActivityDetail.tsx:270
+#: src/pages/ActivityDetail.tsx:84
+#: src/pages/ActivityDetail.tsx:275
 msgid "Heart rate"
 msgstr "心率"
 
@@ -5124,10 +5157,10 @@ msgstr "覆盖度高"
 msgid "High variability"
 msgstr "变异性偏高"
 
-#: src/components/ActivityCard.tsx:28
+#: src/components/ActivityCard.tsx:25
 #: src/components/UpcomingPlanCard.tsx:569
 #: src/components/WorkoutPlanEditor.tsx:447
-#: src/pages/ActivityDetail.tsx:75
+#: src/pages/ActivityDetail.tsx:76
 #: src/pages/Setup.tsx:173
 msgid "Hiking"
 msgstr "徒步"
@@ -5187,7 +5220,7 @@ msgstr "小时滚动窗口"
 msgid "Hours"
 msgstr "小时"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 msgid "hours:minutes:seconds"
 msgstr "时:分:秒"
 
@@ -5219,7 +5252,7 @@ msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络�
 #~ msgid "How this estimate was built"
 #~ msgstr "这项估算如何得出"
 
-#: src/components/ScienceNote.tsx:96
+#: src/components/ScienceNote.tsx:99
 msgid "How this is calculated"
 msgstr "计算方式"
 
@@ -5573,7 +5606,7 @@ msgstr "在不臆测原因的前提下说明一次训练情况"
 msgid "Interpret this workout without guessing a cause"
 msgstr "用于理解这次训练，不推测原因"
 
-#: src/components/ActivityDFA.tsx:162
+#: src/components/ActivityDFA.tsx:156
 msgid "Interrupted beat sequence."
 msgstr "逐搏序列中断。"
 
@@ -5689,7 +5722,7 @@ msgstr "判断已记录。关联议题未开启，因此未添加标签。"
 msgid "Judgment recorded. This feedback has no linked GitHub issue."
 msgstr "判断已记录。此反馈尚未关联 GitHub 议题。"
 
-#: src/components/ActivityDFA.tsx:297
+#: src/components/ActivityDFA.tsx:311
 msgid "Jump to time"
 msgstr "跳转时间"
 
@@ -5705,7 +5738,7 @@ msgstr "如有可选活动，请保持轻松且简短"
 msgid "Keep current plan"
 msgstr "保留当前计划"
 
-#: src/components/ActivityDFA.tsx:334
+#: src/components/ActivityDFA.tsx:348
 msgid "Keep data"
 msgstr "保留数据"
 
@@ -5758,8 +5791,8 @@ msgstr "正在保留计划…"
 msgid "Key recommendation"
 msgstr "关键建议"
 
-#: src/pages/ActivityDetail.tsx:227
-#: src/pages/ActivityDetail.tsx:239
+#: src/pages/ActivityDetail.tsx:232
+#: src/pages/ActivityDetail.tsx:244
 msgid "Kilometer"
 msgstr "公里段"
 
@@ -5853,7 +5886,7 @@ msgstr "最近状态：{systemicTitle}"
 #~ msgid "Last lap"
 #~ msgstr "末圈"
 
-#: src/pages/ActivityDetail.tsx:170
+#: src/pages/ActivityDetail.tsx:175
 msgid "Last recorded split"
 msgstr "末个记录分段"
 
@@ -5908,7 +5941,7 @@ msgid "Left axis"
 msgstr "左轴"
 
 #: src/components/ActivityTraceChart.tsx:104
-#: src/pages/ActivityDetail.tsx:93
+#: src/pages/ActivityDetail.tsx:94
 msgid "Leg spring stiffness"
 msgstr "腿部弹簧刚度"
 
@@ -6328,6 +6361,11 @@ msgstr "管理入口仍可用。请重试获取聚合健康快照。"
 msgid "Manual"
 msgstr "手动结束"
 
+#: src/components/ActivityDFA.tsx:240
+#: src/components/ActivityDFA.tsx:252
+msgid "Manual analysis"
+msgstr "手动分析"
+
 #: src/components/ManagedPlanSettingsCard.tsx:1176
 msgid "Manual and other-coach workouts remain external and will not be edited or deleted."
 msgstr "手动添加及其他教练安排的训练仍属于外部训练，不会被修改或删除。"
@@ -6376,7 +6414,7 @@ msgstr "最大心率"
 msgid "Maximum course altitude"
 msgstr "赛道最高海拔"
 
-#: src/pages/ActivityDetail.tsx:127
+#: src/pages/ActivityDetail.tsx:128
 msgid "Maximum heart rate"
 msgstr "最高心率"
 
@@ -6392,7 +6430,7 @@ msgstr "这些天每天最多可训练多久（分钟）"
 msgid "Maximum planning duration"
 msgstr "计划用时上限"
 
-#: src/pages/ActivityDetail.tsx:126
+#: src/pages/ActivityDetail.tsx:127
 msgid "Maximum power"
 msgstr "最大功率"
 
@@ -6496,7 +6534,7 @@ msgstr "轻微"
 msgid "Minutes"
 msgstr "分钟"
 
-#: src/components/ActivityCard.tsx:45
+#: src/components/ActivityCard.tsx:42
 msgid "minutes:seconds"
 msgstr "分:秒"
 
@@ -6619,7 +6657,7 @@ msgstr "月"
 msgid "More actions"
 msgstr "更多操作"
 
-#: src/pages/ActivityDetail.tsx:199
+#: src/pages/ActivityDetail.tsx:204
 msgid "More curves"
 msgstr "更多曲线"
 
@@ -6775,6 +6813,10 @@ msgstr "负平衡"
 #~ msgid "negative balance\" \"负平衡"
 #~ msgstr ""
 
+#: src/components/ActivityDFA.tsx:235
+msgid "Neither recording metadata nor your confirmation verifies the source of every beat interval."
+msgstr "记录元数据和你的确认均不能验证每个逐搏间期的来源。"
+
 #: src/pages/admin/AdminOps.tsx:407
 #: src/pages/Settings.tsx:632
 #: src/pages/Settings.tsx:662
@@ -6853,7 +6895,7 @@ msgstr "较新版本的训练结构"
 msgid "Newly triaged work will appear here when admin action is needed."
 msgstr "新分诊且需要管理员处理的工作会显示在这里。"
 
-#: src/components/ActivityDFA.tsx:317
+#: src/components/ActivityDFA.tsx:331
 #: src/pages/History.tsx:100
 msgid "Next"
 msgstr "下一页"
@@ -6952,7 +6994,7 @@ msgstr "在此时间窗口内未记录 Coach 投票。"
 msgid "No code yet?"
 msgstr "还没有邀请码？"
 
-#: src/components/ActivityDFA.tsx:156
+#: src/components/ActivityDFA.tsx:150
 msgid "No compatible ECG chest strap was found."
 msgstr "未找到兼容的 ECG 心率胸带。"
 
@@ -7070,7 +7112,7 @@ msgstr "暂无事件"
 msgid "No invitation codes yet. Generate one to invite a user."
 msgstr "还没有邀请码。生成一个即可邀请用户。"
 
-#: src/components/ActivityDFA.tsx:323
+#: src/components/ActivityDFA.tsx:337
 msgid "No issues detected by these checks."
 msgstr "这些检查未发现问题。"
 
@@ -7090,7 +7132,7 @@ msgstr "此后无新的 HRV、睡眠或活动数据。"
 msgid "No new proposal was generated: you reported a safety stop."
 msgstr "本次未生成新方案：已标记安全停止。"
 
-#: src/pages/ActivityDetail.tsx:216
+#: src/pages/ActivityDetail.tsx:221
 msgid "No overlay"
 msgstr "不叠加"
 
@@ -7177,11 +7219,11 @@ msgstr "暂无可关联的近期 Praxys 训练。"
 #~ msgid "No recorded activity for this day."
 #~ msgstr "当天没有记录到活动。"
 
-#: src/pages/ActivityDetail.tsx:232
+#: src/pages/ActivityDetail.tsx:237
 msgid "No recorded curves"
 msgstr "无记录曲线"
 
-#: src/pages/ActivityDetail.tsx:99
+#: src/pages/ActivityDetail.tsx:100
 msgid "No recorded distance trace is stored."
 msgstr "没有保存逐时距离轨迹。"
 
@@ -7213,7 +7255,7 @@ msgstr "未列出强制装备"
 #~ msgid "No sample or split power"
 #~ msgstr "无样本或分段功率"
 
-#: src/pages/ActivityDetail.tsx:259
+#: src/pages/ActivityDetail.tsx:264
 msgid "No sampled metric curves are available; these kilometer rows are for summary comparison only."
 msgstr "没有可查看的逐时指标曲线；这些公里段只能在表格中对照。"
 
@@ -7276,7 +7318,7 @@ msgstr "暂无可显示的工单"
 #~ msgid "No tickets to show."
 #~ msgstr "没有可显示的工单。"
 
-#: src/pages/ActivityDetail.tsx:98
+#: src/pages/ActivityDetail.tsx:99
 msgid "No time-series samples are stored."
 msgstr "这次活动没有保存逐时采样。"
 
@@ -7308,7 +7350,7 @@ msgstr "候补名单里还没人报名。"
 msgid "No weekly distance history yet"
 msgstr "暂无每周距离历史"
 
-#: src/components/ActivityDFA.tsx:263
+#: src/components/ActivityDFA.tsx:274
 msgid "No windows passed the analysis checks."
 msgstr "没有窗口通过分析检查。"
 
@@ -7400,7 +7442,7 @@ msgstr "不可直接处理"
 msgid "Not an all-out 5K effort"
 msgstr "不是 5 公里全力跑"
 
-#: src/pages/ActivityDetail.tsx:172
+#: src/pages/ActivityDetail.tsx:177
 msgid "Not an overall trend"
 msgstr "不代表全程趋势"
 
@@ -7412,7 +7454,7 @@ msgstr "不适用"
 msgid "Not connected"
 msgstr "未连接"
 
-#: src/components/ActivityDFA.tsx:158
+#: src/components/ActivityDFA.tsx:152
 msgid "Not enough complete beats."
 msgstr "完整搏动数不足。"
 
@@ -7448,7 +7490,7 @@ msgstr "数据不足，暂无法稳定跟踪负荷"
 msgid "Not enough data yet for weekly load comparison"
 msgstr "数据不足，暂无法对比每周负荷"
 
-#: src/components/ActivityDFA.tsx:159
+#: src/components/ActivityDFA.tsx:153
 msgid "Not enough interval coverage."
 msgstr "逐搏间期的时间覆盖不足。"
 
@@ -7456,7 +7498,7 @@ msgstr "逐搏间期的时间覆盖不足。"
 msgid "not enough load history"
 msgstr "负荷历史不足"
 
-#: src/components/ActivityDFA.tsx:160
+#: src/components/ActivityDFA.tsx:154
 msgid "Not enough neighbouring beats to check quality."
 msgstr "相邻搏动不足，无法完成质量检查。"
 
@@ -7486,7 +7528,7 @@ msgstr "帮助不大"
 msgid "Not linked to current Goal"
 msgstr "未关联当前目标"
 
-#: src/pages/ActivityDetail.tsx:179
+#: src/pages/ActivityDetail.tsx:184
 msgid "Not recorded"
 msgstr "未记录"
 
@@ -7647,7 +7689,7 @@ msgstr "新用户注册用的一次性邀请码。"
 msgid "Online · saved"
 msgstr "在线 · 已保存"
 
-#: src/components/ActivityDFA.tsx:157
+#: src/components/ActivityDFA.tsx:151
 msgid "Only a single running session can be analysed."
 msgstr "只支持包含单次跑步的活动记录。"
 
@@ -7672,7 +7714,7 @@ msgstr "只有明确确认距离、计时、协议、路线或场地及训练意
 #~ msgid "Only ledger-owned Praxys workouts can be unscheduled. Manual and other-coach workouts remain untouched."
 #~ msgstr "只有 Praxys 下发账本记录的训练才能取消排期。手动添加和其他教练平台的训练保持不变。"
 
-#: src/pages/ActivityDetail.tsx:221
+#: src/pages/ActivityDetail.tsx:226
 msgid "Only one recorded metric; overlay unavailable."
 msgstr "只有一条逐时曲线，无法叠加对照。"
 
@@ -7917,7 +7959,7 @@ msgstr "其他"
 #~ msgid "Other plan purpose available"
 #~ msgstr "有其他计划用途可用"
 
-#: src/pages/ActivityDetail.tsx:204
+#: src/pages/ActivityDetail.tsx:209
 msgid "Other recorded metrics"
 msgstr "其他已记录指标"
 
@@ -7954,11 +7996,11 @@ msgstr "服务中断"
 msgid "Outstanding codes"
 msgstr "未使用的邀请码"
 
-#: src/pages/ActivityDetail.tsx:213
+#: src/pages/ActivityDetail.tsx:218
 msgid "Overlay"
 msgstr "叠加对照"
 
-#: src/pages/ActivityDetail.tsx:215
+#: src/pages/ActivityDetail.tsx:220
 msgid "Overlay recorded metric"
 msgstr "选择叠加的逐时指标"
 
@@ -7974,12 +8016,12 @@ msgstr "夜间评分"
 msgid "Ownership conflict"
 msgstr "归属冲突"
 
-#: src/components/ActivityCard.tsx:46
+#: src/components/ActivityCard.tsx:43
 #: src/components/ActivityTraceChart.tsx:95
 #: src/components/SplitBreakdown.tsx:51
 #: src/lib/display-labels.ts:56
-#: src/pages/ActivityDetail.tsx:84
-#: src/pages/ActivityDetail.tsx:268
+#: src/pages/ActivityDetail.tsx:85
+#: src/pages/ActivityDetail.tsx:273
 #: src/pages/Settings.tsx:92
 #: src/pages/Setup.tsx:186
 msgid "Pace"
@@ -8009,8 +8051,8 @@ msgstr "配速 · 阈值差（秒/公里）"
 msgid "Pace · threshold delta in sec/mi"
 msgstr "配速 · 阈值差（秒/英里）"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:220
+#: src/components/ActivityDFA.tsx:315
 msgid "Pace (s/km)"
 msgstr "配速（秒/公里）"
 
@@ -8026,7 +8068,7 @@ msgstr "配速下限（分/公里）"
 msgid "Pace: faster ↑"
 msgstr "配速：越快越靠上"
 
-#: src/components/ActivityDFA.tsx:292
+#: src/components/ActivityDFA.tsx:306
 msgid "Page"
 msgstr "页"
 
@@ -8091,7 +8133,7 @@ msgstr "暂停下发"
 msgid "Pause delivery to change the target."
 msgstr "暂停下发后才能更换执行平台。"
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:211
 #: src/components/UpcomingPlanCard.tsx:392
 #: src/pages/admin/AdminOps.tsx:968
 msgid "Paused"
@@ -8325,7 +8367,7 @@ msgstr "请检查邮箱格式后重试。"
 msgid "Please verify your email before signing in. Check your inbox for the link."
 msgstr "登录前请先验证邮箱。请查看收件箱中的验证链接。"
 
-#: src/components/ActivityDFA.tsx:235
+#: src/components/ActivityDFA.tsx:245
 msgid "Please wait before trying again."
 msgstr "请稍候再试。"
 
@@ -8376,7 +8418,7 @@ msgstr "正平衡"
 #~ msgid "positive balance\" \"正平衡"
 #~ msgstr ""
 
-#: src/components/ActivityDFA.tsx:159
+#: src/components/ActivityDFA.tsx:153
 msgid "Possible irregular or missed beats."
 msgstr "可能存在异常或遗漏搏动。"
 
@@ -8391,8 +8433,8 @@ msgstr "PostgreSQL 连接数"
 #: src/components/ActivityTraceChart.tsx:93
 #: src/components/SplitBreakdown.tsx:49
 #: src/lib/display-labels.ts:54
-#: src/pages/ActivityDetail.tsx:82
-#: src/pages/ActivityDetail.tsx:269
+#: src/pages/ActivityDetail.tsx:83
+#: src/pages/ActivityDetail.tsx:274
 #: src/pages/Settings.tsx:74
 #: src/pages/Setup.tsx:182
 msgid "Power"
@@ -8406,8 +8448,8 @@ msgstr "功率 · %CP"
 msgid "Power · watts"
 msgstr "功率 · 瓦"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:220
+#: src/components/ActivityDFA.tsx:315
 msgid "Power (W)"
 msgstr "功率（瓦）"
 
@@ -8850,7 +8892,7 @@ msgstr "正在准备导出…"
 msgid "Previewing"
 msgstr "预览中"
 
-#: src/components/ActivityDFA.tsx:315
+#: src/components/ActivityDFA.tsx:329
 #: src/pages/History.tsx:84
 msgid "Previous"
 msgstr "上一页"
@@ -8859,12 +8901,16 @@ msgstr "上一页"
 msgid "Previous plan window"
 msgstr "上一时间段"
 
+#: src/components/ActivityDFA.tsx:244
+msgid "Previously authorized manual analyses keep their original source and method."
+msgstr "已获授权的历史手动分析保留原来的来源和方法。"
+
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
 #: src/pages/Settings.tsx:1013
 msgid "Primary for {0}"
 msgstr "作为 {0} 的主要来源"
 
-#: src/pages/ActivityDetail.tsx:187
+#: src/pages/ActivityDetail.tsx:192
 msgid "Primary recorded metric"
 msgstr "选择主曲线"
 
@@ -9146,7 +9192,7 @@ msgstr "达标天数：{0}/{thresholdDays}"
 msgid "Qualifying exposure has resumed after a longer gap, but current evidence is still limited."
 msgstr "较长间隔后已恢复达标热暴露，但当前证据仍然有限。"
 
-#: src/components/ActivityDFA.tsx:320
+#: src/components/ActivityDFA.tsx:334
 msgid "Quality"
 msgstr "数据质量"
 
@@ -9374,7 +9420,7 @@ msgstr "重建中"
 #~ msgid "Rebuilding heat-adaptation evidence"
 #~ msgstr "正在重建热适应证据"
 
-#: src/components/ActivityDFA.tsx:242
+#: src/components/ActivityDFA.tsx:252
 msgid "Recalculate analysis"
 msgstr "重新分析"
 
@@ -9626,11 +9672,11 @@ msgstr "记录测试结果"
 #~ msgid "Recorded activity · no lap comparison available"
 #~ msgstr "已存活动记录 · 暂无可比较的分圈"
 
-#: src/pages/ActivityDetail.tsx:105
+#: src/pages/ActivityDetail.tsx:106
 msgid "Recorded and summary distances do not match."
 msgstr "逐时距离与整场距离不一致。"
 
-#: src/pages/ActivityDetail.tsx:224
+#: src/pages/ActivityDetail.tsx:229
 msgid "Recorded chart"
 msgstr "逐时记录图"
 
@@ -9638,7 +9684,7 @@ msgstr "逐时记录图"
 msgid "Recorded chart. Arrow keys move the time cursor; drag to select a time range."
 msgstr "逐时图线。方向键移动时刻游标，拖选时间范围。"
 
-#: src/pages/ActivityDetail.tsx:184
+#: src/pages/ActivityDetail.tsx:189
 msgid "Recorded curves"
 msgstr "已记录曲线"
 
@@ -9662,8 +9708,8 @@ msgstr "已保存采样点"
 msgid "Recorded split boundaries and recording method are unverified."
 msgstr "记录分段的起止时间及记录方式未核实。"
 
-#: src/components/ActivityCard.tsx:69
-#: src/pages/ActivityDetail.tsx:250
+#: src/components/ActivityCard.tsx:66
+#: src/pages/ActivityDetail.tsx:255
 msgid "Recorded splits"
 msgstr "记录分段"
 
@@ -9675,12 +9721,20 @@ msgstr "记录分段"
 #~ msgid "Recorded time · two independent axes"
 #~ msgstr "逐时记录 · 双独立纵轴"
 
-#: src/pages/ActivityDetail.tsx:104
+#: src/pages/ActivityDetail.tsx:105
 msgid "Recorded time and activity duration do not align."
 msgstr "采样时钟与活动时长不一致。"
 
-#: src/components/ActivityDFA.tsx:236
-#: src/components/ActivityDFA.tsx:238
+#: src/components/ActivityDFA.tsx:228
+msgid "Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording."
+msgstr "记录元数据无法确定 RR 来源，这条记录暂时无法自动分析。"
+
+#: src/components/ActivityDFA.tsx:223
+#~ msgid "Recording metadata cannot resolve the RR source. Independent manual confirmation may be available."
+#~ msgstr "记录元数据无法确定 RR 来源，可能可单独进行手动确认。"
+
+#: src/components/ActivityDFA.tsx:246
+#: src/components/ActivityDFA.tsx:248
 msgid "Recording version"
 msgstr "活动记录版本"
 
@@ -9823,7 +9877,7 @@ msgstr "被 {0} 条计划调整记录引用。"
 msgid "References"
 msgstr "参考文献"
 
-#: src/components/ActivityDFA.tsx:229
+#: src/components/ActivityDFA.tsx:223
 #: src/components/AiInsightsCard.tsx:326
 #: src/pages/admin/AdminOps.tsx:775
 #: src/pages/Status.tsx:152
@@ -9937,7 +9991,7 @@ msgstr "已拒绝"
 msgid "Rejecting…"
 msgstr "正在拒绝…"
 
-#: src/pages/ActivityDetail.tsx:130
+#: src/pages/ActivityDetail.tsx:131
 msgid "Relative humidity"
 msgstr "相对湿度"
 
@@ -10151,7 +10205,7 @@ msgid "Resolved"
 msgstr "已解决"
 
 #: src/components/ActivityTraceChart.tsx:105
-#: src/pages/ActivityDetail.tsx:94
+#: src/pages/ActivityDetail.tsx:95
 msgid "Respiration rate"
 msgstr "呼吸频率"
 
@@ -10265,7 +10319,7 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 #: src/components/trail-course-review/states.tsx:96
 #: src/components/UpcomingPlanCard.tsx:342
 #: src/components/UpcomingPlanCard.tsx:1395
-#: src/pages/ActivityDetail.tsx:327
+#: src/pages/ActivityDetail.tsx:340
 #: src/pages/admin/AdminRouteState.tsx:36
 #: src/pages/admin/AdminUsers.tsx:544
 #: src/pages/Analysis.tsx:172
@@ -10281,8 +10335,8 @@ msgstr "检索到候选活动不代表其已合格；只有完整活动，并明
 msgid "Retry"
 msgstr "重试"
 
-#: src/components/ActivityDFA.tsx:258
-#: src/components/ActivityDFA.tsx:261
+#: src/components/ActivityDFA.tsx:268
+#: src/components/ActivityDFA.tsx:272
 msgid "Retry analysis"
 msgstr "重试分析"
 
@@ -10401,7 +10455,7 @@ msgstr "查看并更新计划"
 msgid "Review before saving"
 msgstr "保存前确认"
 
-#: src/pages/ActivityDetail.tsx:247
+#: src/pages/ActivityDetail.tsx:252
 msgid "Review by split"
 msgstr "按段回看"
 
@@ -10616,11 +10670,11 @@ msgstr "查看训练时间安排"
 msgid "Revoke"
 msgstr "撤销"
 
-#: src/components/ActivityDFA.tsx:330
+#: src/components/ActivityDFA.tsx:344
 msgid "Revoke source confirmation"
 msgstr "撤销来源确认"
 
-#: src/components/ActivityDFA.tsx:332
+#: src/components/ActivityDFA.tsx:346
 msgid "Revoke this source confirmation and remove its analysis results? The original recording will remain."
 msgstr "撤销此来源确认并删除依赖它的分析结果？原始活动记录会保留。"
 
@@ -10690,8 +10744,8 @@ msgstr "路线或场地标识"
 msgid "RPE · 0–10"
 msgstr "主观用力程度（RPE）· 0–10"
 
-#: src/components/ActivityDFA.tsx:226
-#: src/components/ActivityDFA.tsx:301
+#: src/components/ActivityDFA.tsx:220
+#: src/components/ActivityDFA.tsx:315
 msgid "RR heart rate (bpm)"
 msgstr "RR 心率（次/分）"
 
@@ -10751,9 +10805,9 @@ msgstr "改为轻松跑"
 msgid "Run p95"
 msgstr "运行 P95"
 
-#: src/components/ActivityCard.tsx:27
+#: src/components/ActivityCard.tsx:24
 #: src/components/PlanStart.tsx:965
-#: src/pages/ActivityDetail.tsx:72
+#: src/pages/ActivityDetail.tsx:73
 #: src/pages/Setup.tsx:170
 msgid "Running"
 msgstr "跑步"
@@ -11022,7 +11076,7 @@ msgstr "选择通常能跑步的日期。"
 msgid "Select the region matching your COROS account."
 msgstr "选择与你的 COROS 账号对应的地区。"
 
-#: src/pages/ActivityDetail.tsx:224
+#: src/pages/ActivityDetail.tsx:229
 msgid "Selected kilometer"
 msgstr "已选公里段"
 
@@ -11230,6 +11284,10 @@ msgstr "只分享可能改变训练计划的信息。Praxys 会将其保密，�
 msgid "Sheltered"
 msgstr "遮蔽"
 
+#: src/components/ActivityDFA.tsx:279
+msgid "Short timer blocks without scheduled windows:"
+msgstr "未安排分析窗口的短计时段："
+
 #: src/pages/Today.tsx:324
 msgid "Shorten the session if fatigue develops"
 msgstr "如果感到疲劳，就缩短训练"
@@ -11412,24 +11470,28 @@ msgstr "部分既往热适应可能仍然存在，但不同适应反应的证据
 msgid "Some stations"
 msgstr "部分补给站"
 
-#: src/components/ScienceNote.tsx:49
+#: src/components/ScienceNote.tsx:52
 #: src/pages/Goal.tsx:390
 msgid "Source"
 msgstr "来源"
 
-#: src/components/ActivityDFA.tsx:264
+#: src/components/ActivityDFA.tsx:275
 msgid "Source confirmed by you"
 msgstr "来源由你确认"
 
-#: src/pages/ActivityDetail.tsx:132
+#: src/pages/ActivityDetail.tsx:133
 msgid "Source CP estimate"
 msgstr "来源 CP 估计"
+
+#: src/components/ActivityDFA.tsx:275
+msgid "Source inferred from recording metadata"
+msgstr "来源根据记录元数据推断"
 
 #: src/pages/ActivityDetail.tsx:179
 #~ msgid "Source laps only · not an overall trend"
 #~ msgstr "仅比较来源分圈 · 不代表全程趋势"
 
-#: src/pages/ActivityDetail.tsx:301
+#: src/pages/ActivityDetail.tsx:314
 msgid "Source reference; not a training assessment."
 msgstr "来源参考值，不是训练评价。"
 
@@ -11454,11 +11516,11 @@ msgstr "源端所有"
 #~ msgstr "来源分圈可能是自动圈或手动圈。记录没有可信的时间边界，无法从这些行跳到图中定位。"
 
 #: src/components/ActivityTraceChart.tsx:97
-#: src/pages/ActivityDetail.tsx:86
+#: src/pages/ActivityDetail.tsx:87
 msgid "Speed"
 msgstr "速度"
 
-#: src/pages/ActivityDetail.tsx:265
+#: src/pages/ActivityDetail.tsx:270
 msgid "Split"
 msgstr "分段"
 
@@ -11470,11 +11532,11 @@ msgstr "分段"
 #~ msgid "Split power"
 #~ msgstr "分段功率"
 
-#: src/pages/ActivityDetail.tsx:248
+#: src/pages/ActivityDetail.tsx:253
 msgid "Split source"
 msgstr "选择分段依据"
 
-#: src/pages/ActivityDetail.tsx:257
+#: src/pages/ActivityDetail.tsx:262
 msgid "Split times unverified; chart jump unavailable."
 msgstr "分段起止时间未核实，无法定位图表。"
 
@@ -11769,7 +11831,7 @@ msgstr "支持 ID"
 msgid "Support setup"
 msgstr "补给支持方式"
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:211
 #: src/pages/LabsEnvironment.tsx:642
 msgid "Supported"
 msgstr "可分析"
@@ -11778,7 +11840,7 @@ msgstr "可分析"
 #~ msgid "Supported periods, unsupported periods and timer pauses"
 #~ msgstr "可分析时段、不可分析时段及计时暂停"
 
-#: src/components/ActivityDFA.tsx:266
+#: src/components/ActivityDFA.tsx:277
 msgid "Supported recording time"
 msgstr "可分析时段覆盖率"
 
@@ -11794,8 +11856,8 @@ msgstr "将 {workout} 改为轻松跑"
 #~ msgid "Swap {workout} for easy run\" \"将 {workout} 改为轻松跑"
 #~ msgstr ""
 
-#: src/components/ActivityCard.tsx:29
-#: src/pages/ActivityDetail.tsx:77
+#: src/components/ActivityCard.tsx:26
+#: src/pages/ActivityDetail.tsx:78
 #: src/pages/Setup.tsx:172
 msgid "Swimming"
 msgstr "游泳"
@@ -12062,8 +12124,8 @@ msgstr "技术路面训练"
 #~ msgstr "如果存在安全停止条件，请告知 Praxys。它将停止此计划路径并显示政策限定的替代方案。"
 
 #: src/components/ActivityTraceChart.tsx:100
-#: src/pages/ActivityDetail.tsx:89
-#: src/pages/ActivityDetail.tsx:129
+#: src/pages/ActivityDetail.tsx:90
+#: src/pages/ActivityDetail.tsx:130
 msgid "Temperature"
 msgstr "温度"
 
@@ -12188,15 +12250,15 @@ msgstr "操作未完成。"
 msgid "The active load model uses a {loadTimeConstantDays}-day long-term time constant. Need {daysToPmc} more days of history."
 msgstr "当前负荷模型的长期时间常数为 {loadTimeConstantDays} 天，还需要 {daysToPmc} 天历史数据。"
 
-#: src/pages/ActivityDetail.tsx:102
+#: src/pages/ActivityDetail.tsx:103
 msgid "The activity is shorter than the table's 0.01 km resolution."
 msgstr "活动距离不足表格的 0.01 km 显示精度。"
 
-#: src/pages/ActivityDetail.tsx:103
+#: src/pages/ActivityDetail.tsx:104
 msgid "The activity start time cannot be verified."
 msgstr "活动开始时刻无法核实。"
 
-#: src/components/ActivityDFA.tsx:158
+#: src/components/ActivityDFA.tsx:152
 msgid "The activity timer cannot be reconstructed."
 msgstr "无法重建活动计时时段。"
 
@@ -12349,7 +12411,7 @@ msgstr "已有草案仍使用保存的输入"
 msgid "The feedback aggregate could not be refreshed."
 msgstr "无法刷新反馈汇总。"
 
-#: src/components/ActivityDFA.tsx:249
+#: src/components/ActivityDFA.tsx:259
 msgid "The file records a compatible chest strap, but does not directly identify the source of its beat intervals."
 msgstr "文件记录了兼容胸带，但未直接标明逐搏间期的来源。"
 
@@ -12544,24 +12606,24 @@ msgstr "准备情况响应与已接受的未启用越野合同不一致。未应
 msgid "The receipt contained an unsupported reason. Praxys will not guess its meaning or destination."
 msgstr "回执包含不受支持的原因。Praxys 不会猜测其含义或跳转目标。"
 
-#: src/pages/ActivityDetail.tsx:101
+#: src/pages/ActivityDetail.tsx:102
 msgid "The recorded distance moves backward."
 msgstr "距离记录出现回退。"
 
-#: src/pages/ActivityDetail.tsx:100
+#: src/pages/ActivityDetail.tsx:101
 msgid "The recorded distance trace has missing intervals."
 msgstr "距离轨迹有缺测区间。"
 
-#: src/components/ActivityDFA.tsx:243
+#: src/components/ActivityDFA.tsx:253
 msgid "The recording or method has changed. Recalculate to see current results."
 msgstr "活动记录或计算方法已变化，请重新计算以查看当前结果。"
 
-#: src/components/ActivityDFA.tsx:130
-#: src/components/ActivityDFA.tsx:150
-#: src/components/ActivityDFA.tsx:177
-#: src/components/ActivityDFA.tsx:191
-#: src/components/ActivityDFA.tsx:206
-#: src/components/ActivityDFA.tsx:211
+#: src/components/ActivityDFA.tsx:125
+#: src/components/ActivityDFA.tsx:144
+#: src/components/ActivityDFA.tsx:171
+#: src/components/ActivityDFA.tsx:185
+#: src/components/ActivityDFA.tsx:200
+#: src/components/ActivityDFA.tsx:205
 msgid "The request failed. Try again."
 msgstr "请求失败，请重试。"
 
@@ -12606,6 +12668,10 @@ msgstr "同一可比功率范围未覆盖足够多的环境条件。"
 #: src/components/TrailCourseReview.tsx:702
 msgid "The save result is uncertain. Review the latest server version before restoring pending changes."
 msgstr "保存结果尚不确定。恢复待保存更改前，请先查看最新服务端版本。"
+
+#: src/components/ActivityDFA.tsx:236
+msgid "The selected analysis is no longer authorized. Current available analysis is shown."
+msgstr "所选分析已不再获授权。现显示当前可用分析。"
 
 #: src/components/HeatAdaptationPanel.tsx:439
 msgid "The selected day's activities show why each session entered or stayed outside the estimate."
@@ -13030,15 +13096,15 @@ msgstr "这个队列项已不存在。请刷新队列。"
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
 msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回支持不足、关联不稳定或无法得出结论。"
 
-#: src/pages/ActivityDetail.tsx:325
+#: src/pages/ActivityDetail.tsx:338
 msgid "This record is not available to this account."
 msgstr "当前账号无法查看此记录。"
 
-#: src/components/ActivityDFA.tsx:165
+#: src/components/ActivityDFA.tsx:159
 msgid "This recording exceeds the analysis limit."
 msgstr "这份活动记录超出了分析上限。"
 
-#: src/components/ActivityDFA.tsx:156
+#: src/components/ActivityDFA.tsx:150
 msgid "This recording has no beat intervals."
 msgstr "这份活动记录中没有逐搏间期。"
 
@@ -13192,7 +13258,7 @@ msgstr "阈值配速趋势"
 msgid "Thresholds"
 msgstr "阈值"
 
-#: src/components/ActivityDFA.tsx:256
+#: src/components/ActivityDFA.tsx:266
 msgid "Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate."
 msgstr "本次活动记录全程以所选 ECG 心率胸带作为逐搏间期来源，未切换至其他 RR 传感器或光学心率。"
 
@@ -13204,21 +13270,21 @@ msgstr "周四"
 msgid "Thursday"
 msgstr "星期四"
 
-#: src/components/ActivityDFA.tsx:320
+#: src/components/ActivityDFA.tsx:334
 #: src/components/WorkoutStructureEditor.tsx:1436
 #: src/components/WorkoutStructureEditor.tsx:1485
 msgid "Time"
 msgstr "时间"
 
-#: src/components/ActivityDFA.tsx:161
+#: src/components/ActivityDFA.tsx:155
 msgid "Time alignment is inconsistent."
 msgstr "时间对齐不一致。"
 
-#: src/components/ActivityDFA.tsx:162
+#: src/components/ActivityDFA.tsx:156
 msgid "Time alignment is too uncertain."
 msgstr "时间对齐的不确定性过大。"
 
-#: src/components/ActivityDFA.tsx:161
+#: src/components/ActivityDFA.tsx:155
 msgid "Time alignment is unavailable."
 msgstr "无法对齐时间。"
 
@@ -13390,10 +13456,10 @@ msgstr "暂时无法加载越野赛道核对"
 msgid "Trail planning isn't available for this case"
 msgstr "此情况暂不支持越野计划"
 
-#: src/components/ActivityCard.tsx:27
+#: src/components/ActivityCard.tsx:24
 #: src/components/UpcomingPlanCard.tsx:566
 #: src/components/WorkoutPlanEditor.tsx:444
-#: src/pages/ActivityDetail.tsx:73
+#: src/pages/ActivityDetail.tsx:74
 msgid "Trail running"
 msgstr "越野跑"
 
@@ -13693,7 +13759,7 @@ msgstr "已在本页取消标记，尚未提交。新方案仍需重新检查；
 msgid "Unrecognized source name"
 msgstr "来源名称未识别"
 
-#: src/components/ActivityDFA.tsx:217
+#: src/components/ActivityDFA.tsx:211
 msgid "Unsupported"
 msgstr "不可分析"
 
@@ -13794,7 +13860,7 @@ msgstr "US"
 msgid "usable completed weeks; latest run"
 msgstr "个可用完整周；最近跑步"
 
-#: src/components/ActivityDFA.tsx:263
+#: src/components/ActivityDFA.tsx:274
 msgid "Usable windows are ready to inspect."
 msgstr "有效窗口已准备好，可以查看。"
 
@@ -13818,7 +13884,7 @@ msgstr "采用 {target}："
 msgid "Use a completion or consistency goal"
 msgstr "改用完赛或保持规律的目标"
 
-#: src/components/ActivityDFA.tsx:291
+#: src/components/ActivityDFA.tsx:305
 msgid "Use arrow keys for one window, Page Up or Down for a page, then Enter to jump."
 msgstr "方向键选择相邻窗口，Page Up 或 Down 翻页，按回车跳转。"
 
@@ -13916,7 +13982,7 @@ msgstr "用户与权限"
 msgid "Users unavailable"
 msgstr "用户数据暂不可用"
 
-#: src/components/ActivityDFA.tsx:265
+#: src/components/ActivityDFA.tsx:276
 msgid "Valid windows"
 msgstr "有效窗口"
 
@@ -13961,12 +14027,12 @@ msgid "Version"
 msgstr "版本"
 
 #: src/components/ActivityTraceChart.tsx:102
-#: src/pages/ActivityDetail.tsx:91
+#: src/pages/ActivityDetail.tsx:92
 msgid "Vertical oscillation"
 msgstr "垂直振幅"
 
 #: src/components/ActivityTraceChart.tsx:103
-#: src/pages/ActivityDetail.tsx:92
+#: src/pages/ActivityDetail.tsx:93
 msgid "Vertical ratio"
 msgstr "垂直比"
 
@@ -13983,7 +14049,7 @@ msgstr "查看"
 msgid "View available training plans"
 msgstr "查看可用训练计划"
 
-#: src/pages/ActivityDetail.tsx:278
+#: src/pages/ActivityDetail.tsx:283
 msgid "View kilometer"
 msgstr "查看公里段"
 
@@ -13995,7 +14061,7 @@ msgstr "查看提案"
 msgid "View public GitHub issue"
 msgstr "查看公开 GitHub issue"
 
-#: src/components/ActivityCard.tsx:57
+#: src/components/ActivityCard.tsx:54
 msgid "View report"
 msgstr "查看报告"
 
@@ -14007,7 +14073,7 @@ msgstr "查看报告"
 msgid "View status"
 msgstr "查看状态"
 
-#: src/pages/ActivityDetail.tsx:234
+#: src/pages/ActivityDetail.tsx:239
 msgid "View summaries"
 msgstr "查看汇总"
 
@@ -14049,7 +14115,11 @@ msgstr "对比 {theoryName}"
 msgid "vs target zones"
 msgstr "对比目标区间"
 
-#: src/components/ActivityDFA.tsx:244
+#: src/components/ActivityDFA.tsx:226
+msgid "Waiting for the previous analysis to stop safely before starting the selected mode."
+msgstr "正在等待上一项分析安全停止，然后按当前模式继续。"
+
+#: src/components/ActivityDFA.tsx:254
 msgid "Waiting to analyse this recording…"
 msgstr "正在排队等待分析…"
 
@@ -14061,10 +14131,10 @@ msgstr "候补名单"
 msgid "Waitlist unavailable"
 msgstr "候补名单不可用"
 
-#: src/components/ActivityCard.tsx:28
+#: src/components/ActivityCard.tsx:25
 #: src/components/UpcomingPlanCard.tsx:568
 #: src/components/WorkoutPlanEditor.tsx:446
-#: src/pages/ActivityDetail.tsx:74
+#: src/pages/ActivityDetail.tsx:75
 #: src/pages/Setup.tsx:174
 msgid "Walking"
 msgstr "步行"
@@ -14296,7 +14366,7 @@ msgstr "继续后，Praxys 会将此连接所需的认证信息发送给 {0}，�
 msgid "Which accepted surface or protocol matched this effort?"
 msgstr "这次训练符合哪种已接受的场地或协议？"
 
-#: src/components/ActivityDFA.tsx:269
+#: src/components/ActivityDFA.tsx:283
 msgid "Whole activity coverage"
 msgstr "整次活动的覆盖情况"
 
@@ -14328,7 +14398,7 @@ msgstr "将同步以下内容："
 msgid "Wind exposure"
 msgstr "风力暴露"
 
-#: src/components/ActivityDFA.tsx:318
+#: src/components/ActivityDFA.tsx:332
 msgid "Window values and quality details"
 msgstr "逐窗数值与质量详情"
 
@@ -14494,8 +14564,8 @@ msgid "You can attach up to 3 images."
 msgstr "最多可添加 3 张图片。"
 
 #: src/components/ActivityDFA.tsx:245
-msgid "You can close this panel. Analysis will continue."
-msgstr "可以关闭此面板，分析会继续。"
+#~ msgid "You can close this panel. Analysis will continue."
+#~ msgstr "可以关闭此面板，分析会继续。"
 
 #: src/components/PlanStart.tsx:277
 #~ msgid "You can keep this goal and manage workouts manually while separate road and trail policies go through science review."
@@ -14504,6 +14574,10 @@ msgstr "可以关闭此面板，分析会继续。"
 #: src/pages/LabsEnvironment.tsx:280
 msgid "You can leave this page and return later. No action is needed while the analysis runs."
 msgstr "可离开此页面，稍后再回来。分析运行期间无需任何操作。"
+
+#: src/components/ActivityDFA.tsx:255
+msgid "You can leave this report. Analysis will continue."
+msgstr "你可以离开本报告，分析将继续。"
 
 #: src/components/WorkoutStructureEditor.tsx:1983
 msgid "You can still save this workout in Praxys, but managed delivery cannot preserve it until the marked details are changed."
@@ -14640,6 +14714,10 @@ msgstr "历史数据具备足够的总体采样覆盖，但仍需完整分析确
 #: src/pages/Settings.tsx:750
 msgid "Your identity in Praxys"
 msgstr "Praxys 账号信息"
+
+#: src/components/ActivityDFA.tsx:239
+#~ msgid "Your manual analysis is shown first when current and authorized. This preference does not establish greater accuracy."
+#~ msgstr "当手动分析为最新且获授权时，会优先显示。这一偏好不代表准确性更高。"
 
 #: src/pages/Settings.tsx:776
 msgid "Your name"

@@ -29,7 +29,7 @@ export default function ActivityDFA({ activityId, activityDate, onClose }: { act
   </MetricDetailSheet>;
 }
 
-function DFAContent({ activityId }: { activityId: string }) {
+export function DFAContent({ activityId, rangeMs, onSelectInterval }: { activityId: string; rangeMs?: [number, number]; onSelectInterval?: (interval: [number, number]) => void }) {
   const { t } = useLingui();
   const base = `/api/activities/${encodeURIComponent(activityId)}/dfa-alpha1`;
   const client = useQueryClient();
@@ -37,6 +37,8 @@ function DFAContent({ activityId }: { activityId: string }) {
   const [visible, setVisible] = useState(!document.hidden);
   const [selected, setSelected] = useState('');
   const [requestedRun, setRunId] = useState('');
+  const [selectedOrigin, setSelectedOrigin] = useState<'manual' | 'automatic' | null>(null);
+  const [originChanged, setOriginChanged] = useState(false);
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState('');
@@ -49,7 +51,6 @@ function DFAContent({ activityId }: { activityId: string }) {
   const [deleting, setDeleting] = useState<'all' | 'proof' | null>(null);
   const [samplesRevision, setSamplesRevision] = useState<string | null>(null);
   const epoch = useRef(0);
-  const auto = useRef(true);
   const mutation = useRef<AbortController | null>(null);
   const catalog = useApi<DFACatalog>(base, { enabled: false, retry: () => false,
     refetchOnWindowFocus: false, timeoutMs: 30000 });
@@ -59,15 +60,18 @@ function DFAContent({ activityId }: { activityId: string }) {
     enabled: verified && !catalog.error && visible && Boolean(runId) && Boolean(chosenSnapshot),
     refetchInterval: query => {
       const value = query.state.data as DFARun | undefined;
-      if (!verified || !visible || catalog.error || query.state.error || !value || !['queued','running'].includes(value.status)) return false;
+      if (!verified || !visible || catalog.error || query.state.error || !value) return false;
+      if (value.origin === 'automatic' && value.status === 'complete') return 3000;
+      if (!['queued','running','cancellation_requested'].includes(value.status)) return false;
       const normal = Date.now()-Date.parse(value.created_at.endsWith('Z') ? value.created_at : value.created_at+'Z') < 60000 ? 3000 : 10000;
       return Math.max(normal, (value.retry_after_seconds ?? 0)*1000);
     },
     refetchOnWindowFocus: false, refetchOnMount: 'always', retry: () => false, timeoutMs: 30000,
   });
   const mayAnalyse = catalog.data?.policy_active === true && catalog.data?.processing_authorized === true;
+  const mayComputeManual = mayAnalyse && catalog.data?.manual_compute_allowed === true;
   const ownedRun = !catalog.error && verified && run.data?.id === runId && run.data.snapshot_id === chosenSnapshot ? run.data : null;
-  const current = mayAnalyse && ownedRun?.freshness === 'current' ? ownedRun : null;
+  const current = !run.error && mayAnalyse && ownedRun?.freshness === 'current' ? ownedRun : null;
   const context = useApi<DFAContext>(`${base}/runs/${runId}/context?offset=${offset}&limit=120&result_revision=${current?.result_revision ?? ''}${samplesRevision ? `&expected_samples_revision=${samplesRevision}` : ''}`, {
     enabled: verified && visible && current?.status === 'complete' && comparator !== 'hr_bpm',
     refetchOnWindowFocus: false, retry: () => false, timeoutMs: 30000,
@@ -77,26 +81,17 @@ function DFAContent({ activityId }: { activityId: string }) {
   const acceptCatalog = useCallback(async (fresh: DFACatalog | null, ticket: number) => {
     if (ticket !== epoch.current || document.hidden) return;
     setVerified(true);
-    const initialEntry = auto.current; auto.current = false;
     if (!fresh) { setRunId(''); return; }
-    if (initialEntry && !fresh.latest_run && fresh.inputs.length === 1 && fresh.policy_active && fresh.processing_authorized) {
-      const input = fresh.inputs[0].input;
-      const proof = fresh.source_confirmations.find(p => p.snapshot_id === input.snapshot_id && p.parse_id === input.parse_id);
-      if (proof) return; // An expired cache never authorizes automatic recomputation.
-      setBusy(true);
-      try {
-        const response = await apiFetch(base, {method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({input:{provider:input.provider,snapshot_id:input.snapshot_id,parse_id:input.parse_id},
-            catalog_revision:fresh.catalog_revision})});
-        const wait = retryAfterSeconds(response.headers.get('Retry-After'));
-        if (wait) setCooldownUntil(Date.now()+wait*1000);
-        if (!response.ok) throw new Error('request_failed');
-        const value = await response.json() as DFARun;
-        if (ticket === epoch.current) { setRunId(value.id); setOffset(0); }
-      } catch { if (ticket === epoch.current) setFailure('request_failed'); }
-      finally { if (ticket === epoch.current) setBusy(false); }
-    }
-  }, [base]);
+    const available = (fresh.origin_runs ?? (fresh.latest_run ? [fresh.latest_run] : [])).filter(item => item.freshness === 'current');
+    const inspected = available.find(item => item.origin === selectedOrigin);
+    const preferred = inspected ?? available.find(item => item.origin === fresh.computation_mode && item.status === 'complete')
+      ?? available.find(item => item.origin === 'manual' && item.status === 'complete')
+      ?? available.find(item => item.origin === 'automatic' && item.status === 'complete')
+      ?? available.find(item => item.origin === 'manual') ?? available[0];
+    if (selectedOrigin && !inspected) setOriginChanged(true);
+    if (preferred) { setSelectedOrigin(preferred.origin); setRunId(preferred.id); setSelected(preferred.snapshot_id); }
+    else setRunId('');
+  }, [selectedOrigin]);
   const refresh = useCallback(async () => {
     const ticket = ++epoch.current;
     mutation.current?.abort();
@@ -137,15 +132,14 @@ function DFAContent({ activityId }: { activityId: string }) {
     return () => window.clearTimeout(timer);
   }, [cooldownUntil]);
   const launch = async (input: DFAInput, proof?: string) => {
-    if (!catalog.data || busy || cooling || !mayAnalyse) return;
-    auto.current = false;
+    if (!catalog.data || busy || cooling || !mayComputeManual) return;
     const ticket = epoch.current;
     setBusy(true); setFailure('');
     try {
       const value = await request<DFARun>('', { input: { provider: input.provider, snapshot_id: input.snapshot_id, parse_id: input.parse_id },
         catalog_revision: catalog.data.catalog_revision, source_confirmation_id: proof });
       if (ticket !== epoch.current) return;
-      setRunId(value.id); setOffset(0);
+      setSelectedOrigin(value.origin); setRunId(value.id); setOffset(0);
       await client.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith(`${base}/runs/`) });
     } catch { if (ticket === epoch.current) setFailure(t`The request failed. Try again.`); }
     finally { if (ticket === epoch.current) setBusy(false); }
@@ -171,13 +165,13 @@ function DFAContent({ activityId }: { activityId: string }) {
   const active = ownedRun && ['queued','running'].includes(ownedRun.status) ? ownedRun : null;
   const runAction = async (action: 'retry' | 'cancel') => {
     const actionable = action === 'cancel' ? ownedRun : current;
-    if (!actionable) return;
+    if (!actionable || action === 'retry' && !mayComputeManual) return;
     setBusy(true);
     try { await request(`/runs/${actionable.id}/${action}`, action === 'retry' ? { expected_generation: actionable.generation } : undefined); await refresh(); }
     catch { setFailure(t`The request failed. Try again.`); } finally { setBusy(false); }
   };
   const confirm = async () => {
-    if (!current || !chosen || !checked || !selectedSensor) return;
+    if (!current || !chosen || !checked || !selectedSensor || !mayComputeManual) return;
     setBusy(true); setFailure('');
     const ticket = epoch.current;
     try {
@@ -194,7 +188,7 @@ function DFAContent({ activityId }: { activityId: string }) {
   const remove = async () => {
     const id = proof?.id ?? current?.source_confirmation_id;
     if (deleting === 'proof' && !id) return;
-    setBusy(true); auto.current = false;
+    setBusy(true);
     const ticket = ++epoch.current;
     await client.cancelQueries({ predicate: q => String(q.queryKey[0]).startsWith(base) });
     mutation.current?.abort();
@@ -227,22 +221,38 @@ function DFAContent({ activityId }: { activityId: string }) {
 
   return <div className="space-y-6 pb-3 dark:[&_.text-muted-foreground]:text-foreground">
     {failureText && <Alert variant="destructive"><AlertDescription>{failureText}<Button className="min-h-11" variant="outline" onClick={() => void refresh()}><Trans>Refresh</Trans></Button></AlertDescription></Alert>}
+    {data?.computation_mode === 'automatic' && <p role="status"><Trans>Automatic analysis is on. New eligible recordings are analysed after sync; manual analysis is disabled.</Trans></p>}
+    {data?.computation_mode === 'unavailable' && <p role="status"><Trans>Analysis mode is unavailable. New analysis is paused.</Trans></p>}
+    {data?.mode_transition_pending && <p role="status"><Trans>Waiting for the previous analysis to stop safely before starting the selected mode.</Trans></p>}
     {!data?.policy_active && <p role="status"><Trans>DFA analysis is awaiting scientific activation.</Trans></p>}
+    {data?.automatic_availability === 'source_unresolved' && <p role="status"><Trans>Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording.</Trans></p>}
+    {data?.automatic_availability === 'source_ineligible' && <p role="status"><Trans>Conflicting source evidence prevents analysis. Confirmation cannot override it.</Trans></p>}
+    {data?.automatic_availability === 'gate_denied' && <p role="status"><Trans>Automatic analysis is unavailable. Its values are hidden.</Trans></p>}
     {data?.availability === 'original_unavailable' && <p><Trans>The original recording is not available yet. Sync this activity from your connected platform.</Trans></p>}
     {data?.availability === 'provider_unsupported' && <p><Trans>DFA analysis is not yet available for this activity’s connected platform.</Trans></p>}
     {data?.availability === 'activity_type_unsupported' && <p>{reason('activity_type_unsupported')}</p>}
     {data && !data.processing_authorized && <p><Trans>Activity processing is unavailable. You can still delete this analysis.</Trans></p>}
+    <p className="text-sm text-muted-foreground"><Trans>Neither recording metadata nor your confirmation verifies the source of every beat interval.</Trans></p>
+    {originChanged && <p role="status"><Trans>The selected analysis is no longer authorized. Current available analysis is shown.</Trans></p>}
+    {data?.origin_runs?.length ? <div className="flex flex-wrap gap-3" role="group" aria-label={t`Analysis origin`}>
+      {data.origin_runs.filter(item => item.freshness === 'current').map(item => <Button key={item.id} className="min-h-11" variant={runId === item.id ? 'default' : 'outline'}
+        aria-pressed={runId === item.id} onClick={() => { setSelectedOrigin(item.origin); setRunId(item.id); setSelected(item.snapshot_id); setOffset(0); setOriginChanged(false); }}>
+        {item.origin === 'manual' ? <Trans>Manual analysis</Trans> : <Trans>Automatic analysis</Trans>}
+      </Button>)}
+    </div> : null}
+    {data?.origin_runs?.some(item => item.origin === 'automatic' && item.freshness === 'stale') && <p role="status"><Trans>Automatic analysis is unavailable. Its values are hidden.</Trans></p>}
+    {data?.origin_runs?.some(item => item.origin === 'manual') && <p className="text-sm text-muted-foreground"><Trans>Previously authorized manual analyses keep their original source and method.</Trans></p>}
     {cooling && <p role="status"><Trans>Please wait before trying again.</Trans></p>}
     {data && data.inputs.length > 1 && <div className="space-y-2"><Label htmlFor="dfa-recording"><Trans>Recording version</Trans></Label>
       <Select value={selected || null} onValueChange={v => { setSelected(v ?? ''); setSavedProof(null); setChecked(false); setSensor(''); setOffset(0); setRunId(data.latest_run?.snapshot_id === v ? data.latest_run.id : ''); }}>
         <SelectTrigger id="dfa-recording" aria-label={t`Recording version`} className="min-h-11 w-full"><SelectValue>{data.inputs.find(v => v.input.snapshot_id === selected)?.created_at.replace('T',' ').slice(0,19) ?? t`Choose a recording`}</SelectValue></SelectTrigger><SelectContent>
           {data.inputs.map((v,i) => <SelectItem className="min-h-11" key={v.input.snapshot_id} value={v.input.snapshot_id}><span className="font-data">{i+1} · {new Date(v.created_at+'Z').toLocaleString()}</span></SelectItem>)}
         </SelectContent></Select></div>}
-    {chosen && !catalog.error && !active && (!current || staleResult) &&
-      <Button className="min-h-11" disabled={busy || cooling || !mayAnalyse} onClick={() => void launch(chosen, proof?.id)}>{staleResult || proof ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
+    {chosen && !catalog.error && (!active || current?.origin === 'automatic') && (!current || staleResult || current.origin === 'automatic') &&
+      <Button className="min-h-11" disabled={busy || cooling || !mayComputeManual} onClick={() => void launch(chosen, proof?.id)}>{current?.origin === 'automatic' ? t`Manual analysis` : staleResult || proof ? t`Recalculate analysis` : t`Analyse recording`}</Button>}
     {run.data?.freshness === 'stale' && <p><Trans>The recording or method has changed. Recalculate to see current results.</Trans></p>}
     {active && <div role="status" className="space-y-3"><p>{active.status === 'queued' ? t`Waiting to analyse this recording…` : active.phase === 'prepare' ? t`Checking beat intervals and chest-strap evidence…` : t`Calculating valid windows…`}</p>
-      <p className="text-sm text-muted-foreground"><Trans>You can close this panel. Analysis will continue.</Trans></p>
+      <p className="text-sm text-muted-foreground"><Trans>You can leave this report. Analysis will continue.</Trans></p>
       <Button className="min-h-11" variant="outline" disabled={busy} onClick={() => void runAction('cancel')}><Trans>Cancel analysis</Trans></Button></div>}
     {current?.status === 'awaiting_source_confirmation' && <div className="space-y-4">
       <h3 className="font-semibold"><Trans>Confirm the source for this activity</Trans></h3>
@@ -255,15 +265,19 @@ function DFAContent({ activityId }: { activityId: string }) {
         <Checkbox id="dfa-source-confirm" checked={checked} onCheckedChange={setChecked} className="mt-1 shrink-0" />
         <Trans>Throughout this recording, the selected ECG chest strap supplied the beat intervals; I did not switch to another RR sensor or optical heart rate.</Trans>
       </Label>
-      <Button className="min-h-11" disabled={!checked || !selectedSensor || !chosen || busy || cooling || !mayAnalyse} onClick={() => void confirm()}>{savedProof ? t`Retry analysis` : t`Confirm and analyse`}</Button>
+      <Button className="min-h-11" disabled={!checked || !selectedSensor || !chosen || busy || cooling || !mayComputeManual} onClick={() => void confirm()}>{savedProof ? t`Retry analysis` : t`Confirm and analyse`}</Button>
     </div>}
+    {ownedRun?.status === 'cancellation_requested' && <p role="status"><Trans>Cancellation requested</Trans></p>}
     {current && ['failed','unavailable','cancelled'].includes(current.status) && <div className="space-y-3"><p role="status">{current.status === 'cancelled' ? t`Analysis was cancelled.` : reason(current.error_code ?? '')}</p>
-      {current.status !== 'unavailable' && <Button className="min-h-11" variant="outline" disabled={busy || cooling || !mayAnalyse} onClick={() => void runAction('retry')}><Trans>Retry analysis</Trans></Button>}</div>}
+      {current.origin === 'manual' && current.status !== 'unavailable' && <Button className="min-h-11" variant="outline" disabled={busy || cooling || !mayComputeManual} onClick={() => void runAction('retry')}><Trans>Retry analysis</Trans></Button>}</div>}
     {current?.status === 'complete' && current.summary && nav && <>
       <div className="space-y-2"><h3 className="text-lg font-semibold">{current.summary.valid_windows ? t`Usable windows are ready to inspect.` : t`No windows passed the analysis checks.`}</h3>
-        <p className="text-sm"><Trans>Source confirmed by you</Trans> · <Trans>Estimated time alignment</Trans></p>
+        <p className="text-sm">{current.source_assurance === 'metadata_inferred' ? <Trans>Source inferred from recording metadata</Trans> : <Trans>Source confirmed by you</Trans>} · <Trans>Estimated time alignment</Trans></p>
         <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-y py-4"><div><dt className="text-sm text-muted-foreground"><Trans>Valid windows</Trans></dt><dd className="font-data">{current.summary.valid_windows} / {current.summary.scheduled_windows}</dd></div>
           <div><dt className="text-sm text-muted-foreground"><Trans>Supported recording time</Trans></dt><dd className="font-data">{((current.summary.supported_time_ratio ?? 0)*100).toFixed(1)}%</dd></div></dl>
+        <p className="text-sm"><Trans>Active timer time:</Trans> <span className="font-data">{elapsed(nav.timer_blocks.reduce((sum,[a,b]) => sum+b-a,0))}</span></p>
+        <p className="text-sm"><Trans>Short timer blocks without scheduled windows:</Trans> <span className="font-data">{current.summary.short_blocks}</span></p>
+        <p className="text-sm text-muted-foreground font-data">{current.method_version} · {current.source_rule_version}</p>
         <p className="text-sm text-muted-foreground"><Trans>Coverage describes which data could be analysed, not measurement accuracy.</Trans></p>
       </div>
       <div><p className="mb-2 text-sm"><Trans>Whole activity coverage</Trans></p>
@@ -304,7 +318,7 @@ function DFAContent({ activityId }: { activityId: string }) {
       <div className="flex flex-wrap gap-5 text-sm" aria-hidden="true"><span className="text-accent-cobalt">DFA α1</span><span className="text-muted-foreground">{comparatorLabel}</span></div>
       <div className="h-64 w-full font-data" aria-label={t`DFA α1 by window end time`}>
         <ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{left:0,right:0,top:10,bottom:10}}>
-          <CartesianGrid stroke="var(--border)" vertical={false}/><XAxis dataKey="end_ms" type="number" domain={['dataMin','dataMax']} tickFormatter={v => elapsed(Number(v),start)} tick={{fontSize:11,fill:'var(--foreground)'}}/>
+          <CartesianGrid stroke="var(--border)" vertical={false}/><XAxis dataKey="end_ms" type="number" domain={rangeMs ?? ['dataMin','dataMax']} allowDataOverflow tickFormatter={v => elapsed(Number(v),start)} tick={{fontSize:11,fill:'var(--foreground)'}}/>
           <YAxis yAxisId="alpha" tickFormatter={v => Number(v).toFixed(2)} width={44} domain={['auto','auto']} tick={{fontSize:11,fill:'var(--foreground)'}}/>
           <YAxis yAxisId="context" orientation="right" width={45} domain={['auto','auto']} tick={{fontSize:11,fill:'var(--foreground)'}}/>
           <Tooltip labelFormatter={v => elapsed(Number(v),start)} formatter={v => typeof v === 'number' ? v.toFixed(2) : '—'} contentStyle={{background:'var(--card)',borderColor:'var(--border)'}}/>
@@ -318,13 +332,13 @@ function DFAContent({ activityId }: { activityId: string }) {
       <details><summary className="min-h-11 cursor-pointer py-3 font-medium"><Trans>Window values and quality details</Trans></summary>
         <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only"><Trans>Each row represents a 120-second window.</Trans></caption>
           <thead><tr className="border-b"><th className="py-2"><Trans>Time</Trans></th><th>DFA α1</th><th>{comparatorLabel}</th><th><Trans>Quality</Trans></th></tr></thead>
-          <tbody>{(current.windows ?? []).map(w => <tr key={w.index} className="border-b align-top"><td className="py-3 pr-2 font-data">{elapsed(w.start_ms,start)}–{elapsed(w.end_ms,start)}</td>
+          <tbody>{(current.windows ?? []).map(w => <tr key={w.index} className="border-b align-top"><td className="py-3 pr-2 font-data">{onSelectInterval ? <Button className="min-h-11" variant="link" onClick={() => onSelectInterval([w.start_ms,w.end_ms])}>{elapsed(w.start_ms,start)}–{elapsed(w.end_ms,start)}</Button> : <>{elapsed(w.start_ms,start)}–{elapsed(w.end_ms,start)}</>}</td>
             <td className="py-3 pr-2 font-data">{w.alpha1?.toFixed(2) ?? '—'}</td><td className="py-3 pr-2 font-data">{chart.find(v => v.index===w.index && v.alpha1===w.alpha1)?.comparator?.toFixed(1) ?? '—'}</td>
             <td className="py-3"><p>{[...w.reasons,...w.flags].map(reason).join(' ') || t`No issues detected by these checks.`}</p><span className="font-data text-xs">{w.beat_count} · {(w.coverage_ms/1200).toFixed(1)}%</span></td></tr>)}</tbody></table></div>
       </details>
       {Object.entries(current.summary.excluded_reasons).map(([code,count]) => <p className="text-sm text-muted-foreground" key={code}>{reason(code)} <span className="font-data">{count}</span></p>)}
     </>}
-    <ScienceNote sources={[{url:'https://doi.org/10.3390/s21030821',label:t`Artefacts and recording devices`},{url:'https://doi.org/10.3390/s22176536',label:t`ECG chest-strap validation`}]}
+    <ScienceNote triggerClassName="min-h-11 min-w-11 rounded-sm focus-visible:ring-2 focus-visible:ring-ring" sources={[{url:'https://doi.org/10.3390/s21030821',label:t`Artefacts and recording devices`},{url:'https://doi.org/10.3390/s22176536',label:t`ECG chest-strap validation`}]}
       text={t`DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds.`}/>
     {(runId || proof) && <div className="border-t pt-4"><div className="flex flex-wrap gap-2">
       {(proof || current?.source_confirmation_id) && <Button className="min-h-11" variant="outline" onClick={() => setDeleting('proof')}><Trans>Revoke source confirmation</Trans></Button>}

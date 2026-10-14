@@ -1,3 +1,156 @@
+# Activity DFA V2 operations
+
+**Summary:** Keep V2 inactive by default, enforce account-scoped mutually exclusive compute modes, pin the Linux supervisor, and require physical exit before reuse.
+
+**Current requirement:** The user superseded simultaneous manual/automatic computation and manual-priority preemption on2026-10-12. AUTO ON disables manual computation; recognized AUTO OFF permits manual computation only with current Science/rights/source authority. The historical100-preemption requirement and results below are superseded evidence, not current acceptance or retroactive passes.
+
+**Use when:** Preparing reviewed inactive source, diagnosing origin/queue/retirement state, or restoring synthetic/authorized data.
+
+## Prerequisites
+
+Actual designated V2 remains accepted/inactive and historical V1 remains terminally
+stopped. Gate ON, a supervisor setting, a nonce and source maintenance are not
+activation or host-handover authority. Fresh independent implementation/source
+review, current CI and separate Operations rollout remain required.
+
+## Steps
+
+The repository startup command is `python -m api.runtime_startup`; this task does
+not change live App Service settings. `PRAXYS_DFA_SUPERVISOR_ENABLED` defaults
+false and API workers never execute DFA. The optional supervisor candidate must
+match the durable control row and observed instance, slot, source SHA, boot and
+PID/mount namespaces. Missing or changed identity stays disabled; no first-start
+self-election or heartbeat takeover exists.
+
+Manual and automatic have independent immutable grants/results. An explicit
+current processing receipt is required, and automatic additionally requires an
+exact account-sync action, current account generation, a newly successful daily
+archive-unit receipt, current metadata predicate and server gate. Date backfill,
+partial sync, reparse, report view/focus/poll never creates automatic computation.
+Source/gate/rights are rechecked before result hydration and publication.
+
+A private local runtime directory under `/tmp` has mode0700. Its supervisor lock
+is not inherited, its recovery mutex is distinct, and its physical guard is
+inherited by controlled children. An existing private recovery-only incarnation receipt, written after durable
+host validation, permits exact old-group retirement before cold DB/SDK startup
+and before physical-lock acquisition. It never permits launch or host election.
+Missing receipt with an actor or ambiguous launch intent remains blocked. TERM grace is500ms, followed by KILL/reaping and group
+absence observation; a lease, signal delivery or leader exit is not exit proof.
+Unexpected members, identity reuse or unacknowledged launch remain blocked.
+
+Control validation starts no more than8 times/s (125ms minimum interval); its aggregate completion budget is250ms.
+Local execution permission expires after750ms without
+a completed valid renewal. Current control readiness, generation, drain and queue
+reservation gate durable manual admission. The retirement reactor is independent
+of DB/auth/gate/loading/serialization I/O. Physical exit commits through dedicated
+control before owner cleanup. Admission-to-exit/availability and manual process
+start are separate observations. A post-acceptance capacity failure remains a miss.
+
+The control pool has two connections/zero overflow,100ms checkout,200ms statement
+and lock bounds, and1s driver connect timeout. Token acquisition/cold connections
+may exceed the healthy envelope; permission expiry remains local. Supervisor work
+pools are explicitly1/zero-overflow; its unused async engine is still counted.
+One API worker at existing defaults configures20 potential connections, supervisor
+work/async/control4, coordinator0 steady-state after disposal:24 total potential
+connections. Coordinator migration/drain pools are transient and must also be
+counted during startup/shutdown. This is accounting, not demonstrated live capacity.
+
+Children have explicit credential-free environment allowlists and private bounded
+pipes. The supervisor alone publishes; actor/token/epoch/generation/input and
+nested result schemas/size are checked. Same-container processes share an OS/cloud
+identity; environment filtering does not establish separate managed-identity isolation.
+
+## Renewal validation cost
+
+Every renewal still observes the entire Science tree's current file bytes and
+permission bits. The fingerprint uses `scandir` entry types and one fresh metadata
+observation per file, preserving the ordered path/mode/content digest and the
+4,096-file/32-MiB bounds. It does not cache metadata, add a TTL, or reuse rights
+across calls. STOP/content/mode/validator changes still invalidate the common
+contract cache; initial validation remains bracketed by two matching fingerprints.
+Directory paths, including the configured root's ancestors, are freshly checked
+without following their final symlink component. Directory device/inode identities
+are checked after traversal and byte reads, and again inside the cache lock before
+acceptance. The root is normalized without resolving symlink aliases. Queued
+symlink substitution or directory replacement is denied even when target bytes
+and modes are identical. Scan handles are context-managed and closed on rejection.
+These checks fence observed replacements; they do not make the tree an atomic
+filesystem snapshot or detect an unobserved transient replacement restored between
+checks.
+Origin grants, negative journals, current processing/channel rights, sources and
+control generation remain checked inside the existing transaction path.
+
+Read/validation cost and the later control write can both consume the aggregate
+250ms budget. A 200ms per-command limit is not a guarantee that the whole cycle
+finishes within 250ms. SQLAlchemy's logical transaction also does not prove a
+SQLite read-to-write lock upgrade: with the diagnostic fixture's default SQLite
+driver, SELECT leaves DBAPI `in_transaction` false until the write. PostgreSQL
+starts a transaction before these reads; its guarded control UPDATE can wait on
+a competing producer row lock. Keep these observations separate from deployed
+connection modes and from unknown historical overrun causes. Late or failed
+validation still denies permission regardless of an older future physical lease.
+No timer, manual recovery, queue, or capacity acceptance policy changes here.
+
+Queued acquisition rechecks local permission and its actual monotonic expiry after
+rights/source validation, then refreshes the durable control row using
+`populate_existing` and checks permission again before setting running/reading.
+An already denied/expired acquisition or changed epoch/drain leaves the unit queued,
+with no lease or recovery consumed. Owner serialization and the existing query
+budgets remain in place; the added control read does not lock a new authority lane.
+This check does not reserve permission across commit. A denial after the final
+check can still produce a claimed failed attempt; loading/launch, reactor retirement
+and final publication keep their independent fences. Existing automatic recovery
+limits and explicit manual-retry policy are unchanged. This closes preventable
+stale acquisition, not the unexplained historical mid-computation overrun.
+
+## Verify
+
+Use synthetic data only. Retain failed admissions and interrupted runs. The first
+capacity test and its rerun rejected manual admission with503; their original logs
+are preserved. A later100-trial post-handshake ignored-TERM synthetic cell passed
+with observed durable admission/retirement, independently from real raw-reference
+and both-origin numerical tests. It does not prove maximum-input/native-compute,
+loading/IPC, Azure contention, a60-minute soak or host handover. Final exact-head
+preflight, fresh specialist/Quality review and both rendered clients remain required.
+
+## Rollback / Recovery
+
+The workflow installs the coordinator startup command but permits inactive source
+and an unset/false candidate setting only; enabled/active deployment is blocked
+before its first mutation. This does not authorize a live startup change.
+
+Before any recycling settings/deploy/rollback action, durably drain both origins,
+fence publication and prove the old registered group/environment exited. Keep
+replacement compute disabled until separately authorized incarnation handover.
+Use `python -m api.dfa_drain` only inside the separately authorized exact bound
+environment. It commits admission/publication closure before observing the matching
+local and SQL idle receipt and actual group absence. Timeout retains closure and
+is not exit evidence. Environment handover remains separately authorized.
+Never unlink held locks, erase actor metadata with a run/user, or restore an older
+unsafe per-API-worker dispatcher. The additive migration retains historical data
+without granting V2 authority; destructive downgrade requires independent drain.
+
+Independent private negative authority uses Blob ETag CAS or fsynced local files,
+separate from SQL. Never replace it with an old SQL backup or restore an archive
+whose recoverable horizon outlives its current negative history. Pending cleanup
+never expires; active-owner high-watermarks and deleted-incarnation fences remain
+until every recoverable copy/execution reference is retired.
+
+Before reopening a restored API, run `python -m api.dfa_restore` in the separately
+authorized restore procedure: disable/drain, advance epoch, replay unconditional
+account deletion, discard restored DFA grants/proofs/results/receipts and clear
+restored sync-authority generations. Original activities remain. Restore creates
+neither a grant nor a successful-sync event. Missing authority with retained grants
+fails closed. Fresh owner actions must establish new independent authority.
+
+## Related
+
+- [Implementation](../dev/pr871-original-runtime.md)
+- [Impact map](../dev/pr871-original-implementation-impact.md)
+- [Backup and restore](backup-and-restore.md)
+
+<details><summary>Historical V1 runbook and prior staging proposals (not current runtime authority)</summary>
+
 # Activity DFA α1 operations
 
 **Summary:** Operate bounded post-run DFA jobs and preserve owner erasure across restores.
@@ -553,3 +706,534 @@ The approval-ledger automation permits only the designated companion output
 namespace in addition to existing Science outputs. Its complete trusted replay
 and source verifier determine the exact filename/content; the workflow path
 allowlist itself supplies no authority or stale-approval exception.
+
+</details>
+
+
+Inactive candidate startup keeps ordinary API availability separate from DFA
+compute readiness. Missing, malformed or stale candidate observations cannot
+start the supervisor. A structurally valid previous-source identity in the same
+boot and process/mount namespace may retire its exact locally receipted actor
+before database initialization; that retirement receipt grants no launch rights.
+Missing or mismatched receipts leave uncertain actors untouched and deny compute.
+
+
+The synthetic capacity cohort now distinguishes ingress availability from
+accepted-request preemption. Every ingress attempt records readiness, before/
+after durable admission fields, denial reason and any five-second backoff. Only
+an exact capacity refusal with unchanged durable fields can be retried, at most
+three attempts per trial, 300 total attempts and 600 seconds overall. Any
+post-admission failure remains a failure. Report the denial rate and total elapsed
+time alongside 100 accepted preemptions; never label retries as 100/100 ingress
+success. Exit/availability uses the conservative before-transaction bracket;
+post-Popen/PID process-start observations remain separate. These measurements
+cover the documented healthy synthetic cell only, not live capacity or soak.
+
+
+Accepted preemption evidence also binds a real control-query observation of the
+newly committed queued manual admission ID, generation and execution epoch to
+the matching occupied automatic actor token. The actual retirement must follow the observed priority-triggered permission
+invalidation and start with permission disabled. The separately assigned reason
+string can lag that write; it is retained as a diagnostic, not used alone as
+proof of the cause. A permission-expiry exit
+during the ingress/commit bracket cannot count as accepted preemption. Exit
+need not follow response delivery: fast post-commit priority retirement is valid.
+The test observer observes the actual priority queries, reads selected metadata
+on the reserved control connection, and records actual retirement events; it does not extend the 750ms watchdog or
+modify production decisions.
+
+
+The positive transaction regression synchronizes at a real completed renewal,
+then parks only the following control I/O until actual admission commit. The
+independent 750ms timer remains live and is never extended; slow admission still
+fails the positive case. Benchmark execution does not enable that test
+synchronization. A separate regression delays the diagnostic reason assignment
+until physical exit to exercise the real invalidation/reason interleaving.
+
+## Admission/control contention observations
+
+Retry authorization remains serialized with owner/source generation changes.
+Its response is queued metadata only; superseded result bytes/revision are
+cleared. The global control-row admission mutation follows response metadata
+preparation and pending writes, immediately before commit. Response delivery
+must not hold that transaction while repeating source/storage/authority checks.
+
+The supervisor control pool uses two connections with zero overflow and 100ms
+checkout, reserving bounded capacity for renewal and lifecycle acknowledgements.
+A cancelled worker acknowledgement can race verified-exit projection: exact
+incarnation/epoch/prior-actor CAS prevents it from overwriting an exit receipt
+or replacement actor. Pool checkout and command deadlines still apply when
+those calls overlap; no extra connection or overflow is introduced. SQLite uses a dedicated bounded
+control pool with the existing durable journal/synchronous settings and 100ms
+busy timeout. PostgreSQL retains 200ms statement and lock timeouts. This reduces
+avoidable pool contention; it does not remove database writer/row-lock
+contention. The actual 250ms renewal budget and 750ms independent expiry remain
+binding, including when authority/source/storage checks or database I/O stall.
+
+The `15ebd0b` accepted SQLite synthetic cohort failed causal certification;
+it cannot be dismissed as an unsupported deployment cell. PostgreSQL production
+and SQLite local/test remain supported. Preserve all accepted failures and
+refusal rates when measuring a prospective profile. Distinguish authority checks,
+completed renewal, durable acceptance, physical exit, durable availability and
+post-Popen process start. A timely physical exit alone does not prove that a new
+durable manual admission caused retirement. Focused synthetic cells and code
+review are not maximum-input, mixed-load/soak, live placement or activation
+certification. Native compiler/render verification remains externally blocked.
+
+The aggregate renewal deadline includes completed control commit. If commit
+finishes after 250ms, readiness in SQL is insufficient: local permission remains
+denied and the previous local expiry is not extended. Diagnose such deadline
+or database exceptions separately from observed committed manual priority;
+never infer a lock exception from a permission retirement reason alone.
+
+Admission refreshes the actual locked control row even if response metadata
+already loaded it. A concurrent drain/epoch/readiness change must not be hidden
+by the ORM identity cache. Equal PostgreSQL 200ms statement/lock deadlines may
+produce statement cancellation (`57014`) or lock timeout (`55P03`); record the
+actual class/code and operation. SQLite lock failure reports BUSY. All remain
+fail-closed without extending local permission.
+
+## SQL admission pulse and ACK boundary
+
+A SQL admission pulse ends250ms after the renewal starts. Publishing after that
+instant leaves an already-expired pulse; local denial does not depend on a
+subsequent cleanup transaction. Readiness publication uses an exact-generation
+conditional update and cannot overwrite a concurrently drained/replaced binding.
+SQL-visible commit and supervisor-observed ACK differ. Admission checked inside
+an eligible pulse stays accepted if its own commit/response crosses expiry or
+supervisor ACK later times out. Physical execution requires a completed current
+ACK within250ms, and only then extends the separate750ms local permission.
+The supported drain/restore/startup-failure operations clear readiness atomically;
+no new host election or binding authority is created.
+
+Starts are bounded to at most8/s (125ms minimum start interval), including failed
+publication attempts. This prospectively doubles the previous4/s active control
+validation rate; include source/rights/Science reads and write contention in
+capacity review. Pulse250ms and start125ms do not guarantee continuous eligibility:
+processing/commit delays above the overlap or failed renewals cause gaps. Keep
+all ingress and refusal rates, admission-check/commit/response brackets, accepted
+outcomes and physical exit/durable availability/post-Popen timings. Selecting
+only fast readiness windows is not general healthy capacity. Focused25ms SQL
+coverage sampling adds up to40 observer reads/s and is an estimate, not a live
+availability certificate. No maximum-input/shared-service/soak capacity is proved.
+
+### Cancelled I/O and independent physical retirement
+
+The failed `644b1c4` canonical run is retained:4498 passed,1 failed,53 skipped.
+The SQLite capacity cell recorded15 ingress,5 pre-admission refusals,10 durable
+acceptances and9 complete outcomes. The tenth remained an accepted failure:
+its matching priority invalidation and physical group exit were observed, but
+the Python loading/IPC continuation remained alive after the old250ms join.
+Its exact blocked stack/resource was not recorded and is unknown. One bounded
+12-step diagnostic completed all12; that does not repair the failed certificate.
+
+Physical retirement no longer joins a Python I/O continuation. Before retirement,
+a job-local event irrevocably denies later launch; it is never cleared for a new
+job. All launches check that event under the physical mutex. Intent writes are
+generation/status fenced; actor acknowledgements use exact CAS. Verified group
+exit and its durable receipt precede slot reuse. Old private result queues are
+discarded; current owner/origin/rights/source checks remain required for any
+publication. A late worker owns and closes its own pipe handles, because closing
+a buffered reader from the reactor can block on that reader's lock.
+
+There are at most two Python I/O continuations including the active job. With
+one cancelled continuation, automatic loading is paused and the remaining slot
+is reserved for manual work. At two cancelled continuations no new work starts
+and completed renewal denies new readiness; requests already durably accepted
+stay accepted. A formerly valid admission pulse can expire naturally while that
+denial completes. No250ms SQL/750ms physical bound or125ms cadence changes.
+
+Focused SQLite/PostgreSQL tests deliberately hold a private stdout continuation
+after actual pipe EOF, retain every ingress outcome, and require real admitted
+manual computation/physical exit before reuse before releasing cleanup. Other
+tests delay raw loading and actual actor UPDATE execution, proving cancelled
+loads cannot launch/write a newer generation and old acknowledgements cannot
+overwrite a replacement. These deterministic delays reproduce a lifecycle
+boundary; they do not identify the original644 blocked dependency. Permanent
+storage/driver stalls, maximum input and mixed-load/soak capacity remain unproved.
+A stuck dependency exhausting both continuation slots requires recovery; do not
+claim universal manual availability or increase slots/deadlines to hide it.
+
+The EOF-boundary cell uses one work connection/zero overflow and two control
+connections; it observes zero checked-out work connections at the paused pipe
+continuation. An indefinitely blocked raw-loading transaction can instead hold
+that sole work connection. The extra Python continuation does not create another
+DB connection or prove service during such a stall; pool/driver contention and
+permanent dependency failure remain explicit recovery/capacity limitations.
+Focused regressions passed12 lifecycle cases and59 existing runtime/authority/
+readiness cases; the wider bounded combination passed72 with the100-trial case
+excluded. This is preparation for independent review, not final canonical proof.
+
+Automatic loading pause includes successful-sync receipt admission/inventory
+decoding, not only acquisition of an already queued automatic run. While a
+cancelled continuation remains, leave the receipt pending without consuming a
+grant or linking a run, and select manual work first. After cleanup pruning
+removes that continuation, normal receipt admission resumes. The focused
+SQLite/PostgreSQL regression queues another genuine receipt before live startup,
+observes actual child payload acknowledgement without parking renewal, and
+requires manual completion before releasing EOF cleanup; only then may that
+receipt be loaded and associated. Earlier failed focused attempts remain
+diagnostics, including an accepted SQLite failure during live receipt creation
+and a cancellation before the EOF boundary existed. These tests do not identify
+the original644 blocked phase or establish a new capacity certificate.
+
+### Prospective preemption cohort and supplemental service outcomes
+
+The32f canonical run remains failed:4512 passed,1 failed,53 skipped,
+90 ingress/23 refusals/67 durable acceptances/66 complete causal steps. Its
+last retry followed a real5s pre-admission refusal backoff into an already idle
+actor, so the old occupied-only assertion stopped observation of accepted
+service. Original permission-loss cause remains unknown. The observed DELETE
+journal setting is not a demonstrated cause. Four bounded DELETE/WAL idle and
+explicit durable-drain boundary cells completed service without forged renewals;
+they are separate from the operational profile and do not repair that certificate.
+
+The prospective test checks exact actor/token/incarnation/epoch/input/generation
+and running automatic workload before every ingress, including retries. It
+never selects a favourable remaining SQL pulse. Five-second refusal backoff and
+three-attempt per-episode bounds remain; the entire setup/live qualification/
+API/service observation schedule has300 ingress slots and600s total, with15s
+bounded qualification/accepted-service observations. A lack of eligible work or
+an exhausted budget reports insufficient coverage.
+
+Thirty-two independently originated synthetic daily completion units are
+predeclared before live startup through the real sync writer: distinct activity,
+snapshot, parse, job, item and completion identifiers. They are actual newly
+completed synthetic units, not historical/backfill synthesis or an adaptive
+replacement for an accepted failure. A terminal automatic row is never reset;
+no grant or physical permission is forged. This changes the prospective
+workload population and incurs receipt inventory overhead; it does not certify
+concurrent sync workloads or substitute a retrospective profile.
+
+A test-only request adapter captures the already-read locked control actor and
+real commit invocation/ACK bracket, without an extra authority read under the
+lock. Every durable acknowledgement (including a post-commit503) is recorded
+before classification, and every accepted request receives an actual service
+outcome, current authorization check and post-Popen/physical reuse evidence.
+Independent committed-priority actor/generation/epoch/admission/sequence proof,
+verified group exit and durable availability still govern required preemption.
+Fast post-commit retirement before client ACK can qualify only with that actual
+committed-priority proof; ACK time is not invented as server commit time.
+
+Certification still requires100 causally proven accepted preemptions with
+complete authorized service and physical exit/durable availability within5s,
+PLUS separate idle/race acceptances and outcomes.100 mixed successes does not
+meet that target. Retirement races do not become idle/preemption successes;
+ambiguity remains insufficient evidence. Genuine accepted failures stop
+certification after observation and stay retained rather than resampled.
+All ingress, refusals, supplemental outcomes, renewal denial/exception classes,
+automatic terminal transitions, source hashes and budget elapsed time remain
+in the final ledger, including failed or incomplete runs. Runtime125ms cadence,
+250ms SQL pulse/ACK budget,750ms local permission and pool2 are unchanged.
+
+
+Prospective occupied-acceptance classification requires the exact locked actor
+(token, full binding, incarnation and state), a real request commit bracket,
+and matching verified physical exit plus durable availability. Every occupied
+supplemental race also retains these timings and must satisfy the conservative
+five-second bound from the pre-ingress observation (earlier than acceptance).
+A precommit race is affirmative only when verified exit precedes the observed
+SQLAlchemy commit event, which occurs before the DBAPI COMMIT invocation.
+Exit before client ACK alone proves neither precommit retirement nor priority.
+The event does not identify SQL server commit time. Missing/mismatched evidence,
+invalid committed-priority proof, ambiguous ordering or overbudget retirement
+blocks certification after retaining actual accepted service. No failed causal
+assertion is converted into a permitted race category.
+
+### Focused service contracts and strict priority evidence
+
+The failed `1e6945c` canonical run remains failed (4520 passed, 2 failed,
+53 skipped); its capacity subtest completed100 causal preemptions but is not
+whole-preflight success. The recorded341.986ms renewal overrun has an unknown
+cause. The original accepted preparation outcome was not observed to completion;
+new tests cannot retrospectively complete that certificate.
+
+Prospective focused admission cells separate two contracts. Fixed-phase cells
+issue one ingress after the declared observation interval/phase offset; they
+retain every refusal or durable acceptance and observe its actual service before
+classifying retirement. Independent strict-priority cells issue one ingress
+after the real automatic child's payload-decode handshake and a subsequent
+completed valid renewal for the same occupied actor, full incarnation and epoch.
+The receipt includes successful CAS, actual commit ACK and local permission
+extension; the event is published after actual allowed/ready assignment. Waiting
+is bounded and does not park control or select remaining SQL-pulse duration.
+This event reserves no readiness: a subsequent503 still fails strict coverage.
+Retry, new preparation and confirmed computation each require affirmative
+committed-priority retirement on both SQLite and PostgreSQL. A refusal or
+missing priority proof in those cells is insufficient coverage/failure, never a
+mixed-service substitute. This transparent event synchronization is a focused
+regression condition, not the unparked capacity profile.
+
+Every accepted preparation must reach `awaiting_source_confirmation` with a
+current authorized evidence/sensor read; compute/retry must reach `complete`
+with a current result revision. Shared observation retains child start, physical
+exit, post-commit durable availability, reuse ordering, terminal failure/timeout
+and response errors before retirement assertions. A response error after a real
+durable submit is an accepted error, not a pre-admission503 refusal. Request
+observation covers both submit and retry, including the already-read locked
+actor and physical journal, the transaction subject, pre-DBAPI commit invocation
+and client ACK. None of these observations invents SQL server commit time.
+
+Prospective already-retiring supplemental service requires successful persistence
+of the matching `retiring` journal followed by successful actual live-group TERM
+dispatch, both completed before pre-DBAPI commit invocation. The observation
+binds initial and serialized actor token, full computation binding, incarnation,
+PID/start/PGID identity, actual signal group and live membership. Function entry,
+`term_at`, journal alone or exit before ACK alone are insufficient. Independent
+verified physical exit before commit invocation remains the separate race proof.
+Both require matching exit and durable availability within5s from ingress. It is not a
+strict-priority positive. Missing/mismatched evidence and ACK-only ordering
+remain insufficient; generic failed assertions never establish a race. The
+physical exit/availability bound remains conservatively measured from ingress.
+
+EOF cells independently prove accepted manual service while actual post-exit
+Python cleanup is still held, matching physical exit and durable availability
+before reuse within5s, an untouched pending automatic receipt, and actual receipt
+processing only after cleanup release/pruning. Their retirement cause need not
+be manual priority; an unavailable cause remains explicitly unavailable. Separate
+strict-priority cells protect that contract. Deliberately damaged observation
+copies, denied reads, malformed real worker input and scoped post-commit response
+errors are negative tests, not operational samples. The capacity target remains
+100 causal accepted preemptions from the predeclared32-source inventory within
+300 ingress/600s, plus separately retained supplemental outcomes. No authority,
+250ms SQL pulse/ACK budget,750ms physical expiry,125ms cadence or pool2 boundary
+is changed by these test contracts.
+
+The failed `f2237a8` run remains4533 passed/2 failed/53 skipped;36 ingress,
+29 completed accepted services and28 causal proofs do not meet100. Its last
+supplemental record lacks persisted-journal/TERM completion timestamps and stays
+unproved. The361.617ms strict-cell renewal overrun and earlier341.986ms overrun
+have unknown causes. No runtime defect or retrospective repair is claimed.
+The new observers add local timestamp/frame/journal observations; their overhead
+is not quantified and focused forced-boundary results are not a capacity claim.
+
+Capacity reactor failure retention (b6 follow-up)
+
+The b6 committed-head canonical attempt failed its100-causal target after8
+requests:2 accepted/complete causal services and6 unchanged pre-admission
+refusals. Those accepted outcomes remain valid; neither denial nor interrupted
+backoff is an accepted service failure. The final actor had verified physical
+exit while SQL still showed occupied and its automatic run remained running.
+The retained artifacts omitted the caught reactor exception and exact exit
+publication attempt, so an exit-commit failure is not an established original
+cause. b6 remains failed; this harness repair makes no availability-cure claim.
+
+Capacity now uses a shared test-only worker lifecycle recorder. It retains
+exception class and stack frame file/function/line, without exception messages,
+source text or locals; monotonic start/exit/stop-issuer events; and exit-publication
+attempt/ACK/error brackets. A one-time failure snapshot uses the bounded reserved
+control connection and records only actor/binding and run status metadata.
+New ingress/qualification is refused after known worker termination or stop;
+a stop-interrupted5s backoff cannot proceed into another request. These checks
+are not permission reservations. An admission racing termination still reaches
+the existing accepted-service observer and is retained before classification.
+Unexpected worker exception/return/stop fails certification independently of the
+100 target. Requested cleanup is separate; cleanup errors cannot erase a primary
+failure. The final ledger includes both error channels, physical transitions and
+successful durable-exit receipt times. A ledger-write error retains the primary
+exception as the raised failure and the retention error as its cause.
+
+Focused injected reactor and actual reactor exit-commit failures exercise this
+shared path; they do not identify the historical exception. They also cover
+stop-before-ingress, interrupted backoff, accepted failed SQL status after a
+racing worker exception, normal requested shutdown and cleanup failure retention.
+Production renewal, permissions, rights, recovery, timing, pools and all cohort
+limits are unchanged. No new full capacity/canonical run accompanies this repair.
+
+Controlled-evidence correction and mid-run amendment
+
+The original cf98bbc injected exit-commit case failed during startup
+`reconcile_recovery`: physical and SQL actors were already idle, and its recorded
+stop issuer was monitor cleanup. It proved error retention at startup only.
+Any earlier handoff describing that receipt as mid-run physical-idle/SQL-occupied
+or reactor-finally stop evidence is superseded. Original test/output remain
+preserved; they are not relabelled. The original pytest-220 database bytes remain
+unavailable; retained extracts and hashes do not recover those bytes.
+
+The amended test lets startup reconciliation pass, then binds its injection to
+a distinct real work-launched actor after the occupied SQL acknowledgement.
+Actor token, incarnation, binding and PID/PGID/process-start identity must match.
+Only that actor's post-physical-exit `record_exit` commit fails. The test asserts
+physical idle with exit evidence and the independently committed same SQL actor
+still occupied, attempted exit publication without ACK, reactor `run` finally
+stop before monitor cleanup, interrupted backoff and zero subsequent guarded
+requests. The already API-admitted unit retains its actual bounded observation
+(running/timeout in this controlled run), and certification fails. This is a
+mechanism regression, not proof of the missing original b6 exception or cause.
+
+This bounded run used a unique explicit task-owned `--basetemp` outside pytest's
+automatic retention root. New scratch databases were backed up through SQLite's
+online backup API after the owned reactor/renewal threads and child lifecycle
+were quiescent and engines disposed; source DB/WAL inventory, backup integrity
+checks and hashes are preserved. No production behavior or capacity profile was
+changed and no full canonical/capacity run is recommended by this narrow proof.
+
+Bounded retirement finalization
+
+An exit-persistence exception after verified physical exit formerly escaped the
+reactor before owner finish. A deterministic real SQLite BUSY cell demonstrated
+that mechanism on1fa: physical idle, SQL occupied and accepted run still running.
+This establishes a repair target; the missing original b6 exception and the e05
+manual overrun cause remain unknown. Neither historical failure is relabelled.
+
+Retirement now captures the actor/job-bound triggering decision and terminal
+outcome before signalling/retiring. An immutable private pending record retains
+the job, verified exit, exact launch predecessor, cancellation token and chosen
+outcome. Local permission is denied and renewal's phase is fenced until that exit
+is durably acknowledged and the existing owner finish completes. No acquisition,
+replacement, recomputation or new recovery allowance is introduced. A delayed
+reason-string red formerly consumed ordinary automatic recovery for real
+priority; the coherent triggering decision now owns that accounting. Later
+reason changes cannot turn a permission-denied manual attempt into successful
+service. Owner finish still validates current rights/source/Science/generation.
+
+Only classified transient exit-persistence failures are retried: SQLite BUSY/
+LOCKED (including extended codes), PostgreSQL55P03/40001/40P01/57014/
+08001/08003/08006, and bounded control-pool checkout timeout. The same exit gets
+at most3 total sequential attempts, fresh control sessions and125ms interruptible
+gaps. No new attempt starts at or after1s from pending creation. This is an
+attempt-start schedule, not a universal deadline for an already unreturned
+driver call or the existing owner transaction. Attempt/error/retry/ACK,
+exhaustion/stop and owner-finish events retain sanitized classes/codes/frames;
+no exception messages, SQL parameters or RR payloads are recorded by this
+runtime recorder. Unknown errors, changed identity, exhaustion, stop or owner
+finish failure retain pending state and stop fail-closed. Numerical failures
+and existing automatic recovery policy are unchanged.
+
+An in-flight old renewal ACK cannot restore local permission across the pending
+phase. A previously issued SQL write may finish only with its original cycle's
+250ms deadline; an already committed pulse can survive until original expiry.
+There is no instantaneous SQL withdrawal guarantee. No new pending-phase renewal
+starts SQL publication. Any manual admission racing that old pulse retains its
+actual outcome and cannot launch until exit ACK plus owner finish.
+
+Every actor projection in work, exit publication and owner finish uses exact
+host/epoch/full predecessor CAS. SQLite's no-op FOR UPDATE is not a fence.
+Launch records its exact local/SQL predecessor before publishing the new actor;
+an unrelated idle actor cannot substitute during retry. JSON object key order
+is irrelevant to equivalent bindings, while changed content remains guarded.
+Owner run writes also CAS generation/status/input/execution epoch. A lost exit
+ACK reconciles the exact already durable idle exit using a fresh same-value CAS
+transaction. Its receipt identifies reconciliation and that transaction's ACK;
+it never fabricates the original server commit timestamp. Owner finish is not
+retried on its own failure and cannot permit reuse before its actual ACK.
+
+The migrated PostgreSQL test template is now cloned into a fresh owned database
+per fixture. Tests require CREATEDB on the isolated test role; production grants
+and configuration are untouched. This prevents independent synthetic host
+fixtures from taking over a prior failed actor in a shared global row. Clones
+are retained rather than cleared/dropped; case manifests identify their template
+and database. Focused evidence is backed up after owned quiescence with SQLite
+online backup/integrity checks and transaction-consistent PostgreSQL dumps.
+The original pytest-220 bytes remain unavailable; metadata/hashes do not recover
+them. All future pytest calls require unique explicit task-owned basetemp outside
+pytest's automatic retention root.
+
+The suite100causal/32inventory/300ingress600s target,3-refusal cap/5s backoff and
+125ms cadence/250ms SQL pulse/750ms physical permission/control2 profile remain
+unchanged. Deterministic controlled cells are not capacity certification. Same
+Quality reviews this immutable patch before root may authorize one canonical
+run; if capacity fails, the next step is a concrete Product/Operations resource
+or acceptance decision rather than another stochastic retry. User miniapp
+acceptance carries; unproved chart/compiler/device parity is not fabricated.
+
+Launch ACK compares the current SQL actor to the captured predecessor
+unconditionally and CASes against that captured operand. Legitimate initial
+SQL NULL and JSON null both decode to an absent predecessor; this equivalence
+does not permit a captured idle actor to change to either null encoding before
+ACK. Such a change refuses ACK and payload delivery, retires the physical child,
+and leaves the changed SQL projection untouched under the existing exit fence.
+
+
+## Account-scoped mutually exclusive computation (2026-10-12)
+
+The effective mode is the existing server-evaluated `activity_dfa_automatic`
+account feature gate, not whether an automatic job happens to be running and not
+the global `ActivityDFAControl.enabled` host switch. No new checkbox/setting,
+Science activation, production gate enablement or deployment is introduced.
+
+The additive `recognized_gate` evaluator requires the installed SDK FeatureGate
+object with the expected name, actual boolean value and typed, recognized
+EvaluationDetails. Bare false/error-boundary results, default/missing details,
+Uninitialized/Unrecognized/Unsupported/error, local override or unknown provenance
+are UNKNOWN. Exposure logging is disabled for this evaluation. Other generic
+Statsig callers retain their existing boolean/config fallback behavior. This is
+fresh local SDK evaluation at each boundary, not a new TTL or an atomic external
+rules+SQL transaction; SDK rule propagation is independent.
+
+Recognized ON admits only eligible new successful daily-sync automatic work.
+Manual submit (including preparation/idempotent POST), source confirmation and
+retry reject409/DFA_MANUAL_DISABLED_AUTO_MODE. Recognized OFF allows explicit
+manual work only under actual V2, processing, source and confirmation rights;
+V1 remains stopped/V2 remains inactive in the real tree. UNKNOWN rejects new
+computation503/DFA_MODE_UNAVAILABLE, defers queued units without permanent mode
+invalidation, and retires running work fail-closed. Cancel/delete/revoke and
+historical manual read authority stay independent. Automatic numeric reads
+require recognized ON as well as their existing rights/Science/source binding.
+Origins/grants/results are immutable and never converted or shared numerically.
+
+Known opposite-mode queued work is terminally fenced as mode_changed without
+consuming recovery. Observed running-mode loss prevents publication; late output
+cannot cross generation/source/rights/Science/STOP fences. Flip-back never
+silently resurrects terminal attempts/receipts. Manual retry remains an explicit
+owner action; ordinary automatic transient recovery remains bounded as before.
+
+Pending receipts are selected in bounded created_at/id pages, excluding owners
+with active work before RR decoding. Unknown owners are skipped with a runtime
+cursor, not a perpetual oldest-only barrier; at most one expensive admission is
+performed per reactor turn. Queued jobs are ordered neutrally by created_at/id.
+A's ON automatic work never disables B's OFF manual entitlement. Accepted B work
+can queue; there is no immediate manual start/preemption/five-second yield promise.
+
+The global physical lane still permits one execution. Mode-switch replacement
+waits for exact verified exit, durable exit ACK and owner finish. Immutable pending
+outcome, retry-only-classified exit persistence (MAX3/125ms gaps/no new start after1s),
+phase-fenced readiness, full actor/predecessor/incarnation/epoch CAS, lost-ACK
+reconciliation, max2 cancelled I/O continuations and exit-before-reuse remain.
+Cleanup selection is origin-neutral; receipt decoding stays held while post-exit
+I/O cleanup is present.125/250/750 runtime bounds and pool configuration do not change.
+
+Mode checks occur at request/final admission, queued acquisition, prelaunch/ACK/
+payload, renewal and final publication. Mode reads use no_autoflush so reading
+account metadata cannot accidentally flush partly chosen Run output ahead of its
+required generation/status/input/epoch CAS. Owner recheck protects an owner changed
+after the queue snapshot. No final check reserves external mode across commit:
+raced durable admissions/outcomes are retained and later execution stays fenced.
+
+Both clients use advisory computation_mode/manual_compute_allowed and derived
+mode_transition_pending. Disable compute/confirm/retry in ON/UNKNOWN, explain
+unavailable source instead of offering ON manual bypass, and keep authorized
+history/report/origin/context/methodology behavior. No design-system change,
+renderer switch or native/device action; prior miniapp acceptance carries with
+honest historical chart/compiler/device limitations.
+
+The active100/strict-priority/coexistence tests were replaced by finite mode
+contract and retained lifecycle/rights/source tests. Exact prior15c source is
+archived under the task evidence superseded-source inventory; historical9e pass,
+e05/b6/15c failures stay at their original heads/contracts. Generic accepted-service
+failure retention, physical proof and denial accounting stay tested. No capacity
+certificate is claimed by finite mode tests.
+
+The unrelated nested Science isolation regression subprocess now receives its
+own unique sibling --basetemp, preserving other pytest options and the hostile/
+fresh-runner checks. Earlier inherited-parent-basetemp exit4 and all original
+logs remain retained. No old traceback or deleted pytest220 bytes are recovered
+by this change. All pytest invocations use unique task-owned basetemps outside
+retention roots, consistent SQLite backups/integrity and owned PG clone archives.
+
+Implementation remains subject to SAME Quality exact-head review before root
+schedules the new-contract canonical run/publication/current remote CI admission.
+
+### Final recovery mode fence
+
+A failed automatic attempt may propose its existing bounded transient recovery
+only while its account remains in automatic mode at the final fresh execution
+observation. Explicit OFF or unavailable/UNKNOWN at that boundary makes the
+attempt terminal with `mode_changed` or `mode_unavailable`, clears its lease and
+result, and preserves its prior recovery count. Later ON cannot resurrect that
+terminal attempt. This fence also retains exact Run/actor CAS and verified-exit
+requirements. It does not change deferral of ordinary queued work on UNKNOWN,
+manual explicit retries, or the recovery budget. External mode evaluation is
+not atomic with the SQL commit; changes after the last observation remain a
+race subject to subsequent execution fences. This repair does not establish
+the causes or cure of historical capacity failures.

@@ -89,3 +89,7 @@ consumers. Add new runbooks against [`_TEMPLATE.md`](./_TEMPLATE.md) and link
 them from the index above.
 
 - [Garmin Connect IQ archives](connectiq-archives.md): private SQL originals, durable backfill recovery, storage and backup considerations.
+
+## PR871 inactive supervisor implementation
+
+For inactive V2 startup, origin controls, physical drain/recovery and the demonstrated synthetic capacity cell, see [Activity DFA V2 operations](activity-dfa-alpha1.md). Active rollout, environment fencing and handover retain separate authority.

@@ -1650,6 +1650,19 @@ def _upsert_connection_credentials(
         db.add(conn)
 
     if platform == "garmin":
+        from uuid import uuid4
+        from api import activity_dfa_storage as dfa_storage
+        dfa_storage.record_negative(user_id, "account_generation_replaced", "origin", "automatic")
+        conn.dfa_account_generation = str(uuid4())
+        db.flush()
+        # This receipt records the explicit connect action, never a background
+        # token refresh. Its exact account is resolved once by provider identity.
+        from db.models import ActivityDFASyncGrant
+        db.add(ActivityDFASyncGrant(user_id=user_id, account_id="pending",
+            account_generation=conn.dfa_account_generation, connection_id=conn.id,
+            action="connect_activity_sync"))
+
+    if platform == "garmin":
         _pause_garmin_delivery_for_connection_change(
             user_id,
             db,
@@ -2172,6 +2185,10 @@ def disconnect_platform(
             .with_for_update()
         ).scalar_one_or_none()
         if conn:
+            if platform == "garmin":
+                from api import activity_dfa_storage as dfa_storage
+                dfa_storage.record_negative(user_id, "sync_withdrawal", "origin", "automatic")
+                conn.dfa_account_generation = None
             from db.cache_revision import bump_revisions
 
             if platform == "garmin":

@@ -961,7 +961,7 @@ def prune_training_plan_window(
 
 
 def enqueue_connectiq_activities(user_id: str, account_id: str, generation: str,
-                                 region: str, activity_ids: list[str], db: Session) -> GarminConnectIQJob | None:
+                                 region: str, activity_ids: list[str], db: Session, *, kind: str = "daily") -> GarminConnectIQJob | None:
     """Idempotently queue newly discovered originals in the sync transaction."""
     from db.models import GarminConnectIQJob, GarminConnectIQItem, GarminFitSnapshot
     pending = []
@@ -979,7 +979,7 @@ def enqueue_connectiq_activities(user_id: str, account_id: str, generation: str,
     if not pending:
         return None
     job = GarminConnectIQJob(user_id=user_id, account_id=account_id,
-        credential_generation=generation, region=region, kind="daily", discovery_complete=True)
+        credential_generation=generation, region=region, kind=kind, discovery_complete=True)
     db.add(job); db.flush()
     write_connectiq_items(job, pending, db)
     return job
@@ -1038,3 +1038,44 @@ def write_garmin_fit_parse(snapshot: GarminFitSnapshot, db: Session) -> GarminFi
         snapshot.active_parse_id = parsed.id
     db.flush()
     return parsed
+
+
+def write_dfa_sync_completion(db: Session, job, item, snapshots) -> None:
+    """Atomic successful-unit completion receipt. No historical/backfill synthesis."""
+    from analysis.activity_dfa import digest
+    from db.models import ActivityDFASyncReceipt, ActivityDFASyncGrant, UserConnection
+    from sync.rr_recording import RecordingRef
+    if job.kind != 'daily' or item.status != 'complete':
+        return
+    connection = db.query(UserConnection).filter_by(user_id=job.user_id, platform='garmin').first()
+    if not connection or not connection.dfa_account_generation:
+        return
+    grant = db.query(ActivityDFASyncGrant).filter_by(user_id=job.user_id, account_id=job.account_id,
+        account_generation=connection.dfa_account_generation).first()
+    if grant is None:
+        return
+    for snapshot in snapshots:
+        parsed = db.get(GarminFitParse, snapshot.active_parse_id)
+        if not parsed or parsed.status != 'complete':
+            continue
+        completion = digest([job.id, item.id, snapshot.id, parsed.id, connection.dfa_account_generation])
+        ref = RecordingRef('garmin', job.user_id, job.account_id, item.activity_id,
+                           snapshot.id, parsed.id, snapshot.sha256, parsed.parser_version).as_dict()
+        if db.get(ActivityDFASyncReceipt, completion):
+            continue
+        disposition = 'pending'
+        try:
+            from api.dfa_automatic import require_policy
+            from api.dfa_rights import current_sync_grant, processing_receipt, account_mode
+            require_policy(); processing_receipt(db, job.user_id)
+            current_sync_grant(db, job.user_id, job.account_id)
+            # Unknown mode preserves the successful unit pending; the
+            # supervisor cannot admit it until a recognized ON evaluation.
+            if account_mode(db, job.user_id) == 'manual':
+                disposition = 'gate_denied'
+        except Exception:
+            disposition = 'authority_denied'
+        db.add(ActivityDFASyncReceipt(id=completion, user_id=job.user_id, recording_ref=ref,
+            completion_revision=completion, account_generation=connection.dfa_account_generation,
+            sync_grant_id=grant.id, disposition=disposition))
+    db.flush()
