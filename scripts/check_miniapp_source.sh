@@ -22,14 +22,12 @@ echo "All 4 components present."
 # Mirror project.config.json packOptions.ignore for development-only
 # metadata, and exclude generated TypeScript source that DevTools
 # replaces with its compiled output.
-size=$(du --apparent-size -sk \
-  --exclude=node_modules \
-  --exclude='package-lock.json' \
-  --exclude='package.json' \
-  --exclude='tsconfig.json' \
-  --exclude='scripts' \
-  --exclude='utils/i18n-catalog.ts' \
-  . | cut -f1)
+# Count regular file bytes; match generated-source exclusions by exact path.
+size=$(find . \
+  -type d \( -name node_modules -o -name scripts \) -prune -o \
+  -type f ! -name 'package-lock.json' ! -name 'package.json' \
+  ! -name 'tsconfig.json' ! -path './utils/i18n-catalog.ts' \
+  -printf '%s\n' | awk '{bytes += $1} END {print int((bytes + 1023) / 1024)}')
 echo "miniapp/ packaged-source proxy size: ${size} KB"
 if [ "$size" -gt 2000 ]; then
   echo "::error::miniapp/ source size exceeds 2 MB WeChat main-package limit"
