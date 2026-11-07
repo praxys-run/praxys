@@ -59,7 +59,7 @@
 /.github/CODEOWNERS                 @dddtc2005
 /.github/ISSUE_TEMPLATE/science-correction.yml @dddtc2005
 /.github/PULL_REQUEST_TEMPLATE/science-change.md @dddtc2005
-/.claude/agents/science-reviewer.md             @dddtc2005
+/.github/skills/science-research/reference/review-checklist.md             @dddtc2005
 /config/agent-loop-policies.json                @dddtc2005
 /data/agent_evals/change/review_promotion.json  @dddtc2005
 

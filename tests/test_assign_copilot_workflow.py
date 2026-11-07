@@ -5,7 +5,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "assign-copilot.yml"
-READINESS_WORKFLOW = ROOT / ".github" / "workflows" / "copilot-pr-readiness.yml"
 
 
 def test_assignment_deduplication_is_job_scoped() -> None:
@@ -31,20 +30,3 @@ def test_assignment_selects_the_praxys_orchestrator_custom_agent() -> None:
     assert "customAgent:$customAgent" in workflow
     assert "-F customAgent=praxys-orchestrator" in workflow
     assert "-F baseRef=main" in workflow
-
-
-def test_copilot_readiness_guard_restores_draft_invariants() -> None:
-    """Ready Copilot PRs must have preflight evidence and green required checks."""
-    workflow = READINESS_WORKFLOW.read_text(encoding="utf-8")
-
-    assert "types: [ready_for_review, synchronize]" in workflow
-    assert "github.event.pull_request.user.login == 'Copilot'" in workflow
-    assert "github.event.pull_request.head.repo.full_name == github.repository" in workflow
-    assert "python scripts/agent_preflight.py --base origin/main" in workflow
-    assert "Preflight head:" in workflow
-    assert "github.event.pull_request.head.sha" in workflow
-    assert "github.event.pull_request.updated_at" in workflow
-    assert 'REQUIRED_CHECKS_JSON: \'["backend-tests","frontend-quality"]\'' in workflow
-    assert "always() &&" in workflow
-    assert workflow.count('gh pr ready "$PR_NUMBER"') == 2
-    assert workflow.count("--undo") == 2

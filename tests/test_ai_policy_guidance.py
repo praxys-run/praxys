@@ -16,9 +16,10 @@ def test_primary_guidance_keeps_ai_mandatory_and_deterministic_output_separate()
     claude = _read("CLAUDE.md")
     design = _read("docs/dev/design-system.md")
 
-    assert "not an optional enhancement" in agents
-    assert "AI-only features report unavailable" in agents
-    assert "deterministic content is never presented as AI" in agents
+    assert "required ordinary authenticated capability" in agents
+    assert "AI-only features report unavailable" in " ".join(agents.split())
+    assert "separately labelled deterministic metrics" in agents
+    assert "are never presented as AI" in agents
 
     assert "mandatory ordinary-production capability" in claude
     assert "AI-only features explicitly report unavailable" in claude

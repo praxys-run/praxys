@@ -228,24 +228,21 @@ The product decision section must identify:
 - scientific uncertainties the product must surface or test;
 - behaviors that should not be offered;
 - product decisions that cannot be derived from literature and therefore need
-  product rationale, outcome metrics, and independent review routing.
+  product rationale, outcome metrics, and independent review.
 
-## 6. Dispatch the required reviews
+## 6. One independent implementation review
 
-When a proposal changes implementation files, run the applicable reviewers
-before requesting human review:
+Use one fresh read-only Quality review for scientific changes, following
+`AGENTS.md` and `reference/review-checklist.md`. Bundle source verification,
+formula/estimate checks, the full metric delivery path and API/TypeScript
+response compatibility in this review. Do not dispatch separate specialists.
 
-| Changed surface | Required review |
-| --- | --- |
-| Scientific implementation in `analysis/`, theory YAML, formulas, constants, or user-facing scientific claims | `science-reviewer` for local citation and estimate checks. It does not replace external source verification or human approval. |
-| Evidence Review or SDR only | Run deterministic registry validation and request human science review. Run `science-reviewer` only when the installed reviewer explicitly supports registry records; it must not require theory-only fields such as `description`, `params`, or a duplicated `citations` array. |
-| A new or modified metric | `metric-addition-reviewer` for the full metric delivery path. |
-| `api/deps.py`, `api/routes/`, `api/views.py`, or `web/src/types/api.ts` | `api-contract-reviewer` for response/type compatibility. |
-| Web feature, type, or copy | Review the matching miniapp surface, type sync, i18n, and write behavior; either implement parity or record a labeled follow-up gap. |
-
-Run the record, backend, web, and miniapp validation appropriate to the
-affected files. Reviewers may challenge a proposal; they cannot accept an SDR
-or approve a merge.
+For Evidence Review or SDR only, run deterministic registry validation and
+obtain human science review. The checklist supports registry records and
+must not require theory-only fields such as `description`, `params` or duplicated
+citations. Web changes also check miniapp parity, type sync, i18n and writes.
+Run affected record, backend, web and miniapp checks. Model review cannot accept
+an SDR or replace the existing human approval/activation identities.
 
 ## 7. Deliver a consistent bundle
 
@@ -254,7 +251,8 @@ End every run with these artifacts or explicitly state why one does not apply:
 1. Updated or new Evidence Review, including search provenance and verification
    levels.
 2. Optional draft SDR for the scientific interpretation and runtime boundary.
-3. Product handoff for a separate Product Decision Record.
+3. Product reasoning in the task/PR; a separate Product Decision Record only
+   when a durable choice needs explanation.
 4. Scientific implications and evidence-consistent options without choosing
    product value.
 5. Unresolved evidence gaps, conflicts, and validation/falsification plan.

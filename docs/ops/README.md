@@ -33,7 +33,7 @@ diagnose X". It complements — and links out to — the setup-oriented
 | [admin-tasks.md](./admin-tasks.md) | You're using `/admin/ops` or a focused admin route for health, incidents, users, feedback, or communications. |
 | [setup-github-app.md](./setup-github-app.md) | Setting up feedback → GitHub issue filing (GitHub App auth — no token to rotate). |
 | [setup-review-policy-app.md](./setup-review-policy-app.md) | Provisioning the independent GitHub App and kill switch for selective no-human-review merges. |
-| [change-loop.md](./change-loop.md) | Operating the change loop (Loop A): the `agent-ready` label that hands a qualifying bug to the Copilot coding agent. |
+| [change-loop.md](./change-loop.md) | Operating private feedback → qualifying bug → verified Copilot fix. |
 | [agent-session-policy.md](./agent-session-policy.md) | Single-session task execution, independent review, native adapters and retired private ledgers. |
 | [incident-response.md](./incident-response.md) | The app is down / erroring and you need first-response triage. |
 | [status-page.md](./status-page.md) | You need to declare / update / resolve an incident on the public status page (`/status`). |

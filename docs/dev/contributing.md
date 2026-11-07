@@ -26,7 +26,7 @@ How to extend Praxys with new features.
 
 8. **Update docs**: Add to `CLAUDE.md` if it changes the architecture, `docs/features.md` for user-facing description, `docs/dev/api-reference.md` for the endpoint.
 
-> **Claude Code tip:** after the edits, ask the `metric-addition-reviewer` subagent to verify the 7-step checklist is complete and that your formula has a citation. The `api-contract-reviewer` subagent will cross-check that your new field in `api/deps.py` matches the TS interface in `web/src/types/api.ts`.
+> **Verification:** check the metric delivery path and Python/TypeScript response compatibility in this session. Bundle independent checks into one Quality review when material risk applies.
 
 ## Adding a New Data Source
 
@@ -342,13 +342,13 @@ When making changes, update the relevant docs:
 The repo ships committed Claude Code automations in `.claude/`. Full inventory is in `CLAUDE.md` under "Claude Code Automations". Quick reference:
 
 - **Post-edit hooks** run automatically after every `Edit`/`Write`:
-  - `.claude/hooks/pytest_on_py.py` (PostToolUse, `.py` files) — runs pytest via the project venv with fail-fast and surfaces failures to Claude via stderr + exit 2.
+  - Python tests run once the change is coherent; choose focused regression checks and rely on required CI for the full suite.
   - `.claude/hooks/web_lint.py` (PostToolUse, `.ts(x)` under project `web/`) — per-file ESLint; lint errors go to stderr + exit 2 so Claude sees them and can self-correct.
   - `.github/skills/impeccable/scripts/hook.mjs` — shared web/miniapp design detector on edits plus a stop-time deep pass.
-- **Reviewer agents** (read-only; auto-triggered by Claude when their description matches the current change, or invoked explicitly via the `Agent` tool / `subagent_type`):
-  - `science-reviewer` — citation and published-value checks for `analysis/` and `data/science/`.
-  - `metric-addition-reviewer` — verifies the 7-step add-metric checklist is complete.
-  - `api-contract-reviewer` — cross-reads Python response shapes against TS interfaces.
+- **Independent review:** `.claude/agents/quality.md` follows the canonical
+  Quality manifest. One fresh read-only review covers material risks, including
+  science sources, metric delivery and API/type compatibility. Routine edits do
+  not automatically dispatch a reviewer.
 - **Dev skills**:
   - `ui-quality` — mandatory cross-agent UI workflow; delegates to the canonical Impeccable copy under `.github/skills/`.
   - `wechat-devtools` — bridges WSL2 agents to the separately installed Windows
