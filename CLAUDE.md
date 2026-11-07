@@ -126,7 +126,7 @@ Goal configuration stored in DB, managed via the Goal page:
 6. Wire into the relevant page in `web/src/pages/`.
 7. Add a test in `tests/`.
 
-The `metric-addition-reviewer` agent enforces this 7-step checklist.
+The main session verifies this delivery path; material-risk Quality review checks it independently.
 
 When a metric ships **deterministic prose** (`reason`, `assessment`, `suggestions`) and you add an **LLM-generated counterpart** (via `api/insights_generator.py`), keep the deterministic path as separately labelled functionality, never as Coach/AI output. Azure AI is an ordinary authenticated-service capability: if its endpoint, SDK, or runtime is unavailable, AI-only surfaces explicitly report unavailable while the deterministic component may continue under its own label. Frontend prefers `insight.translations[locale]` and uses the top-level English fields only as that AI insight’s locale fallback.
 
@@ -256,9 +256,9 @@ See `docs/dev/contributing.md` for which files to update with code changes. Key 
 - `docs/dev/design-system.md` — design system implementation rules (translates brand guide → `web/src/`)
 - `docs/dev/ui-quality-harness.md` — mandatory Impeccable-led workflow, hooks, PR evidence, and CI gate for UI changes
 - `docs/dev/gotchas.md` — domain-specific traps
-- `docs/dev/agentic-operating-model.md` — role agents, loops, artifacts, routers, and role evolution
+- `docs/dev/agentic-operating-model.md` — one working loop, acceptance criteria and independent review
 - `docs/dev/copilot-execution-parity.md` — shared task routing, Local/Cloud tools, drift checks, and limitations
-- `docs/dev/agentic-loops.md` — shared trace/outcome/eval/policy substrate for self-improving loops
+- `docs/dev/agentic-loops.md` — feedback to fixes and targeted improvements
 - `plugins/praxys/skills/*/SKILL.md` — skill instructions
 
 For **production operations** (deploy, config & secrets, monitoring & alerts, admin tasks, troubleshooting), start at the operations handbook: `docs/ops/README.md` — consistently-structured runbooks meant to be consumed by humans *and* AI agents.
@@ -267,7 +267,14 @@ For **production operations** (deploy, config & secrets, monitoring & alerts, ad
 
 ## Claude Code Automations
 
-Automations live in `.claude/` and are committed so every contributor using Claude Code sees the same behavior. See `.claude/settings.json` for post-edit hooks (run pytest on Python changes; run ESLint on web TS changes; run the shared Impeccable detector on UI edits plus a stop-time deep pass), `.claude/agents/` for subagents (`science-reviewer`, `metric-addition-reviewer`, `api-contract-reviewer` — all read-only), and `.claude/skills/` for dev-workflow skills. The `ui-quality` skill points to the canonical vendored Impeccable copy in `.github/skills/impeccable/` so Claude and Copilot follow the same design policy. The `wechat-devtools` skill uses `scripts/wechatide` to bridge WSL2 to a separately installed Windows Nightly WeChat DevTools and reads Tencent's installed skill as the authoritative simulator/compiler/debugger contract.
+Automations in `.claude/` share the repository policy. Post-edit hooks run
+per-file ESLint and the shared Impeccable detector, with a stop-time UI pass.
+Python tests run at a coherent verification point, not after every edit.
+`.claude/agents/quality.md` is the single read-only reviewer for material risk;
+science, metric and API checks are consolidated there. Developer skills point
+to canonical `.github/skills/` instructions. The `wechat-devtools` skill uses
+`scripts/wechatide` and Tencent's installed skill for simulator/compiler behavior.
+
 
 ## AI Skills
 

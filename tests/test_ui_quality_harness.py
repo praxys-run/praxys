@@ -251,7 +251,7 @@ def test_harness_is_wired_into_agents_and_required_ci():
     assert "description:" in agent
     assert "Completes a Praxys task" in agent
     assert "playwright/*" not in agent
-    assert "python scripts/agent_preflight.py --base origin/main" in agent
+    assert "optional `scripts/agent_preflight.py`" in agent
 
     science_template = (
         ROOT / ".github" / "PULL_REQUEST_TEMPLATE" / "science-change.md"

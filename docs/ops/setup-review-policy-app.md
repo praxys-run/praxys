@@ -144,8 +144,10 @@ Default-off behavior:
      --repo praxys-run/praxys --body "true"
    ```
 
-The coding agent cannot promote itself. The gh-aw tuner can modify only
-`config/agent-loop-policy-proposals.json` and opens draft PRs.
+The coding agent cannot promote itself. Automatic policy-tuner PRs are retired.
+Any promotion changes the executable review policy and requires explicit review,
+valid evidence and the existing policy App/ruleset boundaries. No session agent
+can grant itself merge authority.
 
 ## Verify
 

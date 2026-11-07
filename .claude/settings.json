@@ -6,12 +6,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/pytest_on_py.py",
-            "timeout": 120,
-            "statusMessage": "Running pytest..."
-          },
-          {
-            "type": "command",
             "command": "python .claude/hooks/web_lint.py",
             "timeout": 60,
             "statusMessage": "Linting web file..."

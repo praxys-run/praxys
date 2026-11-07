@@ -27,9 +27,9 @@ def test_executor_can_finish_without_dispatch_and_reviewer_cannot_edit_or_dispat
     assert "edit" in main["tools"] and "agent" in main["tools"]
     assert "edit" not in reviewer["tools"] and "agent" not in reviewer["tools"]
     assert "agent" not in operations["tools"]
-    assert "without executor history" in body
+    assert "without executor history" in " ".join(body.split())
     assert "Do not inherit the executor's conversation" in review
-    assert "scripts/agent_preflight.py --base origin/main" in body
+    assert "optional `scripts/agent_preflight.py`" in body
     assert "Never approve or merge your own PR" in body
 
 

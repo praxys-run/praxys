@@ -17,11 +17,9 @@ baseline, keep their existing consent boundaries, and cannot substitute for
 missing Cloud tools. Required unavailable browser or WeChat rendering evidence
 keeps the dependent PR in draft. It does not prevent unrelated local work.
 
-The optional `scripts/route_agentic_task.py` returns domain context, whether a
-review is needed and which existing authority to check. Its output does not
-spawn a loop, grant approval or require a human question by itself. Both runtimes
-reuse scoped user authorization and preserve scientific ledgers, CI and branch
-protection. Native runtimes handle thread reuse, completion and cancellation.
+`AGENTS.md` defines the working loop and review threshold directly. No task
+classifier or digest output is required. Both runtimes reuse scoped authority
+and preserve science, CI and branch protection. Native runtimes own lifecycle.
 
 Static configuration parity does not imply equal prose, quality, elapsed time or
 successful native transport. Changes to Cloud custom agents take effect through

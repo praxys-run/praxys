@@ -11,7 +11,6 @@ on:
       - .mcp.json
       - AGENTS.md
       - analysis/copilot_execution_parity.py
-      - config/agentic-task-routing.json
       - config/copilot-cloud-mcp.json
       - config/copilot-execution-parity.json
       - scripts/check_copilot_environment_parity.py
@@ -27,7 +26,6 @@ on:
       - .mcp.json
       - AGENTS.md
       - analysis/copilot_execution_parity.py
-      - config/agentic-task-routing.json
       - config/copilot-cloud-mcp.json
       - config/copilot-execution-parity.json
       - scripts/check_copilot_environment_parity.py

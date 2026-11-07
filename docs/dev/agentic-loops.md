@@ -1,18 +1,21 @@
-# Task execution and outcome learning
+# One working loop
 
-Per-task execution follows [single-session execution](agentic-operating-model.md):
-understand, implement, verify. There are no separate Product, Science, Design,
-Delivery, Runtime, Incident or Meta/Eval loop invocations. The session applies
-the appropriate domain context and retains actual scientific and release gates.
+Task execution is **understand the value → implement simply → verify the outcome**.
+See `AGENTS.md` for acceptance criteria and material-risk review. Product, design,
+engineering and science are concerns in the same session, not nested loops.
 
-Outcome learning remains separate from completing the current task. Existing
-feedback/triage, agent-ready assignment, outcome reporting and policy-proposal
-workflows continue to run on their configured schedules and events. Their
-trace/outcome data, selective-review policy and branch controls are unchanged.
-They do not create mandatory session handoffs or approve their own proposals.
+The useful feedback path remains: private user feedback → scrubbed qualifying
+bug → `agent-ready` → Copilot implementation → tests and review → protected merge.
+Existing eligibility, privacy and selective-review enforcement remain in place;
+no automatic merge class is promoted by this simplification.
 
-Use batches of actual outcomes to assess time, corrections, missed checks and
-human attention. Proposal work can occur in one session with independent review
-for policy changes. Do not start another Meta/Eval agent after every task or
-make observation of future outcomes a prerequisite for finishing today's work.
-See [change-loop operations](../ops/change-loop.md) for deployed automation.
+Automatic outcome-report issues, policy-tuning PRs, CI diagnosis comments
+and duplicate invariant reviews are removed. The main session reads failures and fixes them directly. Existing
+Admin learning data and regression corpora remain available when investigating
+an actual problem. Native Quality review covers invariants within the one
+material-risk review; no separate invariant workflow remains.
+
+Use user feedback, task time, regressions and CI results when deciding whether a
+specific constraint is useful. Change the smallest relevant check, add a real
+regression test where appropriate and validate it. Do not require a separate
+Meta/Eval agent, promotion packet or task ledger to improve session instructions.

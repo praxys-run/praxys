@@ -46,6 +46,17 @@ def test_complete_sources_pass_and_development_inputs_do_not_count(miniapp):
     assert 'All 4 components present.' in result.stdout
 
 
+def test_directory_metadata_does_not_inflate_packaged_source_size(miniapp):
+    """Many empty directories must not make a valid package exceed its limit."""
+    for index in range(100):
+        (miniapp / f'empty-{index}').mkdir()
+    (miniapp / 'runtime.js').write_bytes(b'x' * 1_900_000)
+    result = check(miniapp)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'packaged-source proxy size: 1856 KB' in result.stdout
+    assert '::warning::miniapp/' in result.stdout
+
+
 @pytest.mark.parametrize('size,exit_code,level', [(1_600_000, 0, 'warning'), (2_200_000, 1, 'error')])
 def test_actual_packaged_source_size_warns_and_rejects(miniapp, size, exit_code, level):
     (miniapp / 'runtime.js').write_bytes(b'x' * size)

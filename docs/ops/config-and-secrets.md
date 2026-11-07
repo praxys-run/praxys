@@ -37,7 +37,7 @@ next configuration-sync deploy overwrites them.**
 | `WECHAT_MINIAPP_APPID` / `WECHAT_MINIAPP_SECRET` | WeChat Mini Program auth. Config sync requires both or neither; when both GitHub secrets are absent it omits both settings and preserves existing App Service credentials. | App Service setting (backend) |
 | `PRAXYS_SMTP_PASSWORD` | SMTP client authorization code (WeCom/Exmail) for verification + invitation emails. **Optional.** | App Service setting (backend) |
 | `WECHAT_MINIAPP_UPLOAD_KEY` | Mini program CI upload key | `miniapp-publish.yml` |
-| `COPILOT_GITHUB_TOKEN` | Fine-grained PAT owned by the Copilot subscriber, with only *Account permissions → Copilot Requests: Read*. Used solely for Agentic Workflow inference; repository operations continue to use `GITHUB_TOKEN`. Do not grant `copilot-requests: write` in those workflows or gh-aw ignores this secret in favor of organization billing. | Agentic Workflow `.md` sources |
+| `COPILOT_GITHUB_TOKEN` | Historical Agentic Workflow inference credential. All gh-aw workflows are retired as of 2026-11-07; no current repository workflow consumes it and new setup does not need it. Existing external secrets are not changed by this cleanup. | retired gh-aw workflows |
 | `COPILOT_ASSIGN_TOKEN` | **Required for workflow auto-assign and live Cloud drift checks** — fine-grained PAT (*Issues: write* and *Copilot agent settings: read*, this repo only, with expiry). Agent assignment needs a user token; the built-in `GITHUB_TOKEN` is forbidden (issue #400). Manual UI assignment doesn't need it. | `assign-copilot.yml`, `copilot-environment-parity.yml` |
 | `PRAXYS_GITHUB_APP_PRIVATE_KEY` | Feedback GitHub App private key. The app has Issues read/write and Pull requests read; tokens are minted on demand. | App Service setting (backend) |
 | `PRAXYS_REVIEW_POLICY_APP_PRIVATE_KEY` | Independent review-governance App key. The App has Contents write + Pull requests write to approve qualifying PRs, enable normal auto-merge, and commit verified science approval-ledger updates without using `GITHUB_TOKEN`. Optional for ordinary review-required PRs without science acceptance; required for autonomous review actions and science approval materialization. | `selective-review.yml`, `science-approval-ledger.yml` |
@@ -1128,10 +1128,9 @@ agent profile. These are **repo settings, not deploy-managed**:
   triage.
 - **Agent environment:** `.github/workflows/copilot-setup-steps.yml` preinstalls
   the toolchain so the agent can run `pytest` / `npm` deterministically.
-- **PR readiness enforcement:** `.github/workflows/copilot-pr-readiness.yml`
-  uses the repository `GITHUB_TOKEN` only; it requires no additional secret.
-  It returns Copilot PRs to draft after new commits, missing final-preflight
-  evidence for the current head SHA, or failed required checks.
+- **PR readiness:** required CI and protected review govern merge. The former
+  `copilot-pr-readiness.yml` workflow is retired; there is no automatic draft
+  reset or required preflight/SHA text. Record actual verification in the PR.
 - **Versioned policy metadata:** `config/agent-loop-policies.json` is committed
   code config. It names the active assignment policy, narrow candidate classes,
   protected paths, evidence thresholds, and promoted classes. Promotion is

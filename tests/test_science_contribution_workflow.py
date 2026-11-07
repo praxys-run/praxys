@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ISSUE_FORM = ROOT / ".github" / "ISSUE_TEMPLATE" / "science-correction.yml"
 PR_TEMPLATE = ROOT / ".github" / "PULL_REQUEST_TEMPLATE" / "science-change.md"
 CODEOWNERS = ROOT / ".github" / "CODEOWNERS"
-SCIENCE_REVIEWER = ROOT / ".claude" / "agents" / "science-reviewer.md"
+SCIENCE_REVIEWER = ROOT / ".github" / "skills" / "science-research" / "reference" / "review-checklist.md"
 CONTRIBUTING = ROOT / "docs" / "science" / "contributing.md"
 README = ROOT / "README.md"
 SAMPLE_EVIDENCE_REVIEW = (
@@ -82,8 +82,8 @@ def test_science_change_template_preserves_traceability_and_parity() -> None:
         "miniapp parity",
         "english and chinese",
         "validation/falsification",
-        "science-reviewer",
-        "api-contract-reviewer",
+        "independent quality review",
+        "api/type compatibility",
         "avg_power",
     ):
         assert requirement in source.lower()
@@ -149,7 +149,7 @@ def test_science_review_is_layered_and_human_owned() -> None:
         "/miniapp/types/api.ts",
         "/.github/ISSUE_TEMPLATE/science-correction.yml",
         "/.github/PULL_REQUEST_TEMPLATE/science-change.md",
-        "/.claude/agents/science-reviewer.md",
+        "/.github/skills/science-research/reference/review-checklist.md",
     ):
         assert science_path in codeowners
 
