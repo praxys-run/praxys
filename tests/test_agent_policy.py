@@ -92,18 +92,6 @@ def test_policy_config_matches_production_and_starts_default_deny() -> None:
     payload = json.loads(
         (ROOT / "config" / "agent-loop-policies.json").read_text(encoding="utf-8")
     )
-    assert payload["operating_model"] == {
-        "path": "config/agentic-operating-model.json",
-        "version": "praxys-single-session-v2",
-        "status": "active",
-    }
-    autonomy = payload["decision_autonomy"]
-    assert autonomy["status"] == "active"
-    assert autonomy["default_judgment_route"] == "agent-resolved"
-    assert autonomy["independence"] == {
-        "executor_may_verify_own_high_risk_work": False,
-        "agent_may_materialize_human_approval": False,
-    }
     assert payload["change"]["agent_ready"] == {
         "policy_name": AGENT_READY_POLICY_NAME,
         "version": AGENT_READY_POLICY_VERSION,

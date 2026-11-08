@@ -1,23 +1,26 @@
 # Agent session policy
 
-Repository task execution uses one main session and risk-based independent
-review. `AGENTS.md` is the entry point. `config/agentic-operating-model.json`,
-`config/agentic-task-routing.json` and `config/agent-loop-policies.json` define
-session behavior; runtime adapter conformance is checked by
-`scripts/check_agent_runtime_parity.py`.
+Repository work follows `AGENTS.md`: user value, simple implementation and
+sufficient verification in one session, with one independent review for material
+risk. Native adapter checks validate tools, sandbox and credential boundaries.
 
-The 2026-10-10 simplification removes per-task custom invocation and decision-card
-bookkeeping. It does not alter production deployment settings, scientific
-approval ledgers, CI gates or selective merge promotion. Root MCP registrations,
-credential filters and hooks remain unchanged. Operations retains its existing
-local tool/consent boundary and is used only when those tools are required.
+The November 7, 2026 simplification removes task-router/config schemas, digest
+output, repeated preflight receipts and automatic PR draft resets. Four automatic
+agent workflows (outcomes, policy tuner, CI doctor and invariant review) are
+removed with their source/lock pairs and unused gh-aw compiler/lock machinery. Claude no longer runs the full backend suite after every edit
+or launches three separate specialist reviewers. Focused local checks and
+required CI remain authoritative.
 
-No service, environment variable, secret or new ledger needs provisioning.
-Existing private invocation/trial ledgers remain on disk and are no longer used;
-do not delete/reset them or treat unobserved attempts as success. Rollback is a
-repository revert; re-enrollment in an old trial is not automatically authorized.
+No service, variable, secret or ledger needs provisioning. Existing production
+settings, scientific approval/activation, tool consent and selective-merge
+promotion are unchanged. Operations retains its isolated tool scope. Old
+invocation/trial ledgers stay retired and are not read, reset or re-enrolled.
 
-Run static adapter checks after config changes. Missing independent review keeps
-the affected handoff/release incomplete. Native runtime failures are reported as
-failures, not synthesized as successful review. The existing repository workflow
-and platform authority still govern any actual deployment.
+Verify with `scripts/check_agent_runtime_parity.py`,
+`scripts/check_copilot_environment_parity.py` and affected policy/workflow tests.
+After this change lands on the default branch, confirm retired workflows no
+longer receive triggers and feedback assignment/required CI still run. Local
+verification does not claim that default-branch activation has occurred.
+
+Rollback is a repository revert of policy, adapters, workflows and checks
+together. Reverting files does not broaden deployment or credential authority.

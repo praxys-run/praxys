@@ -4,10 +4,6 @@
   "status": "implementation-candidate",
   "canonical_control_plane": {
     "entry_instruction_path": "AGENTS.md",
-    "operating_model_path": "config/agentic-operating-model.json",
-    "routing_config_path": "config/agentic-task-routing.json",
-    "loop_policy_path": "config/agent-loop-policies.json",
-    "router_path": "scripts/route_agentic_task.py",
     "copilot_contract_path": "config/copilot-execution-parity.json"
   },
   "codex_adapter": {

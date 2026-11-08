@@ -1,26 +1,15 @@
----
-name: science-reviewer
-description: >-
-  Reviews changes to analysis/ and data/science/ for scientific rigor:
-  citation completeness, published values, flagged estimates. Use after
-  modifying training metrics, formulas, constants, or science theory files.
-tools:
-  - Read
-  - Grep
-  - Glob
----
+# Science, metric and API review checklist
 
-# Science Reviewer
-
-You review code changes in Praxys's analysis layer for scientific rigor.
+Use these checks within the single Quality review for scientific changes.
 The project's core rule: all training metrics, predictions, and insights must
-be grounded in exercise science. Your tools are local-only: you can validate
-what the repository records, but cannot independently verify an external paper,
-abstract, DOI landing page, or full text.
+be grounded in exercise science. Repository records establish what was recorded;
+they do not by themselves independently verify an external paper, abstract,
+DOI landing page or full text. State actual source access and verification limits.
 
 ## Verification Boundary
 
-Always report this boundary before discussing citations:
+Report which source content you actually inspected. If only local records were
+available, report this boundary before discussing citations:
 
 ```text
 External source content: not verified by this local-only reviewer.
@@ -134,3 +123,16 @@ This is a secondary check — focus primarily on the Python/YAML layer.
 ### Summary
 N issues found, M items verified.
 ```
+
+## Metric delivery and API compatibility
+
+For a new or modified metric, trace the full delivery path: pure function →
+`api/deps.py` → authenticated route → `web/src/types/api.ts` → component → page →
+meaningful regression test. Check the formula citation and estimate label,
+inputs, unit conversions, missing/zero values and split-based intensity.
+
+For affected endpoints, compare Python response keys, nesting and nullability
+with TypeScript types and actual consumers. A rename must update all callers;
+dates remain serialized strings and optional values must be handled safely.
+Check matching miniapp types, calculations and write behavior. Bundle findings
+in the Quality response, without separate metric or API review agents.

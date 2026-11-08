@@ -19,7 +19,7 @@ verification path; it does not make UI implementation a separate top-level role.
 | Edit-time feedback | `.github/hooks/impeccable.json`, `.claude/settings.json` | Mechanical design drift is surfaced immediately after UI edits. |
 | Shared detector policy | `.impeccable/config.json` | Web plus miniapp WXML/WXSS use the same detector and reviewed exceptions. |
 | PR gate | `scripts/check_ui_quality.py` in `frontend-quality` | Changed UI files must pass Impeccable and the PR must contain completed review evidence. |
-| Independent review | `praxys-invariant-review.md` | Ready PRs receive a separate Praxys-specific brand and UI invariant review. |
+| Independent review | `.github/agents/quality.agent.md` | Material-risk review includes relevant brand and UI invariants; routine UI work uses rendered checks in the main session. |
 
 `frontend-quality` is the domain check for the web build and UI harness.
 It is required independently from `backend-tests`; both report from the unified

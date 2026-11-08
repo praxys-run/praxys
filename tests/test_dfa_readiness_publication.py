@@ -163,7 +163,7 @@ def test_sql_publication_and_local_ack_are_distinct(both_origins,monkeypatch,fir
         safe_attempt=None if attempt is None else {k:v for k,v in attempt.items() if k!='admission_id'}
         record_property('dfa_publication_ack',json.dumps({'scope':scope,'trace':trace,'attempt':safe_attempt,'first':captured.evidence(),'errors':errors},separators=(',',':')))
         root=Path(__file__).resolve().parents[1]
-        (root/f'.git/pr871-ready-{publication}-{warm}-{backend}-{time.time_ns()}.json').write_text(json.dumps({
+        (factory.dfa_artifacts/f'ready-{publication}-{warm}-{backend}.json').write_text(json.dumps({
             'outcome':outcome,'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
             'source_bindings':{str(p.relative_to(root)):sha256(p.read_bytes()).hexdigest() for p in
                 [Path(__file__),root/'api/dfa_supervisor.py',root/'api/activity_dfa.py']},
@@ -289,7 +289,7 @@ def test_admission_check_commit_and_pulse_expiry(both_origins,stage,monkeypatch,
         finally:
             diagnostic['cleanup_error']=cleanup_error
         root=Path(__file__).resolve().parents[1]
-        (root/f'.git/pr871-pulse-boundary-{stage}-{backend}-{time.time_ns()}.json').write_text(json.dumps({
+        (factory.dfa_artifacts/f'pulse-boundary-{stage}-{backend}.json').write_text(json.dumps({
             'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),**diagnostic,
             'source_bindings':{str(p.relative_to(root)):sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),root/'api/dfa_supervisor.py',root/'api/activity_dfa.py']},
             'expiry_observation':'real stored deadline; no substituted time; SQLite positive is narrow boundary, not whole service'},indent=2))

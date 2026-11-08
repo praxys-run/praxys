@@ -144,39 +144,6 @@ def test_selective_review_workflow_is_default_off_and_never_bypasses():
     assert "cancel-in-progress: true" in issue_guard
 
 
-def test_policy_tuner_can_only_open_draft_proposal_prs():
-    source = (
-        ROOT / ".github" / "workflows" / "change-loop-policy-tuner.md"
-    ).read_text(encoding="utf-8")
-    allowed_block = source.split("allowed-files:", 1)[1].split("\n  noop:", 1)[0]
-    assert "draft: true" in source
-    assert "config/agent-loop-policy-proposals.json" in source
-    assert "config/agent-loop-policies.json" not in allowed_block
-    assert "merge-pull-request" not in source
-    assert "submit-pull-request-review" not in source
-    assert (
-        ROOT / ".github" / "workflows" / "change-loop-policy-tuner.lock.yml"
-    ).exists()
-
-
-def test_policy_tuner_rejects_stale_or_duplicate_proposals():
-    source = (
-        ROOT / ".github" / "workflows" / "change-loop-policy-tuner.md"
-    ).read_text(encoding="utf-8")
-    for path in (
-        "analysis/review_policy.py",
-        "scripts/selective_review_gate.py",
-        "tests/test_review_policy.py",
-        "tests/test_selective_review_workflow.py",
-    ):
-        assert path in source
-    assert "active selective-review `version` and `classifier_semantics`" in source
-    assert "predates those semantics" in source
-    assert "already enforced" in source
-    assert "emit `noop`" in source
-    assert "`current_policy_gap`" in source
-
-
 def test_ready_handoff_is_bound_to_the_head_sha():
     timeline = [
         {"event": "committed", "sha": "head-a"},

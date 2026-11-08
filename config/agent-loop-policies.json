@@ -1,23 +1,5 @@
 {
   "schema_version": 1,
-  "operating_model": {
-    "path": "config/agentic-operating-model.json",
-    "version": "praxys-single-session-v2",
-    "status": "active"
-  },
-  "decision_autonomy": {
-    "version": "session-authority-v2",
-    "status": "active",
-    "default_judgment_route": "agent-resolved",
-    "scope": "Authorized reversible work in the current session; no merge, production, credential, or scientific approval grant.",
-    "review_policy_path": "config/agentic-task-routing.json",
-    "authorization": "Reuse explicit user authorization within its action, resource and risk scope. Ask only for missing authority or an irreducible material choice, after preparing the concrete result. Never manufacture exact-digest approval.",
-    "independence": {
-      "executor_may_verify_own_high_risk_work": false,
-      "agent_may_materialize_human_approval": false
-    },
-    "external_gates": "Scientific approval ledgers, runtime tool consent, required CI and branch protection remain authoritative."
-  },
   "change": {
     "agent_ready": {
       "policy_name": "change.agent_ready",
@@ -122,30 +104,6 @@
         "any_revert_or_reopen": true,
         "missing_required_check": true
       }
-    }
-  },
-  "task_completion": {
-    "version": "task-completion-v2",
-    "completion": "The main session owns scope, implementation, checks and final handoff. Finish when acceptance is met. New findings expand scope only when needed for acceptance or causally required for safety; otherwise record follow-up.",
-    "coordination": "Use one session by default. Load domain context as needed. Use one fresh read-only reviewer for triggered risks, consolidating questions. Use native planning and lifecycle tools; no routing agents, loop coordinators, invocation ledgers or per-task trial enrollment.",
-    "authorization": "Reuse explicit user authorization within its action, resource and risk scope. Ask only for missing authority or an irreducible material choice, after preparing the concrete result. Never manufacture exact-digest approval.",
-    "verification": "Run the smallest sufficient checks, plus required CI. Reuse evidence only for unchanged relevant inputs. Review new material deltas; do not repeat unaffected reviews. A missing mandatory check blocks its dependent action, not unrelated authorized work.",
-    "waits": "Name the running job, completion signal and next action. Reuse an active thread, use native completion, do not duplicate or poll needlessly. Confirm termination before replacement.",
-    "bot_dependency_ci_path": {
-      "provenance": "Verify provider PR identity and complete change history, not labels or claimed authorship. Only an unchanged native Dependabot dependency update, optionally with a reviewed mechanical refresh against current main, qualifies. Unknown, incomplete, or malformed provenance takes the normal final-preflight path.",
-      "allowed_delta": "Only native dependency manifests and their matching lockfiles may carry dependency version changes and corresponding native bot lockfile delta; workflow changes are limited to native bot action uses version/reference bumps. Listed paths are examples, not evidence of eligibility. Review the base refresh to establish that it preserves this delta without manual conflict resolution.",
-      "exclusions": "Any agent-authored code, workflow, generated-file change, dependency delta, or conflict repair requires the existing final preflight. Package scripts, workflow behavior/permissions, and paths outside dependency manifests, matching lockfiles, or workflow action references are outside this path.",
-      "evidence": "Record current head and base, provenance, reviewed delta, current required CI, specialist conclusions, and independent Quality. Never claim a local preflight ran when it did not. This guidance cannot waive an effective GitHub gate or authorize merge.",
-      "dependency_path_examples": [
-        "requirements.txt",
-        "web/package.json",
-        "web/package-lock.json",
-        "miniapp/package.json",
-        "miniapp/package-lock.json"
-      ],
-      "action_reference_path_examples": [
-        ".github/workflows/*.yml"
-      ]
     }
   }
 }

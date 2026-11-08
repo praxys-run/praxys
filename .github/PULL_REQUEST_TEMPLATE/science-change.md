@@ -36,8 +36,7 @@ Do not check any item that was not actually performed.
 - [ ] Tests cover the changed behavior and the stated validation/falsification plan.
 - [ ] `python scripts/generate_science_artifacts.py --check` passes.
 - [ ] English and Chinese scientific copy have been reviewed for equivalent meaning.
-- [ ] `science-reviewer` ran for `analysis/` or `data/science/` changes and reported its source-verification boundary.
-- [ ] `metric-addition-reviewer` and `api-contract-reviewer` ran when their scopes apply.
+- [ ] One independent Quality review covered science sources/uncertainty, applicable metric delivery and API/type compatibility, with its source-verification boundary stated.
 - [ ] An unresolved disagreement, evidence gap, or missing independent reviewer is visible below.
 
 ## Open questions or evidence gaps

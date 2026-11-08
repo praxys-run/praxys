@@ -4,7 +4,6 @@
   "status": "active",
   "orchestrator_agent_path": ".github/agents/praxys-orchestrator.agent.md",
   "orchestrator_agent_slug": "praxys-orchestrator",
-  "routing_config_path": "config/agentic-task-routing.json",
   "portable_agent_paths": [
     ".github/agents/praxys-orchestrator.agent.md",
     ".github/agents/quality.agent.md",

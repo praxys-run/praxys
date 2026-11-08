@@ -106,7 +106,6 @@ class CopilotExecutionParity(ParityRecord):
     status: Literal["active"]
     orchestrator_agent_path: str
     orchestrator_agent_slug: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
-    routing_config_path: str
     portable_agent_paths: list[str] = Field(min_length=1)
     common_builtin_tools: list[str] = Field(min_length=1)
     common_mcp_servers: dict[str, CommonMcpServer] = Field(min_length=1)
@@ -126,10 +125,6 @@ class CopilotExecutionParity(ParityRecord):
         _require_repository_path(
             self.orchestrator_agent_path,
             "orchestrator_agent_path",
-        )
-        _require_repository_path(
-            self.routing_config_path,
-            "routing_config_path",
         )
         for path in self.portable_agent_paths:
             _require_repository_path(path, "portable_agent_path")
@@ -186,7 +181,6 @@ def validate_static_execution_parity(
     errors: list[str] = []
     required_paths = [
         config.orchestrator_agent_path,
-        config.routing_config_path,
         config.local.mcp_config_path,
         config.cloud.mcp_config_path,
         *config.portable_agent_paths,

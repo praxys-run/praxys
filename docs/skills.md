@@ -43,11 +43,7 @@ Product, Design, Science, Trust and Architecture are relevant context/skills,
 without mandatory role handoffs. One fresh read-only Quality review covers
 material risks. The optional Operations adapter retains isolated local tools.
 
-The optional `scripts/route_agentic_task.py` summarizes risks and context; it
-neither dispatches agents nor grants approval. Reuse scoped user authorization
-while preserving scientific approval identities, external tool consent, CI and
-branch protection. Native runtimes handle thread lifecycle.
-See `docs/dev/copilot-execution-parity.md` for portable capabilities.
+The session follows `AGENTS.md` directly; no task router or digest confirmation is required.
 
 ## Developer WeChat DevTools
 

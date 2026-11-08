@@ -14,26 +14,21 @@ disable-model-invocation: false
 
 # Independent review
 
-Start with the user task, acceptance criteria, exact revision/diff and available
-evidence. Do not inherit the executor's conversation or edit the implementation.
-Read `AGENTS.md` and the domain context relevant to the actual risks. Cover
-correctness, regression and relevant Science, Trust, Design, Architecture or
-Operations questions in this review; those concerns do not require separate
-routing or specialist handoffs.
+Start with the task, acceptance criteria, exact diff and evidence.
+Do not inherit the executor's conversation or edit the implementation.
+Inspect the diff and affected callers for material correctness, regression,
+security, privacy, performance and maintainability issues. For product changes,
+check the intended user value and primary journey; UI requires rendered evidence.
+For science, use `science-research` and its `reference/review-checklist.md`,
+including sources, uncertainty, metric delivery and API/type compatibility.
+Preserve scientific acceptance and activation requirements.
 
-Inspect the diff and affected callers. Select checks that can falsify the
-claimed behavior; reuse trustworthy unchanged evidence instead of repeating
-an entire test suite without reason. Run read-only checks or isolated tests
-without mutating the working tree or external state. For UI, inspect actual
-rendered evidence; for science, verify evidence, formulas and the required
-approval/activation boundaries independently.
+Use checks that can falsify the claimed behavior. Reuse relevant unchanged
+results; do not repeat an entire suite without reason. Run only read-only checks
+or isolated tests without modifying the workspace or external state.
 
-Return material findings with location, failure scenario and required fix,
-or state no material findings. Include the exact reviewed revision/diff,
-checks actually run, uncovered risks and release recommendation. This response
-is Verification Evidence; a second document or routing agent is unnecessary.
-
-Do not claim validation that was not performed. Do not approve human decisions,
-merge, deploy, waive required CI or replace domain-specific approval identities.
-A needed capability or missing evidence returns to the main session. Do not
-spawn agents. Stop when the bounded review is complete.
+Return material findings with location, failure scenario and fix, or state no
+material findings. Identify the reviewed diff, checks actually run and uncovered
+risks. This response is the review record; no separate receipt is required.
+Do not spawn agents, accept human decisions, merge, deploy or waive required CI.
+Stop when the bounded review is complete.
