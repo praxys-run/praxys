@@ -234,7 +234,7 @@ def test_real_control_lock_failure_denies_without_renewal(store, monkeypatch):
         supervisor.stop.set();worker.join(3)
         event.remove(controls.kw['bind'], 'handle_error', failure)
         root = Path(__file__).resolve().parents[1]
-        artifact = root/f'.git/pr871-control-lock-{factory.kw["bind"].dialect.name}-{time.time_ns()}.json'
+        artifact = factory.dfa_artifacts/f'control-lock-{factory.kw["bind"].dialect.name}.json'
         artifact.write_text(json.dumps({'head': subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
             'timing': timing, 'failures': failures,
             'source_bindings': {str(p.relative_to(root)):sha256(p.read_bytes()).hexdigest() for p in

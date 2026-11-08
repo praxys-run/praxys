@@ -1,5 +1,6 @@
 """Synthetic DFA contracts: raw protocol, independent math, QC and owner lifecycle."""
 from datetime import date, datetime, timedelta
+import gc
 import hashlib
 import json
 import struct
@@ -209,6 +210,8 @@ def store(tmp_path, monkeypatch, request):
     if backend == 'sqlite':
         Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)
+    factory.dfa_artifacts = tmp_path / 'dfa-evidence'
+    factory.dfa_artifacts.mkdir()
     # Explicit synthetic SDK evaluations, not a production mode bypass.
     from api import statsig_client
     from statsig.feature_gate import FeatureGate
@@ -243,6 +246,9 @@ def store(tmp_path, monkeypatch, request):
     from tests.dfa_supervisor_harness import install
     supervisor = install(factory, tmp_path, monkeypatch)
     try:
+        # Reclaim preceding fixture cycles before any timed renewal scenario.
+        # GC remains enabled; production deadlines and assertions are unchanged.
+        gc.collect()
         yield factory, owner
     finally:
         if backend == 'postgresql':

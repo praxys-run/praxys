@@ -101,7 +101,7 @@ else:
             evidence.close()
             os.close(read_fd);os.close(write_fd);engine.dispose()
             root=Path(__file__).resolve().parents[1]
-            (root/f'.git/pr871-capacity-outcome-{time.time_ns()}.json').write_text(json.dumps({
+            (factory.dfa_artifacts/'capacity-outcome.json').write_text(json.dumps({
                 'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
                 'attempts':attempts,'renewal_decisions':evidence.renewal_decisions,'retirements':evidence.retirements,
                 'transitions':transitions,'errors':errors,'scope':'controlled first-renewal boundaries; no operational capacity certificate'},indent=2))

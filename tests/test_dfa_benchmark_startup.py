@@ -102,7 +102,7 @@ def test_first_automatic_child_requires_completed_valid_renewal(both_origins,mon
     finally:
         release.set();supervisor.stop.set();thread.join(3)
         root=Path(__file__).resolve().parents[1]
-        (root/f'.git/pr871-benchmark-startup-{renewal}-{url.get_backend_name()}-{time.time_ns()}.json').write_text(json.dumps({
+        (factory.dfa_artifacts/f'benchmark-startup-{renewal}-{url.get_backend_name()}.json').write_text(json.dumps({
             'outcome':outcome,'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
             'inherited_setup_permission':inherited,'renewal':renewal,'startup':startup,'launches':launches,
             'commit_return_observations':commits,'completed_valid_renewals':evidence.renewals,'errors':errors,

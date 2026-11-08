@@ -23,7 +23,6 @@ from tests.dfa_attempt_evidence import assert_attempt_ledger
 from api.dfa_supervisor import SAFE_FAILURES
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / '.git/pr871-acquisition-freshness-r1'
 
 
 def wait_for(predicate, seconds=5):
@@ -185,8 +184,7 @@ class Cell:
         for thread in list(self.threads): thread.join(10)
         joined = all(not thread.is_alive() for thread in self.threads)
         self.proof.close()
-        OUT.mkdir(exist_ok=True)
-        (OUT / f'{self.name}-{self.backend}-{time.time_ns()}.json').write_text(json.dumps({
+        (self.factory.dfa_artifacts / f'{self.name}-{self.backend}-{time.time_ns()}.json').write_text(json.dumps({
             'outcome': self.outcome, 'case': self.name, 'backend': self.backend,
             'invocation_head': __import__('subprocess').check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
             'supervisor_source_sha256': hashlib.sha256((ROOT/'api/dfa_supervisor.py').read_bytes()).hexdigest(),
