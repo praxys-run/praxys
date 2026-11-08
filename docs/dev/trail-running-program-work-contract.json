@@ -1,0 +1,80 @@
+{
+  "routing_version": "praxys-task-routing-v1",
+  "operating_model_version": "praxys-agentic-operating-model-v1",
+  "classification": {
+    "primary_object": "product-promise",
+    "impacts": [
+      "scientific-evidence-or-claim",
+      "user-visible-experience",
+      "repository-change",
+      "architecture-boundary",
+      "trust-boundary"
+    ],
+    "risk_triggers": [
+      "new-product-promise",
+      "material-user-value-tradeoff",
+      "safety-or-medical-boundary",
+      "sensitive-data-collection",
+      "security-or-privacy-boundary",
+      "scientific-uncertainty",
+      "out-of-policy-or-out-of-distribution-decision"
+    ]
+  },
+  "classification_digest": "sha256:d2b15692d6d8db1b897b750ce30d6418e9a62e1acf683a4e88fce8f4a7851668",
+  "primary_loop": "product",
+  "nested_loops": [
+    "science",
+    "design",
+    "delivery"
+  ],
+  "loop_agents": {
+    "product": ".github/agents/product.agent.md",
+    "science": ".github/agents/science.agent.md",
+    "design": ".github/agents/design.agent.md",
+    "delivery": ".github/agents/praxys-change-loop.agent.md"
+  },
+  "lead_role": "product",
+  "contributor_roles": [
+    "science",
+    "design",
+    "architecture",
+    "trust"
+  ],
+  "executor_roles": [
+    "engineering"
+  ],
+  "verifier_roles": [
+    "quality"
+  ],
+  "outcome_observer_roles": [
+    "product"
+  ],
+  "required_input_artifacts": [],
+  "required_artifacts": [
+    "product-decision-record",
+    "evidence-review",
+    "science-decision-record",
+    "design-decision-record",
+    "experience-specification",
+    "implementation-impact-map",
+    "implementation-change",
+    "verification-evidence",
+    "architecture-decision-record",
+    "trust-decision-record"
+  ],
+  "outcome_artifacts": [
+    "product-outcome-record"
+  ],
+  "risk_triggers": [
+    "new-product-promise",
+    "material-user-value-tradeoff",
+    "safety-or-medical-boundary",
+    "sensitive-data-collection",
+    "security-or-privacy-boundary",
+    "scientific-uncertainty",
+    "out-of-policy-or-out-of-distribution-decision"
+  ],
+  "decision_review_agent": ".github/agents/decision-review-router.agent.md",
+  "decision_review_required": true,
+  "route_digest": "sha256:172191b42862f63e1368bb23496cb773b1fb7a8e8cd5e1ed2c413b080a5adb72"
+}
