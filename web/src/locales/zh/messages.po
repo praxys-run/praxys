@@ -53,7 +53,7 @@ msgstr "{0, plural, other {# 次训练}}"
 #. placeholder {0}: praxysWorkouts.length
 #: src/components/ManagedPlanSettingsCard.tsx:752
 msgid "{0, plural, one {Praxys workout} other {Praxys workouts}}"
-msgstr "{0, plural, other {# 个 Praxys 训练}}"
+msgstr "{0, plural, other {次 Praxys 训练}}"
 
 #. placeholder {0}: status.exposure_days
 #: src/components/HeatAdaptationPanel.tsx:638
@@ -385,7 +385,7 @@ msgstr "计划中还有 {0} 天预测"
 #. placeholder {1}: targetSwitchResult.remaining_count
 #: src/components/ManagedPlanSettingsCard.tsx:1279
 msgid "<0>{0}</0> deliveries are clear; <1>{1}</1> still need review before the target can change."
-msgstr "<0>{0}</0> 项下发已清除；仍有 <1>{1}</1> 项需要处理，完成后才能更换执行平台。"
+msgstr "已清除 <0>{0}</0> 个已下发的训练；还有 <1>{1}</1> 个需要检查，确认后才能更换执行平台。"
 
 #. placeholder {0}: externalWorkouts.length
 #: src/components/ManagedPlanSettingsCard.tsx:760
@@ -655,7 +655,7 @@ msgstr "此实验需要与 Stryd 数据一致的临界功率值。"
 
 #: src/components/PlanStart.tsx:1201
 msgid "A successor proposal is ready. The earlier proposal is preserved as superseded."
-msgstr "后继提案已就绪。此前的提案会保留为已取代。"
+msgstr "新提案已就绪。此前的提案仍会保留，并标记为已被取代。"
 
 #: src/components/GoalBaselinePanel.tsx:554
 msgid "A synced activity never becomes a completed test automatically; you must confirm the protocol, distance, and timing again."
@@ -756,7 +756,7 @@ msgstr "激活"
 #: src/pages/Science.tsx:433
 #: src/pages/Science.tsx:581
 msgid "Active"
-msgstr "当前使用"
+msgstr "生效中"
 
 #: src/pages/admin/AdminOps.tsx:1550
 msgid "Active accuracy"
@@ -3454,11 +3454,11 @@ msgstr "下发尚未开始"
 
 #: src/components/ManagedPlanSettingsCard.tsx:520
 msgid "Delivery off"
-msgstr "尚未开启发送"
+msgstr "下发已关闭"
 
 #: src/components/ManagedPlanSettingsCard.tsx:511
 msgid "Delivery on"
-msgstr "已开启发送"
+msgstr "下发已开启"
 
 #: src/pages/admin/AdminOps.tsx:1019
 msgid "Delivery outcomes"
@@ -3466,7 +3466,7 @@ msgstr "下发结果"
 
 #: src/components/ManagedPlanSettingsCard.tsx:517
 msgid "Delivery paused"
-msgstr "发送已暂停"
+msgstr "下发已暂停"
 
 #: src/components/WorkoutStructureEditor.tsx:1869
 msgid "Delivery preview"
@@ -3585,7 +3585,7 @@ msgstr "按窗口结束时间查看 DFA α1"
 
 #: src/components/ActivityDFA.tsx:342
 msgid "DFA α1 describes correlations in beat intervals. Each trailing 120-second window uses 4–16-beat scales, without interpolation or artifact correction. At least 200 complete beats and 98% interval coverage are required. Timing and quality cutoffs are Praxys guardrails, not validated physiological thresholds. Low heart rate may leave too few beats. These results do not diagnose fatigue or determine your training thresholds."
-msgstr "DFA α1 描述逐搏间期的相关性。每个后向 120 秒窗口采用 4–16 拍尺度，不插值或校正伪差。至少需要 200 个完整逐搏间期及 98% 的时间覆盖。时间和质量限制是 Praxys 的保守规则，并非经验证的生理阈值。低心率可能导致搏动数不足。结果不用于判断疲劳或确定个人训练阈值。"
+msgstr "DFA α1 描述心搏间期之间的相关性。每个窗口分析此前120秒的数据，采用4–16次心搏的尺度，不做插值或伪差校正。至少需要200次完整心搏，且间期覆盖率达到98%。时间和数据质量的判定界限是 Praxys 设置的限制条件，并非经过验证的生理阈值。心率较低时，心搏数可能不足。这些结果不能用于诊断疲劳或确定训练阈值。"
 
 #: src/pages/admin/AdminOps.tsx:940
 msgid "Diagnose Praxys-owned workout delivery without exposing athlete identity or provider workout data."
@@ -3635,7 +3635,7 @@ msgstr "今天没帮上忙"
 
 #: src/components/GoalBaselinePanel.tsx:118
 msgid "Direct 10K baseline evidence is currently sufficient."
-msgstr "当前的直接 10 公里基准证据已足够。"
+msgstr "目前已有足够的直接依据来确定10公里基准。"
 
 #: src/pages/Goal.tsx:301
 msgid "Direction"
@@ -3708,7 +3708,7 @@ msgstr "距离"
 
 #: src/components/WorkoutPlanEditor.tsx:974
 msgid "Distance (km)"
-msgstr "距离（公里）"
+msgstr "距离（km）"
 
 #: src/components/trail-course-review/copy.tsx:64
 msgid "Distance category"
@@ -3770,7 +3770,7 @@ msgstr "是否有路段需要用手辅助通过？"
 
 #: src/components/trail-course-review/copy.tsx:78
 msgid "Does any section use fixed ropes?"
-msgstr "是否有路段需要使用固定绳索？"
+msgstr "是否有路段使用固定绳索？"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1300
 #: src/components/ManagedPlanSettingsCard.tsx:1517
@@ -4804,7 +4804,7 @@ msgstr "根据已记录距离划分"
 #: src/components/trail-course-review/copy.tsx:255
 #: src/components/trail-course-review/copy.tsx:262
 msgid "From your activity history"
-msgstr "来自你的活动历史"
+msgstr "来自历史活动"
 
 #: src/components/trail-course-review/copy.tsx:134
 msgid "Fueling"
@@ -4878,7 +4878,7 @@ msgstr "对同一位运动员，Garmin 原生跑步功率通常比 Stryd 高约 
 
 #: src/components/ManagedPlanSettingsCard.tsx:1193
 msgid "Garmin workout delivery is duration-only. Workouts with power, pace, or heart-rate targets will stay blocked rather than lose their intended intensity."
-msgstr "Garmin 训练下发仅支持时长。包含功率、配速或心率目标的训练不会被下发，以免丢失预期强度。"
+msgstr "向 Garmin 下发训练时，仅支持时长目标。包含功率、配速或心率目标的训练不会下发，以免丢失设定的训练强度。"
 
 #: src/pages/LabsEnvironment.tsx:93
 msgid "Garmin wrist-power origin cannot yet be verified well enough for this experiment."
@@ -5043,11 +5043,11 @@ msgstr "心率 · bpm"
 
 #: src/components/WorkoutPlanEditor.tsx:1003
 msgid "Heart-rate maximum (bpm)"
-msgstr "最高心率（bpm）"
+msgstr "心率上限（bpm）"
 
 #: src/components/WorkoutPlanEditor.tsx:996
 msgid "Heart-rate minimum (bpm)"
-msgstr "最低心率（bpm）"
+msgstr "心率下限（bpm）"
 
 #: src/pages/Analysis.tsx:340
 #: src/pages/Analysis.tsx:343
@@ -5546,7 +5546,7 @@ msgstr "前插入"
 
 #: src/components/UpcomingPlanCard.tsx:1617
 msgid "Inspect context"
-msgstr "查看个性化信息"
+msgstr "查看背景信息"
 
 #: src/components/PersonalContextPanel.tsx:1233
 msgid "Inspect what is stored, where it was used, and who may process it."
@@ -6847,7 +6847,7 @@ msgstr "网络错误"
 #: src/pages/admin/AdminUsers.tsx:294
 #: src/pages/admin/AdminUsers.tsx:318
 msgid "Network error. Is the server running?"
-msgstr "网络错误。服务器是否已启动？"
+msgstr "网络错误。服务器在运行吗？"
 
 #: src/pages/Login.tsx:200
 msgid "Network error. Please email {SUPPORT_EMAIL} directly."
@@ -7364,7 +7364,7 @@ msgstr "无训练安排"
 
 #: src/components/UpcomingPlanCard.tsx:809
 msgid "No workout is present on {target}."
-msgstr "{target} 上没有此训练。"
+msgstr "{target} 上没有训练。"
 
 #: src/pages/Today.tsx:257
 msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session."
@@ -7909,7 +7909,7 @@ msgstr "补充这些信息可以避免 Praxys 自行推测。只填写会影响�
 
 #: src/components/WorkoutStructureEditor.tsx:1178
 msgid "Optional label"
-msgstr "可选标签"
+msgstr "标签（选填）"
 
 #: src/components/GoalBaselinePanel.tsx:571
 msgid "Optional pilot test"
@@ -7945,7 +7945,7 @@ msgstr "赛事方信息"
 
 #: src/components/AdoptedPlanDetails.tsx:67
 msgid "Original plan dates"
-msgstr "原始计划日期"
+msgstr "原计划起止日期"
 
 #: src/components/AdoptedPlanDetails.tsx:75
 msgid "Original workouts"
@@ -8066,7 +8066,7 @@ msgstr "配速上限（分/公里）"
 
 #: src/components/WorkoutPlanEditor.tsx:1034
 msgid "Pace minimum (min/km)"
-msgstr "配速下限（分/公里）"
+msgstr "配速下限（min/km）"
 
 #: src/components/ActivityTraceChart.tsx:191
 msgid "Pace: faster ↑"
@@ -8639,7 +8639,7 @@ msgstr "Praxys 找到了候选 5 公里活动，但尚未确认是否合格。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1245
 msgid "Praxys found future deliveries on the current target. Remove only Praxys-delivered workouts before switching."
-msgstr "当前执行平台上仍有未来训练。更换前，只移除由 Praxys 下发的训练。"
+msgstr "Praxys 检测到当前执行平台上仍有后续训练。更换前，只移除 Praxys 下发的训练。"
 
 #. placeholder {0}: capability.horizon_days
 #: src/components/PlanStart.tsx:227
@@ -8715,11 +8715,11 @@ msgstr "仅 Praxys"
 #: src/components/UpcomingPlanCard.tsx:1674
 #: src/components/UpcomingPlanCard.tsx:1754
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched."
-msgstr "Praxys 只会修改由 Praxys 创建或明确采纳的训练。手动添加及其他教练创建的训练不会受到影响。"
+msgstr "Praxys 只会调整它创建的训练，或你明确采纳的训练。手动添加的训练和其他教练安排的训练保持不变。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:724
 msgid "Praxys only changes workouts it created or you explicitly adopt. Manual workouts and workouts from another coach stay untouched. To avoid overlapping sessions, use one planner at a time."
-msgstr "Praxys 只会更改自己创建或明确采纳的训练。手动添加及其他教练安排的训练保持不变。为避免训练重叠，请一次只使用一个计划工具。"
+msgstr "Praxys 只会调整由它创建或你明确采纳的训练。手动添加的训练和其他教练安排的训练保持不变。为避免训练安排重叠，同一时间只使用一个计划工具。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:638
 #~ msgid "Praxys owns the plan; delivery is paused."
@@ -8956,7 +8956,7 @@ msgstr "内测中 · 仅限邀请"
 
 #: src/components/PersonalContextPanel.tsx:1230
 msgid "Private context"
-msgstr "计划个性化信息"
+msgstr "私密信息"
 
 #: src/components/PersonalContextPanel.tsx:677
 msgid "Private context could not be loaded."
@@ -10618,7 +10618,7 @@ msgstr "查看首个无效值"
 #: src/components/UpcomingPlanCard.tsx:1209
 #: src/components/WorkoutPlanEditor.tsx:544
 msgid "Review the highlighted step fields. Every typed target and termination must be complete."
-msgstr "请检查标出的步骤字段。每个带类型的目标和结束条件都必须完整。"
+msgstr "请检查高亮标出的步骤字段。每个已指定类型的目标和结束条件都需填写完整。"
 
 #: src/components/trail-course-review/copy.tsx:580
 msgid "Review the latest revision"
@@ -11513,7 +11513,7 @@ msgstr "来源版本"
 
 #: src/components/WorkoutPlanEditor.tsx:900
 msgid "Source stays unchanged"
-msgstr "源训练保持不变"
+msgstr "原训练保持不变"
 
 #: src/hooks/useRecordSourceName.ts:7
 msgid "Source unavailable"
@@ -11666,7 +11666,7 @@ msgstr "步骤已删除。保存前可以恢复。"
 
 #: src/components/WorkoutStructureEditor.tsx:1154
 msgid "Step semantic"
-msgstr "步骤语义"
+msgstr "步骤用途"
 
 #: src/components/WorkoutStructureEditor.tsx:624
 msgid "steps"
@@ -12216,7 +12216,7 @@ msgstr "谢谢，这会帮助我们改进今日建议。"
 
 #: src/components/UpcomingPlanCard.tsx:1203
 msgid "That date is now completed history and can no longer be changed."
-msgstr "这一天已归入已完成记录，无法再修改。"
+msgstr "这一天已完成并归入历史记录，无法再修改。"
 
 #: src/components/PersonalContextPanel.tsx:691
 msgid "That is a complete state, not missing data. Praxys keeps the reason unknown and does not reduce your standing or invent an explanation."
@@ -12732,7 +12732,7 @@ msgstr "状态 API 未响应，这本身可能表示服务中断。"
 
 #: src/components/UpcomingPlanCard.tsx:810
 msgid "The target version is unavailable."
-msgstr "目标平台版本不可用。"
+msgstr "目标平台上的训练版本不可用。"
 
 #: src/components/HeatAdaptationPanel.tsx:675
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
@@ -12821,7 +12821,7 @@ msgstr "此功能优先使用直接 10 公里证据。可选目标日期或基�
 
 #: src/components/UpcomingPlanCard.tsx:1609
 msgid "This change used confirmed private context. The private detail is not copied into the plan record."
-msgstr "这次调整使用了已确认的计划个性化信息，具体内容不会写入计划记录。"
+msgstr "这次调整参考了已确认的私人背景信息，具体内容不会写入计划记录。"
 
 #: src/components/PlanStart.tsx:1542
 msgid "This check was submitted. Its result is shown below."
@@ -12927,7 +12927,7 @@ msgstr "此导入或旧版训练没有便携结构树。可按原样编辑摘要
 
 #: src/components/UpcomingPlanCard.tsx:1221
 msgid "This imported structure cannot be edited safely. Duplicate it into a supported Praxys workout first."
-msgstr "无法安全编辑此导入结构。请先复制为受支持的 Praxys 训练。"
+msgstr "无法安全编辑导入的训练结构。请先将其复制为 Praxys 支持的训练。"
 
 #: src/components/AiInsightsCard.tsx:273
 msgid "This insight changed. Refresh the page before sending feedback."
@@ -12979,7 +12979,7 @@ msgstr "这是根据气温和相对湿度计算的 Stull 干湿球湿球温度�
 
 #: src/components/AdoptedPlanDetails.tsx:51
 msgid "This is the proposal saved when you adopted it. The calendar shows your current workouts, including later changes."
-msgstr "这是采纳时保存的方案。当前课表包含之后的调整，请以课表为准。"
+msgstr "这是采纳时保存的方案。日历显示当前的训练安排，包含后续调整。"
 
 #: src/components/WorkoutStructureEditor.tsx:1083
 #~ msgid "This legacy flat workout has no portable tree to flatten."
@@ -13236,7 +13236,7 @@ msgstr "这项训练已在其他位置更新。计划已刷新，请重新打开
 
 #: src/components/UpcomingPlanCard.tsx:753
 msgid "This workout stays external unless you explicitly make it canonical in Praxys."
-msgstr "除非明确采纳到 Praxys，否则此训练会保持为外部训练。"
+msgstr "除非明确选择在 Praxys 中以这项训练为准，否则它仍属于外部训练。"
 
 #: src/components/WorkoutPlanEditor.tsx:786
 msgid "This workout uses a newer portable structure that this editor cannot change safely. Date and notes remain editable; Praxys preserves the structure byte-for-byte."
@@ -13248,7 +13248,7 @@ msgstr "此训练使用了当前编辑器尚无法安全修改的较新便携结
 
 #: src/components/trail-course-review/copy.tsx:440
 msgid "Those technical features are outside v2."
-msgstr "这些技术特征超出 v2 范围。"
+msgstr "这类技术性路段不在 v2 的支持范围内。"
 
 #: src/components/UpcomingPlanCard.tsx:581
 #: src/components/WorkoutPlanEditor.tsx:436
@@ -14216,7 +14216,7 @@ msgstr "我们正在分批邀请跑者，并持续打磨科学方法。留下邮
 
 #: src/components/PersonalContextPanel.tsx:228
 msgid "Weather"
-msgstr "天气影响"
+msgstr "天气"
 
 #: src/components/HeatAdaptationPanel.tsx:486
 msgid "Weather evidence"
@@ -14412,7 +14412,7 @@ msgstr "风力暴露"
 
 #: src/components/ActivityDFA.tsx:332
 msgid "Window values and quality details"
-msgstr "逐窗数值与质量详情"
+msgstr "各窗口数值与数据质量详情"
 
 #: src/pages/LabsEnvironment.tsx:1239
 msgid "Withdraw"
@@ -15115,7 +15115,7 @@ msgstr "坡度专项训练"
 
 #: src/components/trail-course-review/copy.tsx:36
 msgid "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
-msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
+msgstr "填写赛道情况和可训练条件。Praxys 会明确标出尚不确定的信息。"
 
 #: src/components/trail-course-review/copy.tsx:589
 msgid "处理首个冲突"
