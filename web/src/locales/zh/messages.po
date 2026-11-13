@@ -802,7 +802,7 @@ msgstr "仅活动数据：跑步、骑行、配速、心率、路线数据"
 
 #: src/pages/LabsEnvironment.tsx:409
 msgid "Activities passing quick prerequisites"
-msgstr "通过快速前置检查的活动"
+msgstr "满足快速检查条件的活动"
 
 #: src/pages/Settings.tsx:1206
 #: src/pages/Setup.tsx:1083
@@ -1670,7 +1670,7 @@ msgstr "自行车"
 
 #: src/pages/admin/AdminCommunications.tsx:160
 msgid "Bilingual announcement banners for product-wide communication."
-msgstr "面向全产品沟通的双语公告横幅。"
+msgstr "通过双语公告横幅向全体用户传达信息。"
 
 #: src/pages/admin/AdminCommunications.tsx:176
 #: src/pages/admin/AdminCommunications.tsx:189
@@ -1769,7 +1769,7 @@ msgstr "计算器"
 
 #: src/components/trail-course-review/copy.tsx:94
 msgid "Can you access a continuous, nontechnical uphill for at least 3 minutes?"
-msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线吗？"
+msgstr "有能连续上坡至少3分钟、且不需要技术动作的路线可用于训练吗？"
 
 #: src/components/trail-course-review/copy.tsx:98
 msgid "Can you access terrain for controlled downhill training?"
@@ -2301,7 +2301,7 @@ msgstr "比较其他平台（{0}）"
 
 #: src/components/trail-course-review/copy.tsx:568
 msgid "Compare the request with recent history"
-msgstr "对照近期历史查看请求"
+msgstr "将请求与近期训练记录对比"
 
 #: src/components/ActivityDFA.tsx:314
 msgid "Compare with"
@@ -3199,7 +3199,7 @@ msgstr "深色"
 
 #: src/pages/Login.tsx:708
 msgid "Dark theme (click for system)"
-msgstr "深色主题（点击切换为系统）"
+msgstr "深色主题（点击切换为跟随系统）"
 
 #: src/components/HeatAdaptationPanel.tsx:654
 msgid "Data coverage"
@@ -3256,7 +3256,7 @@ msgstr "天"
 
 #: src/components/trail-course-review/copy.tsx:81
 msgid "Days available to run"
-msgstr "可跑步的星期"
+msgstr "每周可跑步日"
 
 #: src/pages/Goal.tsx:246
 msgid "Days left"
@@ -5695,7 +5695,7 @@ msgstr "加入候补名单"
 
 #: src/pages/LabsEnvironment.tsx:876
 msgid "Join this personal experiment"
-msgstr "加入此个人实验"
+msgstr "参加这项个人实验"
 
 #: src/pages/admin/AdminUsers.tsx:872
 #: src/pages/admin/AdminUsers.tsx:911
@@ -6195,7 +6195,7 @@ msgstr "长期模型负荷高于近期模型负荷。"
 
 #: src/components/trail-course-review/copy.tsx:152
 msgid "Longest gap between aid stations"
-msgstr "最长补给站间距"
+msgstr "补给站最大间距"
 
 #: src/components/trail-course-review/copy.tsx:159
 msgid "Longest practiced fueling duration"
@@ -6655,7 +6655,7 @@ msgstr "监控手册"
 
 #: src/pages/Goal.tsx:292
 msgid "months"
-msgstr "月"
+msgstr "个月"
 
 #: src/components/trail-course-review/copy.tsx:193
 msgid "More actions"
@@ -7106,7 +7106,7 @@ msgstr "无热暴露记录"
 
 #: src/pages/Status.tsx:214
 msgid "No incidents reported recently."
-msgstr "最近没有报告故障。"
+msgstr "近期暂无故障报告。"
 
 #: src/pages/admin/AdminIncidents.tsx:198
 msgid "No incidents yet"
@@ -7596,7 +7596,7 @@ msgstr "补给站数量"
 
 #: src/components/trail-course-review/copy.tsx:118
 msgid "Observation window"
-msgstr "观察窗口"
+msgstr "观察时段"
 
 #: src/components/HeatAdaptationPanel.tsx:327
 #: src/components/HeatAdaptationPanel.tsx:377
@@ -8559,7 +8559,7 @@ msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
 
 #: src/components/trail-course-review/copy.tsx:585
 msgid "Praxys cannot choose which answer should govern the plan."
-msgstr "Praxys 无法自行选择哪项回答应约束计划。"
+msgstr "Praxys 无法自行决定计划应以哪项回答为准。"
 
 #: src/components/trail-course-review/copy.tsx:552
 msgid "Praxys cannot evaluate the complete planning envelope."
@@ -8743,7 +8743,7 @@ msgstr "Praxys 版本"
 
 #: src/pages/LabsEnvironment.tsx:878
 msgid "Praxys will analyze eligible past runs to see whether modeled heart rate varied with temperature-and-humidity conditions at comparable recorded Stryd power."
-msgstr "Praxys 将分析符合条件的历史跑步，观察在可比的 Stryd 记录功率下，模型心率是否随温湿度条件变化。"
+msgstr "Praxys 将分析符合条件的历史跑步记录，查看在 Stryd 记录的功率相近时，模型估算的心率是否随温湿度变化。"
 
 #: src/pages/LabsEnvironment.tsx:1380
 msgid "Praxys will immediately delete your Labs consent and derived aggregate result. Your underlying account activities are not deleted."
@@ -8763,7 +8763,7 @@ msgstr "Praxys 不会猜测旧版或未来字段如何映射到 v2。你可以�
 
 #: src/components/trail-course-review/copy.tsx:564
 msgid "Praxys will not increase the accepted history envelope."
-msgstr "Praxys 不会提高已接受的历史边界。"
+msgstr "Praxys 不会扩大已认可的历史训练范围。"
 
 #: src/components/trail-course-review/copy.tsx:486
 msgid "Praxys will not replace the course demand with road training."
@@ -8799,7 +8799,7 @@ msgstr "Praxys 不会把未确认假设当作已核对事实。"
 
 #: src/components/trail-course-review/copy.tsx:565
 msgid "Praxys 不会提高已接受的历史边界。"
-msgstr "Praxys 不会提高已接受的历史边界。"
+msgstr "Praxys 不会扩大已认可的历史训练范围。"
 
 #: src/components/trail-course-review/copy.tsx:430
 msgid "Praxys 不会替换为其他人群或目标。"
@@ -8831,7 +8831,7 @@ msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
 
 #: src/components/trail-course-review/copy.tsx:586
 msgid "Praxys 无法自行选择哪项回答应约束计划。"
-msgstr "Praxys 无法自行选择哪项回答应约束计划。"
+msgstr "Praxys 无法自行决定计划应以哪项回答为准。"
 
 #: src/components/trail-course-review/copy.tsx:553
 msgid "Praxys 无法评估完整计划边界。"
@@ -8845,11 +8845,11 @@ msgstr "Praxys 未提供可安全跳转的目标。请查看回执并重新加�
 #: src/pages/Goal.tsx:285
 #: src/pages/Goal.tsx:310
 msgid "Predicted"
-msgstr "预计"
+msgstr "预计成绩"
 
 #: src/pages/Goal.tsx:85
 msgid "Predicted using Riegel's formula (T₂ = T₁ × (D₂/D₁)^1.06), treating threshold pace as ~10K effort."
-msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速近似视为 10K 比赛强度。"
+msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值配速近似视为10公里比赛强度。"
 
 #: src/pages/Goal.tsx:80
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
@@ -8865,7 +8865,7 @@ msgstr "想先等等？"
 
 #: src/components/trail-course-review/copy.tsx:89
 msgid "Preferred day for the longest easy session"
-msgstr "最长轻松训练的首选星期"
+msgstr "最长一次轻松训练的首选日"
 
 #: src/components/PlanStart.tsx:1870
 msgid "Preferred longest-easy day"
@@ -9374,7 +9374,7 @@ msgstr "先评估准备度"
 
 #: src/components/trail-course-review/copy.tsx:576
 msgid "Readiness is stale and cannot be silently rebound."
-msgstr "准备情况已过期，不能静默重新绑定。"
+msgstr "准备度已过期，不能在不提示的情况下重新绑定。"
 
 #: src/components/PlanStart.tsx:1532
 msgid "Readiness not checked"
@@ -9618,11 +9618,11 @@ msgstr "重新计算冷却中"
 
 #: src/pages/LabsEnvironment.tsx:1003
 msgid "Recompute is cooling down. Try again after {availableAt}."
-msgstr "重新计算仍在冷却中，请在 {availableAt} 后重试。"
+msgstr "重新计算还在冷却期，请在 {availableAt} 后重试。"
 
 #: src/pages/LabsEnvironment.tsx:1004
 msgid "Recompute is cooling down. Try again later."
-msgstr "重新计算仍在冷却中，请稍后重试。"
+msgstr "重新计算还在冷却期，请稍后重试。"
 
 #: src/pages/LabsEnvironment.tsx:1355
 msgid "Recompute result"
@@ -11384,7 +11384,7 @@ msgstr "登录"
 
 #: src/components/trail-course-review/states.tsx:79
 msgid "Sign in as the owner of the event goal. Praxys does not reveal whether another account has this data."
-msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
+msgstr "请登录该赛事目标所属的账号。Praxys 不会透露其他账号是否有这份数据。"
 
 #: src/pages/Login.tsx:308
 #~ msgid "Sign in to connect your CLI plugin."
@@ -11825,7 +11825,7 @@ msgstr "周日"
 
 #: src/components/trail-course-review/copy.tsx:143
 msgid "Sun exposure"
-msgstr "日晒暴露"
+msgstr "日晒程度"
 
 #: src/components/trail-course-review/copy.tsx:299
 msgid "Sunday"
@@ -12121,7 +12121,7 @@ msgstr "技术详情"
 
 #: src/components/trail-course-review/copy.tsx:595
 msgid "Technical terrain"
-msgstr "技术路面训练"
+msgstr "技术性地形训练"
 
 #: src/pages/admin/AdminOps.tsx:599
 #~ msgid "Telemetry trust boundary"
@@ -12667,11 +12667,11 @@ msgstr "滚动上限可防止重复请求占用共享分析容量。"
 
 #: src/pages/LabsEnvironment.tsx:1008
 msgid "The rolling recompute limit has been reached. Try again after {availableAt}."
-msgstr "已达到滚动重新计算上限，请在 {availableAt} 后重试。"
+msgstr "滚动时间窗口内的重新计算次数已达上限，请在 {availableAt} 后重试。"
 
 #: src/pages/LabsEnvironment.tsx:1009
 msgid "The rolling recompute limit has been reached. Try again later."
-msgstr "已达到滚动重新计算上限，请稍后重试。"
+msgstr "滚动时间窗口内的重新计算次数已达上限，请稍后重试。"
 
 #: src/pages/LabsEnvironment.tsx:81
 msgid "The same comparable-power range is not represented across enough environmental conditions."
@@ -13106,7 +13106,7 @@ msgstr "这个队列项已不存在。请刷新队列。"
 
 #: src/pages/LabsEnvironment.tsx:406
 msgid "This quick check only covers definite prerequisites. The full analysis can still return insufficient support, an unstable association, or no conclusion."
-msgstr "快速检查只覆盖明确的前置条件。完整分析仍可能返回支持不足、关联不稳定或无法得出结论。"
+msgstr "快速检查只核查明确的必要条件。完整分析仍可能发现证据不足或关联不稳定，也可能无法得出结论。"
 
 #: src/pages/ActivityDetail.tsx:338
 msgid "This record is not available to this account."
@@ -13659,7 +13659,7 @@ msgstr "请使用当前显示的单位输入精确上下界。"
 
 #: src/pages/Goal.tsx:93
 msgid "Ultra distance power fractions (50K+) are estimates with limited research backing. Riegel's exponent is validated only up to marathon distance. Predictions beyond marathon carry significantly higher uncertainty due to factors like fueling, terrain, heat, and pacing strategy that dominate ultra performance but are not captured by power/pace models."
-msgstr "50K 及以上超长距离的功率比例为估算值，目前研究支持有限。Riegel 指数仅验证到马拉松距离。超过马拉松的预测不确定性会明显升高，因为补给、地形、高温和配速策略等因素对超马表现影响更大，而这些并未被功率/配速模型纳入。"
+msgstr "50公里及以上超马距离的功率比例为估算值，研究依据有限。Riegel 指数仅在马拉松及以内的距离上得到验证。超马成绩预测的不确定性明显更高，因为补给、地形、高温和配速策略等因素对超马表现起主导作用，而功率/配速模型并未考虑这些因素。"
 
 #: src/components/trail-course-review/copy.tsx:277
 msgid "Ultra-distance Trail"
@@ -14408,7 +14408,7 @@ msgstr "将同步以下内容："
 
 #: src/components/trail-course-review/copy.tsx:144
 msgid "Wind exposure"
-msgstr "风力暴露"
+msgstr "受风程度"
 
 #: src/components/ActivityDFA.tsx:332
 msgid "Window values and quality details"
@@ -14931,7 +14931,7 @@ msgstr "你确认目前有应停止竞速计划的症状。"
 
 #: src/components/trail-course-review/copy.tsx:95
 msgid "你能使用可连续进行至少 3 分钟、非技术性的上坡路线吗？"
-msgstr "你能使用可连续进行至少 3 分钟、非技术性的上坡路线吗？"
+msgstr "有能连续上坡至少3分钟、且不需要技术动作的路线可用于训练吗？"
 
 #: src/components/trail-course-review/copy.tsx:99
 msgid "你能使用适合受控下坡训练的路线吗？"
@@ -14984,7 +14984,7 @@ msgstr "最新服务端版本已可对照。待保存更改未被覆盖。"
 
 #: src/components/trail-course-review/copy.tsx:152
 msgid "最长补给站间距"
-msgstr "最长补给站间距"
+msgstr "补给站最大间距"
 
 #: src/components/trail-course-review/copy.tsx:159
 msgid "最长补给练习时长"
@@ -14992,7 +14992,7 @@ msgstr "最长补给练习时长"
 
 #: src/components/trail-course-review/copy.tsx:90
 msgid "最长轻松训练的首选星期"
-msgstr "最长轻松训练的首选星期"
+msgstr "最长一次轻松训练的首选日"
 
 #: src/components/trail-course-review/copy.tsx:139
 msgid "最高气温"
@@ -15012,7 +15012,7 @@ msgstr "准备情况回执"
 
 #: src/components/trail-course-review/copy.tsx:577
 msgid "准备情况已过期，不能静默重新绑定。"
-msgstr "准备情况已过期，不能静默重新绑定。"
+msgstr "准备度已过期，不能在不提示的情况下重新绑定。"
 
 #: src/components/trail-course-review/copy.tsx:48
 msgid "分钟"
@@ -15083,7 +15083,7 @@ msgstr "可训练时间与场地"
 
 #: src/components/trail-course-review/copy.tsx:81
 msgid "可跑步的星期"
-msgstr "可跑步的星期"
+msgstr "每周可跑步日"
 
 #: src/components/trail-course-review/copy.tsx:71
 msgid "合计"
@@ -15143,7 +15143,7 @@ msgstr "完成赛事"
 
 #: src/components/trail-course-review/copy.tsx:568
 msgid "对照近期历史查看请求"
-msgstr "对照近期历史查看请求"
+msgstr "将请求与近期训练记录对比"
 
 #: src/components/trail-course-review/copy.tsx:195
 msgid "导出我的越野计划数据"
@@ -15284,7 +15284,7 @@ msgstr "我确认目标是提升比赛表现。"
 
 #: src/components/trail-course-review/copy.tsx:595
 msgid "技术路面训练"
-msgstr "技术路面训练"
+msgstr "技术性地形训练"
 
 #: src/components/trail-course-review/copy.tsx:280
 msgid "提升比赛表现"
@@ -15385,7 +15385,7 @@ msgstr "无法连接服务器。未重复执行越野数据操作。"
 
 #: src/components/trail-course-review/copy.tsx:143
 msgid "日晒暴露"
-msgstr "日晒暴露"
+msgstr "日晒程度"
 
 #: src/components/trail-course-review/copy.tsx:293
 msgid "星期一"
@@ -15848,7 +15848,7 @@ msgstr "补给练习"
 
 #: src/components/trail-course-review/copy.tsx:118
 msgid "观察窗口"
-msgstr "观察窗口"
+msgstr "观察时段"
 
 #: src/components/trail-course-review/copy.tsx:58
 msgid "计划用时上限"
@@ -15893,7 +15893,7 @@ msgstr "请求的越野数据操作未完成。"
 
 #: src/components/trail-course-review/states.tsx:78
 msgid "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
-msgstr "请确认已登录赛事目标的所有者账号。Praxys 不会透露其他账号是否有此数据。"
+msgstr "请确认已登录该赛事目标所属的账号。Praxys 不会透露其他账号是否有这份数据。"
 
 #: src/components/trail-course-review/copy.tsx:234
 msgid "请确认每个可见可编辑分段后检查准备情况。确认表示已核对，不代表安全或符合生成条件。"
@@ -15973,7 +15973,7 @@ msgstr "近似平缓（−3% 至低于 3%）"
 
 #: src/components/trail-course-review/copy.tsx:116
 msgid "近期下降训练"
-msgstr "近期下降训练"
+msgstr "近期下坡训练"
 
 #: src/components/trail-course-review/copy.tsx:471
 msgid "近期下降训练经历不足。"
@@ -16078,7 +16078,7 @@ msgstr "预计湿度范围"
 
 #: src/components/trail-course-review/copy.tsx:144
 msgid "风力暴露"
-msgstr "风力暴露"
+msgstr "受风程度"
 
 #: src/components/trail-course-review/copy.tsx:338
 msgid "食物与饮品混合"
