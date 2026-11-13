@@ -643,7 +643,7 @@ msgstr "缺少必填的训练时间、场地条件或症状信息。"
 
 #: src/components/FeedbackDialog.tsx:64
 msgid "A scrubbed text summary was published to public GitHub. Anyone can view it. Screenshots remain private."
-msgstr "去除个人信息后的文字摘要已发布到公开 GitHub，任何人都可查看。截图保持私密。"
+msgstr "移除个人信息后的文字摘要已在 GitHub 上公开发布，任何人都可以查看。截图不会公开。"
 
 #: src/pages/LabsEnvironment.tsx:96
 msgid "A single activity has too much influence on the result."
@@ -684,7 +684,7 @@ msgstr "高于基线"
 
 #: src/components/RecoveryPanel.tsx:33
 msgid "Above baseline"
-msgstr "高于基线"
+msgstr "高于基准"
 
 #: src/components/RecoveryPanel.tsx:18
 msgid "Above reference band"
@@ -892,7 +892,7 @@ msgstr "请为此重复组至少添加一个步骤。"
 
 #: src/components/PersonalContextPanel.tsx:653
 msgid "Add availability"
-msgstr "调整可训练时间"
+msgstr "添加可训练时间"
 
 #: src/components/trail-course-review/copy.tsx:86
 msgid "Add date"
@@ -1026,7 +1026,7 @@ msgstr "哪些天受影响（可多选）"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1058
 msgid "After a sync, Praxys may replace today's single Praxys-generated hard workout with rest only when same-day HRV crosses your personal caution band."
-msgstr "同步后，仅当日 HRV 越过个人警戒区间时，Praxys 才可能将今天唯一一项由 Praxys 生成的高强度训练改为休息。"
+msgstr "同步后，只有当天 HRV 越过个人警戒区间，Praxys 才可能将当天唯一一项由 Praxys 生成的高强度训练改为休息。"
 
 #: src/components/trail-course-review/copy.tsx:224
 msgid "After restore (unsaved)"
@@ -1458,7 +1458,7 @@ msgstr "可训练时长须为 1 到 1440 之间的整数。"
 #: src/components/PlanStart.tsx:1810
 #: src/components/PlanStart.tsx:1945
 msgid "Available run days"
-msgstr "可跑步的日期"
+msgstr "可安排跑步的日子"
 
 #: src/components/PersonalContextPanel.tsx:268
 msgid "Available terrain"
@@ -1497,7 +1497,7 @@ msgstr "工作段平均{intensityLabel}"
 
 #: src/components/PersonalContextPanel.tsx:1056
 msgid "Avoid names, diagnoses, precise locations, and other private details. Notes are deleted after 30 days even when the structured context remains."
-msgstr "请勿填写姓名、疾病诊断、精确位置等敏感信息。即使其他信息仍在保留期内，补充说明也会在 30 天后删除。"
+msgstr "不要填写姓名、疾病诊断、精确位置等隐私信息。补充说明会在30天后删除，即使结构化信息仍被保留。"
 
 #: src/pages/admin/AdminFeedback.tsx:673
 msgid "Awaiting triage decision"
@@ -1510,7 +1510,7 @@ msgstr "等待分诊判断"
 #: src/components/AiInsightsCard.tsx:150
 #: src/components/AiInsightsCard.tsx:301
 msgid "Azure AI insights are temporarily unavailable."
-msgstr "Azure AI 洞察暂时不可用。"
+msgstr "Azure AI 训练解读暂时不可用。"
 
 #: src/pages/admin/AdminOps.tsx:850
 msgid "Azure alert state unavailable"
@@ -1650,7 +1650,7 @@ msgstr "低于基线"
 
 #: src/components/RecoveryPanel.tsx:34
 msgid "Below baseline"
-msgstr "低于基线"
+msgstr "低于基准"
 
 #: src/components/RecoveryPanel.tsx:20
 msgid "Below caution band"
@@ -2136,7 +2136,7 @@ msgstr "请选择要说明的训练。"
 
 #: src/components/PlanStart.tsx:1812
 msgid "Choose three to six days you can actually keep. Praxys anchors load to your recent median rather than your target-time gap."
-msgstr "请选择你真正能执行的 3 到 6 个跑步日。Praxys 会把负荷锚定在你近期的中位数，而不是目标时间差距。"
+msgstr "选择能坚持跑步的3到6天。Praxys会以近期训练负荷的中位数为依据，而不是按当前成绩与目标完赛时间的差距来安排负荷。"
 
 #: src/components/SetupChecklist.tsx:63
 #: src/pages/Setup.tsx:805
@@ -2170,7 +2170,7 @@ msgstr "请选择这次训练是未完成还是做了调整。"
 
 #: src/pages/Settings.tsx:1326
 msgid "Choose which platform to use for each data type"
-msgstr "为每类数据选择使用哪个平台"
+msgstr "为每类数据选择来源平台"
 
 #: src/components/ManagedPlanSettingsCard.tsx:624
 #~ msgid "Choose who controls the plan and where Praxys delivers it"
@@ -2508,7 +2508,7 @@ msgstr "请先连接一个平台"
 
 #: src/components/ManagedPlanSettingsCard.tsx:894
 msgid "Connect an activity platform above to choose where workouts are delivered."
-msgstr "请先在上方连接活动平台，再选择训练下发位置。"
+msgstr "先在上方连接活动平台，再选择接收训练的平台。"
 
 #: src/pages/McpAuthorization.tsx:161
 msgid "Connect Praxys Coach?"
@@ -2877,7 +2877,7 @@ msgstr "暂时无法停止使用这条信息。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:464
 msgid "Could not update automatic plan changes"
-msgstr "无法更新自动计划调整设置"
+msgstr "无法更新计划自动调整设置"
 
 #: src/components/ManagedPlanSettingsCard.tsx:284
 #~ msgid "Could not update experimental Garmin delivery"
@@ -3990,7 +3990,7 @@ msgstr "影响"
 
 #: src/components/HeatAdaptationPanel.tsx:642
 msgid "Effective heat"
-msgstr "等效热暴露"
+msgstr "有效热暴露"
 
 #: src/components/HeatAdaptationPanel.tsx:270
 #~ msgid "Effective heat minutes"
@@ -4003,7 +4003,7 @@ msgstr "等效热暴露时长"
 #. placeholder {0}: formatThresholdNumber(status.effective_heat_minutes, locale)
 #: src/components/HeatAdaptationPanel.tsx:646
 msgid "Effective heat: {0} of {thresholdMinutes} minutes"
-msgstr "等效热暴露：{0} / {thresholdMinutes} 分钟"
+msgstr "有效热暴露：{0} / {thresholdMinutes} 分钟"
 
 #: src/components/HeatAdaptationPanel.tsx:619
 #~ msgid "Effective heat: {effectiveHeatDisplay} of {thresholdMinutes} minutes"
@@ -4291,7 +4291,7 @@ msgstr "证据距今天数"
 
 #: src/components/PlanStart.tsx:492
 msgid "Evidence differs between running populations"
-msgstr "不同跑者群体的证据差异"
+msgstr "不同跑者群体的研究证据有所不同"
 
 #: src/components/HeatAdaptationPanel.tsx:89
 #~ msgid "Evidence for acclimatization to similar conditions is fading."
@@ -5311,7 +5311,7 @@ msgstr "HRV 分析"
 
 #: src/pages/Today.tsx:289
 msgid "HRV is above your personal reference band. Follow the plan as written."
-msgstr "HRV 高于你的个人参考区间。按计划训练。"
+msgstr "HRV 高于个人参考区间。按计划训练。"
 
 #: src/pages/Today.tsx:250
 #~ msgid "HRV is above your personal reference band. Follow the plan as written.\" \"HRV 高于您的个人参考区间。按原计划训练。"
@@ -5358,7 +5358,7 @@ msgstr "HRV 处于你的个人参考区间内，但模型估算的负荷平衡�
 #: src/components/RecoveryPanel.tsx:19
 #: src/pages/Today.tsx:240
 msgid "HRV is within your Praxys reference band"
-msgstr "HRV 处于你的 Praxys 参考区间内"
+msgstr "HRV 处于 Praxys 参考区间内"
 
 #: src/pages/Today.tsx:244
 #~ msgid "HRV rolling mean is declining. Reduce intensity as a conservative coaching adjustment."
@@ -5681,7 +5681,7 @@ msgstr "它超出非超长距离单日策略范围。"
 
 #: src/components/PersonalContextPanel.tsx:1367
 msgid "It stays in your private history until its purge date, but cannot influence a new assessment."
-msgstr "信息会保留到原定删除时间，但不会再用于新的评估。"
+msgstr "这条信息会保留在私密历史记录中，直到预定删除日期，但不会再用于新的评估。"
 
 #: src/pages/LabsEnvironment.tsx:937
 msgid "Join and analyze my history"
@@ -6330,7 +6330,7 @@ msgstr "托管模式已关闭。已有 <0>{0}</0> 个交付项处理完成；仍
 
 #: src/pages/admin/AdminOps.tsx:937
 msgid "Managed plan delivery"
-msgstr "托管计划下发"
+msgstr "托管计划发送"
 
 #: src/pages/admin/AdminOps.tsx:1012
 msgid "Managed-plan database health is unavailable."
@@ -7016,7 +7016,7 @@ msgstr "尚未保存赛道核对"
 
 #: src/components/RecoveryPanel.tsx:21
 msgid "No current classification"
-msgstr "当前暂无分类"
+msgstr "当前暂无分类结果"
 
 #: src/components/HeatAdaptationPanel.tsx:561
 msgid "No current qualifying condition range yet"
@@ -7720,7 +7720,7 @@ msgstr "只有明确确认距离、计时、协议、路线或场地及训练意
 
 #: src/pages/ActivityDetail.tsx:226
 msgid "Only one recorded metric; overlay unavailable."
-msgstr "只有一条逐时曲线，无法叠加对照。"
+msgstr "仅记录了一项指标，无法叠加对比。"
 
 #: src/components/ActivityTraceChart.tsx:295
 msgid "Only one recorded time; cursor unavailable."
@@ -8131,7 +8131,7 @@ msgstr "历史故障"
 #: src/components/ManagedPlanSettingsCard.tsx:632
 #: src/components/ManagedPlanSettingsCard.tsx:993
 msgid "Pause delivery"
-msgstr "暂停下发"
+msgstr "暂停发送"
 
 #: src/components/ManagedPlanSettingsCard.tsx:940
 msgid "Pause delivery to change the target."
@@ -8244,7 +8244,7 @@ msgstr "计划已采纳。在你明确启用前，投递仍处于禁用状态。
 
 #: src/components/PersonalContextPanel.tsx:626
 msgid "Plan context"
-msgstr "计划个性化信息"
+msgstr "计划相关信息"
 
 #: src/components/GoalPlanReconciliationDialog.tsx:154
 msgid "Plan decision not saved"
@@ -8543,7 +8543,7 @@ msgstr "Praxys 与 {target} 上的版本不同。请选择之后以哪个版本�
 
 #: src/components/ManagedPlanSettingsCard.tsx:704
 msgid "Praxys automatically keeps its workouts in the next 14 days aligned with {targetLabel}."
-msgstr "Praxys 会自动保持未来 14 天的训练与 {targetLabel} 一致。"
+msgstr "未来 14 天内，Praxys 安排的训练会自动与 {targetLabel} 保持一致。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1160
 msgid "Praxys becomes canonical for its own and explicitly adopted workouts."
@@ -8555,7 +8555,7 @@ msgstr "Praxys 创建或明确采纳的训练将以 Praxys 版本为准。"
 
 #: src/components/trail-course-review/copy.tsx:450
 msgid "Praxys cannot anchor a proposal to enough recent running."
-msgstr "Praxys 无法用足够的近期跑步记录约束提案。"
+msgstr "近期跑步记录不足，Praxys 无法据此制定方案。"
 
 #: src/components/trail-course-review/copy.tsx:585
 msgid "Praxys cannot choose which answer should govern the plan."
@@ -10053,7 +10053,7 @@ msgstr "移除日期"
 #: src/components/ManagedPlanSettingsCard.tsx:1404
 #: src/components/ManagedPlanSettingsCard.tsx:1477
 msgid "Remove future Praxys deliveries"
-msgstr "移除未来由 Praxys 下发的训练"
+msgstr "移除 Praxys 发送的后续训练"
 
 #: src/components/FeedbackDialog.tsx:722
 msgid "Remove image"
@@ -10389,7 +10389,7 @@ msgstr "重试队列"
 
 #: src/components/trail-course-review/copy.tsx:388
 msgid "Retry the readiness check"
-msgstr "重新检查准备情况"
+msgstr "重新检查准备度"
 
 #: src/components/trail-course-review/states.tsx:82
 msgid "Retry the request. Unavailable data will not be guessed or replaced."
@@ -10425,7 +10425,7 @@ msgstr "正在重试"
 
 #: src/components/PlanStart.tsx:328
 msgid "Return to regular training without guessing what missing records mean."
-msgstr "在不猜测记录缺失含义的前提下，恢复规律训练。"
+msgstr "恢复规律训练，不必猜测缺失的记录意味着什么。"
 
 #: src/components/PlanStart.tsx:1654
 msgid "Return to that purpose to review or reject it before creating a different draft."
@@ -10530,7 +10530,7 @@ msgstr "查看可选测试"
 #: src/components/AdoptedPlanDetails.tsx:107
 #: src/components/PlanStart.tsx:2221
 msgid "Review plan inputs"
-msgstr "查看计划条件"
+msgstr "查看计划设置"
 
 #: src/pages/McpAuthorization.tsx:41
 msgid "Review plan outcomes"
@@ -10554,15 +10554,15 @@ msgstr "查看准备度"
 
 #: src/components/PlanStart.tsx:364
 msgid "Review readiness before generating a proposal."
-msgstr "生成方案前，请先检查准备情况。"
+msgstr "生成方案前，先评估准备度。"
 
 #: src/components/PlanStart.tsx:365
 msgid "Review readiness for your current Goal before generating a proposal."
-msgstr "生成方案前，请先检查当前目标的准备情况。"
+msgstr "生成方案前，先评估当前目标的准备度。"
 
 #: src/components/PlanStart.tsx:363
 msgid "Review readiness without changing your current Goal."
-msgstr "先检查准备情况，当前目标保持不变。"
+msgstr "先评估准备度，当前目标保持不变。"
 
 #: src/components/trail-course-review/copy.tsx:454
 msgid "Review recent running"
@@ -11286,7 +11286,7 @@ msgstr "只填写会影响训练计划的内容。"
 
 #: src/components/PersonalContextPanel.tsx:630
 msgid "Share only what could change your plan. Praxys keeps it private, never guesses why training changed, and uses it only for the purpose and active period you confirm."
-msgstr "只分享可能改变训练计划的信息。Praxys 会将其保密，不猜测训练变化原因，并仅在确认的用途和有效期内使用。"
+msgstr "只分享可能改变训练计划的信息。Praxys 会对这些信息保密，不会猜测训练变化的原因。信息只用于你确认的用途，且仅在你确认的有效期内使用。"
 
 #: src/components/trail-course-review/copy.tsx:307
 msgid "Sheltered"
@@ -11472,7 +11472,7 @@ msgstr "部分适应可能仍然存在"
 
 #: src/pages/LabsEnvironment.tsx:80
 msgid "Some parts of the environmental range do not have enough independent activity support."
-msgstr "环境范围的部分区间缺少足够的独立活动支持。"
+msgstr "部分环境区间缺少足够的独立活动数据支持。"
 
 #: src/components/HeatAdaptationPanel.tsx:155
 msgid "Some prior heat adaptation may persist, while response-specific evidence may already be declining."
@@ -11693,7 +11693,7 @@ msgstr "停止本次测试"
 #: src/components/PersonalContextPanel.tsx:1400
 #: src/components/PersonalContextPanel.tsx:1424
 msgid "Stop using"
-msgstr "停止用于计划"
+msgstr "停止使用"
 
 #: src/components/PersonalContextPanel.tsx:1362
 msgid "Stop using this context?"
@@ -12433,11 +12433,11 @@ msgstr "目标响应与能力响应已不一致。创建提案前请刷新。"
 
 #: src/components/TrailCourseReview.tsx:970
 msgid "The inactive Trail API reported no Trail draft to delete. Your Praxys account was not deleted."
-msgstr "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 返回结果显示，没有可删除的越野草稿。Praxys 账号未删除。"
 
 #: src/components/TrailCourseReview.tsx:966
 msgid "The inactive Trail API reported the Trail draft deleted. Your Praxys account was not deleted."
-msgstr "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 返回结果显示，越野草稿已删除。Praxys 账号未删除。"
 
 #: src/pages/admin/AdminOps.tsx:816
 msgid "The incident aggregate could not be refreshed."
@@ -12736,7 +12736,7 @@ msgstr "目标平台版本不可用。"
 
 #: src/components/HeatAdaptationPanel.tsx:675
 msgid "The thresholds are Praxys operational estimates grounded in heat-acclimatization research, not a direct physiological measurement."
-msgstr "这些阈值是 Praxys 基于热适应研究设定的操作性估计，并非直接的生理测量。"
+msgstr "这些阈值是 Praxys 根据热适应研究得出的估算值，用于实际应用，并非直接测得的生理数据。"
 
 #: src/components/trail-course-review/copy.tsx:227
 msgid "The Trail course review changed"
@@ -12873,7 +12873,7 @@ msgstr "此确定性结果使用政策响应中列出的已发表和试点护栏
 
 #: src/components/PlanStart.tsx:360
 msgid "This direction is supported, but the available training evidence needs review first."
-msgstr "支持这个训练方向，但需要先查看现有训练证据是否足够。"
+msgstr "支持这个训练方向，但需要先评估现有训练数据。"
 
 #: src/components/PersonalContextPanel.tsx:928
 #: src/components/PersonalContextPanel.tsx:1143
@@ -13138,7 +13138,7 @@ msgstr "该结果使用了旧版实验模型，需要重新运行。"
 
 #: src/components/PlanStart.tsx:1800
 msgid "This reviewed 10K performance capability uses adult confirmation, direct 10K evidence, and history-anchored load caps. It does not diagnose, clear, or guarantee a performance outcome."
-msgstr "这个经过审查的 10K 表现能力使用成人确认、直接 10K 证据和以近期历史为锚的负荷上限。它不用于诊断、出具许可或保证成绩结果。"
+msgstr "这项经过审核的10公里成绩训练功能会确认使用者已成年，参考直接的10公里成绩数据，并根据历史训练数据设定负荷上限。不用于医学诊断或判定能否参加运动，也不保证成绩。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1056
 #~ msgid "This revokes access immediately and pauses managed delivery when Garmin is your target."
@@ -13147,7 +13147,7 @@ msgstr "这个经过审查的 10K 表现能力使用成人确认、直接 10K �
 #: src/components/TrailCourseReview.tsx:767
 #: src/components/TrailCourseReview.tsx:793
 msgid "This section could not be confirmed."
-msgstr "无法确认本节。"
+msgstr "无法确认这部分内容。"
 
 #: src/components/TrailCourseReview.tsx:739
 msgid "This section has no safe revision to confirm. Reload and review it again."
@@ -13782,7 +13782,7 @@ msgstr "至 {0}"
 
 #: src/components/GoalPlanReconciliationDialog.tsx:146
 msgid "Until you adopt a replacement, your current workouts and delivery continue unchanged."
-msgstr "在采纳替代计划之前，当前训练和下发保持不变。"
+msgstr "采纳替代计划前，当前训练安排保持不变，并照常下发。"
 
 #: src/components/GoalBaselinePanel.tsx:589
 msgid "Unusually severe breathlessness"
@@ -13906,7 +13906,7 @@ msgstr "使用已确认的信息生成计划"
 
 #: src/components/PlanStart.tsx:323
 msgid "Use current evidence to work toward a faster result."
-msgstr "使用当前证据争取更快的结果。"
+msgstr "依据现有数据，争取跑出更快的成绩。"
 
 #: src/components/GoalEditor.tsx:53
 msgid "Use direct 10K history first, then decide whether to choose an optional benchmark date"
@@ -14220,7 +14220,7 @@ msgstr "天气影响"
 
 #: src/components/HeatAdaptationPanel.tsx:486
 msgid "Weather evidence"
-msgstr "天气证据"
+msgstr "天气依据"
 
 #: src/components/trail-course-review/copy.tsx:329
 msgid "Weather shell"
@@ -14466,7 +14466,7 @@ msgstr "处理中…"
 
 #: src/components/HeatAdaptationPanel.tsx:482
 msgid "Workload evidence"
-msgstr "负荷证据"
+msgstr "负荷依据"
 
 #: src/components/ManagedPlanSettingsCard.tsx:573
 #: src/components/PersonalContextPanel.tsx:799
@@ -14663,7 +14663,7 @@ msgstr "当前目标保持不变。生成方案前，先确认适用条件和可
 
 #: src/components/GoalPlanReconciliationDialog.tsx:130
 msgid "Your current plan was built for your previous Goal. Review a successor proposal, keep this plan as an independent plan, or decide later."
-msgstr "当前计划基于之前的目标。可以查看后续草案、将当前计划保留为独立计划，或稍后决定。"
+msgstr "当前计划基于之前的目标。可以查看替代计划草案、保留当前计划并将其设为独立计划，或稍后再决定。"
 
 #: src/components/trail-course-review/copy.tsx:201
 #: src/pages/Settings.tsx:660
@@ -14692,19 +14692,19 @@ msgstr "你的反馈已收到，但 Praxys 无法确认是否已创建公开 Git
 
 #: src/components/FeedbackDialog.tsx:62
 msgid "Your feedback was saved privately and needs manual review. No public GitHub issue has been created yet."
-msgstr "你的反馈已私下保存，且需要人工审核。目前尚未创建公开 GitHub issue。"
+msgstr "反馈已保存，不对外公开，仍需人工审核。目前尚未生成 GitHub 公开议题。"
 
 #: src/components/FeedbackDialog.tsx:53
 msgid "Your feedback was saved privately. No public GitHub issue will be created from this submission."
-msgstr "你的反馈已私下保存。本次提交不会创建公开 GitHub issue。"
+msgstr "反馈已保存，不对外公开。本次提交不会生成 GitHub 公开议题。"
 
 #: src/components/FeedbackDialog.tsx:74
 msgid "Your feedback was saved privately. Public GitHub publishing is currently unavailable, so no public issue was created."
-msgstr "你的反馈已私下保存。公开发布到 GitHub 目前不可用，因此未创建公开 issue。"
+msgstr "反馈已保存，不对外公开。目前无法在 GitHub 上公开发布，因此未生成公开议题。"
 
 #: src/components/FeedbackDialog.tsx:56
 msgid "Your feedback was saved. Its scrubbed text summary is queued for review. No public GitHub issue has been created yet, and publication is not guaranteed. Screenshots remain private."
-msgstr "你的反馈已保存。去除个人信息后的文字摘要已进入审核队列。目前尚未创建公开 GitHub issue，且不保证一定发布。截图保持私密。"
+msgstr "反馈已保存。移除个人信息后的文字摘要正在等待审核。目前尚未生成 GitHub 公开议题，审核后也不一定会发布。截图不会公开。"
 
 #: src/pages/Settings.tsx:1091
 #: src/pages/Setup.tsx:925
@@ -15490,11 +15490,11 @@ msgstr "未列出强制装备"
 
 #: src/components/TrailCourseReview.tsx:967
 msgid "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
-msgstr "未启用的越野 API 已报告删除越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 返回结果显示，越野草稿已删除。Praxys 账号未删除。"
 
 #: src/components/TrailCourseReview.tsx:971
 msgid "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
-msgstr "未启用的越野 API 报告没有可删除的越野草稿。你的 Praxys 账号未被删除。"
+msgstr "未启用的越野 API 返回结果显示，没有可删除的越野草稿。Praxys 账号未删除。"
 
 #: src/components/trail-course-review/copy.tsx:341
 msgid "未影响计划"
