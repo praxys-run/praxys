@@ -9793,7 +9793,7 @@ msgstr "恢复数据尚未同步，当前显示最近一次读数（{recoveryLat
 
 #: src/pages/Today.tsx:89
 msgid "Recovery data incomplete"
-msgstr "恢复数据待补齐"
+msgstr "恢复数据不完整"
 
 #: src/components/SignalHero.tsx:25
 #: src/pages/Today.tsx:85
@@ -11858,7 +11858,7 @@ msgstr "可分析时段覆盖率"
 
 #: src/components/AiInsightsCard.tsx:394
 msgid "Supporting observations"
-msgstr "支撑观测"
+msgstr "解读依据"
 
 #: src/pages/Today.tsx:316
 msgid "Swap {workout} for easy run"
@@ -13477,7 +13477,7 @@ msgstr "越野跑"
 
 #: src/pages/Today.tsx:86
 msgid "Train to your broader plan"
-msgstr "结合整体计划训练"
+msgstr "按整体计划训练"
 
 #: src/components/GoalEditor.tsx:47
 msgid "Train toward a specific race date"
