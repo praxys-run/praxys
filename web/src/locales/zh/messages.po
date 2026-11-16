@@ -277,7 +277,7 @@ msgstr "{0}：纳入 {1} 次，已观察但未纳入 {excluded} 次"
 
 #: src/pages/Goal.tsx:221
 msgid "{abbrev} is <0>{dirLabel}</0>. Add more activities for a race-time prediction."
-msgstr "{abbrev} <0>{dirLabel}</0>。再同步一些活动后即可生成比赛时间预测。"
+msgstr "{abbrev}<0>{dirLabel}</0>。添加更多活动，以预测比赛完赛时间。"
 
 #. placeholder {0}: steps.length
 #: src/components/SetupChecklist.tsx:99
@@ -680,7 +680,7 @@ msgstr "关于这份计划"
 
 #: src/pages/Today.tsx:141
 msgid "above baseline"
-msgstr "高于基线"
+msgstr "高于基准"
 
 #: src/components/RecoveryPanel.tsx:33
 msgid "Above baseline"
@@ -692,11 +692,11 @@ msgstr "高于参考区间"
 
 #: src/components/WorkoutStructureEditor.tsx:126
 msgid "Absolute heart rate in beats per minute."
-msgstr "绝对心率（次/分钟）。"
+msgstr "以次/分钟为单位的心率。"
 
 #: src/components/WorkoutStructureEditor.tsx:124
 msgid "Absolute running power in watts."
-msgstr "绝对跑步功率（瓦）。"
+msgstr "以瓦为单位的跑步功率。"
 
 #: src/components/charts/FormSparkline.tsx:29
 #~ msgid "Absorbing training while maintaining fitness."
@@ -1215,7 +1215,7 @@ msgstr "分析 / 活动记录"
 
 #: src/pages/admin/AdminFeedback.tsx:294
 msgid "Analysis and routing refreshed. This action grants no publication permission and does not directly create a GitHub issue. Feedback that already has current publication authorization may still continue through the normal review and publication gates."
-msgstr "已刷新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已经具备当前发布授权的合格反馈，仍可能继续通过正常的审核与发布门禁。"
+msgstr "已更新分析和分流结果。此操作不会授予发布权限，也不会直接创建 GitHub Issue。已有当前有效发布授权的反馈，仍可能继续进入常规审核和发布门禁流程。"
 
 #: src/components/ActivityDFA.tsx:160
 msgid "Analysis is unavailable. Refresh the recording or try again."
@@ -1519,7 +1519,7 @@ msgstr "Azure 警报状态暂不可用"
 #. placeholder {0}: alerts.firing
 #: src/pages/admin/AdminOps.tsx:602
 msgid "Azure alerts firing: {0}"
-msgstr "Azure 告警触发：{0}"
+msgstr "当前触发的 Azure 告警：{0}"
 
 #: src/pages/admin/AdminOps.tsx:1650
 msgid "Azure logs"
@@ -1646,7 +1646,7 @@ msgstr "开始前，请确认"
 
 #: src/pages/Today.tsx:142
 msgid "below baseline"
-msgstr "低于基线"
+msgstr "低于基准"
 
 #: src/components/RecoveryPanel.tsx:34
 msgid "Below baseline"
@@ -1707,7 +1707,7 @@ msgstr "问题反馈"
 
 #: src/pages/admin/AdminFeedback.tsx:445
 msgid "Bug reports and feature requests submitted from the app. Priority orders work; it never determines agent readiness."
-msgstr "应用内提交的错误报告和功能请求。优先级只用于排序，绝不决定是否为 agent-ready。"
+msgstr "应用内提交的缺陷报告和功能请求。优先级只决定处理顺序，不决定是否可由智能体处理。"
 
 #: src/components/GoalEditor.tsx:116
 #~ msgid "Build fitness over time"
@@ -3167,7 +3167,7 @@ msgstr "当前为基于 {0} 的训练"
 #: src/components/WorkoutPlanEditor.tsx:458
 #: src/components/WorkoutPlanEditor.tsx:746
 msgid "Custom wording"
-msgstr "自定义措辞"
+msgstr "自定义描述"
 
 #: src/components/WorkoutPlanEditor.tsx:755
 msgid "Custom workout purpose"
@@ -3312,7 +3312,7 @@ msgstr "默认（英文）"
 
 #: src/pages/Science.tsx:28
 msgid "Defines what counts as easy, threshold, hard."
-msgstr "划分轻松、阈值和高强度的范围。"
+msgstr "划分轻松训练、乳酸阈训练和高强度训练的区间。"
 
 #: src/pages/admin/AdminOps.tsx:717
 #: src/pages/Status.tsx:83
@@ -3540,7 +3540,7 @@ msgstr "拒绝"
 
 #: src/components/trail-course-review/copy.tsx:35
 msgid "Describe the course and where you can train. Praxys will keep unknowns visible."
-msgstr "填写赛道情况和可训练条件。Praxys 会明确保留未知项。"
+msgstr "填写赛道情况和可训练的地点。Praxys 会明确标出尚不清楚的信息。"
 
 #: src/components/HeatAdaptationPanel.tsx:447
 msgid "Detailed activity evidence is unavailable for this day."
@@ -3686,7 +3686,7 @@ msgstr "关闭"
 
 #: src/pages/Login.tsx:680
 msgid "Display preferences"
-msgstr "显示偏好"
+msgstr "显示设置"
 
 #: src/components/SplitBreakdown.tsx:47
 msgid "Dist"
@@ -4165,7 +4165,7 @@ msgstr "以分:秒/公里输入配速。"
 
 #: src/components/WorkoutStructureEditor.tsx:134
 msgid "Enter pace as minutes:seconds per mile."
-msgstr "以分:秒/英里输入配速。"
+msgstr "按“分:秒”格式输入每英里配速。"
 
 #: src/components/trail-course-review/copy.tsx:68
 msgid "Enter percentages for the five fixed grade bands. The total must be exactly 100.00%."
@@ -4229,7 +4229,7 @@ msgstr "时间对齐为估算值"
 
 #: src/pages/Science.tsx:29
 msgid "Estimates acclimatization from recent qualifying conditions."
-msgstr "根据近期符合条件的环境估算热适应。"
+msgstr "根据近期符合条件的环境估算热适应程度。"
 
 #: src/pages/Science.tsx:27
 msgid "Estimates race performance from current fitness."
@@ -4866,7 +4866,7 @@ msgstr "Garmin International 和 Garmin China 是两套独立的账号系统。�
 
 #: src/pages/Settings.tsx:1043
 msgid "Garmin International and Garmin China are separate accounts. To switch, disconnect and reconnect with the other account."
-msgstr "Garmin International 和 Garmin China 是两套独立的账号。要切换，请先断开连接，再用另一个账号重新连接。"
+msgstr "Garmin 国际区和中国区的账号相互独立。如需切换，请先断开连接，再用另一个账号重新连接。"
 
 #: src/pages/Settings.tsx:1303
 msgid "Garmin native running power reads ~30% higher than Stryd for the same athlete — they measure different things. Zones and benchmarks calibrated on Stryd (most coach references, most training literature) will not directly transfer. Your power data will still be internally consistent for tracking progress, but don't compare CP values across the two systems."
@@ -4919,7 +4919,7 @@ msgstr "生成器"
 
 #: src/pages/Login.tsx:321
 msgid "Get access"
-msgstr "获取访问权限"
+msgstr "获取使用资格"
 
 #: src/components/SetupChecklist.tsx:94
 msgid "Get started with Praxys"
@@ -5184,7 +5184,7 @@ msgstr "仅描述历史关联 · 个人聚合结果 · 需要连续 Stryd 样本
 
 #: src/pages/LabsEnvironment.tsx:1189
 msgid "Historical association; not predictively validated"
-msgstr "存在历史关联；尚未通过预测验证"
+msgstr "历史数据存在关联；预测能力尚未验证"
 
 #: src/pages/LabsEnvironment.tsx:481
 msgid "Historical environmental-response curve"
@@ -5250,7 +5250,7 @@ msgstr "时:分:秒"
 
 #: src/pages/Settings.tsx:893
 msgid "How often Praxys pulls new data in the background. Lower frequency uses less network and respects platform rate limits."
-msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络使用，也能避免触发平台访问频率限制。"
+msgstr "Praxys 在后台同步新数据的频率。降低频率可减少网络流量，也能避免触发平台访问频率限制。"
 
 #: src/components/HeatAdaptationPanel.tsx:383
 #~ msgid "How this estimate was built"
@@ -5626,7 +5626,7 @@ msgstr "时间格式无效。请使用 H:MM:SS 或 H:MM"
 #: src/pages/admin/AdminIncidents.tsx:38
 #: src/pages/Status.tsx:91
 msgid "Investigating"
-msgstr "调查中"
+msgstr "排查中"
 
 #: src/pages/Login.tsx:597
 msgid "Invitation code"
@@ -6092,7 +6092,7 @@ msgstr "负荷（{label}）"
 
 #: src/components/charts/ComplianceChart.tsx:61
 msgid "load (Running Stress Score)"
-msgstr "负荷（跑步压力分 RSS）"
+msgstr "负荷（跑步压力评分）"
 
 #: src/pages/Science.tsx:25
 msgid "Load & Fitness"
@@ -6187,7 +6187,7 @@ msgstr "长期负荷高于近期负荷"
 
 #: src/pages/Analysis.tsx:237
 msgid "Long-term load, recent load, and their modeled balance over time."
-msgstr "长期负荷、近期负荷及两者随时间变化的模型平衡。"
+msgstr "长期负荷、近期负荷，以及模型估算的两者平衡状态随时间的变化。"
 
 #: src/components/charts/FormSparkline.tsx:26
 msgid "Long-term modeled load is above recent modeled load."
@@ -6338,7 +6338,7 @@ msgstr "托管计划数据库健康状态暂不可用。"
 
 #: src/pages/admin/AdminOps.tsx:613
 msgid "Managed-plan deliveries needing attention: {managedAttentionCount}"
-msgstr "需要关注的托管计划下发：{managedAttentionCount}"
+msgstr "需关注的托管计划下发任务：{managedAttentionCount}"
 
 #: src/pages/admin/AdminOps.tsx:614
 msgid "Managed-plan delivery queue is clear"
@@ -6384,7 +6384,7 @@ msgstr "手动记圈"
 
 #: src/pages/admin/AdminFeedback.tsx:193
 msgid "Manual publication review"
-msgstr "需要人工发布审核"
+msgstr "发布需人工审核"
 
 #: src/pages/LabsEnvironment.tsx:331
 msgid "manual recomputes remaining"
@@ -6940,7 +6940,7 @@ msgstr "暂无已接受政策"
 
 #: src/pages/McpAuthorization.tsx:284
 msgid "No access was granted. You can close this tab and return to the plugin."
-msgstr "未授予任何权限。你可以关闭此页面并返回插件。"
+msgstr "未授予访问权限。可以关闭此标签页并返回插件。"
 
 #: src/components/PlanStart.tsx:365
 #~ msgid "No active automatic policy matches this intent and distance yet."
@@ -6984,7 +6984,7 @@ msgstr "尚未用于任何评估或计划调整。"
 
 #: src/pages/admin/AdminOps.tsx:603
 msgid "No Azure alerts firing"
-msgstr "未触发 Azure 警报"
+msgstr "当前无 Azure 告警触发"
 
 #: src/pages/admin/AdminOps.tsx:1526
 msgid "No change class is promoted. Decisions and outcomes are being recorded while merge remains review-gated."
@@ -7249,7 +7249,7 @@ msgstr "没有保存逐时距离轨迹。"
 
 #: src/components/trail-course-review/copy.tsx:158
 msgid "No required equipment listed"
-msgstr "未列出强制装备"
+msgstr "未列出必备装备"
 
 #: src/components/PlanStart.tsx:1866
 #~ msgid "No safety stop"
@@ -7336,7 +7336,7 @@ msgstr "这次活动没有保存逐时采样。"
 
 #: src/pages/admin/AdminOps.tsx:1442
 msgid "No Today events were recorded in this window."
-msgstr "在此时间窗口内未记录 Today 事件。"
+msgstr "此时间段内没有记录到“今日”事件。"
 
 #: src/components/WorkoutStructureEditor.tsx:123
 msgid "No unit or reference"
@@ -8191,11 +8191,11 @@ msgstr "0–10 级主观用力程度。"
 
 #: src/components/WorkoutStructureEditor.tsx:125
 msgid "Percentage of the athlete's current critical power."
-msgstr "当前临界功率的百分比。"
+msgstr "当前阈值功率的百分比。"
 
 #: src/components/WorkoutStructureEditor.tsx:127
 msgid "Percentage of the athlete's lactate-threshold heart rate."
-msgstr "乳酸阈心率的百分比。"
+msgstr "乳酸阈值心率的百分比。"
 
 #: src/components/trail-course-review/copy.tsx:498
 msgid "Performance planning stops; Praxys makes no diagnosis."
@@ -8853,7 +8853,7 @@ msgstr "按 Riegel 公式预测（T₂ = T₁ × (D₂/D₁)^1.06），将阈值
 
 #: src/pages/Goal.tsx:80
 msgid "Predicted using Stryd race power model (5K at 103.8% CP, marathon at 89.9% CP)."
-msgstr "按 Stryd 比赛功率模型预测（5K 取 103.8% CP，马拉松取 89.9% CP）。"
+msgstr "按 Stryd 比赛功率模型预测（5公里比赛功率取 CP 的 103.8%，马拉松取 CP 的 89.9%）。"
 
 #: src/components/PersonalContextPanel.tsx:233
 msgid "Prefer not to say"
@@ -9522,7 +9522,7 @@ msgstr "近期负荷高于长期负荷"
 
 #: src/components/charts/FormSparkline.tsx:30
 msgid "Recent modeled load is above long-term modeled load."
-msgstr "近期模型负荷高于长期模型负荷。"
+msgstr "模型估算的近期负荷高于长期负荷。"
 
 #: src/components/charts/FormSparkline.tsx:28
 msgid "Recent modeled load is moderately above long-term modeled load."
@@ -9630,7 +9630,7 @@ msgstr "重新计算结果"
 
 #: src/pages/admin/AdminOps.tsx:1187
 msgid "Reconcile and replay"
-msgstr "对账并重试"
+msgstr "核对并重试"
 
 #: src/pages/admin/AdminOps.tsx:680
 msgid "Reconciliation completed without replaying a workout."
@@ -9731,7 +9731,7 @@ msgstr "记录分段"
 
 #: src/pages/ActivityDetail.tsx:105
 msgid "Recorded time and activity duration do not align."
-msgstr "采样时钟与活动时长不一致。"
+msgstr "记录的时间与活动时长不一致。"
 
 #: src/components/ActivityDFA.tsx:228
 msgid "Recording metadata cannot resolve the RR source. Automatic analysis is unavailable for this recording."
@@ -10433,7 +10433,7 @@ msgstr "请返回该计划用途，先审核或拒绝现有草稿，再创建其
 
 #: src/pages/McpAuthorization.tsx:278
 msgid "Return to the plugin to finish the one-time exchange. You can close this tab."
-msgstr "返回插件以完成一次性交换。你可以关闭此页面。"
+msgstr "返回插件，完成一次性交换。可以关闭此标签页。"
 
 #: src/components/PersonalContextPanel.tsx:1524
 #~ msgid "Review AI access"
@@ -10477,7 +10477,7 @@ msgstr "查看可比训练经历"
 #: src/components/UpcomingPlanCard.tsx:484
 #: src/components/UpcomingPlanCard.tsx:1555
 msgid "Review conflict"
-msgstr "处理冲突"
+msgstr "查看冲突"
 
 #: src/pages/admin/AdminOps.tsx:902
 msgid "Review delivery queue"
@@ -10949,7 +10949,7 @@ msgstr "保存仅代表同意用于上述用途，不代表同意其他用途、
 
 #: src/pages/McpAuthorization.tsx:311
 msgid "Saving decision…"
-msgstr "正在保存决定…"
+msgstr "正在保存选择…"
 
 #: src/components/ManagedPlanSettingsCard.tsx:926
 msgid "Saving target…"
@@ -11037,11 +11037,11 @@ msgstr "秒"
 
 #: src/components/WorkoutStructureEditor.tsx:137
 msgid "Seconds per kilometre faster or slower than threshold pace."
-msgstr "相对阈值配速快或慢的秒数（每公里）。"
+msgstr "每公里比阈值配速快或慢的秒数。"
 
 #: src/components/WorkoutStructureEditor.tsx:138
 msgid "Seconds per mile faster or slower than threshold pace."
-msgstr "相对阈值配速快或慢的秒数（每英里）。"
+msgstr "每英里比阈值配速快或慢的秒数。"
 
 #: src/pages/Settings.tsx:1189
 #: src/pages/Setup.tsx:1065
@@ -11125,7 +11125,7 @@ msgstr "发送反馈"
 
 #: src/pages/admin/AdminUsers.tsx:485
 msgid "Sending an invitation reserves a seat. Self-registration closes automatically at the cap, so review readiness before raising it."
-msgstr "发送邀请会占用一个席位。达到上限时自助注册会自动关闭，因此提高上限前请先检查就绪情况。"
+msgstr "发送邀请会预留一个名额。达到上限后，自助注册会自动关闭。提高上限前，请先确认准备情况。"
 
 #: src/components/ManagedPlanSettingsCard.tsx:606
 #~ msgid "Sending workouts to {targetLabel}"
@@ -11143,7 +11143,7 @@ msgstr "发送中…"
 
 #: src/pages/admin/AdminFeedback.tsx:234
 msgid "Sensitivity gate"
-msgstr "敏感信息门槛"
+msgstr "敏感信息门禁"
 
 #: src/components/AiInsightsCard.tsx:426
 msgid "Sent"
@@ -11322,15 +11322,15 @@ msgstr "不应标记为 agent-ready：信息不足"
 
 #: src/pages/admin/AdminFeedback.tsx:253
 msgid "Should not be agent-ready — needs product judgment"
-msgstr "不应标记为 agent-ready：需要产品判断"
+msgstr "不应标记为“可由智能体处理”：需要产品层面的判断"
 
 #: src/pages/admin/AdminFeedback.tsx:249
 msgid "Should not be agent-ready — not a defect"
-msgstr "不应标记为 agent-ready：不是缺陷"
+msgstr "不应标记为“可由智能体处理”：不是缺陷"
 
 #: src/pages/admin/AdminFeedback.tsx:257
 msgid "Should not be agent-ready — other"
-msgstr "不应标记为 agent-ready：其他原因"
+msgstr "不应标记为“可由智能体处理”：其他原因"
 
 #: src/pages/admin/AdminFeedback.tsx:155
 #~ msgid "Should not be agent-ready — sensitive or high risk"
@@ -13318,7 +13318,7 @@ msgstr "首个采样点起算；活动开始时间未核实"
 
 #: src/components/ActivityDataInformation.tsx:21
 msgid "Time is measured from the first stored sample; activity start time is unverified."
-msgstr "时间以首个已存采样点为起点；活动开始时刻尚未核实。"
+msgstr "时间从首个已保存的采样点算起；活动开始时间尚未核实。"
 
 #: src/components/ActivityDataInformation.tsx:22
 msgid "Time is measured from the recorded activity start."
@@ -13437,7 +13437,7 @@ msgstr "已记录用户总数"
 
 #: src/components/WorkoutStructureEditor.tsx:945
 msgid "Totals are deterministic only when every repeated step has the same measurable termination. Praxys does not invent a training-load score here."
-msgstr "仅当每个重复步骤具有同一可测结束条件时，总计才是确定的。Praxys 不会在此虚构训练负荷分数。"
+msgstr "只有每个重复步骤的结束条件都相同且可量化，才能确定总计。Praxys 不会在这里凭空生成训练负荷评分。"
 
 #: src/components/PersonalContextPanel.tsx:249
 #: src/components/PersonalContextPanel.tsx:258
@@ -14107,7 +14107,7 @@ msgstr "里程"
 
 #: src/pages/LabsEnvironment.tsx:1142
 msgid "Voluntary experiments that help you inspect your own training history without turning early research into advice."
-msgstr "自愿参与的实验，帮助理解个人训练历史，同时不把早期研究包装成建议。"
+msgstr "自愿参与的实验，帮助回顾自己的训练记录，不把早期研究结果当作建议。"
 
 #. placeholder {0}: data.diagnosis.theory_name
 #: src/pages/Analysis.tsx:259
@@ -14281,7 +14281,7 @@ msgstr "周训练负荷"
 
 #: src/components/PlanStart.tsx:1837
 msgid "Weekly time limit (minutes)"
-msgstr "每周时间上限（分钟）"
+msgstr "每周时长上限（分钟）"
 
 #: src/components/trail-course-review/copy.tsx:82
 msgid "Weekly training time available"
@@ -14396,7 +14396,7 @@ msgstr "整次活动的覆盖情况"
 
 #: src/components/ManagedPlanSettingsCard.tsx:1096
 msgid "Why this is conservative"
-msgstr "为什么这是保守调整"
+msgstr "为什么偏保守"
 
 #: src/pages/LabsEnvironment.tsx:948
 msgid "Why this remains experimental"
