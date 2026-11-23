@@ -1042,7 +1042,7 @@ msgstr "Agent-ready 判断"
 
 #: src/pages/admin/AdminFeedback.tsx:666
 msgid "Agent-ready applies only to feedback already linked to a public GitHub issue. A positive judgment synchronizes the label; when it newly labels an open, non-backlogged linked issue, the assignment workflow hands it to Copilot. A negative judgment removes the label, but an existing assignment or PR may remain."
-msgstr "仅当反馈已关联到公开的 GitHub Issue 时，agent-ready 才适用。肯定判断会同步该标签；若标签被新加到一个未进入待办且尚未分派的开放 Issue，分派工作流会将其交给 Copilot。否定判断会移除标签，但已有的分派或 PR 可能仍会保留。"
+msgstr "Agent-ready 仅适用于已关联公开 GitHub Issue 的反馈。判断结果为肯定时，会同步该标签；如果标签是新添加到尚未关闭且未列入待办的关联 Issue 上，分派流程会将该 Issue 交给 Copilot。判断结果为否定时，会移除标签，但已有的分派或 PR 可能仍会保留。"
 
 #: src/pages/admin/AdminOps.tsx:1603
 msgid "agent-ready candidates"
@@ -1424,7 +1424,7 @@ msgstr "恢复状态自动调整"
 
 #: src/pages/admin/AdminOps.tsx:446
 msgid "Automatic retries exhausted"
-msgstr "自动重试已耗尽"
+msgstr "自动重试次数已用完"
 
 #: src/components/PersonalContextPanel.tsx:218
 #: src/components/PersonalContextPanel.tsx:219
@@ -3450,7 +3450,7 @@ msgstr "下发任务卡在进行中"
 
 #: src/pages/admin/AdminOps.tsx:440
 msgid "Delivery never started"
-msgstr "下发尚未开始"
+msgstr "下发一直未开始"
 
 #: src/components/ManagedPlanSettingsCard.tsx:520
 msgid "Delivery off"
@@ -3758,7 +3758,7 @@ msgstr "不要重试此项。下发安全策略已将此次失败标记为不可
 
 #: src/pages/admin/AdminOps.tsx:458
 msgid "Do not replay this item. The athlete must resolve it from the plan reconciliation flow."
-msgstr "不要重试此项。运动员必须通过计划对账流程处理。"
+msgstr "不要重试此项。运动员必须通过计划核对流程解决此问题。"
 
 #: src/components/trail-course-review/copy.tsx:111
 msgid "Do you currently have symptoms that should stop performance planning?"
@@ -5324,7 +5324,7 @@ msgstr "HRV 高于你的 Praxys 参考区间"
 
 #: src/pages/Today.tsx:275
 msgid "HRV is below your personal caution band. Keep today easy to support recovery."
-msgstr "HRV 低于你的个人警戒区间。今天轻松练，帮助恢复。"
+msgstr "HRV 低于个人警戒区间。今天轻松训练，帮助恢复。"
 
 #: src/pages/Today.tsx:236
 #~ msgid "HRV is below your personal caution band. Keep today easy to support recovery.\" \"HRV 低于您的个人警戒区间。今天保持轻松，以支持恢复。"
@@ -5332,7 +5332,7 @@ msgstr "HRV 低于你的个人警戒区间。今天轻松练，帮助恢复。"
 
 #: src/pages/Today.tsx:273
 msgid "HRV is below your personal caution band. Treat this as a recovery signal, not a diagnosis."
-msgstr "HRV 低于你的个人警戒区间。这是恢复信号，不是诊断。"
+msgstr "HRV 低于个人警戒区间。这是恢复信号，不能作为诊断依据。"
 
 #: src/pages/Today.tsx:234
 #~ msgid "HRV is below your personal caution band. Treat this as a recovery signal, not a diagnosis.\" \"HRV 低于您的个人警戒区间。请将其视为恢复提示，而非诊断结论。"
@@ -5370,11 +5370,11 @@ msgstr "HRV 处于你的 Praxys 参考区间内"
 
 #: src/pages/Today.tsx:279
 msgid "HRV rolling mean is lower than its prior window. Reduce intensity as a conservative coaching adjustment."
-msgstr "HRV 滚动均值低于前一个窗口。保守起见，降低强度。"
+msgstr "HRV 滚动均值低于上一统计周期的均值。保守起见，降低强度。"
 
 #: src/pages/Today.tsx:281
 msgid "HRV rolling mean is lower than its prior window. Stay easy today."
-msgstr "HRV 滚动均值低于前一窗口。今天轻松训练。"
+msgstr "HRV 滚动均值低于上一统计周期的均值。今天轻松训练。"
 
 #: src/pages/Today.tsx:246
 #~ msgid "HRV trend is declining. Stay easy today."
@@ -5732,7 +5732,7 @@ msgstr "跳转时间"
 
 #: src/pages/Today.tsx:306
 msgid "Keep any optional movement easy and short"
-msgstr "如有可选活动，请保持轻松且简短"
+msgstr "如果选择活动，也要保持轻松，时间不要太长"
 
 #: src/pages/Today.tsx:267
 #~ msgid "Keep any optional movement easy and short\" \"可选活动请保持轻松且时间短"
@@ -5902,7 +5902,7 @@ msgstr "上次同步失败：{0}"
 #. placeholder {0}: new Date(status.last_sync).toLocaleString()
 #: src/pages/Settings.tsx:1021
 msgid "Last synced {0}"
-msgstr "上次同步 {0}"
+msgstr "上次同步：{0}"
 
 #: src/pages/Status.tsx:144
 msgid "Last updated"
@@ -6034,7 +6034,7 @@ msgstr "连接支持的平台，同步训练数据"
 
 #: src/pages/Setup.tsx:615
 msgid "Link at least one data source to start"
-msgstr "至少关联一个数据源以开始"
+msgstr "连接至少一个数据来源，即可开始"
 
 #: src/components/SetupChecklist.tsx:48
 #~ msgid "Link Garmin, Strava, Stryd, or Oura to pull your training data"
@@ -6266,7 +6266,7 @@ msgstr "大范围服务中断"
 
 #: src/pages/Today.tsx:308
 msgid "Make today a full recovery day and reassess the hard session tomorrow"
-msgstr "今天作为恢复日，明天再评估高强度训练"
+msgstr "今天全天以恢复为主，明天再评估高强度训练"
 
 #: src/pages/Today.tsx:269
 #~ msgid "Make today a full recovery day and reassess the hard session tomorrow\" \"今天安排为完整恢复日，明天再评估高强度训练"
@@ -6477,7 +6477,7 @@ msgstr "MFA"
 #: src/pages/admin/AdminOps.tsx:403
 #: src/pages/admin/AdminOps.tsx:429
 msgid "MFA required"
-msgstr "需 MFA"
+msgstr "需要 MFA"
 
 #: src/components/PersonalContextPanel.tsx:1327
 msgid "Microsoft Azure AI"
@@ -6667,7 +6667,7 @@ msgstr "更多曲线"
 
 #: src/pages/Today.tsx:269
 msgid "More historical HRV observations are needed before Praxys can form a personal recovery band. Follow the plan without an HRV-based adjustment."
-msgstr "需要更多历史 HRV 观测值才能建立个人恢复区间。请按计划训练，暂不进行基于 HRV 的调整。"
+msgstr "Praxys 需要更多历史 HRV 数据才能建立个人恢复区间。按计划训练，暂不根据 HRV 调整。"
 
 #: src/components/RecoveryPanel.tsx:115
 msgid "More historical HRV observations are needed before Praxys can form a personal recovery band. Keep syncing your device."
@@ -7172,7 +7172,7 @@ msgstr "暂无计划个性化信息"
 
 #: src/pages/admin/AdminFeedback.tsx:600
 msgid "No prompt"
-msgstr "未使用提示词"
+msgstr "无提示词"
 
 #: src/components/trail-course-review/copy.tsx:384
 msgid "No proposal can be trusted from this result."
@@ -7368,7 +7368,7 @@ msgstr "{target} 上没有此训练。"
 
 #: src/pages/Today.tsx:257
 msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session."
-msgstr "今天没有安排训练，且 HRV 低于你的个人警戒区间。今天以恢复为主，不要额外加高强度训练。"
+msgstr "今天没有安排训练，HRV 低于个人警戒区间。以恢复为主，不要额外增加高强度训练。"
 
 #: src/pages/Today.tsx:222
 #~ msgid "No workout is scheduled, and HRV is below your personal caution band. Keep the day restorative rather than adding a hard session.\" \"今天没有安排训练，且 HRV 低于您的个人警戒区间。请以恢复为主，不要额外增加高强度训练。"
@@ -7376,7 +7376,7 @@ msgstr "今天没有安排训练，且 HRV 低于你的个人警戒区间。今�
 
 #: src/pages/Today.tsx:259
 msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today."
-msgstr "今天没有安排训练，且负荷平衡偏低（TSB {tsb}）。今天不要额外加强度。"
+msgstr "今天没有安排训练，模型估算的负荷平衡偏低（TSB {tsb}）。不要额外增加训练强度。"
 
 #: src/pages/Today.tsx:224
 #~ msgid "No workout is scheduled, and modeled load balance is low (TSB {tsb}). Avoid adding intensity today.\" \"今天没有安排训练，且模型估算的负荷平衡偏低（TSB {tsb}）。今天不要额外增加强度。"
@@ -8424,7 +8424,7 @@ msgstr "正平衡"
 
 #: src/components/ActivityDFA.tsx:153
 msgid "Possible irregular or missed beats."
-msgstr "可能存在异常或遗漏搏动。"
+msgstr "可能存在心搏不规则或漏搏。"
 
 #: src/components/ActivityDFA.tsx:27
 msgid "Post-run analysis from ECG chest-strap beat intervals."
@@ -8916,7 +8916,7 @@ msgstr "已获授权的历史手动分析保留原来的来源和方法。"
 #. placeholder {0}: CAPABILITY_LABELS[cat] ? i18n._(CAPABILITY_LABELS[cat]) : cat
 #: src/pages/Settings.tsx:1013
 msgid "Primary for {0}"
-msgstr "作为 {0} 的主要来源"
+msgstr "{0}的主要来源"
 
 #: src/pages/ActivityDetail.tsx:192
 msgid "Primary recorded metric"
@@ -9929,7 +9929,7 @@ msgstr "请先刷新计划，再编辑这项训练。"
 
 #: src/pages/admin/AdminOps.tsx:469
 msgid "Refresh the provider calendar first, then replay only if the prior write is confirmed absent."
-msgstr "先刷新数据来源日历；仅在确认上次写入不存在后重试。"
+msgstr "先刷新数据来源的日历，确认上次写入的记录不存在后，才能重试。"
 
 #: src/pages/admin/AdminOps.tsx:471
 msgid "Refresh the provider calendar, re-check ownership, and allow one fenced retry for this item."
@@ -10237,7 +10237,7 @@ msgstr "休息"
 
 #: src/pages/Today.tsx:263
 msgid "Rest day scheduled. Follow the plan and prioritize recovery."
-msgstr "已安排休息日。按计划休息并优先恢复。"
+msgstr "今天是计划休息日。按计划休息，以恢复为主。"
 
 #: src/pages/Today.tsx:228
 #~ msgid "Rest day scheduled. Follow the plan and prioritize recovery.\" \"今天安排了休息日。请遵循计划并优先恢复。"
@@ -10257,7 +10257,7 @@ msgstr "休息、散步或做些轻柔的活动度练习"
 
 #: src/pages/Today.tsx:287
 msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic."
-msgstr "静息心率高于你的基准。这可能是提醒信号，但不能作为诊断依据。"
+msgstr "静息心率高于个人基准。这可能是警戒信号，但不能作为诊断依据。"
 
 #: src/pages/Today.tsx:248
 #~ msgid "Resting heart rate is elevated above your baseline. This can be a caution signal, but it is not diagnostic.\" \"静息心率高于您的基准。这可以作为警戒提示，但并非诊断结论。"
@@ -11431,7 +11431,7 @@ msgstr "睡眠评分偏低（{sleep}）。考虑降低今天的训练强度。"
 
 #: src/components/charts/SleepPerfChart.tsx:34
 msgid "Sleep Score vs {metricLabel}"
-msgstr "睡眠得分与{metricLabel}"
+msgstr "睡眠评分与{metricLabel}对比"
 
 #: src/pages/Setup.tsx:203
 msgid "Sleep score, HRV, readiness"
@@ -11451,7 +11451,7 @@ msgstr "轻微负平衡"
 
 #: src/pages/Today.tsx:445
 msgid "slightly positive"
-msgstr "轻微正平衡"
+msgstr "略高于零"
 
 #: src/pages/Today.tsx:385
 #~ msgid "slightly positive\" \"轻度正平衡"
@@ -12472,7 +12472,7 @@ msgstr "最新 HRV 读数已过时。按计划训练，不做基于 HRV 的恢�
 
 #: src/components/RecoveryPanel.tsx:117
 msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it."
-msgstr "最新 HRV 读数过旧，不能用于当日恢复分类。请同步设备以刷新数据。"
+msgstr "最新的 HRV 数据已过时，无法据此判断当天的恢复状态。同步设备以更新数据。"
 
 #: src/components/RecoveryPanel.tsx:106
 #~ msgid "The latest HRV reading is too old for a same-day recovery classification. Sync your device to refresh it.\" \"最近一次 HRV 读数过旧，无法用于当日恢复分类。请同步设备以刷新数据。"
